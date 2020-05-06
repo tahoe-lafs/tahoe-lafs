@@ -23,6 +23,7 @@ from allmydata.util import fileutil, pollmixin
 from allmydata.util.encodingutil import unicode_to_argv, unicode_to_output, \
     get_filesystem_encoding
 from allmydata.test import common_util
+from allmydata.version_checks import normalized_version
 import allmydata
 from allmydata import __appname__
 from .common_util import parse_cli, run_cli
@@ -55,7 +56,9 @@ def get_root_from_file(src):
 srcfile = allmydata.__file__
 rootdir = get_root_from_file(srcfile)
 
-class RunBinTahoeMixin:
+
+class RunBinTahoeMixin(object):
+
     @inlineCallbacks
     def find_import_location(self):
         res = yield self.run_bintahoe(["--version-and-path"])
@@ -110,8 +113,6 @@ class BinTahoe(common_util.SignalMixin, unittest.TestCase, RunBinTahoeMixin):
     def test_path(self):
         d = self.run_bintahoe(["--version-and-path"])
         def _cb(res):
-            from allmydata import normalized_version
-
             out, err, rc_or_sig = res
             self.failUnlessEqual(rc_or_sig, 0, str(res))
 
@@ -166,21 +167,6 @@ class BinTahoe(common_util.SignalMixin, unittest.TestCase, RunBinTahoeMixin):
             out, err, rc_or_sig = res
             self.failUnlessEqual(rc_or_sig, 0, str(res))
             self.failUnless(out.startswith(allmydata.__appname__+':'), str(res))
-        d.addCallback(_cb)
-        return d
-
-    def test_version_no_noise(self):
-        d = self.run_bintahoe(["--version"])
-        def _cb(res):
-            out, err, rc_or_sig = res
-            self.failUnlessEqual(rc_or_sig, 0, str(res))
-            self.failUnless(out.startswith(allmydata.__appname__+':'), str(res))
-            self.failIfIn("DeprecationWarning", out, str(res))
-            errlines = err.split("\n")
-            self.failIf([True for line in errlines if (line != "" and "UserWarning: Unbuilt egg for setuptools" not in line
-                                                                  and "from pkg_resources import load_entry_point" not in line)], str(res))
-            if err != "":
-                raise unittest.SkipTest("This test is known not to pass on Ubuntu Lucid; see #1235.")
         d.addCallback(_cb)
         return d
 

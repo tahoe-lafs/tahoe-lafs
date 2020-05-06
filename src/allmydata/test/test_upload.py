@@ -22,6 +22,10 @@ from allmydata.storage_client import StorageFarmBroker
 from allmydata.storage.server import storage_index_to_dir
 from allmydata.client import _Client
 
+from .common import (
+    EMPTY_CLIENT_CONFIG,
+)
+
 MiB = 1024*1024
 
 def extract_uri(results):
@@ -86,7 +90,7 @@ class Uploadable(unittest.TestCase):
 class ServerError(Exception):
     pass
 
-class SetDEPMixin:
+class SetDEPMixin(object):
     def set_encoding_parameters(self, k, happy, n, max_segsize=1*MiB):
         p = {"k": k,
              "happy": happy,
@@ -95,7 +99,7 @@ class SetDEPMixin:
              }
         self.node.encoding_params = p
 
-class FakeStorageServer:
+class FakeStorageServer(object):
     def __init__(self, mode, reactor=None):
         self.mode = mode
         self.allocated = []
@@ -162,7 +166,7 @@ class FakeStorageServer:
 
 
 
-class FakeBucketWriter:
+class FakeBucketWriter(object):
     # a diagnostic version of storageserver.BucketWriter
     def __init__(self, size):
         self.data = StringIO()
@@ -217,7 +221,11 @@ class FakeClient(object):
             ("%20d" % fakeid, FakeStorageServer(mode[fakeid], reactor=reactor))
             for fakeid in range(self.num_servers)
         ]
-        self.storage_broker = StorageFarmBroker(permute_peers=True, tub_maker=None)
+        self.storage_broker = StorageFarmBroker(
+            permute_peers=True,
+            tub_maker=None,
+            node_config=EMPTY_CLIENT_CONFIG,
+        )
         for (serverid, rref) in servers:
             ann = {"anonymous-storage-FURL": "pb://%s@nowhere/fake" % base32.b2a(serverid),
                    "permutation-seed-base32": base32.b2a(serverid) }
@@ -856,7 +864,7 @@ def is_happy_enough(servertoshnums, h, k):
                 return False
     return True
 
-class FakeServerTracker:
+class FakeServerTracker(object):
     def __init__(self, serverid, buckets):
         self._serverid = serverid
         self.buckets = buckets

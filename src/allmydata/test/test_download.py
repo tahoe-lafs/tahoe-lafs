@@ -601,8 +601,8 @@ class DownloadTest(_Base, unittest.TestCase):
         # that they're old and can't handle reads that overrun the length of
         # the share. This exercises a different code path.
         for s in self.c0.storage_broker.get_connected_servers():
-            rref = s.get_rref()
-            v1 = rref.version["http://allmydata.org/tahoe/protocols/storage/v1"]
+            v = s.get_version()
+            v1 = v["http://allmydata.org/tahoe/protocols/storage/v1"]
             v1["tolerates-immutable-read-overrun"] = False
 
         n = self.c0.create_node_from_uri(immutable_uri)
@@ -1178,8 +1178,8 @@ class DownloadV2(_Base, unittest.TestCase):
         # that they're old and can't handle reads that overrun the length of
         # the share. This exercises a different code path.
         for s in self.c0.storage_broker.get_connected_servers():
-            rref = s.get_rref()
-            v1 = rref.version["http://allmydata.org/tahoe/protocols/storage/v1"]
+            v = s.get_version()
+            v1 = v["http://allmydata.org/tahoe/protocols/storage/v1"]
             v1["tolerates-immutable-read-overrun"] = False
 
         # upload a file
@@ -1198,8 +1198,8 @@ class DownloadV2(_Base, unittest.TestCase):
         self.c0 = self.g.clients[0]
 
         for s in self.c0.storage_broker.get_connected_servers():
-            rref = s.get_rref()
-            v1 = rref.version["http://allmydata.org/tahoe/protocols/storage/v1"]
+            v = s.get_version()
+            v1 = v["http://allmydata.org/tahoe/protocols/storage/v1"]
             v1["tolerates-immutable-read-overrun"] = False
 
         # upload a file
@@ -1287,11 +1287,12 @@ def make_servers(clientids):
         servers[clientid] = make_server(clientid)
     return servers
 
-class MyShare:
+class MyShare(object):
     def __init__(self, shnum, server, rtt):
         self._shnum = shnum
         self._server = server
         self._dyhb_rtt = rtt
+
     def __repr__(self):
         return "sh%d-on-%s" % (self._shnum, self._server.get_name())
 
@@ -1302,20 +1303,25 @@ class MySegmentFetcher(SegmentFetcher):
     def _start_share(self, share, shnum):
         self._test_start_shares.append(share)
 
-class FakeNode:
+class FakeNode(object):
     def __init__(self):
         self.want_more = 0
         self.failed = None
         self.processed = None
         self._si_prefix = "si_prefix"
+
     def want_more_shares(self):
         self.want_more += 1
+
     def fetch_failed(self, fetcher, f):
         self.failed = f
+
     def process_blocks(self, segnum, blocks):
         self.processed = (segnum, blocks)
+
     def get_num_segments(self):
         return 1, True
+
 
 class Selection(unittest.TestCase):
     def test_no_shares(self):

@@ -10,7 +10,12 @@ from nevow import appserver, inevow
 from allmydata.util import log, fileutil
 
 from allmydata.web import introweb, root
-from allmydata.web.common import IOpHandleTable, MyExceptionHandler
+from allmydata.web.common import MyExceptionHandler
+from allmydata.web.operations import OphandleTable
+
+from .web.storage_plugins import (
+    StoragePlugins,
+)
 
 # we must override twisted.web.http.Request.requestReceived with a version
 # that doesn't use cgi.parse_multipart() . Since we actually use Nevow, we
@@ -20,7 +25,7 @@ from allmydata.web.common import IOpHandleTable, MyExceptionHandler
 # surgery may induce a dependency upon a particular version of twisted.web
 
 parse_qs = http.parse_qs
-class MyRequest(appserver.NevowRequest):
+class MyRequest(appserver.NevowRequest, object):
     fields = None
     _tahoe_request_had_error = None
 
@@ -43,11 +48,6 @@ class MyRequest(appserver.NevowRequest):
         else:
             self.path, argstring = x
             self.args = parse_qs(argstring, 1)
-
-        # cache the client and server information, we'll need this later to be
-        # serialized and sent with the request so CGIs will work remotely
-        self.client = self.channel.transport.getPeer()
-        self.host = self.channel.transport.getHost()
 
         # Adding security headers. These will be sent for *all* HTTP requests.
         # See https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Frame-Options
@@ -164,9 +164,14 @@ class WebishServer(service.MultiService):
 
         self.root = root.Root(client, clock, now_fn)
         self.buildServer(webport, nodeurl_path, staticdir)
-        if self.root.child_operations:
-            self.site.remember(self.root.child_operations, IOpHandleTable)
-            self.root.child_operations.setServiceParent(self)
+
+        # If set, clock is a twisted.internet.task.Clock that the tests
+        # use to test ophandle expiration.
+        self._operations = OphandleTable(clock)
+        self._operations.setServiceParent(self)
+        self.root.putChild("operations", self._operations)
+
+        self.root.putChild(b"storage-plugins", StoragePlugins(client))
 
     def buildServer(self, webport, nodeurl_path, staticdir):
         self.webport = webport
@@ -236,6 +241,12 @@ class WebishServer(service.MultiService):
         else:
             # who knows, probably some weirdo future version of Twisted
             self._started.errback(AssertionError("couldn't find out the scheme or port for the web-API server"))
+
+    def get_operations(self):
+        """
+        :return: a reference to our "active operations" tracker
+        """
+        return self._operations
 
 
 class IntroducerWebishServer(WebishServer):

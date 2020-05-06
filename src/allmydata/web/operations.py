@@ -1,6 +1,5 @@
 
 import time
-from zope.interface import implementer
 from nevow import rend, url, tags as T
 from nevow.inevow import IRequest
 from twisted.python.failure import Failure
@@ -9,7 +8,7 @@ from twisted.web.http import NOT_FOUND
 from twisted.web.html import escape
 from twisted.application import service
 
-from allmydata.web.common import IOpHandleTable, WebError, \
+from allmydata.web.common import WebError, \
      get_root, get_arg, boolean_of_arg
 
 MINUTE = 60
@@ -18,8 +17,8 @@ DAY = 24*HOUR
 
 (MONITOR, RENDERER, WHEN_ADDED) = range(3)
 
-@implementer(IOpHandleTable)
 class OphandleTable(rend.Page, service.Service):
+    name = "operations"
 
     UNCOLLECTED_HANDLE_LIFETIME = 4*DAY
     COLLECTED_HANDLE_LIFETIME = 1*DAY
@@ -120,7 +119,7 @@ class OphandleTable(rend.Page, service.Service):
         self.timers.pop(ophandle, None)
         self.handles.pop(ophandle, None)
 
-class ReloadMixin:
+class ReloadMixin(object):
     REFRESH_TIME = 1*MINUTE
 
     def render_refresh(self, ctx, data):

@@ -180,6 +180,7 @@ class CreateNodeOptions(CreateClientOptions):
     optFlags = [
         ("no-storage", None, "Do not offer storage service to other nodes."),
         ("storage-dir", None, "Path where the storage will be placed."),
+        ("helper", None, "Enable helper"),
     ] + TOR_FLAGS + I2P_FLAGS
 
     synopsis = "[options] [NODEDIR]"
@@ -334,7 +335,10 @@ def write_client_config(c, config):
 
     c.write("[helper]\n")
     c.write("# Shall this node run a helper service that clients can use?\n")
-    c.write("enabled = false\n")
+    if config.get("helper"):
+        c.write("enabled = true\n")
+    else:
+        c.write("enabled = false\n")
     c.write("\n")
 
 

@@ -16,7 +16,3 @@ def test_create_introducer(introducer):
 
 def test_create_storage(storage_nodes):
     print("Created {} storage nodes".format(len(storage_nodes)))
-
-
-def test_create_alice_bob_magicfolder(magic_folder):
-    print("Alice and Bob have paired magic-folders")

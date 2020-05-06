@@ -6,7 +6,7 @@ from twisted.web.error import Error
 from nevow.testutil import FakeRequest
 from nevow import inevow, context
 
-class WebRenderingMixin:
+class WebRenderingMixin(object):
     # d=page.renderString() or s=page.renderSynchronously() will exercise
     # docFactory, render_*/data_* . It won't exercise want_json(), or my
     # renderHTTP() override which tests want_json(). To exercise args=, we

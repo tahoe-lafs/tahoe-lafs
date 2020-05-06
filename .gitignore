@@ -43,7 +43,6 @@ zope.interface-*.egg
 /.tox/
 /docs/_build/
 /coverage.xml
-/smoke_magicfolder/
 /.hypothesis/
 
 # This is the plaintext of the private environment needed for some CircleCI

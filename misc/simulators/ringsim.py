@@ -54,7 +54,7 @@ print("average file size:", abbreviate_space(avg_filesize))
 
 SERVER_CAPACITY = 10**12
 
-class Server:
+class Server(object):
     def __init__(self, nodeid, capacity):
         self.nodeid = nodeid
         self.used = 0
@@ -75,7 +75,7 @@ class Server:
         else:
             return "<%s %s>" % (self.__class__.__name__, self.nodeid)
 
-class Ring:
+class Ring(object):
     SHOW_MINMAX = False
     def __init__(self, numservers, seed, permute):
         self.servers = []

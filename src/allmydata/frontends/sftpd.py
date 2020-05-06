@@ -951,7 +951,7 @@ class GeneralSFTPFile(PrefixingLogMixin):
         return d
 
 
-class StoppableList:
+class StoppableList(object):
     def __init__(self, items):
         self.items = items
     def __iter__(self):
@@ -961,7 +961,7 @@ class StoppableList:
         pass
 
 
-class Reason:
+class Reason(object):
     def __init__(self, value):
         self.value = value
 

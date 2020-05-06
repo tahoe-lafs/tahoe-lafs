@@ -17,13 +17,14 @@ people are Release Maintainers:
   - [ ] all appveyor checks pass
   - [ ] all buildbot workers pass their checks
 
-* freeze master branch [0/]
+* freeze master branch [0/1]
   - [ ] announced the freeze of the master branch on IRC (i.e. non-release PRs won't be merged until after release)
 
 * sync documentation [0/7]
-  - [ ] NEWS.rst: summarize user-visible changes, aim for one page of text
+
+  - [ ] NEWS.rst: (run "tox -e news")
   - [ ] added final release name and date to top-most item in NEWS.rst
-  - [ ] updated relnotes.txt
+  - [ ] updated relnotes.txt (change next, last versions; summarize NEWS)
   - [ ] updated CREDITS
   - [ ] updated docs/known_issues.rst
   - [ ] docs/INSTALL.rst only points to current tahoe-lafs-X.Y.Z.tar.gz source code file

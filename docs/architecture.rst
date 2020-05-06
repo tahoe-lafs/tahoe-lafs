@@ -98,7 +98,7 @@ subset are needed to reconstruct the segment (3 out of 10, with the default
 settings).
 
 It sends one block from each segment to a given server. The set of blocks on
-a given server constitutes a "share". Therefore a subset f the shares (3 out
+a given server constitutes a "share". Therefore a subset of the shares (3 out
 of 10, by default) are needed to reconstruct the file.
 
 A hash of the encryption key is used to form the "storage index", which is

@@ -2,7 +2,7 @@
 from twisted.internet import defer
 from foolscap.api import eventually
 
-class ConcurrencyLimiter:
+class ConcurrencyLimiter(object):
     """I implement a basic concurrency limiter. Add work to it in the form of
     (callable, args, kwargs) tuples. No more than LIMIT callables will be
     outstanding at any one time.

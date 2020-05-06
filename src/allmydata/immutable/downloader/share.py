@@ -24,7 +24,7 @@ class DataUnavailable(Exception):
     pass
 
 
-class Share:
+class Share(object):
     """I represent a single instance of a single share (e.g. I reference the
     shnum2 for share SI=abcde on server xy12t, not the one on server ab45q).
     I am associated with a CommonShare that remembers data that is held in
@@ -825,7 +825,7 @@ class Share:
                 o.notify(state=DEAD, f=f)
 
 
-class CommonShare:
+class CommonShare(object):
     # TODO: defer creation of the hashtree until somebody uses us. There will
     # be a lot of unused shares, and we shouldn't spend the memory on a large
     # hashtree unless necessary.

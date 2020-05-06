@@ -2,10 +2,9 @@
 import time
 import json
 
-from twisted.web import http, server, resource
+from twisted.web import http, server, resource, template
 from twisted.python import log
 from twisted.python.failure import Failure
-from zope.interface import Interface
 from nevow import loaders, appserver
 from nevow.rend import Page
 from nevow.inevow import IRequest
@@ -38,9 +37,6 @@ def get_filenode_metadata(filenode):
     if size is not None:
         metadata['size'] = size
     return metadata
-
-class IOpHandleTable(Interface):
-    pass
 
 def getxmlfile(name):
     return loaders.xmlfile(resource_filename('allmydata.web', '%s' % name))
@@ -104,8 +100,7 @@ def parse_offset_arg(offset):
 
 def get_root(ctx_or_req):
     req = IRequest(ctx_or_req)
-    # the addSlash=True gives us one extra (empty) segment
-    depth = len(req.prepath) + len(req.postpath) - 1
+    depth = len(req.prepath) + len(req.postpath)
     link = "/".join([".."] * depth)
     return link
 
@@ -207,8 +202,7 @@ def plural(sequence_or_length):
         return ""
     return "s"
 
-def text_plain(text, ctx):
-    req = IRequest(ctx)
+def text_plain(text, req):
     req.setHeader("content-type", "text/plain")
     req.setHeader("content-length", b"%d" % len(text))
     return text
@@ -322,7 +316,7 @@ def humanize_failure(f):
         return (f.getTraceback(), http.REQUEST_ENTITY_TOO_LARGE)
     return (str(f), None)
 
-class MyExceptionHandler(appserver.DefaultExceptionHandler):
+class MyExceptionHandler(appserver.DefaultExceptionHandler, object):
     def simple(self, ctx, text, code=http.BAD_REQUEST):
         req = IRequest(ctx)
         req.setResponseCode(code)
@@ -371,7 +365,10 @@ class NeedOperationHandleError(WebError):
     pass
 
 
-class RenderMixin:
+# XXX should be phased out by the nevow -> twisted.web port (that is,
+# this whole class should have no users and can be deleted once the
+# port away from nevow is complete)
+class RenderMixin(object):
 
     def renderHTTP(self, ctx):
         request = IRequest(ctx)
@@ -460,8 +457,108 @@ class MultiFormatPage(Page):
             return lambda ctx: renderer(IRequest(ctx))
 
 
+class MultiFormatResource(resource.Resource, object):
+    """
+    ``MultiFormatResource`` is a ``resource.Resource`` that can be rendered in
+    a number of different formats.
 
-class TokenOnlyWebApi(resource.Resource):
+    Rendered format is controlled by a query argument (given by
+    ``self.formatArgument``).  Different resources may support different
+    formats but ``json`` is a pretty common one.  ``html`` is the default
+    format if nothing else is given as the ``formatDefault``.
+    """
+    formatArgument = "t"
+    formatDefault = None
+
+    def render(self, req):
+        """
+        Dispatch to a renderer for a particular format, as selected by a query
+        argument.
+
+        A renderer for the format given by the query argument matching
+        ``formatArgument`` will be selected and invoked.  render_HTML will be
+        used as a default if no format is selected (either by query arguments
+        or by ``formatDefault``).
+
+        :return: The result of the selected renderer.
+        """
+        t = get_arg(req, self.formatArgument, self.formatDefault)
+        renderer = self._get_renderer(t)
+        return renderer(req)
+
+    def _get_renderer(self, fmt):
+        """
+        Get the renderer for the indicated format.
+
+        :param str fmt: The format.  If a method with a prefix of ``render_``
+            and a suffix of this format (upper-cased) is found, it will be
+            used.
+
+        :return: A callable which takes a twisted.web Request and renders a
+            response.
+        """
+        renderer = None
+
+        if fmt is not None:
+            try:
+                renderer = getattr(self, "render_{}".format(fmt.upper()))
+            except AttributeError:
+                raise WebError(
+                    "Unknown {} value: {!r}".format(self.formatArgument, fmt),
+                )
+
+        if renderer is None:
+            renderer = self.render_HTML
+
+        return renderer
+
+
+class SlotsSequenceElement(template.Element):
+    """
+    ``SlotsSequenceElement` is a minimal port of nevow's sequence renderer for
+    twisted.web.template.
+
+    Tags passed in to be templated will have two renderers available: ``item``
+    and ``tag``.
+    """
+
+    def __init__(self, tag, seq):
+        self.loader = template.TagLoader(tag)
+        self.seq = seq
+
+    @template.renderer
+    def header(self, request, tag):
+        return tag
+
+    @template.renderer
+    def item(self, request, tag):
+        """
+        A template renderer for each sequence item.
+
+        ``tag`` will be cloned for each item in the sequence provided, and its
+        slots filled from the sequence item. Each item must be dict-like enough
+        for ``tag.fillSlots(**item)``. Each cloned tag will be siblings with no
+        separator beween them.
+        """
+        for item in self.seq:
+            yield tag.clone(deep=False).fillSlots(**item)
+
+    @template.renderer
+    def empty(self, request, tag):
+        """
+        A template renderer for empty sequences.
+
+        This renderer will either return ``tag`` unmodified if the provided
+        sequence has no items, or return the empty string if there are any
+        items.
+        """
+        if len(self.seq) > 0:
+            return u''
+        else:
+            return tag
+
+
+class TokenOnlyWebApi(resource.Resource, object):
     """
     I provide a rend.Page implementation that only accepts POST calls,
     and only if they have a 'token=' arg with the correct

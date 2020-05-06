@@ -31,7 +31,6 @@ hidden_imports = [
     'allmydata.introducer',
     'allmydata.stats',
     'cffi',
-    'characteristic',
     'Crypto',
     'packaging.specifiers',
     'six.moves.html_parser',

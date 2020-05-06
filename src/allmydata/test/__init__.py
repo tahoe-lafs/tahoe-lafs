@@ -1,6 +1,27 @@
+# -*- coding: utf-8 -*-
+# Tahoe-LAFS -- secure, distributed storage grid
+#
+# Copyright © 2020 The Tahoe-LAFS Software Foundation
+#
+# This file is part of Tahoe-LAFS.
+#
+# See the docs/about.rst file for licensing information.
+
+"""
+Some setup that should apply across the entire test suite.
+
+Rather than defining interesting APIs for other code to use, this just causes
+some side-effects which make things better when the test suite runs.
+"""
+
+from traceback import extract_stack, format_list
+from foolscap.pb import Listener
+from twisted.python.log import err
+from twisted.application import service
+
 
 from foolscap.logging.incident import IncidentQualifier
-class NonQualifier(IncidentQualifier):
+class NonQualifier(IncidentQualifier, object):
     def check_event(self, ev):
         return False
 
@@ -52,6 +73,39 @@ def _configure_hypothesis():
     settings.load_profile(profile_name)
 _configure_hypothesis()
 
+def logging_for_pb_listener():
+    """
+    Make Foolscap listen error reports include Listener creation stack
+    information.
+    """
+    original__init__ = Listener.__init__
+    def _listener__init__(self, *a, **kw):
+        original__init__(self, *a, **kw)
+        # Capture the stack here, where Listener is instantiated.  This is
+        # likely to explain what code is responsible for this Listener, useful
+        # information to have when the Listener eventually fails to listen.
+        self._creation_stack = extract_stack()
+
+    # Override the Foolscap implementation with one that has an errback
+    def _listener_startService(self):
+        service.Service.startService(self)
+        d = self._ep.listen(self)
+        def _listening(lp):
+            self._lp = lp
+        d.addCallbacks(
+            _listening,
+            # Make sure that this listen failure is reported promptly and with
+            # the creation stack.
+            err,
+            errbackArgs=(
+                "Listener created at {}".format(
+                    "".join(format_list(self._creation_stack)),
+                ),
+            ),
+        )
+    Listener.__init__ = _listener__init__
+    Listener.startService = _listener_startService
+logging_for_pb_listener()
 
 import sys
 if sys.platform == "win32":

@@ -1,24 +1,42 @@
-import time, os, json
+import os
+import time
+import json
+import urllib
 
-from twisted.web import http
-from nevow import rend, url, tags as T
-from nevow.inevow import IRequest
-from nevow.static import File as nevow_File # TODO: merge with static.File?
-from nevow.util import resource_filename
+from hyperlink import DecodedURL, URL
+from pkg_resources import resource_filename
+from twisted.web import (
+    http,
+    resource,
+    static,
+)
+from twisted.web.util import redirectTo
+from twisted.python.filepath import FilePath
+from twisted.web.template import (
+    Element,
+    XMLFile,
+    renderer,
+    renderElement,
+    tags,
+)
 
 import allmydata # to display import path
-from allmydata import get_package_versions_string
+from allmydata.version_checks import get_package_versions_string
 from allmydata.util import log
 from allmydata.interfaces import IFileNode
-from allmydata.web import filenode, directory, unlinked, status, operations
-from allmydata.web import storage, magic_folder
+from allmydata.web import (
+    filenode,
+    directory,
+    unlinked,
+    status,
+)
+from allmydata.web import storage
 from allmydata.web.common import (
     abbreviate_size,
-    getxmlfile,
     WebError,
     get_arg,
-    MultiFormatPage,
-    RenderMixin,
+    MultiFormatResource,
+    SlotsSequenceElement,
     get_format,
     get_mutable_type,
     render_time_delta,
@@ -28,31 +46,53 @@ from allmydata.web.common import (
 from allmydata.web.private import (
     create_private_tree,
 )
+from allmydata import uri
 
-class URIHandler(RenderMixin, rend.Page):
-    # I live at /uri . There are several operations defined on /uri itself,
-    # mostly involved with creation of unlinked files and directories.
+class URIHandler(resource.Resource, object):
+    """
+    I live at /uri . There are several operations defined on /uri itself,
+    mostly involved with creation of unlinked files and directories.
+    """
 
     def __init__(self, client):
-        rend.Page.__init__(self, client)
+        super(URIHandler, self).__init__()
         self.client = client
 
-    def render_GET(self, ctx):
-        req = IRequest(ctx)
-        uri = get_arg(req, "uri", None)
-        if uri is None:
+    def render_GET(self, req):
+        """
+        Historically, accessing this via "GET /uri?uri=<capabilitiy>"
+        was/is a feature -- which simply redirects to the more-common
+        "GET /uri/<capability>" with any other query args
+        preserved. New code should use "/uri/<cap>"
+        """
+        uri_arg = req.args.get(b"uri", [None])[0]
+        if uri_arg is None:
             raise WebError("GET /uri requires uri=")
-        there = url.URL.fromContext(ctx)
-        there = there.clear("uri")
-        # I thought about escaping the childcap that we attach to the URL
-        # here, but it seems that nevow does that for us.
-        there = there.child(uri)
-        return there
 
-    def render_PUT(self, ctx):
-        req = IRequest(ctx)
-        # either "PUT /uri" to create an unlinked file, or
-        # "PUT /uri?t=mkdir" to create an unlinked directory
+        # shennanigans like putting "%2F" or just "/" itself, or ../
+        # etc in the <cap> might be a vector for weirdness so we
+        # validate that this is a valid capability before proceeding.
+        cap = uri.from_string(uri_arg)
+        if isinstance(cap, uri.UnknownURI):
+            raise WebError("Invalid capability")
+
+        # so, using URL.from_text(req.uri) isn't going to work because
+        # it seems Nevow was creating absolute URLs including
+        # host/port whereas req.uri is absolute (but lacks host/port)
+        redir_uri = URL.from_text(req.prePathURL().decode('utf8'))
+        redir_uri = redir_uri.child(urllib.quote(uri_arg).decode('utf8'))
+        # add back all the query args that AREN'T "?uri="
+        for k, values in req.args.items():
+            if k != b"uri":
+                for v in values:
+                    redir_uri = redir_uri.add(k.decode('utf8'), v.decode('utf8'))
+        return redirectTo(redir_uri.to_text().encode('utf8'), req)
+
+    def render_PUT(self, req):
+        """
+        either "PUT /uri" to create an unlinked file, or
+        "PUT /uri?t=mkdir" to create an unlinked directory
+        """
         t = get_arg(req, "t", "").strip()
         if t == "":
             file_format = get_format(req, "CHK")
@@ -63,15 +103,18 @@ class URIHandler(RenderMixin, rend.Page):
                 return unlinked.PUTUnlinkedCHK(req, self.client)
         if t == "mkdir":
             return unlinked.PUTUnlinkedCreateDirectory(req, self.client)
-        errmsg = ("/uri accepts only PUT, PUT?t=mkdir, POST?t=upload, "
-                  "and POST?t=mkdir")
+        errmsg = (
+            "/uri accepts only PUT, PUT?t=mkdir, POST?t=upload, "
+            "and POST?t=mkdir"
+        )
         raise WebError(errmsg, http.BAD_REQUEST)
 
-    def render_POST(self, ctx):
-        # "POST /uri?t=upload&file=newfile" to upload an
-        # unlinked file or "POST /uri?t=mkdir" to create a
-        # new directory
-        req = IRequest(ctx)
+    def render_POST(self, req):
+        """
+        "POST /uri?t=upload&file=newfile" to upload an
+        unlinked file or "POST /uri?t=mkdir" to create a
+        new directory
+        """
         t = get_arg(req, "t", "").strip()
         if t in ("", "upload"):
             file_format = get_format(req)
@@ -92,25 +135,39 @@ class URIHandler(RenderMixin, rend.Page):
                   "and POST?t=mkdir")
         raise WebError(errmsg, http.BAD_REQUEST)
 
-    def childFactory(self, ctx, name):
-        # 'name' is expected to be a URI
+    def getChild(self, name, req):
+        """
+        Most requests look like /uri/<cap> so this fetches the capability
+        and creates and appropriate handler (depending on the kind of
+        capability it was passed).
+        """
+        # this is in case a URI like "/uri/?cap=<valid capability>" is
+        # passed -- we re-direct to the non-trailing-slash version so
+        # that there is just one valid URI for "uri" resource.
+        if not name:
+            u = DecodedURL.from_text(req.uri.decode('utf8'))
+            u = u.replace(
+                path=(s for s in u.path if s),  # remove empty segments
+            )
+            return redirectTo(u.to_uri().to_text().encode('utf8'), req)
         try:
             node = self.client.create_node_from_uri(name)
             return directory.make_handler_for(node, self.client)
         except (TypeError, AssertionError):
-            raise WebError("'%s' is not a valid file- or directory- cap"
-                           % name)
+            raise WebError(
+                "'{}' is not a valid file- or directory- cap".format(name)
+            )
 
-class FileHandler(rend.Page):
+
+class FileHandler(resource.Resource, object):
     # I handle /file/$FILECAP[/IGNORED] , which provides a URL from which a
     # file can be downloaded correctly by tools like "wget".
 
     def __init__(self, client):
-        rend.Page.__init__(self, client)
+        super(FileHandler, self).__init__()
         self.client = client
 
-    def childFactory(self, ctx, name):
-        req = IRequest(ctx)
+    def getChild(self, name, req):
         if req.method not in ("GET", "HEAD"):
             raise WebError("/file can only be used with GET or HEAD")
         # 'name' must be a file URI
@@ -124,92 +181,86 @@ class FileHandler(rend.Page):
             raise WebError("'%s' is not a file-cap" % name)
         return filenode.FileNodeDownloadHandler(self.client, node)
 
-    def renderHTTP(self, ctx):
+    def render_GET(self, ctx):
         raise WebError("/file must be followed by a file-cap and a name",
                        http.NOT_FOUND)
 
-class IncidentReporter(RenderMixin, rend.Page):
-    def render_POST(self, ctx):
-        req = IRequest(ctx)
+class IncidentReporter(MultiFormatResource):
+    """Handler for /report_incident POST request"""
+
+    def render(self, req):
+        if req.method != "POST":
+            raise WebError("/report_incident can only be used with POST")
+
         log.msg(format="User reports incident through web page: %(details)s",
                 details=get_arg(req, "details", ""),
                 level=log.WEIRD, umid="LkD9Pw")
-        req.setHeader("content-type", "text/plain")
-        return "An incident report has been saved to logs/incidents/ in the node directory."
+        req.setHeader("content-type", "text/plain; charset=UTF-8")
+        return b"An incident report has been saved to logs/incidents/ in the node directory."
 
 SPACE = u"\u00A0"*2
 
 
-class Root(MultiFormatPage):
+class Root(MultiFormatResource):
 
     addSlash = True
-    docFactory = getxmlfile("welcome.xhtml")
-
-    _connectedalts = {
-        "not-configured": "Not Configured",
-        "yes": "Connected",
-        "no": "Disconnected",
-        }
 
     def __init__(self, client, clock=None, now_fn=None):
-        rend.Page.__init__(self, client)
-        self.client = client
-        # If set, clock is a twisted.internet.task.Clock that the tests
-        # use to test ophandle expiration.
-        self.child_operations = operations.OphandleTable(clock)
-        self.now_fn = now_fn
-        try:
-            s = client.getServiceNamed("storage")
-        except KeyError:
-            s = None
-        self.child_storage = storage.StorageStatus(s, self.client.nickname)
+        """
+        Render root page ("/") of the URI.
 
-        self.child_uri = URIHandler(client)
-        self.child_cap = URIHandler(client)
+        :client allmydata.client._Client: a stats provider.
+        :clock: unused here.
+        :now_fn: a function that returns current time.
 
-        # handler for "/magic_folder" URIs
-        self.child_magic_folder = magic_folder.MagicFolderWebApi(client)
+        """
+        super(Root, self).__init__()
+        self._client = client
+        self._now_fn = now_fn
+
+        self.putChild("uri", URIHandler(client))
+        self.putChild("cap", URIHandler(client))
 
         # Handler for everything beneath "/private", an area of the resource
         # hierarchy which is only accessible with the private per-node API
         # auth token.
-        self.child_private = create_private_tree(client.get_auth_token)
+        self.putChild("private", create_private_tree(client.get_auth_token))
 
-        self.child_file = FileHandler(client)
-        self.child_named = FileHandler(client)
-        self.child_status = status.Status(client.get_history())
-        self.child_statistics = status.Statistics(client.stats_provider)
+        self.putChild("file", FileHandler(client))
+        self.putChild("named", FileHandler(client))
+        self.putChild("status", status.Status(client.get_history()))
+        self.putChild("statistics", status.Statistics(client.stats_provider))
         static_dir = resource_filename("allmydata.web", "static")
         for filen in os.listdir(static_dir):
-            self.putChild(filen, nevow_File(os.path.join(static_dir, filen)))
+            self.putChild(filen, static.File(os.path.join(static_dir, filen)))
 
-    def child_helper_status(self, ctx):
-        # the Helper isn't attached until after the Tub starts, so this child
-        # needs to created on each request
-        return status.HelperStatus(self.client.helper)
+        self.putChild("report_incident", IncidentReporter())
 
-    child_report_incident = IncidentReporter()
-    #child_server # let's reserve this for storage-server-over-HTTP
+    def getChild(self, path, request):
+        if not path:
+            # Render "/" path.
+            return self
+        if path == "helper_status":
+            # the Helper isn't attached until after the Tub starts, so this child
+            # needs to created on each request
+            return status.HelperStatus(self._client.helper)
+        if path == "storage":
+            # Storage isn't initialized until after the web hierarchy is
+            # constructed so this child needs to be created later than
+            # `__init__`.
+            try:
+                storage_server = self._client.getServiceNamed("storage")
+            except KeyError:
+                storage_server = None
+            return storage.StorageStatus(storage_server, self._client.nickname)
 
-    # FIXME: This code is duplicated in root.py and introweb.py.
-    def data_rendered_at(self, ctx, data):
-        return render_time(time.time())
-    def data_version(self, ctx, data):
-        return get_package_versions_string()
-    def data_import_path(self, ctx, data):
-        return str(allmydata)
-    def render_my_nodeid(self, ctx, data):
-        tubid_s = "TubID: "+self.client.get_long_tubid()
-        return T.td(title=tubid_s)[self.client.get_long_nodeid()]
-
-    def data_my_nickname(self, ctx, data):
-        return self.client.nickname
-
+    def render_HTML(self, req):
+        return renderElement(req, RootElement(self._client, self._now_fn))
 
     def render_JSON(self, req):
         req.setHeader("content-type", "application/json; charset=utf-8")
-        intro_summaries = [s.summary for s in self.client.introducer_connection_statuses()]
-        sb = self.client.get_storage_broker()
+        intro_summaries = [s.summary for s in self._client.introducer_connection_statuses()]
+        sb = self._client.get_storage_broker()
         servers = self._describe_known_servers(sb)
         result = {
             "introducers": {
@@ -244,35 +295,54 @@ class Root(MultiFormatPage):
 
         return description
 
+class RootElement(Element):
 
-    def data_magic_folders(self, ctx, data):
-        return self.client._magic_folders.keys()
+    loader = XMLFile(FilePath(__file__).sibling("welcome.xhtml"))
 
-    def render_magic_folder_row(self, ctx, data):
-        magic_folder = self.client._magic_folders[data]
-        (ok, messages) = magic_folder.get_public_status()
-        ctx.fillSlots("magic_folder_name", data)
-        if ok:
-            ctx.fillSlots("magic_folder_status", "yes")
-            ctx.fillSlots("magic_folder_status_alt", "working")
-        else:
-            ctx.fillSlots("magic_folder_status", "no")
-            ctx.fillSlots("magic_folder_status_alt", "not working")
+    def __init__(self, client, now_fn):
+        super(RootElement, self).__init__()
+        self._client = client
+        self._now_fn = now_fn
 
-        status = T.ul(class_="magic-folder-status")
-        for msg in messages:
-            status[T.li[str(msg)]]
-        return ctx.tag[status]
+    _connectedalts = {
+        "not-configured": "Not Configured",
+        "yes": "Connected",
+        "no": "Disconnected",
+        }
 
-    def render_magic_folder(self, ctx, data):
-        if not self.client._magic_folders:
-            return T.p()
-        return ctx.tag
+    @renderer
+    def my_nodeid(self, req, tag):
+        tubid_s = "TubID: "+self._client.get_long_tubid()
+        return tags.td(self._client.get_long_nodeid(), title=tubid_s)
 
-    def render_services(self, ctx, data):
-        ul = T.ul()
+    @renderer
+    def my_nickname(self, req, tag):
+        return tag(self._client.nickname)
+
+    def _connected_introducers(self):
+        return len([1 for cs in self._client.introducer_connection_statuses()
+                    if cs.connected])
+
+    @renderer
+    def connected_introducers(self, req, tag):
+        return tag(str(self._connected_introducers()))
+
+    @renderer
+    def connected_to_at_least_one_introducer(self, req, tag):
+        if self._connected_introducers():
+            return "yes"
+        return "no"
+
+    @renderer
+    def connected_to_at_least_one_introducer_alt(self, req, tag):
+        state = self.connected_to_at_least_one_introducer(req, tag)
+        return self._connectedalts.get(state)
+
+    @renderer
+    def services(self, req, tag):
+        ul = tags.ul()
         try:
-            ss = self.client.getServiceNamed("storage")
+            ss = self._client.getServiceNamed("storage")
             stats = ss.get_stats()
             if stats["storage_server.accepting_immutable_shares"]:
                 msg = "accepting new shares"
@@ -281,113 +351,60 @@ class Root(MultiFormatPage):
             available = stats.get("storage_server.disk_avail")
             if available is not None:
                 msg += ", %s available" % abbreviate_size(available)
-            ul[T.li[T.a(href="storage")["Storage Server"], ": ", msg]]
+            ul(tags.li(tags.a("Storage Server", href="storage"), ": ", msg))
         except KeyError:
-            ul[T.li["Not running storage server"]]
+            ul(tags.li("Not running storage server"))
 
-        if self.client.helper:
-            stats = self.client.helper.get_stats()
+        if self._client.helper:
+            stats = self._client.helper.get_stats()
             active_uploads = stats["chk_upload_helper.active_uploads"]
-            ul[T.li["Helper: %d active uploads" % (active_uploads,)]]
+            ul(tags.li("Helper: %d active uploads" % (active_uploads,)))
         else:
-            ul[T.li["Not running helper"]]
+            ul(tags.li("Not running helper"))
 
-        return ctx.tag[ul]
+        return tag(ul)
 
-    def data_introducer_description(self, ctx, data):
-        connected_count = self.data_connected_introducers( ctx, data )
+    @renderer
+    def introducer_description(self, req, tag):
+        connected_count = self._connected_introducers()
         if connected_count == 0:
-            return "No introducers connected"
+            return tag("No introducers connected")
         elif connected_count == 1:
-            return "1 introducer connected"
+            return tag("1 introducer connected")
         else:
-            return "%s introducers connected" % (connected_count,)
+            return tag("%s introducers connected" % (connected_count,))
 
-    def data_total_introducers(self, ctx, data):
-        return len(self.client.introducer_connection_statuses())
-
-    def data_connected_introducers(self, ctx, data):
-        return len([1 for cs in self.client.introducer_connection_statuses()
-                    if cs.connected])
-
-    def data_connected_to_at_least_one_introducer(self, ctx, data):
-        if self.data_connected_introducers(ctx, data):
-            return "yes"
-        return "no"
-
-    def data_connected_to_at_least_one_introducer_alt(self, ctx, data):
-        return self._connectedalts[self.data_connected_to_at_least_one_introducer(ctx, data)]
+    @renderer
+    def total_introducers(self, req, tag):
+        return tag(str(len(self._get_introducers())))
 
     # In case we configure multiple introducers
-    def data_introducers(self, ctx, data):
-        return self.client.introducer_connection_statuses()
+    @renderer
+    def introducers(self, req, tag):
+        ix = self._get_introducers()
+        if not ix:
+            return tag("No introducers")
+        return tag
 
-    def _render_connection_status(self, ctx, cs):
-        connected = "yes" if cs.connected else "no"
-        ctx.fillSlots("service_connection_status", connected)
-        ctx.fillSlots("service_connection_status_alt",
-                      self._connectedalts[connected])
+    def _get_introducers(self):
+        return self._client.introducer_connection_statuses()
 
-        since = cs.last_connection_time
-        ctx.fillSlots("service_connection_status_rel_time",
-                      render_time_delta(since, self.now_fn())
-                      if since is not None
-                      else "N/A")
-        ctx.fillSlots("service_connection_status_abs_time",
-                      render_time_attr(since)
-                      if since is not None
-                      else "N/A")
-
-        last_received_data_time = cs.last_received_time
-        ctx.fillSlots("last_received_data_abs_time",
-                      render_time_attr(last_received_data_time)
-                      if last_received_data_time is not None
-                      else "N/A")
-        ctx.fillSlots("last_received_data_rel_time",
-                      render_time_delta(last_received_data_time, self.now_fn())
-                      if last_received_data_time is not None
-                      else "N/A")
-
-        others = cs.non_connected_statuses
-        if cs.connected:
-            ctx.fillSlots("summary", cs.summary)
-            if others:
-                details = "\n".join(["* %s: %s\n" % (which, others[which])
-                                     for which in sorted(others)])
-                ctx.fillSlots("details", "Other hints:\n" + details)
-            else:
-                ctx.fillSlots("details", "(no other hints)")
-        else:
-            details = T.ul()
-            for which in sorted(others):
-                details[T.li["%s: %s" % (which, others[which])]]
-            ctx.fillSlots("summary", [cs.summary, details])
-            ctx.fillSlots("details", "")
-
-    def render_introducers_row(self, ctx, cs):
-        self._render_connection_status(ctx, cs)
-        return ctx.tag
-
-    def data_helper_furl_prefix(self, ctx, data):
+    @renderer
+    def helper_furl_prefix(self, req, tag):
         try:
-            uploader = self.client.getServiceNamed("uploader")
+            uploader = self._client.getServiceNamed("uploader")
         except KeyError:
-            return None
+            return tag("None")
         furl, connected = uploader.get_helper_info()
         if not furl:
-            return None
+            return tag("None")
         # trim off the secret swissnum
         (prefix, _, swissnum) = furl.rpartition("/")
-        return "%s/[censored]" % (prefix,)
+        return tag("%s/[censored]" % (prefix,))
 
-    def data_helper_description(self, ctx, data):
-        if self.data_connected_to_helper(ctx, data) == "no":
-            return "Helper not connected"
-        return "Helper"
-
-    def data_connected_to_helper(self, ctx, data):
+    def _connected_to_helper(self):
         try:
-            uploader = self.client.getServiceNamed("uploader")
+            uploader = self._client.getServiceNamed("uploader")
         except KeyError:
             return "no" # we don't even have an Uploader
         furl, connected = uploader.get_helper_info()
@@ -398,123 +415,147 @@ class Root(MultiFormatPage):
             return "yes"
         return "no"
 
-    def data_connected_to_helper_alt(self, ctx, data):
-        return self._connectedalts[self.data_connected_to_helper(ctx, data)]
+    @renderer
+    def helper_description(self, req, tag):
+        if self._connected_to_helper() == "no":
+            return tag("Helper not connected")
+        return tag("Helper")
 
-    def data_known_storage_servers(self, ctx, data):
-        sb = self.client.get_storage_broker()
-        return len(sb.get_all_serverids())
+    @renderer
+    def connected_to_helper(self, req, tag):
+        return tag(self._connected_to_helper())
 
-    def data_connected_storage_servers(self, ctx, data):
-        sb = self.client.get_storage_broker()
-        return len(sb.get_connected_servers())
+    @renderer
+    def connected_to_helper_alt(self, req, tag):
+        return tag(self._connectedalts.get(self._connected_to_helper()))
 
-    def data_services(self, ctx, data):
-        sb = self.client.get_storage_broker()
+    @renderer
+    def known_storage_servers(self, req, tag):
+        sb = self._client.get_storage_broker()
+        return tag(str(len(sb.get_all_serverids())))
+
+    @renderer
+    def connected_storage_servers(self, req, tag):
+        sb = self._client.get_storage_broker()
+        return tag(str(len(sb.get_connected_servers())))
+
+    @renderer
+    def services_table(self, req, tag):
+        rows = [ self._describe_server_and_connection(server)
+                 for server in self._services() ]
+        return SlotsSequenceElement(tag, rows)
+
+    @renderer
+    def introducers_table(self, req, tag):
+        rows = [ self._describe_connection_status(cs)
+                 for cs in self._get_introducers() ]
+        return SlotsSequenceElement(tag, rows)
+
+    def _services(self):
+        sb = self._client.get_storage_broker()
         return sorted(sb.get_known_servers(), key=lambda s: s.get_serverid())
 
-    def render_service_row(self, ctx, server):
-        cs = server.get_connection_status()
-        self._render_connection_status(ctx, cs)
+    @staticmethod
+    def _describe_server(server):
+        """Return a dict containing server stats."""
+        peerid = server.get_longname()
+        nickname =  server.get_nickname()
+        version = server.get_announcement().get("my-version", "")
 
-        ctx.fillSlots("peerid", server.get_longname())
-        ctx.fillSlots("nickname", server.get_nickname())
-
-        announcement = server.get_announcement()
-        version = announcement.get("my-version", "")
-        available_space = server.get_available_space()
-        if available_space is None:
-            available_space = "N/A"
+        space = server.get_available_space()
+        if space is not None:
+            available_space = abbreviate_size(space)
         else:
-            available_space = abbreviate_size(available_space)
-        ctx.fillSlots("version", version)
-        ctx.fillSlots("available_space", available_space)
+            available_space = "N/A"
 
-        return ctx.tag
+        return {
+            "peerid": peerid,
+            "nickname": nickname,
+            "version": version,
+            "available_space": available_space,
+        }
 
-    def render_download_form(self, ctx, data):
-        # this is a form where users can download files by URI
-        form = T.form(action="uri", method="get",
-                      enctype="multipart/form-data")[
-            T.fieldset[
-            T.legend(class_="freeform-form-label")["Download a file"],
-            T.div["Tahoe-URI to download:"+SPACE,
-                  T.input(type="text", name="uri")],
-            T.div["Filename to download as:"+SPACE,
-                  T.input(type="text", name="filename")],
-            T.input(type="submit", value="Download!"),
-            ]]
-        return T.div[form]
+    def _describe_server_and_connection(self, server):
+        """Return a dict containing both server and connection stats."""
+        srvstat = self._describe_server(server)
+        cs = server.get_connection_status()
+        constat = self._describe_connection_status(cs)
+        return dict(list(srvstat.items()) + list(constat.items()))
 
-    def render_view_form(self, ctx, data):
-        # this is a form where users can download files by URI, or jump to a
-        # named directory
-        form = T.form(action="uri", method="get",
-                      enctype="multipart/form-data")[
-            T.fieldset[
-            T.legend(class_="freeform-form-label")["View a file or directory"],
-            "Tahoe-URI to view:"+SPACE,
-            T.input(type="text", name="uri"), SPACE*2,
-            T.input(type="submit", value="View!"),
-            ]]
-        return T.div[form]
+    def _describe_connection_status(self, cs):
+        """Return a dict containing some connection stats."""
+        others = cs.non_connected_statuses
 
-    def render_upload_form(self, ctx, data):
-        # This is a form where users can upload unlinked files.
-        # Users can choose immutable, SDMF, or MDMF from a radio button.
+        if cs.connected:
+            summary = cs.summary
+            if others:
+                hints = "\n".join(["* %s: %s\n" % (which, others[which])
+                                for which in sorted(others)])
+                details = "Other hints:\n" + hints
+            else:
+                details = "(no other hints)"
+        else:
+            details = tags.ul()
+            for which in sorted(others):
+                details(tags.li("%s: %s" % (which, others[which])))
+            summary = [cs.summary, details]
 
-        upload_chk  = T.input(type='radio', name='format',
-                              value='chk', id='upload-chk',
-                              checked='checked')
-        upload_sdmf = T.input(type='radio', name='format',
-                              value='sdmf', id='upload-sdmf')
-        upload_mdmf = T.input(type='radio', name='format',
-                              value='mdmf', id='upload-mdmf')
+        connected = "yes" if cs.connected else "no"
+        connected_alt = self._connectedalts[connected]
 
-        form = T.form(action="uri", method="post",
-                      enctype="multipart/form-data")[
-            T.fieldset[
-            T.legend(class_="freeform-form-label")["Upload a file"],
-            T.div["Choose a file:"+SPACE,
-                  T.input(type="file", name="file", class_="freeform-input-file")],
-            T.input(type="hidden", name="t", value="upload"),
-            T.div[upload_chk,  T.label(for_="upload-chk") [" Immutable"],           SPACE,
-                  upload_sdmf, T.label(for_="upload-sdmf")[" SDMF"],                SPACE,
-                  upload_mdmf, T.label(for_="upload-mdmf")[" MDMF (experimental)"], SPACE*2,
-                  T.input(type="submit", value="Upload!")],
-            ]]
-        return T.div[form]
+        since = cs.last_connection_time
 
-    def render_mkdir_form(self, ctx, data):
-        # This is a form where users can create new directories.
-        # Users can choose SDMF or MDMF from a radio button.
+        if since is not None:
+            service_connection_status_rel_time = render_time_delta(since, self._now_fn())
+            service_connection_status_abs_time = render_time_attr(since)
+        else:
+            service_connection_status_rel_time = "N/A"
+            service_connection_status_abs_time = "N/A"
 
-        mkdir_sdmf = T.input(type='radio', name='format',
-                             value='sdmf', id='mkdir-sdmf',
-                             checked='checked')
-        mkdir_mdmf = T.input(type='radio', name='format',
-                             value='mdmf', id='mkdir-mdmf')
+        last_received_data_time = cs.last_received_time
 
-        form = T.form(action="uri", method="post",
-                      enctype="multipart/form-data")[
-            T.fieldset[
-            T.legend(class_="freeform-form-label")["Create a directory"],
-            mkdir_sdmf, T.label(for_='mkdir-sdmf')[" SDMF"],                SPACE,
-            mkdir_mdmf, T.label(for_='mkdir-mdmf')[" MDMF (experimental)"], SPACE*2,
-            T.input(type="hidden", name="t", value="mkdir"),
-            T.input(type="hidden", name="redirect_to_result", value="true"),
-            T.input(type="submit", value="Create a directory"),
-            ]]
-        return T.div[form]
+        if last_received_data_time is not None:
+            last_received_data_abs_time = render_time_attr(last_received_data_time)
+            last_received_data_rel_time = render_time_delta(last_received_data_time, self._now_fn())
+        else:
+            last_received_data_abs_time = "N/A"
+            last_received_data_rel_time = "N/A"
 
-    def render_incident_button(self, ctx, data):
+        return {
+            "summary": summary,
+            "details": details,
+            "service_connection_status": connected,
+            "service_connection_status_alt": connected_alt,
+            "service_connection_status_abs_time": service_connection_status_abs_time,
+            "service_connection_status_rel_time": service_connection_status_rel_time,
+            "last_received_data_abs_time": last_received_data_abs_time,
+            "last_received_data_rel_time": last_received_data_rel_time,
+        }
+
+    @renderer
+    def incident_button(self, req, tag):
         # this button triggers a foolscap-logging "incident"
-        form = T.form(action="report_incident", method="post",
-                      enctype="multipart/form-data")[
-            T.fieldset[
-            T.input(type="hidden", name="t", value="report-incident"),
-            "What went wrong?"+SPACE,
-            T.input(type="text", name="details"), SPACE,
-            T.input(type="submit", value=u"Save \u00BB"),
-            ]]
-        return T.div[form]
+        form = tags.form(
+            tags.fieldset(
+                tags.input(type="hidden", name="t", value="report-incident"),
+                "What went wrong?"+SPACE,
+                tags.input(type="text", name="details"), SPACE,
+                tags.input(type="submit", value=u"Save \u00BB"),
+            ),
+            action="report_incident",
+            method="post",
+            enctype="multipart/form-data"
+        )
+        return tags.div(form)
+
+    @renderer
+    def rendered_at(self, req, tag):
+        return tag(render_time(time.time()))
+
+    @renderer
+    def version(self, req, tag):
+        return tag(get_package_versions_string())
+
+    @renderer
+    def import_path(self, req, tag):
+        return tag(str(allmydata))

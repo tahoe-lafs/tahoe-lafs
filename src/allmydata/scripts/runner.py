@@ -6,9 +6,10 @@ from six.moves import StringIO
 from twisted.python import usage
 from twisted.internet import defer, task, threads
 
+from allmydata.version_checks import get_package_versions_string
 from allmydata.scripts.common import get_default_nodedir
 from allmydata.scripts import debug, create_node, cli, \
-    stats_gatherer, admin, magic_folder_cli, tahoe_daemonize, tahoe_start, \
+    stats_gatherer, admin, tahoe_daemonize, tahoe_start, \
     tahoe_stop, tahoe_restart, tahoe_run, tahoe_invite
 from allmydata.util.encodingutil import quote_output, quote_local_unicode_path, get_io_encoding
 from allmydata.util.eliotutil import (
@@ -40,11 +41,11 @@ _control_node_dispatch = {
 }
 
 process_control_commands = [
-    ["daemonize", None, tahoe_daemonize.DaemonizeOptions, "run a node in the background"],
-    ["start", None, tahoe_start.StartOptions, "start a node in the background and confirm it started"],
     ["run", None, tahoe_run.RunOptions, "run a node without daemonizing"],
-    ["stop", None, tahoe_stop.StopOptions, "stop a node"],
-    ["restart", None, tahoe_restart.RestartOptions, "restart a node"],
+    ["daemonize", None, tahoe_daemonize.DaemonizeOptions, "(deprecated) run a node in the background"],
+    ["start", None, tahoe_start.StartOptions, "(deprecated) start a node in the background and confirm it started"],
+    ["stop", None, tahoe_stop.StopOptions, "(deprecated) stop a node"],
+    ["restart", None, tahoe_restart.RestartOptions, "(deprecated) restart a node"],
 ]
 
 
@@ -60,7 +61,6 @@ class Options(usage.Options):
                     +   process_control_commands
                     +   debug.subCommands
                     +   cli.subCommands
-                    +   magic_folder_cli.subCommands
                     +   tahoe_invite.subCommands
                     )
 
@@ -76,13 +76,11 @@ class Options(usage.Options):
     ]
 
     def opt_version(self):
-        import allmydata
-        print(allmydata.get_package_versions_string(debug=True), file=self.stdout)
+        print(get_package_versions_string(debug=True), file=self.stdout)
         self.no_command_needed = True
 
     def opt_version_and_path(self):
-        import allmydata
-        print(allmydata.get_package_versions_string(show_paths=True, debug=True), file=self.stdout)
+        print(get_package_versions_string(show_paths=True, debug=True), file=self.stdout)
         self.no_command_needed = True
 
     opt_eliot_destination = opt_eliot_destination
@@ -155,10 +153,6 @@ def dispatch(config,
         # these are blocking, and must be run in a thread
         f0 = cli.dispatch[command]
         f = lambda so: threads.deferToThread(f0, so)
-    elif command in magic_folder_cli.dispatch:
-        # same
-        f0 = magic_folder_cli.dispatch[command]
-        f = lambda so: threads.deferToThread(f0, so)
     elif command in tahoe_invite.dispatch:
         f = tahoe_invite.dispatch[command]
     else:
@@ -194,7 +188,51 @@ def run():
     # doesn't return: calls sys.exit(rc)
     task.react(_run_with_reactor)
 
+
+def _setup_coverage(reactor):
+    """
+    Arrange for coverage to be collected if the 'coverage' package is
+    installed
+    """
+    # can we put this _setup_coverage call after we hit
+    # argument-parsing?
+    if '--coverage' not in sys.argv:
+        return
+    sys.argv.remove('--coverage')
+
+    try:
+        import coverage
+    except ImportError:
+        raise RuntimeError(
+                "The 'coveage' package must be installed to use --coverage"
+        )
+
+    # this doesn't change the shell's notion of the environment, but
+    # it makes the test in process_startup() succeed, which is the
+    # goal here.
+    os.environ["COVERAGE_PROCESS_START"] = '.coveragerc'
+
+    # maybe-start the global coverage, unless it already got started
+    cov = coverage.process_startup()
+    if cov is None:
+        cov = coverage.process_startup.coverage
+
+    def write_coverage_data():
+        """
+        Make sure that coverage has stopped; internally, it depends on
+        ataxit handlers running which doesn't always happen (Twisted's
+        shutdown hook also won't run if os._exit() is called, but it
+        runs more-often than atexit handlers).
+        """
+        cov.stop()
+        cov.save()
+    reactor.addSystemEventTrigger('after', 'shutdown', write_coverage_data)
+
+
 def _run_with_reactor(reactor):
+
+    _setup_coverage(reactor)
+
     d = defer.maybeDeferred(parse_or_exit_with_explanation, sys.argv[1:])
     d.addCallback(_maybe_enable_eliot_logging, reactor)
     d.addCallback(dispatch)

@@ -1,1 +1,0 @@
-The web API now publishes streaming Eliot logs via a token-protected WebSocket at /private/logs/v1.

@@ -3,16 +3,18 @@ from __future__ import print_function
 
 def foo(): pass # keep the line number constant
 
+import binascii
 import six
+import hashlib
 import os, time, sys
 import yaml
+
 from six.moves import StringIO
 from datetime import timedelta
 from twisted.trial import unittest
 from twisted.internet import defer, reactor
 from twisted.python.failure import Failure
 from twisted.python import log
-from pycryptopp.hash.sha256 import SHA256 as _hash
 
 from allmydata.util import base32, idlib, humanreadable, mathutil, hashutil
 from allmydata.util import assertutil, fileutil, deferredutil, abbreviate
@@ -20,10 +22,20 @@ from allmydata.util import limiter, time_format, pollmixin, cachedir
 from allmydata.util import statistics, dictutil, pipeline, yamlutil
 from allmydata.util import log as tahoe_log
 from allmydata.util.spans import Spans, overlap, DataSpans
+from allmydata.util.fileutil import EncryptedTemporaryFile
 from allmydata.test.common_util import ReallyEqualMixin, TimezoneMixin
 
 if six.PY3:
     long = int
+
+
+def sha256(data):
+    """
+    :param bytes data: data to hash
+
+    :returns: a hex-encoded SHA256 hash of the data
+    """
+    return binascii.hexlify(hashlib.sha256(data).digest())
 
 
 class Base32(unittest.TestCase):
@@ -777,6 +789,11 @@ class FileUtil(ReallyEqualMixin, unittest.TestCase):
         self.failUnlessFalse(symlinkinfo.isfile)
         self.failUnlessFalse(symlinkinfo.isdir)
 
+    def test_encrypted_tempfile(self):
+        f = EncryptedTemporaryFile()
+        f.write("foobar")
+        f.close()
+
 
 class PollMixinTests(unittest.TestCase):
     def setUp(self):
@@ -1333,7 +1350,7 @@ class CacheDir(unittest.TestCase):
         del b2
 
 ctr = [0]
-class EqButNotIs:
+class EqButNotIs(object):
     def __init__(self, x):
         self.x = x
         self.hash = ctr[0]
@@ -1615,7 +1632,7 @@ class Log(unittest.TestCase):
         self.flushLoggedErrors(SampleError)
 
 
-class SimpleSpans:
+class SimpleSpans(object):
     # this is a simple+inefficient form of util.spans.Spans . We compare the
     # behavior of this reference model against the real (efficient) form.
 
@@ -1825,7 +1842,7 @@ class ByteSpans(unittest.TestCase):
         def _create(subseed):
             ns1 = S1(); ns2 = S2()
             for i in range(10):
-                what = _hash(subseed+str(i)).hexdigest()
+                what = sha256(subseed+str(i))
                 start = int(what[2:4], 16)
                 length = max(1,int(what[5:6], 16))
                 ns1.add(start, length); ns2.add(start, length)
@@ -1833,7 +1850,7 @@ class ByteSpans(unittest.TestCase):
 
         #print
         for i in range(1000):
-            what = _hash(seed+str(i)).hexdigest()
+            what = sha256(seed+str(i))
             op = what[0]
             subop = what[1]
             start = int(what[2:4], 16)
@@ -1879,7 +1896,7 @@ class ByteSpans(unittest.TestCase):
             self.failUnlessEqual(bool(s1), bool(s2))
             self.failUnlessEqual(list(s1), list(s2))
             for j in range(10):
-                what = _hash(what[12:14]+str(j)).hexdigest()
+                what = sha256(what[12:14]+str(j))
                 start = int(what[2:4], 16)
                 length = max(1, int(what[5:6], 16))
                 span = (start, length)
@@ -1943,7 +1960,7 @@ def replace(s, start, data):
     assert len(s) >= start+len(data)
     return s[:start] + data + s[start+len(data):]
 
-class SimpleDataSpans:
+class SimpleDataSpans(object):
     def __init__(self, other=None):
         self.missing = "" # "1" where missing, "0" where found
         self.data = ""
@@ -2148,14 +2165,14 @@ class StringSpans(unittest.TestCase):
             created = 0
             pieces = []
             while created < length:
-                piece = _hash(seed + str(created)).hexdigest()
+                piece = sha256(seed + str(created))
                 pieces.append(piece)
                 created += len(piece)
             return "".join(pieces)[:length]
         def _create(subseed):
             ns1 = S1(); ns2 = S2()
             for i in range(10):
-                what = _hash(subseed+str(i)).hexdigest()
+                what = sha256(subseed+str(i))
                 start = int(what[2:4], 16)
                 length = max(1,int(what[5:6], 16))
                 ns1.add(start, _randstr(length, what[7:9]));
@@ -2164,7 +2181,7 @@ class StringSpans(unittest.TestCase):
 
         #print
         for i in range(1000):
-            what = _hash(seed+str(i)).hexdigest()
+            what = sha256(seed+str(i))
             op = what[0]
             subop = what[1]
             start = int(what[2:4], 16)
@@ -2192,7 +2209,7 @@ class StringSpans(unittest.TestCase):
             self.failUnlessEqual(s1.len(), s2.len())
             self.failUnlessEqual(list(s1._dump()), list(s2._dump()))
             for j in range(100):
-                what = _hash(what[12:14]+str(j)).hexdigest()
+                what = sha256(what[12:14]+str(j))
                 start = int(what[2:4], 16)
                 length = max(1, int(what[5:6], 16))
                 d1 = s1.get(start, length); d2 = s2.get(start, length)

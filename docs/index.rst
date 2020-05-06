@@ -20,7 +20,6 @@ Contents:
    frontends/CLI
    frontends/webapi
    frontends/FTP-and-SFTP
-   frontends/magic-folder
    frontends/download-status
 
    known_issues
@@ -37,7 +36,6 @@ Contents:
    expenses
    cautions
    write_coordination
-   magic-folder-howto
    backupdb
 
    anonymity-configuration

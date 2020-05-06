@@ -38,7 +38,7 @@ def log_memory_usage(where=""):
                                               where))
 
 @implementer(IConsumer)
-class FileWritingConsumer:
+class FileWritingConsumer(object):
     def __init__(self, filename):
         self.done = False
         self.f = open(filename, "wb")
@@ -123,9 +123,9 @@ class ControlServer(Referenceable, service.Service):
             return results
         server = everyone_left.pop(0)
         server_name = server.get_longname()
-        connection = server.get_rref()
+        storage_server = server.get_storage_server()
         start = time.time()
-        d = connection.callRemote("get_buckets", "\x00"*16)
+        d = storage_server.get_buckets("\x00" * 16)
         def _done(ignored):
             stop = time.time()
             elapsed = stop - start
@@ -143,7 +143,7 @@ class ControlServer(Referenceable, service.Service):
         d.addCallback(_average)
         return d
 
-class SpeedTest:
+class SpeedTest(object):
     def __init__(self, parent, count, size, mutable):
         self.parent = parent
         self.count = count

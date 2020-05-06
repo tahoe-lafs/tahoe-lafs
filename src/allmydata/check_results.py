@@ -169,7 +169,7 @@ class CheckAndRepairResults(object):
         return self.post_repair_results
 
 
-class DeepResultsBase:
+class DeepResultsBase(object):
 
     def __init__(self, root_storage_index):
         self.root_storage_index = root_storage_index

@@ -83,13 +83,13 @@ def flip_one_bit(s, offset=0, size=None):
     return result
 
 
-class ReallyEqualMixin:
+class ReallyEqualMixin(object):
     def failUnlessReallyEqual(self, a, b, msg=None):
         self.assertEqual(a, b, msg)
         self.assertEqual(type(a), type(b), "a :: %r, b :: %r, %r" % (a, b, msg))
 
 
-class NonASCIIPathMixin:
+class NonASCIIPathMixin(object):
     def mkdir_nonascii(self, dirpath):
         # Kludge to work around the fact that buildbot can't remove a directory tree that has
         # any non-ASCII directory names on Windows. (#1472)
@@ -143,13 +143,13 @@ class SignalMixin(object):
             signal.signal(signal.SIGCHLD, self.sigchldHandler)
         return super(SignalMixin, self).tearDown()
 
-class StallMixin:
+class StallMixin(object):
     def stall(self, res=None, delay=1):
         d = defer.Deferred()
         reactor.callLater(delay, d.callback, res)
         return d
 
-class ShouldFailMixin:
+class ShouldFailMixin(object):
 
     def shouldFail(self, expected_failure, which, substring,
                    callable, *args, **kwargs):
@@ -173,26 +173,10 @@ class ShouldFailMixin:
 
 
 class TestMixin(SignalMixin):
-    def setUp(self, repeatable=False):
-        """
-        @param repeatable: install the repeatable_randomness hacks to attempt
-            to without access to real randomness and real time.time from the
-            code under test
-        """
-        self.repeatable = repeatable
-        if self.repeatable:
-            import repeatable_random
-            repeatable_random.force_repeatability()
-        if hasattr(time, 'realtime'):
-            self.teststarttime = time.realtime()
-        else:
-            self.teststarttime = time.time()
+    def setUp(self):
         return super(TestMixin, self).setUp()
 
     def tearDown(self):
-        if self.repeatable:
-            import repeatable_random
-            repeatable_random.restore_non_repeatability()
         self.clean_pending(required_to_quiesce=True)
         return super(TestMixin, self).tearDown()
 

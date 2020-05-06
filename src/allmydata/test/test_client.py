@@ -1,26 +1,79 @@
 import os, sys
 import mock
+from functools import (
+    partial,
+)
+
 import twisted
+from yaml import (
+    safe_dump,
+)
+from fixtures import (
+    Fixture,
+    TempDir,
+)
+from eliot.testing import (
+    capture_logging,
+    assertHasAction,
+)
 from twisted.trial import unittest
 from twisted.application import service
 from twisted.internet import defer
+from twisted.python.filepath import (
+    FilePath,
+)
+from testtools.matchers import (
+    Equals,
+    AfterPreprocessing,
+    MatchesListwise,
+    MatchesDict,
+    Always,
+    Is,
+    raises,
+)
+from testtools.twistedsupport import (
+    succeeded,
+    failed,
+)
 
 import allmydata
-import allmydata.frontends.magic_folder
 import allmydata.util.log
 
-from allmydata.node import OldConfigError, OldConfigOptionError, UnescapedHashError, _Config, read_config, create_node_dir
-from allmydata.node import config_from_string
+from allmydata.node import OldConfigError, UnescapedHashError, _Config, create_node_dir
 from allmydata.frontends.auth import NeedRootcapLookupScheme
+from allmydata.version_checks import (
+    get_package_versions_string,
+)
 from allmydata import client
-from allmydata.storage_client import StorageFarmBroker
-from allmydata.util import base32, fileutil, encodingutil
+from allmydata.storage_client import (
+    StorageClientConfig,
+    StorageFarmBroker,
+)
+from allmydata.util import (
+    base32,
+    fileutil,
+    encodingutil,
+    configutil,
+)
 from allmydata.util.fileutil import abspath_expanduser_unicode
 from allmydata.interfaces import IFilesystemNode, IFileNode, \
      IImmutableFileNode, IMutableFileNode, IDirectoryNode
 from foolscap.api import flushEventualQueue
 import allmydata.test.common_util as testutil
+from .common import (
+    EMPTY_CLIENT_CONFIG,
+    SyncTestCase,
+    UseTestPlugins,
+    MemoryIntroducerClient,
+    get_published_announcements,
+)
+from .matchers import (
+    MatchesSameElements,
+    matches_storage_announcement,
+    matches_furl,
+)
 
+SOME_FURL = b"pb://abcde@nowhere/fake"
 
 BASECONFIG = ("[client]\n"
               "introducer.furl = \n"
@@ -100,10 +153,9 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
         try:
             e = self.assertRaises(
                 EnvironmentError,
-                read_config,
+                client.read_config,
                 basedir,
                 "client.port",
-                _valid_config_sections=client._valid_config_sections,
             )
             self.assertIn("Permission denied", str(e))
         finally:
@@ -128,10 +180,9 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
 
         e = self.failUnlessRaises(
             OldConfigError,
-            read_config,
+            client.read_config,
             basedir,
             "client.port",
-            _valid_config_sections=client._valid_config_sections,
         )
         abs_basedir = fileutil.abspath_expanduser_unicode(unicode(basedir)).encode(sys.getfilesystemencoding())
         self.failUnlessIn(os.path.join(abs_basedir, "introducer.furl"), e.args[0])
@@ -194,6 +245,69 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
                        BASECONFIG + "[storage]\n" + "enabled = false\n")
         c = yield client.create_client(basedir)
         self.failUnless(c.get_long_nodeid().startswith("v0-"))
+
+    def test_storage_anonymous_enabled_by_default(self):
+        """
+        Anonymous storage access is enabled if storage is enabled and *anonymous*
+        is not set.
+        """
+        config = client.config_from_string(
+            b"test_storage_default_anonymous_enabled",
+            b"tub.port",
+            BASECONFIG + (
+                b"[storage]\n"
+                b"enabled = true\n"
+            )
+        )
+        self.assertTrue(client.anonymous_storage_enabled(config))
+
+    def test_storage_anonymous_enabled_explicitly(self):
+        """
+        Anonymous storage access is enabled if storage is enabled and *anonymous*
+        is set to true.
+        """
+        config = client.config_from_string(
+            self.id(),
+            b"tub.port",
+            BASECONFIG + (
+                b"[storage]\n"
+                b"enabled = true\n"
+                b"anonymous = true\n"
+            )
+        )
+        self.assertTrue(client.anonymous_storage_enabled(config))
+
+    def test_storage_anonymous_disabled_explicitly(self):
+        """
+        Anonymous storage access is disabled if storage is enabled and *anonymous*
+        is set to false.
+        """
+        config = client.config_from_string(
+            self.id(),
+            b"tub.port",
+            BASECONFIG + (
+                b"[storage]\n"
+                b"enabled = true\n"
+                b"anonymous = false\n"
+            )
+        )
+        self.assertFalse(client.anonymous_storage_enabled(config))
+
+    def test_storage_anonymous_disabled_by_storage(self):
+        """
+        Anonymous storage access is disabled if storage is disabled and *anonymous*
+        is set to true.
+        """
+        config = client.config_from_string(
+            self.id(),
+            b"tub.port",
+            BASECONFIG + (
+                b"[storage]\n"
+                b"enabled = false\n"
+                b"anonymous = true\n"
+            )
+        )
+        self.assertFalse(client.anonymous_storage_enabled(config))
 
     @defer.inlineCallbacks
     def test_reserved_1(self):
@@ -466,9 +580,9 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
         return [ s.get_longname() for s in sb.get_servers_for_psi(key) ]
 
     def test_permute(self):
-        sb = StorageFarmBroker(True, None)
+        sb = StorageFarmBroker(True, None, EMPTY_CLIENT_CONFIG)
         for k in ["%d" % i for i in range(5)]:
-            ann = {"anonymous-storage-FURL": "pb://abcde@nowhere/fake",
+            ann = {"anonymous-storage-FURL": SOME_FURL,
                    "permutation-seed-base32": base32.b2a(k) }
             sb.test_add_rref(k, "rref", ann)
 
@@ -478,9 +592,14 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
         self.failUnlessReallyEqual(self._permute(sb, "one"), [])
 
     def test_permute_with_preferred(self):
-        sb = StorageFarmBroker(True, None, preferred_peers=['1','4'])
+        sb = StorageFarmBroker(
+            True,
+            None,
+            EMPTY_CLIENT_CONFIG,
+            StorageClientConfig(preferred_peers=['1','4']),
+        )
         for k in ["%d" % i for i in range(5)]:
-            ann = {"anonymous-storage-FURL": "pb://abcde@nowhere/fake",
+            ann = {"anonymous-storage-FURL": SOME_FURL,
                    "permutation-seed-base32": base32.b2a(k) }
             sb.test_add_rref(k, "rref", ann)
 
@@ -508,7 +627,7 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
         self.failIfEqual(str(allmydata.__version__), "unknown")
         self.failUnless("." in str(allmydata.__full_version__),
                         "non-numeric version in '%s'" % allmydata.__version__)
-        all_versions = allmydata.get_package_versions_string()
+        all_versions = get_package_versions_string()
         self.failUnless(allmydata.__appname__ in all_versions)
         # also test stats
         stats = c.get_stats()
@@ -538,104 +657,6 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
         yield _check("helper.furl = None", None)
         yield _check("helper.furl = pb://blah\n", "pb://blah")
 
-    @defer.inlineCallbacks
-    def test_create_magic_folder_service(self):
-        """
-        providing magic-folder options actually creates a MagicFolder service
-        """
-        boom = False
-        class Boom(Exception):
-            pass
-
-        class MockMagicFolder(allmydata.frontends.magic_folder.MagicFolder):
-            name = 'magic-folder'
-
-            def __init__(self, client, upload_dircap, collective_dircap, local_path_u, dbfile, umask, name,
-                         inotify=None, uploader_delay=1.0, clock=None, downloader_delay=3):
-                if boom:
-                    raise Boom()
-
-                service.MultiService.__init__(self)
-                self.client = client
-                self._umask = umask
-                self.upload_dircap = upload_dircap
-                self.collective_dircap = collective_dircap
-                self.local_dir = local_path_u
-                self.dbfile = dbfile
-                self.inotify = inotify
-
-            def startService(self):
-                self.running = True
-
-            def stopService(self):
-                self.running = False
-
-            def ready(self):
-                pass
-
-        self.patch(allmydata.frontends.magic_folder, 'MagicFolder', MockMagicFolder)
-
-        upload_dircap = "URI:DIR2:blah"
-        local_dir_u = self.unicode_or_fallback(u"loc\u0101l_dir", u"local_dir")
-        local_dir_utf8 = local_dir_u.encode('utf-8')
-        config = (BASECONFIG +
-                  "[storage]\n" +
-                  "enabled = false\n" +
-                  "[magic_folder]\n" +
-                  "enabled = true\n")
-
-        basedir1 = "test_client.Basic.test_create_magic_folder_service1"
-        os.mkdir(basedir1)
-        os.mkdir(local_dir_u)
-
-        # which config-entry should be missing?
-        fileutil.write(os.path.join(basedir1, "tahoe.cfg"),
-                       config + "local.directory = " + local_dir_utf8 + "\n")
-        with self.assertRaises(IOError):
-            yield client.create_client(basedir1)
-
-        # local.directory entry missing .. but that won't be an error
-        # now, it'll just assume there are not magic folders
-        # .. hrm...should we make that an error (if enabled=true but
-        # there's not yaml AND no local.directory?)
-        fileutil.write(os.path.join(basedir1, "tahoe.cfg"), config)
-        fileutil.write(os.path.join(basedir1, "private", "magic_folder_dircap"), "URI:DIR2:blah")
-        fileutil.write(os.path.join(basedir1, "private", "collective_dircap"), "URI:DIR2:meow")
-
-        fileutil.write(os.path.join(basedir1, "tahoe.cfg"),
-                       config.replace("[magic_folder]\n", "[drop_upload]\n"))
-
-        with self.assertRaises(OldConfigOptionError):
-            yield client.create_client(basedir1)
-
-        fileutil.write(os.path.join(basedir1, "tahoe.cfg"),
-                       config + "local.directory = " + local_dir_utf8 + "\n")
-        c1 = yield client.create_client(basedir1)
-        magicfolder = c1.getServiceNamed('magic-folder')
-        self.failUnless(isinstance(magicfolder, MockMagicFolder), magicfolder)
-        self.failUnlessReallyEqual(magicfolder.client, c1)
-        self.failUnlessReallyEqual(magicfolder.upload_dircap, upload_dircap)
-        self.failUnlessReallyEqual(os.path.basename(magicfolder.local_dir), local_dir_u)
-        self.failUnless(magicfolder.inotify is None, magicfolder.inotify)
-        # It doesn't start until the client starts.
-        self.assertFalse(magicfolder.running)
-
-        # See above.
-        boom = True
-
-        basedir2 = "test_client.Basic.test_create_magic_folder_service2"
-        os.mkdir(basedir2)
-        os.mkdir(os.path.join(basedir2, "private"))
-        fileutil.write(os.path.join(basedir2, "tahoe.cfg"),
-                       BASECONFIG +
-                       "[magic_folder]\n" +
-                       "enabled = true\n" +
-                       "local.directory = " + local_dir_utf8 + "\n")
-        fileutil.write(os.path.join(basedir2, "private", "magic_folder_dircap"), "URI:DIR2:blah")
-        fileutil.write(os.path.join(basedir2, "private", "collective_dircap"), "URI:DIR2:meow")
-        with self.assertRaises(Boom):
-            yield client.create_client(basedir2)
-
 
 def flush_but_dont_ignore(res):
     d = flushEventualQueue()
@@ -643,6 +664,129 @@ def flush_but_dont_ignore(res):
         return res
     d.addCallback(_done)
     return d
+
+
+class AnonymousStorage(SyncTestCase):
+    """
+    Tests for behaviors of the client object with respect to the anonymous
+    storage service.
+    """
+    @defer.inlineCallbacks
+    def test_anonymous_storage_enabled(self):
+        """
+        If anonymous storage access is enabled then the client announces it.
+        """
+        basedir = self.id()
+        os.makedirs(basedir + b"/private")
+        config = client.config_from_string(
+            basedir,
+            b"tub.port",
+            BASECONFIG_I % (SOME_FURL,) + (
+                b"[storage]\n"
+                b"enabled = true\n"
+                b"anonymous = true\n"
+            )
+        )
+        node = yield client.create_client_from_config(
+            config,
+            _introducer_factory=MemoryIntroducerClient,
+        )
+        self.assertThat(
+            get_published_announcements(node),
+            MatchesListwise([
+                matches_storage_announcement(
+                    basedir,
+                    anonymous=True,
+                ),
+            ]),
+        )
+
+    @defer.inlineCallbacks
+    def test_anonymous_storage_disabled(self):
+        """
+        If anonymous storage access is disabled then the client does not announce
+        it nor does it write a fURL for it to beneath the node directory.
+        """
+        basedir = self.id()
+        os.makedirs(basedir + b"/private")
+        config = client.config_from_string(
+            basedir,
+            b"tub.port",
+            BASECONFIG_I % (SOME_FURL,) + (
+                b"[storage]\n"
+                b"enabled = true\n"
+                b"anonymous = false\n"
+            )
+        )
+        node = yield client.create_client_from_config(
+            config,
+            _introducer_factory=MemoryIntroducerClient,
+        )
+        self.expectThat(
+            get_published_announcements(node),
+            MatchesListwise([
+                matches_storage_announcement(
+                    basedir,
+                    anonymous=False,
+                ),
+            ]),
+        )
+        self.expectThat(
+            config.get_private_config(b"storage.furl", default=None),
+            Is(None),
+        )
+
+    @defer.inlineCallbacks
+    def test_anonymous_storage_enabled_then_disabled(self):
+        """
+        If a node is run with anonymous storage enabled and then later anonymous
+        storage is disabled in the configuration for that node, it is not
+        possible to reach the anonymous storage server via the originally
+        published fURL.
+        """
+        basedir = self.id()
+        os.makedirs(basedir + b"/private")
+        enabled_config = client.config_from_string(
+            basedir,
+            b"tub.port",
+            BASECONFIG_I % (SOME_FURL,) + (
+                b"[storage]\n"
+                b"enabled = true\n"
+                b"anonymous = true\n"
+            )
+        )
+        node = yield client.create_client_from_config(
+            enabled_config,
+            _introducer_factory=MemoryIntroducerClient,
+        )
+        anonymous_storage_furl = enabled_config.get_private_config(b"storage.furl")
+        def check_furl():
+            return node.tub.getReferenceForURL(anonymous_storage_furl)
+        # Perform a sanity check that our test code makes sense: is this a
+        # legit way to verify whether a fURL will refer to an object?
+        self.assertThat(
+            check_furl(),
+            # If it doesn't raise a KeyError we're in business.
+            Always(),
+        )
+
+        disabled_config = client.config_from_string(
+            basedir,
+            b"tub.port",
+            BASECONFIG_I % (SOME_FURL,) + (
+                b"[storage]\n"
+                b"enabled = true\n"
+                b"anonymous = false\n"
+            )
+        )
+        node = yield client.create_client_from_config(
+            disabled_config,
+            _introducer_factory=MemoryIntroducerClient,
+        )
+        self.assertThat(
+            check_furl,
+            raises(KeyError),
+        )
 
 
 class IntroducerClients(unittest.TestCase):
@@ -656,13 +800,150 @@ class IntroducerClients(unittest.TestCase):
             "[client]\n"
             "introducer.furl = None\n"
         )
-        config = config_from_string("basedir", "client.port", cfg)
+        config = client.config_from_string("basedir", "client.port", cfg)
 
         with self.assertRaises(ValueError) as ctx:
             client.create_introducer_clients(config, main_tub=None)
         self.assertIn(
             "invalid 'introducer.furl = None'",
             str(ctx.exception)
+        )
+
+
+def get_known_server_details(a_client):
+    """
+    Get some details about known storage servers from a client.
+
+    :param _Client a_client: The client to inspect.
+
+    :return: A ``list`` of two-tuples.  Each element of the list corresponds
+        to a "known server".  The first element of each tuple is a server id.
+        The second is the server's announcement.
+    """
+    return list(
+        (s.get_serverid(), s.get_announcement())
+        for s
+        in a_client.storage_broker.get_known_servers()
+    )
+
+
+class StaticServers(Fixture):
+    """
+    Create a ``servers.yaml`` file.
+    """
+    def __init__(self, basedir, server_details):
+        super(StaticServers, self).__init__()
+        self._basedir = basedir
+        self._server_details = server_details
+
+    def _setUp(self):
+        private = self._basedir.child(u"private")
+        private.makedirs()
+        servers = private.child(u"servers.yaml")
+        servers.setContent(safe_dump({
+            u"storage": {
+                serverid: {
+                    u"ann": announcement,
+                }
+                for (serverid, announcement)
+                in self._server_details
+            },
+        }))
+
+
+class StorageClients(SyncTestCase):
+    """
+    Tests for storage-related behavior of ``_Client``.
+    """
+    def setUp(self):
+        super(StorageClients, self).setUp()
+        # Some other tests create Nodes and Node mutates tempfile.tempdir and
+        # that screws us up because we're *not* making a Node.  "Fix" it.  See
+        # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3052 for the real fix,
+        # though.
+        import tempfile
+        tempfile.tempdir = None
+
+        tempdir = TempDir()
+        self.useFixture(tempdir)
+        self.basedir = FilePath(tempdir.path)
+
+    @capture_logging(
+        lambda case, logger: assertHasAction(
+            case,
+            logger,
+            actionType=u"storage-client:broker:set-static-servers",
+            succeeded=True,
+        ),
+    )
+    def test_static_servers(self, logger):
+        """
+        Storage servers defined in ``private/servers.yaml`` are loaded into the
+        storage broker.
+        """
+        serverid = u"v0-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        announcement = {
+            u"nickname": u"some-storage-server",
+            u"anonymous-storage-FURL": u"pb://xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx@tcp:storage.example:100/swissnum",
+        }
+        self.useFixture(
+            StaticServers(
+                self.basedir,
+                [(serverid, announcement)],
+            ),
+        )
+        self.assertThat(
+            client.create_client(self.basedir.asTextMode().path),
+            succeeded(
+                AfterPreprocessing(
+                    get_known_server_details,
+                    Equals([(serverid, announcement)]),
+                ),
+            ),
+        )
+
+    @capture_logging(
+        lambda case, logger: assertHasAction(
+            case,
+            logger,
+            actionType=u"storage-client:broker:make-storage-server",
+            succeeded=False,
+        ),
+    )
+    def test_invalid_static_server(self, logger):
+        """
+        An invalid announcement for a static server does not prevent other static
+        servers from being loaded.
+        """
+        # Some good details
+        serverid = u"v1-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        announcement = {
+            u"nickname": u"some-storage-server",
+            u"anonymous-storage-FURL": u"pb://xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx@tcp:storage.example:100/swissnum",
+        }
+        self.useFixture(
+            StaticServers(
+                self.basedir,
+                [(serverid, announcement),
+                 # Along with a "bad" server announcement.  Order in this list
+                 # doesn't matter, yaml serializer and Python dicts are going
+                 # to shuffle everything around kind of randomly.
+                 (u"v0-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                  {u"nickname": u"another-storage-server",
+                   u"anonymous-storage-FURL": None,
+                  }),
+                ],
+            ),
+        )
+        self.assertThat(
+            client.create_client(self.basedir.asTextMode().path),
+            succeeded(
+                AfterPreprocessing(
+                    get_known_server_details,
+                    # It should have the good server details.
+                    Equals([(serverid, announcement)]),
+                ),
+            ),
         )
 
 
@@ -821,3 +1102,326 @@ class NodeMaker(testutil.ReallyEqualMixin, unittest.TestCase):
         self.failUnlessReallyEqual(n.get_uri(), unknown_rw)
         self.failUnlessReallyEqual(n.get_write_uri(), unknown_rw)
         self.failUnlessReallyEqual(n.get_readonly_uri(), "ro." + unknown_ro)
+
+
+
+def matches_dummy_announcement(name, value):
+    """
+    Matches the portion of an announcement for the ``DummyStorage`` storage
+        server plugin.
+
+    :param unicode name: The name of the dummy plugin.
+
+    :param unicode value: The arbitrary value in the dummy plugin
+        announcement.
+
+    :return: a testtools-style matcher
+    """
+    return MatchesDict({
+        # Everyone gets a name and a fURL added to their announcement.
+        u"name": Equals(name),
+        u"storage-server-FURL": matches_furl(),
+        # The plugin can contribute things, too.
+        u"value": Equals(value),
+    })
+
+
+
+class StorageAnnouncementTests(SyncTestCase):
+    """
+    Tests for the storage announcement published by the client.
+    """
+    def setUp(self):
+        super(StorageAnnouncementTests, self).setUp()
+        self.basedir = self.useFixture(TempDir()).path
+        create_node_dir(self.basedir, u"")
+
+
+    def get_config(self, storage_enabled, more_storage=b"", more_sections=b""):
+        return b"""
+[node]
+tub.location = tcp:192.0.2.0:1234
+
+[storage]
+enabled = {storage_enabled}
+{more_storage}
+
+[client]
+introducer.furl = pb://abcde@nowhere/fake
+
+{more_sections}
+""".format(
+    storage_enabled=storage_enabled,
+    more_storage=more_storage,
+    more_sections=more_sections,
+)
+
+
+    def test_no_announcement(self):
+        """
+        No storage announcement is published if storage is not enabled.
+        """
+        config = client.config_from_string(
+            self.basedir,
+            u"tub.port",
+            self.get_config(storage_enabled=False),
+        )
+        self.assertThat(
+            client.create_client_from_config(
+                config,
+                _introducer_factory=MemoryIntroducerClient,
+            ),
+            succeeded(AfterPreprocessing(
+                get_published_announcements,
+                Equals([]),
+            )),
+        )
+
+
+    def test_anonymous_storage_announcement(self):
+        """
+        A storage announcement with the anonymous storage fURL is published when
+        storage is enabled.
+        """
+        config = client.config_from_string(
+            self.basedir,
+            u"tub.port",
+            self.get_config(storage_enabled=True),
+        )
+        client_deferred = client.create_client_from_config(
+            config,
+            _introducer_factory=MemoryIntroducerClient,
+        )
+        self.assertThat(
+            client_deferred,
+            # The Deferred succeeds
+            succeeded(AfterPreprocessing(
+                # The announcements published by the client should ...
+                get_published_announcements,
+                # Match the following list (of one element) ...
+                MatchesListwise([
+                    # The only element in the list ...
+                    matches_storage_announcement(self.basedir),
+                ]),
+            )),
+        )
+
+
+    def test_single_storage_plugin_announcement(self):
+        """
+        The announcement from a single enabled storage plugin is published when
+        storage is enabled.
+        """
+        self.useFixture(UseTestPlugins())
+
+        value = u"thing"
+        config = client.config_from_string(
+            self.basedir,
+            u"tub.port",
+            self.get_config(
+                storage_enabled=True,
+                more_storage=b"plugins=tahoe-lafs-dummy-v1",
+                more_sections=(
+                    b"[storageserver.plugins.tahoe-lafs-dummy-v1]\n"
+                    b"some = {}\n".format(value)
+                ),
+            ),
+        )
+        self.assertThat(
+            client.create_client_from_config(
+                config,
+                _introducer_factory=MemoryIntroducerClient,
+            ),
+            succeeded(AfterPreprocessing(
+                get_published_announcements,
+                MatchesListwise([
+                    matches_storage_announcement(
+                        self.basedir,
+                        options=[
+                            matches_dummy_announcement(
+                                u"tahoe-lafs-dummy-v1",
+                                value,
+                            ),
+                        ],
+                    ),
+                ]),
+            )),
+        )
+
+
+    def test_multiple_storage_plugin_announcements(self):
+        """
+        The announcements from several enabled storage plugins are published when
+        storage is enabled.
+        """
+        self.useFixture(UseTestPlugins())
+
+        config = client.config_from_string(
+            self.basedir,
+            u"tub.port",
+            self.get_config(
+                storage_enabled=True,
+                more_storage=b"plugins=tahoe-lafs-dummy-v1,tahoe-lafs-dummy-v2",
+                more_sections=(
+                    b"[storageserver.plugins.tahoe-lafs-dummy-v1]\n"
+                    b"some = thing-1\n"
+                    b"[storageserver.plugins.tahoe-lafs-dummy-v2]\n"
+                    b"some = thing-2\n"
+                ),
+            ),
+        )
+        self.assertThat(
+            client.create_client_from_config(
+                config,
+                _introducer_factory=MemoryIntroducerClient,
+            ),
+            succeeded(AfterPreprocessing(
+                get_published_announcements,
+                MatchesListwise([
+                    matches_storage_announcement(
+                        self.basedir,
+                        options=[
+                            matches_dummy_announcement(
+                                u"tahoe-lafs-dummy-v1",
+                                u"thing-1",
+                            ),
+                            matches_dummy_announcement(
+                                u"tahoe-lafs-dummy-v2",
+                                u"thing-2",
+                            ),
+                        ],
+                    ),
+                ]),
+            )),
+        )
+
+
+    def test_stable_storage_server_furl(self):
+        """
+        The value for the ``storage-server-FURL`` item in the announcement for a
+        particular storage server plugin is stable across different node
+        instantiations.
+        """
+        self.useFixture(UseTestPlugins())
+
+        config = client.config_from_string(
+            self.basedir,
+            u"tub.port",
+            self.get_config(
+                storage_enabled=True,
+                more_storage=b"plugins=tahoe-lafs-dummy-v1",
+                more_sections=(
+                    b"[storageserver.plugins.tahoe-lafs-dummy-v1]\n"
+                    b"some = thing\n"
+                ),
+            ),
+        )
+        node_a = client.create_client_from_config(
+            config,
+            _introducer_factory=MemoryIntroducerClient,
+        )
+        node_b = client.create_client_from_config(
+            config,
+            _introducer_factory=MemoryIntroducerClient,
+        )
+
+        self.assertThat(
+            defer.gatherResults([node_a, node_b]),
+            succeeded(AfterPreprocessing(
+                partial(map, get_published_announcements),
+                MatchesSameElements(),
+            )),
+        )
+
+
+    def test_storage_plugin_without_configuration(self):
+        """
+        A storage plugin with no configuration is loaded and announced.
+        """
+        self.useFixture(UseTestPlugins())
+
+        config = client.config_from_string(
+            self.basedir,
+            u"tub.port",
+            self.get_config(
+                storage_enabled=True,
+                more_storage=b"plugins=tahoe-lafs-dummy-v1",
+            ),
+        )
+        self.assertThat(
+            client.create_client_from_config(
+                config,
+                _introducer_factory=MemoryIntroducerClient,
+            ),
+            succeeded(AfterPreprocessing(
+                get_published_announcements,
+                MatchesListwise([
+                    matches_storage_announcement(
+                        self.basedir,
+                        options=[
+                            matches_dummy_announcement(
+                                u"tahoe-lafs-dummy-v1",
+                                u"default-value",
+                            ),
+                        ],
+                    ),
+                ]),
+            )),
+        )
+
+
+    def test_broken_storage_plugin(self):
+        """
+        A storage plugin that raises an exception from ``get_storage_server``
+        causes ``client.create_client_from_config`` to return ``Deferred``
+        that fails.
+        """
+        self.useFixture(UseTestPlugins())
+
+        config = client.config_from_string(
+            self.basedir,
+            u"tub.port",
+            self.get_config(
+                storage_enabled=True,
+                more_storage=b"plugins=tahoe-lafs-dummy-v1",
+                more_sections=(
+                    b"[storageserver.plugins.tahoe-lafs-dummy-v1]\n"
+                    # This will make it explode on instantiation.
+                    b"invalid = configuration\n"
+                )
+            ),
+        )
+        self.assertThat(
+            client.create_client_from_config(
+                config,
+                _introducer_factory=MemoryIntroducerClient,
+            ),
+            failed(Always()),
+        )
+
+    def test_storage_plugin_not_found(self):
+        """
+        ``client.create_client_from_config`` raises ``UnknownConfigError`` when
+        called with a configuration which enables a storage plugin that is not
+        available on the system.
+        """
+        config = client.config_from_string(
+            self.basedir,
+            u"tub.port",
+            self.get_config(
+                storage_enabled=True,
+                more_storage=b"plugins=tahoe-lafs-dummy-vX",
+            ),
+        )
+        self.assertThat(
+            client.create_client_from_config(
+                config,
+                _introducer_factory=MemoryIntroducerClient,
+            ),
+            failed(
+                AfterPreprocessing(
+                    lambda f: f.type,
+                    Equals(configutil.UnknownConfigError),
+                ),
+            ),
+        )

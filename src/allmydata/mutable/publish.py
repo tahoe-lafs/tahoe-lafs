@@ -4,15 +4,16 @@ from itertools import count
 from zope.interface import implementer
 from twisted.internet import defer
 from twisted.python import failure
+
+from allmydata.crypto import aes
+from allmydata.crypto import rsa
 from allmydata.interfaces import IPublishStatus, SDMF_VERSION, MDMF_VERSION, \
                                  IMutableUploadable
 from allmydata.util import base32, hashutil, mathutil, log
 from allmydata.util.dictutil import DictOfSets
 from allmydata import hashtree, codec
 from allmydata.storage.server import si_b2a
-from pycryptopp.cipher.aes import AES
 from foolscap.api import eventually, fireEventually
-
 from allmydata.mutable.common import MODE_WRITE, MODE_CHECK, MODE_REPAIR, \
      UncoordinatedWriteError, NotEnoughServersError
 from allmydata.mutable.servermap import ServerMap
@@ -100,7 +101,7 @@ class PublishStatus(object):
 class LoopLimitExceededError(Exception):
     pass
 
-class Publish:
+class Publish(object):
     """I represent a single act of publishing the mutable file to the grid. I
     will only publish my data if the servermap I am using still represents
     the current state of the world.
@@ -269,7 +270,7 @@ class Publish:
             secrets = (write_enabler, renew_secret, cancel_secret)
 
             writer = writer_class(shnum,
-                                  server.get_rref(),
+                                  server.get_storage_server(),
                                   self._storage_index,
                                   secrets,
                                   self._new_seqnum,
@@ -471,7 +472,7 @@ class Publish:
             secrets = (write_enabler, renew_secret, cancel_secret)
 
             writer =  writer_class(shnum,
-                                   server.get_rref(),
+                                   server.get_storage_server(),
                                    self._storage_index,
                                    secrets,
                                    self._new_seqnum,
@@ -711,8 +712,8 @@ class Publish:
 
         key = hashutil.ssk_readkey_data_hash(salt, self.readkey)
         self._status.set_status("Encrypting")
-        enc = AES(key)
-        crypttext = enc.process(data)
+        encryptor = aes.create_encryptor(key)
+        crypttext = aes.encrypt_data(encryptor, data)
         assert len(crypttext) == len(data)
 
         now = time.time()
@@ -849,7 +850,7 @@ class Publish:
         started = time.time()
         self._status.set_status("Signing prefix")
         signable = self._get_some_writer().get_signable()
-        self.signature = self._privkey.sign(signable)
+        self.signature = rsa.sign_data(self._privkey, signable)
 
         for (shnum, writers) in self.writers.iteritems():
             for writer in writers:
@@ -864,7 +865,7 @@ class Publish:
         self._status.set_status("Pushing shares")
         self._started_pushing = started
         ds = []
-        verification_key = self._pubkey.serialize()
+        verification_key = rsa.der_string_from_verifying_key(self._pubkey)
 
         for (shnum, writers) in self.writers.copy().iteritems():
             for writer in writers:

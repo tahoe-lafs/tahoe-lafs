@@ -12,18 +12,15 @@ from allmydata.util import deferredutil
 conch_interfaces = None
 sftp = None
 sftpd = None
-have_pycrypto = False
-try:
-    from Crypto import Util
-    Util  # hush pyflakes
-    have_pycrypto = True
-except ImportError:
-    pass
 
-if have_pycrypto:
+try:
     from twisted.conch import interfaces as conch_interfaces
     from twisted.conch.ssh import filetransfer as sftp
     from allmydata.frontends import sftpd
+except ImportError as e:
+    conch_unavailable_reason = e
+else:
+    conch_unavailable_reason = None
 
 from allmydata.interfaces import IDirectoryNode, ExistingChildError, NoSuchChildError
 from allmydata.mutable.common import NotWriteableError
@@ -38,8 +35,10 @@ from allmydata.test.common_util import ReallyEqualMixin
 class Handler(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, unittest.TestCase):
     """This is a no-network unit test of the SFTPUserHandler and the abstractions it uses."""
 
-    if not have_pycrypto:
-        skip = "SFTP support requires pycrypto, which is not installed"
+    if conch_unavailable_reason:
+        skip = "SFTP support requires Twisted Conch which is not available: {}".format(
+            conch_unavailable_reason,
+        )
 
     def shouldFailWithSFTPError(self, expected_code, which, callable, *args, **kwargs):
         assert isinstance(expected_code, int), repr(expected_code)
@@ -1393,7 +1392,7 @@ class Handler(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, unittest.TestCas
         return d
 
     def test_execCommand_and_openShell(self):
-        class MockProtocol:
+        class MockProtocol(object):
             def __init__(self):
                 self.output = ""
                 self.error = ""
