@@ -931,7 +931,7 @@ class MapupdateStatusElement(Element):
     def problems(self, req, tag):
         problems = self._update_status.problems
         if not problems:
-            return tag("")
+            return tag
         l = tags.ul()
         for peerid in sorted(problems.keys()):
             peerid_s = idlib.shortnodeid_b2a(peerid)
