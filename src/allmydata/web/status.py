@@ -884,7 +884,7 @@ class MapupdateStatusPage(MultiFormatResource):
         return renderElement(req, elem)
 
 
-class MapupdateStatusElement(RateAndTimeMixin, Element):
+class MapupdateStatusElement(Element):
 
     loader = XMLFile(FilePath(__file__).sibling("map-update-status.xhtml"))
 
@@ -983,11 +983,11 @@ class MapupdateStatusElement(RateAndTimeMixin, Element):
                 #                              self.render_time(None, started - self.update_status.get_started()),
                 #                              self.render_time(None,t)))
                 if op == "query":
-                    times.append(self.render_time(None, t))
+                    times.append(abbreviate_time(t))
                 elif op == "late":
-                    times.append("late(" + self.render_time(None, t) + ")")
+                    times.append("late(" + abbreviate_time(t) + ")")
                 else:
-                    times.append("privkey(" + self.render_time(None, t) + ")")
+                    times.append("privkey(" + abbreviate_time(t) + ")")
             times_s = ", ".join(times)
             l(tags.li("[%s]: %s" % (server.get_name(), times_s)))
         return tags.li("Per-Server Response Times: ", l)
