@@ -207,7 +207,6 @@ jobs:
     environment:
       <<: *UTF_8_ENVIRONMENT
       TAHOE_LAFS_TOX_ENVIRONMENT: "pypy27-coverage"
-      ALLOWED_FAILURE: "yes"
 
 
   c-locale:
