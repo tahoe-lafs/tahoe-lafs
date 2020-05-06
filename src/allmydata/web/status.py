@@ -944,7 +944,7 @@ class MapupdateStatusElement(Element):
         if server:
             return tag("Got privkey from: [%s]" % server.get_name())
         else:
-            return tag("")
+            return tag
 
     # Helper to query update status timings.
     #
@@ -954,8 +954,8 @@ class MapupdateStatusElement(Element):
     def _get_update_status_timing(self, name, tag):
         res = self._update_status.timings.get(name)
         if not res:
-            return tag("")
-        return tag(str(res))
+            return tag("0")
+        return tag(abbreviate_time(res))
 
     @renderer
     def time_total(self, req, tag):
