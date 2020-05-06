@@ -19,7 +19,7 @@ from twisted.python import log
 
 from allmydata.util import base32, idlib, humanreadable, mathutil, hashutil
 from allmydata.util import assertutil, fileutil, deferredutil, abbreviate
-from allmydata.util import limiter, time_format, pollmixin, cachedir
+from allmydata.util import limiter, time_format, pollmixin
 from allmydata.util import statistics, dictutil, pipeline, yamlutil
 from allmydata.util import log as tahoe_log
 from allmydata.util.spans import Spans, overlap, DataSpans
@@ -1286,74 +1286,6 @@ class TimeFormat(unittest.TestCase, TimezoneMixin):
         self.failUnlessEqual(
             time_format.format_delta(time_1decimal, time_1d21h46m49s_delta), '1d 21h 46m 48s')
 
-class CacheDir(unittest.TestCase):
-    def test_basic(self):
-        basedir = "test_util/CacheDir/test_basic"
-
-        def _failIfExists(name):
-            absfn = os.path.join(basedir, name)
-            self.failIf(os.path.exists(absfn),
-                        "%s exists but it shouldn't" % absfn)
-
-        def _failUnlessExists(name):
-            absfn = os.path.join(basedir, name)
-            self.failUnless(os.path.exists(absfn),
-                            "%s doesn't exist but it should" % absfn)
-
-        cdm = cachedir.CacheDirectoryManager(basedir)
-        a = cdm.get_file("a")
-        b = cdm.get_file("b")
-        c = cdm.get_file("c")
-        for x in {a, b, c}:
-            with open(x.get_filename(), "wb") as f:
-                f.write("hi")
-        del x
-        gc.collect()  # for PyPy
-
-        _failUnlessExists("a")
-        _failUnlessExists("b")
-        _failUnlessExists("c")
-
-        cdm.check()
-
-        _failUnlessExists("a")
-        _failUnlessExists("b")
-        _failUnlessExists("c")
-
-        del a
-        gc.collect()  # for PyPy
-        # this file won't be deleted yet, because it isn't old enough
-        cdm.check()
-        _failUnlessExists("a")
-        _failUnlessExists("b")
-        _failUnlessExists("c")
-
-        # we change the definition of "old" to make everything old
-        cdm.old = -10
-
-        cdm.check()
-        _failIfExists("a")
-        _failUnlessExists("b")
-        _failUnlessExists("c")
-
-        cdm.old = 60*60
-
-        del b
-        gc.collect()  # for PyPy
-
-        cdm.check()
-        _failIfExists("a")
-        _failUnlessExists("b")
-        _failUnlessExists("c")
-
-        b2 = cdm.get_file("b")
-
-        cdm.check()
-        _failIfExists("a")
-        _failUnlessExists("b")
-        _failUnlessExists("c")
-        del b2
-        gc.collect()  # for PyPy
 
 ctr = [0]
 class EqButNotIs(object):
