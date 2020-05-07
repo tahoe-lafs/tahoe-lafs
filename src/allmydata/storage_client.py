@@ -313,18 +313,24 @@ def parse_grid_manager_data(gm_data):
     return js
 
 
-def validate_grid_manager_certificate(gm_key, alleged_cert):
+def validate_grid_manager_certificate(gm_key, alleged_cert, now_fn=None):
     """
     :param gm_key: a VerifyingKey instance, a Grid Manager's public
         key.
 
-    :param cert: dict with "certificate" and "signature" keys, where
+    :param alleged_cert: dict with "certificate" and "signature" keys, where
         "certificate" contains a JSON-serialized certificate for a Storage
         Server (comes from a Grid Manager).
+
+    :param now_fn: a zero-argument callable that returns a UTC
+        timestamp (will use datetime.utcnow by default)
 
     :return: False if the signature is invalid or the certificate is
         expired.
     """
+    if now_fn is None:
+        now_fn = datetime.utcnow
+
     try:
         gm_key.verify(
             base32.a2b(alleged_cert['signature'].encode('ascii')),
@@ -334,7 +340,7 @@ def validate_grid_manager_certificate(gm_key, alleged_cert):
         return False
     # signature is valid; now we can load the actual data
     cert = json.loads(alleged_cert['certificate'])
-    now = datetime.utcnow()
+    now = now_fn()
     expires = datetime.utcfromtimestamp(cert['expires'])
     # cert_pubkey = keyutil.parse_pubkey(cert['public_key'].encode('ascii'))
     if expires < now:
