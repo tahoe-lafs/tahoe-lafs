@@ -241,6 +241,11 @@ Manager. Example::
 Example Setup of a New Managed Grid
 -----------------------------------
 
+Note that we use the ``daemonize`` command in the following but that's
+only one way to handle "running a command in the background". You
+could instead run commands that start with ``daemonize ...`` in their
+own shell/terminal window or via something like ``systemd``
+
 We'll store our Grid Manager configuration on disk, in
 ``./gm0``. To initialize this directory::
 
@@ -257,8 +262,7 @@ it briefly before it creates the "Introducer fURL" we want for the
 next steps::
 
     tahoe create-introducer --listen=tcp --port=5555 --location=tcp:localhost:5555 ./introducer
-    tahoe -d introducer run
-    (Ctrl-C to stop it after a bit)
+    daemonize tahoe -d introducer run
 
 Next, we attach a couple of storage nodes::
 
