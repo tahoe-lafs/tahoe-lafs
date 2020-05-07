@@ -203,10 +203,6 @@ out to clients).
 Enrolling a Client: CLI
 -----------------------
 
-DECIDE: is a command like this best, or should you have to edit the
-        config "by hand"? (below fits into warner's philosophy that "at some
-        point" it might be best to have all config in a database or similar
-        and the only way to view/edit it is via tahoe commands...)
 
 tahoe add-grid-manager
 ``````````````````````
