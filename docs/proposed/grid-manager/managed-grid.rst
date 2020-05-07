@@ -310,7 +310,7 @@ storage-servers. Make a client "alice" and try!
 
     tahoe create-client --introducer $(cat introducer/private/introducer.furl) --nickname alice --webport 6401 --shares-total=3 --shares-needed=2 --shares-happy=3 ./alice
     daemonize tahoe -d alice run
-    tahoe -d alice mkdir  # prints out a dir-cap
+    tahoe -d alice put README.rst  # prints out a read-cap
     find storage2/storage/shares  # confirm storage2 has a share
 
 Now we want to make Alice only upload to the storage servers that the
@@ -338,7 +338,7 @@ DECIDE:
 
 Now, re-start the "alice" client. Since we made Alice's parameters
 require 3 storage servers to be reachable (``--happy=3``), all their
-uploads should now fail (so ``tahoe mkdir`` will fail) because they
+uploads should now fail (so ``tahoe put`` will fail) because they
 won't use storage2 and thus can't "achieve happiness".
 
 You can check Alice's "Welcome" page (where the list of connected servers
