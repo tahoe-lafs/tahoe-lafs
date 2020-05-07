@@ -674,9 +674,14 @@ class DownloadStatusPage(DownloadResultsRendererMixin, rend.Page):
         return data.get_status()
 
 
+
+# Renders "/status/retrieve-%d".
 class RetrieveStatusPage(MultiFormatResource):
 
     def __init__(self, retrieve_status):
+        """
+        :retrieve_status retrieve.RetrieveStatus: stats provider.
+        """
         super(RetrieveStatusPage, self).__init__()
         self._retrieve_status = retrieve_status
 
