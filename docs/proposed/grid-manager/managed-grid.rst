@@ -64,7 +64,7 @@ If you don't want to store the configuration on disk at all, you may
 use ``--config -`` (that's a dash) and write a valid JSON
 configuration to stdin.
 
-All commands take the ``--config`` option, and they all behave
+All commands require the ``--config`` option, and they all behave
 similarly for "data from stdin" versus "data from disk".
 
 
