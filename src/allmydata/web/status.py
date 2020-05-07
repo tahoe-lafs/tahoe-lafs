@@ -685,7 +685,7 @@ class RetrieveStatusPage(MultiFormatResource):
         return renderElement(req, elem)
 
 
-class RetrieveStatusElement(Element, RateAndTimeMixin):
+class RetrieveStatusElement(Element):
 
     loader = XMLFile(FilePath(__file__).sibling("retrieve-status.xhtml"))
 
@@ -787,7 +787,7 @@ class RetrieveStatusElement(Element, RateAndTimeMixin):
             return tag("")
         l = tags.ul()
         for server in sorted(per_server.keys(), key=lambda s: s.get_name()):
-            times_s = ", ".join([self.render_time(None, t)
+            times_s = ", ".join([abbreviate_time(t)
                                  for t in per_server[server]])
             l(tags.li("[%s]: %s" % (server.get_name(), times_s)))
         return tags.li("Per-Server Fetch Response Times: ", l)
