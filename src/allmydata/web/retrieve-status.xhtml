@@ -1,43 +1,48 @@
 <html xmlns:n="http://nevow.com/ns/nevow/0.1">
+
   <head>
     <title>Tahoe-LAFS - Mutable File Retrieve Status</title>
     <link href="/tahoe.css" rel="stylesheet" type="text/css"/>
     <link href="/icon.png" rel="shortcut icon" />
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
   </head>
+
   <body>
 
-<h1>Mutable File Retrieve Status</h1>
+    <h1>Mutable File Retrieve Status</h1>
 
-<ul>
-  <li>Started: <span n:render="started"/></li>
-  <li>Storage Index: <span n:render="si"/></li>
-  <li>Helper?: <span n:render="helper"/></li>
-  <li>Current Size: <span n:render="current_size"/></li>
-  <li>Progress: <span n:render="progress"/></li>
-  <li>Status: <span n:render="status"/></li>
-</ul>
-
-<h2>Retrieve Results</h2>
-<ul>
-  <li n:render="encoding" />
-  <li n:render="problems" />
-  <li>Timings:</li>
-  <ul>
-    <li>Total: <span n:render="time" n:data="time_total" />
-    (<span n:render="rate" n:data="rate_total" />)</li>
     <ul>
-      <li>Fetching: <span n:render="time" n:data="time_fetch" />
-      (<span n:render="rate" n:data="rate_fetch" />)</li>
-      <li>Decoding: <span n:render="time" n:data="time_decode" />
-      (<span n:render="rate" n:data="rate_decode" />)</li>
-      <li>Decrypting: <span n:render="time" n:data="time_decrypt" />
-      (<span n:render="rate" n:data="rate_decrypt" />)</li>
+      <li>Started: <span n:render="started"/></li>
+      <li>Storage Index: <span n:render="si"/></li>
+      <li>Helper?: <span n:render="helper"/></li>
+      <li>Current Size: <span n:render="current_size"/></li>
+      <li>Progress: <span n:render="progress"/></li>
+      <li>Status: <span n:render="status"/></li>
     </ul>
-    <li n:render="server_timings" />
-  </ul>
-</ul>
 
-<div>Return to the <a href="/">Welcome Page</a></div>
+    <h2>Retrieve Results</h2>
 
-</body></html>
+    <ul>
+      <li n:render="encoding" />
+      <li n:render="problems" />
+      <li>Timings:</li>
+      <ul>
+        <li>Total: <span n:render="time" n:data="time_total" />
+          (<span n:render="rate" n:data="rate_total" />)</li>
+        <ul>
+          <li>Fetching: <span n:render="time" n:data="time_fetch" />
+            (<span n:render="rate" n:data="rate_fetch" />)</li>
+          <li>Decoding: <span n:render="time" n:data="time_decode" />
+            (<span n:render="rate" n:data="rate_decode" />)</li>
+          <li>Decrypting: <span n:render="time" n:data="time_decrypt" />
+            (<span n:render="rate" n:data="rate_decrypt" />)</li>
+        </ul>
+        <li n:render="server_timings" />
+      </ul>
+    </ul>
+
+    <div>Return to the <a href="/">Welcome Page</a></div>
+
+  </body>
+
+</html>
