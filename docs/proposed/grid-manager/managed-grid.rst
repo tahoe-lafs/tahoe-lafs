@@ -207,15 +207,17 @@ Enrolling a Client: CLI
 tahoe add-grid-manager
 ``````````````````````
 
-- ``--name``: a nickname to call this Grid Manager (default: "default")
+This takes two arguments: ``name`` and ``public-identity``.
 
-For clients to start using a Grid Manager, they must add a
-public-key. A client may have any number of grid-managers, so each one
-has a name. If you don't supply ``--name`` then ``"default"`` is used.
+The ``name`` argument is a nickname to call this Grid Manager. A
+client may have any number of grid-managers, so each one has a name. A
+client with zero Grid Managers will accept any announcement from an
+Introducer.
 
-This command takes a single argument, which is the hex-encoded public
-key of the Grid Manager. The client will have to be re-started once
-this change is made.
+The ``public-identity`` argument is the encoded public key of the Grid
+Manager (that is, the output of ``tahoe grid-manager
+public-identity``). The client will have to be re-started once this
+change is made.
 
 
 Enrolling a Client: Config
