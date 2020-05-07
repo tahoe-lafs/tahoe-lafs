@@ -67,8 +67,8 @@ def test_remove_client(reactor):
         "yakov", "pub-v0-kvxhb3nexybmipkrar2ztfrwp4uxxsmrjzkpzafit3ket4u5yldq",
         stdin=gm_config,
     )
-    assert json.loads(gm_config)['storage_servers'].has_key("zara")
-    assert json.loads(gm_config)['storage_servers'].has_key("yakov")
+    assert "zara" in json.loads(gm_config)['storage_servers']
+    assert "yakov" in json.loads(gm_config)['storage_servers']
     return
 
     gm_config = yield util.run_tahoe(
@@ -76,8 +76,8 @@ def test_remove_client(reactor):
         "zara",
         stdin=gm_config,
     )
-    assert not json.loads(gm_config)['storage_servers'].has_key('zara')
-    assert json.loads(gm_config)['storage_servers'].has_key('yakov')
+    assert "zara" not in json.loads(gm_config)['storage_servers']
+    assert "yakov" in json.loads(gm_config)['storage_servers']
 
 
 @pytest_twisted.inlineCallbacks
@@ -91,7 +91,7 @@ def test_remove_last_client(reactor):
         "zara", "pub-v0-kzug3ut2m7ziihf3ndpqlquuxeie4foyl36wn54myqc4wmiwe4ga",
         stdin=gm_config,
     )
-    assert json.loads(gm_config)['storage_servers'].has_key("zara")
+    assert "zara" in json.loads(gm_config)['storage_servers']
 
     gm_config = yield util.run_tahoe(
         reactor, "grid-manager", "--config", "-", "remove",
@@ -99,7 +99,7 @@ def test_remove_last_client(reactor):
         stdin=gm_config,
     )
     # there are no storage servers left at all now
-    assert not json.loads(gm_config).has_key('storage_servers')
+    assert "storage_servers" not in json.loads(gm_config)
 
 
 @pytest_twisted.inlineCallbacks
