@@ -208,7 +208,6 @@ def config_from_string(basedir, portnumfile, config_str):
         """
         We throw away any attempt to persist
         """
-        pass
     return _Config(parser, portnumfile, basedir, '<in-memory>', write_new_config)
 
 
