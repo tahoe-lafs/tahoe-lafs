@@ -94,9 +94,9 @@ tahoe grid-manager add
 ``````````````````````
 
 Takes two args: ``name pubkey``. The ``name`` is an arbitrary local
-identifier for the new storage node (also sometimes called "a
-petname"). The pubkey is the encoded key from a ``node.pubkey`` file
-in the storage-server's node directory (with no whitespace). For
+identifier for the new storage node (also sometimes called "a petname"
+or "nickname"). The pubkey is the encoded key from a ``node.pubkey``
+file in the storage-server's node directory (with no whitespace). For
 example, if ``~/storage0`` contains a storage-node, you might do
 something like this:
 
@@ -119,7 +119,7 @@ Lists all storage-servers that have previously been added using
 tahoe grid-manager sign
 ```````````````````````
 
-Takes one arg: ``name``, the petname used previously in a ``tahoe
+Takes one arg: ``name``, the nickname used previously in a ``tahoe
 grid-manager add`` command.
 
 Note that this mutates the state of the grid-manager if it is on disk,
@@ -211,7 +211,7 @@ DECIDE: is a command like this best, or should you have to edit the
 tahoe add-grid-manager
 ``````````````````````
 
-- ``--name``: a petname to call this Grid Manager (default: "default")
+- ``--name``: a nickname to call this Grid Manager (default: "default")
 
 For clients to start using a Grid Manager, they must add a
 public-key. A client may have any number of grid-managers, so each one
