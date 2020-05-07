@@ -173,11 +173,10 @@ def test_reject_storage_server(reactor, request, storage_nodes, temp_dir, introd
     config.write(open(join(carol._node_dir, "tahoe.cfg"), "w"))
     carol.signalProcess('TERM')
     yield carol._protocol.exited
-    time.sleep(1)
+
     carol = yield util._run_node(
         reactor, carol._node_dir, request, None,
     )
-    time.sleep(5)
 
     # try to put something into the grid, which should fail (because
     # carol has happy=3 but should only find storage0, storage1 to be
