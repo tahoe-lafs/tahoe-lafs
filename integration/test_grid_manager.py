@@ -16,6 +16,9 @@ import pytest_twisted
 
 @pytest_twisted.inlineCallbacks
 def test_create_certificate(reactor):
+    """
+    The Grid Manager produces a valid, correctly-signed certificate.
+    """
     gm_config = yield util.run_tahoe(
         reactor, "grid-manager", "--config", "-", "create",
     )
@@ -23,52 +26,58 @@ def test_create_certificate(reactor):
     privkey, pubkey_bytes = keyutil.parse_privkey(privkey_bytes)
     pubkey = keyutil.parse_pubkey(pubkey_bytes)
 
+    # Note that zara + her key here are arbitrary and don't match any
+    # "actual" clients in the test-grid; we're just checking that the
+    # Grid Manager signs this properly.
     gm_config = yield util.run_tahoe(
         reactor, "grid-manager", "--config", "-", "add",
-        "alice", "pub-v0-kzug3ut2m7ziihf3ndpqlquuxeie4foyl36wn54myqc4wmiwe4ga",
+        "zara", "pub-v0-kzug3ut2m7ziihf3ndpqlquuxeie4foyl36wn54myqc4wmiwe4ga",
         stdin=gm_config,
     )
-    alice_cert_bytes = yield util.run_tahoe(
-        reactor, "grid-manager", "--config", "-", "sign", "alice",
+    zara_cert_bytes = yield util.run_tahoe(
+        reactor, "grid-manager", "--config", "-", "sign", "zara",
         stdin=gm_config,
     )
-    alice_cert = json.loads(alice_cert_bytes)
+    zara_cert = json.loads(zara_cert_bytes)
 
-    # confirm that alice's certificate is made by the Grid Manager
+    # confirm that zara's certificate is made by the Grid Manager
     # (.verify returns None on success, raises exception on error)
     pubkey.verify(
-        base32.a2b(alice_cert['signature'].encode('ascii')),
-        alice_cert['certificate'].encode('ascii'),
+        base32.a2b(zara_cert['signature'].encode('ascii')),
+        zara_cert['certificate'].encode('ascii'),
     )
 
 
 @pytest_twisted.inlineCallbacks
 def test_remove_client(reactor):
+    """
+    A Grid Manager can add and successfully remove a client
+    """
     gm_config = yield util.run_tahoe(
         reactor, "grid-manager", "--config", "-", "create",
     )
 
     gm_config = yield util.run_tahoe(
         reactor, "grid-manager", "--config", "-", "add",
-        "alice", "pub-v0-kzug3ut2m7ziihf3ndpqlquuxeie4foyl36wn54myqc4wmiwe4ga",
+        "zara", "pub-v0-kzug3ut2m7ziihf3ndpqlquuxeie4foyl36wn54myqc4wmiwe4ga",
         stdin=gm_config,
     )
     gm_config = yield util.run_tahoe(
         reactor, "grid-manager", "--config", "-", "add",
-        "bob", "pub-v0-kvxhb3nexybmipkrar2ztfrwp4uxxsmrjzkpzafit3ket4u5yldq",
+        "yakov", "pub-v0-kvxhb3nexybmipkrar2ztfrwp4uxxsmrjzkpzafit3ket4u5yldq",
         stdin=gm_config,
     )
-    assert json.loads(gm_config)['storage_servers'].has_key("alice")
-    assert json.loads(gm_config)['storage_servers'].has_key("bob")
+    assert json.loads(gm_config)['storage_servers'].has_key("zara")
+    assert json.loads(gm_config)['storage_servers'].has_key("yakov")
     return
 
     gm_config = yield util.run_tahoe(
         reactor, "grid-manager", "--config", "-", "remove",
-        "alice",
+        "zara",
         stdin=gm_config,
     )
-    assert not json.loads(gm_config)['storage_servers'].has_key('alice')
-    assert json.loads(gm_config)['storage_servers'].has_key('bob')
+    assert not json.loads(gm_config)['storage_servers'].has_key('zara')
+    assert json.loads(gm_config)['storage_servers'].has_key('yakov')
 
 
 @pytest_twisted.inlineCallbacks
@@ -79,14 +88,14 @@ def test_remove_last_client(reactor):
 
     gm_config = yield util.run_tahoe(
         reactor, "grid-manager", "--config", "-", "add",
-        "alice", "pub-v0-kzug3ut2m7ziihf3ndpqlquuxeie4foyl36wn54myqc4wmiwe4ga",
+        "zara", "pub-v0-kzug3ut2m7ziihf3ndpqlquuxeie4foyl36wn54myqc4wmiwe4ga",
         stdin=gm_config,
     )
-    assert json.loads(gm_config)['storage_servers'].has_key("alice")
+    assert json.loads(gm_config)['storage_servers'].has_key("zara")
 
     gm_config = yield util.run_tahoe(
         reactor, "grid-manager", "--config", "-", "remove",
-        "alice",
+        "zara",
         stdin=gm_config,
     )
     # there are no storage servers left at all now
