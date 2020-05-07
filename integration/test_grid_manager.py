@@ -69,7 +69,6 @@ def test_remove_client(reactor):
     )
     assert "zara" in json.loads(gm_config)['storage_servers']
     assert "yakov" in json.loads(gm_config)['storage_servers']
-    return
 
     gm_config = yield util.run_tahoe(
         reactor, "grid-manager", "--config", "-", "remove",
