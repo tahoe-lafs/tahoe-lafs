@@ -107,8 +107,9 @@ def test_remove_last_client(reactor):
 @pytest_twisted.inlineCallbacks
 def test_reject_storage_server(reactor, request, storage_nodes, temp_dir, introducer_furl, flog_gatherer):
     """
-    A client using grid-manager refuses to upload to a storage-server
-    without a valid certificate
+    A client with happines=3 fails to upload to a Grid when it is
+    using Grid Manager and there are only two storage-servers with
+    valid certificates.
     """
     gm_config = yield util.run_tahoe(
         reactor, "grid-manager", "--config", "-", "create",
