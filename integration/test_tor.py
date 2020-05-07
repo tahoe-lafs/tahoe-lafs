@@ -67,28 +67,28 @@ def _create_anonymous_node(reactor, name, control_port, request, temp_dir, flog_
     node_dir = join(temp_dir, name)
     web_port = "tcp:{}:interface=localhost".format(control_port + 2000)
 
-    if True:
-        if exists(node_dir):
-            print("nuking '{}'".format(node_dir))
-            shutil.rmtree(node_dir)
-        print("creating", node_dir)
-        mkdir(node_dir)
-        proto = util._DumpOutputProtocol(None)
-        reactor.spawnProcess(
-            proto,
-            sys.executable,
-            (
-                sys.executable, '-m', 'allmydata.scripts.runner',
-                'create-node',
-                '--nickname', name,
-                '--introducer', introducer_furl,
-                '--hide-ip',
-                '--tor-control-port', 'tcp:localhost:{}'.format(control_port),
-                '--listen', 'tor',
-                node_dir,
-            )
+    if exists(node_dir):
+        raise RuntimeError(
+            "A node already exists in '{}'".format(node_dir)
         )
-        yield proto.done
+    print("creating", node_dir)
+    mkdir(node_dir)
+    proto = util._DumpOutputProtocol(None)
+    reactor.spawnProcess(
+        proto,
+        sys.executable,
+        (
+            sys.executable, '-m', 'allmydata.scripts.runner',
+            'create-node',
+            '--nickname', name,
+            '--introducer', introducer_furl,
+            '--hide-ip',
+            '--tor-control-port', 'tcp:localhost:{}'.format(control_port),
+            '--listen', 'tor',
+            node_dir,
+        )
+    )
+    yield proto.done
 
     with open(join(node_dir, 'tahoe.cfg'), 'w') as f:
         f.write('''
