@@ -345,4 +345,4 @@ You can check Alice's "Welcome" page (where the list of connected servers
 is) at http://localhost:6301/ and should be able to see details about
 the "work-grid" Grid Manager that you added. When any Grid Managers
 are enabled, each storage-server line will show whether it has a valid
-cerifiticate or not (and how much longer it's valid until).
+certificate or not (and how much longer it's valid until).
