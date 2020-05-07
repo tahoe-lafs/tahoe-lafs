@@ -32,6 +32,20 @@ class _ProcessExitedProtocol(ProcessProtocol):
         self.done.callback(None)
 
 
+class ProcessFailed(Exception):
+    """
+    A subprocess has failed.
+
+    :ivar ProcessTerminated reason: the original reason from .processExited
+
+    :ivar StringIO output: all stdout and stderr collected to this point.
+    """
+
+    def __init__(self, reason, output):
+        self.reason = reason
+        self.output = output
+
+
 class _CollectOutputProtocol(ProcessProtocol):
     """
     Internal helper. Collects all output (stdout + stderr) into
@@ -54,13 +68,7 @@ class _CollectOutputProtocol(ProcessProtocol):
 
     def processExited(self, reason):
         if not isinstance(reason.value, ProcessDone):
-            #self.done.errback(reason)
-            self.done.errback(RuntimeError(
-                "Process failed: {}\nOutput:\n{}".format(
-                    reason,
-                    self.output.getvalue(),
-                )
-            ))
+            self.done.errback(ProcessFailed(reason, self.output))
 
     def outReceived(self, data):
         self.output.write(data)

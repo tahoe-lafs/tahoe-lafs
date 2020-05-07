@@ -190,8 +190,5 @@ def test_reject_storage_server(reactor, request, storage_nodes, temp_dir, introd
             stdin="some content" * 200,
         )
         assert False, "Should get a failure"
-    except Exception as e:
-        # depending on the full output being in the error-message
-        # here; see util.py
-        assert 'UploadUnhappinessError' in str(e)
-        print("found expected UploadUnhappinessError")
+    except util.ProcessFailed as e:
+        assert 'UploadUnhappinessError' in e.output.getvalue()
