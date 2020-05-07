@@ -266,8 +266,8 @@ next steps::
 
 Next, we attach a couple of storage nodes::
 
-    tahoe create-node --introducer $(cat introducer/private/introducer.furl) --nickname storage0 --webport 6001 --webport 6002 --location tcp:localhost:6003 --port 6003 ./storage0
-    tahoe create-node --introducer $(cat introducer/private/introducer.furl) --nickname storage1 --webport 6101 --webport 6102 --location tcp:localhost:6103 --port 6103 ./storage1
+    tahoe create-node --introducer $(cat introducer/private/introducer.furl) --nickname storage0 --webport 6001 --location tcp:localhost:6003 --port 6003 ./storage0
+    tahoe create-node --introducer $(cat introducer/private/introducer.furl) --nickname storage1 --webport 6101 --location tcp:localhost:6103 --port 6103 ./storage1
     daemonize tahoe -d storage0 run
     daemonize tahoe -d storage1 run
 
@@ -300,7 +300,7 @@ Now try adding a new storage server ``storage2``. This client can join
 the grid just fine, and announce itself to the Introducer as providing
 storage::
 
-    tahoe create-node --introducer $(cat introducer/private/introducer.furl) --nickname storage2 --webport 6301 --webport 6302 --location tcp:localhost:6303 --port 6303 ./storage2
+    tahoe create-node --introducer $(cat introducer/private/introducer.furl) --nickname storage2 --webport 6301 --location tcp:localhost:6303 --port 6303 ./storage2
     daemonize tahoe -d storage2 run
 
 At this point any client will upload to any of these three
@@ -308,7 +308,7 @@ storage-servers. Make a client "alice" and try!
 
 ::
 
-    tahoe create-client --introducer $(cat introducer/private/introducer.furl) --nickname alice --webport 6301 --shares-total=3 --shares-needed=2 --shares-happy=3 ./alice
+    tahoe create-client --introducer $(cat introducer/private/introducer.furl) --nickname alice --webport 6401 --shares-total=3 --shares-needed=2 --shares-happy=3 ./alice
     daemonize tahoe -d alice run
     tahoe -d alice mkdir  # prints out a dir-cap
     find storage2/storage/shares  # confirm storage2 has a share
