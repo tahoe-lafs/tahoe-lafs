@@ -96,9 +96,9 @@ tahoe grid-manager add
 Takes two args: ``name pubkey``. The ``name`` is an arbitrary local
 identifier for the new storage node (also sometimes called "a petname"
 or "nickname"). The pubkey is the encoded key from a ``node.pubkey``
-file in the storage-server's node directory (with no whitespace). For
-example, if ``~/storage0`` contains a storage-node, you might do
-something like this:
+file in the storage-server's node directory (minus any
+whitespace). For example, if ``~/storage0`` contains a storage-node,
+you might do something like this:
 
    tahoe grid-manager --config ./gm0 add storage0 $(cat ~/storage0/node.pubkey)
 
