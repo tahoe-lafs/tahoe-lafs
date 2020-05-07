@@ -419,7 +419,7 @@ def _load_grid_manager_certificates(config):
 
     cert_fnames = list(config.enumerate_section("grid_manager_certificates").values())
     for fname in cert_fnames:
-        fname = config.get_config_path(fname.decode('ascii'))
+        fname = config.get_config_path(fname.decode('utf8'))
         if not os.path.exists(fname):
             raise ValueError(
                 "Grid Manager certificate file '{}' doesn't exist".format(
