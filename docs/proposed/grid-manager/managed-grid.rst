@@ -26,7 +26,7 @@ only to those. This means manually updating these lists if the storage
 servers change, however.
 
 Another method is for clients to use `[client] peers.preferred=`
-configuration option (XXX link? appears undocumented), which suffers
+configuration option (:ref:`Client Configuration`), which suffers
 from a similar disadvantage.
 
 
