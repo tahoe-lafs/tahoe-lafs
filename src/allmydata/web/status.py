@@ -712,7 +712,7 @@ class RetrieveStatusElement(Element, RateAndTimeMixin):
 
     @renderer
     def current_size(self, req, tag):
-        size = self._retrieve_status.get_size()
+        size = str(self._retrieve_status.get_size())
         if size is None:
             size = "(unknown)"
         return tag(size)
@@ -750,35 +750,35 @@ class RetrieveStatusElement(Element, RateAndTimeMixin):
 
     @renderer
     def time_total(self, req, tag):
-        return tag(self._retrieve_status.timings.get("total"))
+        return tag(str(self._retrieve_status.timings.get("total")))
 
     @renderer
     def rate_total(self, req, tag):
-        return tag(self._get_rate("total"))
+        return tag(str(self._get_rate("total")))
 
     @renderer
     def time_fetch(self, req, tag):
-        return tag(self._retrieve_status.timings.get("fetch"))
+        return tag(str(self._retrieve_status.timings.get("fetch")))
 
     @renderer
     def rate_fetch(self, req, tag):
-        return tag(self._get_rate("fetch"))
+        return tag(str(self._get_rate("fetch")))
 
     @renderer
     def time_decode(self, req, tag):
-        return tag(self._retrieve_status.timings.get("decode"))
+        return tag(str(self._retrieve_status.timings.get("decode")))
 
     @renderer
     def rate_decode(self, req, tag):
-        return tag(self._get_rate("decode"))
+        return tag(str(self._get_rate("decode")))
 
     @renderer
     def time_decrypt(self, req, tag):
-        return tag(self._retrieve_status.timings.get("decrypt"))
+        return tag(str(self._retrieve_status.timings.get("decrypt")))
 
     @renderer
     def rate_decrypt(self, req, tag):
-        return tag(self._get_rate("decrypt"))
+        return tag(str(self._get_rate("decrypt")))
 
     @renderer
     def server_timings(self, req, tag):
