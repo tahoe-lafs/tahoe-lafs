@@ -470,6 +470,12 @@ class IServer(IDisplayableServer):
         once the connection is lost.
         """
 
+    def upload_permitted():
+        """
+        :return: True if we should use this server for uploads, False
+            otherwise.
+        """
+
 
 class IMutableSlotWriter(Interface):
     """
