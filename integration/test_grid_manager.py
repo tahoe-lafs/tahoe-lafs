@@ -81,6 +81,9 @@ def test_remove_client(reactor):
 
 @pytest_twisted.inlineCallbacks
 def test_remove_last_client(reactor):
+    """
+    A Grid Manager can remove all clients
+    """
     gm_config = yield util.run_tahoe(
         reactor, "grid-manager", "--config", "-", "create",
     )
@@ -103,6 +106,10 @@ def test_remove_last_client(reactor):
 
 @pytest_twisted.inlineCallbacks
 def test_reject_storage_server(reactor, request, storage_nodes, temp_dir, introducer_furl, flog_gatherer):
+    """
+    A client using grid-manager refuses to upload to a storage-server
+    without a valid certificate
+    """
     gm_config = yield util.run_tahoe(
         reactor, "grid-manager", "--config", "-", "create",
     )
