@@ -205,7 +205,7 @@ def config_from_string(basedir, portnumfile, config_str, _valid_config=None):
     # load configuration from in-memory string
     parser = ConfigParser.SafeConfigParser()
     parser.readfp(BytesIO(config_str))
-    configutil.validate_config(fname, parser, _valid_config)
+    configutil.validate_config('<in-memory>', parser, _valid_config)
 
     def write_new_config(cfg):
         """

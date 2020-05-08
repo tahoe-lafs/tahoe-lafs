@@ -580,8 +580,7 @@ def create_storage_farm_broker(config, default_connection_handlers, foolscap_con
         tub_maker=tub_creator,
         node_config=config,
         storage_client_config=storage_client_config,
-        preferred_peers=preferred_peers,
-        grid_manager_keys=grid_manager_keys,
+        grid_manager_keys=grid_manager_keys,  # XXX maybe roll into above storage_client_config?
     )
     for ic in introducer_clients:
         sb.use_introducer(ic)

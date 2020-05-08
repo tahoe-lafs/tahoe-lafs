@@ -13,7 +13,7 @@ from twisted.python import usage
 from twisted.python.filepath import FilePath
 from allmydata.util import fileutil
 from allmydata.util import base32
-from allmydata.util import keyutil
+from allmydata.crypto import ed25519
 from twisted.internet.defer import inlineCallbacks, returnValue
 
 
@@ -50,7 +50,7 @@ class AddOptions(BaseOptions):
         self['name'] = unicode(args[0])
         try:
             # WTF?! why does it want 'str' and not six.text_type?
-            self['storage_public_key'] = keyutil.parse_pubkey(args[1])
+            self['storage_public_key'] = ed25519.verifying_key_from_string(args[1])
         except Exception as e:
             raise usage.UsageError(
                 "Invalid public_key argument: {}".format(e)
@@ -132,8 +132,11 @@ def _create_gridmanager():
     :return: an object providing the GridManager interface initialized
         with a new random keypair
     """
-    private_key_bytes, public_key_bytes = keyutil.make_keypair()
-    return _GridManager(private_key_bytes, {})
+    private_key, public_key = ed25519.create_signing_keypair()
+    return _GridManager(
+        ed25519.string_from_signing_key(private_key),
+        {},
+    )
 
 def _create(gridoptions, options):
     """
@@ -195,7 +198,7 @@ class _GridManager(object):
 
         private_key_bytes = config['private_key'].encode('ascii')
         try:
-            private_key, public_key_bytes = keyutil.parse_privkey(private_key_bytes)
+            private_key, public_key = ed25519.signing_keypair_from_string(private_key_bytes)
         except Exception as e:
             raise ValueError(
                 "Invalid Grid Manager private_key: {}".format(e)
@@ -209,7 +212,7 @@ class _GridManager(object):
                 )
             storage_servers[name] = _GridManagerStorageServer(
                 name,
-                keyutil.parse_pubkey(srv_config['public_key'].encode('ascii')),
+                ed25519.verifying_key_from_string(srv_config['public_key'].encode('ascii')),
                 None,
             )
 
@@ -225,7 +228,7 @@ class _GridManager(object):
     def __init__(self, private_key_bytes, storage_servers):
         self._storage_servers = dict() if storage_servers is None else storage_servers
         self._private_key_bytes = private_key_bytes
-        self._private_key, _ = keyutil.parse_privkey(self._private_key_bytes)
+        self._private_key, _ = ed25519.signing_keypair_from_string(self._private_key_bytes)
         self._version = 0
 
     @property
