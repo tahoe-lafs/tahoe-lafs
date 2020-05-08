@@ -24,7 +24,7 @@ class RepairRequiresWritecapError(Exception):
 class MustForceRepairError(Exception):
     pass
 
-class Repairer:
+class Repairer(object):
     def __init__(self, node, check_results, storage_broker, history, monitor):
         self.node = node
         self.check_results = ICheckResults(check_results)

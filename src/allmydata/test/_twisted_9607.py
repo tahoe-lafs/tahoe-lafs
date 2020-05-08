@@ -15,7 +15,7 @@ from io import BytesIO
 from twisted.internet import protocol, defer
 
 
-class _EverythingGetter(protocol.ProcessProtocol):
+class _EverythingGetter(protocol.ProcessProtocol, object):
 
     def __init__(self, deferred, stdinBytes=None):
         self.deferred = deferred

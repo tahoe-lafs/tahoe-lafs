@@ -12,9 +12,7 @@ from ..util.i2p_provider import create as create_i2p_provider
 from ..util.tor_provider import create as create_tor_provider
 
 
-BASECONFIG = ("[client]\n"
-              "introducer.furl = \n"
-              )
+BASECONFIG = ""
 
 
 class TCP(unittest.TestCase):
@@ -568,4 +566,3 @@ class Status(unittest.TestCase):
                          {"h1 via hand1": "st1", "h2": "st2"})
         self.assertEqual(cs.last_connection_time, None)
         self.assertEqual(cs.last_received_time, 5)
-

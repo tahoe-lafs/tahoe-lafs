@@ -117,7 +117,7 @@ def initialize():
                 use_last_error=True
             )(("WriteConsoleW", windll.kernel32))
 
-            class UnicodeOutput:
+            class UnicodeOutput(object):
                 def __init__(self, hConsole, stream, fileno, name):
                     self._hConsole = hConsole
                     self._stream = stream

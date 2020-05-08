@@ -230,7 +230,7 @@ class SDMFSlotWriteProxy(object):
     """
     def __init__(self,
                  shnum,
-                 rref, # a remote reference to a storage server
+                 storage_server, # an IStorageServer
                  storage_index,
                  secrets, # (write_enabler, renew_secret, cancel_secret)
                  seqnum, # the sequence number of the mutable file
@@ -239,7 +239,7 @@ class SDMFSlotWriteProxy(object):
                  segment_size,
                  data_length): # the length of the original file
         self.shnum = shnum
-        self._rref = rref
+        self._storage_server = storage_server
         self._storage_index = storage_index
         self._secrets = secrets
         self._seqnum = seqnum
@@ -541,12 +541,13 @@ class SDMFSlotWriteProxy(object):
 
         tw_vectors = {}
         tw_vectors[self.shnum] = (self._testvs, datavs, None)
-        return self._rref.callRemote("slot_testv_and_readv_and_writev",
-                                     self._storage_index,
-                                     self._secrets,
-                                     tw_vectors,
-                                     # TODO is it useful to read something?
-                                     self._readvs)
+        return self._storage_server.slot_testv_and_readv_and_writev(
+            self._storage_index,
+            self._secrets,
+            tw_vectors,
+            # TODO is it useful to read something?
+            self._readvs,
+        )
 
 
 MDMFHEADER = ">BQ32sBBQQ QQQQQQQQ"
@@ -729,7 +730,7 @@ class MDMFSlotWriteProxy(object):
     # disruption.
     def __init__(self,
                  shnum,
-                 rref, # a remote reference to a storage server
+                 storage_server, # a remote reference to a storage server
                  storage_index,
                  secrets, # (write_enabler, renew_secret, cancel_secret)
                  seqnum, # the sequence number of the mutable file
@@ -738,7 +739,7 @@ class MDMFSlotWriteProxy(object):
                  segment_size,
                  data_length): # the length of the original file
         self.shnum = shnum
-        self._rref = rref
+        self._storage_server = storage_server
         self._storage_index = storage_index
         self._seqnum = seqnum
         self._required_shares = required_shares
@@ -1159,11 +1160,12 @@ class MDMFSlotWriteProxy(object):
                 self._testvs = [(0, len(new_checkstring), "eq", new_checkstring)]
             on_success = _first_write
         tw_vectors[self.shnum] = (self._testvs, datavs, None)
-        d = self._rref.callRemote("slot_testv_and_readv_and_writev",
-                                  self._storage_index,
-                                  self._secrets,
-                                  tw_vectors,
-                                  self._readv)
+        d = self._storage_server.slot_testv_and_readv_and_writev(
+            self._storage_index,
+            self._secrets,
+            tw_vectors,
+            self._readv,
+        )
         def _result(results):
             if isinstance(results, failure.Failure) or not results[0]:
                 # Do nothing; the write was unsuccessful.
@@ -1180,7 +1182,7 @@ def _handle_bad_struct(f):
     f.trap(struct.error)
     raise BadShareError(f.value.args[0])
 
-class MDMFSlotReadProxy:
+class MDMFSlotReadProxy(object):
     """
     I read from a mutable slot filled with data written in the MDMF data
     format (which is described above).
@@ -1189,13 +1191,13 @@ class MDMFSlotReadProxy:
     it is valid) to eliminate some of the need to fetch it from servers.
     """
     def __init__(self,
-                 rref,
+                 storage_server,
                  storage_index,
                  shnum,
                  data="",
                  data_is_everything=False):
         # Start the initialization process.
-        self._rref = rref
+        self._storage_server = storage_server
         self._storage_index = storage_index
         self.shnum = shnum
 
@@ -1752,10 +1754,11 @@ class MDMFSlotReadProxy:
             results = {self.shnum: results}
             return defer.succeed(results)
         else:
-            return self._rref.callRemote("slot_readv",
-                                         self._storage_index,
-                                         [self.shnum],
-                                         readvs)
+            return self._storage_server.slot_readv(
+                self._storage_index,
+                [self.shnum],
+                readvs,
+            )
 
 
     def is_sdmf(self):

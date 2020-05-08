@@ -3,6 +3,8 @@ from __future__ import print_function
 import os, re, sys, time, json
 from functools import partial
 
+from bs4 import BeautifulSoup
+
 from twisted.internet import reactor
 from twisted.trial import unittest
 from twisted.internet import defer
@@ -38,6 +40,9 @@ from .common import (
     SameProcessStreamEndpointAssigner,
 )
 from .common_web import do_http, Error
+from .web.common import (
+    assert_soup_has_tag_with_attributes
+)
 
 # TODO: move this to common or common_util
 from allmydata.test.test_runner import RunBinTahoeMixin
@@ -1771,8 +1776,11 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         # get the welcome page from the node that uses the helper too
         d.addCallback(lambda res: do_http("get", self.helper_webish_url))
         def _got_welcome_helper(page):
-            html = page.replace('\n', ' ')
-            self.failUnless(re.search('<img (src="img/connected-yes.png" |alt="Connected" ){2}/>', html), page)
+            soup = BeautifulSoup(page, 'html5lib')
+            assert_soup_has_tag_with_attributes(
+                self, soup, u"img",
+                { u"alt": u"Connected", u"src": u"img/connected-yes.png" }
+            )
             self.failUnlessIn("Not running helper", page)
         d.addCallback(_got_welcome_helper)
 
@@ -2227,8 +2235,8 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
             self.failUnlessEqual(data, "data to be uploaded: file1\n")
         d.addCallback(_check_outfile1)
 
-        d.addCallback(run, "rm", "tahoe-file0")
-        d.addCallback(run, "rm", "tahoe:file2")
+        d.addCallback(run, "unlink", "tahoe-file0")
+        d.addCallback(run, "unlink", "tahoe:file2")
         d.addCallback(run, "ls")
         d.addCallback(_check_ls, [], ["tahoe-file0", "file2"])
 
@@ -2428,7 +2436,9 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
 
         def _run_in_subprocess(ignored, verb, *args, **kwargs):
             stdin = kwargs.get("stdin")
-            env = kwargs.get("env")
+            env = kwargs.get("env", os.environ)
+            # Python warnings from the child process don't matter.
+            env["PYTHONWARNINGS"] = "ignore"
             newargs = ["--node-directory", self.getdir("client0"), verb] + list(args)
             return self.run_bintahoe(newargs, stdin=stdin, env=env)
 
@@ -2511,9 +2521,9 @@ class Connections(SystemTestMixin, unittest.TestCase):
             self.failUnlessEqual(len(nonclients), 1)
 
             self.s1 = nonclients[0]  # s1 is the server, not c0
-            self.s1_rref = self.s1.get_rref()
-            self.failIfEqual(self.s1_rref, None)
-            self.failUnless(self.s1.is_connected())
+            self.s1_storage_server = self.s1.get_storage_server()
+            self.assertIsNot(self.s1_storage_server, None)
+            self.assertTrue(self.s1.is_connected())
         d.addCallback(_start)
 
         # now shut down the server
@@ -2524,9 +2534,9 @@ class Connections(SystemTestMixin, unittest.TestCase):
         d.addCallback(lambda ign: self.poll(_poll))
 
         def _down(ign):
-            self.failIf(self.s1.is_connected())
-            rref = self.s1.get_rref()
-            self.failUnless(rref)
-            self.failUnlessIdentical(rref, self.s1_rref)
+            self.assertFalse(self.s1.is_connected())
+            storage_server = self.s1.get_storage_server()
+            self.assertIsNot(storage_server, None)
+            self.assertEqual(storage_server, self.s1_storage_server)
         d.addCallback(_down)
         return d

@@ -5,6 +5,7 @@ from twisted.internet import defer
 from twisted.application import service
 from foolscap.api import Referenceable, Copyable, RemoteCopy, fireEventually
 
+from allmydata.crypto import aes
 from allmydata.util.hashutil import file_renewal_secret_hash, \
      file_cancel_secret_hash, bucket_renewal_secret_hash, \
      bucket_cancel_secret_hash, plaintext_hasher, \
@@ -23,7 +24,6 @@ from allmydata.interfaces import IUploadable, IUploader, IUploadResults, \
      NoServersError, InsufficientVersionError, UploadUnhappinessError, \
      DEFAULT_MAX_SEGMENT_SIZE, IProgress, IPeerSelector
 from allmydata.immutable import layout
-from pycryptopp.cipher.aes import AES
 
 from six.moves import cStringIO as StringIO
 from happiness_upload import share_placement, calculate_happiness
@@ -261,20 +261,21 @@ class ServerTracker(object):
         return self._server.get_name()
 
     def query(self, sharenums):
-        rref = self._server.get_rref()
-        d = rref.callRemote("allocate_buckets",
-                            self.storage_index,
-                            self.renew_secret,
-                            self.cancel_secret,
-                            sharenums,
-                            self.allocated_size,
-                            canary=Referenceable())
+        storage_server = self._server.get_storage_server()
+        d = storage_server.allocate_buckets(
+            self.storage_index,
+            self.renew_secret,
+            self.cancel_secret,
+            sharenums,
+            self.allocated_size,
+            canary=Referenceable(),
+        )
         d.addCallback(self._buckets_allocated)
         return d
 
     def ask_about_existing_shares(self):
-        rref = self._server.get_rref()
-        return rref.callRemote("get_buckets", self.storage_index)
+        storage_server = self._server.get_storage_server()
+        return storage_server.get_buckets(self.storage_index)
 
     def _buckets_allocated(self, alreadygot_and_buckets):
         #log.msg("%s._got_reply(%s)" % (self, (alreadygot, buckets)))
@@ -415,7 +416,7 @@ class Tahoe2ServerSelector(log.PrefixingLogMixin):
         # field) from getting large shares (for files larger than about
         # 12GiB). See #439 for details.
         def _get_maxsize(server):
-            v0 = server.get_rref().version
+            v0 = server.get_version()
             v1 = v0["http://allmydata.org/tahoe/protocols/storage/v1"]
             return v1["maximum-immutable-share-size"]
 
@@ -945,8 +946,7 @@ class EncryptAnUploadable(object):
 
         d = self.original.get_encryption_key()
         def _got(key):
-            e = AES(key)
-            self._encryptor = e
+            self._encryptor = aes.create_encryptor(key)
 
             storage_index = storage_index_hash(key)
             assert isinstance(storage_index, str)
@@ -956,7 +956,7 @@ class EncryptAnUploadable(object):
             self._storage_index = storage_index
             if self._status:
                 self._status.set_storage_index(storage_index)
-            return e
+            return self._encryptor
         d.addCallback(_got)
         return d
 
@@ -1063,11 +1063,11 @@ class EncryptAnUploadable(object):
             self._plaintext_hasher.update(chunk)
             self._update_segment_hash(chunk)
             # TODO: we have to encrypt the data (even if hash_only==True)
-            # because pycryptopp's AES-CTR implementation doesn't offer a
-            # way to change the counter value. Once pycryptopp acquires
+            # because the AES-CTR implementation doesn't offer a
+            # way to change the counter value. Once it acquires
             # this ability, change this to simply update the counter
-            # before each call to (hash_only==False) _encryptor.process()
-            ciphertext = self._encryptor.process(chunk)
+            # before each call to (hash_only==False) encrypt_data
+            ciphertext = aes.encrypt_data(self._encryptor, chunk)
             if hash_only:
                 self.log("  skipping encryption", level=log.NOISY)
             else:
@@ -1355,7 +1355,7 @@ def read_this_many_bytes(uploadable, size, prepend_data=[]):
     d.addCallback(_got)
     return d
 
-class LiteralUploader:
+class LiteralUploader(object):
 
     def __init__(self, progress=None):
         self._status = s = UploadStatus()
@@ -1477,7 +1477,7 @@ class RemoteEncryptedUploadable(Referenceable):
         return self._eu.close()
 
 
-class AssistedUploader:
+class AssistedUploader(object):
 
     def __init__(self, helper, storage_broker):
         self._helper = helper
@@ -1632,7 +1632,7 @@ class AssistedUploader:
     def get_upload_status(self):
         return self._upload_status
 
-class BaseUploadable:
+class BaseUploadable(object):
     # this is overridden by max_segment_size
     default_max_segment_size = DEFAULT_MAX_SEGMENT_SIZE
     default_params_set = False

@@ -6,6 +6,7 @@ from twisted.internet import defer
 from foolscap.api import fireEventually
 import json
 
+from allmydata.crypto import aes
 from allmydata.deep_stats import DeepStats
 from allmydata.mutable.common import NotWriteableError
 from allmydata.mutable.filenode import MutableFileNode
@@ -22,7 +23,6 @@ from allmydata.util.assertutil import precondition
 from allmydata.util.netstring import netstring, split_netstring
 from allmydata.util.consumer import download_to_data
 from allmydata.uri import wrap_dirnode_cap
-from pycryptopp.cipher.aes import AES
 from allmydata.util.dictutil import AuxValueDict
 
 from eliot import (
@@ -111,7 +111,7 @@ def normalize(namex):
 # contents and end by repacking them. It might be better to apply them to
 # the unpacked contents.
 
-class Deleter:
+class Deleter(object):
     def __init__(self, node, namex, must_exist=True, must_be_directory=False, must_be_file=False):
         self.node = node
         self.name = normalize(namex)
@@ -139,7 +139,7 @@ class Deleter:
         return new_contents
 
 
-class MetadataSetter:
+class MetadataSetter(object):
     def __init__(self, node, namex, metadata, create_readonly_node=None):
         self.node = node
         self.name = normalize(namex)
@@ -164,7 +164,7 @@ class MetadataSetter:
         return new_contents
 
 
-class Adder:
+class Adder(object):
     def __init__(self, node, entries=None, overwrite=True, create_readonly_node=None):
         self.node = node
         if entries is None:
@@ -214,8 +214,8 @@ def _encrypt_rw_uri(writekey, rw_uri):
 
     salt = hashutil.mutable_rwcap_salt_hash(rw_uri)
     key = hashutil.mutable_rwcap_key_hash(salt, writekey)
-    cryptor = AES(key)
-    crypttext = cryptor.process(rw_uri)
+    encryptor = aes.create_encryptor(key)
+    crypttext = aes.encrypt_data(encryptor, rw_uri)
     mac = hashutil.hmac(key, salt + crypttext)
     assert len(mac) == 32
     return salt + crypttext + mac
@@ -331,8 +331,8 @@ class DirectoryNode(object):
         salt = encwrcap[:16]
         crypttext = encwrcap[16:-32]
         key = hashutil.mutable_rwcap_key_hash(salt, self._node.get_writekey())
-        cryptor = AES(key)
-        plaintext = cryptor.process(crypttext)
+        encryptor = aes.create_decryptor(key)
+        plaintext = aes.decrypt_data(encryptor, crypttext)
         return plaintext
 
     def _create_and_validate_node(self, rw_uri, ro_uri, name):
@@ -861,7 +861,7 @@ class ManifestWalker(DeepStats):
                 }
 
 
-class DeepChecker:
+class DeepChecker(object):
     def __init__(self, root, verify, repair, add_lease):
         root_si = root.get_storage_index()
         if root_si:

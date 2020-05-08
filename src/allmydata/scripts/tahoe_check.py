@@ -8,7 +8,7 @@ from allmydata.scripts.common import get_alias, DEFAULT_ALIAS, escape_path, \
 from allmydata.scripts.common_http import do_http, format_http_error
 from allmydata.util.encodingutil import quote_output, quote_path
 
-class Checker:
+class Checker(object):
     pass
 
 def _quote_serverid_index_share(serverid, storage_index, sharenum):
@@ -111,10 +111,10 @@ def check(options):
             return errno
     return 0
 
-class FakeTransport:
+class FakeTransport(object):
     disconnecting = False
 
-class DeepCheckOutput(LineOnlyReceiver):
+class DeepCheckOutput(LineOnlyReceiver, object):
     delimiter = "\n"
     def __init__(self, streamer, options):
         self.streamer = streamer
@@ -173,7 +173,7 @@ class DeepCheckOutput(LineOnlyReceiver):
         print("done: %d objects checked, %d healthy, %d unhealthy" \
               % (self.num_objects, self.files_healthy, self.files_unhealthy), file=stdout)
 
-class DeepCheckAndRepairOutput(LineOnlyReceiver):
+class DeepCheckAndRepairOutput(LineOnlyReceiver, object):
     delimiter = "\n"
     def __init__(self, streamer, options):
         self.streamer = streamer
@@ -271,7 +271,7 @@ class DeepCheckAndRepairOutput(LineOnlyReceiver):
               % (self.post_repair_files_healthy,
                  self.post_repair_files_unhealthy), file=stdout)
 
-class DeepCheckStreamer(LineOnlyReceiver):
+class DeepCheckStreamer(LineOnlyReceiver, object):
 
     def deepcheck_location(self, options, where):
         stdout = options.stdout

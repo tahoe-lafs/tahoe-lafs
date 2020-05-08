@@ -496,16 +496,19 @@ class Checker(log.PrefixingLogMixin):
         that we want to track and report whether or not each server
         responded.)"""
 
-        rref = s.get_rref()
+        storage_server = s.get_storage_server()
         lease_seed = s.get_lease_seed()
         if self._add_lease:
             renew_secret = self._get_renewal_secret(lease_seed)
             cancel_secret = self._get_cancel_secret(lease_seed)
-            d2 = rref.callRemote("add_lease", storageindex,
-                                 renew_secret, cancel_secret)
+            d2 = storage_server.add_lease(
+                storageindex,
+                renew_secret,
+                cancel_secret,
+            )
             d2.addErrback(self._add_lease_failed, s.get_name(), storageindex)
 
-        d = rref.callRemote("get_buckets", storageindex)
+        d = storage_server.get_buckets(storageindex)
         def _wrap_results(res):
             return (res, True)
 

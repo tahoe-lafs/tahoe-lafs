@@ -29,19 +29,35 @@ the foolscap-based server implemented in src/allmydata/storage/*.py .
 # 6: implement other sorts of IStorageClient classes: S3, etc
 
 
-import re
-import time
-import hashlib
-import json
-from datetime import datetime
-
-from zope.interface import implementer
+import re, time, hashlib
+from ConfigParser import (
+    NoSectionError,
+)
+import attr
+from zope.interface import (
+    Attribute,
+    Interface,
+    implementer,
+)
 from twisted.internet import defer
 from twisted.application import service
+from twisted.plugin import (
+    getPlugins,
+)
+from eliot import (
+    log_call,
+)
 from foolscap.api import eventually
-from pycryptopp.publickey import ed25519  # perhaps NaCl instead? other code uses this though
-
-from allmydata.interfaces import IStorageBroker, IDisplayableServer, IServer
+from foolscap.reconnector import (
+    ReconnectionInfo,
+)
+from allmydata.interfaces import (
+    IStorageBroker,
+    IDisplayableServer,
+    IServer,
+    IStorageServer,
+    IFoolscapStoragePlugin,
+)
 from allmydata.util import log, base32, connection_status
 from allmydata.util.assertutil import precondition
 from allmydata.util.observer import ObserverList
@@ -64,6 +80,58 @@ from allmydata.util.hashutil import permute_server_hash
 # look like?
 #  don't pass signatures: only pass validated blessed-objects
 
+@attr.s
+class StorageClientConfig(object):
+    """
+    Configuration for a node acting as a storage client.
+
+    :ivar preferred_peers: An iterable of the server-ids (``bytes``) of the
+        storage servers where share placement is preferred, in order of
+        decreasing preference.  See the *[client]peers.preferred*
+        documentation for details.
+
+    :ivar dict[unicode, dict[bytes, bytes]] storage_plugins: A mapping from
+        names of ``IFoolscapStoragePlugin`` configured in *tahoe.cfg* to the
+        respective configuration.
+    """
+    preferred_peers = attr.ib(default=())
+    storage_plugins = attr.ib(default=attr.Factory(dict))
+
+    @classmethod
+    def from_node_config(cls, config):
+        """
+        Create a ``StorageClientConfig`` from a complete Tahoe-LAFS node
+        configuration.
+
+        :param _Config config: The loaded Tahoe-LAFS node configuration.
+        """
+        ps = config.get_config("client", "peers.preferred", b"").split(b",")
+        preferred_peers = tuple([p.strip() for p in ps if p != b""])
+
+        enabled_storage_plugins = (
+            name.strip()
+            for name
+            in config.get_config(
+                b"client",
+                b"storage.plugins",
+                b"",
+            ).decode("utf-8").split(u",")
+            if name.strip()
+        )
+
+        storage_plugins = {}
+        for plugin_name in enabled_storage_plugins:
+            try:
+                plugin_config = config.items(b"storageclient.plugins." + plugin_name)
+            except NoSectionError:
+                plugin_config = []
+            storage_plugins[plugin_name] = dict(plugin_config)
+
+        return cls(
+            preferred_peers,
+            storage_plugins,
+        )
+
 
 @implementer(IStorageBroker)
 class StorageFarmBroker(service.MultiService):
@@ -72,14 +140,34 @@ class StorageFarmBroker(service.MultiService):
     remember enough information to establish a connection to it on demand.
     I'm also responsible for subscribing to the IntroducerClient to find out
     about new servers as they are announced by the Introducer.
+
+    :ivar StorageClientConfig storage_client_config: Values from the node
+        configuration file relating to storage behavior.
     """
-    def __init__(self, permute_peers, tub_maker, preferred_peers=None, grid_manager_keys=None):
+
+    @property
+    def preferred_peers(self):
+        return self.storage_client_config.preferred_peers
+
+    def __init__(
+            self,
+            permute_peers,
+            tub_maker,
+            node_config,
+            storage_client_config=None,
+            grid_manager_keys=None,
+    ):
         service.MultiService.__init__(self)
         assert permute_peers # False not implemented yet
         self.permute_peers = permute_peers
         self._tub_maker = tub_maker
-        self.preferred_peers = preferred_peers if preferred_peers else tuple()
         self._grid_manager_keys = grid_manager_keys if grid_manager_keys else list()
+
+        self.node_config = node_config
+
+        if storage_client_config is None:
+            storage_client_config = StorageClientConfig()
+        self.storage_client_config = storage_client_config
 
         # self.servers maps serverid -> IServer, and keeps track of all the
         # storage servers that we've heard about. Each descriptor manages its
@@ -91,25 +179,73 @@ class StorageFarmBroker(service.MultiService):
         self._threshold_listeners = [] # tuples of (threshold, Deferred)
         self._connected_high_water_mark = 0
 
+    @log_call(action_type=u"storage-client:broker:set-static-servers")
     def set_static_servers(self, servers):
-        for (server_id, server) in servers.items():
-            assert isinstance(server_id, unicode) # from YAML
-            server_id = server_id.encode("ascii")
-            self._static_server_ids.add(server_id)
-            handler_overrides = server.get("connections", {})
-            s = NativeStorageServer(
-                server_id,
-                server["ann"],
-                self._tub_maker,
-                handler_overrides,
-                self._grid_manager_keys,
-                [],  # XXX FIXME? need grid_manager_certs too?
-            )
-            print("SET STATIC {}".format(s))
-            s.on_status_changed(lambda _: self._got_connection())
-            s.setServiceParent(self)
-            self.servers[server_id] = s
-            s.start_connecting(self._trigger_connections)
+        # Sorting the items gives us a deterministic processing order.  This
+        # doesn't really matter but it makes the logging behavior more
+        # predictable and easier to test (and at least one test does depend on
+        # this sorted order).
+        for (server_id, server) in sorted(servers.items()):
+            try:
+                storage_server = self._make_storage_server(server_id, server)
+            except Exception:
+                # TODO: The _make_storage_server failure is logged but maybe
+                # we should write a traceback here.  Notably, tests don't
+                # automatically fail just because we hit this case.  Well
+                # written tests will still fail if a surprising exception
+                # arrives here but they might be harder to debug without this
+                # information.
+                pass
+            else:
+                self._static_server_ids.add(server_id)
+                self.servers[server_id] = storage_server
+                storage_server.setServiceParent(self)
+                storage_server.start_connecting(self._trigger_connections)
+
+    def get_client_storage_plugin_web_resources(self, node_config):
+        """
+        Get all of the client-side ``IResource`` implementations provided by
+        enabled storage plugins.
+
+        :param allmydata.node._Config node_config: The complete node
+            configuration for the node from which these web resources will be
+            served.
+
+        :return dict[unicode, IResource]: Resources for all of the plugins.
+        """
+        plugins = {
+            plugin.name: plugin
+            for plugin
+            in getPlugins(IFoolscapStoragePlugin)
+        }
+        return {
+            name: plugins[name].get_client_resource(node_config)
+            for (name, config)
+            in self.storage_client_config.storage_plugins.items()
+        }
+
+    @log_call(
+        action_type=u"storage-client:broker:make-storage-server",
+        include_args=["server_id"],
+        include_result=False,
+    )
+    def _make_storage_server(self, server_id, server):
+        assert isinstance(server_id, unicode) # from YAML
+        server_id = server_id.encode("ascii")
+        handler_overrides = server.get("connections", {})
+        print("ANN", server["ann"])
+        s = NativeStorageServer(
+            server_id,
+            server["ann"],
+            self._tub_maker,
+            handler_overrides,
+            self.node_config,
+            self.storage_client_config,
+            self._grid_manager_keys,
+            server["ann"].get("grid-manager-certificates", []),
+        )
+        s.on_status_changed(lambda _: self._got_connection())
+        return s
 
     def when_connected_enough(self, threshold):
         """
@@ -124,8 +260,11 @@ class StorageFarmBroker(service.MultiService):
 
     # these two are used in unit tests
     def test_add_rref(self, serverid, rref, ann):
-        s = NativeStorageServer(serverid, ann.copy(), self._tub_maker, {}, [], [])
-        s.rref = rref
+        s = self._make_storage_server(
+            serverid.decode("ascii"),
+            {"ann": ann.copy()},
+        )
+        s._rref = rref
         s._is_connected = True
         self.servers[serverid] = s
 
@@ -138,7 +277,7 @@ class StorageFarmBroker(service.MultiService):
         ic.subscribe_to("storage", self._got_announcement)
 
     def _got_connection(self):
-        # this is called by NativeStorageClient when it is connected
+        # this is called by NativeStorageServer when it is connected
         self._check_connected_high_water_mark()
 
     def _check_connected_high_water_mark(self):
@@ -165,11 +304,10 @@ class StorageFarmBroker(service.MultiService):
                     facility="tahoe.storage_broker", umid="AlxzqA",
                     level=log.UNUSUAL)
             return
-
-        grid_manager_certs = ann.get("grid-manager-certificates", [])
-        print("certs for {}: {}".format(key_s, grid_manager_certs))
-        s = NativeStorageServer(server_id, ann, self._tub_maker, {}, self._grid_manager_keys, grid_manager_certs)
-        s.on_status_changed(lambda _: self._got_connection())
+        s = self._make_storage_server(
+            server_id.decode("utf-8"),
+            {u"ann": ann},
+        )
         server_id = s.get_serverid()
         old = self.servers.get(server_id)
         if old:
@@ -263,7 +401,7 @@ class StorageFarmBroker(service.MultiService):
         # tubids. This clause maps the old tubids to our existing servers.
         for s in self.servers.values():
             if isinstance(s, NativeStorageServer):
-                if serverid == s._tubid:
+                if serverid == s.get_tubid():
                     return s
         return StubServer(serverid)
 
@@ -348,6 +486,212 @@ def validate_grid_manager_certificate(gm_key, alleged_cert, now_fn=None):
     return True
 
 
+class IFoolscapStorageServer(Interface):
+    """
+    An internal interface that mediates between ``NativeStorageServer`` and
+    Foolscap-based ``IStorageServer`` implementations.
+    """
+    nickname = Attribute("""
+    A name for this server for presentation to users.
+    """)
+    permutation_seed = Attribute("""
+    A stable value associated with this server which a client can use as an
+    input to the server selection permutation ordering.
+    """)
+    tubid = Attribute("""
+    The identifier for the Tub in which the server is run.
+    """)
+    storage_server = Attribute("""
+    An IStorageServer provide which implements a concrete Foolscap-based
+    protocol for communicating with the server.
+    """)
+    name = Attribute("""
+    Another name for this server for presentation to users.
+    """)
+    longname = Attribute("""
+    *Another* name for this server for presentation to users.
+    """)
+    lease_seed = Attribute("""
+    A stable value associated with this server which a client can use as an
+    input to a lease secret generation function.
+    """)
+
+    def connect_to(tub, got_connection):
+        """
+        Attempt to establish and maintain a connection to the server.
+
+        :param Tub tub: A Foolscap Tub from which the connection is to
+            originate.
+
+        :param got_connection: A one-argument callable which is called with a
+            Foolscap ``RemoteReference`` when a connection is established.
+            This may be called multiple times if the connection is lost and
+            then re-established.
+
+        :return foolscap.reconnector.Reconnector: An object which manages the
+            connection and reconnection attempts.
+        """
+
+
+@implementer(IFoolscapStorageServer)
+@attr.s(frozen=True)
+class _FoolscapStorage(object):
+    """
+    Abstraction for connecting to a storage server exposed via Foolscap.
+    """
+    nickname = attr.ib()
+    permutation_seed = attr.ib()
+    tubid = attr.ib()
+
+    storage_server = attr.ib(validator=attr.validators.provides(IStorageServer))
+
+    _furl = attr.ib()
+    _short_description = attr.ib()
+    _long_description = attr.ib()
+
+
+    @property
+    def name(self):
+        return self._short_description
+
+    @property
+    def longname(self):
+        return self._long_description
+
+    @property
+    def lease_seed(self):
+        return self.tubid
+
+    @classmethod
+    def from_announcement(cls, server_id, furl, ann, storage_server):
+        """
+        Create an instance from a fURL and an announcement like::
+
+            {"permutation-seed-base32": "...",
+             "nickname": "...",
+             "grid-manager-certificates": [..],
+            }
+
+        *nickname* and *grid-manager-certificates* are optional.
+        """
+        m = re.match(r'pb://(\w+)@', furl)
+        assert m, furl
+        tubid_s = m.group(1).lower()
+        tubid = base32.a2b(tubid_s)
+        if "permutation-seed-base32" in ann:
+            ps = base32.a2b(str(ann["permutation-seed-base32"]))
+        elif re.search(r'^v0-[0-9a-zA-Z]{52}$', server_id):
+            ps = base32.a2b(server_id[3:])
+        else:
+            log.msg("unable to parse serverid '%(server_id)s as pubkey, "
+                    "hashing it to get permutation-seed, "
+                    "may not converge with other clients",
+                    server_id=server_id,
+                    facility="tahoe.storage_broker",
+                    level=log.UNUSUAL, umid="qu86tw")
+            ps = hashlib.sha256(server_id).digest()
+        permutation_seed = ps
+
+        assert server_id
+        long_description = server_id
+        if server_id.startswith("v0-"):
+            # remove v0- prefix from abbreviated name
+            short_description = server_id[3:3+8]
+        else:
+            short_description = server_id[:8]
+        nickname = ann.get("nickname", "")
+
+        ## XXX FIXME post-merge, need to parse out
+        ## "grid-manager-certificates" and .. do something with them
+        ## (like store them on this object)
+
+        return cls(
+            nickname=nickname,
+            permutation_seed=permutation_seed,
+            tubid=tubid,
+            storage_server=storage_server,
+            furl=furl,
+            short_description=short_description,
+            long_description=long_description,
+        )
+
+    def connect_to(self, tub, got_connection):
+        return tub.connectTo(self._furl, got_connection)
+
+
+@implementer(IFoolscapStorageServer)
+class _NullStorage(object):
+    """
+    Abstraction for *not* communicating with a storage server of a type with
+    which we can't communicate.
+    """
+    nickname = ""
+    permutation_seed = hashlib.sha256("").digest()
+    tubid = hashlib.sha256("").digest()
+    storage_server = None
+
+    lease_seed = hashlib.sha256("").digest()
+
+    name = "<unsupported>"
+    longname = "<storage with unsupported protocol>"
+
+    def connect_to(self, tub, got_connection):
+        return NonReconnector()
+
+
+class NonReconnector(object):
+    """
+    A ``foolscap.reconnector.Reconnector``-alike that doesn't do anything.
+    """
+    def stopConnecting(self):
+        pass
+
+    def reset(self):
+        pass
+
+    def getReconnectionInfo(self):
+        return ReconnectionInfo()
+
+_null_storage = _NullStorage()
+
+
+class AnnouncementNotMatched(Exception):
+    """
+    A storage server announcement wasn't matched by any of the locally enabled
+    plugins.
+    """
+
+
+def _storage_from_foolscap_plugin(node_config, config, announcement, get_rref):
+    """
+    Construct an ``IStorageServer`` from the most locally-preferred plugin
+    that is offered in the given announcement.
+
+    :param allmydata.node._Config node_config: The node configuration to
+        pass to the plugin.
+    """
+    plugins = {
+        plugin.name: plugin
+        for plugin
+        in getPlugins(IFoolscapStoragePlugin)
+    }
+    storage_options = announcement.get(u"storage-options", [])
+    for plugin_name, plugin_config in config.storage_plugins.items():
+        try:
+            plugin = plugins[plugin_name]
+        except KeyError:
+            raise ValueError("{} not installed".format(plugin_name))
+        for option in storage_options:
+            if plugin_name == option[u"name"]:
+                furl = option[u"storage-server-FURL"]
+                return furl, plugin.get_storage_client(
+                    node_config,
+                    option,
+                    get_rref,
+                )
+    raise AnnouncementNotMatched()
+
+
 @implementer(IServer)
 class NativeStorageServer(service.MultiService):
     """I hold information about a storage server that we want to connect to.
@@ -376,14 +720,17 @@ class NativeStorageServer(service.MultiService):
         "application-version": "unknown: no get_version()",
         }
 
-    def __init__(self, server_id, ann, tub_maker, handler_overrides, grid_manager_keys, grid_manager_certs):
-        # print("CREATE {}: {}".format(server_id, grid_manager_certs))
+    def __init__(self, server_id, ann, tub_maker, handler_overrides, node_config, config=None,
+                 grid_manager_keys=None, grid_manager_certs=None):
         service.MultiService.__init__(self)
         assert isinstance(server_id, str)
         self._server_id = server_id
         self.announcement = ann
         self._tub_maker = tub_maker
         self._handler_overrides = handler_overrides
+
+        if config is None:
+            config = StorageClientConfig()
 
         # XXX we should validate as much as we can about the
         # certificates right now -- the only thing we HAVE to be lazy
@@ -392,45 +739,18 @@ class NativeStorageServer(service.MultiService):
 
         # any public-keys which the user has configured (if none, it
         # means use any storage servers)
-        self._grid_manager_keys = grid_manager_keys
-        # print("keys: {}".format(self._grid_manager_keys))
+        self._grid_manager_keys = grid_manager_keys or []
+
         # any storage-certificates that this storage-server included
         # in its announcement
-        self._grid_manager_certificates = grid_manager_certs
-        # print("certs: {}".format(self._grid_manager_certificates))
+        self._grid_manager_certificates = grid_manager_certs or []
 
-        assert "anonymous-storage-FURL" in ann, ann
-        furl = str(ann["anonymous-storage-FURL"])
-        m = re.match(r'pb://(\w+)@', furl)
-        assert m, furl
-        tubid_s = m.group(1).lower()
-        self._tubid = base32.a2b(tubid_s)
-        if "permutation-seed-base32" in ann:
-            ps = base32.a2b(str(ann["permutation-seed-base32"]))
-        elif re.search(r'^v0-[0-9a-zA-Z]{52}$', server_id):
-            ps = base32.a2b(server_id[3:])
-        else:
-            log.msg("unable to parse serverid '%(server_id)s as pubkey, "
-                    "hashing it to get permutation-seed, "
-                    "may not converge with other clients",
-                    server_id=server_id,
-                    facility="tahoe.storage_broker",
-                    level=log.UNUSUAL, umid="qu86tw")
-            ps = hashlib.sha256(server_id).digest()
-        self._permutation_seed = ps
-
-        assert server_id
-        self._long_description = server_id
-        if server_id.startswith("v0-"):
-            # remove v0- prefix from abbreviated name
-            self._short_description = server_id[3:3+8]
-        else:
-            self._short_description = server_id[:8]
+        self._storage = self._make_storage_system(node_config, config, ann)
 
         self.last_connect_time = None
         self.last_loss_time = None
         self.remote_host = None
-        self.rref = None
+        self._rref = None
         self._is_connected = False
         self._reconnector = None
         self._trigger_cb = None
@@ -466,6 +786,79 @@ class NativeStorageServer(service.MultiService):
         # print("didn't validate {} keys".format(len(self._grid_manager_keys)))
         return False
 
+    def _make_storage_system(self, node_config, config, ann):
+        """
+        :param allmydata.node._Config node_config: The node configuration to pass
+            to any configured storage plugins.
+
+        :param StorageClientConfig config: Configuration specifying desired
+            storage client behavior.
+
+        :param dict ann: The storage announcement from the storage server we
+            are meant to communicate with.
+
+        :return IFoolscapStorageServer: An object enabling communication via
+            Foolscap with the server which generated the announcement.
+        """
+        # Try to match the announcement against a plugin.
+        try:
+            furl, storage_server = _storage_from_foolscap_plugin(
+                node_config,
+                config,
+                ann,
+                # Pass in an accessor for our _rref attribute.  The value of
+                # the attribute may change over time as connections are lost
+                # and re-established.  The _StorageServer should always be
+                # able to get the most up-to-date value.
+                self.get_rref,
+            )
+        except AnnouncementNotMatched:
+            # Nope.
+            pass
+        else:
+            return _FoolscapStorage.from_announcement(
+                self._server_id,
+                furl.encode("utf-8"),
+                ann,
+                storage_server,
+            )
+
+        # Try to match the announcement against the anonymous access scheme.
+        try:
+            furl = ann[u"anonymous-storage-FURL"]
+        except KeyError:
+            # Nope
+            pass
+        else:
+            # See comment above for the _storage_from_foolscap_plugin case
+            # about passing in get_rref.
+            storage_server = _StorageServer(get_rref=self.get_rref)
+            return _FoolscapStorage.from_announcement(
+                self._server_id,
+                furl.encode("utf-8"),
+                ann,
+                storage_server,
+            )
+
+        # Nothing matched so we can't talk to this server.
+        return _null_storage
+
+    def get_permutation_seed(self):
+        return self._storage.permutation_seed
+    def get_name(self): # keep methodname short
+        # TODO: decide who adds [] in the short description. It should
+        # probably be the output side, not here.
+        return self._storage.name
+    def get_longname(self):
+        return self._storage.longname
+    def get_tubid(self):
+        return self._storage.tubid
+    def get_lease_seed(self):
+        return self._storage.lease_seed
+    def get_foolscap_write_enabler_seed(self):
+        return self._storage.tubid
+    def get_nickname(self):
+        return self._storage.nickname
 
     def on_status_changed(self, status_changed):
         """
@@ -487,25 +880,10 @@ class NativeStorageServer(service.MultiService):
         return "<NativeStorageServer for %s>" % self.get_name()
     def get_serverid(self):
         return self._server_id
-    def get_permutation_seed(self):
-        return self._permutation_seed
     def get_version(self):
-        if self.rref:
-            return self.rref.version
+        if self._rref:
+            return self._rref.version
         return None
-    def get_name(self): # keep methodname short
-        # TODO: decide who adds [] in the short description. It should
-        # probably be the output side, not here.
-        return self._short_description
-    def get_longname(self):
-        return self._long_description
-    def get_lease_seed(self):
-        return self._tubid
-    def get_foolscap_write_enabler_seed(self):
-        return self._tubid
-
-    def get_nickname(self):
-        return self.announcement.get("nickname", "")
     def get_announcement(self):
         return self.announcement
     def get_remote_host(self):
@@ -513,8 +891,8 @@ class NativeStorageServer(service.MultiService):
 
     def get_connection_status(self):
         last_received = None
-        if self.rref:
-            last_received = self.rref.getDataLastReceivedAt()
+        if self._rref:
+            last_received = self._rref.getDataLastReceivedAt()
         return connection_status.from_foolscap_reconnector(self._reconnector,
                                                            last_received)
 
@@ -531,13 +909,11 @@ class NativeStorageServer(service.MultiService):
             available_space = protocol_v1_version.get('maximum-immutable-share-size', None)
         return available_space
 
-
     def start_connecting(self, trigger_cb):
         self._tub = self._tub_maker(self._handler_overrides)
         self._tub.setServiceParent(self)
-        furl = str(self.announcement["anonymous-storage-FURL"])
         self._trigger_cb = trigger_cb
-        self._reconnector = self._tub.connectTo(furl, self._got_connection)
+        self._reconnector = self._storage.connect_to(self._tub, self._got_connection)
 
     def _got_connection(self, rref):
         lp = log.msg(format="got connection to %(name)s, getting versions",
@@ -560,18 +936,26 @@ class NativeStorageServer(service.MultiService):
 
         self.last_connect_time = time.time()
         self.remote_host = rref.getLocationHints()
-        self.rref = rref
+        self._rref = rref
         self._is_connected = True
         rref.notifyOnDisconnect(self._lost)
 
     def get_rref(self):
-        return self.rref
+        return self._rref
+
+    def get_storage_server(self):
+        """
+        See ``IServer.get_storage_server``.
+        """
+        if self._rref is None:
+            return None
+        return self._storage.storage_server
 
     def _lost(self):
         log.msg(format="lost connection to %(name)s", name=self.get_name(),
                 facility="tahoe.storage_broker", umid="zbRllw")
         self.last_loss_time = time.time()
-        # self.rref is now stale: all callRemote()s will get a
+        # self._rref is now stale: all callRemote()s will get a
         # DeadReferenceError. We leave the stale reference in place so that
         # uploader/downloader code (which received this IServer through
         # get_connected_servers() or get_servers_for_psi()) can continue to
@@ -589,3 +973,117 @@ class NativeStorageServer(service.MultiService):
 
 class UnknownServerTypeError(Exception):
     pass
+
+
+@implementer(IStorageServer)
+@attr.s
+class _StorageServer(object):
+    """
+    ``_StorageServer`` is a direct pass-through to an ``RIStorageServer`` via
+    a ``RemoteReference``.
+    """
+    _get_rref = attr.ib()
+
+    @property
+    def _rref(self):
+        return self._get_rref()
+
+    def get_version(self):
+        return self._rref.callRemote(
+            "get_version",
+        )
+
+    def allocate_buckets(
+            self,
+            storage_index,
+            renew_secret,
+            cancel_secret,
+            sharenums,
+            allocated_size,
+            canary,
+    ):
+        return self._rref.callRemote(
+            "allocate_buckets",
+            storage_index,
+            renew_secret,
+            cancel_secret,
+            sharenums,
+            allocated_size,
+            canary,
+        )
+
+    def add_lease(
+            self,
+            storage_index,
+            renew_secret,
+            cancel_secret,
+    ):
+        return self._rref.callRemote(
+            "add_lease",
+            storage_index,
+            renew_secret,
+            cancel_secret,
+        )
+
+    def renew_lease(
+            self,
+            storage_index,
+            renew_secret,
+    ):
+        return self._rref.callRemote(
+            "renew_lease",
+            storage_index,
+            renew_secret,
+        )
+
+    def get_buckets(
+            self,
+            storage_index,
+    ):
+        return self._rref.callRemote(
+            "get_buckets",
+            storage_index,
+        )
+
+    def slot_readv(
+            self,
+            storage_index,
+            shares,
+            readv,
+    ):
+        return self._rref.callRemote(
+            "slot_readv",
+            storage_index,
+            shares,
+            readv,
+        )
+
+    def slot_testv_and_readv_and_writev(
+            self,
+            storage_index,
+            secrets,
+            tw_vectors,
+            r_vector,
+    ):
+        return self._rref.callRemote(
+            "slot_testv_and_readv_and_writev",
+            storage_index,
+            secrets,
+            tw_vectors,
+            r_vector,
+        )
+
+    def advise_corrupt_share(
+            self,
+            share_type,
+            storage_index,
+            shnum,
+            reason,
+    ):
+        return self._rref.callRemoteOnly(
+            "advise_corrupt_share",
+            share_type,
+            storage_index,
+            shnum,
+            reason,
+        )

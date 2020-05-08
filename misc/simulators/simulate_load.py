@@ -8,7 +8,7 @@ import random
 
 SERVER_CAPACITY = 10**12
 
-class Server:
+class Server(object):
     def __init__(self):
         self.si = random.randrange(0, 2**31)
         self.used = 0

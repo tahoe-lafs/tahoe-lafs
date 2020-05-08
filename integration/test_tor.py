@@ -14,7 +14,7 @@ import pytest_twisted
 
 import util
 
-# see "conftest.py" for the fixtures (e.g. "magic_folder")
+# see "conftest.py" for the fixtures (e.g. "tor_network")
 
 @pytest_twisted.inlineCallbacks
 def test_onion_service_storage(reactor, request, temp_dir, flog_gatherer, tor_network, tor_introducer_furl):

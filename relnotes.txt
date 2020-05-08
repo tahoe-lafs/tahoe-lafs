@@ -1,6 +1,6 @@
-﻿ANNOUNCING Tahoe, the Least-Authority File Store, v1.13.0
+﻿ANNOUNCING Tahoe, the Least-Authority File Store, v1.14.0
 
-The Tahoe-LAFS team is pleased to announce version 1.13.0 of
+The Tahoe-LAFS team is pleased to announce version 1.14.0 of
 Tahoe-LAFS, an extremely reliable decentralized storage
 system. Get it with "pip install tahoe-lafs", or download a
 tarball here:
@@ -18,22 +18,16 @@ unique security and fault-tolerance properties:
 The previous stable release of Tahoe-LAFS was v1.12.1,
 released on January 18, 2017.
 
-v1.13.0 fixes several problems with the magic-folder frontend, adds
---json to more commands, adds the "tahoe status" and "tahoe
-magic-folder status" commands and some internal refactoring. It is
-also now possible to have multiple magic folders in a single Tahoe
-client.
+The v1.14.0 release: makes several Magic Folder improvements (MacOS
+support, better logs, fewer conflict cases); adds an Eliot streaming
+logs endpoint; adds an extension point for storage customization;
+makes a bunch of bug-fixes and cleanups. NixOS is a supported
+platform; Fedora 29 is no longer a supported platform. Several early
+parts of Python3 porting have landed.
 
-A long-standing feature to improve the share-placement algorithm
-("servers of happiness") has been updated and merged. "tahoe backup"
-now reports progress.
-
-New clients can now be added to a grid using "magic wormhole" [14], a
-SPAKE2-based method of securely connecting two computers. This adds
-the "tahoe invite" command for a current grid-participant to invite a
-new client and a corresponding option "tahoe create-client --join" for
-the other side. These use a server at ``wormhole.tahoe-lafs.org``
-currently operated by Least Authority.
+DEPRECATED: ``tahoe start``, ``tahoe stop``, ``tahoe restart`` and
+``tahoe daemonize`` are all deprecated in favour of using ``tahoe
+run`` (along with a suitable process manager if desired).
 
 Please see ``NEWS.rst`` for a more complete list of changes.
 
@@ -159,12 +153,12 @@ May 17, 2018
 San Francisco, California, USA
 
 
-[1] https://github.com/tahoe-lafs/tahoe-lafs/blob/tahoe-lafs-1.13.0/NEWS.rst
+[1] https://github.com/tahoe-lafs/tahoe-lafs/blob/tahoe-lafs-1.14.0/NEWS.rst
 [2] https://github.com/tahoe-lafs/tahoe-lafs/blob/master/docs/known_issues.rst
 [3] https://tahoe-lafs.org/trac/tahoe-lafs/wiki/RelatedProjects
-[4] https://github.com/tahoe-lafs/tahoe-lafs/blob/tahoe-lafs-1.13.0/COPYING.GPL
-[5] https://github.com/tahoe-lafs/tahoe-lafs/blob/tahoe-lafs-1.13.0/COPYING.TGPPL.rst
-[6] https://tahoe-lafs.readthedocs.org/en/tahoe-lafs-1.13.0/INSTALL.html
+[4] https://github.com/tahoe-lafs/tahoe-lafs/blob/tahoe-lafs-1.14.0/COPYING.GPL
+[5] https://github.com/tahoe-lafs/tahoe-lafs/blob/tahoe-lafs-1.14.0/COPYING.TGPPL.rst
+[6] https://tahoe-lafs.readthedocs.org/en/tahoe-lafs-1.14.0/INSTALL.html
 [7] https://tahoe-lafs.org/cgi-bin/mailman/listinfo/tahoe-dev
 [8] https://tahoe-lafs.org/trac/tahoe-lafs/roadmap
 [9] https://github.com/tahoe-lafs/tahoe-lafs/blob/master/CREDITS

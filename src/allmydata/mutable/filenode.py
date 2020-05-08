@@ -1,9 +1,11 @@
-
 import random
 
 from zope.interface import implementer
 from twisted.internet import defer, reactor
 from foolscap.api import eventually
+
+from allmydata.crypto import aes
+from allmydata.crypto import rsa
 from allmydata.interfaces import IMutableFileNode, ICheckable, ICheckResults, \
      NotEnoughSharesError, MDMF_VERSION, SDMF_VERSION, IMutableUploadable, \
      IMutableFileVersion, IWriteable
@@ -12,8 +14,6 @@ from allmydata.util.assertutil import precondition
 from allmydata.uri import WriteableSSKFileURI, ReadonlySSKFileURI, \
                           WriteableMDMFFileURI, ReadonlyMDMFFileURI
 from allmydata.monitor import Monitor
-from pycryptopp.cipher.aes import AES
-
 from allmydata.mutable.publish import Publish, MutableData,\
                                       TransformingUploadable
 from allmydata.mutable.common import MODE_READ, MODE_WRITE, MODE_CHECK, UnrecoverableFileError, \
@@ -24,7 +24,7 @@ from allmydata.mutable.checker import MutableChecker, MutableCheckAndRepairer
 from allmydata.mutable.repairer import Repairer
 
 
-class BackoffAgent:
+class BackoffAgent(object):
     # these parameters are copied from foolscap.reconnector, which gets them
     # from twisted.internet.protocol.ReconnectingClientFactory
     initialDelay = 1.0
@@ -129,8 +129,8 @@ class MutableFileNode(object):
         """
         (pubkey, privkey) = keypair
         self._pubkey, self._privkey = pubkey, privkey
-        pubkey_s = self._pubkey.serialize()
-        privkey_s = self._privkey.serialize()
+        pubkey_s = rsa.der_string_from_verifying_key(self._pubkey)
+        privkey_s = rsa.der_string_from_signing_key(self._privkey)
         self._writekey = hashutil.ssk_writekey_hash(privkey_s)
         self._encprivkey = self._encrypt_privkey(self._writekey, privkey_s)
         self._fingerprint = hashutil.ssk_pubkey_fingerprint_hash(pubkey_s)
@@ -160,13 +160,13 @@ class MutableFileNode(object):
         return contents(self)
 
     def _encrypt_privkey(self, writekey, privkey):
-        enc = AES(writekey)
-        crypttext = enc.process(privkey)
+        encryptor = aes.create_encryptor(writekey)
+        crypttext = aes.encrypt_data(encryptor, privkey)
         return crypttext
 
     def _decrypt_privkey(self, enc_privkey):
-        enc = AES(self._writekey)
-        privkey = enc.process(enc_privkey)
+        decryptor = aes.create_decryptor(self._writekey)
+        privkey = aes.decrypt_data(decryptor, enc_privkey)
         return privkey
 
     def _populate_pubkey(self, pubkey):

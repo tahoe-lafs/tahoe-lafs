@@ -272,22 +272,3 @@ that size, assume that they have been corrupted and are not retrievable from the
 Tahoe storage grid.  Tahoe v1.1 clients will refuse to upload files larger than
 12 GiB with a clean failure.  A future release of Tahoe will remove this
 limitation so that larger files can be uploaded.
-
-
-=== pycryptopp defect resulting in data corruption ===
-
-Versions of pycryptopp earlier than pycryptopp-0.5.0 had a defect
-which, when compiled with some compilers, would cause AES-256
-encryption and decryption to be computed incorrectly.  This could
-cause data corruption.  Tahoe v1.0 required, and came with a bundled
-copy of, pycryptopp v0.3.
-
-==== how to manage it ====
-
-You can detect whether pycryptopp-0.3 has this failure when it is
-compiled by your compiler.  Run the unit tests that come with
-pycryptopp-0.3: unpack the "pycryptopp-0.3.tar" file that comes in the
-Tahoe v1.0 {{{misc/dependencies}}} directory, cd into the resulting
-{{{pycryptopp-0.3.0}}} directory, and execute {{{python ./setup.py
-test}}}.  If the tests pass, then your compiler does not trigger this
-failure.

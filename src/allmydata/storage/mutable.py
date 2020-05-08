@@ -35,7 +35,7 @@ from allmydata.mutable.layout import MAX_MUTABLE_SHARE_SIZE
 assert struct.calcsize(">L") == 4, struct.calcsize(">L")
 assert struct.calcsize(">Q") == 8, struct.calcsize(">Q")
 
-class MutableShareFile:
+class MutableShareFile(object):
 
     sharetype = "mutable"
     DATA_LENGTH_OFFSET = struct.calcsize(">32s20s32s")
@@ -443,7 +443,7 @@ def testv_compare(a, op, b):
         return a > b
     # never reached
 
-class EmptyShare:
+class EmptyShare(object):
 
     def check_testv(self, testv):
         test_good = True

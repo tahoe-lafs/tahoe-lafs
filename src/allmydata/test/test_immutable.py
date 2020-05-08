@@ -16,6 +16,9 @@ from allmydata.interfaces import NotEnoughSharesError
 from allmydata.immutable.upload import Data
 from allmydata.immutable.downloader import finder
 
+from .no_network import (
+    NoNetworkServer,
+)
 
 class MockShareHashTree(object):
     def needed_hashes(self):
@@ -106,19 +109,6 @@ class TestShareFinder(unittest.TestCase):
                 eventually(_give_buckets_and_hunger_again)
                 return d
 
-        class MockIServer(object):
-            def __init__(self, serverid, rref):
-                self.serverid = serverid
-                self.rref = rref
-            def get_serverid(self):
-                return self.serverid
-            def get_rref(self):
-                return self.rref
-            def get_name(self):
-                return "name-%s" % self.serverid
-            def get_version(self):
-                return self.rref.version
-
         class MockStorageBroker(object):
             def __init__(self, servers):
                 self.servers = servers
@@ -136,9 +126,9 @@ class TestShareFinder(unittest.TestCase):
         mockserver1 = MockServer({1: MockBuckets(), 2: MockBuckets()})
         mockserver2 = MockServer({})
         mockserver3 = MockServer({3: MockBuckets()})
-        servers = [ MockIServer("ms1", mockserver1),
-                    MockIServer("ms2", mockserver2),
-                    MockIServer("ms3", mockserver3), ]
+        servers = [ NoNetworkServer("ms1", mockserver1),
+                    NoNetworkServer("ms2", mockserver2),
+                    NoNetworkServer("ms3", mockserver3), ]
         mockstoragebroker = MockStorageBroker(servers)
         mockdownloadstatus = MockDownloadStatus()
         mocknode = MockNode(check_reneging=True, check_fetch_failed=True)

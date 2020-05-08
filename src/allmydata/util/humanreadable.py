@@ -1,7 +1,7 @@
 import exceptions, os
 from repr import Repr
 
-class BetterRepr(Repr):
+class BetterRepr(Repr, object):
     def __init__(self):
         Repr.__init__(self)
 

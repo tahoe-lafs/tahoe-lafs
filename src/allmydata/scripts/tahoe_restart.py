@@ -9,6 +9,7 @@ class RestartOptions(StartOptions):
 
 
 def restart(config):
+    print("'tahoe restart' is deprecated; see 'tahoe run'")
     stderr = config.stderr
     rc = stop(config)
     if rc == COULD_NOT_STOP:

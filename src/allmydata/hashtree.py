@@ -68,7 +68,7 @@ def roundup_pow2(x):
     return ans
 
 
-class CompleteBinaryTreeMixin:
+class CompleteBinaryTreeMixin(object):
     """
     Adds convenience methods to a complete binary tree.
 

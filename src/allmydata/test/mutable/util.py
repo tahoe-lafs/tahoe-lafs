@@ -1,4 +1,5 @@
 from six.moves import cStringIO as StringIO
+import attr
 from twisted.internet import defer, reactor
 from foolscap.api import eventually, fireEventually
 from allmydata import client
@@ -9,7 +10,10 @@ from allmydata.util.hashutil import tagged_hash
 from allmydata.storage_client import StorageFarmBroker
 from allmydata.mutable.layout import MDMFSlotReadProxy
 from allmydata.mutable.publish import MutableData
-from ..common import TEST_RSA_KEY_SIZE
+from ..common import (
+    TEST_RSA_KEY_SIZE,
+    EMPTY_CLIENT_CONFIG,
+)
 
 def eventuaaaaaly(res=None):
     d = fireEventually(res)
@@ -21,7 +25,7 @@ def eventuaaaaaly(res=None):
 # network connections, both to speed up the tests and to reduce the amount of
 # non-mutable.py code being exercised.
 
-class FakeStorage:
+class FakeStorage(object):
     # this class replaces the collection of storage servers, allowing the
     # tests to examine and manipulate the published shares. It also lets us
     # control the order in which read queries are answered, to exercise more
@@ -78,11 +82,13 @@ class FakeStorage:
         shares[shnum] = f.getvalue()
 
 
-class FakeStorageServer:
+class FakeStorageServer(object):
+
     def __init__(self, peerid, storage):
         self.peerid = peerid
         self.storage = storage
         self.queries = 0
+
     def callRemote(self, methname, *args, **kwargs):
         self.queries += 1
         def _call():
@@ -197,21 +203,100 @@ def corrupt(res, s, offset, shnums_to_corrupt=None, offset_offset=0):
     dl.addCallback(lambda ignored: res)
     return dl
 
+@attr.s
+class Peer(object):
+    peerid = attr.ib()
+    storage_server = attr.ib()
+    announcement = attr.ib()
+
+def make_peer(s, i):
+    """
+    Create a "peer" suitable for use with ``make_storagebroker_with_peers`` or
+    ``make_nodemaker_with_peers``.
+
+    :param IServer s: The server with which to associate the peers.
+
+    :param int i: A unique identifier for this peer within the whole group of
+        peers to be used.  For example, a sequence number.  This is used to
+        generate a unique peer id.
+
+    :rtype: ``Peer``
+    """
+    peerid = base32.b2a(tagged_hash("peerid", "%d" % i)[:20])
+    fss = FakeStorageServer(peerid, s)
+    ann = {
+        "anonymous-storage-FURL": "pb://%s@nowhere/fake" % (peerid,),
+        "permutation-seed-base32": peerid,
+    }
+    return Peer(peerid=peerid, storage_server=fss, announcement=ann)
+
+
 def make_storagebroker(s=None, num_peers=10):
+    """
+    Make a ``StorageFarmBroker`` connected to some number of fake storage
+    servers.
+
+    :param IServer s: The server with which to associate the fake storage
+        servers.
+
+    :param int num_peers: The number of fake storage servers to associate with
+        the broker.
+    """
     if not s:
         s = FakeStorage()
-    peerids = [tagged_hash("peerid", "%d" % i)[:20]
-               for i in range(num_peers)]
-    storage_broker = StorageFarmBroker(True, None)
-    for peerid in peerids:
-        fss = FakeStorageServer(peerid, s)
-        ann = {"anonymous-storage-FURL": "pb://%s@nowhere/fake" % base32.b2a(peerid),
-               "permutation-seed-base32": base32.b2a(peerid) }
-        storage_broker.test_add_rref(peerid, fss, ann)
+    peers = []
+    for peer_num in range(num_peers):
+        peers.append(make_peer(s, peer_num))
+    return make_storagebroker_with_peers(peers)
+
+
+def make_storagebroker_with_peers(peers):
+    """
+    Make a ``StorageFarmBroker`` connected to the given storage servers.
+
+    :param list peers: The storage servers to associate with the storage
+        broker.
+    """
+    storage_broker = StorageFarmBroker(True, None, EMPTY_CLIENT_CONFIG)
+    for peer in peers:
+        storage_broker.test_add_rref(
+            peer.peerid,
+            peer.storage_server,
+            peer.announcement,
+        )
     return storage_broker
 
+
 def make_nodemaker(s=None, num_peers=10, keysize=TEST_RSA_KEY_SIZE):
+    """
+    Make a ``NodeMaker`` connected to some number of fake storage servers.
+
+    :param IServer s: The server with which to associate the fake storage
+        servers.
+
+    :param int num_peers: The number of fake storage servers to associate with
+        the node maker.
+    """
     storage_broker = make_storagebroker(s, num_peers)
+    return make_nodemaker_with_storage_broker(storage_broker, keysize)
+
+
+def make_nodemaker_with_peers(peers, keysize=TEST_RSA_KEY_SIZE):
+    """
+    Make a ``NodeMaker`` connected to the given storage servers.
+
+    :param list peers: The storage servers to associate with the node maker.
+    """
+    storage_broker = make_storagebroker_with_peers(peers)
+    return make_nodemaker_with_storage_broker(storage_broker, keysize)
+
+
+def make_nodemaker_with_storage_broker(storage_broker, keysize):
+    """
+    Make a ``NodeMaker`` using the given storage broker.
+
+    :param StorageFarmBroker peers: The storage broker to use.
+    """
     sh = client.SecretHolder("lease secret", "convergence secret")
     keygen = client.KeyGenerator()
     if keysize:
@@ -221,7 +306,8 @@ def make_nodemaker(s=None, num_peers=10, keysize=TEST_RSA_KEY_SIZE):
                           {"k": 3, "n": 10}, SDMF_VERSION, keygen)
     return nodemaker
 
-class PublishMixin:
+
+class PublishMixin(object):
     def publish_one(self):
         # publish a file and create shares, which can then be manipulated
         # later.
@@ -331,7 +417,7 @@ class PublishMixin:
                     index = versionmap[shnum]
                     shares[peerid][shnum] = oldshares[index][peerid][shnum]
 
-class CheckerMixin:
+class CheckerMixin(object):
     def check_good(self, r, where):
         self.failUnless(r.is_healthy(), where)
         return r
@@ -349,4 +435,3 @@ class CheckerMixin:
                 return
         self.fail("%s: didn't see expected exception %s in problems %s" %
                   (where, expected_exception, r.get_share_problems()))
-

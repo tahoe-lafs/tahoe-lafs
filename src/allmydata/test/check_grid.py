@@ -72,7 +72,7 @@ class GridTesterOptions(usage.Options):
 class CommandFailed(Exception):
     pass
 
-class GridTester:
+class GridTester(object):
     def __init__(self, config):
         self.config = config
         self.tahoe = config.tahoe
@@ -140,7 +140,7 @@ class GridTester:
         if f not in oldfiles:
             raise CommandFailed("um, '%s' was supposed to already be in %s"
                                 % (f, dirname))
-        self.cli("rm", absfilename)
+        self.cli("unlink", absfilename)
         newfiles = self.listdir(dirname)
         if f in newfiles:
             raise CommandFailed("failed to remove '%s' from %s" % (f, dirname))

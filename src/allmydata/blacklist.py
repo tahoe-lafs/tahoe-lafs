@@ -17,7 +17,7 @@ class FileProhibited(Exception):
         self.reason = reason
 
 
-class Blacklist:
+class Blacklist(object):
     def __init__(self, blacklist_fn):
         self.blacklist_fn = blacklist_fn
         self.last_mtime = None
