@@ -5,7 +5,7 @@ import shutil
 from os import mkdir, unlink, listdir, utime
 from os.path import join, exists, getmtime
 
-from allmydata.util import keyutil
+from allmydata.crypto import ed25519
 from allmydata.util import base32
 from allmydata.util import configutil
 
@@ -23,8 +23,7 @@ def test_create_certificate(reactor):
         reactor, "grid-manager", "--config", "-", "create",
     )
     privkey_bytes = json.loads(gm_config)['private_key'].encode('ascii')
-    privkey, pubkey_bytes = keyutil.parse_privkey(privkey_bytes)
-    pubkey = keyutil.parse_pubkey(pubkey_bytes)
+    privkey, pubkey = ed25519.signing_keypair_from_string(privkey_bytes)
 
     # Note that zara + her key here are arbitrary and don't match any
     # "actual" clients in the test-grid; we're just checking that the
@@ -115,8 +114,7 @@ def test_reject_storage_server(reactor, request, storage_nodes, temp_dir, introd
         reactor, "grid-manager", "--config", "-", "create",
     )
     privkey_bytes = json.loads(gm_config)['private_key'].encode('ascii')
-    privkey, pubkey_bytes = keyutil.parse_privkey(privkey_bytes)
-    pubkey = keyutil.parse_pubkey(pubkey_bytes)
+    privkey, _ = ed25519.signing_keypair_from_string(privkey_bytes)
 
     # create certificates for first 2 storage-servers
     for idx, storage in enumerate(storage_nodes[:2]):
@@ -170,7 +168,7 @@ def test_reject_storage_server(reactor, request, storage_nodes, temp_dir, introd
     config = configutil.get_config(join(carol._node_dir, "tahoe.cfg"))
     print(dir(config))
     config.add_section("grid_managers")
-    config.set("grid_managers", "test", pubkey_bytes)
+    config.set("grid_managers", "test", ed25519.string_from_verifying_key(pubkey))
     config.write(open(join(carol._node_dir, "tahoe.cfg"), "w"))
     carol.signalProcess('TERM')
     yield carol._protocol.exited
