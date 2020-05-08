@@ -155,8 +155,8 @@ def test_reject_storage_server(reactor, request, storage_nodes, temp_dir, introd
         config.write(open(join(storage._node_dir, "tahoe.cfg"), "w"))
 
         # re-start this storage server
-        storage.signalProcess('TERM')
-        yield storage._protocol.exited
+        storage.transport.signalProcess('TERM')
+        yield storage.transport._protocol.exited
         time.sleep(1)
         storage_nodes[idx] = yield util._run_node(
             reactor, storage._node_dir, request, None,
@@ -166,12 +166,11 @@ def test_reject_storage_server(reactor, request, storage_nodes, temp_dir, introd
     # carol to have the grid-manager certificate
 
     config = configutil.get_config(join(carol._node_dir, "tahoe.cfg"))
-    print(dir(config))
     config.add_section("grid_managers")
-    config.set("grid_managers", "test", ed25519.string_from_verifying_key(pubkey))
+    config.set("grid_managers", "test", pubkey_str)
     config.write(open(join(carol._node_dir, "tahoe.cfg"), "w"))
-    carol.signalProcess('TERM')
-    yield carol._protocol.exited
+    carol.transport.signalProcess('TERM')
+    yield carol.transport._protocol.exited
 
     carol = yield util._run_node(
         reactor, carol._node_dir, request, None,
