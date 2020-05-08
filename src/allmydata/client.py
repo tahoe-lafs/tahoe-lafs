@@ -954,13 +954,6 @@ class _Client(node.Node, pollmixin.PollMixin):
         # of the Grid Manager (should that go in the config too,
         # then? How to handle multiple grid-managers?)
 
-        furl_file = self.config.get_private_path("storage.furl").encode(get_filesystem_encoding())
-        furl = self.tub.registerReference(ss, furlFile=furl_file)
-        ann = {
-            "anonymous-storage-FURL": furl,
-            "permutation-seed-base32": self._init_permutation_seed(ss),
-            "grid-manager-certificates": grid_manager_certificates,
-        }
         for ic in self.introducer_clients:
             ic.publish("storage", announcement, self._node_private_key)
 
