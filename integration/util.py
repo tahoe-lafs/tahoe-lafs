@@ -151,11 +151,10 @@ def _cleanup_tahoe_process(tahoe_transport, exited):
         pass
 
 
-def run_tahoe(reactor, request, *args):
+def run_tahoe(reactor, request, stdin=None, *args):
     """
     Helper to run tahoe with optional coverage
     """
-    stdin = kwargs.get('stdin', None)
     protocol = _CollectOutputProtocol(stdin=stdin)
     process = _tahoe_runner_optional_coverage(protocol, reactor, request, args)
     process.exited = protocol.done
