@@ -205,13 +205,14 @@ def config_from_string(basedir, portnumfile, config_str, _valid_config=None):
     # load configuration from in-memory string
     parser = ConfigParser.SafeConfigParser()
     parser.readfp(BytesIO(config_str))
-    configutil.validate_config('<in-memory>', parser, _valid_config)
+    fname = "<in-memory>"
+    configutil.validate_config(fname, parser, _valid_config)
 
     def write_new_config(cfg):
         """
         We throw away any attempt to persist
         """
-    return _Config(parser, portnumfile, basedir, '<in-memory>', write_new_config)
+    return _Config(parser, portnumfile, basedir, fname, write_new_config)
 
 
 def get_app_versions():
