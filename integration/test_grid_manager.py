@@ -113,8 +113,8 @@ def test_reject_storage_server(reactor, request, storage_nodes, temp_dir, introd
     gm_config = yield util.run_tahoe(
         reactor, request, "grid-manager", "--config", "-", "create",
     )
-    privkey_bytes = json.loads(gm_config)['private_key'].encode('ascii')
-    privkey, _ = ed25519.signing_keypair_from_string(privkey_bytes)
+    gm_privkey_bytes = json.loads(gm_config)['private_key'].encode('ascii')
+    gm_privkey, gm_pubkey = ed25519.signing_keypair_from_string(gm_privkey_bytes)
 
     # create certificates for first 2 storage-servers
     for idx, storage in enumerate(storage_nodes[:2]):
@@ -140,7 +140,6 @@ def test_reject_storage_server(reactor, request, storage_nodes, temp_dir, introd
     print("inserting certificates")
     # insert their certificates
     for idx, storage in enumerate(storage_nodes[:2]):
-        print(idx, storage)
         cert = yield util.run_tahoe(
             reactor, request, "grid-manager", "--config", "-", "sign",
             "storage{}".format(idx),
@@ -152,12 +151,12 @@ def test_reject_storage_server(reactor, request, storage_nodes, temp_dir, introd
         config.set("storage", "grid_management", "True")
         config.add_section("grid_manager_certificates")
         config.set("grid_manager_certificates", "default", "gridmanager.cert")
-        config.write(open(join(storage._node_dir, "tahoe.cfg"), "w"))
+        with open(join(storage._node_dir, "tahoe.cfg"), "w") as f:
+            config.write(f)
 
         # re-start this storage server
         storage.transport.signalProcess('TERM')
         yield storage.transport._protocol.exited
-        time.sleep(1)
         storage_nodes[idx] = yield util._run_node(
             reactor, storage._node_dir, request, None,
         )
@@ -167,14 +166,16 @@ def test_reject_storage_server(reactor, request, storage_nodes, temp_dir, introd
 
     config = configutil.get_config(join(carol._node_dir, "tahoe.cfg"))
     config.add_section("grid_managers")
-    config.set("grid_managers", "test", pubkey_str)
-    config.write(open(join(carol._node_dir, "tahoe.cfg"), "w"))
+    config.set("grid_managers", "test", ed25519.string_from_verifying_key(gm_pubkey))
+    with open(join(carol._node_dir, "tahoe.cfg"), "w") as f:
+        config.write(f)
     carol.transport.signalProcess('TERM')
     yield carol.transport._protocol.exited
 
     carol = yield util._run_node(
         reactor, carol._node_dir, request, None,
     )
+    yield util.await_client_ready(carol, servers=5)
 
     # try to put something into the grid, which should fail (because
     # carol has happy=3 but should only find storage0, storage1 to be

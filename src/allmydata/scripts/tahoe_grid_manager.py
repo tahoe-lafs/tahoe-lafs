@@ -249,14 +249,14 @@ class _GridManager(object):
             "version": 1,
         }
         cert_data = json.dumps(cert_info, separators=(',',':'), sort_keys=True).encode('utf8')
-        sig = self._private_key.sign(cert_data)
+        sig = ed25519.sign_data(self._private_key, cert_data)
         certificate = {
             u"certificate": cert_data,
             u"signature": base32.b2a(sig),
         }
 
         vk = ed25519.verifying_key_from_signing_key(self._private_key)
-        assert vk.verify(sig, cert_data) is None, "cert should verify"
+        ed25519.verify_signature(vk, sig, cert_data)
 
         return certificate
 

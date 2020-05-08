@@ -67,6 +67,7 @@ from allmydata.util.assertutil import precondition
 from allmydata.util.observer import ObserverList
 from allmydata.util.rrefutil import add_version_to_remote_reference
 from allmydata.util.hashutil import permute_server_hash
+from allmydata.crypto import ed25519
 
 # who is responsible for de-duplication?
 #  both?
@@ -473,11 +474,12 @@ def validate_grid_manager_certificate(gm_key, alleged_cert, now_fn=None):
         now_fn = datetime.utcnow
 
     try:
-        gm_key.verify(
+        ed25519.verify_signature(
+            gm_key,
             base32.a2b(alleged_cert['signature'].encode('ascii')),
             alleged_cert['certificate'].encode('ascii'),
         )
-    except ed25519.BadSignatureError:
+    except ed25519.BadSignature:
         return False
     # signature is valid; now we can load the actual data
     cert = json.loads(alleged_cert['certificate'])

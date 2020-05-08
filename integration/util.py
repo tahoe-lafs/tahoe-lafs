@@ -478,7 +478,7 @@ def web_post(tahoe, uri_fragment, **kwargs):
     return resp.content
 
 
-def await_client_ready(tahoe, timeout=10, liveness=60*2):
+def await_client_ready(tahoe, timeout=10, liveness=60*2, servers=1):
     """
     Uses the status API to wait for a client-type node (in `tahoe`, a
     `TahoeProcess` instance usually from a fixture e.g. `alice`) to be
@@ -502,8 +502,8 @@ def await_client_ready(tahoe, timeout=10, liveness=60*2):
             time.sleep(1)
             continue
 
-        if len(js['servers']) == 0:
-            print("waiting because no servers at all")
+        if len(js['servers']) < servers:
+            print("waiting because fewer than {} server(s)".format(servers))
             time.sleep(1)
             continue
         server_times = [
