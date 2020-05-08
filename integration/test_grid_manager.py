@@ -120,11 +120,11 @@ def test_reject_storage_server(reactor, request, storage_nodes, temp_dir, introd
     for idx, storage in enumerate(storage_nodes[:2]):
         pubkey_fname = join(storage._node_dir, "node.pubkey")
         with open(pubkey_fname, 'r') as f:
-            pubkey = f.read().strip()
+            pubkey_str = f.read().strip()
 
         gm_config = yield util.run_tahoe(
-            reactor, "grid-manager", "--config", "-", "add",
-            "storage{}".format(idx), pubkey,
+            reactor, request, "grid-manager", "--config", "-", "add",
+            "storage{}".format(idx), pubkey_str,
             stdin=gm_config,
         )
     assert sorted(json.loads(gm_config)['storage_servers'].keys()) == ['storage0', 'storage1']

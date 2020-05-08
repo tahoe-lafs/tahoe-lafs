@@ -5,8 +5,6 @@ import json
 import time
 from datetime import datetime
 
-from pycryptopp.publickey import ed25519  # perhaps NaCl instead? other code uses this though
-
 from allmydata.scripts.common import BaseOptions
 from allmydata.util.abbreviate import abbreviate_time
 from twisted.python import usage
@@ -171,7 +169,7 @@ class _GridManagerStorageServer(object):
         self._certificates.append(certificate)
 
     def public_key(self):
-        return "pub-v0-" + base32.b2a(self._public_key.vk_bytes)
+        return ed25519.string_from_verifying_key(self._public_key)
 
     def marshal(self):
         return {
@@ -228,7 +226,7 @@ class _GridManager(object):
     def __init__(self, private_key_bytes, storage_servers):
         self._storage_servers = dict() if storage_servers is None else storage_servers
         self._private_key_bytes = private_key_bytes
-        self._private_key, _ = ed25519.signing_keypair_from_string(self._private_key_bytes)
+        self._private_key, self._public_key = ed25519.signing_keypair_from_string(self._private_key_bytes)
         self._version = 0
 
     @property
@@ -236,8 +234,7 @@ class _GridManager(object):
         return self._storage_servers
 
     def public_identity(self):
-        verify_key_bytes = self._private_key.get_verifying_key_bytes()
-        return base32.b2a(verify_key_bytes)
+        return ed25519.string_from_verifying_key(self._public_key)
 
     def sign(self, name):
         try:
@@ -258,10 +255,8 @@ class _GridManager(object):
             u"signature": base32.b2a(sig),
         }
 
-        if True:
-            verify_key_bytes = self._private_key.get_verifying_key_bytes()
-            vk = ed25519.VerifyingKey(verify_key_bytes)
-            assert vk.verify(sig, cert_data) is None, "cert should verify"
+        vk = ed25519.verifying_key_from_signing_key(self._private_key)
+        assert vk.verify(sig, cert_data) is None, "cert should verify"
 
         return certificate
 
@@ -276,7 +271,6 @@ class _GridManager(object):
             raise KeyError(
                 "Already have a storage server called '{}'".format(name)
             )
-        assert public_key.vk_bytes
         ss = _GridManagerStorageServer(name, public_key, None)
         self._storage_servers[name] = ss
         return ss
@@ -374,7 +368,7 @@ def _show_identity(gridoptions, options):
     assert gm_config is not None
 
     gm = _load_gridmanager_config(gm_config)
-    print("pub-v0-{}".format(gm.public_identity()))
+    print(gm.public_identity())
 
 
 def _add(gridoptions, options):
