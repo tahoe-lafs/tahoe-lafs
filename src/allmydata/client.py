@@ -943,10 +943,9 @@ class _Client(node.Node, pollmixin.PollMixin):
 
         announcement.update(plugins_announcement)
 
-        grid_manager_certificates = []
-
         if self.config.get_config("storage", "grid_management", default=False, boolean=True):
             grid_manager_certificates = _load_grid_manager_certificates(self.config)
+            announcement["grid-manager-certificates"] = grid_manager_certificates
 
         # XXX we should probably verify that the certificates are
         # valid and not expired, as that could be confusing for the
