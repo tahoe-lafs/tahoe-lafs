@@ -233,7 +233,6 @@ class StorageFarmBroker(service.MultiService):
         assert isinstance(server_id, unicode) # from YAML
         server_id = server_id.encode("ascii")
         handler_overrides = server.get("connections", {})
-        print("ANN", server["ann"])
         s = NativeStorageServer(
             server_id,
             server["ann"],
