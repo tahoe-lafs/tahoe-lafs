@@ -15,12 +15,12 @@ import pytest_twisted
 
 
 @pytest_twisted.inlineCallbacks
-def test_create_certificate(reactor):
+def test_create_certificate(reactor, request):
     """
     The Grid Manager produces a valid, correctly-signed certificate.
     """
     gm_config = yield util.run_tahoe(
-        reactor, "grid-manager", "--config", "-", "create",
+        reactor, request, "grid-manager", "--config", "-", "create",
     )
     privkey_bytes = json.loads(gm_config)['private_key'].encode('ascii')
     privkey, pubkey = ed25519.signing_keypair_from_string(privkey_bytes)
@@ -29,12 +29,12 @@ def test_create_certificate(reactor):
     # "actual" clients in the test-grid; we're just checking that the
     # Grid Manager signs this properly.
     gm_config = yield util.run_tahoe(
-        reactor, "grid-manager", "--config", "-", "add",
+        reactor, request, "grid-manager", "--config", "-", "add",
         "zara", "pub-v0-kzug3ut2m7ziihf3ndpqlquuxeie4foyl36wn54myqc4wmiwe4ga",
         stdin=gm_config,
     )
     zara_cert_bytes = yield util.run_tahoe(
-        reactor, "grid-manager", "--config", "-", "sign", "zara",
+        reactor, request, "grid-manager", "--config", "-", "sign", "zara",
         stdin=gm_config,
     )
     zara_cert = json.loads(zara_cert_bytes)
@@ -48,21 +48,21 @@ def test_create_certificate(reactor):
 
 
 @pytest_twisted.inlineCallbacks
-def test_remove_client(reactor):
+def test_remove_client(reactor, request):
     """
     A Grid Manager can add and successfully remove a client
     """
     gm_config = yield util.run_tahoe(
-        reactor, "grid-manager", "--config", "-", "create",
+        reactor, request, "grid-manager", "--config", "-", "create",
     )
 
     gm_config = yield util.run_tahoe(
-        reactor, "grid-manager", "--config", "-", "add",
+        reactor, request, "grid-manager", "--config", "-", "add",
         "zara", "pub-v0-kzug3ut2m7ziihf3ndpqlquuxeie4foyl36wn54myqc4wmiwe4ga",
         stdin=gm_config,
     )
     gm_config = yield util.run_tahoe(
-        reactor, "grid-manager", "--config", "-", "add",
+        reactor, request, "grid-manager", "--config", "-", "add",
         "yakov", "pub-v0-kvxhb3nexybmipkrar2ztfrwp4uxxsmrjzkpzafit3ket4u5yldq",
         stdin=gm_config,
     )
@@ -70,7 +70,7 @@ def test_remove_client(reactor):
     assert "yakov" in json.loads(gm_config)['storage_servers']
 
     gm_config = yield util.run_tahoe(
-        reactor, "grid-manager", "--config", "-", "remove",
+        reactor, request, "grid-manager", "--config", "-", "remove",
         "zara",
         stdin=gm_config,
     )
@@ -79,23 +79,23 @@ def test_remove_client(reactor):
 
 
 @pytest_twisted.inlineCallbacks
-def test_remove_last_client(reactor):
+def test_remove_last_client(reactor, request):
     """
     A Grid Manager can remove all clients
     """
     gm_config = yield util.run_tahoe(
-        reactor, "grid-manager", "--config", "-", "create",
+        reactor, request, "grid-manager", "--config", "-", "create",
     )
 
     gm_config = yield util.run_tahoe(
-        reactor, "grid-manager", "--config", "-", "add",
+        reactor, request, "grid-manager", "--config", "-", "add",
         "zara", "pub-v0-kzug3ut2m7ziihf3ndpqlquuxeie4foyl36wn54myqc4wmiwe4ga",
         stdin=gm_config,
     )
     assert "zara" in json.loads(gm_config)['storage_servers']
 
     gm_config = yield util.run_tahoe(
-        reactor, "grid-manager", "--config", "-", "remove",
+        reactor, request, "grid-manager", "--config", "-", "remove",
         "zara",
         stdin=gm_config,
     )
@@ -111,7 +111,7 @@ def test_reject_storage_server(reactor, request, storage_nodes, temp_dir, introd
     valid certificates.
     """
     gm_config = yield util.run_tahoe(
-        reactor, "grid-manager", "--config", "-", "create",
+        reactor, request, "grid-manager", "--config", "-", "create",
     )
     privkey_bytes = json.loads(gm_config)['private_key'].encode('ascii')
     privkey, _ = ed25519.signing_keypair_from_string(privkey_bytes)
@@ -142,7 +142,7 @@ def test_reject_storage_server(reactor, request, storage_nodes, temp_dir, introd
     for idx, storage in enumerate(storage_nodes[:2]):
         print(idx, storage)
         cert = yield util.run_tahoe(
-            reactor, "grid-manager", "--config", "-", "sign",
+            reactor, request, "grid-manager", "--config", "-", "sign",
             "storage{}".format(idx),
             stdin=gm_config,
         )
@@ -183,9 +183,9 @@ def test_reject_storage_server(reactor, request, storage_nodes, temp_dir, introd
 
     try:
         yield util.run_tahoe(
-            reactor, "--node-directory", carol._node_dir,
+            reactor, request, "--node-directory", carol._node_dir,
             "put", "-",
-            stdin="some content" * 200,
+            stdin="some content\n" * 200,
         )
         assert False, "Should get a failure"
     except util.ProcessFailed as e:
