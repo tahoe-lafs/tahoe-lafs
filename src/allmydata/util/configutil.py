@@ -95,8 +95,11 @@ class ValidConfiguration(object):
         :return: True if the given section name, ite name pair is valid, False
             otherwise.
         """
+        valid_items = self._static_valid_sections.get(section_name, ())
+        if valid_items is None:
+            return True
         return (
-            item_name in self._static_valid_sections.get(section_name, ()) or
+            item_name in valid_items or
             self._is_valid_item(section_name, item_name)
         )
 
