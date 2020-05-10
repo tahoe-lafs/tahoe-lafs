@@ -104,86 +104,102 @@ def test_remove_last_client(reactor, request):
 
 
 @pytest_twisted.inlineCallbacks
-def test_reject_storage_server(reactor, request, storage_nodes, temp_dir, introducer_furl, flog_gatherer):
+def test_reject_storage_server(reactor, request, temp_dir, flog_gatherer):
     """
-    A client with happines=3 fails to upload to a Grid when it is
-    using Grid Manager and there are only two storage-servers with
-    valid certificates.
+    A client with happines=2 fails to upload to a Grid when it is
+    using Grid Manager and there is only 1 storage server with a valid
+    certificate.
     """
+    import grid
+    introducer = yield grid.create_introducer(reactor, request, temp_dir, flog_gatherer)
+    storage0 = yield grid.create_storage_server(
+        reactor, request, temp_dir, introducer, flog_gatherer,
+        name="gm_storage0",
+        web_port="tcp:9995:interface=localhost",
+        needed=2,
+        happy=2,
+        total=2,
+    )
+    storage1 = yield grid.create_storage_server(
+        reactor, request, temp_dir, introducer, flog_gatherer,
+        name="gm_storage1",
+        web_port="tcp:9996:interface=localhost",
+        needed=2,
+        happy=2,
+        total=2,
+    )
+
     gm_config = yield util.run_tahoe(
         reactor, request, "grid-manager", "--config", "-", "create",
     )
     gm_privkey_bytes = json.loads(gm_config)['private_key'].encode('ascii')
     gm_privkey, gm_pubkey = ed25519.signing_keypair_from_string(gm_privkey_bytes)
 
-    # create certificates for first 2 storage-servers
-    for idx, storage in enumerate(storage_nodes[:2]):
-        pubkey_fname = join(storage._node_dir, "node.pubkey")
-        with open(pubkey_fname, 'r') as f:
-            pubkey_str = f.read().strip()
+    # create certificate for the first storage-server
+    pubkey_fname = join(storage0.process.node_dir, "node.pubkey")
+    with open(pubkey_fname, 'r') as f:
+        pubkey_str = f.read().strip()
 
-        gm_config = yield util.run_tahoe(
-            reactor, request, "grid-manager", "--config", "-", "add",
-            "storage{}".format(idx), pubkey_str,
-            stdin=gm_config,
-        )
-    assert sorted(json.loads(gm_config)['storage_servers'].keys()) == ['storage0', 'storage1']
+    gm_config = yield util.run_tahoe(
+        reactor, request, "grid-manager", "--config", "-", "add",
+        "storage0", pubkey_str,
+        stdin=gm_config,
+    )
+    assert json.loads(gm_config)['storage_servers'].keys() == ['storage0']
 
-    # XXX FIXME need to shut-down and nuke carol when we're done this
-    # test (i.d. request.addfinalizer)
-    carol = yield util._create_node(
-        reactor, request, temp_dir, introducer_furl, flog_gatherer, "carol",
-        web_port="tcp:9982:interface=localhost",
+    # XXX FIXME want a grid.create_client() or similar
+    diana = yield util._create_node(
+        reactor, request, temp_dir, introducer.furl, flog_gatherer, "diana",
+        web_port="tcp:9984:interface=localhost",
         storage=False,
     )
 
-    print("inserting certificates")
-    # insert their certificates
-    for idx, storage in enumerate(storage_nodes[:2]):
-        cert = yield util.run_tahoe(
-            reactor, request, "grid-manager", "--config", "-", "sign",
-            "storage{}".format(idx),
-            stdin=gm_config,
-        )
-        with open(join(storage._node_dir, "gridmanager.cert"), "w") as f:
-            f.write(cert)
-        config = configutil.get_config(join(storage._node_dir, "tahoe.cfg"))
-        config.set("storage", "grid_management", "True")
-        config.add_section("grid_manager_certificates")
-        config.set("grid_manager_certificates", "default", "gridmanager.cert")
-        with open(join(storage._node_dir, "tahoe.cfg"), "w") as f:
-            config.write(f)
+    print("inserting certificate")
+    cert = yield util.run_tahoe(
+        reactor, request, "grid-manager", "--config", "-", "sign", "storage0",
+        stdin=gm_config,
+    )
+    with open(join(storage0.process.node_dir, "gridmanager.cert"), "w") as f:
+        f.write(cert)
+    config = configutil.get_config(join(storage0.process.node_dir, "tahoe.cfg"))
+    config.set("storage", "grid_management", "True")
+    config.add_section("grid_manager_certificates")
+    config.set("grid_manager_certificates", "default", "gridmanager.cert")
+    with open(join(storage0.process.node_dir, "tahoe.cfg"), "w") as f:
+        config.write(f)
 
-        # re-start this storage server
-        storage.transport.signalProcess('TERM')
-        yield storage.transport._protocol.exited
-        storage_nodes[idx] = yield util._run_node(
-            reactor, storage._node_dir, request, None,
-        )
+    # re-start this storage server
+    storage0.process.transport.signalProcess('TERM')
+    yield storage0.protocol.exited
+    yield util._run_node(
+        reactor, storage0.process.node_dir, request, None, cleanup=False,
+    )
 
-    # now only two storage-servers have certificates .. configure
-    # carol to have the grid-manager certificate
+    yield util.await_client_ready(diana, servers=2)
 
-    config = configutil.get_config(join(carol._node_dir, "tahoe.cfg"))
+    # now only one storage-server has the certificate .. configure
+    # diana to have the grid-manager certificate
+
+    config = configutil.get_config(join(diana.node_dir, "tahoe.cfg"))
     config.add_section("grid_managers")
     config.set("grid_managers", "test", ed25519.string_from_verifying_key(gm_pubkey))
-    with open(join(carol._node_dir, "tahoe.cfg"), "w") as f:
+    with open(join(diana.node_dir, "tahoe.cfg"), "w") as f:
         config.write(f)
-    carol.transport.signalProcess('TERM')
-    yield carol.transport._protocol.exited
+    diana.transport.signalProcess('TERM')
+    yield diana.transport._protocol.exited
 
-    carol = yield util._run_node(
-        reactor, carol._node_dir, request, None,
+    diana = yield util._run_node(
+        reactor, diana._node_dir, request, None, cleanup=False,
     )
-    yield util.await_client_ready(carol, servers=5)
+    yield util.await_client_ready(diana, servers=2)
 
     # try to put something into the grid, which should fail (because
-    # carol has happy=3 but should only find storage0, storage1 to be
-    # acceptable to upload to)
+    # diana has happy=2 but should only find storage0 to be acceptable
+    # to upload to)
 
     try:
         yield util.run_tahoe(
-            reactor, request, "--node-directory", carol._node_dir,
+            reactor, request, "--node-directory", diana._node_dir,
             "put", "-",
             stdin="some content\n" * 200,
         )

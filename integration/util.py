@@ -144,7 +144,7 @@ def _cleanup_tahoe_process(tahoe_transport, exited):
     try:
         print("signaling {} with TERM".format(tahoe_transport.pid))
         tahoe_transport.signalProcess('TERM')
-        print("signaled, blocking on exit")
+        print("signaled, blocking on exit {}".format(exited))
         pytest_twisted.blockon(exited)
         print("exited, goodbye")
     except ProcessExitedAlready:
@@ -210,7 +210,7 @@ class TahoeProcess(object):
         return "<TahoeProcess in '{}'>".format(self._node_dir)
 
 
-def _run_node(reactor, node_dir, request, magic_text):
+def _run_node(reactor, node_dir, request, magic_text, cleanup=True):
     """
     Run a tahoe process from its node_dir.
 
@@ -236,7 +236,8 @@ def _run_node(reactor, node_dir, request, magic_text):
     )
     transport.exited = protocol.exited
 
-    request.addfinalizer(partial(_cleanup_tahoe_process, transport, protocol.exited))
+    if cleanup:
+        request.addfinalizer(partial(_cleanup_tahoe_process, transport, protocol.exited))
 
     # XXX abusing the Deferred; should use .when_magic_seen() pattern
 
@@ -291,7 +292,7 @@ def _create_node(reactor, request, temp_dir, introducer_furl, flog_gatherer, nam
         def created(_):
             config_path = join(node_dir, 'tahoe.cfg')
             config = get_config(config_path)
-            set_config(config, 'node', 'log_gatherer.furl', flog_gatherer)
+            set_config(config, 'node', 'log_gatherer.furl', flog_gatherer.furl)
             write_config(config_path, config)
         created_d.addCallback(created)
 
