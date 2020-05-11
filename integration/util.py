@@ -210,7 +210,7 @@ class TahoeProcess(object):
         return "<TahoeProcess in '{}'>".format(self._node_dir)
 
 
-def _run_node(reactor, node_dir, request, magic_text, cleanup=True):
+def _run_node(reactor, node_dir, request, magic_text):
     """
     Run a tahoe process from its node_dir.
 
@@ -236,8 +236,7 @@ def _run_node(reactor, node_dir, request, magic_text, cleanup=True):
     )
     transport.exited = protocol.exited
 
-    if cleanup:
-        request.addfinalizer(partial(_cleanup_tahoe_process, transport, protocol.exited))
+    request.addfinalizer(partial(_cleanup_tahoe_process, transport, protocol.exited))
 
     # XXX abusing the Deferred; should use .when_magic_seen() pattern
 

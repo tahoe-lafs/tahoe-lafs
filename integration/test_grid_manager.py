@@ -172,7 +172,7 @@ def test_reject_storage_server(reactor, request, temp_dir, flog_gatherer):
     storage0.process.transport.signalProcess('TERM')
     yield storage0.protocol.exited
     yield util._run_node(
-        reactor, storage0.process.node_dir, request, None, cleanup=False,
+        reactor, storage0.process.node_dir, request, None,
     )
 
     yield util.await_client_ready(diana, servers=2)
@@ -189,7 +189,7 @@ def test_reject_storage_server(reactor, request, temp_dir, flog_gatherer):
     yield diana.transport._protocol.exited
 
     diana = yield util._run_node(
-        reactor, diana._node_dir, request, None, cleanup=False,
+        reactor, diana._node_dir, request, None,
     )
     yield util.await_client_ready(diana, servers=2)
 
