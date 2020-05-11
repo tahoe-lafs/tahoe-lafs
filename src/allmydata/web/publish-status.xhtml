@@ -1,4 +1,4 @@
-<html xmlns:n="http://nevow.com/ns/nevow/0.1">
+<html xmlns:t="http://twistedmatrix.com/ns/twisted.web.template/0.1">
 
   <head>
     <title>Tahoe-LAFS - Mutable File Publish Status</title>
@@ -12,40 +12,40 @@
     <h1>Mutable File Publish Status</h1>
 
     <ul>
-      <li>Started: <span n:render="started"/></li>
-      <li>Storage Index: <span n:render="si"/></li>
-      <li>Helper?: <span n:render="helper"/></li>
-      <li>Current Size: <span n:render="current_size"/></li>
-      <li>Progress: <span n:render="progress"/></li>
-      <li>Status: <span n:render="status"/></li>
+      <li>Started: <span t:render="started"/></li>
+      <li>Storage Index: <span t:render="si"/></li>
+      <li>Helper?: <span t:render="helper"/></li>
+      <li>Current Size: <span t:render="current_size"/></li>
+      <li>Progress: <span t:render="progress"/></li>
+      <li>Status: <span t:render="status"/></li>
     </ul>
 
     <h2>Publish Results</h2>
 
     <ul>
-      <li n:render="encoding" />
-      <li n:render="problems" />
-      <li n:render="sharemap" />
+      <li t:render="encoding" />
+      <li t:render="problems" />
+      <li t:render="sharemap" />
       <li>Timings:</li>
       <ul>
-        <li>Total: <span n:render="time" n:data="time_total" />
-          (<span n:render="rate" n:data="rate_total" />)</li>
+        <li>Total: <span t:render="time_total" />
+          (<span t:render="rate_total" />)</li>
         <ul>
-          <li>Setup: <span n:render="time" n:data="time_setup" /></li>
-          <li>Encrypting: <span n:render="time" n:data="time_encrypt" />
-            (<span n:render="rate" n:data="rate_encrypt" />)</li>
-          <li>Encoding: <span n:render="time" n:data="time_encode" />
-            (<span n:render="rate" n:data="rate_encode" />)</li>
-          <li>Packing Shares: <span n:render="time" n:data="time_pack" />
-            (<span n:render="rate" n:data="rate_pack" />)
+          <li>Setup: <span t:render="time_setup" /></li>
+          <li>Encrypting: <span t:render="time_encrypt" />
+            (<span t:render="rate_encrypt" />)</li>
+          <li>Encoding: <span t:render="time_encode" />
+            (<span t:render="rate_encode" />)</li>
+          <li>Packing Shares: <span t:render="time_pack" />
+            (<span t:render="rate_pack" />)
             <ul>
-              <li>RSA Signature: <span n:render="time" n:data="time_sign" /></li>
+              <li>RSA Signature: <span t:render="time_sign" /></li>
           </ul></li>
 
-          <li>Pushing: <span n:render="time" n:data="time_push" />
-            (<span n:render="rate" n:data="rate_push" />)</li>
+          <li>Pushing: <span t:render="time_push" />
+            (<span t:render="rate_push" />)</li>
         </ul>
-        <li n:render="server_timings" />
+        <li t:render="server_timings" />
       </ul>
     </ul>
 
