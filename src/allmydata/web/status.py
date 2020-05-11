@@ -759,11 +759,13 @@ class RetrieveStatusPage(rend.Page, RateAndTimeMixin):
         return T.li["Per-Server Fetch Response Times: ", l]
 
 
+# Renders "status/publish-%n"
 class PublishStatusPage(MultiFormatResource):
 
-    docFactory = getxmlfile("publish-status.xhtml")
-
     def __init__(self, publish_status):
+        """
+        :publish_status mutable.publish.PublishStatus: publish stats provider.
+        """
         super(PublishStatusPage, self).__init__()
         self._publish_status = publish_status
 
