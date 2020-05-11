@@ -512,14 +512,15 @@ class DownloadStatusElement(Element, DownloadResultsRendererMixin):
     def download_results(self):
         return defer.maybeDeferred(self.download_status.get_results)
 
-    def relative_time(self, t):
+    def _relative_time(self, t):
         if t is None:
             return t
-        if self.download_status.first_timestamp is not None:
-            return t - self.download_status.first_timestamp
+        if self._download_status.first_timestamp is not None:
+            return t - self._download_status.first_timestamp
         return t
-    def short_relative_time(self, t):
-        t = self.relative_time(t)
+
+    def _short_relative_time(self, t):
+        t = self._relative_time(t)
         if t is None:
             return ""
         return "+%.6fs" % t
@@ -532,19 +533,27 @@ class DownloadStatusElement(Element, DownloadResultsRendererMixin):
         time_s = self.render_time(None, seconds)
         if seconds != 0:
             rate = self.render_rate(None, 1.0 * bytes / seconds)
-            return T.span(title=rate)[time_s]
-        return T.span[time_s]
+            return tags.span(time_s, title=rate)
+        return tags.span(time_s)
 
-    def render_events(self, ctx, data):
-        if not self.download_status.storage_index:
+    @renderer
+    def events(self, req, tag):
+        if not self._download_status.storage_index:
             return
-        srt = self.short_relative_time
-        l = T.div()
 
-        t = T.table(align="left", class_="status-download-events")
-        t[T.tr[T.th["serverid"], T.th["sent"], T.th["received"],
-               T.th["shnums"], T.th["RTT"]]]
-        for d_ev in self.download_status.dyhb_requests:
+        srt = self._short_relative_time
+
+        l = tags.div()
+
+        t = tags.table(align="left", class_="status-download-events")
+
+        t(tags.tr(tags.th("serverid"),
+                  tags.th("sent"),
+                  tags.th("received"),
+                  tags.th("shnums"),
+                  tags.th("RTT")))
+
+        for d_ev in self._download_status.dyhb_requests:
             server = d_ev["server"]
             sent = d_ev["start_time"]
             shnums = d_ev["response_shnums"]
@@ -554,20 +563,31 @@ class DownloadStatusElement(Element, DownloadResultsRendererMixin):
                 rtt = received - sent
             if not shnums:
                 shnums = ["-"]
-            t[T.tr(style="background: %s" % _color(server))[
-                [T.td[server.get_name()], T.td[srt(sent)], T.td[srt(received)],
-                 T.td[",".join([str(shnum) for shnum in shnums])],
-                 T.td[self.render_time(None, rtt)],
-                 ]]]
 
-        l[T.h2["DYHB Requests:"], t]
-        l[T.br(clear="all")]
+            t(tags.tr(style="background: %s" % _color(server))(
+                (tags.td(server.get_name()),
+                 tags.td(srt(sent)),
+                 tags.td(srt(received)),
+                 tags.td(",".join([str(shnum) for shnum in shnums])),
+                 tags.td(self.render_time(None, rtt)),
+                )))
 
-        t = T.table(align="left",class_="status-download-events")
-        t[T.tr[T.th["range"], T.th["start"], T.th["finish"], T.th["got"],
-               T.th["time"], T.th["decrypttime"], T.th["pausedtime"],
-               T.th["speed"]]]
-        for r_ev in self.download_status.read_events:
+        l(tags.h2("DYHB Requests:"), t)
+        l(tags.br(clear="all"))
+
+        t = tags.table(align="left",class_="status-download-events")
+
+        t(tags.tr((
+            tags.th("range"),
+            tags.th("start"),
+            tags.th("finish"),
+            tags.th("got"),
+            tags.th("time"),
+            tags.th("decrypttime"),
+            tags.th("pausedtime"),
+            tags.th("speed"))))
+
+        for r_ev in self._download_status.read_events:
             start = r_ev["start"]
             length = r_ev["length"]
             bytes = r_ev["bytes_returned"]
@@ -581,21 +601,33 @@ class DownloadStatusElement(Element, DownloadResultsRendererMixin):
                 rtt = self.render_time(None, rtt)
             paused = self.render_time(None, r_ev["paused_time"])
 
-            t[T.tr[T.td["[%d:+%d]" % (start, length)],
-                   T.td[srt(r_ev["start_time"])], T.td[srt(r_ev["finish_time"])],
-                   T.td[bytes], T.td[rtt],
-                   T.td[decrypt_time], T.td[paused],
-                   T.td[speed],
-                   ]]
+            t(tags.tr(
+                tags.td("[%d:+%d]" % (start, length)),
+                tags.td(srt(r_ev["start_time"])),
+                tags.td(srt(r_ev["finish_time"])),
+                tags.td(str(bytes)),
+                tags.td(rtt),
+                tags.td(decrypt_time),
+                tags.td(paused),
+                tags.td(speed),
+            ))
 
-        l[T.h2["Read Events:"], t]
-        l[T.br(clear="all")]
+        l(tags.h2("Read Events:"), t)
+        l(tags.br(clear="all"))
 
-        t = T.table(align="left",class_="status-download-events")
-        t[T.tr[T.th["segnum"], T.th["start"], T.th["active"], T.th["finish"],
-               T.th["range"],
-               T.th["decodetime"], T.th["segtime"], T.th["speed"]]]
-        for s_ev in self.download_status.segment_events:
+        t = tags.table(align="left",class_="status-download-events")
+
+        t(tags.tr(
+            tags.th("segnum"),
+            tags.th("start"),
+            tags.th("active"),
+            tags.th("finish"),
+            tags.th("range"),
+            tags.th("decodetime"),
+            tags.th("segtime"),
+            tags.th("speed")))
+
+        for s_ev in self._download_status.segment_events:
             range_s = "-"
             segtime_s = "-"
             speed = "-"
@@ -615,36 +647,50 @@ class DownloadStatusElement(Element, DownloadResultsRendererMixin):
                 # not finished yet
                 pass
 
-            t[T.tr[T.td["seg%d" % s_ev["segment_number"]],
-                   T.td[srt(s_ev["start_time"])],
-                   T.td[srt(s_ev["active_time"])],
-                   T.td[srt(s_ev["finish_time"])],
-                   T.td[range_s],
-                   T.td[decode_time],
-                   T.td[segtime_s], T.td[speed]]]
+            t(tags.tr(
+                tags.td("seg%d" % s_ev["segment_number"]),
+                tags.td(srt(s_ev["start_time"])),
+                tags.td(srt(s_ev["active_time"])),
+                tags.td(srt(s_ev["finish_time"])),
+                tags.td(range_s),
+                tags.td(decode_time),
+                tags.td(segtime_s),
+                tags.td(speed)))
 
-        l[T.h2["Segment Events:"], t]
-        l[T.br(clear="all")]
-        t = T.table(align="left",class_="status-download-events")
-        t[T.tr[T.th["serverid"], T.th["shnum"], T.th["range"],
-               T.th["txtime"], T.th["rxtime"],
-               T.th["received"], T.th["RTT"]]]
-        for r_ev in self.download_status.block_requests:
+        l(tags.h2("Segment Events:"), t)
+
+        l(tags.br(clear="all"))
+
+        t = tags.table(align="left",class_="status-download-events")
+
+        t(tags.tr(
+            tags.th("serverid"),
+            tags.th("shnum"),
+            tags.th("range"),
+            tags.th("txtime"),
+            tags.th("rxtime"),
+            tags.th("received"),
+            tags.th("RTT")))
+
+        for r_ev in self._download_status.block_requests:
             server = r_ev["server"]
             rtt = None
             if r_ev["finish_time"] is not None:
                 rtt = r_ev["finish_time"] - r_ev["start_time"]
             color = _color(server)
-            t[T.tr(style="background: %s" % color)[
-                T.td[server.get_name()], T.td[r_ev["shnum"]],
-                T.td["[%d:+%d]" % (r_ev["start"], r_ev["length"])],
-                T.td[srt(r_ev["start_time"])], T.td[srt(r_ev["finish_time"])],
-                T.td[r_ev["response_length"] or ""],
-                T.td[self.render_time(None, rtt)],
-                ]]
+            t(tags.tr(style="background: %s" % color)
+              (
+                  tags.td(server.get_name()),
+                  tags.td(str(r_ev["shnum"])),
+                  tags.td("[%d:+%d]" % (r_ev["start"], r_ev["length"])),
+                  tags.td(srt(r_ev["start_time"])),
+                  tags.td(srt(r_ev["finish_time"])),
+                  tags.td(str(r_ev["response_length"]) or ""),
+                  tags.td(self.render_time(None, rtt)),
+              ))
 
-        l[T.h2["Requests:"], t]
-        l[T.br(clear="all")]
+        l(tags.h2("Requests:"), t)
+        l(tags.br(clear="all"))
 
         return l
 
