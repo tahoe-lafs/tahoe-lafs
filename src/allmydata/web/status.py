@@ -510,7 +510,7 @@ class DownloadStatusElement(Element, DownloadResultsRendererMixin):
         self._download_status = download_status
 
     def download_results(self):
-        return defer.maybeDeferred(self.download_status.get_results)
+        return defer.maybeDeferred(self._download_status.get_results)
 
     def _relative_time(self, t):
         if t is None:
@@ -530,9 +530,9 @@ class DownloadStatusElement(Element, DownloadResultsRendererMixin):
         return T.a(href=url.URL.fromContext(ctx).child("timeline"))["timeline"]
 
     def _rate_and_time(self, bytes, seconds):
-        time_s = self.render_time(None, seconds)
+        time_s = abbreviate_time(seconds)
         if seconds != 0:
-            rate = self.render_rate(None, 1.0 * bytes / seconds)
+            rate = abbreviate_rate(1.0 * bytes / seconds)
             return tags.span(time_s, title=rate)
         return tags.span(time_s)
 
@@ -569,7 +569,7 @@ class DownloadStatusElement(Element, DownloadResultsRendererMixin):
                  tags.td(srt(sent)),
                  tags.td(srt(received)),
                  tags.td(",".join([str(shnum) for shnum in shnums])),
-                 tags.td(self.render_time(None, rtt)),
+                 tags.td(abbreviate_time(rtt)),
                 )))
 
         l(tags.h2("DYHB Requests:"), t)
@@ -597,9 +597,9 @@ class DownloadStatusElement(Element, DownloadResultsRendererMixin):
             speed, rtt = "",""
             if r_ev["finish_time"] is not None:
                 rtt = r_ev["finish_time"] - r_ev["start_time"] - r_ev["paused_time"]
-                speed = self.render_rate(None, compute_rate(bytes, rtt))
-                rtt = self.render_time(None, rtt)
-            paused = self.render_time(None, r_ev["paused_time"])
+                speed = abbreviate_rate(compute_rate(bytes, rtt))
+                rtt = abbreviate_time(rtt)
+            paused = abbreviate_time(r_ev["paused_time"])
 
             t(tags.tr(
                 tags.td("[%d:+%d]" % (start, length)),
@@ -635,10 +635,10 @@ class DownloadStatusElement(Element, DownloadResultsRendererMixin):
             if s_ev["finish_time"] is not None:
                 if s_ev["success"]:
                     segtime = s_ev["finish_time"] - s_ev["active_time"]
-                    segtime_s = self.render_time(None, segtime)
+                    segtime_s = abbreviate_time(segtime)
                     seglen = s_ev["segment_length"]
                     range_s = "[%d:+%d]" % (s_ev["segment_start"], seglen)
-                    speed = self.render_rate(None, compute_rate(seglen, segtime))
+                    speed = abbreviate_rate(compute_rate(seglen, segtime))
                     decode_time = self._rate_and_time(seglen, s_ev["decode_time"])
                 else:
                     # error
@@ -686,7 +686,7 @@ class DownloadStatusElement(Element, DownloadResultsRendererMixin):
                   tags.td(srt(r_ev["start_time"])),
                   tags.td(srt(r_ev["finish_time"])),
                   tags.td(str(r_ev["response_length"]) or ""),
-                  tags.td(self.render_time(None, rtt)),
+                  tags.td(abbreviate_time(rtt)),
               ))
 
         l(tags.h2("Requests:"), t)
