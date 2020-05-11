@@ -694,11 +694,12 @@ class DownloadStatusElement(Element, DownloadResultsRendererMixin):
 
         return l
 
-    def render_results(self, ctx, data):
+    @renderer
+    def results(self, req, tag):
         d = self.download_results()
         def _got_results(results):
             if results:
-                return ctx.tag
+                return tag
             return ""
         d.addCallback(_got_results)
         return d
