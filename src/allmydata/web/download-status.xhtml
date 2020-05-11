@@ -1,4 +1,4 @@
-<html xmlns:n="http://nevow.com/ns/nevow/0.1">
+<html xmlns:t="http://twistedmatrix.com/ns/twisted.web.template/0.1">
 
   <head>
     <title>Tahoe-LAFS - File Download Status</title>
@@ -12,46 +12,46 @@
     <h1>File Download Status</h1>
 
     <ul>
-      <li>Started: <span n:render="started"/></li>
-      <li>Storage Index: <span n:render="si"/></li>
-      <li>Helper?: <span n:render="helper"/></li>
-      <li>Total Size: <span n:render="total_size"/></li>
-      <li>Progress: <span n:render="progress"/></li>
-      <li>Status: <span n:render="status"/></li>
+      <li>Started: <span t:render="started"/></li>
+      <li>Storage Index: <span t:render="si"/></li>
+      <li>Helper?: <span t:render="helper"/></li>
+      <li>Total Size: <span t:render="total_size"/></li>
+      <li>Progress: <span t:render="progress"/></li>
+      <li>Status: <span t:render="status"/></li>
     </ul>
 
-    <div n:render="events"></div>
+    <div t:render="events"></div>
 
-    <div n:render="results">
+    <div t:render="results">
 
       <h2>Download Results</h2>
 
       <ul>
-        <li n:render="servers_used" />
-        <li>Servermap: <span n:render="servermap" /></li>
-        <li n:render="problems" />
+        <li t:render="servers_used" />
+        <li>Servermap: <span t:render="servermap" /></li>
+        <li t:render="problems" />
         <li>Timings:</li>
         <ul>
-          <li>File Size: <span n:render="string" n:data="file_size" /> bytes</li>
-          <li>Total: <span n:render="time" n:data="time_total" />
-            (<span n:render="rate" n:data="rate_total" />)</li>
+          <li>File Size: <span t:render="file_size" /> bytes</li>
+          <li>Total: <span t:render="time_total" />
+            (<span t:render="rate_total" />)</li>
           <ul>
-            <li>Peer Selection: <span n:render="time" n:data="time_peer_selection" /></li>
-            <li>UEB Fetch: <span n:render="time" n:data="time_uri_extension" /></li>
-            <li>Hashtree Fetch: <span n:render="time" n:data="time_hashtrees" /></li>
-            <li>Segment Fetch: <span n:render="time" n:data="time_segments" />
-              (<span n:render="rate" n:data="rate_segments" />)</li>
+            <li>Peer Selection: <span t:render="time_peer_selection" /></li>
+            <li>UEB Fetch: <span t:render="time_uri_extension" /></li>
+            <li>Hashtree Fetch: <span t:render="time_hashtrees" /></li>
+            <li>Segment Fetch: <span t:render="time_segments" />
+              (<span t:render="rate_segments" />)</li>
             <ul>
-              <li>Cumulative Fetching: <span n:render="time" n:data="time_cumulative_fetch" />
-                (<span n:render="rate" n:data="rate_fetch" />)</li>
-              <li>Cumulative Decoding: <span n:render="time" n:data="time_cumulative_decode" />
-                (<span n:render="rate" n:data="rate_decode" />)</li>
-              <li>Cumulative Decrypting: <span n:render="time" n:data="time_cumulative_decrypt" />
-                (<span n:render="rate" n:data="rate_decrypt" />)</li>
+              <li>Cumulative Fetching: <span t:render="time_cumulative_fetch" />
+                (<span t:render="rate_fetch" />)</li>
+              <li>Cumulative Decoding: <span t:render="time_cumulative_decode" />
+                (<span t:render="rate_decode" />)</li>
+              <li>Cumulative Decrypting: <span t:render="time_cumulative_decrypt" />
+                (<span t:render="rate_decrypt" />)</li>
             </ul>
-            <li>Paused by client: <span n:render="time" n:data="time_paused" /></li>
+            <li>Paused by client: <span t:render="time_paused" /></li>
           </ul>
-          <li n:render="server_timings" />
+          <li t:render="server_timings" />
         </ul>
       </ul>
     </div>
