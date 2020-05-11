@@ -843,7 +843,7 @@ class PublishStatusElement(Element):
         for peerid in sorted(problems.keys()):
             peerid_s = idlib.shortnodeid_b2a(peerid)
             l(tags.li("[%s]: %s" % (peerid_s, problems[peerid])))
-        return tag("Server Problems:", l)
+        return tag(tags.li("Server Problems:", l))
 
     def _get_rate(self, name):
         file_size = self._publish_status.get_size()
