@@ -1,3 +1,13 @@
+"""
+Classes which directly represent various kinds of Tahoe processes
+that co-operate to for "a Grid".
+
+These methods and objects are used by conftest.py fixtures but may
+also be used as direct helpers for tests that don't want to (or can't)
+rely on 'the' global grid as provided by fixtures like 'alice' or
+'storage_servers'.
+"""
+
 from os import mkdir, listdir, environ
 from os.path import join, exists
 from tempfile import mkdtemp, mktemp
@@ -31,6 +41,15 @@ from util import (
 
 import attr
 import pytest_twisted
+
+
+# further directions:
+# - "Grid" is unused, basically -- tie into the rest?
+#   - could make a Grid instance mandatory for create_* calls
+#   - could instead make create_* calls methods of Grid
+# - Bring more 'util' or 'conftest' code into here
+#    - stop()/start()/restart() methods on StorageServer etc
+#    - more-complex stuff like config changes (which imply a restart too)?
 
 
 @attr.s
