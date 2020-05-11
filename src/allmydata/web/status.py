@@ -772,7 +772,7 @@ class PublishStatusPage(MultiFormatResource):
         return renderElement(req, elem)
 
 
-class PublishStatusElement(Element, RateAndTimeMixin):
+class PublishStatusElement(Element):
 
     loader = XMLFile(FilePath(__file__).sibling("publish-status.xhtml"))
 
@@ -908,7 +908,7 @@ class PublishStatusElement(Element, RateAndTimeMixin):
             return tag()
         l = tags.ul()
         for server in sorted(per_server.keys(), key=lambda s: s.get_name()):
-            times_s = ", ".join([self.render_time(None, t)
+            times_s = ", ".join([abbreviate_time(t)
                                  for t in per_server[server]])
             l(tags.li("[%s]: %s" % (server.get_name(), times_s)))
         return tags.li("Per-Server Response Times: ", l)
