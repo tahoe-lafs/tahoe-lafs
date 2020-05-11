@@ -489,13 +489,25 @@ class _EventJson(Resource, object):
         return json.dumps(data, indent=1) + "\n"
 
 
-class DownloadStatusPage(DownloadResultsRendererMixin, rend.Page):
-    docFactory = getxmlfile("download-status.xhtml")
+class DownloadStatusPage(MultiFormatResource):
 
-    def __init__(self, data):
-        rend.Page.__init__(self, data)
-        self.download_status = data
-        self.putChild("event_json", _EventJson(self.download_status))
+    def __init__(self, download_status):
+        super(DownloadStatusPage, self).__init__()
+        self._download_status = download_status
+        self.putChild("event_json", _EventJson(self._download_status))
+
+    def render_HTML(self, req):
+        elem = DownloadStatusElement(self._download_status)
+        return renderElement(req, elem)
+
+
+class DownloadStatusElement(Element, DownloadResultsRendererMixin):
+
+    loader = XMLFile(FilePath(__file__).sibling("download-status.xhtml"))
+
+    def __init__(self, download_status):
+        super(DownloadStatusElement, self).__init__()
+        self._download_status = download_status
 
     def download_results(self):
         return defer.maybeDeferred(self.download_status.get_results)
@@ -645,33 +657,40 @@ class DownloadStatusPage(DownloadResultsRendererMixin, rend.Page):
         d.addCallback(_got_results)
         return d
 
-    def render_started(self, ctx, data):
-        started_s = render_time(data.get_started())
-        return started_s + " (%s)" % data.get_started()
+    @renderer
+    def started(self, req, tag):
+        started_s = render_time(self._download_status.get_started())
+        return tag(started_s + " (%s)" % self._download_status.get_started())
 
-    def render_si(self, ctx, data):
-        si_s = base32.b2a_or_none(data.get_storage_index())
+    @renderer
+    def si(self, req, tag):
+        si_s = base32.b2a_or_none(self._download_status.get_storage_index())
         if si_s is None:
             si_s = "(None)"
-        return si_s
+        return tag(si_s)
 
-    def render_helper(self, ctx, data):
-        return {True: "Yes",
-                False: "No"}[data.using_helper()]
+    @renderer
+    def helper(self, req, tag):
+        return tag({True: "Yes",
+                    False: "No"}[self._download_status.using_helper()])
 
-    def render_total_size(self, ctx, data):
-        size = data.get_size()
+    @renderer
+    def total_size(self, req, tag):
+        size = self._download_status.get_size()
         if size is None:
             return "(unknown)"
-        return size
+        return tag(str(size))
 
-    def render_progress(self, ctx, data):
-        progress = data.get_progress()
+    @renderer
+    def progress(self, req, tag):
+        progress = self._download_status.get_progress()
         # TODO: make an ascii-art bar
-        return "%.1f%%" % (100.0 * progress)
+        return tag("%.1f%%" % (100.0 * progress))
 
-    def render_status(self, ctx, data):
-        return data.get_status()
+    @renderer
+    def status(self, req, tag):
+        return tag(self._download_status.get_status())
+
 
 
 
