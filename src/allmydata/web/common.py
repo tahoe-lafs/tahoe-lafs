@@ -365,42 +365,6 @@ class NeedOperationHandleError(WebError):
     pass
 
 
-# XXX should be phased out by the nevow -> twisted.web port (that is,
-# this whole class should have no users and can be deleted once the
-# port away from nevow is complete)
-class RenderMixin(object):
-
-    def renderHTTP(self, ctx):
-        request = IRequest(ctx)
-
-        # if we were using regular twisted.web Resources (and the regular
-        # twisted.web.server.Request object) then we could implement
-        # render_PUT and render_GET. But Nevow's request handler
-        # (NevowRequest.gotPageContext) goes directly to renderHTTP. Copy
-        # some code from the Resource.render method that Nevow bypasses, to
-        # do the same thing.
-        m = getattr(self, 'render_' + request.method, None)
-        if not m:
-            raise server.UnsupportedMethod(getattr(self, 'allowedMethods', ()))
-        return m(ctx)
-
-    def render_OPTIONS(self, ctx):
-        """
-        Handle HTTP OPTIONS request by adding appropriate headers.
-
-        :param ctx: client transaction from which request is extracted
-        :returns: str (empty)
-        """
-        req = IRequest(ctx)
-        req.setHeader("server", "Tahoe-LAFS gateway")
-        methods = ', '.join([m[7:] for m in dir(self) if m.startswith('render_')])
-        req.setHeader("allow", methods)
-        req.setHeader("public", methods)
-        req.setHeader("compliance", "rfc=2068, rfc=2616")
-        req.setHeader("content-length", 0)
-        return ""
-
-
 class MultiFormatPage(Page):
     """
     ```MultiFormatPage`` is a ``rend.Page`` that can be rendered in a number
