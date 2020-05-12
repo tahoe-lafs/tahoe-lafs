@@ -170,3 +170,7 @@ jobs:
 
       - name: Run "tox -e pyinstaller"
         run: tox -e pyinstaller
+
+      # This step is to ensure there are no packaging/import errors.
+      - name: Test PyInstaller executable
+        run: dist/Tahoe-LAFS/tahoe --version
