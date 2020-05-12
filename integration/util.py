@@ -266,7 +266,7 @@ def _create_node(reactor, request, temp_dir, introducer_furl, flog_gatherer, nam
     if exists(node_dir):
         created_d = succeed(None)
     else:
-        print("creating", node_dir)
+        print("creating: {}".format(node_dir))
         mkdir(node_dir)
         done_proto = _ProcessExitedProtocol()
         args = [

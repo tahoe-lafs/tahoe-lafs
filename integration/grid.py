@@ -12,10 +12,15 @@ from os import mkdir, listdir, environ
 from os.path import join, exists
 from tempfile import mkdtemp, mktemp
 
+from eliot import (
+    log_call,
+)
+
 from twisted.python.procutils import which
 from twisted.internet.defer import (
     inlineCallbacks,
     returnValue,
+    maybeDeferred,
 )
 from twisted.internet.task import (
     deferLater,
@@ -24,6 +29,13 @@ from twisted.internet.interfaces import (
     IProcessTransport,
     IProcessProtocol,
     IProtocol,
+)
+from twisted.internet.endpoints import (
+    TCP4ServerEndpoint,
+)
+from twisted.internet.protocol import (
+    Factory,
+    Protocol,
 )
 
 from util import (
@@ -35,7 +47,6 @@ from util import (
     _run_node,
     _cleanup_tahoe_process,
     _tahoe_runner_optional_coverage,
-    await_client_ready,
     TahoeProcess,
 )
 
@@ -165,6 +176,43 @@ def create_storage_server(reactor, request, temp_dir, introducer, flog_gatherer,
     )
     returnValue(storage)
 
+
+@attr.s
+class Client(object):
+    """
+    Represents a Tahoe client
+    """
+
+    process = attr.ib(
+        validator=attr.validators.instance_of(TahoeProcess)
+    )
+    protocol = attr.ib(
+        validator=attr.validators.provides(IProcessProtocol)
+    )
+
+    # XXX add stop / start / restart
+    # ...maybe "reconfig" of some kind?
+
+
+@inlineCallbacks
+def create_client(reactor, request, temp_dir, introducer, flog_gatherer, name, web_port,
+                  needed=2, happy=3, total=4):
+    """
+    Create a new storage server
+    """
+    from util import _create_node
+    node_process = yield _create_node(
+        reactor, request, temp_dir, introducer.furl, flog_gatherer,
+        name, web_port, storage=False, needed=needed, happy=happy, total=total,
+    )
+    returnValue(
+        Client(
+            process=node_process,
+            protocol=node_process.transport._protocol,
+        )
+    )
+
+
 @attr.s
 class Introducer(object):
     """
@@ -180,29 +228,27 @@ class Introducer(object):
     furl = attr.ib()
 
 
-_introducer_num = 0
-
-
 @inlineCallbacks
-def create_introducer(reactor, request, temp_dir, flog_gatherer):
+@log_call(
+    action_type=u"integration:introducer",
+    include_args=["temp_dir", "flog_gatherer"],
+    include_result=False,
+)
+def create_introducer(reactor, request, temp_dir, flog_gatherer, port):
     """
     Run a new Introducer and return an Introducer instance.
     """
-    global _introducer_num
     config = (
         '[node]\n'
-        'nickname = introducer{num}\n'
+        'nickname = introducer{port}\n'
         'web.port = {port}\n'
         'log_gatherer.furl = {log_furl}\n'
     ).format(
-        num=_introducer_num,
+        port=port,
         log_furl=flog_gatherer.furl,
-        port=4560 + _introducer_num,
     )
-    _introducer_num += 1
 
-    intro_dir = join(temp_dir, 'introducer{}'.format(_introducer_num))
-    print("making introducer", intro_dir, _introducer_num)
+    intro_dir = join(temp_dir, 'introducer{}'.format(port))
 
     if not exists(intro_dir):
         mkdir(intro_dir)
@@ -268,9 +314,14 @@ class Grid(object):
     Storage Servers.
     """
 
-    introducer = attr.ib(default=None)
-    flog_gatherer = attr.ib(default=None)
+    _reactor = attr.ib()
+    _request = attr.ib()
+    _temp_dir = attr.ib()
+    _port_allocator = attr.ib()
+    introducer = attr.ib()
+    flog_gatherer = attr.ib()
     storage_servers = attr.ib(factory=list)
+    clients = attr.ib(factory=dict)
 
     @storage_servers.validator
     def check(self, attribute, value):
@@ -279,3 +330,115 @@ class Grid(object):
                 raise ValueError(
                     "storage_servers must be StorageServer"
                 )
+
+    @inlineCallbacks
+    def add_storage_node(self):
+        """
+        Creates a new storage node, returns a StorageServer instance
+        (which will already be added to our .storage_servers list)
+        """
+        port = yield self._port_allocator()
+        print("make {}".format(port))
+        name = 'node{}'.format(port)
+        web_port = 'tcp:{}:interface=localhost'.format(port)
+        server = yield create_storage_server(
+            self._reactor,
+            self._request,
+            self._temp_dir,
+            self.introducer,
+            self.flog_gatherer,
+            name,
+            web_port,
+        )
+        self.storage_servers.append(server)
+        returnValue(server)
+
+    @inlineCallbacks
+    def add_client(self, name, needed=2, happy=3, total=4):
+        """
+        Create a new client node
+        """
+        port = yield self._port_allocator()
+        web_port = 'tcp:{}:interface=localhost'.format(port)
+        client = yield create_client(
+            self._reactor,
+            self._request,
+            self._temp_dir,
+            self.introducer,
+            self.flog_gatherer,
+            name,
+            web_port,
+            needed=needed,
+            happy=happy,
+            total=total,
+        )
+        self.clients[name] = client
+        returnValue(client)
+
+
+
+# XXX THINK can we tie a whole *grid* to a single request? (I think
+# that's all that makes sense)
+@inlineCallbacks
+def create_grid(reactor, request, temp_dir, flog_gatherer, port_allocator):
+    """
+    """
+    intro_port = yield port_allocator()
+    introducer = yield create_introducer(reactor, request, temp_dir, flog_gatherer, intro_port)
+    grid = Grid(
+        reactor,
+        request,
+        temp_dir,
+        port_allocator,
+        introducer,
+        flog_gatherer,
+    )
+    returnValue(grid)
+
+
+def create_port_allocator(start_port):
+    """
+    Returns a new port-allocator .. which is a zero-argument function
+    that returns Deferreds that fire with new, sequential ports
+    starting at `start_port` skipping any that already appear to have
+    a listener.
+
+    There can still be a race against other processes allocating ports
+    -- between the time when we check the status of the port and when
+    our subprocess starts up. This *could* be mitigated by instructing
+    the OS to not randomly-allocate ports in some range, and then
+    using that range here (explicitly, ourselves).
+
+    NB once we're Python3-only this could be an async-generator
+    """
+    port = [start_port - 1]
+
+    # import stays here to not interfere with reactor selection -- but
+    # maybe this function should be arranged to be called once from a
+    # fixture (with the reactor)?
+    from twisted.internet import reactor
+
+    class NothingProtocol(Protocol):
+        """
+        I do nothing.
+        """
+
+    def port_generator():
+        print("Checking port {}".format(port))
+        port[0] += 1
+        ep = TCP4ServerEndpoint(reactor, port[0], interface="localhost")
+        d = ep.listen(Factory.forProtocol(NothingProtocol))
+
+        def good(listening_port):
+            unlisten_d = maybeDeferred(listening_port.stopListening)
+            def return_port(_):
+                return port[0]
+            unlisten_d.addBoth(return_port)
+            return unlisten_d
+
+        def try_again(fail):
+            return port_generator()
+
+        d.addCallbacks(good, try_again)
+        return d
+    return port_generator

@@ -36,7 +36,11 @@ from util import (
     await_client_ready,
     TahoeProcess,
 )
-import grid
+from grid import (
+    create_port_allocator,
+    create_flog_gatherer,
+    create_grid,
+)
 
 
 # pytest customization hooks
@@ -74,6 +78,12 @@ def reactor():
 
 
 @pytest.fixture(scope='session')
+@log_call(action_type=u"integration:port_allocator", include_result=False)
+def port_allocator(reactor):
+    return create_port_allocator(start_port=45000)
+
+
+@pytest.fixture(scope='session')
 @log_call(action_type=u"integration:temp_dir", include_args=[])
 def temp_dir(request):
     """
@@ -108,20 +118,23 @@ def flog_binary():
 @log_call(action_type=u"integration:flog_gatherer", include_args=[])
 def flog_gatherer(reactor, temp_dir, flog_binary, request):
     fg = pytest_twisted.blockon(
-        grid.create_flog_gatherer(reactor, request, temp_dir, flog_binary)
+        create_flog_gatherer(reactor, request, temp_dir, flog_binary)
     )
     return fg
 
 
 @pytest.fixture(scope='session')
-@log_call(
-    action_type=u"integration:introducer",
-    include_args=["temp_dir", "flog_gatherer"],
-    include_result=False,
-)
-def introducer(reactor, temp_dir, flog_gatherer, request):
-    intro = pytest_twisted.blockon(grid.create_introducer(reactor, request, temp_dir, flog_gatherer))
-    return intro
+@log_call(action_type=u"integration:grid", include_args=[])
+def grid(reactor, request, temp_dir, flog_gatherer, port_allocator):
+    g = pytest_twisted.blockon(
+        create_grid(reactor, request, temp_dir, flog_gatherer, port_allocator)
+    )
+    return g
+
+
+@pytest.fixture(scope='session')
+def introducer(grid):
+    return grid.introducer
 
 
 @pytest.fixture(scope='session')
@@ -206,26 +219,20 @@ def tor_introducer_furl(tor_introducer, temp_dir):
 @pytest.fixture(scope='session')
 @log_call(
     action_type=u"integration:storage_nodes",
-    include_args=["temp_dir", "introducer_furl", "flog_gatherer"],
+    include_args=["grid"],
     include_result=False,
 )
-def storage_nodes(reactor, temp_dir, introducer, introducer_furl, flog_gatherer, request):
+def storage_nodes(grid):
     nodes_d = []
     # start all 5 nodes in parallel
     for x in range(5):
-        name = 'node{}'.format(x)
-        web_port = 'tcp:{}:interface=localhost'.format(9990 + x)
-        nodes_d.append(
-            grid.create_storage_server(
-                reactor, request, temp_dir, introducer, flog_gatherer, name, web_port,
-            )
-        )
+        #nodes_d.append(grid.add_storage_node())
+        pytest_twisted.blockon(grid.add_storage_node())
+
     nodes_status = pytest_twisted.blockon(DeferredList(nodes_d))
-    nodes = []
-    for ok, process in nodes_status:
-        assert ok, "Storage node creation failed: {}".format(process)
-        nodes.append(process)
-    return nodes
+    for ok, value in nodes_status:
+        assert ok, "Storage node creation failed: {}".format(value)
+    return grid.storage_servers
 
 
 @pytest.fixture(scope='session')
