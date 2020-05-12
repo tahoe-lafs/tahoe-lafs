@@ -48,6 +48,7 @@ from util import (
     _cleanup_tahoe_process,
     _tahoe_runner_optional_coverage,
     TahoeProcess,
+    await_client_ready,
 )
 
 import attr
@@ -155,8 +156,14 @@ class StorageServer(object):
         validator=attr.validators.provides(IProcessProtocol)
     )
 
-    # XXX needs a restart() probably .. or at least a stop() and
-    # start()
+    @inlineCallbacks
+    def restart(self, reactor, request):
+        self.process.transport.signalProcess('TERM')
+        yield self.protocol.exited
+        self.process = yield _run_node(
+            reactor, self.process.node_dir, request, None,
+        )
+        self.protocol = self.process.transport._protocol
 
 
 @inlineCallbacks
@@ -189,6 +196,14 @@ class Client(object):
     protocol = attr.ib(
         validator=attr.validators.provides(IProcessProtocol)
     )
+
+    @inlineCallbacks
+    def restart(self, reactor, request):
+        self.process.transport.signalProcess('TERM')
+        yield self.protocol.exited
+        x = yield _run_node(
+            reactor, self.process.node_dir, request, None,
+        )
 
     # XXX add stop / start / restart
     # ...maybe "reconfig" of some kind?
@@ -373,6 +388,7 @@ class Grid(object):
             total=total,
         )
         self.clients[name] = client
+        yield await_client_ready(client.process)
         returnValue(client)
 
 

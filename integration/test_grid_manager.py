@@ -133,8 +133,6 @@ def test_reject_storage_server(reactor, request, temp_dir, flog_gatherer, port_a
     )
     assert json.loads(gm_config)['storage_servers'].keys() == ['storage0']
 
-    diana = yield grid.add_client("diana", needed=2, happy=2, total=2)
-
     print("inserting certificate")
     cert = yield util.run_tahoe(
         reactor, request, "grid-manager", "--config", "-", "sign", "storage0",
@@ -150,29 +148,20 @@ def test_reject_storage_server(reactor, request, temp_dir, flog_gatherer, port_a
         config.write(f)
 
     # re-start this storage server
-    storage0.process.transport.signalProcess('TERM')
-    yield storage0.protocol.exited
-    yield util._run_node(
-        reactor, storage0.process.node_dir, request, None,
-    )
-
-    yield util.await_client_ready(diana.process, servers=2)
+    yield storage0.restart(reactor, request)
 
     # now only one storage-server has the certificate .. configure
     # diana to have the grid-manager certificate
+
+    diana = yield grid.add_client("diana", needed=2, happy=2, total=2)
 
     config = configutil.get_config(join(diana.process.node_dir, "tahoe.cfg"))
     config.add_section("grid_managers")
     config.set("grid_managers", "test", ed25519.string_from_verifying_key(gm_pubkey))
     with open(join(diana.process.node_dir, "tahoe.cfg"), "w") as f:
         config.write(f)
-    diana.process.transport.signalProcess('TERM')
-    yield diana.protocol.exited
 
-    diana = yield util._run_node(
-        reactor, diana.process.node_dir, request, None,
-    )
-    yield util.await_client_ready(diana.process, servers=2)
+    yield diana.restart(reactor, request)
 
     # try to put something into the grid, which should fail (because
     # diana has happy=2 but should only find storage0 to be acceptable
