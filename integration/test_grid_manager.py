@@ -10,6 +10,9 @@ from allmydata.util import base32
 from allmydata.util import configutil
 
 import util
+from grid import (
+    create_grid,
+)
 
 import pytest_twisted
 
@@ -110,7 +113,6 @@ def test_reject_storage_server(reactor, request, temp_dir, flog_gatherer, port_a
     using Grid Manager and there is only 1 storage server with a valid
     certificate.
     """
-    from grid import create_grid
     grid = yield create_grid(reactor, request, temp_dir, flog_gatherer, port_allocator)
     storage0 = yield grid.add_storage_node()
     storage1 = yield grid.add_storage_node()
@@ -161,7 +163,7 @@ def test_reject_storage_server(reactor, request, temp_dir, flog_gatherer, port_a
     with open(join(diana.process.node_dir, "tahoe.cfg"), "w") as f:
         config.write(f)
 
-    yield diana.restart(reactor, request)
+    yield diana.restart(reactor, request, servers=2)
 
     # try to put something into the grid, which should fail (because
     # diana has happy=2 but should only find storage0 to be acceptable
