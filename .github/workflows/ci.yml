@@ -174,3 +174,9 @@ jobs:
       # This step is to ensure there are no packaging/import errors.
       - name: Test PyInstaller executable
         run: dist/Tahoe-LAFS/tahoe --version
+
+      - name: Upload PyInstaller package
+        uses: actions/upload-artifact@v2
+        with:
+          name: Tahoe-LAFS-${{ matrix.os }}-Python-${{ matrix.python-version }}
+          path: dist/Tahoe-LAFS-*-*.*
