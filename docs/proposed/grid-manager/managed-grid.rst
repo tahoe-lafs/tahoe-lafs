@@ -241,6 +241,11 @@ Manager. Example::
 Example Setup of a New Managed Grid
 -----------------------------------
 
+This example creates an actual grid, but it's all just on one machine
+with different "node directories" and a separate tahoe process for
+each node. Usually of course each storage server would be on a
+separate computer.
+
 Note that we use the ``daemonize`` command in the following but that's
 only one way to handle "running a command in the background". You
 could instead run commands that start with ``daemonize ...`` in their
@@ -250,10 +255,6 @@ We'll store our Grid Manager configuration on disk, in
 ``./gm0``. To initialize this directory::
 
     tahoe grid-manager --config ./gm0 create
-
-This example creates an actual grid, but it's all just on one machine
-with different "node directories". Usually of course each storage
-server would be on a separate computer.
 
 (If you already have a grid, you can :ref:`skip ahead <skip_ahead>`.)
 
