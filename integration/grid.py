@@ -158,12 +158,22 @@ class StorageServer(object):
 
     @inlineCallbacks
     def restart(self, reactor, request):
+        """
+        re-start our underlying process by issuing a TERM, waiting and
+        then running again. await_client_ready() will be done as well
+
+        Note that self.process and self.protocol will be new instances
+        after this.
+        """
         self.process.transport.signalProcess('TERM')
         yield self.protocol.exited
         self.process = yield _run_node(
             reactor, self.process.node_dir, request, None,
         )
         self.protocol = self.process.transport._protocol
+
+    @inlineCallbacks
+    def run(
 
 
 @inlineCallbacks
@@ -198,12 +208,25 @@ class Client(object):
     )
 
     @inlineCallbacks
-    def restart(self, reactor, request):
+    def restart(self, reactor, request, servers=1):
+        """
+        re-start our underlying process by issuing a TERM, waiting and
+        then running again.
+
+        :param int servers: number of server connections we will wait
+            for before being 'ready'
+
+        Note that self.process and self.protocol will be new instances
+        after this.
+        """
         self.process.transport.signalProcess('TERM')
         yield self.protocol.exited
-        x = yield _run_node(
+        process = yield _run_node(
             reactor, self.process.node_dir, request, None,
         )
+        self.process = process
+        self.protocol = self.process.transport._protocol
+
 
     # XXX add stop / start / restart
     # ...maybe "reconfig" of some kind?
