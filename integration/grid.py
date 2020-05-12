@@ -172,9 +172,6 @@ class StorageServer(object):
         )
         self.protocol = self.process.transport._protocol
 
-    @inlineCallbacks
-    def run(
-
 
 @inlineCallbacks
 def create_storage_server(reactor, request, temp_dir, introducer, flog_gatherer, name, web_port,
