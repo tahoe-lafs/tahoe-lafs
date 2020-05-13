@@ -870,7 +870,7 @@ class PublishStatusPage(rend.Page, RateAndTimeMixin):
 
 
 class MapupdateStatusPage(MultiFormatResource):
-    """Renders "/status/mapupdate-%d."""
+    """Renders /status/mapupdate-%d."""
 
     def __init__(self, update_status):
         """
