@@ -162,7 +162,7 @@ jobs:
 
       - name: Install Python packages
         run: |
-          pip install --upgrade tox setuptools
+          pip install --upgrade tox
           pip list
 
       - name: Display tool versions
