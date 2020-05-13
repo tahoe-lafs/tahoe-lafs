@@ -764,7 +764,7 @@ class PublishStatusPage(MultiFormatResource):
 
     def __init__(self, publish_status):
         """
-        :param publish_status mutable.publish.PublishStatus: stats provider.
+        :param mutable.publish.PublishStatus publish_status: stats provider.
         """
         super(PublishStatusPage, self).__init__()
         self._publish_status = publish_status
