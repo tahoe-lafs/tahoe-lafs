@@ -84,9 +84,8 @@ class LeaseCheckingCrawler(ShareCrawler):
         # initialize history
         if not os.path.exists(self.historyfile):
             history = {} # cyclenum -> dict
-            f = open(self.historyfile, "wb")
-            pickle.dump(history, f)
-            f.close()
+            with open(self.historyfile, "wb") as f:
+                pickle.dump(history, f)
 
     def create_empty_cycle_dict(self):
         recovered = self.create_empty_recovered_dict()
@@ -303,14 +302,14 @@ class LeaseCheckingCrawler(ShareCrawler):
         # copy() needs to become a deepcopy
         h["space-recovered"] = s["space-recovered"].copy()
 
-        history = pickle.load(open(self.historyfile, "rb"))
+        with open(self.historyfile, "rb") as f:
+            history = pickle.load(f)
         history[cycle] = h
         while len(history) > 10:
             oldcycles = sorted(history.keys())
             del history[oldcycles[0]]
-        f = open(self.historyfile, "wb")
-        pickle.dump(history, f)
-        f.close()
+        with open(self.historyfile, "wb") as f:
+            pickle.dump(history, f)
 
     def get_state(self):
         """In addition to the crawler state described in
@@ -379,7 +378,8 @@ class LeaseCheckingCrawler(ShareCrawler):
         progress = self.get_progress()
 
         state = ShareCrawler.get_state(self) # does a shallow copy
-        history = pickle.load(open(self.historyfile, "rb"))
+        with open(self.historyfile, "rb") as f:
+            history = pickle.load(f)
         state["history"] = history
 
         if not progress["cycle-in-progress"]:

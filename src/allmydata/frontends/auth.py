@@ -31,20 +31,21 @@ class AccountFileChecker(object):
         self.passwords = {}
         self.pubkeys = {}
         self.rootcaps = {}
-        for line in open(abspath_expanduser_unicode(accountfile), "r"):
-            line = line.strip()
-            if line.startswith("#") or not line:
-                continue
-            name, passwd, rest = line.split(None, 2)
-            if passwd.startswith("ssh-"):
-                bits = rest.split()
-                keystring = " ".join([passwd] + bits[:-1])
-                rootcap = bits[-1]
-                self.pubkeys[name] = keystring
-            else:
-                self.passwords[name] = passwd
-                rootcap = rest
-            self.rootcaps[name] = rootcap
+        with open(abspath_expanduser_unicode(accountfile), "r") as f:
+            for line in f:
+                line = line.strip()
+                if line.startswith("#") or not line:
+                    continue
+                name, passwd, rest = line.split(None, 2)
+                if passwd.startswith("ssh-"):
+                    bits = rest.split()
+                    keystring = " ".join([passwd] + bits[:-1])
+                    rootcap = bits[-1]
+                    self.pubkeys[name] = keystring
+                else:
+                    self.passwords[name] = passwd
+                    rootcap = rest
+                self.rootcaps[name] = rootcap
 
     def _avatarId(self, username):
         return FTPAvatarID(username, self.rootcaps[username])

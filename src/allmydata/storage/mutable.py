@@ -57,8 +57,8 @@ class MutableShareFile(object):
         self.home = filename
         if os.path.exists(self.home):
             # we don't cache anything, just check the magic
-            f = open(self.home, 'rb')
-            data = f.read(self.HEADER_SIZE)
+            with open(self.home, 'rb') as f:
+                data = f.read(self.HEADER_SIZE)
             (magic,
              write_enabler_nodeid, write_enabler,
              data_length, extra_least_offset) = \
@@ -80,17 +80,17 @@ class MutableShareFile(object):
                               + data_length)
         assert extra_lease_offset == self.DATA_OFFSET # true at creation
         num_extra_leases = 0
-        f = open(self.home, 'wb')
-        header = struct.pack(">32s20s32sQQ",
-                             self.MAGIC, my_nodeid, write_enabler,
-                             data_length, extra_lease_offset,
-                             )
-        leases = ("\x00"*self.LEASE_SIZE) * 4
-        f.write(header + leases)
-        # data goes here, empty after creation
-        f.write(struct.pack(">L", num_extra_leases))
-        # extra leases go here, none at creation
-        f.close()
+        with open(self.home, 'wb') as f:
+            header = struct.pack(
+                ">32s20s32sQQ",
+                self.MAGIC, my_nodeid, write_enabler,
+                data_length, extra_lease_offset,
+            )
+            leases = ("\x00" * self.LEASE_SIZE) * 4
+            f.write(header + leases)
+            # data goes here, empty after creation
+            f.write(struct.pack(">L", num_extra_leases))
+            # extra leases go here, none at creation
 
     def unlink(self):
         os.unlink(self.home)
@@ -261,10 +261,9 @@ class MutableShareFile(object):
 
     def get_leases(self):
         """Yields a LeaseInfo instance for all leases."""
-        f = open(self.home, 'rb')
-        for i, lease in self._enumerate_leases(f):
-            yield lease
-        f.close()
+        with open(self.home, 'rb') as f:
+            for i, lease in self._enumerate_leases(f):
+                yield lease
 
     def _enumerate_leases(self, f):
         for i in range(self._get_num_lease_slots(f)):
@@ -277,29 +276,26 @@ class MutableShareFile(object):
 
     def add_lease(self, lease_info):
         precondition(lease_info.owner_num != 0) # 0 means "no lease here"
-        f = open(self.home, 'rb+')
-        num_lease_slots = self._get_num_lease_slots(f)
-        empty_slot = self._get_first_empty_lease_slot(f)
-        if empty_slot is not None:
-            self._write_lease_record(f, empty_slot, lease_info)
-        else:
-            self._write_lease_record(f, num_lease_slots, lease_info)
-        f.close()
+        with open(self.home, 'rb+') as f:
+            num_lease_slots = self._get_num_lease_slots(f)
+            empty_slot = self._get_first_empty_lease_slot(f)
+            if empty_slot is not None:
+                self._write_lease_record(f, empty_slot, lease_info)
+            else:
+                self._write_lease_record(f, num_lease_slots, lease_info)
 
     def renew_lease(self, renew_secret, new_expire_time):
         accepting_nodeids = set()
-        f = open(self.home, 'rb+')
-        for (leasenum,lease) in self._enumerate_leases(f):
-            if timing_safe_compare(lease.renew_secret, renew_secret):
-                # yup. See if we need to update the owner time.
-                if new_expire_time > lease.expiration_time:
-                    # yes
-                    lease.expiration_time = new_expire_time
-                    self._write_lease_record(f, leasenum, lease)
-                f.close()
-                return
-            accepting_nodeids.add(lease.nodeid)
-        f.close()
+        with open(self.home, 'rb+') as f:
+            for (leasenum,lease) in self._enumerate_leases(f):
+                if timing_safe_compare(lease.renew_secret, renew_secret):
+                    # yup. See if we need to update the owner time.
+                    if new_expire_time > lease.expiration_time:
+                        # yes
+                        lease.expiration_time = new_expire_time
+                        self._write_lease_record(f, leasenum, lease)
+                    return
+                accepting_nodeids.add(lease.nodeid)
         # Return the accepting_nodeids set, to give the client a chance to
         # update the leases on a share which has been migrated from its
         # original server to a new one.
@@ -333,21 +329,21 @@ class MutableShareFile(object):
                                 cancel_secret="\x00"*32,
                                 expiration_time=0,
                                 nodeid="\x00"*20)
-        f = open(self.home, 'rb+')
-        for (leasenum,lease) in self._enumerate_leases(f):
-            accepting_nodeids.add(lease.nodeid)
-            if timing_safe_compare(lease.cancel_secret, cancel_secret):
-                self._write_lease_record(f, leasenum, blank_lease)
-                modified += 1
-            else:
-                remaining += 1
-        if modified:
-            freed_space = self._pack_leases(f)
-            f.close()
-            if not remaining:
-                freed_space += os.stat(self.home)[stat.ST_SIZE]
-                self.unlink()
-            return freed_space
+        with open(self.home, 'rb+') as f:
+            for (leasenum,lease) in self._enumerate_leases(f):
+                accepting_nodeids.add(lease.nodeid)
+                if timing_safe_compare(lease.cancel_secret, cancel_secret):
+                    self._write_lease_record(f, leasenum, blank_lease)
+                    modified += 1
+                else:
+                    remaining += 1
+            if modified:
+                freed_space = self._pack_leases(f)
+                f.close()
+                if not remaining:
+                    freed_space += os.stat(self.home)[stat.ST_SIZE]
+                    self.unlink()
+                return freed_space
 
         msg = ("Unable to cancel non-existent lease. I have leases "
                "accepted by nodeids: ")
@@ -372,10 +368,9 @@ class MutableShareFile(object):
 
     def readv(self, readv):
         datav = []
-        f = open(self.home, 'rb')
-        for (offset, length) in readv:
-            datav.append(self._read_share_data(f, offset, length))
-        f.close()
+        with open(self.home, 'rb') as f:
+            for (offset, length) in readv:
+                datav.append(self._read_share_data(f, offset, length))
         return datav
 
 #    def remote_get_length(self):
@@ -385,10 +380,9 @@ class MutableShareFile(object):
 #        return data_length
 
     def check_write_enabler(self, write_enabler, si_s):
-        f = open(self.home, 'rb+')
-        (real_write_enabler, write_enabler_nodeid) = \
-                             self._read_write_enabler_and_nodeid(f)
-        f.close()
+        with open(self.home, 'rb+') as f:
+            (real_write_enabler, write_enabler_nodeid) = \
+                                 self._read_write_enabler_and_nodeid(f)
         # avoid a timing attack
         #if write_enabler != real_write_enabler:
         if not timing_safe_compare(write_enabler, real_write_enabler):
@@ -405,27 +399,25 @@ class MutableShareFile(object):
 
     def check_testv(self, testv):
         test_good = True
-        f = open(self.home, 'rb+')
-        for (offset, length, operator, specimen) in testv:
-            data = self._read_share_data(f, offset, length)
-            if not testv_compare(data, operator, specimen):
-                test_good = False
-                break
-        f.close()
+        with open(self.home, 'rb+') as f:
+            for (offset, length, operator, specimen) in testv:
+                data = self._read_share_data(f, offset, length)
+                if not testv_compare(data, operator, specimen):
+                    test_good = False
+                    break
         return test_good
 
     def writev(self, datav, new_length):
-        f = open(self.home, 'rb+')
-        for (offset, data) in datav:
-            self._write_share_data(f, offset, data)
-        if new_length is not None:
-            cur_length = self._read_data_length(f)
-            if new_length < cur_length:
-                self._write_data_length(f, new_length)
-                # TODO: if we're going to shrink the share file when the
-                # share data has shrunk, then call
-                # self._change_container_size() here.
-        f.close()
+        with open(self.home, 'rb+') as f:
+            for (offset, data) in datav:
+                self._write_share_data(f, offset, data)
+            if new_length is not None:
+                cur_length = self._read_data_length(f)
+                if new_length < cur_length:
+                    self._write_data_length(f, new_length)
+                    # TODO: if we're going to shrink the share file when the
+                    # share data has shrunk, then call
+                    # self._change_container_size() here.
 
 def testv_compare(a, op, b):
     assert op in ("lt", "le", "eq", "ne", "ge", "gt")

@@ -1,4 +1,12 @@
-import time, os.path, platform, stat, re, json, struct, shutil
+import time
+import os.path
+import platform
+import stat
+import re
+import json
+import struct
+import shutil
+import gc
 
 from twisted.trial import unittest
 
@@ -540,21 +548,24 @@ class Server(unittest.TestCase):
         OVERHEAD = 3*4
         LEASE_SIZE = 4+32+32+4
         canary = FakeCanary(True)
-        already,writers = self.allocate(ss, "vid1", [0,1,2], 1000, canary)
+        already, writers = self.allocate(ss, "vid1", [0,1,2], 1000, canary)
         self.failUnlessEqual(len(writers), 3)
         # now the StorageServer should have 3000 bytes provisionally
         # allocated, allowing only 2000 more to be claimed
         self.failUnlessEqual(len(ss._active_writers), 3)
 
         # allocating 1001-byte shares only leaves room for one
-        already2,writers2 = self.allocate(ss, "vid2", [0,1,2], 1001, canary)
+        already2, writers2 = self.allocate(ss, "vid2", [0,1,2], 1001, canary)
         self.failUnlessEqual(len(writers2), 1)
         self.failUnlessEqual(len(ss._active_writers), 4)
 
         # we abandon the first set, so their provisional allocation should be
         # returned
+
         del already
         del writers
+        gc.collect()
+
         self.failUnlessEqual(len(ss._active_writers), 1)
         # now we have a provisional allocation of 1001 bytes
 
@@ -574,12 +585,14 @@ class Server(unittest.TestCase):
 
         # now there should be ALLOCATED=1001+12+72=1085 bytes allocated, and
         # 5000-1085=3915 free, therefore we can fit 39 100byte shares
-        already3,writers3 = self.allocate(ss,"vid3", range(100), 100, canary)
+        already3, writers3 = self.allocate(ss,"vid3", range(100), 100, canary)
         self.failUnlessEqual(len(writers3), 39)
         self.failUnlessEqual(len(ss._active_writers), 39)
 
         del already3
         del writers3
+        gc.collect()
+
         self.failUnlessEqual(len(ss._active_writers), 0)
         ss.disownServiceParent()
         del ss

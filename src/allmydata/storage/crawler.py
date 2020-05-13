@@ -191,9 +191,8 @@ class ShareCrawler(service.MultiService):
         #                            of the last bucket to be processed, or
         #                            None if we are sleeping between cycles
         try:
-            f = open(self.statefile, "rb")
-            state = pickle.load(f)
-            f.close()
+            with open(self.statefile, "rb") as f:
+                state = pickle.load(f)
         except Exception:
             state = {"version": 1,
                      "last-cycle-finished": None,
@@ -230,9 +229,8 @@ class ShareCrawler(service.MultiService):
             last_complete_prefix = self.prefixes[lcpi]
         self.state["last-complete-prefix"] = last_complete_prefix
         tmpfile = self.statefile + ".tmp"
-        f = open(tmpfile, "wb")
-        pickle.dump(self.state, f)
-        f.close()
+        with open(tmpfile, "wb") as f:
+            pickle.dump(self.state, f)
         fileutil.move_into_place(tmpfile, self.statefile)
 
     def startService(self):

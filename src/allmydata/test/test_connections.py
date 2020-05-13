@@ -114,7 +114,7 @@ class Tor(unittest.TestCase):
             )
             tor_provider = create_tor_provider(reactor, config)
             h = tor_provider.get_tor_handler()
-        self.assertTrue(IStreamClientEndpoint.providedBy(f.mock_calls[0]))
+        self.assertTrue(IStreamClientEndpoint.providedBy(f.mock_calls[0][1][0]))
         self.assertIdentical(h, h1)
 
     def test_socksport_endpoint(self):
@@ -128,7 +128,7 @@ class Tor(unittest.TestCase):
             )
             tor_provider = create_tor_provider(reactor, config)
             h = tor_provider.get_tor_handler()
-        self.assertTrue(IStreamClientEndpoint.providedBy(f.mock_calls[0]))
+        self.assertTrue(IStreamClientEndpoint.providedBy(f.mock_calls[0][1][0]))
         self.assertIdentical(h, h1)
 
     def test_socksport_endpoint_otherhost(self):
@@ -142,7 +142,7 @@ class Tor(unittest.TestCase):
             )
             tor_provider = create_tor_provider(reactor, config)
             h = tor_provider.get_tor_handler()
-        self.assertTrue(IStreamClientEndpoint.providedBy(f.mock_calls[0]))
+        self.assertTrue(IStreamClientEndpoint.providedBy(f.mock_calls[0][1][0]))
         self.assertIdentical(h, h1)
 
     def test_socksport_bad_endpoint(self):
