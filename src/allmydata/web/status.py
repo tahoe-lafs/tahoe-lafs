@@ -759,8 +759,8 @@ class RetrieveStatusPage(rend.Page, RateAndTimeMixin):
         return T.li["Per-Server Fetch Response Times: ", l]
 
 
-# Renders "status/publish-%n"
 class PublishStatusPage(MultiFormatResource):
+    """Renders status/publish-%d."""
 
     def __init__(self, publish_status):
         """
