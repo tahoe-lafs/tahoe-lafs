@@ -673,90 +673,129 @@ class DownloadStatusPage(DownloadResultsRendererMixin, rend.Page):
     def render_status(self, ctx, data):
         return data.get_status()
 
-class RetrieveStatusPage(rend.Page, RateAndTimeMixin):
-    docFactory = getxmlfile("retrieve-status.xhtml")
 
-    def __init__(self, data):
-        rend.Page.__init__(self, data)
-        self.retrieve_status = data
 
-    def render_started(self, ctx, data):
-        started_s = render_time(data.get_started())
-        return started_s
+class RetrieveStatusPage(MultiFormatResource):
+    """Renders /status/retrieve-%d."""
 
-    def render_si(self, ctx, data):
-        si_s = base32.b2a_or_none(data.get_storage_index())
+    def __init__(self, retrieve_status):
+        """
+        :param retrieve.RetrieveStatus retrieve_status: stats provider.
+        """
+        super(RetrieveStatusPage, self).__init__()
+        self._retrieve_status = retrieve_status
+
+    def render_HTML(self, req):
+        elem = RetrieveStatusElement(self._retrieve_status)
+        return renderElement(req, elem)
+
+
+class RetrieveStatusElement(Element):
+
+    loader = XMLFile(FilePath(__file__).sibling("retrieve-status.xhtml"))
+
+    def __init__(self, retrieve_status):
+        super(RetrieveStatusElement, self).__init__()
+        self._retrieve_status = retrieve_status
+
+    @renderer
+    def started(self, req, tag):
+        started_s = render_time(self._retrieve_status.get_started())
+        return tag(started_s)
+
+    @renderer
+    def si(self, req, tag):
+        si_s = base32.b2a_or_none(self._retrieve_status.get_storage_index())
         if si_s is None:
             si_s = "(None)"
-        return si_s
+        return tag(si_s)
 
-    def render_helper(self, ctx, data):
-        return {True: "Yes",
-                False: "No"}[data.using_helper()]
+    @renderer
+    def helper(self, req, tag):
+        return tag({True: "Yes",
+                    False: "No"}[self._retrieve_status.using_helper()])
 
-    def render_current_size(self, ctx, data):
-        size = data.get_size()
+    @renderer
+    def current_size(self, req, tag):
+        size = str(self._retrieve_status.get_size())
         if size is None:
             size = "(unknown)"
-        return size
+        return tag(size)
 
-    def render_progress(self, ctx, data):
-        progress = data.get_progress()
+    @renderer
+    def progress(self, req, tag):
+        progress = self._retrieve_status.get_progress()
         # TODO: make an ascii-art bar
-        return "%.1f%%" % (100.0 * progress)
+        return tag("%.1f%%" % (100.0 * progress))
 
-    def render_status(self, ctx, data):
-        return data.get_status()
+    @renderer
+    def status(self, req, tag):
+        return tag(self._retrieve_status.get_status())
 
-    def render_encoding(self, ctx, data):
-        k, n = data.get_encoding()
-        return ctx.tag["Encoding: %s of %s" % (k, n)]
+    @renderer
+    def encoding(self, req, tag):
+        k, n = self._retrieve_status.get_encoding()
+        return tag("Encoding: %s of %s" % (k, n))
 
-    def render_problems(self, ctx, data):
-        problems = data.get_problems()
+    @renderer
+    def problems(self, req, tag):
+        problems = self._retrieve_status.get_problems()
         if not problems:
             return ""
-        l = T.ul()
+        ul = tags.ul()
         for peerid in sorted(problems.keys()):
             peerid_s = idlib.shortnodeid_b2a(peerid)
-            l[T.li["[%s]: %s" % (peerid_s, problems[peerid])]]
-        return ctx.tag["Server Problems:", l]
+            ul(tags.li("[%s]: %s" % (peerid_s, problems[peerid])))
+        return tag("Server Problems:", ul)
 
-    def _get_rate(self, data, name):
-        file_size = self.retrieve_status.get_size()
-        duration = self.retrieve_status.timings.get(name)
+    def _get_rate(self, name):
+        file_size = self._retrieve_status.get_size()
+        duration = self._retrieve_status.timings.get(name)
         return compute_rate(file_size, duration)
 
-    def data_time_total(self, ctx, data):
-        return self.retrieve_status.timings.get("total")
-    def data_rate_total(self, ctx, data):
-        return self._get_rate(data, "total")
+    @renderer
+    def time_total(self, req, tag):
+        return tag(str(self._retrieve_status.timings.get("total")))
 
-    def data_time_fetch(self, ctx, data):
-        return self.retrieve_status.timings.get("fetch")
-    def data_rate_fetch(self, ctx, data):
-        return self._get_rate(data, "fetch")
+    @renderer
+    def rate_total(self, req, tag):
+        return tag(str(self._get_rate("total")))
 
-    def data_time_decode(self, ctx, data):
-        return self.retrieve_status.timings.get("decode")
-    def data_rate_decode(self, ctx, data):
-        return self._get_rate(data, "decode")
+    @renderer
+    def time_fetch(self, req, tag):
+        return tag(str(self._retrieve_status.timings.get("fetch")))
 
-    def data_time_decrypt(self, ctx, data):
-        return self.retrieve_status.timings.get("decrypt")
-    def data_rate_decrypt(self, ctx, data):
-        return self._get_rate(data, "decrypt")
+    @renderer
+    def rate_fetch(self, req, tag):
+        return tag(str(self._get_rate("fetch")))
 
-    def render_server_timings(self, ctx, data):
-        per_server = self.retrieve_status.timings.get("fetch_per_server")
+    @renderer
+    def time_decode(self, req, tag):
+        return tag(str(self._retrieve_status.timings.get("decode")))
+
+    @renderer
+    def rate_decode(self, req, tag):
+        return tag(str(self._get_rate("decode")))
+
+    @renderer
+    def time_decrypt(self, req, tag):
+        return tag(str(self._retrieve_status.timings.get("decrypt")))
+
+    @renderer
+    def rate_decrypt(self, req, tag):
+        return tag(str(self._get_rate("decrypt")))
+
+    @renderer
+    def server_timings(self, req, tag):
+        per_server = self._retrieve_status.timings.get("fetch_per_server")
         if not per_server:
-            return ""
-        l = T.ul()
+            return tag("")
+        l = tags.ul()
         for server in sorted(per_server.keys(), key=lambda s: s.get_name()):
-            times_s = ", ".join([self.render_time(None, t)
+            times_s = ", ".join([abbreviate_time(t)
                                  for t in per_server[server]])
-            l[T.li["[%s]: %s" % (server.get_name(), times_s)]]
-        return T.li["Per-Server Fetch Response Times: ", l]
+            l(tags.li("[%s]: %s" % (server.get_name(), times_s)))
+        return tags.li("Per-Server Fetch Response Times: ", l)
 
 
 class PublishStatusPage(rend.Page, RateAndTimeMixin):
