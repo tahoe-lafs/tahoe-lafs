@@ -675,8 +675,8 @@ class DownloadStatusPage(DownloadResultsRendererMixin, rend.Page):
 
 
 
-# Renders "/status/retrieve-%d".
 class RetrieveStatusPage(MultiFormatResource):
+    """Renders /status/retrieve-%d."""
 
     def __init__(self, retrieve_status):
         """
