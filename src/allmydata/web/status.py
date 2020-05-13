@@ -742,11 +742,11 @@ class RetrieveStatusElement(Element):
         problems = self._retrieve_status.get_problems()
         if not problems:
             return ""
-        l = tags.ul()
+        ul = tags.ul()
         for peerid in sorted(problems.keys()):
             peerid_s = idlib.shortnodeid_b2a(peerid)
-            l(tags.li("[%s]: %s" % (peerid_s, problems[peerid])))
-        return tag("Server Problems:", l)
+            ul(tags.li("[%s]: %s" % (peerid_s, problems[peerid])))
+        return tag("Server Problems:", ul)
 
     def _get_rate(self, name):
         file_size = self._retrieve_status.get_size()
