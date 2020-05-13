@@ -680,7 +680,7 @@ class RetrieveStatusPage(MultiFormatResource):
 
     def __init__(self, retrieve_status):
         """
-        :param retrieve_status retrieve.RetrieveStatus: stats provider.
+        :param retrieve.RetrieveStatus retrieve_status: stats provider.
         """
         super(RetrieveStatusPage, self).__init__()
         self._retrieve_status = retrieve_status
