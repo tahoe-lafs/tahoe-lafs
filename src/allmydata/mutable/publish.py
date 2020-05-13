@@ -23,6 +23,9 @@ from allmydata.mutable.layout import get_version_from_checkstring,\
                                      MDMFSlotWriteProxy, \
                                      SDMFSlotWriteProxy
 
+import eliot
+
+
 KiB = 1024
 DEFAULT_MAX_SEGMENT_SIZE = 128 * KiB
 PUSHING_BLOCKS_STATE = 0
@@ -942,23 +945,31 @@ class Publish(object):
             old_assignments.add(server, shnum)
 
         serverlist = []
-        for i, server in enumerate(self.full_serverlist):
-            serverid = server.get_serverid()
-            if server in self.bad_servers:
-                continue
-            # if we have >= 1 grid-managers, this checks that we have
-            # a valid certificate for this server
-            if not server.upload_permitted():
-                self.log(
-                    "No valid grid-manager certificates for '{}' while choosing slots for mutable".format(
-                        server.get_serverid(),
-                    ),
-                    level=log.UNUSUAL,
-                )
-                continue
 
-            entry = (len(old_assignments.get(server, [])), i, serverid, server)
-            serverlist.append(entry)
+        action = eliot.start_action(
+            action_type=u"mutable:upload:update_goal",
+            homeless_shares=len(homeless_shares),
+        )
+        with action:
+            for i, server in enumerate(self.full_serverlist):
+                serverid = server.get_serverid()
+                if server in self.bad_servers:
+                    action.log(
+                        server_id=server.get_server_id(),
+                        message="Server is bad",
+                    )
+                    continue
+                # if we have >= 1 grid-managers, this checks that we have
+                # a valid certificate for this server
+                if not server.upload_permitted():
+                    action.log(
+                        server_id=server.get_server_id(),
+                        message="No valid grid-manager certificates",
+                    )
+                    continue
+
+                entry = (len(old_assignments.get(server, [])), i, serverid, server)
+                serverlist.append(entry)
         serverlist.sort()
 
         if not serverlist:
