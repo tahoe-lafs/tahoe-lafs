@@ -490,8 +490,12 @@ class _EventJson(Resource, object):
 
 
 class DownloadStatusPage(MultiFormatResource):
+    """Renders /status/down-%d."""
 
     def __init__(self, download_status):
+        """
+        :param IDownloadStatus download_status: stats provider
+        """
         super(DownloadStatusPage, self).__init__()
         self._download_status = download_status
         self.putChild("event_json", _EventJson(self._download_status))
