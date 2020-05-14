@@ -683,39 +683,39 @@ class DownloadStatusElement(Element):
 
     @renderer
     def time_total(self, req, tag):
-        return self._get_time("total")
+        return tag(str(self._get_time("total")))
 
     @renderer
     def time_peer_selection(self, req, tag):
-        return self._get_time("peer_selection")
+        return tag(str(self._get_time("peer_selection")))
 
     @renderer
     def time_uri_extension(self, req, tag):
-        return self._get_time("uri_extension")
+        return tag(str(self._get_time("uri_extension")))
 
     @renderer
     def time_hashtrees(self, req, tag):
-        return self._get_time("hashtrees")
+        return tag(str(self._get_time("hashtrees")))
 
     @renderer
     def time_segments(self, req, tag):
-        return self._get_time("segments")
+        return tag(str(self._get_time("segments")))
 
     @renderer
     def time_cumulative_fetch(self, req, tag):
-        return self._get_time("cumulative_fetch")
+        return tag(str(self._get_time("cumulative_fetch")))
 
     @renderer
     def time_cumulative_decode(self, req, tag):
-        return self._get_time("cumulative_decode")
+        return tag(str(self._get_time("cumulative_decode")))
 
     @renderer
     def time_cumulative_decrypt(self, req, tag):
-        return self._get_time("cumulative_decrypt")
+        return tag(str(self._get_time("cumulative_decrypt")))
 
     @renderer
     def time_paused(self, req, tag):
-        return self._get_time("paused")
+        return tag(str(self._get_time("paused")))
 
     def _get_rate(self, name):
         d = self.download_results()
@@ -728,23 +728,23 @@ class DownloadStatusElement(Element):
 
     @renderer
     def rate_total(self, req, tag):
-        return self._get_rate("total")
+        return tag(str(self._get_rate("total")))
 
     @renderer
     def rate_segments(self, req, tag):
-        return self._get_rate("segments")
+        return tag(str(self._get_rate("segments")))
 
     @renderer
     def rate_fetch(self, req, tag):
-        return self._get_rate("cumulative_fetch")
+        return tag(str(self._get_rate("cumulative_fetch")))
 
     @renderer
     def rate_decode(self, req, tag):
-        return self._get_rate("cumulative_decode")
+        return tag(str(self._get_rate("cumulative_decode")))
 
     @renderer
     def rate_decrypt(self, req, tag):
-        return self._get_rate("cumulative_decrypt")
+        return tag(str(self._get_rate("cumulative_decrypt")))
 
     @renderer
     def server_timings(self, req, tag):
@@ -756,7 +756,7 @@ class DownloadStatusElement(Element):
             ul = tags.ul()
             for peerid in sorted(per_server.keys()):
                 peerid_s = idlib.shortnodeid_b2a(peerid)
-                times_s = ", ".join([self.render_time(None, t)
+                times_s = ", ".join([abbreviate_time(t)
                                      for t in per_server[peerid]])
                 ul(tags.li("[%s]: %s" % (peerid_s, times_s)))
             return tags.li("Per-Server Segment Fetch Response Times: ", ul)
