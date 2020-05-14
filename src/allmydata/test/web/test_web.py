@@ -1035,17 +1035,6 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         return d
 
     def test_status_numbers(self):
-        drrm = status.DownloadResultsRendererMixin()
-        self.failUnlessReallyEqual(drrm.render_time(None, None), "")
-        self.failUnlessReallyEqual(drrm.render_time(None, 2.5), "2.50s")
-        self.failUnlessReallyEqual(drrm.render_time(None, 0.25), "250ms")
-        self.failUnlessReallyEqual(drrm.render_time(None, 0.0021), "2.1ms")
-        self.failUnlessReallyEqual(drrm.render_time(None, 0.000123), "123us")
-        self.failUnlessReallyEqual(drrm.render_rate(None, None), "")
-        self.failUnlessReallyEqual(drrm.render_rate(None, 2500000), "2.50MBps")
-        self.failUnlessReallyEqual(drrm.render_rate(None, 30100), "30.1kBps")
-        self.failUnlessReallyEqual(drrm.render_rate(None, 123), "123Bps")
-
         urrm = status.UploadResultsRendererMixin()
         self.failUnlessReallyEqual(urrm.render_time(None, None), "")
         self.failUnlessReallyEqual(urrm.render_time(None, 2.5), "2.50s")
