@@ -390,6 +390,12 @@ class DownloadStatusElement(Element):
         super(DownloadStatusElement, self).__init__()
         self._download_status = download_status
 
+    # XXX: fun fact: the `get_results()` method which we wind up
+    # invoking here (see immutable.downloader.status.DownloadStatus)
+    # is unimplemented, and simply returns a `None`.  As a result,
+    # `results()` renderer returns an empty tag, and does not invoke
+    # any of the subsequent renderers.  Thus we end up not displaying
+    # download results on the download status page.
     def download_results(self):
         return defer.maybeDeferred(self._download_status.get_results)
 
