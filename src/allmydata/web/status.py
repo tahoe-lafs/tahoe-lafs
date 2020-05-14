@@ -529,10 +529,6 @@ class DownloadStatusElement(Element, DownloadResultsRendererMixin):
             return ""
         return "+%.6fs" % t
 
-    def render_timeline_link(self, ctx, data):
-        from nevow import url
-        return T.a(href=url.URL.fromContext(ctx).child("timeline"))["timeline"]
-
     def _rate_and_time(self, bytes, seconds):
         time_s = abbreviate_time(seconds)
         if seconds != 0:
