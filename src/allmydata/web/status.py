@@ -798,114 +798,162 @@ class RetrieveStatusElement(Element):
         return tags.li("Per-Server Fetch Response Times: ", l)
 
 
-class PublishStatusPage(rend.Page, RateAndTimeMixin):
-    docFactory = getxmlfile("publish-status.xhtml")
+class PublishStatusPage(MultiFormatResource):
+    """Renders status/publish-%d."""
 
-    def __init__(self, data):
-        rend.Page.__init__(self, data)
-        self.publish_status = data
+    def __init__(self, publish_status):
+        """
+        :param mutable.publish.PublishStatus publish_status: stats provider.
+        """
+        super(PublishStatusPage, self).__init__()
+        self._publish_status = publish_status
 
-    def render_started(self, ctx, data):
-        started_s = render_time(data.get_started())
-        return started_s
+    def render_HTML(self, req):
+        elem = PublishStatusElement(self._publish_status);
+        return renderElement(req, elem)
 
-    def render_si(self, ctx, data):
-        si_s = base32.b2a_or_none(data.get_storage_index())
+
+class PublishStatusElement(Element):
+
+    loader = XMLFile(FilePath(__file__).sibling("publish-status.xhtml"))
+
+    def __init__(self, publish_status):
+        super(PublishStatusElement, self).__init__()
+        self._publish_status = publish_status
+
+    @renderer
+    def started(self, req, tag):
+        started_s = render_time(self._publish_status.get_started())
+        return tag(started_s)
+
+    @renderer
+    def si(self, req, tag):
+        si_s = base32.b2a_or_none(self._publish_status.get_storage_index())
         if si_s is None:
             si_s = "(None)"
-        return si_s
+        return tag(str(si_s))
 
-    def render_helper(self, ctx, data):
-        return {True: "Yes",
-                False: "No"}[data.using_helper()]
+    @renderer
+    def helper(self, req, tag):
+        return tag({True: "Yes",
+                    False: "No"}[self._publish_status.using_helper()])
 
-    def render_current_size(self, ctx, data):
-        size = data.get_size()
+    @renderer
+    def current_size(self, req, tag):
+        size = self._publish_status.get_size()
         if size is None:
             size = "(unknown)"
-        return size
+        return tag(str(size))
 
-    def render_progress(self, ctx, data):
-        progress = data.get_progress()
+    @renderer
+    def progress(self, req, tag):
+        progress = self._publish_status.get_progress()
         # TODO: make an ascii-art bar
-        return "%.1f%%" % (100.0 * progress)
+        return tag("%.1f%%" % (100.0 * progress))
 
-    def render_status(self, ctx, data):
-        return data.get_status()
+    @renderer
+    def status(self, req, tag):
+        return tag(self._publish_status.get_status())
 
-    def render_encoding(self, ctx, data):
-        k, n = data.get_encoding()
-        return ctx.tag["Encoding: %s of %s" % (k, n)]
+    @renderer
+    def encoding(self, req, tag):
+        k, n = self._publish_status.get_encoding()
+        return tag("Encoding: %s of %s" % (k, n))
 
-    def render_sharemap(self, ctx, data):
-        servermap = data.get_servermap()
+    @renderer
+    def sharemap(self, req, tag):
+        servermap = self._publish_status.get_servermap()
         if servermap is None:
-            return ctx.tag["None"]
-        l = T.ul()
+            return tag("None")
+        l = tags.ul()
         sharemap = servermap.make_sharemap()
         for shnum in sorted(sharemap.keys()):
-            l[T.li["%d -> Placed on " % shnum,
-                   ", ".join(["[%s]" % server.get_name()
-                              for server in sharemap[shnum]])]]
-        return ctx.tag["Sharemap:", l]
+            l(tags.li("%d -> Placed on " % shnum,
+                      ", ".join(["[%s]" % server.get_name()
+                                 for server in sharemap[shnum]])))
+        return tag("Sharemap:", l)
 
-    def render_problems(self, ctx, data):
-        problems = data.get_problems()
+    @renderer
+    def problems(self, req, tag):
+        problems = self._publish_status.get_problems()
         if not problems:
-            return ""
-        l = T.ul()
+            return tag()
+        l = tags.ul()
         # XXX: is this exercised? I don't think PublishStatus.problems is
         # ever populated
         for peerid in sorted(problems.keys()):
             peerid_s = idlib.shortnodeid_b2a(peerid)
-            l[T.li["[%s]: %s" % (peerid_s, problems[peerid])]]
-        return ctx.tag["Server Problems:", l]
+            l(tags.li("[%s]: %s" % (peerid_s, problems[peerid])))
+        return tag(tags.li("Server Problems:", l))
 
-    def _get_rate(self, data, name):
-        file_size = self.publish_status.get_size()
-        duration = self.publish_status.timings.get(name)
-        return compute_rate(file_size, duration)
+    def _get_rate(self, name):
+        file_size = self._publish_status.get_size()
+        duration = self._publish_status.timings.get(name)
+        return str(compute_rate(file_size, duration))
 
-    def data_time_total(self, ctx, data):
-        return self.publish_status.timings.get("total")
-    def data_rate_total(self, ctx, data):
-        return self._get_rate(data, "total")
+    def _get_time(self, name):
+        return str(self._publish_status.timings.get(name))
 
-    def data_time_setup(self, ctx, data):
-        return self.publish_status.timings.get("setup")
+    @renderer
+    def time_total(self, req, tag):
+        return tag(self._get_time("total"))
 
-    def data_time_encrypt(self, ctx, data):
-        return self.publish_status.timings.get("encrypt")
-    def data_rate_encrypt(self, ctx, data):
-        return self._get_rate(data, "encrypt")
+    @renderer
+    def rate_total(self, req, tag):
+        return tag(self._get_rate("total"))
 
-    def data_time_encode(self, ctx, data):
-        return self.publish_status.timings.get("encode")
-    def data_rate_encode(self, ctx, data):
-        return self._get_rate(data, "encode")
+    @renderer
+    def time_setup(self, req, tag):
+        return tag(self._get_time("setup"))
 
-    def data_time_pack(self, ctx, data):
-        return self.publish_status.timings.get("pack")
-    def data_rate_pack(self, ctx, data):
-        return self._get_rate(data, "pack")
-    def data_time_sign(self, ctx, data):
-        return self.publish_status.timings.get("sign")
+    @renderer
+    def time_encrypt(self, req, tag):
+        return tag(self._get_time("encrypt"))
 
-    def data_time_push(self, ctx, data):
-        return self.publish_status.timings.get("push")
-    def data_rate_push(self, ctx, data):
-        return self._get_rate(data, "push")
+    @renderer
+    def rate_encrypt(self, req, tag):
+        return tag(self._get_rate("encrypt"))
 
-    def render_server_timings(self, ctx, data):
-        per_server = self.publish_status.timings.get("send_per_server")
+    @renderer
+    def time_encode(self, req, tag):
+        return tag(self._get_time("encode"))
+
+    @renderer
+    def rate_encode(self, req, tag):
+        return tag(self._get_rate("encode"))
+
+    @renderer
+    def time_pack(self, req, tag):
+        return tag(self._get_time("pack"))
+
+    @renderer
+    def rate_pack(self, req, tag):
+        return tag(self._get_rate("pack"))
+
+    @renderer
+    def time_sign(self, req, tag):
+        return tag(self._get_time("sign"))
+
+    @renderer
+    def time_push(self, req, tag):
+        return tag(self._get_time("push"))
+
+    @renderer
+    def rate_push(self, req, tag):
+        return self._get_rate("push")
+
+    @renderer
+    def server_timings(self, req, tag):
+        per_server = self._publish_status.timings.get("send_per_server")
         if not per_server:
-            return ""
-        l = T.ul()
+            return tag()
+        l = tags.ul()
         for server in sorted(per_server.keys(), key=lambda s: s.get_name()):
-            times_s = ", ".join([self.render_time(None, t)
+            times_s = ", ".join([abbreviate_time(t)
                                  for t in per_server[server]])
-            l[T.li["[%s]: %s" % (server.get_name(), times_s)]]
-        return T.li["Per-Server Response Times: ", l]
+            l(tags.li("[%s]: %s" % (server.get_name(), times_s)))
+        return tags.li("Per-Server Response Times: ", l)
+
 
 
 class MapupdateStatusPage(MultiFormatResource):
