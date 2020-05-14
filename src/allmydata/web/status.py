@@ -217,129 +217,6 @@ class UploadStatusPage(UploadResultsRendererMixin, rend.Page):
     def render_status(self, ctx, data):
         return data.get_status()
 
-class DownloadResultsRendererMixin(RateAndTimeMixin):
-    # this requires a method named 'download_results'
-
-    def render_servermap(self, ctx, data):
-        d = self.download_results()
-        d.addCallback(lambda res: res.servermap)
-        def _render(servermap):
-            if servermap is None:
-                return "None"
-            l = T.ul()
-            for peerid in sorted(servermap.keys()):
-                peerid_s = idlib.shortnodeid_b2a(peerid)
-                shares_s = ",".join(["#%d" % shnum
-                                     for shnum in servermap[peerid]])
-                l[T.li["[%s] has share%s: %s" % (peerid_s,
-                                                 plural(servermap[peerid]),
-                                                 shares_s)]]
-            return l
-        d.addCallback(_render)
-        return d
-
-    def render_servers_used(self, ctx, data):
-        d = self.download_results()
-        d.addCallback(lambda res: res.servers_used)
-        def _got(servers_used):
-            if not servers_used:
-                return ""
-            peerids_s = ", ".join(["[%s]" % idlib.shortnodeid_b2a(peerid)
-                                   for peerid in servers_used])
-            return T.li["Servers Used: ", peerids_s]
-        d.addCallback(_got)
-        return d
-
-    def render_problems(self, ctx, data):
-        d = self.download_results()
-        d.addCallback(lambda res: res.server_problems)
-        def _got(server_problems):
-            if not server_problems:
-                return ""
-            l = T.ul()
-            for peerid in sorted(server_problems.keys()):
-                peerid_s = idlib.shortnodeid_b2a(peerid)
-                l[T.li["[%s]: %s" % (peerid_s, server_problems[peerid])]]
-            return T.li["Server Problems:", l]
-        d.addCallback(_got)
-        return d
-
-    def data_file_size(self, ctx, data):
-        d = self.download_results()
-        d.addCallback(lambda res: res.file_size)
-        return d
-
-    def _get_time(self, name):
-        d = self.download_results()
-        d.addCallback(lambda res: res.timings.get(name))
-        return d
-
-    def data_time_total(self, ctx, data):
-        return self._get_time("total")
-
-    def data_time_peer_selection(self, ctx, data):
-        return self._get_time("peer_selection")
-
-    def data_time_uri_extension(self, ctx, data):
-        return self._get_time("uri_extension")
-
-    def data_time_hashtrees(self, ctx, data):
-        return self._get_time("hashtrees")
-
-    def data_time_segments(self, ctx, data):
-        return self._get_time("segments")
-
-    def data_time_cumulative_fetch(self, ctx, data):
-        return self._get_time("cumulative_fetch")
-
-    def data_time_cumulative_decode(self, ctx, data):
-        return self._get_time("cumulative_decode")
-
-    def data_time_cumulative_decrypt(self, ctx, data):
-        return self._get_time("cumulative_decrypt")
-
-    def data_time_paused(self, ctx, data):
-        return self._get_time("paused")
-
-    def _get_rate(self, name):
-        d = self.download_results()
-        def _convert(r):
-            file_size = r.file_size
-            duration = r.timings.get(name)
-            return compute_rate(file_size, duration)
-        d.addCallback(_convert)
-        return d
-
-    def data_rate_total(self, ctx, data):
-        return self._get_rate("total")
-
-    def data_rate_segments(self, ctx, data):
-        return self._get_rate("segments")
-
-    def data_rate_fetch(self, ctx, data):
-        return self._get_rate("cumulative_fetch")
-
-    def data_rate_decode(self, ctx, data):
-        return self._get_rate("cumulative_decode")
-
-    def data_rate_decrypt(self, ctx, data):
-        return self._get_rate("cumulative_decrypt")
-
-    def render_server_timings(self, ctx, data):
-        d = self.download_results()
-        d.addCallback(lambda res: res.timings.get("fetch_per_server"))
-        def _render(per_server):
-            if per_server is None:
-                return ""
-            l = T.ul()
-            for peerid in sorted(per_server.keys()):
-                peerid_s = idlib.shortnodeid_b2a(peerid)
-                times_s = ", ".join([self.render_time(None, t)
-                                     for t in per_server[peerid]])
-                l[T.li["[%s]: %s" % (peerid_s, times_s)]]
-            return T.li["Per-Server Segment Fetch Response Times: ", l]
-        d.addCallback(_render)
-        return d
 
 def _find_overlap(events, start_key, end_key):
     """
@@ -505,7 +382,7 @@ class DownloadStatusPage(MultiFormatResource):
         return renderElement(req, elem)
 
 
-class DownloadStatusElement(Element, DownloadResultsRendererMixin):
+class DownloadStatusElement(Element):
 
     loader = XMLFile(FilePath(__file__).sibling("download-status.xhtml"))
 
@@ -740,7 +617,145 @@ class DownloadStatusElement(Element, DownloadResultsRendererMixin):
     def status(self, req, tag):
         return tag(self._download_status.get_status())
 
+    @renderer
+    def servers_used(self, req, tag):
+        d = self.download_results()
+        d.addCallback(lambda res: res.servers_used)
+        def _got(servers_used):
+            if not servers_used:
+                return ""
+            peerids_s = ", ".join(["[%s]" % idlib.shortnodeid_b2a(peerid)
+                                   for peerid in servers_used])
+            return tags.li("Servers Used: ", peerids_s)
+        d.addCallback(_got)
+        return d
 
+    @renderer
+    def servermap(self, req, tag):
+        d = self.download_results()
+        d.addCallback(lambda res: res.servermap)
+        def _render(servermap):
+            if servermap is None:
+                return tag("None")
+            ul = tags.ul()
+            for peerid in sorted(servermap.keys()):
+                peerid_s = idlib.shortnodeid_b2a(peerid)
+                shares_s = ",".join(["#%d" % shnum
+                                     for shnum in servermap[peerid]])
+                ul(tags.li("[%s] has share%s: %s" % (peerid_s,
+                                                     plural(servermap[peerid]),
+                                                     shares_s)))
+            return ul
+        d.addCallback(_render)
+        return d
+
+    @renderer
+    def problems(self, req, tag):
+        d = self.download_results()
+        d.addCallback(lambda res: res.server_problems)
+        def _got(server_problems):
+            if not server_problems:
+                return tag("")
+            ul = T.ul()
+            for peerid in sorted(server_problems.keys()):
+                peerid_s = idlib.shortnodeid_b2a(peerid)
+                ul(tags.li("[%s]: %s" % (peerid_s, server_problems[peerid])))
+            return tags.li("Server Problems:", ul)
+        d.addCallback(_got)
+        return d
+
+    @renderer
+    def file_size(self, req, tag):
+        d = self.download_results()
+        d.addCallback(lambda res: str(res.file_size))
+        return d
+
+    def _get_time(self, name):
+        d = self.download_results()
+        d.addCallback(lambda res: res.timings.get(name))
+        return d
+
+    @renderer
+    def time_total(self, req, tag):
+        return self._get_time("total")
+
+    @renderer
+    def time_peer_selection(self, req, tag):
+        return self._get_time("peer_selection")
+
+    @renderer
+    def time_uri_extension(self, req, tag):
+        return self._get_time("uri_extension")
+
+    @renderer
+    def time_hashtrees(self, req, tag):
+        return self._get_time("hashtrees")
+
+    @renderer
+    def time_segments(self, req, tag):
+        return self._get_time("segments")
+
+    @renderer
+    def time_cumulative_fetch(self, req, tag):
+        return self._get_time("cumulative_fetch")
+
+    @renderer
+    def time_cumulative_decode(self, req, tag):
+        return self._get_time("cumulative_decode")
+
+    @renderer
+    def time_cumulative_decrypt(self, req, tag):
+        return self._get_time("cumulative_decrypt")
+
+    @renderer
+    def time_paused(self, req, tag):
+        return self._get_time("paused")
+
+    def _get_rate(self, name):
+        d = self.download_results()
+        def _convert(r):
+            file_size = r.file_size
+            duration = r.timings.get(name)
+            return compute_rate(file_size, duration)
+        d.addCallback(_convert)
+        return d
+
+    @renderer
+    def rate_total(self, req, tag):
+        return self._get_rate("total")
+
+    @renderer
+    def rate_segments(self, req, tag):
+        return self._get_rate("segments")
+
+    @renderer
+    def rate_fetch(self, req, tag):
+        return self._get_rate("cumulative_fetch")
+
+    @renderer
+    def rate_decode(self, req, tag):
+        return self._get_rate("cumulative_decode")
+
+    @renderer
+    def rate_decrypt(self, req, tag):
+        return self._get_rate("cumulative_decrypt")
+
+    @renderer
+    def server_timings(self, req, tag):
+        d = self.download_results()
+        d.addCallback(lambda res: res.timings.get("fetch_per_server"))
+        def _render(per_server):
+            if per_server is None:
+                return ""
+            ul = tags.ul()
+            for peerid in sorted(per_server.keys()):
+                peerid_s = idlib.shortnodeid_b2a(peerid)
+                times_s = ", ".join([self.render_time(None, t)
+                                     for t in per_server[peerid]])
+                ul(tags.li("[%s]: %s" % (peerid_s, times_s)))
+            return tags.li("Per-Server Segment Fetch Response Times: ", ul)
+        d.addCallback(_render)
+        return d
 
 
 class RetrieveStatusPage(MultiFormatResource):
