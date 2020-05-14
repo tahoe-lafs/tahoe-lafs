@@ -431,6 +431,7 @@ class DownloadStatusElement(Element):
 
         evtag = tags.div()
 
+        # "DYHB Requests" table.
         dyhbtag = tags.table(align="left", class_="status-download-events")
 
         dyhbtag(tags.tr(tags.th("serverid"),
@@ -461,6 +462,7 @@ class DownloadStatusElement(Element):
         evtag(tags.h2("DYHB Requests:"), dyhbtag)
         evtag(tags.br(clear="all"))
 
+        # "Read Events" table.
         readtag = tags.table(align="left",class_="status-download-events")
 
         readtag(tags.tr((
@@ -501,6 +503,7 @@ class DownloadStatusElement(Element):
         evtag(tags.h2("Read Events:"), readtag)
         evtag(tags.br(clear="all"))
 
+        # "Segment Events" table.
         segtag = tags.table(align="left",class_="status-download-events")
 
         segtag(tags.tr(
@@ -546,6 +549,7 @@ class DownloadStatusElement(Element):
         evtag(tags.h2("Segment Events:"), segtag)
         evtag(tags.br(clear="all"))
 
+        # "Requests" table.
         reqtab = tags.table(align="left",class_="status-download-events")
 
         reqtab(tags.tr(
