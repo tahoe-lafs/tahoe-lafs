@@ -540,6 +540,9 @@ class DownloadStatusElement(Element, DownloadResultsRendererMixin):
             return tags.span(time_s, title=rate)
         return tags.span(time_s)
 
+    # XXX: This method is a candidate for refactoring.  It renders
+    # four tables from this function.  Layout part of those tables
+    # could be moved to download-status.xhtml.
     @renderer
     def events(self, req, tag):
         if not self._download_status.storage_index:
