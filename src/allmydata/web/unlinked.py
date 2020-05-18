@@ -86,6 +86,23 @@ class UploadResultsPage(MultiFormatResource):
         elem = UploadResultsElement(self._upload_results)
         return renderElement(req, elem)
 
+    # This is weird but necessary because:
+    #
+    #  1. MultiFormatResource.render() uses argument "t" to figure out
+    #     its output format.
+    #
+    #  2. Upload request is of the form "POST /uri?t=upload&file=newfile".
+    #     See URIHandler.render_POST().
+    #
+    # MultiFormatResource.render() looks up "t" argument, which in
+    # this case has the value "upload", and then it would look for a
+    # render_UPLOAD() method.
+    #
+    # We could change upload request to use more descriptive names
+    # that do not cause name collisions like this.  That should be a
+    # separate change though.
+    render_UPLOAD = render_HTML
+
 
 class UploadResultsElement(Element, status.UploadResultsRendererMixin):
 
