@@ -12,12 +12,12 @@
     <h1>File Download Status</h1>
 
     <ul>
-      <li>Started: <span t:render="started"/></li>
-      <li>Storage Index: <span t:render="si"/></li>
-      <li>Helper?: <span t:render="helper"/></li>
-      <li>Total Size: <span t:render="total_size"/></li>
-      <li>Progress: <span t:render="progress"/></li>
-      <li>Status: <span t:render="status"/></li>
+      <li>Started: <t:transparent t:render="started"/></li>
+      <li>Storage Index: <t:transparent t:render="si"/></li>
+      <li>Helper?: <t:transparent t:render="helper"/></li>
+      <li>Total Size: <t:transparent t:render="total_size"/></li>
+      <li>Progress: <t:transparent t:render="progress"/></li>
+      <li>Status: <t:transparent t:render="status"/></li>
     </ul>
 
     <div t:render="events"></div>
@@ -28,28 +28,28 @@
 
       <ul>
         <li t:render="servers_used" />
-        <li>Servermap: <span t:render="servermap" /></li>
+        <li>Servermap: <t:transparent t:render="servermap" /></li>
         <li t:render="problems" />
         <li>Timings:</li>
         <ul>
-          <li>File Size: <span t:render="file_size" /> bytes</li>
-          <li>Total: <span t:render="time_total" />
-            (<span t:render="rate_total" />)</li>
+          <li>File Size: <t:transparent t:render="file_size" /> bytes</li>
+          <li>Total: <t:transparent t:render="time_total" />
+            (<t:transparent t:render="rate_total" />)</li>
           <ul>
-            <li>Peer Selection: <span t:render="time_peer_selection" /></li>
-            <li>UEB Fetch: <span t:render="time_uri_extension" /></li>
-            <li>Hashtree Fetch: <span t:render="time_hashtrees" /></li>
-            <li>Segment Fetch: <span t:render="time_segments" />
-              (<span t:render="rate_segments" />)</li>
+            <li>Peer Selection: <t:transparent t:render="time_peer_selection" /></li>
+            <li>UEB Fetch: <t:transparent t:render="time_uri_extension" /></li>
+            <li>Hashtree Fetch: <t:transparent t:render="time_hashtrees" /></li>
+            <li>Segment Fetch: <t:transparent t:render="time_segments" />
+              (<t:transparent t:render="rate_segments" />)</li>
             <ul>
-              <li>Cumulative Fetching: <span t:render="time_cumulative_fetch" />
-                (<span t:render="rate_fetch" />)</li>
-              <li>Cumulative Decoding: <span t:render="time_cumulative_decode" />
-                (<span t:render="rate_decode" />)</li>
-              <li>Cumulative Decrypting: <span t:render="time_cumulative_decrypt" />
-                (<span t:render="rate_decrypt" />)</li>
+              <li>Cumulative Fetching: <t:transparent t:render="time_cumulative_fetch" />
+                (<t:transparent t:render="rate_fetch" />)</li>
+              <li>Cumulative Decoding: <t:transparent t:render="time_cumulative_decode" />
+                (<t:transparent t:render="rate_decode" />)</li>
+              <li>Cumulative Decrypting: <t:transparent t:render="time_cumulative_decrypt" />
+                (<t:transparent t:render="rate_decrypt" />)</li>
             </ul>
-            <li>Paused by client: <span t:render="time_paused" /></li>
+            <li>Paused by client: <t:transparent t:render="time_paused" /></li>
           </ul>
           <li t:render="server_timings" />
         </ul>
