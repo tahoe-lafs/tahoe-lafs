@@ -160,62 +160,85 @@ class UploadResultsRendererMixin(RateAndTimeMixin):
         d.addCallback(_convert)
         return d
 
-class UploadStatusPage(UploadResultsRendererMixin, rend.Page):
-    docFactory = getxmlfile("upload-status.xhtml")
 
-    def __init__(self, data):
-        rend.Page.__init__(self, data)
-        self.upload_status = data
+class UploadStatusPage(MultiFormatResource):
+
+    def __init__(self, upload_status):
+        super(UploadStatusPage, self).__init__()
+        self._upload_status = upload_status
+
+    def render_HTML(self, req):
+        elem = UploadStatusElement(self._upload_status)
+        return renderElement(req, elem)
+
+
+class UploadStatusElement(Element, UploadResultsRendererMixin):
+
+    loader = XMLFile(FilePath(__file__).sibling("upload-status.xhtml"))
+
+    def __init__(self, upload_status):
+        super(UploadStatusElement, self).__init__()
+        self._upload_status = upload_status
 
     def upload_results(self):
-        return defer.maybeDeferred(self.upload_status.get_results)
+        return defer.maybeDeferred(self._upload_status.get_results)
 
-    def render_results(self, ctx, data):
+    @renderer
+    def results(self, req, tag):
         d = self.upload_results()
         def _got_results(results):
             if results:
-                return ctx.tag
+                return tag
             return ""
         d.addCallback(_got_results)
         return d
 
-    def render_started(self, ctx, data):
-        started_s = render_time(data.get_started())
-        return started_s
+    @renderer
+    def started(self, req, tag):
+        started_s = render_time(self._upload_status.get_started())
+        return tag(started_s)
 
-    def render_si(self, ctx, data):
-        si_s = base32.b2a_or_none(data.get_storage_index())
+    @renderer
+    def si(self, req, tag):
+        si_s = base32.b2a_or_none(self._upload_status.get_storage_index())
         if si_s is None:
             si_s = "(None)"
-        return si_s
+        return tag(str(si_s))
 
-    def render_helper(self, ctx, data):
-        return {True: "Yes",
-                False: "No"}[data.using_helper()]
+    @renderer
+    def helper(self, req, tag):
+        return tag({True: "Yes",
+                    False: "No"}[self._upload_status.using_helper()])
 
-    def render_total_size(self, ctx, data):
-        size = data.get_size()
+    @renderer
+    def total_size(self, req, tag):
+        size = self._upload_status.get_size()
         if size is None:
             return "(unknown)"
-        return size
+        return tag(str(size))
 
-    def render_progress_hash(self, ctx, data):
-        progress = data.get_progress()[0]
+    @renderer
+    def progress_hash(self, req, tag):
+        progress = self._upload_status.get_progress()[0]
+        # TODO: make an ascii-art bar
+        return tag("%.1f%%" % (100.0 * progress))
+
+    @renderer
+    def progress_ciphertext(self, req, tag):
+        progress = self._upload_status.get_progress()[1]
         # TODO: make an ascii-art bar
         return "%.1f%%" % (100.0 * progress)
 
-    def render_progress_ciphertext(self, ctx, data):
-        progress = data.get_progress()[1]
+    @renderer
+    def progress_encode_push(self, req, tag):
+        progress = self._upload_status.get_progress()[2]
         # TODO: make an ascii-art bar
-        return "%.1f%%" % (100.0 * progress)
+        return tag("%.1f%%" % (100.0 * progress))
 
-    def render_progress_encode_push(self, ctx, data):
-        progress = data.get_progress()[2]
-        # TODO: make an ascii-art bar
-        return "%.1f%%" % (100.0 * progress)
+    @renderer
+    def status(self, req, tag):
+        return tag(self._upload_status.get_status())
 
-    def render_status(self, ctx, data):
-        return data.get_status()
 
 class DownloadResultsRendererMixin(RateAndTimeMixin):
     # this requires a method named 'download_results'
