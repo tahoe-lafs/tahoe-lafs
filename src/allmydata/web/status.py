@@ -424,6 +424,8 @@ class DownloadStatusElement(Element):
     # XXX: This method is a candidate for refactoring.  It renders
     # four tables from this function.  Layout part of those tables
     # could be moved to download-status.xhtml.
+    #
+    # See #3311: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3311
     @renderer
     def events(self, req, tag):
         if not self._download_status.storage_index:
