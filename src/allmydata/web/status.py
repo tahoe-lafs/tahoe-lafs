@@ -396,6 +396,8 @@ class DownloadStatusElement(Element):
     # `results()` renderer returns an empty tag, and does not invoke
     # any of the subsequent renderers.  Thus we end up not displaying
     # download results on the download status page.
+    #
+    # See #3310: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3310
     def download_results(self):
         return defer.maybeDeferred(self._download_status.get_results)
 
