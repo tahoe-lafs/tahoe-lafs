@@ -184,8 +184,12 @@ class UploadResultsRendererMixin(RateAndTimeMixin):
 
 
 class UploadStatusPage(MultiFormatResource):
+    """Renders /status/up-%d."""
 
     def __init__(self, upload_status):
+        """
+        :param IUploadStatus upload_status: stats provider.
+        """
         super(UploadStatusPage, self).__init__()
         self._upload_status = upload_status
 
