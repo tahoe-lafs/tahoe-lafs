@@ -78,6 +78,9 @@ class UploadResultsPage(MultiFormatResource):
     """'POST /uri', to create an unlinked file."""
 
     def __init__(self, upload_results):
+        """
+        :param IUploadResults upload_results: stats provider.
+        """
         super(UploadResultsPage, self).__init__()
         self._upload_results = upload_results
 
