@@ -99,7 +99,7 @@ class UploadResultsRendererMixin(RateAndTimeMixin):
 
     def _get_time(self, name):
         d = self.upload_results()
-        d.addCallback(lambda res: str(res.get_timings().get(name)))
+        d.addCallback(lambda res: abbreviate_time(res.get_timings().get(name)))
         return d
 
     @renderer
@@ -147,7 +147,7 @@ class UploadResultsRendererMixin(RateAndTimeMixin):
         def _convert(r):
             file_size = r.get_file_size()
             duration = r.get_timings().get(name)
-            return str(compute_rate(file_size, duration))
+            return abbreviate_rate(compute_rate(file_size, duration))
         d.addCallback(_convert)
         return d
 
@@ -175,9 +175,9 @@ class UploadResultsRendererMixin(RateAndTimeMixin):
             time1 = r.get_timings().get("cumulative_encoding")
             time2 = r.get_timings().get("cumulative_sending")
             if (time1 is None or time2 is None):
-                return str(None)
+                return abbreviate_rate(None)
             else:
-                return str(compute_rate(file_size, time1+time2))
+                return abbreviate_rate(compute_rate(file_size, time1+time2))
         d.addCallback(_convert)
         return d
 
@@ -187,7 +187,7 @@ class UploadResultsRendererMixin(RateAndTimeMixin):
         def _convert(r):
             fetch_size = r.get_ciphertext_fetched()
             duration = r.get_timings().get("cumulative_fetch")
-            return str(compute_rate(fetch_size, duration))
+            return abbreviate_rate(compute_rate(fetch_size, duration))
         d.addCallback(_convert)
         return d
 
