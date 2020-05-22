@@ -10,11 +10,10 @@ from twisted.web.template import (
     renderElement,
     tags,
 )
-from nevow import url, tags as T
+from nevow import url
 from allmydata.immutable.upload import FileHandle
 from allmydata.mutable.publish import MutableFileHandle
 from allmydata.web.common import (
-    getxmlfile,
     get_arg,
     boolean_of_arg,
     convert_children_json,
