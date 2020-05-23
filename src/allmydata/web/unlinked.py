@@ -106,7 +106,7 @@ class UploadResultsPage(MultiFormatResource):
     render_UPLOAD = render_HTML
 
 
-class UploadResultsElement(Element, status.UploadResultsRendererMixin):
+class UploadResultsElement(status.UploadResultsRendererMixin):
 
     loader = XMLFile(FilePath(__file__).sibling("upload-results.xhtml"))
 

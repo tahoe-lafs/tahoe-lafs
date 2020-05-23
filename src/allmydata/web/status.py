@@ -36,7 +36,7 @@ class RateAndTimeMixin(object):
         return abbreviate_rate(data)
 
 
-class UploadResultsRendererMixin(object):
+class UploadResultsRendererMixin(Element):
     # this requires a method named 'upload_results'
 
     @renderer
@@ -198,7 +198,7 @@ class UploadStatusPage(MultiFormatResource):
         return renderElement(req, elem)
 
 
-class UploadStatusElement(Element, UploadResultsRendererMixin):
+class UploadStatusElement(UploadResultsRendererMixin):
 
     loader = XMLFile(FilePath(__file__).sibling("upload-status.xhtml"))
 
