@@ -1,5 +1,7 @@
 
-import pprint, itertools, hashlib
+import pprint
+import itertools
+import hashlib
 import json
 from twisted.internet import defer
 from twisted.python.filepath import FilePath
@@ -24,8 +26,14 @@ from allmydata.web.common import (
     MultiFormatPage,
     MultiFormatResource,
 )
-from allmydata.interfaces import IUploadStatus, IDownloadStatus, \
-     IPublishStatus, IRetrieveStatus, IServermapUpdaterStatus
+
+from allmydata.interfaces import (
+    IUploadStatus,
+    IDownloadStatus,
+    IPublishStatus,
+    IRetrieveStatus,
+    IServermapUpdaterStatus,
+)
 
 class RateAndTimeMixin(object):
 
