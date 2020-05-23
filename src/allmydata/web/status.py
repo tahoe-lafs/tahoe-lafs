@@ -23,7 +23,6 @@ from allmydata.web.common import (
     plural,
     compute_rate,
     render_time,
-    MultiFormatPage,
     MultiFormatResource,
     SlotsSequenceElement,
 )
