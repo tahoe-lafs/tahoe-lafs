@@ -4,7 +4,6 @@ from twisted.web import http
 from twisted.internet import defer
 from twisted.python.filepath import FilePath
 from twisted.web.template import (
-    Element,
     XMLFile,
     renderer,
     renderElement,
