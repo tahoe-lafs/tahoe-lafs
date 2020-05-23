@@ -1127,8 +1127,12 @@ def marshal_json(s):
 
 
 class Status(MultiFormatResource):
+    """Renders /status page."""
 
     def __init__(self, history):
+        """
+        :param allmydata.history.History history: provides operation statuses.
+        """
         super(Status, self).__init__()
         self.history = history
 
