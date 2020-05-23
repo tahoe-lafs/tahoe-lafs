@@ -1125,13 +1125,18 @@ def marshal_json(s):
     return item
 
 
-class Status(MultiFormatPage):
-    docFactory = getxmlfile("status.xhtml")
+class Status(MultiFormatResource):
+
     addSlash = True
 
     def __init__(self, history):
-        rend.Page.__init__(self, history)
+        super(Status, self).__init__()
         self.history = history
+
+    def render_HTML(self, req):
+        elem = StatusElement(self._get_active_operations(),
+                             self._get_recent_operations())
+        return renderElement(req, elem)
 
     def render_JSON(self, req):
         # modern browsers now render this instead of forcing downloads
@@ -1180,7 +1185,51 @@ class Status(MultiFormatPage):
         recent.reverse()
         return recent
 
-    def render_row(self, ctx, data):
+    def childFactory(self, ctx, name):
+        h = self.history
+        try:
+            stype, count_s = name.split("-")
+        except ValueError:
+            raise RuntimeError(
+                "no - in '{}'".format(name)
+            )
+        count = int(count_s)
+        if stype == "up":
+            for s in itertools.chain(h.list_all_upload_statuses(),
+                                     h.list_all_helper_statuses()):
+                # immutable-upload helpers use the same status object as a
+                # regular immutable-upload
+                if s.get_counter() == count:
+                    return UploadStatusPage(s)
+        if stype == "down":
+            for s in h.list_all_download_statuses():
+                if s.get_counter() == count:
+                    return DownloadStatusPage(s)
+        if stype == "mapupdate":
+            for s in h.list_all_mapupdate_statuses():
+                if s.get_counter() == count:
+                    return MapupdateStatusPage(s)
+        if stype == "publish":
+            for s in h.list_all_publish_statuses():
+                if s.get_counter() == count:
+                    return PublishStatusPage(s)
+        if stype == "retrieve":
+            for s in h.list_all_retrieve_statuses():
+                if s.get_counter() == count:
+                    return RetrieveStatusPage(s)
+
+
+class StatusElement(Element):
+
+    loader = XMLFile(FilePath(__file__).sibling("status.xhtml"))
+
+    def __init__(self, active, recent):
+        super(StatusElement, self).__init__()
+        self._active = active
+        self._recent = recent
+
+    @renderer
+    def row(self, req, tag):
         s = data
 
         started_s = render_time(s.get_started())
@@ -1231,38 +1280,6 @@ class Status(MultiFormatPage):
         ctx.fillSlots("status", T.a(href=link)[s.get_status()])
         return ctx.tag
 
-    def childFactory(self, ctx, name):
-        h = self.history
-        try:
-            stype, count_s = name.split("-")
-        except ValueError:
-            raise RuntimeError(
-                "no - in '{}'".format(name)
-            )
-        count = int(count_s)
-        if stype == "up":
-            for s in itertools.chain(h.list_all_upload_statuses(),
-                                     h.list_all_helper_statuses()):
-                # immutable-upload helpers use the same status object as a
-                # regular immutable-upload
-                if s.get_counter() == count:
-                    return UploadStatusPage(s)
-        if stype == "down":
-            for s in h.list_all_download_statuses():
-                if s.get_counter() == count:
-                    return DownloadStatusPage(s)
-        if stype == "mapupdate":
-            for s in h.list_all_mapupdate_statuses():
-                if s.get_counter() == count:
-                    return MapupdateStatusPage(s)
-        if stype == "publish":
-            for s in h.list_all_publish_statuses():
-                if s.get_counter() == count:
-                    return PublishStatusPage(s)
-        if stype == "retrieve":
-            for s in h.list_all_retrieve_statuses():
-                if s.get_counter() == count:
-                    return RetrieveStatusPage(s)
 
 # Render "/helper_status" page.
 class HelperStatus(MultiFormatResource):
