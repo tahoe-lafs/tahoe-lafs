@@ -36,7 +36,7 @@ class RateAndTimeMixin(object):
         return abbreviate_rate(data)
 
 
-class UploadResultsRendererMixin(RateAndTimeMixin):
+class UploadResultsRendererMixin(object):
     # this requires a method named 'upload_results'
 
     @renderer
@@ -383,7 +383,7 @@ class DownloadResultsRendererMixin(RateAndTimeMixin):
             l = T.ul()
             for peerid in sorted(per_server.keys()):
                 peerid_s = idlib.shortnodeid_b2a(peerid)
-                times_s = ", ".join([self.render_time(None, t)
+                times_s = ", ".join([abbreviate_time(t)
                                      for t in per_server[peerid]])
                 l[T.li["[%s]: %s" % (peerid_s, times_s)]]
             return T.li["Per-Server Segment Fetch Response Times: ", l]
