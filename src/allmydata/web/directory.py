@@ -103,12 +103,10 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
         # for these nodes, which is that a URI like
         # "/uri/URI%3ADIR2%3Aj...vq/" (that is, with a trailing slash
         # or no further children) renders "this" page
-        name = name.decode('utf8')
         if not name:
-            raise EmptyPathnameComponentError(
-                u"The webapi does not allow empty pathname components",
-            )
+            return self
 
+        name = name.decode('utf8')
         d = self.node.get(name)
         d.addBoth(self._got_child, req, name)
         return d
