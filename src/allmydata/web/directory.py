@@ -106,6 +106,16 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
         if not name:
             return self
 
+        # Rejecting URIs that contain empty path pieces (for example:
+        # "/uri/URI:DIR2:../foo//new.txt" or "/uri/URI:DIR2:..//") was
+        # the old nevow behavior and it is encoded in the test suite;
+        # we will follow suit.
+        for segment in req.prepath:
+            if not segment:
+                raise EmptyPathnameComponentError(
+                    u"The webapi does not allow empty pathname components",
+                )
+
         name = name.decode('utf8')
         d = self.node.get(name)
         d.addBoth(self._got_child, req, name)
