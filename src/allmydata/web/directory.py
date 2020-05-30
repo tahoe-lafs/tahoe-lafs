@@ -102,8 +102,9 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
         # trying to replicate what I have observed as Nevow behavior
         # for these nodes, which is that a URI like
         # "/uri/URI%3ADIR2%3Aj...vq/" (that is, with a trailing slash
-        # or no further children) renders "this" page
-        if not name:
+        # or no further children) renders "this" page.  We also need
+        # to reject "/uri/URI:DIR2:..//", so we look at postpath.
+        if not name and req.postpath != ['']:
             return self
 
         # Rejecting URIs that contain empty path pieces (for example:
