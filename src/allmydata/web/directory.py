@@ -104,6 +104,7 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
         # "/uri/URI%3ADIR2%3Aj...vq/" (that is, with a trailing slash
         # or no further children) renders "this" page.  We also need
         # to reject "/uri/URI:DIR2:..//", so we look at postpath.
+        name = name.decode('utf8')
         if not name and req.postpath != ['']:
             return self
 
@@ -117,7 +118,6 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
                     u"The webapi does not allow empty pathname components",
                 )
 
-        name = name.decode('utf8')
         d = self.node.get(name)
         d.addBoth(self._got_child, req, name)
         return d
