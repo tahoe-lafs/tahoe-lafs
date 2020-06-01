@@ -12,8 +12,12 @@ from twisted.web.http import NOT_FOUND
 from twisted.web.html import escape
 from twisted.application import service
 
-from allmydata.web.common import WebError, \
-     get_root, get_arg, boolean_of_arg
+from allmydata.web.common import (
+    WebError,
+    get_root,
+    get_arg,
+    boolean_of_arg,
+)
 
 MINUTE = 60
 HOUR = 60*MINUTE
