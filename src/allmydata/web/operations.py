@@ -50,12 +50,12 @@ class OphandleTable(resource.Resource, service.Service):
         del self.timers
         return service.Service.stopService(self)
 
-    def add_monitor(self, ctx, monitor, renderer):
-        ophandle = get_arg(ctx, "ophandle")
+    def add_monitor(self, req, monitor, renderer):
+        ophandle = get_arg(req, "ophandle")
         assert ophandle
         now = time.time()
         self.handles[ophandle] = (monitor, renderer, now)
-        retain_for = get_arg(ctx, "retain-for", None)
+        retain_for = get_arg(req, "retain-for", None)
         if retain_for is not None:
             self._set_timer(ophandle, int(retain_for))
         monitor.when_done().addBoth(self._operation_complete, ophandle)
@@ -72,11 +72,11 @@ class OphandleTable(resource.Resource, service.Service):
             # if we already have a timer, the client must have provided the
             # retain-for= value, so don't touch it.
 
-    def redirect_to(self, ctx):
-        ophandle = get_arg(ctx, "ophandle")
+    def redirect_to(self, req):
+        ophandle = get_arg(req, "ophandle")
         assert ophandle
-        target = get_root(ctx) + "/operations/" + ophandle
-        output = get_arg(ctx, "output")
+        target = get_root(req) + "/operations/" + ophandle
+        output = get_arg(req, "output")
         if output:
             target = target + "?output=%s" % output
         return url.URL.fromString(target)
