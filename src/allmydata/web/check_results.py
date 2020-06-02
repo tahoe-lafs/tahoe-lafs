@@ -232,7 +232,7 @@ class LiteralCheckResultsElement(Element):
         super(LiteralCheckResultsElement, self).__init__()
 
     @renderer
-    def return(self, req, tag):
+    def return_to(self, req, tag):
         return_to = get_arg(req, "return_to", None)
         if return_to:
             return tags.div(tags.a("Return to file.", href=return_to))
