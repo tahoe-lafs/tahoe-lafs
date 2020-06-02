@@ -1,7 +1,11 @@
 
 import time
-from nevow import rend, url, tags as T
+from nevow import rend, url
 from nevow.inevow import IRequest
+from twisted.web.template import (
+    renderer,
+    tags as T,
+)
 from twisted.python.failure import Failure
 from twisted.internet import reactor, defer
 from twisted.web.http import NOT_FOUND
@@ -122,31 +126,31 @@ class OphandleTable(rend.Page, service.Service):
 class ReloadMixin(object):
     REFRESH_TIME = 1*MINUTE
 
-    def render_refresh(self, ctx, data):
+    @renderer
+    def refresh(self, req, tag):
         if self.monitor.is_finished():
             return ""
         # dreid suggests ctx.tag(**dict([("http-equiv", "refresh")]))
         # but I can't tell if he's joking or not
-        ctx.tag.attributes["http-equiv"] = "refresh"
-        ctx.tag.attributes["content"] = str(self.REFRESH_TIME)
-        return ctx.tag
+        tag.attributes["http-equiv"] = "refresh"
+        tag.attributes["content"] = str(self.REFRESH_TIME)
+        return tag
 
-    def render_reload(self, ctx, data):
+    @renderer
+    def reload(self, req, tag):
         if self.monitor.is_finished():
             return ""
-        req = IRequest(ctx)
         # url.gethere would break a proxy, so the correct thing to do is
         # req.path[-1] + queryargs
         ophandle = req.prepath[-1]
         reload_target = ophandle + "?output=html"
         cancel_target = ophandle + "?t=cancel"
-        cancel_button = T.form(action=cancel_target, method="POST",
-                               enctype="multipart/form-data")[
-            T.input(type="submit", value="Cancel"),
-            ]
+        cancel_button = T.form(T.input(type="submit", value="Cancel"),
+                               action=cancel_target,
+                               method="POST",
+                               enctype="multipart/form-data",)
 
-        return [T.h2["Operation still running: ",
-                     T.a(href=reload_target)["Reload"],
-                     ],
-                cancel_button,
-                ]
+        return (T.h2("Operation still running: ",
+                     T.a("Reload", href=reload_target),
+                     ),
+                cancel_button,)
