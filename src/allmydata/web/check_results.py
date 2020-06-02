@@ -10,11 +10,20 @@ from twisted.web import (
     http,
     html,
 )
+from twisted.python.filepath import FilePath
+from twisted.web.template import (
+    Element,
+    XMLFile,
+    renderer,
+    renderElement,
+    tags,
+)
 from allmydata.web.common import (
     getxmlfile,
     get_arg,
     get_root,
     WebError,
+    MultiFormatResource,
 )
 from allmydata.web.operations import ReloadMixin
 from allmydata.interfaces import (
@@ -199,29 +208,36 @@ class ResultsBase(object):
             target = target + "?output=%s" % output
         return T.a(href=target)[si_s]
 
-class LiteralCheckResultsRenderer(rend.Page, ResultsBase):
-    docFactory = getxmlfile("literal-check-results.xhtml")
+
+class LiteralCheckResultsRenderer(MultiFormatResource, ResultsBase):
 
     def __init__(self, client):
+        super(LiteralCheckResultsRenderer, self).__init__()
         self.client = client
-        rend.Page.__init__(self, client)
 
-    def renderHTTP(self, ctx):
-        if self.want_json(ctx):
-            return self.json(ctx)
-        return rend.Page.renderHTTP(self, ctx)
+    def render_HTML(self, req):
+        return renderElement(req, LiteralCheckResultsElement())
 
-    def json(self, ctx):
-        inevow.IRequest(ctx).setHeader("content-type", "text/plain")
+    def render_JSON(self, req):
+        req.setHeader("content-type", "text/plain")
         data = json_check_results(None)
         return json.dumps(data, indent=1) + "\n"
 
-    def render_return(self, ctx, data):
-        req = inevow.IRequest(ctx)
+
+class LiteralCheckResultsElement(Element):
+
+    loader = XMLFile(FilePath(__file__).sibling("literal-check-results.xhtml"))
+
+    def __init__(self):
+        super(LiteralCheckResultsElement, self).__init__()
+
+    @renderer
+    def return(self, req, tag):
         return_to = get_arg(req, "return_to", None)
         if return_to:
-            return T.div[T.a(href=return_to)["Return to file."]]
+            return tags.div(tags.a("Return to file.", href=return_to))
         return ""
+
 
 class CheckerBase(object):
 
