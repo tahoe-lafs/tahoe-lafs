@@ -26,6 +26,8 @@ DAY = 24*HOUR
 (MONITOR, RENDERER, WHEN_ADDED) = range(3)
 
 class OphandleTable(resource.Resource, service.Service):
+    """Renders /operations/%d."""
+
     name = "operations"
 
     UNCOLLECTED_HANDLE_LIFETIME = 4*DAY
@@ -51,6 +53,11 @@ class OphandleTable(resource.Resource, service.Service):
         return service.Service.stopService(self)
 
     def add_monitor(self, req, monitor, renderer):
+        """
+        :param allmydata.webish.MyRequest req:
+        :param allmydata.monitor.Monitor monitor:
+        :param allmydata.web.directory.ManifestResults renderer:
+        """
         ophandle = get_arg(req, "ophandle")
         assert ophandle
         now = time.time()
@@ -73,6 +80,9 @@ class OphandleTable(resource.Resource, service.Service):
             # retain-for= value, so don't touch it.
 
     def redirect_to(self, req):
+        """
+        :param allmydata.webish.MyRequest req:
+        """
         ophandle = get_arg(req, "ophandle")
         assert ophandle
         target = get_root(req) + "/operations/" + ophandle
