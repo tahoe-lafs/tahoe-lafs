@@ -1,12 +1,30 @@
 
 import time
 import json
-from nevow import rend, inevow, tags as T
-from twisted.web import http, html
-from allmydata.web.common import getxmlfile, get_arg, get_root, WebError
+from nevow import (
+    rend,
+    inevow,
+    tags as T,
+)
+from twisted.web import (
+    http,
+    html,
+)
+from allmydata.web.common import (
+    getxmlfile,
+    get_arg,
+    get_root,
+    WebError,
+)
 from allmydata.web.operations import ReloadMixin
-from allmydata.interfaces import ICheckAndRepairResults, ICheckResults
-from allmydata.util import base32, dictutil
+from allmydata.interfaces import (
+    ICheckAndRepairResults,
+    ICheckResults,
+)
+from allmydata.util import (
+    base32,
+    dictutil,
+)
 
 
 def json_check_counts(r):
