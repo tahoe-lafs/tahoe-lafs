@@ -211,6 +211,8 @@ class ResultsBase(object):
 
 class LiteralCheckResultsRenderer(MultiFormatResource, ResultsBase):
 
+    formatArgument = "output"
+
     def __init__(self, client):
         super(LiteralCheckResultsRenderer, self).__init__()
         self.client = client
