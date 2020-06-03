@@ -1,10 +1,12 @@
 import io
 import os
+import json
 import string
 
 import attr
 
-from twisted.internet import defer
+from hyperlink import DecodedURL
+
 from twisted.python.filepath import (
     FilePath,
 )
@@ -14,6 +16,9 @@ from twisted.web.resource import (
 from twisted.web.client import (
     Agent,
     FileBodyProducer,
+)
+from twisted.web.iweb import (
+    IBodyProducer,
 )
 
 from treq.client import (
@@ -39,6 +44,7 @@ class _FakeTahoeRoot(Resource):
 
     def add_data(self, key, data):
         return self._uri.add_data(key, data)
+
 
 @attr.s
 class _FakeCapability(object):
@@ -70,8 +76,8 @@ from twisted.internet.defer import (
 
 def deterministic_key_generator():
     character = 0
-    while character < (26 * 2):
-        key = string.letters[character] * 16
+    while True:#character < (26 * 2):
+        key = string.letters[character % 52] * 16
         character += 1
         yield key
     raise RuntimeError("Ran out of keys")
@@ -159,7 +165,7 @@ def create_fake_capability(kind, key, data):
         buckets = attr.ib(default=attr.Factory(lambda: [_FakeBucket()]))
 
         def get_buckets(self, storage_index):
-            return succeed(self.buckets)
+            return succeed({0: self.buckets})
 
         def allocate_buckets(self, storage_index, renew_secret, cancel_secret, sharenums, allocated_size, canary=None):
             # returns a 2-tuple .. second one maps share-num to BucketWriter
@@ -230,11 +236,34 @@ def create_fake_capability(kind, key, data):
     returnValue(read_cap)
 
 
+def capability_generator():
+    number = 0
+    while True:
+        cap = u"URI:CHK:fake capability {}".format(number)
+        number += 1
+        yield cap.encode("ascii")
+
+
 class _FakeTahoeUriHandler(Resource):
     """
     """
 
     isLeaf = True
+    _data = None
+    _key_generator = None
+    _capability_generator = None
+
+    def _get_key(self):
+        if self._key_generator is None:
+            self._key_generator = deterministic_key_generator()
+        key = next(self._key_generator)
+        return key
+
+    def _generate_cap(self):
+        if self._capability_generator is None:
+            self._capability_generator = capability_generator()
+        capability = next(self._capability_generator)
+        return capability
 
     @inlineCallbacks
     def add_data(self, key, data):
@@ -242,12 +271,42 @@ class _FakeTahoeUriHandler(Resource):
         adds some data to our grid, returning a capability
         """
         cap = yield create_fake_capability("URI:CHK:", key, data)
+        if self._data is None:
+            self._data = dict()
+        self._data[cap] = data
         returnValue(cap)
 
+    def render_PUT(self, request):
+        data = request.content.read()
+#        if len(data) == 0:
+#            raise RuntimeError("No empty data")
+
+        cap = self._generate_cap()
+        if self._data is None:
+            self._data = dict()
+        self._data[cap] = data
+        return cap
+
+    def render_POST(self, request):
+        kind = request.args[u"t"][0]
+        data = request.content.read()
+
+        cap = self._generate_cap()
+        if self._data is None:
+            self._data = dict()
+        self._data[cap] = data
+        return cap
+#        if kind == 'mkdir-immutable':
+
     def render_GET(self, request):
-        print(request)
-        print(request.uri)
-        return b"URI:DIR2-CHK:some capability"
+        uri = DecodedURL.from_text(request.uri.decode('utf8'))
+        # XXX FIXME
+        capability = uri.query[0][1]
+
+        if self._data is None or capability not in self._data:
+            return u"No data for '{}'".format(capability).decode("ascii")
+
+        return self._data[capability]
 
 
 @inlineCallbacks
