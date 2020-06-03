@@ -243,49 +243,77 @@ class LiteralCheckResultsElement(Element):
 
 class CheckerBase(object):
 
-    def renderHTTP(self, ctx):
-        if self.want_json(ctx):
-            return self.json(ctx)
-        return rend.Page.renderHTTP(self, ctx)
+    # def renderHTTP(self, ctx):
+    #     if self.want_json(ctx):
+    #         return self.json(ctx)
+    #     return rend.Page.renderHTTP(self, ctx)
 
-    def render_storage_index(self, ctx, data):
+    @renderer
+    def storage_index(self, req, tag):
         return self.r.get_storage_index_string()
 
-    def render_return(self, ctx, data):
-        req = inevow.IRequest(ctx)
+    @renderer
+    def return_to(self, req, tag):
+        # req = inevow.IRequest(ctx)
         return_to = get_arg(req, "return_to", None)
         if return_to:
-            return T.div[T.a(href=return_to)["Return to file/directory."]]
+            return tags.div(tags.a("Return to file/directory.", href=return_to))
         return ""
 
-class CheckResultsRenderer(CheckerBase, rend.Page, ResultsBase):
-    docFactory = getxmlfile("check-results.xhtml")
+
+class CheckResultsRenderer(MultiFormatResource, ResultsBase):
+
+    formatArgument = "output"
 
     def __init__(self, client, results):
+        """
+        TODO: update these with the correct values.
+        :param allmydata.test.no_network._NoNetworkClient client:
+        :param allmydata.check_results.CheckResults results:
+        """
+        super(CheckResultsRenderer, self).__init__()
         self.client = client
         self.r = ICheckResults(results)
-        rend.Page.__init__(self, results)
 
-    def json(self, ctx):
-        inevow.IRequest(ctx).setHeader("content-type", "text/plain")
+    def render_HTML(self, req):
+        return renderElement(req, CheckResultsRendererElement(self.r))
+
+    def render_JSON(self, req):
+        req.setHeader("content-type", "text/plain")
         data = json_check_results(self.r)
         return json.dumps(data, indent=1) + "\n"
 
-    def render_summary(self, ctx, data):
+
+class CheckResultsRendererElement(Element, CheckerBase):
+
+    loader = XMLFile(FilePath(__file__).sibling("check-results.xhtml"))
+
+    def __init__(self, r):
+        super(CheckResultsRendererElement, self).__init__()
+        # TODO: use a better name
+        self.r = r
+
+    @renderer
+    def summary(self, req, tag):
         results = []
-        if data.is_healthy():
+        # XXX: how did `data` get populated?
+        if self.r.is_healthy():
             results.append("Healthy")
-        elif data.is_recoverable():
+        elif self.r.is_recoverable():
             results.append("Not Healthy!")
         else:
             results.append("Not Recoverable!")
         results.append(" : ")
-        results.append(self._html(data.get_summary()))
-        return ctx.tag[results]
+        # TODO: what is self._html?
+        # results.append(self._html(self.r.get_summary()))
+        results.append(self.r.get_summary())
+        return tag(results)
 
-    def render_repair(self, ctx, data):
-        if data.is_healthy():
+    @renderer
+    def repair(self, req, tag):
+        if self.r.is_healthy():
             return ""
+
         #repair = T.form(action=".", method="post",
         #                enctype="multipart/form-data")[
         #    T.fieldset[
@@ -294,12 +322,15 @@ class CheckResultsRenderer(CheckerBase, rend.Page, ResultsBase):
         #    T.input(type="submit", value="Repair"),
         #    ]]
         #return ctx.tag[repair]
+
         return "" # repair button disabled until we make it work correctly,
                   # see #622 for details
 
-    def render_results(self, ctx, data):
-        cr = self._render_results(ctx, data)
-        return ctx.tag[cr]
+    @renderer
+    def results(self, req, tag):
+        cr = self._render_results(req, self.r)
+        return tag(cr)
+
 
 class CheckAndRepairResultsRenderer(CheckerBase, rend.Page, ResultsBase):
     docFactory = getxmlfile("check-and-repair-results.xhtml")
