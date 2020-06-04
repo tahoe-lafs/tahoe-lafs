@@ -357,7 +357,7 @@ class CheckAndRepairResultsRenderer(MultiFormatResource):
             self.r = ICheckAndRepairResults(results)
 
     def render_HTML(self, req):
-        elem = CheckAndRepairResultsRendererElement(self.r)
+        elem = CheckAndRepairResultsRendererElement(self.client, self.r)
         return renderElement(req, elem)
 
     def render_JSON(self, req):
@@ -370,8 +370,9 @@ class CheckAndRepairResultsRendererElement(Element, CheckerBase, ResultsBase):
 
     loader = XMLFile(FilePath(__file__).sibling("check-and-repair-results.xhtml"))
 
-    def __init__(self, r):
+    def __init__(self, client, r):
         super(CheckAndRepairResultsRendererElement, self).__init__()
+        self.client = client
         self.r = r
 
     @renderer
