@@ -343,23 +343,40 @@ class CheckResultsRendererElement(Element, CheckerBase, ResultsBase):
         return tag(cr)
 
 
-class CheckAndRepairResultsRenderer(CheckerBase, rend.Page, ResultsBase):
-    docFactory = getxmlfile("check-and-repair-results.xhtml")
+class CheckAndRepairResultsRenderer(MultiFormatResource):
+
+    formatArgument = "output"
 
     def __init__(self, client, results):
+        # TODO: document params
+        super(CheckAndRepairResultsRenderer, self).__init__()
         self.client = client
+        # TODO: use a better name
         self.r = None
         if results:
             self.r = ICheckAndRepairResults(results)
-        rend.Page.__init__(self, results)
 
-    def json(self, ctx):
-        inevow.IRequest(ctx).setHeader("content-type", "text/plain")
+    def render_HTML(self, req):
+        elem = CheckAndRepairResultsRendererElement(self.r)
+        return renderElement(req, elem)
+
+    def render_JSON(self, req):
+        req.setHeader("content-type", "text/plain")
         data = json_check_and_repair_results(self.r)
         return json.dumps(data, indent=1) + "\n"
 
-    def render_summary(self, ctx, data):
-        cr = data.get_post_repair_results()
+
+class CheckAndRepairResultsRendererElement(Element, CheckerBase, ResultsBase):
+
+    loader = XMLFile(FilePath(__file__).sibling("check-and-repair-results.xhtml"))
+
+    def __init__(self, r):
+        super(CheckAndRepairResultsRendererElement, self).__init__()
+        self.r = r
+
+    @renderer
+    def summary(self, req, tag):
+        cr = self.r.get_post_repair_results()
         results = []
         if cr.is_healthy():
             results.append("Healthy")
@@ -369,24 +386,27 @@ class CheckAndRepairResultsRenderer(CheckerBase, rend.Page, ResultsBase):
             results.append("Not Recoverable!")
         results.append(" : ")
         results.append(self._html(cr.get_summary()))
-        return ctx.tag[results]
+        return tag(results)
 
-    def render_repair_results(self, ctx, data):
-        if data.get_repair_attempted():
-            if data.get_repair_successful():
-                return ctx.tag["Repair successful"]
+    @renderer
+    def repair_results(self, req, tag):
+        if self.r.get_repair_attempted():
+            if self.r.get_repair_successful():
+                return tag("Repair successful")
             else:
-                return ctx.tag["Repair unsuccessful"]
-        return ctx.tag["No repair necessary"]
+                return tag("Repair unsuccessful")
+        return tag("No repair necessary")
 
-    def render_post_repair_results(self, ctx, data):
-        cr = self._render_results(ctx, data.get_post_repair_results())
-        return ctx.tag[T.div["Post-Repair Checker Results:"], cr]
+    @renderer
+    def post_repair_results(self, req, tag):
+        cr = self._render_results(req, self.r.get_post_repair_results())
+        return tag(tags.div("Post-Repair Checker Results:"), cr)
 
-    def render_maybe_pre_repair_results(self, ctx, data):
-        if data.get_repair_attempted():
-            cr = self._render_results(ctx, data.get_pre_repair_results())
-            return ctx.tag[T.div["Pre-Repair Checker Results:"], cr]
+    @renderer
+    def maybe_pre_repair_results(self, req, tag):
+        if self.r.get_repair_attempted():
+            cr = self._render_results(req, self.r.get_pre_repair_results())
+            return tag(tags.div("Pre-Repair Checker Results:"), cr)
         return ""
 
 
