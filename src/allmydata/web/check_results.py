@@ -107,32 +107,35 @@ class ResultsBase(object):
         sb = c.get_storage_broker()
         r = []
         def add(name, value):
-            r.append(T.li[name + ": ", value])
+            r.append(tags.li(name + ": ", value))
 
-        add("Report", T.pre["\n".join(self._html(cr.get_report()))])
+        add("Report", tags.pre("\n".join(self._html(cr.get_report()))))
+
         add("Share Counts",
             "need %d-of-%d, have %d" % (cr.get_encoding_needed(),
                                         cr.get_encoding_expected(),
                                         cr.get_share_counter_good()))
-        add("Happiness Level", cr.get_happiness())
-        add("Hosts with good shares", cr.get_host_counter_good_shares())
+        add("Happiness Level", str(cr.get_happiness()))
+        add("Hosts with good shares", str(cr.get_host_counter_good_shares()))
+
+        rrr = cr.get_corrupt_shares()
 
         if cr.get_corrupt_shares():
             badsharemap = []
             for (s, si, shnum) in cr.get_corrupt_shares():
-                d = T.tr[T.td["sh#%d" % shnum],
-                         T.td[T.div(class_="nickname")[s.get_nickname()],
-                              T.div(class_="nodeid")[T.tt[s.get_name()]]],
-                         ]
+                d = tags.tr(tags.td("sh#%d" % shnum),
+                            tags.td(tags.div(s.get_nickname(), class_="nickname"),
+                                    tags.div(tags.tt(s.get_name()), class_="nodeid")),)
                 badsharemap.append(d)
-            add("Corrupt shares", T.table()[
-                T.tr[T.th["Share ID"],
-                     T.th(class_="nickname-and-peerid")[T.div["Nickname"], T.div(class_="nodeid")["Node ID"]]],
-                badsharemap])
+            add("Corrupt shares",
+                tags.table(
+                    tags.tr(tags.th("Share ID"),
+                            tags.th((tags.div("Nickname"), tags.div("Node ID", class_="nodeid")), class_="nickname-and-peerid")),
+                    badsharemap))
         else:
             add("Corrupt shares", "none")
 
-        add("Wrong Shares", cr.get_share_counter_wrong())
+        add("Wrong Shares", str(cr.get_share_counter_wrong()))
 
         sharemap_data = []
         shares_on_server = dictutil.DictOfSets()
@@ -147,18 +150,19 @@ class ResultsBase(object):
                 shareid_s = ""
                 if i == 0:
                     shareid_s = shareid
-                d = T.tr[T.td[shareid_s],
-                         T.td[T.div(class_="nickname")[s.get_nickname()],
-                              T.div(class_="nodeid")[T.tt[s.get_name()]]]
-                         ]
+                d = tags.tr(tags.td(shareid_s),
+                            tags.td(tags.div(s.get_nickname(), class_="nickname"),
+                                    tags.div(tags.tt(s.get_name()), class_="nodeid")))
                 sharemap_data.append(d)
+
         add("Good Shares (sorted in share order)",
-            T.table()[T.tr[T.th["Share ID"], T.th(class_="nickname-and-peerid")[T.div["Nickname"], T.div(class_="nodeid")["Node ID"]]],
-                      sharemap_data])
+            tags.table(tags.tr(tags.th("Share ID"),
+                               tags.th(tags.div("Nickname"),
+                                       tags.div("Node ID", class_="nodeid"), class_="nickname-and-peerid")),
+                       sharemap_data))
 
-
-        add("Recoverable Versions", cr.get_version_counter_recoverable())
-        add("Unrecoverable Versions", cr.get_version_counter_unrecoverable())
+        add("Recoverable Versions", str(cr.get_version_counter_recoverable()))
+        add("Unrecoverable Versions", str(cr.get_version_counter_unrecoverable()))
 
         # this table is sorted by permuted order
         permuted_servers = [s
@@ -171,20 +175,23 @@ class ResultsBase(object):
         for s in permuted_servers:
             shareids = list(shares_on_server.get(s, []))
             shareids.reverse()
-            shareids_s = [ T.tt[shareid, " "] for shareid in sorted(shareids) ]
-            d = T.tr[T.td[T.div(class_="nickname")[s.get_nickname()],
-                          T.div(class_="nodeid")[T.tt[s.get_name()]]],
-                     T.td[shareids_s],
-                     ]
+            shareids_s = [tags.tt(shareid, " ") for shareid in sorted(shareids)]
+
+            d = tags.tr(tags.td(tags.div(s.get_nickname(), class_="nickname"),
+                             tags.div(tags.tt(s.get_name()), class_="nodeid")),
+                        tags.td(shareids_s), )
             servermap.append(d)
             num_shares_left -= len(shareids)
             if not num_shares_left:
                 break
-        add("Share Balancing (servers in permuted order)",
-            T.table()[T.tr[T.th(class_="nickname-and-peerid")[T.div["Nickname"], T.div(class_="nodeid")["Node ID"]], T.th["Share IDs"]],
-                      servermap])
 
-        return T.ul[r]
+        add("Share Balancing (servers in permuted order)",
+            tags.table(tags.tr(tags.th(tags.div("Nickname"),
+                                    tags.div("Node ID", class_="nodeid"), class_="nickname-and-peerid"),
+                            tags.th("Share IDs")),
+                       servermap))
+
+        return tags.ul(r)
 
     def _html(self, s):
         if isinstance(s, (str, unicode)):
@@ -206,7 +213,7 @@ class ResultsBase(object):
         output = get_arg(ctx, "output")
         if output:
             target = target + "?output=%s" % output
-        return T.a(href=target)[si_s]
+        return tags.a(si_s, href=target)
 
 
 class LiteralCheckResultsRenderer(MultiFormatResource, ResultsBase):
