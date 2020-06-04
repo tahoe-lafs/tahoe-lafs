@@ -586,7 +586,7 @@ class DeepCheckResultsRendererElement(Element, ResultsBase, ReloadMixin):
 
     # TODO: use SlotsSequenceElement to render this.
     @renderer
-    def data_all_objects(self, ctx, data):
+    def all_objects(self, ctx, data):
         r = self.monitor.get_status().get_all_results()
         for path in sorted(r.keys()):
             yield (path, r[path])
@@ -611,14 +611,15 @@ class DeepCheckResultsRendererElement(Element, ResultsBase, ReloadMixin):
         return tag("runtime: %s seconds" % runtime)
 
 
-class DeepCheckAndRepairResultsRenderer(rend.Page, ResultsBase, ReloadMixin):
-    docFactory = getxmlfile("deep-check-and-repair-results.xhtml")
+class DeepCheckAndRepairResultsRenderer(MultiFormatResource):
+
+    formatArgument = "output"
 
     def __init__(self, client, monitor):
         self.client = client
         self.monitor = monitor
 
-    def childFactory(self, ctx, name):
+    def getChild(self, name, req):
         if not name:
             return self
         # /operation/$OPHANDLE/$STORAGEINDEX provides detailed information
@@ -632,13 +633,18 @@ class DeepCheckAndRepairResultsRenderer(rend.Page, ResultsBase, ReloadMixin):
             raise WebError("No detailed results for SI %s" % html.escape(name),
                            http.NOT_FOUND)
 
-    def renderHTTP(self, ctx):
-        if self.want_json(ctx):
-            return self.json(ctx)
-        return rend.Page.renderHTTP(self, ctx)
+    def render_HTML(self, req):
+        elem = DeepCheckAndRepairResultsRendererElement(self.monitor)
+        return renderElement(req, elem)
 
-    def json(self, ctx):
-        inevow.IRequest(ctx).setHeader("content-type", "text/plain")
+    # def renderHTTP(self, ctx):
+    #     if self.want_json(ctx):
+    #         return self.json(ctx)
+    #     return rend.Page.renderHTTP(self, ctx)
+
+    def render_JSON(self, req):
+        # inevow.IRequest(ctx).setHeader("content-type", "text/plain")
+        req.setHeader("content-type", "text/plain")
         res = self.monitor.get_status()
         data = {}
         data["finished"] = self.monitor.is_finished()
@@ -679,40 +685,70 @@ class DeepCheckAndRepairResultsRenderer(rend.Page, ResultsBase, ReloadMixin):
         data["stats"] = res.get_stats()
         return json.dumps(data, indent=1) + "\n"
 
-    def render_root_storage_index(self, ctx, data):
+
+class DeepCheckAndRepairResultsRendererElement(Element, ResultsBase, ReloadMixin):
+
+    loader = XMLFile(FilePath(__file__).sibling("deep-check-and-repair-results.xhtml"))
+
+    def __init__(self, monitor):
+        # TODO: document params
+        super(DeepCheckAndRepairResultsRendererElement, self).__init__()
+        self.monitor = monitor
+
+    @renderer
+    def root_storage_index(self, req, tag):
         return self.monitor.get_status().get_root_storage_index_string()
 
-    def data_objects_checked(self, ctx, data):
+    @renderer
+    def objects_checked(self, req, tag):
         return self.monitor.get_status().get_counters()["count-objects-checked"]
 
-    def data_objects_healthy(self, ctx, data):
+    @renderer
+    def objects_healthy(self, req, tag):
         return self.monitor.get_status().get_counters()["count-objects-healthy-pre-repair"]
-    def data_objects_unhealthy(self, ctx, data):
+
+    @renderer
+    def objects_unhealthy(self, req, tag):
         return self.monitor.get_status().get_counters()["count-objects-unhealthy-pre-repair"]
-    def data_corrupt_shares(self, ctx, data):
+
+    @renderer
+    def corrupt_shares(self, req, tag):
         return self.monitor.get_status().get_counters()["count-corrupt-shares-pre-repair"]
 
-    def data_repairs_attempted(self, ctx, data):
+    @renderer
+    def repairs_attempted(self, req, tag):
         return self.monitor.get_status().get_counters()["count-repairs-attempted"]
-    def data_repairs_successful(self, ctx, data):
+
+    @renderer
+    def repairs_successful(self, req, tag):
         return self.monitor.get_status().get_counters()["count-repairs-successful"]
-    def data_repairs_unsuccessful(self, ctx, data):
+
+    @renderer
+    def repairs_unsuccessful(self, req, tag):
         return self.monitor.get_status().get_counters()["count-repairs-unsuccessful"]
 
-    def data_objects_healthy_post(self, ctx, data):
+    @renderer
+    def objects_healthy_post(self, req, tag):
         return self.monitor.get_status().get_counters()["count-objects-healthy-post-repair"]
-    def data_objects_unhealthy_post(self, ctx, data):
+
+    @renderer
+    def objects_unhealthy_post(self, req, tag):
         return self.monitor.get_status().get_counters()["count-objects-unhealthy-post-repair"]
-    def data_corrupt_shares_post(self, ctx, data):
+
+    @renderer
+    def corrupt_shares_post(self, req, tag):
         return self.monitor.get_status().get_counters()["count-corrupt-shares-post-repair"]
 
-    def render_pre_repair_problems_p(self, ctx, data):
+    @renderer
+    def pre_repair_problems_p(self, req, tag):
         c = self.monitor.get_status().get_counters()
         if c["count-objects-unhealthy-pre-repair"]:
-            return ctx.tag
+            return tag
         return ""
 
-    def data_pre_repair_problems(self, ctx, data):
+    # TODO: use SlotsSequenceElement
+    @renderer
+    def pre_repair_problems(self, req, tag):
         all_objects = self.monitor.get_status().get_all_results()
         for path in sorted(all_objects.keys()):
             r = all_objects[path]
@@ -721,19 +757,24 @@ class DeepCheckAndRepairResultsRenderer(rend.Page, ResultsBase, ReloadMixin):
             if not cr.is_healthy():
                 yield path, cr
 
-    def render_problem(self, ctx, data):
-        path, cr = data
-        return ctx.tag[self._join_pathstring(path), ": ",
-                       self._html(cr.get_summary())]
+    @renderer
+    def problem(self, req, tag):
+        # TODO: figure this out
+        # path, cr = data
+        return tag(self._join_pathstring(path), ": ",
+                   self._html(cr.get_summary()))
 
-    def render_post_repair_problems_p(self, ctx, data):
+    @renderer
+    def post_repair_problems_p(self, req, tag):
         c = self.monitor.get_status().get_counters()
         if (c["count-objects-unhealthy-post-repair"]
             or c["count-corrupt-shares-post-repair"]):
-            return ctx.tag
+            return tag
         return ""
 
-    def data_post_repair_problems(self, ctx, data):
+    # TODO: use SlotsSequenceElement
+    @renderer
+    def post_repair_problems(self, req, tag):
         all_objects = self.monitor.get_status().get_all_results()
         for path in sorted(all_objects.keys()):
             r = all_objects[path]
@@ -742,56 +783,69 @@ class DeepCheckAndRepairResultsRenderer(rend.Page, ResultsBase, ReloadMixin):
             if not cr.is_healthy():
                 yield path, cr
 
-    def render_servers_with_corrupt_shares_p(self, ctx, data):
+    @renderer
+    def servers_with_corrupt_shares_p(self, req, tag):
         if self.monitor.get_status().get_counters()["count-corrupt-shares-pre-repair"]:
-            return ctx.tag
+            return tag
         return ""
-    def data_servers_with_corrupt_shares(self, ctx, data):
+
+    @renderer
+    def servers_with_corrupt_shares(self, req, tag):
         return [] # TODO
-    def render_server_problem(self, ctx, data):
+
+    @renderer
+    def server_problem(self, req, tag):
         pass
 
-
-    def render_remaining_corrupt_shares_p(self, ctx, data):
+    @renderer
+    def remaining_corrupt_shares_p(self, req, tag):
         if self.monitor.get_status().get_counters()["count-corrupt-shares-post-repair"]:
-            return ctx.tag
+            return tag
         return ""
-    def data_post_repair_corrupt_shares(self, ctx, data):
+
+    @renderer
+    def post_repair_corrupt_shares(self, req, tag):
         return [] # TODO
 
-    def render_share_problem(self, ctx, data):
+    @renderer
+    def render_share_problem(self, req, tag):
         pass
 
-
-    def render_return(self, ctx, data):
-        req = inevow.IRequest(ctx)
+    @renderer
+    def return_to(self, req, tag):
+        # req = inevow.IRequest(ctx)
         return_to = get_arg(req, "return_to", None)
         if return_to:
-            return T.div[T.a(href=return_to)["Return to file/directory."]]
+            return tags.div(tags.a("Return to file/directory.", href=return_to))
         return ""
 
-    def data_all_objects(self, ctx, data):
+    # TODO: use SlotsSequenceElement
+    @renderer
+    def all_objects(self, req, tag):
         r = self.monitor.get_status().get_all_results()
         for path in sorted(r.keys()):
             yield (path, r[path])
 
-    def render_object(self, ctx, data):
-        path, r = data
-        ctx.fillSlots("path", self._join_pathstring(path))
-        ctx.fillSlots("healthy_pre_repair",
+    @renderer
+    def object(self, req, tag):
+        # TODO: figure this out
+        # path, r = data
+        tag.fillSlots("path", self._join_pathstring(path))
+        tag.fillSlots("healthy_pre_repair",
                       str(r.get_pre_repair_results().is_healthy()))
-        ctx.fillSlots("recoverable_pre_repair",
+        tag.fillSlots("recoverable_pre_repair",
                       str(r.get_pre_repair_results().is_recoverable()))
-        ctx.fillSlots("healthy_post_repair",
+        tag.fillSlots("healthy_post_repair",
                       str(r.get_post_repair_results().is_healthy()))
         storage_index = r.get_storage_index()
-        ctx.fillSlots("storage_index",
+        tag.fillSlots("storage_index",
                       self._render_si_link(ctx, storage_index))
-        ctx.fillSlots("summary",
+        tag.fillSlots("summary",
                       self._html(r.get_pre_repair_results().get_summary()))
-        return ctx.tag
+        return tag
 
-    def render_runtime(self, ctx, data):
-        req = inevow.IRequest(ctx)
+    @renderer
+    def runtime(self, req, tag):
+        # req = inevow.IRequest(ctx)
         runtime = time.time() - req.processing_started_timestamp
-        return ctx.tag["runtime: %s seconds" % runtime]
+        return tag("runtime: %s seconds" % runtime)
