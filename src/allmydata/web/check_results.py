@@ -140,7 +140,10 @@ class ResultsBase(object):
         sharemap_data = []
         shares_on_server = dictutil.DictOfSets()
 
-        # FIXME: The two tables below contain nickname-and-nodeid table column markup which is duplicated with each other, introducer.xhtml, and deep-check-results.xhtml. All of these (and any other presentations of nickname-and-nodeid) should be combined.
+        # FIXME: The two tables below contain nickname-and-nodeid
+        # table column markup which is duplicated with each other,
+        # introducer.xhtml, and deep-check-results.xhtml. All of these
+        # (and any other presentations of nickname-and-nodeid) should be combined.
 
         for shareid in sorted(cr.get_sharemap().keys()):
             servers = sorted(cr.get_sharemap()[shareid],
