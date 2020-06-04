@@ -149,7 +149,7 @@ class ResultsBase(object):
                 shares_on_server.add(s, shareid)
                 shareid_s = ""
                 if i == 0:
-                    shareid_s = shareid
+                    shareid_s = str(shareid)
                 d = tags.tr(tags.td(shareid_s),
                             tags.td(tags.div(s.get_nickname(), class_="nickname"),
                                     tags.div(tags.tt(s.get_name()), class_="nodeid")))
@@ -175,7 +175,7 @@ class ResultsBase(object):
         for s in permuted_servers:
             shareids = list(shares_on_server.get(s, []))
             shareids.reverse()
-            shareids_s = [tags.tt(shareid, " ") for shareid in sorted(shareids)]
+            shareids_s = [tags.tt(str(shareid), " ") for shareid in sorted(shareids)]
 
             d = tags.tr(tags.td(tags.div(s.get_nickname(), class_="nickname"),
                              tags.div(tags.tt(s.get_name()), class_="nodeid")),
