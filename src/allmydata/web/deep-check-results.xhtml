@@ -24,7 +24,7 @@
 <div t:render="problems_p">
 <h2>Files/Directories That Had Problems:</h2>
 
-<ul t:render="sequence" n:data="problems">
+<ul t:render="problems">
   <li t:pattern="item" t:render="problem"/>
   <li t:pattern="empty">None</li>
 </ul>
@@ -33,7 +33,7 @@
 
 <div t:render="servers_with_corrupt_shares_p">
 <h2>Servers on which corrupt shares were found</h2>
-<ul t:render="sequence" n:data="servers_with_corrupt_shares">
+<ul t:render="servers_with_corrupt_shares">
   <li t:pattern="item" t:render="server_problem"/>
   <li t:pattern="empty">None</li>
 </ul>
@@ -42,7 +42,7 @@
 <div t:render="corrupt_shares_p">
 <h2>Corrupt Shares</h2>
 <p>If repair fails, these shares need to be manually inspected and removed.</p>
-<table t:render="sequence" n:data="corrupt_shares">
+<table t:render="corrupt_shares">
   <tr t:pattern="header">
     <td>Server</td>
     <td>Server Nickname</td>
@@ -58,11 +58,11 @@
 </table>
 </div>
 
-<div t:render="return" />
+<div t:render="return_to" />
 
 <div>
 <h2>All Results</h2>
-<table t:render="sequence" n:data="all_objects">
+<table t:render="all_objects">
   <tr t:pattern="header">
     <td>Relative Path</td>
     <td>Healthy</td>
