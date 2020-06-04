@@ -1,87 +1,86 @@
-<html xmlns:n="http://nevow.com/ns/nevow/0.1">
+<html xmlns:t="http://twistedmatrix.com/ns/twisted.web.template/0.1">
   <head>
     <title>Tahoe-LAFS - Deep Check Results</title>
     <link href="/tahoe.css" rel="stylesheet" type="text/css"/>
     <link href="/icon.png" rel="shortcut icon" />
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-    <meta n:render="refresh" />
+    <meta t:render="refresh" />
   </head>
   <body>
 
-<h1>Deep-Check Results for root SI=<span n:render="root_storage_index" /></h1>
+<h1>Deep-Check Results for root SI=<span t:render="root_storage_index" /></h1>
 
-<h2 n:render="reload" />
+<h2 t:render="reload" />
 
 <p>Counters:</p>
 <ul>
-  <li>Objects Checked: <span n:render="data" n:data="objects_checked" /></li>
-  <li>Objects Healthy: <span n:render="data" n:data="objects_healthy" /></li>
-  <li>Objects Unhealthy: <span n:render="data" n:data="objects_unhealthy" /></li>
-  <li>Objects Unrecoverable: <span n:render="data" n:data="objects_unrecoverable" /></li>
-  <li>Corrupt Shares: <span n:render="data" n:data="count_corrupt_shares" /></li>
-
+  <li>Objects Checked: <span t:render="objects_checked" /></li>
+  <li>Objects Healthy: <span t:render="objects_healthy" /></li>
+  <li>Objects Unhealthy: <span t:render="objects_unhealthy" /></li>
+  <li>Objects Unrecoverable: <span t:render="objects_unrecoverable" /></li>
+  <li>Corrupt Shares: <span t:render="count_corrupt_shares" /></li>
 </ul>
 
-<div n:render="problems_p">
+<div t:render="problems_p">
 <h2>Files/Directories That Had Problems:</h2>
 
-<ul n:render="sequence" n:data="problems">
-  <li n:pattern="item" n:render="problem"/>
-  <li n:pattern="empty">None</li>
+<ul t:render="sequence" n:data="problems">
+  <li t:pattern="item" t:render="problem"/>
+  <li t:pattern="empty">None</li>
 </ul>
 </div>
 
 
-<div n:render="servers_with_corrupt_shares_p">
+<div t:render="servers_with_corrupt_shares_p">
 <h2>Servers on which corrupt shares were found</h2>
-<ul n:render="sequence" n:data="servers_with_corrupt_shares">
-  <li n:pattern="item" n:render="server_problem"/>
-  <li n:pattern="empty">None</li>
+<ul t:render="sequence" n:data="servers_with_corrupt_shares">
+  <li t:pattern="item" t:render="server_problem"/>
+  <li t:pattern="empty">None</li>
 </ul>
 </div>
 
-<div n:render="corrupt_shares_p">
+<div t:render="corrupt_shares_p">
 <h2>Corrupt Shares</h2>
 <p>If repair fails, these shares need to be manually inspected and removed.</p>
-<table n:render="sequence" n:data="corrupt_shares">
-  <tr n:pattern="header">
+<table t:render="sequence" n:data="corrupt_shares">
+  <tr t:pattern="header">
     <td>Server</td>
     <td>Server Nickname</td>
     <td>Storage Index</td>
     <td>Share Number</td>
   </tr>
-  <tr n:pattern="item" n:render="share_problem">
-    <td><n:slot name="serverid"/></td>
-    <td><n:slot name="nickname"/></td>
-    <td><n:slot name="si"/></td>
-    <td><n:slot name="shnum"/></td>
+  <tr t:pattern="item" t:render="share_problem">
+    <td><t:slot name="serverid"/></td>
+    <td><t:slot name="nickname"/></td>
+    <td><t:slot name="si"/></td>
+    <td><t:slot name="shnum"/></td>
   </tr>
 </table>
 </div>
 
-<div n:render="return" />
+<div t:render="return" />
 
 <div>
 <h2>All Results</h2>
-<table n:render="sequence" n:data="all_objects">
-  <tr n:pattern="header">
+<table t:render="sequence" n:data="all_objects">
+  <tr t:pattern="header">
     <td>Relative Path</td>
     <td>Healthy</td>
     <td>Recoverable</td>
     <td>Storage Index</td>
     <td>Summary</td>
   </tr>
-  <tr n:pattern="item" n:render="object">
-    <td><n:slot name="path"/></td>
-    <td><n:slot name="healthy"/></td>
-    <td><n:slot name="recoverable"/></td>
-    <td><tt><n:slot name="storage_index"/></tt></td>
-    <td><n:slot name="summary"/></td>
+  <tr t:pattern="item" t:render="object">
+    <td><t:slot name="path"/></td>
+    <td><t:slot name="healthy"/></td>
+    <td><t:slot name="recoverable"/></td>
+    <td><tt><t:slot name="storage_index"/></tt></td>
+    <td><t:slot name="summary"/></td>
   </tr>
 </table>
 </div>
 
-<div n:render="runtime" />
+<div t:render="runtime" />
 
   </body>
 </html>
