@@ -261,7 +261,7 @@ class CheckerBase(object):
         return ""
 
 
-class CheckResultsRenderer(MultiFormatResource, ResultsBase):
+class CheckResultsRenderer(MultiFormatResource):
 
     formatArgument = "output"
 
@@ -276,7 +276,7 @@ class CheckResultsRenderer(MultiFormatResource, ResultsBase):
         self.r = ICheckResults(results)
 
     def render_HTML(self, req):
-        return renderElement(req, CheckResultsRendererElement(self.r))
+        return renderElement(req, CheckResultsRendererElement(self.client, self.r))
 
     def render_JSON(self, req):
         req.setHeader("content-type", "text/plain")
@@ -284,12 +284,13 @@ class CheckResultsRenderer(MultiFormatResource, ResultsBase):
         return json.dumps(data, indent=1) + "\n"
 
 
-class CheckResultsRendererElement(Element, CheckerBase):
+class CheckResultsRendererElement(Element, CheckerBase, ResultsBase):
 
     loader = XMLFile(FilePath(__file__).sibling("check-results.xhtml"))
 
-    def __init__(self, r):
+    def __init__(self, client, r):
         super(CheckResultsRendererElement, self).__init__()
+        self.client = client
         # TODO: use a better name
         self.r = r
 
