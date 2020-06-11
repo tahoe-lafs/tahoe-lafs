@@ -28,7 +28,7 @@ from allmydata.util import (
 )
 
 
-class _FakeTahoeRoot(Resource):
+class _FakeTahoeRoot(Resource, object):
     """
     This is a sketch of how an in-memory 'fake' of a Tahoe
     WebUI. Ultimately, this will live in Tahoe
@@ -100,7 +100,7 @@ def capability_generator(kind):
         yield cap.encode("ascii")
 
 
-class _FakeTahoeUriHandler(Resource):
+class _FakeTahoeUriHandler(Resource, object):
     """
     """
 
