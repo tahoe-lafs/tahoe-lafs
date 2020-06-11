@@ -1,5 +1,3 @@
-import io
-
 from twisted.trial.unittest import (
     TestCase,
 )

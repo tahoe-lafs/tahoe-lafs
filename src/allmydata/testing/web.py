@@ -1,30 +1,17 @@
-import io
-import os
-import json
-import string
 import hashlib
 
 import attr
 
 from hyperlink import DecodedURL
 
-from twisted.python.filepath import (
-    FilePath,
-)
 from twisted.web.resource import (
     Resource,
-)
-from twisted.web.client import (
-    Agent,
-    FileBodyProducer,
 )
 from twisted.web.iweb import (
     IBodyProducer,
 )
 from twisted.internet.defer import (
-    inlineCallbacks,
     succeed,
-    returnValue,
 )
 
 from treq.client import (
@@ -32,8 +19,6 @@ from treq.client import (
 )
 from treq.testing import (
     RequestTraversalAgent,
-    RequestSequence,
-    StubTreq,
 )
 from zope.interface import implementer
 
