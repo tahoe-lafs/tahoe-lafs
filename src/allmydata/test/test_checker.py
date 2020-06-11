@@ -79,29 +79,23 @@ class WebResultsRendering(unittest.TestCase, WebRenderingMixin):
     def test_literal(self):
         lcr = web_check_results.LiteralCheckResultsElement()
 
-        d = self.render_element(lcr)
-        def _check(html):
-            s = self.remove_tags(html)
-            self.failUnlessIn("Literal files are always healthy", s)
-        _check(d)
+        html = self.render_element(lcr)
+        s = self.remove_tags(html)
+        self.failUnlessIn("Literal files are always healthy", s)
 
-        d = self.render_element(lcr, args={"return_to": ["FOOURL"]})
-        def _check_return_to(html):
-            s = self.remove_tags(html)
-            self.failUnlessIn("Literal files are always healthy", s)
-            self.failUnlessIn('<a href="FOOURL">Return to file.</a>',
-                              html)
-        _check_return_to(d)
+        html = self.render_element(lcr, args={"return_to": ["FOOURL"]})
+        s = self.remove_tags(html)
+        self.failUnlessIn("Literal files are always healthy", s)
+        self.failUnlessIn('<a href="FOOURL">Return to file.</a>', html)
 
         c = self.create_fake_client()
         lcr = web_check_results.LiteralCheckResultsRenderer(c)
 
-        d = self.render_json(lcr)
-        def _check_json(js):
-            j = json.loads(js)
-            self.failUnlessEqual(j["storage-index"], "")
-            self.failUnlessEqual(j["results"]["healthy"], True)
-        _check_json(d)
+        js = self.render_json(lcr)
+        j = json.loads(js)
+        self.failUnlessEqual(j["storage-index"], "")
+        self.failUnlessEqual(j["results"]["healthy"], True)
+
 
     def test_check(self):
         c = self.create_fake_client()
