@@ -2,6 +2,7 @@ import io
 import os
 import json
 import string
+import hashlib
 
 import attr
 
@@ -20,6 +21,11 @@ from twisted.web.client import (
 from twisted.web.iweb import (
     IBodyProducer,
 )
+from twisted.internet.defer import (
+    inlineCallbacks,
+    succeed,
+    returnValue,
+)
 
 from treq.client import (
     HTTPClient,
@@ -28,6 +34,12 @@ from treq.testing import (
     RequestTraversalAgent,
     RequestSequence,
     StubTreq,
+)
+from zope.interface import implementer
+
+import allmydata.uri
+from allmydata.util import (
+    base32,
 )
 
 
@@ -53,10 +65,6 @@ class _FakeCapability(object):
     data=attr.ib()
 
 
-# XXX want to make all kinds of caps, like
-# URI:CHK:... URI:DIR2:... etc
-
-import allmydata.uri
 KNOWN_CAPABILITIES = [
     getattr(allmydata.uri, t).BASE_STRING
     for t in dir(allmydata.uri)
@@ -64,183 +72,46 @@ KNOWN_CAPABILITIES = [
 ]
 
 
-from allmydata.immutable.upload import BaseUploadable
-from allmydata.interfaces import IUploadable
-from zope.interface import implementer
-from twisted.internet.defer import (
-    inlineCallbacks,
-    succeed,
-    returnValue,
-)
+def capability_generator(kind):
+    """
+    :param str kind: the kind of capability, like `URI:CHK`
 
-
-def deterministic_key_generator():
-    character = 0
-    while True:#character < (26 * 2):
-        key = string.letters[character % 52] * 16
-        character += 1
-        yield key
-    raise RuntimeError("Ran out of keys")
-
-
-@implementer(IUploadable)
-class DataUploadable(BaseUploadable):
-    # Base gives us:
-    # set_upload_status
-    # set_default_encoding_parameters
-    # get_all_encoding_parameters
-
-    def __init__(self, data, key=None):
-        self._data = data
-        self._where = 0
-        self._key = key if key is not None else urandom(16)
-
-    def get_encryption_key(self):
-        return succeed(self._key)
-
-    def get_size(self):
-        return succeed(len(self._data))
-
-    @inlineCallbacks
-    def read(self, amount):
-        data = [self._data[self._where : self._where + amount]]
-        self._where += amount
-        yield
-        returnValue(data)
-
-    def close(self):
-        pass
-
-@inlineCallbacks
-def create_fake_capability(kind, key, data):
+    :returns: a generator that yields new capablities of a particular
+        kind.
+    """
     if kind not in KNOWN_CAPABILITIES:
         raise ValueError(
-            "'{}' not a known kind: {}".format(
+            "Unknown capability kind '{} (valid are {})'".format(
                 kind,
-                ", ".join(list(KNOWN_CAPABILITIES.keys())),
+                ", ".join(KNOWN_CAPABILITIES),
             )
         )
-
-    # XXX to use a allmydata.immutable.upload.CHKUploader directly,
-    # we'd need to instantiate:
-
-    from allmydata.immutable.upload import (
-        CHKUploader,
-        EncryptAnUploadable,
-    )
-    from allmydata.immutable.encode import (
-        Encoder,
-    )
-
-    class _FakeSecretHolder(object):
-        def get_renewal_secret(self):
-            return "renewal_secret"
-
-        def get_cancel_secret(self):
-            return "cancel_secret"
-
-
-    @attr.s
-    class _FakeBucket(object):
-        data = attr.ib(init=False, default="")
-
-        def callRemoteOnly(self, *args):
-            pass  # print("callRemoteOnly({})".format(args))
-
-        def callRemote(self, verb, *args):
-            if verb == 'write':
-                offset, data = args
-                assert offset >= len(self.data)
-                while offset > len(self.data):
-                    self.data += 'X'  # marker data; we're padding
-                self.data += data
-            elif verb == 'close':
-                pass
-            else:
-                print("callRemote({})".format(args))
-
-
-    @attr.s
-    class _FakeStorageServer(object):
-        buckets = attr.ib(default=attr.Factory(lambda: [_FakeBucket()]))
-
-        def get_buckets(self, storage_index):
-            return succeed({0: self.buckets})
-
-        def allocate_buckets(self, storage_index, renew_secret, cancel_secret, sharenums, allocated_size, canary=None):
-            # returns a 2-tuple .. second one maps share-num to BucketWriter
-            return succeed((
-                {},
-                {
-                    i: bucket
-                    for i, bucket in enumerate(self.buckets)
-                }
-            ))
-
-    class _FakeServer(object):
-        def get_serverid(self):
-            return "fake_server"
-
-        def get_name(self):
-            return "steven"
-
-        def get_version(self):
-            return {
-                "http://allmydata.org/tahoe/protocols/storage/v1": {
-                    "maximum-immutable-share-size": 10*1024*1024*1024,
-                }
-            }
-
-        def get_lease_seed(self):
-            return "decafbaddecafbaddeca"
-
-        def get_storage_server(self):
-            return _FakeStorageServer()
-
-
-    class _FakeStorageBroker(object):
-        def get_servers_for_psi(self, storage_index):
-            return [_FakeServer()]
-
-    storage_broker = _FakeStorageBroker()
-    secret_holder = _FakeSecretHolder()
-    uploader = CHKUploader(storage_broker, secret_holder, progress=None, reactor=None)
-    uploadable = DataUploadable(data, key=key)
-    uploadable.set_default_encoding_parameters({
-        "n": 1,
-        "k": 1,
-        "happy": 1,
-    })
-    encrypted_uploadable = EncryptAnUploadable(uploadable)
-
-    encoder = Encoder()
-    yield encoder.set_encrypted_uploadable(encrypted_uploadable)
-
-    uploadresults = yield uploader.start(encrypted_uploadable)
-
-    enc_key = yield uploadable.get_encryption_key()
-
-    from allmydata.uri import from_string as uri_from_string
-    from allmydata.uri import CHKFileURI
-
-    verify_cap = uri_from_string(uploadresults.get_verifycapstr())
-    read_cap = CHKFileURI(
-        enc_key,
-        verify_cap.uri_extension_hash,
-        verify_cap.needed_shares,
-        verify_cap.total_shares,
-        verify_cap.size,
-    )
-    uploadresults.set_uri(read_cap.to_string())
-
-    returnValue(read_cap)
-
-
-def capability_generator():
+    # what we do here is to start with empty hashers for the key and
+    # ueb_hash and repeatedly feed() them a zero byte on each
+    # iteration .. so the same sequence of capabilities will always be
+    # produced. We could add a seed= argument if we wanted to produce
+    # different sequences.
     number = 0
+    key_hasher = hashlib.new("sha256")
+    ueb_hasher = hashlib.new("sha256")
+
+    # capabilities are "prefix:<128-bits-base32>:<256-bits-base32>:N:K:size"
     while True:
-        cap = u"URI:CHK:fake capability {}".format(number)
         number += 1
+        key_hasher.update("\x00")
+        ueb_hasher.update("\x00")
+
+        key = base32.b2a(key_hasher.digest()[:16])  # key is 16 bytes
+        ueb_hash = base32.b2a(ueb_hasher.digest())  # ueb hash is 32 bytes
+
+        cap = u"{kind}:{key}:{ueb_hash}:{n}:{k}:{size}".format(
+            kind=kind,
+            key=key,
+            ueb_hash=ueb_hash,
+            n=1,
+            k=1,
+            size=number * 1000,
+        )
         yield cap.encode("ascii")
 
 
@@ -250,53 +121,50 @@ class _FakeTahoeUriHandler(Resource):
 
     isLeaf = True
     _data = None
-    _key_generator = None
-    _capability_generator = None
+    _capability_generators = None
 
-    def _get_key(self):
-        if self._key_generator is None:
-            self._key_generator = deterministic_key_generator()
-        key = next(self._key_generator)
-        return key
+    def _generate_capability(self, kind):
+        """
+        :param str kind: any valid capability-string type
 
-    def _generate_cap(self):
-        if self._capability_generator is None:
-            self._capability_generator = capability_generator()
-        capability = next(self._capability_generator)
+        :returns: the next capability-string for the given kind
+        """
+        if self._capability_generators is None:
+            self._capability_generators = dict()
+
+        if kind not in self._capability_generators:
+            self._capability_generators[kind] = capability_generator(kind)
+        capability = next(self._capability_generators[kind])
         return capability
 
-    @inlineCallbacks
-    def add_data(self, key, data):
+    def add_data(self, kind, data):
         """
-        adds some data to our grid, returning a capability
+        adds some data to our grid
+
+        :returns: a capability-string
         """
-        cap = yield create_fake_capability("URI:CHK:", key, data)
+        assert isinstance(data, bytes)
+
+        cap = self._generate_capability(kind)
         if self._data is None:
             self._data = dict()
+        assert cap not in self._data, "already have '{}'".format(cap)
         self._data[cap] = data
-        returnValue(cap)
+        return cap
 
     def render_PUT(self, request):
         data = request.content.read()
-#        if len(data) == 0:
-#            raise RuntimeError("No empty data")
-
-        cap = self._generate_cap()
-        if self._data is None:
-            self._data = dict()
-        self._data[cap] = data
-        return cap
+        return self.add_data("URI:CHK:", data)
 
     def render_POST(self, request):
-        kind = request.args[u"t"][0]
+        t = request.args[u"t"][0]
         data = request.content.read()
 
-        cap = self._generate_cap()
-        if self._data is None:
-            self._data = dict()
-        self._data[cap] = data
-        return cap
-#        if kind == 'mkdir-immutable':
+        type_to_kind = {
+            "mkdir-immutable": "URI:DIR2-CHK:"
+        }
+        kind = type_to_kind[t]
+        return self.add_data(kind, data)
 
     def render_GET(self, request):
         uri = DecodedURL.from_text(request.uri.decode('utf8'))
@@ -309,17 +177,15 @@ class _FakeTahoeUriHandler(Resource):
         return self._data[capability]
 
 
-@inlineCallbacks
 def create_fake_tahoe_root():
     """
-    Probably should take some params to control what this fake does:
-    return errors, pre-populate capabilities, ...
+    :returns: an IResource instance that will handle certain Tahoe URI
+        endpoints similar to a real Tahoe server.
     """
     root = _FakeTahoeRoot(
         uri=_FakeTahoeUriHandler(),
     )
-    yield
-    returnValue(root)
+    return root
 
 
 @implementer(IBodyProducer)
@@ -356,16 +222,15 @@ class _SynchronousProducer(object):
         return succeed(None)
 
 
-@inlineCallbacks
 def create_tahoe_treq_client(root=None):
     """
     """
 
     if root is None:
-        root = yield create_fake_tahoe_root()
+        root = create_fake_tahoe_root()
 
     client = HTTPClient(
         agent=RequestTraversalAgent(root),
         data_to_body_producer=_SynchronousProducer,
     )
-    returnValue(client)
+    return client
