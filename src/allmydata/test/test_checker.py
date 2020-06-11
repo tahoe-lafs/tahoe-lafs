@@ -3,6 +3,13 @@ import json
 import os.path, shutil
 from twisted.trial import unittest
 from twisted.internet import defer
+
+from nevow.inevow import IRequest
+from zope.interface import implementer
+from twisted.web.server import Request
+from twisted.web.test.requesthelper import DummyChannel
+from twisted.web.template import flattenString
+
 from allmydata import check_results, uri
 from allmydata import uri as tahoe_uri
 from allmydata.util import base32
@@ -22,6 +29,17 @@ from .common import (
 class FakeClient(object):
     def get_storage_broker(self):
         return self.storage_broker
+
+# XXX: We have to have this class because `common.get_arg()` expects a
+# `nevow.inevow.IRequest`, which `twisted.web.server.Request` isn't.
+# Also, the request needs to have `args` and `fields` properties so
+# that `allmydata.web.common.get_arg()` won't complain.
+@implementer(IRequest)
+class TestRequest(Request):
+    def __init__(self, args=None, fields=None):
+        Request.__init__(self, DummyChannel())
+        self.args = args or {}
+        self.fields = fields or {}
 
 class WebResultsRendering(unittest.TestCase, WebRenderingMixin):
 
@@ -51,34 +69,39 @@ class WebResultsRendering(unittest.TestCase, WebRenderingMixin):
         c.storage_broker = sb
         return c
 
-    def render_json(self, page):
-        d = self.render1(page, args={"output": ["json"]})
-        return d
+    def render_json(self, resource):
+        return resource.render(TestRequest(args={"output": ["json"]}))
+
+    def render_element(self, element, args=None):
+        d = flattenString(TestRequest(args), element)
+        return unittest.TestCase().successResultOf(d)
 
     def test_literal(self):
-        c = self.create_fake_client()
-        lcr = web_check_results.LiteralCheckResultsRenderer(c)
+        lcr = web_check_results.LiteralCheckResultsElement()
 
-        d = self.render1(lcr)
+        d = self.render_element(lcr)
         def _check(html):
             s = self.remove_tags(html)
             self.failUnlessIn("Literal files are always healthy", s)
-        d.addCallback(_check)
-        d.addCallback(lambda ignored:
-                      self.render1(lcr, args={"return_to": ["FOOURL"]}))
+        _check(d)
+
+        d = self.render_element(lcr, args={"return_to": ["FOOURL"]})
         def _check_return_to(html):
             s = self.remove_tags(html)
             self.failUnlessIn("Literal files are always healthy", s)
             self.failUnlessIn('<a href="FOOURL">Return to file.</a>',
                               html)
-        d.addCallback(_check_return_to)
-        d.addCallback(lambda ignored: self.render_json(lcr))
+        _check_return_to(d)
+
+        c = self.create_fake_client()
+        lcr = web_check_results.LiteralCheckResultsRenderer(c)
+
+        d = self.render_json(lcr)
         def _check_json(js):
             j = json.loads(js)
             self.failUnlessEqual(j["storage-index"], "")
             self.failUnlessEqual(j["results"]["healthy"], True)
-        d.addCallback(_check_json)
-        return d
+        _check_json(d)
 
     def test_check(self):
         c = self.create_fake_client()
@@ -108,8 +131,8 @@ class WebResultsRendering(unittest.TestCase, WebRenderingMixin):
                                         healthy=True, recoverable=True,
                                         summary="groovy",
                                         **data)
-        w = web_check_results.CheckResultsRenderer(c, cr)
-        html = self.render2(w)
+        w = web_check_results.CheckResultsRendererElement(c, cr)
+        html = self.render_element(w)
         s = self.remove_tags(html)
         self.failUnlessIn("File Check Results for SI=2k6avp", s) # abbreviated
         self.failUnlessIn("Healthy : groovy", s)
@@ -126,8 +149,8 @@ class WebResultsRendering(unittest.TestCase, WebRenderingMixin):
                                         healthy=False, recoverable=True,
                                         summary="ungroovy",
                                         **data)
-        w = web_check_results.CheckResultsRenderer(c, cr)
-        html = self.render2(w)
+        w = web_check_results.CheckResultsRendererElement(c, cr)
+        html = self.render_element(w)
         s = self.remove_tags(html)
         self.failUnlessIn("File Check Results for SI=2k6avp", s) # abbreviated
         self.failUnlessIn("Not Healthy! : ungroovy", s)
@@ -138,22 +161,23 @@ class WebResultsRendering(unittest.TestCase, WebRenderingMixin):
                                         healthy=False, recoverable=False,
                                         summary="rather dead",
                                         **data)
-        w = web_check_results.CheckResultsRenderer(c, cr)
-        html = self.render2(w)
+        w = web_check_results.CheckResultsRendererElement(c, cr)
+        html = self.render_element(w)
         s = self.remove_tags(html)
         self.failUnlessIn("File Check Results for SI=2k6avp", s) # abbreviated
         self.failUnlessIn("Not Recoverable! : rather dead", s)
         self.failUnlessIn("Corrupt shares: Share ID Nickname Node ID sh#2 peer-0 00000000", s)
 
-        html = self.render2(w)
+        html = self.render_element(w)
         s = self.remove_tags(html)
         self.failUnlessIn("File Check Results for SI=2k6avp", s) # abbreviated
         self.failUnlessIn("Not Recoverable! : rather dead", s)
 
-        html = self.render2(w, args={"return_to": ["FOOURL"]})
+        html = self.render_element(w, args={"return_to": ["FOOURL"]})
         self.failUnlessIn('<a href="FOOURL">Return to file/directory.</a>',
                           html)
 
+        w = web_check_results.CheckResultsRenderer(c, cr)
         d = self.render_json(w)
         def _check_json(jdata):
             j = json.loads(jdata)
@@ -178,15 +202,15 @@ class WebResultsRendering(unittest.TestCase, WebRenderingMixin):
                         'recoverable': False,
                         }
             self.failUnlessEqual(j["results"], expected)
-        d.addCallback(_check_json)
-        d.addCallback(lambda ignored: self.render1(w))
+        _check_json(d)
+
+        w = web_check_results.CheckResultsRendererElement(c, cr)
+        d = self.render_element(w)
         def _check(html):
             s = self.remove_tags(html)
             self.failUnlessIn("File Check Results for SI=2k6avp", s)
             self.failUnlessIn("Not Recoverable! : rather dead", s)
-        d.addCallback(_check)
-        return d
-
+        _check(html)
 
     def test_check_and_repair(self):
         c = self.create_fake_client()
@@ -244,8 +268,8 @@ class WebResultsRendering(unittest.TestCase, WebRenderingMixin):
         crr.post_repair_results = post_cr
         crr.repair_attempted = False
 
-        w = web_check_results.CheckAndRepairResultsRenderer(c, crr)
-        html = self.render2(w)
+        w = web_check_results.CheckAndRepairResultsRendererElement(c, crr)
+        html = self.render_element(w)
         s = self.remove_tags(html)
 
         self.failUnlessIn("File Check-And-Repair Results for SI=2k6avp", s)
@@ -256,7 +280,7 @@ class WebResultsRendering(unittest.TestCase, WebRenderingMixin):
 
         crr.repair_attempted = True
         crr.repair_successful = True
-        html = self.render2(w)
+        html = self.render_element(w)
         s = self.remove_tags(html)
 
         self.failUnlessIn("File Check-And-Repair Results for SI=2k6avp", s)
@@ -271,7 +295,7 @@ class WebResultsRendering(unittest.TestCase, WebRenderingMixin):
                                              summary="better",
                                              **data)
         crr.post_repair_results = post_cr
-        html = self.render2(w)
+        html = self.render_element(w)
         s = self.remove_tags(html)
 
         self.failUnlessIn("File Check-And-Repair Results for SI=2k6avp", s)
@@ -286,7 +310,7 @@ class WebResultsRendering(unittest.TestCase, WebRenderingMixin):
                                              summary="worse",
                                              **data)
         crr.post_repair_results = post_cr
-        html = self.render2(w)
+        html = self.render_element(w)
         s = self.remove_tags(html)
 
         self.failUnlessIn("File Check-And-Repair Results for SI=2k6avp", s)
@@ -294,7 +318,8 @@ class WebResultsRendering(unittest.TestCase, WebRenderingMixin):
         self.failUnlessIn("Repair unsuccessful", s)
         self.failUnlessIn("Post-Repair Checker Results:", s)
 
-        d = self.render_json(w)
+        w2 = web_check_results.CheckAndRepairResultsRenderer(c, crr)
+        d = self.render_json(w2)
         def _got_json(data):
             j = json.loads(data)
             self.failUnlessEqual(j["repair-attempted"], True)
@@ -302,16 +327,15 @@ class WebResultsRendering(unittest.TestCase, WebRenderingMixin):
                                  "2k6avpjga3dho3zsjo6nnkt7n4")
             self.failUnlessEqual(j["pre-repair-results"]["summary"], "illing")
             self.failUnlessEqual(j["post-repair-results"]["summary"], "worse")
-        d.addCallback(_got_json)
+        _got_json(d)
 
-        w2 = web_check_results.CheckAndRepairResultsRenderer(c, None)
-        d.addCallback(lambda ignored: self.render_json(w2))
+        w3 = web_check_results.CheckAndRepairResultsRenderer(c, None)
+        d = self.render_json(w3)
         def _got_lit_results(data):
             j = json.loads(data)
             self.failUnlessEqual(j["repair-attempted"], False)
             self.failUnlessEqual(j["storage-index"], "")
-        d.addCallback(_got_lit_results)
-        return d
+        _got_lit_results(d)
 
 class BalancingAct(GridTestMixin, unittest.TestCase):
     # test for #1115 regarding the 'count-good-share-hosts' metric
