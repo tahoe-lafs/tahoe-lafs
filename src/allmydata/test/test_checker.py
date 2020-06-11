@@ -1,4 +1,5 @@
 
+import re
 import json
 import os.path, shutil
 from twisted.trial import unittest
@@ -41,7 +42,12 @@ class TestRequest(Request):
         self.args = args or {}
         self.fields = fields or {}
 
-class WebResultsRendering(unittest.TestCase, WebRenderingMixin):
+class WebResultsRendering(unittest.TestCase):
+
+    def remove_tags(self, s):
+        s = re.sub(r'<[^>]*>', ' ', s)
+        s = re.sub(r'\s+', ' ', s)
+        return s
 
     def create_fake_client(self):
         sb = StorageFarmBroker(True, None, EMPTY_CLIENT_CONFIG)
