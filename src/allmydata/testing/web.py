@@ -40,8 +40,8 @@ class _FakeTahoeRoot(Resource, object):
         self._uri = uri
         self.putChild(b"uri", self._uri)
 
-    def add_data(self, key, data):
-        return self._uri.add_data(key, data)
+    def add_data(self, kind, data):
+        return self._uri.add_data(kind, data)
 
 
 @attr.s
