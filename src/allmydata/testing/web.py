@@ -16,6 +16,7 @@ from twisted.internet.defer import (
 
 from treq.client import (
     HTTPClient,
+    FileBodyProducer,
 )
 from treq.testing import (
     RequestTraversalAgent,
@@ -192,9 +193,12 @@ class _SynchronousProducer(object):
         """
         Create a synchronous producer with some bytes.
         """
+        if isinstance(body, FileBodyProducer):
+            body = body._inputFile.read()
+
         if not isinstance(body, bytes):
             raise ValueError(
-                "'body' must be bytes"
+                "'body' must be bytes not '{}'".format(type(body))
             )
         self.body = body
         self.length = len(body)
