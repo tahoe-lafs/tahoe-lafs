@@ -24,6 +24,7 @@ from allmydata.web.common import (
     get_root,
     WebError,
     MultiFormatResource,
+    SlotsSequenceElement,
 )
 from allmydata.web.operations import ReloadMixin
 from allmydata.interfaces import (
@@ -825,30 +826,25 @@ class DeepCheckAndRepairResultsRendererElement(Element, ResultsBase, ReloadMixin
             return tags.div(tags.a("Return to file/directory.", href=return_to))
         return ""
 
-    # TODO: use SlotsSequenceElement
     @renderer
     def all_objects(self, req, tag):
-        r = self.monitor.get_status().get_all_results()
-        for path in sorted(r.keys()):
-            yield (path, r[path])
+        results = self.monitor.get_status().get_all_results()
+        objects = []
 
-    @renderer
-    def object(self, req, tag):
-        # TODO: figure this out
-        # path, r = data
-        tag.fillSlots("path", self._join_pathstring(path))
-        tag.fillSlots("healthy_pre_repair",
-                      str(r.get_pre_repair_results().is_healthy()))
-        tag.fillSlots("recoverable_pre_repair",
-                      str(r.get_pre_repair_results().is_recoverable()))
-        tag.fillSlots("healthy_post_repair",
-                      str(r.get_post_repair_results().is_healthy()))
-        storage_index = r.get_storage_index()
-        tag.fillSlots("storage_index",
-                      self._render_si_link(ctx, storage_index))
-        tag.fillSlots("summary",
-                      self._html(r.get_pre_repair_results().get_summary()))
-        return tag
+        for path in sorted(results.keys()):
+            result = results[path]
+            storage_index = result.get_storage_index()
+            obj = {
+                "path": self._join_pathstring(path),
+                "healthy_pre_repair": str(result.get_pre_repair_results().is_healthy()),
+                "recoverable_pre_repair": str(result.get_pre_repair_results().is_recoverable()),
+                "healthy_post_repair": str(result.get_post_repair_results().is_healthy()),
+                "storage_index": self._render_si_link(req, storage_index),
+                "summary": self._html(result.get_pre_repair_results().get_summary()),
+            }
+            objects.append(obj)
+
+        return SlotsSequenceElement(tag, objects)
 
     @renderer
     def runtime(self, req, tag):
