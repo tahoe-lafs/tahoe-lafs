@@ -36,7 +36,7 @@ class FakeClient(object):
 # Also, the request needs to have `args` and `fields` properties so
 # that `allmydata.web.common.get_arg()` won't complain.
 @implementer(IRequest)
-class TestRequest(Request):
+class TestRequest(object, Request):
     def __init__(self, args=None, fields=None):
         Request.__init__(self, DummyChannel())
         self.args = args or {}
