@@ -254,18 +254,12 @@ class LiteralCheckResultsElement(Element):
 
 class CheckerBase(object):
 
-    # def renderHTTP(self, ctx):
-    #     if self.want_json(ctx):
-    #         return self.json(ctx)
-    #     return rend.Page.renderHTTP(self, ctx)
-
     @renderer
     def storage_index(self, req, tag):
         return self.r.get_storage_index_string()
 
     @renderer
     def return_to(self, req, tag):
-        # req = inevow.IRequest(ctx)
         return_to = get_arg(req, "return_to", None)
         if return_to:
             return tags.div(tags.a("Return to file/directory.", href=return_to))
@@ -440,13 +434,7 @@ class DeepCheckResultsRenderer(MultiFormatResource):
         elem = DeepCheckResultsRendererElement(self.monitor)
         return renderElement(req, elem)
 
-    # def renderHTTP(self, ctx):
-    #     if self.want_json(ctx):
-    #         return self.json(ctx)
-    #     return rend.Page.renderHTTP(self, ctx)
-
     def render_JSON(self, req):
-        # inevow.IRequest(ctx).setHeader("content-type", "text/plain")
         req.setHeader("content-type", "text/plain")
         data = {}
         data["finished"] = self.monitor.is_finished()
@@ -579,7 +567,6 @@ class DeepCheckResultsRendererElement(Element, ResultsBase, ReloadMixin):
 
     @renderer
     def return_to(self, req, tag):
-        # req = inevow.IRequest(ctx)
         return_to = get_arg(req, "return_to", None)
         if return_to:
             return tags.div(tags.a("Return to file/directory.", href=return_to))
@@ -606,7 +593,6 @@ class DeepCheckResultsRendererElement(Element, ResultsBase, ReloadMixin):
 
     @renderer
     def runtime(self, req, tag):
-        # req = inevow.IRequest(ctx)
         runtime = time.time() - req.processing_started_timestamp
         return tag("runtime: %s seconds" % runtime)
 
@@ -638,13 +624,7 @@ class DeepCheckAndRepairResultsRenderer(MultiFormatResource):
         elem = DeepCheckAndRepairResultsRendererElement(self.monitor)
         return renderElement(req, elem)
 
-    # def renderHTTP(self, ctx):
-    #     if self.want_json(ctx):
-    #         return self.json(ctx)
-    #     return rend.Page.renderHTTP(self, ctx)
-
     def render_JSON(self, req):
-        # inevow.IRequest(ctx).setHeader("content-type", "text/plain")
         req.setHeader("content-type", "text/plain")
         res = self.monitor.get_status()
         data = {}
@@ -816,7 +796,6 @@ class DeepCheckAndRepairResultsRendererElement(Element, ResultsBase, ReloadMixin
 
     @renderer
     def return_to(self, req, tag):
-        # req = inevow.IRequest(ctx)
         return_to = get_arg(req, "return_to", None)
         if return_to:
             return tags.div(tags.a("Return to file/directory.", href=return_to))
@@ -844,6 +823,5 @@ class DeepCheckAndRepairResultsRendererElement(Element, ResultsBase, ReloadMixin
 
     @renderer
     def runtime(self, req, tag):
-        # req = inevow.IRequest(ctx)
         runtime = time.time() - req.processing_started_timestamp
         return tag("runtime: %s seconds" % runtime)
