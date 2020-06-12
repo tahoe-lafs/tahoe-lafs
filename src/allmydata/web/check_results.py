@@ -622,6 +622,7 @@ class DeepCheckAndRepairResultsRenderer(MultiFormatResource):
     def __init__(self, client, monitor):
         self.client = client
         self.monitor = monitor
+        self.children = {}
 
     def getChild(self, name, req):
         if not name:
