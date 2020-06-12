@@ -800,11 +800,10 @@ class DeepCheckAndRepairResultsRendererElement(Element, ResultsBase, ReloadMixin
 
     @renderer
     def servers_with_corrupt_shares(self, req, tag):
-        return [] # TODO
-
-    @renderer
-    def server_problem(self, req, tag):
-        pass
+        # TODO: this was originally unimplemented before porting to
+        # twisted.web.template; leaving it as such.
+        corrupt = []
+        return SlotsSequenceElement(tag, corrupt)
 
     @renderer
     def remaining_corrupt_shares_p(self, req, tag):
