@@ -777,16 +777,20 @@ class DeepCheckAndRepairResultsRendererElement(Element, ResultsBase, ReloadMixin
             return tag
         return ""
 
-    # TODO: use SlotsSequenceElement
     @renderer
     def post_repair_problems(self, req, tag):
         all_objects = self.monitor.get_status().get_all_results()
+        problems = []
+
         for path in sorted(all_objects.keys()):
             r = all_objects[path]
             assert ICheckAndRepairResults.providedBy(r)
             cr = r.get_post_repair_results()
             if not cr.is_healthy():
-                yield path, cr
+                problem = self._join_pathstring(path), ": ", self._html(cr.get_summary())
+                problems.append(problem)
+
+        return SlotsSequenceElement(tag, problems)
 
     @renderer
     def servers_with_corrupt_shares_p(self, req, tag):
