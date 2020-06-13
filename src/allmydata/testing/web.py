@@ -149,7 +149,8 @@ class _FakeTahoeUriHandler(Resource, object):
 
         :returns: a capability-string
         """
-        assert isinstance(data, bytes)
+        if not isinstance(data, bytes):
+            raise TypeError("'data' must be bytes")
 
         cap = self._generate_capability(kind)
         if self._data is None:
