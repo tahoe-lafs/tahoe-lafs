@@ -155,7 +155,8 @@ class _FakeTahoeUriHandler(Resource, object):
         cap = self._generate_capability(kind)
         if self._data is None:
             self._data = dict()
-        assert cap not in self._data, "already have '{}'".format(cap)
+        if cap in self._data:
+            raise ValueError("already have '{}'".format(cap))
         self._data[cap] = data
         return cap
 
