@@ -74,6 +74,10 @@ KNOWN_CAPABILITIES = [
 
 def capability_generator(kind):
     """
+    Deterministically generates a streap of valid capabilities of the
+    given kind. The N, K and size values aren't related to anything
+    real.
+
     :param str kind: the kind of capability, like `URI:CHK`
 
     :returns: a generator that yields new capablities of a particular
