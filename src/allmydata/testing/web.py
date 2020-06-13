@@ -23,6 +23,10 @@ from twisted.web.resource import (
 from twisted.web.iweb import (
     IBodyProducer,
 )
+from twisted.web import (
+    http,
+)
+
 from twisted.internet.defer import (
     succeed,
 )
@@ -162,7 +166,7 @@ class _FakeTahoeUriHandler(Resource, object):
 
     def render_PUT(self, request):
         data = request.content.read()
-        request.setResponseCode(201)  # real code does this for brand-new files
+        request.setResponseCode(http.CREATED)  # real code does this for brand-new files
         return self.add_data("URI:CHK:", data)
 
     def render_POST(self, request):
