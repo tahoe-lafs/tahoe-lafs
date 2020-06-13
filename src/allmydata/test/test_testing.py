@@ -15,6 +15,10 @@ from twisted.internet.defer import (
     inlineCallbacks,
 )
 
+from allmydata.uri import (
+    from_string,
+    CHKFileURI,
+)
 from allmydata.testing.web import (
     create_tahoe_treq_client,
 )
@@ -60,11 +64,12 @@ class FakeWebTest(TestCase):
             resp = yield self.http_client.put("http://example.com/uri", content)
             self.assertEqual(resp.code, 201)
 
-            cap = yield resp.content()
-            self.assertTrue(cap.startswith("URI:CHK:"))
+            cap_raw = yield resp.content()
+            cap = from_string(cap_raw)
+            self.assertIsInstance(cap, CHKFileURI)
 
             resp = yield self.http_client.get(
-                "http://example.com/uri?uri={}".format(cap)
+                "http://example.com/uri?uri={}".format(cap.to_string())
             )
             self.assertEqual(resp.code, 200)
 
