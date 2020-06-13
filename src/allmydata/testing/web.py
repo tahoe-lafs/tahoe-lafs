@@ -140,6 +140,7 @@ class _FakeTahoeUriHandler(Resource, object):
 
     def render_PUT(self, request):
         data = request.content.read()
+        request.setResponseCode(201)  # real code does this for brand-new files
         return self.add_data("URI:CHK:", data)
 
     def render_POST(self, request):
