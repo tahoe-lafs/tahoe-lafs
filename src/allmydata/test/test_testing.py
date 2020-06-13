@@ -61,7 +61,7 @@ class FakeWebTest(TestCase):
 
         @inlineCallbacks
         def do_test():
-            resp = yield self.http_client.put("http://example.com/uri", content)
+            resp = yield self.http_client.put("http://example.com/uri?replace=true", content)
             self.assertEqual(resp.code, 201)
 
             cap_raw = yield resp.content()
@@ -79,3 +79,22 @@ class FakeWebTest(TestCase):
             do_test(),
             succeeded(Always()),
         )
+
+    @inlineCallbacks
+    def test_duplicate_upload(self):
+        """
+        Upload the same content (via 'PUT /uri') twice with no overwrite
+        """
+
+        content = "fake content\n" * 200
+
+        resp = yield self.http_client.put("http://example.com/uri", content)
+        self.assertEqual(resp.code, 201)
+
+        cap_raw = yield resp.content()
+        cap = from_string(cap_raw)
+        self.assertIsInstance(cap, CHKFileURI)
+
+        # this one fails: same content but no ?replace=true
+        resp = yield self.http_client.put("http://example.com/uri", content)
+        self.assertEqual(resp.code, 409)
