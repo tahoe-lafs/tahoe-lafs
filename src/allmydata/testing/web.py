@@ -1,3 +1,16 @@
+# -*- coding: utf-8 -*-
+# Tahoe-LAFS -- secure, distributed storage grid
+#
+# Copyright © 2020 The Tahoe-LAFS Software Foundation
+#
+# This file is part of Tahoe-LAFS.
+#
+# See the docs/about.rst file for licensing information.
+
+"""
+Test-helpers for clients that use the WebUI.
+"""
+
 import hashlib
 
 import attr
@@ -26,6 +39,11 @@ from zope.interface import implementer
 import allmydata.uri
 from allmydata.util import (
     base32,
+)
+
+__all__ = (
+    "create_fake_tahoe_root",
+    "create_tahoe_treq_client",
 )
 
 
