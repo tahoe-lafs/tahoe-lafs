@@ -133,6 +133,7 @@ def capability_generator(kind):
         yield cap.encode("ascii")
 
 
+@attr.s
 class _FakeTahoeUriHandler(Resource, object):
     """
     An in-memory fake of (some of) the `/uri` endpoint of a Tahoe
@@ -140,8 +141,9 @@ class _FakeTahoeUriHandler(Resource, object):
     """
 
     isLeaf = True
-    _data = None
-    _capability_generators = None
+
+    data = attr.ib(default=attr.Factory(dict))
+    capability_generators = attr.ib(default=attr.Factory(dict))
 
     def _generate_capability(self, kind):
         """
@@ -149,12 +151,9 @@ class _FakeTahoeUriHandler(Resource, object):
 
         :returns: the next capability-string for the given kind
         """
-        if self._capability_generators is None:
-            self._capability_generators = dict()
-
-        if kind not in self._capability_generators:
-            self._capability_generators[kind] = capability_generator(kind)
-        capability = next(self._capability_generators[kind])
+        if kind not in self.capability_generators:
+            self.capability_generators[kind] = capability_generator(kind)
+        capability = next(self.capability_generators[kind])
         return capability
 
     def add_data(self, kind, data, allow_duplicate=False):
@@ -166,11 +165,8 @@ class _FakeTahoeUriHandler(Resource, object):
         if not isinstance(data, bytes):
             raise TypeError("'data' must be bytes")
 
-        if self._data is None:
-            self._data = dict()
-
-        for k in self._data:
-            if self._data[k] == data:
+        for k in self.data:
+            if self.data[k] == data:
                 if allow_duplicate:
                     return k
                 raise ValueError(
@@ -178,9 +174,9 @@ class _FakeTahoeUriHandler(Resource, object):
                 )
 
         cap = self._generate_capability(kind)
-        if cap in self._data:
+        if cap in self.data:
             raise ValueError("already have '{}'".format(cap))
-        self._data[cap] = data
+        self.data[cap] = data
         return cap
 
     def render_PUT(self, request):
@@ -217,10 +213,10 @@ class _FakeTahoeUriHandler(Resource, object):
                 )
             )
 
-        if self._data is None or capability not in self._data:
+        if capability not in self.data:
             return u"No data for '{}'".format(capability).decode("ascii")
 
-        return self._data[capability]
+        return self.data[capability]
 
 
 def create_fake_tahoe_root():
