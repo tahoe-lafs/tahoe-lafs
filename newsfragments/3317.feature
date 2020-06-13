@@ -1,1 +1,1 @@
-Verified fakes for (some of) Tahoe's WebUI via treq
+allmydata.testing.web, a new module, now offers a supported Python API for testing Tahoe-LAFS web API clients.
