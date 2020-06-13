@@ -30,6 +30,9 @@ from twisted.web import (
 from twisted.internet.defer import (
     succeed,
 )
+from twisted.python.failure import (
+    Failure,
+)
 
 from treq.client import (
     HTTPClient,
@@ -44,6 +47,13 @@ import allmydata.uri
 from allmydata.util import (
     base32,
 )
+from allmydata.interfaces import (
+    ExistingChildError,
+)
+from allmydata.web.common import (
+    humanize_failure,
+)
+
 
 __all__ = (
     "create_fake_tahoe_root",
@@ -147,7 +157,7 @@ class _FakeTahoeUriHandler(Resource, object):
         capability = next(self._capability_generators[kind])
         return capability
 
-    def add_data(self, kind, data):
+    def add_data(self, kind, data, allow_duplicate=False):
         """
         adds some data to our grid
 
@@ -156,9 +166,18 @@ class _FakeTahoeUriHandler(Resource, object):
         if not isinstance(data, bytes):
             raise TypeError("'data' must be bytes")
 
-        cap = self._generate_capability(kind)
         if self._data is None:
             self._data = dict()
+
+        for k in self._data:
+            if self._data[k] == data:
+                if allow_duplicate:
+                    return k
+                raise ValueError(
+                    "Duplicate data"
+                )
+
+        cap = self._generate_capability(kind)
         if cap in self._data:
             raise ValueError("already have '{}'".format(cap))
         self._data[cap] = data
@@ -167,7 +186,13 @@ class _FakeTahoeUriHandler(Resource, object):
     def render_PUT(self, request):
         data = request.content.read()
         request.setResponseCode(http.CREATED)  # real code does this for brand-new files
-        return self.add_data("URI:CHK:", data)
+        replace = request.args.get("replace", None)
+        try:
+            return self.add_data("URI:CHK:", data, allow_duplicate=replace)
+        except ValueError:
+            msg, code = humanize_failure(Failure(ExistingChildError()))
+            request.setResponseCode(code)
+            return msg
 
     def render_POST(self, request):
         t = request.args[u"t"][0]
