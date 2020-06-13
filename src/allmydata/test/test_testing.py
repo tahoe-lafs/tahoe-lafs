@@ -19,6 +19,23 @@ from allmydata.testing.web import (
     create_tahoe_treq_client,
 )
 
+from hypothesis import (
+    given,
+)
+from hypothesis.strategies import (
+    binary,
+)
+
+from testtools import (
+    TestCase,
+)
+from testtools.matchers import (
+    Always,
+)
+from testtools.twistedsupport import (
+    succeeded,
+)
+
 
 class FakeWebTest(TestCase):
     """
@@ -29,20 +46,31 @@ class FakeWebTest(TestCase):
         super(FakeWebTest, self).setUp()
         self.http_client = create_tahoe_treq_client()
 
-    @inlineCallbacks
-    def test_create_and_download(self):
+    @given(
+        content=binary(),
+    )
+    def test_create_and_download(self, content):
         """
-        Upload some content and then download it
+        Upload some content (via 'PUT /uri') and then download it (via
+        'GET /uri?uri=...')
         """
-        content = "fake data\n" * 100
-        resp = yield self.http_client.put("http://example.com/uri", content)
-        cap = yield resp.content()
 
-        self.assertTrue(cap.startswith("URI:CHK:"))
+        @inlineCallbacks
+        def do_test():
+            resp = yield self.http_client.put("http://example.com/uri", content)
+            self.assertEqual(resp.code, 200)
 
-        resp = yield self.http_client.get(
-            "http://example.com/uri?uri={}".format(cap)
+            cap = yield resp.content()
+            self.assertTrue(cap.startswith("URI:CHK:"))
+
+            resp = yield self.http_client.get(
+                "http://example.com/uri?uri={}".format(cap)
+            )
+            self.assertEqual(resp.code, 200)
+
+            round_trip_content = yield resp.content()
+            self.assertEqual(content, round_trip_content)
+        self.assertThat(
+            do_test(),
+            succeeded(Always()),
         )
-        round_trip_content = yield resp.content()
-
-        self.assertEqual(content, round_trip_content)
