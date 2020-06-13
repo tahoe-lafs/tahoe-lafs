@@ -1,6 +1,16 @@
-from twisted.trial.unittest import (
-    TestCase,
-)
+# -*- coding: utf-8 -*-
+# Tahoe-LAFS -- secure, distributed storage grid
+#
+# Copyright © 2020 The Tahoe-LAFS Software Foundation
+#
+# This file is part of Tahoe-LAFS.
+#
+# See the docs/about.rst file for licensing information.
+
+"""
+Tests for the allmydata.testing helpers
+"""
+
 from twisted.internet.defer import (
     inlineCallbacks,
 )
