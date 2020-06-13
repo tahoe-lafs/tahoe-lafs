@@ -90,7 +90,7 @@ def capability_generator(kind):
         key = base32.b2a(key_hasher.digest()[:16])  # key is 16 bytes
         ueb_hash = base32.b2a(ueb_hasher.digest())  # ueb hash is 32 bytes
 
-        cap = u"{kind}:{key}:{ueb_hash}:{n}:{k}:{size}".format(
+        cap = u"{kind}{key}:{ueb_hash}:{n}:{k}:{size}".format(
             kind=kind,
             key=key,
             ueb_hash=ueb_hash,
