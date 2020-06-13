@@ -58,7 +58,7 @@ class FakeWebTest(TestCase):
         @inlineCallbacks
         def do_test():
             resp = yield self.http_client.put("http://example.com/uri", content)
-            self.assertEqual(resp.code, 200)
+            self.assertEqual(resp.code, 201)
 
             cap = yield resp.content()
             self.assertTrue(cap.startswith("URI:CHK:"))
