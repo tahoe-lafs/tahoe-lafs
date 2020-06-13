@@ -49,8 +49,8 @@ __all__ = (
 
 class _FakeTahoeRoot(Resource, object):
     """
-    This is a sketch of how an in-memory 'fake' of a Tahoe
-    WebUI. Ultimately, this will live in Tahoe
+    An in-memory 'fake' of a Tahoe WebUI root. Currently it only
+    implements (some of) the `/uri` resource.
     """
 
     def __init__(self, uri=None):
@@ -60,13 +60,6 @@ class _FakeTahoeRoot(Resource, object):
 
     def add_data(self, kind, data):
         return self._uri.add_data(kind, data)
-
-
-@attr.s
-class _FakeCapability(object):
-    """
-    """
-    data=attr.ib()
 
 
 KNOWN_CAPABILITIES = [
@@ -121,6 +114,8 @@ def capability_generator(kind):
 
 class _FakeTahoeUriHandler(Resource, object):
     """
+    An in-memory fake of (some of) the `/uri` endpoint of a Tahoe
+    WebUI
     """
 
     isLeaf = True
@@ -232,6 +227,12 @@ class _SynchronousProducer(object):
 
 def create_tahoe_treq_client(root=None):
     """
+    :param root: an instance created via `create_fake_tahoe_root`. The
+        caller might want a copy of this to call `.add_data` for example.
+
+    :returns: an instance of treq.client.HTTPClient wired up to
+        in-memory fakes of the Tahoe WebUI. Only a subset of the real
+        WebUI is available.
     """
 
     if root is None:
