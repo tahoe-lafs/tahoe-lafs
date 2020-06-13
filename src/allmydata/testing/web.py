@@ -54,6 +54,9 @@ class _FakeTahoeRoot(Resource, object):
     """
 
     def __init__(self, uri=None):
+        """
+        :param uri: a Resource to handle the `/uri` tree.
+        """
         Resource.__init__(self)  # this is an old-style class :(
         self._uri = uri
         self.putChild(b"uri", self._uri)
