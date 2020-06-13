@@ -177,8 +177,16 @@ class _FakeTahoeUriHandler(Resource, object):
 
     def render_GET(self, request):
         uri = DecodedURL.from_text(request.uri.decode('utf8'))
-        # XXX FIXME
-        capability = uri.query[0][1]
+        capability = None
+        for arg, value in uri.query:
+            if arg == u"uri":
+                capability = value
+        if capability is None:
+            raise Exception(
+                "No ?uri= arguent in GET '{}'".format(
+                    uri.to_string()
+                )
+            )
 
         if self._data is None or capability not in self._data:
             return u"No data for '{}'".format(capability).decode("ascii")
