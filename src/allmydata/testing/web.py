@@ -93,7 +93,7 @@ def capability_generator(kind):
     # different sequences.
     number = 0
     key_hasher = hashlib.new("sha256")
-    ueb_hasher = hashlib.new("sha256")
+    ueb_hasher = hashlib.new("sha256")  # ueb means "URI Extension Block"
 
     # capabilities are "prefix:<128-bits-base32>:<256-bits-base32>:N:K:size"
     while True:
