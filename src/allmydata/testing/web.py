@@ -225,6 +225,14 @@ class _FakeTahoeUriHandler(Resource, object):
 
 def create_fake_tahoe_root():
     """
+    If you wish to pre-populate data into the fake Tahoe grid, retain
+    a reference to this root and pass it to
+    `create_tahoe_treq_client`. For example::
+
+        root = create_fake_tahoe_root()
+        root.add_data(...)
+        client = create_tahoe_treq_client(root)
+
     :returns: an IResource instance that will handle certain Tahoe URI
         endpoints similar to a real Tahoe server.
     """
