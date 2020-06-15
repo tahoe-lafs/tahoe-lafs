@@ -560,22 +560,22 @@ class DeepCheckResultsRendererElement(Element, ResultsBase, ReloadMixin):
             return tag
         return ""
 
-    # TODO: Probably should use SlotsSequenceElement to render this.
     @renderer
     def corrupt_shares(self, req, tag):
-        return self.monitor.get_status().get_corrupt_shares()
+        shares = self.monitor.get_status().get_corrupt_shares()
+        problems = []
 
-    @renderer
-    def share_problem(self, req, tag):
-    # def render_share_problem(self, req, tag):
-        server, storage_index, sharenum = data
-        nickname = server.get_nickname()
-        tag.fillSlots("serverid", server.get_name())
-        if nickname:
-            tag.fillSlots("nickname", self._html(nickname))
-        tag.fillSlots("si", self._render_si_link(ctx, storage_index))
-        tag.fillSlots("shnum", str(sharenum))
-        return tag
+        for share in shares:
+            server, storage_index, sharenum = share
+            problem = {
+                "serverid": server.get_name(),
+                "nickname": self._html(nickname),
+                "si": self._render_si_link(req, storage_index),
+                "shnum": str(sharenum),
+            }
+            problems.append(problem)
+
+        return SlotsSequenceElement(tag, problems)
 
     @renderer
     def return_to(self, req, tag):

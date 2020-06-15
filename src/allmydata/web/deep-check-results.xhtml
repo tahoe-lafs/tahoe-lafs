@@ -43,13 +43,13 @@
 <h2>Corrupt Shares</h2>
 <p>If repair fails, these shares need to be manually inspected and removed.</p>
 <table t:render="corrupt_shares">
-  <tr t:pattern="header">
+  <tr t:render="header">
     <td>Server</td>
     <td>Server Nickname</td>
     <td>Storage Index</td>
     <td>Share Number</td>
   </tr>
-  <tr t:pattern="item" t:render="share_problem">
+  <tr t:render="item">
     <td><t:slot name="serverid"/></td>
     <td><t:slot name="nickname"/></td>
     <td><t:slot name="si"/></td>
