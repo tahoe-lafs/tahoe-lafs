@@ -63,14 +63,14 @@
 <div>
 <h2>All Results</h2>
 <table t:render="all_objects">
-  <tr t:pattern="header">
+  <tr t:render="header">
     <td>Relative Path</td>
     <td>Healthy</td>
     <td>Recoverable</td>
     <td>Storage Index</td>
     <td>Summary</td>
   </tr>
-  <tr t:pattern="item" t:render="object">
+  <tr t:render="item">
     <td><t:slot name="path"/></td>
     <td><t:slot name="healthy"/></td>
     <td><t:slot name="recoverable"/></td>

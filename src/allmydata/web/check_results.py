@@ -585,25 +585,24 @@ class DeepCheckResultsRendererElement(Element, ResultsBase, ReloadMixin):
             return tags.div(tags.a("Return to file/directory.", href=return_to))
         return ""
 
-    # TODO: use SlotsSequenceElement to render this.
     @renderer
-    def all_objects(self, ctx, data):
-        r = self.monitor.get_status().get_all_results()
-        for path in sorted(r.keys()):
-            yield (path, r[path])
+    def all_objects(self, req, tag):
+        results = self.monitor.get_status().get_all_results()
+        objects = []
 
-    @renderer
-    def object(self, ctx, data):
-    # def render_object(self, ctx, data):
-        # TODO: figure `data` out
-        path, r = data
-        tag.fillSlots("path", self._join_pathstring(path))
-        tag.fillSlots("healthy", str(r.is_healthy()))
-        tag.fillSlots("recoverable", str(r.is_recoverable()))
-        storage_index = r.get_storage_index()
-        tag.fillSlots("storage_index", self._render_si_link(req, storage_index))
-        tag.fillSlots("summary", self._html(r.get_summary()))
-        return tag
+        for path in sorted(results.keys()):
+            result = results.get(path)
+            storage_index = result.get_storage_index()
+            object = {
+                "path": self._join_pathstring(path),
+                "healthy": str(result.is_healthy()),
+                "recoverable": str(result.is_recoverable()),
+                "storage_index": self._render_si_link(req, storage_index),
+                "summary": self._html(result.get_summary()),
+            }
+            objects.append(object)
+
+        return SlotsSequenceElement(tag, objects)
 
     @renderer
     def runtime(self, req, tag):
