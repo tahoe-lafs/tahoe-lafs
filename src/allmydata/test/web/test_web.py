@@ -3080,13 +3080,15 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         res = yield self.get_operation_results(None, "123", "html")
         self.failUnlessIn("Objects Checked: <span>11</span>", res)
         self.failUnlessIn("Objects Healthy: <span>11</span>", res)
-        self.failUnlessIn(FAVICON_MARKUP, res)
+        soup = BeautifulSoup(res, 'html5lib')
+        assert_soup_has_favicon(self, soup)
 
         res = yield self.GET("/operations/123/")
         # should be the same as without the slash
         self.failUnlessIn("Objects Checked: <span>11</span>", res)
         self.failUnlessIn("Objects Healthy: <span>11</span>", res)
-        self.failUnlessIn(FAVICON_MARKUP, res)
+        soup = BeautifulSoup(res, 'html5lib')
+        assert_soup_has_favicon(self, soup)
 
         yield self.shouldFail2(error.Error, "one", "404 Not Found",
                                "No detailed results for SI bogus",
@@ -3136,7 +3138,8 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             self.failUnlessIn("Objects Unhealthy (after repair): <span>0</span>", res)
             self.failUnlessIn("Corrupt Shares (after repair): <span>0</span>", res)
 
-            self.failUnlessIn(FAVICON_MARKUP, res)
+            soup = BeautifulSoup(res, 'html5lib')
+            assert_soup_has_favicon(self, soup)
         d.addCallback(_check_html)
         return d
 
