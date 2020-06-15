@@ -511,26 +511,24 @@ class DeepCheckResultsRendererElement(Element, ResultsBase, ReloadMixin):
             return tag
         return ""
 
-    # TODO: use SlotsSequenceElement to render this.
     @renderer
     def problems(self, req, tag):
         all_objects = self.monitor.get_status().get_all_results()
+        problems = []
+
         for path in sorted(all_objects.keys()):
             cr = all_objects[path]
             assert ICheckResults.providedBy(cr)
             if not cr.is_healthy():
-                yield path, cr
+                summary_text = ""
+                summary = cr.get_summary()
+                if summary:
+                    summary_text = ": " + summary
+                summary_text += " [SI: %s]" % cr.get_storage_index_string()
+                problem = self._join_pathstring(path), ":", self._html(summary_text)
+                problems.append(problem)
 
-    @renderer
-    def render_problem(self, req, tag):
-        # TODO: deal with this.
-        path, cr = data
-        summary_text = ""
-        summary = cr.get_summary()
-        if summary:
-            summary_text = ": " + summary
-        summary_text += " [SI: %s]" % cr.get_storage_index_string()
-        return tag(self._join_pathstring(path), self._html(summary_text))
+        return SlotsSequenceElement(tag, problems)
 
     @renderer
     def servers_with_corrupt_shares_p(self, req, tag):
