@@ -203,18 +203,17 @@ class ResultsBase(object):
         assert isinstance(s, (list, tuple))
         return [html.escape(w) for w in s]
 
-    def want_json(self, ctx):
-        output = get_arg(inevow.IRequest(ctx), "output", "").lower()
+    def want_json(self, req):
+        output = get_arg(req, "output", "").lower()
         if output.lower() == "json":
             return True
         return False
 
-    def _render_si_link(self, ctx, storage_index):
+    def _render_si_link(self, req, storage_index):
         si_s = base32.b2a(storage_index)
-        req = inevow.IRequest(ctx)
         ophandle = req.prepath[-1]
-        target = "%s/operations/%s/%s" % (get_root(ctx), ophandle, si_s)
-        output = get_arg(ctx, "output")
+        target = "%s/operations/%s/%s" % (get_root(req), ophandle, si_s)
+        output = get_arg(req, "output")
         if output:
             target = target + "?output=%s" % output
         return tags.a(si_s, href=target)
