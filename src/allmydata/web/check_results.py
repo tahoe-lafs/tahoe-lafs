@@ -536,24 +536,23 @@ class DeepCheckResultsRendererElement(Element, ResultsBase, ReloadMixin):
             return tag
         return ""
 
-    # TODO: use SlotsSequenceElement to render this.
     @renderer
     def servers_with_corrupt_shares(self, ctx, data):
         servers = [s
                    for (s, storage_index, sharenum)
                    in self.monitor.get_status().get_corrupt_shares()]
         servers.sort(key=lambda s: s.get_longname())
-        return servers
 
-    @renderer
-    def server_problem(self, req, tag):
-    # def server_problem(self, ctx, server):
-        # TODO: where do `server` come from now?
-        data = [server.get_name()]
-        nickname = server.get_nickname()
-        if nickname:
-            data.append(" (%s)" % self._html(nickname))
-        return tag(data)
+        problems = []
+
+        for server in servers:
+            name = [server.get_name()]
+            nick = server.get_nickname()
+            if nick:
+                name.append(" (%s)" % self._html(nickname))
+            problems.append(name)
+
+        return SlotsSequenceElement(tag, problems)
 
     @renderer
     def corrupt_shares_p(self, req, tag):
