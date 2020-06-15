@@ -14,11 +14,11 @@
 
 <p>Counters:</p>
 <ul>
-  <li>Objects Checked: <span t:render="objects_checked" /></li>
-  <li>Objects Healthy: <span t:render="objects_healthy" /></li>
-  <li>Objects Unhealthy: <span t:render="objects_unhealthy" /></li>
-  <li>Objects Unrecoverable: <span t:render="objects_unrecoverable" /></li>
-  <li>Corrupt Shares: <span t:render="count_corrupt_shares" /></li>
+  <li>Objects Checked: <span><t:transparent t:render="objects_checked" /></span></li>
+  <li>Objects Healthy: <span><t:transparent t:render="objects_healthy" /></span></li>
+  <li>Objects Unhealthy: <span><t:transparent t:render="objects_unhealthy" /></span></li>
+  <li>Objects Unrecoverable: <span><t:transparent t:render="objects_unrecoverable" /></span></li>
+  <li>Corrupt Shares: <span><t:transparent t:render="count_corrupt_shares" /></span></li>
 </ul>
 
 <div t:render="problems_p">
