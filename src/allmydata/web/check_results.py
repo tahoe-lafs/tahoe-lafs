@@ -199,12 +199,6 @@ class ResultsBase(object):
         assert isinstance(s, (list, tuple))
         return [html.escape(w) for w in s]
 
-    def want_json(self, req):
-        output = get_arg(req, "output", "").lower()
-        if output.lower() == "json":
-            return True
-        return False
-
     def _render_si_link(self, req, storage_index):
         si_s = base32.b2a(storage_index)
         ophandle = req.prepath[-1]
