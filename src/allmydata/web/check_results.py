@@ -214,6 +214,9 @@ class LiteralCheckResultsRenderer(MultiFormatResource, ResultsBase):
     formatArgument = "output"
 
     def __init__(self, client):
+        """
+        :param allmydata.interfaces.IStatsProducer client: stats provider.
+        """
         super(LiteralCheckResultsRenderer, self).__init__()
         self.client = client
 
@@ -261,9 +264,8 @@ class CheckResultsRenderer(MultiFormatResource):
 
     def __init__(self, client, results):
         """
-        TODO: update these with the correct values.
-        :param allmydata.test.no_network._NoNetworkClient client:
-        :param allmydata.check_results.CheckResults results:
+        :param allmydata.interfaces.IStatsProducer client: stats provider.
+        :param allmydata.interfaces.ICheckResults results: results of check/vefify operation.
         """
         super(CheckResultsRenderer, self).__init__()
         self.client = client
@@ -327,10 +329,12 @@ class CheckAndRepairResultsRenderer(MultiFormatResource):
     formatArgument = "output"
 
     def __init__(self, client, results):
-        # TODO: document params
+        """
+        :param allmydata.interfaces.IStatsProducer client: stats provider.
+        :param allmydata.interfaces.ICheckResults results: check/verify results.
+        """
         super(CheckAndRepairResultsRenderer, self).__init__()
         self.client = client
-        # TODO: use a better name
         self.check_results = None
         if results:
             self.check_results = ICheckAndRepairResults(results)
@@ -395,7 +399,10 @@ class DeepCheckResultsRenderer(MultiFormatResource):
     formatArgument = "output"
 
     def __init__(self, client, monitor):
-        # TODO: document params
+        """
+        :param allmydata.interfaces.IStatsProducer client: stats provider.
+        :param allmydata.monitor.IMonitor monitor: status, progress, and cancellation provider.
+        """
         super(DeepCheckResultsRenderer, self).__init__()
         self.client = client
         self.monitor = monitor
@@ -586,6 +593,10 @@ class DeepCheckAndRepairResultsRenderer(MultiFormatResource):
     formatArgument = "output"
 
     def __init__(self, client, monitor):
+        """
+        :param allmydata.interfaces.IStatsProducer client: stats provider.
+        :param allmydata.monitor.IMonitor monitor: status, progress, and cancellation provider.
+        """
         self.client = client
         self.monitor = monitor
         self.children = {}
@@ -656,7 +667,6 @@ class DeepCheckAndRepairResultsRendererElement(Element, ResultsBase, ReloadMixin
     loader = XMLFile(FilePath(__file__).sibling("deep-check-and-repair-results.xhtml"))
 
     def __init__(self, monitor):
-        # TODO: document params
         super(DeepCheckAndRepairResultsRendererElement, self).__init__()
         self.monitor = monitor
 
