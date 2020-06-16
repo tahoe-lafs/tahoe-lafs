@@ -98,7 +98,7 @@ class ResultsBase(object):
             pathstring = "<root>"
         return pathstring
 
-    def _render_results(self, ctx, cr):
+    def _render_results(self, req, cr):
         assert ICheckResults(cr)
         c = self.client
         sb = c.get_storage_broker()
