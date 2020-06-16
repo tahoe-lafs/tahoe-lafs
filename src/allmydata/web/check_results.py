@@ -251,7 +251,7 @@ class CheckerBase(object):
 
     @renderer
     def storage_index(self, req, tag):
-        return self.r.get_storage_index_string()
+        return self.check_results.get_storage_index_string()
 
     @renderer
     def return_to(self, req, tag):
@@ -273,14 +273,14 @@ class CheckResultsRenderer(MultiFormatResource):
         """
         super(CheckResultsRenderer, self).__init__()
         self.client = client
-        self.r = ICheckResults(results)
+        self.check_results = ICheckResults(results)
 
     def render_HTML(self, req):
-        return renderElement(req, CheckResultsRendererElement(self.client, self.r))
+        return renderElement(req, CheckResultsRendererElement(self.client, self.check_results))
 
     def render_JSON(self, req):
         req.setHeader("content-type", "text/plain")
-        data = json_check_results(self.r)
+        data = json_check_results(self.check_results)
         return json.dumps(data, indent=1) + "\n"
 
 
@@ -288,31 +288,27 @@ class CheckResultsRendererElement(Element, CheckerBase, ResultsBase):
 
     loader = XMLFile(FilePath(__file__).sibling("check-results.xhtml"))
 
-    def __init__(self, client, r):
+    def __init__(self, client, results):
         super(CheckResultsRendererElement, self).__init__()
         self.client = client
-        # TODO: use a better name
-        self.r = r
+        self.check_results = results
 
     @renderer
     def summary(self, req, tag):
         results = []
-        # XXX: how did `data` get populated?
-        if self.r.is_healthy():
+        if self.check_results.is_healthy():
             results.append("Healthy")
-        elif self.r.is_recoverable():
+        elif self.check_results.is_recoverable():
             results.append("Not Healthy!")
         else:
             results.append("Not Recoverable!")
         results.append(" : ")
-        # TODO: what is self._html?
-        # results.append(self._html(self.r.get_summary()))
-        results.append(self.r.get_summary())
+        results.append(self._html(self.check_results.get_summary()))
         return tag(results)
 
     @renderer
     def repair(self, req, tag):
-        if self.r.is_healthy():
+        if self.check_results.is_healthy():
             return ""
 
         #repair = T.form(action=".", method="post",
@@ -329,9 +325,8 @@ class CheckResultsRendererElement(Element, CheckerBase, ResultsBase):
 
     @renderer
     def results(self, req, tag):
-        cr = self._render_results(req, self.r)
+        cr = self._render_results(req, self.check_results)
         return tag(cr)
-
 
 class CheckAndRepairResultsRenderer(MultiFormatResource):
 
@@ -342,17 +337,17 @@ class CheckAndRepairResultsRenderer(MultiFormatResource):
         super(CheckAndRepairResultsRenderer, self).__init__()
         self.client = client
         # TODO: use a better name
-        self.r = None
+        self.check_results = None
         if results:
-            self.r = ICheckAndRepairResults(results)
+            self.check_results = ICheckAndRepairResults(results)
 
     def render_HTML(self, req):
-        elem = CheckAndRepairResultsRendererElement(self.client, self.r)
+        elem = CheckAndRepairResultsRendererElement(self.client, self.check_results)
         return renderElement(req, elem)
 
     def render_JSON(self, req):
         req.setHeader("content-type", "text/plain")
-        data = json_check_and_repair_results(self.r)
+        data = json_check_and_repair_results(self.check_results)
         return json.dumps(data, indent=1) + "\n"
 
 
@@ -360,14 +355,14 @@ class CheckAndRepairResultsRendererElement(Element, CheckerBase, ResultsBase):
 
     loader = XMLFile(FilePath(__file__).sibling("check-and-repair-results.xhtml"))
 
-    def __init__(self, client, r):
+    def __init__(self, client, results):
         super(CheckAndRepairResultsRendererElement, self).__init__()
         self.client = client
-        self.r = r
+        self.check_results = results
 
     @renderer
     def summary(self, req, tag):
-        cr = self.r.get_post_repair_results()
+        cr = self.check_results.get_post_repair_results()
         results = []
         if cr.is_healthy():
             results.append("Healthy")
@@ -381,8 +376,8 @@ class CheckAndRepairResultsRendererElement(Element, CheckerBase, ResultsBase):
 
     @renderer
     def repair_results(self, req, tag):
-        if self.r.get_repair_attempted():
-            if self.r.get_repair_successful():
+        if self.check_results.get_repair_attempted():
+            if self.check_results.get_repair_successful():
                 return tag("Repair successful")
             else:
                 return tag("Repair unsuccessful")
@@ -390,13 +385,13 @@ class CheckAndRepairResultsRendererElement(Element, CheckerBase, ResultsBase):
 
     @renderer
     def post_repair_results(self, req, tag):
-        cr = self._render_results(req, self.r.get_post_repair_results())
+        cr = self._render_results(req, self.check_results.get_post_repair_results())
         return tag(tags.div("Post-Repair Checker Results:"), cr)
 
     @renderer
     def maybe_pre_repair_results(self, req, tag):
-        if self.r.get_repair_attempted():
-            cr = self._render_results(req, self.r.get_pre_repair_results())
+        if self.check_results.get_repair_attempted():
+            cr = self._render_results(req, self.check_results.get_pre_repair_results())
             return tag(tags.div("Pre-Repair Checker Results:"), cr)
         return ""
 
