@@ -88,7 +88,7 @@ def json_check_and_repair_results(r):
     return data
 
 class ResultsBase(object):
-    # self.client must point to the Client, so we can get nicknames and
+    # self._client must point to the Client, so we can get nicknames and
     # determine the permuted peer order
 
     def _join_pathstring(self, path):
@@ -100,7 +100,7 @@ class ResultsBase(object):
 
     def _render_results(self, req, cr):
         assert ICheckResults(cr)
-        c = self.client
+        c = self._client
         sb = c.get_storage_broker()
         r = []
         def add(name, value):
@@ -218,7 +218,7 @@ class LiteralCheckResultsRenderer(MultiFormatResource, ResultsBase):
         :param allmydata.interfaces.IStatsProducer client: stats provider.
         """
         super(LiteralCheckResultsRenderer, self).__init__()
-        self.client = client
+        self._client = client
 
     def render_HTML(self, req):
         return renderElement(req, LiteralCheckResultsElement())
@@ -248,7 +248,7 @@ class CheckerBase(object):
 
     @renderer
     def storage_index(self, req, tag):
-        return self.check_results.get_storage_index_string()
+        return self._results.get_storage_index_string()
 
     @renderer
     def return_to(self, req, tag):
@@ -268,15 +268,15 @@ class CheckResultsRenderer(MultiFormatResource):
         :param allmydata.interfaces.ICheckResults results: results of check/vefify operation.
         """
         super(CheckResultsRenderer, self).__init__()
-        self.client = client
-        self.check_results = ICheckResults(results)
+        self._client = client
+        self._results = ICheckResults(results)
 
     def render_HTML(self, req):
-        return renderElement(req, CheckResultsRendererElement(self.client, self.check_results))
+        return renderElement(req, CheckResultsRendererElement(self._client, self._results))
 
     def render_JSON(self, req):
         req.setHeader("content-type", "text/plain")
-        data = json_check_results(self.check_results)
+        data = json_check_results(self._results)
         return json.dumps(data, indent=1) + "\n"
 
 
@@ -286,25 +286,25 @@ class CheckResultsRendererElement(Element, CheckerBase, ResultsBase):
 
     def __init__(self, client, results):
         super(CheckResultsRendererElement, self).__init__()
-        self.client = client
-        self.check_results = results
+        self._client = client
+        self._results = results
 
     @renderer
     def summary(self, req, tag):
         results = []
-        if self.check_results.is_healthy():
+        if self._results.is_healthy():
             results.append("Healthy")
-        elif self.check_results.is_recoverable():
+        elif self._results.is_recoverable():
             results.append("Not Healthy!")
         else:
             results.append("Not Recoverable!")
         results.append(" : ")
-        results.append(self._html(self.check_results.get_summary()))
+        results.append(self._html(self._results.get_summary()))
         return tag(results)
 
     @renderer
     def repair(self, req, tag):
-        if self.check_results.is_healthy():
+        if self._results.is_healthy():
             return ""
 
         #repair = T.form(action=".", method="post",
@@ -321,7 +321,7 @@ class CheckResultsRendererElement(Element, CheckerBase, ResultsBase):
 
     @renderer
     def results(self, req, tag):
-        cr = self._render_results(req, self.check_results)
+        cr = self._render_results(req, self._results)
         return tag(cr)
 
 class CheckAndRepairResultsRenderer(MultiFormatResource):
@@ -334,18 +334,18 @@ class CheckAndRepairResultsRenderer(MultiFormatResource):
         :param allmydata.interfaces.ICheckResults results: check/verify results.
         """
         super(CheckAndRepairResultsRenderer, self).__init__()
-        self.client = client
-        self.check_results = None
+        self._client = client
+        self._results = None
         if results:
-            self.check_results = ICheckAndRepairResults(results)
+            self._results = ICheckAndRepairResults(results)
 
     def render_HTML(self, req):
-        elem = CheckAndRepairResultsRendererElement(self.client, self.check_results)
+        elem = CheckAndRepairResultsRendererElement(self._client, self._results)
         return renderElement(req, elem)
 
     def render_JSON(self, req):
         req.setHeader("content-type", "text/plain")
-        data = json_check_and_repair_results(self.check_results)
+        data = json_check_and_repair_results(self._results)
         return json.dumps(data, indent=1) + "\n"
 
 
@@ -355,12 +355,12 @@ class CheckAndRepairResultsRendererElement(Element, CheckerBase, ResultsBase):
 
     def __init__(self, client, results):
         super(CheckAndRepairResultsRendererElement, self).__init__()
-        self.client = client
-        self.check_results = results
+        self._client = client
+        self._results = results
 
     @renderer
     def summary(self, req, tag):
-        cr = self.check_results.get_post_repair_results()
+        cr = self._results.get_post_repair_results()
         results = []
         if cr.is_healthy():
             results.append("Healthy")
@@ -374,8 +374,8 @@ class CheckAndRepairResultsRendererElement(Element, CheckerBase, ResultsBase):
 
     @renderer
     def repair_results(self, req, tag):
-        if self.check_results.get_repair_attempted():
-            if self.check_results.get_repair_successful():
+        if self._results.get_repair_attempted():
+            if self._results.get_repair_successful():
                 return tag("Repair successful")
             else:
                 return tag("Repair unsuccessful")
@@ -383,13 +383,13 @@ class CheckAndRepairResultsRendererElement(Element, CheckerBase, ResultsBase):
 
     @renderer
     def post_repair_results(self, req, tag):
-        cr = self._render_results(req, self.check_results.get_post_repair_results())
+        cr = self._render_results(req, self._results.get_post_repair_results())
         return tag(tags.div("Post-Repair Checker Results:"), cr)
 
     @renderer
     def maybe_pre_repair_results(self, req, tag):
-        if self.check_results.get_repair_attempted():
-            cr = self._render_results(req, self.check_results.get_pre_repair_results())
+        if self._results.get_repair_attempted():
+            cr = self._render_results(req, self._results.get_pre_repair_results())
             return tag(tags.div("Pre-Repair Checker Results:"), cr)
         return ""
 
@@ -404,7 +404,7 @@ class DeepCheckResultsRenderer(MultiFormatResource):
         :param allmydata.monitor.IMonitor monitor: status, progress, and cancellation provider.
         """
         super(DeepCheckResultsRenderer, self).__init__()
-        self.client = client
+        self._client = client
         self.monitor = monitor
 
     def getChild(self, name, req):
@@ -415,7 +415,7 @@ class DeepCheckResultsRenderer(MultiFormatResource):
         si = base32.a2b(name)
         r = self.monitor.get_status()
         try:
-            return CheckResultsRenderer(self.client,
+            return CheckResultsRenderer(self._client,
                                         r.get_results_for_storage_index(si))
         except KeyError:
             raise WebError("No detailed results for SI %s" % html.escape(name),
@@ -597,7 +597,7 @@ class DeepCheckAndRepairResultsRenderer(MultiFormatResource):
         :param allmydata.interfaces.IStatsProducer client: stats provider.
         :param allmydata.monitor.IMonitor monitor: status, progress, and cancellation provider.
         """
-        self.client = client
+        self._client = client
         self.monitor = monitor
         self.children = {}
 
@@ -610,7 +610,7 @@ class DeepCheckAndRepairResultsRenderer(MultiFormatResource):
         s = self.monitor.get_status()
         try:
             results = s.get_results_for_storage_index(si)
-            return CheckAndRepairResultsRenderer(self.client, results)
+            return CheckAndRepairResultsRenderer(self._client, results)
         except KeyError:
             raise WebError("No detailed results for SI %s" % html.escape(name),
                            http.NOT_FOUND)
