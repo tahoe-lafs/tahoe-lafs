@@ -1269,5 +1269,5 @@ class TrialTestCase(_TrialTestCase):
 
         if six.PY2:
             if isinstance(msg, six.text_type):
-                return super(self, TrialTestCase).fail(msg.encode("utf8"))
-        return super(self, TrialTestCase).fail(msg)
+                return super(TrialTestCase, self).fail(msg.encode("utf8"))
+        return super(TrialTestCase, self).fail(msg)
