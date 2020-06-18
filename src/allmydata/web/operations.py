@@ -89,6 +89,10 @@ class OphandleTable(resource.Resource, service.Service):
         output = get_arg(req, "output")
         if output:
             target = target + "?output=%s" % output
+
+        # XXX: We have to use nevow.url here because nevow.appserver
+        # is unhappy with anything else; so this gets its own ticket.
+        # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3314
         return url.URL.fromString(target)
 
     def getChild(self, name, req):
