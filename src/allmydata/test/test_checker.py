@@ -20,7 +20,6 @@ from allmydata.storage.server import storage_index_to_dir
 from allmydata.monitor import Monitor
 from allmydata.test.no_network import GridTestMixin
 from allmydata.immutable.upload import Data
-from allmydata.test.common_web import WebRenderingMixin
 from allmydata.mutable.publish import MutableData
 
 from .common import (
