@@ -457,31 +457,32 @@ class DeepCheckResultsRendererElement(Element, ResultsBase, ReloadMixin):
         super(DeepCheckResultsRendererElement, self).__init__()
         self.monitor = monitor
 
-    # TODO: Add a helper to query monitor.get_status.get_counters()
-
     @renderer
     def root_storage_index(self, req, tag):
         return self.monitor.get_status().get_root_storage_index_string()
 
+    def _get_monitor_counter(self, name):
+        return self.monitor.get_status().get_counters().get(name)
+
     @renderer
     def objects_checked(self, req, tag):
-        return str(self.monitor.get_status().get_counters()["count-objects-checked"])
+        return str(self._get_monitor_counter("count-objects-checked"))
 
     @renderer
     def objects_healthy(self, req, tag):
-        return str(self.monitor.get_status().get_counters()["count-objects-healthy"])
+        return str(self._get_monitor_counter("count-objects-healthy"))
 
     @renderer
     def objects_unhealthy(self, req, tag):
-        return str(self.monitor.get_status().get_counters()["count-objects-unhealthy"])
+        return str(self._get_monitor_counter("count-objects-unhealthy"))
 
     @renderer
     def objects_unrecoverable(self, req, tag):
-        return str(self.monitor.get_status().get_counters()["count-objects-unrecoverable"])
+        return str(self._get_monitor_counter("count-objects-unrecoverable"))
 
     @renderer
     def count_corrupt_shares(self, req, tag):
-        return str(self.monitor.get_status().get_counters()["count-corrupt-shares"])
+        return str(self._get_monitor_counter("count-corrupt-shares"))
 
     @renderer
     def problems_p(self, req, tag):
@@ -511,7 +512,7 @@ class DeepCheckResultsRendererElement(Element, ResultsBase, ReloadMixin):
 
     @renderer
     def servers_with_corrupt_shares_p(self, req, tag):
-        if self.monitor.get_status().get_counters()["count-corrupt-shares"]:
+        if self._get_monitor_counter("count-corrupt-shares"):
             return tag
         return ""
 
@@ -535,7 +536,7 @@ class DeepCheckResultsRendererElement(Element, ResultsBase, ReloadMixin):
 
     @renderer
     def corrupt_shares_p(self, req, tag):
-        if self.monitor.get_status().get_counters()["count-corrupt-shares"]:
+        if self._get_monitor_counter("count-corrupt-shares"):
             return tag
         return ""
 
