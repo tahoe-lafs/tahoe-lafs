@@ -15,7 +15,6 @@ from twisted.web.template import (
     tags,
 )
 from allmydata.web.common import (
-    getxmlfile,
     get_arg,
     get_root,
     WebError,
