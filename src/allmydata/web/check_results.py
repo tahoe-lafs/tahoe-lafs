@@ -221,7 +221,7 @@ class LiteralCheckResultsRenderer(MultiFormatResource, ResultsBase):
         self._client = client
 
     def render_HTML(self, req):
-        return renderElement(req, LiteralCheckResultsElement())
+        return renderElement(req, LiteralCheckResultsRendererElement())
 
     def render_JSON(self, req):
         req.setHeader("content-type", "text/plain")
@@ -229,12 +229,12 @@ class LiteralCheckResultsRenderer(MultiFormatResource, ResultsBase):
         return json.dumps(data, indent=1) + "\n"
 
 
-class LiteralCheckResultsElement(Element):
+class LiteralCheckResultsRendererElement(Element):
 
     loader = XMLFile(FilePath(__file__).sibling("literal-check-results.xhtml"))
 
     def __init__(self):
-        super(LiteralCheckResultsElement, self).__init__()
+        super(LiteralCheckResultsRendererElement, self).__init__()
 
     @renderer
     def return_to(self, req, tag):

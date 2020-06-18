@@ -83,7 +83,7 @@ class WebResultsRendering(unittest.TestCase):
         return unittest.TestCase().successResultOf(d)
 
     def test_literal(self):
-        lcr = web_check_results.LiteralCheckResultsElement()
+        lcr = web_check_results.LiteralCheckResultsRendererElement()
 
         html = self.render_element(lcr)
         s = self.remove_tags(html)
