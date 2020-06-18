@@ -514,7 +514,7 @@ class DeepCheckResultsRendererElement(Element, ResultsBase, ReloadMixin):
         return ""
 
     @renderer
-    def servers_with_corrupt_shares(self, ctx, data):
+    def servers_with_corrupt_shares(self, req, tag):
         servers = [s
                    for (s, storage_index, sharenum)
                    in self.monitor.get_status().get_corrupt_shares()]
@@ -524,8 +524,8 @@ class DeepCheckResultsRendererElement(Element, ResultsBase, ReloadMixin):
 
         for server in servers:
             name = [server.get_name()]
-            nick = server.get_nickname()
-            if nick:
+            nickname = server.get_nickname()
+            if nickname:
                 name.append(" (%s)" % self._html(nickname))
             problems.append(name)
 
@@ -544,6 +544,7 @@ class DeepCheckResultsRendererElement(Element, ResultsBase, ReloadMixin):
 
         for share in shares:
             server, storage_index, sharenum = share
+            nickname = server.get_nickname()
             problem = {
                 "serverid": server.get_name(),
                 "nickname": self._html(nickname),
