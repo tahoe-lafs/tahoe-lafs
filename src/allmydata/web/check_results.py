@@ -114,8 +114,6 @@ class ResultsBase(object):
         add("Happiness Level", str(cr.get_happiness()))
         add("Hosts with good shares", str(cr.get_host_counter_good_shares()))
 
-        rrr = cr.get_corrupt_shares()
-
         if cr.get_corrupt_shares():
             badsharemap = []
             for (s, si, shnum) in cr.get_corrupt_shares():
