@@ -30,9 +30,6 @@ from twisted.web import (
 from twisted.internet.defer import (
     succeed,
 )
-from twisted.python.failure import (
-    Failure,
-)
 
 from treq.client import (
     HTTPClient,
@@ -46,12 +43,6 @@ from zope.interface import implementer
 import allmydata.uri
 from allmydata.util import (
     base32,
-)
-from allmydata.interfaces import (
-    ExistingChildError,
-)
-from allmydata.web.common import (
-    humanize_failure,
 )
 
 
