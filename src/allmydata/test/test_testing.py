@@ -47,7 +47,6 @@ from testtools.matchers import (
 )
 from testtools.twistedsupport import (
     succeeded,
-    failed,
 )
 
 
