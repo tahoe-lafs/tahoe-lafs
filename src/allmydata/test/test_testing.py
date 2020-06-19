@@ -71,7 +71,7 @@ class FakeWebTest(TestCase):
         @inlineCallbacks
         def do_test():
             resp = yield http_client.put("http://example.com/uri", content)
-            self.assertEqual(resp.code, 201)
+            self.assertThat(resp.code, Equals(201))
 
             cap_raw = yield resp.content()
             cap = from_string(cap_raw)
@@ -80,7 +80,7 @@ class FakeWebTest(TestCase):
             resp = yield http_client.get(
                 "http://example.com/uri?uri={}".format(cap.to_string())
             )
-            self.assertEqual(resp.code, 200)
+            self.assertThat(resp.code, Equals(200))
 
             round_trip_content = yield resp.content()
 
