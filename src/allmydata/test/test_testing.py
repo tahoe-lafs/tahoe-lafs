@@ -41,7 +41,9 @@ from testtools import (
 from testtools.matchers import (
     Always,
     Equals,
+    IsInstance,
     MatchesStructure,
+    AfterPreprocessing,
 )
 from testtools.twistedsupport import (
     succeeded,
@@ -75,7 +77,7 @@ class FakeWebTest(TestCase):
 
             cap_raw = yield resp.content()
             cap = from_string(cap_raw)
-            self.assertIsInstance(cap, CHKFileURI)
+            self.assertThat(cap, IsInstance(CHKFileURI))
 
             resp = yield http_client.get(
                 "http://example.com/uri?uri={}".format(cap.to_string())
@@ -114,8 +116,13 @@ class FakeWebTest(TestCase):
             self.assertEqual(resp.code, 201)
 
             cap_raw = yield resp.content()
-            cap = from_string(cap_raw)
-            self.assertIsInstance(cap, CHKFileURI)
+            self.assertThat(
+                cap_raw,
+                AfterPreprocessing(
+                    from_string,
+                    IsInstance(CHKFileURI)
+                )
+            )
 
             resp = yield http_client.put("http://example.com/uri", content)
             self.assertThat(resp.code, Equals(200))
