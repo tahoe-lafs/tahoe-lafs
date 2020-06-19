@@ -76,7 +76,8 @@ class _FakeTahoeRoot(Resource, object):
         self.putChild(b"uri", self._uri)
 
     def add_data(self, kind, data):
-        return self._uri.add_data(kind, data)
+        fresh, cap = self._uri.add_data(kind, data)
+        return cap
 
 
 KNOWN_CAPABILITIES = [
@@ -156,39 +157,32 @@ class _FakeTahoeUriHandler(Resource, object):
         capability = next(self.capability_generators[kind])
         return capability
 
-    def add_data(self, kind, data, allow_duplicate=False):
+    def add_data(self, kind, data):
         """
         adds some data to our grid
 
-        :returns: a capability-string
+        :returns: a two-tuple: a bool (True if the data is freshly added) and a capability-string
         """
         if not isinstance(data, bytes):
             raise TypeError("'data' must be bytes")
 
         for k in self.data:
             if self.data[k] == data:
-                if allow_duplicate:
-                    return k
-                raise ValueError(
-                    "Duplicate data"
-                )
+                return (False, k)
 
         cap = self._generate_capability(kind)
-        if cap in self.data:
-            raise ValueError("already have '{}'".format(cap))
+        assert cap not in self.data, "logic error"  # shouldn't happen
         self.data[cap] = data
-        return cap
+        return (True, cap)
 
     def render_PUT(self, request):
         data = request.content.read()
-        request.setResponseCode(http.CREATED)  # real code does this for brand-new files
-        replace = request.args.get("replace", None)
-        try:
-            return self.add_data("URI:CHK:", data, allow_duplicate=replace)
-        except ValueError:
-            msg, code = humanize_failure(Failure(ExistingChildError()))
-            request.setResponseCode(code)
-            return msg
+        fresh, cap = self.add_data("URI:CHK:", data)
+        if fresh:
+            request.setResponseCode(http.CREATED)  # real code does this for brand-new files
+        else:
+            request.setResponseCode(http.OK)  # replaced/modified files
+        return cap
 
     def render_POST(self, request):
         t = request.args[u"t"][0]
@@ -198,7 +192,8 @@ class _FakeTahoeUriHandler(Resource, object):
             "mkdir-immutable": "URI:DIR2-CHK:"
         }
         kind = type_to_kind[t]
-        return self.add_data(kind, data)
+        fresh, cap = self.add_data(kind, data)
+        return cap
 
     def render_GET(self, request):
         uri = DecodedURL.from_text(request.uri.decode('utf8'))
@@ -206,14 +201,19 @@ class _FakeTahoeUriHandler(Resource, object):
         for arg, value in uri.query:
             if arg == u"uri":
                 capability = value
-        if capability is None:
-            raise Exception(
-                "No ?uri= arguent in GET '{}'".format(
-                    uri.to_string()
-                )
-            )
+        # it's legal to use the form "/uri/<capability>"
+        if capability is None and request.postpath and request.postpath[0]:
+            capability = request.postpath[0]
 
+        # if we don't yet have a capability, that's an error
+        if capability is None:
+            request.setResponseCode(http.BAD_REQUEST)
+            return b"GET /uri requires uri="
+
+        # the user gave us a capability; if our Grid doesn't have any
+        # data for it, that's an error.
         if capability not in self.data:
+            request.setResponseCode(http.BAD_REQUEST)
             return u"No data for '{}'".format(capability).decode("ascii")
 
         return self.data[capability]
