@@ -10,11 +10,16 @@ from six.moves import StringIO
 from twisted.internet.protocol import ProcessProtocol
 from twisted.internet.error import ProcessExitedAlready, ProcessDone
 from twisted.internet.defer import inlineCallbacks, Deferred
+
+import pytest
 import pytest_twisted
 
 import util
 
 # see "conftest.py" for the fixtures (e.g. "tor_network")
+
+if sys.platform.startswith('win'):
+    pytest.skip('Skipping Tor tests on Windows', allow_module_level=True)
 
 @pytest_twisted.inlineCallbacks
 def test_onion_service_storage(reactor, request, temp_dir, flog_gatherer, tor_network, tor_introducer_furl):
