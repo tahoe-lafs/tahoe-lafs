@@ -377,7 +377,7 @@ class DownloadStatusPage(Resource):
         self._download_status = download_status
         self.putChild("event_json", _EventJson(self._download_status))
 
-    def render_HTML(self, req):
+    def render_GET(self, req):
         elem = DownloadStatusElement(self._download_status)
         return renderElement(req, elem)
 
