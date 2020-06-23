@@ -366,7 +366,7 @@ class _EventJson(Resource, object):
         return json.dumps(data, indent=1) + "\n"
 
 
-class DownloadStatusPage(MultiFormatResource):
+class DownloadStatusPage(Resource):
     """Renders /status/down-%d."""
 
     def __init__(self, download_status):
