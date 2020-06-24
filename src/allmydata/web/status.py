@@ -192,7 +192,7 @@ class UploadResultsRendererMixin(Element):
         return d
 
 
-class UploadStatusPage(MultiFormatResource):
+class UploadStatusPage(Resource, object):
     """Renders /status/up-%d."""
 
     def __init__(self, upload_status):
@@ -202,7 +202,7 @@ class UploadStatusPage(MultiFormatResource):
         super(UploadStatusPage, self).__init__()
         self._upload_status = upload_status
 
-    def render_HTML(self, req):
+    def render_GET(self, req):
         elem = UploadStatusElement(self._upload_status)
         return renderElement(req, elem)
 
