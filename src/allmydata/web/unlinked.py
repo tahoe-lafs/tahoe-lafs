@@ -3,6 +3,7 @@ import urllib
 from twisted.web import http
 from twisted.internet import defer
 from twisted.python.filepath import FilePath
+from twisted.web.resource import Resource
 from twisted.web.template import (
     XMLFile,
     renderer,
@@ -19,7 +20,6 @@ from allmydata.web.common import (
     WebError,
     get_format,
     get_mutable_type,
-    MultiFormatResource,
 )
 from allmydata.web import status
 
@@ -73,7 +73,7 @@ def POSTUnlinkedCHK(req, client):
     return d
 
 
-class UploadResultsPage(MultiFormatResource):
+class UploadResultsPage(Resource, object):
     """'POST /uri', to create an unlinked file."""
 
     def __init__(self, upload_results):
@@ -83,7 +83,7 @@ class UploadResultsPage(MultiFormatResource):
         super(UploadResultsPage, self).__init__()
         self._upload_results = upload_results
 
-    def render_HTML(self, req):
+    def render_POST(self, req):
         elem = UploadResultsElement(self._upload_results)
         return renderElement(req, elem)
 
