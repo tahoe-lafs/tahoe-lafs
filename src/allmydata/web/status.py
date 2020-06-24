@@ -1250,15 +1250,14 @@ class StatusElement(Element):
         result = dict()
 
         started_s = render_time(op.get_started())
-        result.update({"started": started_s})
+        result["started"] = started_s
 
         si_s = base32.b2a_or_none(op.get_storage_index())
         if si_s is None:
             si_s = "(None)"
 
-        result.update({"si": si_s})
-        result.update({"helper":
-                       {True: "Yes", False: "No"}[op.using_helper()]})
+        result["si"] = si_s
+        result["helper"] = {True: "Yes", False: "No"}[op.using_helper()]
 
         size = op.get_size()
         if size is None:
@@ -1266,38 +1265,38 @@ class StatusElement(Element):
         elif isinstance(size, (int, long, float)):
             size = abbreviate_size(size)
 
-        result.update({"total_size": size})
+        result["total_size"] = size
 
         progress = op.get_progress()
         if IUploadStatus.providedBy(op):
             link = "up-%d" % op.get_counter()
-            result.update({"type": "upload"})
+            result["type"] = "upload"
             # TODO: make an ascii-art bar
             (chk, ciphertext, encandpush) = progress
             progress_s = ("hash: %.1f%%, ciphertext: %.1f%%, encode: %.1f%%" %
                           ((100.0 * chk),
                            (100.0 * ciphertext),
                            (100.0 * encandpush)))
-            result.update({"progress": progress_s})
+            result["progress"] = progress_s
         elif IDownloadStatus.providedBy(op):
             link = "down-%d" % op.get_counter()
-            result.update({"type": "download"})
-            result.update({"progress": "%.1f%%" % (100.0 * progress)})
+            result["type"] = "download"
+            result["progress"] = "%.1f%%" % (100.0 * progress)
         elif IPublishStatus.providedBy(op):
             link = "publish-%d" % op.get_counter()
-            result.update({"type": "publish"})
-            result.update({"progress": "%.1f%%" % (100.0 * progress)})
+            result["type"] = "publish"
+            result["progress"] = "%.1f%%" % (100.0 * progress)
         elif IRetrieveStatus.providedBy(op):
-            result.update({"type": "retrieve"})
+            result["type"] = "retrieve"
             link = "retrieve-%d" % op.get_counter()
-            result.update({"progress": "%.1f%%" % (100.0 * progress)})
+            result["progress"] = "%.1f%%" % (100.0 * progress)
         else:
             assert IServermapUpdaterStatus.providedBy(op)
-            result.update({"type": "mapupdate %s" % op.get_mode()})
+            result["type"] = "mapupdate %s" % op.get_mode()
             link = "mapupdate-%d" % op.get_counter()
-            result.update({"progress": "%.1f%%" % (100.0 * progress)})
+            result["progress"] = "%.1f%%" % (100.0 * progress)
 
-        result.update({"status": tags.a(op.get_status(), href=link)})
+        result["status"] = tags.a(op.get_status(), href=link)
 
         return result
 
