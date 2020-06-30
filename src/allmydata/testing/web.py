@@ -162,7 +162,10 @@ class _FakeTahoeUriHandler(Resource, object):
                 return (False, k)
 
         cap = self._generate_capability(kind)
-        assert cap not in self.data, "logic error"  # shouldn't happen
+        # it should be impossible for this to already be in our data,
+        # but check anyway to be sure
+        if cap in self.data:
+            raise Exception("Internal error; key already exists somehow")
         self.data[cap] = data
         return (True, cap)
 
