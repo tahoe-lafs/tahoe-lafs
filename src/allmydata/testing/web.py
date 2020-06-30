@@ -80,7 +80,7 @@ KNOWN_CAPABILITIES = [
 
 def capability_generator(kind):
     """
-    Deterministically generates a streap of valid capabilities of the
+    Deterministically generates a stream of valid capabilities of the
     given kind. The N, K and size values aren't related to anything
     real.
 
