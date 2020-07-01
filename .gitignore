@@ -44,6 +44,7 @@ zope.interface-*.egg
 /docs/_build/
 /coverage.xml
 /.hypothesis/
+/eliot.log
 
 # This is the plaintext of the private environment needed for some CircleCI
 # operations.  It's never supposed to be checked in.
