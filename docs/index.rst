@@ -24,7 +24,7 @@ Contents:
 
    known_issues
    ../.github/CONTRIBUTING
-   ../.github/CODE_OF_CONDUCT
+   CODE_OF_CONDUCT
 
    servers
    helper
