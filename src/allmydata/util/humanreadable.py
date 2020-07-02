@@ -1,5 +1,12 @@
-import exceptions, os
-from repr import Repr
+from __future__ import division
+from __future__ import absolute_import
+from __future__ import print_function
+from __future__ import unicode_literals
+from future import standard_library
+standard_library.install_aliases()
+
+import os
+from reprlib import Repr
 
 class BetterRepr(Repr, object):
     def __init__(self):
@@ -14,21 +21,21 @@ class BetterRepr(Repr, object):
         self.maxother = 300
 
     def repr_function(self, obj, level):
-        if hasattr(obj, 'func_code'):
-            return '<' + obj.func_name + '() at ' + os.path.basename(obj.func_code.co_filename) + ':' + str(obj.func_code.co_firstlineno) + '>'
+        if hasattr(obj, '__code__'):
+            return '<' + obj.__name__ + '() at ' + os.path.basename(obj.__code__.co_filename) + ':' + str(obj.__code__.co_firstlineno) + '>'
         else:
-            return '<' + obj.func_name + '() at (builtin)'
+            return '<' + obj.__name__ + '() at (builtin)'
 
     def repr_instance_method(self, obj, level):
-        if hasattr(obj, 'func_code'):
-            return '<' + obj.im_class.__name__ + '.' + obj.im_func.__name__ + '() at ' + os.path.basename(obj.im_func.func_code.co_filename) + ':' + str(obj.im_func.func_code.co_firstlineno) + '>'
+        if hasattr(obj, '__code__'):
+            return '<' + obj.__self__.__class__.__name__ + '.' + obj.__func__.__name__ + '() at ' + os.path.basename(obj.__func__.__code__.co_filename) + ':' + str(obj.__func__.__code__.co_firstlineno) + '>'
         else:
-            return '<' + obj.im_class.__name__ + '.' + obj.im_func.__name__ + '() at (builtin)'
+            return '<' + obj.__self__.__class__.__name__ + '.' + obj.__func__.__name__ + '() at (builtin)'
 
     def repr_long(self, obj, level):
         s = repr(obj) # XXX Hope this isn't too slow...
         if len(s) > self.maxlong:
-            i = max(0, (self.maxlong-3)/2)
+            i = max(0, (self.maxlong-3) // 2)
             j = max(0, self.maxlong-3-i)
             s = s[:i] + '...' + s[len(s)-j:]
         if s[-1] == 'L':
@@ -43,7 +50,7 @@ class BetterRepr(Repr, object):
         on it.  If it is an instance of list call self.repr_list() on it. Else
         call Repr.repr_instance().
         """
-        if isinstance(obj, exceptions.Exception):
+        if isinstance(obj, Exception):
             # Don't cut down exception strings so much.
             tms = self.maxstring
             self.maxstring = max(512, tms * 4)
@@ -91,7 +98,7 @@ class BetterRepr(Repr, object):
         if level <= 0: return '{...}'
         s = ''
         n = len(obj)
-        items = obj.items()[:min(n, self.maxdict)]
+        items = list(obj.items())[:min(n, self.maxdict)]
         items.sort()
         for key, val in items:
             entry = self.repr1(key, level-1) + ':' + self.repr1(val, level-1)

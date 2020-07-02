@@ -6,7 +6,7 @@ from __future__ import print_function
 
 from future import standard_library
 standard_library.install_aliases()
-from builtins import *
+from past.builtins import long
 from twisted.trial import unittest
 
 from allmydata.util import humanreadable
@@ -26,8 +26,9 @@ class HumanReadable(unittest.TestCase):
         self.failUnlessEqual(hr(self.test_repr),
                              "<bound method HumanReadable.test_repr of <allmydata.test.test_humanreadable.HumanReadable testMethod=test_repr>>")
         self.failUnlessEqual(hr(long(1)), "1")
-        self.failUnlessEqual(hr(10**40),
-                             "100000000000000000...000000000000000000")
+        self.assertIn(hr(10**40),
+                      ["100000000000000000...000000000000000000",
+                       "100000000000000000...0000000000000000000"])
         self.failUnlessEqual(hr(self), "<allmydata.test.test_humanreadable.HumanReadable testMethod=test_repr>")
         self.failUnlessEqual(hr([1,2]), "[1, 2]")
         self.failUnlessEqual(hr({1:2}), "{1:2}")
@@ -50,4 +51,5 @@ class HumanReadable(unittest.TestCase):
         except Exception as e:
             self.failUnless(
                 hr(e) == "<NoArgumentException>" # python-2.4
-                or hr(e) == "NoArgumentException()") # python-2.5
+                or hr(e) == "NoArgumentException()" # python-2.5
+                or hr(e) == "<NoArgumentException: ()>", hr(e)) # python-3
