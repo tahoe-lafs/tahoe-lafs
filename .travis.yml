@@ -1,7 +1,7 @@
 sudo: false
 language: python
 cache: pip
-dist: trusty
+dist: xenial
 before_cache:
   - rm -f $HOME/.cache/pip/log/debug.log
 git:
@@ -16,19 +16,15 @@ install:
   - if [ "${TRAVIS_OS_NAME}" = "osx" ]; then export PATH=$HOME/Library/Python/2.7/bin:$PATH; fi
   - if [ "${TRAVIS_OS_NAME}" = "osx" ]; then wget https://bootstrap.pypa.io/get-pip.py && sudo python ./get-pip.py; fi
   - pip list
-  - if [ "${TRAVIS_OS_NAME}" = "osx" ]; then pip install --user --upgrade codecov tox setuptools; fi
-  - if [ "${TRAVIS_OS_NAME}" = "linux" ]; then pip install --upgrade codecov tox setuptools; fi
+  - if [ "${TRAVIS_OS_NAME}" = "osx" ]; then pip install --user --upgrade codecov tox setuptools virtualenv; fi
+  - if [ "${TRAVIS_OS_NAME}" = "linux" ]; then pip install --upgrade codecov tox setuptools virtualenv; fi
   - echo $PATH; which python; which pip; which tox
   - python misc/build_helpers/show-tool-versions.py
 
 script:
   - |
     set -eo pipefail
-    if [ "${T}" = "py35" ]; then
-      python3 -m compileall -f -x tahoe-depgraph.py .
-    else
-      tox -e ${T}
-    fi
+    tox -e ${T}
     # To verify that the resultant PyInstaller-generated binary executes
     # cleanly (i.e., that it terminates with an exit code of 0 and isn't
     # failing due to import/packaging-related errors, etc.).
@@ -69,9 +65,8 @@ matrix:
     python: '2.7'
     env: T=pyinstaller LANG=en_US.UTF-8
     language: generic  # "python" is not available on OS-X
-  # this is a "lint" job that checks for python3 compatibility
   - os: linux
-    python: '3.5'
-    env: T=py35
+    python: '3.6'
+    env: T=py36
 
   fast_finish: true
