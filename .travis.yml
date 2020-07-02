@@ -1,7 +1,7 @@
 sudo: false
 language: python
 cache: pip
-dist: trusty
+dist: xenial
 before_cache:
   - rm -f $HOME/.cache/pip/log/debug.log
 git:
