@@ -61,9 +61,24 @@ class List(GridTestMixin, CLITestMixin, unittest.TestCase):
         def _check2(args):
             (rc, out, err) = args
             self.failIfEqual(rc, 0)
-            self.failUnlessReallyEqual(err.strip(), "No such file or directory")
+            self.failUnlessReallyEqual(err.strip(), u"missing: No such file or directory")
             self.failUnlessReallyEqual(out, "")
         d.addCallback(_check2)
+        d.addCallback(lambda ign: self.do_cli("ls", "%s" % "missing1", "%s" % good_arg))
+        def _multiple_dirs_success(args):
+            (rc, out, err) = args
+            self.failUnlessEqual(rc, 0)
+            self.failUnlessReallyEqual(sorted(out.splitlines()), sorted([good_out]))
+            self.failUnlessReallyEqual(err.strip(), u"missing1: No such file or directory")
+        d.addCallback(_multiple_dirs_success)
+        d.addCallback(lambda ign: self.do_cli("ls", "missing1", "missing2"))
+        def _multiple_dirs_fail(args):
+            (rc, out, err) = args
+            self.failIfEqual(rc, 0)
+            self.failUnlessReallyEqual(err.strip(), u"missing1: No such file or directory\n"
+                                                    u"missing2: No such file or directory")
+            self.failUnlessReallyEqual(out, "")
+        d.addCallback(_multiple_dirs_fail)
         d.addCallback(lambda ign: self.do_cli("ls", "1share"))
         def _check3(args):
             (rc, out, err) = args

@@ -105,8 +105,9 @@ class ListOptions(FileStoreOptions):
         ("classify", "F", "Append '/' to directory names, and '*' to mutable."),
         ("json", None, "Show the raw JSON output."),
         ]
-    def parseArgs(self, where=""):
-        self.where = argv_to_unicode(where)
+
+    def parseArgs(self, *where):
+        self.where = [argv_to_unicode(directory) for directory in where]
 
     synopsis = "[options] [PATH]"
 
