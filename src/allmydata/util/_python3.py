@@ -1,3 +1,10 @@
 """Track the port to Python 3."""
 
-PORTED_MODULES = []
+# Keep these sorted alphabetically, to reduce merge conflicts:
+PORTED_MODULES = [
+    "allmydata.util.humanreadable",
+]
+
+PORTED_TEST_MODULES = [
+    "allmydata.test.test_humanreadable",
+]
