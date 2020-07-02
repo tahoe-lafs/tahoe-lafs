@@ -73,5 +73,8 @@ matrix:
   - os: linux
     python: '3.5'
     env: T=py35
+  - os: linux
+    python: '3.8'
+    env: T=py38
 
   fast_finish: true
