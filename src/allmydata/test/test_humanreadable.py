@@ -12,7 +12,7 @@ from allmydata.util import humanreadable
 
 
 
-def foo(): pass # keep the line number constant
+def foo(): pass # FYI foo()'s line number is used in the test below
 
 
 class NoArgumentException(Exception):
