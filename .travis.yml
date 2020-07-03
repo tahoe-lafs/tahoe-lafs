@@ -24,11 +24,7 @@ install:
 script:
   - |
     set -eo pipefail
-    if [ "${T}" = "py35" ]; then
-      python3 -m compileall -f -x tahoe-depgraph.py .
-    else
-      tox -e ${T}
-    fi
+    tox -e ${T}
     # To verify that the resultant PyInstaller-generated binary executes
     # cleanly (i.e., that it terminates with an exit code of 0 and isn't
     # failing due to import/packaging-related errors, etc.).
@@ -69,12 +65,9 @@ matrix:
     python: '2.7'
     env: T=pyinstaller LANG=en_US.UTF-8
     language: generic  # "python" is not available on OS-X
-  # this is a "lint" job that checks for python3 compatibility
-  - os: linux
-    python: '3.5'
-    env: T=py35
   - os: linux
     python: '3.8'
     env: T=py38
 
   fast_finish: true
+  - pip list
