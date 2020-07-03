@@ -27,15 +27,29 @@ added_files = [
     ('src/allmydata/web/static/img/*.png', 'allmydata/web/static/img')]
 
 hidden_imports = [
+    '__builtin__',
     'allmydata.client',
     'allmydata.introducer',
     'allmydata.stats',
+    'base64',
     'cffi',
+    'collections',
+    'commands',
     'Crypto',
+    'functools',
+    'future.backports.misc',
+    'itertools',
+    'math',
     'packaging.specifiers',
+    're',
+    'reprlib',
     'six.moves.html_parser',
+    'subprocess',
+    'UserDict',
+    'UserList',
+    'UserString',
     'yaml',
-    'zfec'
+    'zfec',
 ]
 
 a = Analysis(
