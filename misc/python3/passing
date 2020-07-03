@@ -1,0 +1,7 @@
+allmydata.test.mutable.test_exceptions.Exceptions.test_repr
+allmydata.test.test_observer.Observer.test_lazy_oneshot
+allmydata.test.test_observer.Observer.test_observerlist
+allmydata.test.test_observer.Observer.test_oneshot
+allmydata.test.test_observer.Observer.test_oneshot_fireagain
+allmydata.test.test_python3.Python3PortingEffortTests.test_finished_porting
+allmydata.test.test_python3.Python3PortingEffortTests.test_ported_modules_distinct
