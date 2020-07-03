@@ -1,4 +1,9 @@
-"""Tests for allmydata.util.humanreadable."""
+"""
+Tests for allmydata.util.humanreadable.
+
+This module has been ported to Python 3.
+"""
+
 from __future__ import unicode_literals
 from __future__ import absolute_import
 from __future__ import division

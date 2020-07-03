@@ -3,6 +3,7 @@
 # Keep these sorted alphabetically, to reduce merge conflicts:
 PORTED_MODULES = [
     "allmydata.util.humanreadable",
+    "allmydata.util.namespace",
 ]
 
 PORTED_TEST_MODULES = [

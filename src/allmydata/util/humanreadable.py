@@ -1,3 +1,9 @@
+"""
+Utilities for turning objects into human-readable strings.
+
+This module has been ported to Python 3.
+"""
+
 from __future__ import division
 from __future__ import absolute_import
 from __future__ import print_function
