@@ -54,7 +54,9 @@ install_requires = [
     # * foolscap >= 0.12.5 has ConnectionInfo and ReconnectionInfo
     # * foolscap >= 0.12.6 has an i2p.sam_endpoint() that takes kwargs
     # * foolscap 0.13.2 drops i2p support completely
-    "foolscap == 0.13.1",
+    # * foolscap >= 20.4 is necessary for Python 3
+    "foolscap == 0.13.1; python_version < '3.0'",
+    "foolscap >= 20.4.0; python_version > '3.0'",
 
     # * cryptography 2.6 introduced some ed25519 APIs we rely on.  Note that
     #   Twisted[conch] also depends on cryptography and Twisted[tls]
@@ -133,9 +135,9 @@ tor_requires = [
 ]
 
 i2p_requires = [
-    # txi2p has Python 3 support, but it's unreleased: https://github.com/str4d/txi2p/issues/10.
+    # We (following foolscap) only support i2p under Python 2.
     # Also see the comment in tor_requires.
-    "txi2p @ git+https://github.com/str4d/txi2p@0611b9a86172cb70d2f5e415a88eee9f230590b3#egg=txi2p",
+    "txi2p >= 0.3.2; python_version < '3.0'",
 ]
 
 if len(sys.argv) > 1 and sys.argv[1] == '--fakedependency':
