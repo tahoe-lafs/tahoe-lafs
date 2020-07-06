@@ -44,6 +44,7 @@ incident.
 The following community members have made themselves available for conduct issues:
 
 - Jean-Paul Calderone (jean-paul at leastauthority dot com)
+- meejah (meejah at meejah dot ca)
 
 This Code of Conduct is adapted from the [Contributor Covenant][homepage],
 version 1.3.0, available at
