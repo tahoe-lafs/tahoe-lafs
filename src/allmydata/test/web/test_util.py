@@ -26,6 +26,16 @@ class Util(ShouldFailMixin, testutil.ReallyEqualMixin, unittest.TestCase):
         self.failUnlessReallyEqual(common.abbreviate_time(0.25), "250ms")
         self.failUnlessReallyEqual(common.abbreviate_time(0.0021), "2.1ms")
 
+        self.failUnlessReallyEqual(common.abbreviate_time(None), "")
+        self.failUnlessReallyEqual(common.abbreviate_time(2.5), "2.50s")
+        self.failUnlessReallyEqual(common.abbreviate_time(0.25), "250ms")
+        self.failUnlessReallyEqual(common.abbreviate_time(0.0021), "2.1ms")
+        self.failUnlessReallyEqual(common.abbreviate_time(0.000123), "123us")
+        self.failUnlessReallyEqual(common.abbreviate_rate(None), "")
+        self.failUnlessReallyEqual(common.abbreviate_rate(2500000), "2.50MBps")
+        self.failUnlessReallyEqual(common.abbreviate_rate(30100), "30.1kBps")
+        self.failUnlessReallyEqual(common.abbreviate_rate(123), "123Bps")
+
     def test_compute_rate(self):
         self.failUnlessReallyEqual(common.compute_rate(None, None), None)
         self.failUnlessReallyEqual(common.compute_rate(None, 1), None)

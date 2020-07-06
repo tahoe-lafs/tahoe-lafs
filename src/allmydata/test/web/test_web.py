@@ -954,8 +954,9 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
     def test_storage(self):
         d = self.GET("/storage")
         def _check(res):
-            self.failUnlessIn('Storage Server Status', res)
-            self.failUnlessIn(FAVICON_MARKUP, res)
+            soup = BeautifulSoup(res, 'html5lib')
+            assert_soup_has_text(self, soup, 'Storage Server Status')
+            assert_soup_has_favicon(self, soup)
             res_u = res.decode('utf-8')
             self.failUnlessIn(u'<li>Server Nickname: <span class="nickname mine">fake_nickname \u263A</span></li>', res_u)
         d.addCallback(_check)
@@ -1045,6 +1046,17 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         self.failUnlessReallyEqual(urrm.render_rate(None, 2500000), "2.50MBps")
         self.failUnlessReallyEqual(urrm.render_rate(None, 30100), "30.1kBps")
         self.failUnlessReallyEqual(urrm.render_rate(None, 123), "123Bps")
+
+        drrm = status.DownloadResultsRendererMixin()
+        self.failUnlessReallyEqual(drrm.render_time(None, None), "")
+        self.failUnlessReallyEqual(drrm.render_time(None, 2.5), "2.50s")
+        self.failUnlessReallyEqual(drrm.render_time(None, 0.25), "250ms")
+        self.failUnlessReallyEqual(drrm.render_time(None, 0.0021), "2.1ms")
+        self.failUnlessReallyEqual(drrm.render_time(None, 0.000123), "123us")
+        self.failUnlessReallyEqual(drrm.render_rate(None, None), "")
+        self.failUnlessReallyEqual(drrm.render_rate(None, 2500000), "2.50MBps")
+        self.failUnlessReallyEqual(drrm.render_rate(None, 30100), "30.1kBps")
+        self.failUnlessReallyEqual(drrm.render_rate(None, 123), "123Bps")
 
     def test_GET_FILEURL(self):
         d = self.GET(self.public_url + "/foo/bar.txt")

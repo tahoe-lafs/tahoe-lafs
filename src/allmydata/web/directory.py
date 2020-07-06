@@ -102,12 +102,21 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
         # trying to replicate what I have observed as Nevow behavior
         # for these nodes, which is that a URI like
         # "/uri/URI%3ADIR2%3Aj...vq/" (that is, with a trailing slash
-        # or no further children) renders "this" page
+        # or no further children) renders "this" page.  We also need
+        # to reject "/uri/URI:DIR2:..//", so we look at postpath.
         name = name.decode('utf8')
-        if not name:
-            raise EmptyPathnameComponentError(
-                u"The webapi does not allow empty pathname components",
-            )
+        if not name and req.postpath != ['']:
+            return self
+
+        # Rejecting URIs that contain empty path pieces (for example:
+        # "/uri/URI:DIR2:../foo//new.txt" or "/uri/URI:DIR2:..//") was
+        # the old nevow behavior and it is encoded in the test suite;
+        # we will follow suit.
+        for segment in req.prepath:
+            if not segment:
+                raise EmptyPathnameComponentError(
+                    u"The webapi does not allow empty pathname components",
+                )
 
         d = self.node.get(name)
         d.addBoth(self._got_child, req, name)
