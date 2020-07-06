@@ -64,21 +64,6 @@ class List(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.failUnlessReallyEqual(err.strip(), u"missing: No such file or directory")
             self.failUnlessReallyEqual(out, "")
         d.addCallback(_check2)
-        d.addCallback(lambda ign: self.do_cli("ls", "%s" % "missing1", "%s" % good_arg))
-        def _multiple_dirs_success(args):
-            (rc, out, err) = args
-            self.failUnlessEqual(rc, 0)
-            self.failUnlessReallyEqual(sorted(out.splitlines()), sorted([good_out]))
-            self.failUnlessReallyEqual(err.strip(), u"missing1: No such file or directory")
-        d.addCallback(_multiple_dirs_success)
-        d.addCallback(lambda ign: self.do_cli("ls", "missing1", "missing2"))
-        def _multiple_dirs_fail(args):
-            (rc, out, err) = args
-            self.failIfEqual(rc, 0)
-            self.failUnlessReallyEqual(err.strip(), u"missing1: No such file or directory\n"
-                                                    u"missing2: No such file or directory")
-            self.failUnlessReallyEqual(out, "")
-        d.addCallback(_multiple_dirs_fail)
         d.addCallback(lambda ign: self.do_cli("ls", "1share"))
         def _check3(args):
             (rc, out, err) = args
@@ -318,4 +303,38 @@ class List(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.failUnlessIn('"format": "SDMF"', out)
             self.failUnlessIn('"format": "MDMF"', out)
         d.addCallback(_got_json)
+        return d
+
+    def test_list_multiple_dirs(self):
+
+        self.basedir = "cli/List/list_multi"
+        self.set_up_grid()
+        c0 = self.g.clients[0]
+        small = "small"
+        good_arg = u"fileone".encode(get_io_encoding())
+        good_out = u"fileone".encode(get_io_encoding())
+        d = c0.create_dirnode()
+        def _stash_root_and_create_file(n):
+            self.rootnode = n
+            self.rooturi = n.get_uri()
+            return n.add_file(u"fileone", upload.Data(small, convergence=""))
+        d.addCallback(_stash_root_and_create_file)
+        d.addCallback(lambda ign:
+                      self.do_cli("add-alias", "tahoe", self.rooturi))
+
+        d.addCallback(lambda ign: self.do_cli("ls", "missing1", good_arg))
+        def _multiple_dirs_success(args):
+            (rc, out, err) = args
+            self.failUnlessEqual(rc, 0)
+            self.failUnlessReallyEqual(out.strip(), good_out)
+            self.failUnlessReallyEqual(err.strip(), u"missing1: No such file or directory")
+        d.addCallback(_multiple_dirs_success)
+        d.addCallback(lambda ign: self.do_cli("ls", "missing1", "missing2"))
+        def _multiple_dirs_fail(args):
+            (rc, out, err) = args
+            self.failIfEqual(rc, 0)
+            self.failUnlessReallyEqual(err.strip(), u"missing1: No such file or directory\n"
+                                                    u"missing2: No such file or directory")
+            self.failUnlessReallyEqual(out, "")
+        d.addCallback(_multiple_dirs_fail)
         return d
