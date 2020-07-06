@@ -353,11 +353,12 @@ setup(name="tahoe-lafs", # also set in __init__.py
           # discussion.
           ':sys_platform=="win32"': ["pywin32 != 226"],
           "test": [
+              "flake8",
               # Pin a specific pyflakes so we don't have different folks
               # disagreeing on what is or is not a lint issue.  We can bump
               # this version from time to time, but we will do it
               # intentionally.
-              "pyflakes == 2.1.0",
+              "pyflakes == 2.2.0",
               # coverage 5.0 breaks the integration tests in some opaque way.
               # This probably needs to be addressed in a more permanent way
               # eventually...
