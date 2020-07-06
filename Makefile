@@ -6,7 +6,7 @@ default:
 
 PYTHON=python
 export PYTHON
-PYFLAKES=pyflakes
+PYFLAKES=flake8
 export PYFLAKES
 
 SOURCES=src/allmydata static misc setup.py
