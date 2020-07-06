@@ -9,6 +9,10 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+from future.utils import PY2
+if PY2:
+    from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, int, list, object, range, str, max, min  # noqa: F401
+
 from past.builtins import long
 
 from twisted.trial import unittest
@@ -27,7 +31,7 @@ class NoArgumentException(Exception):
 class HumanReadable(unittest.TestCase):
     def test_repr(self):
         hr = humanreadable.hr
-        self.failUnlessEqual(hr(foo), "<foo() at test_humanreadable.py:15>")
+        self.failUnlessEqual(hr(foo), "<foo() at test_humanreadable.py:24>")
         self.failUnlessEqual(hr(self.test_repr),
                              "<bound method HumanReadable.test_repr of <allmydata.test.test_humanreadable.HumanReadable testMethod=test_repr>>")
         self.failUnlessEqual(hr(long(1)), "1")
