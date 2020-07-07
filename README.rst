@@ -108,4 +108,5 @@ slides.
     :target: https://codecov.io/github/tahoe-lafs/tahoe-lafs?branch=master
 
 .. |Contributor Covenant| image:: https://img.shields.io/badge/Contributor%20Covenant-v2.0%20adopted-ff69b4.svg
+    :alt: code of conduct
     :target: docs/CODE_OF_CONDUCT.md
