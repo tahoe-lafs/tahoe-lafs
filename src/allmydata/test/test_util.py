@@ -60,45 +60,6 @@ class IDLib(unittest.TestCase):
         self.failUnlessEqual(idlib.nodeid_b2a("\x00"*20), "a"*32)
 
 
-class Abbreviate(unittest.TestCase):
-
-    def test_abbrev_time_1s(self):
-        diff = timedelta(seconds=1)
-        s = abbreviate.abbreviate_time(diff)
-        self.assertEqual('1 second ago', s)
-
-    def test_abbrev_time_25s(self):
-        diff = timedelta(seconds=25)
-        s = abbreviate.abbreviate_time(diff)
-        self.assertEqual('25 seconds ago', s)
-
-    def test_abbrev_time_future_5_minutes(self):
-        diff = timedelta(minutes=-5)
-        s = abbreviate.abbreviate_time(diff)
-        self.assertEqual('5 minutes in the future', s)
-
-    def test_abbrev_time_hours(self):
-        diff = timedelta(hours=4)
-        s = abbreviate.abbreviate_time(diff)
-        self.assertEqual('4 hours ago', s)
-
-    def test_abbrev_time_day(self):
-        diff = timedelta(hours=49)  # must be more than 2 days
-        s = abbreviate.abbreviate_time(diff)
-        self.assertEqual('2 days ago', s)
-
-    def test_abbrev_time_month(self):
-        diff = timedelta(days=91)
-        s = abbreviate.abbreviate_time(diff)
-        self.assertEqual('3 months ago', s)
-
-    def test_abbrev_time_year(self):
-        diff = timedelta(weeks=(5 * 52) + 1)
-        s = abbreviate.abbreviate_time(diff)
-        self.assertEqual('5 years ago', s)
-
-
-
 class MyList(list):
     pass
 
@@ -950,6 +911,41 @@ class HashUtilTests(unittest.TestCase):
                         )
 
 class Abbreviate(unittest.TestCase):
+    def test_abbrev_time_1s(self):
+        diff = timedelta(seconds=1)
+        s = abbreviate.abbreviate_time(diff)
+        self.assertEqual('1 second ago', s)
+
+    def test_abbrev_time_25s(self):
+        diff = timedelta(seconds=25)
+        s = abbreviate.abbreviate_time(diff)
+        self.assertEqual('25 seconds ago', s)
+
+    def test_abbrev_time_future_5_minutes(self):
+        diff = timedelta(minutes=-5)
+        s = abbreviate.abbreviate_time(diff)
+        self.assertEqual('5 minutes in the future', s)
+
+    def test_abbrev_time_hours(self):
+        diff = timedelta(hours=4)
+        s = abbreviate.abbreviate_time(diff)
+        self.assertEqual('4 hours ago', s)
+
+    def test_abbrev_time_day(self):
+        diff = timedelta(hours=49)  # must be more than 2 days
+        s = abbreviate.abbreviate_time(diff)
+        self.assertEqual('2 days ago', s)
+
+    def test_abbrev_time_month(self):
+        diff = timedelta(days=91)
+        s = abbreviate.abbreviate_time(diff)
+        self.assertEqual('3 months ago', s)
+
+    def test_abbrev_time_year(self):
+        diff = timedelta(weeks=(5 * 52) + 1)
+        s = abbreviate.abbreviate_time(diff)
+        self.assertEqual('5 years ago', s)
+
     def test_time(self):
         a = abbreviate.abbreviate_time
         self.failUnlessEqual(a(None), "unknown")

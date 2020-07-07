@@ -9,14 +9,8 @@ from __future__ import division
 from __future__ import print_function
 
 from future.utils import PY2
-if False:#PY2:
+if PY2:
     from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, int, list, object, range, str, max, min  # noqa: F401
-
-from unittest import expectedFailure
-
-from pkg_resources import (
-    resource_stream,
-)
 
 from twisted.python.modules import (
     getModule,
