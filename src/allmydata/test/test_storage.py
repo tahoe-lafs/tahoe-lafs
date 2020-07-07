@@ -12,6 +12,17 @@ from twisted.trial import unittest
 
 from twisted.internet import defer
 from twisted.application import service
+from twisted.web.template import flattenString
+
+# We need to use `nevow.inevow.IRequest` for now for compatibility
+# with the code in web/common.py.  Once nevow bits are gone from
+# web/common.py, we can use `twisted.web.iweb.IRequest` here.
+from nevow.inevow import IRequest
+
+from twisted.web.server import Request
+from twisted.web.test.requesthelper import DummyChannel
+from zope.interface import implementer
+
 from foolscap.api import fireEventually
 import itertools
 from allmydata import interfaces
@@ -36,9 +47,12 @@ from allmydata.mutable.layout import MDMFSlotWriteProxy, MDMFSlotReadProxy, \
                                      SHARE_HASH_CHAIN_SIZE
 from allmydata.interfaces import BadWriteEnablerError
 from allmydata.test.common import LoggingServiceParent, ShouldFailMixin
-from allmydata.test.common_web import WebRenderingMixin
 from allmydata.test.no_network import NoNetworkServer
-from allmydata.web.storage import StorageStatus, remove_prefix
+from allmydata.web.storage import (
+    StorageStatus,
+    StorageStatusElement,
+    remove_prefix
+)
 from allmydata.storage_client import (
     _StorageServer,
 )
@@ -2972,6 +2986,39 @@ def remove_tags(s):
     s = re.sub(r'\s+', ' ', s)
     return s
 
+def renderSynchronously(ss):
+    """
+    Return fully rendered HTML document.
+
+    :param _StorageStatus ss: a StorageStatus instance.
+    """
+    return unittest.TestCase().successResultOf(renderDeferred(ss))
+
+def renderDeferred(ss):
+    """
+    Return a `Deferred` HTML renderer.
+
+    :param _StorageStatus ss: a StorageStatus instance.
+    """
+    elem = StorageStatusElement(ss._storage, ss._nickname)
+    return flattenString(None, elem)
+
+def renderJSON(resource):
+    """Render a JSON from the given resource."""
+
+    @implementer(IRequest)
+    class JSONRequest(Request):
+        """
+        A Request with t=json argument added to it.  This is useful to
+        invoke a Resouce.render_JSON() method.
+        """
+        def __init__(self):
+            Request.__init__(self, DummyChannel())
+            self.args = {"t": ["json"]}
+            self.fields = {}
+
+    return resource.render(JSONRequest())
+
 class MyBucketCountingCrawler(BucketCountingCrawler):
     def finished_prefix(self, cycle, prefix):
         BucketCountingCrawler.finished_prefix(self, cycle, prefix)
@@ -3008,7 +3055,7 @@ class BucketCounter(unittest.TestCase, pollmixin.PollMixin):
         w = StorageStatus(ss)
 
         # this sample is before the crawler has started doing anything
-        html = w.renderSynchronously()
+        html = renderSynchronously(w)
         self.failUnlessIn("<h1>Storage Server Status</h1>", html)
         s = remove_tags(html)
         self.failUnlessIn("Accepting new shares: Yes", s)
@@ -3031,7 +3078,7 @@ class BucketCounter(unittest.TestCase, pollmixin.PollMixin):
             self.failUnlessEqual(state["last-complete-prefix"],
                                  ss.bucket_counter.prefixes[0])
             ss.bucket_counter.cpu_slice = 100.0 # finish as fast as possible
-            html = w.renderSynchronously()
+            html = renderSynchronously(w)
             s = remove_tags(html)
             self.failUnlessIn(" Current crawl ", s)
             self.failUnlessIn(" (next work in ", s)
@@ -3043,7 +3090,7 @@ class BucketCounter(unittest.TestCase, pollmixin.PollMixin):
         d.addCallback(lambda ignored: self.poll(_watch))
         def _check2(ignored):
             ss.bucket_counter.cpu_slice = orig_cpu_slice
-            html = w.renderSynchronously()
+            html = renderSynchronously(w)
             s = remove_tags(html)
             self.failUnlessIn("Total buckets: 0 (the number of", s)
             self.failUnless("Next crawl in 59 minutes" in s or "Next crawl in 60 minutes" in s, s)
@@ -3105,20 +3152,20 @@ class BucketCounter(unittest.TestCase, pollmixin.PollMixin):
 
         def _check_1(ignored):
             # no ETA is available yet
-            html = w.renderSynchronously()
+            html = renderSynchronously(w)
             s = remove_tags(html)
             self.failUnlessIn("complete (next work", s)
 
         def _check_2(ignored):
             # one prefix has finished, so an ETA based upon that elapsed time
             # should be available.
-            html = w.renderSynchronously()
+            html = renderSynchronously(w)
             s = remove_tags(html)
             self.failUnlessIn("complete (ETA ", s)
 
         def _check_3(ignored):
             # two prefixes have finished
-            html = w.renderSynchronously()
+            html = renderSynchronously(w)
             s = remove_tags(html)
             self.failUnlessIn("complete (ETA ", s)
             d.callback("done")
@@ -3161,7 +3208,7 @@ class InstrumentedStorageServer(StorageServer):
 class No_ST_BLOCKS_StorageServer(StorageServer):
     LeaseCheckerClass = No_ST_BLOCKS_LeaseCheckingCrawler
 
-class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
+class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin):
 
     def setUp(self):
         self.s = service.MultiService()
@@ -3291,7 +3338,7 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
             self.failIfEqual(sr2["configured-diskbytes"], None)
             self.failIfEqual(sr2["original-sharebytes"], None)
         d.addCallback(_after_first_bucket)
-        d.addCallback(lambda ign: self.render1(webstatus))
+        d.addCallback(lambda ign: renderDeferred(webstatus))
         def _check_html_in_cycle(html):
             s = remove_tags(html)
             self.failUnlessIn("So far, this cycle has examined "
@@ -3366,7 +3413,7 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
             self.failUnlessEqual(count_leases(mutable_si_2), 1)
             self.failUnlessEqual(count_leases(mutable_si_3), 2)
         d.addCallback(_after_first_cycle)
-        d.addCallback(lambda ign: self.render1(webstatus))
+        d.addCallback(lambda ign: renderDeferred(webstatus))
         def _check_html(html):
             s = remove_tags(html)
             self.failUnlessIn("recovered: 0 shares, 0 buckets "
@@ -3375,7 +3422,7 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
                               "(2 mutable / 2 immutable),", s)
             self.failUnlessIn("but expiration was not enabled", s)
         d.addCallback(_check_html)
-        d.addCallback(lambda ign: self.render_json(webstatus))
+        d.addCallback(lambda ign: renderJSON(webstatus))
         def _check_json(raw):
             data = json.loads(raw)
             self.failUnlessIn("lease-checker", data)
@@ -3466,7 +3513,7 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
                 d2.addCallback(_after_first_bucket)
                 return d2
         d.addCallback(_after_first_bucket)
-        d.addCallback(lambda ign: self.render1(webstatus))
+        d.addCallback(lambda ign: renderDeferred(webstatus))
         def _check_html_in_cycle(html):
             s = remove_tags(html)
             # the first bucket encountered gets deleted, and its prefix
@@ -3525,7 +3572,7 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
             self.failUnless(rec["configured-diskbytes"] >= 0,
                             rec["configured-diskbytes"])
         d.addCallback(_after_first_cycle)
-        d.addCallback(lambda ign: self.render1(webstatus))
+        d.addCallback(lambda ign: renderDeferred(webstatus))
         def _check_html(html):
             s = remove_tags(html)
             self.failUnlessIn("Expiration Enabled: expired leases will be removed", s)
@@ -3610,7 +3657,7 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
                 d2.addCallback(_after_first_bucket)
                 return d2
         d.addCallback(_after_first_bucket)
-        d.addCallback(lambda ign: self.render1(webstatus))
+        d.addCallback(lambda ign: renderDeferred(webstatus))
         def _check_html_in_cycle(html):
             s = remove_tags(html)
             # the first bucket encountered gets deleted, and its prefix
@@ -3671,7 +3718,7 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
             self.failUnless(rec["configured-diskbytes"] >= 0,
                             rec["configured-diskbytes"])
         d.addCallback(_after_first_cycle)
-        d.addCallback(lambda ign: self.render1(webstatus))
+        d.addCallback(lambda ign: renderDeferred(webstatus))
         def _check_html(html):
             s = remove_tags(html)
             self.failUnlessIn("Expiration Enabled:"
@@ -3733,7 +3780,7 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
             self.failUnlessEqual(count_shares(mutable_si_3), 1)
             self.failUnlessEqual(count_leases(mutable_si_3), 2)
         d.addCallback(_after_first_cycle)
-        d.addCallback(lambda ign: self.render1(webstatus))
+        d.addCallback(lambda ign: renderDeferred(webstatus))
         def _check_html(html):
             s = remove_tags(html)
             self.failUnlessIn("The following sharetypes will be expired: immutable.", s)
@@ -3790,7 +3837,7 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
             self.failUnlessEqual(count_shares(mutable_si_2), 0)
             self.failUnlessEqual(count_shares(mutable_si_3), 0)
         d.addCallback(_after_first_cycle)
-        d.addCallback(lambda ign: self.render1(webstatus))
+        d.addCallback(lambda ign: renderDeferred(webstatus))
         def _check_html(html):
             s = remove_tags(html)
             self.failUnlessIn("The following sharetypes will be expired: mutable.", s)
@@ -4012,7 +4059,7 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
             self.failUnlessEqual(so_far["corrupt-shares"], [(first_b32, 0)])
         d.addCallback(_after_first_bucket)
 
-        d.addCallback(lambda ign: self.render_json(w))
+        d.addCallback(lambda ign: renderJSON(w))
         def _check_json(raw):
             data = json.loads(raw)
             # grr. json turns all dict keys into strings.
@@ -4021,7 +4068,7 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
             # it also turns all tuples into lists
             self.failUnlessEqual(corrupt_shares, [[first_b32, 0]])
         d.addCallback(_check_json)
-        d.addCallback(lambda ign: self.render1(w))
+        d.addCallback(lambda ign: renderDeferred(w))
         def _check_html(html):
             s = remove_tags(html)
             self.failUnlessIn("Corrupt shares: SI %s shnum 0" % first_b32, s)
@@ -4039,14 +4086,14 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
             self.failUnlessEqual(rec["examined-shares"], 3)
             self.failUnlessEqual(last["corrupt-shares"], [(first_b32, 0)])
         d.addCallback(_after_first_cycle)
-        d.addCallback(lambda ign: self.render_json(w))
+        d.addCallback(lambda ign: renderJSON(w))
         def _check_json_history(raw):
             data = json.loads(raw)
             last = data["lease-checker"]["history"]["0"]
             corrupt_shares = last["corrupt-shares"]
             self.failUnlessEqual(corrupt_shares, [[first_b32, 0]])
         d.addCallback(_check_json_history)
-        d.addCallback(lambda ign: self.render1(w))
+        d.addCallback(lambda ign: renderDeferred(w))
         def _check_html_history(html):
             s = remove_tags(html)
             self.failUnlessIn("Corrupt shares: SI %s shnum 0" % first_b32, s)
@@ -4059,11 +4106,8 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
         d.addBoth(_cleanup)
         return d
 
-    def render_json(self, page):
-        d = self.render1(page, args={"t": ["json"]})
-        return d
 
-class WebStatus(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
+class WebStatus(unittest.TestCase, pollmixin.PollMixin):
 
     def setUp(self):
         self.s = service.MultiService()
@@ -4073,7 +4117,7 @@ class WebStatus(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
 
     def test_no_server(self):
         w = StorageStatus(None)
-        html = w.renderSynchronously()
+        html = renderSynchronously(w)
         self.failUnlessIn("<h1>No Storage Server Running</h1>", html)
 
     def test_status(self):
@@ -4083,7 +4127,7 @@ class WebStatus(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
         ss = StorageServer(basedir, nodeid)
         ss.setServiceParent(self.s)
         w = StorageStatus(ss, "nickname")
-        d = self.render1(w)
+        d = renderDeferred(w)
         def _check_html(html):
             self.failUnlessIn("<h1>Storage Server Status</h1>", html)
             s = remove_tags(html)
@@ -4092,7 +4136,7 @@ class WebStatus(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
             self.failUnlessIn("Accepting new shares: Yes", s)
             self.failUnlessIn("Reserved space: - 0 B (0)", s)
         d.addCallback(_check_html)
-        d.addCallback(lambda ign: self.render_json(w))
+        d.addCallback(lambda ign: renderJSON(w))
         def _check_json(raw):
             data = json.loads(raw)
             s = data["stats"]
@@ -4103,9 +4147,6 @@ class WebStatus(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
         d.addCallback(_check_json)
         return d
 
-    def render_json(self, page):
-        d = self.render1(page, args={"t": ["json"]})
-        return d
 
     def test_status_no_disk_stats(self):
         def call_get_disk_stats(whichdir, reserved_space=0):
@@ -4119,7 +4160,7 @@ class WebStatus(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
         ss = StorageServer(basedir, "\x00" * 20)
         ss.setServiceParent(self.s)
         w = StorageStatus(ss)
-        html = w.renderSynchronously()
+        html = renderSynchronously(w)
         self.failUnlessIn("<h1>Storage Server Status</h1>", html)
         s = remove_tags(html)
         self.failUnlessIn("Accepting new shares: Yes", s)
@@ -4139,7 +4180,7 @@ class WebStatus(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
         ss = StorageServer(basedir, "\x00" * 20)
         ss.setServiceParent(self.s)
         w = StorageStatus(ss)
-        html = w.renderSynchronously()
+        html = renderSynchronously(w)
         self.failUnlessIn("<h1>Storage Server Status</h1>", html)
         s = remove_tags(html)
         self.failUnlessIn("Accepting new shares: No", s)
@@ -4175,7 +4216,7 @@ class WebStatus(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
 
         ss.setServiceParent(self.s)
         w = StorageStatus(ss)
-        html = w.renderSynchronously()
+        html = renderSynchronously(w)
 
         self.failUnlessIn("<h1>Storage Server Status</h1>", html)
         s = remove_tags(html)
@@ -4193,7 +4234,7 @@ class WebStatus(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
         ss = StorageServer(basedir, "\x00" * 20, readonly_storage=True)
         ss.setServiceParent(self.s)
         w = StorageStatus(ss)
-        html = w.renderSynchronously()
+        html = renderSynchronously(w)
         self.failUnlessIn("<h1>Storage Server Status</h1>", html)
         s = remove_tags(html)
         self.failUnlessIn("Accepting new shares: No", s)
@@ -4204,7 +4245,7 @@ class WebStatus(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
         ss = StorageServer(basedir, "\x00" * 20, reserved_space=10e6)
         ss.setServiceParent(self.s)
         w = StorageStatus(ss)
-        html = w.renderSynchronously()
+        html = renderSynchronously(w)
         self.failUnlessIn("<h1>Storage Server Status</h1>", html)
         s = remove_tags(html)
         self.failUnlessIn("Reserved space: - 10.00 MB (10000000)", s)
@@ -4215,16 +4256,16 @@ class WebStatus(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
         ss = StorageServer(basedir, "\x00" * 20, reserved_space=10e6)
         ss.setServiceParent(self.s)
         w = StorageStatus(ss)
-        html = w.renderSynchronously()
+        html = renderSynchronously(w)
         self.failUnlessIn("<h1>Storage Server Status</h1>", html)
         s = remove_tags(html)
         self.failUnlessIn("Reserved space: - 10.00 MB (10000000)", s)
 
     def test_util(self):
-        w = StorageStatus(None)
-        self.failUnlessEqual(w.render_space(None, None), "?")
-        self.failUnlessEqual(w.render_space(None, 10e6), "10000000")
-        self.failUnlessEqual(w.render_abbrev_space(None, None), "?")
-        self.failUnlessEqual(w.render_abbrev_space(None, 10e6), "10.00 MB")
+        w = StorageStatusElement(None, None)
+        self.failUnlessEqual(w.render_space(None), "?")
+        self.failUnlessEqual(w.render_space(10e6), "10000000")
+        self.failUnlessEqual(w.render_abbrev_space(None), "?")
+        self.failUnlessEqual(w.render_abbrev_space(10e6), "10.00 MB")
         self.failUnlessEqual(remove_prefix("foo.bar", "foo."), "bar")
         self.failUnlessEqual(remove_prefix("foo.bar", "baz."), None)
