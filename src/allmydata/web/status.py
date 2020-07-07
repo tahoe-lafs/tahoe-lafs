@@ -468,8 +468,8 @@ class DownloadStatusElement(Element):
     # See #3311: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3311
     @renderer
     def events(self, req, tag):
-        if not self._download_status.storage_index:
-            return
+        if not self._download_status.get_storage_index():
+            return tag
 
         srt = self._short_relative_time
 
