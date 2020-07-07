@@ -107,4 +107,5 @@ slides.
     :alt: test coverage percentage
     :target: https://codecov.io/github/tahoe-lafs/tahoe-lafs?branch=master
 
-.. |Contributor Covenant| image:: https://img.shields.io/badge/Contributor%20Covenant-v2.0%20adopted-ff69b4.svg :target: docs/CODE_OF_CONDUCT.md
+.. |Contributor Covenant| image:: https://img.shields.io/badge/Contributor%20Covenant-v2.0%20adopted-ff69b4.svg
+    :target: docs/CODE_OF_CONDUCT.md
