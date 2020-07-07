@@ -33,7 +33,6 @@ from allmydata.immutable import upload
 from allmydata.immutable.downloader.status import DownloadStatus
 from allmydata.dirnode import DirectoryNode
 from allmydata.nodemaker import NodeMaker
-from allmydata.web import status
 from allmydata.web.common import WebError, MultiFormatPage
 from allmydata.util import fileutil, base32, hashutil
 from allmydata.util.consumer import download_to_data
