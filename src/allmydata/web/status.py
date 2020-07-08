@@ -670,10 +670,8 @@ class DownloadStatusElement(Element):
     @renderer
     def servers_used(self, req, tag):
         servers_used = self.download_results().servers_used
-
         if not servers_used:
             return ""
-
         peerids_s = ", ".join(["[%s]" % idlib.shortnodeid_b2a(peerid)
                                for peerid in servers_used])
         return tags.li("Servers Used: ", peerids_s)

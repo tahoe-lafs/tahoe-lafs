@@ -26,7 +26,7 @@ class FakeDownloadResults(object):
     	self.servers_used = ["s-1", "s-2", "s-3"]
     	self.server_problems = {"s-1": "unknown problem"}
     	self.servermap = {"s-1": [1,2,3], "s-2": [2,3,4], "s-3": [0,1,3]}
-    	self.timings = { "fetch_per_server": {"s-1": [1,2,3], "s-2": [2], "s-3": [3]}}
+    	self.timings = {"fetch_per_server": {"s-1": [1,2,3], "s-2": [2], "s-3": [3]}}
 
 
 @implementer(IDownloadStatus)
