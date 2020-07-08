@@ -138,3 +138,15 @@ class DownloadStatusElementTests(TrialTestCase):
         assert_soup_has_tag_with_content(self, soup, u"li", u"[omwtc]: 1.00s")
         assert_soup_has_tag_with_content(self, soup, u"li", u"[omwte]: 2.00s, 3.00s")
         assert_soup_has_tag_with_content(self, soup, u"li", u"[omwtg]: 3.00s, 2.00s")
+
+    def test_download_status_element_partial(self):
+        """
+        See if we can render the page with incomplete download status.
+        """
+        status = FakeDownloadStatus()
+        result = self._render_download_status_element(status)
+        soup = BeautifulSoup(result, 'html5lib')
+
+        assert_soup_has_tag_with_content(self, soup, u"li", u"Servermap: None")
+        assert_soup_has_tag_with_content(self, soup, u"li", u"File Size: 0 bytes")
+        assert_soup_has_tag_with_content(self, soup, u"li", u"Total: None (None)")
