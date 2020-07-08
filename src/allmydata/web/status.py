@@ -439,7 +439,7 @@ class DownloadStatusElement(Element):
     #
     # See #3310: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3310
     def download_results(self):
-        return defer.maybeDeferred(self._download_status.get_results)
+        return self._download_status.get_results()
 
     def _relative_time(self, t):
         if t is None:
@@ -629,13 +629,9 @@ class DownloadStatusElement(Element):
 
     @renderer
     def results(self, req, tag):
-        d = self.download_results()
-        def _got_results(results):
-            if results:
-                return tag
-            return ""
-        d.addCallback(_got_results)
-        return d
+        if self.download_results():
+            return tag
+        return ""
 
     @renderer
     def started(self, req, tag):
@@ -673,61 +669,47 @@ class DownloadStatusElement(Element):
 
     @renderer
     def servers_used(self, req, tag):
-        d = self.download_results()
-        d.addCallback(lambda res: res.servers_used)
-        def _got(servers_used):
-            if not servers_used:
-                return ""
-            peerids_s = ", ".join(["[%s]" % idlib.shortnodeid_b2a(peerid)
-                                   for peerid in servers_used])
-            return tags.li("Servers Used: ", peerids_s)
-        d.addCallback(_got)
-        return d
+        servers_used = self.download_results().servers_used
+
+        if not servers_used:
+            return ""
+
+        peerids_s = ", ".join(["[%s]" % idlib.shortnodeid_b2a(peerid)
+                               for peerid in servers_used])
+        return tags.li("Servers Used: ", peerids_s)
 
     @renderer
     def servermap(self, req, tag):
-        d = self.download_results()
-        d.addCallback(lambda res: res.servermap)
-        def _render(servermap):
-            if servermap is None:
-                return tag("None")
-            ul = tags.ul()
-            for peerid in sorted(servermap.keys()):
-                peerid_s = idlib.shortnodeid_b2a(peerid)
-                shares_s = ",".join(["#%d" % shnum
-                                     for shnum in servermap[peerid]])
-                ul(tags.li("[%s] has share%s: %s" % (peerid_s,
-                                                     plural(servermap[peerid]),
-                                                     shares_s)))
-            return ul
-        d.addCallback(_render)
-        return d
+        servermap = self.download_results().servermap
+        if not servermap:
+            return tag("None")
+        ul = tags.ul()
+        for peerid in sorted(servermap.keys()):
+            peerid_s = idlib.shortnodeid_b2a(peerid)
+            shares_s = ",".join(["#%d" % shnum
+                                 for shnum in servermap[peerid]])
+            ul(tags.li("[%s] has share%s: %s" % (peerid_s,
+                                                 plural(servermap[peerid]),
+                                                 shares_s)))
+        return ul
 
     @renderer
     def problems(self, req, tag):
-        d = self.download_results()
-        d.addCallback(lambda res: res.server_problems)
-        def _got(server_problems):
-            if not server_problems:
-                return tag("")
-            ul = T.ul()
-            for peerid in sorted(server_problems.keys()):
-                peerid_s = idlib.shortnodeid_b2a(peerid)
-                ul(tags.li("[%s]: %s" % (peerid_s, server_problems[peerid])))
-            return tags.li("Server Problems:", ul)
-        d.addCallback(_got)
-        return d
+        server_problems = self.download_results().server_problems
+        if not server_problems:
+            return ""
+        ul = T.ul()
+        for peerid in sorted(server_problems.keys()):
+            peerid_s = idlib.shortnodeid_b2a(peerid)
+            ul(tags.li("[%s]: %s" % (peerid_s, server_problems[peerid])))
+        return tags.li("Server Problems:", ul)
 
     @renderer
     def file_size(self, req, tag):
-        d = self.download_results()
-        d.addCallback(lambda res: str(res.file_size))
-        return d
+        return tag(str(self.download_results().file_size))
 
     def _get_time(self, name):
-        d = self.download_results()
-        d.addCallback(lambda res: res.timings.get(name))
-        return d
+        return self.download_results().timings.get(name)
 
     @renderer
     def time_total(self, req, tag):
@@ -766,13 +748,10 @@ class DownloadStatusElement(Element):
         return tag(str(self._get_time("paused")))
 
     def _get_rate(self, name):
-        d = self.download_results()
-        def _convert(r):
-            file_size = r.file_size
-            duration = r.timings.get(name)
-            return compute_rate(file_size, duration)
-        d.addCallback(_convert)
-        return d
+        r = self.download_results()
+        file_size = r.file_size
+        duration = r.timings.get(name)
+        return compute_rate(file_size, duration)
 
     @renderer
     def rate_total(self, req, tag):
@@ -796,20 +775,16 @@ class DownloadStatusElement(Element):
 
     @renderer
     def server_timings(self, req, tag):
-        d = self.download_results()
-        d.addCallback(lambda res: res.timings.get("fetch_per_server"))
-        def _render(per_server):
-            if per_server is None:
-                return ""
-            ul = tags.ul()
-            for peerid in sorted(per_server.keys()):
-                peerid_s = idlib.shortnodeid_b2a(peerid)
-                times_s = ", ".join([abbreviate_time(t)
-                                     for t in per_server[peerid]])
-                ul(tags.li("[%s]: %s" % (peerid_s, times_s)))
-            return tags.li("Per-Server Segment Fetch Response Times: ", ul)
-        d.addCallback(_render)
-        return d
+        per_server = self._get_time("fetch_per_server")
+        if per_server is None:
+            return ""
+        ul = tags.ul()
+        for peerid in sorted(per_server.keys()):
+            peerid_s = idlib.shortnodeid_b2a(peerid)
+            times_s = ", ".join([abbreviate_time(t)
+                                 for t in per_server[peerid]])
+            ul(tags.li("[%s]: %s" % (peerid_s, times_s)))
+        return tags.li("Per-Server Segment Fetch Response Times: ", ul)
 
 
 class RetrieveStatusPage(MultiFormatResource):
