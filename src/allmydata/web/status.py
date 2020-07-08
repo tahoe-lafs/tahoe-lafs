@@ -707,7 +707,9 @@ class DownloadStatusElement(Element):
         return tag(str(self.download_results().file_size))
 
     def _get_time(self, name):
-        return self.download_results().timings.get(name)
+        if self.download_results().timings:
+            return self.download_results().timings.get(name)
+        return None
 
     @renderer
     def time_total(self, req, tag):
@@ -748,7 +750,9 @@ class DownloadStatusElement(Element):
     def _get_rate(self, name):
         r = self.download_results()
         file_size = r.file_size
-        duration = r.timings.get(name)
+        duration = None
+        if r.timings:
+            duration = r.timings.get(name)
         return compute_rate(file_size, duration)
 
     @renderer
