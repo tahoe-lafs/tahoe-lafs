@@ -17,6 +17,7 @@ if PY2:
 PORTED_MODULES = [
     "allmydata.util.assertutil",
     "allmydata.util.humanreadable",
+    "allmydata.util.mathutil",
     "allmydata.util.namespace",
     "allmydata.util._python3",
 ]
