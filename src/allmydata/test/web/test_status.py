@@ -21,24 +21,46 @@ from ..common import TrialTestCase
 @implementer(IDownloadResults)
 class FakeDownloadResults(object):
 
-    def __init__(self, file_size):
+    def __init__(self,
+                 file_size=0,
+                 servers_used=None,
+                 server_problems=None,
+                 servermap=None,
+                 timings=None):
+        """
+        See IDownloadResults for parameters.
+        """
     	self.file_size = file_size
-    	self.servers_used = ["s-1", "s-2", "s-3"]
-    	self.server_problems = {"s-1": "unknown problem"}
-    	self.servermap = {"s-1": [1,2,3], "s-2": [2,3,4], "s-3": [0,1,3]}
-    	self.timings = {"fetch_per_server": {"s-1": [1,2,3], "s-2": [2], "s-3": [3]}}
+    	self.servers_used = servers_used
+    	self.server_problems = server_problems
+    	self.servermap = servermap
+    	self.timings = timings
 
 
 @implementer(IDownloadStatus)
 class FakeDownloadStatus(object):
 
-    def __init__(self, storage_index, size):
+    def __init__(self,
+                 storage_index = None,
+                 file_size = 0,
+                 servers_used = None,
+                 server_problems = None,
+                 servermap = None,
+                 timings = None):
+        """
+        See IDownloadStatus and IDownloadResults for parameters.
+        """
         self.storage_index = storage_index
-        self.size = size
+        self.file_size = file_size
         self.dyhb_requests = []
         self.read_events = []
         self.segment_events = []
         self.block_requests = []
+
+        self.servers_used = servers_used
+        self.server_problems = server_problems
+        self.servermap = servermap
+        self.timings = timings
 
     def get_started(self):
         return None
@@ -47,7 +69,7 @@ class FakeDownloadStatus(object):
         return self.storage_index
 
     def get_size(self):
-        return self.size
+        return self.file_size
 
     def using_helper(self):
         return False
@@ -65,18 +87,35 @@ class FakeDownloadStatus(object):
         return 0
 
     def get_results(self):
-        return FakeDownloadResults(self.size)
+        return FakeDownloadResults(self.file_size,
+                                   self.servers_used,
+                                   self.server_problems,
+                                   self.servermap,
+                                   self.timings)
 
 # Tests for code in allmydata.web.status.DownloadStatusElement
 class DownloadStatusElementTests(TrialTestCase):
 
-    def _render_download_status_element(self):
-        elem = DownloadStatusElement(FakeDownloadStatus("si-1", 123))
+    def _render_download_status_element(self, status):
+        """
+        :param IDownloadStatus status:
+        :return: HTML string rendered by DownloadStatusElement
+        """
+        elem = DownloadStatusElement(status)
         d = flattenString(None, elem)
         return self.successResultOf(d)
 
     def test_download_status_element(self):
-        result = self._render_download_status_element()
+        """
+        See if we can render the page almost fully.
+        """
+        status = FakeDownloadStatus("si-1", 123,
+                                    ["s-1", "s-2", "s-3"],
+                                    {"s-1": "unknown problem"},
+                                    {"s-1": [1], "s-2": [1,2], "s-3": [2,3]},
+                                    {"fetch_per_server": {"s-1": [1], "s-2": [2,3], "s-3": [3,2]}})
+
+        result = self._render_download_status_element(status)
         soup = BeautifulSoup(result, 'html5lib')
 
         assert_soup_has_text(self, soup, u"Tahoe-LAFS - File Download Status")
@@ -91,11 +130,11 @@ class DownloadStatusElementTests(TrialTestCase):
         assert_soup_has_tag_with_content(self, soup, u"li", u"[omwtc]: unknown problem")
 
         assert_soup_has_tag_with_content(self, soup, u"li", u"Servermap:")
-        assert_soup_has_tag_with_content(self, soup, u"li", u"[omwtc] has shares: #1,#2,#3")
-        assert_soup_has_tag_with_content(self, soup, u"li", u"[omwte] has shares: #2,#3,#4")
-        assert_soup_has_tag_with_content(self, soup, u"li", u"[omwtg] has shares: #0,#1,#3")
+        assert_soup_has_tag_with_content(self, soup, u"li", u"[omwtc] has share: #1")
+        assert_soup_has_tag_with_content(self, soup, u"li", u"[omwte] has shares: #1,#2")
+        assert_soup_has_tag_with_content(self, soup, u"li", u"[omwtg] has shares: #2,#3")
 
         assert_soup_has_tag_with_content(self, soup, u"li", u"Per-Server Segment Fetch Response Times:")
-        assert_soup_has_tag_with_content(self, soup, u"li", u"[omwtc]: 1.00s, 2.00s, 3.00s")
-        assert_soup_has_tag_with_content(self, soup, u"li", u"[omwte]: 2.00s")
-        assert_soup_has_tag_with_content(self, soup, u"li", u"[omwtg]: 3.00s")
+        assert_soup_has_tag_with_content(self, soup, u"li", u"[omwtc]: 1.00s")
+        assert_soup_has_tag_with_content(self, soup, u"li", u"[omwte]: 2.00s, 3.00s")
+        assert_soup_has_tag_with_content(self, soup, u"li", u"[omwtg]: 3.00s, 2.00s")
