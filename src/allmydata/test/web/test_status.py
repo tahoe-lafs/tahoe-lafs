@@ -30,7 +30,7 @@ class FakeDownloadResults(object):
         """
         See IDownloadResults for parameters.
         """
-    	self.file_size = file_size
+        self.file_size = file_size
         self.servers_used = servers_used
         self.server_problems = server_problems
         self.servermap = servermap
