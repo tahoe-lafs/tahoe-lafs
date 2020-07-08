@@ -18,4 +18,4 @@ if PY2:
 
 
 # The API importers expect:
-from pyutil.asserutil import _assert, precondition, postcondition
+from pyutil.assertutil import _assert, precondition, postcondition
