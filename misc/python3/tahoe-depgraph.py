@@ -60,7 +60,8 @@ class mymf(modulefinder.ModuleFinder):
                 self._depgraph[last_caller.__name__].add(fqname)
         return r
 
-    def load_module(self, fqname, fp, pathname, (suffix, mode, type)):
+    def load_module(self, fqname, fp, pathname, additional_info):
+        (suffix, mode, type) = additional_info
         r = modulefinder.ModuleFinder.load_module(
             self, fqname, fp, pathname, (suffix, mode, type))
         if r is not None:
@@ -71,7 +72,7 @@ class mymf(modulefinder.ModuleFinder):
         return {
             'depgraph': {
                 name: dict.fromkeys(deps, 1)
-                for name, deps in self._depgraph.iteritems()},
+                for name, deps in self._depgraph.items()},
             'types': self._types,
         }
 
@@ -101,20 +102,25 @@ def main(target):
                 filepath = path
             moduleNames.append(reflect.filenameToModuleName(filepath))
 
-    with tempfile.NamedTemporaryFile() as tmpfile:
+    with tempfile.NamedTemporaryFile("w") as tmpfile:
         for moduleName in moduleNames:
             tmpfile.write('import %s\n' % moduleName)
         tmpfile.flush()
         mf.run_script(tmpfile.name)
 
-    with open('tahoe-deps.json', 'wb') as outfile:
+    with open('tahoe-deps.json', 'w') as outfile:
         json_dump(mf.as_json(), outfile)
         outfile.write('\n')
 
-    ported_modules_path = os.path.join(target, "src", "allmydata", "ported-modules.txt")
-    with open(ported_modules_path) as ported_modules:
-        port_status = dict.fromkeys((line.strip() for line in ported_modules), "ported")
-    with open('tahoe-ported.json', 'wb') as outfile:
+    ported_modules_path = os.path.join(target, "src", "allmydata", "util", "_python3.py")
+    with open(ported_modules_path) as f:
+        ported_modules = {}
+        exec(f.read(), ported_modules, ported_modules)
+        port_status = dict.fromkeys(
+            ported_modules["PORTED_MODULES"] + ported_modules["PORTED_TEST_MODULES"],
+            "ported"
+        )
+    with open('tahoe-ported.json', 'w') as outfile:
         json_dump(port_status, outfile)
         outfile.write('\n')
 
