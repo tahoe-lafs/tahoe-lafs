@@ -1,57 +1,21 @@
 """
 Tests useful in assertion checking, prints out nicely formated messages too.
+
+Backwards compatibility layer, the versions in pyutil are better maintained and
+have tests.
+
+Ported to Python 3.
 """
 
-from allmydata.util.humanreadable import hr
+from __future__ import division
+from __future__ import absolute_import
+from __future__ import print_function
+from __future__ import unicode_literals
 
-def _assert(___cond=False, *___args, **___kwargs):
-    if ___cond:
-        return True
-    msgbuf=[]
-    if ___args:
-        msgbuf.append("%s %s" % tuple(map(hr, (___args[0], type(___args[0]),))))
-        msgbuf.extend([", %s %s" % tuple(map(hr, (arg, type(arg),))) for arg in ___args[1:]])
-        if ___kwargs:
-            msgbuf.append(", %s: %s %s" % ((___kwargs.items()[0][0],) + tuple(map(hr, (___kwargs.items()[0][1], type(___kwargs.items()[0][1]),)))))
-    else:
-        if ___kwargs:
-            msgbuf.append("%s: %s %s" % ((___kwargs.items()[0][0],) + tuple(map(hr, (___kwargs.items()[0][1], type(___kwargs.items()[0][1]),)))))
-    msgbuf.extend([", %s: %s %s" % tuple(map(hr, (k, v, type(v),))) for k, v in ___kwargs.items()[1:]])
+from future.utils import PY2
+if PY2:
+    from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, int, list, object, range, str, max, min  # noqa: F401
 
-    raise AssertionError("".join(msgbuf))
 
-def precondition(___cond=False, *___args, **___kwargs):
-    if ___cond:
-        return True
-    msgbuf=["precondition", ]
-    if ___args or ___kwargs:
-        msgbuf.append(": ")
-    if ___args:
-        msgbuf.append("%s %s" % tuple(map(hr, (___args[0], type(___args[0]),))))
-        msgbuf.extend([", %s %s" % tuple(map(hr, (arg, type(arg),))) for arg in ___args[1:]])
-        if ___kwargs:
-            msgbuf.append(", %s: %s %s" % ((___kwargs.items()[0][0],) + tuple(map(hr, (___kwargs.items()[0][1], type(___kwargs.items()[0][1]),)))))
-    else:
-        if ___kwargs:
-            msgbuf.append("%s: %s %s" % ((___kwargs.items()[0][0],) + tuple(map(hr, (___kwargs.items()[0][1], type(___kwargs.items()[0][1]),)))))
-    msgbuf.extend([", %s: %s %s" % tuple(map(hr, (k, v, type(v),))) for k, v in ___kwargs.items()[1:]])
-
-    raise AssertionError("".join(msgbuf))
-
-def postcondition(___cond=False, *___args, **___kwargs):
-    if ___cond:
-        return True
-    msgbuf=["postcondition", ]
-    if ___args or ___kwargs:
-        msgbuf.append(": ")
-    if ___args:
-        msgbuf.append("%s %s" % tuple(map(hr, (___args[0], type(___args[0]),))))
-        msgbuf.extend([", %s %s" % tuple(map(hr, (arg, type(arg),))) for arg in ___args[1:]])
-        if ___kwargs:
-            msgbuf.append(", %s: %s %s" % ((___kwargs.items()[0][0],) + tuple(map(hr, (___kwargs.items()[0][1], type(___kwargs.items()[0][1]),)))))
-    else:
-        if ___kwargs:
-            msgbuf.append("%s: %s %s" % ((___kwargs.items()[0][0],) + tuple(map(hr, (___kwargs.items()[0][1], type(___kwargs.items()[0][1]),)))))
-    msgbuf.extend([", %s: %s %s" % tuple(map(hr, (k, v, type(v),))) for k, v in ___kwargs.items()[1:]])
-
-    raise AssertionError("".join(msgbuf))
+# The API importers expect:
+from pyutil.asserutil import _assert, precondition, postcondition
