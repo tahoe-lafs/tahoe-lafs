@@ -10,6 +10,11 @@ self: super: {
       # NixOS autobahn package has trollius as a dependency, although
       # it is optional. Trollius is unmaintained and fails on CI.
       autobahn = python-super.callPackage ./autobahn.nix { };
+
+      # Porting to Python 3 is greatly aided by the future package.  A
+      # slightly newer version than appears in nixos 19.09 is helpful.
+      future = python-super.callPackage ./future.nix { };
+
     };
   };
 }

@@ -50,6 +50,7 @@ python.pkgs.buildPythonPackage rec {
     setuptoolsTrial pyasn1 zope_interface
     service-identity pyyaml magic-wormhole treq
     eliot autobahn cryptography setuptools
+    future
   ];
 
   checkInputs = with python.pkgs; [
