@@ -698,7 +698,7 @@ class DownloadStatusElement(Element):
         server_problems = self.download_results().server_problems
         if not server_problems:
             return ""
-        ul = T.ul()
+        ul = tags.ul()
         for peerid in sorted(server_problems.keys()):
             peerid_s = idlib.shortnodeid_b2a(peerid)
             ul(tags.li("[%s]: %s" % (peerid_s, server_problems[peerid])))
