@@ -19,3 +19,5 @@ if PY2:
 
 # The API importers expect:
 from pyutil.assertutil import _assert, precondition, postcondition
+
+__all__ = ["_assert", "precondition", "postcondition"]
