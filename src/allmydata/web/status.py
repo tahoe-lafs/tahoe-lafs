@@ -25,6 +25,7 @@ from allmydata.web.common import (
     render_time,
     MultiFormatResource,
     SlotsSequenceElement,
+    WebError,
 )
 
 from allmydata.interfaces import (
@@ -1171,9 +1172,7 @@ class Status(MultiFormatResource):
         try:
             stype, count_s = path.split("-")
         except ValueError:
-            raise RuntimeError(
-                "no - in '{}'".format(path)
-            )
+            raise WebError("no '-' in '{}'".format(path))
         count = int(count_s)
         if stype == "up":
             for s in itertools.chain(h.list_all_upload_statuses(),
