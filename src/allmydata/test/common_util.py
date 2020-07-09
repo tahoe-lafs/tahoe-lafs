@@ -1,6 +1,6 @@
 from __future__ import print_function
 
-import os, signal, sys, time
+import os, signal, time
 from random import randrange
 from six.moves import StringIO
 
@@ -8,7 +8,6 @@ from twisted.internet import reactor, defer
 from twisted.python import failure
 from twisted.trial import unittest
 
-from allmydata.util import fileutil, log
 from ..util.assertutil import precondition
 from allmydata.util.encodingutil import (unicode_platform, get_filesystem_encoding,
                                          get_io_encoding)

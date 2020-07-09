@@ -16,9 +16,6 @@ __all__ = [
     "opt_help_eliot_destinations",
 ]
 
-from sys import (
-    stdout,
-)
 from functools import wraps
 from logging import (
     INFO,
@@ -40,14 +37,10 @@ from attr.validators import (
 from eliot import (
     ILogger,
     Message,
-    FileDestination,
     add_destinations,
     remove_destination,
     write_traceback,
     start_action,
-)
-from eliot._validation import (
-    ValidationError,
 )
 from eliot.twisted import (
     DeferredContext,
@@ -56,12 +49,6 @@ from eliot.twisted import (
 
 from twisted.python.usage import (
     UsageError,
-)
-from twisted.python.filepath import (
-    FilePath,
-)
-from twisted.python.logfile import (
-    LogFile,
 )
 from twisted.logger import (
     ILogObserver,

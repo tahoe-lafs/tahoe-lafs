@@ -12,7 +12,7 @@ from errno import ENOENT
 if sys.platform == "win32":
     from ctypes import WINFUNCTYPE, WinError, windll, POINTER, byref, c_ulonglong, \
         create_unicode_buffer, get_last_error
-    from ctypes.wintypes import BOOL, DWORD, LPCWSTR, LPWSTR, LPVOID, HANDLE
+    from ctypes.wintypes import BOOL, DWORD, LPCWSTR, LPWSTR, LPVOID
 
 from twisted.python import log
 
