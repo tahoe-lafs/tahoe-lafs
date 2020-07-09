@@ -10,7 +10,6 @@ from allmydata.web.status import (
 
 from .common import (
     assert_soup_has_favicon,
-    assert_soup_has_text,
     assert_soup_has_tag_with_content,
 )
 from ..common import TrialTestCase
