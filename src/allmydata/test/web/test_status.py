@@ -68,5 +68,3 @@ class StatusTests(TrialTestCase):
             self, soup, u"h2",
             "Recent Operations:"
         )
-
-        print doc
