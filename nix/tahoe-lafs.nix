@@ -4,7 +4,7 @@
 , setuptools, setuptoolsTrial, pyasn1, zope_interface
 , service-identity, pyyaml, magic-wormhole, treq, appdirs
 , beautifulsoup4, eliot, autobahn, cryptography
-, html5lib, future, pyutil
+, html5lib, pyutil
 }:
 python.pkgs.buildPythonPackage rec {
   version = "1.14.0.dev";
