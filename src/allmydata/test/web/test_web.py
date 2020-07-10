@@ -65,7 +65,7 @@ from ..common_web import (
     Error,
 )
 from allmydata.client import _Client, SecretHolder
-from .common import unknown_rwcap, unknown_rocap, unknown_immcap, FAVICON_MARKUP
+from .common import unknown_rwcap, unknown_rocap, unknown_immcap
 
 # create a fake uploader/downloader, and a couple of fake dirnodes, then
 # create a webserver that works against them
