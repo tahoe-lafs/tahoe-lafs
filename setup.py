@@ -54,7 +54,9 @@ install_requires = [
     # * foolscap >= 0.12.5 has ConnectionInfo and ReconnectionInfo
     # * foolscap >= 0.12.6 has an i2p.sam_endpoint() that takes kwargs
     # * foolscap 0.13.2 drops i2p support completely
-    "foolscap == 0.13.1",
+    # * foolscap >= 20.4 is necessary for Python 3
+    "foolscap == 0.13.1 ; python_version < '3.0'",
+    "foolscap >= 20.4.0 ; python_version > '3.0'",
 
     # * cryptography 2.6 introduced some ed25519 APIs we rely on.  Note that
     #   Twisted[conch] also depends on cryptography and Twisted[tls]
@@ -119,6 +121,9 @@ install_requires = [
 
     # WebSocket library for twisted and asyncio
     "autobahn >= 19.5.2",
+
+    # Support for Python 3 transition
+    "future >= 0.18.2",
 ]
 
 setup_requires = [
@@ -353,11 +358,12 @@ setup(name="tahoe-lafs", # also set in __init__.py
           # discussion.
           ':sys_platform=="win32"': ["pywin32 != 226"],
           "test": [
+              "flake8",
               # Pin a specific pyflakes so we don't have different folks
               # disagreeing on what is or is not a lint issue.  We can bump
               # this version from time to time, but we will do it
               # intentionally.
-              "pyflakes == 2.1.0",
+              "pyflakes == 2.2.0",
               # coverage 5.0 breaks the integration tests in some opaque way.
               # This probably needs to be addressed in a more permanent way
               # eventually...

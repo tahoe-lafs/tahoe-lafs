@@ -1,10 +1,16 @@
 """
 Tests related to the Python 3 porting effort itself.
-"""
 
-from pkg_resources import (
-    resource_stream,
-)
+This module has been ported to Python 3.
+"""
+from __future__ import unicode_literals
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
+from future.utils import PY2
+if PY2:
+    from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, int, list, object, range, str, max, min  # noqa: F401
 
 from twisted.python.modules import (
     getModule,
@@ -13,11 +19,18 @@ from twisted.trial.unittest import (
     SynchronousTestCase,
 )
 
+from allmydata.util._python3 import PORTED_MODULES, PORTED_TEST_MODULES
+
 
 class Python3PortingEffortTests(SynchronousTestCase):
+
     def test_finished_porting(self):
         """
         Tahoe-LAFS has been ported to Python 3.
+
+        Once
+        https://tahoe-lafs.org/trac/tahoe-lafs/milestone/Support%20Python%203
+        is completed this test should pass (and can be deleted!).
         """
         tahoe_lafs_module_names = set(all_module_names("allmydata"))
         ported_names = set(ported_module_names())
@@ -31,7 +44,10 @@ class Python3PortingEffortTests(SynchronousTestCase):
                 ),
             ),
         )
-    test_finished_porting.todo = "https://tahoe-lafs.org/trac/tahoe-lafs/milestone/Support%20Python%203 should be completed"
+    if PY2:
+        test_finished_porting.skip = "For some reason todo isn't working on Python 2 now"
+    else:
+        test_finished_porting.todo = "https://tahoe-lafs.org/trac/tahoe-lafs/milestone/Support%20Python%203 should be completed"
 
     def test_ported_modules_exist(self):
         """
@@ -70,18 +86,18 @@ def all_module_names(toplevel):
     """
     allmydata = getModule(toplevel)
     for module in allmydata.walkModules():
-        yield module.name.decode("utf-8")
+        name = module.name
+        if PY2:
+            name = name.decode("utf-8")
+        yield name
 
 
 def ported_module_names():
     """
-    :return list[unicode]: A ``set`` of ``unicode`` giving the names of
+    :return list[unicode]: A ``list`` of ``unicode`` giving the names of
         Tahoe-LAFS modules which have been ported to Python 3.
     """
-    return resource_stream(
-        "allmydata",
-        u"ported-modules.txt",
-    ).read().splitlines()
+    return PORTED_MODULES + PORTED_TEST_MODULES
 
 
 def unported_report(tahoe_lafs_module_names, ported_names):
@@ -100,8 +116,8 @@ def count_lines(module_name):
     try:
         source = module.filePath.getContent()
     except Exception as e:
-        print(module_name, e)
+        print((module_name, e))
         return 0
     lines = source.splitlines()
-    nonblank = filter(None, lines)
+    nonblank = [_f for _f in lines if _f]
     return len(nonblank)

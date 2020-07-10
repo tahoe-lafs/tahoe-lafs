@@ -1,8 +1,5 @@
 from __future__ import print_function
 
-
-def foo(): pass # keep the line number constant
-
 import binascii
 import six
 import hashlib
@@ -17,7 +14,7 @@ from twisted.internet import defer, reactor
 from twisted.python.failure import Failure
 from twisted.python import log
 
-from allmydata.util import base32, idlib, humanreadable, mathutil, hashutil
+from allmydata.util import base32, idlib, mathutil, hashutil
 from allmydata.util import assertutil, fileutil, deferredutil, abbreviate
 from allmydata.util import limiter, time_format, pollmixin
 from allmydata.util import statistics, dictutil, pipeline, yamlutil
@@ -57,80 +54,10 @@ class Base32(unittest.TestCase):
         self.failUnlessEqual(base32.a2b("ci2a"), "\x12\x34")
         self.failUnlessRaises(AssertionError, base32.a2b, "b0gus")
 
+
 class IDLib(unittest.TestCase):
     def test_nodeid_b2a(self):
         self.failUnlessEqual(idlib.nodeid_b2a("\x00"*20), "a"*32)
-
-class NoArgumentException(Exception):
-    def __init__(self):
-        pass
-
-class HumanReadable(unittest.TestCase):
-    def test_repr(self):
-        hr = humanreadable.hr
-        self.failUnlessEqual(hr(foo), "<foo() at test_util.py:4>")
-        self.failUnlessEqual(hr(self.test_repr),
-                             "<bound method HumanReadable.test_repr of <allmydata.test.test_util.HumanReadable testMethod=test_repr>>")
-        self.failUnlessEqual(hr(long(1)), "1")
-        self.failUnlessEqual(hr(10**40),
-                             "100000000000000000...000000000000000000")
-        self.failUnlessEqual(hr(self), "<allmydata.test.test_util.HumanReadable testMethod=test_repr>")
-        self.failUnlessEqual(hr([1,2]), "[1, 2]")
-        self.failUnlessEqual(hr({1:2}), "{1:2}")
-        try:
-            raise ValueError
-        except Exception as e:
-            self.failUnless(
-                hr(e) == "<ValueError: ()>" # python-2.4
-                or hr(e) == "ValueError()") # python-2.5
-        try:
-            raise ValueError("oops")
-        except Exception as e:
-            self.failUnless(
-                hr(e) == "<ValueError: 'oops'>" # python-2.4
-                or hr(e) == "ValueError('oops',)") # python-2.5
-        try:
-            raise NoArgumentException
-        except Exception as e:
-            self.failUnless(
-                hr(e) == "<NoArgumentException>" # python-2.4
-                or hr(e) == "NoArgumentException()") # python-2.5
-
-    def test_abbrev_time_1s(self):
-        diff = timedelta(seconds=1)
-        s = abbreviate.abbreviate_time(diff)
-        self.assertEqual('1 second ago', s)
-
-    def test_abbrev_time_25s(self):
-        diff = timedelta(seconds=25)
-        s = abbreviate.abbreviate_time(diff)
-        self.assertEqual('25 seconds ago', s)
-
-    def test_abbrev_time_future_5_minutes(self):
-        diff = timedelta(minutes=-5)
-        s = abbreviate.abbreviate_time(diff)
-        self.assertEqual('5 minutes in the future', s)
-
-    def test_abbrev_time_hours(self):
-        diff = timedelta(hours=4)
-        s = abbreviate.abbreviate_time(diff)
-        self.assertEqual('4 hours ago', s)
-
-    def test_abbrev_time_day(self):
-        diff = timedelta(hours=49)  # must be more than 2 days
-        s = abbreviate.abbreviate_time(diff)
-        self.assertEqual('2 days ago', s)
-
-    def test_abbrev_time_month(self):
-        diff = timedelta(days=91)
-        s = abbreviate.abbreviate_time(diff)
-        self.assertEqual('3 months ago', s)
-
-    def test_abbrev_time_year(self):
-        diff = timedelta(weeks=(5 * 52) + 1)
-        s = abbreviate.abbreviate_time(diff)
-        self.assertEqual('5 years ago', s)
-
 
 
 class MyList(list):
@@ -984,6 +911,41 @@ class HashUtilTests(unittest.TestCase):
                         )
 
 class Abbreviate(unittest.TestCase):
+    def test_abbrev_time_1s(self):
+        diff = timedelta(seconds=1)
+        s = abbreviate.abbreviate_time(diff)
+        self.assertEqual('1 second ago', s)
+
+    def test_abbrev_time_25s(self):
+        diff = timedelta(seconds=25)
+        s = abbreviate.abbreviate_time(diff)
+        self.assertEqual('25 seconds ago', s)
+
+    def test_abbrev_time_future_5_minutes(self):
+        diff = timedelta(minutes=-5)
+        s = abbreviate.abbreviate_time(diff)
+        self.assertEqual('5 minutes in the future', s)
+
+    def test_abbrev_time_hours(self):
+        diff = timedelta(hours=4)
+        s = abbreviate.abbreviate_time(diff)
+        self.assertEqual('4 hours ago', s)
+
+    def test_abbrev_time_day(self):
+        diff = timedelta(hours=49)  # must be more than 2 days
+        s = abbreviate.abbreviate_time(diff)
+        self.assertEqual('2 days ago', s)
+
+    def test_abbrev_time_month(self):
+        diff = timedelta(days=91)
+        s = abbreviate.abbreviate_time(diff)
+        self.assertEqual('3 months ago', s)
+
+    def test_abbrev_time_year(self):
+        diff = timedelta(weeks=(5 * 52) + 1)
+        s = abbreviate.abbreviate_time(diff)
+        self.assertEqual('5 years ago', s)
+
     def test_time(self):
         a = abbreviate.abbreviate_time
         self.failUnlessEqual(a(None), "unknown")
