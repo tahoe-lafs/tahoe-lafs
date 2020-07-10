@@ -671,9 +671,13 @@ class DeepCheckAndRepairResultsRendererElement(Element, ResultsBase, ReloadMixin
 
     @renderer
     def root_storage_index(self, req, tag):
+        if not self.monitor.get_status():
+            return ""
         return self.monitor.get_status().get_root_storage_index_string()
 
     def _get_counter(self, name):
+        if not self.monitor.get_status():
+            return ""
         return str(self.monitor.get_status().get_counters().get(name))
 
     @renderer
@@ -718,8 +722,7 @@ class DeepCheckAndRepairResultsRendererElement(Element, ResultsBase, ReloadMixin
 
     @renderer
     def pre_repair_problems_p(self, req, tag):
-        c = self.monitor.get_status().get_counters()
-        if c["count-objects-unhealthy-pre-repair"]:
+        if self._get_counter("count-objects-unhealthy-pre-repair"):
             return tag
         return ""
 
@@ -740,9 +743,8 @@ class DeepCheckAndRepairResultsRendererElement(Element, ResultsBase, ReloadMixin
 
     @renderer
     def post_repair_problems_p(self, req, tag):
-        c = self.monitor.get_status().get_counters()
-        if (c["count-objects-unhealthy-post-repair"]
-            or c["count-corrupt-shares-post-repair"]):
+        if (self._get_counter("count-objects-unhealthy-post-repair")
+            or self._get_counter("count-corrupt-shares-post-repair")):
             return tag
         return ""
 
@@ -763,7 +765,7 @@ class DeepCheckAndRepairResultsRendererElement(Element, ResultsBase, ReloadMixin
 
     @renderer
     def servers_with_corrupt_shares_p(self, req, tag):
-        if self.monitor.get_status().get_counters()["count-corrupt-shares-pre-repair"]:
+        if self._get_counter("count-corrupt-shares-pre-repair"):
             return tag
         return ""
 
@@ -776,7 +778,7 @@ class DeepCheckAndRepairResultsRendererElement(Element, ResultsBase, ReloadMixin
 
     @renderer
     def remaining_corrupt_shares_p(self, req, tag):
-        if self.monitor.get_status().get_counters()["count-corrupt-shares-post-repair"]:
+        if self._get_counter("count-corrupt-shares-post-repair"):
             return tag
         return ""
 
@@ -796,7 +798,9 @@ class DeepCheckAndRepairResultsRendererElement(Element, ResultsBase, ReloadMixin
 
     @renderer
     def all_objects(self, req, tag):
-        results = self.monitor.get_status().get_all_results()
+        results = {}
+        if self.monitor.get_status():
+            results = self.monitor.get_status().get_all_results()
         objects = []
 
         for path in sorted(results.keys()):
@@ -816,5 +820,7 @@ class DeepCheckAndRepairResultsRendererElement(Element, ResultsBase, ReloadMixin
 
     @renderer
     def runtime(self, req, tag):
-        runtime = time.time() - req.processing_started_timestamp
+        runtime = 'unknown'
+        if hasattr(req, 'processing_started_timestamp'):
+            runtime = time.time() - req.processing_started_timestamp
         return tag("runtime: %s seconds" % runtime)
