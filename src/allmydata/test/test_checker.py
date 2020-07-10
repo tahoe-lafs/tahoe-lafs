@@ -2,6 +2,9 @@
 import re
 import json
 import os.path, shutil
+
+from bs4 import BeautifulSoup
+
 from twisted.trial import unittest
 from twisted.internet import defer
 
@@ -26,6 +29,11 @@ from .common import (
     EMPTY_CLIENT_CONFIG,
 )
 
+from .web.common import (
+    assert_soup_has_favicon,
+    assert_soup_has_tag_with_content,
+)
+
 class FakeClient(object):
     def get_storage_broker(self):
         return self.storage_broker
@@ -40,6 +48,7 @@ class TestRequest(object, Request):
         Request.__init__(self, DummyChannel())
         self.args = args or {}
         self.fields = fields or {}
+        self.prepath = [b""]
 
 class WebResultsRendering(unittest.TestCase):
 
@@ -335,6 +344,102 @@ class WebResultsRendering(unittest.TestCase):
             self.failUnlessEqual(j["repair-attempted"], False)
             self.failUnlessEqual(j["storage-index"], "")
         _got_lit_results(d)
+
+    def test_deep_check_and_repair_renderer(self):
+        monitor = Monitor()
+        status = check_results.DeepCheckAndRepairResults("")
+        monitor.set_status(status)
+        elem = web_check_results.DeepCheckAndRepairResultsRendererElement(monitor)
+        doc = self.render_element(elem)
+        soup = BeautifulSoup(doc, 'html5lib')
+
+        assert_soup_has_favicon(self, soup)
+
+        assert_soup_has_tag_with_content(
+            self, soup, u"title",
+            u"Tahoe-LAFS - Deep Check Results"
+        )
+
+        assert_soup_has_tag_with_content(
+            self, soup, u"h1",
+            u"Deep-Check-And-Repair Results for root SI="
+        )
+
+        assert_soup_has_tag_with_content(
+            self, soup, u"li",
+            u"Objects Checked: 0"
+        )
+
+        assert_soup_has_tag_with_content(
+            self, soup, u"li",
+            u"Objects Healthy (before repair): 0"
+        )
+
+        assert_soup_has_tag_with_content(
+            self, soup, u"li",
+            u"Objects Unhealthy (before repair): 0"
+        )
+
+        assert_soup_has_tag_with_content(
+            self, soup, u"li",
+            u"Corrupt Shares (before repair): 0"
+        )
+
+        assert_soup_has_tag_with_content(
+            self, soup, u"li",
+            u"Repairs Attempted: 0"
+        )
+
+        assert_soup_has_tag_with_content(
+            self, soup, u"li",
+            u"Repairs Attempted: 0"
+        )
+
+        assert_soup_has_tag_with_content(
+            self, soup, u"li",
+            u"Repairs Successful: 0"
+        )
+
+        assert_soup_has_tag_with_content(
+            self, soup, u"li",
+            "Repairs Unsuccessful: 0"
+        )
+
+        assert_soup_has_tag_with_content(
+            self, soup, u"li",
+            u"Objects Healthy (after repair): 0"
+        )
+
+        assert_soup_has_tag_with_content(
+            self, soup, u"li",
+            u"Objects Unhealthy (after repair): 0"
+        )
+
+        assert_soup_has_tag_with_content(
+            self, soup, u"li",
+            u"Corrupt Shares (after repair): 0"
+        )
+
+        assert_soup_has_tag_with_content(
+            self, soup, u"h2",
+            u"Files/Directories That Had Problems:"
+        )
+
+        assert_soup_has_tag_with_content(
+            self, soup, u"h2",
+            u"Files/Directories That Still Have Problems:"
+        )
+
+        assert_soup_has_tag_with_content(
+            self, soup, u"h2",
+            u"Servers on which corrupt shares were found"
+        )
+
+        assert_soup_has_tag_with_content(
+            self, soup, u"h2",
+            u"Remaining Corrupt Shares"
+        )
+
 
 class BalancingAct(GridTestMixin, unittest.TestCase):
     # test for #1115 regarding the 'count-good-share-hosts' metric
