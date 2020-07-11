@@ -345,6 +345,53 @@ class WebResultsRendering(unittest.TestCase):
             self.failUnlessEqual(j["storage-index"], "")
         _got_lit_results(d)
 
+    def test_deep_check_renderer(self):
+        monitor = Monitor()
+        status = check_results.DeepCheckResults("")
+        monitor.set_status(status)
+
+        elem = web_check_results.DeepCheckResultsRendererElement(monitor)
+
+        doc = self.render_element(elem)
+        soup = BeautifulSoup(doc, 'html5lib')
+
+        assert_soup_has_favicon(self, soup)
+
+        assert_soup_has_tag_with_content(
+            self, soup, u"title",
+            u"Tahoe-LAFS - Deep Check Results"
+        )
+
+        assert_soup_has_tag_with_content(
+            self, soup, u"h1",
+            "Deep-Check Results for root SI="
+        )
+
+        assert_soup_has_tag_with_content(
+            self, soup, u"li",
+            u"Objects Checked: 0"
+        )
+
+        assert_soup_has_tag_with_content(
+            self, soup, u"li",
+            u"Objects Healthy: 0"
+        )
+
+        assert_soup_has_tag_with_content(
+            self, soup, u"li",
+            u"Objects Unhealthy: 0"
+        )
+
+        assert_soup_has_tag_with_content(
+            self, soup, u"li",
+            u"Objects Unrecoverable: 0"
+        )
+
+        assert_soup_has_tag_with_content(
+            self, soup, u"li",
+            u"Corrupt Shares: 0"
+        )
+
     def test_deep_check_and_repair_renderer(self):
         monitor = Monitor()
         status = check_results.DeepCheckAndRepairResults("")
