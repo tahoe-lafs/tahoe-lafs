@@ -583,7 +583,9 @@ class DeepCheckResultsRendererElement(Element, ResultsBase, ReloadMixin):
 
     @renderer
     def runtime(self, req, tag):
-        runtime = time.time() - req.processing_started_timestamp
+        runtime = 'unknown'
+        if hasattr(req, 'processing_started_timestamp'):
+            runtime = time.time() - req.processing_started_timestamp
         return tag("runtime: %s seconds" % runtime)
 
 
