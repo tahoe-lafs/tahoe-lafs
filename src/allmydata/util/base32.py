@@ -263,3 +263,6 @@ def a2b_l(cs, lengthinbits):
     res = ''.join(map(chr, octets))
     precondition(b2a_l(res, lengthinbits) == cs, "cs is required to be the canonical base-32 encoding of some data.", b2a(res), res=res, cs=cs)
     return res
+
+
+__all__ = ["b2a", "b2a_l", "a2b", "a2b_l", "b2a_or_none", "BASE32CHAR_3bits", "BASE32CHAR_1bits", "BASE32CHAR", "BASE32STR_anybytes", "could_be_base32_encoded"]
