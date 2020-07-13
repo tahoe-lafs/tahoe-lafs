@@ -21,6 +21,7 @@ class Base32(unittest.TestCase):
         x = base64.b32encode(input_bytes).rstrip(b"=").lower()
         self.failUnlessEqual(encoded, x)
         self.assertIsInstance(encoded, bytes)
+        self.assertTrue(base32.could_be_base32_encoded(encoded))
         self.assertEqual(base32.a2b(encoded), input_bytes)
 
     def test_b2a(self):
@@ -33,3 +34,4 @@ class Base32(unittest.TestCase):
     def test_a2b(self):
         self.failUnlessEqual(base32.a2b(b"ci2a"), b"\x12\x34")
         self.failUnlessRaises(AssertionError, base32.a2b, b"b0gus")
+        self.assertFalse(base32.could_be_base32_encoded(b"b0gus"))
