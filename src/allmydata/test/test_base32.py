@@ -6,18 +6,22 @@ import base64
 
 from twisted.trial import unittest
 
+from hypothesis import (
+    strategies as st,
+    given,
+)
 from allmydata.util import base32
 
 
 class Base32(unittest.TestCase):
-    def test_b2a_matches_Pythons(self):
-        y = b"\x12\x34\x45\x67\x89\x0a\xbc\xde\xf0"
-        x = base64.b32encode(y)
-        x = x.rstrip(b"=")
-        x = x.lower()
-        result = base32.b2a(y)
-        self.failUnlessEqual(result, x)
-        self.assertIsInstance(result, bytes)
+
+    @given(input_bytes=st.binary(max_size=100))
+    def test_a2b_b2a_match_Pythons(self, input_bytes):
+        encoded = base32.b2a(input_bytes)
+        x = base64.b32encode(input_bytes).rstrip(b"=").lower()
+        self.failUnlessEqual(encoded, x)
+        self.assertIsInstance(encoded, bytes)
+        self.assertEqual(base32.a2b(encoded), input_bytes)
 
     def test_b2a(self):
         self.failUnlessEqual(base32.b2a(b"\x12\x34"), b"ci2a")
