@@ -14,8 +14,13 @@ __all__ = [
     "eliot_logging_service",
     "opt_eliot_destination",
     "opt_help_eliot_destinations",
+    "validateInstanceOf",
+    "validateSetMembership",
 ]
 
+from sys import (
+    stdout,
+)
 from functools import wraps
 from logging import (
     INFO,
@@ -37,10 +42,14 @@ from attr.validators import (
 from eliot import (
     ILogger,
     Message,
+    FileDestination,
     add_destinations,
     remove_destination,
     write_traceback,
     start_action,
+)
+from eliot._validation import (
+    ValidationError,
 )
 from eliot.twisted import (
     DeferredContext,
@@ -49,6 +58,12 @@ from eliot.twisted import (
 
 from twisted.python.usage import (
     UsageError,
+)
+from twisted.python.filepath import (
+    FilePath,
+)
+from twisted.python.logfile import (
+    LogFile,
 )
 from twisted.logger import (
     ILogObserver,
@@ -60,6 +75,23 @@ from twisted.internet.defer import (
 )
 from twisted.application.service import Service
 
+def validateInstanceOf(t):
+    """
+    Return an Eliot validator that requires values to be instances of ``t``.
+    """
+    def validator(v):
+        if not isinstance(v, t):
+            raise ValidationError("{} not an instance of {}".format(v, t))
+    return validator
+
+def validateSetMembership(s):
+    """
+    Return an Eliot validator that requires values to be elements of ``s``.
+    """
+    def validator(v):
+        if v not in s:
+            raise ValidationError("{} not in {}".format(v, s))
+    return validator
 
 def eliot_logging_service(reactor, destinations):
     """
@@ -213,6 +245,53 @@ class _DestinationParser(object):
             )
         else:
             return parser(kind, args)
+
+    def _get_arg(self, arg_name, default, arg_list):
+        return dict(
+            arg.split(u"=", 1)
+            for arg
+            in arg_list
+        ).get(
+            arg_name,
+            default,
+        )
+
+    def _parse_file(self, kind, arg_text):
+        # Reserve the possibility of an escape character in the future.  \ is
+        # the standard choice but it's the path separator on Windows which
+        # pretty much ruins it in this context.  Most other symbols already
+        # have some shell-assigned meaning which makes them treacherous to use
+        # in a CLI interface.  Eliminating all such dangerous symbols leaves
+        # approximately @.
+        if u"@" in arg_text:
+            raise ValueError(
+                u"Unsupported escape character (@) in destination text ({!r}).".format(arg_text),
+            )
+        arg_list = arg_text.split(u",")
+        path_name = arg_list.pop(0)
+        if path_name == "-":
+            get_file = lambda: stdout
+        else:
+            path = FilePath(path_name)
+            rotate_length = int(self._get_arg(
+                u"rotate_length",
+                1024 * 1024 * 1024,
+                arg_list,
+            ))
+            max_rotated_files = int(self._get_arg(
+                u"max_rotated_files",
+                10,
+                arg_list,
+            ))
+            def get_file():
+                path.parent().makedirs(ignoreExistingDirectory=True)
+                return LogFile(
+                    path.basename(),
+                    path.dirname(),
+                    rotateLength=rotate_length,
+                    maxRotatedFiles=max_rotated_files,
+                )
+        return lambda reactor: FileDestination(get_file())
 
 
 _parse_destination_description = _DestinationParser().parse
