@@ -15,7 +15,7 @@ from twisted.python.failure import Failure
 from twisted.python import log
 
 from allmydata.util import base32, idlib, mathutil, hashutil
-from allmydata.util import assertutil, fileutil, deferredutil, abbreviate
+from allmydata.util import fileutil, deferredutil, abbreviate
 from allmydata.util import limiter, time_format, pollmixin
 from allmydata.util import statistics, dictutil, pipeline, yamlutil
 from allmydata.util import log as tahoe_log
@@ -64,97 +64,6 @@ class MyList(list):
     pass
 
 class Math(unittest.TestCase):
-    def test_div_ceil(self):
-        f = mathutil.div_ceil
-        self.failUnlessEqual(f(0, 1), 0)
-        self.failUnlessEqual(f(0, 2), 0)
-        self.failUnlessEqual(f(0, 3), 0)
-        self.failUnlessEqual(f(1, 3), 1)
-        self.failUnlessEqual(f(2, 3), 1)
-        self.failUnlessEqual(f(3, 3), 1)
-        self.failUnlessEqual(f(4, 3), 2)
-        self.failUnlessEqual(f(5, 3), 2)
-        self.failUnlessEqual(f(6, 3), 2)
-        self.failUnlessEqual(f(7, 3), 3)
-
-    def test_next_multiple(self):
-        f = mathutil.next_multiple
-        self.failUnlessEqual(f(5, 1), 5)
-        self.failUnlessEqual(f(5, 2), 6)
-        self.failUnlessEqual(f(5, 3), 6)
-        self.failUnlessEqual(f(5, 4), 8)
-        self.failUnlessEqual(f(5, 5), 5)
-        self.failUnlessEqual(f(5, 6), 6)
-        self.failUnlessEqual(f(32, 1), 32)
-        self.failUnlessEqual(f(32, 2), 32)
-        self.failUnlessEqual(f(32, 3), 33)
-        self.failUnlessEqual(f(32, 4), 32)
-        self.failUnlessEqual(f(32, 5), 35)
-        self.failUnlessEqual(f(32, 6), 36)
-        self.failUnlessEqual(f(32, 7), 35)
-        self.failUnlessEqual(f(32, 8), 32)
-        self.failUnlessEqual(f(32, 9), 36)
-        self.failUnlessEqual(f(32, 10), 40)
-        self.failUnlessEqual(f(32, 11), 33)
-        self.failUnlessEqual(f(32, 12), 36)
-        self.failUnlessEqual(f(32, 13), 39)
-        self.failUnlessEqual(f(32, 14), 42)
-        self.failUnlessEqual(f(32, 15), 45)
-        self.failUnlessEqual(f(32, 16), 32)
-        self.failUnlessEqual(f(32, 17), 34)
-        self.failUnlessEqual(f(32, 18), 36)
-        self.failUnlessEqual(f(32, 589), 589)
-
-    def test_pad_size(self):
-        f = mathutil.pad_size
-        self.failUnlessEqual(f(0, 4), 0)
-        self.failUnlessEqual(f(1, 4), 3)
-        self.failUnlessEqual(f(2, 4), 2)
-        self.failUnlessEqual(f(3, 4), 1)
-        self.failUnlessEqual(f(4, 4), 0)
-        self.failUnlessEqual(f(5, 4), 3)
-
-    def test_is_power_of_k(self):
-        f = mathutil.is_power_of_k
-        for i in range(1, 100):
-            if i in (1, 2, 4, 8, 16, 32, 64):
-                self.failUnless(f(i, 2), "but %d *is* a power of 2" % i)
-            else:
-                self.failIf(f(i, 2), "but %d is *not* a power of 2" % i)
-        for i in range(1, 100):
-            if i in (1, 3, 9, 27, 81):
-                self.failUnless(f(i, 3), "but %d *is* a power of 3" % i)
-            else:
-                self.failIf(f(i, 3), "but %d is *not* a power of 3" % i)
-
-    def test_next_power_of_k(self):
-        f = mathutil.next_power_of_k
-        self.failUnlessEqual(f(0,2), 1)
-        self.failUnlessEqual(f(1,2), 1)
-        self.failUnlessEqual(f(2,2), 2)
-        self.failUnlessEqual(f(3,2), 4)
-        self.failUnlessEqual(f(4,2), 4)
-        for i in range(5, 8): self.failUnlessEqual(f(i,2), 8, "%d" % i)
-        for i in range(9, 16): self.failUnlessEqual(f(i,2), 16, "%d" % i)
-        for i in range(17, 32): self.failUnlessEqual(f(i,2), 32, "%d" % i)
-        for i in range(33, 64): self.failUnlessEqual(f(i,2), 64, "%d" % i)
-        for i in range(65, 100): self.failUnlessEqual(f(i,2), 128, "%d" % i)
-
-        self.failUnlessEqual(f(0,3), 1)
-        self.failUnlessEqual(f(1,3), 1)
-        self.failUnlessEqual(f(2,3), 3)
-        self.failUnlessEqual(f(3,3), 3)
-        for i in range(4, 9): self.failUnlessEqual(f(i,3), 9, "%d" % i)
-        for i in range(10, 27): self.failUnlessEqual(f(i,3), 27, "%d" % i)
-        for i in range(28, 81): self.failUnlessEqual(f(i,3), 81, "%d" % i)
-        for i in range(82, 200): self.failUnlessEqual(f(i,3), 243, "%d" % i)
-
-    def test_ave(self):
-        f = mathutil.ave
-        self.failUnlessEqual(f([1,2,3]), 2)
-        self.failUnlessEqual(f([0,0,0,4]), 1)
-        self.failUnlessAlmostEqual(f([0.0, 1.0, 1.0]), .666666666666)
-
     def test_round_sigfigs(self):
         f = mathutil.round_sigfigs
         self.failUnlessEqual(f(22.0/3, 4), 7.3330000000000002)
@@ -296,65 +205,6 @@ class Statistics(unittest.TestCase):
         plist = [.5] * 10
         self.failUnlessEqual(f(plist, .5, 3), .02734375)
 
-
-class Asserts(unittest.TestCase):
-    def should_assert(self, func, *args, **kwargs):
-        try:
-            func(*args, **kwargs)
-        except AssertionError as e:
-            return str(e)
-        except Exception as e:
-            self.fail("assert failed with non-AssertionError: %s" % e)
-        self.fail("assert was not caught")
-
-    def should_not_assert(self, func, *args, **kwargs):
-        try:
-            func(*args, **kwargs)
-        except AssertionError as e:
-            self.fail("assertion fired when it should not have: %s" % e)
-        except Exception as e:
-            self.fail("assertion (which shouldn't have failed) failed with non-AssertionError: %s" % e)
-        return # we're happy
-
-
-    def test_assert(self):
-        f = assertutil._assert
-        self.should_assert(f)
-        self.should_assert(f, False)
-        self.should_not_assert(f, True)
-
-        m = self.should_assert(f, False, "message")
-        self.failUnlessEqual(m, "'message' <type 'str'>", m)
-        m = self.should_assert(f, False, "message1", othermsg=12)
-        self.failUnlessEqual("'message1' <type 'str'>, othermsg: 12 <type 'int'>", m)
-        m = self.should_assert(f, False, othermsg="message2")
-        self.failUnlessEqual("othermsg: 'message2' <type 'str'>", m)
-
-    def test_precondition(self):
-        f = assertutil.precondition
-        self.should_assert(f)
-        self.should_assert(f, False)
-        self.should_not_assert(f, True)
-
-        m = self.should_assert(f, False, "message")
-        self.failUnlessEqual("precondition: 'message' <type 'str'>", m)
-        m = self.should_assert(f, False, "message1", othermsg=12)
-        self.failUnlessEqual("precondition: 'message1' <type 'str'>, othermsg: 12 <type 'int'>", m)
-        m = self.should_assert(f, False, othermsg="message2")
-        self.failUnlessEqual("precondition: othermsg: 'message2' <type 'str'>", m)
-
-    def test_postcondition(self):
-        f = assertutil.postcondition
-        self.should_assert(f)
-        self.should_assert(f, False)
-        self.should_not_assert(f, True)
-
-        m = self.should_assert(f, False, "message")
-        self.failUnlessEqual("postcondition: 'message' <type 'str'>", m)
-        m = self.should_assert(f, False, "message1", othermsg=12)
-        self.failUnlessEqual("postcondition: 'message1' <type 'str'>, othermsg: 12 <type 'int'>", m)
-        m = self.should_assert(f, False, othermsg="message2")
-        self.failUnlessEqual("postcondition: othermsg: 'message2' <type 'str'>", m)
 
 class FileUtil(ReallyEqualMixin, unittest.TestCase):
     def mkdir(self, basedir, path, mode=0o777):

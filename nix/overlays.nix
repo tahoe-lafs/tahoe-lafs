@@ -15,6 +15,9 @@ self: super: {
       # slightly newer version than appears in nixos 19.09 is helpful.
       future = python-super.callPackage ./future.nix { };
 
+      # Need version of pyutil that supports Python 3. The version in 19.09
+      # is too old.
+      pyutil = python-super.callPackage ./pyutil.nix { };
     };
   };
 }

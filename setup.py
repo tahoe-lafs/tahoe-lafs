@@ -124,6 +124,9 @@ install_requires = [
 
     # Support for Python 3 transition
     "future >= 0.18.2",
+
+    # Utility code:
+    "pyutil >= 3.3.0",
 ]
 
 setup_requires = [
