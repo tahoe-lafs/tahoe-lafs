@@ -1038,12 +1038,96 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
     def test_status_path_error(self):
         # Expect an error, because path is expected to be of the form
         # "/status/{up,down,..}-%number", with a hyphen.
-        d = self.shouldFail2(error.Error,
-                             "test_status_path_error",
-                             "400 Bad Request",
-                             "no '-' in 'nodash'",
-                             self.GET,
-                             "/status/nodash")
+        return self.shouldFail2(error.Error,
+                                "test_status_path_error",
+                                "400 Bad Request",
+                                "no '-' in 'nodash'",
+                                self.GET,
+                                "/status/nodash")
+
+    def test_status_up_subpath(self):
+        # See that "GET /status/up-0" works.
+        h = self.s.get_history()
+        ul_num = h.list_all_upload_statuses()[0].get_counter()
+        d = self.GET("/status/up-{}".format(ul_num), return_response=True)
+        def _upload_status(result):
+            body, status, _ = result
+            self.failUnlessReallyEqual(int(status), 200)
+            soup = BeautifulSoup(body, 'html5lib')
+            assert_soup_has_favicon(self, soup)
+            assert_soup_has_tag_with_content(
+                self, soup, u"title",
+                u"Tahoe-LAFS - File Upload Status"
+            )
+        d.addCallback(_upload_status)
+        return d
+
+    def test_status_down_subpath(self):
+        # See that "GET /status/down-0" works.
+        h = self.s.get_history()
+        dl_num = h.list_all_download_statuses()[0].get_counter()
+        d = self.GET("/status/down-{}".format(dl_num), return_response=True)
+        def _download_status(result):
+            body, status, _ = result
+            self.failUnlessReallyEqual(int(status), 200)
+            soup = BeautifulSoup(body, 'html5lib')
+            assert_soup_has_favicon(self, soup)
+            assert_soup_has_tag_with_content(
+                self, soup, u"title",
+                u"Tahoe-LAFS - File Download Status"
+            )
+        d.addCallback(_download_status)
+        return d
+
+    def test_status_mapupdate_subpath(self):
+        # See that "GET /status/mapupdate-0" works.
+        h = self.s.get_history()
+        mu_num = h.list_all_mapupdate_statuses()[0].get_counter()
+        d = self.GET("/status/mapupdate-{}".format(mu_num), return_response=True)
+        def _mapupdate_status(result):
+            body, status, _ = result
+            self.failUnlessReallyEqual(int(status), 200)
+            soup = BeautifulSoup(body, 'html5lib')
+            assert_soup_has_favicon(self, soup)
+            assert_soup_has_tag_with_content(
+                self, soup, u"title",
+                u"Tahoe-LAFS - Mutable File Servermap Update Status"
+            )
+        d.addCallback(_mapupdate_status)
+        return d
+
+    def test_status_publish_subpath(self):
+        # See that "GET /status/publish-0" works.
+        h = self.s.get_history()
+        pub_num = h.list_all_publish_statuses()[0].get_counter()
+        d = self.GET("/status/publish-{}".format(pub_num), return_response=True)
+        def _mapupdate_status(result):
+            body, status, _ = result
+            self.failUnlessReallyEqual(int(status), 200)
+            soup = BeautifulSoup(body, 'html5lib')
+            assert_soup_has_favicon(self, soup)
+            assert_soup_has_tag_with_content(
+                self, soup, u"title",
+                u"Tahoe-LAFS - Mutable File Publish Status"
+            )
+        d.addCallback(_mapupdate_status)
+        return d
+
+    def test_status_retrieve_subpath(self):
+        # See that "GET /status/retrieve-0" works.
+        h = self.s.get_history()
+        ret_num = h.list_all_retrieve_statuses()[0].get_counter()
+        d = self.GET("/status/retrieve-{}".format(ret_num), return_response=True)
+        def _mapupdate_status(result):
+            body, status, _ = result
+            self.failUnlessReallyEqual(int(status), 200)
+            soup = BeautifulSoup(body, 'html5lib')
+            assert_soup_has_favicon(self, soup)
+            assert_soup_has_tag_with_content(
+                self, soup, u"title",
+                u"Tahoe-LAFS - Mutable File Retrieve Status"
+            )
+        d.addCallback(_mapupdate_status)
         return d
 
     def test_status_numbers(self):
