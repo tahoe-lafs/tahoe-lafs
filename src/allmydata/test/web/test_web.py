@@ -1045,6 +1045,27 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
                                 self.GET,
                                 "/status/nodash")
 
+    def test_status_path_404(self):
+        # The test suite (hopefully!) would not have done any setup
+        # for a very large number of statuses at this point, so these
+        # all should return 404.
+        d = self.GET("/status/up-9999999")
+        d.addBoth(self.should404, "test_status_path_error (up)")
+
+        d = self.GET("/status/down-9999999")
+        d.addBoth(self.should404, "test_status_path_error (down)")
+
+        d = self.GET("/status/mapupdate-9999999")
+        d.addBoth(self.should404, "test_status_path_error (mapupdate)")
+
+        d = self.GET("/status/publish-9999999")
+        d.addBoth(self.should404, "test_status_path_error (publish)")
+
+        d = self.GET("/status/retrieve-9999999")
+        d.addBoth(self.should404, "test_status_path_error (retrieve)")
+
+        return d
+
     def test_status_up_subpath(self):
         # See that "GET /status/up-0" works.
         h = self.s.get_history()
