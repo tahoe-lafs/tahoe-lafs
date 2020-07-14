@@ -1,9 +1,16 @@
 import random, unittest
 
+from past.builtins import chr as byteschr
+
+from hypothesis import (
+    strategies as st,
+    given,
+)
+
 from allmydata.util import base62, mathutil
 
 def insecurerandstr(n):
-    return ''.join(map(chr, map(random.randrange, [0]*n, [256]*n)))
+    return b''.join(map(byteschr, map(random.randrange, [0]*n, [256]*n)))
 
 class T(unittest.TestCase):
     def _test_num_octets_that_encode_to_this_many_chars(self, chars, octets):
@@ -14,6 +21,10 @@ class T(unittest.TestCase):
         bs2=base62.a2b(ascii)
         assert bs2 == bs, "bs2: %s:%s, bs: %s:%s, ascii: %s:%s" % (len(bs2), repr(bs2), len(bs), repr(bs), len(ascii), repr(ascii))
 
+    @given(input_bytes=st.binary(max_size=100))
+    def test_roundtrip(self, input_bytes):
+        self._test_ende(input_bytes)
+
     def test_num_octets_that_encode_to_this_many_chars(self):
         return self._test_num_octets_that_encode_to_this_many_chars(2, 1)
         return self._test_num_octets_that_encode_to_this_many_chars(3, 2)
@@ -21,19 +32,19 @@ class T(unittest.TestCase):
         return self._test_num_octets_that_encode_to_this_many_chars(6, 4)
 
     def test_ende_0x00(self):
-        return self._test_ende('\x00')
+        return self._test_ende(b'\x00')
 
     def test_ende_0x01(self):
-        return self._test_ende('\x01')
+        return self._test_ende(b'\x01')
 
     def test_ende_0x0100(self):
-        return self._test_ende('\x01\x00')
+        return self._test_ende(b'\x01\x00')
 
     def test_ende_0x000000(self):
-        return self._test_ende('\x00\x00\x00')
+        return self._test_ende(b'\x00\x00\x00')
 
     def test_ende_0x010000(self):
-        return self._test_ende('\x01\x00\x00')
+        return self._test_ende(b'\x01\x00\x00')
 
     def test_ende_randstr(self):
         return self._test_ende(insecurerandstr(2**4))

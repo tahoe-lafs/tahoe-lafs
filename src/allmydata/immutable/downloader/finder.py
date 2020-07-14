@@ -43,7 +43,7 @@ class ShareFinder(object):
         self.overdue_timers = {}
 
         self._storage_index = verifycap.storage_index
-        self._si_prefix = base32.b2a_l(self._storage_index[:8], 60)
+        self._si_prefix = base32.b2a(self._storage_index[:8])[:12]
         self._node_logparent = logparent
         self._download_status = download_status
         self._lp = log.msg(format="ShareFinder[si=%(si)s] starting",

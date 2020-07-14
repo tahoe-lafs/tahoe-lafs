@@ -222,7 +222,7 @@ class ValidatedReadBucketProxy(log.PrefixingLogMixin):
         UEB"""
         precondition(share_hash_tree[0] is not None, share_hash_tree)
         prefix = "%d-%s-%s" % (sharenum, bucket,
-                               base32.b2a_l(share_hash_tree[0][:8], 60))
+                               base32.b2a(share_hash_tree[0][:8])[:12])
         log.PrefixingLogMixin.__init__(self,
                                        facility="tahoe.immutable.download",
                                        prefix=prefix)
@@ -465,7 +465,7 @@ class Checker(log.PrefixingLogMixin):
                  monitor):
         assert precondition(isinstance(verifycap, CHKFileVerifierURI), verifycap, type(verifycap))
 
-        prefix = "%s" % base32.b2a_l(verifycap.get_storage_index()[:8], 60)
+        prefix = "%s" % base32.b2a(verifycap.get_storage_index()[:8])[:12]
         log.PrefixingLogMixin.__init__(self, facility="tahoe.immutable.checker", prefix=prefix)
 
         self._verifycap = verifycap

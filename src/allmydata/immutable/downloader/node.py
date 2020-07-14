@@ -44,7 +44,7 @@ class DownloadNode(object):
         assert isinstance(verifycap, uri.CHKFileVerifierURI)
         self._verifycap = verifycap
         self._storage_broker = storage_broker
-        self._si_prefix = base32.b2a_l(verifycap.storage_index[:8], 60)
+        self._si_prefix = base32.b2a(verifycap.storage_index[:8])[:12]
         self.running = True
         if terminator:
             terminator.register(self) # calls self.stop() at stopService()
