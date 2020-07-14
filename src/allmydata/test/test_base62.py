@@ -25,7 +25,7 @@ from hypothesis import (
 from allmydata.util import base62, mathutil
 
 def insecurerandstr(n):
-    return b''.join(map(byteschr, map(random.randrange, [0]*n, [256]*n)))
+    return bytes(list(map(random.randrange, [0]*n, [256]*n)))
 
 class T(unittest.TestCase):
     def _test_num_octets_that_encode_to_this_many_chars(self, chars, octets):
@@ -77,7 +77,7 @@ class T(unittest.TestCase):
             bs = insecurerandstr(numos)
             # zero-out unused least-sig bits
             if lib%8:
-                b=ord(bs[-1])
+                b = ord(bs[-1:])
                 b = b >> (8 - (lib%8))
                 b = b << (8 - (lib%8))
                 bs = bs[:-1] + byteschr(b)
