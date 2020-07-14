@@ -1,6 +1,21 @@
-import random, unittest
+"""
+Tests for allmydata.util.base62.
+
+Ported to Python 3.
+"""
+
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, int, list, object, range, str, max, min  # noqa: F401
 
 from past.builtins import chr as byteschr
+
+import random, unittest
 
 from hypothesis import (
     strategies as st,
@@ -65,7 +80,7 @@ class T(unittest.TestCase):
                 b=ord(bs[-1])
                 b = b >> (8 - (lib%8))
                 b = b << (8 - (lib%8))
-                bs = bs[:-1] + chr(b)
+                bs = bs[:-1] + byteschr(b)
             asl = base62.b2a_l(bs, lib)
             assert len(asl) == base62.num_chars_that_this_many_octets_encode_to(numos) # the size of the base-62 encoding must be just right
             bs2l = base62.a2b_l(asl, lib)
