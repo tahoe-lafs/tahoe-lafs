@@ -27,7 +27,6 @@ PORTED_MODULES = [
 ]
 
 PORTED_TEST_MODULES = [
-    "allmydata.test.test_assertutil",
     "allmydata.test.test_base32",
     "allmydata.test.test_base62",
     "allmydata.test.test_deferredutil",
