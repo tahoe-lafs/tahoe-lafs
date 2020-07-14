@@ -20,6 +20,9 @@ class T(unittest.TestCase):
         ascii=base62.b2a(bs)
         bs2=base62.a2b(ascii)
         assert bs2 == bs, "bs2: %s:%s, bs: %s:%s, ascii: %s:%s" % (len(bs2), repr(bs2), len(bs), repr(bs), len(ascii), repr(ascii))
+        self.assertIsInstance(ascii, bytes)
+        self.assertIsInstance(bs, bytes)
+        self.assertIsInstance(bs2, bytes)
 
     @given(input_bytes=st.binary(max_size=100))
     def test_roundtrip(self, input_bytes):
