@@ -31,17 +31,17 @@ class T(unittest.TestCase):
     def _test_num_octets_that_encode_to_this_many_chars(self, chars, octets):
         assert base62.num_octets_that_encode_to_this_many_chars(chars) == octets, "%s != %s <- %s" % (octets, base62.num_octets_that_encode_to_this_many_chars(chars), chars)
 
-    def _test_ende(self, bs):
+    def _test_roundtrip(self, bs):
         ascii=base62.b2a(bs)
         bs2=base62.a2b(ascii)
-        assert bs2 == bs, "bs2: %s:%s, bs: %s:%s, ascii: %s:%s" % (len(bs2), repr(bs2), len(bs), repr(bs), len(ascii), repr(ascii))
+        self.assertEqual(bs2, bs)
         self.assertIsInstance(ascii, bytes)
         self.assertIsInstance(bs, bytes)
         self.assertIsInstance(bs2, bytes)
 
     @given(input_bytes=st.binary(max_size=100))
     def test_roundtrip(self, input_bytes):
-        self._test_ende(input_bytes)
+        self._test_roundtrip(input_bytes)
 
     def test_num_octets_that_encode_to_this_many_chars(self):
         return self._test_num_octets_that_encode_to_this_many_chars(2, 1)
@@ -50,25 +50,25 @@ class T(unittest.TestCase):
         return self._test_num_octets_that_encode_to_this_many_chars(6, 4)
 
     def test_ende_0x00(self):
-        return self._test_ende(b'\x00')
+        return self._test_roundtrip(b'\x00')
 
     def test_ende_0x01(self):
-        return self._test_ende(b'\x01')
+        return self._test_roundtrip(b'\x01')
 
     def test_ende_0x0100(self):
-        return self._test_ende(b'\x01\x00')
+        return self._test_roundtrip(b'\x01\x00')
 
     def test_ende_0x000000(self):
-        return self._test_ende(b'\x00\x00\x00')
+        return self._test_roundtrip(b'\x00\x00\x00')
 
     def test_ende_0x010000(self):
-        return self._test_ende(b'\x01\x00\x00')
+        return self._test_roundtrip(b'\x01\x00\x00')
 
     def test_ende_randstr(self):
-        return self._test_ende(insecurerandstr(2**4))
+        return self._test_roundtrip(insecurerandstr(2**4))
 
     def test_ende_longrandstr(self):
-        return self._test_ende(insecurerandstr(random.randrange(0, 2**10)))
+        return self._test_roundtrip(insecurerandstr(random.randrange(0, 2**10)))
 
     def test_odd_sizes(self):
         for j in range(2**6):
