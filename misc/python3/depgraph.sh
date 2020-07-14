@@ -10,7 +10,7 @@ cd tahoe-depgraph
 # Generate the maybe-changed data.
 python "${TAHOE}"/misc/python3/tahoe-depgraph.py "${TAHOE}"
 
-if git diff-index --quiet HEAD; then
+if git diff-index --quiet HEAD tahoe-deps.json tahoe-ported.json; then
   echo "Declining to commit without any changes."
   exit 0
 fi
