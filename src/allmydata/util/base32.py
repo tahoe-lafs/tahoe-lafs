@@ -2,21 +2,20 @@
 Base32 encoding.
 """
 
-import base64
+from builtins import bytes
+from past.builtins import chr as byteschr
 
-# from the Python Standard Library
-import six
-import string
+import base64
 
 from allmydata.util.assertutil import precondition
 
-rfc3548_alphabet = "abcdefghijklmnopqrstuvwxyz234567" # RFC3548 standard used by Gnutella, Content-Addressable Web, THEX, Bitzi, Web-Calculus...
+rfc3548_alphabet = b"abcdefghijklmnopqrstuvwxyz234567" # RFC3548 standard used by Gnutella, Content-Addressable Web, THEX, Bitzi, Web-Calculus...
 chars = rfc3548_alphabet
 
-vals = ''.join(map(chr, range(32)))
-c2vtranstable = string.maketrans(chars, vals)
-v2ctranstable = string.maketrans(vals, chars)
-identitytranstable = string.maketrans('', '')
+vals = b''.join(map(chr, range(32)))
+c2vtranstable = bytes.maketrans(chars, vals)
+v2ctranstable = bytes.maketrans(vals, chars)
+identitytranstable = bytes.maketrans(b'', b'')
 
 def _get_trailing_chars_without_lsbs(N, d):
     """
@@ -38,18 +37,18 @@ def get_trailing_chars_without_lsbs(N):
     if N == 0:
         return chars
     d = {}
-    return ''.join(_get_trailing_chars_without_lsbs(N, d=d))
+    return b''.join(_get_trailing_chars_without_lsbs(N, d=d))
 
-BASE32CHAR = '['+get_trailing_chars_without_lsbs(0)+']'
-BASE32CHAR_4bits = '['+get_trailing_chars_without_lsbs(1)+']'
-BASE32CHAR_3bits = '['+get_trailing_chars_without_lsbs(2)+']'
-BASE32CHAR_2bits = '['+get_trailing_chars_without_lsbs(3)+']'
-BASE32CHAR_1bits = '['+get_trailing_chars_without_lsbs(4)+']'
+BASE32CHAR =b'['+get_trailing_chars_without_lsbs(0)+b']'
+BASE32CHAR_4bits =b'['+get_trailing_chars_without_lsbs(1)+b']'
+BASE32CHAR_3bits =b'['+get_trailing_chars_without_lsbs(2)+b']'
+BASE32CHAR_2bits =b'['+get_trailing_chars_without_lsbs(3)+b']'
+BASE32CHAR_1bits =b'['+get_trailing_chars_without_lsbs(4)+b']'
 BASE32STR_1byte = BASE32CHAR+BASE32CHAR_3bits
-BASE32STR_2bytes = BASE32CHAR+'{3}'+BASE32CHAR_1bits
-BASE32STR_3bytes = BASE32CHAR+'{4}'+BASE32CHAR_4bits
-BASE32STR_4bytes = BASE32CHAR+'{6}'+BASE32CHAR_2bits
-BASE32STR_anybytes = '((?:%s{8})*' % (BASE32CHAR,) + "(?:|%s|%s|%s|%s))" % (BASE32STR_1byte, BASE32STR_2bytes, BASE32STR_3bytes, BASE32STR_4bytes)
+BASE32STR_2bytes = BASE32CHAR+b'{3}'+BASE32CHAR_1bits
+BASE32STR_3bytes = BASE32CHAR+b'{4}'+BASE32CHAR_4bits
+BASE32STR_4bytes = BASE32CHAR+b'{6}'+BASE32CHAR_2bits
+BASE32STR_anybytes =b'((?:%s{8})*' % (BASE32CHAR,) + b"(?:|%s|%s|%s|%s))" % (BASE32STR_1byte, BASE32STR_2bytes, BASE32STR_3bytes, BASE32STR_4bytes)
 
 def b2a(os):
     """
@@ -100,9 +99,9 @@ def init_s8():
     return tuple(s8)
 s8 = init_s8()
 
-def could_be_base32_encoded(s, s8=s8, tr=string.translate, identitytranstable=identitytranstable, chars=chars):
-    precondition(isinstance(s, six.binary_type), s)
-    if s == '':
+def could_be_base32_encoded(s, s8=s8, tr=bytes.translate, identitytranstable=identitytranstable, chars=chars):
+    precondition(isinstance(s, bytes), s)
+    if s == b'':
         return True
     return s8[len(s)%8][ord(s[-1])] and not tr(s, identitytranstable, chars)
 
@@ -111,7 +110,7 @@ def a2b(cs):
     @param cs the base-32 encoded data (a string)
     """
     precondition(could_be_base32_encoded(cs), "cs is required to be possibly base32 encoded data.", cs=cs)
-    precondition(isinstance(cs, six.binary_type), cs)
+    precondition(isinstance(cs, bytes), cs)
 
     cs = cs.upper()
     # Add padding back, to make Python's base64 module happy:
