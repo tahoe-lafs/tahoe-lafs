@@ -32,12 +32,12 @@ class T(unittest.TestCase):
         assert base62.num_octets_that_encode_to_this_many_chars(chars) == octets, "%s != %s <- %s" % (octets, base62.num_octets_that_encode_to_this_many_chars(chars), chars)
 
     def _test_roundtrip(self, bs):
-        ascii=base62.b2a(bs)
-        bs2=base62.a2b(ascii)
-        self.assertEqual(bs2, bs)
-        self.assertIsInstance(ascii, bytes)
+        encoded = base62.b2a(bs)
+        decoded = base62.a2b(encoded)
+        self.assertEqual(decoded, bs)
+        self.assertIsInstance(encoded, bytes)
         self.assertIsInstance(bs, bytes)
-        self.assertIsInstance(bs2, bytes)
+        self.assertIsInstance(decoded, bytes)
 
     @given(input_bytes=st.binary(max_size=100))
     def test_roundtrip(self, input_bytes):
