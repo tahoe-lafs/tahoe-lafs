@@ -59,9 +59,9 @@ BASE32STR_anybytes =b'((?:%s{8})*' % (BASE32CHAR,) + b"(?:|%s|%s|%s|%s))" % (BAS
 
 def b2a(os):
     """
-    @param os the data to be encoded (a string)
+    @param os the data to be encoded (as bytes)
 
-    @return the contents of os in base-32 encoded form
+    @return the contents of os in base-32 encoded form, as bytes
     """
     return base64.b32encode(os).rstrip(b"=").lower()
 
@@ -115,7 +115,7 @@ def could_be_base32_encoded(s, s8=s8, tr=bytes.translate, identitytranstable=ide
 
 def a2b(cs):
     """
-    @param cs the base-32 encoded data (a string)
+    @param cs the base-32 encoded data (as bytes)
     """
     precondition(could_be_base32_encoded(cs), "cs is required to be possibly base32 encoded data.", cs=cs)
     precondition(isinstance(cs, bytes), cs)

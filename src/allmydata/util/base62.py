@@ -27,9 +27,9 @@ identitytranstable = bytes.maketrans(chars, chars)
 
 def b2a(os):
     """
-    @param os the data to be encoded (a string)
+    @param os the data to be encoded (as bytes)
 
-    @return the contents of os in base-62 encoded form
+    @return the contents of os in base-62 encoded form, as bytes
     """
     cs = b2a_l(os, len(os)*8)
     assert num_octets_that_encode_to_this_many_chars(len(cs)) == len(os), "%s != %s, numchars: %s" % (num_octets_that_encode_to_this_many_chars(len(cs)), len(os), len(cs))
@@ -37,7 +37,7 @@ def b2a(os):
 
 def b2a_l(os, lengthinbits):
     """
-    @param os the data to be encoded (a string)
+    @param os the data to be encoded (as bytes)
     @param lengthinbits the number of bits of data in os to be encoded
 
     b2a_l() will generate a base-62 encoded string big enough to encode
@@ -58,7 +58,7 @@ def b2a_l(os, lengthinbits):
     bits to encode that is not a multiple of 8, b2a() can sometimes generate a base-62 encoded
     string that is one or two characters longer than necessary.
 
-    @return the contents of os in base-62 encoded form
+    @return the contents of os in base-62 encoded form, as bytes
     """
     # We call bytes() again for Python 2, to ensure literals are using future's
     # Python 3-compatible variant.
@@ -104,7 +104,7 @@ def a2b_l(cs, lengthinbits):
     Please see the warning in the docstring of b2a_l() regarding the use of
     b2a() versus b2a_l().
 
-    @return the data encoded in cs
+    @return the data encoded in cs, as bytes
     """
     # We call bytes() again for Python 2, to ensure literals are using future's
     # Python 3-compatible variant.
