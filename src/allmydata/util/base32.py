@@ -1,18 +1,25 @@
 """
 Base32 encoding.
-"""
 
-from builtins import bytes
-from past.builtins import chr as byteschr
+Ported to Python 3.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, int, list, object, range, str, max, min  # noqa: F401
 
 import base64
 
 from allmydata.util.assertutil import precondition
 
-rfc3548_alphabet = b"abcdefghijklmnopqrstuvwxyz234567" # RFC3548 standard used by Gnutella, Content-Addressable Web, THEX, Bitzi, Web-Calculus...
+rfc3548_alphabet = bytes(b"abcdefghijklmnopqrstuvwxyz234567") # RFC3548 standard used by Gnutella, Content-Addressable Web, THEX, Bitzi, Web-Calculus...
 chars = rfc3548_alphabet
 
-vals = b''.join(map(chr, range(32)))
+vals = bytes(range(32))
 c2vtranstable = bytes.maketrans(chars, vals)
 v2ctranstable = bytes.maketrans(vals, chars)
 identitytranstable = bytes.maketrans(b'', b'')
@@ -26,9 +33,9 @@ def _get_trailing_chars_without_lsbs(N, d):
         s.extend(_get_trailing_chars_without_lsbs(N+1, d=d))
     i = 0
     while i < len(chars):
-        if not d.has_key(i):
+        if i not in d:
             d[i] = None
-            s.append(chars[i])
+            s.append(chars[i:i+1])
         i = i + 2**N
     return s
 
@@ -76,7 +83,7 @@ NUM_OS_TO_NUM_QS=(0, 2, 4, 5, 7,)
 
 NUM_QS_TO_NUM_OS=(0, 1, 1, 2, 2, 3, 3, 4)
 NUM_QS_LEGIT=(1, 0, 1, 0, 1, 1, 0, 1,)
-NUM_QS_TO_NUM_BITS=tuple(map(lambda x: x*8, NUM_QS_TO_NUM_OS))
+NUM_QS_TO_NUM_BITS=tuple([x*8 for x in NUM_QS_TO_NUM_OS])
 
 # A fast way to determine whether a given string *could* be base-32 encoded data, assuming that the
 # original data had 8K bits for a positive integer K.
@@ -84,8 +91,8 @@ NUM_QS_TO_NUM_BITS=tuple(map(lambda x: x*8, NUM_QS_TO_NUM_OS))
 # tells whether the final character is reasonable.
 def add_check_array(cs, sfmap):
     checka=[0] * 256
-    for c in cs:
-        checka[ord(c)] = 1
+    for c in bytes(cs):
+        checka[c] = 1
     sfmap.append(tuple(checka))
 
 def init_s8():
@@ -95,7 +102,7 @@ def init_s8():
         if NUM_QS_LEGIT[lenmod8]:
             add_check_array(get_trailing_chars_without_lsbs(4-(NUM_QS_TO_NUM_BITS[lenmod8]%5)), s8)
         else:
-            add_check_array('', s8)
+            add_check_array(b'', s8)
     return tuple(s8)
 s8 = init_s8()
 
@@ -103,7 +110,8 @@ def could_be_base32_encoded(s, s8=s8, tr=bytes.translate, identitytranstable=ide
     precondition(isinstance(s, bytes), s)
     if s == b'':
         return True
-    return s8[len(s)%8][ord(s[-1])] and not tr(s, identitytranstable, chars)
+    s = bytes(s)  # On Python 2, make sure we're using modern bytes
+    return s8[len(s)%8][s[-1]] and not tr(s, identitytranstable, chars)
 
 def a2b(cs):
     """

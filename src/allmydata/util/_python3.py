@@ -16,6 +16,7 @@ if PY2:
 # Keep these sorted alphabetically, to reduce merge conflicts:
 PORTED_MODULES = [
     "allmydata.util.assertutil",
+    "allmydata.util.base32",
     "allmydata.util.base62",
     "allmydata.util.deferredutil",
     "allmydata.util.humanreadable",
