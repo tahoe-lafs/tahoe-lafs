@@ -33,3 +33,8 @@ PORTED_TEST_MODULES = [
     "allmydata.test.test_humanreadable",
     "allmydata.test.test_python3",
 ]
+
+
+if __name__ == '__main__':
+    from subprocess import check_call
+    check_call(["trial"] + PORTED_TEST_MODULES)
