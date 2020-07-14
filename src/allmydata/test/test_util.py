@@ -14,7 +14,7 @@ from twisted.internet import defer, reactor
 from twisted.python.failure import Failure
 from twisted.python import log
 
-from allmydata.util import idlib, mathutil, hashutil
+from allmydata.util import base32, idlib, mathutil, hashutil
 from allmydata.util import fileutil, deferredutil, abbreviate
 from allmydata.util import limiter, time_format, pollmixin
 from allmydata.util import statistics, dictutil, pipeline, yamlutil
