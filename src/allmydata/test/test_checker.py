@@ -542,7 +542,7 @@ class WebResultsRendering(unittest.TestCase):
 
         assert_soup_has_tag_with_content(
             self, soup, u"li",
-            u"Objects Checked: 0"
+            u"Objects Checked: 1"
         )
 
         assert_soup_has_tag_with_content(
@@ -552,22 +552,17 @@ class WebResultsRendering(unittest.TestCase):
 
         assert_soup_has_tag_with_content(
             self, soup, u"li",
-            u"Objects Unhealthy (before repair): 0"
+            u"Objects Unhealthy (before repair): 1"
         )
 
         assert_soup_has_tag_with_content(
             self, soup, u"li",
-            u"Corrupt Shares (before repair): 0"
+            u"Corrupt Shares (before repair): 3"
         )
 
         assert_soup_has_tag_with_content(
             self, soup, u"li",
-            u"Repairs Attempted: 0"
-        )
-
-        assert_soup_has_tag_with_content(
-            self, soup, u"li",
-            u"Repairs Attempted: 0"
+            u"Repairs Attempted: 1"
         )
 
         assert_soup_has_tag_with_content(
@@ -577,7 +572,7 @@ class WebResultsRendering(unittest.TestCase):
 
         assert_soup_has_tag_with_content(
             self, soup, u"li",
-            "Repairs Unsuccessful: 0"
+            "Repairs Unsuccessful: 1"
         )
 
         assert_soup_has_tag_with_content(
@@ -587,12 +582,12 @@ class WebResultsRendering(unittest.TestCase):
 
         assert_soup_has_tag_with_content(
             self, soup, u"li",
-            u"Objects Unhealthy (after repair): 0"
+            u"Objects Unhealthy (after repair): 1"
         )
 
         assert_soup_has_tag_with_content(
             self, soup, u"li",
-            u"Corrupt Shares (after repair): 0"
+            u"Corrupt Shares (after repair): 3"
         )
 
         assert_soup_has_tag_with_content(
