@@ -22,13 +22,16 @@ class HashUtilTests(unittest.TestCase):
     def test_random_key(self):
         k = hashutil.random_key()
         self.failUnlessEqual(len(k), hashutil.KEYLEN)
+        self.assertIsInstance(k, bytes)
 
     def test_sha256d(self):
         h1 = hashutil.tagged_hash(b"tag1", b"value")
+        self.assertIsInstance(h1, bytes)
         h2 = hashutil.tagged_hasher(b"tag1")
         h2.update(b"value")
         h2a = h2.digest()
         h2b = h2.digest()
+        self.assertIsInstance(h2a, bytes)
         self.failUnlessEqual(h1, h2a)
         self.failUnlessEqual(h2a, h2b)
 
@@ -47,37 +50,45 @@ class HashUtilTests(unittest.TestCase):
         h2.update(b"data")
         h2 = h2.digest()
         self.failUnlessEqual(h1, h2)
+        self.assertIsInstance(h1, bytes)
+        self.assertIsInstance(h2, bytes)
 
     def test_hashers(self):
         h1 = hashutil.block_hash(b"foo")
         h2 = hashutil.block_hasher()
         h2.update(b"foo")
         self.failUnlessEqual(h1, h2.digest())
+        self.assertIsInstance(h1, bytes)
 
         h1 = hashutil.uri_extension_hash(b"foo")
         h2 = hashutil.uri_extension_hasher()
         h2.update(b"foo")
         self.failUnlessEqual(h1, h2.digest())
+        self.assertIsInstance(h1, bytes)
 
         h1 = hashutil.plaintext_hash(b"foo")
         h2 = hashutil.plaintext_hasher()
         h2.update(b"foo")
         self.failUnlessEqual(h1, h2.digest())
+        self.assertIsInstance(h1, bytes)
 
         h1 = hashutil.crypttext_hash(b"foo")
         h2 = hashutil.crypttext_hasher()
         h2.update(b"foo")
         self.failUnlessEqual(h1, h2.digest())
+        self.assertIsInstance(h1, bytes)
 
         h1 = hashutil.crypttext_segment_hash(b"foo")
         h2 = hashutil.crypttext_segment_hasher()
         h2.update(b"foo")
         self.failUnlessEqual(h1, h2.digest())
+        self.assertIsInstance(h1, bytes)
 
         h1 = hashutil.plaintext_segment_hash(b"foo")
         h2 = hashutil.plaintext_segment_hasher()
         h2.update(b"foo")
         self.failUnlessEqual(h1, h2.digest())
+        self.assertIsInstance(h1, bytes)
 
     def test_timing_safe_compare(self):
         self.failUnless(hashutil.timing_safe_compare(b"a", b"a"))
@@ -87,6 +98,7 @@ class HashUtilTests(unittest.TestCase):
 
     def _testknown(self, hashf, expected_a, *args):
         got = hashf(*args)
+        self.assertIsInstance(got, bytes)
         got_a = base32.b2a(got)
         self.failUnlessEqual(got_a, expected_a)
 
