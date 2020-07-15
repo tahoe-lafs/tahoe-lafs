@@ -1,8 +1,8 @@
-
+from past.builtins import long
 
 def netstring(s):
-    assert isinstance(s, str), s # no unicode here
-    return "%d:%s," % (len(s), s,)
+    assert isinstance(s, bytes), s # no unicode here
+    return b"%d:%s," % (len(s), s,)
 
 def split_netstring(data, numstrings,
                     position=0,
@@ -13,18 +13,19 @@ def split_netstring(data, numstrings,
     byte which was not consumed (the 'required_trailer', if any, counts as
     consumed).  If 'required_trailer' is not None, throw ValueError if leftover
     data does not exactly equal 'required_trailer'."""
-
+    assert type(data) == bytes
+    assert type(required_trailer) in (type(None), bytes)
     assert type(position) in (int, long), (repr(position), type(position))
     elements = []
     assert numstrings >= 0
     while position < len(data):
-        colon = data.index(":", position)
+        colon = data.index(b":", position)
         length = int(data[position:colon])
         string = data[colon+1:colon+1+length]
         assert len(string) == length, (len(string), length)
         elements.append(string)
         position = colon+1+length
-        assert data[position] == ",", position
+        assert data[position] == b","[0], position
         position += 1
         if len(elements) == numstrings:
             break
