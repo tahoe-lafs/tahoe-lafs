@@ -22,6 +22,7 @@ PORTED_MODULES = [
     "allmydata.util.humanreadable",
     "allmydata.util.mathutil",
     "allmydata.util.namespace",
+    "allmydata.util.netstring",
     "allmydata.util.pollmixin",
     "allmydata.util._python3",
 ]
