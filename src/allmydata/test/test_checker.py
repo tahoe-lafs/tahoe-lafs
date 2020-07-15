@@ -72,78 +72,60 @@ class FakeServer(object):
 
 
 @implementer(ICheckResults)
-class FakeResults(object):
+class FakeCheckResults(object):
 
-    def __init__(self):
-        # TODO: figure out a good enough fake SI.
-        self._storage_index = "fake-si"
+    def __init__(self, si=None,
+                 healthy=False, recoverable=False,
+                 summary="fake summary"):
+        self._storage_index = si
+        self._is_healthy = healthy
+        self._is_recoverable = recoverable
+        self._summary = summary
 
     def get_storage_index(self):
         return self._storage_index
 
     def get_storage_index_string(self):
-        return base32.b2a(self._storage_index)
+        return base32.b2a_or_none(self._storage_index)
 
     def is_healthy(self):
-        return False
+        return self._is_healthy
 
     def is_recoverable(self):
-        return False
+        return self._is_recoverable
 
     def get_summary(self):
-        return "fake summary results"
+        return self._summary
 
     def get_corrupt_shares(self):
-        # Returns (IServer, storage_index, sharenum)
-        return (FakeServer(), "fake-si", 0)
-
-
-# TODO: maybe use check_results.DeepCheckResults?
-@implementer(IDeepCheckResults)
-class FakeDeepCheckResults(object):
-
-    def get_root_storage_index_string(self):
-        # TODO: figure out a good enough fake root SI.
-        return "fake-root-si"
-
-    def get_counters(self):
-        return {
-            "count-objects-checked": 4,
-            "count-objects-healthy": 1,
-            "count-objects-unhealthy": 1,
-            "count-objects-unrecoverable": 1,
-            "count-corrupt-shares": 1,
-        }
-
-    def get_all_results(self):
-        return {
-            # TODO: fill this, perhaps with one each of healthy,
-            # unhealthy, unrecoverable, corrupt.
-            (u"some", u"fake", u"path"): FakeResults()
-        }
-
-    def get_corrupt_shares(self):
-        # Returns a set of (IServer, storage_index, sharenum)
-        return { FakeResults().get_corrupt_shares() }
+        # returns a list of (IServer, storage_index, sharenum)
+        return [(FakeServer(), "<fake-si>", 0)]
 
 
 @implementer(ICheckAndRepairResults)
-class FakeDeepCheckAndRepairResults(object):
+class FakeCheckAndRepairResults(object):
+
+    def __init__(self, si=None,
+                 repair_attempted=False,
+                 repair_success=False):
+        self._storage_index = si
+        self._repair_attempted = repair_attempted
+        self._repair_success = repair_success
 
     def get_storage_index(self):
-        return "<none>"
+        return self._storage_index
 
     def get_pre_repair_results(self):
-        return FakeResults()
+        return FakeCheckResults()
 
     def get_post_repair_results(self):
-        return FakeResults()
+        return FakeCheckResults()
 
     def get_repair_attempted(self):
-        return True
+        return self._repair_attempted
 
     def get_repair_successful(self):
-        return False
+        return self._repair_success
 
 
 class WebResultsRendering(unittest.TestCase):
@@ -443,9 +425,26 @@ class WebResultsRendering(unittest.TestCase):
 
 
     def test_deep_check_renderer(self):
+        status = check_results.DeepCheckResults("fake-root-si")
+        status.add_check(
+            FakeCheckResults("<unhealthy/unrecoverable>", False, False),
+            (u"fake", u"unhealthy", u"unrecoverable")
+        )
+        status.add_check(
+            FakeCheckResults("<healthy/recoverable>", True, True),
+            (u"fake", u"healthy", u"recoverable")
+        )
+        status.add_check(
+            FakeCheckResults("<healthy/unrecoverable>", True, False),
+            (u"fake", u"healthy", u"unrecoverable")
+        )
+        status.add_check(
+            FakeCheckResults("<unhealthy/unrecoverable>", False, True),
+            (u"fake", u"unhealthy", u"recoverable")
+        )
+
         monitor = Monitor()
-        result = FakeDeepCheckResults()
-        monitor.set_status(result)
+        monitor.set_status(status)
 
         elem = web_check_results.DeepCheckResultsRendererElement(monitor)
         doc = self.render_element(elem)
@@ -470,22 +469,22 @@ class WebResultsRendering(unittest.TestCase):
 
         assert_soup_has_tag_with_content(
             self, soup, u"li",
-            u"Objects Healthy: 1"
+            u"Objects Healthy: 2"
         )
 
         assert_soup_has_tag_with_content(
             self, soup, u"li",
-            u"Objects Unhealthy: 1"
+            u"Objects Unhealthy: 2"
         )
 
         assert_soup_has_tag_with_content(
             self, soup, u"li",
-            u"Objects Unrecoverable: 1"
+            u"Objects Unrecoverable: 2"
         )
 
         assert_soup_has_tag_with_content(
             self, soup, u"li",
-            u"Corrupt Shares: 1"
+            u"Corrupt Shares: 4"
         )
 
         assert_soup_has_tag_with_content(
@@ -495,7 +494,12 @@ class WebResultsRendering(unittest.TestCase):
 
         assert_soup_has_tag_with_content(
             self, soup, u"li",
-            u"some/fake/path: fake summary results [SI: mzqwwzjnonuq]"
+            u"fake/unhealthy/recoverable: fake summary"
+        )
+
+        assert_soup_has_tag_with_content(
+            self, soup, u"li",
+            u"fake/unhealthy/unrecoverable: fake summary"
         )
 
         assert_soup_has_tag_with_content(
@@ -514,14 +518,22 @@ class WebResultsRendering(unittest.TestCase):
         )
 
     def test_deep_check_and_repair_renderer(self):
-        monitor = Monitor()
-
         status = check_results.DeepCheckAndRepairResults("")
+
         status.add_check_and_repair(
-            FakeDeepCheckAndRepairResults(),
-            (u"some", u"fake", u"path")
+            FakeCheckAndRepairResults("attempted/success", True, True),
+            (u"attempted", u"success")
+        )
+        status.add_check_and_repair(
+            FakeCheckAndRepairResults("attempted/failure", True, False),
+            (u"attempted", u"failure")
+        )
+        status.add_check_and_repair(
+            FakeCheckAndRepairResults("unattempted/failure", False, False),
+            (u"unattempted", u"failure")
         )
 
+        monitor = Monitor()
         monitor.set_status(status)
 
         elem = web_check_results.DeepCheckAndRepairResultsRendererElement(monitor)
@@ -542,7 +554,7 @@ class WebResultsRendering(unittest.TestCase):
 
         assert_soup_has_tag_with_content(
             self, soup, u"li",
-            u"Objects Checked: 1"
+            u"Objects Checked: 3"
         )
 
         assert_soup_has_tag_with_content(
@@ -552,7 +564,7 @@ class WebResultsRendering(unittest.TestCase):
 
         assert_soup_has_tag_with_content(
             self, soup, u"li",
-            u"Objects Unhealthy (before repair): 1"
+            u"Objects Unhealthy (before repair): 3"
         )
 
         assert_soup_has_tag_with_content(
@@ -562,12 +574,12 @@ class WebResultsRendering(unittest.TestCase):
 
         assert_soup_has_tag_with_content(
             self, soup, u"li",
-            u"Repairs Attempted: 1"
+            u"Repairs Attempted: 2"
         )
 
         assert_soup_has_tag_with_content(
             self, soup, u"li",
-            u"Repairs Successful: 0"
+            u"Repairs Successful: 1"
         )
 
         assert_soup_has_tag_with_content(
@@ -582,7 +594,7 @@ class WebResultsRendering(unittest.TestCase):
 
         assert_soup_has_tag_with_content(
             self, soup, u"li",
-            u"Objects Unhealthy (after repair): 1"
+            u"Objects Unhealthy (after repair): 3"
         )
 
         assert_soup_has_tag_with_content(
