@@ -600,9 +600,9 @@ class DeepCheckAndRepairResultsRenderer(MultiFormatResource):
         :param allmydata.interfaces.IStatsProducer client: stats provider.
         :param allmydata.monitor.IMonitor monitor: status, progress, and cancellation provider.
         """
+        super(DeepCheckAndRepairResultsRenderer, self).__init__()
         self._client = client
         self.monitor = monitor
-        self.children = {}
 
     def getChild(self, name, req):
         if not name:
