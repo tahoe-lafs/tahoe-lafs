@@ -748,7 +748,7 @@ class DeepCheckAndRepairResultsRendererElement(Element, ResultsBase, ReloadMixin
             cr = r.get_pre_repair_results()
             if not cr.is_healthy():
                 problem = self._join_pathstring(path), ": ", self._html(cr.get_summary())
-                problems.append(problem)
+                problems.append({"problem": problem})
 
         return SlotsSequenceElement(tag, problems)
 
@@ -770,7 +770,7 @@ class DeepCheckAndRepairResultsRendererElement(Element, ResultsBase, ReloadMixin
             cr = r.get_post_repair_results()
             if not cr.is_healthy():
                 problem = self._join_pathstring(path), ": ", self._html(cr.get_summary())
-                problems.append(problem)
+                problems.append({"problem": problem})
 
         return SlotsSequenceElement(tag, problems)
 
@@ -784,7 +784,7 @@ class DeepCheckAndRepairResultsRendererElement(Element, ResultsBase, ReloadMixin
     def servers_with_corrupt_shares(self, req, tag):
         # TODO: this was originally unimplemented before porting to
         # twisted.web.template; leaving it as such.
-        corrupt = []
+        corrupt = [{"share":"unimplemented"}]
         return SlotsSequenceElement(tag, corrupt)
 
     @renderer
@@ -797,7 +797,7 @@ class DeepCheckAndRepairResultsRendererElement(Element, ResultsBase, ReloadMixin
     def post_repair_corrupt_shares(self, req, tag):
         # TODO: this was not implemented before porting to
         # twisted.web.template; leaving it as such.
-        corrupt = []
+        corrupt = [{"share":"unimplemented"}]
         return SlotsSequenceElement(tag, corrupt)
 
     @renderer
