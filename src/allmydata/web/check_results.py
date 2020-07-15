@@ -502,9 +502,9 @@ class DeepCheckResultsRendererElement(Element, ResultsBase, ReloadMixin):
                     summary_text = ": " + summary
                 summary_text += " [SI: %s]" % cr.get_storage_index_string()
                 problems.append({
-                    # TODO: result of _join_pathstring() seems to be
-                    # weird.  Might as well use "path" as the key here?
-                    self._join_pathstring(path): self._html(summary_text)
+                    # Not sure self._join_pathstring(path) is the
+                    # right thing to use here.
+                    "problem": self._html(path) + self._html(summary_text),
                 })
 
         return SlotsSequenceElement(tag, problems)
@@ -529,7 +529,7 @@ class DeepCheckResultsRendererElement(Element, ResultsBase, ReloadMixin):
             nickname = server.get_nickname()
             if nickname:
                 name.append(" (%s)" % self._html(nickname))
-            problems.append(name)
+            problems.append({"problem": name})
 
         return SlotsSequenceElement(tag, problems)
 

@@ -25,7 +25,9 @@
 <h2>Files/Directories That Had Problems:</h2>
 
 <ul t:render="problems">
-  <li t:render="item" />
+  <li t:render="item">
+    <t:slot name="problem" />
+  </li>
   <li t:render="empty">None</li>
 </ul>
 </div>
@@ -34,7 +36,9 @@
 <div t:render="servers_with_corrupt_shares_p">
 <h2>Servers on which corrupt shares were found</h2>
 <ul t:render="servers_with_corrupt_shares">
-  <li t:render="item"/>
+  <li t:render="item">
+    <t:slot name="problem" />
+  </li>
   <li t:render="empty">None</li>
 </ul>
 </div>
