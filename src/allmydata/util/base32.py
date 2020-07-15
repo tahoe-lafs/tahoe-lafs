@@ -55,7 +55,7 @@ BASE32STR_1byte = BASE32CHAR+BASE32CHAR_3bits
 BASE32STR_2bytes = BASE32CHAR+b'{3}'+BASE32CHAR_1bits
 BASE32STR_3bytes = BASE32CHAR+b'{4}'+BASE32CHAR_4bits
 BASE32STR_4bytes = BASE32CHAR+b'{6}'+BASE32CHAR_2bits
-BASE32STR_anybytes =b'((?:%s{8})*' % (BASE32CHAR,) + b"(?:|%s|%s|%s|%s))" % (BASE32STR_1byte, BASE32STR_2bytes, BASE32STR_3bytes, BASE32STR_4bytes)
+BASE32STR_anybytes = bytes(b'((?:%s{8})*') % (BASE32CHAR,) + bytes(b"(?:|%s|%s|%s|%s))") % (BASE32STR_1byte, BASE32STR_2bytes, BASE32STR_3bytes, BASE32STR_4bytes)
 
 def b2a(os):
     """
