@@ -12,6 +12,17 @@ from future.utils import PY2
 if PY2:
     from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, int, list, object, range, str, max, min  # noqa: F401
 
+if PY2:
+    def backwardscompat_bytes(b):
+        """
+        Replace Future bytes with native Python 2 bytes, so % works
+        consistently until other modules are ported.
+        """
+        return getattr(b, "__native__", lambda: b)()
+else:
+    def backwardscompat_bytes(b):
+        return b
+
 import base64
 
 from allmydata.util.assertutil import precondition
@@ -46,16 +57,16 @@ def get_trailing_chars_without_lsbs(N):
     d = {}
     return b''.join(_get_trailing_chars_without_lsbs(N, d=d))
 
-BASE32CHAR =b'['+get_trailing_chars_without_lsbs(0)+b']'
-BASE32CHAR_4bits =b'['+get_trailing_chars_without_lsbs(1)+b']'
-BASE32CHAR_3bits =b'['+get_trailing_chars_without_lsbs(2)+b']'
-BASE32CHAR_2bits =b'['+get_trailing_chars_without_lsbs(3)+b']'
-BASE32CHAR_1bits =b'['+get_trailing_chars_without_lsbs(4)+b']'
-BASE32STR_1byte = BASE32CHAR+BASE32CHAR_3bits
-BASE32STR_2bytes = BASE32CHAR+b'{3}'+BASE32CHAR_1bits
-BASE32STR_3bytes = BASE32CHAR+b'{4}'+BASE32CHAR_4bits
-BASE32STR_4bytes = BASE32CHAR+b'{6}'+BASE32CHAR_2bits
-BASE32STR_anybytes = bytes(b'((?:%s{8})*') % (BASE32CHAR,) + bytes(b"(?:|%s|%s|%s|%s))") % (BASE32STR_1byte, BASE32STR_2bytes, BASE32STR_3bytes, BASE32STR_4bytes)
+BASE32CHAR = backwardscompat_bytes(b'['+get_trailing_chars_without_lsbs(0)+b']')
+BASE32CHAR_4bits = backwardscompat_bytes(b'['+get_trailing_chars_without_lsbs(1)+b']')
+BASE32CHAR_3bits = backwardscompat_bytes(b'['+get_trailing_chars_without_lsbs(2)+b']')
+BASE32CHAR_2bits = backwardscompat_bytes(b'['+get_trailing_chars_without_lsbs(3)+b']')
+BASE32CHAR_1bits = backwardscompat_bytes(b'['+get_trailing_chars_without_lsbs(4)+b']')
+BASE32STR_1byte = backwardscompat_bytes(BASE32CHAR+BASE32CHAR_3bits)
+BASE32STR_2bytes = backwardscompat_bytes(BASE32CHAR+b'{3}'+BASE32CHAR_1bits)
+BASE32STR_3bytes = backwardscompat_bytes(BASE32CHAR+b'{4}'+BASE32CHAR_4bits)
+BASE32STR_4bytes = backwardscompat_bytes(BASE32CHAR+b'{6}'+BASE32CHAR_2bits)
+BASE32STR_anybytes = backwardscompat_bytes(bytes(b'((?:%s{8})*') % (BASE32CHAR,) + bytes(b"(?:|%s|%s|%s|%s))") % (BASE32STR_1byte, BASE32STR_2bytes, BASE32STR_3bytes, BASE32STR_4bytes))
 
 def b2a(os):
     """
