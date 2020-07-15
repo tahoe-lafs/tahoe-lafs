@@ -29,9 +29,9 @@ class Netstring(unittest.TestCase):
         for s in split_netstring(a, 2)[0]:
             self.assertIsInstance(s, bytes)
         self.failUnlessEqual(split_netstring(a, 2), ([b"hello", b"world"], len(a)))
-        self.failUnlessEqual(split_netstring(a, 2, required_trailer=""), ([b"hello", b"world"], len(a)))
+        self.failUnlessEqual(split_netstring(a, 2, required_trailer=b""), ([b"hello", b"world"], len(a)))
         self.failUnlessRaises(ValueError, split_netstring, a, 3)
-        self.failUnlessRaises(ValueError, split_netstring, a+b" extra", 2, required_trailer="")
+        self.failUnlessRaises(ValueError, split_netstring, a+b" extra", 2, required_trailer=b"")
         self.failUnlessEqual(split_netstring(a+b" extra", 2), ([b"hello", b"world"], len(a)))
         self.failUnlessEqual(split_netstring(a+b"++", 2, required_trailer=b"++"),
                              ([b"hello", b"world"], len(a)+2))
