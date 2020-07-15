@@ -501,8 +501,11 @@ class DeepCheckResultsRendererElement(Element, ResultsBase, ReloadMixin):
                 if summary:
                     summary_text = ": " + summary
                 summary_text += " [SI: %s]" % cr.get_storage_index_string()
-                problem = self._join_pathstring(path), ":", self._html(summary_text)
-                problems.append(problem)
+                problems.append({
+                    # TODO: result of _join_pathstring() seems to be
+                    # weird.  Might as well use "path" as the key here?
+                    self._join_pathstring(path): self._html(summary_text)
+                })
 
         return SlotsSequenceElement(tag, problems)
 
