@@ -16,6 +16,10 @@ from twisted.web.template import flattenString
 
 from allmydata import check_results, uri
 from allmydata import uri as tahoe_uri
+from allmydata.interfaces import (
+    ICheckResults,
+    IDeepCheckResults,
+)
 from allmydata.util import base32
 from allmydata.web import check_results as web_check_results
 from allmydata.storage_client import StorageFarmBroker, NativeStorageServer
@@ -49,6 +53,61 @@ class TestRequest(object, Request):
         self.args = args or {}
         self.fields = fields or {}
         self.prepath = [b""]
+        self.postpath = [b""]
+
+
+@implementer(ICheckResults)
+class FakeResults(object):
+
+    def __init__(self):
+        # TODO: figure out a good enough fake SI.
+        self._storage_index = "fake-si"
+
+    def get_storage_index(self):
+        return self._storage_index
+
+    def get_storage_index_string(self):
+        return base32.b2a(self._storage_index)
+
+    def is_healthy(self):
+        return False
+
+    def is_recoverable(self):
+        return False
+
+    def get_summary(self):
+        return "A fake summary"
+
+
+@implementer(IDeepCheckResults)
+class FakeDeepCheckResults(object):
+
+    def get_root_storage_index_string(self):
+        # TODO: figure out a good enough fake root SI.
+        return "fake-root-si"
+
+    def get_counters(self):
+        return {
+            "count-objects-checked": 4,
+            "count-objects-healthy": 1,
+            "count-objects-unhealthy": 1,
+            "count-objects-unrecoverable": 1,
+            "count-corrupt-shares": 1,
+        }
+
+    def get_all_results(self):
+        return {
+            # TODO: fill this, perhaps with one each of healthy,
+            # unhealthy, unrecoverable, corrupt.
+            "fake-result-path": FakeResults()
+        }
+
+    def get_corrupt_shares(self):
+        return [
+            # TODO: fill this with:
+            # (IServer, storage_index, sharenum)
+        ]
+
 
 class WebResultsRendering(unittest.TestCase):
 
@@ -345,10 +404,11 @@ class WebResultsRendering(unittest.TestCase):
             self.failUnlessEqual(j["storage-index"], "")
         _got_lit_results(d)
 
+
     def test_deep_check_renderer(self):
         monitor = Monitor()
-        status = check_results.DeepCheckResults("")
-        monitor.set_status(status)
+        result = FakeDeepCheckResults()
+        monitor.set_status(result)
 
         elem = web_check_results.DeepCheckResultsRendererElement(monitor)
 
@@ -369,27 +429,27 @@ class WebResultsRendering(unittest.TestCase):
 
         assert_soup_has_tag_with_content(
             self, soup, u"li",
-            u"Objects Checked: 0"
+            u"Objects Checked: 4"
         )
 
         assert_soup_has_tag_with_content(
             self, soup, u"li",
-            u"Objects Healthy: 0"
+            u"Objects Healthy: 1"
         )
 
         assert_soup_has_tag_with_content(
             self, soup, u"li",
-            u"Objects Unhealthy: 0"
+            u"Objects Unhealthy: 1"
         )
 
         assert_soup_has_tag_with_content(
             self, soup, u"li",
-            u"Objects Unrecoverable: 0"
+            u"Objects Unrecoverable: 1"
         )
 
         assert_soup_has_tag_with_content(
             self, soup, u"li",
-            u"Corrupt Shares: 0"
+            u"Corrupt Shares: 1"
         )
 
     def test_deep_check_and_repair_renderer(self):
