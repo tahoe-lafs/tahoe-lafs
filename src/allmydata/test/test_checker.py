@@ -17,6 +17,7 @@ from twisted.web.template import flattenString
 from allmydata import check_results, uri
 from allmydata import uri as tahoe_uri
 from allmydata.interfaces import (
+    IServer,
     ICheckResults,
     IDeepCheckResults,
 )
@@ -56,6 +57,19 @@ class TestRequest(object, Request):
         self.postpath = [b""]
 
 
+@implementer(IServer)
+class FakeServer(object):
+
+    def get_name(self):
+        return "fake name"
+
+    def get_longname(self):
+        return "fake longname"
+
+    def get_nickname(self):
+        return "fake nickname"
+
+
 @implementer(ICheckResults)
 class FakeResults(object):
 
@@ -78,7 +92,11 @@ class FakeResults(object):
     def get_summary(self):
         return "A fake summary"
 
+    def get_corrupt_shares(self):
+        return (FakeServer(), None, None)
 
+
+# TODO: maybe use check_results.DeepCheckResults?
 @implementer(IDeepCheckResults)
 class FakeDeepCheckResults(object):
 
@@ -106,6 +124,7 @@ class FakeDeepCheckResults(object):
         return [
             # TODO: fill this with:
             # (IServer, storage_index, sharenum)
+            FakeResults().get_corrupt_shares(),
         ]
 
 
