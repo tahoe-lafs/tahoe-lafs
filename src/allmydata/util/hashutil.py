@@ -1,3 +1,10 @@
+"""
+Hashing utilities.
+"""
+
+from builtins import bytes
+from past.builtins import chr as byteschr
+
 import os
 import hashlib
 from allmydata.util.netstring import netstring
@@ -60,34 +67,34 @@ def tagged_pair_hash(tag, val1, val2, truncate_to=None):
 
 
 # immutable
-STORAGE_INDEX_TAG = "allmydata_immutable_key_to_storage_index_v1"
-BLOCK_TAG = "allmydata_encoded_subshare_v1"
-UEB_TAG = "allmydata_uri_extension_v1"
-PLAINTEXT_TAG = "allmydata_plaintext_v1"
-CIPHERTEXT_TAG = "allmydata_crypttext_v1"
-CIPHERTEXT_SEGMENT_TAG = "allmydata_crypttext_segment_v1"
-PLAINTEXT_SEGMENT_TAG = "allmydata_plaintext_segment_v1"
-CONVERGENT_ENCRYPTION_TAG = "allmydata_immutable_content_to_key_with_added_secret_v1+"
+STORAGE_INDEX_TAG = b"allmydata_immutable_key_to_storage_index_v1"
+BLOCK_TAG = b"allmydata_encoded_subshare_v1"
+UEB_TAG = b"allmydata_uri_extension_v1"
+PLAINTEXT_TAG = b"allmydata_plaintext_v1"
+CIPHERTEXT_TAG = b"allmydata_crypttext_v1"
+CIPHERTEXT_SEGMENT_TAG = b"allmydata_crypttext_segment_v1"
+PLAINTEXT_SEGMENT_TAG = b"allmydata_plaintext_segment_v1"
+CONVERGENT_ENCRYPTION_TAG = b"allmydata_immutable_content_to_key_with_added_secret_v1+"
 
-CLIENT_RENEWAL_TAG = "allmydata_client_renewal_secret_v1"
-CLIENT_CANCEL_TAG = "allmydata_client_cancel_secret_v1"
-FILE_RENEWAL_TAG = "allmydata_file_renewal_secret_v1"
-FILE_CANCEL_TAG = "allmydata_file_cancel_secret_v1"
-BUCKET_RENEWAL_TAG = "allmydata_bucket_renewal_secret_v1"
-BUCKET_CANCEL_TAG = "allmydata_bucket_cancel_secret_v1"
+CLIENT_RENEWAL_TAG = b"allmydata_client_renewal_secret_v1"
+CLIENT_CANCEL_TAG = b"allmydata_client_cancel_secret_v1"
+FILE_RENEWAL_TAG = b"allmydata_file_renewal_secret_v1"
+FILE_CANCEL_TAG = b"allmydata_file_cancel_secret_v1"
+BUCKET_RENEWAL_TAG = b"allmydata_bucket_renewal_secret_v1"
+BUCKET_CANCEL_TAG = b"allmydata_bucket_cancel_secret_v1"
 
 # mutable
-MUTABLE_WRITEKEY_TAG = "allmydata_mutable_privkey_to_writekey_v1"
-MUTABLE_WRITE_ENABLER_MASTER_TAG = "allmydata_mutable_writekey_to_write_enabler_master_v1"
-MUTABLE_WRITE_ENABLER_TAG = "allmydata_mutable_write_enabler_master_and_nodeid_to_write_enabler_v1"
-MUTABLE_PUBKEY_TAG = "allmydata_mutable_pubkey_to_fingerprint_v1"
-MUTABLE_READKEY_TAG = "allmydata_mutable_writekey_to_readkey_v1"
-MUTABLE_DATAKEY_TAG = "allmydata_mutable_readkey_to_datakey_v1"
-MUTABLE_STORAGEINDEX_TAG = "allmydata_mutable_readkey_to_storage_index_v1"
+MUTABLE_WRITEKEY_TAG = b"allmydata_mutable_privkey_to_writekey_v1"
+MUTABLE_WRITE_ENABLER_MASTER_TAG = b"allmydata_mutable_writekey_to_write_enabler_master_v1"
+MUTABLE_WRITE_ENABLER_TAG = b"allmydata_mutable_write_enabler_master_and_nodeid_to_write_enabler_v1"
+MUTABLE_PUBKEY_TAG = b"allmydata_mutable_pubkey_to_fingerprint_v1"
+MUTABLE_READKEY_TAG = b"allmydata_mutable_writekey_to_readkey_v1"
+MUTABLE_DATAKEY_TAG = b"allmydata_mutable_readkey_to_datakey_v1"
+MUTABLE_STORAGEINDEX_TAG = b"allmydata_mutable_readkey_to_storage_index_v1"
 
 # dirnodes
-DIRNODE_CHILD_WRITECAP_TAG = "allmydata_mutable_writekey_and_salt_to_dirnode_child_capkey_v1"
-DIRNODE_CHILD_SALT_TAG = "allmydata_dirnode_child_rwcap_to_salt_v1"
+DIRNODE_CHILD_WRITECAP_TAG = b"allmydata_mutable_writekey_and_salt_to_dirnode_child_capkey_v1"
+DIRNODE_CHILD_SALT_TAG = b"allmydata_dirnode_child_rwcap_to_salt_v1"
 
 
 def storage_index_hash(key):
@@ -158,8 +165,8 @@ def convergence_hash(k, n, segsize, data, convergence):
 
 
 def convergence_hasher(k, n, segsize, convergence):
-    assert isinstance(convergence, str)
-    param_tag = netstring("%d,%d,%d" % (k, n, segsize))
+    assert isinstance(convergence, bytes)
+    param_tag = netstring(b"%d,%d,%d" % (k, n, segsize))
     tag = CONVERGENT_ENCRYPTION_TAG + netstring(convergence) + param_tag
     return tagged_hasher(tag, KEYLEN)
 
@@ -197,12 +204,13 @@ def bucket_cancel_secret_hash(file_cancel_secret, peerid):
 
 
 def _xor(a, b):
-    return "".join([chr(ord(c) ^ ord(b)) for c in a])
+    return b"".join([byteschr(c ^ b) for c in a])
 
 
 def hmac(tag, data):
-    ikey = _xor(tag, "\x36")
-    okey = _xor(tag, "\x5c")
+    tag = bytes(tag)  # Make sure it matches Python 3 behavior
+    ikey = _xor(tag, 0x36)
+    okey = _xor(tag, 0x5c)
     h1 = hashlib.sha256(ikey + data).digest()
     h2 = hashlib.sha256(okey + h1).digest()
     return h2
@@ -251,7 +259,7 @@ def timing_safe_compare(a, b):
     return bool(tagged_hash(n, a) == tagged_hash(n, b))
 
 
-BACKUPDB_DIRHASH_TAG = "allmydata_backupdb_dirhash_v1"
+BACKUPDB_DIRHASH_TAG = b"allmydata_backupdb_dirhash_v1"
 
 
 def backupdb_dirhash(contents):
