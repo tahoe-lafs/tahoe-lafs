@@ -47,7 +47,7 @@
 <h2>Corrupt Shares</h2>
 <p>If repair fails, these shares need to be manually inspected and removed.</p>
 <table t:render="corrupt_shares">
-  <tr>
+  <tr t:render="header">
     <th>Server</th>
     <th>Server Nickname</th>
     <th>Storage Index</th>
@@ -67,7 +67,7 @@
 <div>
 <h2>All Results</h2>
 <table t:render="all_objects">
-  <tr>
+  <tr t:render="header">
     <th>Relative Path</th>
     <th>Healthy</th>
     <th>Recoverable</th>
