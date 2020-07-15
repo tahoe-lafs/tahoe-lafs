@@ -8,6 +8,10 @@ from allmydata.util.netstring import netstring, split_netstring
 
 
 class Netstring(unittest.TestCase):
+    def test_encode(self):
+        """netstring() correctly encodes the given bytes."""
+        self.assertEqual(netstring(b"abc"), b"3:abc,")
+
     def test_split(self):
         a = netstring(b"hello") + netstring(b"world")
         self.failUnlessEqual(split_netstring(a, 2), ([b"hello", b"world"], len(a)))
