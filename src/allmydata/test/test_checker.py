@@ -20,6 +20,7 @@ from allmydata.interfaces import (
     IServer,
     ICheckResults,
     IDeepCheckResults,
+    ICheckAndRepairResults,
 )
 from allmydata.util import base32
 from allmydata.web import check_results as web_check_results
@@ -124,6 +125,25 @@ class FakeDeepCheckResults(object):
     def get_corrupt_shares(self):
         # Returns a set of (IServer, storage_index, sharenum)
         return { FakeResults().get_corrupt_shares() }
+
+
+@implementer(ICheckAndRepairResults)
+class FakeDeepCheckAndRepairResults(object):
+
+    def get_storage_index(self):
+        return "<none>"
+
+    def get_pre_repair_results(self):
+        return FakeResults()
+
+    def get_post_repair_results(self):
+        return FakeResults()
+
+    def get_repair_attempted(self):
+        return True
+
+    def get_repair_successful(self):
+        return False
 
 
 class WebResultsRendering(unittest.TestCase):
@@ -495,8 +515,15 @@ class WebResultsRendering(unittest.TestCase):
 
     def test_deep_check_and_repair_renderer(self):
         monitor = Monitor()
+
         status = check_results.DeepCheckAndRepairResults("")
+        status.add_check_and_repair(
+            FakeDeepCheckAndRepairResults(),
+            (u"some", u"fake", u"path")
+        )
+
         monitor.set_status(status)
+
         elem = web_check_results.DeepCheckAndRepairResultsRendererElement(monitor)
         doc = self.render_element(elem)
         soup = BeautifulSoup(doc, 'html5lib')
