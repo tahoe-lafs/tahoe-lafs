@@ -118,7 +118,7 @@ class FakeDeepCheckResults(object):
         return {
             # TODO: fill this, perhaps with one each of healthy,
             # unhealthy, unrecoverable, corrupt.
-            "fake-result-path": FakeResults()
+            (u"some", u"fake", u"path"): FakeResults()
         }
 
     def get_corrupt_shares(self):
@@ -471,6 +471,11 @@ class WebResultsRendering(unittest.TestCase):
         assert_soup_has_tag_with_content(
             self, soup, u"h2",
             u"Files/Directories That Had Problems:"
+        )
+
+        assert_soup_has_tag_with_content(
+            self, soup, u"li",
+            u"some/fake/path: fake summary results [SI: mzqwwzjnonuq]"
         )
 
         assert_soup_has_tag_with_content(

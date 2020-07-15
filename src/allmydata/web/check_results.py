@@ -91,6 +91,13 @@ class ResultsBase(object):
     # determine the permuted peer order
 
     def _join_pathstring(self, path):
+        """
+        :param tuple path: a path represented by a tuple, such as
+            ``(u'some', u'dir', u'file')``.
+
+        :return: a string joined by path separaters, such as
+            ``u'some/dir/file'``.
+        """
         if path:
             pathstring = "/".join(self._html(path))
         else:
@@ -504,7 +511,7 @@ class DeepCheckResultsRendererElement(Element, ResultsBase, ReloadMixin):
                 problems.append({
                     # Not sure self._join_pathstring(path) is the
                     # right thing to use here.
-                    "problem": self._html(path) + self._html(summary_text),
+                    "problem": self._join_pathstring(path) + self._html(summary_text),
                 })
 
         return SlotsSequenceElement(tag, problems)
@@ -573,7 +580,7 @@ class DeepCheckResultsRendererElement(Element, ResultsBase, ReloadMixin):
             result = results.get(path)
             storage_index = result.get_storage_index()
             object = {
-                "path": self._html(path),
+                "path": self._join_pathstring(path),
                 "healthy": str(result.is_healthy()),
                 "recoverable": str(result.is_recoverable()),
                 "storage_index": self._render_si_link(req, storage_index),
