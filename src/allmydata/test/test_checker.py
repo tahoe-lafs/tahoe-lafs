@@ -90,10 +90,11 @@ class FakeResults(object):
         return False
 
     def get_summary(self):
-        return "A fake summary"
+        return "fake summary results"
 
     def get_corrupt_shares(self):
-        return (FakeServer(), None, None)
+        # Returns (IServer, storage_index, sharenum)
+        return (FakeServer(), "fake-si", 0)
 
 
 # TODO: maybe use check_results.DeepCheckResults?
@@ -121,11 +122,8 @@ class FakeDeepCheckResults(object):
         }
 
     def get_corrupt_shares(self):
-        return [
-            # TODO: fill this with:
-            # (IServer, storage_index, sharenum)
-            FakeResults().get_corrupt_shares(),
-        ]
+        # Returns a set of (IServer, storage_index, sharenum)
+        return { FakeResults().get_corrupt_shares() }
 
 
 class WebResultsRendering(unittest.TestCase):
@@ -430,7 +428,6 @@ class WebResultsRendering(unittest.TestCase):
         monitor.set_status(result)
 
         elem = web_check_results.DeepCheckResultsRendererElement(monitor)
-
         doc = self.render_element(elem)
         soup = BeautifulSoup(doc, 'html5lib')
 
@@ -469,6 +466,26 @@ class WebResultsRendering(unittest.TestCase):
         assert_soup_has_tag_with_content(
             self, soup, u"li",
             u"Corrupt Shares: 1"
+        )
+
+        assert_soup_has_tag_with_content(
+            self, soup, u"h2",
+            u"Files/Directories That Had Problems:"
+        )
+
+        assert_soup_has_tag_with_content(
+            self, soup, u"h2",
+            u"Servers on which corrupt shares were found"
+        )
+
+        assert_soup_has_tag_with_content(
+            self, soup, u"h2",
+            u"Corrupt Shares"
+        )
+
+        assert_soup_has_tag_with_content(
+            self, soup, u"h2",
+            u"All Results"
         )
 
     def test_deep_check_and_repair_renderer(self):
