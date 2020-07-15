@@ -19,7 +19,6 @@ from allmydata import uri as tahoe_uri
 from allmydata.interfaces import (
     IServer,
     ICheckResults,
-    IDeepCheckResults,
     ICheckAndRepairResults,
 )
 from allmydata.util import base32
