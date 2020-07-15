@@ -30,7 +30,9 @@ PORTED_TEST_MODULES = [
     "allmydata.test.test_base32",
     "allmydata.test.test_base62",
     "allmydata.test.test_deferredutil",
+    "allmydata.test.test_hashutil",
     "allmydata.test.test_humanreadable",
+    "allmydata.test.test_netstring",
     "allmydata.test.test_python3",
 ]
 
