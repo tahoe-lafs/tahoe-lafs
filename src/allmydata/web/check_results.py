@@ -483,8 +483,7 @@ class DeepCheckResultsRendererElement(Element, ResultsBase, ReloadMixin):
 
     @renderer
     def problems_p(self, req, tag):
-        c = self.monitor.get_status().get_counters()
-        if c["count-objects-unhealthy"]:
+        if self._get_monitor_counter("count-objects-unhealthy"):
             return tag
         return ""
 
