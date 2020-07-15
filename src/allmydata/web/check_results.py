@@ -573,7 +573,7 @@ class DeepCheckResultsRendererElement(Element, ResultsBase, ReloadMixin):
             result = results.get(path)
             storage_index = result.get_storage_index()
             object = {
-                "path": self._join_pathstring(path),
+                "path": self._html(path),
                 "healthy": str(result.is_healthy()),
                 "recoverable": str(result.is_recoverable()),
                 "storage_index": self._render_si_link(req, storage_index),
