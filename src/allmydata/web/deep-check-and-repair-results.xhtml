@@ -71,12 +71,12 @@
 <div>
 <table t:render="all_objects">
   <tr t:pattern="header">
-    <td>Relative Path</td>
-    <td>Healthy Pre-Repair</td>
-    <td>Recoverable Pre-Repair</td>
-    <td>Healthy Post-Repair</td>
-    <td>Storage Index</td>
-    <td>Summary</td>
+    <th>Relative Path</th>
+    <th>Healthy Pre-Repair</th>
+    <th>Recoverable Pre-Repair</th>
+    <th>Healthy Post-Repair</th>
+    <th>Storage Index</th>
+    <th>Summary</th>
   </tr>
   <tr t:render="item">
     <td><t:slot name="path"/></td>
@@ -85,6 +85,9 @@
     <td><t:slot name="healthy_post_repair"/></td>
     <td><t:slot name="storage_index"/></td>
     <td><t:slot name="summary"/></td>
+  </tr>
+  <tr t:render="empty">
+    <td>Nothing to report yet.</td>
   </tr>
 </table>
 </div>
