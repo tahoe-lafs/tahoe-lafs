@@ -20,10 +20,14 @@ from allmydata.util.netstring import netstring, split_netstring
 class Netstring(unittest.TestCase):
     def test_encode(self):
         """netstring() correctly encodes the given bytes."""
-        self.assertEqual(netstring(b"abc"), b"3:abc,")
+        result = netstring(b"abc")
+        self.assertEqual(result, b"3:abc,")
+        self.assertIsInstance(result, bytes)
 
     def test_split(self):
         a = netstring(b"hello") + netstring(b"world")
+        for s in split_netstring(a, 2)[0]:
+            self.assertIsInstance(s, bytes)
         self.failUnlessEqual(split_netstring(a, 2), ([b"hello", b"world"], len(a)))
         self.failUnlessEqual(split_netstring(a, 2, required_trailer=""), ([b"hello", b"world"], len(a)))
         self.failUnlessRaises(ValueError, split_netstring, a, 3)
