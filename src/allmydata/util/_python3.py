@@ -19,6 +19,7 @@ PORTED_MODULES = [
     "allmydata.util.base32",
     "allmydata.util.base62",
     "allmydata.util.deferredutil",
+    "allmydata.util.hashutil",
     "allmydata.util.humanreadable",
     "allmydata.util.mathutil",
     "allmydata.util.namespace",
