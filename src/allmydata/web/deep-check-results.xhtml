@@ -47,11 +47,11 @@
 <h2>Corrupt Shares</h2>
 <p>If repair fails, these shares need to be manually inspected and removed.</p>
 <table t:render="corrupt_shares">
-  <tr t:render="header">
-    <td>Server</td>
-    <td>Server Nickname</td>
-    <td>Storage Index</td>
-    <td>Share Number</td>
+  <tr>
+    <th>Server</th>
+    <th>Server Nickname</th>
+    <th>Storage Index</th>
+    <th>Share Number</th>
   </tr>
   <tr t:render="item">
     <td><t:slot name="serverid"/></td>
@@ -67,12 +67,12 @@
 <div>
 <h2>All Results</h2>
 <table t:render="all_objects">
-  <tr t:render="header">
-    <td>Relative Path</td>
-    <td>Healthy</td>
-    <td>Recoverable</td>
-    <td>Storage Index</td>
-    <td>Summary</td>
+  <tr>
+    <th>Relative Path</th>
+    <th>Healthy</th>
+    <th>Recoverable</th>
+    <th>Storage Index</th>
+    <th>Summary</th>
   </tr>
   <tr t:render="item">
     <td><t:slot name="path"/></td>
