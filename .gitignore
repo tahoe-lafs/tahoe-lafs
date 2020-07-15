@@ -46,6 +46,7 @@ zope.interface-*.egg
 /.hypothesis/
 /eliot.log
 /misc/python3/results.xml
+/misc/python3/results.subunit2
 
 # This is the plaintext of the private environment needed for some CircleCI
 # operations.  It's never supposed to be checked in.

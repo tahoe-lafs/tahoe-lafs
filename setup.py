@@ -142,6 +142,7 @@ tor_requires = [
 
 i2p_requires = [
     # txi2p has Python 3 support, but it's unreleased: https://github.com/str4d/txi2p/issues/10.
+    # URL lookups are in PEP-508 (via https://stackoverflow.com/a/54794506).
     # Also see the comment in tor_requires.
     "txi2p @ git+https://github.com/str4d/txi2p@0611b9a86172cb70d2f5e415a88eee9f230590b3#egg=txi2p",
 ]

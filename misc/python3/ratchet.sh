@@ -1,10 +1,18 @@
 #!/usr/bin/env bash
-base="$(dirname $0)"
-tracking="passing"
+set -euxo pipefail
+tracking_filename="ratchet-passing"
 
-# trial outputs some things that are only git-ignored in the root, so don't cd quite yet ...
+# Start somewhere predictable.
+cd "$(dirname $0)"
+base=$(pwd)
+
+# Actually, though, trial outputs some things that are only gitignored in the project root.
+cd "../.."
+
+# Since both of the next calls are expected to exit non-0, relax our guard.
 set +e
-trial --reporter subunitv2 allmydata | subunit2junitxml > "$base/results.xml"
+SUBUNITREPORTER_OUTPUT_PATH="$base/results.subunit2" trial --reporter subunitv2-file allmydata
+subunit2junitxml < "$base/results.subunit2" > "$base/results.xml"
 set -e
 
 # Okay, now we're clear.
@@ -13,11 +21,9 @@ cd "$base"
 # Make sure ratchet.py itself is clean.
 python3 -m doctest ratchet.py
 
-# Now see about Tahoe-LAFS ...
+# Now see about Tahoe-LAFS (also expected to fail) ...
 set +e
-# P.S. Don't invoke as `python ratchet.py ...` because then Python swallows the
-# exit code.
-./ratchet.py up results.xml "$tracking"
+python3 ratchet.py up results.xml "$tracking_filename"
 code=$?
 set -e
 
@@ -26,6 +32,6 @@ set -e
 if [ $TERM = 'dumb' ]; then
   export TERM=ansi
 fi
-git diff "$tracking"
+git diff "$tracking_filename"
 
 exit $code

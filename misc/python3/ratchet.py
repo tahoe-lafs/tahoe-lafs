@@ -26,9 +26,6 @@ The exit codes are:
   1 - changes observed, whether welcome or unwelcome
   2 - invocation error
 
-Be sure to call as `./ratchet.py` and not `python ratchet.py` if you want to
-see our exit code instead of Python's.
-
 If <junitxml file path> does not exist, you'll get a FileNotFoundError:
 
     >>> _test('up', None, None)                                                # doctest: +ELLIPSIS
@@ -231,6 +228,7 @@ def main(direction, junitxml_path, tracking_path):
     results = JUnitXMLFile(junitxml_path).parse()
 
     if tracking_path == '...':
+        # Shortcut to aid in debugging XML parsing issues.
         results.report()
         return
 
