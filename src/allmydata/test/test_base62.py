@@ -38,6 +38,8 @@ class Base62(unittest.TestCase):
         self.assertIsInstance(encoded, bytes)
         self.assertIsInstance(bs, bytes)
         self.assertIsInstance(decoded, bytes)
+        # Encoded string only uses values from the base62 allowed characters:
+        self.assertFalse(set(encoded) - set(base62.chars))
 
     @given(input_bytes=st.binary(max_size=100))
     def test_roundtrip(self, input_bytes):
