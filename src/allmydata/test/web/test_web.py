@@ -1074,6 +1074,10 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         return d
 
     def _check_status_subpath_result(self, result, expected_title):
+        """
+        Helper to verify that results of "GET /status/up-0" and
+        similar are as expected.
+        """
         body, status, _ = result
         self.failUnlessReallyEqual(int(status), 200)
         soup = BeautifulSoup(body, 'html5lib')
@@ -1083,35 +1087,45 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         )
 
     def test_status_up_subpath(self):
-        # See that "GET /status/up-0" works.
+        """
+        See that "GET /status/up-0" works.
+        """
         d = self.GET("/status/up-0", return_response=True)
         d.addCallback(self._check_status_subpath_result,
                       u"Tahoe-LAFS - File Upload Status")
         return d
 
     def test_status_down_subpath(self):
-        # See that "GET /status/down-0" works.
+        """
+        See that "GET /status/down-0" works.
+        """
         d = self.GET("/status/down-0", return_response=True)
         d.addCallback(self._check_status_subpath_result,
                       u"Tahoe-LAFS - File Download Status")
         return d
 
     def test_status_mapupdate_subpath(self):
-        # See that "GET /status/mapupdate-0" works.
+        """
+        See that "GET /status/mapupdate-0" works.
+        """
         d = self.GET("/status/mapupdate-0", return_response=True)
         d.addCallback(self._check_status_subpath_result,
                       u"Tahoe-LAFS - Mutable File Servermap Update Status")
         return d
 
     def test_status_publish_subpath(self):
-        # See that "GET /status/publish-0" works.
+        """
+        See that "GET /status/publish-0" works.
+        """
         d = self.GET("/status/publish-0", return_response=True)
         d.addCallback(self._check_status_subpath_result,
                       u"Tahoe-LAFS - Mutable File Publish Status")
         return d
 
     def test_status_retrieve_subpath(self):
-        # See that "GET /status/retrieve-0" works.
+        """
+        See that "GET /status/retrieve-0" works.
+        """
         d = self.GET("/status/retrieve-0", return_response=True)
         d.addCallback(self._check_status_subpath_result,
                       u"Tahoe-LAFS - Mutable File Retrieve Status")
