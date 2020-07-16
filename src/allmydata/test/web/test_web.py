@@ -1036,8 +1036,10 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         return d
 
     def test_status_path_error(self):
-        # Expect an error, because path is expected to be of the form
-        # "/status/{up,down,..}-%number", with a hyphen.
+        """
+        Expect an error, because path is expected to be of the form
+        "/status/{up,down,..}-%number", with a hyphen.
+        """
         return self.shouldFail2(error.Error,
                                 "test_status_path_error",
                                 "400 Bad Request",

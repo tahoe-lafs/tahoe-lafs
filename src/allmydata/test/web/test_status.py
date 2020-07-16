@@ -1,4 +1,6 @@
-# Tests for code in allmydata.web.status
+"""
+Tests for ```allmydata.web.status```.
+"""
 
 from bs4 import BeautifulSoup
 from twisted.web.template import flattenString
