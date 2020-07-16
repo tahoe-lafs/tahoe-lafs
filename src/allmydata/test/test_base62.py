@@ -27,7 +27,7 @@ from allmydata.util import base62, mathutil
 def insecurerandstr(n):
     return bytes(list(map(random.randrange, [0]*n, [256]*n)))
 
-class T(unittest.TestCase):
+class Base62(unittest.TestCase):
     def _test_num_octets_that_encode_to_this_many_chars(self, chars, octets):
         assert base62.num_octets_that_encode_to_this_many_chars(chars) == octets, "%s != %s <- %s" % (octets, base62.num_octets_that_encode_to_this_many_chars(chars), chars)
 
@@ -42,6 +42,22 @@ class T(unittest.TestCase):
     @given(input_bytes=st.binary(max_size=100))
     def test_roundtrip(self, input_bytes):
         self._test_roundtrip(input_bytes)
+
+    def test_known_values(self):
+        """Known values to ensure the algorithm hasn't changed."""
+
+        def check_expected(plaintext, encoded):
+            result1 = base62.b2a(plaintext)
+            self.assertEqual(encoded, result1)
+            result2 = base62.a2b(encoded)
+            self.assertEqual(plaintext, result2)
+
+        check_expected(b"hello", b'7tQLFHz')
+        check_expected(b"", b'0')
+        check_expected(b"zzz", b'0Xg7e')
+        check_expected(b"\x36\xffWAT", b'49pq4mq')
+        check_expected(b"1234 22323", b'1A0afZe9mxSZpz')
+        check_expected(b"______", b'0TmAuCHJX')
 
     def test_num_octets_that_encode_to_this_many_chars(self):
         return self._test_num_octets_that_encode_to_this_many_chars(2, 1)
