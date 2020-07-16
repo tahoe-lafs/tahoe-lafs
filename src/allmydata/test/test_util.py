@@ -21,7 +21,7 @@ from allmydata.util import statistics, dictutil, pipeline, yamlutil
 from allmydata.util import log as tahoe_log
 from allmydata.util.spans import Spans, overlap, DataSpans
 from allmydata.util.fileutil import EncryptedTemporaryFile
-from allmydata.test.common_util import ReallyEqualMixin, TimezoneMixin
+from allmydata.test.common_util import ReallyEqualMixin
 
 if six.PY3:
     long = int
