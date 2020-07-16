@@ -1048,9 +1048,14 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
                                 "/status/nodash")
 
     def test_status_path_404(self):
-        # The test suite (hopefully!) would not have done any setup
-        # for a very large number of statuses at this point, so these
-        # all should return 404.
+        """
+        Looking for non-existent statuses under child paths should
+        exercises all the iterators in web.status.Status.getChild().
+
+        The test suite (hopefully!) would not have done any setup for
+        a very large number of statuses at this point, now or in the
+        future, so these all should always return 404.
+        """
         d = self.GET("/status/up-9999999")
         d.addBoth(self.should404, "test_status_path_error (up)")
 
