@@ -1035,19 +1035,19 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
 
         return d
 
-    def test_status_path_error(self):
+    def test_status_path_nodash_error(self):
         """
         Expect an error, because path is expected to be of the form
         "/status/{up,down,..}-%number", with a hyphen.
         """
         return self.shouldFail2(error.Error,
-                                "test_status_path_error",
+                                "test_status_path_nodash",
                                 "400 Bad Request",
                                 "no '-' in 'nodash'",
                                 self.GET,
                                 "/status/nodash")
 
-    def test_status_path_404(self):
+    def test_status_path_404_error(self):
         """
         Looking for non-existent statuses under child paths should
         exercises all the iterators in web.status.Status.getChild().
@@ -1057,19 +1057,19 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         future, so these all should always return 404.
         """
         d = self.GET("/status/up-9999999")
-        d.addBoth(self.should404, "test_status_path_error (up)")
+        d.addBoth(self.should404, "test_status_path_404_error (up)")
 
         d = self.GET("/status/down-9999999")
-        d.addBoth(self.should404, "test_status_path_error (down)")
+        d.addBoth(self.should404, "test_status_path_404_error (down)")
 
         d = self.GET("/status/mapupdate-9999999")
-        d.addBoth(self.should404, "test_status_path_error (mapupdate)")
+        d.addBoth(self.should404, "test_status_path_404_error (mapupdate)")
 
         d = self.GET("/status/publish-9999999")
-        d.addBoth(self.should404, "test_status_path_error (publish)")
+        d.addBoth(self.should404, "test_status_path_404_error (publish)")
 
         d = self.GET("/status/retrieve-9999999")
-        d.addBoth(self.should404, "test_status_path_error (retrieve)")
+        d.addBoth(self.should404, "test_status_path_404_error (retrieve)")
 
         return d
 
