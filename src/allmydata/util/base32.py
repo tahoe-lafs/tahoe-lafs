@@ -94,7 +94,9 @@ NUM_OS_TO_NUM_QS=(0, 2, 4, 5, 7,)
 
 NUM_QS_TO_NUM_OS=(0, 1, 1, 2, 2, 3, 3, 4)
 NUM_QS_LEGIT=(1, 0, 1, 0, 1, 1, 0, 1,)
-NUM_QS_TO_NUM_BITS=tuple([x*8 for x in NUM_QS_TO_NUM_OS])
+NUM_QS_TO_NUM_BITS=tuple([_x*8 for _x in NUM_QS_TO_NUM_OS])
+if PY2:
+    del _x
 
 # A fast way to determine whether a given string *could* be base-32 encoded data, assuming that the
 # original data had 8K bits for a positive integer K.
