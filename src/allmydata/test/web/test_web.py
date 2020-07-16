@@ -1073,21 +1073,22 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
 
         return d
 
+    def _check_status_subpath_result(self, result, expected_title):
+        body, status, _ = result
+        self.failUnlessReallyEqual(int(status), 200)
+        soup = BeautifulSoup(body, 'html5lib')
+        assert_soup_has_favicon(self, soup)
+        assert_soup_has_tag_with_content(
+            self, soup, u"title", expected_title
+        )
+
     def test_status_up_subpath(self):
         # See that "GET /status/up-0" works.
         h = self.s.get_history()
         ul_num = h.list_all_upload_statuses()[0].get_counter()
         d = self.GET("/status/up-{}".format(ul_num), return_response=True)
-        def _upload_status_check(result):
-            body, status, _ = result
-            self.failUnlessReallyEqual(int(status), 200)
-            soup = BeautifulSoup(body, 'html5lib')
-            assert_soup_has_favicon(self, soup)
-            assert_soup_has_tag_with_content(
-                self, soup, u"title",
-                u"Tahoe-LAFS - File Upload Status"
-            )
-        d.addCallback(_upload_status_check)
+        d.addCallback(self._check_status_subpath_result,
+                      u"Tahoe-LAFS - File Upload Status")
         return d
 
     def test_status_down_subpath(self):
@@ -1095,16 +1096,8 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         h = self.s.get_history()
         dl_num = h.list_all_download_statuses()[0].get_counter()
         d = self.GET("/status/down-{}".format(dl_num), return_response=True)
-        def _download_status_check(result):
-            body, status, _ = result
-            self.failUnlessReallyEqual(int(status), 200)
-            soup = BeautifulSoup(body, 'html5lib')
-            assert_soup_has_favicon(self, soup)
-            assert_soup_has_tag_with_content(
-                self, soup, u"title",
-                u"Tahoe-LAFS - File Download Status"
-            )
-        d.addCallback(_download_status_check)
+        d.addCallback(self._check_status_subpath_result,
+                      u"Tahoe-LAFS - File Download Status")
         return d
 
     def test_status_mapupdate_subpath(self):
@@ -1112,16 +1105,8 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         h = self.s.get_history()
         mu_num = h.list_all_mapupdate_statuses()[0].get_counter()
         d = self.GET("/status/mapupdate-{}".format(mu_num), return_response=True)
-        def _mapupdate_status_check(result):
-            body, status, _ = result
-            self.failUnlessReallyEqual(int(status), 200)
-            soup = BeautifulSoup(body, 'html5lib')
-            assert_soup_has_favicon(self, soup)
-            assert_soup_has_tag_with_content(
-                self, soup, u"title",
-                u"Tahoe-LAFS - Mutable File Servermap Update Status"
-            )
-        d.addCallback(_mapupdate_status_check)
+        d.addCallback(self._check_status_subpath_result,
+                      u"Tahoe-LAFS - Mutable File Servermap Update Status")
         return d
 
     def test_status_publish_subpath(self):
@@ -1129,16 +1114,8 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         h = self.s.get_history()
         pub_num = h.list_all_publish_statuses()[0].get_counter()
         d = self.GET("/status/publish-{}".format(pub_num), return_response=True)
-        def _publish_status_check(result):
-            body, status, _ = result
-            self.failUnlessReallyEqual(int(status), 200)
-            soup = BeautifulSoup(body, 'html5lib')
-            assert_soup_has_favicon(self, soup)
-            assert_soup_has_tag_with_content(
-                self, soup, u"title",
-                u"Tahoe-LAFS - Mutable File Publish Status"
-            )
-        d.addCallback(_publish_status_check)
+        d.addCallback(self._check_status_subpath_result,
+                      u"Tahoe-LAFS - Mutable File Publish Status")
         return d
 
     def test_status_retrieve_subpath(self):
@@ -1146,16 +1123,8 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         h = self.s.get_history()
         ret_num = h.list_all_retrieve_statuses()[0].get_counter()
         d = self.GET("/status/retrieve-{}".format(ret_num), return_response=True)
-        def _retrieve_status_check(result):
-            body, status, _ = result
-            self.failUnlessReallyEqual(int(status), 200)
-            soup = BeautifulSoup(body, 'html5lib')
-            assert_soup_has_favicon(self, soup)
-            assert_soup_has_tag_with_content(
-                self, soup, u"title",
-                u"Tahoe-LAFS - Mutable File Retrieve Status"
-            )
-        d.addCallback(_retrieve_status_check)
+        d.addCallback(self._check_status_subpath_result,
+                      u"Tahoe-LAFS - Mutable File Retrieve Status")
         return d
 
     def test_status_numbers(self):
