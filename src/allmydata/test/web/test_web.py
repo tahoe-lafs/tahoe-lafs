@@ -1090,7 +1090,9 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         """
         See that "GET /status/up-0" works.
         """
-        d = self.GET("/status/up-0", return_response=True)
+        h = self.s.get_history()
+        ul_num = h.list_all_upload_statuses()[0].get_counter()
+        d = self.GET("/status/up-{}".format(ul_num), return_response=True)
         d.addCallback(self._check_status_subpath_result,
                       u"Tahoe-LAFS - File Upload Status")
         return d
@@ -1099,7 +1101,9 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         """
         See that "GET /status/down-0" works.
         """
-        d = self.GET("/status/down-0", return_response=True)
+        h = self.s.get_history()
+        dl_num = h.list_all_download_statuses()[0].get_counter()
+        d = self.GET("/status/down-{}".format(dl_num), return_response=True)
         d.addCallback(self._check_status_subpath_result,
                       u"Tahoe-LAFS - File Download Status")
         return d
@@ -1108,7 +1112,9 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         """
         See that "GET /status/mapupdate-0" works.
         """
-        d = self.GET("/status/mapupdate-0", return_response=True)
+        h = self.s.get_history()
+        mu_num = h.list_all_mapupdate_statuses()[0].get_counter()
+        d = self.GET("/status/mapupdate-{}".format(mu_num), return_response=True)
         d.addCallback(self._check_status_subpath_result,
                       u"Tahoe-LAFS - Mutable File Servermap Update Status")
         return d
@@ -1117,7 +1123,9 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         """
         See that "GET /status/publish-0" works.
         """
-        d = self.GET("/status/publish-0", return_response=True)
+        h = self.s.get_history()
+        pub_num = h.list_all_publish_statuses()[0].get_counter()
+        d = self.GET("/status/publish-{}".format(pub_num), return_response=True)
         d.addCallback(self._check_status_subpath_result,
                       u"Tahoe-LAFS - Mutable File Publish Status")
         return d
@@ -1126,7 +1134,9 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         """
         See that "GET /status/retrieve-0" works.
         """
-        d = self.GET("/status/retrieve-0", return_response=True)
+        h = self.s.get_history()
+        ret_num = h.list_all_retrieve_statuses()[0].get_counter()
+        d = self.GET("/status/retrieve-{}".format(ret_num), return_response=True)
         d.addCallback(self._check_status_subpath_result,
                       u"Tahoe-LAFS - Mutable File Retrieve Status")
         return d
