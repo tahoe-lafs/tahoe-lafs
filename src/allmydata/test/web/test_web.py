@@ -972,11 +972,11 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d = self.GET("/status", followRedirect=True)
         def _check(res):
             self.failUnlessIn('Recent and Active Operations', res)
-            self.failUnlessIn('"down-%d"' % dl_num, res)
-            self.failUnlessIn('"up-%d"' % ul_num, res)
-            self.failUnlessIn('"mapupdate-%d"' % mu_num, res)
-            self.failUnlessIn('"publish-%d"' % pub_num, res)
-            self.failUnlessIn('"retrieve-%d"' % ret_num, res)
+            self.failUnlessIn('"/status/down-%d"' % dl_num, res)
+            self.failUnlessIn('"/status/up-%d"' % ul_num, res)
+            self.failUnlessIn('"/status/mapupdate-%d"' % mu_num, res)
+            self.failUnlessIn('"/status/publish-%d"' % pub_num, res)
+            self.failUnlessIn('"/status/retrieve-%d"' % ret_num, res)
         d.addCallback(_check)
         d.addCallback(lambda res: self.GET("/status/?t=json"))
         def _check_json(res):
