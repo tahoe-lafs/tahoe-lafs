@@ -1344,7 +1344,8 @@ class StatusElement(Element):
             link = "mapupdate-%d" % op.get_counter()
             result["progress"] = "%.1f%%" % (100.0 * progress)
 
-        result["status"] = tags.a(op.get_status(), href=link)
+        result["status"] = tags.a(op.get_status(),
+                                  href="/status/{}".format(link))
 
         return result
 
