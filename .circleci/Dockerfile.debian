@@ -9,16 +9,16 @@ ENV BUILD_SRC_ROOT /tmp/project
 
 RUN apt-get --quiet update && \
     apt-get --quiet --yes install \
-    	git \
-	lsb-release \
+        git \
+        lsb-release \
         sudo \
-    	build-essential \
-	python${PYTHON_VERSION} \
-    	python${PYTHON_VERSION}-dev \
-    	libffi-dev \
-    	libssl-dev \
-    	libyaml-dev \
-    	virtualenv
+        build-essential \
+        python${PYTHON_VERSION} \
+        python${PYTHON_VERSION}-dev \
+        libffi-dev \
+        libssl-dev \
+        libyaml-dev \
+        virtualenv
 
 # Get the project source.  This is better than it seems.  CircleCI will
 # *update* this checkout on each job run, saving us more time per-job.
