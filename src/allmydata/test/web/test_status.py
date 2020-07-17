@@ -4,11 +4,9 @@ from bs4 import BeautifulSoup
 from twisted.web.template import flattenString
 from zope.interface import implementer
 
-from allmydata.interfaces import (
-    IDownloadResults,
-    IDownloadStatus,
-)
+from allmydata.interfaces import IDownloadResults
 from allmydata.web.status import DownloadStatusElement
+from allmydata.immutable.downloader.status import DownloadStatus
 
 from .common import (
     assert_soup_has_favicon,
@@ -37,8 +35,7 @@ class FakeDownloadResults(object):
         self.timings = timings
 
 
-@implementer(IDownloadStatus)
-class FakeDownloadStatus(object):
+class FakeDownloadStatus(DownloadStatus):
 
     def __init__(self,
                  storage_index = None,
@@ -50,48 +47,20 @@ class FakeDownloadStatus(object):
         """
         See IDownloadStatus and IDownloadResults for parameters.
         """
-        self.storage_index = storage_index
-        self.file_size = file_size
-        self.dyhb_requests = []
-        self.read_events = []
-        self.segment_events = []
-        self.block_requests = []
+        super(FakeDownloadStatus, self).__init__(storage_index, file_size)
 
         self.servers_used = servers_used
         self.server_problems = server_problems
         self.servermap = servermap
         self.timings = timings
 
-    def get_started(self):
-        return None
-
-    def get_storage_index(self):
-        return self.storage_index
-
-    def get_size(self):
-        return self.file_size
-
-    def using_helper(self):
-        return False
-
-    def get_status(self):
-        return "FakeDownloadStatus"
-
-    def get_progress(self):
-        return 0
-
-    def get_active():
-        return False
-
-    def get_counter():
-        return 0
-
     def get_results(self):
-        return FakeDownloadResults(self.file_size,
+        return FakeDownloadResults(self.size,
                                    self.servers_used,
                                    self.server_problems,
                                    self.servermap,
                                    self.timings)
+
 
 # Tests for code in allmydata.web.status.DownloadStatusElement
 class DownloadStatusElementTests(TrialTestCase):
