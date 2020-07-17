@@ -56,10 +56,6 @@ matrix:
     env: T=pyinstaller LANG=en_US.UTF-8
   - os: osx
     python: '2.7'
-    env: T=py27 LANG=en_US.UTF-8
-    language: generic  # "python" is not available on OS-X
-  - os: osx
-    python: '2.7'
     env: T=pyinstaller LANG=en_US.UTF-8
     language: generic  # "python" is not available on OS-X
   - os: linux
