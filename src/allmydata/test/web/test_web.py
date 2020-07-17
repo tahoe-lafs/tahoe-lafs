@@ -1047,6 +1047,58 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
                                 self.GET,
                                 "/status/nodash")
 
+    def test_status_page_contains_links(self):
+        """
+        Check that the rendered `/status` page contains all the
+        expected links.
+        """
+        def _check_status_page_links(response):
+            (body, status, _) = response
+
+            self.failUnlessReallyEqual(int(status), 200)
+
+            soup = BeautifulSoup(body, 'html5lib')
+
+            # Check for `<a href="/status/retrieve-0">Not started</a>`
+            assert_soup_has_tag_with_attributes_and_content(
+                self, soup, u"a",
+                u"Not started",
+                {u"href": u"/status/retrieve-0"}
+            )
+
+            # Check for `<a href="/status/publish-0">Not started</a></td>`
+            assert_soup_has_tag_with_attributes_and_content(
+                self, soup, u"a",
+                u"Not started",
+                {u"href": u"/status/publish-0"}
+            )
+
+            # Check for `<a href="/status/mapupdate-0">Not started</a>`
+            assert_soup_has_tag_with_attributes_and_content(
+                self, soup, u"a",
+                u"Not started",
+                {u"href": u"/status/mapupdate-0"}
+            )
+
+            # Check for `<a href="/status/down-0">fetching segments
+            # 2,3; errors on segment 1</a>`: see build_one_ds() above.
+            assert_soup_has_tag_with_attributes_and_content(
+                self, soup, u"a",
+                u"fetching segments 2,3; errors on segment 1",
+                {u"href": u"/status/down-0"}
+            )
+
+            # Check for `<a href="/status/up-0">Not started</a>`
+            assert_soup_has_tag_with_attributes_and_content(
+                self, soup, u"a",
+                u"Not started",
+                {u"href": u"/status/up-0"}
+            )
+
+        d = self.GET("/status", return_response=True)
+        d.addCallback(_check_status_page_links)
+        return d
+
     def test_status_path_trailing_slashes(self):
         """
         Test that both `GET /status` and `GET /status/` are treated
