@@ -1058,41 +1058,47 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             self.failUnlessReallyEqual(int(status), 200)
 
             soup = BeautifulSoup(body, 'html5lib')
+            h = self.s.get_history()
 
             # Check for `<a href="/status/retrieve-0">Not started</a>`
+            ret_num = h.list_all_retrieve_statuses()[0].get_counter()
             assert_soup_has_tag_with_attributes_and_content(
                 self, soup, u"a",
                 u"Not started",
-                {u"href": u"/status/retrieve-0"}
+                {u"href": u"/status/retrieve-{}".format(ret_num)}
             )
 
             # Check for `<a href="/status/publish-0">Not started</a></td>`
+            pub_num = h.list_all_publish_statuses()[0].get_counter()
             assert_soup_has_tag_with_attributes_and_content(
                 self, soup, u"a",
                 u"Not started",
-                {u"href": u"/status/publish-0"}
+                {u"href": u"/status/publish-{}".format(pub_num)}
             )
 
             # Check for `<a href="/status/mapupdate-0">Not started</a>`
+            mu_num = h.list_all_mapupdate_statuses()[0].get_counter()
             assert_soup_has_tag_with_attributes_and_content(
                 self, soup, u"a",
                 u"Not started",
-                {u"href": u"/status/mapupdate-0"}
+                {u"href": u"/status/mapupdate-{}".format(mu_num)}
             )
 
             # Check for `<a href="/status/down-0">fetching segments
             # 2,3; errors on segment 1</a>`: see build_one_ds() above.
+            dl_num = h.list_all_download_statuses()[0].get_counter()
             assert_soup_has_tag_with_attributes_and_content(
                 self, soup, u"a",
                 u"fetching segments 2,3; errors on segment 1",
-                {u"href": u"/status/down-0"}
+                {u"href": u"/status/down-{}".format(dl_num)}
             )
 
             # Check for `<a href="/status/up-0">Not started</a>`
+            ul_num = h.list_all_upload_statuses()[0].get_counter()
             assert_soup_has_tag_with_attributes_and_content(
                 self, soup, u"a",
                 u"Not started",
-                {u"href": u"/status/up-0"}
+                {u"href": u"/status/up-{}".format(ul_num)}
             )
 
         d = self.GET("/status", return_response=True)
