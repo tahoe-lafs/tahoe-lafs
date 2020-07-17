@@ -1,4 +1,6 @@
-# Tests for code in allmydata.web.status
+"""
+Tests for ```allmydata.web.status```.
+"""
 
 from bs4 import BeautifulSoup
 from twisted.web.template import flattenString
@@ -62,8 +64,10 @@ class FakeDownloadStatus(DownloadStatus):
                                    self.timings)
 
 
-# Tests for code in allmydata.web.status.DownloadStatusElement
 class DownloadStatusElementTests(TrialTestCase):
+    """
+    Tests for ```allmydata.web.status.DownloadStatusElement```.
+    """
 
     def _render_download_status_element(self, status):
         """
