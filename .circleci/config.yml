@@ -450,7 +450,7 @@ jobs:
             docker \
                 build \
                 --build-arg TAG=${TAG} \
-                --build-arg PYTHON_VERSION=${PYTHON_VERSION}
+                --build-arg PYTHON_VERSION=${PYTHON_VERSION} \
                 -t tahoelafsci/${DISTRO}:${TAG} \
                 -f ~/project/.circleci/Dockerfile.${DISTRO} \
                 ~/project/
