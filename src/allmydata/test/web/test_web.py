@@ -1047,6 +1047,46 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
                                 self.GET,
                                 "/status/nodash")
 
+    def test_status_path_trailing_slashes(self):
+        """
+        Test that both `GET /status` and `GET /status/` are treated
+        alike, but reject any additional trailing slashes and other
+        non-existent child nodes.
+        """
+        def _check_status(response):
+            (body, status, _) = response
+
+            self.failUnlessReallyEqual(int(status), 200)
+
+            soup = BeautifulSoup(body, 'html5lib')
+            assert_soup_has_favicon(self, soup)
+            assert_soup_has_tag_with_content(
+                self, soup, u"title",
+                u"Tahoe-LAFS - Recent and Active Operations"
+            )
+
+        d = self.GET("/status", return_response=True)
+        d.addCallback(_check_status)
+
+        d = self.GET("/status/", return_response=True)
+        d.addCallback(_check_status)
+
+        d =  self.shouldFail2(error.Error,
+                              "test_status_path_trailing_slashes",
+                              "400 Bad Request",
+                              "no '-' in ''",
+                              self.GET,
+                              "/status//")
+
+        d =  self.shouldFail2(error.Error,
+                              "test_status_path_trailing_slashes",
+                              "400 Bad Request",
+                              "no '-' in ''",
+                              self.GET,
+                              "/status////////")
+
+        return d
+
     def test_status_path_404_error(self):
         """
         Looking for non-existent statuses under child paths should
