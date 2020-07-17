@@ -1290,8 +1290,8 @@ class StatusElement(Element):
 
     @renderer
     def recent_operations(self, req, tag):
-        active = [self.get_op_state(op) for op in self._recent]
-        return SlotsSequenceElement(tag, active)
+        recent = [self.get_op_state(op) for op in self._recent]
+        return SlotsSequenceElement(tag, recent)
 
     @staticmethod
     def get_op_state(op):
