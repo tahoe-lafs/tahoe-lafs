@@ -54,9 +54,6 @@ matrix:
   - os: linux
     python: '2.7'
     env: T=pyinstaller LANG=en_US.UTF-8
-  - os: linux
-    python: '2.7'
-    env: T=py27 LANG=C
   - os: osx
     python: '2.7'
     env: T=py27 LANG=en_US.UTF-8
