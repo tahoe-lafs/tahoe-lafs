@@ -1214,7 +1214,7 @@ class Status(MultiFormatResource):
         # final URL segment will be an empty string. Resources can
         # thus know if they were requested with or without a final
         # slash."
-        if not path:
+        if not path and request.postpath != ['']:
             return self
 
         h = self.history
