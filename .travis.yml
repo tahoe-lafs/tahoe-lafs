@@ -47,9 +47,6 @@ matrix:
   include:
   - os: linux
     python: '2.7'
-    env: T=coverage LANG=en_US.UTF-8
-  - os: linux
-    python: '2.7'
     env: T=codechecks LANG=en_US.UTF-8
   - os: linux
     python: '2.7'
