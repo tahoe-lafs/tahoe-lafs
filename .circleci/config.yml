@@ -30,6 +30,9 @@ workflows:
       # Test against PyPy 2.7
       - "pypy2.7-buster"
 
+      # Just one Python 3.6 configuration while the port is in-progress.
+      - "python3.6"
+
       # Other assorted tasks and configurations
       - "lint"
       - "pyinstaller"
@@ -261,11 +264,18 @@ jobs:
         user: "nobody"
 
 
-  ubuntu-18.04:
+  ubuntu-18.04: &UBUNTU_18_04
     <<: *DEBIAN
     docker:
       - image: "tahoelafsci/ubuntu:18.04"
         user: "nobody"
+
+
+  python3.6:
+    <<: *UBUNTU_18_04
+    environment:
+      <<: *UTF_8_ENVIRONMENT
+      TAHOE_LAFS_TOX_ENVIRONMENT: "py36"
 
 
   centos-8: &RHEL_DERIV
