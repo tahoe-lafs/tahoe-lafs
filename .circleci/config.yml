@@ -73,6 +73,7 @@ workflows:
       - "build-image-centos-8"
       - "build-image-slackware-14.2"
       - "build-image-pypy-2.7-buster"
+      - "build-image-python36-ubuntu"
 
 
 jobs:
@@ -449,6 +450,7 @@ jobs:
             docker \
                 build \
                 --build-arg TAG=${TAG} \
+                --build-arg PYTHON_VERSION=${PYTHON_VERSION:-python2}
                 -t tahoelafsci/${DISTRO}:${TAG} \
                 -f ~/project/.circleci/Dockerfile.${DISTRO} \
                 ~/project/
@@ -464,6 +466,7 @@ jobs:
     environment:
       DISTRO: "debian"
       TAG: "8"
+      PYTHON_VERSION: "2.7"
 
 
   build-image-debian-9:
@@ -472,6 +475,7 @@ jobs:
     environment:
       DISTRO: "debian"
       TAG: "9"
+      PYTHON_VERSION: "2.7"
 
 
   build-image-ubuntu-16.04:
@@ -480,6 +484,7 @@ jobs:
     environment:
       DISTRO: "ubuntu"
       TAG: "16.04"
+      PYTHON_VERSION: "2.7"
 
 
   build-image-ubuntu-18.04:
@@ -488,6 +493,16 @@ jobs:
     environment:
       DISTRO: "ubuntu"
       TAG: "18.04"
+      PYTHON_VERSION: "2.7"
+
+
+  build-image-python36-ubuntu:
+    <<: *BUILD_IMAGE
+
+    environment:
+      DISTRO: "ubuntu"
+      TAG: "18.04"
+      PYTHON_VERSION: "3"
 
 
   build-image-centos-8:
@@ -496,6 +511,7 @@ jobs:
     environment:
       DISTRO: "centos"
       TAG: "8"
+      PYTHON_VERSION: "2"
 
 
   build-image-fedora-28:
@@ -504,6 +520,8 @@ jobs:
     environment:
       DISTRO: "fedora"
       TAG: "28"
+      # The default on Fedora (this version anyway) is still Python 2.
+      PYTHON_VERSION: ""
 
 
   build-image-fedora-29:
@@ -520,6 +538,7 @@ jobs:
     environment:
       DISTRO: "slackware"
       TAG: "14.2"
+      PYTHON_VERSION: "2"
 
 
   build-image-pypy-2.7-buster:
@@ -528,3 +547,6 @@ jobs:
     environment:
       DISTRO: "pypy"
       TAG: "2.7-buster"
+      # We only have Python 2 for PyPy right now so there's no support for
+      # setting up PyPy 3 in the image building toolchain..
+      PYTHON_VERSION: ""

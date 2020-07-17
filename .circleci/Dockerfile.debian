@@ -1,4 +1,5 @@
 ARG TAG
+ARG PYTHON_VERSION
 FROM debian:${TAG}
 
 ENV WHEELHOUSE_PATH /tmp/wheelhouse
@@ -12,8 +13,8 @@ RUN apt-get --quiet update && \
 	lsb-release \
         sudo \
     	build-essential \
-	python2.7 \
-    	python2.7-dev \
+	python${PYTHON_VERSION} \
+    	python${PYTHON_VERSION}-dev \
     	libffi-dev \
     	libssl-dev \
     	libyaml-dev \
@@ -23,7 +24,7 @@ RUN apt-get --quiet update && \
 # *update* this checkout on each job run, saving us more time per-job.
 COPY . ${BUILD_SRC_ROOT}
 
-RUN "${BUILD_SRC_ROOT}"/.circleci/prepare-image.sh "${WHEELHOUSE_PATH}" "${VIRTUALENV_PATH}" "${BUILD_SRC_ROOT}" "python2.7"
+RUN "${BUILD_SRC_ROOT}"/.circleci/prepare-image.sh "${WHEELHOUSE_PATH}" "${VIRTUALENV_PATH}" "${BUILD_SRC_ROOT}" "python${PYTHON_VERSION}"
 
 # Only the integration tests currently need this but it doesn't hurt to always
 # have it present and it's simpler than building a whole extra image just for

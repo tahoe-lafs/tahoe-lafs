@@ -1,4 +1,5 @@
 ARG TAG
+ARG PYTHON_VERSION
 FROM vbatts/slackware:${TAG}
 
 ENV WHEELHOUSE_PATH /tmp/wheelhouse
@@ -23,7 +24,7 @@ RUN slackpkg update && \
         binutils-2 \
         gcc-5 \
         gcc-g++-5 \
-        python-2 \
+        python-${PYTHON_VERSION} \
         libffi-3 \
         libyaml-0 \
         sqlite-3 \
@@ -46,4 +47,4 @@ RUN slackpkg install \
 # *update* this checkout on each job run, saving us more time per-job.
 COPY . ${BUILD_SRC_ROOT}
 
-RUN "${BUILD_SRC_ROOT}"/.circleci/prepare-image.sh "${WHEELHOUSE_PATH}" "${VIRTUALENV_PATH}" "${BUILD_SRC_ROOT}" "python2.7"
+RUN "${BUILD_SRC_ROOT}"/.circleci/prepare-image.sh "${WHEELHOUSE_PATH}" "${VIRTUALENV_PATH}" "${BUILD_SRC_ROOT}" "python${PYTHON_VERSION}"
