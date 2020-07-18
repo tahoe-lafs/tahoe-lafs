@@ -33,7 +33,6 @@ from allmydata.immutable import upload
 from allmydata.immutable.downloader.status import DownloadStatus
 from allmydata.dirnode import DirectoryNode
 from allmydata.nodemaker import NodeMaker
-from allmydata.web import status
 from allmydata.web.common import WebError, MultiFormatPage
 from allmydata.util import fileutil, base32, hashutil
 from allmydata.util.consumer import download_to_data
@@ -1238,18 +1237,6 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d.addCallback(self._check_status_subpath_result,
                       u"Tahoe-LAFS - Mutable File Retrieve Status")
         return d
-
-    def test_status_numbers(self):
-        drrm = status.DownloadResultsRendererMixin()
-        self.failUnlessReallyEqual(drrm.render_time(None, None), "")
-        self.failUnlessReallyEqual(drrm.render_time(None, 2.5), "2.50s")
-        self.failUnlessReallyEqual(drrm.render_time(None, 0.25), "250ms")
-        self.failUnlessReallyEqual(drrm.render_time(None, 0.0021), "2.1ms")
-        self.failUnlessReallyEqual(drrm.render_time(None, 0.000123), "123us")
-        self.failUnlessReallyEqual(drrm.render_rate(None, None), "")
-        self.failUnlessReallyEqual(drrm.render_rate(None, 2500000), "2.50MBps")
-        self.failUnlessReallyEqual(drrm.render_rate(None, 30100), "30.1kBps")
-        self.failUnlessReallyEqual(drrm.render_rate(None, 123), "123Bps")
 
     def test_GET_FILEURL(self):
         d = self.GET(self.public_url + "/foo/bar.txt")

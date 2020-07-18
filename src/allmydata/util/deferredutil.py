@@ -1,7 +1,21 @@
+"""
+Utilities for working with Twisted Deferreds.
+
+Ported to Python 3.
+"""
+
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, int, list, object, range, str, max, min  # noqa: F401
 
 import time
 
-from foolscap.api import eventually, fireEventually
+from foolscap.api import eventually
 from twisted.internet import defer, reactor, error
 from twisted.python.failure import Failure
 
@@ -130,7 +144,7 @@ class HookMixin(object):
         self._hooks[name] = (d, ignore_count)
         return d
 
-    def _call_hook(self, res, name, async=False):
+    def _call_hook(self, res, name, **kwargs):
         """
         Called to trigger the hook, with argument 'res'. This is a no-op if
         the hook is unset. If the hook's ignore_count is positive, it will be
@@ -142,7 +156,10 @@ class HookMixin(object):
         which will typically cause the test to also fail.
         'res' is returned so that the current result or failure will be passed
         through.
+
+        Accepts a single keyword argument, async, defaulting to False.
         """
+        async_ = kwargs.get("async", False)
         hook = self._hooks[name]
         if hook is None:
             return res  # pass on error/result
@@ -153,7 +170,7 @@ class HookMixin(object):
             self._hooks[name] = (d, ignore_count - 1)
         else:
             self._hooks[name] = None
-            if async:
+            if async_:
                 _with_log(eventually_callback(d), res)
             else:
                 _with_log(d.callback, res)
@@ -161,42 +178,6 @@ class HookMixin(object):
 
     def _log(self, msg):
         log.msg(msg, level=log.NOISY)
-
-
-def async_iterate(process, iterable, *extra_args, **kwargs):
-    """
-    I iterate over the elements of 'iterable' (which may be deferred), eventually
-    applying 'process' to each one, optionally with 'extra_args' and 'kwargs'.
-    'process' should return a (possibly deferred) boolean: True to continue the
-    iteration, False to stop.
-
-    I return a Deferred that fires with True if all elements of the iterable
-    were processed (i.e. 'process' only returned True values); with False if
-    the iteration was stopped by 'process' returning False; or that fails with
-    the first failure of either 'process' or the iterator.
-    """
-    iterator = iter(iterable)
-
-    d = defer.succeed(None)
-    def _iterate(ign):
-        d2 = defer.maybeDeferred(iterator.next)
-        def _cb(item):
-            d3 = defer.maybeDeferred(process, item, *extra_args, **kwargs)
-            def _maybe_iterate(res):
-                if res:
-                    d4 = fireEventually()
-                    d4.addCallback(_iterate)
-                    return d4
-                return False
-            d3.addCallback(_maybe_iterate)
-            return d3
-        def _eb(f):
-            f.trap(StopIteration)
-            return True
-        d2.addCallbacks(_cb, _eb)
-        return d2
-    d.addCallback(_iterate)
-    return d
 
 
 def for_items(cb, mapping):
