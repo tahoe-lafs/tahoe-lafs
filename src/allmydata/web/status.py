@@ -13,10 +13,8 @@ from twisted.web.template import (
     renderElement,
     tags,
 )
-from nevow import rend, tags as T
 from allmydata.util import base32, idlib
 from allmydata.web.common import (
-    getxmlfile,
     abbreviate_time,
     abbreviate_rate,
     abbreviate_size,
