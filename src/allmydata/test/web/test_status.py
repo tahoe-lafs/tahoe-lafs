@@ -82,35 +82,72 @@ class DownloadStatusElementTests(TrialTestCase):
         """
         See if we can render the page almost fully.
         """
-        status = FakeDownloadStatus("si-1", 123,
-                                    ["s-1", "s-2", "s-3"],
-                                    {"s-1": "unknown problem"},
-                                    {"s-1": [1], "s-2": [1,2], "s-3": [2,3]},
-                                    {"fetch_per_server": {"s-1": [1], "s-2": [2,3], "s-3": [3,2]}})
+        status = FakeDownloadStatus(
+            "si-1", 123,
+            ["s-1", "s-2", "s-3"],
+            {"s-1": "unknown problem"},
+            {"s-1": [1], "s-2": [1,2], "s-3": [2,3]},
+            {"fetch_per_server":
+             {"s-1": [1], "s-2": [2,3], "s-3": [3,2]}}
+        )
 
         result = self._render_download_status_element(status)
         soup = BeautifulSoup(result, 'html5lib')
 
-        assert_soup_has_text(self, soup, u"Tahoe-LAFS - File Download Status")
         assert_soup_has_favicon(self, soup)
 
-        assert_soup_has_tag_with_content(self, soup, u"li", u"File Size: 123 bytes")
-        assert_soup_has_tag_with_content(self, soup, u"li", u"Progress: 0.0%")
+        assert_soup_has_tag_with_content(
+            self, soup, u"title", u"Tahoe-LAFS - File Download Status"
+        )
 
-        assert_soup_has_tag_with_content(self, soup, u"li", u"Servers Used: [omwtc], [omwte], [omwtg]")
+        assert_soup_has_tag_with_content(
+            self, soup, u"li", u"File Size: 123 bytes"
+        )
+        assert_soup_has_tag_with_content(
+            self, soup, u"li", u"Progress: 0.0%"
+        )
 
-        assert_soup_has_tag_with_content(self, soup, u"li", u"Server Problems:")
-        assert_soup_has_tag_with_content(self, soup, u"li", u"[omwtc]: unknown problem")
+        assert_soup_has_tag_with_content(
+            self, soup, u"li", u"Servers Used: [omwtc], [omwte], [omwtg]"
+        )
+
+        assert_soup_has_tag_with_content(
+            self, soup, u"li", u"Server Problems:"
+        )
+
+        assert_soup_has_tag_with_content(
+            self, soup, u"li", u"[omwtc]: unknown problem"
+        )
 
         assert_soup_has_tag_with_content(self, soup, u"li", u"Servermap:")
-        assert_soup_has_tag_with_content(self, soup, u"li", u"[omwtc] has share: #1")
-        assert_soup_has_tag_with_content(self, soup, u"li", u"[omwte] has shares: #1,#2")
-        assert_soup_has_tag_with_content(self, soup, u"li", u"[omwtg] has shares: #2,#3")
 
-        assert_soup_has_tag_with_content(self, soup, u"li", u"Per-Server Segment Fetch Response Times:")
-        assert_soup_has_tag_with_content(self, soup, u"li", u"[omwtc]: 1.00s")
-        assert_soup_has_tag_with_content(self, soup, u"li", u"[omwte]: 2.00s, 3.00s")
-        assert_soup_has_tag_with_content(self, soup, u"li", u"[omwtg]: 3.00s, 2.00s")
+        assert_soup_has_tag_with_content(
+            self, soup, u"li", u"[omwtc] has share: #1"
+        )
+
+        assert_soup_has_tag_with_content(
+            self, soup, u"li", u"[omwte] has shares: #1,#2"
+        )
+
+        assert_soup_has_tag_with_content(
+            self, soup, u"li", u"[omwtg] has shares: #2,#3"
+        )
+
+        assert_soup_has_tag_with_content(
+            self, soup, u"li", u"Per-Server Segment Fetch Response Times:"
+        )
+
+        assert_soup_has_tag_with_content(
+            self, soup, u"li", u"[omwtc]: 1.00s"
+        )
+
+        assert_soup_has_tag_with_content(
+            self, soup, u"li", u"[omwte]: 2.00s, 3.00s"
+        )
+
+        assert_soup_has_tag_with_content(
+            self, soup, u"li", u"[omwtg]: 3.00s, 2.00s"
+        )
 
     def test_download_status_element_partial(self):
         """
@@ -120,6 +157,14 @@ class DownloadStatusElementTests(TrialTestCase):
         result = self._render_download_status_element(status)
         soup = BeautifulSoup(result, 'html5lib')
 
-        assert_soup_has_tag_with_content(self, soup, u"li", u"Servermap: None")
-        assert_soup_has_tag_with_content(self, soup, u"li", u"File Size: 0 bytes")
-        assert_soup_has_tag_with_content(self, soup, u"li", u"Total: None (None)")
+        assert_soup_has_tag_with_content(
+            self, soup, u"li", u"Servermap: None"
+        )
+
+        assert_soup_has_tag_with_content(
+            self, soup, u"li", u"File Size: 0 bytes"
+        )
+
+        assert_soup_has_tag_with_content(
+            self, soup, u"li", u"Total: None (None)"
+        )
