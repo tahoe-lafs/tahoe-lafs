@@ -121,7 +121,7 @@ jobs:
 
   debian-9: &DEBIAN
     docker:
-      - image: "tahoelafsci/debian:9"
+      - image: "tahoelafsci/debian:9-py2"
         user: "nobody"
 
     environment: &UTF_8_ENVIRONMENT
@@ -198,14 +198,14 @@ jobs:
   debian-8:
     <<: *DEBIAN
     docker:
-      - image: "tahoelafsci/debian:8"
+      - image: "tahoelafsci/debian:8-py2"
         user: "nobody"
 
 
   pypy2.7-buster:
     <<: *DEBIAN
     docker:
-      - image: "tahoelafsci/pypy:2.7-buster"
+      - image: "tahoelafsci/pypy:buster-py2"
         user: "nobody"
 
     environment:
@@ -261,19 +261,23 @@ jobs:
   ubuntu-16.04:
     <<: *DEBIAN
     docker:
-      - image: "tahoelafsci/ubuntu:16.04"
+      - image: "tahoelafsci/ubuntu:16.04-py2"
         user: "nobody"
 
 
   ubuntu-18.04: &UBUNTU_18_04
     <<: *DEBIAN
     docker:
-      - image: "tahoelafsci/ubuntu:18.04"
+      - image: "tahoelafsci/ubuntu:18.04-py2"
         user: "nobody"
 
 
   python3.6:
     <<: *UBUNTU_18_04
+    docker:
+      - image: "tahoelafsci/ubuntu:18.04-py3"
+        user: "nobody"
+
     environment:
       <<: *UTF_8_ENVIRONMENT
       TAHOE_LAFS_TOX_ENVIRONMENT: "py36"
@@ -281,7 +285,7 @@ jobs:
 
   centos-8: &RHEL_DERIV
     docker:
-      - image: "tahoelafsci/centos:8"
+      - image: "tahoelafsci/centos:8-py2"
         user: "nobody"
 
     environment: *UTF_8_ENVIRONMENT
@@ -303,20 +307,20 @@ jobs:
   fedora-28:
     <<: *RHEL_DERIV
     docker:
-      - image: "tahoelafsci/fedora:28"
+      - image: "tahoelafsci/fedora:28-py2"
         user: "nobody"
 
 
   fedora-29:
     <<: *RHEL_DERIV
     docker:
-      - image: "tahoelafsci/fedora:29"
+      - image: "tahoelafsci/fedora:29-py2"
         user: "nobody"
 
 
   slackware-14.2:
     docker:
-      - image: "tahoelafsci/slackware:14.2"
+      - image: "tahoelafsci/slackware:14.2-py2"
         user: "nobody"
 
     environment: *UTF_8_ENVIRONMENT
@@ -397,8 +401,9 @@ jobs:
       - image: "docker:17.05.0-ce-git"
 
     environment:
-      DISTRO: "tahoelafsci/<DISTRO>:foo"
-      TAG: "tahoelafsci/distro:<TAG>"
+      DISTRO: "tahoelafsci/<DISTRO>:foo-py2"
+      TAG: "tahoelafsci/distro:<TAG>-py2"
+      PYTHON_VERSION: "tahoelafsci/distro:tag-py<PYTHON_VERSION}"
 
     steps:
       - "checkout"
@@ -451,13 +456,13 @@ jobs:
                 build \
                 --build-arg TAG=${TAG} \
                 --build-arg PYTHON_VERSION=${PYTHON_VERSION} \
-                -t tahoelafsci/${DISTRO}:${TAG} \
+                -t tahoelafsci/${DISTRO}:${TAG}-py${PYTHON_VERSION} \
                 -f ~/project/.circleci/Dockerfile.${DISTRO} \
                 ~/project/
       - run:
           name: "Push image"
           command: |
-            docker push tahoelafsci/${DISTRO}:${TAG}
+            docker push tahoelafsci/${DISTRO}:${TAG}-py${PYTHON_VERSION}
 
 
   build-image-debian-8:
@@ -546,7 +551,8 @@ jobs:
 
     environment:
       DISTRO: "pypy"
-      TAG: "2.7-buster"
+      TAG: "buster"
       # We only have Python 2 for PyPy right now so there's no support for
-      # setting up PyPy 3 in the image building toolchain..
-      PYTHON_VERSION: ""
+      # setting up PyPy 3 in the image building toolchain.  This value is just
+      # for constructing the right Docker image tag.
+      PYTHON_VERSION: "2"
