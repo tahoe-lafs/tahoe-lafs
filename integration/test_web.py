@@ -219,23 +219,21 @@ def test_status(alice):
     found_upload = False
     found_download = False
     for href in hrefs:
-        if href.startswith(u"/") or not href:
+        if href == u"/" or not href:
             continue
-        resp = requests.get(
-            util.node_url(alice.node_dir, u"status/{}".format(href)),
-        )
-        if href.startswith(u'up'):
+        resp = requests.get(util.node_url(alice.node_dir, href))
+        if href.startswith(u"/status/up"):
             assert "File Upload Status" in resp.content
             if "Total Size: {}".format(len(FILE_CONTENTS)) in resp.content:
                 found_upload = True
-        elif href.startswith(u'down'):
+        elif href.startswith(u"/status/down"):
             assert "File Download Status" in resp.content
             if "Total Size: {}".format(len(FILE_CONTENTS)) in resp.content:
                 found_download = True
 
                 # download the specialized event information
                 resp = requests.get(
-                    util.node_url(alice.node_dir, u"status/{}/event_json".format(href)),
+                    util.node_url(alice.node_dir, u"{}/event_json".format(href)),
                 )
                 js = json.loads(resp.content)
                 # there's usually just one "read" operation, but this can handle many ..

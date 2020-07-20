@@ -1,5 +1,7 @@
 
-import pprint, itertools, hashlib
+import pprint
+import itertools
+import hashlib
 import json
 from twisted.internet import defer
 from twisted.python.filepath import FilePath
@@ -11,21 +13,26 @@ from twisted.web.template import (
     renderElement,
     tags,
 )
-from nevow import rend, tags as T
 from allmydata.util import base32, idlib
 from allmydata.web.common import (
-    getxmlfile,
     abbreviate_time,
     abbreviate_rate,
     abbreviate_size,
     plural,
     compute_rate,
     render_time,
-    MultiFormatPage,
     MultiFormatResource,
+    SlotsSequenceElement,
+    WebError,
 )
-from allmydata.interfaces import IUploadStatus, IDownloadStatus, \
-     IPublishStatus, IRetrieveStatus, IServermapUpdaterStatus
+
+from allmydata.interfaces import (
+    IUploadStatus,
+    IDownloadStatus,
+    IPublishStatus,
+    IRetrieveStatus,
+    IServermapUpdaterStatus,
+)
 
 
 class UploadResultsRendererMixin(Element):
@@ -1231,13 +1238,20 @@ def marshal_json(s):
     return item
 
 
-class Status(MultiFormatPage):
-    docFactory = getxmlfile("status.xhtml")
-    addSlash = True
+class Status(MultiFormatResource):
+    """Renders /status page."""
 
     def __init__(self, history):
-        rend.Page.__init__(self, history)
+        """
+        :param allmydata.history.History history: provides operation statuses.
+        """
+        super(Status, self).__init__()
         self.history = history
+
+    def render_HTML(self, req):
+        elem = StatusElement(self._get_active_operations(),
+                             self._get_recent_operations())
+        return renderElement(req, elem)
 
     def render_JSON(self, req):
         # modern browsers now render this instead of forcing downloads
@@ -1254,97 +1268,23 @@ class Status(MultiFormatPage):
 
         return json.dumps(data, indent=1) + "\n"
 
-    def _get_all_statuses(self):
-        h = self.history
-        return itertools.chain(h.list_all_upload_statuses(),
-                               h.list_all_download_statuses(),
-                               h.list_all_mapupdate_statuses(),
-                               h.list_all_publish_statuses(),
-                               h.list_all_retrieve_statuses(),
-                               h.list_all_helper_statuses(),
-                               )
+    def getChild(self, path, request):
+        # The "if (path is empty) return self" line should handle
+        # trailing slash in request path.
+        #
+        # Twisted Web's documentation says this: "If the URL ends in a
+        # slash, for example ``http://example.com/foo/bar/`` , the
+        # final URL segment will be an empty string. Resources can
+        # thus know if they were requested with or without a final
+        # slash."
+        if not path and request.postpath != ['']:
+            return self
 
-    def data_active_operations(self, ctx, data):
-        return self._get_active_operations()
-
-    def _get_active_operations(self):
-        active = [s
-                  for s in self._get_all_statuses()
-                  if s.get_active()]
-        active.sort(lambda a, b: cmp(a.get_started(), b.get_started()))
-        active.reverse()
-        return active
-
-    def data_recent_operations(self, ctx, data):
-        return self._get_recent_operations()
-
-    def _get_recent_operations(self):
-        recent = [s
-                  for s in self._get_all_statuses()
-                  if not s.get_active()]
-        recent.sort(lambda a, b: cmp(a.get_started(), b.get_started()))
-        recent.reverse()
-        return recent
-
-    def render_row(self, ctx, data):
-        s = data
-
-        started_s = render_time(s.get_started())
-        ctx.fillSlots("started", started_s)
-
-        si_s = base32.b2a_or_none(s.get_storage_index())
-        if si_s is None:
-            si_s = "(None)"
-        ctx.fillSlots("si", si_s)
-        ctx.fillSlots("helper", {True: "Yes",
-                                 False: "No"}[s.using_helper()])
-
-        size = s.get_size()
-        if size is None:
-            size = "(unknown)"
-        elif isinstance(size, (int, long, float)):
-            size = abbreviate_size(size)
-        ctx.fillSlots("total_size", size)
-
-        progress = data.get_progress()
-        if IUploadStatus.providedBy(data):
-            link = "up-%d" % data.get_counter()
-            ctx.fillSlots("type", "upload")
-            # TODO: make an ascii-art bar
-            (chk, ciphertext, encandpush) = progress
-            progress_s = ("hash: %.1f%%, ciphertext: %.1f%%, encode: %.1f%%" %
-                          ( (100.0 * chk),
-                            (100.0 * ciphertext),
-                            (100.0 * encandpush) ))
-            ctx.fillSlots("progress", progress_s)
-        elif IDownloadStatus.providedBy(data):
-            link = "down-%d" % data.get_counter()
-            ctx.fillSlots("type", "download")
-            ctx.fillSlots("progress", "%.1f%%" % (100.0 * progress))
-        elif IPublishStatus.providedBy(data):
-            link = "publish-%d" % data.get_counter()
-            ctx.fillSlots("type", "publish")
-            ctx.fillSlots("progress", "%.1f%%" % (100.0 * progress))
-        elif IRetrieveStatus.providedBy(data):
-            ctx.fillSlots("type", "retrieve")
-            link = "retrieve-%d" % data.get_counter()
-            ctx.fillSlots("progress", "%.1f%%" % (100.0 * progress))
-        else:
-            assert IServermapUpdaterStatus.providedBy(data)
-            ctx.fillSlots("type", "mapupdate %s" % data.get_mode())
-            link = "mapupdate-%d" % data.get_counter()
-            ctx.fillSlots("progress", "%.1f%%" % (100.0 * progress))
-        ctx.fillSlots("status", T.a(href=link)[s.get_status()])
-        return ctx.tag
-
-    def childFactory(self, ctx, name):
         h = self.history
         try:
-            stype, count_s = name.split("-")
+            stype, count_s = path.split("-")
         except ValueError:
-            raise RuntimeError(
-                "no - in '{}'".format(name)
-            )
+            raise WebError("no '-' in '{}'".format(path))
         count = int(count_s)
         if stype == "up":
             for s in itertools.chain(h.list_all_upload_statuses(),
@@ -1369,6 +1309,109 @@ class Status(MultiFormatPage):
             for s in h.list_all_retrieve_statuses():
                 if s.get_counter() == count:
                     return RetrieveStatusPage(s)
+
+    def _get_all_statuses(self):
+        h = self.history
+        return itertools.chain(h.list_all_upload_statuses(),
+                               h.list_all_download_statuses(),
+                               h.list_all_mapupdate_statuses(),
+                               h.list_all_publish_statuses(),
+                               h.list_all_retrieve_statuses(),
+                               h.list_all_helper_statuses(),
+                               )
+
+    def _get_active_operations(self):
+        active = [s
+                  for s in self._get_all_statuses()
+                  if s.get_active()]
+        active.sort(lambda a, b: cmp(a.get_started(), b.get_started()))
+        active.reverse()
+        return active
+
+    def _get_recent_operations(self):
+        recent = [s
+                  for s in self._get_all_statuses()
+                  if not s.get_active()]
+        recent.sort(lambda a, b: cmp(a.get_started(), b.get_started()))
+        recent.reverse()
+        return recent
+
+
+class StatusElement(Element):
+
+    loader = XMLFile(FilePath(__file__).sibling("status.xhtml"))
+
+    def __init__(self, active, recent):
+        super(StatusElement, self).__init__()
+        self._active = active
+        self._recent = recent
+
+    @renderer
+    def active_operations(self, req, tag):
+        active = [self.get_op_state(op) for op in self._active]
+        return SlotsSequenceElement(tag, active)
+
+    @renderer
+    def recent_operations(self, req, tag):
+        recent = [self.get_op_state(op) for op in self._recent]
+        return SlotsSequenceElement(tag, recent)
+
+    @staticmethod
+    def get_op_state(op):
+        result = dict()
+
+        started_s = render_time(op.get_started())
+        result["started"] = started_s
+
+        si_s = base32.b2a_or_none(op.get_storage_index())
+        if si_s is None:
+            si_s = "(None)"
+
+        result["si"] = si_s
+        result["helper"] = {True: "Yes", False: "No"}[op.using_helper()]
+
+        size = op.get_size()
+        if size is None:
+            size = "(unknown)"
+        elif isinstance(size, (int, long, float)):
+            size = abbreviate_size(size)
+
+        result["total_size"] = size
+
+        progress = op.get_progress()
+        if IUploadStatus.providedBy(op):
+            link = "up-%d" % op.get_counter()
+            result["type"] = "upload"
+            # TODO: make an ascii-art bar
+            (chk, ciphertext, encandpush) = progress
+            progress_s = ("hash: %.1f%%, ciphertext: %.1f%%, encode: %.1f%%" %
+                          ((100.0 * chk),
+                           (100.0 * ciphertext),
+                           (100.0 * encandpush)))
+            result["progress"] = progress_s
+        elif IDownloadStatus.providedBy(op):
+            link = "down-%d" % op.get_counter()
+            result["type"] = "download"
+            result["progress"] = "%.1f%%" % (100.0 * progress)
+        elif IPublishStatus.providedBy(op):
+            link = "publish-%d" % op.get_counter()
+            result["type"] = "publish"
+            result["progress"] = "%.1f%%" % (100.0 * progress)
+        elif IRetrieveStatus.providedBy(op):
+            result["type"] = "retrieve"
+            link = "retrieve-%d" % op.get_counter()
+            result["progress"] = "%.1f%%" % (100.0 * progress)
+        else:
+            assert IServermapUpdaterStatus.providedBy(op)
+            result["type"] = "mapupdate %s" % op.get_mode()
+            link = "mapupdate-%d" % op.get_counter()
+            result["progress"] = "%.1f%%" % (100.0 * progress)
+
+        result["status"] = tags.a(op.get_status(),
+                                  href="/status/{}".format(link))
+
+        return result
+
 
 # Render "/helper_status" page.
 class HelperStatus(MultiFormatResource):
