@@ -104,10 +104,3 @@ class Base62(unittest.TestCase):
             bs2l = base62.a2b_l(asl, lib)
             assert len(bs2l) == numos # the size of the result must be just right
             assert bs == bs2l
-
-def suite():
-    suite = unittest.makeSuite(T, 'test')
-    return suite
-
-if __name__ == "__main__":
-    unittest.main()

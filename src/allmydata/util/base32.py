@@ -19,21 +19,24 @@ if PY2:
         consistently until other modules are ported.
         """
         return getattr(b, "__native__", lambda: b)()
+    import string
+    maketrans = string.maketrans
 else:
     def backwardscompat_bytes(b):
         return b
+    maketrans = bytes.maketrans
 
 import base64
 
 from allmydata.util.assertutil import precondition
 
-rfc3548_alphabet = bytes(b"abcdefghijklmnopqrstuvwxyz234567") # RFC3548 standard used by Gnutella, Content-Addressable Web, THEX, Bitzi, Web-Calculus...
+rfc3548_alphabet = b"abcdefghijklmnopqrstuvwxyz234567" # RFC3548 standard used by Gnutella, Content-Addressable Web, THEX, Bitzi, Web-Calculus...
 chars = rfc3548_alphabet
 
-vals = bytes(range(32))
-c2vtranstable = bytes.maketrans(chars, vals)
-v2ctranstable = bytes.maketrans(vals, chars)
-identitytranstable = bytes.maketrans(b'', b'')
+vals = backwardscompat_bytes(bytes(range(32)))
+c2vtranstable = maketrans(chars, vals)
+v2ctranstable = maketrans(vals, chars)
+identitytranstable = maketrans(b'', b'')
 
 def _get_trailing_chars_without_lsbs(N, d):
     """
