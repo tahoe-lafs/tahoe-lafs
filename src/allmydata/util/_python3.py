@@ -15,6 +15,7 @@ if PY2:
 
 # Keep these sorted alphabetically, to reduce merge conflicts:
 PORTED_MODULES = [
+    "allmydata.util.abbreviate",
     "allmydata.util.assertutil",
     "allmydata.util.deferredutil",
     "allmydata.util.humanreadable",
@@ -27,6 +28,7 @@ PORTED_MODULES = [
 ]
 
 PORTED_TEST_MODULES = [
+    "allmydata.test.test_abbreviate",
     "allmydata.test.test_deferredutil",
     "allmydata.test.test_humanreadable",
     "allmydata.test.test_python3",
