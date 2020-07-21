@@ -386,7 +386,7 @@ def chutney(reactor, temp_dir):
     pytest_twisted.blockon(proto.done)
 
     # XXX: Here we reset Chutney to the last revision known to work
-    # with Python 2, as a workaround for Chunteny moving to Python 3.
+    # with Python 2, as a workaround for Chutney moving to Python 3.
     # When this is no longer necessary, we will have to drop this and
     # add '--depth=1' back to the above 'git clone' subprocess.
     proto = _DumpOutputProtocol(None)
