@@ -1,4 +1,14 @@
 allmydata.test.mutable.test_exceptions.Exceptions.test_repr
+allmydata.test.test_abbreviate.Abbreviate.test_abbrev_time_1s
+allmydata.test.test_abbreviate.Abbreviate.test_abbrev_time_25s
+allmydata.test.test_abbreviate.Abbreviate.test_abbrev_time_day
+allmydata.test.test_abbreviate.Abbreviate.test_abbrev_time_future_5_minutes
+allmydata.test.test_abbreviate.Abbreviate.test_abbrev_time_hours
+allmydata.test.test_abbreviate.Abbreviate.test_abbrev_time_month
+allmydata.test.test_abbreviate.Abbreviate.test_abbrev_time_year
+allmydata.test.test_abbreviate.Abbreviate.test_parse_space
+allmydata.test.test_abbreviate.Abbreviate.test_space
+allmydata.test.test_abbreviate.Abbreviate.test_time
 allmydata.test.test_deferredutil.DeferredUtilTests.test_failure
 allmydata.test.test_deferredutil.DeferredUtilTests.test_gather_results
 allmydata.test.test_deferredutil.DeferredUtilTests.test_success
@@ -11,3 +21,11 @@ allmydata.test.test_observer.Observer.test_oneshot_fireagain
 allmydata.test.test_python3.Python3PortingEffortTests.test_finished_porting
 allmydata.test.test_python3.Python3PortingEffortTests.test_ported_modules_distinct
 allmydata.test.test_python3.Python3PortingEffortTests.test_ported_modules_exist
+allmydata.test.test_time_format.TimeFormat.test_epoch
+allmydata.test.test_time_format.TimeFormat.test_epoch_in_London
+allmydata.test.test_time_format.TimeFormat.test_format_delta
+allmydata.test.test_time_format.TimeFormat.test_format_time
+allmydata.test.test_time_format.TimeFormat.test_format_time_y2038
+allmydata.test.test_time_format.TimeFormat.test_iso_utc
+allmydata.test.test_time_format.TimeFormat.test_parse_date
+allmydata.test.test_time_format.TimeFormat.test_parse_duration
