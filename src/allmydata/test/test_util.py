@@ -8,15 +8,14 @@ import yaml
 import gc  # support PyPy
 
 from six.moves import StringIO
-from datetime import timedelta
 from twisted.trial import unittest
 from twisted.internet import defer, reactor
 from twisted.python.failure import Failure
 from twisted.python import log
 
 from allmydata.util import base32, idlib, mathutil, hashutil
-from allmydata.util import fileutil, abbreviate
-from allmydata.util import limiter, time_format, pollmixin
+from allmydata.util import fileutil
+from allmydata.util import limiter, pollmixin
 from allmydata.util import statistics, dictutil, pipeline, yamlutil
 from allmydata.util import log as tahoe_log
 from allmydata.util.spans import Spans, overlap, DataSpans
