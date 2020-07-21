@@ -231,7 +231,7 @@ class ByteSpans(unittest.TestCase):
         def _create(subseed):
             ns1 = S1(); ns2 = S2()
             for i in range(10):
-                what = sha256(subseed+str(i))
+                what = sha256(subseed+bytes(i))
                 start = int(what[2:4], 16)
                 length = max(1,int(what[5:6], 16))
                 ns1.add(start, length); ns2.add(start, length)
@@ -239,7 +239,7 @@ class ByteSpans(unittest.TestCase):
 
         #print
         for i in range(1000):
-            what = sha256(seed+str(i))
+            what = sha256(seed+bytes(i))
             op = what[0]
             subop = what[1]
             start = int(what[2:4], 16)
@@ -285,7 +285,7 @@ class ByteSpans(unittest.TestCase):
             self.failUnlessEqual(bool(s1), bool(s2))
             self.failUnlessEqual(list(s1), list(s2))
             for j in range(10):
-                what = sha256(what[12:14]+str(j))
+                what = sha256(what[12:14]+bytes(j))
                 start = int(what[2:4], 16)
                 length = max(1, int(what[5:6], 16))
                 span = (start, length)
@@ -549,19 +549,19 @@ class StringSpans(unittest.TestCase):
         S1 = SimpleDataSpans
         S2 = DataSpans
         s1 = S1(); s2 = S2()
-        seed = ""
+        seed = b""
         def _randstr(length, seed):
             created = 0
             pieces = []
             while created < length:
-                piece = sha256(seed + str(created))
+                piece = sha256(seed + bytes(created))
                 pieces.append(piece)
                 created += len(piece)
             return "".join(pieces)[:length]
         def _create(subseed):
             ns1 = S1(); ns2 = S2()
             for i in range(10):
-                what = sha256(subseed+str(i))
+                what = sha256(subseed+bytes(i))
                 start = int(what[2:4], 16)
                 length = max(1,int(what[5:6], 16))
                 ns1.add(start, _randstr(length, what[7:9]));
@@ -570,7 +570,7 @@ class StringSpans(unittest.TestCase):
 
         #print
         for i in range(1000):
-            what = sha256(seed+str(i))
+            what = sha256(seed+bytes(i))
             op = what[0]
             subop = what[1]
             start = int(what[2:4], 16)
@@ -598,7 +598,7 @@ class StringSpans(unittest.TestCase):
             self.failUnlessEqual(s1.len(), s2.len())
             self.failUnlessEqual(list(s1._dump()), list(s2._dump()))
             for j in range(100):
-                what = sha256(what[12:14]+str(j))
+                what = sha256(what[12:14]+bytes(j))
                 start = int(what[2:4], 16)
                 length = max(1, int(what[5:6], 16))
                 d1 = s1.get(start, length); d2 = s2.get(start, length)
