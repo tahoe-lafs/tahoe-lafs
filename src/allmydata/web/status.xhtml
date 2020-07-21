@@ -1,4 +1,4 @@
-<html xmlns:n="http://nevow.com/ns/nevow/0.1">
+<html xmlns:t="http://twistedmatrix.com/ns/twisted.web.template/0.1">
   <head>
     <title>Tahoe-LAFS - Recent and Active Operations</title>
     <link href="/tahoe.css" rel="stylesheet" type="text/css"/>
@@ -11,8 +11,8 @@
 
 
 <h2>Active Operations:</h2>
-<table align="left" class="table-headings-top" n:render="sequence" n:data="active_operations">
-  <tr n:pattern="header">
+<table align="left" class="table-headings-top" t:render="active_operations">
+  <tr t:render="header">
     <th>Type</th>
     <th>Storage Index</th>
     <th>Helper?</th>
@@ -20,21 +20,21 @@
     <th>Progress</th>
     <th>Status</th>
   </tr>
-  <tr n:pattern="item" n:render="row">
-    <td><n:slot name="type"/></td>
-    <td><n:slot name="si"/></td>
-    <td><n:slot name="helper"/></td>
-    <td><n:slot name="total_size"/></td>
-    <td><n:slot name="progress"/></td>
-    <td><n:slot name="status"/></td>
+  <tr t:render="item">
+    <td><t:slot name="type"/></td>
+    <td><t:slot name="si"/></td>
+    <td><t:slot name="helper"/></td>
+    <td><t:slot name="total_size"/></td>
+    <td><t:slot name="progress"/></td>
+    <td><t:slot name="status"/></td>
   </tr>
-  <tr n:pattern="empty"><td>No active operations!</td></tr>
+  <tr t:render="empty"><td>No active operations!</td></tr>
 </table>
 <br clear="all" />
 
 <h2>Recent Operations:</h2>
-<table align="left" class="table-headings-top" n:render="sequence" n:data="recent_operations">
-  <tr n:pattern="header">
+<table align="left" class="table-headings-top" t:render="recent_operations">
+  <tr t:render="header">
     <th>Started</th>
     <th>Type</th>
     <th>Storage Index</th>
@@ -43,16 +43,16 @@
     <th>Progress</th>
     <th>Status</th>
   </tr>
-  <tr n:pattern="item" n:render="row">
-    <td><n:slot name="started"/></td>
-    <td><n:slot name="type"/></td>
-    <td><n:slot name="si"/></td>
-    <td><n:slot name="helper"/></td>
-    <td><n:slot name="total_size"/></td>
-    <td><n:slot name="progress"/></td>
-    <td><n:slot name="status"/></td>
+  <tr t:render="item">
+    <td><t:slot name="started"/></td>
+    <td><t:slot name="type"/></td>
+    <td><t:slot name="si"/></td>
+    <td><t:slot name="helper"/></td>
+    <td><t:slot name="total_size"/></td>
+    <td><t:slot name="progress"/></td>
+    <td><t:slot name="status"/></td>
   </tr>
-  <tr n:pattern="empty"><td>No recent operations!</td></tr>
+  <tr t:render="empty"><td>No recent operations!</td></tr>
 </table>
 <br clear="all" />
 

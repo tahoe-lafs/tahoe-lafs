@@ -10,7 +10,8 @@ function correctly, preserving your privacy and security.
 For full documentation, please see
 http://tahoe-lafs.readthedocs.io/en/latest/ .
 
-|readthedocs|  |travis|  |circleci|  |codecov|
+|Contributor Covenant|  |readthedocs|  |travis|  |circleci|  |codecov|
+
 
 INSTALLING
 ==========
@@ -105,3 +106,7 @@ slides.
 .. |codecov| image:: https://codecov.io/github/tahoe-lafs/tahoe-lafs/coverage.svg?branch=master
     :alt: test coverage percentage
     :target: https://codecov.io/github/tahoe-lafs/tahoe-lafs?branch=master
+
+.. |Contributor Covenant| image:: https://img.shields.io/badge/Contributor%20Covenant-v2.0%20adopted-ff69b4.svg
+    :alt: code of conduct
+    :target: docs/CODE_OF_CONDUCT.md

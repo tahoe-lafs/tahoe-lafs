@@ -33,7 +33,6 @@ from allmydata.immutable import upload
 from allmydata.immutable.downloader.status import DownloadStatus
 from allmydata.dirnode import DirectoryNode
 from allmydata.nodemaker import NodeMaker
-from allmydata.web import status
 from allmydata.web.common import WebError, MultiFormatPage
 from allmydata.util import fileutil, base32, hashutil
 from allmydata.util.consumer import download_to_data
@@ -954,8 +953,9 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
     def test_storage(self):
         d = self.GET("/storage")
         def _check(res):
-            self.failUnlessIn('Storage Server Status', res)
-            self.failUnlessIn(FAVICON_MARKUP, res)
+            soup = BeautifulSoup(res, 'html5lib')
+            assert_soup_has_text(self, soup, 'Storage Server Status')
+            assert_soup_has_favicon(self, soup)
             res_u = res.decode('utf-8')
             self.failUnlessIn(u'<li>Server Nickname: <span class="nickname mine">fake_nickname \u263A</span></li>', res_u)
         d.addCallback(_check)
@@ -971,11 +971,11 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d = self.GET("/status", followRedirect=True)
         def _check(res):
             self.failUnlessIn('Recent and Active Operations', res)
-            self.failUnlessIn('"down-%d"' % dl_num, res)
-            self.failUnlessIn('"up-%d"' % ul_num, res)
-            self.failUnlessIn('"mapupdate-%d"' % mu_num, res)
-            self.failUnlessIn('"publish-%d"' % pub_num, res)
-            self.failUnlessIn('"retrieve-%d"' % ret_num, res)
+            self.failUnlessIn('"/status/down-%d"' % dl_num, res)
+            self.failUnlessIn('"/status/up-%d"' % ul_num, res)
+            self.failUnlessIn('"/status/mapupdate-%d"' % mu_num, res)
+            self.failUnlessIn('"/status/publish-%d"' % pub_num, res)
+            self.failUnlessIn('"/status/retrieve-%d"' % ret_num, res)
         d.addCallback(_check)
         d.addCallback(lambda res: self.GET("/status/?t=json"))
         def _check_json(res):
@@ -1034,28 +1034,209 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
 
         return d
 
-    def test_status_numbers(self):
-        drrm = status.DownloadResultsRendererMixin()
-        self.failUnlessReallyEqual(drrm.render_time(None, None), "")
-        self.failUnlessReallyEqual(drrm.render_time(None, 2.5), "2.50s")
-        self.failUnlessReallyEqual(drrm.render_time(None, 0.25), "250ms")
-        self.failUnlessReallyEqual(drrm.render_time(None, 0.0021), "2.1ms")
-        self.failUnlessReallyEqual(drrm.render_time(None, 0.000123), "123us")
-        self.failUnlessReallyEqual(drrm.render_rate(None, None), "")
-        self.failUnlessReallyEqual(drrm.render_rate(None, 2500000), "2.50MBps")
-        self.failUnlessReallyEqual(drrm.render_rate(None, 30100), "30.1kBps")
-        self.failUnlessReallyEqual(drrm.render_rate(None, 123), "123Bps")
+    def test_status_path_nodash_error(self):
+        """
+        Expect an error, because path is expected to be of the form
+        "/status/{up,down,..}-%number", with a hyphen.
+        """
+        return self.shouldFail2(error.Error,
+                                "test_status_path_nodash",
+                                "400 Bad Request",
+                                "no '-' in 'nodash'",
+                                self.GET,
+                                "/status/nodash")
 
-        urrm = status.UploadResultsRendererMixin()
-        self.failUnlessReallyEqual(urrm.render_time(None, None), "")
-        self.failUnlessReallyEqual(urrm.render_time(None, 2.5), "2.50s")
-        self.failUnlessReallyEqual(urrm.render_time(None, 0.25), "250ms")
-        self.failUnlessReallyEqual(urrm.render_time(None, 0.0021), "2.1ms")
-        self.failUnlessReallyEqual(urrm.render_time(None, 0.000123), "123us")
-        self.failUnlessReallyEqual(urrm.render_rate(None, None), "")
-        self.failUnlessReallyEqual(urrm.render_rate(None, 2500000), "2.50MBps")
-        self.failUnlessReallyEqual(urrm.render_rate(None, 30100), "30.1kBps")
-        self.failUnlessReallyEqual(urrm.render_rate(None, 123), "123Bps")
+    def test_status_page_contains_links(self):
+        """
+        Check that the rendered `/status` page contains all the
+        expected links.
+        """
+        def _check_status_page_links(response):
+            (body, status, _) = response
+
+            self.failUnlessReallyEqual(int(status), 200)
+
+            soup = BeautifulSoup(body, 'html5lib')
+            h = self.s.get_history()
+
+            # Check for `<a href="/status/retrieve-0">Not started</a>`
+            ret_num = h.list_all_retrieve_statuses()[0].get_counter()
+            assert_soup_has_tag_with_attributes_and_content(
+                self, soup, u"a",
+                u"Not started",
+                {u"href": u"/status/retrieve-{}".format(ret_num)}
+            )
+
+            # Check for `<a href="/status/publish-0">Not started</a></td>`
+            pub_num = h.list_all_publish_statuses()[0].get_counter()
+            assert_soup_has_tag_with_attributes_and_content(
+                self, soup, u"a",
+                u"Not started",
+                {u"href": u"/status/publish-{}".format(pub_num)}
+            )
+
+            # Check for `<a href="/status/mapupdate-0">Not started</a>`
+            mu_num = h.list_all_mapupdate_statuses()[0].get_counter()
+            assert_soup_has_tag_with_attributes_and_content(
+                self, soup, u"a",
+                u"Not started",
+                {u"href": u"/status/mapupdate-{}".format(mu_num)}
+            )
+
+            # Check for `<a href="/status/down-0">fetching segments
+            # 2,3; errors on segment 1</a>`: see build_one_ds() above.
+            dl_num = h.list_all_download_statuses()[0].get_counter()
+            assert_soup_has_tag_with_attributes_and_content(
+                self, soup, u"a",
+                u"fetching segments 2,3; errors on segment 1",
+                {u"href": u"/status/down-{}".format(dl_num)}
+            )
+
+            # Check for `<a href="/status/up-0">Not started</a>`
+            ul_num = h.list_all_upload_statuses()[0].get_counter()
+            assert_soup_has_tag_with_attributes_and_content(
+                self, soup, u"a",
+                u"Not started",
+                {u"href": u"/status/up-{}".format(ul_num)}
+            )
+
+        d = self.GET("/status", return_response=True)
+        d.addCallback(_check_status_page_links)
+        return d
+
+    def test_status_path_trailing_slashes(self):
+        """
+        Test that both `GET /status` and `GET /status/` are treated
+        alike, but reject any additional trailing slashes and other
+        non-existent child nodes.
+        """
+        def _check_status(response):
+            (body, status, _) = response
+
+            self.failUnlessReallyEqual(int(status), 200)
+
+            soup = BeautifulSoup(body, 'html5lib')
+            assert_soup_has_favicon(self, soup)
+            assert_soup_has_tag_with_content(
+                self, soup, u"title",
+                u"Tahoe-LAFS - Recent and Active Operations"
+            )
+
+        d = self.GET("/status", return_response=True)
+        d.addCallback(_check_status)
+
+        d = self.GET("/status/", return_response=True)
+        d.addCallback(_check_status)
+
+        d =  self.shouldFail2(error.Error,
+                              "test_status_path_trailing_slashes",
+                              "400 Bad Request",
+                              "no '-' in ''",
+                              self.GET,
+                              "/status//")
+
+        d =  self.shouldFail2(error.Error,
+                              "test_status_path_trailing_slashes",
+                              "400 Bad Request",
+                              "no '-' in ''",
+                              self.GET,
+                              "/status////////")
+
+        return d
+
+    def test_status_path_404_error(self):
+        """
+        Looking for non-existent statuses under child paths should
+        exercises all the iterators in web.status.Status.getChild().
+
+        The test suite (hopefully!) would not have done any setup for
+        a very large number of statuses at this point, now or in the
+        future, so these all should always return 404.
+        """
+        d = self.GET("/status/up-9999999")
+        d.addBoth(self.should404, "test_status_path_404_error (up)")
+
+        d = self.GET("/status/down-9999999")
+        d.addBoth(self.should404, "test_status_path_404_error (down)")
+
+        d = self.GET("/status/mapupdate-9999999")
+        d.addBoth(self.should404, "test_status_path_404_error (mapupdate)")
+
+        d = self.GET("/status/publish-9999999")
+        d.addBoth(self.should404, "test_status_path_404_error (publish)")
+
+        d = self.GET("/status/retrieve-9999999")
+        d.addBoth(self.should404, "test_status_path_404_error (retrieve)")
+
+        return d
+
+    def _check_status_subpath_result(self, result, expected_title):
+        """
+        Helper to verify that results of "GET /status/up-0" and
+        similar are as expected.
+        """
+        body, status, _ = result
+        self.failUnlessReallyEqual(int(status), 200)
+        soup = BeautifulSoup(body, 'html5lib')
+        assert_soup_has_favicon(self, soup)
+        assert_soup_has_tag_with_content(
+            self, soup, u"title", expected_title
+        )
+
+    def test_status_up_subpath(self):
+        """
+        See that "GET /status/up-0" works.
+        """
+        h = self.s.get_history()
+        ul_num = h.list_all_upload_statuses()[0].get_counter()
+        d = self.GET("/status/up-{}".format(ul_num), return_response=True)
+        d.addCallback(self._check_status_subpath_result,
+                      u"Tahoe-LAFS - File Upload Status")
+        return d
+
+    def test_status_down_subpath(self):
+        """
+        See that "GET /status/down-0" works.
+        """
+        h = self.s.get_history()
+        dl_num = h.list_all_download_statuses()[0].get_counter()
+        d = self.GET("/status/down-{}".format(dl_num), return_response=True)
+        d.addCallback(self._check_status_subpath_result,
+                      u"Tahoe-LAFS - File Download Status")
+        return d
+
+    def test_status_mapupdate_subpath(self):
+        """
+        See that "GET /status/mapupdate-0" works.
+        """
+        h = self.s.get_history()
+        mu_num = h.list_all_mapupdate_statuses()[0].get_counter()
+        d = self.GET("/status/mapupdate-{}".format(mu_num), return_response=True)
+        d.addCallback(self._check_status_subpath_result,
+                      u"Tahoe-LAFS - Mutable File Servermap Update Status")
+        return d
+
+    def test_status_publish_subpath(self):
+        """
+        See that "GET /status/publish-0" works.
+        """
+        h = self.s.get_history()
+        pub_num = h.list_all_publish_statuses()[0].get_counter()
+        d = self.GET("/status/publish-{}".format(pub_num), return_response=True)
+        d.addCallback(self._check_status_subpath_result,
+                      u"Tahoe-LAFS - Mutable File Publish Status")
+        return d
+
+    def test_status_retrieve_subpath(self):
+        """
+        See that "GET /status/retrieve-0" works.
+        """
+        h = self.s.get_history()
+        ret_num = h.list_all_retrieve_statuses()[0].get_counter()
+        d = self.GET("/status/retrieve-{}".format(ret_num), return_response=True)
+        d.addCallback(self._check_status_subpath_result,
+                      u"Tahoe-LAFS - Mutable File Retrieve Status")
+        return d
 
     def test_GET_FILEURL(self):
         d = self.GET(self.public_url + "/foo/bar.txt")

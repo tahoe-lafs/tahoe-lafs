@@ -1,7 +1,7 @@
 
 from twisted.internet import address
-from foolscap.api import Violation, RemoteException, DeadReferenceError, \
-     SturdyRef
+from foolscap.api import Violation, RemoteException, SturdyRef
+
 
 def add_version_to_remote_reference(rref, default):
     """I try to add a .version attribute to the given RemoteReference. I call
@@ -18,12 +18,6 @@ def add_version_to_remote_reference(rref, default):
         return rref
     d.addCallbacks(_got_version, _no_get_version)
     return d
-
-def trap_and_discard(f, *errorTypes):
-    f.trap(*errorTypes)
-
-def trap_deadref(f):
-    return trap_and_discard(f, DeadReferenceError)
 
 
 def connection_hints_for_furl(furl):

@@ -54,7 +54,9 @@ install_requires = [
     # * foolscap >= 0.12.5 has ConnectionInfo and ReconnectionInfo
     # * foolscap >= 0.12.6 has an i2p.sam_endpoint() that takes kwargs
     # * foolscap 0.13.2 drops i2p support completely
-    "foolscap == 0.13.1",
+    # * foolscap >= 20.4 is necessary for Python 3
+    "foolscap == 0.13.1 ; python_version < '3.0'",
+    "foolscap >= 20.4.0 ; python_version > '3.0'",
 
     # * cryptography 2.6 introduced some ed25519 APIs we rely on.  Note that
     #   Twisted[conch] also depends on cryptography and Twisted[tls]
@@ -119,6 +121,12 @@ install_requires = [
 
     # WebSocket library for twisted and asyncio
     "autobahn >= 19.5.2",
+
+    # Support for Python 3 transition
+    "future >= 0.18.2",
+
+    # Utility code:
+    "pyutil >= 3.3.0",
 ]
 
 setup_requires = [
@@ -133,8 +141,10 @@ tor_requires = [
 ]
 
 i2p_requires = [
-    # See the comment in tor_requires.
-    "txi2p >= 0.3.2",
+    # txi2p has Python 3 support, but it's unreleased: https://github.com/str4d/txi2p/issues/10.
+    # URL lookups are in PEP-508 (via https://stackoverflow.com/a/54794506).
+    # Also see the comment in tor_requires.
+    "txi2p @ git+https://github.com/str4d/txi2p@0611b9a86172cb70d2f5e415a88eee9f230590b3#egg=txi2p",
 ]
 
 if len(sys.argv) > 1 and sys.argv[1] == '--fakedependency':
@@ -345,7 +355,9 @@ setup(name="tahoe-lafs", # also set in __init__.py
       package_dir = {'':'src'},
       packages=find_packages('src') + ['allmydata.test.plugins'],
       classifiers=trove_classifiers,
-      python_requires="<3.0",
+      # We support Python 2.7, and we're working on support for 3.6 (the
+      # highest version that PyPy currently supports).
+      python_requires=">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*, !=3.5.*, <3.7",
       install_requires=install_requires,
       extras_require={
           # Duplicate the Twisted pywin32 dependency here.  See
@@ -353,11 +365,12 @@ setup(name="tahoe-lafs", # also set in __init__.py
           # discussion.
           ':sys_platform=="win32"': ["pywin32 != 226"],
           "test": [
+              "flake8",
               # Pin a specific pyflakes so we don't have different folks
               # disagreeing on what is or is not a lint issue.  We can bump
               # this version from time to time, but we will do it
               # intentionally.
-              "pyflakes == 2.1.0",
+              "pyflakes == 2.2.0",
               # coverage 5.0 breaks the integration tests in some opaque way.
               # This probably needs to be addressed in a more permanent way
               # eventually...
@@ -373,6 +386,7 @@ setup(name="tahoe-lafs", # also set in __init__.py
               "fixtures",
               "beautifulsoup4",
               "html5lib",
+              "junitxml",
           ] + tor_requires + i2p_requires,
           "tor": tor_requires,
           "i2p": i2p_requires,

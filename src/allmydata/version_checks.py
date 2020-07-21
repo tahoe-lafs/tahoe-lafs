@@ -297,7 +297,7 @@ def _get_platform():
 
 def _get_package_versions_and_locations():
     import warnings
-    from _auto_deps import package_imports, global_deprecation_messages, deprecation_messages, \
+    from ._auto_deps import package_imports, global_deprecation_messages, deprecation_messages, \
         runtime_warning_messages, warning_imports, ignorable
 
     def package_dir(srcfile):
