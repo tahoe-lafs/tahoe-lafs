@@ -3,6 +3,15 @@ Tests for allmydata.util.spans.
 """
 
 from __future__ import print_function
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, int, list, object, range, str, max, min  # noqa: F401
+
+from past.builtins import long
 
 import binascii
 import hashlib
@@ -63,8 +72,8 @@ class SimpleSpans(object):
         if prevstart is not None:
             yield (prevstart, prevend-prevstart+1)
 
-    def __nonzero__(self): # this gets us bool()
-        return self.len()
+    def __bool__(self): # this gets us bool()
+        return bool(self.len())
 
     def len(self):
         return len(self._have)
@@ -227,7 +236,7 @@ class ByteSpans(unittest.TestCase):
         S1 = SimpleSpans
         S2 = Spans
         s1 = S1(); s2 = S2()
-        seed = ""
+        seed = b""
         def _create(subseed):
             ns1 = S1(); ns2 = S2()
             for i in range(10):
@@ -240,38 +249,38 @@ class ByteSpans(unittest.TestCase):
         #print
         for i in range(1000):
             what = sha256(seed+bytes(i))
-            op = what[0]
-            subop = what[1]
+            op = what[0:1]
+            subop = what[1:2]
             start = int(what[2:4], 16)
             length = max(1,int(what[5:6], 16))
             #print what
-            if op in "0":
-                if subop in "01234":
+            if op in b"0":
+                if subop in b"01234":
                     s1 = S1(); s2 = S2()
-                elif subop in "5678":
+                elif subop in b"5678":
                     s1 = S1(start, length); s2 = S2(start, length)
                 else:
                     s1 = S1(s1); s2 = S2(s2)
                 #print "s2 = %s" % s2.dump()
-            elif op in "123":
+            elif op in b"123":
                 #print "s2.add(%d,%d)" % (start, length)
                 s1.add(start, length); s2.add(start, length)
-            elif op in "456":
+            elif op in b"456":
                 #print "s2.remove(%d,%d)" % (start, length)
                 s1.remove(start, length); s2.remove(start, length)
-            elif op in "78":
+            elif op in b"78":
                 ns1, ns2 = _create(what[7:11])
                 #print "s2 + %s" % ns2.dump()
                 s1 = s1 + ns1; s2 = s2 + ns2
-            elif op in "9a":
+            elif op in b"9a":
                 ns1, ns2 = _create(what[7:11])
                 #print "%s - %s" % (s2.dump(), ns2.dump())
                 s1 = s1 - ns1; s2 = s2 - ns2
-            elif op in "bc":
+            elif op in b"bc":
                 ns1, ns2 = _create(what[7:11])
                 #print "s2 += %s" % ns2.dump()
                 s1 += ns1; s2 += ns2
-            elif op in "de":
+            elif op in b"de":
                 ns1, ns2 = _create(what[7:11])
                 #print "%s -= %s" % (s2.dump(), ns2.dump())
                 s1 -= ns1; s2 -= ns2
@@ -352,17 +361,20 @@ def replace(s, start, data):
 class SimpleDataSpans(object):
     def __init__(self, other=None):
         self.missing = "" # "1" where missing, "0" where found
-        self.data = ""
+        self.data = b""
         if other:
             for (start, data) in other.get_chunks():
                 self.add(start, data)
 
-    def __nonzero__(self): # this gets us bool()
-        return self.len()
+    def __bool__(self): # this gets us bool()
+        return bool(self.len())
+
     def len(self):
         return len(self.missing.replace("1", ""))
+
     def _dump(self):
         return [i for (i,c) in enumerate(self.missing) if c == "0"]
+
     def _have(self, start, length):
         m = self.missing[start:start+length]
         if not m or len(m)<length or int(m):
@@ -370,7 +382,7 @@ class SimpleDataSpans(object):
         return True
     def get_chunks(self):
         for i in self._dump():
-            yield (i, self.data[i])
+            yield (i, self.data[i:i+1])
     def get_spans(self):
         return SimpleSpans([(start,len(data))
                             for (start,data) in self.get_chunks()])
@@ -389,7 +401,7 @@ class SimpleDataSpans(object):
     def add(self, start, data):
         self.missing = replace(extend(self.missing, start, len(data), "1"),
                                start, "0"*len(data))
-        self.data = replace(extend(self.data, start, len(data), " "),
+        self.data = replace(extend(self.data, start, len(data), b" "),
                             start, data)
 
 
@@ -404,7 +416,7 @@ class StringSpans(unittest.TestCase):
         self.failUnlessEqual(ds.pop(0, 4), None)
         ds.remove(0, 4)
 
-        ds.add(2, "four")
+        ds.add(2, b"four")
         self.failUnlessEqual(ds.len(), 4)
         self.failUnlessEqual(list(ds._dump()), [2,3,4,5])
         self.failUnlessEqual(sum([len(d) for (s,d) in ds.get_chunks()]), 4)
@@ -420,32 +432,32 @@ class StringSpans(unittest.TestCase):
         self.failUnlessEqual(sum([len(d) for (s,d) in ds2.get_chunks()]), 4)
         self.failUnlessEqual(ds2.get(0, 4), None)
         self.failUnlessEqual(ds2.pop(0, 4), None)
-        self.failUnlessEqual(ds2.pop(2, 3), "fou")
+        self.failUnlessEqual(ds2.pop(2, 3), b"fou")
         self.failUnlessEqual(sum([len(d) for (s,d) in ds2.get_chunks()]), 1)
         self.failUnlessEqual(ds2.get(2, 3), None)
-        self.failUnlessEqual(ds2.get(5, 1), "r")
-        self.failUnlessEqual(ds.get(2, 3), "fou")
+        self.failUnlessEqual(ds2.get(5, 1), b"r")
+        self.failUnlessEqual(ds.get(2, 3), b"fou")
         self.failUnlessEqual(sum([len(d) for (s,d) in ds.get_chunks()]), 4)
 
-        ds.add(0, "23")
+        ds.add(0, b"23")
         self.failUnlessEqual(ds.len(), 6)
         self.failUnlessEqual(list(ds._dump()), [0,1,2,3,4,5])
         self.failUnlessEqual(sum([len(d) for (s,d) in ds.get_chunks()]), 6)
-        self.failUnlessEqual(ds.get(0, 4), "23fo")
-        self.failUnlessEqual(ds.pop(0, 4), "23fo")
+        self.failUnlessEqual(ds.get(0, 4), b"23fo")
+        self.failUnlessEqual(ds.pop(0, 4), b"23fo")
         self.failUnlessEqual(sum([len(d) for (s,d) in ds.get_chunks()]), 2)
         self.failUnlessEqual(ds.get(0, 4), None)
         self.failUnlessEqual(ds.pop(0, 4), None)
 
         ds = klass()
-        ds.add(2, "four")
-        ds.add(3, "ea")
-        self.failUnlessEqual(ds.get(2, 4), "fear")
+        ds.add(2, b"four")
+        ds.add(3, b"ea")
+        self.failUnlessEqual(ds.get(2, 4), b"fear")
 
         ds = klass()
-        ds.add(long(2), "four")
-        ds.add(long(3), "ea")
-        self.failUnlessEqual(ds.get(long(2), long(4)), "fear")
+        ds.add(long(2), b"four")
+        ds.add(long(3), b"ea")
+        self.failUnlessEqual(ds.get(long(2), long(4)), b"fear")
 
 
     def do_scan(self, klass):
@@ -463,18 +475,18 @@ class StringSpans(unittest.TestCase):
         #  11 1  1 11 11  11  1 1  111
         # 0123456789012345678901234567
         # abcdefghijklmnopqrstuvwxyz-=
-        pieces = [(1, "bc"),
-                  (4, "e"),
-                  (7, "h"),
-                  (9, "jk"),
-                  (12, "mn"),
-                  (16, "qr"),
-                  (20, "u"),
-                  (22, "w"),
-                  (25, "z-="),
+        pieces = [(1, b"bc"),
+                  (4, b"e"),
+                  (7, b"h"),
+                  (9, b"jk"),
+                  (12, b"mn"),
+                  (16, b"qr"),
+                  (20, b"u"),
+                  (22, b"w"),
+                  (25, b"z-="),
                   ]
         p_elements = set([1,2,4,7,9,10,12,13,16,17,20,22,25,26,27])
-        S = "abcdefghijklmnopqrstuvwxyz-="
+        S = b"abcdefghijklmnopqrstuvwxyz-="
         # TODO: when adding data, add capital letters, to make sure we aren't
         # just leaving the old data in place
         l = len(S)
@@ -485,7 +497,7 @@ class StringSpans(unittest.TestCase):
             return ds
         def dump(s):
             p = set(s._dump())
-            d = "".join([((i not in p) and " " or S[i]) for i in range(l)])
+            d = b"".join([((i not in p) and b" " or S[i]) for i in range(l)])
             assert len(d) == l
             return d
         DEBUG = False
@@ -518,7 +530,7 @@ class StringSpans(unittest.TestCase):
                         d = b.get(t_start, t_len)
                         if d is not None:
                             which2 = "%s+(%d-%d)" % (which, t_start,
-                                                     t_start+t_len-1)
+                                                      t_start+t_len-1)
                             self.failUnlessEqual(d, S[t_start:t_start+t_len],
                                                  which2)
                         # check that removing a subspan gives the right value
@@ -557,7 +569,7 @@ class StringSpans(unittest.TestCase):
                 piece = sha256(seed + bytes(created))
                 pieces.append(piece)
                 created += len(piece)
-            return "".join(pieces)[:length]
+            return b"".join(pieces)[:length]
         def _create(subseed):
             ns1 = S1(); ns2 = S2()
             for i in range(10):
@@ -571,22 +583,22 @@ class StringSpans(unittest.TestCase):
         #print
         for i in range(1000):
             what = sha256(seed+bytes(i))
-            op = what[0]
-            subop = what[1]
+            op = what[0:1]
+            subop = what[1:2]
             start = int(what[2:4], 16)
             length = max(1,int(what[5:6], 16))
             #print what
-            if op in "0":
-                if subop in "0123456":
+            if op in b"0":
+                if subop in b"0123456":
                     s1 = S1(); s2 = S2()
                 else:
                     s1, s2 = _create(what[7:11])
                 #print "s2 = %s" % list(s2._dump())
-            elif op in "123456":
+            elif op in b"123456":
                 #print "s2.add(%d,%d)" % (start, length)
                 s1.add(start, _randstr(length, what[7:9]));
                 s2.add(start, _randstr(length, what[7:9]))
-            elif op in "789abc":
+            elif op in b"789abc":
                 #print "s2.remove(%d,%d)" % (start, length)
                 s1.remove(start, length); s2.remove(start, length)
             else:

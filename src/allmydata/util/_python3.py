@@ -22,10 +22,12 @@ PORTED_MODULES = [
     "allmydata.util.namespace",
     "allmydata.util.pollmixin",
     "allmydata.util._python3",
+    "allmydata.util.spans",
 ]
 
 PORTED_TEST_MODULES = [
     "allmydata.test.test_deferredutil",
     "allmydata.test.test_humanreadable",
     "allmydata.test.test_python3",
+    "allmydata.test.test_spans",
 ]
