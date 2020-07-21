@@ -12,6 +12,14 @@ from future.utils import PY2
 if PY2:
     from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, int, list, object, range, str, max, min  # noqa: F401
 
+if PY2:
+    import string
+    maketrans = string.maketrans
+    translate = string.translate
+else:
+    maketrans = bytes.maketrans
+    translate = bytes.translate
+
 from past.builtins import chr as byteschr
 
 from allmydata.util.mathutil import log_ceil, log_floor
@@ -21,9 +29,9 @@ chars = b"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
 BASE62CHAR = b'[' + chars + b']'
 
 vals = b''.join([byteschr(i) for i in range(62)])
-c2vtranstable = bytes.maketrans(chars, vals)
-v2ctranstable = bytes.maketrans(vals, chars)
-identitytranstable = bytes.maketrans(chars, chars)
+c2vtranstable = maketrans(chars, vals)
+v2ctranstable = maketrans(vals, chars)
+identitytranstable = maketrans(chars, chars)
 
 def b2a(os):
     """
@@ -77,7 +85,7 @@ def b2a_l(os, lengthinbits):
         value //= 62
         numvalues //= 62
 
-    return bytes.translate(bytes([c for c in reversed(chars)]), v2ctranstable) # make it big-endian
+    return translate(bytes([c for c in reversed(chars)]), v2ctranstable) # make it big-endian
 
 def num_octets_that_encode_to_this_many_chars(numcs):
     return log_floor(62**numcs, 256)
@@ -108,7 +116,7 @@ def a2b_l(cs, lengthinbits):
     """
     # We call bytes() again for Python 2, to ensure literals are using future's
     # Python 3-compatible variant.
-    cs = [c for c in reversed(bytes(bytes.translate(cs, c2vtranstable)))] # treat cs as big-endian -- and we want to process the least-significant c first
+    cs = [c for c in reversed(bytes(translate(cs, c2vtranstable)))] # treat cs as big-endian -- and we want to process the least-significant c first
 
     value = 0
     numvalues = 1 # the number of possible values that value could be
