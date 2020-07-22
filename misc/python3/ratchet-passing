@@ -26,3 +26,11 @@ allmydata.test.test_observer.Observer.test_oneshot_fireagain
 allmydata.test.test_python3.Python3PortingEffortTests.test_finished_porting
 allmydata.test.test_python3.Python3PortingEffortTests.test_ported_modules_distinct
 allmydata.test.test_python3.Python3PortingEffortTests.test_ported_modules_exist
+allmydata.test.test_spans.ByteSpans.test_basic
+allmydata.test.test_spans.ByteSpans.test_large
+allmydata.test.test_spans.ByteSpans.test_math
+allmydata.test.test_spans.ByteSpans.test_overlap
+allmydata.test.test_spans.ByteSpans.test_random
+allmydata.test.test_spans.StringSpans.test_basic
+allmydata.test.test_spans.StringSpans.test_random
+allmydata.test.test_spans.StringSpans.test_test
