@@ -7,8 +7,8 @@ from allmydata import hashtree
 
 
 def make_tree(numleaves):
-    leaves = ["%d" % i for i in range(numleaves)]
-    leaf_hashes = [tagged_hash("tag", leaf) for leaf in leaves]
+    leaves = [b"%d" % i for i in range(numleaves)]
+    leaf_hashes = [tagged_hash(b"tag", leaf) for leaf in leaves]
     ht = hashtree.HashTree(leaf_hashes)
     return ht
 
@@ -20,7 +20,7 @@ class Complete(unittest.TestCase):
         ht = make_tree(8)
         root = ht[0]
         self.failUnlessEqual(len(root), 32)
-        self.failUnlessEqual(ht.get_leaf(0), tagged_hash("tag", "0"))
+        self.failUnlessEqual(ht.get_leaf(0), tagged_hash(b"tag", b"0"))
         self.failUnlessRaises(IndexError, ht.get_leaf, 8)
         self.failUnlessEqual(ht.get_leaf_index(0), 7)
         self.failUnlessRaises(IndexError, ht.parent, 0)
@@ -157,7 +157,7 @@ class Incomplete(unittest.TestCase):
         chain = {0: ht[0], 2: ht[2], 4: ht[4], 8: ht[8]}
         # this should fail because the leaf hash is just plain wrong
         try:
-            iht.set_hashes(chain, leaves={0: tagged_hash("bad tag", "0")})
+            iht.set_hashes(chain, leaves={0: tagged_hash(b"bad tag", b"0")})
         except hashtree.BadHashError:
             pass
         else:
@@ -166,7 +166,7 @@ class Incomplete(unittest.TestCase):
         # this should fail because we give it conflicting hashes: one as an
         # internal node, another as a leaf
         try:
-            iht.set_hashes(chain, leaves={1: tagged_hash("bad tag", "1")})
+            iht.set_hashes(chain, leaves={1: tagged_hash(b"bad tag", b"1")})
         except hashtree.BadHashError:
             pass
         else:
@@ -177,7 +177,7 @@ class Incomplete(unittest.TestCase):
 
         # this should fail because the internal hash is wrong
         try:
-            iht.set_hashes(bad_chain, leaves={0: tagged_hash("tag", "0")})
+            iht.set_hashes(bad_chain, leaves={0: tagged_hash(b"tag", b"0")})
         except hashtree.BadHashError:
             pass
         else:
@@ -185,23 +185,23 @@ class Incomplete(unittest.TestCase):
 
         # this should succeed
         try:
-            iht.set_hashes(chain, leaves={0: tagged_hash("tag", "0")})
+            iht.set_hashes(chain, leaves={0: tagged_hash(b"tag", b"0")})
         except hashtree.BadHashError as e:
             self.fail("bad hash: %s" % e)
 
-        self.failUnlessEqual(ht.get_leaf(0), tagged_hash("tag", "0"))
+        self.failUnlessEqual(ht.get_leaf(0), tagged_hash(b"tag", b"0"))
         self.failUnlessRaises(IndexError, ht.get_leaf, 8)
 
         # this should succeed too
         try:
-            iht.set_hashes(leaves={1: tagged_hash("tag", "1")})
+            iht.set_hashes(leaves={1: tagged_hash(b"tag", b"1")})
         except hashtree.BadHashError:
             self.fail("bad hash")
 
         # this should fail because we give it hashes that conflict with some
         # that we added successfully before
         try:
-            iht.set_hashes(leaves={1: tagged_hash("bad tag", "1")})
+            iht.set_hashes(leaves={1: tagged_hash(b"bad tag", b"1")})
         except hashtree.BadHashError:
             pass
         else:
@@ -214,6 +214,6 @@ class Incomplete(unittest.TestCase):
 
         # this should succeed
         try:
-            iht.set_hashes(chain, leaves={4: tagged_hash("tag", "4")})
+            iht.set_hashes(chain, leaves={4: tagged_hash(b"tag", b"4")})
         except hashtree.BadHashError as e:
             self.fail("bad hash: %s" % e)
