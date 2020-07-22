@@ -1,6 +1,16 @@
 """
 Tests for allmydata.util.base32.
+
+Ported to Python 3.
 """
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, int, list, object, range, str, max, min  # noqa: F401
 
 import base64
 
@@ -22,7 +32,9 @@ class Base32(unittest.TestCase):
         self.failUnlessEqual(encoded, x)
         self.assertIsInstance(encoded, bytes)
         self.assertTrue(base32.could_be_base32_encoded(encoded))
-        self.assertEqual(base32.a2b(encoded), input_bytes)
+        decoded = base32.a2b(encoded)
+        self.assertEqual(decoded, input_bytes)
+        self.assertIsInstance(decoded, bytes)
 
     def test_b2a(self):
         self.failUnlessEqual(base32.b2a(b"\x12\x34"), b"ci2a")
