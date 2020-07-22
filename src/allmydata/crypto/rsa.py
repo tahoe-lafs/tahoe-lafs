@@ -46,18 +46,8 @@ def create_signing_keypair(key_size):
 
     :returns: 2-tuple of (private_key, public_key)
     """
-    # Tahoe's original use of pycryptopp would use cryptopp's default
-    # public_exponent, which is 17
-    #
-    # Thus, we are using 17 here as well. However, there are other
-    # choices; see this for more discussion:
-    # https://security.stackexchange.com/questions/2335/should-rsa-public-exponent-be-only-in-3-5-17-257-or-65537-due-to-security-c
-    #
-    # Another popular choice is 65537. See:
-    # https://cryptography.io/en/latest/hazmat/primitives/asymmetric/rsa/#cryptography.hazmat.primitives.asymmetric.rsa.generate_private_key
-    # https://www.daemonology.net/blog/2009-06-11-cryptographic-right-answers.html
     priv_key = rsa.generate_private_key(
-        public_exponent=17,
+        public_exponent=65537,
         key_size=key_size,
         backend=default_backend()
     )
