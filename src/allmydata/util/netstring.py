@@ -1,8 +1,23 @@
+"""
+Netstring encoding and decoding.
+
+Ported to Python 3.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, int, list, object, range, str, max, min  # noqa: F401
+
+from past.builtins import long
 
 
 def netstring(s):
-    assert isinstance(s, str), s # no unicode here
-    return "%d:%s," % (len(s), s,)
+    assert isinstance(s, bytes), s # no unicode here
+    return b"%d:%s," % (len(s), s,)
 
 def split_netstring(data, numstrings,
                     position=0,
@@ -13,18 +28,19 @@ def split_netstring(data, numstrings,
     byte which was not consumed (the 'required_trailer', if any, counts as
     consumed).  If 'required_trailer' is not None, throw ValueError if leftover
     data does not exactly equal 'required_trailer'."""
-
-    assert type(position) in (int, long), (repr(position), type(position))
+    assert isinstance(data, bytes)
+    assert required_trailer is None or isinstance(required_trailer, bytes)
+    assert isinstance(position, (int, long)), (repr(position), type(position))
     elements = []
     assert numstrings >= 0
     while position < len(data):
-        colon = data.index(":", position)
+        colon = data.index(b":", position)
         length = int(data[position:colon])
         string = data[colon+1:colon+1+length]
         assert len(string) == length, (len(string), length)
         elements.append(string)
         position = colon+1+length
-        assert data[position] == ",", position
+        assert data[position] == b","[0], position
         position += 1
         if len(elements) == numstrings:
             break
