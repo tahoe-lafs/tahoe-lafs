@@ -3852,25 +3852,6 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin):
                                   expiration_mode="bogus")
         self.failUnlessIn("GC mode 'bogus' must be 'age' or 'cutoff-date'", str(e))
 
-    def test_parse_duration(self):
-        DAY = 24*60*60
-        MONTH = 31*DAY
-        YEAR = 365*DAY
-        p = time_format.parse_duration
-        self.failUnlessEqual(p("7days"), 7*DAY)
-        self.failUnlessEqual(p("31day"), 31*DAY)
-        self.failUnlessEqual(p("60 days"), 60*DAY)
-        self.failUnlessEqual(p("2mo"), 2*MONTH)
-        self.failUnlessEqual(p("3 month"), 3*MONTH)
-        self.failUnlessEqual(p("2years"), 2*YEAR)
-        e = self.failUnlessRaises(ValueError, p, "2kumquats")
-        self.failUnlessIn("no unit (like day, month, or year) in '2kumquats'", str(e))
-
-    def test_parse_date(self):
-        p = time_format.parse_date
-        self.failUnless(isinstance(p("2009-03-18"), int), p("2009-03-18"))
-        self.failUnlessEqual(p("2009-03-18"), 1237334400)
-
     def test_limited_history(self):
         basedir = "storage/LeaseCrawler/limited_history"
         fileutil.make_dirs(basedir)

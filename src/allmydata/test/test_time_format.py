@@ -10,6 +10,8 @@ from future.utils import PY2
 if PY2:
     from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, int, list, object, range, str, max, min  # noqa: F401
 
+from past.builtins import long
+
 import time
 
 from twisted.trial import unittest
@@ -87,6 +89,8 @@ class TimeFormat(unittest.TestCase, TimezoneMixin):
     def test_parse_duration(self):
         p = time_format.parse_duration
         DAY = 24*60*60
+        MONTH = 31*DAY
+        YEAR = 365*DAY
         self.failUnlessEqual(p("1 day"), DAY)
         self.failUnlessEqual(p("2 days"), 2*DAY)
         self.failUnlessEqual(p("3 months"), 3*31*DAY)
@@ -95,9 +99,20 @@ class TimeFormat(unittest.TestCase, TimezoneMixin):
         e = self.failUnlessRaises(ValueError, p, "123")
         self.failUnlessIn("no unit (like day, month, or year) in '123'",
                           str(e))
+        self.failUnlessEqual(p("7days"), 7*DAY)
+        self.failUnlessEqual(p("31day"), 31*DAY)
+        self.failUnlessEqual(p("60 days"), 60*DAY)
+        self.failUnlessEqual(p("2mo"), 2*MONTH)
+        self.failUnlessEqual(p("3 month"), 3*MONTH)
+        self.failUnlessEqual(p("2years"), 2*YEAR)
+        e = self.failUnlessRaises(ValueError, p, "2kumquats")
+        self.failUnlessIn("no unit (like day, month, or year) in '2kumquats'", str(e))
 
     def test_parse_date(self):
-        self.failUnlessEqual(time_format.parse_date("2010-02-21"), 1266710400)
+        p = time_format.parse_date
+        self.failUnlessEqual(p("2010-02-21"), 1266710400)
+        self.failUnless(isinstance(p("2009-03-18"), (int, long)), p("2009-03-18"))
+        self.failUnlessEqual(p("2009-03-18"), 1237334400)
 
     def test_format_time(self):
         self.failUnlessEqual(time_format.format_time(time.gmtime(0)), '1970-01-01 00:00:00')
