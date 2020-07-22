@@ -1,4 +1,8 @@
-# -*- test-case-name: allmydata.test.test_hashtree -*-
+"""
+Tests for allmydata.hashtree.
+
+Ported to Python 3.
+"""
 
 from __future__ import absolute_import
 from __future__ import division
