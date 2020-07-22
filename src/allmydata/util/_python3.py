@@ -23,6 +23,7 @@ PORTED_MODULES = [
     "allmydata.util.mathutil",
     "allmydata.util.namespace",
     "allmydata.util.observer",
+    "allmydata.util.pipeline",
     "allmydata.util.pollmixin",
     "allmydata.util._python3",
 ]
@@ -33,6 +34,7 @@ PORTED_TEST_MODULES = [
     "allmydata.test.test_deferredutil",
     "allmydata.test.test_humanreadable",
     "allmydata.test.test_observer",
+    "allmydata.test.test_pipeline",
     "allmydata.test.test_python3",
 ]
 
