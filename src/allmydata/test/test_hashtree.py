@@ -1,5 +1,15 @@
 # -*- test-case-name: allmydata.test.test_hashtree -*-
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, int, list, object, range, str, max, min  # noqa: F401
+
+
 from twisted.trial import unittest
 
 from allmydata.util.hashutil import tagged_hash
@@ -143,7 +153,7 @@ class Incomplete(unittest.TestCase):
         current_hashes = list(iht)
         # this should fail because there aren't enough hashes known
         try:
-            iht.set_hashes(leaves={0: tagged_hash("tag", "0")})
+            iht.set_hashes(leaves={0: tagged_hash(b"tag", b"0")})
         except hashtree.NotEnoughHashesError:
             pass
         else:
@@ -173,7 +183,7 @@ class Incomplete(unittest.TestCase):
             self.fail("didn't catch bad hash")
 
         bad_chain = chain.copy()
-        bad_chain[2] = ht[2] + "BOGUS"
+        bad_chain[2] = ht[2] + b"BOGUS"
 
         # this should fail because the internal hash is wrong
         try:
