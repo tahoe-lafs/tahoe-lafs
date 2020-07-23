@@ -22,6 +22,10 @@ MONTH = 30*DAY
 YEAR = 365*DAY
 
 def abbreviate_time(s):
+    """
+    Given time in seconds (float or int) or timedelta, summarize as English by
+    returning unicode string.
+    """
     postfix = ''
     if isinstance(s, timedelta):
         # this feels counter-intuitive that positive numbers in a
@@ -58,6 +62,9 @@ def abbreviate_time(s):
     return _plural(s / YEAR, "year")
 
 def abbreviate_space(s, SI=True):
+    """
+    Given size in bytes summarize as English by returning unicode string.
+    """
     if s is None:
         return "unknown"
     if SI:
