@@ -93,9 +93,9 @@ class TimeFormat(unittest.TestCase, TimezoneMixin):
         YEAR = 365*DAY
         self.failUnlessEqual(p("1 day"), DAY)
         self.failUnlessEqual(p("2 days"), 2*DAY)
-        self.failUnlessEqual(p("3 months"), 3*31*DAY)
-        self.failUnlessEqual(p("4 mo"), 4*31*DAY)
-        self.failUnlessEqual(p("5 years"), 5*365*DAY)
+        self.failUnlessEqual(p("3 months"), 3*MONTH)
+        self.failUnlessEqual(p("4 mo"), 4*MONTH)
+        self.failUnlessEqual(p("5 years"), 5*YEAR)
         e = self.failUnlessRaises(ValueError, p, "123")
         self.failUnlessIn("no unit (like day, month, or year) in '123'",
                           str(e))
