@@ -1,5 +1,7 @@
 """
 Tests for allmydata.util.abbreviate.
+
+Ported to Python 3.
 """
 from __future__ import absolute_import
 from __future__ import division
