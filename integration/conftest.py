@@ -358,7 +358,10 @@ def bob(reactor, temp_dir, introducer_furl, flog_gatherer, storage_nodes, reques
 
 
 @pytest.fixture(scope='session')
+@pytest.mark.skipif(sys.platform.startswith('win'),
+                    'Tor tests are unstable on Windows')
 def chutney(reactor, temp_dir):
+
     chutney_dir = join(temp_dir, 'chutney')
     mkdir(chutney_dir)
 
@@ -406,7 +409,10 @@ def chutney(reactor, temp_dir):
 
 
 @pytest.fixture(scope='session')
+@pytest.mark.skipif(sys.platform.startswith('win'),
+                    reason='Tor tests are unstable on Windows')
 def tor_network(reactor, temp_dir, chutney, request):
+
     # this is the actual "chutney" script at the root of a chutney checkout
     chutney_dir = chutney
     chut = join(chutney_dir, 'chutney')
