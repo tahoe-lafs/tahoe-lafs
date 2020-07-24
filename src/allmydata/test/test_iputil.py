@@ -4,7 +4,7 @@ import re, errno, subprocess, os
 from twisted.trial import unittest
 
 from allmydata.util import iputil
-import allmydata.test.common_util as testutil
+import allmydata.test.common_py3 as testutil
 from allmydata.util.namespace import Namespace
 
 
