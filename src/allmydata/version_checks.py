@@ -10,9 +10,11 @@ __all__ = [
     "normalized_version",
 ]
 
-import os, platform, re, subprocess, sys, traceback, pkg_resources
+import os, platform, re, sys, traceback, pkg_resources
 
 import six
+
+import distro
 
 from . import (
     __appname__,
@@ -80,7 +82,7 @@ def normalized_version(verstr, what=None):
         return verlib.NormalizedVersion(suggested)
     except verlib.IrrationalVersionError:
         raise
-    except StandardError:
+    except Exception:
         cls, value, trace = sys.exc_info()
         new_exc = PackagingError("could not parse %s due to %s: %s"
                                  % (what or repr(verstr), cls.__name__, value))
@@ -201,83 +203,6 @@ def _extract_openssl_version(ssl_module):
 
     return (version, None, comment if comment else None)
 
-def _get_linux_distro():
-    """ Tries to determine the name of the Linux OS distribution name.
-
-    First, try to parse a file named "/etc/lsb-release".  If it exists, and
-    contains the "DISTRIB_ID=" line and the "DISTRIB_RELEASE=" line, then return
-    the strings parsed from that file.
-
-    If that doesn't work, then invoke platform.dist().
-
-    If that doesn't work, then try to execute "lsb_release", as standardized in
-    2001:
-
-    http://refspecs.freestandards.org/LSB_1.0.0/gLSB/lsbrelease.html
-
-    The current version of the standard is here:
-
-    http://refspecs.freestandards.org/LSB_3.2.0/LSB-Core-generic/LSB-Core-generic/lsbrelease.html
-
-    that lsb_release emitted, as strings.
-
-    Returns a tuple (distname,version). Distname is what LSB calls a
-    "distributor id", e.g. "Ubuntu".  Version is what LSB calls a "release",
-    e.g. "8.04".
-
-    A version of this has been submitted to python as a patch for the standard
-    library module "platform":
-
-    http://bugs.python.org/issue3937
-    """
-    global _distname,_version
-    if _distname and _version:
-        return (_distname, _version)
-
-    try:
-        with open("/etc/lsb-release", "rU") as etclsbrel:
-            for line in etclsbrel:
-                m = _distributor_id_file_re.search(line)
-                if m:
-                    _distname = m.group(1).strip()
-                    if _distname and _version:
-                        return (_distname, _version)
-                m = _release_file_re.search(line)
-                if m:
-                    _version = m.group(1).strip()
-                    if _distname and _version:
-                        return (_distname, _version)
-    except EnvironmentError:
-        pass
-
-    (_distname, _version) = platform.dist()[:2]
-    if _distname and _version:
-        return (_distname, _version)
-
-    if os.path.isfile("/usr/bin/lsb_release") or os.path.isfile("/bin/lsb_release"):
-        try:
-            p = subprocess.Popen(["lsb_release", "--all"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            rc = p.wait()
-            if rc == 0:
-                for line in p.stdout.readlines():
-                    m = _distributor_id_cmdline_re.search(line)
-                    if m:
-                        _distname = m.group(1).strip()
-                        if _distname and _version:
-                            return (_distname, _version)
-
-                    m = _release_cmdline_re.search(p.stdout.read())
-                    if m:
-                        _version = m.group(1).strip()
-                        if _distname and _version:
-                            return (_distname, _version)
-        except EnvironmentError:
-            pass
-
-    if os.path.exists("/etc/arch-release"):
-        return ("Arch_Linux", "")
-
-    return (_distname,_version)
 
 def _get_platform():
     # Our version of platform.platform(), telling us both less and more than the
@@ -288,7 +213,7 @@ def _get_platform():
     if "linux" in platform.system().lower():
         return (
             platform.system() + "-" +
-            "_".join(_get_linux_distro()) + "-" +
+            "_".join(distro.linux_distribution()[:2]) + "-" +
             platform.machine() + "-" +
             "_".join([x for x in platform.architecture() if x])
         )
@@ -321,7 +246,7 @@ def _get_package_versions_and_locations():
         for modulename in warning_imports:
             try:
                 __import__(modulename)
-            except ImportError:
+            except (ImportError, SyntaxError):
                 pass
     finally:
         # Leave suppressions for UserWarnings and global_deprecation_messages active.
@@ -355,7 +280,7 @@ def _get_package_versions_and_locations():
             try:
                 __import__(modulename)
                 module = sys.modules[modulename]
-            except ImportError:
+            except (ImportError, SyntaxError):
                 etype, emsg, etrace = sys.exc_info()
                 trace_info = (etype, str(emsg), ([None] + traceback.extract_tb(etrace))[-1])
                 packages.append( (pkgname, (None, None, trace_info)) )
