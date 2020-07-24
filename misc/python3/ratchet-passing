@@ -18,6 +18,14 @@ allmydata.test.test_deferredutil.DeferredUtilTests.test_failure
 allmydata.test.test_deferredutil.DeferredUtilTests.test_gather_results
 allmydata.test.test_deferredutil.DeferredUtilTests.test_success
 allmydata.test.test_deferredutil.DeferredUtilTests.test_wait_for_delayed_calls
+allmydata.test.test_hashtree.Complete.test_create
+allmydata.test.test_hashtree.Complete.test_dump
+allmydata.test.test_hashtree.Complete.test_needed_hashes
+allmydata.test.test_hashtree.Incomplete.test_check
+allmydata.test.test_hashtree.Incomplete.test_create
+allmydata.test.test_hashtree.Incomplete.test_depth_of
+allmydata.test.test_hashtree.Incomplete.test_large
+allmydata.test.test_hashtree.Incomplete.test_needed_hashes
 allmydata.test.test_hashutil.HashUtilTests.test_chk
 allmydata.test.test_hashutil.HashUtilTests.test_hashers
 allmydata.test.test_hashutil.HashUtilTests.test_known_answers

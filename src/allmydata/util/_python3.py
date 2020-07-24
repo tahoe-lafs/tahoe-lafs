@@ -15,6 +15,7 @@ if PY2:
 
 # Keep these sorted alphabetically, to reduce merge conflicts:
 PORTED_MODULES = [
+    "allmydata.hashtree",
     "allmydata.util.assertutil",
     "allmydata.util.base32",
     "allmydata.util.base62",
@@ -32,6 +33,7 @@ PORTED_TEST_MODULES = [
     "allmydata.test.test_base32",
     "allmydata.test.test_base62",
     "allmydata.test.test_deferredutil",
+    "allmydata.test.test_hashtree",
     "allmydata.test.test_hashutil",
     "allmydata.test.test_humanreadable",
     "allmydata.test.test_netstring",
