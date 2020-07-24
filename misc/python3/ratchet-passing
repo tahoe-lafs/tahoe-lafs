@@ -42,6 +42,9 @@ allmydata.test.test_observer.Observer.test_lazy_oneshot
 allmydata.test.test_observer.Observer.test_observerlist
 allmydata.test.test_observer.Observer.test_oneshot
 allmydata.test.test_observer.Observer.test_oneshot_fireagain
+allmydata.test.test_pipeline.Pipeline.test_basic
+allmydata.test.test_pipeline.Pipeline.test_errors
+allmydata.test.test_pipeline.Pipeline.test_errors2
 allmydata.test.test_python3.Python3PortingEffortTests.test_finished_porting
 allmydata.test.test_python3.Python3PortingEffortTests.test_ported_modules_distinct
 allmydata.test.test_python3.Python3PortingEffortTests.test_ported_modules_exist
