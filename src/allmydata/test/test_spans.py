@@ -530,7 +530,7 @@ class StringSpans(unittest.TestCase):
                         d = b.get(t_start, t_len)
                         if d is not None:
                             which2 = "%s+(%d-%d)" % (which, t_start,
-                                                      t_start+t_len-1)
+                                                     t_start+t_len-1)
                             self.failUnlessEqual(d, S[t_start:t_start+t_len],
                                                  which2)
                         # check that removing a subspan gives the right value
