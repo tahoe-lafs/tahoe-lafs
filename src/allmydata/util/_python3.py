@@ -26,6 +26,8 @@ PORTED_MODULES = [
     "allmydata.util.mathutil",
     "allmydata.util.namespace",
     "allmydata.util.netstring",
+    "allmydata.util.observer",
+    "allmydata.util.pipeline",
     "allmydata.util.pollmixin",
     "allmydata.util._python3",
     "allmydata.util.time_format",
@@ -41,6 +43,8 @@ PORTED_TEST_MODULES = [
     "allmydata.test.test_hashutil",
     "allmydata.test.test_humanreadable",
     "allmydata.test.test_netstring",
+    "allmydata.test.test_observer",
+    "allmydata.test.test_pipeline",
     "allmydata.test.test_python3",
     "allmydata.test.test_time_format",
 ]
