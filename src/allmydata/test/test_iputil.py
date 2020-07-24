@@ -10,7 +10,9 @@ from allmydata.util.namespace import Namespace
 
 DOTTED_QUAD_RE=re.compile("^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$")
 
-MOCK_IPADDR_OUTPUT = """\
+# Mock output from subprocesses should be bytes, that's what happens on both
+# Python 2 and Python 3:
+MOCK_IPADDR_OUTPUT = b"""\
 1: lo: <LOOPBACK,UP,LOWER_UP> mtu 16436 qdisc noqueue state UNKNOWN \n\
     link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
     inet 127.0.0.1/8 scope host lo
@@ -28,7 +30,7 @@ MOCK_IPADDR_OUTPUT = """\
        valid_lft forever preferred_lft forever
 """
 
-MOCK_IFCONFIG_OUTPUT = """\
+MOCK_IFCONFIG_OUTPUT = b"""\
 eth1      Link encap:Ethernet  HWaddr d4:3d:7e:01:b4:3e  \n\
           inet addr:192.168.0.6  Bcast:192.168.0.255  Mask:255.255.255.0
           inet6 addr: fe80::d63d:7eff:fe01:b43e/64 Scope:Link
@@ -59,7 +61,7 @@ wlan0     Link encap:Ethernet  HWaddr 90:f6:52:27:15:0a  \n\
 """
 
 # This is actually from a VirtualBox VM running XP.
-MOCK_ROUTE_OUTPUT = """\
+MOCK_ROUTE_OUTPUT = b"""\
 ===========================================================================
 Interface List
 0x1 ........................... MS TCP Loopback interface
@@ -98,6 +100,11 @@ class ListAddresses(testutil.SignalMixin, unittest.TestCase):
     def test_get_local_ip_for(self):
         addr = iputil.get_local_ip_for('127.0.0.1')
         self.failUnless(DOTTED_QUAD_RE.match(addr))
+        # Bytes can be taken as input:
+        bytes_addr = iputil.get_local_ip_for(b'127.0.0.1')
+        self.assertEqual(addr, bytes_addr)
+        # The output is a native string:
+        self.assertIsInstance(addr, str)
 
     def test_list_async(self):
         d = iputil.get_local_addresses_async()
