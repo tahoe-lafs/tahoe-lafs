@@ -4,7 +4,7 @@ from __future__ import print_function
 Futz with files like a pro.
 """
 
-import sys, exceptions, os, stat, tempfile, time, binascii
+import sys, os, stat, tempfile, time, binascii
 import six
 from collections import namedtuple
 from errno import ENOENT
@@ -190,7 +190,7 @@ def make_dirs(dirname, mode=0o777):
     if not os.path.isdir(dirname):
         if tx:
             raise tx
-        raise exceptions.IOError("unknown error prevented creation of directory, or deleted the directory immediately after creation: %s" % dirname) # careful not to construct an IOError with a 2-tuple, as that has a special meaning...
+        raise IOError("unknown error prevented creation of directory, or deleted the directory immediately after creation: %s" % dirname) # careful not to construct an IOError with a 2-tuple, as that has a special meaning...
 
 def rm_dir(dirname):
     """
