@@ -38,6 +38,7 @@ PORTED_TEST_MODULES = [
     "allmydata.test.test_humanreadable",
     "allmydata.test.test_netstring",
     "allmydata.test.test_python3",
+    "allmydata.test.test_version",
 ]
 
 

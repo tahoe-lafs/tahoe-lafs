@@ -127,6 +127,9 @@ install_requires = [
 
     # Utility code:
     "pyutil >= 3.3.0",
+
+    # Linux distribution detection:
+    "distro >= 1.4.0",
 ]
 
 setup_requires = [
