@@ -15,13 +15,16 @@ if PY2:
 
 # Keep these sorted alphabetically, to reduce merge conflicts:
 PORTED_MODULES = [
+    "allmydata.hashtree",
     "allmydata.util.assertutil",
     "allmydata.util.base32",
     "allmydata.util.base62",
     "allmydata.util.deferredutil",
+    "allmydata.util.hashutil",
     "allmydata.util.humanreadable",
     "allmydata.util.mathutil",
     "allmydata.util.namespace",
+    "allmydata.util.netstring",
     "allmydata.util.observer",
     "allmydata.util.pipeline",
     "allmydata.util.pollmixin",
@@ -32,7 +35,10 @@ PORTED_TEST_MODULES = [
     "allmydata.test.test_base32",
     "allmydata.test.test_base62",
     "allmydata.test.test_deferredutil",
+    "allmydata.test.test_hashtree",
+    "allmydata.test.test_hashutil",
     "allmydata.test.test_humanreadable",
+  "allmydata.test.test_netstring",
     "allmydata.test.test_observer",
     "allmydata.test.test_pipeline",
     "allmydata.test.test_python3",
