@@ -59,6 +59,7 @@ from .common import (
 from allmydata.interfaces import IMutableFileNode, SDMF_VERSION, MDMF_VERSION
 from allmydata.mutable import servermap, publish, retrieve
 from .. import common_util as testutil
+from ..common_py3 import TimezoneMixin
 from ..common_web import (
     do_http,
     Error,
@@ -310,7 +311,7 @@ class FakeClient(_Client):
 
     MUTABLE_SIZELIMIT = FakeMutableFileNode.MUTABLE_SIZELIMIT
 
-class WebMixin(testutil.TimezoneMixin):
+class WebMixin(TimezoneMixin):
     def setUp(self):
         self.setTimezone('UTC-13:00')
         self.s = FakeClient()
