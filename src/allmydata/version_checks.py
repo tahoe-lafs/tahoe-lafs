@@ -1,7 +1,17 @@
 """
 Produce reports about the versions of Python software in use by Tahoe-LAFS
 for debugging and auditing purposes.
+
+Ported to Python 3.
 """
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, int, list, object, range, str, max, min  # noqa: F401
 
 __all__ = [
     "PackagingError",
@@ -111,7 +121,7 @@ def _get_error_string(errors, debug=False):
 def _cross_check(pkg_resources_vers_and_locs, imported_vers_and_locs_list):
     """This function returns a list of errors due to any failed cross-checks."""
 
-    from _auto_deps import not_import_versionable
+    from ._auto_deps import not_import_versionable
 
     errors = []
     not_pkg_resourceable = ['python', 'platform', __appname__.lower(), 'openssl']
@@ -311,7 +321,7 @@ def _get_package_versions_and_locations():
         imported_packages = set([p.lower() for (p, _) in packages])
         extra_packages = []
 
-        for pr_name, (pr_ver, pr_loc) in pkg_resources_vers_and_locs.iteritems():
+        for pr_name, (pr_ver, pr_loc) in pkg_resources_vers_and_locs.items():
             if pr_name not in imported_packages and pr_name not in ignorable:
                 extra_packages.append( (pr_name, (pr_ver, pr_loc, "according to pkg_resources")) )
 

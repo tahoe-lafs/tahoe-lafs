@@ -8,6 +8,10 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
+from future.utils import PY2
+if PY2:
+    from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, int, list, object, range, str, max, min  # noqa: F401
+
 import sys
 import pkg_resources
 from operator import (
@@ -88,7 +92,7 @@ class CheckRequirement(unittest.TestCase):
 
         res = cross_check({}, [("foo", ("unparseable", "", None))])
         self.failUnlessEqual(len(res), 1)
-        self.failUnlessIn("version 'unparseable'", res[0])
+        self.assertTrue(("version 'unparseable'" in res[0]) or ("version u'unparseable'" in res[0]))
         self.failUnlessIn("was not found by pkg_resources", res[0])
 
         res = cross_check({"distribute": ("1.0", "/somewhere")}, [("setuptools", ("2.0", "/somewhere", "distribute"))])
@@ -129,7 +133,7 @@ class CheckRequirement(unittest.TestCase):
 
         res = cross_check({"foo": ("1.0", "/somewhere")}, [("foo", ("2.0", "/somewhere_different", None))])
         self.failUnlessEqual(len(res), 1)
-        self.failUnlessIn("but version '2.0'", res[0])
+        self.assertTrue(("but version '2.0'" in res[0]) or ("but version u'2.0'" in res[0]))
 
     def test_extract_openssl_version(self):
         self.failUnlessEqual(extract_openssl_version(MockSSL("")),
