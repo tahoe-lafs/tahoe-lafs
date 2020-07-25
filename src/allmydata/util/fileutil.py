@@ -1,10 +1,16 @@
 from __future__ import print_function
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import unicode_literals
 
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, int, list, object, range, str, max, min  # noqa: F401from builtins import range
 """
 Futz with files like a pro.
 """
 
-import sys, exceptions, os, stat, tempfile, time, binascii
+import sys, os, stat, tempfile, time, binascii
 import six
 from collections import namedtuple
 from errno import ENOENT
@@ -190,7 +196,7 @@ def make_dirs(dirname, mode=0o777):
     if not os.path.isdir(dirname):
         if tx:
             raise tx
-        raise exceptions.IOError("unknown error prevented creation of directory, or deleted the directory immediately after creation: %s" % dirname) # careful not to construct an IOError with a 2-tuple, as that has a special meaning...
+        raise IOError("unknown error prevented creation of directory, or deleted the directory immediately after creation: %s" % dirname) # careful not to construct an IOError with a 2-tuple, as that has a special meaning...
 
 def rm_dir(dirname):
     """
@@ -277,7 +283,7 @@ def put_file(path, inf):
             outf.write(data)
 
 def precondition_abspath(path):
-    if not isinstance(path, unicode):
+    if not isinstance(path, str):
         raise AssertionError("an abspath must be a Unicode string")
 
     if sys.platform == "win32":
@@ -309,7 +315,7 @@ def abspath_expanduser_unicode(path, base=None, long_path=True):
     abspath_expanduser_unicode.
     On Windows, the result will be a long path unless long_path is given as False.
     """
-    if not isinstance(path, unicode):
+    if not isinstance(path, str):
         raise AssertionError("paths must be Unicode strings")
     if base is not None and long_path:
         precondition_abspath(base)
@@ -330,7 +336,10 @@ def abspath_expanduser_unicode(path, base=None, long_path=True):
 
     if not os.path.isabs(path):
         if base is None:
-            path = os.path.join(os.getcwdu(), path)
+            cwd = os.getcwd()
+            if PY2:
+                cwd = cwd.decode('utf8')
+            path = os.path.join(cwd, path)
         else:
             path = os.path.join(base, path)
 
@@ -415,7 +424,7 @@ ERROR_ENVVAR_NOT_FOUND = 203
 def windows_getenv(name):
     # Based on <http://stackoverflow.com/questions/2608200/problems-with-umlauts-in-python-appdata-environvent-variable/2608368#2608368>,
     # with improved error handling. Returns None if there is no enivronment variable of the given name.
-    if not isinstance(name, unicode):
+    if not isinstance(name, str):
         raise AssertionError("name must be Unicode")
 
     n = GetEnvironmentVariableW(name, None, 0)
