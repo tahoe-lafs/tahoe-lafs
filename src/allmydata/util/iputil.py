@@ -239,7 +239,7 @@ def _synchronously_find_addresses_via_config():
 def _query(path, args, regex):
     if not os.path.isfile(path):
         return []
-    env = {'LANG': 'en_US.UTF-8'}
+    env = {native_str('LANG'): native_str('en_US.UTF-8')}
     TRIES = 5
     for trial in range(TRIES):
         try:
