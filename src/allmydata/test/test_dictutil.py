@@ -1,6 +1,16 @@
 """
 Tests for allmydata.util.dictutil.
+
+Ported to Python 3.
 """
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, int, list, object, range, str, max, min  # noqa: F401
 
 from twisted.trial import unittest
 
@@ -37,7 +47,7 @@ class DictUtil(unittest.TestCase):
         # we put the serialized form in the auxdata
         d.set_with_aux("key", ("filecap", "metadata"), "serialized")
 
-        self.failUnlessEqual(d.keys(), ["key"])
+        self.failUnlessEqual(list(d.keys()), ["key"])
         self.failUnlessEqual(d["key"], ("filecap", "metadata"))
         self.failUnlessEqual(d.get_aux("key"), "serialized")
         def _get_missing(key):
@@ -55,7 +65,7 @@ class DictUtil(unittest.TestCase):
         d.set_with_aux("key2", "value2", "aux2")
         self.failUnlessEqual(sorted(d.keys()), ["key", "key2"])
         del d["key2"]
-        self.failUnlessEqual(d.keys(), ["key"])
+        self.failUnlessEqual(list(d.keys()), ["key"])
         self.failIf("key2" in d)
         self.failUnlessRaises(KeyError, _get_missing, "key2")
         self.failUnlessEqual(d.get("key2"), None)

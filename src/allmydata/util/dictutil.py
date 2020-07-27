@@ -1,6 +1,17 @@
 """
 Tools to mess with dicts.
+
+Ported to Python 3.
 """
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, int, list, object, range, str, max, min  # noqa: F401
+
 
 class DictOfSets(dict):
     def add(self, key, value):
@@ -10,7 +21,7 @@ class DictOfSets(dict):
             self[key] = set([value])
 
     def update(self, otherdictofsets):
-        for key, values in otherdictofsets.iteritems():
+        for key, values in otherdictofsets.items():
             if key in self:
                 self[key].update(values)
             else:
