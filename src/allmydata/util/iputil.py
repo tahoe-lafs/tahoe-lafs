@@ -370,7 +370,7 @@ def listenOnUnused(tub, portnum=None):
     """
     portnum, endpoint = _foolscapEndpointForPortNumber(portnum)
     tub.listenOn(endpoint)
-    tub.setLocation("localhost:%d" % (portnum,))
+    tub.setLocation(native_str("localhost:%d" % (portnum,)))
     return portnum
 
 
