@@ -131,7 +131,7 @@ def get_local_addresses_async(target="198.41.0.4"): # A.ROOT-SERVERS.NET
                 addresses.append(addr)
         return addresses
     d.addCallback(_collect)
-    d.addCallback(lambda addresses: [native_str(s) for s in addresses]) 
+    d.addCallback(lambda addresses: [native_str(s) for s in addresses])
     return d
 
 def get_local_ip_for(target):
