@@ -321,7 +321,7 @@ def _foolscapEndpointForPortNumber(portnum):
             # approach is error prone for the reasons described on
             # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2787
             portnum = allocate_tcp_port()
-    return (portnum, "tcp:%d" % (portnum,))
+    return (portnum, native_str("tcp:%d" % (portnum,)))
 
 
 @implementer(IStreamServerEndpoint)
