@@ -102,7 +102,7 @@ except ImportError:
     increase_rlimits = _increase_rlimits
 
 def get_local_addresses_sync():
-    return _synchronously_find_addresses_via_config()
+    return [native_str(a) for a in _synchronously_find_addresses_via_config()]
 
 def get_local_addresses_async(target="198.41.0.4"): # A.ROOT-SERVERS.NET
     """
@@ -131,7 +131,7 @@ def get_local_addresses_async(target="198.41.0.4"): # A.ROOT-SERVERS.NET
                 addresses.append(addr)
         return addresses
     d.addCallback(_collect)
-
+    d.addCallback(lambda addresses: [native_str(s) for s in addresses]) 
     return d
 
 def get_local_ip_for(target):
@@ -176,7 +176,7 @@ def get_local_ip_for(target):
     except (socket.error, CannotListenError):
         # no route to that host
         localip = None
-    return localip
+    return native_str(localip)
 
 
 # Wow, I'm really amazed at home much mileage we've gotten out of calling
