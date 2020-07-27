@@ -58,6 +58,14 @@ allmydata.test.test_pipeline.Pipeline.test_errors2
 allmydata.test.test_python3.Python3PortingEffortTests.test_finished_porting
 allmydata.test.test_python3.Python3PortingEffortTests.test_ported_modules_distinct
 allmydata.test.test_python3.Python3PortingEffortTests.test_ported_modules_exist
+allmydata.test.test_spans.ByteSpans.test_basic
+allmydata.test.test_spans.ByteSpans.test_large
+allmydata.test.test_spans.ByteSpans.test_math
+allmydata.test.test_spans.ByteSpans.test_overlap
+allmydata.test.test_spans.ByteSpans.test_random
+allmydata.test.test_spans.StringSpans.test_basic
+allmydata.test.test_spans.StringSpans.test_random
+allmydata.test.test_spans.StringSpans.test_test
 allmydata.test.test_time_format.TimeFormat.test_epoch
 allmydata.test.test_time_format.TimeFormat.test_epoch_in_London
 allmydata.test.test_time_format.TimeFormat.test_format_delta

@@ -31,6 +31,7 @@ PORTED_MODULES = [
     "allmydata.util.pipeline",
     "allmydata.util.pollmixin",
     "allmydata.util._python3",
+    "allmydata.util.spans",
     "allmydata.util.time_format",
     "allmydata.test.common_py3",
 ]
@@ -48,6 +49,7 @@ PORTED_TEST_MODULES = [
     "allmydata.test.test_observer",
     "allmydata.test.test_pipeline",
     "allmydata.test.test_python3",
+    "allmydata.test.test_spans",
     "allmydata.test.test_time_format",
     "allmydata.test.test_version",
 ]
