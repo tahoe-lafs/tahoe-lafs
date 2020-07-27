@@ -49,6 +49,7 @@ PORTED_TEST_MODULES = [
     "allmydata.test.test_python3",
     "allmydata.test.test_spans",
     "allmydata.test.test_time_format",
+    "allmydata.test.test_version",
 ]
 
 
