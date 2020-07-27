@@ -1,3 +1,11 @@
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2, native_str
+if PY2:
+    from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, int, list, object, range, str, max, min  # noqa: F401
 
 import re, errno, subprocess, os
 
@@ -8,7 +16,7 @@ import allmydata.test.common_py3 as testutil
 from allmydata.util.namespace import Namespace
 
 
-DOTTED_QUAD_RE=re.compile("^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$")
+DOTTED_QUAD_RE=re.compile(r"^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$")
 
 # Mock output from subprocesses should be bytes, that's what happens on both
 # Python 2 and Python 3:
@@ -104,7 +112,7 @@ class ListAddresses(testutil.SignalMixin, unittest.TestCase):
         bytes_addr = iputil.get_local_ip_for(b'127.0.0.1')
         self.assertEqual(addr, bytes_addr)
         # The output is a native string:
-        self.assertIsInstance(addr, str)
+        self.assertIsInstance(addr, native_str)
 
     def test_list_async(self):
         d = iputil.get_local_addresses_async()
