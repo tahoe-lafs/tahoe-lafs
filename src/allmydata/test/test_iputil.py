@@ -214,3 +214,13 @@ class ListenOnUsed(unittest.TestCase):
         tub2 = self.create_tub("utils/ListenOnUsed/test_randomport_2")
         portnum2 = iputil.listenOnUnused(tub2)
         self.assertNotEqual(portnum, portnum2)
+
+    def test_specific_port(self):
+        """The given port is used."""
+        tub = self.create_tub("utils/ListenOnUsed/test_givenport")
+        s = socket.socket()
+        s.bind(("127.0.0.1", 0))
+        port = s.getsockname()[1]
+        s.close()
+        port2 = iputil.listenOnUnused(tub, port)
+        self.assertEqual(port, port2)
