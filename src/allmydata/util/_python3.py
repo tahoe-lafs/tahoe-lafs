@@ -31,6 +31,7 @@ PORTED_MODULES = [
     "allmydata.util.pollmixin",
     "allmydata.util._python3",
     "allmydata.util.spans",
+    "allmydata.util.statistics",
     "allmydata.util.time_format",
     "allmydata.test.common_py3",
 ]
