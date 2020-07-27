@@ -13,9 +13,11 @@ from future.utils import PY2, native_str
 if PY2:
     from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, int, list, object, range, str, max, min  # noqa: F401
 
-import re, errno, subprocess, os
+import re, errno, subprocess, os, socket
 
 from twisted.trial import unittest
+
+from foolscap.api import Tub
 
 from allmydata.util import iputil
 import allmydata.test.common_py3 as testutil
@@ -183,3 +185,32 @@ class ListAddresses(testutil.SignalMixin, unittest.TestCase):
     def test_list_async_mock_cygwin(self):
         self.patch(iputil, 'platform', "cygwin")
         return self._test_list_async_mock(None, None, CYGWIN_TEST_ADDRESSES)
+
+
+class ListenOnUsed(unittest.TestCase):
+    """Tests for listenOnUnused."""
+
+    def create_tub(self, basedir):
+        os.makedirs(basedir)
+        tubfile = os.path.join(basedir, "tub.pem")
+        tub = Tub(certFile=tubfile)
+        tub.setOption("expose-remote-exception-types", False)
+        tub.startService()
+        self.addCleanup(tub.stopService)
+        return tub
+
+    def test_random_port(self):
+        """A random port is selected if none is given."""
+        tub = self.create_tub("utils/ListenOnUsed/test_randomport")
+        self.assertEqual(len(tub.getListeners()), 0)
+        portnum = iputil.listenOnUnused(tub)
+        # We can connect to this port:
+        s = socket.socket()
+        s.connect(("127.0.0.1", portnum))
+        s.close()
+        self.assertEqual(len(tub.getListeners()), 1)
+
+        # Listen on another port:
+        tub2 = self.create_tub("utils/ListenOnUsed/test_randomport_2")
+        portnum2 = iputil.listenOnUnused(tub2)
+        self.assertNotEqual(portnum, portnum2)

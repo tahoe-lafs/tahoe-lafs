@@ -379,4 +379,5 @@ __all__ = ["allocate_tcp_port",
            "get_local_addresses_sync",
            "get_local_addresses_async",
            "get_local_ip_for",
+           "listenOnUnused",
            ]
