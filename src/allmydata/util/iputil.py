@@ -171,11 +171,11 @@ def get_local_ip_for(target):
 # ... thus wrote Greg Smith in time immemorial...
 # Also, the Win32 APIs for this are really klunky and error-prone. --Daira
 
-_win32_re = re.compile(r'^\s*\d+\.\d+\.\d+\.\d+\s.+\s(?P<address>\d+\.\d+\.\d+\.\d+)\s+(?P<metric>\d+)\s*$', flags=re.M|re.I|re.S)
+_win32_re = re.compile(br'^\s*\d+\.\d+\.\d+\.\d+\s.+\s(?P<address>\d+\.\d+\.\d+\.\d+)\s+(?P<metric>\d+)\s*$', flags=re.M|re.I|re.S)
 _win32_commands = (('route.exe', ('print',), _win32_re),)
 
 # These work in most Unices.
-_addr_re = re.compile(r'^\s*inet [a-zA-Z]*:?(?P<address>\d+\.\d+\.\d+\.\d+)[\s/].+$', flags=re.M|re.I|re.S)
+_addr_re = re.compile(br'^\s*inet [a-zA-Z]*:?(?P<address>\d+\.\d+\.\d+\.\d+)[\s/].+$', flags=re.M|re.I|re.S)
 _unix_commands = (('/bin/ip', ('addr',), _addr_re),
                   ('/sbin/ip', ('addr',), _addr_re),
                   ('/sbin/ifconfig', ('-a',), _addr_re),
@@ -209,10 +209,13 @@ def _synchronously_find_addresses_via_config():
         else:
             exes_to_try = which(pathtotool)
 
+        subprocess_error = getattr(
+            subprocess, "SubprocessError", subprocess.CalledProcessError
+        )
         for exe in exes_to_try:
             try:
                 addresses = _query(exe, args, regex)
-            except Exception:
+            except (IOError, OSError, ValueError, subprocess_error):
                 addresses = []
             if addresses:
                 return addresses
@@ -224,7 +227,7 @@ def _query(path, args, regex):
         return []
     env = {'LANG': 'en_US.UTF-8'}
     TRIES = 5
-    for trial in xrange(TRIES):
+    for trial in range(TRIES):
         try:
             p = subprocess.Popen([path] + list(args), stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env)
             (output, err) = p.communicate()
@@ -235,13 +238,13 @@ def _query(path, args, regex):
             raise
 
     addresses = []
-    outputsplit = output.split('\n')
+    outputsplit = output.split(b'\n')
     for outline in outputsplit:
         m = regex.match(outline)
         if m:
             addr = m.group('address')
             if addr not in addresses:
-                addresses.append(addr)
+                addresses.append(addr.decode("utf-8"))
 
     return addresses
 
