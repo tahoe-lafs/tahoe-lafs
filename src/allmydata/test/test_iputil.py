@@ -17,6 +17,8 @@ import re, errno, subprocess, os, socket
 
 from twisted.trial import unittest
 
+from tenacity import retry, stop_after_attempt
+
 from foolscap.api import Tub
 
 from allmydata.util import iputil
@@ -199,6 +201,7 @@ class ListenOnUsed(unittest.TestCase):
         self.addCleanup(tub.stopService)
         return tub
 
+    @retry(stop=stop_after_attempt(7))
     def test_random_port(self):
         """A random port is selected if none is given."""
         tub = self.create_tub("utils/ListenOnUsed/test_randomport")
@@ -215,6 +218,7 @@ class ListenOnUsed(unittest.TestCase):
         portnum2 = iputil.listenOnUnused(tub2)
         self.assertNotEqual(portnum, portnum2)
 
+    @retry(stop=stop_after_attempt(7))
     def test_specific_port(self):
         """The given port is used."""
         tub = self.create_tub("utils/ListenOnUsed/test_givenport")
