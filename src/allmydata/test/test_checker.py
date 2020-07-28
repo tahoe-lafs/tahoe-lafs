@@ -175,12 +175,10 @@ class WebResultsRendering(unittest.TestCase):
         lcr = web_check_results.LiteralCheckResultsRendererElement()
 
         html = self.render_element(lcr)
-        s = self.remove_tags(html)
-        self.failUnlessIn("Literal files are always healthy", s)
+        self.failUnlessIn("Literal files are always healthy", html)
 
         html = self.render_element(lcr, args={"return_to": ["FOOURL"]})
-        s = self.remove_tags(html)
-        self.failUnlessIn("Literal files are always healthy", s)
+        self.failUnlessIn("Literal files are always healthy", html)
         self.failUnlessIn('<a href="FOOURL">Return to file.</a>', html)
 
         c = self.create_fake_client()
