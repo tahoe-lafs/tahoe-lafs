@@ -102,13 +102,18 @@ except ImportError:
     increase_rlimits = _increase_rlimits
 
 def get_local_addresses_sync():
+    """
+    Return a list of IPv4 addresses (as dotted-quad native strings) that are
+    currently configured on this host, sorted in descending order of how likely
+    we think they are to work.
+    """
     return [native_str(a) for a in _synchronously_find_addresses_via_config()]
 
 def get_local_addresses_async(target="198.41.0.4"): # A.ROOT-SERVERS.NET
     """
     Return a Deferred that fires with a list of IPv4 addresses (as dotted-quad
-    strings) that are currently configured on this host, sorted in descending
-    order of how likely we think they are to work.
+    native strings) that are currently configured on this host, sorted in
+    descending order of how likely we think they are to work.
 
     @param target: we want to learn an IP address they could try using to
         connect to us; The default value is fine, but it might help if you
@@ -137,7 +142,7 @@ def get_local_addresses_async(target="198.41.0.4"): # A.ROOT-SERVERS.NET
 def get_local_ip_for(target):
     """Find out what our IP address is for use by a given target.
 
-    @return: the IP address as a dotted-quad string which could be used by
+    @return: the IP address as a dotted-quad native string which could be used
               to connect to us. It might work for them, it might not. If
               there is no suitable address (perhaps we don't currently have an
               externally-visible interface), this will return None.
@@ -172,7 +177,7 @@ def get_local_ip_for(target):
             return localip
         finally:
             d = port.stopListening()
-            d.addErrback(log.err)
+           3 d.addErrback(log.err)
     except (socket.error, CannotListenError):
         # no route to that host
         localip = None
