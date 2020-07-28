@@ -131,7 +131,7 @@ class WebResultsRendering(unittest.TestCase):
 
     @staticmethod
     def remove_tags(html):
-        return BeautifulSoup(html).get_text()
+        return BeautifulSoup(html).get_text(separator=" ")
 
     def create_fake_client(self):
         sb = StorageFarmBroker(True, None, EMPTY_CLIENT_CONFIG)
@@ -227,7 +227,7 @@ class WebResultsRendering(unittest.TestCase):
         self.failUnlessIn("Wrong Shares: 0", s)
         self.failUnlessIn("Recoverable Versions: 1", s)
         self.failUnlessIn("Unrecoverable Versions: 0", s)
-        self.failUnlessIn("Good Shares (sorted in share order): Share ID Nickname Node ID shareid1 peer-0 00000000 peer-f ffffffff", s)
+        self.failUnlessIn("Good Shares (sorted in share order):  Share ID Nickname Node ID shareid1 peer-0 00000000 peer-f ffffffff", s)
 
         cr = check_results.CheckResults(u, u.get_storage_index(),
                                         healthy=False, recoverable=True,
@@ -250,7 +250,7 @@ class WebResultsRendering(unittest.TestCase):
         s = self.remove_tags(html)
         self.failUnlessIn("File Check Results for SI=2k6avp", s) # abbreviated
         self.failUnlessIn("Not Recoverable! : rather dead", s)
-        self.failUnlessIn("Corrupt shares: Share ID Nickname Node ID sh#2 peer-0 00000000", s)
+        self.failUnlessIn("Corrupt shares:  Share ID Nickname Node ID sh#2 peer-0 00000000", s)
 
         html = self.render_element(w)
         s = self.remove_tags(html)
