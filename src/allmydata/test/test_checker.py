@@ -129,10 +129,9 @@ class FakeCheckAndRepairResults(object):
 
 class WebResultsRendering(unittest.TestCase):
 
-    def remove_tags(self, s):
-        s = re.sub(r'<[^>]*>', ' ', s)
-        s = re.sub(r'\s+', ' ', s)
-        return s
+    @staticmethod
+    def remove_tags(html):
+        return BeautifulSoup(html).get_text()
 
     def create_fake_client(self):
         sb = StorageFarmBroker(True, None, EMPTY_CLIENT_CONFIG)
