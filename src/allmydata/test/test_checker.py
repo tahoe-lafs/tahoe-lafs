@@ -43,12 +43,17 @@ class FakeClient(object):
     def get_storage_broker(self):
         return self.storage_broker
 
-# XXX: We have to have this class because `common.get_arg()` expects a
-# `nevow.inevow.IRequest`, which `twisted.web.server.Request` isn't.
-# Also, the request needs to have `args` and `fields` properties so
-# that `allmydata.web.common.get_arg()` won't complain.
 @implementer(IRequest)
 class TestRequest(Request, object):
+    """
+    A minimal Request class to use in tests.
+
+    XXX: We have to have this class because `common.get_arg()` expects
+    a `nevow.inevow.IRequest`, which `twisted.web.server.Request`
+    isn't.  The request needs to have `args`, `fields`, `prepath`, and
+    `postpath` properties so that `allmydata.web.common.get_arg()`
+    won't complain.
+    """
     def __init__(self, args=None, fields=None):
         super(TestRequest, self).__init__(DummyChannel())
         self.args = args or {}
