@@ -405,24 +405,18 @@ class WebResultsRendering(unittest.TestCase):
         self.failUnlessIn("Repair unsuccessful", s)
         self.failUnlessIn("Post-Repair Checker Results:", s)
 
-        w2 = web_check_results.CheckAndRepairResultsRenderer(c, crr)
-        d = self.render_json(w2)
-        def _got_json(data):
-            j = json.loads(data)
-            self.failUnlessEqual(j["repair-attempted"], True)
-            self.failUnlessEqual(j["storage-index"],
-                                 "2k6avpjga3dho3zsjo6nnkt7n4")
-            self.failUnlessEqual(j["pre-repair-results"]["summary"], "illing")
-            self.failUnlessEqual(j["post-repair-results"]["summary"], "worse")
-        _got_json(d)
+        w = web_check_results.CheckAndRepairResultsRenderer(c, crr)
+        j = json.loads(self.render_json(w))
+        self.failUnlessEqual(j["repair-attempted"], True)
+        self.failUnlessEqual(j["storage-index"],
+                             "2k6avpjga3dho3zsjo6nnkt7n4")
+        self.failUnlessEqual(j["pre-repair-results"]["summary"], "illing")
+        self.failUnlessEqual(j["post-repair-results"]["summary"], "worse")
 
-        w3 = web_check_results.CheckAndRepairResultsRenderer(c, None)
-        d = self.render_json(w3)
-        def _got_lit_results(data):
-            j = json.loads(data)
-            self.failUnlessEqual(j["repair-attempted"], False)
-            self.failUnlessEqual(j["storage-index"], "")
-        _got_lit_results(d)
+        w = web_check_results.CheckAndRepairResultsRenderer(c, None)
+        j = json.loads(self.render_json(w))
+        self.failUnlessEqual(j["repair-attempted"], False)
+        self.failUnlessEqual(j["storage-index"], "")
 
 
     def test_deep_check_renderer(self):
