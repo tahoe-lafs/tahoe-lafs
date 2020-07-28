@@ -44,6 +44,7 @@ class Statistics(unittest.TestCase):
         self.failUnlessEqual(f(20, 2), 190)
         self.failUnlessEqual(f(20, 8), f(20, 12))
         self.should_assert("Should assert if n < k", f, 2, 3)
+        self.assertEqual(f(5, 3), f(5, 2))
 
     def test_binomial_distribution_pmf(self):
         f = statistics.binomial_distribution_pmf
