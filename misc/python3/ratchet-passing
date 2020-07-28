@@ -1,0 +1,13 @@
+allmydata.test.mutable.test_exceptions.Exceptions.test_repr
+allmydata.test.test_deferredutil.DeferredUtilTests.test_failure
+allmydata.test.test_deferredutil.DeferredUtilTests.test_gather_results
+allmydata.test.test_deferredutil.DeferredUtilTests.test_success
+allmydata.test.test_deferredutil.DeferredUtilTests.test_wait_for_delayed_calls
+allmydata.test.test_humanreadable.HumanReadable.test_repr
+allmydata.test.test_observer.Observer.test_lazy_oneshot
+allmydata.test.test_observer.Observer.test_observerlist
+allmydata.test.test_observer.Observer.test_oneshot
+allmydata.test.test_observer.Observer.test_oneshot_fireagain
+allmydata.test.test_python3.Python3PortingEffortTests.test_finished_porting
+allmydata.test.test_python3.Python3PortingEffortTests.test_ported_modules_distinct
+allmydata.test.test_python3.Python3PortingEffortTests.test_ported_modules_exist

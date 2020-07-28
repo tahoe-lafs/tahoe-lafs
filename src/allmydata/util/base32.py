@@ -52,13 +52,13 @@ def b2a(os):
 
     @return the contents of os in base-32 encoded form
     """
-    return b2a_l(os, len(os)*8)
+    return _b2a_l(os, len(os)*8)
 
 def b2a_or_none(os):
     if os is not None:
         return b2a(os)
 
-def b2a_l(os, lengthinbits):
+def _b2a_l(os, lengthinbits):
     """
     @param os the data to be encoded (a string)
     @param lengthinbits the number of bits of data in os to be encoded
@@ -204,9 +204,9 @@ def a2b(cs):
     precondition(could_be_base32_encoded(cs), "cs is required to be possibly base32 encoded data.", cs=cs)
     precondition(isinstance(cs, six.binary_type), cs)
 
-    return a2b_l(cs, num_octets_that_encode_to_this_many_quintets(len(cs))*8)
+    return _a2b_l(cs, num_octets_that_encode_to_this_many_quintets(len(cs))*8)
 
-def a2b_l(cs, lengthinbits):
+def _a2b_l(cs, lengthinbits):
     """
     @param lengthinbits the number of bits of data in encoded into cs
 
@@ -261,5 +261,8 @@ def a2b_l(cs, lengthinbits):
         pos = pos * 256
     assert len(octets) == numoctets, "len(octets): %s, numoctets: %s, octets: %s" % (len(octets), numoctets, octets,)
     res = ''.join(map(chr, octets))
-    precondition(b2a_l(res, lengthinbits) == cs, "cs is required to be the canonical base-32 encoding of some data.", b2a(res), res=res, cs=cs)
+    precondition(_b2a_l(res, lengthinbits) == cs, "cs is required to be the canonical base-32 encoding of some data.", b2a(res), res=res, cs=cs)
     return res
+
+
+__all__ = ["b2a", "a2b", "b2a_or_none", "BASE32CHAR_3bits", "BASE32CHAR_1bits", "BASE32CHAR", "BASE32STR_anybytes", "could_be_base32_encoded"]

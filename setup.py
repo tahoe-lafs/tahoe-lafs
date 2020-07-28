@@ -124,6 +124,9 @@ install_requires = [
 
     # Support for Python 3 transition
     "future >= 0.18.2",
+
+    # Utility code:
+    "pyutil >= 3.3.0",
 ]
 
 setup_requires = [
@@ -138,8 +141,10 @@ tor_requires = [
 ]
 
 i2p_requires = [
-    # See the comment in tor_requires.
-    "txi2p >= 0.3.2",
+    # txi2p has Python 3 support, but it's unreleased: https://github.com/str4d/txi2p/issues/10.
+    # URL lookups are in PEP-508 (via https://stackoverflow.com/a/54794506).
+    # Also see the comment in tor_requires.
+    "txi2p @ git+https://github.com/str4d/txi2p@0611b9a86172cb70d2f5e415a88eee9f230590b3#egg=txi2p",
 ]
 
 if len(sys.argv) > 1 and sys.argv[1] == '--fakedependency':
@@ -350,7 +355,9 @@ setup(name="tahoe-lafs", # also set in __init__.py
       package_dir = {'':'src'},
       packages=find_packages('src') + ['allmydata.test.plugins'],
       classifiers=trove_classifiers,
-      python_requires="<3.0",
+      # We support Python 2.7, and we're working on support for 3.6 (the
+      # highest version that PyPy currently supports).
+      python_requires=">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*, !=3.5.*, <3.7",
       install_requires=install_requires,
       extras_require={
           # Duplicate the Twisted pywin32 dependency here.  See
@@ -379,6 +386,7 @@ setup(name="tahoe-lafs", # also set in __init__.py
               "fixtures",
               "beautifulsoup4",
               "html5lib",
+              "junitxml",
           ] + tor_requires + i2p_requires,
           "tor": tor_requires,
           "i2p": i2p_requires,

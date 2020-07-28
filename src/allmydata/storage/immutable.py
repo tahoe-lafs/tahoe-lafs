@@ -298,7 +298,7 @@ class BucketReader(Referenceable):
 
     def __repr__(self):
         return "<%s %s %s>" % (self.__class__.__name__,
-                               base32.b2a_l(self.storage_index[:8], 60),
+                               base32.b2a(self.storage_index[:8])[:12],
                                self.shnum)
 
     def remote_read(self, offset, length):

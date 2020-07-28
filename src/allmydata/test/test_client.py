@@ -83,7 +83,7 @@ BASECONFIG_I = ("[client]\n"
               "introducer.furl = %s\n"
               )
 
-class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.TestCase):
+class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
     def test_loadable(self):
         basedir = "test_client.Basic.test_loadable"
         os.mkdir(basedir)
