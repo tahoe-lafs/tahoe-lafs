@@ -1,5 +1,7 @@
 """
 Tests for allmydata.util.statistics.
+
+Ported to Python 3.
 """
 from __future__ import absolute_import
 from __future__ import division
