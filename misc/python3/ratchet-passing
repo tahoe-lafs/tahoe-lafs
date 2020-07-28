@@ -51,6 +51,7 @@ allmydata.test.test_iputil.ListAddresses.test_list_async_mock_ifconfig
 allmydata.test.test_iputil.ListAddresses.test_list_async_mock_ip_addr
 allmydata.test.test_iputil.ListAddresses.test_list_async_mock_route
 allmydata.test.test_iputil.ListenOnUsed.test_random_port
+allmydata.test.test_iputil.ListenOnUsed.test_specific_port
 allmydata.test.test_netstring.Netstring.test_encode
 allmydata.test.test_netstring.Netstring.test_extra
 allmydata.test.test_netstring.Netstring.test_nested
