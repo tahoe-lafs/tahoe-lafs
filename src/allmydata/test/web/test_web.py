@@ -54,6 +54,9 @@ from .common import (
     assert_soup_has_tag_with_attributes,
     assert_soup_has_tag_with_content,
     assert_soup_has_tag_with_attributes_and_content,
+    unknown_rwcap,
+    unknown_rocap,
+    unknown_immcap,
 )
 
 from allmydata.interfaces import IMutableFileNode, SDMF_VERSION, MDMF_VERSION
@@ -64,7 +67,6 @@ from ..common_web import (
     Error,
 )
 from allmydata.client import _Client, SecretHolder
-from .common import unknown_rwcap, unknown_rocap, unknown_immcap
 
 # create a fake uploader/downloader, and a couple of fake dirnodes, then
 # create a webserver that works against them
