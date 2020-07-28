@@ -44,6 +44,14 @@ allmydata.test.test_hashutil.HashUtilTests.test_sha256d
 allmydata.test.test_hashutil.HashUtilTests.test_sha256d_truncated
 allmydata.test.test_hashutil.HashUtilTests.test_timing_safe_compare
 allmydata.test.test_humanreadable.HumanReadable.test_repr
+allmydata.test.test_iputil.ListAddresses.test_get_local_ip_for
+allmydata.test.test_iputil.ListAddresses.test_list_async
+allmydata.test.test_iputil.ListAddresses.test_list_async_mock_cygwin
+allmydata.test.test_iputil.ListAddresses.test_list_async_mock_ifconfig
+allmydata.test.test_iputil.ListAddresses.test_list_async_mock_ip_addr
+allmydata.test.test_iputil.ListAddresses.test_list_async_mock_route
+allmydata.test.test_iputil.ListenOnUsed.test_random_port
+allmydata.test.test_iputil.ListenOnUsed.test_specific_port
 allmydata.test.test_netstring.Netstring.test_encode
 allmydata.test.test_netstring.Netstring.test_extra
 allmydata.test.test_netstring.Netstring.test_nested

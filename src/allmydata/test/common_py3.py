@@ -15,6 +15,9 @@ if PY2:
 
 import os
 import time
+import signal
+
+from twisted.internet import reactor
 
 
 class TimezoneMixin(object):
@@ -40,3 +43,25 @@ class TimezoneMixin(object):
 
     def have_working_tzset(self):
         return hasattr(time, 'tzset')
+
+
+class SignalMixin(object):
+    # This class is necessary for any code which wants to use Processes
+    # outside the usual reactor.run() environment. It is copied from
+    # Twisted's twisted.test.test_process . Note that Twisted-8.2.0 uses
+    # something rather different.
+    sigchldHandler = None
+
+    def setUp(self):
+        # make sure SIGCHLD handler is installed, as it should be on
+        # reactor.run(). problem is reactor may not have been run when this
+        # test runs.
+        if hasattr(reactor, "_handleSigchld") and hasattr(signal, "SIGCHLD"):
+            self.sigchldHandler = signal.signal(signal.SIGCHLD,
+                                                reactor._handleSigchld)
+        return super(SignalMixin, self).setUp()
+
+    def tearDown(self):
+        if self.sigchldHandler:
+            signal.signal(signal.SIGCHLD, self.sigchldHandler)
+        return super(SignalMixin, self).tearDown()

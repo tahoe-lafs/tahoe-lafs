@@ -59,6 +59,7 @@ python.pkgs.buildPythonPackage rec {
     fixtures
     beautifulsoup4
     html5lib
+    tenacity
   ];
 
   checkPhase = ''
