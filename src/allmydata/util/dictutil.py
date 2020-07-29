@@ -10,7 +10,7 @@ class DictOfSets(dict):
             self[key] = set([value])
 
     def update(self, otherdictofsets):
-        for key, values in otherdictofsets.iteritems():
+        for key, values in otherdictofsets.items():
             if key in self:
                 self[key].update(values)
             else:

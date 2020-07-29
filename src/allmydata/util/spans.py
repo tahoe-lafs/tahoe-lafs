@@ -1,5 +1,9 @@
 from __future__ import print_function
 
+from future.utils import PY2
+if PY2:
+    from future.builtins import object
+
 
 class Spans(object):
     """I represent a compressed list of booleans, one per index (an integer).
@@ -155,7 +159,7 @@ class Spans(object):
         for s in self._spans:
             yield s
 
-    def __nonzero__(self): # this gets us bool()
+    def __bool__(self): # this gets us bool()
         return bool(self.len())
 
     def len(self):
@@ -235,7 +239,7 @@ class DataSpans(object):
             for (start, data) in other.get_chunks():
                 self.add(start, data)
 
-    def __nonzero__(self): # this gets us bool()
+    def __bool__(self): # this gets us bool()
         return bool(self.len())
 
     def len(self):

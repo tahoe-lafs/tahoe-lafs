@@ -21,6 +21,7 @@ PORTED_MODULES = [
     "allmydata.util.base32",
     "allmydata.util.base62",
     "allmydata.util.deferredutil",
+    "allmydata.util.fileutil",
     "allmydata.util.hashutil",
     "allmydata.util.humanreadable",
     "allmydata.util.mathutil",
@@ -47,6 +48,7 @@ PORTED_TEST_MODULES = [
     "allmydata.test.test_pipeline",
     "allmydata.test.test_python3",
     "allmydata.test.test_time_format",
+    "allmydata.test.test_util",
 ]
 
 

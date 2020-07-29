@@ -8,6 +8,7 @@
 from __future__ import division, print_function
 from allmydata.util.mathutil import round_sigfigs
 import math
+from functools import reduce
 import sys
 
 def pr_file_loss(p_list, k):

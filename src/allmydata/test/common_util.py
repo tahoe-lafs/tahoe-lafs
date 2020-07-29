@@ -1,6 +1,7 @@
 from __future__ import print_function
 
 import os, signal
+from future.utils import PY2
 from random import randrange
 from six.moves import StringIO
 
@@ -10,8 +11,12 @@ from twisted.trial import unittest
 
 from ..util.assertutil import precondition
 from allmydata.util.encodingutil import (unicode_platform, get_filesystem_encoding,
+
                                          get_io_encoding)
-#from ..scripts import runner
+
+if PY2: # XXX this is a hack that makes some tests pass on Python3, remove
+        # in the future
+    from ..scripts import runner
 
 def skip_if_cannot_represent_filename(u):
     precondition(isinstance(u, unicode))

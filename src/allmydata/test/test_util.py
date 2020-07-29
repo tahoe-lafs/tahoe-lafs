@@ -36,12 +36,12 @@ def sha256(data):
 
     :returns: a hex-encoded SHA256 hash of the data
     """
-    return binascii.hexlify(hashlib.sha256(data).digest())
+    return binascii.hexlify(hashlib.sha256(data.encode('utf8')).digest()).decode("utf8")
 
 
 class IDLib(unittest.TestCase):
     def test_nodeid_b2a(self):
-        self.failUnlessEqual(idlib.nodeid_b2a("\x00"*20), "a"*32)
+        self.failUnlessEqual(idlib.nodeid_b2a(b"\x00"*20), "a"*32)
 
 
 class MyList(list):
@@ -244,10 +244,10 @@ class FileUtil(ReallyEqualMixin, unittest.TestCase):
         basedir = "util/FileUtil/test_write_atomically"
         fileutil.make_dirs(basedir)
         fn = os.path.join(basedir, "here")
-        fileutil.write_atomically(fn, u"one")
-        self.failUnlessEqual(fileutil.read(fn), "one")
+        fileutil.write_atomically(fn, b"one")
+        self.failUnlessEqual(fileutil.read(fn), b"one")
         fileutil.write_atomically(fn, u"two", mode="") # non-binary
-        self.failUnlessEqual(fileutil.read(fn), "two")
+        self.failUnlessEqual(fileutil.read(fn), b"two")
 
     def test_rename(self):
         basedir = "util/FileUtil/test_rename"
@@ -270,20 +270,20 @@ class FileUtil(ReallyEqualMixin, unittest.TestCase):
         self.failUnlessRaises(OSError, fileutil.rename_no_overwrite, source_path, dest_path)
 
         # when only dest exists
-        fileutil.write(dest_path,   "dest")
+        fileutil.write(dest_path,   b"dest")
         self.failUnlessRaises(OSError, fileutil.rename_no_overwrite, source_path, dest_path)
-        self.failUnlessEqual(fileutil.read(dest_path),   "dest")
+        self.failUnlessEqual(fileutil.read(dest_path),   b"dest")
 
         # when both exist
-        fileutil.write(source_path, "source")
+        fileutil.write(source_path, b"source")
         self.failUnlessRaises(OSError, fileutil.rename_no_overwrite, source_path, dest_path)
-        self.failUnlessEqual(fileutil.read(source_path), "source")
-        self.failUnlessEqual(fileutil.read(dest_path),   "dest")
+        self.failUnlessEqual(fileutil.read(source_path), b"source")
+        self.failUnlessEqual(fileutil.read(dest_path),   b"dest")
 
         # when only source exists
         os.remove(dest_path)
         fileutil.rename_no_overwrite(source_path, dest_path)
-        self.failUnlessEqual(fileutil.read(dest_path), "source")
+        self.failUnlessEqual(fileutil.read(dest_path), b"source")
         self.failIf(os.path.exists(source_path))
 
     def test_replace_file(self):
@@ -297,21 +297,21 @@ class FileUtil(ReallyEqualMixin, unittest.TestCase):
         self.failUnlessRaises(fileutil.ConflictError, fileutil.replace_file, replaced_path, replacement_path)
 
         # when only replaced exists
-        fileutil.write(replaced_path,    "foo")
+        fileutil.write(replaced_path,   b"foo")
         self.failUnlessRaises(fileutil.ConflictError, fileutil.replace_file, replaced_path, replacement_path)
-        self.failUnlessEqual(fileutil.read(replaced_path), "foo")
+        self.failUnlessEqual(fileutil.read(replaced_path), b"foo")
 
         # when both replaced and replacement exist
-        fileutil.write(replacement_path, "bar")
+        fileutil.write(replacement_path, b"bar")
         fileutil.replace_file(replaced_path, replacement_path)
-        self.failUnlessEqual(fileutil.read(replaced_path), "bar")
+        self.failUnlessEqual(fileutil.read(replaced_path), b"bar")
         self.failIf(os.path.exists(replacement_path))
 
         # when only replacement exists
         os.remove(replaced_path)
-        fileutil.write(replacement_path, "bar")
+        fileutil.write(replacement_path, b"bar")
         fileutil.replace_file(replaced_path, replacement_path)
-        self.failUnlessEqual(fileutil.read(replaced_path), "bar")
+        self.failUnlessEqual(fileutil.read(replaced_path), b"bar")
         self.failIf(os.path.exists(replacement_path))
 
     def test_du(self):
@@ -331,7 +331,9 @@ class FileUtil(ReallyEqualMixin, unittest.TestCase):
     def test_abspath_expanduser_unicode(self):
         self.failUnlessRaises(AssertionError, fileutil.abspath_expanduser_unicode, b"bytestring")
 
-        saved_cwd = os.path.normpath(os.getcwd()).decode("utf8")
+        saved_cwd = os.path.normpath(os.getcwd())
+        if PY2:
+            saved_cwd = saved_cwd.decode("utf8")
         abspath_cwd = fileutil.abspath_expanduser_unicode(u".")
         abspath_cwd_notlong = fileutil.abspath_expanduser_unicode(u".", long_path=False)
         self.failUnless(isinstance(saved_cwd, str), saved_cwd)
@@ -452,9 +454,9 @@ class FileUtil(ReallyEqualMixin, unittest.TestCase):
             fileutil.remove(long_path)
         self.addCleanup(_cleanup)
 
-        fileutil.write(long_path, "test")
+        fileutil.write(long_path, b"test")
         self.failUnless(os.path.exists(long_path))
-        self.failUnlessEqual(fileutil.read(long_path), "test")
+        self.failUnlessEqual(fileutil.read(long_path), b"test")
         _cleanup()
         self.failIf(os.path.exists(long_path))
 
@@ -512,7 +514,7 @@ class FileUtil(ReallyEqualMixin, unittest.TestCase):
 
         # create a file
         f = os.path.join(basedir, "1.txt")
-        fileutil.write(f, "a"*10)
+        fileutil.write(f, b"a"*10)
         fileinfo = fileutil.get_pathinfo(f)
         self.failUnlessTrue(fileinfo.isfile)
         self.failUnlessTrue(fileinfo.exists)
@@ -540,7 +542,7 @@ class FileUtil(ReallyEqualMixin, unittest.TestCase):
         fileutil.make_dirs(basedir)
 
         f = os.path.join(basedir, "1.txt")
-        fileutil.write(f, "a"*10)
+        fileutil.write(f, b"a"*10)
 
         # create a symlink pointing to 1.txt
         slname = os.path.join(basedir, "linkto1.txt")
@@ -568,7 +570,7 @@ class PollMixinTests(unittest.TestCase):
 
     def test_PollMixin_False_then_True(self):
         i = iter([False, True])
-        d = self.pm.poll(check_f=i.next,
+        d = self.pm.poll(check_f=lambda: next(i),
                          pollinterval=0.1)
         return d
 
@@ -813,7 +815,7 @@ class SimpleSpans(object):
             yield (prevstart, prevend-prevstart+1)
 
     def __bool__(self): # this gets us bool()
-        return self.len()
+        return bool(self.len())
 
     def len(self):
         return len(self._have)
@@ -1107,7 +1109,7 @@ class SimpleDataSpans(object):
                 self.add(start, data)
 
     def __bool__(self): # this gets us bool()
-        return self.len()
+        return bool(self.len())
     def len(self):
         return len(self.missing.replace("1", ""))
     def _dump(self):
