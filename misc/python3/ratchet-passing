@@ -28,6 +28,8 @@ allmydata.test.test_deferredutil.DeferredUtilTests.test_failure
 allmydata.test.test_deferredutil.DeferredUtilTests.test_gather_results
 allmydata.test.test_deferredutil.DeferredUtilTests.test_success
 allmydata.test.test_deferredutil.DeferredUtilTests.test_wait_for_delayed_calls
+allmydata.test.test_dictutil.DictUtil.test_auxdict
+allmydata.test.test_dictutil.DictUtil.test_dict_of_sets
 allmydata.test.test_hashtree.Complete.test_create
 allmydata.test.test_hashtree.Complete.test_dump
 allmydata.test.test_hashtree.Complete.test_needed_hashes
@@ -74,6 +76,15 @@ allmydata.test.test_spans.ByteSpans.test_random
 allmydata.test.test_spans.StringSpans.test_basic
 allmydata.test.test_spans.StringSpans.test_random
 allmydata.test.test_spans.StringSpans.test_test
+allmydata.test.test_statistics.Statistics.test_binomial_coeff
+allmydata.test.test_statistics.Statistics.test_binomial_distribution_pmf
+allmydata.test.test_statistics.Statistics.test_convolve
+allmydata.test.test_statistics.Statistics.test_find_k
+allmydata.test.test_statistics.Statistics.test_pr_backup_file_loss
+allmydata.test.test_statistics.Statistics.test_pr_file_loss
+allmydata.test.test_statistics.Statistics.test_repair_cost
+allmydata.test.test_statistics.Statistics.test_repair_count_pmf
+allmydata.test.test_statistics.Statistics.test_survival_pmf
 allmydata.test.test_time_format.TimeFormat.test_epoch
 allmydata.test.test_time_format.TimeFormat.test_epoch_in_London
 allmydata.test.test_time_format.TimeFormat.test_format_delta

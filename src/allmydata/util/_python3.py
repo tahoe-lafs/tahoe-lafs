@@ -21,6 +21,7 @@ PORTED_MODULES = [
     "allmydata.util.base32",
     "allmydata.util.base62",
     "allmydata.util.deferredutil",
+    "allmydata.util.dictutil",
     "allmydata.util.hashutil",
     "allmydata.util.humanreadable",
     "allmydata.util.iputil",
@@ -32,6 +33,7 @@ PORTED_MODULES = [
     "allmydata.util.pollmixin",
     "allmydata.util._python3",
     "allmydata.util.spans",
+    "allmydata.util.statistics",
     "allmydata.util.time_format",
     "allmydata.test.common_py3",
 ]
@@ -41,6 +43,7 @@ PORTED_TEST_MODULES = [
     "allmydata.test.test_base32",
     "allmydata.test.test_base62",
     "allmydata.test.test_deferredutil",
+    "allmydata.test.test_dictutil",
     "allmydata.test.test_hashtree",
     "allmydata.test.test_hashutil",
     "allmydata.test.test_humanreadable",
@@ -50,6 +53,7 @@ PORTED_TEST_MODULES = [
     "allmydata.test.test_pipeline",
     "allmydata.test.test_python3",
     "allmydata.test.test_spans",
+    "allmydata.test.test_statistics",
     "allmydata.test.test_time_format",
     "allmydata.test.test_version",
 ]
