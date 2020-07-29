@@ -1,11 +1,5 @@
 from __future__ import print_function
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import unicode_literals
 
-from future.utils import PY2
-if PY2:
-    from builtins import zip, str, range, object
 import binascii
 import six
 import hashlib
@@ -244,10 +238,10 @@ class FileUtil(ReallyEqualMixin, unittest.TestCase):
         basedir = "util/FileUtil/test_write_atomically"
         fileutil.make_dirs(basedir)
         fn = os.path.join(basedir, "here")
-        fileutil.write_atomically(fn, b"one")
-        self.failUnlessEqual(fileutil.read(fn), b"one")
-        fileutil.write_atomically(fn, u"two", mode="") # non-binary
-        self.failUnlessEqual(fileutil.read(fn), b"two")
+        fileutil.write_atomically(fn, "one")
+        self.failUnlessEqual(fileutil.read(fn), "one")
+        fileutil.write_atomically(fn, "two", mode="") # non-binary
+        self.failUnlessEqual(fileutil.read(fn), "two")
 
     def test_rename(self):
         basedir = "util/FileUtil/test_rename"
@@ -329,15 +323,13 @@ class FileUtil(ReallyEqualMixin, unittest.TestCase):
         self.failUnlessEqual(10+11+12+13, used)
 
     def test_abspath_expanduser_unicode(self):
-        self.failUnlessRaises(AssertionError, fileutil.abspath_expanduser_unicode, b"bytestring")
+        self.failUnlessRaises(AssertionError, fileutil.abspath_expanduser_unicode, "bytestring")
 
-        saved_cwd = os.path.normpath(os.getcwd())
-        if PY2:
-            saved_cwd = saved_cwd.decode("utf8")
+        saved_cwd = os.path.normpath(os.getcwdu())
         abspath_cwd = fileutil.abspath_expanduser_unicode(u".")
         abspath_cwd_notlong = fileutil.abspath_expanduser_unicode(u".", long_path=False)
-        self.failUnless(isinstance(saved_cwd, str), saved_cwd)
-        self.failUnless(isinstance(abspath_cwd, str), abspath_cwd)
+        self.failUnless(isinstance(saved_cwd, unicode), saved_cwd)
+        self.failUnless(isinstance(abspath_cwd, unicode), abspath_cwd)
         if sys.platform == "win32":
             self.failUnlessReallyEqual(abspath_cwd, fileutil.to_windows_long_path(saved_cwd))
         else:
@@ -398,10 +390,10 @@ class FileUtil(ReallyEqualMixin, unittest.TestCase):
                 os.chdir(cwd)
                 for upath in (u'', u'fuu', u'f\xf9\xf9', u'/fuu', u'U:\\', u'~'):
                     uabspath = fileutil.abspath_expanduser_unicode(upath)
-                    self.failUnless(isinstance(uabspath, str), uabspath)
+                    self.failUnless(isinstance(uabspath, unicode), uabspath)
 
                     uabspath_notlong = fileutil.abspath_expanduser_unicode(upath, long_path=False)
-                    self.failUnless(isinstance(uabspath_notlong, str), uabspath_notlong)
+                    self.failUnless(isinstance(uabspath_notlong, unicode), uabspath_notlong)
             finally:
                 os.chdir(saved_cwd)
 
@@ -555,7 +547,7 @@ class FileUtil(ReallyEqualMixin, unittest.TestCase):
 
     def test_encrypted_tempfile(self):
         f = EncryptedTemporaryFile()
-        f.write(b"foobar")
+        f.write("foobar")
         f.close()
 
 
@@ -715,7 +707,7 @@ class DictUtil(unittest.TestCase):
         # we put the serialized form in the auxdata
         d.set_with_aux("key", ("filecap", "metadata"), "serialized")
 
-        self.failUnlessEqual(list(d.keys()), ["key"])
+        self.failUnlessEqual(d.keys(), ["key"])
         self.failUnlessEqual(d["key"], ("filecap", "metadata"))
         self.failUnlessEqual(d.get_aux("key"), "serialized")
         def _get_missing(key):
@@ -733,7 +725,7 @@ class DictUtil(unittest.TestCase):
         d.set_with_aux("key2", "value2", "aux2")
         self.failUnlessEqual(sorted(d.keys()), ["key", "key2"])
         del d["key2"]
-        self.failUnlessEqual(list(d.keys()), ["key"])
+        self.failUnlessEqual(d.keys(), ["key"])
         self.failIf("key2" in d)
         self.failUnlessRaises(KeyError, _get_missing, "key2")
         self.failUnlessEqual(d.get("key2"), None)
@@ -867,7 +859,7 @@ class ByteSpans(unittest.TestCase):
         s1 = Spans(3, 4) # 3,4,5,6
         self._check1(s1)
 
-        s1 = Spans(int(3), int(4)) # 3,4,5,6
+        s1 = Spans(long(3), long(4)) # 3,4,5,6
         self._check1(s1)
 
         s2 = Spans(s1)
@@ -1110,6 +1102,7 @@ class SimpleDataSpans(object):
 
     def __bool__(self): # this gets us bool()
         return bool(self.len())
+
     def len(self):
         return len(self.missing.replace("1", ""))
     def _dump(self):
@@ -1194,9 +1187,9 @@ class StringSpans(unittest.TestCase):
         self.failUnlessEqual(ds.get(2, 4), "fear")
 
         ds = klass()
-        ds.add(int(2), "four")
-        ds.add(int(3), "ea")
-        self.failUnlessEqual(ds.get(int(2), int(4)), "fear")
+        ds.add(long(2), "four")
+        ds.add(long(3), "ea")
+        self.failUnlessEqual(ds.get(long(2), long(4)), "fear")
 
 
     def do_scan(self, klass):
@@ -1359,7 +1352,6 @@ class YAML(unittest.TestCase):
     def test_convert(self):
         data = yaml.safe_dump(["str", u"unicode", u"\u1234nicode"])
         back = yamlutil.safe_load(data)
-        str_type = type("x") # workaround for future.builtins.str
-        self.failUnlessEqual(type(back[0]), str_type)
-        self.failUnlessEqual(type(back[1]), str_type)
-        self.failUnlessEqual(type(back[2]), str_type)
+        self.failUnlessEqual(type(back[0]), unicode)
+        self.failUnlessEqual(type(back[1]), unicode)
+        self.failUnlessEqual(type(back[2]), unicode)
