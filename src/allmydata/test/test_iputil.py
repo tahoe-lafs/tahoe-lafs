@@ -14,6 +14,7 @@ if PY2:
     from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, int, list, object, range, str, max, min  # noqa: F401
 
 import re, errno, subprocess, os, socket
+import gc
 
 from twisted.trial import unittest
 
@@ -21,7 +22,7 @@ from tenacity import retry, stop_after_attempt
 
 from foolscap.api import Tub
 
-from allmydata.util import iputil
+from allmydata.util import iputil, gcutil
 import allmydata.test.common_py3 as testutil
 from allmydata.util.namespace import Namespace
 
@@ -228,3 +229,33 @@ class ListenOnUsed(unittest.TestCase):
         s.close()
         port2 = iputil.listenOnUnused(tub, port)
         self.assertEqual(port, port2)
+
+
+class GcUtil(unittest.TestCase):
+    """Tests for allmydata.util.gcutil, which is used only by listenOnUnused."""
+
+    def test_gc_after_allocations(self):
+        """The resource tracker triggers allocations every 26 allocations."""
+        collections = []
+        self.patch(gc, "collect", lambda: collections.append(1))
+        for _ in range(2):
+            for _ in range(25):
+                gcutil.fileDescriptorResource.allocate()
+                self.assertEqual(len(collections), 0)
+            gcutil.fileDescriptorResource.allocate()
+            self.assertEqual(len(collections), 1)
+            del collections[:]
+
+    def test_release_delays_gc(self):
+        """Releasing a file descriptor resource delays GC collection."""
+        collections = []
+        self.patch(gc, "collect", lambda: collections.append(1))
+        for _ in range(2):
+            gcutil.fileDescriptorResource.allocate()
+        for _ in range(3):
+            gcutil.fileDescriptorResource.release()
+        for _ in range(25):
+            gcutil.fileDescriptorResource.allocate()
+            self.assertEqual(len(collections), 0)
+        gcutil.fileDescriptorResource.allocate()
+        self.assertEqual(len(collections), 1)
