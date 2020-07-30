@@ -4,7 +4,6 @@ unicode and back.
 """
 
 import sys, os, re, locale
-from types import NoneType
 
 from allmydata.util.assertutil import precondition, _assert
 from twisted.python import usage
@@ -139,7 +138,7 @@ def to_str(s):
     return s.encode('utf-8')
 
 def from_utf8_or_none(s):
-    precondition(isinstance(s, (NoneType, str)), s)
+    precondition(isinstance(s, str) or s is None, s)
     if s is None:
         return s
     return s.decode('utf-8')
