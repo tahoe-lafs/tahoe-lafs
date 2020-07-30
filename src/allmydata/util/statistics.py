@@ -1,3 +1,8 @@
+"""
+Statistical utilities.
+
+Ported to Python 3.
+"""
 # Copyright (c) 2009 Shawn Willden
 # mailto:shawn@willden.org
 # I hereby license all patches I have contributed or will contribute to the
@@ -5,7 +10,18 @@
 # either the GNU General Public License, version 2 or later, or under the
 # Transitive Grace Period Public License, version 1 or later.
 
-from __future__ import division, print_function
+
+from __future__ import unicode_literals
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
+from future.utils import PY2
+if PY2:
+    from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, int, list, object, range, str, max, min  # noqa: F401
+
+from functools import reduce
+
 from allmydata.util.mathutil import round_sigfigs
 import math
 from functools import reduce
@@ -79,7 +95,7 @@ def survival_pmf_via_bd(p_list):
     """
     pmf_list = [ binomial_distribution_pmf(p_list.count(p), p)
                  for p in set(p_list) ]
-    return reduce(convolve, pmf_list)
+    return list(reduce(convolve, pmf_list))
 
 def survival_pmf_via_conv(p_list):
     """
@@ -90,7 +106,7 @@ def survival_pmf_via_conv(p_list):
     intended for internal use and testing only.
     """
     pmf_list = [ [1 - p, p] for p in p_list ];
-    return reduce(convolve, pmf_list)
+    return list(reduce(convolve, pmf_list))
 
 def print_pmf(pmf, n=4, out=sys.stdout):
     """

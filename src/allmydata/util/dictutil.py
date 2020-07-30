@@ -1,6 +1,20 @@
 """
 Tools to mess with dicts.
+
+Ported to Python 3.
 """
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    # IMPORTANT: We deliberately don't import dict. The issue is that we're
+    # subclassing dict, so we'd end up exposing Python 3 dict APIs to lots of
+    # code that doesn't support it.
+    from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, int, list, object, range, str, max, min  # noqa: F401
+
 
 class DictOfSets(dict):
     def add(self, key, value):

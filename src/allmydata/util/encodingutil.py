@@ -11,6 +11,8 @@ from twisted.python.filepath import FilePath
 from allmydata.util import log
 from allmydata.util.fileutil import abspath_expanduser_unicode
 
+NoneType = type(None)
+
 
 def canonical_encoding(encoding):
     if encoding is None:

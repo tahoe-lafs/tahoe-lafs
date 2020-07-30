@@ -1,7 +1,6 @@
 from __future__ import print_function
 
 import os, signal
-from future.utils import PY2
 from random import randrange
 from six.moves import StringIO
 
@@ -13,10 +12,11 @@ from ..util.assertutil import precondition
 from allmydata.util.encodingutil import (unicode_platform, get_filesystem_encoding,
 
                                          get_io_encoding)
-
+from future.utils import PY2
 if PY2: # XXX this is a hack that makes some tests pass on Python3, remove
         # in the future
     from ..scripts import runner
+from .common_py3 import SignalMixin
 
 def skip_if_cannot_represent_filename(u):
     precondition(isinstance(u, unicode))
@@ -92,27 +92,6 @@ class ReallyEqualMixin(object):
         self.assertEqual(a, b, msg)
         self.assertEqual(type(a), type(b), "a :: %r, b :: %r, %r" % (a, b, msg))
 
-
-class SignalMixin(object):
-    # This class is necessary for any code which wants to use Processes
-    # outside the usual reactor.run() environment. It is copied from
-    # Twisted's twisted.test.test_process . Note that Twisted-8.2.0 uses
-    # something rather different.
-    sigchldHandler = None
-
-    def setUp(self):
-        # make sure SIGCHLD handler is installed, as it should be on
-        # reactor.run(). problem is reactor may not have been run when this
-        # test runs.
-        if hasattr(reactor, "_handleSigchld") and hasattr(signal, "SIGCHLD"):
-            self.sigchldHandler = signal.signal(signal.SIGCHLD,
-                                                reactor._handleSigchld)
-        return super(SignalMixin, self).setUp()
-
-    def tearDown(self):
-        if self.sigchldHandler:
-            signal.signal(signal.SIGCHLD, self.sigchldHandler)
-        return super(SignalMixin, self).tearDown()
 
 class StallMixin(object):
     def stall(self, res=None, delay=1):
