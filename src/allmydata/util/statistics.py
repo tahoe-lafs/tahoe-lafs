@@ -20,8 +20,6 @@ from future.utils import PY2
 if PY2:
     from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, int, list, object, range, str, max, min  # noqa: F401
 
-from functools import reduce
-
 from allmydata.util.mathutil import round_sigfigs
 import math
 from functools import reduce

@@ -1,6 +1,6 @@
 from __future__ import print_function
 
-import os, signal
+import os
 from random import randrange
 from six.moves import StringIO
 
