@@ -1,4 +1,4 @@
-from allmydata.util import nummedobj
+from pyutil import nummedobj
 
 from foolscap.logging import log
 from twisted.python import log as tw_log
