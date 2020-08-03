@@ -281,8 +281,6 @@ jobs:
     environment:
       <<: *UTF_8_ENVIRONMENT
       TAHOE_LAFS_TOX_ENVIRONMENT: "py36"
-      # zfec 1.5.3 is uninstallable without a utf-8 locale
-      LC_ALL: "en_US.utf-8"
 
 
   centos-8: &RHEL_DERIV
