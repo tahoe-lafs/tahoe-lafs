@@ -6,13 +6,11 @@ import yaml
 
 from twisted.trial import unittest
 from twisted.internet import defer, reactor
-from twisted.python.failure import Failure
 
 from allmydata.util import idlib, mathutil
 from allmydata.util import fileutil
 from allmydata.util import limiter, pollmixin
 from allmydata.util import yamlutil
-from allmydata.util import log as tahoe_log
 from allmydata.util.fileutil import EncryptedTemporaryFile
 from allmydata.test.common_util import ReallyEqualMixin
 
@@ -526,20 +524,6 @@ class EqButNotIs(object):
         return self.x != other
     def __eq__(self, other):
         return self.x == other
-
-
-class SampleError(Exception):
-    pass
-
-class Log(unittest.TestCase):
-    def test_err(self):
-        try:
-            raise SampleError("simple sample")
-        except:
-            f = Failure()
-        tahoe_log.err(format="intentional sample error",
-                      failure=f, level=tahoe_log.OPERATIONAL, umid="wO9UoQ")
-        self.flushLoggedErrors(SampleError)
 
 
 class YAML(unittest.TestCase):
