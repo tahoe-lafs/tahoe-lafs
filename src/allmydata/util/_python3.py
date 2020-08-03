@@ -25,6 +25,7 @@ PORTED_MODULES = [
     "allmydata.util.hashutil",
     "allmydata.util.humanreadable",
     "allmydata.util.iputil",
+    "allmydata.util.log",
     "allmydata.util.mathutil",
     "allmydata.util.namespace",
     "allmydata.util.netstring",
