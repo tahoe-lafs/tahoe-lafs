@@ -39,17 +39,18 @@ class TestRegression(unittest.TestCase):
         #     priv = rsa.generate(2048)
         #     priv_str = b64encode(priv.serialize())
         #     pub_str = b64encode(priv.get_verifying_key().serialize())
-        RSA_2048_PRIV_KEY = six.b(b64decode(f.read().strip()))
+        RSA_2048_PRIV_KEY = b64decode(f.read().strip())
+        assert isinstance(RSA_2048_PRIV_KEY, native_bytes)
 
     with RESOURCE_DIR.child('pycryptopp-rsa-2048-sig.txt').open('r') as f:
         # Signature created using `RSA_2048_PRIV_KEY` via:
         #
         #     sig = priv.sign(b'test')
-        RSA_2048_SIG = six.b(b64decode(f.read().strip()))
+        RSA_2048_SIG = b64decode(f.read().strip())
 
     with RESOURCE_DIR.child('pycryptopp-rsa-2048-pub.txt').open('r') as f:
         # The public key corresponding to `RSA_2048_PRIV_KEY`.
-        RSA_2048_PUB_KEY = six.b(b64decode(f.read().strip()))
+        RSA_2048_PUB_KEY = b64decode(f.read().strip())
 
     def test_old_start_up_test(self):
         """
