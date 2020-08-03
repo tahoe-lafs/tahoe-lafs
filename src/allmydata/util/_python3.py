@@ -42,6 +42,7 @@ PORTED_TEST_MODULES = [
     "allmydata.test.test_abbreviate",
     "allmydata.test.test_base32",
     "allmydata.test.test_base62",
+    "allmydata.test.test_crypto",
     "allmydata.test.test_deferredutil",
     "allmydata.test.test_dictutil",
     "allmydata.test.test_hashtree",
