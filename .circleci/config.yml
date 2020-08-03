@@ -121,7 +121,7 @@ jobs:
 
   debian-9: &DEBIAN
     docker:
-      - image: "tahoelafsci/debian:9-py2"
+      - image: "tahoelafsci/debian:9-py2.7"
         user: "nobody"
 
     environment: &UTF_8_ENVIRONMENT
@@ -198,7 +198,7 @@ jobs:
   debian-8:
     <<: *DEBIAN
     docker:
-      - image: "tahoelafsci/debian:8-py2"
+      - image: "tahoelafsci/debian:8-py2.7"
         user: "nobody"
 
 
@@ -261,14 +261,14 @@ jobs:
   ubuntu-16.04:
     <<: *DEBIAN
     docker:
-      - image: "tahoelafsci/ubuntu:16.04-py2"
+      - image: "tahoelafsci/ubuntu:16.04-py2.7"
         user: "nobody"
 
 
   ubuntu-18.04: &UBUNTU_18_04
     <<: *DEBIAN
     docker:
-      - image: "tahoelafsci/ubuntu:18.04-py2"
+      - image: "tahoelafsci/ubuntu:18.04-py2.7"
         user: "nobody"
 
 
@@ -307,7 +307,7 @@ jobs:
   fedora-28:
     <<: *RHEL_DERIV
     docker:
-      - image: "tahoelafsci/fedora:28-py2"
+      - image: "tahoelafsci/fedora:28-py"
         user: "nobody"
 
 
