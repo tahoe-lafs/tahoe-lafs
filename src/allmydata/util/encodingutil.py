@@ -4,13 +4,14 @@ unicode and back.
 """
 
 import sys, os, re, locale
-from types import NoneType
 
 from allmydata.util.assertutil import precondition, _assert
 from twisted.python import usage
 from twisted.python.filepath import FilePath
 from allmydata.util import log
 from allmydata.util.fileutil import abspath_expanduser_unicode
+
+NoneType = type(None)
 
 
 def canonical_encoding(encoding):

@@ -1,7 +1,4 @@
 # -*- test-case-name: allmydata.test.test_hashtree -*-
-
-from allmydata.util import mathutil # from the pyutil library
-
 """
 Read and write chunks from files.
 
@@ -49,6 +46,17 @@ public domain  with no warranty of any kind, either expressed
 or implied.  It probably won't make your computer catch on fire,
 or eat  your children, but it might.  Use at your own risk.
 """
+
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, int, list, object, range, str, max, min  # noqa: F401
+
+from allmydata.util import mathutil # from the pyutil library
 
 from allmydata.util import base32
 from allmydata.util.hashutil import tagged_hash, tagged_pair_hash
@@ -170,9 +178,10 @@ def depth_of(i):
     return mathutil.log_floor(i+1, 2)
 
 def empty_leaf_hash(i):
-    return tagged_hash('Merkle tree empty leaf', "%d" % i)
+    return tagged_hash(b'Merkle tree empty leaf', b"%d" % i)
+
 def pair_hash(a, b):
-    return tagged_pair_hash('Merkle tree internal node', a, b)
+    return tagged_pair_hash(b'Merkle tree internal node', a, b)
 
 class HashTree(CompleteBinaryTreeMixin, list):
     """
@@ -215,7 +224,7 @@ class HashTree(CompleteBinaryTreeMixin, list):
         while len(rows[-1]) != 1:
             last = rows[-1]
             rows += [[pair_hash(last[2*i], last[2*i+1])
-                                for i in xrange(len(last)//2)]]
+                                for i in range(len(last)//2)]]
         # Flatten the list of rows into a single list.
         rows.reverse()
         self[:] = sum(rows, [])
@@ -289,7 +298,7 @@ class IncompleteHashTree(CompleteBinaryTreeMixin, list):
         rows = [L]
         while len(rows[-1]) != 1:
             last = rows[-1]
-            rows += [[None for i in xrange(len(last)//2)]]
+            rows += [[None for i in range(len(last)//2)]]
         # Flatten the list of rows into a single list.
         rows.reverse()
         self[:] = sum(rows, [])
@@ -372,12 +381,12 @@ class IncompleteHashTree(CompleteBinaryTreeMixin, list):
 
         assert isinstance(hashes, dict)
         for h in hashes.values():
-            assert isinstance(h, str)
+            assert isinstance(h, bytes)
         assert isinstance(leaves, dict)
         for h in leaves.values():
-            assert isinstance(h, str)
+            assert isinstance(h, bytes)
         new_hashes = hashes.copy()
-        for leafnum,leafhash in leaves.iteritems():
+        for leafnum,leafhash in leaves.items():
             hashnum = self.first_leaf_num + leafnum
             if hashnum in new_hashes:
                 if new_hashes[hashnum] != leafhash:
@@ -416,7 +425,7 @@ class IncompleteHashTree(CompleteBinaryTreeMixin, list):
 
             # first we provisionally add all hashes to the tree, comparing
             # any duplicates
-            for i,h in new_hashes.iteritems():
+            for i,h in new_hashes.items():
                 if self[i]:
                     if self[i] != h:
                         raise BadHashError("new hash %s does not match "

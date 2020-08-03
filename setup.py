@@ -127,6 +127,9 @@ install_requires = [
 
     # Utility code:
     "pyutil >= 3.3.0",
+
+    # Linux distribution detection:
+    "distro >= 1.4.0",
 ]
 
 setup_requires = [
@@ -387,6 +390,7 @@ setup(name="tahoe-lafs", # also set in __init__.py
               "beautifulsoup4",
               "html5lib",
               "junitxml",
+              "tenacity",
           ] + tor_requires + i2p_requires,
           "tor": tor_requires,
           "i2p": i2p_requires,

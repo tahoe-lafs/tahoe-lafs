@@ -22,6 +22,9 @@ class Util(ShouldFailMixin, testutil.ReallyEqualMixin, unittest.TestCase):
         self.failUnlessReallyEqual(common.abbreviate_time(0.00123), "1.2ms")
         self.failUnlessReallyEqual(common.abbreviate_time(0.000123), "123us")
         self.failUnlessReallyEqual(common.abbreviate_time(-123000), "-123000000000us")
+        self.failUnlessReallyEqual(common.abbreviate_time(2.5), "2.50s")
+        self.failUnlessReallyEqual(common.abbreviate_time(0.25), "250ms")
+        self.failUnlessReallyEqual(common.abbreviate_time(0.0021), "2.1ms")
 
         self.failUnlessReallyEqual(common.abbreviate_time(None), "")
         self.failUnlessReallyEqual(common.abbreviate_time(2.5), "2.50s")
@@ -53,6 +56,9 @@ class Util(ShouldFailMixin, testutil.ReallyEqualMixin, unittest.TestCase):
         self.failUnlessReallyEqual(common.abbreviate_rate(None), "")
         self.failUnlessReallyEqual(common.abbreviate_rate(1234000), "1.23MBps")
         self.failUnlessReallyEqual(common.abbreviate_rate(12340), "12.3kBps")
+        self.failUnlessReallyEqual(common.abbreviate_rate(123), "123Bps")
+        self.failUnlessReallyEqual(common.abbreviate_rate(2500000), "2.50MBps")
+        self.failUnlessReallyEqual(common.abbreviate_rate(30100), "30.1kBps")
         self.failUnlessReallyEqual(common.abbreviate_rate(123), "123Bps")
 
     def test_abbreviate_size(self):

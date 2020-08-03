@@ -358,7 +358,10 @@ def bob(reactor, temp_dir, introducer_furl, flog_gatherer, storage_nodes, reques
 
 
 @pytest.fixture(scope='session')
+@pytest.mark.skipif(sys.platform.startswith('win'),
+                    'Tor tests are unstable on Windows')
 def chutney(reactor, temp_dir):
+
     chutney_dir = join(temp_dir, 'chutney')
     mkdir(chutney_dir)
 
@@ -377,18 +380,39 @@ def chutney(reactor, temp_dir):
         proto,
         'git',
         (
-            'git', 'clone', '--depth=1',
+            'git', 'clone',
             'https://git.torproject.org/chutney.git',
             chutney_dir,
         ),
         env=environ,
     )
     pytest_twisted.blockon(proto.done)
+
+    # XXX: Here we reset Chutney to the last revision known to work
+    # with Python 2, as a workaround for Chutney moving to Python 3.
+    # When this is no longer necessary, we will have to drop this and
+    # add '--depth=1' back to the above 'git clone' subprocess.
+    proto = _DumpOutputProtocol(None)
+    reactor.spawnProcess(
+        proto,
+        'git',
+        (
+            'git', '-C', chutney_dir,
+            'reset', '--hard',
+            '99bd06c7554b9113af8c0877b6eca4ceb95dcbaa'
+        ),
+        env=environ,
+    )
+    pytest_twisted.blockon(proto.done)
+
     return chutney_dir
 
 
 @pytest.fixture(scope='session')
+@pytest.mark.skipif(sys.platform.startswith('win'),
+                    reason='Tor tests are unstable on Windows')
 def tor_network(reactor, temp_dir, chutney, request):
+
     # this is the actual "chutney" script at the root of a chutney checkout
     chutney_dir = chutney
     chut = join(chutney_dir, 'chutney')

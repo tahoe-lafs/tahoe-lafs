@@ -1,19 +1,23 @@
 
 import time
-from nevow import rend, url
-from nevow.inevow import IRequest
+from nevow import url
 from twisted.web.template import (
     renderer,
     tags as T,
 )
 from twisted.python.failure import Failure
 from twisted.internet import reactor, defer
+from twisted.web import resource
 from twisted.web.http import NOT_FOUND
 from twisted.web.html import escape
 from twisted.application import service
 
-from allmydata.web.common import WebError, \
-     get_root, get_arg, boolean_of_arg
+from allmydata.web.common import (
+    WebError,
+    get_root,
+    get_arg,
+    boolean_of_arg,
+)
 
 MINUTE = 60
 HOUR = 60*MINUTE
@@ -21,13 +25,16 @@ DAY = 24*HOUR
 
 (MONITOR, RENDERER, WHEN_ADDED) = range(3)
 
-class OphandleTable(rend.Page, service.Service):
+class OphandleTable(resource.Resource, service.Service):
+    """Renders /operations/%d."""
+
     name = "operations"
 
     UNCOLLECTED_HANDLE_LIFETIME = 4*DAY
     COLLECTED_HANDLE_LIFETIME = 1*DAY
 
     def __init__(self, clock=None):
+        super(OphandleTable, self).__init__()
         # both of these are indexed by ophandle
         self.handles = {} # tuple of (monitor, renderer, when_added)
         self.timers = {}
@@ -45,12 +52,17 @@ class OphandleTable(rend.Page, service.Service):
         del self.timers
         return service.Service.stopService(self)
 
-    def add_monitor(self, ctx, monitor, renderer):
-        ophandle = get_arg(ctx, "ophandle")
+    def add_monitor(self, req, monitor, renderer):
+        """
+        :param allmydata.webish.MyRequest req:
+        :param allmydata.monitor.Monitor monitor:
+        :param allmydata.web.directory.ManifestResults renderer:
+        """
+        ophandle = get_arg(req, "ophandle")
         assert ophandle
         now = time.time()
         self.handles[ophandle] = (monitor, renderer, now)
-        retain_for = get_arg(ctx, "retain-for", None)
+        retain_for = get_arg(req, "retain-for", None)
         if retain_for is not None:
             self._set_timer(ophandle, int(retain_for))
         monitor.when_done().addBoth(self._operation_complete, ophandle)
@@ -67,36 +79,42 @@ class OphandleTable(rend.Page, service.Service):
             # if we already have a timer, the client must have provided the
             # retain-for= value, so don't touch it.
 
-    def redirect_to(self, ctx):
-        ophandle = get_arg(ctx, "ophandle")
+    def redirect_to(self, req):
+        """
+        :param allmydata.webish.MyRequest req:
+        """
+        ophandle = get_arg(req, "ophandle")
         assert ophandle
-        target = get_root(ctx) + "/operations/" + ophandle
-        output = get_arg(ctx, "output")
+        target = get_root(req) + "/operations/" + ophandle
+        output = get_arg(req, "output")
         if output:
             target = target + "?output=%s" % output
+
+        # XXX: We have to use nevow.url here because nevow.appserver
+        # is unhappy with anything else; so this gets its own ticket.
+        # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3314
         return url.URL.fromString(target)
 
-    def childFactory(self, ctx, name):
+    def getChild(self, name, req):
         ophandle = name
         if ophandle not in self.handles:
             raise WebError("unknown/expired handle '%s'" % escape(ophandle),
                            NOT_FOUND)
         (monitor, renderer, when_added) = self.handles[ophandle]
 
-        request = IRequest(ctx)
-        t = get_arg(ctx, "t", "status")
-        if t == "cancel" and request.method == "POST":
+        t = get_arg(req, "t", "status")
+        if t == "cancel" and req.method == "POST":
             monitor.cancel()
             # return the status anyways, but release the handle
             self._release_ophandle(ophandle)
 
         else:
-            retain_for = get_arg(ctx, "retain-for", None)
+            retain_for = get_arg(req, "retain-for", None)
             if retain_for is not None:
                 self._set_timer(ophandle, int(retain_for))
 
             if monitor.is_finished():
-                if boolean_of_arg(get_arg(ctx, "release-after-complete", "false")):
+                if boolean_of_arg(get_arg(req, "release-after-complete", "false")):
                     self._release_ophandle(ophandle)
                 if retain_for is None:
                     # this GET is collecting the ophandle, so change its timer
@@ -122,6 +140,7 @@ class OphandleTable(rend.Page, service.Service):
             self.timers[ophandle].cancel()
         self.timers.pop(ophandle, None)
         self.handles.pop(ophandle, None)
+
 
 class ReloadMixin(object):
     REFRESH_TIME = 1*MINUTE
