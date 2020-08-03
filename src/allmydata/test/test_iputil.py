@@ -236,26 +236,28 @@ class GcUtil(unittest.TestCase):
 
     def test_gc_after_allocations(self):
         """The resource tracker triggers allocations every 26 allocations."""
+        tracker = gcutil._ResourceTracker()
         collections = []
         self.patch(gc, "collect", lambda: collections.append(1))
         for _ in range(2):
             for _ in range(25):
-                gcutil.fileDescriptorResource.allocate()
+                tracker.allocate()
                 self.assertEqual(len(collections), 0)
-            gcutil.fileDescriptorResource.allocate()
+            tracker.allocate()
             self.assertEqual(len(collections), 1)
             del collections[:]
 
     def test_release_delays_gc(self):
         """Releasing a file descriptor resource delays GC collection."""
+        tracker = gcutil._ResourceTracker()
         collections = []
         self.patch(gc, "collect", lambda: collections.append(1))
         for _ in range(2):
-            gcutil.fileDescriptorResource.allocate()
+            tracker.allocate()
         for _ in range(3):
-            gcutil.fileDescriptorResource.release()
+            tracker.release()
         for _ in range(25):
-            gcutil.fileDescriptorResource.allocate()
+            tracker.allocate()
             self.assertEqual(len(collections), 0)
-        gcutil.fileDescriptorResource.allocate()
+        tracker.allocate()
         self.assertEqual(len(collections), 1)
