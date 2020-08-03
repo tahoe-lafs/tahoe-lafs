@@ -45,6 +45,8 @@ Written by Connelly Barnes in 2005 and released into the
 public domain  with no warranty of any kind, either expressed
 or implied.  It probably won't make your computer catch on fire,
 or eat  your children, but it might.  Use at your own risk.
+
+Ported to Python 3.
 """
 
 from __future__ import absolute_import
