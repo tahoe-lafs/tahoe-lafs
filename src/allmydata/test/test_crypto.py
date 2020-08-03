@@ -1,3 +1,5 @@
+from future.utils import native_bytes
+
 import six
 import unittest
 
@@ -283,7 +285,7 @@ class TestEd25519(unittest.TestCase):
         private_key, public_key = ed25519.create_signing_keypair()
         private_key_str = ed25519.string_from_signing_key(private_key)
 
-        self.assertIsInstance(private_key_str, six.string_types)
+        self.assertIsInstance(private_key_str, native_bytes)
 
         private_key2, public_key2 = ed25519.signing_keypair_from_string(private_key_str)
 
@@ -299,7 +301,7 @@ class TestEd25519(unittest.TestCase):
 
         # ditto, but for the verifying keys
         public_key_str = ed25519.string_from_verifying_key(public_key)
-        self.assertIsInstance(public_key_str, six.string_types)
+        self.assertIsInstance(public_key_str, native_bytes)
 
         public_key2 = ed25519.verifying_key_from_string(public_key_str)
         self.assertEqual(
@@ -403,7 +405,7 @@ class TestRsa(unittest.TestCase):
         priv_key, pub_key = rsa.create_signing_keypair(2048)
         priv_key_str = rsa.der_string_from_signing_key(priv_key)
 
-        self.assertIsInstance(priv_key_str, six.string_types)
+        self.assertIsInstance(priv_key_str, native_bytes)
 
         priv_key2, pub_key2 = rsa.create_signing_keypair_from_string(priv_key_str)
 
