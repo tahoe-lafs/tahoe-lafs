@@ -9,7 +9,6 @@ if PY2:
 
 from future.utils import native_bytes
 
-import six
 import unittest
 
 from base64 import b64decode
