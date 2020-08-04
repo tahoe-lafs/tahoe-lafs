@@ -59,9 +59,14 @@ class Log(unittest.TestCase):
             f = Failure()
         tahoe_log.err(format="intentional sample error",
                       failure=f, level=tahoe_log.OPERATIONAL, umid="wO9UoQ")
-        self.flushLoggedErrors(SampleError)
+        result = self.flushLoggedErrors(SampleError)
+        self.assertEqual(len(result), 1)
 
     def test_default_facility(self):
+        """
+        If facility is passed to PrefixingLogMixin.__init__, it is used as
+        default facility.
+        """
         obj = LoggingObject1(facility="defaultfac")
         obj.log("hello")
         obj.log("world", facility="override")
@@ -69,6 +74,10 @@ class Log(unittest.TestCase):
         self.assertEqual(self.messages[-1][1], "override")
 
     def test_with_prefix(self):
+        """
+        If prefix is passed to PrefixingLogMixin.__init__, it is used in
+        message rendering.
+        """
         obj = LoggingObject0("fac", prefix="pre1")
         obj.log("hello")
         obj.log("world")
@@ -76,6 +85,10 @@ class Log(unittest.TestCase):
         self.assertEqual(self.messages[-1][0], '<LoggingObject0 #1>(pre1): world')
 
     def test_no_prefix(self):
+        """
+        If no prefix is passed to PrefixingLogMixin.__init__, it is not used in
+        message rendering.
+        """
         obj = LoggingObject2()
         obj.log("hello")
         obj.log("world")
@@ -83,6 +96,10 @@ class Log(unittest.TestCase):
         self.assertEqual(self.messages[-1][0], '<LoggingObject2 #1>: world')
 
     def test_numming(self):
+        """
+        Objects inheriting from PrefixingLogMixin get a unique number from a
+        class-specific counter.
+        """
         obj = LoggingObject3()
         obj2 = LoggingObject3()
         obj.log("hello")
@@ -91,6 +108,12 @@ class Log(unittest.TestCase):
         self.assertEqual(self.messages[-1][0], '<LoggingObject3 #2>: world')
 
     def test_parent_id(self):
+        """
+        The parent message id can be passed in, otherwise the first message's
+        id is used as the parent.
+
+        This logic is pretty bogus, but that's what the code does.
+        """
         obj = LoggingObject1()
         result = obj.log("zero")
         self.assertEqual(result, "msg1")
@@ -102,6 +125,10 @@ class Log(unittest.TestCase):
                          [None, "par1", "par2", "msg1", "msg1"])
 
     def test_grandparent_id(self):
+        """
+        If grandparent message id is given, it's used as parent id of the first
+        message.
+        """
         obj = LoggingObject1(grandparentmsgid="grand")
         result = obj.log("zero")
         self.assertEqual(result, "msg1")
