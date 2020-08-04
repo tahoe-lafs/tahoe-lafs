@@ -1,4 +1,12 @@
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
 
+from future import standard_library
+standard_library.install_aliases()
+from builtins import *
+from builtins import object
 import re
 
 from zope.interface import implementer
@@ -80,7 +88,7 @@ class CHKFileURI(_BaseURI):
     def to_string(self):
         assert isinstance(self.needed_shares, int)
         assert isinstance(self.total_shares, int)
-        assert isinstance(self.size, (int,long))
+        assert isinstance(self.size, int)
 
         return ('URI:CHK:%s:%s:%d:%d:%d' %
                 (base32.b2a(self.key),
@@ -136,7 +144,7 @@ class CHKFileVerifierURI(_BaseURI):
     def to_string(self):
         assert isinstance(self.needed_shares, int)
         assert isinstance(self.total_shares, int)
-        assert isinstance(self.size, (int,long))
+        assert isinstance(self.size, int)
 
         return ('URI:CHK-Verifier:%s:%s:%d:%d:%d' %
                 (si_b2a(self.storage_index),
@@ -876,7 +884,7 @@ def pack_extension(data):
     pieces = []
     for k in sorted(data.keys()):
         value = data[k]
-        if isinstance(value, (int, long)):
+        if isinstance(value, int):
             value = "%d" % value
         assert isinstance(value, str), k
         assert re.match(r'^[a-zA-Z_\-]+$', k)
