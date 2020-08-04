@@ -263,6 +263,9 @@ def move_into_place(source, dest):
     os.rename(source, dest)
 
 def write_atomically(target, contents, mode="b"):
+    assert (
+        isinstance(contents, bytes) and ("b" in mode or mode == "") or
+        isinstance(contents, unicode) and "t" in mode), (type(contents), mode)
     with open(target+".tmp", "w"+mode) as f:
         f.write(contents)
     move_into_place(target+".tmp", target)
