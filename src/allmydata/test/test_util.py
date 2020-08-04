@@ -94,7 +94,7 @@ class FileUtil(ReallyEqualMixin, unittest.TestCase):
         basedir = "util/FileUtil/test_write_atomically"
         fileutil.make_dirs(basedir)
         fn = os.path.join(basedir, "here")
-        fileutil.write_atomically(fn, b"one")
+        fileutil.write_atomically(fn, b"one", "b")
         self.failUnlessEqual(fileutil.read(fn), b"one")
         fileutil.write_atomically(fn, u"two", mode="") # non-binary
         self.failUnlessEqual(fileutil.read(fn), b"two")
