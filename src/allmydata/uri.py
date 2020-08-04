@@ -3,10 +3,10 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
-from future import standard_library
-standard_library.install_aliases()
-from builtins import *
-from builtins import object
+from future.utils import PY2
+if PY2:
+    from builtins import filter, map, zip, ascii, chr, dict, hex, input, next, oct, open, pow, round, super, bytes, int, list, object, range, str, max, min  # noqa: F401
+
 import re
 
 from zope.interface import implementer
@@ -32,8 +32,8 @@ class BadURIError(CapConstraintError):
 #  - make variable and method names consistently use _uri for an URI string,
 #    and _cap for a Cap object (decoded URI)
 
-BASE32STR_128bits = '(%s{25}%s)' % (base32.BASE32CHAR, base32.BASE32CHAR_3bits)
-BASE32STR_256bits = '(%s{51}%s)' % (base32.BASE32CHAR, base32.BASE32CHAR_1bits)
+BASE32STR_128bits = '(%s{25}%s)' % (base32.BASE32CHAR.decode('utf8'), base32.BASE32CHAR_3bits.decode('utf8'))
+BASE32STR_256bits = '(%s{51}%s)' % (base32.BASE32CHAR.decode('utf8'), base32.BASE32CHAR_1bits.decode('utf8'))
 
 NUMBER='([0-9]+)'
 
@@ -82,7 +82,8 @@ class CHKFileURI(_BaseURI):
         mo = cls.STRING_RE.search(uri)
         if not mo:
             raise BadURIError("'%s' doesn't look like a %s cap" % (uri, cls))
-        return cls(base32.a2b(mo.group(1)), base32.a2b(mo.group(2)),
+        return cls(base32.a2b(bytes(mo.group(1), 'utf8')),
+                   base32.a2b(bytes(mo.group(2), 'utf8')),
                    int(mo.group(3)), int(mo.group(4)), int(mo.group(5)))
 
     def to_string(self):
@@ -138,7 +139,8 @@ class CHKFileVerifierURI(_BaseURI):
         mo = cls.STRING_RE.search(uri)
         if not mo:
             raise BadURIError("'%s' doesn't look like a %s cap" % (uri, cls))
-        return cls(si_a2b(mo.group(1)), base32.a2b(mo.group(2)),
+        return cls(si_a2b(bytes(mo.group(1), 'utf8')),
+                   base32.a2b(bytes(mo.group(2), 'utf8')),
                    int(mo.group(3)), int(mo.group(4)), int(mo.group(5)))
 
     def to_string(self):
@@ -170,7 +172,7 @@ class CHKFileVerifierURI(_BaseURI):
 class LiteralFileURI(_BaseURI):
 
     BASE_STRING='URI:LIT:'
-    STRING_RE=re.compile('^URI:LIT:'+base32.BASE32STR_anybytes+'$')
+    STRING_RE=re.compile('^URI:LIT:'+str(base32.BASE32STR_anybytes)+'$')
 
     def __init__(self, data=None):
         if data is not None:
@@ -182,7 +184,7 @@ class LiteralFileURI(_BaseURI):
         mo = cls.STRING_RE.search(uri)
         if not mo:
             raise BadURIError("'%s' doesn't look like a %s cap" % (uri, cls))
-        return cls(base32.a2b(mo.group(1)))
+        return cls(base32.a2b(bytes(mo.group(1), 'utf8')))
 
     def to_string(self):
         return 'URI:LIT:%s' % base32.b2a(self.data)
@@ -215,6 +217,7 @@ class WriteableSSKFileURI(_BaseURI):
                          BASE32STR_256bits+'$')
 
     def __init__(self, writekey, fingerprint):
+        assert isinstance(writekey, bytes)
         self.writekey = writekey
         self.readkey = hashutil.ssk_readkey_hash(writekey)
         self.storage_index = hashutil.ssk_storage_index_hash(self.readkey)
@@ -226,13 +229,14 @@ class WriteableSSKFileURI(_BaseURI):
         mo = cls.STRING_RE.search(uri)
         if not mo:
             raise BadURIError("'%s' doesn't look like a %s cap" % (uri, cls))
-        return cls(base32.a2b(mo.group(1)), base32.a2b(mo.group(2)))
+        return cls(base32.a2b(mo.group(1).encode('utf8')),
+                   base32.a2b(mo.group(2).encode('utf8')))
 
     def to_string(self):
-        assert isinstance(self.writekey, str)
-        assert isinstance(self.fingerprint, str)
-        return 'URI:SSK:%s:%s' % (base32.b2a(self.writekey),
-                                  base32.b2a(self.fingerprint))
+        assert isinstance(self.writekey, bytes)
+        assert isinstance(self.fingerprint, bytes)
+        return 'URI:SSK:%s:%s' % (base32.b2a(self.writekey).decode('utf8'),
+                                   base32.b2a(self.fingerprint).decode('utf8'))
 
     def __repr__(self):
         return "<%s %s>" % (self.__class__.__name__, self.abbrev())
@@ -273,13 +277,14 @@ class ReadonlySSKFileURI(_BaseURI):
         mo = cls.STRING_RE.search(uri)
         if not mo:
             raise BadURIError("'%s' doesn't look like a %s cap" % (uri, cls))
-        return cls(base32.a2b(mo.group(1)), base32.a2b(mo.group(2)))
+        return cls(base32.a2b(mo.group(1).encode('utf8')),
+                   base32.a2b(mo.group(2).encode('utf8')))
 
     def to_string(self):
-        assert isinstance(self.readkey, str)
-        assert isinstance(self.fingerprint, str)
-        return 'URI:SSK-RO:%s:%s' % (base32.b2a(self.readkey),
-                                     base32.b2a(self.fingerprint))
+        assert isinstance(self.readkey, bytes)
+        assert isinstance(self.fingerprint, bytes)
+        return 'URI:SSK-RO:%s:%s' % (base32.b2a(self.readkey).decode('utf8'),
+                                     base32.b2a(self.fingerprint).decode('utf8'))
 
     def __repr__(self):
         return "<%s %s>" % (self.__class__.__name__, self.abbrev())
@@ -319,11 +324,13 @@ class SSKVerifierURI(_BaseURI):
         mo = cls.STRING_RE.search(uri)
         if not mo:
             raise BadURIError("'%s' doesn't look like a %s cap" % (uri, cls))
-        return cls(si_a2b(mo.group(1)), base32.a2b(mo.group(2)))
+        return cls(si_a2b(bytes(mo.group(1), 'utf8')),
+                   base32.a2b(bytes(mo.group(2), 'utf8')))
 
     def to_string(self):
-        assert isinstance(self.storage_index, str)
-        assert isinstance(self.fingerprint, str)
+        assert isinstance(self.storage_index, bytes)
+        assert isinstance(self.fingerprint, bytes)
+        XXX
         return 'URI:SSK-Verifier:%s:%s' % (si_b2a(self.storage_index),
                                            base32.b2a(self.fingerprint))
 
@@ -358,11 +365,12 @@ class WriteableMDMFFileURI(_BaseURI):
         mo = cls.STRING_RE.search(uri)
         if not mo:
             raise BadURIError("'%s' doesn't look like a %s cap" % (uri, cls))
-        return cls(base32.a2b(mo.group(1)), base32.a2b(mo.group(2)))
+        return cls(base32.a2b(bytes(mo.group(1), 'utf8')),
+                   base32.a2b(bytes(mo.group(2), 'utf8')))
 
     def to_string(self):
-        assert isinstance(self.writekey, str)
-        assert isinstance(self.fingerprint, str)
+        assert isinstance(self.writekey, bytes)
+        assert isinstance(self.fingerprint, bytes)
         ret = 'URI:MDMF:%s:%s' % (base32.b2a(self.writekey),
                                   base32.b2a(self.fingerprint))
         return ret
@@ -407,7 +415,8 @@ class ReadonlyMDMFFileURI(_BaseURI):
         if not mo:
             raise BadURIError("'%s' doesn't look like a %s cap" % (uri, cls))
 
-        return cls(base32.a2b(mo.group(1)), base32.a2b(mo.group(2)))
+        return cls(base32.a2b(bytes(mo.group(1), 'utf8')),
+                   base32.a2b(bytes(mo.group(2), 'utf8')))
 
     def to_string(self):
         assert isinstance(self.readkey, str)
@@ -454,7 +463,8 @@ class MDMFVerifierURI(_BaseURI):
         mo = cls.STRING_RE.search(uri)
         if not mo:
             raise BadURIError("'%s' doesn't look like a %s cap" % (uri, cls))
-        return cls(si_a2b(mo.group(1)), base32.a2b(mo.group(2)))
+        return cls(si_a2b(bytes(mo.group(1), 'utf8')),
+                   base32.a2b(bytes(mo.group(2), 'utf8')))
 
     def to_string(self):
         assert isinstance(self.storage_index, str)

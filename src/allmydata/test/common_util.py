@@ -1,5 +1,7 @@
 from __future__ import print_function
 
+from future.utils import PY2
+
 import os
 from random import randrange
 from six.moves import StringIO
@@ -11,7 +13,8 @@ from twisted.trial import unittest
 from ..util.assertutil import precondition
 from allmydata.util.encodingutil import (unicode_platform, get_filesystem_encoding,
                                          get_io_encoding)
-from ..scripts import runner
+if PY2:
+    from ..scripts import runner # hack for tests to run
 from .common_py3 import SignalMixin
 
 

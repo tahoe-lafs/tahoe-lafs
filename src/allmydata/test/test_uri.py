@@ -3,10 +3,10 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
-from future import standard_library
-standard_library.install_aliases()
-from builtins import str
-from builtins import *
+from future.utils import PY2
+if PY2:
+    from builtins import filter, map, zip, ascii, chr, dict, hex, input, next, oct, open, pow, round, super, bytes, int, list, object, range, str, max, min  # noqa: F401
+
 import os
 from twisted.trial import unittest
 from allmydata import uri
@@ -97,7 +97,7 @@ class Compare(testutil.ReallyEqualMixin, unittest.TestCase):
 
 class CHKFile(testutil.ReallyEqualMixin, unittest.TestCase):
     def test_pack(self):
-        key = "\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f"
+        key = b"\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f"
         storage_index = hashutil.storage_index_hash(key)
         uri_extension_hash = hashutil.uri_extension_hash("stuff")
         needed_shares = 25
@@ -163,7 +163,7 @@ class CHKFile(testutil.ReallyEqualMixin, unittest.TestCase):
         self.failIf(v3.is_mutable())
 
     def test_pack_badly(self):
-        key = "\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f"
+        key = b"\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f"
         storage_index = hashutil.storage_index_hash(key)
         uri_extension_hash = hashutil.uri_extension_hash("stuff")
         needed_shares = 25
@@ -251,8 +251,8 @@ class Constraint(testutil.ReallyEqualMixin, unittest.TestCase):
 
 class Mutable(testutil.ReallyEqualMixin, unittest.TestCase):
     def setUp(self):
-        self.writekey = "\x01" * 16
-        self.fingerprint = "\x02" * 32
+        self.writekey = b"\x01" * 16
+        self.fingerprint = b"\x02" * 32
         self.readkey = hashutil.ssk_readkey_hash(self.writekey)
         self.storage_index = hashutil.ssk_storage_index_hash(self.readkey)
 
@@ -476,8 +476,8 @@ class Mutable(testutil.ReallyEqualMixin, unittest.TestCase):
 
 class Dirnode(testutil.ReallyEqualMixin, unittest.TestCase):
     def test_pack(self):
-        writekey = "\x01" * 16
-        fingerprint = "\x02" * 32
+        writekey = b"\x01" * 16
+        fingerprint = b"\x02" * 32
 
         n = uri.WriteableSSKFileURI(writekey, fingerprint)
         u1 = uri.DirectoryURI(n)
@@ -619,8 +619,8 @@ class Dirnode(testutil.ReallyEqualMixin, unittest.TestCase):
         self.failUnlessReallyEqual(u1.abbrev_si(), "<LIT>")
 
     def test_mdmf(self):
-        writekey = "\x01" * 16
-        fingerprint = "\x02" * 32
+        writekey = b"\x01" * 16
+        fingerprint = b"\x02" * 32
         uri1 = uri.WriteableMDMFFileURI(writekey, fingerprint)
         d1 = uri.MDMFDirectoryURI(uri1)
         self.failIf(d1.is_readonly())
@@ -643,8 +643,8 @@ class Dirnode(testutil.ReallyEqualMixin, unittest.TestCase):
         self.failUnlessIsInstance(d3, uri.UnknownURI)
 
     def test_mdmf_attenuation(self):
-        writekey = "\x01" * 16
-        fingerprint = "\x02" * 32
+        writekey = b"\x01" * 16
+        fingerprint = b"\x02" * 32
 
         uri1 = uri.WriteableMDMFFileURI(writekey, fingerprint)
         d1 = uri.MDMFDirectoryURI(uri1)
@@ -684,8 +684,8 @@ class Dirnode(testutil.ReallyEqualMixin, unittest.TestCase):
 
     def test_mdmf_verifier(self):
         # I'm not sure what I want to write here yet.
-        writekey = "\x01" * 16
-        fingerprint = "\x02" * 32
+        writekey = b"\x01" * 16
+        fingerprint = b"\x02" * 32
         uri1 = uri.WriteableMDMFFileURI(writekey, fingerprint)
         d1 = uri.MDMFDirectoryURI(uri1)
         v1 = d1.get_verify_cap()

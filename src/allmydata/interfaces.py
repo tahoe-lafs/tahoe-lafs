@@ -1,4 +1,8 @@
 
+from future.utils import PY2
+if not PY2:
+    long = int
+
 from zope.interface import Interface, Attribute
 from twisted.plugin import (
     IPlugin,
