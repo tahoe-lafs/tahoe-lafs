@@ -15,6 +15,12 @@ if PY2:
 
 # Keep these sorted alphabetically, to reduce merge conflicts:
 PORTED_MODULES = [
+    "allmydata.crypto",
+    "allmydata.crypto.aes",
+    "allmydata.crypto.ed25519",
+    "allmydata.crypto.error",
+    "allmydata.crypto.rsa",
+    "allmydata.crypto.util",
     "allmydata.hashtree",
     "allmydata.util.abbreviate",
     "allmydata.util.assertutil",
@@ -43,6 +49,7 @@ PORTED_TEST_MODULES = [
     "allmydata.test.test_abbreviate",
     "allmydata.test.test_base32",
     "allmydata.test.test_base62",
+    "allmydata.test.test_crypto",
     "allmydata.test.test_deferredutil",
     "allmydata.test.test_dictutil",
     "allmydata.test.test_hashtree",
