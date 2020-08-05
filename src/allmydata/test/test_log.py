@@ -84,6 +84,17 @@ class Log(unittest.TestCase):
         self.assertEqual(self.messages[-2][0], '<LoggingObject0 #1>(pre1): hello')
         self.assertEqual(self.messages[-1][0], '<LoggingObject0 #1>(pre1): world')
 
+    def test_with_bytes_prefix(self):
+        """
+        If bytes prefix is passed to PrefixingLogMixin.__init__, it is used in
+        message rendering.
+        """
+        obj = LoggingObject0("fac", prefix=b"pre1")
+        obj.log("hello")
+        obj.log("world")
+        self.assertEqual(self.messages[-2][0], '<LoggingObject0 #1>(pre1): hello')
+        self.assertEqual(self.messages[-1][0], '<LoggingObject0 #1>(pre1): world')
+
     def test_no_prefix(self):
         """
         If no prefix is passed to PrefixingLogMixin.__init__, it is not used in

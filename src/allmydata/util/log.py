@@ -68,6 +68,8 @@ class PrefixingLogMixin(nummedobj.NummedObj, LogMixin):
         LogMixin.__init__(self, facility, grandparentmsgid)
 
         if prefix:
+            if isinstance(prefix, bytes):
+                prefix = prefix.decode("utf-8", errors="replace")
             self._prefix = "%s(%s): " % (self.__repr__(), prefix)
         else:
             self._prefix = "%s: " % (self.__repr__(),)
