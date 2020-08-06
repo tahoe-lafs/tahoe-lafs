@@ -554,7 +554,6 @@ class YAML(unittest.TestCase):
     def test_convert(self):
         data = yaml.safe_dump(["str", u"unicode", u"\u1234nicode"])
         back = yamlutil.safe_load(data)
-        str_type = type("x") # workaround for future.builtins.str
-        self.failUnlessEqual(type(back[0]), str_type)
-        self.failUnlessEqual(type(back[1]), str_type)
-        self.failUnlessEqual(type(back[2]), str_type)
+        self.assertIsInstance(back[0], str)
+        self.assertIsInstance(back[1], str)
+        self.assertIsInstance(back[2], str)
