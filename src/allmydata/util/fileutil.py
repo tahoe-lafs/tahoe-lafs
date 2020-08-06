@@ -1,5 +1,5 @@
 """
-Ported to Python3
+Ported to Python3.
 
 Futz with files like a pro.
 """
@@ -12,7 +12,7 @@ from __future__ import unicode_literals
 from future.utils import PY2
 if PY2:
     # open is not here because we want to use native strings on Py2
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, pow, round, super, bytes, dict, int, list, object, range, str, max, min  # noqa: F401from builtins import range
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 import sys, os, stat, tempfile, time, binascii
 import six
