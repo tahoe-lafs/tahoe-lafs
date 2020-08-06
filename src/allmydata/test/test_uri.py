@@ -48,24 +48,24 @@ class Literal(testutil.ReallyEqualMixin, unittest.TestCase):
         self.failUnlessReallyEqual(u.get_verify_cap(), None)
 
     def test_empty(self):
-        data = "" # This data is some *very* small data!
+        data = b"" # This data is some *very* small data!
         return self._help_test(data)
 
     def test_pack(self):
-        data = "This is some small data"
+        data = b"This is some small data"
         return self._help_test(data)
 
     def test_nonascii(self):
-        data = "This contains \x00 and URI:LIT: and \n, oh my."
+        data = b"This contains \x00 and URI:LIT: and \n, oh my."
         return self._help_test(data)
 
 class Compare(testutil.ReallyEqualMixin, unittest.TestCase):
     def test_compare(self):
-        lit1 = uri.LiteralFileURI("some data")
+        lit1 = uri.LiteralFileURI(b"some data")
         fileURI = 'URI:CHK:f5ahxa25t4qkktywz6teyfvcx4:opuioq7tj2y6idzfp6cazehtmgs5fdcebcz3cygrxyydvcozrmeq:3:10:345834'
         chk1 = uri.CHKFileURI.init_from_string(fileURI)
         chk2 = uri.CHKFileURI.init_from_string(fileURI)
-        unk = uri.UnknownURI("lafs://from_the_future")
+        unk = uri.UnknownURI(b"lafs://from_the_future")
         self.failIfEqual(lit1, chk1)
         self.failUnlessReallyEqual(chk1, chk2)
         self.failIfEqual(chk1, "not actually a URI")
@@ -74,12 +74,12 @@ class Compare(testutil.ReallyEqualMixin, unittest.TestCase):
         self.failUnlessReallyEqual(len(s), 3) # since chk1==chk2
 
     def test_is_uri(self):
-        lit1 = uri.LiteralFileURI("some data").to_string()
+        lit1 = uri.LiteralFileURI(b"some data").to_string()
         self.failUnless(uri.is_uri(lit1))
         self.failIf(uri.is_uri(None))
 
     def test_is_literal_file_uri(self):
-        lit1 = uri.LiteralFileURI("some data").to_string()
+        lit1 = uri.LiteralFileURI(b"some data").to_string()
         self.failUnless(uri.is_literal_file_uri(lit1))
         self.failIf(uri.is_literal_file_uri(None))
         self.failIf(uri.is_literal_file_uri("foo"))
@@ -99,7 +99,7 @@ class CHKFile(testutil.ReallyEqualMixin, unittest.TestCase):
     def test_pack(self):
         key = b"\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f"
         storage_index = hashutil.storage_index_hash(key)
-        uri_extension_hash = hashutil.uri_extension_hash("stuff")
+        uri_extension_hash = hashutil.uri_extension_hash(b"stuff")
         needed_shares = 25
         total_shares = 100
         size = 1234
@@ -153,8 +153,8 @@ class CHKFile(testutil.ReallyEqualMixin, unittest.TestCase):
         v2 = uri.from_string(v.to_string())
         self.failUnlessReallyEqual(v, v2)
 
-        v3 = uri.CHKFileVerifierURI(storage_index="\x00"*16,
-                                    uri_extension_hash="\x00"*32,
+        v3 = uri.CHKFileVerifierURI(storage_index=b"\x00"*16,
+                                    uri_extension_hash=b"\x00"*32,
                                     needed_shares=3,
                                     total_shares=10,
                                     size=1234)
@@ -165,7 +165,7 @@ class CHKFile(testutil.ReallyEqualMixin, unittest.TestCase):
     def test_pack_badly(self):
         key = b"\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f"
         storage_index = hashutil.storage_index_hash(key)
-        uri_extension_hash = hashutil.uri_extension_hash("stuff")
+        uri_extension_hash = hashutil.uri_extension_hash(b"stuff")
         needed_shares = 25
         total_shares = 100
         size = 1234
@@ -197,20 +197,20 @@ class Extension(testutil.ReallyEqualMixin, unittest.TestCase):
         data = {"stuff": "value",
                 "size": 12,
                 "needed_shares": 3,
-                "big_hash": hashutil.tagged_hash("foo", "bar"),
+                "big_hash": hashutil.tagged_hash(b"foo", b"bar"),
                 }
         ext = uri.pack_extension(data)
         d = uri.unpack_extension(ext)
         self.failUnlessReallyEqual(d["stuff"], "value")
         self.failUnlessReallyEqual(d["size"], 12)
-        self.failUnlessReallyEqual(d["big_hash"], hashutil.tagged_hash("foo", "bar"))
+        self.failUnlessReallyEqual(d["big_hash"], hashutil.tagged_hash(b"foo", b"bar"))
 
         readable = uri.unpack_extension_readable(ext)
         self.failUnlessReallyEqual(readable["needed_shares"], 3)
         self.failUnlessReallyEqual(readable["stuff"], "value")
         self.failUnlessReallyEqual(readable["size"], 12)
         self.failUnlessReallyEqual(readable["big_hash"],
-                             base32.b2a(hashutil.tagged_hash("foo", "bar")))
+                             base32.b2a(hashutil.tagged_hash(b"foo", b"bar")))
         self.failUnlessReallyEqual(readable["UEB_hash"],
                              base32.b2a(hashutil.uri_extension_hash(ext)))
 
@@ -544,8 +544,8 @@ class Dirnode(testutil.ReallyEqualMixin, unittest.TestCase):
                                  u1.get_verify_cap()._filenode_uri)
 
     def test_immutable(self):
-        readkey = "\x01" * 16
-        uri_extension_hash = hashutil.uri_extension_hash("stuff")
+        readkey = b"\x01" * 16
+        uri_extension_hash = hashutil.uri_extension_hash(b"stuff")
         needed_shares = 3
         total_shares = 10
         size = 1234
@@ -605,7 +605,7 @@ class Dirnode(testutil.ReallyEqualMixin, unittest.TestCase):
         self.failUnless(str(u2_verifier))
 
     def test_literal(self):
-        u0 = uri.LiteralFileURI("data")
+        u0 = uri.LiteralFileURI(b"data")
         u1 = uri.LiteralDirectoryURI(u0)
         self.failUnless(str(u1))
         self.failUnlessReallyEqual(u1.to_string(), "URI:DIR2-LIT:mrqxiyi")
