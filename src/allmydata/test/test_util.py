@@ -5,7 +5,6 @@ import os, time, sys
 import yaml
 
 from twisted.trial import unittest
-from twisted.internet import defer, reactor
 from twisted.python.failure import Failure
 
 from allmydata.util import idlib, mathutil
