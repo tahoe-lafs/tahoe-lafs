@@ -22,6 +22,7 @@ PORTED_MODULES = [
     "allmydata.crypto.rsa",
     "allmydata.crypto.util",
     "allmydata.hashtree",
+    "allmydata.immutable._python3",
     "allmydata.util.abbreviate",
     "allmydata.util.assertutil",
     "allmydata.util.base32",

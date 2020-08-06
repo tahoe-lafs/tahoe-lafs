@@ -1,5 +1,14 @@
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
 
-from Queue import PriorityQueue
+from future.utils import PY2
+if PY2:
+    # We omit dict, just in case newdict breaks things for external Python 2 code.
+    from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, list, object, range, str, max, min  # noqa: F401
+
+from queue import PriorityQueue
 
 
 def augmenting_path_for(graph):
@@ -35,9 +44,9 @@ def bfs(graph, s):
     GRAY  = 1
     # BLACK vertices are those we have seen and explored
     BLACK = 2
-    color        = [WHITE for i in xrange(len(graph))]
-    predecessor  = [None for i in xrange(len(graph))]
-    distance     = [-1 for i in xrange(len(graph))]
+    color        = [WHITE for i in range(len(graph))]
+    predecessor  = [None for i in range(len(graph))]
+    distance     = [-1 for i in range(len(graph))]
     queue = [s] # vertices that we haven't explored yet.
     color[s] = GRAY
     distance[s] = 0
@@ -58,9 +67,9 @@ def residual_network(graph, f):
     flow network represented by my graph and f arguments. graph is a
     flow network in adjacency-list form, and f is a flow in graph.
     """
-    new_graph = [[] for i in xrange(len(graph))]
-    cf = [[0 for s in xrange(len(graph))] for sh in xrange(len(graph))]
-    for i in xrange(len(graph)):
+    new_graph = [[] for i in range(len(graph))]
+    cf = [[0 for s in range(len(graph))] for sh in range(len(graph))]
+    for i in range(len(graph)):
         for v in graph[i]:
             if f[i][v] == 1:
                 # We add an edge (v, i) with cf[v,i] = 1. This means
@@ -135,7 +144,7 @@ def _compute_maximum_graph(graph, shareIndices):
         return {}
 
     dim = len(graph)
-    flow_function = [[0 for sh in xrange(dim)] for s in xrange(dim)]
+    flow_function = [[0 for sh in range(dim)] for s in range(dim)]
     residual_graph, residual_function = residual_network(graph, flow_function)
 
     while augmenting_path_for(residual_graph):
@@ -260,9 +269,9 @@ def _servermap_flow_graph(peers, shares, servermap):
     #print "share_to_index %s" % share_to_index
     #print "servermap %s" % servermap
     for peer in peers:
-        if servermap.has_key(peer):
+        if peer in servermap:
             for s in servermap[peer]:
-                if share_to_index.has_key(s):
+                if s in share_to_index:
                     indexedShares.append(share_to_index[s])
         graph.insert(peer_to_index[peer], indexedShares)
     for share in shares:
@@ -373,7 +382,7 @@ def share_placement(peers, readonly_peers, shares, peers_to_shares):
     new_mappings = _calculate_mappings(new_peers, new_shares)
     #print "new_peers %s" % new_peers
     #print "new_mappings %s" % new_mappings
-    mappings = dict(readonly_mappings.items() + existing_mappings.items() + new_mappings.items())
+    mappings = dict(list(readonly_mappings.items()) + list(existing_mappings.items()) + list(new_mappings.items()))
     homeless_shares = set()
     for share in mappings:
         if mappings[share] is None:
@@ -384,7 +393,7 @@ def share_placement(peers, readonly_peers, shares, peers_to_shares):
             mappings, homeless_shares,
             {
                 k: v
-                for k, v in peers_to_shares.items()
+                for k, v in list(peers_to_shares.items())
                 if k not in readonly_peers
             }
         )
@@ -401,5 +410,5 @@ def share_placement(peers, readonly_peers, shares, peers_to_shares):
 
     return {
         k: v.pop() if v else next(peer_iter)
-        for k, v in mappings.items()
+        for k, v in list(mappings.items())
     }
