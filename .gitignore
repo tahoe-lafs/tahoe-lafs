@@ -9,6 +9,7 @@ venv
 *~
 *.DS_Store
 .*.kate-swp
+*.bak
 
 /build/
 /support/
