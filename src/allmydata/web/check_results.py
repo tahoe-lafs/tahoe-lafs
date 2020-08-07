@@ -777,6 +777,8 @@ class DeepCheckAndRepairResultsRendererElement(DeepCheckResultsRendererElement):
     def post_repair_corrupt_shares(self, req, tag):
         # TODO: this was not implemented before porting to
         # twisted.web.template; leaving it as such.
+        #
+        # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3371
         corrupt = [{"share":"unimplemented"}]
         return SlotsSequenceElement(tag, corrupt)
 
