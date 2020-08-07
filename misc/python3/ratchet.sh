@@ -32,6 +32,11 @@ set -e
 if [ $TERM = 'dumb' ]; then
   export TERM=ansi
 fi
-git diff "$tracking_filename"
 
-exit $code
+echo "The ${tracking_filename} diff is:"
+echo "================================="
+git diff "${tracking_filename}"
+echo "================================="
+
+echo "Exiting with code ${code} from ratchet.py."
+exit ${code}
