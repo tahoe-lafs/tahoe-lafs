@@ -10,8 +10,9 @@ from __future__ import unicode_literals
 
 from future.utils import PY2
 if PY2:
-    # Don't import object/str/dict/etc. types, so we don't break any interfaces.
-    from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, range, max, min  # noqa: F401
+    # Don't import object/str/dict/etc. types, so we don't break any
+    # interfaces. Not importing open() because it triggers bogus flake8 error.
+    from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, pow, round, super, range, max, min  # noqa: F401
 
 from past.builtins import long
 
