@@ -61,6 +61,7 @@ PORTED_TEST_MODULES = [
     "allmydata.test.test_humanreadable",
     "allmydata.test.test_iputil",
     "allmydata.test.test_log",
+    "allmydata.test.test_monitor",
     "allmydata.test.test_netstring",
     "allmydata.test.test_observer",
     "allmydata.test.test_pipeline",
