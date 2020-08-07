@@ -87,7 +87,7 @@ class RIBucketReader(RemoteInterface):
         """
 
 
-TestVector = ListOf(TupleOf(Offset, ReadSize, str, str))
+TestVector = ListOf(TupleOf(Offset, ReadSize, bytes, bytes))
 # elements are (offset, length, operator, specimen)
 # operator is one of "lt, le, eq, ne, ge, gt"
 # nop always passes and is used to fetch data while writing.
@@ -111,7 +111,7 @@ class RIStorageServer(RemoteInterface):
         """
         Return a dictionary of version information.
         """
-        return DictOf(str, Any())
+        return DictOf(bytes, Any())
 
     def allocate_buckets(storage_index=StorageIndex,
                          renew_secret=LeaseRenewSecret,
