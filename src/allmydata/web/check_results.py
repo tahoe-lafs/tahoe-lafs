@@ -463,30 +463,34 @@ class DeepCheckResultsRendererElement(Element, ResultsBase, ReloadMixin):
 
     @renderer
     def root_storage_index(self, req, tag):
+        if not self.monitor.get_status():
+            return ""
         return self.monitor.get_status().get_root_storage_index_string()
 
     def _get_monitor_counter(self, name):
-        return self.monitor.get_status().get_counters().get(name)
+        if not self.monitor.get_status():
+            return ""
+        return str(self.monitor.get_status().get_counters().get(name))
 
     @renderer
     def objects_checked(self, req, tag):
-        return str(self._get_monitor_counter("count-objects-checked"))
+        return self._get_monitor_counter("count-objects-checked")
 
     @renderer
     def objects_healthy(self, req, tag):
-        return str(self._get_monitor_counter("count-objects-healthy"))
+        return self._get_monitor_counter("count-objects-healthy")
 
     @renderer
     def objects_unhealthy(self, req, tag):
-        return str(self._get_monitor_counter("count-objects-unhealthy"))
+        return self._get_monitor_counter("count-objects-unhealthy")
 
     @renderer
     def objects_unrecoverable(self, req, tag):
-        return str(self._get_monitor_counter("count-objects-unrecoverable"))
+        return self._get_monitor_counter("count-objects-unrecoverable")
 
     @renderer
     def count_corrupt_shares(self, req, tag):
-        return str(self._get_monitor_counter("count-corrupt-shares"))
+        return self._get_monitor_counter("count-corrupt-shares")
 
     @renderer
     def problems_p(self, req, tag):
