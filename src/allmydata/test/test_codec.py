@@ -15,7 +15,7 @@ if PY2:
 import os
 from twisted.trial import unittest
 from twisted.python import log
-from allmydata.codec import CRSEncoder, CRSDecoder
+from allmydata.codec import CRSEncoder, CRSDecoder, parse_params
 import random
 from allmydata.util import mathutil
 
@@ -26,6 +26,8 @@ class T(unittest.TestCase):
         enc.set_params(size, required_shares, max_shares)
         params = enc.get_params()
         assert params == (size, required_shares, max_shares)
+        serialized_params = enc.get_serialized_params()
+        self.assertEqual(parse_params(serialized_params), params)
         log.msg("params: %s" % (params,))
         d = enc.encode(data0s)
         def _done_encoding_all(shares_and_shareids):
