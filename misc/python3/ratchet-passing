@@ -24,6 +24,9 @@ allmydata.test.test_base62.Base62.test_known_values
 allmydata.test.test_base62.Base62.test_num_octets_that_encode_to_this_many_chars
 allmydata.test.test_base62.Base62.test_odd_sizes
 allmydata.test.test_base62.Base62.test_roundtrip
+allmydata.test.test_codec.T.test_encode
+allmydata.test.test_codec.T.test_encode1
+allmydata.test.test_codec.T.test_encode2
 allmydata.test.test_crypto.TestEd25519.test_deserialize_private_not_bytes
 allmydata.test.test_crypto.TestEd25519.test_deserialize_public_not_bytes
 allmydata.test.test_crypto.TestEd25519.test_key_serialization
@@ -91,6 +94,9 @@ allmydata.test.test_log.Log.test_numming
 allmydata.test.test_log.Log.test_parent_id
 allmydata.test.test_log.Log.test_with_bytes_prefix
 allmydata.test.test_log.Log.test_with_prefix
+allmydata.test.test_monitor.MonitorTests.test_cancellation
+allmydata.test.test_monitor.MonitorTests.test_finish
+allmydata.test.test_monitor.MonitorTests.test_status
 allmydata.test.test_netstring.Netstring.test_encode
 allmydata.test.test_netstring.Netstring.test_extra
 allmydata.test.test_netstring.Netstring.test_nested
