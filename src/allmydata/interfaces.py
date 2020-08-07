@@ -1,3 +1,19 @@
+"""
+Interfaces for Tahoe-LAFS.
+
+Ported to Python 3.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    # Don't import object/str/dict/etc. types, so we don't break any interfaces.
+    from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, range, max, min  # noqa: F401
+
+from past.builtins import long
 
 from zope.interface import Interface, Attribute
 from twisted.plugin import (

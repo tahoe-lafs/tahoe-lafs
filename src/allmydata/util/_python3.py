@@ -22,6 +22,7 @@ PORTED_MODULES = [
     "allmydata.crypto.rsa",
     "allmydata.crypto.util",
     "allmydata.hashtree",
+    "allmydata.interfaces",
     "allmydata.test.common_py3",
     "allmydata.util._python3",
     "allmydata.util.abbreviate",
