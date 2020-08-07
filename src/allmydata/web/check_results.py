@@ -677,6 +677,10 @@ class DeepCheckAndRepairResultsRenderer(MultiFormatResource):
 
 
 class DeepCheckAndRepairResultsRendererElement(DeepCheckResultsRendererElement):
+    """
+    The page generated here has several elements common to "deep check
+    results" page; hence the code reuse.
+    """
 
     loader = XMLFile(FilePath(__file__).sibling("deep-check-and-repair-results.xhtml"))
 
