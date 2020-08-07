@@ -676,12 +676,12 @@ class DeepCheckAndRepairResultsRenderer(MultiFormatResource):
         return json.dumps(data, indent=1) + "\n"
 
 
-class DeepCheckAndRepairResultsRendererElement(Element, ResultsBase, ReloadMixin):
+class DeepCheckAndRepairResultsRendererElement(DeepCheckResultsRendererElement):
 
     loader = XMLFile(FilePath(__file__).sibling("deep-check-and-repair-results.xhtml"))
 
     def __init__(self, monitor):
-        super(DeepCheckAndRepairResultsRendererElement, self).__init__()
+        super(DeepCheckAndRepairResultsRendererElement, self).__init__(monitor)
         self.monitor = monitor
 
     @renderer
