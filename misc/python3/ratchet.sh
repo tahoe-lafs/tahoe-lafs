@@ -33,6 +33,7 @@ if [ $TERM = 'dumb' ]; then
   export TERM=ansi
 fi
 
+apt-get install -y strace
 echo "The ${tracking_filename} diff is:"
 echo "================================="
 export GIT_TRACE=1
