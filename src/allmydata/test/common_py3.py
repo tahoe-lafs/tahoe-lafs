@@ -17,7 +17,8 @@ import os
 import time
 import signal
 
-from twisted.internet import reactor
+from twisted.internet import defer, reactor
+from twisted.python import failure
 
 
 class TimezoneMixin(object):
@@ -65,3 +66,26 @@ class SignalMixin(object):
         if self.sigchldHandler:
             signal.signal(signal.SIGCHLD, self.sigchldHandler)
         return super(SignalMixin, self).tearDown()
+
+
+class ShouldFailMixin(object):
+
+    def shouldFail(self, expected_failure, which, substring,
+                   callable, *args, **kwargs):
+        assert substring is None or isinstance(substring, str)
+        d = defer.maybeDeferred(callable, *args, **kwargs)
+        def done(res):
+            if isinstance(res, failure.Failure):
+                res.trap(expected_failure)
+                if substring:
+                    self.failUnless(substring in str(res),
+                                    "%s: substring '%s' not in '%s'"
+                                    % (which, substring, str(res)))
+                # return the Failure for further analysis, but in a form that
+                # doesn't make the Deferred chain think that we failed.
+                return [res]
+            else:
+                self.fail("%s was supposed to raise %s, not get '%s'" %
+                          (which, expected_failure, res))
+        d.addBoth(done)
+        return d
