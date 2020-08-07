@@ -30,6 +30,7 @@ PORTED_MODULES = [
     "allmydata.util.deferredutil",
     "allmydata.util.dictutil",
     "allmydata.util.gcutil",
+    "allmydata.util.happinessutil",
     "allmydata.util.hashutil",
     "allmydata.util.humanreadable",
     "allmydata.util.iputil",
