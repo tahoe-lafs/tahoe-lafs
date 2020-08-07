@@ -314,7 +314,7 @@ jobs:
   fedora-29:
     <<: *RHEL_DERIV
     docker:
-      - image: "tahoelafsci/fedora:29-py2"
+      - image: "tahoelafsci/fedora:29-py"
         user: "nobody"
 
 
