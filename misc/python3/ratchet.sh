@@ -35,7 +35,7 @@ fi
 
 echo "The ${tracking_filename} diff is:"
 echo "================================="
-git diff "${tracking_filename}"
+git diff -- "${tracking_filename}"
 echo "================================="
 
 echo "Exiting with code ${code} from ratchet.py."
