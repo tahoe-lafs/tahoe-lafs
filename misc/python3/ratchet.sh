@@ -11,7 +11,7 @@ cd "../.."
 
 # Since both of the next calls are expected to exit non-0, relax our guard.
 set +e
-SUBUNITREPORTER_OUTPUT_PATH="$base/results.subunit2" trial --reporter subunitv2-file allmydata
+SUBUNITREPORTER_OUTPUT_PATH="$base/results.subunit2" trial --temp-directory /tmp/_trial_temp.ratchet --reporter subunitv2-file allmydata
 subunit2junitxml < "$base/results.subunit2" > "$base/results.xml"
 set -e
 
