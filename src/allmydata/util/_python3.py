@@ -22,6 +22,8 @@ PORTED_MODULES = [
     "allmydata.crypto.rsa",
     "allmydata.crypto.util",
     "allmydata.hashtree",
+    "allmydata.test.common_py3",
+    "allmydata.util._python3",
     "allmydata.util.abbreviate",
     "allmydata.util.assertutil",
     "allmydata.util.base32",
@@ -38,11 +40,9 @@ PORTED_MODULES = [
     "allmydata.util.observer",
     "allmydata.util.pipeline",
     "allmydata.util.pollmixin",
-    "allmydata.util._python3",
     "allmydata.util.spans",
     "allmydata.util.statistics",
     "allmydata.util.time_format",
-    "allmydata.test.common_py3",
 ]
 
 PORTED_TEST_MODULES = [
