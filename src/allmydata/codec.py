@@ -1,4 +1,17 @@
-# -*- test-case-name: allmydata.test.test_encode_share -*-
+"""
+CRS encoding and decoding.
+
+Ported to Python 3.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+from future.utils import native_str
 
 from zope.interface import implementer
 from twisted.internet import defer
@@ -27,8 +40,8 @@ class CRSEncoder(object):
         return (self.data_size, self.required_shares, self.max_shares)
 
     def get_serialized_params(self):
-        return "%d-%d-%d" % (self.data_size, self.required_shares,
-                             self.max_shares)
+        return native_str("%d-%d-%d" % (self.data_size, self.required_shares,
+                                        self.max_shares))
 
     def get_block_size(self):
         return self.share_size
@@ -37,7 +50,7 @@ class CRSEncoder(object):
         precondition(desired_share_ids is None or len(desired_share_ids) <= self.max_shares, desired_share_ids, self.max_shares)
 
         if desired_share_ids is None:
-            desired_share_ids = range(self.max_shares)
+            desired_share_ids = list(range(self.max_shares))
 
         for inshare in inshares:
             assert len(inshare) == self.share_size, (len(inshare), self.share_size, self.data_size, self.required_shares)

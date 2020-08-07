@@ -1,3 +1,16 @@
+"""
+Tests for allmydata.codec.
+
+Ported to Python 3.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 import os
 from twisted.trial import unittest
@@ -23,7 +36,7 @@ class T(unittest.TestCase):
         d.addCallback(_done_encoding_all)
         if fewer_shares is not None:
             # also validate that the desired_shareids= parameter works
-            desired_shareids = random.sample(range(max_shares), fewer_shares)
+            desired_shareids = random.sample(list(range(max_shares)), fewer_shares)
             d.addCallback(lambda res: enc.encode(data0s, desired_shareids))
             def _check_fewer_shares(some_shares_and_their_shareids):
                 (some_shares, their_shareids) = some_shares_and_their_shareids
@@ -38,11 +51,11 @@ class T(unittest.TestCase):
             return d1
 
         def _check_data(decoded_shares):
-            self.failUnlessEqual(len(''.join(decoded_shares)), len(''.join(data0s)))
+            self.failUnlessEqual(len(b''.join(decoded_shares)), len(b''.join(data0s)))
             self.failUnlessEqual(len(decoded_shares), len(data0s))
             for (i, (x, y)) in enumerate(zip(data0s, decoded_shares)):
                 self.failUnlessEqual(x, y, "%s: %r != %r....  first share was %r" % (str(i), x, y, data0s[0],))
-            self.failUnless(''.join(decoded_shares) == ''.join(data0s), "%s" % ("???",))
+            self.failUnless(b''.join(decoded_shares) == b''.join(data0s), "%s" % ("???",))
             # 0data0sclipped = tuple(data0s)
             # data0sclipped[-1] =
             # self.failUnless(tuple(decoded_shares) == tuple(data0s))
@@ -59,7 +72,7 @@ class T(unittest.TestCase):
         def _decode_some_random(res):
             log.msg("_decode_some_random")
             # use a randomly-selected minimal subset
-            l = random.sample(zip(self.shares, self.shareids), required_shares)
+            l = random.sample(list(zip(self.shares, self.shareids)), required_shares)
             some_shares = [ x[0] for x in l ]
             some_shareids = [ x[1] for x in l ]
             return _decode((some_shares, some_shareids))
@@ -70,10 +83,10 @@ class T(unittest.TestCase):
             log.msg("_decode_multiple")
             # make sure we can re-use the decoder object
             shares1 = random.sample(self.shares, required_shares)
-            sharesl1 = random.sample(zip(self.shares, self.shareids), required_shares)
+            sharesl1 = random.sample(list(zip(self.shares, self.shareids)), required_shares)
             shares1 = [ x[0] for x in sharesl1 ]
             shareids1 = [ x[1] for x in sharesl1 ]
-            sharesl2 = random.sample(zip(self.shares, self.shareids), required_shares)
+            sharesl2 = random.sample(list(zip(self.shares, self.shareids)), required_shares)
             shares2 = [ x[0] for x in sharesl2 ]
             shareids2 = [ x[1] for x in sharesl2 ]
             dec = CRSDecoder()
