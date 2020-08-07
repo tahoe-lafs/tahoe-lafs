@@ -25,22 +25,6 @@ class SampleError(Exception):
     pass
 
 
-class LoggingObject0(tahoe_log.PrefixingLogMixin):
-    pass
-
-
-class LoggingObject1(tahoe_log.PrefixingLogMixin):
-    pass
-
-
-class LoggingObject2(tahoe_log.PrefixingLogMixin):
-    pass
-
-
-class LoggingObject3(tahoe_log.PrefixingLogMixin):
-    pass
-
-
 class Log(unittest.TestCase):
     def setUp(self):
         self.messages = []
@@ -67,6 +51,9 @@ class Log(unittest.TestCase):
         If facility is passed to PrefixingLogMixin.__init__, it is used as
         default facility.
         """
+        class LoggingObject1(tahoe_log.PrefixingLogMixin):
+            pass
+
         obj = LoggingObject1(facility="defaultfac")
         obj.log("hello")
         obj.log("world", facility="override")
@@ -78,28 +65,37 @@ class Log(unittest.TestCase):
         If prefix is passed to PrefixingLogMixin.__init__, it is used in
         message rendering.
         """
-        obj = LoggingObject0("fac", prefix="pre1")
+        class LoggingObject4(tahoe_log.PrefixingLogMixin):
+            pass
+
+        obj = LoggingObject4("fac", prefix="pre1")
         obj.log("hello")
         obj.log("world")
-        self.assertEqual(self.messages[-2][0], '<LoggingObject0 #1>(pre1): hello')
-        self.assertEqual(self.messages[-1][0], '<LoggingObject0 #1>(pre1): world')
+        self.assertEqual(self.messages[-2][0], '<LoggingObject4 #1>(pre1): hello')
+        self.assertEqual(self.messages[-1][0], '<LoggingObject4 #1>(pre1): world')
 
     def test_with_bytes_prefix(self):
         """
         If bytes prefix is passed to PrefixingLogMixin.__init__, it is used in
         message rendering.
         """
-        obj = LoggingObject0("fac", prefix=b"pre1")
+        class LoggingObject5(tahoe_log.PrefixingLogMixin):
+            pass
+
+        obj = LoggingObject5("fac", prefix=b"pre1")
         obj.log("hello")
         obj.log("world")
-        self.assertEqual(self.messages[-2][0], '<LoggingObject0 #1>(pre1): hello')
-        self.assertEqual(self.messages[-1][0], '<LoggingObject0 #1>(pre1): world')
+        self.assertEqual(self.messages[-2][0], '<LoggingObject5 #1>(pre1): hello')
+        self.assertEqual(self.messages[-1][0], '<LoggingObject5 #1>(pre1): world')
 
     def test_no_prefix(self):
         """
         If no prefix is passed to PrefixingLogMixin.__init__, it is not used in
         message rendering.
         """
+        class LoggingObject2(tahoe_log.PrefixingLogMixin):
+            pass
+
         obj = LoggingObject2()
         obj.log("hello")
         obj.log("world")
@@ -111,6 +107,9 @@ class Log(unittest.TestCase):
         Objects inheriting from PrefixingLogMixin get a unique number from a
         class-specific counter.
         """
+        class LoggingObject3(tahoe_log.PrefixingLogMixin):
+            pass
+
         obj = LoggingObject3()
         obj2 = LoggingObject3()
         obj.log("hello")
@@ -125,6 +124,9 @@ class Log(unittest.TestCase):
 
         This logic is pretty bogus, but that's what the code does.
         """
+        class LoggingObject1(tahoe_log.PrefixingLogMixin):
+            pass
+
         obj = LoggingObject1()
         result = obj.log("zero")
         self.assertEqual(result, "msg1")
@@ -140,6 +142,9 @@ class Log(unittest.TestCase):
         If grandparent message id is given, it's used as parent id of the first
         message.
         """
+        class LoggingObject1(tahoe_log.PrefixingLogMixin):
+            pass
+
         obj = LoggingObject1(grandparentmsgid="grand")
         result = obj.log("zero")
         self.assertEqual(result, "msg1")
