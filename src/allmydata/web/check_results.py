@@ -685,59 +685,44 @@ class DeepCheckAndRepairResultsRendererElement(DeepCheckResultsRendererElement):
         self.monitor = monitor
 
     @renderer
-    def root_storage_index(self, req, tag):
-        if not self.monitor.get_status():
-            return ""
-        return self.monitor.get_status().get_root_storage_index_string()
-
-    def _get_counter(self, name):
-        if not self.monitor.get_status():
-            return ""
-        return str(self.monitor.get_status().get_counters().get(name))
-
-    @renderer
-    def objects_checked(self, req, tag):
-        return self._get_counter("count-objects-checked")
-
-    @renderer
     def objects_healthy(self, req, tag):
-        return self._get_counter("count-objects-healthy-pre-repair")
+        return self._get_monitor_counter("count-objects-healthy-pre-repair")
 
     @renderer
     def objects_unhealthy(self, req, tag):
-        return self._get_counter("count-objects-unhealthy-pre-repair")
+        return self._get_monitor_counter("count-objects-unhealthy-pre-repair")
 
     @renderer
     def corrupt_shares(self, req, tag):
-        return self._get_counter("count-corrupt-shares-pre-repair")
+        return self._get_monitor_counter("count-corrupt-shares-pre-repair")
 
     @renderer
     def repairs_attempted(self, req, tag):
-        return self._get_counter("count-repairs-attempted")
+        return self._get_monitor_counter("count-repairs-attempted")
 
     @renderer
     def repairs_successful(self, req, tag):
-        return self._get_counter("count-repairs-successful")
+        return self._get_monitor_counter("count-repairs-successful")
 
     @renderer
     def repairs_unsuccessful(self, req, tag):
-        return self._get_counter("count-repairs-unsuccessful")
+        return self._get_monitor_counter("count-repairs-unsuccessful")
 
     @renderer
     def objects_healthy_post(self, req, tag):
-        return self._get_counter("count-objects-healthy-post-repair")
+        return self._get_monitor_counter("count-objects-healthy-post-repair")
 
     @renderer
     def objects_unhealthy_post(self, req, tag):
-        return self._get_counter("count-objects-unhealthy-post-repair")
+        return self._get_monitor_counter("count-objects-unhealthy-post-repair")
 
     @renderer
     def corrupt_shares_post(self, req, tag):
-        return self._get_counter("count-corrupt-shares-post-repair")
+        return self._get_monitor_counter("count-corrupt-shares-post-repair")
 
     @renderer
     def pre_repair_problems_p(self, req, tag):
-        if self._get_counter("count-objects-unhealthy-pre-repair"):
+        if self._get_monitor_counter("count-objects-unhealthy-pre-repair"):
             return tag
         return ""
 
@@ -758,8 +743,8 @@ class DeepCheckAndRepairResultsRendererElement(DeepCheckResultsRendererElement):
 
     @renderer
     def post_repair_problems_p(self, req, tag):
-        if (self._get_counter("count-objects-unhealthy-post-repair")
-            or self._get_counter("count-corrupt-shares-post-repair")):
+        if (self._get_monitor_counter("count-objects-unhealthy-post-repair")
+            or self._get_monitor_counter("count-corrupt-shares-post-repair")):
             return tag
         return ""
 
@@ -780,7 +765,7 @@ class DeepCheckAndRepairResultsRendererElement(DeepCheckResultsRendererElement):
 
     @renderer
     def servers_with_corrupt_shares_p(self, req, tag):
-        if self._get_counter("count-corrupt-shares-pre-repair"):
+        if self._get_monitor_counter("count-corrupt-shares-pre-repair"):
             return tag
         return ""
 
@@ -793,7 +778,7 @@ class DeepCheckAndRepairResultsRendererElement(DeepCheckResultsRendererElement):
 
     @renderer
     def remaining_corrupt_shares_p(self, req, tag):
-        if self._get_counter("count-corrupt-shares-post-repair"):
+        if self._get_monitor_counter("count-corrupt-shares-post-repair"):
             return tag
         return ""
 
@@ -803,13 +788,6 @@ class DeepCheckAndRepairResultsRendererElement(DeepCheckResultsRendererElement):
         # twisted.web.template; leaving it as such.
         corrupt = [{"share":"unimplemented"}]
         return SlotsSequenceElement(tag, corrupt)
-
-    @renderer
-    def return_to(self, req, tag):
-        return_to = get_arg(req, "return_to", None)
-        if return_to:
-            return tags.div(tags.a("Return to file/directory.", href=return_to))
-        return ""
 
     @renderer
     def all_objects(self, req, tag):
@@ -833,9 +811,3 @@ class DeepCheckAndRepairResultsRendererElement(DeepCheckResultsRendererElement):
 
         return SlotsSequenceElement(tag, objects)
 
-    @renderer
-    def runtime(self, req, tag):
-        runtime = 'unknown'
-        if hasattr(req, 'processing_started_timestamp'):
-            runtime = time.time() - req.processing_started_timestamp
-        return tag("runtime: %s seconds" % runtime)
