@@ -764,19 +764,6 @@ class DeepCheckAndRepairResultsRendererElement(DeepCheckResultsRendererElement):
         return SlotsSequenceElement(tag, problems)
 
     @renderer
-    def servers_with_corrupt_shares_p(self, req, tag):
-        if self._get_monitor_counter("count-corrupt-shares-pre-repair"):
-            return tag
-        return ""
-
-    @renderer
-    def servers_with_corrupt_shares(self, req, tag):
-        # TODO: this was originally unimplemented before porting to
-        # twisted.web.template; leaving it as such.
-        corrupt = [{"share":"unimplemented"}]
-        return SlotsSequenceElement(tag, corrupt)
-
-    @renderer
     def remaining_corrupt_shares_p(self, req, tag):
         if self._get_monitor_counter("count-corrupt-shares-post-repair"):
             return tag
