@@ -11,7 +11,7 @@ cd "../.."
 
 # Since both of the next calls are expected to exit non-0, relax our guard.
 set +e
-trial ${TAHOE_LAFS_TRIAL_ARGS} allmydata
+trial --reporter=subunitv2-file allmydata
 subunit2junitxml < "${SUBUNITREPORTER_OUTPUT_PATH}" > "$base/results.xml"
 set -e
 
