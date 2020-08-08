@@ -81,6 +81,11 @@ ${TIMEOUT} ${BOOTSTRAP_VENV}/bin/tox \
     ${TAHOE_LAFS_TOX_ARGS} || "${alternative}"
 
 if [ -n "${ARTIFACTS}" ]; then
+    if [ ! -e "${SUBUNIT2}" ]; then
+	echo "subunitv2 output file does not exist: ${SUBUNIT2}"
+	exit 1
+    fi
+
     # Create a junitxml results area.
     mkdir -p "$(dirname "${JUNITXML}")"
     ${BOOTSTRAP_VENV}/bin/subunit2junitxml < "${SUBUNIT2}" > "${JUNITXML}" || "${alternative}"
