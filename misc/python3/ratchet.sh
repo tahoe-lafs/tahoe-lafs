@@ -41,7 +41,8 @@ export GIT_TRACE_PACK_ACCESS=1
 export GIT_TRACE_PACKET=1
 export GIT_TRACE_PERFORMANCE=1
 export GIT_TRACE_SETUP=1
-strace -f git diff -- "${tracking_filename}"
+strace -f git diff -- "${tracking_filename}" > tracking.diff
+cat tracking.diff
 echo "================================="
 
 echo "Exiting with code ${code} from ratchet.py."
