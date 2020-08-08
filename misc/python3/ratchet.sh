@@ -11,8 +11,7 @@ cd "../.."
 
 # Since both of the next calls are expected to exit non-0, relax our guard.
 set +e
-trial --temp-directory /tmp/_trial_temp.ratchet --reporter subunitv2-file allmydata
-find "${SUBUNITREPORTER_OUTPUT_PATH}"
+trial ${TAHOE_LAFS_TRIAL_ARGS} allmydata
 subunit2junitxml < "${SUBUNITREPORTER_OUTPUT_PATH}" > "$base/results.xml"
 set -e
 
