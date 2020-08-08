@@ -13,6 +13,7 @@ RUN apt-get --quiet update && \
     apt-get --quiet --yes install git && \
     apt-get --quiet --yes install \
         sudo \
+	strace \
         build-essential \
         python${PYTHON_VERSION} \
         python${PYTHON_VERSION}-dev \
