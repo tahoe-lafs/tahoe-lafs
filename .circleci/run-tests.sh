@@ -88,5 +88,5 @@ if [ -n "${ARTIFACTS}" ]; then
 
     # Create a junitxml results area.
     mkdir -p "$(dirname "${JUNITXML}")"
-    ${BOOTSTRAP_VENV}/bin/subunit2junitxml < "${SUBUNIT2}" > "${JUNITXML}" || "${alternative}"
+    cat "${SUBUNIT2}" | ${BOOTSTRAP_VENV}/bin/subunit2junitxml | cat > "${JUNITXML}" || "${alternative}"
 fi
