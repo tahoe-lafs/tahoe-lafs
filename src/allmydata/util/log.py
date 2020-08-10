@@ -1,4 +1,18 @@
-from allmydata.util import nummedobj
+"""
+Logging utilities.
+
+Ported to Python 3.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+
+from pyutil import nummedobj
 
 from foolscap.logging import log
 from twisted.python import log as tw_log
@@ -36,8 +50,8 @@ class LogMixin(object):
     def log(self, msg, facility=None, parent=None, *args, **kwargs):
         if facility is None:
             facility = self._facility
-        pmsgid = None
-        if parent is None:
+        pmsgid = parent
+        if pmsgid is None:
             pmsgid = self._parentmsgid
             if pmsgid is None:
                 pmsgid = self._grandparentmsgid
@@ -54,6 +68,8 @@ class PrefixingLogMixin(nummedobj.NummedObj, LogMixin):
         LogMixin.__init__(self, facility, grandparentmsgid)
 
         if prefix:
+            if isinstance(prefix, bytes):
+                prefix = prefix.decode("utf-8", errors="replace")
             self._prefix = "%s(%s): " % (self.__repr__(), prefix)
         else:
             self._prefix = "%s: " % (self.__repr__(),)
