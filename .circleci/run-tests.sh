@@ -88,5 +88,9 @@ if [ -n "${ARTIFACTS}" ]; then
 
     # Create a junitxml results area.
     mkdir -p "$(dirname "${JUNITXML}")"
-    cat "${SUBUNIT2}" | ${BOOTSTRAP_VENV}/bin/subunit2junitxml
+    # Always succeed even if subunit2junitxml fails.  subunit2junitxml signals
+    # failure if the stream it is processing contains test failures.  This is
+    # not what we care about.  If we cared about it, the test command above
+    # would have signalled failure already and we wouldn't be here.
+    "${BOOTSTRAP_VENV}"/bin/subunit2junitxml < "${SUBUNIT2}" > "${JUNITXML}" || true
 fi
