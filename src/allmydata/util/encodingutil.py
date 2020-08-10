@@ -3,6 +3,8 @@ Functions used to convert inputs from whatever encoding used in the system to
 unicode and back.
 """
 
+from past.builtins import unicode
+
 import sys, os, re, locale
 
 from allmydata.util.assertutil import precondition, _assert
@@ -89,7 +91,7 @@ def argv_to_unicode(s):
     """
     Decode given argv element to unicode. If this fails, raise a UsageError.
     """
-    precondition(isinstance(s, str), s)
+    precondition(isinstance(s, bytes), s)
 
     try:
         return unicode(s, io_encoding)
@@ -134,19 +136,19 @@ def unicode_to_url(s):
     #precondition(isinstance(s, unicode), s)
     #return s.encode('utf-8')
 
-def to_str(s):
-    if s is None or isinstance(s, str):
+def to_str(s):  # TODO rename to to_bytes
+    if s is None or isinstance(s, bytes):
         return s
     return s.encode('utf-8')
 
 def from_utf8_or_none(s):
-    precondition(isinstance(s, (NoneType, str)), s)
+    precondition(isinstance(s, str) or s is None, s)
     if s is None:
         return s
     return s.decode('utf-8')
 
-PRINTABLE_ASCII = re.compile(r'^[\n\r\x20-\x7E]*$',          re.DOTALL)
-PRINTABLE_8BIT  = re.compile(r'^[\n\r\x20-\x7E\x80-\xFF]*$', re.DOTALL)
+PRINTABLE_ASCII = re.compile(br'^[\n\r\x20-\x7E]*$',          re.DOTALL)
+PRINTABLE_8BIT  = re.compile(br'^[\n\r\x20-\x7E\x80-\xFF]*$', re.DOTALL)
 
 def is_printable_ascii(s):
     return PRINTABLE_ASCII.search(s) is not None
@@ -188,14 +190,14 @@ def _unicode_escape(m, quote_newlines):
     else:
         return u'\\x%02x' % (codepoint,)
 
-def _str_escape(m, quote_newlines):
+def _str_escape(m, quote_newlines):  # TODO rename to _bytes_escape
     c = m.group(0)
-    if c == '"' or c == '$' or c == '`' or c == '\\':
-        return '\\' + c
-    elif c == '\n' and not quote_newlines:
+    if c == b'"' or c == b'$' or c == b'`' or c == b'\\':
+        return b'\\' + c
+    elif c == b'\n' and not quote_newlines:
         return c
     else:
-        return '\\x%02x' % (ord(c),)
+        return b'\\x%02x' % (ord(c),)
 
 MUST_DOUBLE_QUOTE_NL = re.compile(u'[^\\x20-\\x26\\x28-\\x7E\u00A0-\uD7FF\uE000-\uFDCF\uFDF0-\uFFFC]', re.DOTALL)
 MUST_DOUBLE_QUOTE    = re.compile(u'[^\\n\\x20-\\x26\\x28-\\x7E\u00A0-\uD7FF\uE000-\uFDCF\uFDF0-\uFFFC]', re.DOTALL)
@@ -205,7 +207,7 @@ ESCAPABLE_UNICODE = re.compile(u'([\uD800-\uDBFF][\uDC00-\uDFFF])|'  # valid sur
                                u'[^ !#\\x25-\\x5B\\x5D-\\x5F\\x61-\\x7E\u00A0-\uD7FF\uE000-\uFDCF\uFDF0-\uFFFC]',
                                re.DOTALL)
 
-ESCAPABLE_8BIT    = re.compile( r'[^ !#\x25-\x5B\x5D-\x5F\x61-\x7E]', re.DOTALL)
+ESCAPABLE_8BIT    = re.compile( br'[^ !#\x25-\x5B\x5D-\x5F\x61-\x7E]', re.DOTALL)
 
 def quote_output(s, quotemarks=True, quote_newlines=None, encoding=None):
     """
@@ -221,11 +223,11 @@ def quote_output(s, quotemarks=True, quote_newlines=None, encoding=None):
 
     If not explicitly given, quote_newlines is True when quotemarks is True.
     """
-    precondition(isinstance(s, (str, unicode)), s)
+    precondition(isinstance(s, (bytes, unicode)), s)
     if quote_newlines is None:
         quote_newlines = quotemarks
 
-    if isinstance(s, str):
+    if isinstance(s, bytes):
         try:
             s = s.decode('utf-8')
         except UnicodeDecodeError:
@@ -235,18 +237,18 @@ def quote_output(s, quotemarks=True, quote_newlines=None, encoding=None):
     if must_double_quote.search(s) is None:
         try:
             out = s.encode(encoding or io_encoding)
-            if quotemarks or out.startswith('"'):
-                return "'%s'" % (out,)
+            if quotemarks or out.startswith(b'"'):
+                return b"'%s'" % (out,)
             else:
                 return out
         except (UnicodeDecodeError, UnicodeEncodeError):
             pass
 
     escaped = ESCAPABLE_UNICODE.sub(lambda m: _unicode_escape(m, quote_newlines), s)
-    return '"%s"' % (escaped.encode(encoding or io_encoding, 'backslashreplace'),)
+    return b'"%s"' % (escaped.encode(encoding or io_encoding, 'backslashreplace'),)
 
 def quote_path(path, quotemarks=True):
-    return quote_output("/".join(map(to_str, path)), quotemarks=quotemarks, quote_newlines=True)
+    return quote_output(b"/".join(map(to_str, path)), quotemarks=quotemarks, quote_newlines=True)
 
 def quote_local_unicode_path(path, quotemarks=True):
     precondition(isinstance(path, unicode), path)
@@ -290,7 +292,7 @@ def to_filepath(path):
     return FilePath(path)
 
 def _decode(s):
-    precondition(isinstance(s, basestring), s=s)
+    precondition(isinstance(s, (bytes, unicode)), s=s)
 
     if isinstance(s, bytes):
         return s.decode(filesystem_encoding)
