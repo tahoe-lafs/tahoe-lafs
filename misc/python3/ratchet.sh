@@ -11,8 +11,8 @@ cd "../.."
 
 # Since both of the next calls are expected to exit non-0, relax our guard.
 set +e
-SUBUNITREPORTER_OUTPUT_PATH="$base/results.subunit2" trial --reporter subunitv2-file allmydata
-subunit2junitxml < "$base/results.subunit2" > "$base/results.xml"
+trial --reporter=subunitv2-file allmydata
+subunit2junitxml < "${SUBUNITREPORTER_OUTPUT_PATH}" > "$base/results.xml"
 set -e
 
 # Okay, now we're clear.
@@ -32,6 +32,14 @@ set -e
 if [ $TERM = 'dumb' ]; then
   export TERM=ansi
 fi
-git diff "$tracking_filename"
 
-exit $code
+echo "The ${tracking_filename} diff is:"
+echo "================================="
+# "git diff" gets pretty confused in this execution context when trying to
+# write to stdout.  Somehow it fails with SIGTTOU.
+git diff -- "${tracking_filename}" > tracking.diff
+cat tracking.diff
+echo "================================="
+
+echo "Exiting with code ${code} from ratchet.py."
+exit ${code}

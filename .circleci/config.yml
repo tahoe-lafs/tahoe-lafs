@@ -31,6 +31,9 @@ workflows:
       # Test against PyPy 2.7
       - "pypy2.7-buster"
 
+      # Just one Python 3.6 configuration while the port is in-progress.
+      - "python3.6"
+
       # Other assorted tasks and configurations
       - "lint"
       - "pyinstaller"
@@ -71,6 +74,7 @@ workflows:
       - "build-image-fedora-29"
       - "build-image-centos-8"
       - "build-image-pypy-2.7-buster"
+      - "build-image-python36-ubuntu"
 
 
 jobs:
@@ -118,7 +122,7 @@ jobs:
 
   debian-9: &DEBIAN
     docker:
-      - image: "tahoelafsci/debian:9"
+      - image: "tahoelafsci/debian:9-py2.7"
         user: "nobody"
 
     environment: &UTF_8_ENVIRONMENT
@@ -195,14 +199,14 @@ jobs:
   debian-8:
     <<: *DEBIAN
     docker:
-      - image: "tahoelafsci/debian:8"
+      - image: "tahoelafsci/debian:8-py2.7"
         user: "nobody"
 
 
   pypy2.7-buster:
     <<: *DEBIAN
     docker:
-      - image: "tahoelafsci/pypy:2.7-buster"
+      - image: "tahoelafsci/pypy:buster-py2"
         user: "nobody"
 
     environment:
@@ -258,15 +262,26 @@ jobs:
   ubuntu-16.04:
     <<: *DEBIAN
     docker:
-      - image: "tahoelafsci/ubuntu:16.04"
+      - image: "tahoelafsci/ubuntu:16.04-py2.7"
         user: "nobody"
 
 
-  ubuntu-18.04:
+  ubuntu-18.04: &UBUNTU_18_04
     <<: *DEBIAN
     docker:
-      - image: "tahoelafsci/ubuntu:18.04"
+      - image: "tahoelafsci/ubuntu:18.04-py2.7"
         user: "nobody"
+
+
+  python3.6:
+    <<: *UBUNTU_18_04
+    docker:
+      - image: "tahoelafsci/ubuntu:18.04-py3"
+        user: "nobody"
+
+    environment:
+      <<: *UTF_8_ENVIRONMENT
+      TAHOE_LAFS_TOX_ENVIRONMENT: "py36"
 
 
   ubuntu-20.04:
@@ -278,7 +293,7 @@ jobs:
 
   centos-8: &RHEL_DERIV
     docker:
-      - image: "tahoelafsci/centos:8"
+      - image: "tahoelafsci/centos:8-py2"
         user: "nobody"
 
     environment: *UTF_8_ENVIRONMENT
@@ -300,14 +315,14 @@ jobs:
   fedora-28:
     <<: *RHEL_DERIV
     docker:
-      - image: "tahoelafsci/fedora:28"
+      - image: "tahoelafsci/fedora:28-py"
         user: "nobody"
 
 
   fedora-29:
     <<: *RHEL_DERIV
     docker:
-      - image: "tahoelafsci/fedora:29"
+      - image: "tahoelafsci/fedora:29-py"
         user: "nobody"
 
 
@@ -374,8 +389,9 @@ jobs:
       - image: "docker:17.05.0-ce-git"
 
     environment:
-      DISTRO: "tahoelafsci/<DISTRO>:foo"
-      TAG: "tahoelafsci/distro:<TAG>"
+      DISTRO: "tahoelafsci/<DISTRO>:foo-py2"
+      TAG: "tahoelafsci/distro:<TAG>-py2"
+      PYTHON_VERSION: "tahoelafsci/distro:tag-py<PYTHON_VERSION}"
 
     steps:
       - "checkout"
@@ -427,13 +443,14 @@ jobs:
             docker \
                 build \
                 --build-arg TAG=${TAG} \
-                -t tahoelafsci/${DISTRO}:${TAG} \
+                --build-arg PYTHON_VERSION=${PYTHON_VERSION} \
+                -t tahoelafsci/${DISTRO}:${TAG}-py${PYTHON_VERSION} \
                 -f ~/project/.circleci/Dockerfile.${DISTRO} \
                 ~/project/
       - run:
           name: "Push image"
           command: |
-            docker push tahoelafsci/${DISTRO}:${TAG}
+            docker push tahoelafsci/${DISTRO}:${TAG}-py${PYTHON_VERSION}
 
 
   build-image-debian-8:
@@ -442,6 +459,7 @@ jobs:
     environment:
       DISTRO: "debian"
       TAG: "8"
+      PYTHON_VERSION: "2.7"
 
 
   build-image-debian-9:
@@ -450,6 +468,7 @@ jobs:
     environment:
       DISTRO: "debian"
       TAG: "9"
+      PYTHON_VERSION: "2.7"
 
 
   build-image-ubuntu-16.04:
@@ -458,6 +477,7 @@ jobs:
     environment:
       DISTRO: "ubuntu"
       TAG: "16.04"
+      PYTHON_VERSION: "2.7"
 
 
   build-image-ubuntu-18.04:
@@ -466,6 +486,16 @@ jobs:
     environment:
       DISTRO: "ubuntu"
       TAG: "18.04"
+      PYTHON_VERSION: "2.7"
+
+
+  build-image-python36-ubuntu:
+    <<: *BUILD_IMAGE
+
+    environment:
+      DISTRO: "ubuntu"
+      TAG: "18.04"
+      PYTHON_VERSION: "3"
 
 
   build-image-ubuntu-20.04:
@@ -482,6 +512,7 @@ jobs:
     environment:
       DISTRO: "centos"
       TAG: "8"
+      PYTHON_VERSION: "2"
 
 
   build-image-fedora-28:
@@ -490,6 +521,8 @@ jobs:
     environment:
       DISTRO: "fedora"
       TAG: "28"
+      # The default on Fedora (this version anyway) is still Python 2.
+      PYTHON_VERSION: ""
 
 
   build-image-fedora-29:
@@ -505,4 +538,8 @@ jobs:
 
     environment:
       DISTRO: "pypy"
-      TAG: "2.7-buster"
+      TAG: "buster"
+      # We only have Python 2 for PyPy right now so there's no support for
+      # setting up PyPy 3 in the image building toolchain.  This value is just
+      # for constructing the right Docker image tag.
+      PYTHON_VERSION: "2"
