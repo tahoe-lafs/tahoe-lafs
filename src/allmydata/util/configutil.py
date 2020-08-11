@@ -7,9 +7,16 @@ from future.utils import PY2
 if PY2:
     from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
-from configparser import SafeConfigParser
+if PY2:
+    # In theory on Python 2 configparser also works, but then code gets the
+    # wrong exceptions and they don't get handled. So just use native parser
+    # for now.
+    from ConfigParser import SafeConfigParser
+else:
+    from configparser import SafeConfigParser
 
 import attr
+
 
 class UnknownConfigError(Exception):
     """
