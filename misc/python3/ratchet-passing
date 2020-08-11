@@ -101,6 +101,14 @@ allmydata.test.test_iputil.ListAddresses.test_list_async_mock_ip_addr
 allmydata.test.test_iputil.ListAddresses.test_list_async_mock_route
 allmydata.test.test_iputil.ListenOnUsed.test_random_port
 allmydata.test.test_iputil.ListenOnUsed.test_specific_port
+allmydata.test.test_log.Log.test_default_facility
+allmydata.test.test_log.Log.test_err
+allmydata.test.test_log.Log.test_grandparent_id
+allmydata.test.test_log.Log.test_no_prefix
+allmydata.test.test_log.Log.test_numming
+allmydata.test.test_log.Log.test_parent_id
+allmydata.test.test_log.Log.test_with_bytes_prefix
+allmydata.test.test_log.Log.test_with_prefix
 allmydata.test.test_netstring.Netstring.test_encode
 allmydata.test.test_netstring.Netstring.test_extra
 allmydata.test.test_netstring.Netstring.test_nested
