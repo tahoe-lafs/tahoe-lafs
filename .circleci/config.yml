@@ -11,10 +11,13 @@ workflows:
           requires:
             - "debian-9"
 
-      - "ubuntu-18.04"
+      - "ubuntu-20.04"
+      - "ubuntu-18.04":
+          requires:
+            - "ubuntu-20.04"
       - "ubuntu-16.04":
           requires:
-            - "ubuntu-18.04"
+            - "ubuntu-20.04"
 
       - "fedora-29"
       - "fedora-28":
@@ -22,8 +25,6 @@ workflows:
             - "fedora-29"
 
       - "centos-8"
-
-      - "slackware-14.2"
 
       - "nixos-19.09"
 
@@ -68,10 +69,10 @@ workflows:
       - "build-image-debian-9"
       - "build-image-ubuntu-16.04"
       - "build-image-ubuntu-18.04"
+      - "build-image-ubuntu-20.04"
       - "build-image-fedora-28"
       - "build-image-fedora-29"
       - "build-image-centos-8"
-      - "build-image-slackware-14.2"
       - "build-image-pypy-2.7-buster"
       - "build-image-python36-ubuntu"
 
@@ -283,6 +284,13 @@ jobs:
       TAHOE_LAFS_TOX_ENVIRONMENT: "py36"
 
 
+  ubuntu-20.04:
+    <<: *DEBIAN
+    docker:
+      - image: "tahoelafsci/ubuntu:20.04"
+        user: "nobody"
+
+
   centos-8: &RHEL_DERIV
     docker:
       - image: "tahoelafsci/centos:8-py2"
@@ -317,26 +325,6 @@ jobs:
       - image: "tahoelafsci/fedora:29-py"
         user: "nobody"
 
-
-  slackware-14.2:
-    docker:
-      - image: "tahoelafsci/slackware:14.2-py2"
-        user: "nobody"
-
-    environment: *UTF_8_ENVIRONMENT
-
-    # pip cannot install packages if the working directory is not readable.
-    # We want to run a lot of steps as nobody instead of as root.
-    working_directory: "/tmp/project"
-
-    steps:
-      - "checkout"
-      - run: *SETUP_VIRTUALENV
-      - run: *RUN_TESTS
-      - store_test_results: *STORE_TEST_RESULTS
-      - store_artifacts: *STORE_TEST_LOG
-      - store_artifacts: *STORE_OTHER_ARTIFACTS
-      - run: *SUBMIT_COVERAGE
 
   nixos-19.09:
     docker:
@@ -510,6 +498,14 @@ jobs:
       PYTHON_VERSION: "3"
 
 
+  build-image-ubuntu-20.04:
+    <<: *BUILD_IMAGE
+
+    environment:
+      DISTRO: "ubuntu"
+      TAG: "20.04"
+
+
   build-image-centos-8:
     <<: *BUILD_IMAGE
 
@@ -535,15 +531,6 @@ jobs:
     environment:
       DISTRO: "fedora"
       TAG: "29"
-
-
-  build-image-slackware-14.2:
-    <<: *BUILD_IMAGE
-
-    environment:
-      DISTRO: "slackware"
-      TAG: "14.2"
-      PYTHON_VERSION: "2"
 
 
   build-image-pypy-2.7-buster:
