@@ -1,5 +1,13 @@
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
 
-from ConfigParser import SafeConfigParser
+from future.utils import PY2
+if PY2:
+    from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+
+from configparser import SafeConfigParser
 
 import attr
 
@@ -13,11 +21,7 @@ class UnknownConfigError(Exception):
 
 def get_config(tahoe_cfg):
     config = SafeConfigParser()
-    with open(tahoe_cfg, "rb") as f:
-        # Skip any initial Byte Order Mark. Since this is an ordinary file, we
-        # don't need to handle incomplete reads, and can assume seekability.
-        if f.read(3) != '\xEF\xBB\xBF':
-            f.seek(0)
+    with open(tahoe_cfg, "r") as f:
         config.readfp(f)
     return config
 
@@ -28,7 +32,7 @@ def set_config(config, section, option, value):
     assert config.get(section, option) == value
 
 def write_config(tahoe_cfg, config):
-    with open(tahoe_cfg, "wb") as f:
+    with open(tahoe_cfg, "w") as f:
         config.write(f)
 
 def validate_config(fname, cfg, valid_config):

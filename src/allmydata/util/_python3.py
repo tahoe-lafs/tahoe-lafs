@@ -28,6 +28,7 @@ PORTED_MODULES = [
     "allmydata.util.assertutil",
     "allmydata.util.base32",
     "allmydata.util.base62",
+    "allmydata.util.configutil",
     "allmydata.util.connection_status",
     "allmydata.util.deferredutil",
     "allmydata.util.dictutil",
