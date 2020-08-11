@@ -51,6 +51,7 @@ PORTED_TEST_MODULES = [
     "allmydata.test.test_abbreviate",
     "allmydata.test.test_base32",
     "allmydata.test.test_base62",
+    "allmydata.test.test_configutil",
     "allmydata.test.test_connection_status",
     "allmydata.test.test_crypto",
     "allmydata.test.test_deferredutil",
