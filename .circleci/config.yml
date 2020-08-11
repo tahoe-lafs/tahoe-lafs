@@ -26,8 +26,6 @@ workflows:
 
       - "centos-8"
 
-      - "slackware-14.2"
-
       - "nixos-19.09"
 
       # Test against PyPy 2.7
@@ -72,7 +70,6 @@ workflows:
       - "build-image-fedora-28"
       - "build-image-fedora-29"
       - "build-image-centos-8"
-      - "build-image-slackware-14.2"
       - "build-image-pypy-2.7-buster"
 
 
@@ -314,26 +311,6 @@ jobs:
         user: "nobody"
 
 
-  slackware-14.2:
-    docker:
-      - image: "tahoelafsci/slackware:14.2"
-        user: "nobody"
-
-    environment: *UTF_8_ENVIRONMENT
-
-    # pip cannot install packages if the working directory is not readable.
-    # We want to run a lot of steps as nobody instead of as root.
-    working_directory: "/tmp/project"
-
-    steps:
-      - "checkout"
-      - run: *SETUP_VIRTUALENV
-      - run: *RUN_TESTS
-      - store_test_results: *STORE_TEST_RESULTS
-      - store_artifacts: *STORE_TEST_LOG
-      - store_artifacts: *STORE_OTHER_ARTIFACTS
-      - run: *SUBMIT_COVERAGE
-
   nixos-19.09:
     docker:
       # Run in a highly Nix-capable environment.
@@ -521,14 +498,6 @@ jobs:
     environment:
       DISTRO: "fedora"
       TAG: "29"
-
-
-  build-image-slackware-14.2:
-    <<: *BUILD_IMAGE
-
-    environment:
-      DISTRO: "slackware"
-      TAG: "14.2"
 
 
   build-image-pypy-2.7-buster:
