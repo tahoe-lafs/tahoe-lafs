@@ -1,3 +1,4 @@
+from past.builtins import long
 
 from zope.interface import Interface, Attribute
 from twisted.plugin import (
