@@ -6,6 +6,8 @@ from twisted.python import usage
 from allmydata.util import configutil
 from ..common_util import run_cli, parse_cli
 from ...scripts import create_node
+from ... import client
+
 
 def read_config(basedir):
     tahoe_cfg = os.path.join(basedir, "tahoe.cfg")
@@ -32,6 +34,31 @@ class Config(unittest.TestCase):
             args = test[2:]
             e = self.assertRaises(usage.UsageError, parse_cli, verb, *args)
             self.assertIn("option %s not recognized" % (option,), str(e))
+
+    def test_create_client_config(self):
+        d = self.mktemp()
+        os.mkdir(d)
+        fname = os.path.join(d, 'tahoe.cfg')
+
+        with open(fname, 'w') as f:
+            opts = {"nickname": "nick",
+                    "webport": "tcp:3456",
+                    "hide-ip": False,
+                    "listen": "none",
+                    "shares-needed": "1",
+                    "shares-happy": "1",
+                    "shares-total": "1",
+                    }
+            create_node.write_node_config(f, opts)
+            create_node.write_client_config(f, opts)
+
+        config = configutil.get_config(fname)
+        # should succeed, no exceptions
+        configutil.validate_config(
+            fname,
+            config,
+            client._valid_config(),
+        )
 
     @defer.inlineCallbacks
     def test_client(self):
