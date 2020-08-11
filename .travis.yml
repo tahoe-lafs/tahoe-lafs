@@ -19,7 +19,11 @@ install:
 script:
   - |
     set -eo pipefail
-    tox -e ${T}
+    # Only bother to exercise tests that we strongly believe will pass under
+    # Python 3. After all, who wants bad news? First we need to create the tox
+    # env, though, so we can use it to list the modules we want to test ...
+    tox -e ${T} --notest
+    tox -e ${T} $(.tox/${T}/bin/python -c 'from allmydata.util._python3 import PORTED_TEST_MODULES; print(" ".join(PORTED_TEST_MODULES))')
 
 notifications:
   email: false
