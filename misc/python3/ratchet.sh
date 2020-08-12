@@ -13,6 +13,7 @@ cd "../.."
 set +e
 SUBUNITREPORTER_OUTPUT_PATH="$base/results.subunit2" trial --reporter subunitv2-file allmydata
 subunit2junitxml < "$base/results.subunit2" > "$base/results.xml"
+subunit2pyunit < "$base/results.subunit2"
 set -e
 
 # Okay, now we're clear.
