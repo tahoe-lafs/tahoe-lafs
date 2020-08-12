@@ -1,9 +1,21 @@
 """
 Functions used to convert inputs from whatever encoding used in the system to
 unicode and back.
+
+Ported to Python 3.
+
+Once Python 2 support is dropped, most of this module will obsolete, since
+Unicode is the default everywhere in Python 3.
 """
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
 
 from future.utils import PY2, PY3, native_str
+if PY2:
+    # We omit str() because that seems too tricky to get right.
+    from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, max, min  # noqa: F401
 
 from past.builtins import unicode
 

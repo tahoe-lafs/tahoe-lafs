@@ -32,6 +32,7 @@ PORTED_MODULES = [
     "allmydata.util.deferredutil",
     "allmydata.util.fileutil",
     "allmydata.util.dictutil",
+    "allmydata.util.encodingutil",
     "allmydata.util.gcutil",
     "allmydata.util.hashutil",
     "allmydata.util.humanreadable",
