@@ -194,7 +194,7 @@ class CHKFile(testutil.ReallyEqualMixin, unittest.TestCase):
 
 class Extension(testutil.ReallyEqualMixin, unittest.TestCase):
     def test_pack(self):
-        data = {"stuff": "value",
+        data = {"stuff": b"value",
                 "size": 12,
                 "needed_shares": 3,
                 "big_hash": hashutil.tagged_hash(b"foo", b"bar"),
@@ -230,7 +230,7 @@ class Unknown(testutil.ReallyEqualMixin, unittest.TestCase):
         self.failUnless(isinstance(u2.get_error(), CapConstraintError))
 
         # Future caps might have non-ASCII chars in them. (Or maybe not, who can tell about the future?)
-        future_uri = u"I am a cap from the \u263A future. Whatever you ".encode('utf-8')
+        future_uri = u"I am a cap from the \u263A future. Whatever you "
         u = uri.from_string(future_uri)
         self.failUnless(isinstance(u, uri.UnknownURI))
         self.failUnlessReallyEqual(u.to_string(), future_uri)
@@ -425,7 +425,7 @@ class Mutable(testutil.ReallyEqualMixin, unittest.TestCase):
         self.failIf(u2.is_readonly())
         self.failUnless(u2.is_mutable())
 
-        cap3 = cap+":"+os.urandom(40) # parse *that*!
+        cap3 = cap+":"+str(os.urandom(40)) # parse *that*!
         u3 = uri.WriteableMDMFFileURI.init_from_string(cap3)
         self.failUnlessReallyEqual(self.writekey, u3.writekey)
         self.failUnlessReallyEqual(self.fingerprint, u3.fingerprint)

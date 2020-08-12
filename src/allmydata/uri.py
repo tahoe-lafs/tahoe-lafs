@@ -906,7 +906,7 @@ def pack_extension(data):
         value = data[k]
         if isinstance(value, int):
             value = "%d" % value
-        assert isinstance(value, str), k
+        assert isinstance(value, bytes), k
         assert re.match(r'^[a-zA-Z_\-]+$', k)
         pieces.append(k + ':' + hashutil.netstring(value))
     uri_extension = ''.join(pieces)
