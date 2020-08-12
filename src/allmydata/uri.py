@@ -905,27 +905,27 @@ def pack_extension(data):
     for k in sorted(data.keys()):
         value = data[k]
         if isinstance(value, int):
-            value = "%d" % value
+            value = b"%d" % value
         assert isinstance(value, bytes), k
         assert re.match(r'^[a-zA-Z_\-]+$', k)
-        pieces.append(k + ':' + hashutil.netstring(value))
-    uri_extension = ''.join(pieces)
+        pieces.append(k.encode('utf8') + b':' + hashutil.netstring(value))
+    uri_extension = b''.join(pieces)
     return uri_extension
 
 def unpack_extension(data):
     d = {}
     while data:
-        colon = data.index(':')
-        key = data[:colon]
+        colon = data.index(b':')
+        key = data[:colon].decode('utf8')
         data = data[colon+1:]
 
-        colon = data.index(':')
+        colon = data.index(b':')
         number = data[:colon]
         length = int(number)
         data = data[colon+1:]
 
         value = data[:length]
-        assert data[length] == ','
+        assert data[length] == ord(',')
         data = data[length+1:]
 
         d[key] = value

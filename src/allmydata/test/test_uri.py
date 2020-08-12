@@ -201,13 +201,13 @@ class Extension(testutil.ReallyEqualMixin, unittest.TestCase):
                 }
         ext = uri.pack_extension(data)
         d = uri.unpack_extension(ext)
-        self.failUnlessReallyEqual(d["stuff"], "value")
+        self.failUnlessReallyEqual(d["stuff"], b"value")
         self.failUnlessReallyEqual(d["size"], 12)
         self.failUnlessReallyEqual(d["big_hash"], hashutil.tagged_hash(b"foo", b"bar"))
 
         readable = uri.unpack_extension_readable(ext)
         self.failUnlessReallyEqual(readable["needed_shares"], 3)
-        self.failUnlessReallyEqual(readable["stuff"], "value")
+        self.failUnlessReallyEqual(readable["stuff"], b"value")
         self.failUnlessReallyEqual(readable["size"], 12)
         self.failUnlessReallyEqual(readable["big_hash"],
                              base32.b2a(hashutil.tagged_hash(b"foo", b"bar")))
