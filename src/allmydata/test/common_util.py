@@ -10,10 +10,13 @@ from twisted.trial import unittest
 
 from ..util.assertutil import precondition
 from allmydata.util.encodingutil import (unicode_platform, get_filesystem_encoding,
-                                         get_io_encoding)
-from ..scripts import runner
-from .common_py3 import SignalMixin
 
+                                         get_io_encoding)
+from future.utils import PY2
+if PY2: # XXX this is a hack that makes some tests pass on Python3, remove
+        # in the future
+    from ..scripts import runner
+from .common_py3 import SignalMixin
 
 def skip_if_cannot_represent_filename(u):
     precondition(isinstance(u, unicode))

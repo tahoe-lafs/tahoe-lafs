@@ -30,6 +30,7 @@ PORTED_MODULES = [
     "allmydata.util.base32",
     "allmydata.util.base62",
     "allmydata.util.deferredutil",
+    "allmydata.util.fileutil",
     "allmydata.util.dictutil",
     "allmydata.util.gcutil",
     "allmydata.util.hashutil",
@@ -67,9 +68,9 @@ PORTED_TEST_MODULES = [
     "allmydata.test.test_spans",
     "allmydata.test.test_statistics",
     "allmydata.test.test_time_format",
+    "allmydata.test.test_util",
     "allmydata.test.test_version",
 ]
-
 
 if __name__ == '__main__':
     from subprocess import check_call
