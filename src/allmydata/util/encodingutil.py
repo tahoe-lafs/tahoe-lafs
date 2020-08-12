@@ -3,7 +3,7 @@ Functions used to convert inputs from whatever encoding used in the system to
 unicode and back.
 """
 
-from future.utils import PY2, native_str
+from future.utils import PY2, PY3, native_str
 
 from past.builtins import unicode
 
@@ -67,13 +67,14 @@ def _reload():
 
     check_encoding(io_encoding)
 
-    is_unicode_platform = not PY2 or sys.platform in ["win32", "darwin"]
+    is_unicode_platform = PY3 or sys.platform in ["win32", "darwin"]
 
     # Despite the Unicode-mode FilePath support added to Twisted in
     # <https://twistedmatrix.com/trac/ticket/7805>, we can't yet use
     # Unicode-mode FilePaths with INotify on non-Windows platforms
-    # due to <https://twistedmatrix.com/trac/ticket/7928>.
-    use_unicode_filepath = not PY2 or sys.platform == "win32"
+    # due to <https://twistedmatrix.com/trac/ticket/7928>. Supposedly
+    # 7928 is fixed, though...
+    use_unicode_filepath = PY3 or sys.platform == "win32"
 
 _reload()
 
@@ -122,8 +123,12 @@ def unicode_to_argv(s, mangle=False):
     If the argument is to be passed to a different process, then the 'mangle' argument
     should be true; on Windows, this uses a mangled encoding that will be reversed by
     code in runner.py.
+
+    On Python 3, just return the string unchanged, since argv is unicode.
     """
     precondition(isinstance(s, unicode), s)
+    if PY3:
+        return s
 
     if mangle and sys.platform == "win32":
         # This must be the same as 'mangle' in bin/tahoe-script.template.
@@ -133,7 +138,7 @@ def unicode_to_argv(s, mangle=False):
 
 def unicode_to_url(s):
     """
-    Encode an unicode object used in an URL.
+    Encode an unicode object used in an URL to bytes.
     """
     # According to RFC 2718, non-ascii characters in URLs must be UTF-8 encoded.
 
@@ -283,7 +288,7 @@ def extend_filepath(fp, segments):
         return fp
 
 def to_filepath(path):
-    precondition(isinstance(path, unicode if use_unicode_filepath else basestring),
+    precondition(isinstance(path, unicode if use_unicode_filepath else (bytes, unicode)),
                  path=path)
 
     if isinstance(path, unicode) and not use_unicode_filepath:
