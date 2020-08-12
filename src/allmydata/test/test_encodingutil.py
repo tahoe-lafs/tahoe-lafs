@@ -1,5 +1,9 @@
 from __future__ import print_function
 
+from future.utils import PY2
+
+from past.builtins import unicode
+
 lumiere_nfc = u"lumi\u00E8re"
 Artonwall_nfc = u"\u00C4rtonwall.mp3"
 Artonwall_nfd = u"A\u0308rtonwall.mp3"
@@ -44,7 +48,7 @@ if __name__ == "__main__":
             open(os.path.join(tmpdir, fname), 'w').close()
 
         # Use Unicode API under Windows or MacOS X
-        if sys.platform in ('win32', 'darwin'):
+        if PY2 and sys.platform in ('win32', 'darwin'):
             dirlist = os.listdir(unicode(tmpdir))
         else:
             dirlist = os.listdir(tmpdir)
@@ -278,7 +282,11 @@ class StdlibUnicode(unittest.TestCase):
         fn = lumiere_nfc + u'/' + lumiere_nfc + u'.txt'
         open(fn, 'wb').close()
         self.failUnless(os.path.exists(fn))
-        self.failUnless(os.path.exists(os.path.join(os.getcwdu(), fn)))
+        if PY2:
+            getcwdu = os.getcwdu
+        else:
+            getcwdu = os.getcwd
+        self.failUnless(os.path.exists(os.path.join(getcwdu(), fn)))
         filenames = listdir_unicode(lumiere_nfc)
 
         # We only require that the listing includes a filename that is canonically equivalent
@@ -314,7 +322,7 @@ class QuoteOutput(ReallyEqualMixin, unittest.TestCase):
         self.failUnlessReallyEqual(quote_output(inp, encoding=enc, quotemarks=False, quote_newlines=quote_newlines), out2)
         if out[0:2] == 'b"':
             pass
-        elif isinstance(inp, str):
+        elif isinstance(inp, bytes):
             self.failUnlessReallyEqual(quote_output(unicode(inp), encoding=enc, quote_newlines=quote_newlines), out)
             self.failUnlessReallyEqual(quote_output(unicode(inp), encoding=enc, quotemarks=False, quote_newlines=quote_newlines), out2)
         else:
@@ -326,47 +334,47 @@ class QuoteOutput(ReallyEqualMixin, unittest.TestCase):
             self._check(inp, out, enc, optional_quotes, quote_newlines)
 
         # optional single quotes
-        check("foo",  "'foo'",  True)
-        check("\\",   "'\\'",   True)
-        check("$\"`", "'$\"`'", True)
-        check("\n",   "'\n'",   True, quote_newlines=False)
+        check(b"foo",  b"'foo'",  True)
+        check(b"\\",   b"'\\'",   True)
+        check(b"$\"`", b"'$\"`'", True)
+        check(b"\n",   b"'\n'",   True, quote_newlines=False)
 
         # mandatory single quotes
-        check("\"",   "'\"'")
+        check(b"\"",   b"'\"'")
 
         # double quotes
-        check("'",    "\"'\"")
-        check("\n",   "\"\\x0a\"", quote_newlines=True)
-        check("\x00", "\"\\x00\"")
+        check(b"'",    b"\"'\"")
+        check(b"\n",   b"\"\\x0a\"", quote_newlines=True)
+        check(b"\x00", b"\"\\x00\"")
 
         # invalid Unicode and astral planes
-        check(u"\uFDD0\uFDEF",       "\"\\ufdd0\\ufdef\"")
-        check(u"\uDC00\uD800",       "\"\\udc00\\ud800\"")
-        check(u"\uDC00\uD800\uDC00", "\"\\udc00\\U00010000\"")
-        check(u"\uD800\uDC00",       "\"\\U00010000\"")
-        check(u"\uD800\uDC01",       "\"\\U00010001\"")
-        check(u"\uD801\uDC00",       "\"\\U00010400\"")
-        check(u"\uDBFF\uDFFF",       "\"\\U0010ffff\"")
-        check(u"'\uDBFF\uDFFF",      "\"'\\U0010ffff\"")
-        check(u"\"\uDBFF\uDFFF",     "\"\\\"\\U0010ffff\"")
+        check(u"\uFDD0\uFDEF",       b"\"\\ufdd0\\ufdef\"")
+        check(u"\uDC00\uD800",       b"\"\\udc00\\ud800\"")
+        check(u"\uDC00\uD800\uDC00", b"\"\\udc00\\U00010000\"")
+        check(u"\uD800\uDC00",       b"\"\\U00010000\"")
+        check(u"\uD800\uDC01",       b"\"\\U00010001\"")
+        check(u"\uD801\uDC00",       b"\"\\U00010400\"")
+        check(u"\uDBFF\uDFFF",       b"\"\\U0010ffff\"")
+        check(u"'\uDBFF\uDFFF",      b"\"'\\U0010ffff\"")
+        check(u"\"\uDBFF\uDFFF",     b"\"\\\"\\U0010ffff\"")
 
         # invalid UTF-8
-        check("\xFF",                "b\"\\xff\"")
-        check("\x00\"$\\`\x80\xFF",  "b\"\\x00\\\"\\$\\\\\\`\\x80\\xff\"")
+        check("\xFF",                b"b\"\\xff\"")
+        check("\x00\"$\\`\x80\xFF",  b"b\"\\x00\\\"\\$\\\\\\`\\x80\\xff\"")
 
     def test_quote_output_ascii(self, enc='ascii'):
         def check(inp, out, optional_quotes=False, quote_newlines=None):
             self._check(inp, out, enc, optional_quotes, quote_newlines)
 
         self._test_quote_output_all(enc)
-        check(u"\u00D7",   "\"\\xd7\"")
-        check(u"'\u00D7",  "\"'\\xd7\"")
-        check(u"\"\u00D7", "\"\\\"\\xd7\"")
-        check(u"\u2621",   "\"\\u2621\"")
-        check(u"'\u2621",  "\"'\\u2621\"")
-        check(u"\"\u2621", "\"\\\"\\u2621\"")
-        check(u"\n",       "'\n'",      True, quote_newlines=False)
-        check(u"\n",       "\"\\x0a\"", quote_newlines=True)
+        check(u"\u00D7",   b"\"\\xd7\"")
+        check(u"'\u00D7",  b"\"'\\xd7\"")
+        check(u"\"\u00D7", b"\"\\\"\\xd7\"")
+        check(u"\u2621",   b"\"\\u2621\"")
+        check(u"'\u2621",  b"\"'\\u2621\"")
+        check(u"\"\u2621", b"\"\\\"\\u2621\"")
+        check(u"\n",       b"'\n'",      True, quote_newlines=False)
+        check(u"\n",       b"\"\\x0a\"", quote_newlines=True)
 
     def test_quote_output_latin1(self, enc='latin1'):
         def check(inp, out, optional_quotes=False, quote_newlines=None):
@@ -548,14 +556,14 @@ class OpenBSD(EncodingUtil, unittest.TestCase):
 
 class TestToFromStr(ReallyEqualMixin, unittest.TestCase):
     def test_to_str(self):
-        self.failUnlessReallyEqual(to_str("foo"), "foo")
-        self.failUnlessReallyEqual(to_str("lumi\xc3\xa8re"), "lumi\xc3\xa8re")
+        self.failUnlessReallyEqual(to_str("foo"), b"foo")
+        self.failUnlessReallyEqual(to_str("lumi\xc3\xa8re"), b"lumi\xc3\xa8re")
         self.failUnlessReallyEqual(to_str("\xFF"), "\xFF")  # passes through invalid UTF-8 -- is this what we want?
-        self.failUnlessReallyEqual(to_str(u"lumi\u00E8re"), "lumi\xc3\xa8re")
+        self.failUnlessReallyEqual(to_str(u"lumi\u00E8re"), b"lumi\xc3\xa8re")
         self.failUnlessReallyEqual(to_str(None), None)
 
     def test_from_utf8_or_none(self):
         self.failUnlessRaises(AssertionError, from_utf8_or_none, u"foo")
-        self.failUnlessReallyEqual(from_utf8_or_none("lumi\xc3\xa8re"), u"lumi\u00E8re")
+        self.failUnlessReallyEqual(from_utf8_or_none(b"lumi\xc3\xa8re"), u"lumi\u00E8re")
         self.failUnlessReallyEqual(from_utf8_or_none(None), None)
         self.failUnlessRaises(UnicodeDecodeError, from_utf8_or_none, "\xFF")

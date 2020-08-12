@@ -3,6 +3,8 @@ Functions used to convert inputs from whatever encoding used in the system to
 unicode and back.
 """
 
+from future.utils import PY2
+
 from past.builtins import unicode
 
 import sys, os, re, locale
@@ -65,13 +67,13 @@ def _reload():
 
     check_encoding(io_encoding)
 
-    is_unicode_platform = sys.platform in ["win32", "darwin"]
+    is_unicode_platform = not PY2 or sys.platform in ["win32", "darwin"]
 
     # Despite the Unicode-mode FilePath support added to Twisted in
     # <https://twistedmatrix.com/trac/ticket/7805>, we can't yet use
     # Unicode-mode FilePaths with INotify on non-Windows platforms
     # due to <https://twistedmatrix.com/trac/ticket/7928>.
-    use_unicode_filepath = sys.platform == "win32"
+    use_unicode_filepath = not PY2 or sys.platform == "win32"
 
 _reload()
 
@@ -92,6 +94,9 @@ def argv_to_unicode(s):
     """
     Decode given argv element to unicode. If this fails, raise a UsageError.
     """
+    if isinstance(s, unicode):
+        return s
+
     precondition(isinstance(s, bytes), s)
 
     try:
@@ -122,7 +127,7 @@ def unicode_to_argv(s, mangle=False):
 
     if mangle and sys.platform == "win32":
         # This must be the same as 'mangle' in bin/tahoe-script.template.
-        return str(re.sub(u'[^\\x20-\\x7F]', lambda m: u'\x7F%x;' % (ord(m.group(0)),), s))
+        return bytes(re.sub(u'[^\\x20-\\x7F]', lambda m: u'\x7F%x;' % (ord(m.group(0)),), s))
     else:
         return s.encode(io_encoding)
 
@@ -143,7 +148,7 @@ def to_str(s):  # TODO rename to to_bytes
     return s.encode('utf-8')
 
 def from_utf8_or_none(s):
-    precondition(isinstance(s, str) or s is None, s)
+    precondition(isinstance(s, bytes) or s is None, s)
     if s is None:
         return s
     return s.decode('utf-8')
