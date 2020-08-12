@@ -155,6 +155,7 @@ class EncodingUtilErrors(ReallyEqualMixin, unittest.TestCase):
 # The following tests apply only to platforms that don't store filenames as
 # Unicode entities on the filesystem.
 class EncodingUtilNonUnicodePlatform(unittest.TestCase):
+    @skipIf(PY3, "Python 3 is always Unicode, regardless of OS.")
     def setUp(self):
         # Mock sys.platform because unicode_platform() uses it
         self.original_platform = sys.platform
@@ -164,7 +165,6 @@ class EncodingUtilNonUnicodePlatform(unittest.TestCase):
         sys.platform = self.original_platform
         _reload()
 
-    @skipIf(PY3, "Python 3 has its own way of dealing with this.")
     def test_listdir_unicode(self):
         # What happens if latin1-encoded filenames are encountered on an UTF-8
         # filesystem?
@@ -260,7 +260,14 @@ class EncodingUtil(ReallyEqualMixin):
                                     % (self.filesystem_encoding,))
 
         def call_os_listdir(path):
-            return self.dirlist
+            if PY2:
+                return self.dirlist
+            else:
+                # Python 3 always lists unicode filenames:
+                return [d.decode(self.filesystem_encoding) if isinstance(d, bytes)
+                        else d
+                        for d in self.dirlist]
+    
         self.patch(os, 'listdir', call_os_listdir)
 
         def call_sys_getfilesystemencoding():
@@ -528,23 +535,23 @@ class FilePaths(ReallyEqualMixin, unittest.TestCase):
 
 class UbuntuKarmicUTF8(EncodingUtil, unittest.TestCase):
     uname = 'Linux korn 2.6.31-14-generic #48-Ubuntu SMP Fri Oct 16 14:05:01 UTC 2009 x86_64'
-    argv = 'lumi\xc3\xa8re'
+    argv = b'lumi\xc3\xa8re'
     platform = 'linux2'
     filesystem_encoding = 'UTF-8'
     io_encoding = 'UTF-8'
-    dirlist = ['test_file', '\xc3\x84rtonwall.mp3', 'Blah blah.txt']
+    dirlist = [b'test_file', b'\xc3\x84rtonwall.mp3', b'Blah blah.txt']
 
 class UbuntuKarmicLatin1(EncodingUtil, unittest.TestCase):
     uname = 'Linux korn 2.6.31-14-generic #48-Ubuntu SMP Fri Oct 16 14:05:01 UTC 2009 x86_64'
-    argv = 'lumi\xe8re'
+    argv = b'lumi\xe8re'
     platform = 'linux2'
     filesystem_encoding = 'ISO-8859-1'
     io_encoding = 'ISO-8859-1'
-    dirlist = ['test_file', 'Blah blah.txt', '\xc4rtonwall.mp3']
+    dirlist = [b'test_file', b'Blah blah.txt', b'\xc4rtonwall.mp3']
 
 class Windows(EncodingUtil, unittest.TestCase):
     uname = 'Windows XP 5.1.2600 x86 x86 Family 15 Model 75 Step ping 2, AuthenticAMD'
-    argv = 'lumi\xc3\xa8re'
+    argv = b'lumi\xc3\xa8re'
     platform = 'win32'
     filesystem_encoding = 'mbcs'
     io_encoding = 'utf-8'
@@ -552,7 +559,7 @@ class Windows(EncodingUtil, unittest.TestCase):
 
 class MacOSXLeopard(EncodingUtil, unittest.TestCase):
     uname = 'Darwin g5.local 9.8.0 Darwin Kernel Version 9.8.0: Wed Jul 15 16:57:01 PDT 2009; root:xnu-1228.15.4~1/RELEASE_PPC Power Macintosh powerpc'
-    output = 'lumi\xc3\xa8re'
+    output = b'lumi\xc3\xa8re'
     platform = 'darwin'
     filesystem_encoding = 'utf-8'
     io_encoding = 'UTF-8'
@@ -577,7 +584,7 @@ class TestToFromStr(ReallyEqualMixin, unittest.TestCase):
     def test_to_str(self):
         self.failUnlessReallyEqual(to_str(b"foo"), b"foo")
         self.failUnlessReallyEqual(to_str(b"lumi\xc3\xa8re"), b"lumi\xc3\xa8re")
-        self.failUnlessReallyEqual(to_str(b"\xFF"), "\xFF")  # passes through invalid UTF-8 -- is this what we want?
+        self.failUnlessReallyEqual(to_str(b"\xFF"), b"\xFF")  # passes through invalid UTF-8 -- is this what we want?
         self.failUnlessReallyEqual(to_str(u"lumi\u00E8re"), b"lumi\xc3\xa8re")
         self.failUnlessReallyEqual(to_str(None), None)
 
