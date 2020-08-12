@@ -1,6 +1,12 @@
 from __future__ import print_function
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import unicode_literals
 
 from future.utils import PY2, PY3
+if PY2:
+    # We don't import str because omg way too ambiguous in this context.
+    from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, max, min  # noqa: F401
 
 from past.builtins import unicode
 
@@ -95,7 +101,7 @@ class EncodingUtilErrors(ReallyEqualMixin, unittest.TestCase):
 
         mock_stdout.encoding = 'cp65001'
         _reload()
-        self.failUnlessReallyEqual(get_io_encoding(), 'utf-8')
+        self.assertEqual(get_io_encoding(), 'utf-8')
 
         mock_stdout.encoding = 'koi8-r'
         expected = sys.platform == "win32" and 'utf-8' or 'koi8-r'
@@ -127,7 +133,7 @@ class EncodingUtilErrors(ReallyEqualMixin, unittest.TestCase):
 
         preferredencoding = None
         _reload()
-        self.failUnlessReallyEqual(get_io_encoding(), 'utf-8')
+        self.assertEqual(get_io_encoding(), 'utf-8')
 
     def test_argv_to_unicode(self):
         encodingutil.io_encoding = 'utf-8'

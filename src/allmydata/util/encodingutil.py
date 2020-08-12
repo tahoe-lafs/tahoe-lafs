@@ -3,7 +3,7 @@ Functions used to convert inputs from whatever encoding used in the system to
 unicode and back.
 """
 
-from future.utils import PY2
+from future.utils import PY2, native_str
 
 from past.builtins import unicode
 
@@ -168,14 +168,14 @@ def unicode_to_output(s):
     try:
         out = s.encode(io_encoding)
     except (UnicodeEncodeError, UnicodeDecodeError):
-        raise UnicodeEncodeError(io_encoding, s, 0, 0,
-                                 "A string could not be encoded as %s for output to the terminal:\n%r" %
-                                 (io_encoding, repr(s)))
+        raise UnicodeEncodeError(native_str(io_encoding), s, 0, 0,
+                                 native_str("A string could not be encoded as %s for output to the terminal:\n%r" %
+                                 (io_encoding, repr(s))))
 
     if PRINTABLE_8BIT.search(out) is None:
-        raise UnicodeEncodeError(io_encoding, s, 0, 0,
-                                 "A string encoded as %s for output to the terminal contained unsafe bytes:\n%r" %
-                                 (io_encoding, repr(s)))
+        raise UnicodeEncodeError(native_str(io_encoding), s, 0, 0,
+                                 native_str("A string encoded as %s for output to the terminal contained unsafe bytes:\n%r" %
+                                 (io_encoding, repr(s))))
     return out
 
 
