@@ -15,14 +15,11 @@ import os, time, sys
 import yaml
 
 from twisted.trial import unittest
-from twisted.internet import defer, reactor
-from twisted.python.failure import Failure
 
 from allmydata.util import idlib, mathutil
 from allmydata.util import fileutil
-from allmydata.util import limiter, pollmixin
+from allmydata.util import pollmixin
 from allmydata.util import yamlutil
-from allmydata.util import log as tahoe_log
 from allmydata.util.fileutil import EncryptedTemporaryFile
 from allmydata.test.common_util import ReallyEqualMixin
 
@@ -441,81 +438,6 @@ class PollMixinTests(unittest.TestCase):
         return d
 
 
-class Limiter(unittest.TestCase):
-
-    def job(self, i, foo):
-        self.calls.append( (i, foo) )
-        self.simultaneous += 1
-        self.peak_simultaneous = max(self.simultaneous, self.peak_simultaneous)
-        d = defer.Deferred()
-        def _done():
-            self.simultaneous -= 1
-            d.callback("done %d" % i)
-        reactor.callLater(1.0, _done)
-        return d
-
-    def bad_job(self, i, foo):
-        raise ValueError("bad_job %d" % i)
-
-    def test_limiter(self):
-        self.calls = []
-        self.simultaneous = 0
-        self.peak_simultaneous = 0
-        l = limiter.ConcurrencyLimiter()
-        dl = []
-        for i in range(20):
-            dl.append(l.add(self.job, i, foo=str(i)))
-        d = defer.DeferredList(dl, fireOnOneErrback=True)
-        def _done(res):
-            self.failUnlessEqual(self.simultaneous, 0)
-            self.failUnless(self.peak_simultaneous <= 10)
-            self.failUnlessEqual(len(self.calls), 20)
-            for i in range(20):
-                self.failUnless( (i, str(i)) in self.calls)
-        d.addCallback(_done)
-        return d
-
-    def test_errors(self):
-        self.calls = []
-        self.simultaneous = 0
-        self.peak_simultaneous = 0
-        l = limiter.ConcurrencyLimiter()
-        dl = []
-        for i in range(20):
-            dl.append(l.add(self.job, i, foo=str(i)))
-        d2 = l.add(self.bad_job, 21, "21")
-        d = defer.DeferredList(dl, fireOnOneErrback=True)
-        def _most_done(res):
-            results = []
-            for (success, result) in res:
-                self.failUnlessEqual(success, True)
-                results.append(result)
-            results.sort()
-            expected_results = ["done %d" % i for i in range(20)]
-            expected_results.sort()
-            self.failUnlessEqual(results, expected_results)
-            self.failUnless(self.peak_simultaneous <= 10)
-            self.failUnlessEqual(len(self.calls), 20)
-            for i in range(20):
-                self.failUnless( (i, str(i)) in self.calls)
-            def _good(res):
-                self.fail("should have failed, not got %s" % (res,))
-            def _err(f):
-                f.trap(ValueError)
-                self.failUnless("bad_job 21" in str(f))
-            d2.addCallbacks(_good, _err)
-            return d2
-        d.addCallback(_most_done)
-        def _all_done(res):
-            self.failUnlessEqual(self.simultaneous, 0)
-            self.failUnless(self.peak_simultaneous <= 10)
-            self.failUnlessEqual(len(self.calls), 20)
-            for i in range(20):
-                self.failUnless( (i, str(i)) in self.calls)
-        d.addCallback(_all_done)
-        return d
-
-
 ctr = [0]
 class EqButNotIs(object):
     def __init__(self, x):
@@ -538,20 +460,6 @@ class EqButNotIs(object):
         return self.x != other
     def __eq__(self, other):
         return self.x == other
-
-
-class SampleError(Exception):
-    pass
-
-class Log(unittest.TestCase):
-    def test_err(self):
-        try:
-            raise SampleError("simple sample")
-        except:
-            f = Failure()
-        tahoe_log.err(format="intentional sample error",
-                      failure=f, level=tahoe_log.OPERATIONAL, umid="wO9UoQ")
-        self.flushLoggedErrors(SampleError)
 
 
 class YAML(unittest.TestCase):
