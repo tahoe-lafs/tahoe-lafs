@@ -217,7 +217,7 @@ class EncodingUtil(ReallyEqualMixin):
         self.failUnlessReallyEqual(argv_to_unicode(argv), argu)
 
     def test_unicode_to_url(self):
-        self.failUnless(unicode_to_url(lumiere_nfc), "lumi\xc3\xa8re")
+        self.failUnless(unicode_to_url(lumiere_nfc), b"lumi\xc3\xa8re")
 
     def test_unicode_to_output(self):
         if 'argv' not in dir(self):
@@ -306,7 +306,7 @@ class StdlibUnicode(unittest.TestCase):
 
         # We only require that the listing includes a filename that is canonically equivalent
         # to lumiere_nfc (on Mac OS X, it will be the NFD equivalent).
-        self.failUnlessIn(lumiere_nfc + ".txt", set([encodingutil.normalize(fname) for fname in filenames]))
+        self.failUnlessIn(lumiere_nfc + u".txt", set([encodingutil.normalize(fname) for fname in filenames]))
 
         expanded = fileutil.expanduser(u"~/" + lumiere_nfc)
         self.failIfIn(u"~", expanded)
