@@ -165,6 +165,19 @@ jobs:
       - run: &RUN_TESTS
           name: "Run test suite"
           command: |
+
+            # Constrain the modules exercised under Python 3 based on the list
+            # we keep in _python3. Additionally, work around a conflict with
+            # trial under Python 3 between --reporter and --rterrors (by
+            # unspecifying --rterrors). This is placed here to avoid
+            # over-duplication in the python3.6 job (where we can't simply
+            # layer in TAHOE_LAFS_TOX_ARGS because it wants to be dynamic).
+
+            [ "${TAHOE_LAFS_TOX_ENVIRONMENT}" = "py36" ] && \
+              export \
+                TAHOE_LAFS_TOX_ARGS="$(/tmp/tahoe-lafs.tox/${TAHOE_LAFS_TOX_ENVIRONMENT}/bin/python -c 'from allmydata.util._python3 import PORTED_TEST_MODULES; print(" ".join(PORTED_TEST_MODULES))')" \
+                TAHOE_LAFS_TRIAL_ARGS="--reporter=subunitv2-file"
+
             /tmp/project/.circleci/run-tests.sh \
                 "/tmp/venv" \
                 "/tmp/project" \
