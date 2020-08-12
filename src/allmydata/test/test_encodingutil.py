@@ -83,7 +83,8 @@ from allmydata.util.encodingutil import argv_to_unicode, unicode_to_url, \
     unicode_to_output, quote_output, quote_path, quote_local_unicode_path, \
     quote_filepath, unicode_platform, listdir_unicode, FilenameEncodingError, \
     get_io_encoding, get_filesystem_encoding, to_str, from_utf8_or_none, _reload, \
-    to_filepath, extend_filepath, unicode_from_filepath, unicode_segments_from
+    to_filepath, extend_filepath, unicode_from_filepath, unicode_segments_from, \
+    unicode_to_argv
 from twisted.python import usage
 
 
@@ -236,7 +237,17 @@ class EncodingUtil(ReallyEqualMixin):
         _reload()
         self.failUnlessReallyEqual(unicode_to_output(lumiere_nfc), self.argv)
 
-    @skipIf(PY3, "It's always Unicode on Python 2.")
+    @skipIf(PY3, "Python 2 only.")
+    def test_unicode_to_argv_py2(self):
+        """unicode_to_argv() converts to bytes on Python 2."""
+        self.assertEqual(unicode_to_argv("abc"), u"abc".encode(self.io_encoding))
+
+    @skipIf(PY2, "Python 3 only.")
+    def test_unicode_to_argv_py3(self):
+        """unicode_to_argv() is noop on Python 3."""
+        self.assertEqual(unicode_to_argv("abc"), "abc")
+
+    @skipIf(PY3, "Python 3 only.")
     def test_unicode_platform_py2(self):
         matrix = {
           'linux2': False,
