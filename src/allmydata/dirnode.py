@@ -1,5 +1,5 @@
 """Directory Node implementation."""
-import time, unicodedata
+import time
 
 from zope.interface import implementer
 from twisted.internet import defer
@@ -18,7 +18,7 @@ from allmydata.check_results import DeepCheckResults, \
      DeepCheckAndRepairResults
 from allmydata.monitor import Monitor
 from allmydata.util import hashutil, base32, log
-from allmydata.util.encodingutil import quote_output
+from allmydata.util.encodingutil import quote_output, normalize
 from allmydata.util.assertutil import precondition
 from allmydata.util.netstring import netstring, split_netstring
 from allmydata.util.consumer import download_to_data
@@ -100,12 +100,6 @@ def update_metadata(metadata, new_metadata, now):
 
     return metadata
 
-
-# 'x' at the end of a variable name indicates that it holds a Unicode string that may not
-# be NFC-normalized.
-
-def normalize(namex):
-    return unicodedata.normalize('NFC', namex)
 
 # TODO: {Deleter,MetadataSetter,Adder}.modify all start by unpacking the
 # contents and end by repacking them. It might be better to apply them to

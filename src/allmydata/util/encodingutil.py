@@ -6,6 +6,7 @@ unicode and back.
 from past.builtins import unicode
 
 import sys, os, re, locale
+import unicodedata
 
 from allmydata.util.assertutil import precondition, _assert
 from twisted.python import usage
@@ -358,3 +359,9 @@ def listdir_unicode(path):
 
 def listdir_filepath(fp):
     return listdir_unicode(unicode_from_filepath(fp))
+
+
+# 'x' at the end of a variable name indicates that it holds a Unicode string that may not
+# be NFC-normalized.
+def normalize(namex):
+    return unicodedata.normalize('NFC', namex)

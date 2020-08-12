@@ -64,15 +64,15 @@ from twisted.trial import unittest
 
 from twisted.python.filepath import FilePath
 
-from allmydata.test.common_util import ReallyEqualMixin
+from allmydata.test.common_py3 import (
+    ReallyEqualMixin, skip_if_cannot_represent_filename,
+)
 from allmydata.util import encodingutil, fileutil
 from allmydata.util.encodingutil import argv_to_unicode, unicode_to_url, \
     unicode_to_output, quote_output, quote_path, quote_local_unicode_path, \
     quote_filepath, unicode_platform, listdir_unicode, FilenameEncodingError, \
     get_io_encoding, get_filesystem_encoding, to_str, from_utf8_or_none, _reload, \
     to_filepath, extend_filepath, unicode_from_filepath, unicode_segments_from
-from allmydata.dirnode import normalize
-from .common_util import skip_if_cannot_represent_filename
 from twisted.python import usage
 
 
@@ -258,7 +258,7 @@ class EncodingUtil(ReallyEqualMixin):
         _reload()
         filenames = listdir_unicode(u'/dummy')
 
-        self.failUnlessEqual(set([normalize(fname) for fname in filenames]),
+        self.failUnlessEqual(set([encodingutil.normalize(fname) for fname in filenames]),
                              set(TEST_FILENAMES))
 
 
@@ -283,7 +283,7 @@ class StdlibUnicode(unittest.TestCase):
 
         # We only require that the listing includes a filename that is canonically equivalent
         # to lumiere_nfc (on Mac OS X, it will be the NFD equivalent).
-        self.failUnlessIn(lumiere_nfc + ".txt", set([normalize(fname) for fname in filenames]))
+        self.failUnlessIn(lumiere_nfc + ".txt", set([encodingutil.normalize(fname) for fname in filenames]))
 
         expanded = fileutil.expanduser(u"~/" + lumiere_nfc)
         self.failIfIn(u"~", expanded)
