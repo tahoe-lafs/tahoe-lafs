@@ -1,6 +1,6 @@
 from __future__ import print_function
 
-from future.utils import PY2
+from future.utils import PY2, PY3
 
 from past.builtins import unicode
 
@@ -63,6 +63,7 @@ if __name__ == "__main__":
 
 
 import os, sys, locale
+from unittest import skipIf
 
 from twisted.trial import unittest
 
@@ -163,6 +164,7 @@ class EncodingUtilNonUnicodePlatform(unittest.TestCase):
         sys.platform = self.original_platform
         _reload()
 
+    @skipIf(PY3, "Python 3 has its own way of dealing with this.")
     def test_listdir_unicode(self):
         # What happens if latin1-encoded filenames are encountered on an UTF-8
         # filesystem?
@@ -228,7 +230,8 @@ class EncodingUtil(ReallyEqualMixin):
         _reload()
         self.failUnlessReallyEqual(unicode_to_output(lumiere_nfc), self.argv)
 
-    def test_unicode_platform(self):
+    @skipIf(PY3, "It's always Unicode on Python 2.")
+    def test_unicode_platform_py2(self):
         matrix = {
           'linux2': False,
           'linux3': False,
@@ -239,6 +242,11 @@ class EncodingUtil(ReallyEqualMixin):
 
         _reload()
         self.failUnlessReallyEqual(unicode_platform(), matrix[self.platform])
+
+    @skipIf(PY2, "Python 3 isn't Python 2.")
+    def test_unicode_platform_py3(self):
+        _reload()
+        self.failUnlessReallyEqual(unicode_platform(), True)
 
     def test_listdir_unicode(self):
         if 'dirlist' not in dir(self):
@@ -323,11 +331,22 @@ class QuoteOutput(ReallyEqualMixin, unittest.TestCase):
         if out[0:2] == 'b"':
             pass
         elif isinstance(inp, bytes):
-            self.failUnlessReallyEqual(quote_output(unicode(inp), encoding=enc, quote_newlines=quote_newlines), out)
-            self.failUnlessReallyEqual(quote_output(unicode(inp), encoding=enc, quotemarks=False, quote_newlines=quote_newlines), out2)
+            try:
+                unicode_inp = inp.decode("utf-8")
+            except UnicodeDecodeError:
+                # Some things decode on Python 2, but not Python 3...
+                return
+            self.failUnlessReallyEqual(quote_output(unicode_inp, encoding=enc, quote_newlines=quote_newlines), out)
+            self.failUnlessReallyEqual(quote_output(unicode_inp, encoding=enc, quotemarks=False, quote_newlines=quote_newlines), out2)
         else:
-            self.failUnlessReallyEqual(quote_output(inp.encode('utf-8'), encoding=enc, quote_newlines=quote_newlines), out)
-            self.failUnlessReallyEqual(quote_output(inp.encode('utf-8'), encoding=enc, quotemarks=False, quote_newlines=quote_newlines), out2)
+            try:
+                bytes_inp = inp.encode('utf-8')
+            except UnicodeEncodeError:
+                # Some things encode on Python 2, but not Python 3, e.g.
+                # surrogates like u"\uDC00\uD800"...
+                return
+            self.failUnlessReallyEqual(quote_output(bytes_inp, encoding=enc, quote_newlines=quote_newlines), out)
+            self.failUnlessReallyEqual(quote_output(bytes_inp, encoding=enc, quotemarks=False, quote_newlines=quote_newlines), out2)
 
     def _test_quote_output_all(self, enc):
         def check(inp, out, optional_quotes=False, quote_newlines=None):
@@ -359,8 +378,8 @@ class QuoteOutput(ReallyEqualMixin, unittest.TestCase):
         check(u"\"\uDBFF\uDFFF",     b"\"\\\"\\U0010ffff\"")
 
         # invalid UTF-8
-        check("\xFF",                b"b\"\\xff\"")
-        check("\x00\"$\\`\x80\xFF",  b"b\"\\x00\\\"\\$\\\\\\`\\x80\\xff\"")
+        check(b"\xFF",                b"b\"\\xff\"")
+        check(b"\x00\"$\\`\x80\xFF",  b"b\"\\x00\\\"\\$\\\\\\`\\x80\\xff\"")
 
     def test_quote_output_ascii(self, enc='ascii'):
         def check(inp, out, optional_quotes=False, quote_newlines=None):
@@ -419,43 +438,43 @@ def win32_other(win32, other):
 
 class QuotePaths(ReallyEqualMixin, unittest.TestCase):
     def test_quote_path(self):
-        self.failUnlessReallyEqual(quote_path([u'foo', u'bar']), "'foo/bar'")
-        self.failUnlessReallyEqual(quote_path([u'foo', u'bar'], quotemarks=True), "'foo/bar'")
-        self.failUnlessReallyEqual(quote_path([u'foo', u'bar'], quotemarks=False), "foo/bar")
-        self.failUnlessReallyEqual(quote_path([u'foo', u'\nbar']), '"foo/\\x0abar"')
-        self.failUnlessReallyEqual(quote_path([u'foo', u'\nbar'], quotemarks=True), '"foo/\\x0abar"')
-        self.failUnlessReallyEqual(quote_path([u'foo', u'\nbar'], quotemarks=False), '"foo/\\x0abar"')
+        self.failUnlessReallyEqual(quote_path([u'foo', u'bar']), b"'foo/bar'")
+        self.failUnlessReallyEqual(quote_path([u'foo', u'bar'], quotemarks=True), b"'foo/bar'")
+        self.failUnlessReallyEqual(quote_path([u'foo', u'bar'], quotemarks=False), b"foo/bar")
+        self.failUnlessReallyEqual(quote_path([u'foo', u'\nbar']), b'"foo/\\x0abar"')
+        self.failUnlessReallyEqual(quote_path([u'foo', u'\nbar'], quotemarks=True), b'"foo/\\x0abar"')
+        self.failUnlessReallyEqual(quote_path([u'foo', u'\nbar'], quotemarks=False), b'"foo/\\x0abar"')
 
         self.failUnlessReallyEqual(quote_local_unicode_path(u"\\\\?\\C:\\foo"),
-                                   win32_other("'C:\\foo'", "'\\\\?\\C:\\foo'"))
+                                   win32_other(b"'C:\\foo'", b"'\\\\?\\C:\\foo'"))
         self.failUnlessReallyEqual(quote_local_unicode_path(u"\\\\?\\C:\\foo", quotemarks=True),
-                                   win32_other("'C:\\foo'", "'\\\\?\\C:\\foo'"))
+                                   win32_other(b"'C:\\foo'", b"'\\\\?\\C:\\foo'"))
         self.failUnlessReallyEqual(quote_local_unicode_path(u"\\\\?\\C:\\foo", quotemarks=False),
-                                   win32_other("C:\\foo", "\\\\?\\C:\\foo"))
+                                   win32_other(b"C:\\foo", b"\\\\?\\C:\\foo"))
         self.failUnlessReallyEqual(quote_local_unicode_path(u"\\\\?\\UNC\\foo\\bar"),
-                                   win32_other("'\\\\foo\\bar'", "'\\\\?\\UNC\\foo\\bar'"))
+                                   win32_other(b"'\\\\foo\\bar'", b"'\\\\?\\UNC\\foo\\bar'"))
         self.failUnlessReallyEqual(quote_local_unicode_path(u"\\\\?\\UNC\\foo\\bar", quotemarks=True),
-                                   win32_other("'\\\\foo\\bar'", "'\\\\?\\UNC\\foo\\bar'"))
+                                   win32_other(b"'\\\\foo\\bar'", b"'\\\\?\\UNC\\foo\\bar'"))
         self.failUnlessReallyEqual(quote_local_unicode_path(u"\\\\?\\UNC\\foo\\bar", quotemarks=False),
-                                   win32_other("\\\\foo\\bar", "\\\\?\\UNC\\foo\\bar"))
+                                   win32_other(b"\\\\foo\\bar", b"\\\\?\\UNC\\foo\\bar"))
 
     def test_quote_filepath(self):
         foo_bar_fp = FilePath(win32_other(u'C:\\foo\\bar', u'/foo/bar'))
         self.failUnlessReallyEqual(quote_filepath(foo_bar_fp),
-                                   win32_other("'C:\\foo\\bar'", "'/foo/bar'"))
+                                   win32_other(b"'C:\\foo\\bar'", b"'/foo/bar'"))
         self.failUnlessReallyEqual(quote_filepath(foo_bar_fp, quotemarks=True),
-                                   win32_other("'C:\\foo\\bar'", "'/foo/bar'"))
+                                   win32_other(b"'C:\\foo\\bar'", b"'/foo/bar'"))
         self.failUnlessReallyEqual(quote_filepath(foo_bar_fp, quotemarks=False),
-                                   win32_other("C:\\foo\\bar", "/foo/bar"))
+                                   win32_other(b"C:\\foo\\bar", b"/foo/bar"))
 
         if sys.platform == "win32":
             foo_longfp = FilePath(u'\\\\?\\C:\\foo')
             self.failUnlessReallyEqual(quote_filepath(foo_longfp),
-                                       "'C:\\foo'")
+                                       b"'C:\\foo'")
             self.failUnlessReallyEqual(quote_filepath(foo_longfp, quotemarks=True),
-                                       "'C:\\foo'")
+                                       b"'C:\\foo'")
             self.failUnlessReallyEqual(quote_filepath(foo_longfp, quotemarks=False),
-                                       "C:\\foo")
+                                       b"C:\\foo")
 
 
 class FilePaths(ReallyEqualMixin, unittest.TestCase):
@@ -556,9 +575,9 @@ class OpenBSD(EncodingUtil, unittest.TestCase):
 
 class TestToFromStr(ReallyEqualMixin, unittest.TestCase):
     def test_to_str(self):
-        self.failUnlessReallyEqual(to_str("foo"), b"foo")
-        self.failUnlessReallyEqual(to_str("lumi\xc3\xa8re"), b"lumi\xc3\xa8re")
-        self.failUnlessReallyEqual(to_str("\xFF"), "\xFF")  # passes through invalid UTF-8 -- is this what we want?
+        self.failUnlessReallyEqual(to_str(b"foo"), b"foo")
+        self.failUnlessReallyEqual(to_str(b"lumi\xc3\xa8re"), b"lumi\xc3\xa8re")
+        self.failUnlessReallyEqual(to_str(b"\xFF"), "\xFF")  # passes through invalid UTF-8 -- is this what we want?
         self.failUnlessReallyEqual(to_str(u"lumi\u00E8re"), b"lumi\xc3\xa8re")
         self.failUnlessReallyEqual(to_str(None), None)
 
@@ -566,4 +585,4 @@ class TestToFromStr(ReallyEqualMixin, unittest.TestCase):
         self.failUnlessRaises(AssertionError, from_utf8_or_none, u"foo")
         self.failUnlessReallyEqual(from_utf8_or_none(b"lumi\xc3\xa8re"), u"lumi\u00E8re")
         self.failUnlessReallyEqual(from_utf8_or_none(None), None)
-        self.failUnlessRaises(UnicodeDecodeError, from_utf8_or_none, "\xFF")
+        self.failUnlessRaises(UnicodeDecodeError, from_utf8_or_none, b"\xFF")

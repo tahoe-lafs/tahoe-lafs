@@ -237,7 +237,7 @@ def quote_output(s, quotemarks=True, quote_newlines=None, encoding=None):
         try:
             s = s.decode('utf-8')
         except UnicodeDecodeError:
-            return 'b"%s"' % (ESCAPABLE_8BIT.sub(lambda m: _str_escape(m, quote_newlines), s),)
+            return b'b"%s"' % (ESCAPABLE_8BIT.sub(lambda m: _str_escape(m, quote_newlines), s),)
 
     must_double_quote = quote_newlines and MUST_DOUBLE_QUOTE_NL or MUST_DOUBLE_QUOTE
     if must_double_quote.search(s) is None:
