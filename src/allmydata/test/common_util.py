@@ -14,8 +14,9 @@ from future.utils import PY2
 if PY2: # XXX this is a hack that makes some tests pass on Python3, remove
         # in the future
     from ..scripts import runner
+# Imported for backwards compatibility:
 from .common_py3 import (
-    SignalMixin, skip_if_cannot_represent_filename, ReallyEqualMixin,
+    SignalMixin, skip_if_cannot_represent_filename, ReallyEqualMixin, # noqa: F401
 )
 
 
