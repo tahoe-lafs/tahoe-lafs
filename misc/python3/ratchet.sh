@@ -11,8 +11,9 @@ cd "../.."
 
 # Since both of the next calls are expected to exit non-0, relax our guard.
 set +e
-trial --reporter=subunitv2-file allmydata
-subunit2junitxml < "${SUBUNITREPORTER_OUTPUT_PATH}" > "$base/results.xml"
+SUBUNITREPORTER_OUTPUT_PATH="$base/results"  trial --reporter=subunitv2-file allmydata
+subunit2junitxml < "$base/results" > "$base/results.xml"
+subunit2pyunit < "$base/results"
 set -e
 
 # Okay, now we're clear.
