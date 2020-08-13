@@ -206,6 +206,7 @@ allmydata.test.test_statistics.Statistics.test_pr_file_loss
 allmydata.test.test_statistics.Statistics.test_repair_cost
 allmydata.test.test_statistics.Statistics.test_repair_count_pmf
 allmydata.test.test_statistics.Statistics.test_survival_pmf
+allmydata.test.test_stats.CPUUsage.test_monitor
 allmydata.test.test_time_format.TimeFormat.test_epoch
 allmydata.test.test_time_format.TimeFormat.test_epoch_in_London
 allmydata.test.test_time_format.TimeFormat.test_format_delta
