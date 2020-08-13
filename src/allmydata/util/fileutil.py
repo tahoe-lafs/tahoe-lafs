@@ -1,8 +1,18 @@
-from __future__ import print_function
-
 """
+Ported to Python3.
+
 Futz with files like a pro.
 """
+
+from __future__ import print_function
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    # open is not here because we want to use native strings on Py2
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 import sys, os, stat, tempfile, time, binascii
 import six
@@ -253,6 +263,9 @@ def move_into_place(source, dest):
     os.rename(source, dest)
 
 def write_atomically(target, contents, mode="b"):
+    assert (
+        isinstance(contents, bytes) and "b" in mode or
+        isinstance(contents, str) and "t" in mode or mode == ""), (type(contents), mode)
     with open(target+".tmp", "w"+mode) as f:
         f.write(contents)
     move_into_place(target+".tmp", target)
@@ -277,7 +290,7 @@ def put_file(path, inf):
             outf.write(data)
 
 def precondition_abspath(path):
-    if not isinstance(path, unicode):
+    if not isinstance(path, str):
         raise AssertionError("an abspath must be a Unicode string")
 
     if sys.platform == "win32":
@@ -309,7 +322,7 @@ def abspath_expanduser_unicode(path, base=None, long_path=True):
     abspath_expanduser_unicode.
     On Windows, the result will be a long path unless long_path is given as False.
     """
-    if not isinstance(path, unicode):
+    if not isinstance(path, str):
         raise AssertionError("paths must be Unicode strings")
     if base is not None and long_path:
         precondition_abspath(base)
@@ -330,7 +343,10 @@ def abspath_expanduser_unicode(path, base=None, long_path=True):
 
     if not os.path.isabs(path):
         if base is None:
-            path = os.path.join(os.getcwdu(), path)
+            cwd = os.getcwd()
+            if PY2:
+                cwd = cwd.decode('utf8')
+            path = os.path.join(cwd, path)
         else:
             path = os.path.join(base, path)
 
@@ -415,7 +431,7 @@ ERROR_ENVVAR_NOT_FOUND = 203
 def windows_getenv(name):
     # Based on <http://stackoverflow.com/questions/2608200/problems-with-umlauts-in-python-appdata-environvent-variable/2608368#2608368>,
     # with improved error handling. Returns None if there is no enivronment variable of the given name.
-    if not isinstance(name, unicode):
+    if not isinstance(name, str):
         raise AssertionError("name must be Unicode")
 
     n = GetEnvironmentVariableW(name, None, 0)

@@ -1,22 +1,25 @@
+"""
+Ported to Python3.
+"""
+
 from __future__ import print_function
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import unicode_literals
 
 from future.utils import PY2
 if PY2:
-    from builtins import filter, map, zip, ascii, chr, dict, hex, input, next, oct, open, pow, round, super, bytes, int, list, object, range, str, max, min  # noqa: F401
-
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 import six
 import os, time, sys
 import yaml
 
 from twisted.trial import unittest
-from twisted.internet import defer, reactor
-from twisted.python.failure import Failure
 
 from allmydata.util import idlib, mathutil
 from allmydata.util import fileutil
-from allmydata.util import limiter, pollmixin
+from allmydata.util import pollmixin
 from allmydata.util import yamlutil
-from allmydata.util import log as tahoe_log
 from allmydata.util.fileutil import EncryptedTemporaryFile
 from allmydata.test.common_util import ReallyEqualMixin
 
@@ -26,7 +29,7 @@ if six.PY3:
 
 class IDLib(unittest.TestCase):
     def test_nodeid_b2a(self):
-        self.failUnlessEqual(idlib.nodeid_b2a("\x00"*20), "a"*32)
+        self.failUnlessEqual(idlib.nodeid_b2a(b"\x00"*20), "a"*32)
 
 
 class MyList(list):
@@ -92,10 +95,10 @@ class FileUtil(ReallyEqualMixin, unittest.TestCase):
         basedir = "util/FileUtil/test_write_atomically"
         fileutil.make_dirs(basedir)
         fn = os.path.join(basedir, "here")
-        fileutil.write_atomically(fn, "one")
-        self.failUnlessEqual(fileutil.read(fn), "one")
-        fileutil.write_atomically(fn, "two", mode="") # non-binary
-        self.failUnlessEqual(fileutil.read(fn), "two")
+        fileutil.write_atomically(fn, b"one", "b")
+        self.failUnlessEqual(fileutil.read(fn), b"one")
+        fileutil.write_atomically(fn, u"two", mode="") # non-binary
+        self.failUnlessEqual(fileutil.read(fn), b"two")
 
     def test_rename(self):
         basedir = "util/FileUtil/test_rename"
@@ -118,20 +121,20 @@ class FileUtil(ReallyEqualMixin, unittest.TestCase):
         self.failUnlessRaises(OSError, fileutil.rename_no_overwrite, source_path, dest_path)
 
         # when only dest exists
-        fileutil.write(dest_path,   "dest")
+        fileutil.write(dest_path,   b"dest")
         self.failUnlessRaises(OSError, fileutil.rename_no_overwrite, source_path, dest_path)
-        self.failUnlessEqual(fileutil.read(dest_path),   "dest")
+        self.failUnlessEqual(fileutil.read(dest_path),   b"dest")
 
         # when both exist
-        fileutil.write(source_path, "source")
+        fileutil.write(source_path, b"source")
         self.failUnlessRaises(OSError, fileutil.rename_no_overwrite, source_path, dest_path)
-        self.failUnlessEqual(fileutil.read(source_path), "source")
-        self.failUnlessEqual(fileutil.read(dest_path),   "dest")
+        self.failUnlessEqual(fileutil.read(source_path), b"source")
+        self.failUnlessEqual(fileutil.read(dest_path),   b"dest")
 
         # when only source exists
         os.remove(dest_path)
         fileutil.rename_no_overwrite(source_path, dest_path)
-        self.failUnlessEqual(fileutil.read(dest_path), "source")
+        self.failUnlessEqual(fileutil.read(dest_path), b"source")
         self.failIf(os.path.exists(source_path))
 
     def test_replace_file(self):
@@ -145,21 +148,21 @@ class FileUtil(ReallyEqualMixin, unittest.TestCase):
         self.failUnlessRaises(fileutil.ConflictError, fileutil.replace_file, replaced_path, replacement_path)
 
         # when only replaced exists
-        fileutil.write(replaced_path,    "foo")
+        fileutil.write(replaced_path,   b"foo")
         self.failUnlessRaises(fileutil.ConflictError, fileutil.replace_file, replaced_path, replacement_path)
-        self.failUnlessEqual(fileutil.read(replaced_path), "foo")
+        self.failUnlessEqual(fileutil.read(replaced_path), b"foo")
 
         # when both replaced and replacement exist
-        fileutil.write(replacement_path, "bar")
+        fileutil.write(replacement_path, b"bar")
         fileutil.replace_file(replaced_path, replacement_path)
-        self.failUnlessEqual(fileutil.read(replaced_path), "bar")
+        self.failUnlessEqual(fileutil.read(replaced_path), b"bar")
         self.failIf(os.path.exists(replacement_path))
 
         # when only replacement exists
         os.remove(replaced_path)
-        fileutil.write(replacement_path, "bar")
+        fileutil.write(replacement_path, b"bar")
         fileutil.replace_file(replaced_path, replacement_path)
-        self.failUnlessEqual(fileutil.read(replaced_path), "bar")
+        self.failUnlessEqual(fileutil.read(replaced_path), b"bar")
         self.failIf(os.path.exists(replacement_path))
 
     def test_du(self):
@@ -177,13 +180,15 @@ class FileUtil(ReallyEqualMixin, unittest.TestCase):
         self.failUnlessEqual(10+11+12+13, used)
 
     def test_abspath_expanduser_unicode(self):
-        self.failUnlessRaises(AssertionError, fileutil.abspath_expanduser_unicode, "bytestring")
+        self.failUnlessRaises(AssertionError, fileutil.abspath_expanduser_unicode, b"bytestring")
 
-        saved_cwd = os.path.normpath(os.getcwdu())
+        saved_cwd = os.path.normpath(os.getcwd())
+        if PY2:
+            saved_cwd = saved_cwd.decode("utf8")
         abspath_cwd = fileutil.abspath_expanduser_unicode(u".")
         abspath_cwd_notlong = fileutil.abspath_expanduser_unicode(u".", long_path=False)
-        self.failUnless(isinstance(saved_cwd, unicode), saved_cwd)
-        self.failUnless(isinstance(abspath_cwd, unicode), abspath_cwd)
+        self.failUnless(isinstance(saved_cwd, str), saved_cwd)
+        self.failUnless(isinstance(abspath_cwd, str), abspath_cwd)
         if sys.platform == "win32":
             self.failUnlessReallyEqual(abspath_cwd, fileutil.to_windows_long_path(saved_cwd))
         else:
@@ -244,10 +249,10 @@ class FileUtil(ReallyEqualMixin, unittest.TestCase):
                 os.chdir(cwd)
                 for upath in (u'', u'fuu', u'f\xf9\xf9', u'/fuu', u'U:\\', u'~'):
                     uabspath = fileutil.abspath_expanduser_unicode(upath)
-                    self.failUnless(isinstance(uabspath, unicode), uabspath)
+                    self.failUnless(isinstance(uabspath, str), uabspath)
 
                     uabspath_notlong = fileutil.abspath_expanduser_unicode(upath, long_path=False)
-                    self.failUnless(isinstance(uabspath_notlong, unicode), uabspath_notlong)
+                    self.failUnless(isinstance(uabspath_notlong, str), uabspath_notlong)
             finally:
                 os.chdir(saved_cwd)
 
@@ -300,9 +305,9 @@ class FileUtil(ReallyEqualMixin, unittest.TestCase):
             fileutil.remove(long_path)
         self.addCleanup(_cleanup)
 
-        fileutil.write(long_path, "test")
+        fileutil.write(long_path, b"test")
         self.failUnless(os.path.exists(long_path))
-        self.failUnlessEqual(fileutil.read(long_path), "test")
+        self.failUnlessEqual(fileutil.read(long_path), b"test")
         _cleanup()
         self.failIf(os.path.exists(long_path))
 
@@ -360,7 +365,7 @@ class FileUtil(ReallyEqualMixin, unittest.TestCase):
 
         # create a file
         f = os.path.join(basedir, "1.txt")
-        fileutil.write(f, "a"*10)
+        fileutil.write(f, b"a"*10)
         fileinfo = fileutil.get_pathinfo(f)
         self.failUnlessTrue(fileinfo.isfile)
         self.failUnlessTrue(fileinfo.exists)
@@ -388,7 +393,7 @@ class FileUtil(ReallyEqualMixin, unittest.TestCase):
         fileutil.make_dirs(basedir)
 
         f = os.path.join(basedir, "1.txt")
-        fileutil.write(f, "a"*10)
+        fileutil.write(f, b"a"*10)
 
         # create a symlink pointing to 1.txt
         slname = os.path.join(basedir, "linkto1.txt")
@@ -401,7 +406,7 @@ class FileUtil(ReallyEqualMixin, unittest.TestCase):
 
     def test_encrypted_tempfile(self):
         f = EncryptedTemporaryFile()
-        f.write("foobar")
+        f.write(b"foobar")
         f.close()
 
 
@@ -416,7 +421,7 @@ class PollMixinTests(unittest.TestCase):
 
     def test_PollMixin_False_then_True(self):
         i = iter([False, True])
-        d = self.pm.poll(check_f=i.next,
+        d = self.pm.poll(check_f=lambda: next(i),
                          pollinterval=0.1)
         return d
 
@@ -430,81 +435,6 @@ class PollMixinTests(unittest.TestCase):
             f.trap(pollmixin.TimeoutError)
             return None # success
         d.addCallbacks(_suc, _err)
-        return d
-
-
-class Limiter(unittest.TestCase):
-
-    def job(self, i, foo):
-        self.calls.append( (i, foo) )
-        self.simultaneous += 1
-        self.peak_simultaneous = max(self.simultaneous, self.peak_simultaneous)
-        d = defer.Deferred()
-        def _done():
-            self.simultaneous -= 1
-            d.callback("done %d" % i)
-        reactor.callLater(1.0, _done)
-        return d
-
-    def bad_job(self, i, foo):
-        raise ValueError("bad_job %d" % i)
-
-    def test_limiter(self):
-        self.calls = []
-        self.simultaneous = 0
-        self.peak_simultaneous = 0
-        l = limiter.ConcurrencyLimiter()
-        dl = []
-        for i in range(20):
-            dl.append(l.add(self.job, i, foo=str(i)))
-        d = defer.DeferredList(dl, fireOnOneErrback=True)
-        def _done(res):
-            self.failUnlessEqual(self.simultaneous, 0)
-            self.failUnless(self.peak_simultaneous <= 10)
-            self.failUnlessEqual(len(self.calls), 20)
-            for i in range(20):
-                self.failUnless( (i, str(i)) in self.calls)
-        d.addCallback(_done)
-        return d
-
-    def test_errors(self):
-        self.calls = []
-        self.simultaneous = 0
-        self.peak_simultaneous = 0
-        l = limiter.ConcurrencyLimiter()
-        dl = []
-        for i in range(20):
-            dl.append(l.add(self.job, i, foo=str(i)))
-        d2 = l.add(self.bad_job, 21, "21")
-        d = defer.DeferredList(dl, fireOnOneErrback=True)
-        def _most_done(res):
-            results = []
-            for (success, result) in res:
-                self.failUnlessEqual(success, True)
-                results.append(result)
-            results.sort()
-            expected_results = ["done %d" % i for i in range(20)]
-            expected_results.sort()
-            self.failUnlessEqual(results, expected_results)
-            self.failUnless(self.peak_simultaneous <= 10)
-            self.failUnlessEqual(len(self.calls), 20)
-            for i in range(20):
-                self.failUnless( (i, str(i)) in self.calls)
-            def _good(res):
-                self.fail("should have failed, not got %s" % (res,))
-            def _err(f):
-                f.trap(ValueError)
-                self.failUnless("bad_job 21" in str(f))
-            d2.addCallbacks(_good, _err)
-            return d2
-        d.addCallback(_most_done)
-        def _all_done(res):
-            self.failUnlessEqual(self.simultaneous, 0)
-            self.failUnless(self.peak_simultaneous <= 10)
-            self.failUnlessEqual(len(self.calls), 20)
-            for i in range(20):
-                self.failUnless( (i, str(i)) in self.calls)
-        d.addCallback(_all_done)
         return d
 
 
@@ -532,24 +462,10 @@ class EqButNotIs(object):
         return self.x == other
 
 
-class SampleError(Exception):
-    pass
-
-class Log(unittest.TestCase):
-    def test_err(self):
-        try:
-            raise SampleError("simple sample")
-        except:
-            f = Failure()
-        tahoe_log.err(format="intentional sample error",
-                      failure=f, level=tahoe_log.OPERATIONAL, umid="wO9UoQ")
-        self.flushLoggedErrors(SampleError)
-
-
 class YAML(unittest.TestCase):
     def test_convert(self):
         data = yaml.safe_dump(["str", u"unicode", u"\u1234nicode"])
         back = yamlutil.safe_load(data)
-        self.failUnlessEqual(type(back[0]), unicode)
-        self.failUnlessEqual(type(back[1]), unicode)
-        self.failUnlessEqual(type(back[2]), unicode)
+        self.assertIsInstance(back[0], str)
+        self.assertIsInstance(back[1], str)
+        self.assertIsInstance(back[2], str)

@@ -45,6 +45,8 @@ Written by Connelly Barnes in 2005 and released into the
 public domain  with no warranty of any kind, either expressed
 or implied.  It probably won't make your computer catch on fire,
 or eat  your children, but it might.  Use at your own risk.
+
+Ported to Python 3.
 """
 
 from __future__ import absolute_import
@@ -54,7 +56,7 @@ from __future__ import unicode_literals
 
 from future.utils import PY2
 if PY2:
-    from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, int, list, object, range, str, max, min  # noqa: F401
+    from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 from allmydata.util import mathutil # from the pyutil library
 

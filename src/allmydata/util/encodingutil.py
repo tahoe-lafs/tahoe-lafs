@@ -140,7 +140,7 @@ def to_str(s):
     return s.encode('utf-8')
 
 def from_utf8_or_none(s):
-    precondition(isinstance(s, (NoneType, str)), s)
+    precondition(isinstance(s, str) or s is None, s)
     if s is None:
         return s
     return s.decode('utf-8')
