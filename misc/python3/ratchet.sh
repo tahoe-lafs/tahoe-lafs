@@ -9,11 +9,10 @@ base=$(pwd)
 # Actually, though, trial outputs some things that are only gitignored in the project root.
 cd "../.."
 
-# Since both of the next calls are expected to exit non-0, relax our guard.
-set +e
-trial --reporter=subunitv2-file allmydata
-subunit2junitxml < "${SUBUNITREPORTER_OUTPUT_PATH}" > "$base/results.xml"
-set -e
+export SUBUNITREPORTER_OUTPUT_PATH="$base/results.subunit2"
+# Since the next two calls are expected to exit non-0, relax our guard.
+trial --reporter=subunitv2-file allmydata || true
+subunit2junitxml < "${SUBUNITREPORTER_OUTPUT_PATH}" > "$base/results.xml" || true
 
 # Okay, now we're clear.
 cd "$base"
