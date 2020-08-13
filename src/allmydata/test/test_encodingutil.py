@@ -53,7 +53,9 @@ if __name__ == "__main__":
         for fname in TEST_FILENAMES:
             open(os.path.join(tmpdir, fname), 'w').close()
 
-        # Use Unicode API under Windows or MacOS X
+        # On Python 2, listing directories returns unicode under Windows or
+        # MacOS X if the input is unicode. On Python 3, it always returns
+        # Unicode.
         if PY2 and sys.platform in ('win32', 'darwin'):
             dirlist = os.listdir(unicode(tmpdir))
         else:

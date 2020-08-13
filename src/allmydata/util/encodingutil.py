@@ -214,6 +214,9 @@ def _unicode_escape(m, quote_newlines):
         return u'\\x%02x' % (codepoint,)
 
 def _str_escape(m, quote_newlines):  # TODO rename to _bytes_escape
+    """
+    Takes a re match on bytes, the result is escaped bytes of group(0).
+    """
     c = m.group(0)
     if c == b'"' or c == b'$' or c == b'`' or c == b'\\':
         return b'\\' + c
