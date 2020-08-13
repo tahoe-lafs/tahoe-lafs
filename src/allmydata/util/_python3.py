@@ -22,6 +22,7 @@ PORTED_MODULES = [
     "allmydata.crypto.rsa",
     "allmydata.crypto.util",
     "allmydata.hashtree",
+    "allmydata.immutable.happiness_upload",
     "allmydata.test.common_py3",
     "allmydata.util._python3",
     "allmydata.util.abbreviate",
@@ -31,7 +32,9 @@ PORTED_MODULES = [
     "allmydata.util.configutil",
     "allmydata.util.connection_status",
     "allmydata.util.deferredutil",
+    "allmydata.util.fileutil",
     "allmydata.util.dictutil",
+    "allmydata.util.encodingutil",
     "allmydata.util.gcutil",
     "allmydata.util.hashutil",
     "allmydata.util.humanreadable",
@@ -57,6 +60,8 @@ PORTED_TEST_MODULES = [
     "allmydata.test.test_crypto",
     "allmydata.test.test_deferredutil",
     "allmydata.test.test_dictutil",
+    "allmydata.test.test_encodingutil",
+    "allmydata.test.test_happiness",
     "allmydata.test.test_hashtree",
     "allmydata.test.test_hashutil",
     "allmydata.test.test_humanreadable",
@@ -69,9 +74,9 @@ PORTED_TEST_MODULES = [
     "allmydata.test.test_spans",
     "allmydata.test.test_statistics",
     "allmydata.test.test_time_format",
+    "allmydata.test.test_util",
     "allmydata.test.test_version",
 ]
-
 
 if __name__ == '__main__':
     from subprocess import check_call
