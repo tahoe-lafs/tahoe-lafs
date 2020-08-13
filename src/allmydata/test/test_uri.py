@@ -425,7 +425,13 @@ class Mutable(testutil.ReallyEqualMixin, unittest.TestCase):
         self.failIf(u2.is_readonly())
         self.failUnless(u2.is_mutable())
 
-        cap3 = cap+":"+str(os.urandom(40)) # parse *that*!
+
+        cap3 = cap+":"
+        for item in os.urandom(40):
+            if isinstance(item, int):
+                cap3 += chr(item)
+            else:
+                cap3 += chr(ord(item))
         u3 = uri.WriteableMDMFFileURI.init_from_string(cap3)
         self.failUnlessReallyEqual(self.writekey, u3.writekey)
         self.failUnlessReallyEqual(self.fingerprint, u3.fingerprint)

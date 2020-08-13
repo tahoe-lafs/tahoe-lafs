@@ -914,6 +914,7 @@ def pack_extension(data):
 
 def unpack_extension(data):
     d = {}
+    assert isinstance(data, bytes)
     while data:
         colon = data.index(b':')
         key = data[:colon].decode('utf8')
@@ -925,7 +926,7 @@ def unpack_extension(data):
         data = data[colon+1:]
 
         value = data[:length]
-        assert data[length] == ord(',')
+        assert data[length:length + 1] == b','
         data = data[length+1:]
 
         d[key] = value
