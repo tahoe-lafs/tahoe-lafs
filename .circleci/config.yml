@@ -163,6 +163,7 @@ jobs:
                 "${TAHOE_LAFS_TOX_ARGS}"
 
       - run: &RUN_TESTS
+          # Please keep python3.6 in sync with this if you can. Thanks.
           name: "Run test suite"
           command: |
             /tmp/project/.circleci/run-tests.sh \
@@ -282,6 +283,45 @@ jobs:
     environment:
       <<: *UTF_8_ENVIRONMENT
       TAHOE_LAFS_TOX_ENVIRONMENT: "py36"
+      # Work around a conflict with trial under Python 3 between --reporter and
+      # --rterrors (by unspecifying --rterrors).
+      TAHOE_LAFS_TRIAL_ARGS: "--reporter=subunitv2-file"
+
+    steps:
+      - "checkout"
+      - run: *SETUP_VIRTUALENV
+      - run:
+          name: "Run test suite (python3.6)"
+          command: |
+
+            # Constrain the modules exercised under Python 3 based on the list
+            # we keep in _python3. Exporting inside a command seems to be the
+            # preferred way of setting an environment variable (or otherwise
+            # constraining the test run) dynamically:
+            #
+            #   https://ideas.circleci.com/ideas/CCI-I-67
+            #
+            # This seems to force a choice between DRY code with an overloaded
+            # RUN_TESTS, or an uncluttered RUN_TESTS and code duplication here.
+            # Que sera, sera.
+
+            export TAHOE_LAFS_TOX_ARGS="$(/tmp/tahoe-lafs.tox/${TAHOE_LAFS_TOX_ENVIRONMENT}/bin/python -c 'from allmydata.util._python3 import PORTED_TEST_MODULES; print(" ".join(PORTED_TEST_MODULES))')" \
+
+            /tmp/project/.circleci/run-tests.sh \
+                "/tmp/venv" \
+                "/tmp/project" \
+                "${ALLOWED_FAILURE}" \
+                "${ARTIFACTS_OUTPUT_PATH}" \
+                "${TAHOE_LAFS_TOX_ENVIRONMENT}" \
+                "${TAHOE_LAFS_TOX_ARGS}"
+          # trial output gets directed straight to a log.  avoid the circleci
+          # timeout while the test suite runs.
+          no_output_timeout: "20m"
+
+      - store_test_results: *STORE_TEST_RESULTS
+      - store_artifacts: *STORE_TEST_LOG
+      - store_artifacts: *STORE_OTHER_ARTIFACTS
+      - run: *SUBMIT_COVERAGE
 
 
   ubuntu-20.04:
