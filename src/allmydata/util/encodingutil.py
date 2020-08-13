@@ -144,7 +144,7 @@ def unicode_to_argv(s, mangle=False):
 
     if mangle and sys.platform == "win32":
         # This must be the same as 'mangle' in bin/tahoe-script.template.
-        return bytes(re.sub(u'[^\\x20-\\x7F]', lambda m: u'\x7F%x;' % (ord(m.group(0)),), s))
+        return bytes(re.sub(u'[^\\x20-\\x7F]', lambda m: u'\x7F%x;' % (ord(m.group(0)),), s), io_encoding)
     else:
         return s.encode(io_encoding)
 
