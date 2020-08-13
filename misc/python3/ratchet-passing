@@ -179,9 +179,6 @@ allmydata.test.test_util.FileUtil.test_windows_expanduser_win7
 allmydata.test.test_util.FileUtil.test_windows_expanduser_xp
 allmydata.test.test_util.FileUtil.test_write_atomically
 allmydata.test.test_util.IDLib.test_nodeid_b2a
-allmydata.test.test_util.Limiter.test_errors
-allmydata.test.test_util.Limiter.test_limiter
-allmydata.test.test_util.Log.test_err
 allmydata.test.test_util.Math.test_round_sigfigs
 allmydata.test.test_util.PollMixinTests.test_PollMixin_False_then_True
 allmydata.test.test_util.PollMixinTests.test_PollMixin_True
