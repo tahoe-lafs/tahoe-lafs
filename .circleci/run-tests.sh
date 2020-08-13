@@ -65,7 +65,7 @@ TIMEOUT="timeout --kill-after 1m 15m"
 # Send the output directly to a file because transporting the binary subunit2
 # via tox and then scraping it out is hideous and failure prone.
 export SUBUNITREPORTER_OUTPUT_PATH="${SUBUNIT2}"
-export TAHOE_LAFS_TRIAL_ARGS="--reporter=subunitv2-file --rterrors"
+export TAHOE_LAFS_TRIAL_ARGS="${TAHOE_LAFS_TRIAL_ARGS:---reporter=subunitv2-file --rterrors}"
 export PIP_NO_INDEX="1"
 
 if [ "${ALLOWED_FAILURE}" = "yes" ]; then
