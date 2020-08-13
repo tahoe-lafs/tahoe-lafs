@@ -16,7 +16,7 @@ if PY2: # XXX this is a hack that makes some tests pass on Python3, remove
     from ..scripts import runner
 # Imported for backwards compatibility:
 from .common_py3 import (
-    SignalMixin, skip_if_cannot_represent_filename, ReallyEqualMixin, # noqa: F401
+    SignalMixin, skip_if_cannot_represent_filename, ReallyEqualMixin,
 )
 
 
@@ -172,3 +172,11 @@ except ImportError:
         os.chmod(path, stat.S_IWRITE | stat.S_IEXEC | stat.S_IREAD)
     make_readonly = _make_readonly
     make_accessible = _make_accessible
+
+
+__all__ = [
+    "make_readonly", "make_accessible", "TestMixin", "ShouldFailMixin",
+    "StallMixin", "skip_if_cannot_represent_argv", "run_cli", "parse_cli",
+    "DevNullDictionary", "insecurerandstr", "flip_bit", "flip_one_bit",
+    "SignalMixin", "skip_if_cannot_represent_filename", "ReallyEqualMixin"
+]
