@@ -1,3 +1,10 @@
+"""
+Read/write config files.
+
+Configuration is returned as native strings.
+
+Ported to Python 3.
+"""
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -5,7 +12,9 @@ from __future__ import unicode_literals
 
 from future.utils import PY2
 if PY2:
-    from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+    # We don't do open(), because we want files to read/write native strs when
+    # we do "r" or "w".
+    from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 if PY2:
     # In theory on Python 2 configparser also works, but then code gets the
@@ -27,8 +36,17 @@ class UnknownConfigError(Exception):
 
 
 def get_config(tahoe_cfg):
+    """Load the config, returning a SafeConfigParser.
+
+    Configuration is returned as native strings.
+    """
     config = SafeConfigParser()
     with open(tahoe_cfg, "r") as f:
+        # On Python 2, where we read in bytes, skip any initial Byte Order
+        # Mark. Since this is an ordinary file, we don't need to handle
+        # incomplete reads, and can assume seekability.
+        if PY2 and f.read(3) != b'\xEF\xBB\xBF':
+            f.seek(0)
         config.readfp(f)
     return config
 
