@@ -84,7 +84,7 @@ from allmydata.util import encodingutil, fileutil
 from allmydata.util.encodingutil import argv_to_unicode, unicode_to_url, \
     unicode_to_output, quote_output, quote_path, quote_local_unicode_path, \
     quote_filepath, unicode_platform, listdir_unicode, FilenameEncodingError, \
-    get_io_encoding, get_filesystem_encoding, to_str, from_utf8_or_none, _reload, \
+    get_io_encoding, get_filesystem_encoding, to_bytes, from_utf8_or_none, _reload, \
     to_filepath, extend_filepath, unicode_from_filepath, unicode_segments_from, \
     unicode_to_argv
 from twisted.python import usage
@@ -600,12 +600,12 @@ class OpenBSD(EncodingUtil, unittest.TestCase):
 
 
 class TestToFromStr(ReallyEqualMixin, unittest.TestCase):
-    def test_to_str(self):
-        self.failUnlessReallyEqual(to_str(b"foo"), b"foo")
-        self.failUnlessReallyEqual(to_str(b"lumi\xc3\xa8re"), b"lumi\xc3\xa8re")
-        self.failUnlessReallyEqual(to_str(b"\xFF"), b"\xFF")  # passes through invalid UTF-8 -- is this what we want?
-        self.failUnlessReallyEqual(to_str(u"lumi\u00E8re"), b"lumi\xc3\xa8re")
-        self.failUnlessReallyEqual(to_str(None), None)
+    def test_to_bytes(self):
+        self.failUnlessReallyEqual(to_bytes(b"foo"), b"foo")
+        self.failUnlessReallyEqual(to_bytes(b"lumi\xc3\xa8re"), b"lumi\xc3\xa8re")
+        self.failUnlessReallyEqual(to_bytes(b"\xFF"), b"\xFF")  # passes through invalid UTF-8 -- is this what we want?
+        self.failUnlessReallyEqual(to_bytes(u"lumi\u00E8re"), b"lumi\xc3\xa8re")
+        self.failUnlessReallyEqual(to_bytes(None), None)
 
     def test_from_utf8_or_none(self):
         self.failUnlessRaises(AssertionError, from_utf8_or_none, u"foo")

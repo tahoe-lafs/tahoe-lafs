@@ -155,11 +155,15 @@ def unicode_to_url(s):
     # According to RFC 2718, non-ascii characters in URLs must be UTF-8 encoded.
 
     # FIXME
-    return to_str(s)
+    return to_bytes(s)
     #precondition(isinstance(s, unicode), s)
     #return s.encode('utf-8')
 
-def to_str(s):  # TODO rename to to_bytes
+def to_bytes(s):
+    """Convert unicode to bytes.
+
+    None and bytes are passed through unchanged.
+    """
     if s is None or isinstance(s, bytes):
         return s
     return s.encode('utf-8')
@@ -274,7 +278,7 @@ def quote_output(s, quotemarks=True, quote_newlines=None, encoding=None):
     return b'"%s"' % (escaped.encode(encoding or io_encoding, 'backslashreplace'),)
 
 def quote_path(path, quotemarks=True):
-    return quote_output(b"/".join(map(to_str, path)), quotemarks=quotemarks, quote_newlines=True)
+    return quote_output(b"/".join(map(to_bytes, path)), quotemarks=quotemarks, quote_newlines=True)
 
 def quote_local_unicode_path(path, quotemarks=True):
     precondition(isinstance(path, unicode), path)
