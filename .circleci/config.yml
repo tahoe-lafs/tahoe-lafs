@@ -163,7 +163,6 @@ jobs:
                 "${TAHOE_LAFS_TOX_ARGS}"
 
       - run: &RUN_TESTS
-          # Please keep python3.6 in sync with this if you can. Thanks.
           name: "Run test suite"
           command: |
             /tmp/project/.circleci/run-tests.sh \
@@ -283,30 +282,6 @@ jobs:
     environment:
       <<: *UTF_8_ENVIRONMENT
       TAHOE_LAFS_TOX_ENVIRONMENT: "py36"
-      # Work around a conflict with trial under Python 3 between --reporter and
-      # --rterrors (by unspecifying --rterrors).
-      TAHOE_LAFS_TRIAL_ARGS: "--reporter=subunitv2-file"
-
-    steps:
-      - "checkout"
-      - run: *SETUP_VIRTUALENV
-      - run:
-          name: "Limit Modules"
-          command: |
-
-            # Limit the modules exercised under Python 3 dynamically, based
-            # on the list we keep in allmydata.util._python3. Use BASH_ENV to
-            # communicate this to the RUN_TESTS step:
-            #
-            #   https://circleci.com/docs/2.0/env-vars/#using-parameters-and-bash-environment
-
-            echo "export TAHOE_LAFS_TOX_ARGS=\"$(/tmp/tahoe-lafs.tox/${TAHOE_LAFS_TOX_ENVIRONMENT}/bin/python -c 'from allmydata.util._python3 import PORTED_TEST_MODULES; print(" ".join(PORTED_TEST_MODULES))')\"" >> ${BASH_ENV}
-
-      - run: *RUN_TESTS
-      - store_test_results: *STORE_TEST_RESULTS
-      - store_artifacts: *STORE_TEST_LOG
-      - store_artifacts: *STORE_OTHER_ARTIFACTS
-      - run: *SUBMIT_COVERAGE
 
 
   ubuntu-20.04:
