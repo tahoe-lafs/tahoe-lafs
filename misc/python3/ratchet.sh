@@ -40,5 +40,9 @@ git diff -- "${tracking_filename}" > tracking.diff
 cat tracking.diff
 echo "================================="
 
+if [ -n "${ARTIFACTS}" ]; then
+    cp "${SUBUNITREPORTER_OUTPUT_PATH}" "$ARTIFACTS"
+fi
+
 echo "Exiting with code ${code} from ratchet.py."
 exit ${code}
