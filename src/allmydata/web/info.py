@@ -261,7 +261,7 @@ class MoreInfoElement(Element):
     @renderer
     def deep_check_form(self, req, tag):
         ophandle = base32.b2a(os.urandom(16))
-        deep_check = T.form(action=".", method="post",
+        deep_check = T.form(action=req.path, method="post",
                             enctype="multipart/form-data")(
             T.fieldset(
             T.input(type="hidden", name="t", value="start-deep-check"),
@@ -287,7 +287,7 @@ class MoreInfoElement(Element):
     @renderer
     def deep_size_form(self, req, tag):
         ophandle = base32.b2a(os.urandom(16))
-        deep_size = T.form(action=".", method="post",
+        deep_size = T.form(action=req.path, method="post",
                             enctype="multipart/form-data")(
             T.fieldset(
             T.input(type="hidden", name="t", value="start-deep-size"),
@@ -300,7 +300,7 @@ class MoreInfoElement(Element):
     @renderer
     def deep_stats_form(self, req, tag):
         ophandle = base32.b2a(os.urandom(16))
-        deep_stats = T.form(action=".", method="post",
+        deep_stats = T.form(action=req.path, method="post",
                             enctype="multipart/form-data")(
             T.fieldset(
             T.input(type="hidden", name="t", value="start-deep-stats"),
@@ -313,7 +313,7 @@ class MoreInfoElement(Element):
     @renderer
     def manifest_form(self, req, tag):
         ophandle = base32.b2a(os.urandom(16))
-        manifest = T.form(action=".", method="post",
+        manifest = T.form(action=req.path, method="post",
                             enctype="multipart/form-data")(
             T.fieldset(
             T.input(type="hidden", name="t", value="start-manifest"),

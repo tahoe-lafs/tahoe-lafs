@@ -281,6 +281,10 @@ jobs:
 
     environment:
       <<: *UTF_8_ENVIRONMENT
+      # The default trial args include --rterrors which is incompatible with
+      # this reporter on Python 3.  So drop that and just specify the
+      # reporter.
+      TAHOE_LAFS_TRIAL_ARGS: "--reporter=subunitv2-file"
       TAHOE_LAFS_TOX_ENVIRONMENT: "py36"
 
 

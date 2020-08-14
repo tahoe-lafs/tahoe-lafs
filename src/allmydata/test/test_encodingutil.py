@@ -286,7 +286,7 @@ class EncodingUtil(ReallyEqualMixin):
                 return [d.decode(self.filesystem_encoding) if isinstance(d, bytes)
                         else d
                         for d in self.dirlist]
-    
+
         self.patch(os, 'listdir', call_os_listdir)
 
         def call_sys_getfilesystemencoding():
