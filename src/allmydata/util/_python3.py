@@ -1,6 +1,15 @@
 """
 Track the port to Python 3.
 
+The two easiest ways to run the part of the test suite which is expected to
+pass on Python 3 are::
+
+    $ tox -e py36
+
+and::
+
+    $ trial allmydata.test.python3_tests
+
 This module has been ported to Python 3.
 """
 
@@ -71,7 +80,3 @@ PORTED_TEST_MODULES = [
     "allmydata.test.test_util",
     "allmydata.test.test_version",
 ]
-
-if __name__ == '__main__':
-    from subprocess import check_call
-    check_call(["trial"] + PORTED_TEST_MODULES)
