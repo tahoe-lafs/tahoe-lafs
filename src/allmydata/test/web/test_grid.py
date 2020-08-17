@@ -21,7 +21,12 @@ from allmydata.mutable import publish
 from .. import common_util as testutil
 from ..common import WebErrorMixin, ShouldFailMixin
 from ..no_network import GridTestMixin
-from .common import unknown_rwcap, unknown_rocap, unknown_immcap, FAVICON_MARKUP
+from .common import (
+    assert_soup_has_favicon,
+    unknown_immcap,
+    unknown_rocap,
+    unknown_rwcap,
+)
 
 DIR_HTML_TAG = '<html lang="en">'
 
@@ -92,7 +97,9 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
         def _got_html_good(res):
             self.failUnlessIn("Healthy", res)
             self.failIfIn("Not Healthy", res)
-            self.failUnlessIn(FAVICON_MARKUP, res)
+            soup = BeautifulSoup(res, 'html5lib')
+            assert_soup_has_favicon(self, soup)
+
         d.addCallback(_got_html_good)
         d.addCallback(self.CHECK, "good", "t=check&return_to=somewhere")
         def _got_html_good_return_to(res):
@@ -235,7 +242,9 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
             self.failUnlessIn("Healthy", res)
             self.failIfIn("Not Healthy", res)
             self.failUnlessIn("No repair necessary", res)
-            self.failUnlessIn(FAVICON_MARKUP, res)
+            soup = BeautifulSoup(res, 'html5lib')
+            assert_soup_has_favicon(self, soup)
+
         d.addCallback(_got_html_good)
 
         d.addCallback(self.CHECK, "sick", "t=check&repair=true")
