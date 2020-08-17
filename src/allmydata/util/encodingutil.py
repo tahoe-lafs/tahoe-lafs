@@ -262,30 +262,49 @@ def quote_output(s, quotemarks=True, quote_newlines=None, encoding=None):
     Python-compatible backslash escaping is used.
 
     If not explicitly given, quote_newlines is True when quotemarks is True.
+
+    On Python 3, returns Unicode strings.
     """
     precondition(isinstance(s, (bytes, unicode)), s)
+    encoding = encoding or io_encoding
+
     if quote_newlines is None:
         quote_newlines = quotemarks
 
-    if isinstance(s, bytes):
-        try:
-            s = s.decode('utf-8')
-        except UnicodeDecodeError:
-            return b'b"%s"' % (ESCAPABLE_8BIT.sub(lambda m: _bytes_escape(m, quote_newlines), s),)
+    def _encode(s):
+        if isinstance(s, bytes):
+            try:
+                s = s.decode('utf-8')
+            except UnicodeDecodeError:
+                return b'b"%s"' % (ESCAPABLE_8BIT.sub(lambda m: _bytes_escape(m, quote_newlines), s),)
 
-    must_double_quote = quote_newlines and MUST_DOUBLE_QUOTE_NL or MUST_DOUBLE_QUOTE
-    if must_double_quote.search(s) is None:
-        try:
-            out = s.encode(encoding or io_encoding)
-            if quotemarks or out.startswith(b'"'):
-                return b"'%s'" % (out,)
-            else:
-                return out
-        except (UnicodeDecodeError, UnicodeEncodeError):
-            pass
+        must_double_quote = quote_newlines and MUST_DOUBLE_QUOTE_NL or MUST_DOUBLE_QUOTE
+        if must_double_quote.search(s) is None:
+            try:
+                out = s.encode(encoding)
+                if quotemarks or out.startswith(b'"'):
+                    return b"'%s'" % (out,)
+                else:
+                    return out
+            except (UnicodeDecodeError, UnicodeEncodeError):
+                pass
 
-    escaped = ESCAPABLE_UNICODE.sub(lambda m: _unicode_escape(m, quote_newlines), s)
-    return b'"%s"' % (escaped.encode(encoding or io_encoding, 'backslashreplace'),)
+        escaped = ESCAPABLE_UNICODE.sub(lambda m: _unicode_escape(m, quote_newlines), s)
+        return b'"%s"' % (escaped.encode(encoding, 'backslashreplace'),)
+
+    result = _encode(s)
+    if PY3:
+        # On Python half of what this function does is unnecessary, since
+        # output is always Unicode. To ensure no encode errors, one can do:
+        #
+        # sys.stdout.reconfigure(encoding=sys.stdout.encoding, errors="backslashreplace")
+        #
+        # Although the problem is that doesn't work in Python 3.6, only 3.7 or
+        # later... For now not thinking about it, just returning unicode since
+        # that is the right thing to do on Python 3.
+        result = result.decode(encoding)
+    return result
+
 
 def quote_path(path, quotemarks=True):
     return quote_output(b"/".join(map(to_bytes, path)), quotemarks=quotemarks, quote_newlines=True)
