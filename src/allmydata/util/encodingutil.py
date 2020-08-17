@@ -224,7 +224,7 @@ def _unicode_escape(m, quote_newlines):
     else:
         return u'\\x%02x' % (codepoint,)
 
-def _str_escape(m, quote_newlines):  # TODO rename to _bytes_escape
+def _bytes_escape(m, quote_newlines):
     """
     Takes a re match on bytes, the result is escaped bytes of group(0).
     """
@@ -268,7 +268,7 @@ def quote_output(s, quotemarks=True, quote_newlines=None, encoding=None):
         try:
             s = s.decode('utf-8')
         except UnicodeDecodeError:
-            return b'b"%s"' % (ESCAPABLE_8BIT.sub(lambda m: _str_escape(m, quote_newlines), s),)
+            return b'b"%s"' % (ESCAPABLE_8BIT.sub(lambda m: _bytes_escape(m, quote_newlines), s),)
 
     must_double_quote = quote_newlines and MUST_DOUBLE_QUOTE_NL or MUST_DOUBLE_QUOTE
     if must_double_quote.search(s) is None:
