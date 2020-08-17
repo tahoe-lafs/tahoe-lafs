@@ -32,6 +32,7 @@ PORTED_MODULES = [
     "allmydata.crypto.util",
     "allmydata.hashtree",
     "allmydata.immutable.happiness_upload",
+    "allmydata.uri",
     "allmydata.test.common_py3",
     "allmydata.util._python3",
     "allmydata.util.abbreviate",
@@ -80,6 +81,7 @@ PORTED_TEST_MODULES = [
     "allmydata.test.test_spans",
     "allmydata.test.test_statistics",
     "allmydata.test.test_time_format",
+    "allmydata.test.test_uri",
     "allmydata.test.test_util",
     "allmydata.test.test_version",
 ]
