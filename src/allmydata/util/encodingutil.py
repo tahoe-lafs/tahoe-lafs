@@ -186,6 +186,9 @@ def is_printable_ascii(s):
 def unicode_to_output(s):
     """
     Encode an unicode object for representation on stdout or stderr.
+
+    On Python 3 just returns the string unchanged, since it is not necessary to
+    encode in any way.
     """
     precondition(isinstance(s, unicode), s)
     if PY3:
