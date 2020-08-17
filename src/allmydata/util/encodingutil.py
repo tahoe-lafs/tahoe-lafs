@@ -21,6 +21,7 @@ from past.builtins import unicode
 
 import sys, os, re, locale
 import unicodedata
+import warnings
 
 from allmydata.util.assertutil import precondition, _assert
 from twisted.python import usage
@@ -140,6 +141,8 @@ def unicode_to_argv(s, mangle=False):
     """
     precondition(isinstance(s, unicode), s)
     if PY3:
+        warnings.warn("This will be unnecessary once Python 2 is dropped.",
+                      DeprecationWarning)
         return s
 
     if mangle and sys.platform == "win32":
@@ -185,6 +188,10 @@ def unicode_to_output(s):
     Encode an unicode object for representation on stdout or stderr.
     """
     precondition(isinstance(s, unicode), s)
+    if PY3:
+        warnings.warn("This will be unnecessary once Python 2 is dropped.",
+                      DeprecationWarning)
+        return s
 
     try:
         out = s.encode(io_encoding)

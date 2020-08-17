@@ -144,6 +144,7 @@ class EncodingUtilErrors(ReallyEqualMixin, unittest.TestCase):
                               argv_to_unicode,
                               lumiere_nfc.encode('latin1'))
 
+    @skipIf(PY3, "Python 2 only.")
     def test_unicode_to_output(self):
         encodingutil.io_encoding = 'koi8-r'
         self.failUnlessRaises(UnicodeEncodeError, unicode_to_output, lumiere_nfc)
@@ -228,7 +229,8 @@ class EncodingUtil(ReallyEqualMixin):
     def test_unicode_to_url(self):
         self.failUnless(unicode_to_url(lumiere_nfc), b"lumi\xc3\xa8re")
 
-    def test_unicode_to_output(self):
+    @skipIf(PY3, "Python 3 is always Unicode, regardless of OS.")
+    def test_unicode_to_output_py2(self):
         if 'argv' not in dir(self):
             return
 
@@ -238,6 +240,10 @@ class EncodingUtil(ReallyEqualMixin):
 
         _reload()
         self.failUnlessReallyEqual(unicode_to_output(lumiere_nfc), self.argv)
+
+    @skipIf(PY2, "Python 3 only.")
+    def test_unicode_to_output_py3(self):
+        self.failUnlessReallyEqual(unicode_to_output(lumiere_nfc), lumiere_nfc)
 
     @skipIf(PY3, "Python 2 only.")
     def test_unicode_to_argv_py2(self):
