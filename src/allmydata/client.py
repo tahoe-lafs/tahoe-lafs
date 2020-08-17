@@ -741,7 +741,7 @@ class _Client(node.Node, pollmixin.PollMixin):
         private_key_str = self.config.get_or_create_private_config("node.privkey", _make_key)
         private_key, public_key = ed25519.signing_keypair_from_string(private_key_str)
         public_key_str = ed25519.string_from_verifying_key(public_key)
-        self.config.write_config_file("node.pubkey", public_key_str + "\n")
+        self.config.write_config_file("node.pubkey", public_key_str + "\n", "w")
         self._node_private_key = private_key
         self._node_public_key = public_key
 

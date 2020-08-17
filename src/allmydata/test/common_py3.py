@@ -20,6 +20,10 @@ import signal
 
 from twisted.internet import defer, reactor
 from twisted.python import failure
+from twisted.trial import unittest
+
+from ..util.assertutil import precondition
+from ..util.encodingutil import unicode_platform, get_filesystem_encoding
 
 
 class TimezoneMixin(object):
@@ -90,3 +94,21 @@ class ShouldFailMixin(object):
                           (which, expected_failure, res))
         d.addBoth(done)
         return d
+
+
+class ReallyEqualMixin(object):
+    def failUnlessReallyEqual(self, a, b, msg=None):
+        self.assertEqual(a, b, msg)
+        self.assertEqual(type(a), type(b), "a :: %r, b :: %r, %r" % (a, b, msg))
+
+
+def skip_if_cannot_represent_filename(u):
+    precondition(isinstance(u, unicode))
+
+    enc = get_filesystem_encoding()
+    if not unicode_platform():
+        try:
+            u.encode(enc)
+        except UnicodeEncodeError:
+            raise unittest.SkipTest("A non-ASCII filename could not be encoded on this platform.")
+
