@@ -65,7 +65,7 @@ TIMEOUT="timeout --kill-after 1m 15m"
 # Send the output directly to a file because transporting the binary subunit2
 # via tox and then scraping it out is hideous and failure prone.
 export SUBUNITREPORTER_OUTPUT_PATH="${SUBUNIT2}"
-export TAHOE_LAFS_TRIAL_ARGS="--reporter=subunitv2-file --rterrors"
+export TAHOE_LAFS_TRIAL_ARGS="${TAHOE_LAFS_TRIAL_ARGS:---reporter=subunitv2-file --rterrors}"
 export PIP_NO_INDEX="1"
 
 if [ "${ALLOWED_FAILURE}" = "yes" ]; then
@@ -88,9 +88,5 @@ if [ -n "${ARTIFACTS}" ]; then
 
     # Create a junitxml results area.
     mkdir -p "$(dirname "${JUNITXML}")"
-    # Always succeed even if subunit2junitxml fails.  subunit2junitxml signals
-    # failure if the stream it is processing contains test failures.  This is
-    # not what we care about.  If we cared about it, the test command above
-    # would have signalled failure already and we wouldn't be here.
-    "${BOOTSTRAP_VENV}"/bin/subunit2junitxml < "${SUBUNIT2}" > "${JUNITXML}" || true
+    "${BOOTSTRAP_VENV}"/bin/subunit2junitxml < "${SUBUNIT2}" > "${JUNITXML}" || "${alternative}"
 fi
