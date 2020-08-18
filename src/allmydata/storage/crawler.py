@@ -1,6 +1,9 @@
 
 import os, time, struct
-import cPickle as pickle
+try:
+    import cPickle as pickle
+except ImportError:
+    import pickle
 from twisted.internet import reactor
 from twisted.application import service
 from allmydata.storage.common import si_b2a
