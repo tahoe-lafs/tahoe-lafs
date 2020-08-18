@@ -65,6 +65,11 @@ jobs:
           token: abf679b6-e2e6-4b33-b7b5-6cfbd41ee691
           file: coverage.xml
 
+      - name: Upload coverage report to coveralls.io
+        uses: coverallsapp/github-action@master
+        with:
+          github-token: QYoETxGMjCXkFstKHhdsL5dhAtU2tL5Wv
+
   integration:
     runs-on: ${{ matrix.os }}
     strategy:
