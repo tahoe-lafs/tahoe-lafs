@@ -377,7 +377,7 @@ setup(name="tahoe-lafs", # also set in __init__.py
               # coverage 5.0 breaks the integration tests in some opaque way.
               # This probably needs to be addressed in a more permanent way
               # eventually...
-              "coverage ~= 4.5",
+              "coverage",
               "mock",
               "tox",
               "pytest",

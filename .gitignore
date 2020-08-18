@@ -51,3 +51,9 @@ zope.interface-*.egg
 # This is the plaintext of the private environment needed for some CircleCI
 # operations.  It's never supposed to be checked in.
 secret-env-plain
+
+# coverage 5.x writes a series of sqlite files.
+/.coverage.*
+
+# ignore results of running integration tests.
+/integration.eliot.json
