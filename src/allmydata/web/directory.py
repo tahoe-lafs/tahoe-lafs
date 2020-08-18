@@ -53,7 +53,6 @@ from allmydata.web.common import (
     get_mutable_type,
     get_filenode_metadata,
     render_time,
-    MultiFormatPage,
     MultiFormatResource,
     SlotsSequenceElement,
 )
@@ -1213,7 +1212,7 @@ class ManifestElement(ReloadableMonitorElement):
 
 class ManifestResults(MultiFormatResource, ReloadMixin):
 
-    # Control MultiFormatPage
+    # Control MultiFormatResource
     formatArgument = "output"
     formatDefault = "html"
 
@@ -1268,8 +1267,9 @@ class ManifestResults(MultiFormatResource, ReloadMixin):
         return json.dumps(status, indent=1)
 
 
-class DeepSizeResults(MultiFormatPage):
-    # Control MultiFormatPage
+class DeepSizeResults(MultiFormatResource):
+
+    # Control MultiFormatResource
     formatArgument = "output"
     formatDefault = "html"
 
