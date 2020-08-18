@@ -59,7 +59,7 @@ jobs:
           name: eliot.log
           path: eliot.log
 
-      - name: Upload coverage report
+      - name: Upload coverage report to codecov.io
         uses: codecov/codecov-action@v1
         with:
           token: abf679b6-e2e6-4b33-b7b5-6cfbd41ee691
