@@ -691,20 +691,27 @@ class MultiFormatResourceTests(TrialTestCase):
         :param query_args: The query arguments to put into the request being
             rendered.  A mapping from ``bytes`` to ``list`` of ``bytes``.
 
-        :return: The rendered response body as ``bytes``.
+        :return: The rendered response body as ``str``.
         """
-        ctx = WebContext(tag=resource)
-        req = FakeRequest(args=query_args)
-        ctx.remember(DefaultExceptionHandler(), ICanHandleException)
-        ctx.remember(req, IRequest)
-        ctx.remember(None, IData)
 
-        d = maybeDeferred(resource.render, ctx)
-        d.addErrback(processingFailed, req, ctx)
-        res = self.successResultOf(d)
-        if isinstance(res, bytes):
-            return req.v + res
-        return req.v
+        # TODO: probably should: (1) refactor this out of here to a
+        # common module (test.common_web maybe?), and (2) replace
+        # nevow.inevow.IRequest with twisted.web.iweb.IRequest.  For
+        # (2) to happen, we will have to update web.common.get_arg()
+        # etc first.
+        from zope.interface import implementer
+        from nevow.inevow import IRequest
+        from twisted.web.server import Request
+        from twisted.web.test.requesthelper import DummyChannel
+
+        @implementer(IRequest)
+        class FakeRequest(Request):
+            def __init__(self, args):
+                Request.__init__(self, DummyChannel())
+                self.args = args
+                self.fields = dict()
+
+        return resource.render(FakeRequest(args=query_args))
 
 
     def test_select_format(self):
