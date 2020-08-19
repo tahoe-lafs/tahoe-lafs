@@ -92,27 +92,27 @@ class Basic(unittest.TestCase, StallMixin, pollmixin.PollMixin):
         return self.s.stopService()
 
     def si(self, i):
-        return hashutil.storage_index_hash(str(i))
+        return hashutil.storage_index_hash(bytes(i))
     def rs(self, i, serverid):
-        return hashutil.bucket_renewal_secret_hash(str(i), serverid)
+        return hashutil.bucket_renewal_secret_hash(bytes(i), serverid)
     def cs(self, i, serverid):
-        return hashutil.bucket_cancel_secret_hash(str(i), serverid)
+        return hashutil.bucket_cancel_secret_hash(bytes(i), serverid)
 
     def write(self, i, ss, serverid, tail=0):
         si = self.si(i)
-        si = si[:-1] + chr(tail)
+        si = si[:-1] + bytearray((tail,))
         had,made = ss.remote_allocate_buckets(si,
                                               self.rs(i, serverid),
                                               self.cs(i, serverid),
                                               set([0]), 99, FakeCanary())
-        made[0].remote_write(0, "data")
+        made[0].remote_write(0, b"data")
         made[0].remote_close()
         return si_b2a(si)
 
     def test_immediate(self):
         self.basedir = "crawler/Basic/immediate"
         fileutil.make_dirs(self.basedir)
-        serverid = "\x00" * 20
+        serverid = b"\x00" * 20
         ss = StorageServer(self.basedir, serverid)
         ss.setServiceParent(self.s)
 
@@ -141,7 +141,7 @@ class Basic(unittest.TestCase, StallMixin, pollmixin.PollMixin):
     def test_service(self):
         self.basedir = "crawler/Basic/service"
         fileutil.make_dirs(self.basedir)
-        serverid = "\x00" * 20
+        serverid = b"\x00" * 20
         ss = StorageServer(self.basedir, serverid)
         ss.setServiceParent(self.s)
 
@@ -169,7 +169,7 @@ class Basic(unittest.TestCase, StallMixin, pollmixin.PollMixin):
     def test_paced(self):
         self.basedir = "crawler/Basic/paced"
         fileutil.make_dirs(self.basedir)
-        serverid = "\x00" * 20
+        serverid = b"\x00" * 20
         ss = StorageServer(self.basedir, serverid)
         ss.setServiceParent(self.s)
 
@@ -271,7 +271,7 @@ class Basic(unittest.TestCase, StallMixin, pollmixin.PollMixin):
     def test_paced_service(self):
         self.basedir = "crawler/Basic/paced_service"
         fileutil.make_dirs(self.basedir)
-        serverid = "\x00" * 20
+        serverid = b"\x00" * 20
         ss = StorageServer(self.basedir, serverid)
         ss.setServiceParent(self.s)
 
@@ -338,7 +338,7 @@ class Basic(unittest.TestCase, StallMixin, pollmixin.PollMixin):
 
         self.basedir = "crawler/Basic/cpu_usage"
         fileutil.make_dirs(self.basedir)
-        serverid = "\x00" * 20
+        serverid = b"\x00" * 20
         ss = StorageServer(self.basedir, serverid)
         ss.setServiceParent(self.s)
 
@@ -383,7 +383,7 @@ class Basic(unittest.TestCase, StallMixin, pollmixin.PollMixin):
     def test_empty_subclass(self):
         self.basedir = "crawler/Basic/empty_subclass"
         fileutil.make_dirs(self.basedir)
-        serverid = "\x00" * 20
+        serverid = b"\x00" * 20
         ss = StorageServer(self.basedir, serverid)
         ss.setServiceParent(self.s)
 
@@ -411,7 +411,7 @@ class Basic(unittest.TestCase, StallMixin, pollmixin.PollMixin):
     def test_oneshot(self):
         self.basedir = "crawler/Basic/oneshot"
         fileutil.make_dirs(self.basedir)
-        serverid = "\x00" * 20
+        serverid = b"\x00" * 20
         ss = StorageServer(self.basedir, serverid)
         ss.setServiceParent(self.s)
 
