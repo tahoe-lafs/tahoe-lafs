@@ -1,3 +1,4 @@
+from future.utils import native_str, PY3
 
 import os, time, struct
 try:
@@ -77,6 +78,9 @@ class ShareCrawler(service.MultiService):
         self.statefile = statefile
         self.prefixes = [si_b2a(struct.pack(">H", i << (16-10)))[:2]
                          for i in range(2**10)]
+        if PY3:
+            # On Python 3 we expect the paths to be unicode, not bytes.
+            self.prefixes = [p.decode("ascii") for p in self.prefixes]
         self.prefixes.sort()
         self.timer = None
         self.bucket_cache = (None, [])
@@ -314,7 +318,8 @@ class ShareCrawler(service.MultiService):
                 try:
                     buckets = os.listdir(prefixdir)
                     buckets.sort()
-                except EnvironmentError:
+                except EnvironmentError as e:
+                    print(e)
                     buckets = []
                 self.bucket_cache = (i, buckets)
             self.process_prefixdir(cycle, prefix, prefixdir,

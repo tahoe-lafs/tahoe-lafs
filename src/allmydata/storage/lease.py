@@ -8,7 +8,7 @@ class LeaseInfo(object):
         self.cancel_secret = cancel_secret
         self.expiration_time = expiration_time
         if nodeid is not None:
-            assert isinstance(nodeid, str)
+            assert isinstance(nodeid, bytes)
             assert len(nodeid) == 20
         self.nodeid = nodeid
 

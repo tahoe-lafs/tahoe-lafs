@@ -100,11 +100,11 @@ class Basic(unittest.TestCase, StallMixin, pollmixin.PollMixin):
         return self.s.stopService()
 
     def si(self, i):
-        return hashutil.storage_index_hash(bytes(i))
+        return hashutil.storage_index_hash(b"%d" % (i,))
     def rs(self, i, serverid):
-        return hashutil.bucket_renewal_secret_hash(bytes(i), serverid)
+        return hashutil.bucket_renewal_secret_hash(b"%d" % (i,), serverid)
     def cs(self, i, serverid):
-        return hashutil.bucket_cancel_secret_hash(bytes(i), serverid)
+        return hashutil.bucket_cancel_secret_hash(b"%d" % (i,), serverid)
 
     def write(self, i, ss, serverid, tail=0):
         si = self.si(i)
