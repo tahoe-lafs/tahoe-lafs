@@ -9,7 +9,7 @@ from __future__ import division
 from __future__ import absolute_import
 from __future__ import unicode_literals
 
-from future.utils import PY2, PY3, native_str
+from future.utils import PY2, PY3
 if PY2:
     # Don't use future bytes, since it breaks tests.
     from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, dict, list, object, range, str, max, min  # noqa: F401
