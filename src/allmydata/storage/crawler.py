@@ -318,8 +318,7 @@ class ShareCrawler(service.MultiService):
                 try:
                     buckets = os.listdir(prefixdir)
                     buckets.sort()
-                except EnvironmentError as e:
-                    print(e)
+                except EnvironmentError:
                     buckets = []
                 self.bucket_cache = (i, buckets)
             self.process_prefixdir(cycle, prefix, prefixdir,
@@ -361,7 +360,8 @@ class ShareCrawler(service.MultiService):
         """
 
         for bucket in buckets:
-            if bucket <= self.state["last-complete-bucket"]:
+            last_complete = self.state["last-complete-bucket"]
+            if last_complete is not None and bucket <= last_complete:
                 continue
             self.process_bucket(cycle, prefix, prefixdir, bucket)
             self.state["last-complete-bucket"] = bucket

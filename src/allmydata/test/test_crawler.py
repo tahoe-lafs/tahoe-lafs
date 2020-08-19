@@ -3,7 +3,7 @@ from __future__ import division
 from __future__ import absolute_import
 from __future__ import unicode_literals
 
-from future.utils import PY2
+from future.utils import PY2, PY3, native_str
 if PY2:
     # Don't use future bytes, since it breaks tests.
     from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, dict, list, object, range, str, max, min  # noqa: F401
@@ -30,6 +30,10 @@ class BucketEnumeratingCrawler(ShareCrawler):
         self.all_buckets = []
         self.finished_d = defer.Deferred()
     def process_bucket(self, cycle, prefix, prefixdir, storage_index_b32):
+        if PY3:
+            # Bucket _inputs_ are bytes, and that's what we will compare this
+            # to:
+            storage_index_b32 = storage_index_b32.encode("ascii")
         self.all_buckets.append(storage_index_b32)
     def finished_cycle(self, cycle):
         eventually(self.finished_d.callback, None)
@@ -44,6 +48,10 @@ class PacedCrawler(ShareCrawler):
         self.finished_d = defer.Deferred()
         self.yield_cb = None
     def process_bucket(self, cycle, prefix, prefixdir, storage_index_b32):
+        if PY3:
+            # Bucket _inputs_ are bytes, and that's what we will compare this
+            # to:
+            storage_index_b32 = storage_index_b32.encode("ascii")
         self.all_buckets.append(storage_index_b32)
         self.countdown -= 1
         if self.countdown == 0:
