@@ -5,7 +5,8 @@ from __future__ import unicode_literals
 
 from future.utils import PY2
 if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+    # Don't use future bytes, since it breaks tests.
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, dict, list, object, range, str, max, min  # noqa: F401
 
 import time
 import os.path
@@ -107,7 +108,7 @@ class Basic(unittest.TestCase, StallMixin, pollmixin.PollMixin):
 
     def write(self, i, ss, serverid, tail=0):
         si = self.si(i)
-        si = si[:-1] + bytearray((tail,))
+        si = si[:-1] + bytes(bytearray((tail,)))
         had,made = ss.remote_allocate_buckets(si,
                                               self.rs(i, serverid),
                                               self.cs(i, serverid),
