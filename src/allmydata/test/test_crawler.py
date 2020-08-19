@@ -11,7 +11,7 @@ from allmydata.util import fileutil, hashutil, pollmixin
 from allmydata.storage.server import StorageServer, si_b2a
 from allmydata.storage.crawler import ShareCrawler, TimeSliceExceeded
 
-from allmydata.test.test_storage import FakeCanary
+from allmydata.test.common_py3 import FakeCanary
 from allmydata.test.common_util import StallMixin
 
 class BucketEnumeratingCrawler(ShareCrawler):
