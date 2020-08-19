@@ -8,24 +8,12 @@ from bs4 import BeautifulSoup
 
 from twisted.application import service
 from twisted.internet import defer
-from twisted.internet.defer import inlineCallbacks, returnValue, maybeDeferred
+from twisted.internet.defer import inlineCallbacks, returnValue
 from twisted.internet.task import Clock
 from twisted.web import client, error, http
 from twisted.python import failure, log
 
-from nevow.context import WebContext
-from nevow.inevow import (
-    ICanHandleException,
-    IRequest,
-    IData,
-)
 from nevow.util import escapeToXML
-from nevow.loaders import stan
-from nevow.testutil import FakeRequest
-from nevow.appserver import (
-    processingFailed,
-    DefaultExceptionHandler,
-)
 
 from allmydata import interfaces, uri, webish
 from allmydata.storage_client import StorageFarmBroker, StubServer
