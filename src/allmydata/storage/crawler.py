@@ -1,4 +1,19 @@
-from future.utils import native_str, PY3
+"""
+Crawl the storage server shares.
+
+Ported to Python 3.
+"""
+
+from __future__ import unicode_literals
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
+from future.utils import PY2, PY3
+if PY2:
+    # We don't import bytes, object, dict, and list just in case they're used,
+    # so as not to create brittle pickles with random magic objects.
+    from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, range, str, max, min  # noqa: F401
 
 import os, time, struct
 try:
