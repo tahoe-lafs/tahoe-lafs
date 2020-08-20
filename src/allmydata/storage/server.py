@@ -49,7 +49,7 @@ class StorageServer(service.MultiService, Referenceable):
                  expiration_cutoff_date=None,
                  expiration_sharetypes=("mutable", "immutable")):
         service.MultiService.__init__(self)
-        assert isinstance(nodeid, str)
+        assert isinstance(nodeid, bytes)
         assert len(nodeid) == 20
         self.my_nodeid = nodeid
         self.storedir = storedir
