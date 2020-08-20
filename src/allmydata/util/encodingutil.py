@@ -84,9 +84,12 @@ def _reload():
 
     # Despite the Unicode-mode FilePath support added to Twisted in
     # <https://twistedmatrix.com/trac/ticket/7805>, we can't yet use
-    # Unicode-mode FilePaths with INotify on non-Windows platforms
-    # due to <https://twistedmatrix.com/trac/ticket/7928>. Supposedly
-    # 7928 is fixed, though...
+    # Unicode-mode FilePaths with INotify on non-Windows platforms due to
+    # <https://twistedmatrix.com/trac/ticket/7928>. Supposedly 7928 is fixed,
+    # though... and Tahoe-LAFS doesn't use inotify anymore!
+    #
+    # In the interest of not breaking anything, this logic is unchanged for
+    # Python 2, but on Python 3 the paths are always unicode, like it or not.
     use_unicode_filepath = PY3 or sys.platform == "win32"
 
 _reload()
@@ -187,8 +190,8 @@ def unicode_to_output(s):
     """
     Encode an unicode object for representation on stdout or stderr.
 
-    On Python 3 just returns the string unchanged, since it is not necessary to
-    encode in any way.
+    On Python 3 just returns the unicode string unchanged, since encoding is
+    the responsibility of stdout/stderr, they expect Unicode by default.
     """
     precondition(isinstance(s, unicode), s)
     if PY3:
@@ -294,8 +297,9 @@ def quote_output(s, quotemarks=True, quote_newlines=None, encoding=None):
 
     result = _encode(s)
     if PY3:
-        # On Python half of what this function does is unnecessary, since
-        # output is always Unicode. To ensure no encode errors, one can do:
+        # On Python 3 half of what this function does is unnecessary, since
+        # sys.stdout typically expects Unicode. To ensure no encode errors, one
+        # can do:
         #
         # sys.stdout.reconfigure(encoding=sys.stdout.encoding, errors="backslashreplace")
         #
