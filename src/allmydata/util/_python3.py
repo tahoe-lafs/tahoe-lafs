@@ -45,6 +45,7 @@ PORTED_MODULES = [
     "allmydata.util.dictutil",
     "allmydata.util.encodingutil",
     "allmydata.util.gcutil",
+    "allmydata.util.happinessutil",
     "allmydata.util.hashutil",
     "allmydata.util.humanreadable",
     "allmydata.util.iputil",
