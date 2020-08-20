@@ -5,8 +5,15 @@ Partially ported to Python 3.
 """
 
 from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
 
 from future.utils import PY2, PY3
+if PY2:
+    # Omitted list sinc it broke a test on Python 2. Shouldn't require further
+    # work, when we switch to Python 3 we'll be dropping this, anyway.
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, object, range, str, max, min  # noqa: F401
 
 import time
 import os.path
@@ -110,7 +117,7 @@ class BucketCounter(unittest.TestCase, pollmixin.PollMixin):
     def test_bucket_counter(self):
         basedir = "storage/BucketCounter/bucket_counter"
         fileutil.make_dirs(basedir)
-        ss = StorageServer(basedir, "\x00" * 20)
+        ss = StorageServer(basedir, b"\x00" * 20)
         # to make sure we capture the bucket-counting-crawler in the middle
         # of a cycle, we reach in and reduce its maximum slice time to 0. We
         # also make it start sooner than usual.
@@ -167,7 +174,7 @@ class BucketCounter(unittest.TestCase, pollmixin.PollMixin):
     def test_bucket_counter_cleanup(self):
         basedir = "storage/BucketCounter/bucket_counter_cleanup"
         fileutil.make_dirs(basedir)
-        ss = StorageServer(basedir, "\x00" * 20)
+        ss = StorageServer(basedir, b"\x00" * 20)
         # to make sure we capture the bucket-counting-crawler in the middle
         # of a cycle, we reach in and reduce its maximum slice time to 0.
         ss.bucket_counter.slow_start = 0
@@ -200,16 +207,16 @@ class BucketCounter(unittest.TestCase, pollmixin.PollMixin):
         def _check2(ignored):
             ss.bucket_counter.cpu_slice = orig_cpu_slice
             s = ss.bucket_counter.get_state()
-            self.failIf(-12 in s["bucket-counts"], s["bucket-counts"].keys())
+            self.failIf(-12 in s["bucket-counts"], list(s["bucket-counts"].keys()))
             self.failIf("bogusprefix!" in s["storage-index-samples"],
-                        s["storage-index-samples"].keys())
+                        list(s["storage-index-samples"].keys()))
         d.addCallback(_check2)
         return d
 
     def test_bucket_counter_eta(self):
         basedir = "storage/BucketCounter/bucket_counter_eta"
         fileutil.make_dirs(basedir)
-        ss = MyStorageServer(basedir, "\x00" * 20)
+        ss = MyStorageServer(basedir, b"\x00" * 20)
         ss.bucket_counter.slow_start = 0
         # these will be fired inside finished_prefix()
         hooks = ss.bucket_counter.hook_ds = [defer.Deferred() for i in range(3)]
@@ -1182,7 +1189,7 @@ class WebStatus(unittest.TestCase, pollmixin.PollMixin):
     def test_status(self):
         basedir = "storage/WebStatus/status"
         fileutil.make_dirs(basedir)
-        nodeid = "\x00" * 20
+        nodeid = b"\x00" * 20
         ss = StorageServer(basedir, nodeid)
         ss.setServiceParent(self.s)
         w = StorageStatus(ss, "nickname")
@@ -1216,7 +1223,7 @@ class WebStatus(unittest.TestCase, pollmixin.PollMixin):
         # (test runs on all platforms).
         basedir = "storage/WebStatus/status_no_disk_stats"
         fileutil.make_dirs(basedir)
-        ss = StorageServer(basedir, "\x00" * 20)
+        ss = StorageServer(basedir, b"\x00" * 20)
         ss.setServiceParent(self.s)
         w = StorageStatus(ss)
         html = renderSynchronously(w)
@@ -1236,7 +1243,7 @@ class WebStatus(unittest.TestCase, pollmixin.PollMixin):
         # show that no shares will be accepted, and get_available_space() should be 0.
         basedir = "storage/WebStatus/status_bad_disk_stats"
         fileutil.make_dirs(basedir)
-        ss = StorageServer(basedir, "\x00" * 20)
+        ss = StorageServer(basedir, b"\x00" * 20)
         ss.setServiceParent(self.s)
         w = StorageStatus(ss)
         html = renderSynchronously(w)
@@ -1256,7 +1263,7 @@ class WebStatus(unittest.TestCase, pollmixin.PollMixin):
 
         basedir = "storage/WebStatus/status_right_disk_stats"
         fileutil.make_dirs(basedir)
-        ss = StorageServer(basedir, "\x00" * 20, reserved_space=reserved)
+        ss = StorageServer(basedir, b"\x00" * 20, reserved_space=reserved)
         expecteddir = ss.sharedir
 
         def call_get_disk_stats(whichdir, reserved_space=0):
@@ -1290,7 +1297,7 @@ class WebStatus(unittest.TestCase, pollmixin.PollMixin):
     def test_readonly(self):
         basedir = "storage/WebStatus/readonly"
         fileutil.make_dirs(basedir)
-        ss = StorageServer(basedir, "\x00" * 20, readonly_storage=True)
+        ss = StorageServer(basedir, b"\x00" * 20, readonly_storage=True)
         ss.setServiceParent(self.s)
         w = StorageStatus(ss)
         html = renderSynchronously(w)
@@ -1301,7 +1308,7 @@ class WebStatus(unittest.TestCase, pollmixin.PollMixin):
     def test_reserved(self):
         basedir = "storage/WebStatus/reserved"
         fileutil.make_dirs(basedir)
-        ss = StorageServer(basedir, "\x00" * 20, reserved_space=10e6)
+        ss = StorageServer(basedir, b"\x00" * 20, reserved_space=10e6)
         ss.setServiceParent(self.s)
         w = StorageStatus(ss)
         html = renderSynchronously(w)
@@ -1312,7 +1319,7 @@ class WebStatus(unittest.TestCase, pollmixin.PollMixin):
     def test_huge_reserved(self):
         basedir = "storage/WebStatus/reserved"
         fileutil.make_dirs(basedir)
-        ss = StorageServer(basedir, "\x00" * 20, reserved_space=10e6)
+        ss = StorageServer(basedir, b"\x00" * 20, reserved_space=10e6)
         ss.setServiceParent(self.s)
         w = StorageStatus(ss)
         html = renderSynchronously(w)
