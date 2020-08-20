@@ -18,7 +18,7 @@ from twisted.web.template import flattenString
 # We need to use `nevow.inevow.IRequest` for now for compatibility
 # with the code in web/common.py.  Once nevow bits are gone from
 # web/common.py, we can use `twisted.web.iweb.IRequest` here.
-from nevow.inevow import IRequest
+from twisted.web.iweb import IRequest
 
 from twisted.web.server import Request
 from twisted.web.test.requesthelper import DummyChannel
@@ -36,7 +36,7 @@ from allmydata.web.storage import (
     StorageStatusElement,
     remove_prefix
 )
-from .test_storage import FakeCanary
+from .common_py3 import FakeCanary
 
 def remove_tags(s):
     s = re.sub(r'<[^>]*>', ' ', s)

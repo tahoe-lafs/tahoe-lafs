@@ -8,7 +8,7 @@ from twisted.web.template import (
     renderer,
     renderElement
 )
-from allmydata.web.common import (
+from allmydata.web.common_py3 import (
     abbreviate_time,
     MultiFormatResource
 )
