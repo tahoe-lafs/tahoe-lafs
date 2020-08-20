@@ -1,0 +1,13 @@
+# Settings for codecov.io checks.
+#
+# Documentation is at https://docs.codecov.io/docs/codecov-yaml; for
+# reference, see https://docs.codecov.io/docs/codecovyml-reference.
+#
+# To validate this file, use:
+#
+#   curl --data-binary @.codecov.yml https://codecov.io/validate
+
+coverage:
+  round: nearest
+  range: 80..90
+  precision: 2
