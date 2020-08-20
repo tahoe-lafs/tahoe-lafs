@@ -12,14 +12,14 @@ from __future__ import print_function
 from future.utils import PY2
 if PY2:
     from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
-
 from past.builtins import unicode
 
 import os
 import time
 import signal
 
-from twisted.internet import reactor
+from twisted.internet import defer, reactor
+from twisted.python import failure
 from twisted.trial import unittest
 
 from ..util.assertutil import precondition
@@ -73,6 +73,29 @@ class SignalMixin(object):
         return super(SignalMixin, self).tearDown()
 
 
+class ShouldFailMixin(object):
+
+    def shouldFail(self, expected_failure, which, substring,
+                   callable, *args, **kwargs):
+        assert substring is None or isinstance(substring, (bytes, unicode))
+        d = defer.maybeDeferred(callable, *args, **kwargs)
+        def done(res):
+            if isinstance(res, failure.Failure):
+                res.trap(expected_failure)
+                if substring:
+                    self.failUnless(substring in str(res),
+                                    "%s: substring '%s' not in '%s'"
+                                    % (which, substring, str(res)))
+                # return the Failure for further analysis, but in a form that
+                # doesn't make the Deferred chain think that we failed.
+                return [res]
+            else:
+                self.fail("%s was supposed to raise %s, not get '%s'" %
+                          (which, expected_failure, res))
+        d.addBoth(done)
+        return d
+
+
 class ReallyEqualMixin(object):
     def failUnlessReallyEqual(self, a, b, msg=None):
         self.assertEqual(a, b, msg)
@@ -88,3 +111,4 @@ def skip_if_cannot_represent_filename(u):
             u.encode(enc)
         except UnicodeEncodeError:
             raise unittest.SkipTest("A non-ASCII filename could not be encoded on this platform.")
+
