@@ -5,7 +5,7 @@ import json
 from allmydata.scripts.common import get_alias, DEFAULT_ALIAS, escape_path, \
                                      UnknownAliasError
 from allmydata.scripts.common_http import do_http, format_http_error
-from allmydata.util.encodingutil import unicode_to_output, quote_output, is_printable_ascii, to_str
+from allmydata.util.encodingutil import unicode_to_output, quote_output, is_printable_ascii, to_bytes
 
 def list(options):
     nodeurl = options['node-url']
@@ -94,8 +94,8 @@ def list(options):
         mtime = child[1].get("metadata", {}).get('tahoe', {}).get("linkmotime")
         if not mtime:
             mtime = child[1]["metadata"].get("mtime")
-        rw_uri = to_str(child[1].get("rw_uri"))
-        ro_uri = to_str(child[1].get("ro_uri"))
+        rw_uri = to_bytes(child[1].get("rw_uri"))
+        ro_uri = to_bytes(child[1].get("ro_uri"))
         if ctime:
             # match for formatting that GNU 'ls' does
             if (now - ctime) > 6*30*24*60*60:

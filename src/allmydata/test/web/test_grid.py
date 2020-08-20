@@ -10,7 +10,7 @@ from twisted.web import resource
 from twisted.trial import unittest
 from allmydata import uri, dirnode
 from allmydata.util import base32
-from allmydata.util.encodingutil import to_str
+from allmydata.util.encodingutil import to_bytes
 from allmydata.util.consumer import download_to_data
 from allmydata.util.netstring import split_netstring
 from allmydata.unknown import UnknownNode
@@ -367,13 +367,13 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
             f = data[1]["children"][name]
             self.failUnlessEqual(f[0], "unknown")
             if expect_rw_uri:
-                self.failUnlessReallyEqual(to_str(f[1]["rw_uri"]), unknown_rwcap, data)
+                self.failUnlessReallyEqual(to_bytes(f[1]["rw_uri"]), unknown_rwcap, data)
             else:
                 self.failIfIn("rw_uri", f[1])
             if immutable:
-                self.failUnlessReallyEqual(to_str(f[1]["ro_uri"]), unknown_immcap, data)
+                self.failUnlessReallyEqual(to_bytes(f[1]["ro_uri"]), unknown_immcap, data)
             else:
-                self.failUnlessReallyEqual(to_str(f[1]["ro_uri"]), unknown_rocap, data)
+                self.failUnlessReallyEqual(to_bytes(f[1]["ro_uri"]), unknown_rocap, data)
             self.failUnlessIn("metadata", f[1])
         d.addCallback(_check_directory_json, expect_rw_uri=not immutable)
 
@@ -406,18 +406,18 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
             data = json.loads(res)
             self.failUnlessEqual(data[0], "unknown")
             if expect_rw_uri:
-                self.failUnlessReallyEqual(to_str(data[1]["rw_uri"]), unknown_rwcap, data)
+                self.failUnlessReallyEqual(to_bytes(data[1]["rw_uri"]), unknown_rwcap, data)
             else:
                 self.failIfIn("rw_uri", data[1])
 
             if immutable:
-                self.failUnlessReallyEqual(to_str(data[1]["ro_uri"]), unknown_immcap, data)
+                self.failUnlessReallyEqual(to_bytes(data[1]["ro_uri"]), unknown_immcap, data)
                 self.failUnlessReallyEqual(data[1]["mutable"], False)
             elif expect_rw_uri:
-                self.failUnlessReallyEqual(to_str(data[1]["ro_uri"]), unknown_rocap, data)
+                self.failUnlessReallyEqual(to_bytes(data[1]["ro_uri"]), unknown_rocap, data)
                 self.failUnlessReallyEqual(data[1]["mutable"], True)
             else:
-                self.failUnlessReallyEqual(to_str(data[1]["ro_uri"]), unknown_rocap, data)
+                self.failUnlessReallyEqual(to_bytes(data[1]["ro_uri"]), unknown_rocap, data)
                 self.failIfIn("mutable", data[1])
 
             # TODO: check metadata contents
@@ -581,7 +581,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
             ll_type, ll_data = listed_children[u"lonely"]
             self.failUnlessEqual(ll_type, "filenode")
             self.failIfIn("rw_uri", ll_data)
-            self.failUnlessReallyEqual(to_str(ll_data["ro_uri"]), lonely_uri)
+            self.failUnlessReallyEqual(to_bytes(ll_data["ro_uri"]), lonely_uri)
         d.addCallback(_check_json)
         return d
 
@@ -643,14 +643,14 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
             u0 = units[0]
             self.failUnlessEqual(u0["path"], [])
             self.failUnlessEqual(u0["type"], "directory")
-            self.failUnlessReallyEqual(to_str(u0["cap"]), self.rootnode.get_uri())
+            self.failUnlessReallyEqual(to_bytes(u0["cap"]), self.rootnode.get_uri())
             u0cr = u0["check-results"]
             self.failUnlessReallyEqual(u0cr["results"]["count-happiness"], 10)
             self.failUnlessReallyEqual(u0cr["results"]["count-shares-good"], 10)
 
             ugood = [u for u in units
                      if u["type"] == "file" and u["path"] == [u"good"]][0]
-            self.failUnlessReallyEqual(to_str(ugood["cap"]), self.uris["good"])
+            self.failUnlessReallyEqual(to_bytes(ugood["cap"]), self.uris["good"])
             ugoodcr = ugood["check-results"]
             self.failUnlessReallyEqual(ugoodcr["results"]["count-happiness"], 10)
             self.failUnlessReallyEqual(ugoodcr["results"]["count-shares-good"], 10)
@@ -672,7 +672,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
             self.failUnlessEqual(units[-1]["type"], "stats")
             first = units[0]
             self.failUnlessEqual(first["path"], [])
-            self.failUnlessEqual(to_str(first["cap"]), self.rootnode.get_uri())
+            self.failUnlessEqual(to_bytes(first["cap"]), self.rootnode.get_uri())
             self.failUnlessEqual(first["type"], "directory")
             stats = units[-1]["stats"]
             self.failUnlessReallyEqual(stats["count-immutable-files"], 2)
@@ -826,7 +826,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
             u0 = units[0]
             self.failUnlessEqual(u0["path"], [])
             self.failUnlessEqual(u0["type"], "directory")
-            self.failUnlessReallyEqual(to_str(u0["cap"]), self.rootnode.get_uri())
+            self.failUnlessReallyEqual(to_bytes(u0["cap"]), self.rootnode.get_uri())
             u0crr = u0["check-and-repair-results"]
             self.failUnlessReallyEqual(u0crr["repair-attempted"], False)
             self.failUnlessReallyEqual(u0crr["pre-repair-results"]["results"]["count-happiness"], 10)
@@ -834,7 +834,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
 
             ugood = [u for u in units
                      if u["type"] == "file" and u["path"] == [u"good"]][0]
-            self.failUnlessEqual(to_str(ugood["cap"]), self.uris["good"])
+            self.failUnlessEqual(to_bytes(ugood["cap"]), self.uris["good"])
             ugoodcrr = ugood["check-and-repair-results"]
             self.failUnlessReallyEqual(ugoodcrr["repair-attempted"], False)
             self.failUnlessReallyEqual(ugoodcrr["pre-repair-results"]["results"]["count-happiness"], 10)
@@ -842,7 +842,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
 
             usick = [u for u in units
                      if u["type"] == "file" and u["path"] == [u"sick"]][0]
-            self.failUnlessReallyEqual(to_str(usick["cap"]), self.uris["sick"])
+            self.failUnlessReallyEqual(to_bytes(usick["cap"]), self.uris["sick"])
             usickcrr = usick["check-and-repair-results"]
             self.failUnlessReallyEqual(usickcrr["repair-attempted"], True)
             self.failUnlessReallyEqual(usickcrr["repair-successful"], True)
