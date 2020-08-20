@@ -47,8 +47,8 @@ from allmydata.web.storage import (
 from .common_py3 import FakeCanary
 
 def remove_tags(s):
-    s = re.sub(r'<[^>]*>', ' ', s)
-    s = re.sub(r'\s+', ' ', s)
+    s = re.sub(br'<[^>]*>', b' ', s)
+    s = re.sub(br'\s+', b' ', s)
     return s
 
 def renderSynchronously(ss):
@@ -408,25 +408,25 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin):
         d.addCallback(lambda ign: renderDeferred(webstatus))
         def _check_html_in_cycle(html):
             s = remove_tags(html)
-            self.failUnlessIn("So far, this cycle has examined "
-                              "1 shares in 1 buckets (0 mutable / 1 immutable) ", s)
-            self.failUnlessIn("and has recovered: "
-                              "0 shares, 0 buckets (0 mutable / 0 immutable), "
-                              "0 B (0 B / 0 B)", s)
-            self.failUnlessIn("If expiration were enabled, "
-                              "we would have recovered: "
-                              "0 shares, 0 buckets (0 mutable / 0 immutable),"
-                              " 0 B (0 B / 0 B) by now", s)
-            self.failUnlessIn("and the remainder of this cycle "
-                              "would probably recover: "
-                              "0 shares, 0 buckets (0 mutable / 0 immutable),"
-                              " 0 B (0 B / 0 B)", s)
-            self.failUnlessIn("and the whole cycle would probably recover: "
-                              "0 shares, 0 buckets (0 mutable / 0 immutable),"
-                              " 0 B (0 B / 0 B)", s)
-            self.failUnlessIn("if we were strictly using each lease's default "
-                              "31-day lease lifetime", s)
-            self.failUnlessIn("this cycle would be expected to recover: ", s)
+            self.failUnlessIn(b"So far, this cycle has examined "
+                              b"1 shares in 1 buckets (0 mutable / 1 immutable) ", s)
+            self.failUnlessIn(b"and has recovered: "
+                              b"0 shares, 0 buckets (0 mutable / 0 immutable), "
+                              b"0 B (0 B / 0 B)", s)
+            self.failUnlessIn(b"If expiration were enabled, "
+                              b"we would have recovered: "
+                              b"0 shares, 0 buckets (0 mutable / 0 immutable),"
+                              b" 0 B (0 B / 0 B) by now", s)
+            self.failUnlessIn(b"and the remainder of this cycle "
+                              b"would probably recover: "
+                              b"0 shares, 0 buckets (0 mutable / 0 immutable),"
+                              b" 0 B (0 B / 0 B)", s)
+            self.failUnlessIn(b"and the whole cycle would probably recover: "
+                              b"0 shares, 0 buckets (0 mutable / 0 immutable),"
+                              b" 0 B (0 B / 0 B)", s)
+            self.failUnlessIn(b"if we were strictly using each lease's default "
+                              b"31-day lease lifetime", s)
+            self.failUnlessIn(b"this cycle would be expected to recover: ", s)
         d.addCallback(_check_html_in_cycle)
 
         # wait for the crawler to finish the first cycle. Nothing should have
@@ -483,11 +483,11 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin):
         d.addCallback(lambda ign: renderDeferred(webstatus))
         def _check_html(html):
             s = remove_tags(html)
-            self.failUnlessIn("recovered: 0 shares, 0 buckets "
-                              "(0 mutable / 0 immutable), 0 B (0 B / 0 B) ", s)
-            self.failUnlessIn("and saw a total of 4 shares, 4 buckets "
-                              "(2 mutable / 2 immutable),", s)
-            self.failUnlessIn("but expiration was not enabled", s)
+            self.failUnlessIn(b"recovered: 0 shares, 0 buckets "
+                              b"(0 mutable / 0 immutable), 0 B (0 B / 0 B) ", s)
+            self.failUnlessIn(b"and saw a total of 4 shares, 4 buckets "
+                              b"(2 mutable / 2 immutable),", s)
+            self.failUnlessIn(b"but expiration was not enabled", s)
         d.addCallback(_check_html)
         d.addCallback(lambda ign: renderJSON(webstatus))
         def _check_json(raw):
@@ -588,11 +588,11 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin):
             # predictor thinks we'll have 5 shares and that we'll delete them
             # all. This part of the test depends upon the SIs landing right
             # where they do now.
-            self.failUnlessIn("The remainder of this cycle is expected to "
-                              "recover: 4 shares, 4 buckets", s)
-            self.failUnlessIn("The whole cycle is expected to examine "
-                              "5 shares in 5 buckets and to recover: "
-                              "5 shares, 5 buckets", s)
+            self.failUnlessIn(b"The remainder of this cycle is expected to "
+                              b"recover: 4 shares, 4 buckets", s)
+            self.failUnlessIn(b"The whole cycle is expected to examine "
+                              b"5 shares in 5 buckets and to recover: "
+                              b"5 shares, 5 buckets", s)
         d.addCallback(_check_html_in_cycle)
 
         # wait for the crawler to finish the first cycle. Two shares should
@@ -642,9 +642,9 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin):
         d.addCallback(lambda ign: renderDeferred(webstatus))
         def _check_html(html):
             s = remove_tags(html)
-            self.failUnlessIn("Expiration Enabled: expired leases will be removed", s)
-            self.failUnlessIn("Leases created or last renewed more than 33 minutes ago will be considered expired.", s)
-            self.failUnlessIn(" recovered: 2 shares, 2 buckets (1 mutable / 1 immutable), ", s)
+            self.failUnlessIn(b"Expiration Enabled: expired leases will be removed", s)
+            self.failUnlessIn(b"Leases created or last renewed more than 33 minutes ago will be considered expired.", s)
+            self.failUnlessIn(b" recovered: 2 shares, 2 buckets (1 mutable / 1 immutable), ", s)
         d.addCallback(_check_html)
         return d
 
@@ -732,11 +732,11 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin):
             # predictor thinks we'll have 5 shares and that we'll delete them
             # all. This part of the test depends upon the SIs landing right
             # where they do now.
-            self.failUnlessIn("The remainder of this cycle is expected to "
-                              "recover: 4 shares, 4 buckets", s)
-            self.failUnlessIn("The whole cycle is expected to examine "
-                              "5 shares in 5 buckets and to recover: "
-                              "5 shares, 5 buckets", s)
+            self.failUnlessIn(b"The remainder of this cycle is expected to "
+                              b"recover: 4 shares, 4 buckets", s)
+            self.failUnlessIn(b"The whole cycle is expected to examine "
+                              b"5 shares in 5 buckets and to recover: "
+                              b"5 shares, 5 buckets", s)
         d.addCallback(_check_html_in_cycle)
 
         # wait for the crawler to finish the first cycle. Two shares should
@@ -788,12 +788,13 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin):
         d.addCallback(lambda ign: renderDeferred(webstatus))
         def _check_html(html):
             s = remove_tags(html)
-            self.failUnlessIn("Expiration Enabled:"
-                              " expired leases will be removed", s)
-            date = time.strftime("%Y-%m-%d (%d-%b-%Y) UTC", time.gmtime(then))
-            substr = "Leases created or last renewed before %s will be considered expired." % date
+            self.failUnlessIn(b"Expiration Enabled:"
+                              b" expired leases will be removed", s)
+            date = time.strftime(
+                u"%Y-%m-%d (%d-%b-%Y) UTC", time.gmtime(then)).encode("ascii")
+            substr =b"Leases created or last renewed before %s will be considered expired." % date
             self.failUnlessIn(substr, s)
-            self.failUnlessIn(" recovered: 2 shares, 2 buckets (1 mutable / 1 immutable), ", s)
+            self.failUnlessIn(b" recovered: 2 shares, 2 buckets (1 mutable / 1 immutable), ", s)
         d.addCallback(_check_html)
         return d
 
@@ -850,7 +851,7 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin):
         d.addCallback(lambda ign: renderDeferred(webstatus))
         def _check_html(html):
             s = remove_tags(html)
-            self.failUnlessIn("The following sharetypes will be expired: immutable.", s)
+            self.failUnlessIn(b"The following sharetypes will be expired: immutable.", s)
         d.addCallback(_check_html)
         return d
 
@@ -907,7 +908,7 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin):
         d.addCallback(lambda ign: renderDeferred(webstatus))
         def _check_html(html):
             s = remove_tags(html)
-            self.failUnlessIn("The following sharetypes will be expired: mutable.", s)
+            self.failUnlessIn(b"The following sharetypes will be expired: mutable.", s)
         d.addCallback(_check_html)
         return d
 
@@ -1104,7 +1105,9 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin):
             rec = so_far["space-recovered"]
             self.failUnlessEqual(rec["examined-buckets"], 1)
             self.failUnlessEqual(rec["examined-shares"], 0)
-            self.failUnlessEqual(so_far["corrupt-shares"], [(first_b32, 0)])
+            [(actual_b32, i)] = so_far["corrupt-shares"]
+            actual_b32 = actual_b32.encode("ascii")
+            self.failUnlessEqual((actual_b32, i), (first_b32, 0))
         d.addCallback(_after_first_bucket)
 
         d.addCallback(lambda ign: renderJSON(w))
@@ -1113,13 +1116,16 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin):
             # grr. json turns all dict keys into strings.
             so_far = data["lease-checker"]["cycle-to-date"]
             corrupt_shares = so_far["corrupt-shares"]
-            # it also turns all tuples into lists
-            self.failUnlessEqual(corrupt_shares, [[first_b32, 0]])
+            # it also turns all tuples into lists, and result is unicode (on
+            # Python 3 always, on Python 2 sometimes)
+            [(actual_b32, i)] = corrupt_shares
+            actual_b32 = actual_b32.encode("ascii")
+            self.failUnlessEqual([actual_b32, i], [first_b32, 0])
         d.addCallback(_check_json)
         d.addCallback(lambda ign: renderDeferred(w))
         def _check_html(html):
             s = remove_tags(html)
-            self.failUnlessIn("Corrupt shares: SI %s shnum 0" % first_b32, s)
+            self.failUnlessIn(b"Corrupt shares: SI %s shnum 0" % first_b32, s)
         d.addCallback(_check_html)
 
         def _wait():
@@ -1132,19 +1138,23 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin):
             rec = last["space-recovered"]
             self.failUnlessEqual(rec["examined-buckets"], 5)
             self.failUnlessEqual(rec["examined-shares"], 3)
-            self.failUnlessEqual(last["corrupt-shares"], [(first_b32, 0)])
+            [(actual_b32, i)] = last["corrupt-shares"]
+            actual_b32 = actual_b32.encode("ascii")
+            self.failUnlessEqual((actual_b32, i), (first_b32, 0))
         d.addCallback(_after_first_cycle)
         d.addCallback(lambda ign: renderJSON(w))
         def _check_json_history(raw):
             data = json.loads(raw)
             last = data["lease-checker"]["history"]["0"]
             corrupt_shares = last["corrupt-shares"]
-            self.failUnlessEqual(corrupt_shares, [[first_b32, 0]])
+            [(actual_b32, i)] = last["corrupt-shares"]
+            actual_b32 = actual_b32.encode("ascii")
+            self.failUnlessEqual([actual_b32, i], [first_b32, 0])
         d.addCallback(_check_json_history)
         d.addCallback(lambda ign: renderDeferred(w))
         def _check_html_history(html):
             s = remove_tags(html)
-            self.failUnlessIn("Corrupt shares: SI %s shnum 0" % first_b32, s)
+            self.failUnlessIn(b"Corrupt shares: SI %s shnum 0" % first_b32, s)
         d.addCallback(_check_html_history)
 
         def _cleanup(res):
