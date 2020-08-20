@@ -4,10 +4,13 @@ Tests for twisted.storage that uses Web APIs.
 
 from __future__ import absolute_import
 
+from future.utils import PY2, PY3
+
 import time
 import os.path
 import re
 import json
+from unittest import skipIf
 
 from twisted.trial import unittest
 
@@ -18,7 +21,10 @@ from twisted.web.template import flattenString
 # We need to use `nevow.inevow.IRequest` for now for compatibility
 # with the code in web/common.py.  Once nevow bits are gone from
 # web/common.py, we can use `twisted.web.iweb.IRequest` here.
-from twisted.web.iweb import IRequest
+if PY2:
+    from nevow.inevow import IRequest
+else:
+    from twisted.web.iweb import IRequest
 
 from twisted.web.server import Request
 from twisted.web.test.requesthelper import DummyChannel
@@ -89,8 +95,10 @@ class MyStorageServer(StorageServer):
         self.bucket_counter = MyBucketCountingCrawler(self, statefile)
         self.bucket_counter.setServiceParent(self)
 
+
 class BucketCounter(unittest.TestCase, pollmixin.PollMixin):
 
+    @skipIf(PY3, "Not ported yet.")
     def setUp(self):
         self.s = service.MultiService()
         self.s.startService()
@@ -1147,6 +1155,7 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin):
 
 class WebStatus(unittest.TestCase, pollmixin.PollMixin):
 
+    @skipIf(PY3, "Not ported yet.")
     def setUp(self):
         self.s = service.MultiService()
         self.s.startService()
