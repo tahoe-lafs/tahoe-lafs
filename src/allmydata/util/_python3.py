@@ -33,6 +33,7 @@ PORTED_MODULES = [
     "allmydata.hashtree",
     "allmydata.immutable.happiness_upload",
     "allmydata.storage.crawler",
+    "allmydata.storage.expirer",
     "allmydata.test.common_py3",
     "allmydata.util._python3",
     "allmydata.util.abbreviate",

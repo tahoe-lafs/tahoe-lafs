@@ -1,3 +1,13 @@
+from __future__ import division
+from __future__ import absolute_import
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    # We omit anything that might end up in pickle, just in case.
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, range, str, max, min  # noqa: F401
+
 import time, os, pickle, struct
 from allmydata.storage.crawler import ShareCrawler
 from allmydata.storage.shares import get_share_file
