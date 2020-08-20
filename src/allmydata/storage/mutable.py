@@ -48,8 +48,9 @@ class MutableShareFile(object):
     # our sharefiles share with a recognizable string, plus some random
     # binary data to reduce the chance that a regular text file will look
     # like a sharefile.
-    MAGIC = "Tahoe mutable container v1\n" + "\x75\x09\x44\x03\x8e"
+    MAGIC = b"Tahoe mutable container v1\n" + b"\x75\x09\x44\x03\x8e"
     assert len(MAGIC) == 32
+    assert isinstance(MAGIC, bytes)
     MAX_SIZE = MAX_MUTABLE_SHARE_SIZE
     # TODO: decide upon a policy for max share size
 
