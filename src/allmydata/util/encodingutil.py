@@ -21,6 +21,7 @@ from past.builtins import unicode
 
 import sys, os, re, locale
 import unicodedata
+import warnings
 
 from allmydata.util.assertutil import precondition, _assert
 from twisted.python import usage
@@ -83,9 +84,12 @@ def _reload():
 
     # Despite the Unicode-mode FilePath support added to Twisted in
     # <https://twistedmatrix.com/trac/ticket/7805>, we can't yet use
-    # Unicode-mode FilePaths with INotify on non-Windows platforms
-    # due to <https://twistedmatrix.com/trac/ticket/7928>. Supposedly
-    # 7928 is fixed, though...
+    # Unicode-mode FilePaths with INotify on non-Windows platforms due to
+    # <https://twistedmatrix.com/trac/ticket/7928>. Supposedly 7928 is fixed,
+    # though... and Tahoe-LAFS doesn't use inotify anymore!
+    #
+    # In the interest of not breaking anything, this logic is unchanged for
+    # Python 2, but on Python 3 the paths are always unicode, like it or not.
     use_unicode_filepath = PY3 or sys.platform == "win32"
 
 _reload()
@@ -140,6 +144,8 @@ def unicode_to_argv(s, mangle=False):
     """
     precondition(isinstance(s, unicode), s)
     if PY3:
+        warnings.warn("This will be unnecessary once Python 2 is dropped.",
+                      DeprecationWarning)
         return s
 
     if mangle and sys.platform == "win32":
@@ -155,11 +161,15 @@ def unicode_to_url(s):
     # According to RFC 2718, non-ascii characters in URLs must be UTF-8 encoded.
 
     # FIXME
-    return to_str(s)
+    return to_bytes(s)
     #precondition(isinstance(s, unicode), s)
     #return s.encode('utf-8')
 
-def to_str(s):  # TODO rename to to_bytes
+def to_bytes(s):
+    """Convert unicode to bytes.
+
+    None and bytes are passed through unchanged.
+    """
     if s is None or isinstance(s, bytes):
         return s
     return s.encode('utf-8')
@@ -179,8 +189,15 @@ def is_printable_ascii(s):
 def unicode_to_output(s):
     """
     Encode an unicode object for representation on stdout or stderr.
+
+    On Python 3 just returns the unicode string unchanged, since encoding is
+    the responsibility of stdout/stderr, they expect Unicode by default.
     """
     precondition(isinstance(s, unicode), s)
+    if PY3:
+        warnings.warn("This will be unnecessary once Python 2 is dropped.",
+                      DeprecationWarning)
+        return s
 
     try:
         out = s.encode(io_encoding)
@@ -213,7 +230,7 @@ def _unicode_escape(m, quote_newlines):
     else:
         return u'\\x%02x' % (codepoint,)
 
-def _str_escape(m, quote_newlines):  # TODO rename to _bytes_escape
+def _bytes_escape(m, quote_newlines):
     """
     Takes a re match on bytes, the result is escaped bytes of group(0).
     """
@@ -248,33 +265,53 @@ def quote_output(s, quotemarks=True, quote_newlines=None, encoding=None):
     Python-compatible backslash escaping is used.
 
     If not explicitly given, quote_newlines is True when quotemarks is True.
+
+    On Python 3, returns Unicode strings.
     """
     precondition(isinstance(s, (bytes, unicode)), s)
+    encoding = encoding or io_encoding
+
     if quote_newlines is None:
         quote_newlines = quotemarks
 
-    if isinstance(s, bytes):
-        try:
-            s = s.decode('utf-8')
-        except UnicodeDecodeError:
-            return b'b"%s"' % (ESCAPABLE_8BIT.sub(lambda m: _str_escape(m, quote_newlines), s),)
+    def _encode(s):
+        if isinstance(s, bytes):
+            try:
+                s = s.decode('utf-8')
+            except UnicodeDecodeError:
+                return b'b"%s"' % (ESCAPABLE_8BIT.sub(lambda m: _bytes_escape(m, quote_newlines), s),)
 
-    must_double_quote = quote_newlines and MUST_DOUBLE_QUOTE_NL or MUST_DOUBLE_QUOTE
-    if must_double_quote.search(s) is None:
-        try:
-            out = s.encode(encoding or io_encoding)
-            if quotemarks or out.startswith(b'"'):
-                return b"'%s'" % (out,)
-            else:
-                return out
-        except (UnicodeDecodeError, UnicodeEncodeError):
-            pass
+        must_double_quote = quote_newlines and MUST_DOUBLE_QUOTE_NL or MUST_DOUBLE_QUOTE
+        if must_double_quote.search(s) is None:
+            try:
+                out = s.encode(encoding)
+                if quotemarks or out.startswith(b'"'):
+                    return b"'%s'" % (out,)
+                else:
+                    return out
+            except (UnicodeDecodeError, UnicodeEncodeError):
+                pass
 
-    escaped = ESCAPABLE_UNICODE.sub(lambda m: _unicode_escape(m, quote_newlines), s)
-    return b'"%s"' % (escaped.encode(encoding or io_encoding, 'backslashreplace'),)
+        escaped = ESCAPABLE_UNICODE.sub(lambda m: _unicode_escape(m, quote_newlines), s)
+        return b'"%s"' % (escaped.encode(encoding, 'backslashreplace'),)
+
+    result = _encode(s)
+    if PY3:
+        # On Python 3 half of what this function does is unnecessary, since
+        # sys.stdout typically expects Unicode. To ensure no encode errors, one
+        # can do:
+        #
+        # sys.stdout.reconfigure(encoding=sys.stdout.encoding, errors="backslashreplace")
+        #
+        # Although the problem is that doesn't work in Python 3.6, only 3.7 or
+        # later... For now not thinking about it, just returning unicode since
+        # that is the right thing to do on Python 3.
+        result = result.decode(encoding)
+    return result
+
 
 def quote_path(path, quotemarks=True):
-    return quote_output(b"/".join(map(to_str, path)), quotemarks=quotemarks, quote_newlines=True)
+    return quote_output(b"/".join(map(to_bytes, path)), quotemarks=quotemarks, quote_newlines=True)
 
 def quote_local_unicode_path(path, quotemarks=True):
     precondition(isinstance(path, unicode), path)
