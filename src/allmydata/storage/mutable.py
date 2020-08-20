@@ -87,7 +87,7 @@ class MutableShareFile(object):
                 self.MAGIC, my_nodeid, write_enabler,
                 data_length, extra_lease_offset,
             )
-            leases = ("\x00" * self.LEASE_SIZE) * 4
+            leases = (b"\x00" * self.LEASE_SIZE) * 4
             f.write(header + leases)
             # data goes here, empty after creation
             f.write(struct.pack(">L", num_extra_leases))
@@ -155,7 +155,7 @@ class MutableShareFile(object):
         # Zero out the old lease info (in order to minimize the chance that
         # it could accidentally be exposed to a reader later, re #1528).
         f.seek(old_extra_lease_offset)
-        f.write('\x00' * leases_size)
+        f.write(b'\x00' * leases_size)
         f.flush()
 
         # An interrupt here will corrupt the leases.
@@ -194,7 +194,7 @@ class MutableShareFile(object):
             # Fill any newly exposed empty space with 0's.
             if offset > data_length:
                 f.seek(self.DATA_OFFSET+data_length)
-                f.write('\x00'*(offset - data_length))
+                f.write(b'\x00'*(offset - data_length))
                 f.flush()
 
             new_data_length = offset+length
@@ -326,10 +326,10 @@ class MutableShareFile(object):
         modified = 0
         remaining = 0
         blank_lease = LeaseInfo(owner_num=0,
-                                renew_secret="\x00"*32,
-                                cancel_secret="\x00"*32,
+                                renew_secret=b"\x00"*32,
+                                cancel_secret=b"\x00"*32,
                                 expiration_time=0,
-                                nodeid="\x00"*20)
+                                nodeid=b"\x00"*20)
         with open(self.home, 'rb+') as f:
             for (leasenum,lease) in self._enumerate_leases(f):
                 accepting_nodeids.add(lease.nodeid)

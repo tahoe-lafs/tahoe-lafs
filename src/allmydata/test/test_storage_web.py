@@ -1,5 +1,7 @@
 """
 Tests for twisted.storage that uses Web APIs.
+
+Partially ported to Python 3.
 """
 
 from __future__ import absolute_import
@@ -283,27 +285,27 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin):
 
     def make_shares(self, ss):
         def make(si):
-            return (si, hashutil.tagged_hash("renew", si),
-                    hashutil.tagged_hash("cancel", si))
+            return (si, hashutil.tagged_hash(b"renew", si),
+                    hashutil.tagged_hash(b"cancel", si))
         def make_mutable(si):
-            return (si, hashutil.tagged_hash("renew", si),
-                    hashutil.tagged_hash("cancel", si),
-                    hashutil.tagged_hash("write-enabler", si))
+            return (si, hashutil.tagged_hash(b"renew", si),
+                    hashutil.tagged_hash(b"cancel", si),
+                    hashutil.tagged_hash(b"write-enabler", si))
         def make_extra_lease(si, num):
-            return (hashutil.tagged_hash("renew-%d" % num, si),
-                    hashutil.tagged_hash("cancel-%d" % num, si))
+            return (hashutil.tagged_hash(b"renew-%d" % num, si),
+                    hashutil.tagged_hash(b"cancel-%d" % num, si))
 
-        immutable_si_0, rs0, cs0 = make("\x00" * 16)
-        immutable_si_1, rs1, cs1 = make("\x01" * 16)
+        immutable_si_0, rs0, cs0 = make(b"\x00" * 16)
+        immutable_si_1, rs1, cs1 = make(b"\x01" * 16)
         rs1a, cs1a = make_extra_lease(immutable_si_1, 1)
-        mutable_si_2, rs2, cs2, we2 = make_mutable("\x02" * 16)
-        mutable_si_3, rs3, cs3, we3 = make_mutable("\x03" * 16)
+        mutable_si_2, rs2, cs2, we2 = make_mutable(b"\x02" * 16)
+        mutable_si_3, rs3, cs3, we3 = make_mutable(b"\x03" * 16)
         rs3a, cs3a = make_extra_lease(mutable_si_3, 1)
         sharenums = [0]
         canary = FakeCanary()
         # note: 'tahoe debug dump-share' will not handle this file, since the
         # inner contents are not a valid CHK share
-        data = "\xff" * 1000
+        data = b"\xff" * 1000
 
         a,w = ss.remote_allocate_buckets(immutable_si_0, rs0, cs0, sharenums,
                                          1000, canary)
@@ -330,7 +332,7 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin):
     def test_basic(self):
         basedir = "storage/LeaseCrawler/basic"
         fileutil.make_dirs(basedir)
-        ss = InstrumentedStorageServer(basedir, "\x00" * 20)
+        ss = InstrumentedStorageServer(basedir, b"\x00" * 20)
         # make it start sooner than usual.
         lc = ss.lease_checker
         lc.slow_start = 0
@@ -347,7 +349,7 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin):
                           storage_index_to_dir(immutable_si_0),
                           "not-a-share")
         f = open(fn, "wb")
-        f.write("I am not a share.\n")
+        f.write(b"I am not a share.\n")
         f.close()
 
         # this is before the crawl has started, so we're not in a cycle yet
@@ -513,7 +515,7 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin):
         fileutil.make_dirs(basedir)
         # setting expiration_time to 2000 means that any lease which is more
         # than 2000s old will be expired.
-        ss = InstrumentedStorageServer(basedir, "\x00" * 20,
+        ss = InstrumentedStorageServer(basedir, b"\x00" * 20,
                                        expiration_enabled=True,
                                        expiration_mode="age",
                                        expiration_override_lease_duration=2000)
@@ -653,7 +655,7 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin):
         # is more than 2000s old will be expired.
         now = time.time()
         then = int(now - 2000)
-        ss = InstrumentedStorageServer(basedir, "\x00" * 20,
+        ss = InstrumentedStorageServer(basedir, b"\x00" * 20,
                                        expiration_enabled=True,
                                        expiration_mode="cutoff-date",
                                        expiration_cutoff_date=then)
@@ -800,7 +802,7 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin):
         fileutil.make_dirs(basedir)
         now = time.time()
         then = int(now - 2000)
-        ss = StorageServer(basedir, "\x00" * 20,
+        ss = StorageServer(basedir, b"\x00" * 20,
                            expiration_enabled=True,
                            expiration_mode="cutoff-date",
                            expiration_cutoff_date=then,
@@ -857,7 +859,7 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin):
         fileutil.make_dirs(basedir)
         now = time.time()
         then = int(now - 2000)
-        ss = StorageServer(basedir, "\x00" * 20,
+        ss = StorageServer(basedir, b"\x00" * 20,
                            expiration_enabled=True,
                            expiration_mode="cutoff-date",
                            expiration_cutoff_date=then,
@@ -913,14 +915,14 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin):
         basedir = "storage/LeaseCrawler/bad_mode"
         fileutil.make_dirs(basedir)
         e = self.failUnlessRaises(ValueError,
-                                  StorageServer, basedir, "\x00" * 20,
+                                  StorageServer, basedir, b"\x00" * 20,
                                   expiration_mode="bogus")
         self.failUnlessIn("GC mode 'bogus' must be 'age' or 'cutoff-date'", str(e))
 
     def test_limited_history(self):
         basedir = "storage/LeaseCrawler/limited_history"
         fileutil.make_dirs(basedir)
-        ss = StorageServer(basedir, "\x00" * 20)
+        ss = StorageServer(basedir, b"\x00" * 20)
         # make it start sooner than usual.
         lc = ss.lease_checker
         lc.slow_start = 0
@@ -952,7 +954,7 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin):
     def test_unpredictable_future(self):
         basedir = "storage/LeaseCrawler/unpredictable_future"
         fileutil.make_dirs(basedir)
-        ss = StorageServer(basedir, "\x00" * 20)
+        ss = StorageServer(basedir, b"\x00" * 20)
         # make it start sooner than usual.
         lc = ss.lease_checker
         lc.slow_start = 0
@@ -1015,7 +1017,7 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin):
     def test_no_st_blocks(self):
         basedir = "storage/LeaseCrawler/no_st_blocks"
         fileutil.make_dirs(basedir)
-        ss = No_ST_BLOCKS_StorageServer(basedir, "\x00" * 20,
+        ss = No_ST_BLOCKS_StorageServer(basedir, b"\x00" * 20,
                                         expiration_mode="age",
                                         expiration_override_lease_duration=-1000)
         # a negative expiration_time= means the "configured-"
@@ -1054,7 +1056,7 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin):
             ]
         basedir = "storage/LeaseCrawler/share_corruption"
         fileutil.make_dirs(basedir)
-        ss = InstrumentedStorageServer(basedir, "\x00" * 20)
+        ss = InstrumentedStorageServer(basedir, b"\x00" * 20)
         w = StorageStatus(ss)
         # make it start sooner than usual.
         lc = ss.lease_checker
@@ -1072,7 +1074,7 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin):
         fn = os.path.join(ss.sharedir, storage_index_to_dir(first), "0")
         f = open(fn, "rb+")
         f.seek(0)
-        f.write("BAD MAGIC")
+        f.write(b"BAD MAGIC")
         f.close()
         # if get_share_file() doesn't see the correct mutable magic, it
         # assumes the file is an immutable share, and then
@@ -1081,7 +1083,7 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin):
         # UnknownImmutableContainerVersionError.
 
         # also create an empty bucket
-        empty_si = base32.b2a("\x04"*16)
+        empty_si = base32.b2a(b"\x04"*16)
         empty_bucket_dir = os.path.join(ss.sharedir,
                                         storage_index_to_dir(empty_si))
         fileutil.make_dirs(empty_bucket_dir)
