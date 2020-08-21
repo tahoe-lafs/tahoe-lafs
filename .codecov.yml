@@ -14,3 +14,19 @@ coverage:
   round: nearest
   range: 80..90
   precision: 2
+
+  # Allow codecov/project a threshold of 90% (always aim for that much
+  # coverage), and allow codecov/patch a threshold of 1% (allow
+  # coverage to drop that much, but not less).  That should be good
+  # enough for us.  The defaults seem to leave red marks in GitHub CI
+  # checks in a rather arbitrary manner, probably because (1) by
+  # default comparison is with the parent commit; (2) computers are
+  # bad with floating point numbers.
+  status:
+    project:
+      default:
+        target: 90%
+        threshold: 1%
+    patch:
+      default:
+        threshold: 1%
