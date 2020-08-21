@@ -1,6 +1,25 @@
+"""
+Crawl the storage server shares.
+
+Ported to Python 3.
+"""
+
+from __future__ import unicode_literals
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
+from future.utils import PY2, PY3
+if PY2:
+    # We don't import bytes, object, dict, and list just in case they're used,
+    # so as not to create brittle pickles with random magic objects.
+    from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, range, str, max, min  # noqa: F401
 
 import os, time, struct
-import cPickle as pickle
+try:
+    import cPickle as pickle
+except ImportError:
+    import pickle
 from twisted.internet import reactor
 from twisted.application import service
 from allmydata.storage.common import si_b2a
@@ -74,6 +93,9 @@ class ShareCrawler(service.MultiService):
         self.statefile = statefile
         self.prefixes = [si_b2a(struct.pack(">H", i << (16-10)))[:2]
                          for i in range(2**10)]
+        if PY3:
+            # On Python 3 we expect the paths to be unicode, not bytes.
+            self.prefixes = [p.decode("ascii") for p in self.prefixes]
         self.prefixes.sort()
         self.timer = None
         self.bucket_cache = (None, [])
@@ -353,7 +375,8 @@ class ShareCrawler(service.MultiService):
         """
 
         for bucket in buckets:
-            if bucket <= self.state["last-complete-bucket"]:
+            last_complete = self.state["last-complete-bucket"]
+            if last_complete is not None and bucket <= last_complete:
                 continue
             self.process_bucket(cycle, prefix, prefixdir, bucket)
             self.state["last-complete-bucket"] = bucket

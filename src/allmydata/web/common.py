@@ -18,7 +18,7 @@ from allmydata.mutable.common import UnrecoverableFileError
 from allmydata.util import abbreviate
 from allmydata.util.hashutil import timing_safe_compare
 from allmydata.util.time_format import format_time, format_delta
-from allmydata.util.encodingutil import to_str, quote_output
+from allmydata.util.encodingutil import to_bytes, quote_output
 
 
 def get_filenode_metadata(filenode):
@@ -133,8 +133,8 @@ def convert_children_json(nodemaker, children_json):
         data = json.loads(children_json)
         for (namex, (ctype, propdict)) in data.iteritems():
             namex = unicode(namex)
-            writecap = to_str(propdict.get("rw_uri"))
-            readcap = to_str(propdict.get("ro_uri"))
+            writecap = to_bytes(propdict.get("rw_uri"))
+            readcap = to_bytes(propdict.get("ro_uri"))
             metadata = propdict.get("metadata", {})
             # name= argument is just for error reporting
             childnode = nodemaker.create_from_cap(writecap, readcap, name=namex)

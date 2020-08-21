@@ -6,7 +6,7 @@ from allmydata.util.netstring import netstring
 from allmydata.util.hashutil import backupdb_dirhash
 from allmydata.util import base32
 from allmydata.util.fileutil import abspath_expanduser_unicode
-from allmydata.util.encodingutil import to_str
+from allmydata.util.encodingutil import to_bytes
 from allmydata.util.dbutil import get_db, DBError
 
 
@@ -218,7 +218,7 @@ class BackupDB_v2(object):
         probability = min(max(probability, 0.0), 1.0)
         should_check = bool(random.random() < probability)
 
-        return FileResult(self, to_str(filecap), should_check,
+        return FileResult(self, to_bytes(filecap), should_check,
                           path, mtime, ctime, size)
 
     def get_or_allocate_fileid_for_cap(self, filecap):
@@ -321,7 +321,7 @@ class BackupDB_v2(object):
         probability = min(max(probability, 0.0), 1.0)
         should_check = bool(random.random() < probability)
 
-        return DirectoryResult(self, dirhash_s, to_str(dircap), should_check)
+        return DirectoryResult(self, dirhash_s, to_bytes(dircap), should_check)
 
     def did_create_directory(self, dircap, dirhash):
         now = time.time()
