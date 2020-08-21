@@ -180,7 +180,8 @@ def _maybe_enable_eliot_logging(options, reactor):
     return options
 
 def run():
-    assert sys.version_info < (3,), u"Tahoe-LAFS does not run under Python 3. Please use Python 2.7.x."
+    if 'TOX_ENV_NAME' not in os.environ:
+        assert sys.version_info < (3,), u"Tahoe-LAFS does not run under Python 3. Please use Python 2.7.x."
 
     if sys.platform == "win32":
         from allmydata.windows.fixups import initialize
