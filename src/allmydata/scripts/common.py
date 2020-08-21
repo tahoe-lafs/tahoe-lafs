@@ -2,7 +2,7 @@ from __future__ import print_function
 
 import os, sys, urllib, textwrap
 import codecs
-from ConfigParser import NoSectionError
+from six.moves.configparser import NoSectionError
 from os.path import join
 from twisted.python import usage
 from allmydata.util.assertutil import precondition

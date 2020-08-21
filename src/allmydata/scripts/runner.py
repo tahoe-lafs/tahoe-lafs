@@ -2,6 +2,7 @@ from __future__ import print_function
 
 import os, sys
 from six.moves import StringIO
+import six
 
 from twisted.python import usage
 from twisted.internet import defer, task, threads
@@ -71,8 +72,8 @@ class Options(usage.Options):
     ]
     optParameters = [
         ["node-directory", "d", None, NODEDIR_HELP],
-        ["wormhole-server", None, u"ws://wormhole.tahoe-lafs.org:4000/v1", "The magic wormhole server to use.", unicode],
-        ["wormhole-invite-appid", None, u"tahoe-lafs.org/invite", "The appid to use on the wormhole server.", unicode],
+        ["wormhole-server", None, u"ws://wormhole.tahoe-lafs.org:4000/v1", "The magic wormhole server to use.", six.text_type],
+        ["wormhole-invite-appid", None, u"tahoe-lafs.org/invite", "The appid to use on the wormhole server.", six.text_type],
     ]
 
     def opt_version(self):

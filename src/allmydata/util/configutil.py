@@ -1,5 +1,5 @@
 
-from ConfigParser import SafeConfigParser
+from six.moves.configparser import SafeConfigParser
 
 import attr
 
