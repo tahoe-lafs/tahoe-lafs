@@ -7,13 +7,13 @@
 #
 #   curl --data-binary @.codecov.yml https://codecov.io/validate
 
-# Allow coverage % a precision of two decimals, and round to the
-# nearest (for example, 89.9573456 to to 89.96).  Coverage above 90%
-# is good, below 80% is bad.
+# Allow coverage percentage a precision of zero decimals, and round to
+# the nearest (for example, 89.957 to to 90; 89.497 to 89%).  Coverage
+# above 90% is good, below 80% is bad.
 coverage:
   round: nearest
   range: 80..90
-  precision: 2
+  precision: 0
 
   # Allow codecov/project a threshold of 90% (always aim for that much
   # coverage), and allow codecov/patch a threshold of 1% (allow
