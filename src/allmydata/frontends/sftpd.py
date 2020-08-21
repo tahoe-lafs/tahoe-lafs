@@ -559,7 +559,7 @@ class ShortReadOnlySFTPFile(PrefixingLogMixin):
     """I represent a file handle to a particular file on an SFTP connection.
     I am used only for short immutable files opened in read-only mode.
     When I am created, the file contents start to be downloaded to memory.
-    self.async is used to delay read requests until the download has finished."""
+    self.async_ is used to delay read requests until the download has finished."""
 
     def __init__(self, userpath, filenode, metadata):
         PrefixingLogMixin.__init__(self, facility="tahoe.sftp", prefix=userpath)
@@ -569,7 +569,7 @@ class ShortReadOnlySFTPFile(PrefixingLogMixin):
                      userpath=userpath, filenode=filenode)
         self.filenode = filenode
         self.metadata = metadata
-        self.async = download_to_data(filenode)
+        self.async_ = download_to_data(filenode)
         self.closed = False
 
     def readChunk(self, offset, length):
@@ -598,7 +598,7 @@ class ShortReadOnlySFTPFile(PrefixingLogMixin):
             else:
                 eventually_callback(d)(data[offset:offset+length])  # truncated if offset+length > len(data)
             return data
-        self.async.addCallbacks(_read, eventually_errback(d))
+        self.async_.addCallbacks(_read, eventually_errback(d))
         d.addBoth(_convert_error, request)
         return d
 
@@ -639,7 +639,7 @@ class GeneralSFTPFile(PrefixingLogMixin):
     storing the file contents. In order to allow write requests to be satisfied
     immediately, there is effectively a FIFO queue between requests made to this
     file handle, and requests to my OverwriteableFileConsumer. This queue is
-    implemented by the callback chain of self.async.
+    implemented by the callback chain of self.async_.
 
     When first constructed, I am in an 'unopened' state that causes most
     operations to be delayed until 'open' is called."""
@@ -654,7 +654,7 @@ class GeneralSFTPFile(PrefixingLogMixin):
         self.flags = flags
         self.close_notify = close_notify
         self.convergence = convergence
-        self.async = defer.Deferred()
+        self.async_ = defer.Deferred()
         # Creating or truncating the file is a change, but if FXF_EXCL is set, a zero-length file has already been created.
         self.has_changed = (flags & (FXF_CREAT | FXF_TRUNC)) and not (flags & FXF_EXCL)
         self.closed = False
@@ -664,7 +664,7 @@ class GeneralSFTPFile(PrefixingLogMixin):
         self.filenode = None
         self.metadata = None
 
-        # self.consumer should only be relied on in callbacks for self.async, since it might
+        # self.consumer should only be relied on in callbacks for self.async_, since it might
         # not be set before then.
         self.consumer = None
 
@@ -691,7 +691,7 @@ class GeneralSFTPFile(PrefixingLogMixin):
             self.consumer = OverwriteableFileConsumer(0, tempfile_maker)
             self.consumer.download_done("download not needed")
         else:
-            self.async.addCallback(lambda ignored: filenode.get_best_readable_version())
+            self.async_.addCallback(lambda ignored: filenode.get_best_readable_version())
 
             def _read(version):
                 if noisy: self.log("_read", level=NOISY)
@@ -707,9 +707,9 @@ class GeneralSFTPFile(PrefixingLogMixin):
                     self.consumer.download_done(res)
                 d.addBoth(_finished)
                 # It is correct to drop d here.
-            self.async.addCallback(_read)
+            self.async_.addCallback(_read)
 
-        eventually_callback(self.async)(None)
+        eventually_callback(self.async_)(None)
 
         if noisy: self.log("open done", level=NOISY)
         return self
@@ -739,7 +739,7 @@ class GeneralSFTPFile(PrefixingLogMixin):
         self.log(".sync()", level=OPERATIONAL)
 
         d = defer.Deferred()
-        self.async.addBoth(eventually_callback(d))
+        self.async_.addBoth(eventually_callback(d))
         def _done(res):
             if noisy: self.log("_done(%r) in .sync()" % (res,), level=NOISY)
             return res
@@ -765,7 +765,7 @@ class GeneralSFTPFile(PrefixingLogMixin):
             d2.addBoth(eventually_callback(d))
             # It is correct to drop d2 here.
             return None
-        self.async.addCallbacks(_read, eventually_errback(d))
+        self.async_.addCallbacks(_read, eventually_errback(d))
         d.addBoth(_convert_error, request)
         return d
 
@@ -802,8 +802,8 @@ class GeneralSFTPFile(PrefixingLogMixin):
             self.consumer.overwrite(write_offset, data)
             if noisy: self.log("overwrite done", level=NOISY)
             return None
-        self.async.addCallback(_write)
-        # don't addErrback to self.async, just allow subsequent async ops to fail.
+        self.async_.addCallback(_write)
+        # don't addErrback to self.async_, just allow subsequent async ops to fail.
         return defer.succeed(None)
 
     def _do_close(self, res, d=None):
@@ -812,7 +812,7 @@ class GeneralSFTPFile(PrefixingLogMixin):
         if self.consumer:
             status = self.consumer.close()
 
-        # We must close_notify before re-firing self.async.
+        # We must close_notify before re-firing self.async_.
         if self.close_notify:
             self.close_notify(self.userpath, self.parent, self.childname, self)
 
@@ -841,7 +841,7 @@ class GeneralSFTPFile(PrefixingLogMixin):
             # download.) Any reads that depended on file content that could not be downloaded
             # will have failed. It is important that we don't close the consumer until
             # previous read operations have completed.
-            self.async.addBoth(self._do_close)
+            self.async_.addBoth(self._do_close)
             return defer.succeed(None)
 
         # We must capture the abandoned, parent, and childname variables synchronously
@@ -875,16 +875,16 @@ class GeneralSFTPFile(PrefixingLogMixin):
             return d2
 
         # If the file has been abandoned, we don't want the close operation to get "stuck",
-        # even if self.async fails to re-fire. Completing the close independently of self.async
+        # even if self.async_ fails to re-fire. Completing the close independently of self.async_
         # in that case should ensure that dropping an ssh connection is sufficient to abandon
         # any heisenfiles that were not explicitly closed in that connection.
         if abandoned or not has_changed:
             d = defer.succeed(None)
-            self.async.addBoth(self._do_close)
+            self.async_.addBoth(self._do_close)
         else:
             d = defer.Deferred()
-            self.async.addCallback(_commit)
-            self.async.addBoth(self._do_close, d)
+            self.async_.addCallback(_commit)
+            self.async_.addBoth(self._do_close, d)
         d.addBoth(_convert_error, request)
         return d
 
@@ -908,7 +908,7 @@ class GeneralSFTPFile(PrefixingLogMixin):
             attrs = _populate_attrs(self.filenode, self.metadata, size=self.consumer.get_current_size())
             eventually_callback(d)(attrs)
             return None
-        self.async.addCallbacks(_get, eventually_errback(d))
+        self.async_.addCallbacks(_get, eventually_errback(d))
         d.addBoth(_convert_error, request)
         return d
 
@@ -946,7 +946,7 @@ class GeneralSFTPFile(PrefixingLogMixin):
                 self.consumer.set_current_size(size)
             eventually_callback(d)(None)
             return None
-        self.async.addCallbacks(_set, eventually_errback(d))
+        self.async_.addCallbacks(_set, eventually_errback(d))
         d.addBoth(_convert_error, request)
         return d
 
