@@ -202,24 +202,24 @@ class CHKFile(testutil.ReallyEqualMixin, unittest.TestCase):
 
 class Extension(testutil.ReallyEqualMixin, unittest.TestCase):
     def test_pack(self):
-        data = {"stuff": b"value",
-                "size": 12,
-                "needed_shares": 3,
-                "big_hash": hashutil.tagged_hash(b"foo", b"bar"),
+        data = {b"stuff": b"value",
+                b"size": 12,
+                b"needed_shares": 3,
+                b"big_hash": hashutil.tagged_hash(b"foo", b"bar"),
                 }
         ext = uri.pack_extension(data)
         d = uri.unpack_extension(ext)
-        self.failUnlessReallyEqual(d["stuff"], b"value")
-        self.failUnlessReallyEqual(d["size"], 12)
-        self.failUnlessReallyEqual(d["big_hash"], hashutil.tagged_hash(b"foo", b"bar"))
+        self.failUnlessReallyEqual(d[b"stuff"], b"value")
+        self.failUnlessReallyEqual(d[b"size"], 12)
+        self.failUnlessReallyEqual(d[b"big_hash"], hashutil.tagged_hash(b"foo", b"bar"))
 
         readable = uri.unpack_extension_readable(ext)
-        self.failUnlessReallyEqual(readable["needed_shares"], 3)
-        self.failUnlessReallyEqual(readable["stuff"], b"value")
-        self.failUnlessReallyEqual(readable["size"], 12)
-        self.failUnlessReallyEqual(readable["big_hash"],
+        self.failUnlessReallyEqual(readable[b"needed_shares"], 3)
+        self.failUnlessReallyEqual(readable[b"stuff"], b"value")
+        self.failUnlessReallyEqual(readable[b"size"], 12)
+        self.failUnlessReallyEqual(readable[b"big_hash"],
                              base32.b2a(hashutil.tagged_hash(b"foo", b"bar")))
-        self.failUnlessReallyEqual(readable["UEB_hash"],
+        self.failUnlessReallyEqual(readable[b"UEB_hash"],
                              base32.b2a(hashutil.uri_extension_hash(ext)))
 
 class Unknown(testutil.ReallyEqualMixin, unittest.TestCase):
@@ -254,7 +254,7 @@ class Unknown(testutil.ReallyEqualMixin, unittest.TestCase):
 
 class Constraint(testutil.ReallyEqualMixin, unittest.TestCase):
     def test_constraint(self):
-        bad = "http://127.0.0.1:3456/uri/URI%3ADIR2%3Agh3l5rbvnv2333mrfvalmjfr4i%3Alz6l7u3z3b7g37s4zkdmfpx5ly4ib4m6thrpbusi6ys62qtc6mma/"
+        bad = b"http://127.0.0.1:3456/uri/URI%3ADIR2%3Agh3l5rbvnv2333mrfvalmjfr4i%3Alz6l7u3z3b7g37s4zkdmfpx5ly4ib4m6thrpbusi6ys62qtc6mma/"
         self.failUnlessRaises(uri.BadURIError, uri.DirectoryURI.init_from_string, bad)
         fileURI = b'URI:CHK:gh3l5rbvnv2333mrfvalmjfr4i:lz6l7u3z3b7g37s4zkdmfpx5ly4ib4m6thrpbusi6ys62qtc6mma:3:10:345834'
         uri.CHKFileURI.init_from_string(fileURI)

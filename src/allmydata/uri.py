@@ -167,7 +167,7 @@ class LiteralFileURI(_BaseURI):
 
     def __init__(self, data=None):
         if data is not None:
-            assert isinstance(data, str)
+            assert isinstance(data, bytes)
             self.data = data
 
     @classmethod
@@ -222,8 +222,8 @@ class WriteableSSKFileURI(_BaseURI):
         return cls(base32.a2b(mo.group(1)), base32.a2b(mo.group(2)))
 
     def to_string(self):
-        assert isinstance(self.writekey, str)
-        assert isinstance(self.fingerprint, str)
+        assert isinstance(self.writekey, bytes)
+        assert isinstance(self.fingerprint, bytes)
         return b'URI:SSK:%s:%s' % (base32.b2a(self.writekey),
                                    base32.b2a(self.fingerprint))
 
@@ -269,8 +269,8 @@ class ReadonlySSKFileURI(_BaseURI):
         return cls(base32.a2b(mo.group(1)), base32.a2b(mo.group(2)))
 
     def to_string(self):
-        assert isinstance(self.readkey, str)
-        assert isinstance(self.fingerprint, str)
+        assert isinstance(self.readkey, bytes)
+        assert isinstance(self.fingerprint, bytes)
         return b'URI:SSK-RO:%s:%s' % (base32.b2a(self.readkey),
                                       base32.b2a(self.fingerprint))
 
@@ -315,8 +315,8 @@ class SSKVerifierURI(_BaseURI):
         return cls(si_a2b(mo.group(1)), base32.a2b(mo.group(2)))
 
     def to_string(self):
-        assert isinstance(self.storage_index, str)
-        assert isinstance(self.fingerprint, str)
+        assert isinstance(self.storage_index, bytes)
+        assert isinstance(self.fingerprint, bytes)
         return b'URI:SSK-Verifier:%s:%s' % (si_b2a(self.storage_index),
                                             base32.b2a(self.fingerprint))
 
@@ -354,8 +354,8 @@ class WriteableMDMFFileURI(_BaseURI):
         return cls(base32.a2b(mo.group(1)), base32.a2b(mo.group(2)))
 
     def to_string(self):
-        assert isinstance(self.writekey, str)
-        assert isinstance(self.fingerprint, str)
+        assert isinstance(self.writekey, bytes)
+        assert isinstance(self.fingerprint, bytes)
         ret = b'URI:MDMF:%s:%s' % (base32.b2a(self.writekey),
                                    base32.b2a(self.fingerprint))
         return ret
@@ -403,8 +403,8 @@ class ReadonlyMDMFFileURI(_BaseURI):
         return cls(base32.a2b(mo.group(1)), base32.a2b(mo.group(2)))
 
     def to_string(self):
-        assert isinstance(self.readkey, str)
-        assert isinstance(self.fingerprint, str)
+        assert isinstance(self.readkey, bytes)
+        assert isinstance(self.fingerprint, bytes)
         ret = b'URI:MDMF-RO:%s:%s' % (base32.b2a(self.readkey),
                                       base32.b2a(self.fingerprint))
         return ret
@@ -450,8 +450,8 @@ class MDMFVerifierURI(_BaseURI):
         return cls(si_a2b(mo.group(1)), base32.a2b(mo.group(2)))
 
     def to_string(self):
-        assert isinstance(self.storage_index, str)
-        assert isinstance(self.fingerprint, str)
+        assert isinstance(self.storage_index, bytes)
+        assert isinstance(self.fingerprint, bytes)
         ret = b'URI:MDMF-Verifier:%s:%s' % (si_b2a(self.storage_index),
                                             base32.b2a(self.fingerprint))
         return ret
@@ -907,14 +907,14 @@ def unpack_extension(data):
         data = data[colon+1:]
 
         value = data[:length]
-        assert data[length] == b','
+        assert data[length:length+1] == b','
         data = data[length+1:]
 
-        d[key.decode("utf-8")] = value
+        d[key] = value
 
     # convert certain things to numbers
-    for intkey in ('size', 'segment_size', 'num_segments',
-                   'needed_shares', 'total_shares'):
+    for intkey in (b'size', b'segment_size', b'num_segments',
+                   b'needed_shares', b'total_shares'):
         if intkey in d:
             d[intkey] = int(d[intkey])
     return d
@@ -922,10 +922,9 @@ def unpack_extension(data):
 
 def unpack_extension_readable(data):
     unpacked = unpack_extension(data)
-    unpacked["UEB_hash"] = hashutil.uri_extension_hash(data)
+    unpacked[b"UEB_hash"] = hashutil.uri_extension_hash(data)
     for k in sorted(unpacked.keys()):
-        k = k.decode("utf-8")
-        if 'hash' in k:
+        if b'hash' in k:
             unpacked[k] = base32.b2a(unpacked[k])
     return unpacked
 
