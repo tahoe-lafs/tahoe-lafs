@@ -1123,8 +1123,7 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin):
             # grr. json turns all dict keys into strings.
             so_far = data["lease-checker"]["cycle-to-date"]
             corrupt_shares = so_far["corrupt-shares"]
-            # it also turns all tuples into lists, and result is unicode (on
-            # Python 3 always, on Python 2 sometimes)
+            # it also turns all tuples into lists, and result is unicode:
             [(actual_b32, i)] = corrupt_shares
             actual_b32 = actual_b32.encode("ascii")
             self.failUnlessEqual([actual_b32, i], [first_b32, 0])
@@ -1153,7 +1152,6 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin):
         def _check_json_history(raw):
             data = json.loads(raw)
             last = data["lease-checker"]["history"]["0"]
-            corrupt_shares = last["corrupt-shares"]
             [(actual_b32, i)] = last["corrupt-shares"]
             actual_b32 = actual_b32.encode("ascii")
             self.failUnlessEqual([actual_b32, i], [first_b32, 0])

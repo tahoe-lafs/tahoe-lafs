@@ -1,7 +1,7 @@
 """
 Common utilities that are available from Python 3.
 
-Can eventually be merged back into twisted.web.common.
+Can eventually be merged back into allmydata.web.common.
 """
 
 from future.utils import PY2
