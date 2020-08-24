@@ -1,3 +1,21 @@
+"""
+URIs (kinda sorta, really they're capabilities?).
+
+Ported to Python 3.
+
+Methods ending in to_string() are actually to_bytes(), possibly should be fixed
+in follow-up port.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    # Don't import bytes, to prevent leaks.
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, dict, list, object, range, str, max, min  # noqa: F401
+
 from past.builtins import unicode, long
 
 import re
