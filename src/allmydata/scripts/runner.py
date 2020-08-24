@@ -181,6 +181,7 @@ def _maybe_enable_eliot_logging(options, reactor):
     return options
 
 def run():
+    # TODO(3035): Remove tox-check when error becomes a warning
     if 'TOX_ENV_NAME' not in os.environ:
         assert sys.version_info < (3,), u"Tahoe-LAFS does not run under Python 3. Please use Python 2.7.x."
 
