@@ -67,7 +67,7 @@ class Literal(testutil.ReallyEqualMixin, unittest.TestCase):
 class Compare(testutil.ReallyEqualMixin, unittest.TestCase):
     def test_compare(self):
         lit1 = uri.LiteralFileURI(b"some data")
-        fileURI = 'URI:CHK:f5ahxa25t4qkktywz6teyfvcx4:opuioq7tj2y6idzfp6cazehtmgs5fdcebcz3cygrxyydvcozrmeq:3:10:345834'
+        fileURI = b'URI:CHK:f5ahxa25t4qkktywz6teyfvcx4:opuioq7tj2y6idzfp6cazehtmgs5fdcebcz3cygrxyydvcozrmeq:3:10:345834'
         chk1 = uri.CHKFileURI.init_from_string(fileURI)
         chk2 = uri.CHKFileURI.init_from_string(fileURI)
         unk = uri.UnknownURI(b"lafs://from_the_future")
@@ -89,11 +89,14 @@ class Compare(testutil.ReallyEqualMixin, unittest.TestCase):
         self.failIf(uri.is_literal_file_uri(None))
         self.failIf(uri.is_literal_file_uri("foo"))
         self.failIf(uri.is_literal_file_uri("ro.foo"))
-        self.failIf(uri.is_literal_file_uri("URI:LITfoo"))
+        self.failIf(uri.is_literal_file_uri(b"URI:LITfoo"))
         self.failUnless(uri.is_literal_file_uri("ro.URI:LIT:foo"))
         self.failUnless(uri.is_literal_file_uri("imm.URI:LIT:foo"))
 
     def test_has_uri_prefix(self):
+        self.failUnless(uri.has_uri_prefix(b"URI:foo"))
+        self.failUnless(uri.has_uri_prefix(b"ro.URI:foo"))
+        self.failUnless(uri.has_uri_prefix(b"imm.URI:foo"))
         self.failUnless(uri.has_uri_prefix("URI:foo"))
         self.failUnless(uri.has_uri_prefix("ro.URI:foo"))
         self.failUnless(uri.has_uri_prefix("imm.URI:foo"))
@@ -151,7 +154,7 @@ class CHKFile(testutil.ReallyEqualMixin, unittest.TestCase):
         self.failUnlessReallyEqual(u.to_string(), u2imm.to_string())
 
         v = u.get_verify_cap()
-        self.failUnless(isinstance(v.to_string(), str))
+        self.failUnless(isinstance(v.to_string(), bytes))
         self.failUnless(v.is_readonly())
         self.failIf(v.is_mutable())
 
@@ -163,7 +166,7 @@ class CHKFile(testutil.ReallyEqualMixin, unittest.TestCase):
                                     needed_shares=3,
                                     total_shares=10,
                                     size=1234)
-        self.failUnless(isinstance(v3.to_string(), str))
+        self.failUnless(isinstance(v3.to_string(), bytes))
         self.failUnless(v3.is_readonly())
         self.failIf(v3.is_mutable())
 
@@ -222,12 +225,14 @@ class Extension(testutil.ReallyEqualMixin, unittest.TestCase):
 class Unknown(testutil.ReallyEqualMixin, unittest.TestCase):
     def test_from_future(self):
         # any URI type that we don't recognize should be treated as unknown
-        future_uri = "I am a URI from the future. Whatever you do, don't "
+        future_uri = b"I am a URI from the future. Whatever you do, don't "
         u = uri.from_string(future_uri)
         self.failUnless(isinstance(u, uri.UnknownURI))
         self.failUnlessReallyEqual(u.to_string(), future_uri)
         self.failUnless(u.get_readonly() is None)
         self.failUnless(u.get_error() is None)
+        future_uri_unicode = future_uri.decode("utf-8")
+        self.assertEqual(future_uri, uri.from_string(future_uri_unicode).to_string())
 
         u2 = uri.UnknownURI(future_uri, error=CapConstraintError("..."))
         self.failUnlessReallyEqual(u.to_string(), future_uri)
@@ -235,7 +240,7 @@ class Unknown(testutil.ReallyEqualMixin, unittest.TestCase):
         self.failUnless(isinstance(u2.get_error(), CapConstraintError))
 
         # Future caps might have non-ASCII chars in them. (Or maybe not, who can tell about the future?)
-        future_uri = u"I am a cap from the \u263A future. Whatever you "
+        future_uri = u"I am a cap from the \u263A future. Whatever you ".encode("utf-8")
         u = uri.from_string(future_uri)
         self.failUnless(isinstance(u, uri.UnknownURI))
         self.failUnlessReallyEqual(u.to_string(), future_uri)
@@ -251,7 +256,7 @@ class Constraint(testutil.ReallyEqualMixin, unittest.TestCase):
     def test_constraint(self):
         bad = "http://127.0.0.1:3456/uri/URI%3ADIR2%3Agh3l5rbvnv2333mrfvalmjfr4i%3Alz6l7u3z3b7g37s4zkdmfpx5ly4ib4m6thrpbusi6ys62qtc6mma/"
         self.failUnlessRaises(uri.BadURIError, uri.DirectoryURI.init_from_string, bad)
-        fileURI = 'URI:CHK:gh3l5rbvnv2333mrfvalmjfr4i:lz6l7u3z3b7g37s4zkdmfpx5ly4ib4m6thrpbusi6ys62qtc6mma:3:10:345834'
+        fileURI = b'URI:CHK:gh3l5rbvnv2333mrfvalmjfr4i:lz6l7u3z3b7g37s4zkdmfpx5ly4ib4m6thrpbusi6ys62qtc6mma:3:10:345834'
         uri.CHKFileURI.init_from_string(fileURI)
 
 class Mutable(testutil.ReallyEqualMixin, unittest.TestCase):
@@ -423,7 +428,7 @@ class Mutable(testutil.ReallyEqualMixin, unittest.TestCase):
         u1 = uri.WriteableMDMFFileURI(self.writekey, self.fingerprint)
         cap = u1.to_string()
 
-        cap2 = cap+":I COME FROM THE FUTURE"
+        cap2 = cap+b":I COME FROM THE FUTURE"
         u2 = uri.WriteableMDMFFileURI.init_from_string(cap2)
         self.failUnlessReallyEqual(self.writekey, u2.writekey)
         self.failUnlessReallyEqual(self.fingerprint, u2.fingerprint)
@@ -431,26 +436,21 @@ class Mutable(testutil.ReallyEqualMixin, unittest.TestCase):
         self.failUnless(u2.is_mutable())
 
 
-        cap3 = cap+":"
-        for item in os.urandom(40):
-            if isinstance(item, int):
-                cap3 += chr(item)
-            else:
-                cap3 += chr(ord(item))
+        cap3 = cap+b":" + os.urandom(40)
         u3 = uri.WriteableMDMFFileURI.init_from_string(cap3)
         self.failUnlessReallyEqual(self.writekey, u3.writekey)
         self.failUnlessReallyEqual(self.fingerprint, u3.fingerprint)
         self.failIf(u3.is_readonly())
         self.failUnless(u3.is_mutable())
 
-        cap4 = u1.get_readonly().to_string()+":ooh scary future stuff"
+        cap4 = u1.get_readonly().to_string()+b":ooh scary future stuff"
         u4 = uri.from_string_mutable_filenode(cap4)
         self.failUnlessReallyEqual(self.readkey, u4.readkey)
         self.failUnlessReallyEqual(self.fingerprint, u4.fingerprint)
         self.failUnless(u4.is_readonly())
         self.failUnless(u4.is_mutable())
 
-        cap5 = u1.get_verify_cap().to_string()+":spoilers!"
+        cap5 = u1.get_verify_cap().to_string()+b":spoilers!"
         u5 = uri.from_string(cap5)
         self.failUnlessReallyEqual(self.storage_index, u5.storage_index)
         self.failUnlessReallyEqual(self.fingerprint, u5.fingerprint)
@@ -567,7 +567,7 @@ class Dirnode(testutil.ReallyEqualMixin, unittest.TestCase):
                                total_shares=total_shares,
                                size=size)
         fncap = fnuri.to_string()
-        self.failUnlessReallyEqual(fncap, "URI:CHK:aeaqcaibaeaqcaibaeaqcaibae:nf3nimquen7aeqm36ekgxomalstenpkvsdmf6fplj7swdatbv5oa:3:10:1234")
+        self.failUnlessReallyEqual(fncap, b"URI:CHK:aeaqcaibaeaqcaibaeaqcaibae:nf3nimquen7aeqm36ekgxomalstenpkvsdmf6fplj7swdatbv5oa:3:10:1234")
         u1 = uri.ImmutableDirectoryURI(fnuri)
         self.failUnless(u1.is_readonly())
         self.failIf(u1.is_mutable())
@@ -606,20 +606,20 @@ class Dirnode(testutil.ReallyEqualMixin, unittest.TestCase):
         self.failUnless(IVerifierURI.providedBy(u2_verifier))
         u2vs = u2_verifier.to_string()
         # URI:DIR2-CHK-Verifier:$key:$ueb:$k:$n:$size
-        self.failUnless(u2vs.startswith("URI:DIR2-CHK-Verifier:"), u2vs)
+        self.failUnless(u2vs.startswith(b"URI:DIR2-CHK-Verifier:"), u2vs)
         u2_verifier_fileuri = u2_verifier.get_filenode_cap()
         self.failUnless(IVerifierURI.providedBy(u2_verifier_fileuri))
         u2vfs = u2_verifier_fileuri.to_string()
         # URI:CHK-Verifier:$key:$ueb:$k:$n:$size
         self.failUnlessReallyEqual(u2vfs, fnuri.get_verify_cap().to_string())
-        self.failUnlessReallyEqual(u2vs[len("URI:DIR2-"):], u2vfs[len("URI:"):])
+        self.failUnlessReallyEqual(u2vs[len(b"URI:DIR2-"):], u2vfs[len(b"URI:"):])
         self.failUnless(str(u2_verifier))
 
     def test_literal(self):
         u0 = uri.LiteralFileURI(b"data")
         u1 = uri.LiteralDirectoryURI(u0)
         self.failUnless(str(u1))
-        self.failUnlessReallyEqual(u1.to_string(), "URI:DIR2-LIT:mrqxiyi")
+        self.failUnlessReallyEqual(u1.to_string(), b"URI:DIR2-LIT:mrqxiyi")
         self.failUnless(u1.is_readonly())
         self.failIf(u1.is_mutable())
         self.failUnless(IURI.providedBy(u1))
@@ -627,7 +627,7 @@ class Dirnode(testutil.ReallyEqualMixin, unittest.TestCase):
         self.failUnless(IDirnodeURI.providedBy(u1))
         self.failUnlessReallyEqual(u1.get_verify_cap(), None)
         self.failUnlessReallyEqual(u1.get_storage_index(), None)
-        self.failUnlessReallyEqual(u1.abbrev_si(), "<LIT>")
+        self.failUnlessReallyEqual(u1.abbrev_si(), b"<LIT>")
 
     def test_mdmf(self):
         writekey = b"\x01" * 16

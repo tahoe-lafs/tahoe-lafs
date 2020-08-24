@@ -1,3 +1,4 @@
+from past.builtins import unicode, long
 
 import re
 
@@ -24,10 +25,10 @@ class BadURIError(CapConstraintError):
 #  - make variable and method names consistently use _uri for an URI string,
 #    and _cap for a Cap object (decoded URI)
 
-BASE32STR_128bits = '(%s{25}%s)' % (base32.BASE32CHAR, base32.BASE32CHAR_3bits)
-BASE32STR_256bits = '(%s{51}%s)' % (base32.BASE32CHAR, base32.BASE32CHAR_1bits)
+BASE32STR_128bits = b'(%s{25}%s)' % (base32.BASE32CHAR, base32.BASE32CHAR_3bits)
+BASE32STR_256bits = b'(%s{51}%s)' % (base32.BASE32CHAR, base32.BASE32CHAR_1bits)
 
-NUMBER='([0-9]+)'
+NUMBER=b'([0-9]+)'
 
 
 class _BaseURI(object):
@@ -53,10 +54,10 @@ class _BaseURI(object):
 @implementer(IURI, IImmutableFileURI)
 class CHKFileURI(_BaseURI):
 
-    BASE_STRING='URI:CHK:'
-    STRING_RE=re.compile('^URI:CHK:'+BASE32STR_128bits+':'+
-                         BASE32STR_256bits+':'+NUMBER+':'+NUMBER+':'+NUMBER+
-                         '$')
+    BASE_STRING=b'URI:CHK:'
+    STRING_RE=re.compile(b'^URI:CHK:'+BASE32STR_128bits+b':'+
+                         BASE32STR_256bits+b':'+NUMBER+b':'+NUMBER+b':'+NUMBER+
+                         b'$')
 
     def __init__(self, key, uri_extension_hash, needed_shares, total_shares,
                  size):
@@ -82,7 +83,7 @@ class CHKFileURI(_BaseURI):
         assert isinstance(self.total_shares, int)
         assert isinstance(self.size, (int,long))
 
-        return ('URI:CHK:%s:%s:%d:%d:%d' %
+        return (b'URI:CHK:%s:%s:%d:%d:%d' %
                 (base32.b2a(self.key),
                  base32.b2a(self.uri_extension_hash),
                  self.needed_shares,
@@ -112,9 +113,9 @@ class CHKFileURI(_BaseURI):
 @implementer(IVerifierURI)
 class CHKFileVerifierURI(_BaseURI):
 
-    BASE_STRING='URI:CHK-Verifier:'
-    STRING_RE=re.compile('^URI:CHK-Verifier:'+BASE32STR_128bits+':'+
-                         BASE32STR_256bits+':'+NUMBER+':'+NUMBER+':'+NUMBER)
+    BASE_STRING=b'URI:CHK-Verifier:'
+    STRING_RE=re.compile(b'^URI:CHK-Verifier:'+BASE32STR_128bits+b':'+
+                         BASE32STR_256bits+b':'+NUMBER+b':'+NUMBER+b':'+NUMBER)
 
     def __init__(self, storage_index, uri_extension_hash,
                  needed_shares, total_shares, size):
@@ -138,7 +139,7 @@ class CHKFileVerifierURI(_BaseURI):
         assert isinstance(self.total_shares, int)
         assert isinstance(self.size, (int,long))
 
-        return ('URI:CHK-Verifier:%s:%s:%d:%d:%d' %
+        return (b'URI:CHK-Verifier:%s:%s:%d:%d:%d' %
                 (si_b2a(self.storage_index),
                  base32.b2a(self.uri_extension_hash),
                  self.needed_shares,
@@ -161,8 +162,8 @@ class CHKFileVerifierURI(_BaseURI):
 @implementer(IURI, IImmutableFileURI)
 class LiteralFileURI(_BaseURI):
 
-    BASE_STRING='URI:LIT:'
-    STRING_RE=re.compile('^URI:LIT:'+base32.BASE32STR_anybytes+'$')
+    BASE_STRING=b'URI:LIT:'
+    STRING_RE=re.compile(b'^URI:LIT:'+base32.BASE32STR_anybytes+b'$')
 
     def __init__(self, data=None):
         if data is not None:
@@ -177,7 +178,7 @@ class LiteralFileURI(_BaseURI):
         return cls(base32.a2b(mo.group(1)))
 
     def to_string(self):
-        return 'URI:LIT:%s' % base32.b2a(self.data)
+        return b'URI:LIT:%s' % base32.b2a(self.data)
 
     def is_readonly(self):
         return True
@@ -202,9 +203,9 @@ class LiteralFileURI(_BaseURI):
 @implementer(IURI, IMutableFileURI)
 class WriteableSSKFileURI(_BaseURI):
 
-    BASE_STRING='URI:SSK:'
-    STRING_RE=re.compile('^'+BASE_STRING+BASE32STR_128bits+':'+
-                         BASE32STR_256bits+'$')
+    BASE_STRING=b'URI:SSK:'
+    STRING_RE=re.compile(b'^'+BASE_STRING+BASE32STR_128bits+b':'+
+                         BASE32STR_256bits+b'$')
 
     def __init__(self, writekey, fingerprint):
         self.writekey = writekey
@@ -223,8 +224,8 @@ class WriteableSSKFileURI(_BaseURI):
     def to_string(self):
         assert isinstance(self.writekey, str)
         assert isinstance(self.fingerprint, str)
-        return 'URI:SSK:%s:%s' % (base32.b2a(self.writekey),
-                                  base32.b2a(self.fingerprint))
+        return b'URI:SSK:%s:%s' % (base32.b2a(self.writekey),
+                                   base32.b2a(self.fingerprint))
 
     def __repr__(self):
         return "<%s %s>" % (self.__class__.__name__, self.abbrev())
@@ -251,8 +252,8 @@ class WriteableSSKFileURI(_BaseURI):
 @implementer(IURI, IMutableFileURI)
 class ReadonlySSKFileURI(_BaseURI):
 
-    BASE_STRING='URI:SSK-RO:'
-    STRING_RE=re.compile('^URI:SSK-RO:'+BASE32STR_128bits+':'+BASE32STR_256bits+'$')
+    BASE_STRING=b'URI:SSK-RO:'
+    STRING_RE=re.compile(b'^URI:SSK-RO:'+BASE32STR_128bits+b':'+BASE32STR_256bits+b'$')
 
     def __init__(self, readkey, fingerprint):
         self.readkey = readkey
@@ -270,8 +271,8 @@ class ReadonlySSKFileURI(_BaseURI):
     def to_string(self):
         assert isinstance(self.readkey, str)
         assert isinstance(self.fingerprint, str)
-        return 'URI:SSK-RO:%s:%s' % (base32.b2a(self.readkey),
-                                     base32.b2a(self.fingerprint))
+        return b'URI:SSK-RO:%s:%s' % (base32.b2a(self.readkey),
+                                      base32.b2a(self.fingerprint))
 
     def __repr__(self):
         return "<%s %s>" % (self.__class__.__name__, self.abbrev())
@@ -298,8 +299,8 @@ class ReadonlySSKFileURI(_BaseURI):
 @implementer(IVerifierURI)
 class SSKVerifierURI(_BaseURI):
 
-    BASE_STRING='URI:SSK-Verifier:'
-    STRING_RE=re.compile('^'+BASE_STRING+BASE32STR_128bits+':'+BASE32STR_256bits+'$')
+    BASE_STRING=b'URI:SSK-Verifier:'
+    STRING_RE=re.compile(b'^'+BASE_STRING+BASE32STR_128bits+b':'+BASE32STR_256bits+b'$')
 
     def __init__(self, storage_index, fingerprint):
         assert len(storage_index) == 16
@@ -316,8 +317,8 @@ class SSKVerifierURI(_BaseURI):
     def to_string(self):
         assert isinstance(self.storage_index, str)
         assert isinstance(self.fingerprint, str)
-        return 'URI:SSK-Verifier:%s:%s' % (si_b2a(self.storage_index),
-                                           base32.b2a(self.fingerprint))
+        return b'URI:SSK-Verifier:%s:%s' % (si_b2a(self.storage_index),
+                                            base32.b2a(self.fingerprint))
 
     def is_readonly(self):
         return True
@@ -335,8 +336,8 @@ class SSKVerifierURI(_BaseURI):
 @implementer(IURI, IMutableFileURI)
 class WriteableMDMFFileURI(_BaseURI):
 
-    BASE_STRING='URI:MDMF:'
-    STRING_RE=re.compile('^'+BASE_STRING+BASE32STR_128bits+':'+BASE32STR_256bits+'(:|$)')
+    BASE_STRING=b'URI:MDMF:'
+    STRING_RE=re.compile(b'^'+BASE_STRING+BASE32STR_128bits+b':'+BASE32STR_256bits+b'(:|$)')
 
     def __init__(self, writekey, fingerprint):
         self.writekey = writekey
@@ -355,8 +356,8 @@ class WriteableMDMFFileURI(_BaseURI):
     def to_string(self):
         assert isinstance(self.writekey, str)
         assert isinstance(self.fingerprint, str)
-        ret = 'URI:MDMF:%s:%s' % (base32.b2a(self.writekey),
-                                  base32.b2a(self.fingerprint))
+        ret = b'URI:MDMF:%s:%s' % (base32.b2a(self.writekey),
+                                   base32.b2a(self.fingerprint))
         return ret
 
     def __repr__(self):
@@ -384,8 +385,8 @@ class WriteableMDMFFileURI(_BaseURI):
 @implementer(IURI, IMutableFileURI)
 class ReadonlyMDMFFileURI(_BaseURI):
 
-    BASE_STRING='URI:MDMF-RO:'
-    STRING_RE=re.compile('^' +BASE_STRING+BASE32STR_128bits+':'+BASE32STR_256bits+'(:|$)')
+    BASE_STRING=b'URI:MDMF-RO:'
+    STRING_RE=re.compile(b'^' +BASE_STRING+BASE32STR_128bits+b':'+BASE32STR_256bits+b'(:|$)')
 
     def __init__(self, readkey, fingerprint):
         self.readkey = readkey
@@ -404,8 +405,8 @@ class ReadonlyMDMFFileURI(_BaseURI):
     def to_string(self):
         assert isinstance(self.readkey, str)
         assert isinstance(self.fingerprint, str)
-        ret = 'URI:MDMF-RO:%s:%s' % (base32.b2a(self.readkey),
-                                     base32.b2a(self.fingerprint))
+        ret = b'URI:MDMF-RO:%s:%s' % (base32.b2a(self.readkey),
+                                      base32.b2a(self.fingerprint))
         return ret
 
     def __repr__(self):
@@ -433,8 +434,8 @@ class ReadonlyMDMFFileURI(_BaseURI):
 @implementer(IVerifierURI)
 class MDMFVerifierURI(_BaseURI):
 
-    BASE_STRING='URI:MDMF-Verifier:'
-    STRING_RE=re.compile('^'+BASE_STRING+BASE32STR_128bits+':'+BASE32STR_256bits+'(:|$)')
+    BASE_STRING=b'URI:MDMF-Verifier:'
+    STRING_RE=re.compile(b'^'+BASE_STRING+BASE32STR_128bits+b':'+BASE32STR_256bits+b'(:|$)')
 
     def __init__(self, storage_index, fingerprint):
         assert len(storage_index) == 16
@@ -451,8 +452,8 @@ class MDMFVerifierURI(_BaseURI):
     def to_string(self):
         assert isinstance(self.storage_index, str)
         assert isinstance(self.fingerprint, str)
-        ret = 'URI:MDMF-Verifier:%s:%s' % (si_b2a(self.storage_index),
-                                           base32.b2a(self.fingerprint))
+        ret = b'URI:MDMF-Verifier:%s:%s' % (si_b2a(self.storage_index),
+                                            base32.b2a(self.fingerprint))
         return ret
 
     def is_readonly(self):
@@ -494,12 +495,12 @@ class _DirectoryBaseURI(_BaseURI):
         return self.BASE_STRING+bits
 
     def abbrev(self):
-        return self._filenode_uri.to_string().split(':')[2][:5]
+        return self._filenode_uri.to_string().split(b':')[2][:5]
 
     def abbrev_si(self):
         si = self._filenode_uri.get_storage_index()
         if si is None:
-            return "<LIT>"
+            return b"<LIT>"
         return base32.b2a(si)[:5]
 
     def is_mutable(self):
@@ -518,8 +519,8 @@ class _DirectoryBaseURI(_BaseURI):
 @implementer(IDirectoryURI)
 class DirectoryURI(_DirectoryBaseURI):
 
-    BASE_STRING='URI:DIR2:'
-    BASE_STRING_RE=re.compile('^'+BASE_STRING)
+    BASE_STRING=b'URI:DIR2:'
+    BASE_STRING_RE=re.compile(b'^'+BASE_STRING)
     INNER_URI_CLASS=WriteableSSKFileURI
 
     def __init__(self, filenode_uri=None):
@@ -537,8 +538,8 @@ class DirectoryURI(_DirectoryBaseURI):
 @implementer(IReadonlyDirectoryURI)
 class ReadonlyDirectoryURI(_DirectoryBaseURI):
 
-    BASE_STRING='URI:DIR2-RO:'
-    BASE_STRING_RE=re.compile('^'+BASE_STRING)
+    BASE_STRING=b'URI:DIR2-RO:'
+    BASE_STRING_RE=re.compile(b'^'+BASE_STRING)
     INNER_URI_CLASS=ReadonlySSKFileURI
 
     def __init__(self, filenode_uri=None):
@@ -571,8 +572,8 @@ class _ImmutableDirectoryBaseURI(_DirectoryBaseURI):
 
 
 class ImmutableDirectoryURI(_ImmutableDirectoryBaseURI):
-    BASE_STRING='URI:DIR2-CHK:'
-    BASE_STRING_RE=re.compile('^'+BASE_STRING)
+    BASE_STRING=b'URI:DIR2-CHK:'
+    BASE_STRING_RE=re.compile(b'^'+BASE_STRING)
     INNER_URI_CLASS=CHKFileURI
 
     def get_verify_cap(self):
@@ -581,8 +582,8 @@ class ImmutableDirectoryURI(_ImmutableDirectoryBaseURI):
 
 
 class LiteralDirectoryURI(_ImmutableDirectoryBaseURI):
-    BASE_STRING='URI:DIR2-LIT:'
-    BASE_STRING_RE=re.compile('^'+BASE_STRING)
+    BASE_STRING=b'URI:DIR2-LIT:'
+    BASE_STRING_RE=re.compile(b'^'+BASE_STRING)
     INNER_URI_CLASS=LiteralFileURI
 
     def get_verify_cap(self):
@@ -593,8 +594,8 @@ class LiteralDirectoryURI(_ImmutableDirectoryBaseURI):
 @implementer(IDirectoryURI)
 class MDMFDirectoryURI(_DirectoryBaseURI):
 
-    BASE_STRING='URI:DIR2-MDMF:'
-    BASE_STRING_RE=re.compile('^'+BASE_STRING)
+    BASE_STRING=b'URI:DIR2-MDMF:'
+    BASE_STRING_RE=re.compile(b'^'+BASE_STRING)
     INNER_URI_CLASS=WriteableMDMFFileURI
 
     def __init__(self, filenode_uri=None):
@@ -615,8 +616,8 @@ class MDMFDirectoryURI(_DirectoryBaseURI):
 @implementer(IReadonlyDirectoryURI)
 class ReadonlyMDMFDirectoryURI(_DirectoryBaseURI):
 
-    BASE_STRING='URI:DIR2-MDMF-RO:'
-    BASE_STRING_RE=re.compile('^'+BASE_STRING)
+    BASE_STRING=b'URI:DIR2-MDMF-RO:'
+    BASE_STRING_RE=re.compile(b'^'+BASE_STRING)
     INNER_URI_CLASS=ReadonlyMDMFFileURI
 
     def __init__(self, filenode_uri=None):
@@ -653,8 +654,8 @@ def wrap_dirnode_cap(filecap):
 @implementer(IVerifierURI)
 class MDMFDirectoryURIVerifier(_DirectoryBaseURI):
 
-    BASE_STRING='URI:DIR2-MDMF-Verifier:'
-    BASE_STRING_RE=re.compile('^'+BASE_STRING)
+    BASE_STRING=b'URI:DIR2-MDMF-Verifier:'
+    BASE_STRING_RE=re.compile(b'^'+BASE_STRING)
     INNER_URI_CLASS=MDMFVerifierURI
 
     def __init__(self, filenode_uri=None):
@@ -678,8 +679,8 @@ class MDMFDirectoryURIVerifier(_DirectoryBaseURI):
 @implementer(IVerifierURI)
 class DirectoryURIVerifier(_DirectoryBaseURI):
 
-    BASE_STRING='URI:DIR2-Verifier:'
-    BASE_STRING_RE=re.compile('^'+BASE_STRING)
+    BASE_STRING=b'URI:DIR2-Verifier:'
+    BASE_STRING_RE=re.compile(b'^'+BASE_STRING)
     INNER_URI_CLASS=SSKVerifierURI
 
     def __init__(self, filenode_uri=None):
@@ -702,8 +703,8 @@ class DirectoryURIVerifier(_DirectoryBaseURI):
 
 @implementer(IVerifierURI)
 class ImmutableDirectoryURIVerifier(DirectoryURIVerifier):
-    BASE_STRING='URI:DIR2-CHK-Verifier:'
-    BASE_STRING_RE=re.compile('^'+BASE_STRING)
+    BASE_STRING=b'URI:DIR2-CHK-Verifier:'
+    BASE_STRING_RE=re.compile(b'^'+BASE_STRING)
     INNER_URI_CLASS=CHKFileVerifierURI
 
 
@@ -725,12 +726,15 @@ class UnknownURI(object):
         return None
 
 
-ALLEGED_READONLY_PREFIX = 'ro.'
-ALLEGED_IMMUTABLE_PREFIX = 'imm.'
+ALLEGED_READONLY_PREFIX = b'ro.'
+ALLEGED_IMMUTABLE_PREFIX = b'imm.'
 
 def from_string(u, deep_immutable=False, name=u"<unknown name>"):
-    if not isinstance(u, str):
-        raise TypeError("URI must be str: %r" % (u,))
+    """Create URI from either unicode or byte string."""
+    if isinstance(u, unicode):
+        u = u.encode("utf-8")
+    if not isinstance(u, bytes):
+        raise TypeError("URI must be unicode string or bytes: %r" % (u,))
 
     # We allow and check ALLEGED_READONLY_PREFIX or ALLEGED_IMMUTABLE_PREFIX
     # on all URIs, even though we would only strictly need to do so for caps of
@@ -748,62 +752,62 @@ def from_string(u, deep_immutable=False, name=u"<unknown name>"):
 
     error = None
     try:
-        if s.startswith('URI:CHK:'):
+        if s.startswith(b'URI:CHK:'):
             return CHKFileURI.init_from_string(s)
-        elif s.startswith('URI:CHK-Verifier:'):
+        elif s.startswith(b'URI:CHK-Verifier:'):
             return CHKFileVerifierURI.init_from_string(s)
-        elif s.startswith('URI:LIT:'):
+        elif s.startswith(b'URI:LIT:'):
             return LiteralFileURI.init_from_string(s)
-        elif s.startswith('URI:SSK:'):
+        elif s.startswith(b'URI:SSK:'):
             if can_be_writeable:
                 return WriteableSSKFileURI.init_from_string(s)
             kind = "URI:SSK file writecap"
-        elif s.startswith('URI:SSK-RO:'):
+        elif s.startswith(b'URI:SSK-RO:'):
             if can_be_mutable:
                 return ReadonlySSKFileURI.init_from_string(s)
             kind = "URI:SSK-RO readcap to a mutable file"
-        elif s.startswith('URI:SSK-Verifier:'):
+        elif s.startswith(b'URI:SSK-Verifier:'):
             return SSKVerifierURI.init_from_string(s)
-        elif s.startswith('URI:MDMF:'):
+        elif s.startswith(b'URI:MDMF:'):
             if can_be_writeable:
                 return WriteableMDMFFileURI.init_from_string(s)
             kind = "URI:MDMF file writecap"
-        elif s.startswith('URI:MDMF-RO:'):
+        elif s.startswith(b'URI:MDMF-RO:'):
             if can_be_mutable:
                 return ReadonlyMDMFFileURI.init_from_string(s)
             kind = "URI:MDMF-RO readcap to a mutable file"
-        elif s.startswith('URI:MDMF-Verifier:'):
+        elif s.startswith(b'URI:MDMF-Verifier:'):
             return MDMFVerifierURI.init_from_string(s)
-        elif s.startswith('URI:DIR2:'):
+        elif s.startswith(b'URI:DIR2:'):
             if can_be_writeable:
                 return DirectoryURI.init_from_string(s)
             kind = "URI:DIR2 directory writecap"
-        elif s.startswith('URI:DIR2-RO:'):
+        elif s.startswith(b'URI:DIR2-RO:'):
             if can_be_mutable:
                 return ReadonlyDirectoryURI.init_from_string(s)
             kind = "URI:DIR2-RO readcap to a mutable directory"
-        elif s.startswith('URI:DIR2-Verifier:'):
+        elif s.startswith(b'URI:DIR2-Verifier:'):
             return DirectoryURIVerifier.init_from_string(s)
-        elif s.startswith('URI:DIR2-CHK:'):
+        elif s.startswith(b'URI:DIR2-CHK:'):
             return ImmutableDirectoryURI.init_from_string(s)
-        elif s.startswith('URI:DIR2-CHK-Verifier:'):
+        elif s.startswith(b'URI:DIR2-CHK-Verifier:'):
             return ImmutableDirectoryURIVerifier.init_from_string(s)
-        elif s.startswith('URI:DIR2-LIT:'):
+        elif s.startswith(b'URI:DIR2-LIT:'):
             return LiteralDirectoryURI.init_from_string(s)
-        elif s.startswith('URI:DIR2-MDMF:'):
+        elif s.startswith(b'URI:DIR2-MDMF:'):
             if can_be_writeable:
                 return MDMFDirectoryURI.init_from_string(s)
             kind = "URI:DIR2-MDMF directory writecap"
-        elif s.startswith('URI:DIR2-MDMF-RO:'):
+        elif s.startswith(b'URI:DIR2-MDMF-RO:'):
             if can_be_mutable:
                 return ReadonlyMDMFDirectoryURI.init_from_string(s)
             kind = "URI:DIR2-MDMF-RO readcap to a mutable directory"
-        elif s.startswith('URI:DIR2-MDMF-Verifier:'):
+        elif s.startswith(b'URI:DIR2-MDMF-Verifier:'):
             return MDMFDirectoryURIVerifier.init_from_string(s)
-        elif s.startswith('x-tahoe-future-test-writeable:') and not can_be_writeable:
+        elif s.startswith(b'x-tahoe-future-test-writeable:') and not can_be_writeable:
             # For testing how future writeable caps would behave in read-only contexts.
             kind = "x-tahoe-future-test-writeable: testing cap"
-        elif s.startswith('x-tahoe-future-test-mutable:') and not can_be_mutable:
+        elif s.startswith(b'x-tahoe-future-test-mutable:') and not can_be_mutable:
             # For testing how future mutable readcaps would behave in immutable contexts.
             kind = "x-tahoe-future-test-mutable: testing cap"
         else:
@@ -829,18 +833,22 @@ def is_uri(s):
         return False
 
 def is_literal_file_uri(s):
-    if not isinstance(s, str):
+    if isinstance(s, unicode):
+        s = s.encode("utf-8")
+    if not isinstance(s, bytes):
         return False
-    return (s.startswith('URI:LIT:') or
-            s.startswith(ALLEGED_READONLY_PREFIX + 'URI:LIT:') or
-            s.startswith(ALLEGED_IMMUTABLE_PREFIX + 'URI:LIT:'))
+    return (s.startswith(b'URI:LIT:') or
+            s.startswith(ALLEGED_READONLY_PREFIX + b'URI:LIT:') or
+            s.startswith(ALLEGED_IMMUTABLE_PREFIX + b'URI:LIT:'))
 
 def has_uri_prefix(s):
-    if not isinstance(s, str):
+    if isinstance(s, unicode):
+        s = s.encode("utf-8")
+    if not isinstance(s, bytes):
         return False
-    return (s.startswith("URI:") or
-            s.startswith(ALLEGED_READONLY_PREFIX + 'URI:') or
-            s.startswith(ALLEGED_IMMUTABLE_PREFIX + 'URI:'))
+    return (s.startswith(b"URI:") or
+            s.startswith(ALLEGED_READONLY_PREFIX + b'URI:') or
+            s.startswith(ALLEGED_IMMUTABLE_PREFIX + b'URI:'))
 
 
 # These take the same keyword arguments as from_string above.
@@ -850,26 +858,26 @@ def from_string_dirnode(s, **kwargs):
     _assert(IDirnodeURI.providedBy(u))
     return u
 
-registerAdapter(from_string_dirnode, str, IDirnodeURI)
+registerAdapter(from_string_dirnode, bytes, IDirnodeURI)
 
 def from_string_filenode(s, **kwargs):
     u = from_string(s, **kwargs)
     _assert(IFileURI.providedBy(u))
     return u
 
-registerAdapter(from_string_filenode, str, IFileURI)
+registerAdapter(from_string_filenode, bytes, IFileURI)
 
 def from_string_mutable_filenode(s, **kwargs):
     u = from_string(s, **kwargs)
     _assert(IMutableFileURI.providedBy(u))
     return u
-registerAdapter(from_string_mutable_filenode, str, IMutableFileURI)
+registerAdapter(from_string_mutable_filenode, bytes, IMutableFileURI)
 
 def from_string_verifier(s, **kwargs):
     u = from_string(s, **kwargs)
     _assert(IVerifierURI.providedBy(u))
     return u
-registerAdapter(from_string_verifier, str, IVerifierURI)
+registerAdapter(from_string_verifier, bytes, IVerifierURI)
 
 
 def pack_extension(data):
@@ -877,30 +885,32 @@ def pack_extension(data):
     for k in sorted(data.keys()):
         value = data[k]
         if isinstance(value, (int, long)):
-            value = "%d" % value
-        assert isinstance(value, str), k
-        assert re.match(r'^[a-zA-Z_\-]+$', k)
-        pieces.append(k + ':' + hashutil.netstring(value))
-    uri_extension = ''.join(pieces)
+            value = b"%d" % value
+        if isinstance(k, unicode):
+            k = k.encode("utf-8")
+        assert isinstance(value, bytes), k
+        assert re.match(br'^[a-zA-Z_\-]+$', k)
+        pieces.append(k + b':' + hashutil.netstring(value))
+    uri_extension = b''.join(pieces)
     return uri_extension
 
 def unpack_extension(data):
     d = {}
     while data:
-        colon = data.index(':')
+        colon = data.index(b':')
         key = data[:colon]
         data = data[colon+1:]
 
-        colon = data.index(':')
+        colon = data.index(b':')
         number = data[:colon]
         length = int(number)
         data = data[colon+1:]
 
         value = data[:length]
-        assert data[length] == ','
+        assert data[length] == b','
         data = data[length+1:]
 
-        d[key] = value
+        d[key.decode("utf-8")] = value
 
     # convert certain things to numbers
     for intkey in ('size', 'segment_size', 'num_segments',
@@ -914,6 +924,7 @@ def unpack_extension_readable(data):
     unpacked = unpack_extension(data)
     unpacked["UEB_hash"] = hashutil.uri_extension_hash(data)
     for k in sorted(unpacked.keys()):
+        k = k.decode("utf-8")
         if 'hash' in k:
             unpacked[k] = base32.b2a(unpacked[k])
     return unpacked
