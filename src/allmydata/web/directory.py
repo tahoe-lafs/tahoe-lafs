@@ -22,7 +22,7 @@ from twisted.python.filepath import FilePath
 
 from allmydata.util import base32
 from allmydata.util.encodingutil import (
-    to_str,
+    to_bytes,
     quote_output,
 )
 from allmydata.uri import (
@@ -484,7 +484,7 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
             to_dir = to_dir.decode(charset)
             assert isinstance(to_dir, unicode)
             to_path = to_dir.split(u"/")
-            to_root = self.client.nodemaker.create_from_cap(to_str(to_path[0]))
+            to_root = self.client.nodemaker.create_from_cap(to_bytes(to_path[0]))
             if not IDirectoryNode.providedBy(to_root):
                 raise WebError("to_dir is not a directory", http.BAD_REQUEST)
             d = to_root.get_child_at_path(to_path[1:])

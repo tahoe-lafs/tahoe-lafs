@@ -11,7 +11,7 @@ from allmydata.scripts.common_http import do_http, HTTPError, format_http_error
 from allmydata.util import time_format
 from allmydata.scripts import backupdb
 from allmydata.util.encodingutil import listdir_unicode, quote_output, \
-     quote_local_unicode_path, to_str, FilenameEncodingError, unicode_to_url
+     quote_local_unicode_path, to_bytes, FilenameEncodingError, unicode_to_url
 from allmydata.util.assertutil import precondition
 from allmydata.util.fileutil import abspath_expanduser_unicode, precondition_abspath
 
@@ -47,7 +47,7 @@ def mkdir(contents, options):
     if resp.status < 200 or resp.status >= 300:
         raise HTTPError("Error during mkdir", resp)
 
-    dircap = to_str(resp.read().strip())
+    dircap = to_bytes(resp.read().strip())
     return dircap
 
 def put_child(dirurl, childname, childcap):
