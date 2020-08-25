@@ -22,7 +22,7 @@ import zfec
 
 @implementer(ICodecEncoder)
 class CRSEncoder(object):
-    ENCODER_TYPE = "crs"
+    ENCODER_TYPE = b"crs"
 
     def set_params(self, data_size, required_shares, max_shares):
         assert required_shares <= max_shares
@@ -40,8 +40,8 @@ class CRSEncoder(object):
         return (self.data_size, self.required_shares, self.max_shares)
 
     def get_serialized_params(self):
-        return native_str("%d-%d-%d" % (self.data_size, self.required_shares,
-                                        self.max_shares))
+        return b"%d-%d-%d" % (self.data_size, self.required_shares,
+                              self.max_shares)
 
     def get_block_size(self):
         return self.share_size
@@ -84,5 +84,5 @@ class CRSDecoder(object):
         return defer.succeed(data)
 
 def parse_params(serializedparams):
-    pieces = serializedparams.split("-")
+    pieces = serializedparams.split(b"-")
     return int(pieces[0]), int(pieces[1]), int(pieces[2])
