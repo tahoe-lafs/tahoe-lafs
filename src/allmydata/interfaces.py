@@ -16,8 +16,6 @@ if PY2:
 
 from past.builtins import long
 
-from past.builtins import long
-
 from zope.interface import Interface, Attribute
 from twisted.plugin import (
     IPlugin,
@@ -76,7 +74,7 @@ class RIBucketReader(RemoteInterface):
     def read(offset=Offset, length=ReadSize):
         return ShareData
 
-    def advise_corrupt_share(reason=str):
+    def advise_corrupt_share(reason=bytes):
         """Clients who discover hash failures in shares that they have
         downloaded from me will use this method to inform me about the
         failures. I will record their concern so that my operator can
@@ -107,7 +105,7 @@ ReadData = ListOf(ShareData)
 
 
 class RIStorageServer(RemoteInterface):
-    __remote_name__ = "RIStorageServer.tahoe.allmydata.com"
+    __remote_name__ = b"RIStorageServer.tahoe.allmydata.com"
 
     def get_version():
         """
@@ -295,8 +293,8 @@ class RIStorageServer(RemoteInterface):
         """
         return TupleOf(bool, DictOf(int, ReadData))
 
-    def advise_corrupt_share(share_type=str, storage_index=StorageIndex,
-                             shnum=int, reason=str):
+    def advise_corrupt_share(share_type=bytes, storage_index=StorageIndex,
+                             shnum=int, reason=bytes):
         """Clients who discover hash failures in shares that they have
         downloaded from me will use this method to inform me about the
         failures. I will record their concern so that my operator can
@@ -2877,7 +2875,7 @@ UploadResults = Any() #DictOf(str, str)
 
 
 class RIEncryptedUploadable(RemoteInterface):
-    __remote_name__ = "RIEncryptedUploadable.tahoe.allmydata.com"
+    __remote_name__ = b"RIEncryptedUploadable.tahoe.allmydata.com"
 
     def get_size():
         return Offset
@@ -2893,7 +2891,7 @@ class RIEncryptedUploadable(RemoteInterface):
 
 
 class RICHKUploadHelper(RemoteInterface):
-    __remote_name__ = "RIUploadHelper.tahoe.allmydata.com"
+    __remote_name__ = b"RIUploadHelper.tahoe.allmydata.com"
 
     def get_version():
         """
@@ -2906,7 +2904,7 @@ class RICHKUploadHelper(RemoteInterface):
 
 
 class RIHelper(RemoteInterface):
-    __remote_name__ = "RIHelper.tahoe.allmydata.com"
+    __remote_name__ = b"RIHelper.tahoe.allmydata.com"
 
     def get_version():
         """
@@ -2933,7 +2931,7 @@ class RIHelper(RemoteInterface):
 
 
 class RIStatsProvider(RemoteInterface):
-    __remote_name__ = "RIStatsProvider.tahoe.allmydata.com"
+    __remote_name__ = b"RIStatsProvider.tahoe.allmydata.com"
     """
     Provides access to statistics and monitoring information.
     """
@@ -2950,7 +2948,7 @@ class RIStatsProvider(RemoteInterface):
 
 
 class RIStatsGatherer(RemoteInterface):
-    __remote_name__ = "RIStatsGatherer.tahoe.allmydata.com"
+    __remote_name__ = b"RIStatsGatherer.tahoe.allmydata.com"
     """
     Provides a monitoring service for centralised collection of stats
     """
