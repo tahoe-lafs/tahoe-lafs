@@ -508,6 +508,7 @@ jobs:
     environment:
       DISTRO: "ubuntu"
       TAG: "20.04"
+      PYTHON_VERSION: "2.7"
 
 
   build-image-centos-8:
