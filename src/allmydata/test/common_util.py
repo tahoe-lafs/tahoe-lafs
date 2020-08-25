@@ -5,25 +5,19 @@ from random import randrange
 from six.moves import StringIO
 
 from twisted.internet import reactor, defer
-from twisted.python import failure
 from twisted.trial import unittest
 
 from ..util.assertutil import precondition
-from allmydata.util.encodingutil import (unicode_platform, get_filesystem_encoding,
-                                         get_io_encoding)
-from ..scripts import runner
-from .common_py3 import SignalMixin
+from allmydata.util.encodingutil import get_io_encoding
+from future.utils import PY2
+if PY2: # XXX this is a hack that makes some tests pass on Python3, remove
+        # in the future
+    from ..scripts import runner
+# Imported for backwards compatibility:
+from .common_py3 import (
+    SignalMixin, skip_if_cannot_represent_filename, ReallyEqualMixin, ShouldFailMixin
+)
 
-
-def skip_if_cannot_represent_filename(u):
-    precondition(isinstance(u, unicode))
-
-    enc = get_filesystem_encoding()
-    if not unicode_platform():
-        try:
-            u.encode(enc)
-        except UnicodeEncodeError:
-            raise unittest.SkipTest("A non-ASCII filename could not be encoded on this platform.")
 
 def skip_if_cannot_represent_argv(u):
     precondition(isinstance(u, unicode))
@@ -84,38 +78,10 @@ def flip_one_bit(s, offset=0, size=None):
     return result
 
 
-class ReallyEqualMixin(object):
-    def failUnlessReallyEqual(self, a, b, msg=None):
-        self.assertEqual(a, b, msg)
-        self.assertEqual(type(a), type(b), "a :: %r, b :: %r, %r" % (a, b, msg))
-
-
 class StallMixin(object):
     def stall(self, res=None, delay=1):
         d = defer.Deferred()
         reactor.callLater(delay, d.callback, res)
-        return d
-
-class ShouldFailMixin(object):
-
-    def shouldFail(self, expected_failure, which, substring,
-                   callable, *args, **kwargs):
-        assert substring is None or isinstance(substring, str)
-        d = defer.maybeDeferred(callable, *args, **kwargs)
-        def done(res):
-            if isinstance(res, failure.Failure):
-                res.trap(expected_failure)
-                if substring:
-                    self.failUnless(substring in str(res),
-                                    "%s: substring '%s' not in '%s'"
-                                    % (which, substring, str(res)))
-                # return the Failure for further analysis, but in a form that
-                # doesn't make the Deferred chain think that we failed.
-                return [res]
-            else:
-                self.fail("%s was supposed to raise %s, not get '%s'" %
-                          (which, expected_failure, res))
-        d.addBoth(done)
         return d
 
 
@@ -183,3 +149,11 @@ except ImportError:
         os.chmod(path, stat.S_IWRITE | stat.S_IEXEC | stat.S_IREAD)
     make_readonly = _make_readonly
     make_accessible = _make_accessible
+
+
+__all__ = [
+    "make_readonly", "make_accessible", "TestMixin", "ShouldFailMixin",
+    "StallMixin", "skip_if_cannot_represent_argv", "run_cli", "parse_cli",
+    "DevNullDictionary", "insecurerandstr", "flip_bit", "flip_one_bit",
+    "SignalMixin", "skip_if_cannot_represent_filename", "ReallyEqualMixin"
+]

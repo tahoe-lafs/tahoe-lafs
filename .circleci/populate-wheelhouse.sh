@@ -36,8 +36,9 @@ PIP="${BOOTSTRAP_VENV}/bin/pip"
 # Tell pip where it can find any existing wheels.
 export PIP_FIND_LINKS="file://${WHEELHOUSE_PATH}"
 
-# Populate the wheelhouse, if necessary.
-"${PIP}" \
+# Populate the wheelhouse, if necessary.  zfec 1.5.3 can only be built with a
+# UTF-8 environment so make sure we have one, at least for this invocation.
+LANG="en_US.UTF-8" "${PIP}" \
     wheel \
     --wheel-dir "${WHEELHOUSE_PATH}" \
     "${PROJECT_ROOT}"[test] \

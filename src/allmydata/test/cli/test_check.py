@@ -5,7 +5,7 @@ from six.moves import cStringIO as StringIO
 
 from allmydata import uri
 from allmydata.util import base32
-from allmydata.util.encodingutil import quote_output, to_str
+from allmydata.util.encodingutil import quote_output, to_bytes
 from allmydata.mutable.publish import MutableData
 from allmydata.immutable import upload
 from allmydata.scripts import debug
@@ -41,7 +41,7 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.failUnlessReallyEqual(err, "")
             self.failUnlessReallyEqual(rc, 0)
             data = json.loads(out)
-            self.failUnlessReallyEqual(to_str(data["summary"]), "Healthy")
+            self.failUnlessReallyEqual(to_bytes(data["summary"]), "Healthy")
             self.failUnlessReallyEqual(data["results"]["healthy"], True)
         d.addCallback(_check2)
 

@@ -36,7 +36,7 @@ from allmydata.nodemaker import NodeMaker
 from allmydata.web.common import WebError, MultiFormatPage
 from allmydata.util import fileutil, base32, hashutil
 from allmydata.util.consumer import download_to_data
-from allmydata.util.encodingutil import to_str
+from allmydata.util.encodingutil import to_bytes
 from ...util.connection_status import ConnectionStatus
 from ..common import (
     EMPTY_CLIENT_CONFIG,
@@ -54,6 +54,9 @@ from .common import (
     assert_soup_has_tag_with_attributes,
     assert_soup_has_tag_with_content,
     assert_soup_has_tag_with_attributes_and_content,
+    unknown_rwcap,
+    unknown_rocap,
+    unknown_immcap,
 )
 
 from allmydata.interfaces import IMutableFileNode, SDMF_VERSION, MDMF_VERSION
@@ -65,7 +68,6 @@ from ..common_web import (
     Error,
 )
 from allmydata.client import _Client, SecretHolder
-from .common import unknown_rwcap, unknown_rocap, unknown_immcap, FAVICON_MARKUP
 
 # create a fake uploader/downloader, and a couple of fake dirnodes, then
 # create a webserver that works against them
@@ -455,8 +457,8 @@ class WebMixin(TimezoneMixin):
         self.failUnless(isinstance(data[1], dict))
         self.failIf(data[1]["mutable"])
         self.failIfIn("rw_uri", data[1]) # immutable
-        self.failUnlessReallyEqual(to_str(data[1]["ro_uri"]), self._bar_txt_uri)
-        self.failUnlessReallyEqual(to_str(data[1]["verify_uri"]), self._bar_txt_verifycap)
+        self.failUnlessReallyEqual(to_bytes(data[1]["ro_uri"]), self._bar_txt_uri)
+        self.failUnlessReallyEqual(to_bytes(data[1]["verify_uri"]), self._bar_txt_verifycap)
         self.failUnlessReallyEqual(data[1]["size"], len(self.BAR_CONTENTS))
 
     def failUnlessIsQuuxJSON(self, res, readonly=False):
@@ -485,9 +487,9 @@ class WebMixin(TimezoneMixin):
         self.failUnless(isinstance(data[1], dict))
         self.failUnless(data[1]["mutable"])
         self.failUnlessIn("rw_uri", data[1]) # mutable
-        self.failUnlessReallyEqual(to_str(data[1]["rw_uri"]), self._foo_uri)
-        self.failUnlessReallyEqual(to_str(data[1]["ro_uri"]), self._foo_readonly_uri)
-        self.failUnlessReallyEqual(to_str(data[1]["verify_uri"]), self._foo_verifycap)
+        self.failUnlessReallyEqual(to_bytes(data[1]["rw_uri"]), self._foo_uri)
+        self.failUnlessReallyEqual(to_bytes(data[1]["ro_uri"]), self._foo_readonly_uri)
+        self.failUnlessReallyEqual(to_bytes(data[1]["verify_uri"]), self._foo_verifycap)
 
         kidnames = sorted([unicode(n) for n in data[1]["children"]])
         self.failUnlessEqual(kidnames,
@@ -504,19 +506,19 @@ class WebMixin(TimezoneMixin):
         self.failUnlessIn("linkmotime", tahoe_md)
         self.failUnlessEqual(kids[u"bar.txt"][0], "filenode")
         self.failUnlessReallyEqual(kids[u"bar.txt"][1]["size"], len(self.BAR_CONTENTS))
-        self.failUnlessReallyEqual(to_str(kids[u"bar.txt"][1]["ro_uri"]), self._bar_txt_uri)
-        self.failUnlessReallyEqual(to_str(kids[u"bar.txt"][1]["verify_uri"]),
+        self.failUnlessReallyEqual(to_bytes(kids[u"bar.txt"][1]["ro_uri"]), self._bar_txt_uri)
+        self.failUnlessReallyEqual(to_bytes(kids[u"bar.txt"][1]["verify_uri"]),
                                    self._bar_txt_verifycap)
         self.failUnlessIn("metadata", kids[u"bar.txt"][1])
         self.failUnlessIn("tahoe", kids[u"bar.txt"][1]["metadata"])
         self.failUnlessReallyEqual(kids[u"bar.txt"][1]["metadata"]["tahoe"]["linkcrtime"],
                                    self._bar_txt_metadata["tahoe"]["linkcrtime"])
-        self.failUnlessReallyEqual(to_str(kids[u"n\u00fc.txt"][1]["ro_uri"]),
+        self.failUnlessReallyEqual(to_bytes(kids[u"n\u00fc.txt"][1]["ro_uri"]),
                                    self._bar_txt_uri)
         self.failUnlessIn("quux.txt", kids)
-        self.failUnlessReallyEqual(to_str(kids[u"quux.txt"][1]["rw_uri"]),
+        self.failUnlessReallyEqual(to_bytes(kids[u"quux.txt"][1]["rw_uri"]),
                                    self._quux_txt_uri)
-        self.failUnlessReallyEqual(to_str(kids[u"quux.txt"][1]["ro_uri"]),
+        self.failUnlessReallyEqual(to_bytes(kids[u"quux.txt"][1]["ro_uri"]),
                                    self._quux_txt_readonly_uri)
 
     @inlineCallbacks
@@ -2179,7 +2181,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             got = {}
             for (path_list, cap) in data:
                 got[tuple(path_list)] = cap
-            self.failUnlessReallyEqual(to_str(got[(u"sub",)]), self._sub_uri)
+            self.failUnlessReallyEqual(to_bytes(got[(u"sub",)]), self._sub_uri)
             self.failUnlessIn((u"sub", u"baz.txt"), got)
             self.failUnlessIn("finished", res)
             self.failUnlessIn("origin", res)
@@ -2264,9 +2266,9 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             self.failUnlessEqual(units[-1]["type"], "stats")
             first = units[0]
             self.failUnlessEqual(first["path"], [])
-            self.failUnlessReallyEqual(to_str(first["cap"]), self._foo_uri)
+            self.failUnlessReallyEqual(to_bytes(first["cap"]), self._foo_uri)
             self.failUnlessEqual(first["type"], "directory")
-            baz = [u for u in units[:-1] if to_str(u["cap"]) == self._baz_file_uri][0]
+            baz = [u for u in units[:-1] if to_bytes(u["cap"]) == self._baz_file_uri][0]
             self.failUnlessEqual(baz["path"], ["sub", "baz.txt"])
             self.failIfEqual(baz["storage-index"], None)
             self.failIfEqual(baz["verifycap"], None)
@@ -2279,14 +2281,14 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
     def test_GET_DIRURL_uri(self):
         d = self.GET(self.public_url + "/foo?t=uri")
         def _check(res):
-            self.failUnlessReallyEqual(to_str(res), self._foo_uri)
+            self.failUnlessReallyEqual(to_bytes(res), self._foo_uri)
         d.addCallback(_check)
         return d
 
     def test_GET_DIRURL_readonly_uri(self):
         d = self.GET(self.public_url + "/foo?t=readonly-uri")
         def _check(res):
-            self.failUnlessReallyEqual(to_str(res), self._foo_readonly_uri)
+            self.failUnlessReallyEqual(to_bytes(res), self._foo_readonly_uri)
         d.addCallback(_check)
         return d
 
@@ -2948,9 +2950,9 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             new_json = children[u"new.txt"]
             self.failUnlessEqual(new_json[0], "filenode")
             self.failUnless(new_json[1]["mutable"])
-            self.failUnlessReallyEqual(to_str(new_json[1]["rw_uri"]), self._mutable_uri)
+            self.failUnlessReallyEqual(to_bytes(new_json[1]["rw_uri"]), self._mutable_uri)
             ro_uri = self._mutable_node.get_readonly().to_string()
-            self.failUnlessReallyEqual(to_str(new_json[1]["ro_uri"]), ro_uri)
+            self.failUnlessReallyEqual(to_bytes(new_json[1]["ro_uri"]), ro_uri)
         d.addCallback(_check_page_json)
 
         # and the JSON form of the file
@@ -2960,9 +2962,9 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             parsed = json.loads(res)
             self.failUnlessEqual(parsed[0], "filenode")
             self.failUnless(parsed[1]["mutable"])
-            self.failUnlessReallyEqual(to_str(parsed[1]["rw_uri"]), self._mutable_uri)
+            self.failUnlessReallyEqual(to_bytes(parsed[1]["rw_uri"]), self._mutable_uri)
             ro_uri = self._mutable_node.get_readonly().to_string()
-            self.failUnlessReallyEqual(to_str(parsed[1]["ro_uri"]), ro_uri)
+            self.failUnlessReallyEqual(to_bytes(parsed[1]["ro_uri"]), ro_uri)
         d.addCallback(_check_file_json)
 
         # and look at t=uri and t=readonly-uri
@@ -3262,13 +3264,15 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         res = yield self.get_operation_results(None, "123", "html")
         self.failUnlessIn("Objects Checked: <span>11</span>", res)
         self.failUnlessIn("Objects Healthy: <span>11</span>", res)
-        self.failUnlessIn(FAVICON_MARKUP, res)
+        soup = BeautifulSoup(res, 'html5lib')
+        assert_soup_has_favicon(self, soup)
 
         res = yield self.GET("/operations/123/")
         # should be the same as without the slash
         self.failUnlessIn("Objects Checked: <span>11</span>", res)
         self.failUnlessIn("Objects Healthy: <span>11</span>", res)
-        self.failUnlessIn(FAVICON_MARKUP, res)
+        soup = BeautifulSoup(res, 'html5lib')
+        assert_soup_has_favicon(self, soup)
 
         yield self.shouldFail2(error.Error, "one", "404 Not Found",
                                "No detailed results for SI bogus",
@@ -3318,7 +3322,8 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             self.failUnlessIn("Objects Unhealthy (after repair): <span>0</span>", res)
             self.failUnlessIn("Corrupt Shares (after repair): <span>0</span>", res)
 
-            self.failUnlessIn(FAVICON_MARKUP, res)
+            soup = BeautifulSoup(res, 'html5lib')
+            assert_soup_has_favicon(self, soup)
         d.addCallback(_check_html)
         return d
 

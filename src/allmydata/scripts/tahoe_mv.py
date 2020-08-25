@@ -6,7 +6,7 @@ import json
 from allmydata.scripts.common import get_alias, DEFAULT_ALIAS, escape_path, \
                                      UnknownAliasError
 from allmydata.scripts.common_http import do_http, format_http_error
-from allmydata.util.encodingutil import to_str
+from allmydata.util.encodingutil import to_bytes
 
 # this script is used for both 'mv' and 'ln'
 
@@ -35,7 +35,7 @@ def mv(options, mode="move"):
         return 1
     data = resp.read()
     nodetype, attrs = json.loads(data)
-    cap = to_str(attrs.get("rw_uri") or attrs["ro_uri"])
+    cap = to_bytes(attrs.get("rw_uri") or attrs["ro_uri"])
 
     # now get the target
     try:

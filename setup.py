@@ -117,7 +117,8 @@ install_requires = [
     "eliot ~= 1.7",
 
     # A great way to define types of values.
-    "attrs >= 18.2.0",
+    # XXX: drop the upper bound: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3390
+    "attrs >= 18.2.0, < 20",
 
     # WebSocket library for twisted and asyncio
     "autobahn >= 19.5.2",
