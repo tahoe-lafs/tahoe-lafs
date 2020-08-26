@@ -107,7 +107,6 @@ class MyStorageServer(StorageServer):
 
 class BucketCounter(unittest.TestCase, pollmixin.PollMixin):
 
-    @skipIf(PY3, "Not ported yet.")
     def setUp(self):
         self.s = service.MultiService()
         self.s.startService()
@@ -130,12 +129,12 @@ class BucketCounter(unittest.TestCase, pollmixin.PollMixin):
 
         # this sample is before the crawler has started doing anything
         html = renderSynchronously(w)
-        self.failUnlessIn("<h1>Storage Server Status</h1>", html)
+        self.failUnlessIn(b"<h1>Storage Server Status</h1>", html)
         s = remove_tags(html)
-        self.failUnlessIn("Accepting new shares: Yes", s)
-        self.failUnlessIn("Reserved space: - 0 B (0)", s)
-        self.failUnlessIn("Total buckets: Not computed yet", s)
-        self.failUnlessIn("Next crawl in", s)
+        self.failUnlessIn(b"Accepting new shares: Yes", s)
+        self.failUnlessIn(b"Reserved space: - 0 B (0)", s)
+        self.failUnlessIn(b"Total buckets: Not computed yet", s)
+        self.failUnlessIn(b"Next crawl in", s)
 
         # give the bucket-counting-crawler one tick to get started. The
         # cpu_slice=0 will force it to yield right after it processes the
@@ -154,8 +153,8 @@ class BucketCounter(unittest.TestCase, pollmixin.PollMixin):
             ss.bucket_counter.cpu_slice = 100.0 # finish as fast as possible
             html = renderSynchronously(w)
             s = remove_tags(html)
-            self.failUnlessIn(" Current crawl ", s)
-            self.failUnlessIn(" (next work in ", s)
+            self.failUnlessIn(b" Current crawl ", s)
+            self.failUnlessIn(b" (next work in ", s)
         d.addCallback(_check)
 
         # now give it enough time to complete a full cycle
@@ -166,8 +165,8 @@ class BucketCounter(unittest.TestCase, pollmixin.PollMixin):
             ss.bucket_counter.cpu_slice = orig_cpu_slice
             html = renderSynchronously(w)
             s = remove_tags(html)
-            self.failUnlessIn("Total buckets: 0 (the number of", s)
-            self.failUnless("Next crawl in 59 minutes" in s or "Next crawl in 60 minutes" in s, s)
+            self.failUnlessIn(b"Total buckets: 0 (the number of", s)
+            self.failUnless(b"Next crawl in 59 minutes" in s or "Next crawl in 60 minutes" in s, s)
         d.addCallback(_check2)
         return d
 
@@ -228,20 +227,20 @@ class BucketCounter(unittest.TestCase, pollmixin.PollMixin):
             # no ETA is available yet
             html = renderSynchronously(w)
             s = remove_tags(html)
-            self.failUnlessIn("complete (next work", s)
+            self.failUnlessIn(b"complete (next work", s)
 
         def _check_2(ignored):
             # one prefix has finished, so an ETA based upon that elapsed time
             # should be available.
             html = renderSynchronously(w)
             s = remove_tags(html)
-            self.failUnlessIn("complete (ETA ", s)
+            self.failUnlessIn(b"complete (ETA ", s)
 
         def _check_3(ignored):
             # two prefixes have finished
             html = renderSynchronously(w)
             s = remove_tags(html)
-            self.failUnlessIn("complete (ETA ", s)
+            self.failUnlessIn(b"complete (ETA ", s)
             d.callback("done")
 
         hooks[0].addCallback(_check_1).addErrback(d.errback)
