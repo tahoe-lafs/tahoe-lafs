@@ -9,7 +9,7 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
-from future.utils import PY2, PY3
+from future.utils import PY2
 if PY2:
     # Omitted list sinc it broke a test on Python 2. Shouldn't require further
     # work, when we switch to Python 3 we'll be dropping this, anyway.
@@ -19,7 +19,6 @@ import time
 import os.path
 import re
 import json
-from unittest import skipIf
 
 from twisted.trial import unittest
 
