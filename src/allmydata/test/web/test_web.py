@@ -652,9 +652,8 @@ class MultiFormatResourceTests(TrialTestCase):
 
     def resource(self):
         """
-        Create and return an instance of a ``MultiFormatResource``
-        subclass with a default HTML format, and two custom formats:
-        ``a`` and ``b``.
+        Create and return an instance of a ``MultiFormatResource`` subclass
+        with a default HTML format, and two custom formats: ``a`` and ``b``.
         """
         class Content(MultiFormatResource):
 
