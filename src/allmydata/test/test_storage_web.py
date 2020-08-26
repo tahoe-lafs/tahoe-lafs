@@ -1171,7 +1171,6 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin):
 
 class WebStatus(unittest.TestCase, pollmixin.PollMixin):
 
-    @skipIf(PY3, "Not ported yet.")
     def setUp(self):
         self.s = service.MultiService()
         self.s.startService()
@@ -1181,7 +1180,7 @@ class WebStatus(unittest.TestCase, pollmixin.PollMixin):
     def test_no_server(self):
         w = StorageStatus(None)
         html = renderSynchronously(w)
-        self.failUnlessIn("<h1>No Storage Server Running</h1>", html)
+        self.failUnlessIn(b"<h1>No Storage Server Running</h1>", html)
 
     def test_status(self):
         basedir = "storage/WebStatus/status"
@@ -1192,12 +1191,12 @@ class WebStatus(unittest.TestCase, pollmixin.PollMixin):
         w = StorageStatus(ss, "nickname")
         d = renderDeferred(w)
         def _check_html(html):
-            self.failUnlessIn("<h1>Storage Server Status</h1>", html)
+            self.failUnlessIn(b"<h1>Storage Server Status</h1>", html)
             s = remove_tags(html)
-            self.failUnlessIn("Server Nickname: nickname", s)
-            self.failUnlessIn("Server Nodeid: %s"  % base32.b2a(nodeid), s)
-            self.failUnlessIn("Accepting new shares: Yes", s)
-            self.failUnlessIn("Reserved space: - 0 B (0)", s)
+            self.failUnlessIn(b"Server Nickname: nickname", s)
+            self.failUnlessIn(b"Server Nodeid: %s"  % base32.b2a(nodeid), s)
+            self.failUnlessIn(b"Accepting new shares: Yes", s)
+            self.failUnlessIn(b"Reserved space: - 0 B (0)", s)
         d.addCallback(_check_html)
         d.addCallback(lambda ign: renderJSON(w))
         def _check_json(raw):
@@ -1224,11 +1223,11 @@ class WebStatus(unittest.TestCase, pollmixin.PollMixin):
         ss.setServiceParent(self.s)
         w = StorageStatus(ss)
         html = renderSynchronously(w)
-        self.failUnlessIn("<h1>Storage Server Status</h1>", html)
+        self.failUnlessIn(b"<h1>Storage Server Status</h1>", html)
         s = remove_tags(html)
-        self.failUnlessIn("Accepting new shares: Yes", s)
-        self.failUnlessIn("Total disk space: ?", s)
-        self.failUnlessIn("Space Available to Tahoe: ?", s)
+        self.failUnlessIn(b"Accepting new shares: Yes", s)
+        self.failUnlessIn(b"Total disk space: ?", s)
+        self.failUnlessIn(b"Space Available to Tahoe: ?", s)
         self.failUnless(ss.get_available_space() is None)
 
     def test_status_bad_disk_stats(self):
@@ -1244,11 +1243,11 @@ class WebStatus(unittest.TestCase, pollmixin.PollMixin):
         ss.setServiceParent(self.s)
         w = StorageStatus(ss)
         html = renderSynchronously(w)
-        self.failUnlessIn("<h1>Storage Server Status</h1>", html)
+        self.failUnlessIn(b"<h1>Storage Server Status</h1>", html)
         s = remove_tags(html)
-        self.failUnlessIn("Accepting new shares: No", s)
-        self.failUnlessIn("Total disk space: ?", s)
-        self.failUnlessIn("Space Available to Tahoe: ?", s)
+        self.failUnlessIn(b"Accepting new shares: No", s)
+        self.failUnlessIn(b"Total disk space: ?", s)
+        self.failUnlessIn(b"Space Available to Tahoe: ?", s)
         self.failUnlessEqual(ss.get_available_space(), 0)
 
     def test_status_right_disk_stats(self):
@@ -1281,14 +1280,14 @@ class WebStatus(unittest.TestCase, pollmixin.PollMixin):
         w = StorageStatus(ss)
         html = renderSynchronously(w)
 
-        self.failUnlessIn("<h1>Storage Server Status</h1>", html)
+        self.failUnlessIn(b"<h1>Storage Server Status</h1>", html)
         s = remove_tags(html)
-        self.failUnlessIn("Total disk space: 5.00 GB", s)
-        self.failUnlessIn("Disk space used: - 1.00 GB", s)
-        self.failUnlessIn("Disk space free (root): 4.00 GB", s)
-        self.failUnlessIn("Disk space free (non-root): 3.00 GB", s)
-        self.failUnlessIn("Reserved space: - 1.00 GB", s)
-        self.failUnlessIn("Space Available to Tahoe: 2.00 GB", s)
+        self.failUnlessIn(b"Total disk space: 5.00 GB", s)
+        self.failUnlessIn(b"Disk space used: - 1.00 GB", s)
+        self.failUnlessIn(b"Disk space free (root): 4.00 GB", s)
+        self.failUnlessIn(b"Disk space free (non-root): 3.00 GB", s)
+        self.failUnlessIn(b"Reserved space: - 1.00 GB", s)
+        self.failUnlessIn(b"Space Available to Tahoe: 2.00 GB", s)
         self.failUnlessEqual(ss.get_available_space(), 2*GB)
 
     def test_readonly(self):
@@ -1298,9 +1297,9 @@ class WebStatus(unittest.TestCase, pollmixin.PollMixin):
         ss.setServiceParent(self.s)
         w = StorageStatus(ss)
         html = renderSynchronously(w)
-        self.failUnlessIn("<h1>Storage Server Status</h1>", html)
+        self.failUnlessIn(b"<h1>Storage Server Status</h1>", html)
         s = remove_tags(html)
-        self.failUnlessIn("Accepting new shares: No", s)
+        self.failUnlessIn(b"Accepting new shares: No", s)
 
     def test_reserved(self):
         basedir = "storage/WebStatus/reserved"
@@ -1309,9 +1308,9 @@ class WebStatus(unittest.TestCase, pollmixin.PollMixin):
         ss.setServiceParent(self.s)
         w = StorageStatus(ss)
         html = renderSynchronously(w)
-        self.failUnlessIn("<h1>Storage Server Status</h1>", html)
+        self.failUnlessIn(b"<h1>Storage Server Status</h1>", html)
         s = remove_tags(html)
-        self.failUnlessIn("Reserved space: - 10.00 MB (10000000)", s)
+        self.failUnlessIn(b"Reserved space: - 10.00 MB (10000000)", s)
 
     def test_huge_reserved(self):
         basedir = "storage/WebStatus/reserved"
@@ -1320,9 +1319,9 @@ class WebStatus(unittest.TestCase, pollmixin.PollMixin):
         ss.setServiceParent(self.s)
         w = StorageStatus(ss)
         html = renderSynchronously(w)
-        self.failUnlessIn("<h1>Storage Server Status</h1>", html)
+        self.failUnlessIn(b"<h1>Storage Server Status</h1>", html)
         s = remove_tags(html)
-        self.failUnlessIn("Reserved space: - 10.00 MB (10000000)", s)
+        self.failUnlessIn(b"Reserved space: - 10.00 MB (10000000)", s)
 
     def test_util(self):
         w = StorageStatusElement(None, None)
