@@ -30,12 +30,11 @@ from allmydata.mutable.layout import MDMFSlotWriteProxy, MDMFSlotReadProxy, \
                                      VERIFICATION_KEY_SIZE, \
                                      SHARE_HASH_CHAIN_SIZE
 from allmydata.interfaces import BadWriteEnablerError
-from allmydata.test.common import LoggingServiceParent, ShouldFailMixin
 from allmydata.test.no_network import NoNetworkServer
 from allmydata.storage_client import (
     _StorageServer,
 )
-from .common_py3 import FakeCanary
+from .common_py3 import FakeCanary, LoggingServiceParent, ShouldFailMixin
 
 
 class FakeStatsProvider(object):

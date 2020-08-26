@@ -7,7 +7,10 @@ import os.path
 import re
 import types
 import errno
-import ConfigParser
+try:
+    import ConfigParser
+except ImportError:
+    import configparser as ConfigParser
 import tempfile
 from io import BytesIO
 from base64 import b32decode, b32encode
