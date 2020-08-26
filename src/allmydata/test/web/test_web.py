@@ -713,9 +713,8 @@ class MultiFormatResourceTests(TrialTestCase):
 
     def test_select_format(self):
         """
-        The ``formatArgument`` attribute of a ``MultiFormatResource``
-        subclass identifies the query argument which selects the
-        result format.
+        The ``formatArgument`` attribute of a ``MultiFormatResource`` subclass
+        identifies the query argument which selects the result format.
         """
         resource = self.resource()
         resource.formatArgument = "foo"
@@ -724,8 +723,8 @@ class MultiFormatResourceTests(TrialTestCase):
 
     def test_default_format_argument(self):
         """
-        If a ``MultiFormatResource`` subclass does not set
-        ``formatArgument`` then the ``t`` argument is used.
+        If a ``MultiFormatResource`` subclass does not set ``formatArgument``
+        then the ``t`` argument is used.
         """
         resource = self.resource()
         self.assertEqual("a", self.render(resource, t=["a"]))
@@ -733,9 +732,8 @@ class MultiFormatResourceTests(TrialTestCase):
 
     def test_no_format(self):
         """
-        If no value is given for the format argument and no default
-        format has been defined, the base rendering behavior is used
-        (``render_HTML``).
+        If no value is given for the format argument and no default format has
+        been defined, the base rendering behavior is used (``render_HTML``).
         """
         resource = self.resource()
         self.assertEqual("html", self.render(resource))
@@ -743,9 +741,9 @@ class MultiFormatResourceTests(TrialTestCase):
 
     def test_default_format(self):
         """
-        If no value is given for the format argument and the
-        ``MultiFormatResource`` subclass defines a ``formatDefault``,
-        that value is used as the format to render.
+        If no value is given for the format argument and the ``MultiFormatResource``
+        subclass defines a ``formatDefault``, that value is used as the format
+        to render.
         """
         resource = self.resource()
         resource.formatDefault = "b"
@@ -754,8 +752,8 @@ class MultiFormatResourceTests(TrialTestCase):
 
     def test_explicit_none_format_renderer(self):
         """
-        If a format is selected which has a renderer set to ``None``,
-        the base rendering behavior is used (``render_HTML``).
+        If a format is selected which has a renderer set to ``None``, the base
+        rendering behavior is used (``render_HTML``).
         """
         resource = self.resource()
         resource.render_FOO = None
