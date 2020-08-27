@@ -65,32 +65,32 @@ class Bucket(unittest.TestCase):
         cancel_secret = os.urandom(32)
         expiration_time = time.time() + 5000
         return LeaseInfo(owner_num, renew_secret, cancel_secret,
-                         expiration_time, "\x00" * 20)
+                         expiration_time, b"\x00" * 20)
 
     def test_create(self):
         incoming, final = self.make_workdir("test_create")
         bw = BucketWriter(self, incoming, final, 200, self.make_lease(),
                           FakeCanary())
-        bw.remote_write(0, "a"*25)
-        bw.remote_write(25, "b"*25)
-        bw.remote_write(50, "c"*25)
-        bw.remote_write(75, "d"*7)
+        bw.remote_write(0, b"a"*25)
+        bw.remote_write(25, b"b"*25)
+        bw.remote_write(50, b"c"*25)
+        bw.remote_write(75, b"d"*7)
         bw.remote_close()
 
     def test_readwrite(self):
         incoming, final = self.make_workdir("test_readwrite")
         bw = BucketWriter(self, incoming, final, 200, self.make_lease(),
                           FakeCanary())
-        bw.remote_write(0, "a"*25)
-        bw.remote_write(25, "b"*25)
-        bw.remote_write(50, "c"*7) # last block may be short
+        bw.remote_write(0, b"a"*25)
+        bw.remote_write(25, b"b"*25)
+        bw.remote_write(50, b"c"*7) # last block may be short
         bw.remote_close()
 
         # now read from it
         br = BucketReader(self, bw.finalhome)
-        self.failUnlessEqual(br.remote_read(0, 25), "a"*25)
-        self.failUnlessEqual(br.remote_read(25, 25), "b"*25)
-        self.failUnlessEqual(br.remote_read(50, 7), "c"*7)
+        self.failUnlessEqual(br.remote_read(0, 25), b"a"*25)
+        self.failUnlessEqual(br.remote_read(25, 25), b"b"*25)
+        self.failUnlessEqual(br.remote_read(50, 7), b"c"*7)
 
     def test_read_past_end_of_share_data(self):
         # test vector for immutable files (hard-coded contents of an immutable share
@@ -107,12 +107,12 @@ class Bucket(unittest.TestCase):
         # complicated string involving hash trees and a URI Extension Block
         # -- see allmydata/immutable/layout.py . This test, which is
         # simulating a client, just sends 'a'.
-        share_data = 'a'
+        share_data = b'a'
 
         ownernumber = struct.pack('>L', 0)
-        renewsecret  = 'THIS LETS ME RENEW YOUR FILE....'
+        renewsecret  = b'THIS LETS ME RENEW YOUR FILE....'
         assert len(renewsecret) == 32
-        cancelsecret = 'THIS LETS ME KILL YOUR FILE HAHA'
+        cancelsecret = b'THIS LETS ME KILL YOUR FILE HAHA'
         assert len(cancelsecret) == 32
         expirationtime = struct.pack('>L', 60*60*24*31) # 31 days in seconds
 
@@ -184,7 +184,7 @@ class BucketProxy(unittest.TestCase):
         cancel_secret = os.urandom(32)
         expiration_time = time.time() + 5000
         return LeaseInfo(owner_num, renew_secret, cancel_secret,
-                         expiration_time, "\x00" * 20)
+                         expiration_time, b"\x00" * 20)
 
     def bucket_writer_closed(self, bw, consumed):
         pass
@@ -217,13 +217,13 @@ class BucketProxy(unittest.TestCase):
 
         sharesize = header_size + 100 + 7*32 + 7*32 + 7*32 + 3*(2+32) + 4+500
 
-        crypttext_hashes = [hashutil.tagged_hash("crypt", "bar%d" % i)
+        crypttext_hashes = [hashutil.tagged_hash(b"crypt", b"bar%d" % i)
                             for i in range(7)]
-        block_hashes = [hashutil.tagged_hash("block", "bar%d" % i)
+        block_hashes = [hashutil.tagged_hash(b"block", b"bar%d" % i)
                         for i in range(7)]
-        share_hashes = [(i, hashutil.tagged_hash("share", "bar%d" % i))
+        share_hashes = [(i, hashutil.tagged_hash(b"share", b"bar%d" % i))
                         for i in (1,9,13)]
-        uri_extension = "s" + "E"*498 + "e"
+        uri_extension = b"s" + b"E"*498 + b"e"
 
         bw, rb, sharefname = self.make_bucket(name, sharesize)
         bp = wbp_class(rb, None,
@@ -234,10 +234,10 @@ class BucketProxy(unittest.TestCase):
                        uri_extension_size_max=len(uri_extension))
 
         d = bp.put_header()
-        d.addCallback(lambda res: bp.put_block(0, "a"*25))
-        d.addCallback(lambda res: bp.put_block(1, "b"*25))
-        d.addCallback(lambda res: bp.put_block(2, "c"*25))
-        d.addCallback(lambda res: bp.put_block(3, "d"*20))
+        d.addCallback(lambda res: bp.put_block(0, b"a"*25))
+        d.addCallback(lambda res: bp.put_block(1, b"b"*25))
+        d.addCallback(lambda res: bp.put_block(2, b"c"*25))
+        d.addCallback(lambda res: bp.put_block(3, b"d"*20))
         d.addCallback(lambda res: bp.put_crypttext_hashes(crypttext_hashes))
         d.addCallback(lambda res: bp.put_block_hashes(block_hashes))
         d.addCallback(lambda res: bp.put_share_hashes(share_hashes))
@@ -248,19 +248,19 @@ class BucketProxy(unittest.TestCase):
         def _start_reading(res):
             br = BucketReader(self, sharefname)
             rb = RemoteBucket(br)
-            server = NoNetworkServer("abc", None)
-            rbp = rbp_class(rb, server, storage_index="")
+            server = NoNetworkServer(b"abc", None)
+            rbp = rbp_class(rb, server, storage_index=b"")
             self.failUnlessIn("to peer", repr(rbp))
             self.failUnless(interfaces.IStorageBucketReader.providedBy(rbp), rbp)
 
             d1 = rbp.get_block_data(0, 25, 25)
-            d1.addCallback(lambda res: self.failUnlessEqual(res, "a"*25))
+            d1.addCallback(lambda res: self.failUnlessEqual(res, b"a"*25))
             d1.addCallback(lambda res: rbp.get_block_data(1, 25, 25))
-            d1.addCallback(lambda res: self.failUnlessEqual(res, "b"*25))
+            d1.addCallback(lambda res: self.failUnlessEqual(res, b"b"*25))
             d1.addCallback(lambda res: rbp.get_block_data(2, 25, 25))
-            d1.addCallback(lambda res: self.failUnlessEqual(res, "c"*25))
+            d1.addCallback(lambda res: self.failUnlessEqual(res, b"c"*25))
             d1.addCallback(lambda res: rbp.get_block_data(3, 25, 20))
-            d1.addCallback(lambda res: self.failUnlessEqual(res, "d"*20))
+            d1.addCallback(lambda res: self.failUnlessEqual(res, b"d"*20))
 
             d1.addCallback(lambda res: rbp.get_crypttext_hashes())
             d1.addCallback(lambda res:
@@ -302,7 +302,7 @@ class Server(unittest.TestCase):
 
     def create(self, name, reserved_space=0, klass=StorageServer):
         workdir = self.workdir(name)
-        ss = klass(workdir, "\x00" * 20, reserved_space=reserved_space,
+        ss = klass(workdir, b"\x00" * 20, reserved_space=reserved_space,
                    stats_provider=FakeStatsProvider())
         ss.setServiceParent(self.sparent)
         return ss
@@ -330,8 +330,8 @@ class Server(unittest.TestCase):
         self.failUnlessIn('available-space', sv1)
 
     def allocate(self, ss, storage_index, sharenums, size, canary=None):
-        renew_secret = hashutil.tagged_hash("blah", "%d" % self._lease_secret.next())
-        cancel_secret = hashutil.tagged_hash("blah", "%d" % self._lease_secret.next())
+        renew_secret = hashutil.tagged_hash(b"blah", b"%d" % next(self._lease_secret))
+        cancel_secret = hashutil.tagged_hash(b"blah", b"%d" % next(self._lease_secret))
         if not canary:
             canary = FakeCanary()
         return ss.remote_allocate_buckets(storage_index,
@@ -390,7 +390,7 @@ class Server(unittest.TestCase):
 
     def test_remove_incoming(self):
         ss = self.create("test_remove_incoming")
-        already, writers = self.allocate(ss, "vid", range(3), 10)
+        already, writers = self.allocate(ss, b"vid", range(3), 10)
         for i,wb in writers.items():
             wb.remote_write(0, "%10d" % i)
             wb.remote_close()
@@ -524,14 +524,14 @@ class Server(unittest.TestCase):
         OVERHEAD = 3*4
         LEASE_SIZE = 4+32+32+4
         canary = FakeCanary(True)
-        already, writers = self.allocate(ss, "vid1", [0,1,2], 1000, canary)
+        already, writers = self.allocate(ss, b"vid1", [0,1,2], 1000, canary)
         self.failUnlessEqual(len(writers), 3)
         # now the StorageServer should have 3000 bytes provisionally
         # allocated, allowing only 2000 more to be claimed
         self.failUnlessEqual(len(ss._active_writers), 3)
 
         # allocating 1001-byte shares only leaves room for one
-        already2, writers2 = self.allocate(ss, "vid2", [0,1,2], 1001, canary)
+        already2, writers2 = self.allocate(ss, b"vid2", [0,1,2], 1001, canary)
         self.failUnlessEqual(len(writers2), 1)
         self.failUnlessEqual(len(ss._active_writers), 4)
 
@@ -578,19 +578,19 @@ class Server(unittest.TestCase):
         fileutil.make_dirs(basedir)
         filename = os.path.join(basedir, "testfile")
         f = open(filename, "wb")
-        f.write("start")
+        f.write(b"start")
         f.close()
         # mode="w" allows seeking-to-create-holes, but truncates pre-existing
         # files. mode="a" preserves previous contents but does not allow
         # seeking-to-create-holes. mode="r+" allows both.
         f = open(filename, "rb+")
         f.seek(100)
-        f.write("100")
+        f.write(b"100")
         f.close()
         filelen = os.stat(filename)[stat.ST_SIZE]
         self.failUnlessEqual(filelen, 100+3)
         f2 = open(filename, "rb")
-        self.failUnlessEqual(f2.read(5), "start")
+        self.failUnlessEqual(f2.read(5), b"start")
 
 
     def test_leases(self):
@@ -689,10 +689,10 @@ class Server(unittest.TestCase):
 
     def test_readonly(self):
         workdir = self.workdir("test_readonly")
-        ss = StorageServer(workdir, "\x00" * 20, readonly_storage=True)
+        ss = StorageServer(workdir, b"\x00" * 20, readonly_storage=True)
         ss.setServiceParent(self.sparent)
 
-        already,writers = self.allocate(ss, "vid", [0,1,2], 75)
+        already,writers = self.allocate(ss, b"vid", [0,1,2], 75)
         self.failUnlessEqual(already, set())
         self.failUnlessEqual(writers, {})
 
@@ -706,25 +706,25 @@ class Server(unittest.TestCase):
     def test_discard(self):
         # discard is really only used for other tests, but we test it anyways
         workdir = self.workdir("test_discard")
-        ss = StorageServer(workdir, "\x00" * 20, discard_storage=True)
+        ss = StorageServer(workdir, b"\x00" * 20, discard_storage=True)
         ss.setServiceParent(self.sparent)
 
-        already,writers = self.allocate(ss, "vid", [0,1,2], 75)
+        already,writers = self.allocate(ss, b"vid", [0,1,2], 75)
         self.failUnlessEqual(already, set())
         self.failUnlessEqual(set(writers.keys()), set([0,1,2]))
         for i,wb in writers.items():
-            wb.remote_write(0, "%25d" % i)
+            wb.remote_write(0, b"%25d" % i)
             wb.remote_close()
         # since we discard the data, the shares should be present but sparse.
         # Since we write with some seeks, the data we read back will be all
         # zeros.
-        b = ss.remote_get_buckets("vid")
+        b = ss.remote_get_buckets(b"vid")
         self.failUnlessEqual(set(b.keys()), set([0,1,2]))
-        self.failUnlessEqual(b[0].remote_read(0, 25), "\x00" * 25)
+        self.failUnlessEqual(b[0].remote_read(0, 25), b"\x00" * 25)
 
     def test_advise_corruption(self):
         workdir = self.workdir("test_advise_corruption")
-        ss = StorageServer(workdir, "\x00" * 20, discard_storage=True)
+        ss = StorageServer(workdir, b"\x00" * 20, discard_storage=True)
         ss.setServiceParent(self.sparent)
 
         si0_s = base32.b2a("si0")
@@ -782,7 +782,7 @@ class MutableServer(unittest.TestCase):
 
     def create(self, name):
         workdir = self.workdir(name)
-        ss = StorageServer(workdir, "\x00" * 20)
+        ss = StorageServer(workdir, b"\x00" * 20)
         ss.setServiceParent(self.sparent)
         return ss
 
@@ -1489,7 +1489,7 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
 
     def create(self, name):
         workdir = self.workdir(name)
-        ss = StorageServer(workdir, "\x00" * 20)
+        ss = StorageServer(workdir, b"\x00" * 20)
         ss.setServiceParent(self.sparent)
         return ss
 
@@ -2873,7 +2873,7 @@ class Stats(unittest.TestCase):
 
     def create(self, name):
         workdir = self.workdir(name)
-        ss = StorageServer(workdir, "\x00" * 20)
+        ss = StorageServer(workdir, b"\x00" * 20)
         ss.setServiceParent(self.sparent)
         return ss
 
