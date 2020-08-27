@@ -1,4 +1,4 @@
-venv
+venv*
 
 # vim swap files
 *.swp
