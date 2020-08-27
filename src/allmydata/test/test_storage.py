@@ -1,3 +1,5 @@
+from future.utils import native_str
+
 import time
 import os.path
 import platform
@@ -349,18 +351,18 @@ class Server(unittest.TestCase):
 
         ss = self.create("test_large_share")
 
-        already,writers = self.allocate(ss, "allocate", [0], 2**32+2)
+        already,writers = self.allocate(ss, b"allocate", [0], 2**32+2)
         self.failUnlessEqual(already, set())
         self.failUnlessEqual(set(writers.keys()), set([0]))
 
-        shnum, bucket = writers.items()[0]
+        shnum, bucket = list(writers.items())[0]
         # This test is going to hammer your filesystem if it doesn't make a sparse file for this.  :-(
-        bucket.remote_write(2**32, "ab")
+        bucket.remote_write(2**32, b"ab")
         bucket.remote_close()
 
-        readers = ss.remote_get_buckets("allocate")
+        readers = ss.remote_get_buckets(b"allocate")
         reader = readers[shnum]
-        self.failUnlessEqual(reader.remote_read(2**32, 2), "ab")
+        self.failUnlessEqual(reader.remote_read(2**32, 2), b"ab")
 
     def test_dont_overfill_dirs(self):
         """
@@ -369,9 +371,9 @@ class Server(unittest.TestCase):
         same storage index), this won't add an entry to the share directory.
         """
         ss = self.create("test_dont_overfill_dirs")
-        already, writers = self.allocate(ss, "storageindex", [0], 10)
+        already, writers = self.allocate(ss, b"storageindex", [0], 10)
         for i, wb in writers.items():
-            wb.remote_write(0, "%10d" % i)
+            wb.remote_write(0, b"%10d" % i)
             wb.remote_close()
         storedir = os.path.join(self.workdir("test_dont_overfill_dirs"),
                                 "shares")
@@ -379,9 +381,9 @@ class Server(unittest.TestCase):
 
         # Now store another one under another storageindex that has leading
         # chars the same as the first storageindex.
-        already, writers = self.allocate(ss, "storageindey", [0], 10)
+        already, writers = self.allocate(ss, b"storageindey", [0], 10)
         for i, wb in writers.items():
-            wb.remote_write(0, "%10d" % i)
+            wb.remote_write(0, b"%10d" % i)
             wb.remote_close()
         storedir = os.path.join(self.workdir("test_dont_overfill_dirs"),
                                 "shares")
@@ -392,7 +394,7 @@ class Server(unittest.TestCase):
         ss = self.create("test_remove_incoming")
         already, writers = self.allocate(ss, b"vid", range(3), 10)
         for i,wb in writers.items():
-            wb.remote_write(0, "%10d" % i)
+            wb.remote_write(0, b"%10d" % i)
             wb.remote_close()
         incoming_share_dir = wb.incominghome
         incoming_bucket_dir = os.path.dirname(incoming_share_dir)
@@ -407,11 +409,11 @@ class Server(unittest.TestCase):
         # the allocated size of the bucket is not counted by the storage
         # server when accounting for space.
         ss = self.create("test_abort")
-        already, writers = self.allocate(ss, "allocate", [0, 1, 2], 150)
+        already, writers = self.allocate(ss, b"allocate", [0, 1, 2], 150)
         self.failIfEqual(ss.allocated_size(), 0)
 
         # Now abort the writers.
-        for writer in writers.itervalues():
+        for writer in writers.values():
             writer.remote_abort()
         self.failUnlessEqual(ss.allocated_size(), 0)
 
@@ -419,26 +421,26 @@ class Server(unittest.TestCase):
     def test_allocate(self):
         ss = self.create("test_allocate")
 
-        self.failUnlessEqual(ss.remote_get_buckets("allocate"), {})
+        self.failUnlessEqual(ss.remote_get_buckets(b"allocate"), {})
 
-        already,writers = self.allocate(ss, "allocate", [0,1,2], 75)
+        already,writers = self.allocate(ss, b"allocate", [0,1,2], 75)
         self.failUnlessEqual(already, set())
         self.failUnlessEqual(set(writers.keys()), set([0,1,2]))
 
         # while the buckets are open, they should not count as readable
-        self.failUnlessEqual(ss.remote_get_buckets("allocate"), {})
+        self.failUnlessEqual(ss.remote_get_buckets(b"allocate"), {})
 
         # close the buckets
         for i,wb in writers.items():
-            wb.remote_write(0, "%25d" % i)
+            wb.remote_write(0, b"%25d" % i)
             wb.remote_close()
             # aborting a bucket that was already closed is a no-op
             wb.remote_abort()
 
         # now they should be readable
-        b = ss.remote_get_buckets("allocate")
+        b = ss.remote_get_buckets(b"allocate")
         self.failUnlessEqual(set(b.keys()), set([0,1,2]))
-        self.failUnlessEqual(b[0].remote_read(0, 25), "%25d" % 0)
+        self.failUnlessEqual(b[0].remote_read(0, 25), b"%25d" % 0)
         b_str = str(b[0])
         self.failUnlessIn("BucketReader", b_str)
         self.failUnlessIn("mfwgy33dmf2g 0", b_str)
@@ -446,21 +448,21 @@ class Server(unittest.TestCase):
         # now if we ask about writing again, the server should offer those
         # three buckets as already present. It should offer them even if we
         # don't ask about those specific ones.
-        already,writers = self.allocate(ss, "allocate", [2,3,4], 75)
+        already,writers = self.allocate(ss, b"allocate", [2,3,4], 75)
         self.failUnlessEqual(already, set([0,1,2]))
         self.failUnlessEqual(set(writers.keys()), set([3,4]))
 
         # while those two buckets are open for writing, the server should
         # refuse to offer them to uploaders
 
-        already2,writers2 = self.allocate(ss, "allocate", [2,3,4,5], 75)
+        already2,writers2 = self.allocate(ss, b"allocate", [2,3,4,5], 75)
         self.failUnlessEqual(already2, set([0,1,2]))
         self.failUnlessEqual(set(writers2.keys()), set([5]))
 
         # aborting the writes should remove the tempfiles
         for i,wb in writers2.items():
             wb.remote_abort()
-        already2,writers2 = self.allocate(ss, "allocate", [2,3,4,5], 75)
+        already2,writers2 = self.allocate(ss, b"allocate", [2,3,4,5], 75)
         self.failUnlessEqual(already2, set([0,1,2]))
         self.failUnlessEqual(set(writers2.keys()), set([5]))
 
@@ -471,27 +473,27 @@ class Server(unittest.TestCase):
 
     def test_bad_container_version(self):
         ss = self.create("test_bad_container_version")
-        a,w = self.allocate(ss, "si1", [0], 10)
-        w[0].remote_write(0, "\xff"*10)
+        a,w = self.allocate(ss, b"si1", [0], 10)
+        w[0].remote_write(0, b"\xff"*10)
         w[0].remote_close()
 
-        fn = os.path.join(ss.sharedir, storage_index_to_dir("si1"), "0")
+        fn = os.path.join(ss.sharedir, storage_index_to_dir(b"si1"), "0")
         f = open(fn, "rb+")
         f.seek(0)
         f.write(struct.pack(">L", 0)) # this is invalid: minimum used is v1
         f.close()
 
-        ss.remote_get_buckets("allocate")
+        ss.remote_get_buckets(b"allocate")
 
         e = self.failUnlessRaises(UnknownImmutableContainerVersionError,
-                                  ss.remote_get_buckets, "si1")
+                                  ss.remote_get_buckets, b"si1")
         self.failUnlessIn(" had version 0 but we wanted 1", str(e))
 
     def test_disconnect(self):
         # simulate a disconnection
         ss = self.create("test_disconnect")
         canary = FakeCanary()
-        already,writers = self.allocate(ss, "disconnect", [0,1,2], 75, canary)
+        already,writers = self.allocate(ss, b"disconnect", [0,1,2], 75, canary)
         self.failUnlessEqual(already, set())
         self.failUnlessEqual(set(writers.keys()), set([0,1,2]))
         for (f,args,kwargs) in canary.disconnectors.values():
@@ -500,7 +502,7 @@ class Server(unittest.TestCase):
         del writers
 
         # that ought to delete the incoming shares
-        already,writers = self.allocate(ss, "disconnect", [0,1,2], 75)
+        already,writers = self.allocate(ss, b"disconnect", [0,1,2], 75)
         self.failUnlessEqual(already, set())
         self.failUnlessEqual(set(writers.keys()), set([0,1,2]))
 
@@ -549,7 +551,7 @@ class Server(unittest.TestCase):
         # become real, long-term allocation, and grows to include the
         # overhead.
         for bw in writers2.values():
-            bw.remote_write(0, "a"*25)
+            bw.remote_write(0, b"a"*25)
             bw.remote_close()
         del already2
         del writers2
@@ -561,7 +563,7 @@ class Server(unittest.TestCase):
 
         # now there should be ALLOCATED=1001+12+72=1085 bytes allocated, and
         # 5000-1085=3915 free, therefore we can fit 39 100byte shares
-        already3, writers3 = self.allocate(ss,"vid3", range(100), 100, canary)
+        already3, writers3 = self.allocate(ss, b"vid3", range(100), 100, canary)
         self.failUnlessEqual(len(writers3), 39)
         self.failUnlessEqual(len(ss._active_writers), 39)
 
@@ -599,60 +601,60 @@ class Server(unittest.TestCase):
         sharenums = range(5)
         size = 100
 
-        rs0,cs0 = (hashutil.tagged_hash("blah", "%d" % self._lease_secret.next()),
-                   hashutil.tagged_hash("blah", "%d" % self._lease_secret.next()))
-        already,writers = ss.remote_allocate_buckets("si0", rs0, cs0,
+        rs0,cs0 = (hashutil.tagged_hash(b"blah", b"%d" % next(self._lease_secret)),
+                   hashutil.tagged_hash(b"blah", b"%d" % next(self._lease_secret)))
+        already,writers = ss.remote_allocate_buckets(b"si0", rs0, cs0,
                                                      sharenums, size, canary)
         self.failUnlessEqual(len(already), 0)
         self.failUnlessEqual(len(writers), 5)
         for wb in writers.values():
             wb.remote_close()
 
-        leases = list(ss.get_leases("si0"))
+        leases = list(ss.get_leases(b"si0"))
         self.failUnlessEqual(len(leases), 1)
         self.failUnlessEqual(set([l.renew_secret for l in leases]), set([rs0]))
 
-        rs1,cs1 = (hashutil.tagged_hash("blah", "%d" % self._lease_secret.next()),
-                   hashutil.tagged_hash("blah", "%d" % self._lease_secret.next()))
-        already,writers = ss.remote_allocate_buckets("si1", rs1, cs1,
+        rs1,cs1 = (hashutil.tagged_hash(b"blah", b"%d" % next(self._lease_secret)),
+                   hashutil.tagged_hash(b"blah", b"%d" % next(self._lease_secret)))
+        already,writers = ss.remote_allocate_buckets(b"si1", rs1, cs1,
                                                      sharenums, size, canary)
         for wb in writers.values():
             wb.remote_close()
 
         # take out a second lease on si1
-        rs2,cs2 = (hashutil.tagged_hash("blah", "%d" % self._lease_secret.next()),
-                   hashutil.tagged_hash("blah", "%d" % self._lease_secret.next()))
-        already,writers = ss.remote_allocate_buckets("si1", rs2, cs2,
+        rs2,cs2 = (hashutil.tagged_hash(b"blah", b"%d" % next(self._lease_secret)),
+                   hashutil.tagged_hash(b"blah", b"%d" % next(self._lease_secret)))
+        already,writers = ss.remote_allocate_buckets(b"si1", rs2, cs2,
                                                      sharenums, size, canary)
         self.failUnlessEqual(len(already), 5)
         self.failUnlessEqual(len(writers), 0)
 
-        leases = list(ss.get_leases("si1"))
+        leases = list(ss.get_leases(b"si1"))
         self.failUnlessEqual(len(leases), 2)
         self.failUnlessEqual(set([l.renew_secret for l in leases]), set([rs1, rs2]))
 
         # and a third lease, using add-lease
-        rs2a,cs2a = (hashutil.tagged_hash("blah", "%d" % self._lease_secret.next()),
-                     hashutil.tagged_hash("blah", "%d" % self._lease_secret.next()))
-        ss.remote_add_lease("si1", rs2a, cs2a)
-        leases = list(ss.get_leases("si1"))
+        rs2a,cs2a = (hashutil.tagged_hash(b"blah", b"%d" % next(self._lease_secret)),
+                     hashutil.tagged_hash(b"blah", b"%d" % next(self._lease_secret)))
+        ss.remote_add_lease(b"si1", rs2a, cs2a)
+        leases = list(ss.get_leases(b"si1"))
         self.failUnlessEqual(len(leases), 3)
         self.failUnlessEqual(set([l.renew_secret for l in leases]), set([rs1, rs2, rs2a]))
 
         # add-lease on a missing storage index is silently ignored
-        self.failUnlessEqual(ss.remote_add_lease("si18", "", ""), None)
+        self.failUnlessEqual(ss.remote_add_lease(b"si18", b"", b""), None)
 
         # check that si0 is readable
-        readers = ss.remote_get_buckets("si0")
+        readers = ss.remote_get_buckets(b"si0")
         self.failUnlessEqual(len(readers), 5)
 
         # renew the first lease. Only the proper renew_secret should work
-        ss.remote_renew_lease("si0", rs0)
-        self.failUnlessRaises(IndexError, ss.remote_renew_lease, "si0", cs0)
-        self.failUnlessRaises(IndexError, ss.remote_renew_lease, "si0", rs1)
+        ss.remote_renew_lease(b"si0", rs0)
+        self.failUnlessRaises(IndexError, ss.remote_renew_lease, b"si0", cs0)
+        self.failUnlessRaises(IndexError, ss.remote_renew_lease, b"si0", rs1)
 
         # check that si0 is still readable
-        readers = ss.remote_get_buckets("si0")
+        readers = ss.remote_get_buckets(b"si0")
         self.failUnlessEqual(len(readers), 5)
 
         # There is no such method as remote_cancel_lease for now -- see
@@ -661,30 +663,30 @@ class Server(unittest.TestCase):
                         "ss should not have a 'remote_cancel_lease' method/attribute")
 
         # test overlapping uploads
-        rs3,cs3 = (hashutil.tagged_hash("blah", "%d" % self._lease_secret.next()),
-                   hashutil.tagged_hash("blah", "%d" % self._lease_secret.next()))
-        rs4,cs4 = (hashutil.tagged_hash("blah", "%d" % self._lease_secret.next()),
-                   hashutil.tagged_hash("blah", "%d" % self._lease_secret.next()))
-        already,writers = ss.remote_allocate_buckets("si3", rs3, cs3,
+        rs3,cs3 = (hashutil.tagged_hash(b"blah", b"%d" % next(self._lease_secret)),
+                   hashutil.tagged_hash(b"blah", b"%d" % next(self._lease_secret)))
+        rs4,cs4 = (hashutil.tagged_hash(b"blah", b"%d" % next(self._lease_secret)),
+                   hashutil.tagged_hash(b"blah", b"%d" % next(self._lease_secret)))
+        already,writers = ss.remote_allocate_buckets(b"si3", rs3, cs3,
                                                      sharenums, size, canary)
         self.failUnlessEqual(len(already), 0)
         self.failUnlessEqual(len(writers), 5)
-        already2,writers2 = ss.remote_allocate_buckets("si3", rs4, cs4,
+        already2,writers2 = ss.remote_allocate_buckets(b"si3", rs4, cs4,
                                                        sharenums, size, canary)
         self.failUnlessEqual(len(already2), 0)
         self.failUnlessEqual(len(writers2), 0)
         for wb in writers.values():
             wb.remote_close()
 
-        leases = list(ss.get_leases("si3"))
+        leases = list(ss.get_leases(b"si3"))
         self.failUnlessEqual(len(leases), 1)
 
-        already3,writers3 = ss.remote_allocate_buckets("si3", rs4, cs4,
+        already3,writers3 = ss.remote_allocate_buckets(b"si3", rs4, cs4,
                                                        sharenums, size, canary)
         self.failUnlessEqual(len(already3), 5)
         self.failUnlessEqual(len(writers3), 0)
 
-        leases = list(ss.get_leases("si3"))
+        leases = list(ss.get_leases(b"si3"))
         self.failUnlessEqual(len(leases), 2)
 
     def test_readonly(self):
@@ -727,44 +729,44 @@ class Server(unittest.TestCase):
         ss = StorageServer(workdir, b"\x00" * 20, discard_storage=True)
         ss.setServiceParent(self.sparent)
 
-        si0_s = base32.b2a("si0")
-        ss.remote_advise_corrupt_share("immutable", "si0", 0,
+        si0_s = base32.b2a(b"si0")
+        ss.remote_advise_corrupt_share(b"immutable", b"si0", 0,
                                        "This share smells funny.\n")
         reportdir = os.path.join(workdir, "corruption-advisories")
         reports = os.listdir(reportdir)
         self.failUnlessEqual(len(reports), 1)
         report_si0 = reports[0]
-        self.failUnlessIn(si0_s, report_si0)
-        f = open(os.path.join(reportdir, report_si0), "r")
+        self.failUnlessIn(native_str(si0_s), report_si0)
+        f = open(os.path.join(reportdir, report_si0), "rb")
         report = f.read()
         f.close()
-        self.failUnlessIn("type: immutable", report)
-        self.failUnlessIn("storage_index: %s" % si0_s, report)
-        self.failUnlessIn("share_number: 0", report)
-        self.failUnlessIn("This share smells funny.", report)
+        self.failUnlessIn(b"type: immutable", report)
+        self.failUnlessIn(b"storage_index: %s" % si0_s, report)
+        self.failUnlessIn(b"share_number: 0", report)
+        self.failUnlessIn(b"This share smells funny.", report)
 
         # test the RIBucketWriter version too
-        si1_s = base32.b2a("si1")
-        already,writers = self.allocate(ss, "si1", [1], 75)
+        si1_s = base32.b2a(b"si1")
+        already,writers = self.allocate(ss, b"si1", [1], 75)
         self.failUnlessEqual(already, set())
         self.failUnlessEqual(set(writers.keys()), set([1]))
-        writers[1].remote_write(0, "data")
+        writers[1].remote_write(0, b"data")
         writers[1].remote_close()
 
-        b = ss.remote_get_buckets("si1")
+        b = ss.remote_get_buckets(b"si1")
         self.failUnlessEqual(set(b.keys()), set([1]))
         b[1].remote_advise_corrupt_share("This share tastes like dust.\n")
 
         reports = os.listdir(reportdir)
         self.failUnlessEqual(len(reports), 2)
         report_si1 = [r for r in reports if si1_s in r][0]
-        f = open(os.path.join(reportdir, report_si1), "r")
+        f = open(os.path.join(reportdir, report_si1), "rb")
         report = f.read()
         f.close()
-        self.failUnlessIn("type: immutable", report)
-        self.failUnlessIn("storage_index: %s" % si1_s, report)
-        self.failUnlessIn("share_number: 1", report)
-        self.failUnlessIn("This share tastes like dust.", report)
+        self.failUnlessIn(b"type: immutable", report)
+        self.failUnlessIn(b"storage_index: %s" % si1_s, report)
+        self.failUnlessIn(b"share_number: 1", report)
+        self.failUnlessIn(b"This share tastes like dust.", report)
 
 
 
@@ -817,7 +819,7 @@ class MutableServer(unittest.TestCase):
 
     def test_bad_magic(self):
         ss = self.create("test_bad_magic")
-        self.allocate(ss, "si1", "we1", self._lease_secret.next(), set([0]), 10)
+        self.allocate(ss, "si1", "we1", next(self._lease_secret), set([0]), 10)
         fn = os.path.join(ss.sharedir, storage_index_to_dir("si1"), "0")
         f = open(fn, "rb+")
         f.seek(0)
@@ -831,7 +833,7 @@ class MutableServer(unittest.TestCase):
 
     def test_container_size(self):
         ss = self.create("test_container_size")
-        self.allocate(ss, "si1", "we1", self._lease_secret.next(),
+        self.allocate(ss, "si1", "we1", next(self._lease_secret),
                       set([0,1,2]), 100)
         read = ss.remote_slot_readv
         rstaraw = ss.remote_slot_testv_and_readv_and_writev
@@ -929,7 +931,7 @@ class MutableServer(unittest.TestCase):
 
     def test_allocate(self):
         ss = self.create("test_allocate")
-        self.allocate(ss, "si1", "we1", self._lease_secret.next(),
+        self.allocate(ss, "si1", "we1", next(self._lease_secret),
                       set([0,1,2]), 100)
 
         read = ss.remote_slot_readv
@@ -1315,7 +1317,7 @@ class MutableServer(unittest.TestCase):
 
     def test_remove(self):
         ss = self.create("test_remove")
-        self.allocate(ss, "si1", "we1", self._lease_secret.next(),
+        self.allocate(ss, "si1", "we1", next(self._lease_secret),
                       set([0,1,2]), 100)
         readv = ss.remote_slot_readv
         writev = ss.remote_slot_testv_and_readv_and_writev

@@ -398,7 +398,7 @@ class StorageServer(service.MultiService, Referenceable):
         # since all shares get the same lease data, we just grab the leases
         # from the first share
         try:
-            shnum, filename = self._get_bucket_shares(storage_index).next()
+            shnum, filename = next(self._get_bucket_shares(storage_index))
             sf = ShareFile(filename)
             return sf.get_leases()
         except StopIteration:
