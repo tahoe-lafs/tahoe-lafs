@@ -756,8 +756,10 @@ class MultiFormatResourceTests(TrialTestCase):
         returned.
         """
         resource = self.resource()
-        with self.assertRaises(WebError):
+        with self.assertRaises(WebError) as ex:
             self.render(resource, t=["foo"]),
+        self.assertEquals(ex.exception.text, "Unknown t value: 'foo'")
+        self.assertEquals(ex.exception.code, 400)
 
 
 class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixin, TrialTestCase):
