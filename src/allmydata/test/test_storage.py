@@ -792,13 +792,19 @@ class MutableServer(unittest.TestCase):
         self.create("test_create")
 
     def write_enabler(self, we_tag):
-        return hashutil.tagged_hash("we_blah", we_tag)
+        return hashutil.tagged_hash(b"we_blah", we_tag)
 
     def renew_secret(self, tag):
-        return hashutil.tagged_hash("renew_blah", str(tag))
+        if isinstance(tag, int):
+            tag = b"%d" % (tag,)
+        assert isinstance(tag, bytes)
+        return hashutil.tagged_hash(b"renew_blah", tag)
 
     def cancel_secret(self, tag):
-        return hashutil.tagged_hash("cancel_blah", str(tag))
+        if isinstance(tag, int):
+            tag = b"%d" % (tag,)
+        assert isinstance(tag, bytes)
+        return hashutil.tagged_hash(b"cancel_blah", tag)
 
     def allocate(self, ss, storage_index, we_tag, lease_tag, sharenums, size):
         write_enabler = self.write_enabler(we_tag)
@@ -819,29 +825,29 @@ class MutableServer(unittest.TestCase):
 
     def test_bad_magic(self):
         ss = self.create("test_bad_magic")
-        self.allocate(ss, "si1", "we1", next(self._lease_secret), set([0]), 10)
-        fn = os.path.join(ss.sharedir, storage_index_to_dir("si1"), "0")
+        self.allocate(ss, b"si1", b"we1", next(self._lease_secret), set([0]), 10)
+        fn = os.path.join(ss.sharedir, storage_index_to_dir(b"si1"), "0")
         f = open(fn, "rb+")
         f.seek(0)
-        f.write("BAD MAGIC")
+        f.write(b"BAD MAGIC")
         f.close()
         read = ss.remote_slot_readv
         e = self.failUnlessRaises(UnknownMutableContainerVersionError,
-                                  read, "si1", [0], [(0,10)])
+                                  read, b"si1", [0], [(0,10)])
         self.failUnlessIn(" had magic ", str(e))
         self.failUnlessIn(" but we wanted ", str(e))
 
     def test_container_size(self):
         ss = self.create("test_container_size")
-        self.allocate(ss, "si1", "we1", next(self._lease_secret),
+        self.allocate(ss, b"si1", b"we1", next(self._lease_secret),
                       set([0,1,2]), 100)
         read = ss.remote_slot_readv
         rstaraw = ss.remote_slot_testv_and_readv_and_writev
-        secrets = ( self.write_enabler("we1"),
-                    self.renew_secret("we1"),
-                    self.cancel_secret("we1") )
-        data = "".join([ ("%d" % i) * 10 for i in range(10) ])
-        answer = rstaraw("si1", secrets,
+        secrets = ( self.write_enabler(b"we1"),
+                    self.renew_secret(b"we1"),
+                    self.cancel_secret(b"we1") )
+        data = b"".join([ (b"%d" % i) * 10 for i in range(10) ])
+        answer = rstaraw(b"si1", secrets,
                          {0: ([], [(0,data)], len(data)+12)},
                          [])
         self.failUnlessEqual(answer, (True, {0:[],1:[],2:[]}) )
@@ -850,33 +856,33 @@ class MutableServer(unittest.TestCase):
         # whose offset is too high) will raise an exception.
         TOOBIG = MutableShareFile.MAX_SIZE + 10
         self.failUnlessRaises(DataTooLargeError,
-                              rstaraw, "si1", secrets,
+                              rstaraw, b"si1", secrets,
                               {0: ([], [(TOOBIG,data)], None)},
                               [])
 
-        answer = rstaraw("si1", secrets,
+        answer = rstaraw(b"si1", secrets,
                          {0: ([], [(0,data)], None)},
                          [])
         self.failUnlessEqual(answer, (True, {0:[],1:[],2:[]}) )
 
-        read_answer = read("si1", [0], [(0,10)])
+        read_answer = read(b"si1", [0], [(0,10)])
         self.failUnlessEqual(read_answer, {0: [data[:10]]})
 
         # Sending a new_length shorter than the current length truncates the
         # data.
-        answer = rstaraw("si1", secrets,
+        answer = rstaraw(b"si1", secrets,
                          {0: ([], [], 9)},
                          [])
-        read_answer = read("si1", [0], [(0,10)])
+        read_answer = read(b"si1", [0], [(0,10)])
         self.failUnlessEqual(read_answer, {0: [data[:9]]})
 
         # Sending a new_length longer than the current length doesn't change
         # the data.
-        answer = rstaraw("si1", secrets,
+        answer = rstaraw(b"si1", secrets,
                          {0: ([], [], 20)},
                          [])
         assert answer == (True, {0:[],1:[],2:[]})
-        read_answer = read("si1", [0], [(0, 20)])
+        read_answer = read(b"si1", [0], [(0, 20)])
         self.failUnlessEqual(read_answer, {0: [data[:9]]})
 
         # Sending a write vector whose start is after the end of the current
@@ -884,35 +890,35 @@ class MutableServer(unittest.TestCase):
         # but instead fills with zeroes.
 
         # To test this, we fill the data area with a recognizable pattern.
-        pattern = ''.join([chr(i) for i in range(100)])
-        answer = rstaraw("si1", secrets,
+        pattern = u''.join([chr(i) for i in range(100)]).encode("utf-8")
+        answer = rstaraw(b"si1", secrets,
                          {0: ([], [(0, pattern)], None)},
                          [])
         assert answer == (True, {0:[],1:[],2:[]})
         # Then truncate the data...
-        answer = rstaraw("si1", secrets,
+        answer = rstaraw(b"si1", secrets,
                          {0: ([], [], 20)},
                          [])
         assert answer == (True, {0:[],1:[],2:[]})
         # Just confirm that you get an empty string if you try to read from
         # past the (new) endpoint now.
-        answer = rstaraw("si1", secrets,
+        answer = rstaraw(b"si1", secrets,
                          {0: ([], [], None)},
                          [(20, 1980)])
-        self.failUnlessEqual(answer, (True, {0:[''],1:[''],2:['']}))
+        self.failUnlessEqual(answer, (True, {0:[b''],1:[b''],2:[b'']}))
 
         # Then the extend the file by writing a vector which starts out past
         # the end...
-        answer = rstaraw("si1", secrets,
-                         {0: ([], [(50, 'hellothere')], None)},
+        answer = rstaraw(b"si1", secrets,
+                         {0: ([], [(50, b'hellothere')], None)},
                          [])
         assert answer == (True, {0:[],1:[],2:[]})
         # Now if you read the stuff between 20 (where we earlier truncated)
         # and 50, it had better be all zeroes.
-        answer = rstaraw("si1", secrets,
+        answer = rstaraw(b"si1", secrets,
                          {0: ([], [], None)},
                          [(20, 30)])
-        self.failUnlessEqual(answer, (True, {0:['\x00'*30],1:[''],2:['']}))
+        self.failUnlessEqual(answer, (True, {0:[b'\x00'*30],1:[b''],2:[b'']}))
 
         # Also see if the server explicitly declares that it supports this
         # feature.
@@ -921,12 +927,12 @@ class MutableServer(unittest.TestCase):
         self.failUnless(storage_v1_ver.get("fills-holes-with-zero-bytes"))
 
         # If the size is dropped to zero the share is deleted.
-        answer = rstaraw("si1", secrets,
+        answer = rstaraw(b"si1", secrets,
                          {0: ([], [(0,data)], 0)},
                          [])
         self.failUnlessEqual(answer, (True, {0:[],1:[],2:[]}) )
 
-        read_answer = read("si1", [0], [(0,10)])
+        read_answer = read(b"si1", [0], [(0,10)])
         self.failUnlessEqual(read_answer, {})
 
     def test_allocate(self):
