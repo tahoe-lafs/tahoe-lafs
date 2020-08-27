@@ -687,7 +687,7 @@ class MultiFormatResourceTests(TrialTestCase):
         :param query_args: The query arguments to put into the request being
             rendered.  A mapping from ``bytes`` to ``list`` of ``bytes``.
 
-        :return: The rendered response body as ``str``.
+        :return: The rendered response body as ``bytes``.
         """
 
         # TODO: probably should: (1) refactor this out of here to a
