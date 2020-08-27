@@ -36,7 +36,7 @@ people are Release Maintainers:
   - [ ] documentation is ready (see above)
   - [ ] (Release Maintainer): git tag -s -u 0xE34E62D06D0E69CFCA4179FFBDE0D31D68666A7A -m "release Tahoe-LAFS-X.Y.Z" tahoe-lafs-X.Y.Z
   - [ ] build code locally:
-     tox -e py27,codechecks,coverage,deprecations,docs,integration,upcoming-deprecations
+     tox -e py27,codechecks,deprecations,docs,integration,upcoming-deprecations
   - [ ] created tarballs (they'll be in dist/ for later comparison)
      tox -e tarballs
   - [ ] release version is reporting itself as intended version
