@@ -33,6 +33,7 @@ PORTED_MODULES = [
     "allmydata.hashtree",
     "allmydata.immutable.happiness_upload",
     "allmydata.storage.crawler",
+    "allmydata.storage.expirer",
     "allmydata.test.common_py3",
     "allmydata.uri",
     "allmydata.util._python3",
@@ -82,6 +83,7 @@ PORTED_TEST_MODULES = [
     "allmydata.test.test_python3",
     "allmydata.test.test_spans",
     "allmydata.test.test_statistics",
+    "allmydata.test.test_storage_web",  # partial, WIP
     "allmydata.test.test_time_format",
     "allmydata.test.test_uri",
     "allmydata.test.test_util",

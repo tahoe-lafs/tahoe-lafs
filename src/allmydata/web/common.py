@@ -6,6 +6,7 @@ from twisted.web import http, server, resource, template
 from twisted.python import log
 from twisted.python.failure import Failure
 from nevow import loaders, appserver
+from nevow.rend import Page
 from nevow.inevow import IRequest
 from nevow.util import resource_filename
 from allmydata import blacklist
@@ -14,10 +15,14 @@ from allmydata.interfaces import ExistingChildError, NoSuchChildError, \
      EmptyPathnameComponentError, MustBeDeepImmutableError, \
      MustBeReadonlyError, MustNotBeUnknownRWError, SDMF_VERSION, MDMF_VERSION
 from allmydata.mutable.common import UnrecoverableFileError
-from allmydata.util import abbreviate
 from allmydata.util.hashutil import timing_safe_compare
 from allmydata.util.time_format import format_time, format_delta
 from allmydata.util.encodingutil import to_bytes, quote_output
+
+# Originally part of this module, so still part of its API:
+from .common_py3 import (  # noqa: F401
+    get_arg, abbreviate_time, MultiFormatResource, WebError
+)
 
 
 def get_filenode_metadata(filenode):
@@ -103,24 +108,6 @@ def get_root(ctx_or_req):
     link = "/".join([".."] * depth)
     return link
 
-def get_arg(ctx_or_req, argname, default=None, multiple=False):
-    """Extract an argument from either the query args (req.args) or the form
-    body fields (req.fields). If multiple=False, this returns a single value
-    (or the default, which defaults to None), and the query args take
-    precedence. If multiple=True, this returns a tuple of arguments (possibly
-    empty), starting with all those in the query args.
-    """
-    req = IRequest(ctx_or_req)
-    results = []
-    if argname in req.args:
-        results.extend(req.args[argname])
-    if req.fields and argname in req.fields:
-        results.append(req.fields[argname].value)
-    if multiple:
-        return tuple(results)
-    if results:
-        return results[0]
-    return default
 
 def convert_children_json(nodemaker, children_json):
     """I convert the JSON output of GET?t=json into the dict-of-nodes input
@@ -140,20 +127,6 @@ def convert_children_json(nodemaker, children_json):
             children[namex] = (childnode, metadata)
     return children
 
-def abbreviate_time(data):
-    # 1.23s, 790ms, 132us
-    if data is None:
-        return ""
-    s = float(data)
-    if s >= 10:
-        return abbreviate.abbreviate_time(data)
-    if s >= 1.0:
-        return "%.2fs" % s
-    if s >= 0.01:
-        return "%.0fms" % (1000*s)
-    if s >= 0.001:
-        return "%.1fms" % (1000*s)
-    return "%.0fus" % (1000000*s)
 
 def compute_rate(bytes, seconds):
     if bytes is None:
@@ -218,10 +191,6 @@ def render_time(t):
 def render_time_attr(t):
     return format_time(time.localtime(t))
 
-class WebError(Exception):
-    def __init__(self, text, code=http.BAD_REQUEST):
-        self.text = text
-        self.code = code
 
 # XXX: to make UnsupportedMethod return 501 NOT_IMPLEMENTED instead of 500
 # Internal Server Error, we either need to do that ICanHandleException trick,
@@ -363,60 +332,61 @@ class MyExceptionHandler(appserver.DefaultExceptionHandler, object):
 class NeedOperationHandleError(WebError):
     pass
 
-class MultiFormatResource(resource.Resource, object):
+
+class MultiFormatPage(Page):
     """
-    ``MultiFormatResource`` is a ``resource.Resource`` that can be rendered in
-    a number of different formats.
+    ```MultiFormatPage`` is a ``rend.Page`` that can be rendered in a number
+    of different formats.
 
     Rendered format is controlled by a query argument (given by
     ``self.formatArgument``).  Different resources may support different
-    formats but ``json`` is a pretty common one.  ``html`` is the default
-    format if nothing else is given as the ``formatDefault``.
+    formats but ``json`` is a pretty common one.
     """
     formatArgument = "t"
     formatDefault = None
 
-    def render(self, req):
+    def renderHTTP(self, ctx):
         """
         Dispatch to a renderer for a particular format, as selected by a query
         argument.
 
         A renderer for the format given by the query argument matching
-        ``formatArgument`` will be selected and invoked.  render_HTML will be
-        used as a default if no format is selected (either by query arguments
-        or by ``formatDefault``).
+        ``formatArgument`` will be selected and invoked.  The default ``Page``
+        rendering behavior will be used if no format is selected (either by
+        query arguments or by ``formatDefault``).
 
         :return: The result of the selected renderer.
         """
+        req = IRequest(ctx)
         t = get_arg(req, self.formatArgument, self.formatDefault)
         renderer = self._get_renderer(t)
-        return renderer(req)
+        result = renderer(ctx)
+        return result
+
 
     def _get_renderer(self, fmt):
         """
         Get the renderer for the indicated format.
 
-        :param str fmt: The format.  If a method with a prefix of ``render_``
-            and a suffix of this format (upper-cased) is found, it will be
-            used.
+        :param bytes fmt: The format.  If a method with a prefix of
+            ``render_`` and a suffix of this format (upper-cased) is found, it
+            will be used.
 
-        :return: A callable which takes a twisted.web Request and renders a
+        :return: A callable which takes a Nevow context and renders a
             response.
         """
-        renderer = None
-
-        if fmt is not None:
-            try:
-                renderer = getattr(self, "render_{}".format(fmt.upper()))
-            except AttributeError:
-                raise WebError(
-                    "Unknown {} value: {!r}".format(self.formatArgument, fmt),
-                )
-
-        if renderer is None:
-            renderer = self.render_HTML
-
-        return renderer
+        if fmt is None:
+            return super(MultiFormatPage, self).renderHTTP
+        try:
+            renderer = getattr(self, "render_{}".format(fmt.upper()))
+        except AttributeError:
+            raise WebError(
+                "Unknown {} value: {!r}".format(self.formatArgument, fmt),
+            )
+        else:
+            if renderer is None:
+                return super(MultiFormatPage, self).renderHTTP
+            return lambda ctx: renderer(IRequest(ctx))
 
 
 class SlotsSequenceElement(template.Element):
