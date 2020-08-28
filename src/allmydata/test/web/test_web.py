@@ -3,6 +3,7 @@ from __future__ import print_function
 import os.path, re, urllib, time, cgi
 import json
 import treq
+import html
 
 from bs4 import BeautifulSoup
 
@@ -12,8 +13,6 @@ from twisted.internet.defer import inlineCallbacks, returnValue
 from twisted.internet.task import Clock
 from twisted.web import client, error, http
 from twisted.python import failure, log
-
-from twisted.words.xish.domish import escapeToXml
 
 from allmydata import interfaces, uri, webish
 from allmydata.storage_client import StorageFarmBroker, StubServer
@@ -365,9 +364,9 @@ class WebMixin(TimezoneMixin):
             self._htmlname_unicode = u"<&weirdly'named\"file>>>_<iframe />.txt"
             self._htmlname_raw = self._htmlname_unicode.encode('utf-8')
             self._htmlname_urlencoded = urllib.quote(self._htmlname_raw, '')
-            self._htmlname_escaped = escapeToXml(self._htmlname_raw)
+            self._htmlname_escaped = html.escape(self._htmlname_raw)
             self._htmlname_escaped_attr = cgi.escape(self._htmlname_raw, quote=True)
-            self._htmlname_escaped_double = escapeToXml(cgi.escape(self._htmlname_raw, quote=True))
+            self._htmlname_escaped_double = html.escape(html.escape(self._htmlname_raw, quote=True))
             self.HTMLNAME_CONTENTS, n, self._htmlname_txt_uri = self.makefile(0)
             foo.set_uri(self._htmlname_unicode, self._htmlname_txt_uri, self._htmlname_txt_uri)
 
@@ -1983,7 +1982,8 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             self.failUnlessIn(entity, self._htmlname_raw)
             self.failIfIn(entity, self._htmlname_escaped)
         self.failUnlessIn('&', re.sub(r'&(amp|lt|gt|quot|apos);', '', self._htmlname_raw))
-        self.failIfIn('&', re.sub(r'&(amp|lt|gt|quot|apos);', '', self._htmlname_escaped))
+        # escaped string is now `weirdly&#x27;namedfile_iframe /.txt`
+        self.failUnlessIn('&', re.sub(r'&(amp|lt|gt|quot|apos);', '', self._htmlname_escaped))
 
     @inlineCallbacks
     def test_GET_root_html(self):
