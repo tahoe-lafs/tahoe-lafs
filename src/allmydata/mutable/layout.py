@@ -297,7 +297,7 @@ class SDMFSlotWriteProxy(object):
                                       salt)
         else:
             checkstring = checkstring_or_seqnum
-        self._testvs = [(0, len(checkstring), "eq", checkstring)]
+        self._testvs = [(0, len(checkstring), b"eq", checkstring)]
 
 
     def get_checkstring(self):
@@ -307,7 +307,7 @@ class SDMFSlotWriteProxy(object):
         """
         if self._testvs:
             return self._testvs[0][3]
-        return ""
+        return b""
 
 
     def put_block(self, data, segnum, salt):
@@ -538,7 +538,7 @@ class SDMFSlotWriteProxy(object):
             # yet, so we assume that we are writing a new share, and set
             # a test vector that will allow a new share to be written.
             self._testvs = []
-            self._testvs.append(tuple([0, 1, "eq", ""]))
+            self._testvs.append(tuple([0, 1, b"eq", b""]))
 
         tw_vectors = {}
         tw_vectors[self.shnum] = (self._testvs, datavs, None)
@@ -1195,7 +1195,7 @@ class MDMFSlotReadProxy(object):
                  storage_server,
                  storage_index,
                  shnum,
-                 data="",
+                 data=b"",
                  data_is_everything=False):
         # Start the initialization process.
         self._storage_server = storage_server
@@ -1239,7 +1239,7 @@ class MDMFSlotReadProxy(object):
         # None if there isn't any cached data, but the way we index the
         # cached data requires a string, so convert None to "".
         if self._data == None:
-            self._data = ""
+            self._data = b""
 
 
     def _maybe_fetch_offsets_and_header(self, force_remote=False):
@@ -1417,7 +1417,7 @@ class MDMFSlotReadProxy(object):
                 # when we fetched the header
                 data = results[self.shnum]
                 if not data:
-                    data = ""
+                    data = b""
                 else:
                     if len(data) != 1:
                         raise BadShareError("got %d vectors, not 1" % len(data))
@@ -1426,7 +1426,7 @@ class MDMFSlotReadProxy(object):
             else:
                 data = results[self.shnum]
                 if not data:
-                    salt = data = ""
+                    salt = data = b""
                 else:
                     salt_and_data = results[self.shnum][0]
                     salt = salt_and_data[:SALT_SIZE]

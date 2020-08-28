@@ -2409,7 +2409,7 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
         # since it will encounter them on the grid. Callers use the
         # is_sdmf method to test this.
         self.write_sdmf_share_to_server(b"si1")
-        mr = MDMFSlotReadProxy(self.storage_server, "si1", 0)
+        mr = MDMFSlotReadProxy(self.storage_server, b"si1", 0)
         d = mr.is_sdmf()
         d.addCallback(lambda issdmf:
             self.failUnless(issdmf))
@@ -2420,7 +2420,7 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
         # The slot read proxy should, naturally, know how to tell us
         # about data in the SDMF format
         self.write_sdmf_share_to_server(b"si1")
-        mr = MDMFSlotReadProxy(self.storage_server, "si1", 0)
+        mr = MDMFSlotReadProxy(self.storage_server, b"si1", 0)
         d = defer.succeed(None)
         d.addCallback(lambda ignored:
             mr.is_sdmf())
@@ -2491,7 +2491,7 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
         # read more segments than that. The reader should know this and
         # complain if we try to do that.
         self.write_sdmf_share_to_server(b"si1")
-        mr = MDMFSlotReadProxy(self.storage_server, "si1", 0)
+        mr = MDMFSlotReadProxy(self.storage_server, b"si1", 0)
         d = defer.succeed(None)
         d.addCallback(lambda ignored:
             mr.is_sdmf())
@@ -2513,7 +2513,7 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
         mdmf_data = self.build_test_mdmf_share()
         self.write_test_share_to_server(b"si1")
         def _make_mr(ignored, length):
-            mr = MDMFSlotReadProxy(self.storage_server, "si1", 0, mdmf_data[:length])
+            mr = MDMFSlotReadProxy(self.storage_server, b"si1", 0, mdmf_data[:length])
             return mr
 
         d = defer.succeed(None)
@@ -2574,7 +2574,7 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
         sdmf_data = self.build_test_sdmf_share()
         self.write_sdmf_share_to_server(b"si1")
         def _make_mr(ignored, length):
-            mr = MDMFSlotReadProxy(self.storage_server, "si1", 0, sdmf_data[:length])
+            mr = MDMFSlotReadProxy(self.storage_server, b"si1", 0, sdmf_data[:length])
             return mr
 
         d = defer.succeed(None)
@@ -2640,7 +2640,7 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
         # unrelated to the actual handling of the content of the file.
         # The reader should behave intelligently in these cases.
         self.write_test_share_to_server(b"si1", empty=True)
-        mr = MDMFSlotReadProxy(self.storage_server, "si1", 0)
+        mr = MDMFSlotReadProxy(self.storage_server, b"si1", 0)
         # We should be able to get the encoding parameters, and they
         # should be correct.
         d = defer.succeed(None)
@@ -2666,7 +2666,7 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
 
     def test_read_with_empty_sdmf_file(self):
         self.write_sdmf_share_to_server(b"si1", empty=True)
-        mr = MDMFSlotReadProxy(self.storage_server, "si1", 0)
+        mr = MDMFSlotReadProxy(self.storage_server, b"si1", 0)
         # We should be able to get the encoding parameters, and they
         # should be correct
         d = defer.succeed(None)
@@ -2692,7 +2692,7 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
 
     def test_verinfo_with_sdmf_file(self):
         self.write_sdmf_share_to_server(b"si1")
-        mr = MDMFSlotReadProxy(self.storage_server, "si1", 0)
+        mr = MDMFSlotReadProxy(self.storage_server, b"si1", 0)
         # We should be able to get the version information.
         d = defer.succeed(None)
         d.addCallback(lambda ignored:
@@ -2733,7 +2733,7 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
 
     def test_verinfo_with_mdmf_file(self):
         self.write_test_share_to_server(b"si1")
-        mr = MDMFSlotReadProxy(self.storage_server, "si1", 0)
+        mr = MDMFSlotReadProxy(self.storage_server, b"si1", 0)
         d = defer.succeed(None)
         d.addCallback(lambda ignored:
             mr.get_verinfo())
@@ -2780,7 +2780,7 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
         data = self.build_test_sdmf_share()
         sdmfr = SDMFSlotWriteProxy(0,
                                    self.storage_server,
-                                   "si1",
+                                   b"si1",
                                    self.secrets,
                                    0, 3, 10, 36, 36)
         # Put the block and salt.
@@ -2823,7 +2823,7 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
         # don't, no write should occur.
         sdmfw = SDMFSlotWriteProxy(0,
                                    self.storage_server,
-                                   "si1",
+                                   b"si1",
                                    self.secrets,
                                    1, 3, 10, 36, 36)
         sdmfw.put_block(self.blockdata, 0, self.salt)
@@ -2845,7 +2845,7 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
         sdmfw.put_verification_key(self.verification_key)
 
         # We shouldn't have a checkstring yet
-        self.failUnlessEqual(sdmfw.get_checkstring(), "")
+        self.failUnlessEqual(sdmfw.get_checkstring(), b"")
 
         d = sdmfw.finish_publishing()
         def _then(results):
