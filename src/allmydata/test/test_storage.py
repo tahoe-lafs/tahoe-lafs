@@ -1451,22 +1451,22 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
         self.ss = self.create("MDMFProxies storage test server")
         self.rref = RemoteBucket(self.ss)
         self.storage_server = _StorageServer(lambda: self.rref)
-        self.secrets = (self.write_enabler("we_secret"),
-                        self.renew_secret("renew_secret"),
-                        self.cancel_secret("cancel_secret"))
-        self.segment = "aaaaaa"
-        self.block = "aa"
-        self.salt = "a" * 16
-        self.block_hash = "a" * 32
-        self.block_hash_tree = [self.block_hash for i in xrange(6)]
+        self.secrets = (self.write_enabler(b"we_secret"),
+                        self.renew_secret(b"renew_secret"),
+                        self.cancel_secret(b"cancel_secret"))
+        self.segment = b"aaaaaa"
+        self.block = b"aa"
+        self.salt = b"a" * 16
+        self.block_hash = b"a" * 32
+        self.block_hash_tree = [self.block_hash for i in range(6)]
         self.share_hash = self.block_hash
-        self.share_hash_chain = dict([(i, self.share_hash) for i in xrange(6)])
-        self.signature = "foobarbaz"
-        self.verification_key = "vvvvvv"
-        self.encprivkey = "private"
+        self.share_hash_chain = dict([(i, self.share_hash) for i in range(6)])
+        self.signature = b"foobarbaz"
+        self.verification_key = b"vvvvvv"
+        self.encprivkey = b"private"
         self.root_hash = self.block_hash
         self.salt_hash = self.root_hash
-        self.salt_hash_tree = [self.salt_hash for i in xrange(6)]
+        self.salt_hash_tree = [self.salt_hash for i in range(6)]
         self.block_hash_tree_s = self.serialize_blockhashes(self.block_hash_tree)
         self.share_hash_chain_s = self.serialize_sharehashes(self.share_hash_chain)
         # blockhashes and salt hashes are serialized in the same way,
@@ -1481,15 +1481,19 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
 
 
     def write_enabler(self, we_tag):
-        return hashutil.tagged_hash("we_blah", we_tag)
+        return hashutil.tagged_hash(b"we_blah", we_tag)
 
 
     def renew_secret(self, tag):
-        return hashutil.tagged_hash("renew_blah", str(tag))
+        if isinstance(tag, int):
+            tag = b"%d" % tag
+        return hashutil.tagged_hash(b"renew_blah", tag)
 
 
     def cancel_secret(self, tag):
-        return hashutil.tagged_hash("cancel_blah", str(tag))
+        if isinstance(tag, int):
+            tag = b"%d" % tag
+        return hashutil.tagged_hash(b"cancel_blah", tag)
 
 
     def workdir(self, name):
@@ -1531,14 +1535,14 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
                                 6,
                                 36)
         # Now we'll build the offsets.
-        sharedata = ""
+        sharedata = b""
         if not tail_segment and not empty:
-            for i in xrange(6):
+            for i in range(6):
                 sharedata += self.salt + self.block
         elif tail_segment:
-            for i in xrange(5):
+            for i in range(5):
                 sharedata += self.salt + self.block
-            sharedata += self.salt + "a"
+            sharedata += self.salt + b"a"
 
         # The encrypted private key comes after the shares + salts
         offset_size = struct.calcsize(MDMFOFFSETS)
@@ -1592,7 +1596,7 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
         # and the verification key
         data += self.verification_key
         # Then we'll add in gibberish until we get to the right point.
-        nulls = b"".join([b" " for i in xrange(len(data), share_data_offset)])
+        nulls = b"".join([b" " for i in range(len(data), share_data_offset)])
         data += nulls
 
         # Then the share data
@@ -1626,11 +1630,11 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
 
     def build_test_sdmf_share(self, empty=False):
         if empty:
-            sharedata = ""
+            sharedata = b""
         else:
             sharedata = self.segment * 6
         self.sharedata = sharedata
-        blocksize = len(sharedata) / 3
+        blocksize = len(sharedata) // 3
         block = sharedata[:blocksize]
         self.blockdata = block
         prefix = struct.pack(">BQ32s16s BBQQ",
@@ -1691,7 +1695,7 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
 
 
     def test_read(self):
-        self.write_test_share_to_server("si1")
+        self.write_test_share_to_server(b"si1")
         mr = MDMFSlotReadProxy(self.storage_server, b"si1", 0)
         # Check that every method equals what we expect it to.
         d = defer.succeed(None)
@@ -1700,7 +1704,7 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
             self.failUnlessEqual(block, self.block)
             self.failUnlessEqual(salt, self.salt)
 
-        for i in xrange(6):
+        for i in range(6):
             d.addCallback(lambda ignored, i=i:
                 mr.get_block_and_salt(i))
             d.addCallback(_check_block_and_salt)
@@ -1763,7 +1767,7 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
 
 
     def test_read_with_different_tail_segment_size(self):
-        self.write_test_share_to_server("si1", tail_segment=True)
+        self.write_test_share_to_server(b"si1", tail_segment=True)
         mr = MDMFSlotReadProxy(self.storage_server, b"si1", 0)
         d = mr.get_block_and_salt(5)
         def _check_tail_segment(results):
@@ -1775,7 +1779,7 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
 
 
     def test_get_block_with_invalid_segnum(self):
-        self.write_test_share_to_server("si1")
+        self.write_test_share_to_server(b"si1")
         mr = MDMFSlotReadProxy(self.storage_server, b"si1", 0)
         d = defer.succeed(None)
         d.addCallback(lambda ignored:
@@ -1786,7 +1790,7 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
 
 
     def test_get_encoding_parameters_first(self):
-        self.write_test_share_to_server("si1")
+        self.write_test_share_to_server(b"si1")
         mr = MDMFSlotReadProxy(self.storage_server, b"si1", 0)
         d = mr.get_encoding_parameters()
         def _check_encoding_parameters(args):
@@ -1800,7 +1804,7 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
 
 
     def test_get_seqnum_first(self):
-        self.write_test_share_to_server("si1")
+        self.write_test_share_to_server(b"si1")
         mr = MDMFSlotReadProxy(self.storage_server, b"si1", 0)
         d = mr.get_seqnum()
         d.addCallback(lambda seqnum:
@@ -1809,7 +1813,7 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
 
 
     def test_get_root_hash_first(self):
-        self.write_test_share_to_server("si1")
+        self.write_test_share_to_server(b"si1")
         mr = MDMFSlotReadProxy(self.storage_server, b"si1", 0)
         d = mr.get_root_hash()
         d.addCallback(lambda root_hash:
@@ -1818,7 +1822,7 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
 
 
     def test_get_checkstring_first(self):
-        self.write_test_share_to_server("si1")
+        self.write_test_share_to_server(b"si1")
         mr = MDMFSlotReadProxy(self.storage_server, b"si1", 0)
         d = mr.get_checkstring()
         d.addCallback(lambda checkstring:
@@ -1832,9 +1836,9 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
         # the test vectors failed, this read vector can help us to
         # diagnose the problem. This test ensures that the read vector
         # is working appropriately.
-        mw = self._make_new_mw("si1", 0)
+        mw = self._make_new_mw(b"si1", 0)
 
-        for i in xrange(6):
+        for i in range(6):
             mw.put_block(self.block, i, self.salt)
         mw.put_encprivkey(self.encprivkey)
         mw.put_blockhashes(self.block_hash_tree)
@@ -1849,7 +1853,7 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
             self.failUnless(result)
             self.failIf(readv)
             self.old_checkstring = mw.get_checkstring()
-            mw.set_checkstring("")
+            mw.set_checkstring(b"")
         d.addCallback(_then)
         d.addCallback(lambda ignored:
             mw.finish_publishing())
@@ -1866,9 +1870,9 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
 
 
     def test_private_key_after_share_hash_chain(self):
-        mw = self._make_new_mw("si1", 0)
+        mw = self._make_new_mw(b"si1", 0)
         d = defer.succeed(None)
-        for i in xrange(6):
+        for i in range(6):
             d.addCallback(lambda ignored, i=i:
                 mw.put_block(self.block, i, self.salt))
         d.addCallback(lambda ignored:
@@ -1885,10 +1889,10 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
 
 
     def test_signature_after_verification_key(self):
-        mw = self._make_new_mw("si1", 0)
+        mw = self._make_new_mw(b"si1", 0)
         d = defer.succeed(None)
         # Put everything up to and including the verification key.
-        for i in xrange(6):
+        for i in range(6):
             d.addCallback(lambda ignored, i=i:
                 mw.put_block(self.block, i, self.salt))
         d.addCallback(lambda ignored:
@@ -1915,8 +1919,8 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
         # Make two mutable writers, both pointing to the same storage
         # server, both at the same storage index, and try writing to the
         # same share.
-        mw1 = self._make_new_mw("si1", 0)
-        mw2 = self._make_new_mw("si1", 0)
+        mw1 = self._make_new_mw(b"si1", 0)
+        mw2 = self._make_new_mw(b"si1", 0)
 
         def _check_success(results):
             result, readvs = results
@@ -1927,7 +1931,7 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
             self.failIf(result)
 
         def _write_share(mw):
-            for i in xrange(6):
+            for i in range(6):
                 mw.put_block(self.block, i, self.salt)
             mw.put_encprivkey(self.encprivkey)
             mw.put_blockhashes(self.block_hash_tree)
@@ -1947,9 +1951,9 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
     def test_invalid_salt_size(self):
         # Salts need to be 16 bytes in size. Writes that attempt to
         # write more or less than this should be rejected.
-        mw = self._make_new_mw("si1", 0)
-        invalid_salt = "a" * 17 # 17 bytes
-        another_invalid_salt = "b" * 15 # 15 bytes
+        mw = self._make_new_mw(b"si1", 0)
+        invalid_salt = b"a" * 17 # 17 bytes
+        another_invalid_salt = b"b" * 15 # 15 bytes
         d = defer.succeed(None)
         d.addCallback(lambda ignored:
             self.shouldFail(LayoutInvalid, "salt too big",
@@ -1977,9 +1981,9 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
             res, d = results
             self.failUnless(results)
 
-        mw = self._make_new_mw("si1", 0)
-        mw.set_checkstring("this is a lie")
-        for i in xrange(6):
+        mw = self._make_new_mw(b"si1", 0)
+        mw.set_checkstring(b"this is a lie")
+        for i in range(6):
             mw.put_block(self.block, i, self.salt)
         mw.put_encprivkey(self.encprivkey)
         mw.put_blockhashes(self.block_hash_tree)
@@ -1990,7 +1994,7 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
         d = mw.finish_publishing()
         d.addCallback(_check_failure)
         d.addCallback(lambda ignored:
-            mw.set_checkstring(""))
+            mw.set_checkstring(b""))
         d.addCallback(lambda ignored:
             mw.finish_publishing())
         d.addCallback(_check_success)
@@ -2010,7 +2014,7 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
     def test_write(self):
         # This translates to a file with 6 6-byte segments, and with 2-byte
         # blocks.
-        mw = self._make_new_mw("si1", 0)
+        mw = self._make_new_mw(b"si1", 0)
         # Test writing some blocks.
         read = self.ss.remote_slot_readv
         expected_private_key_offset = struct.calcsize(MDMFHEADER)
@@ -2021,7 +2025,7 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
                                     SHARE_HASH_CHAIN_SIZE
         written_block_size = 2 + len(self.salt)
         written_block = self.block + self.salt
-        for i in xrange(6):
+        for i in range(6):
             mw.put_block(self.block, i, self.salt)
 
         mw.put_encprivkey(self.encprivkey)
@@ -2035,35 +2039,35 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
             self.failUnlessEqual(len(results), 2)
             result, ign = results
             self.failUnless(result, "publish failed")
-            for i in xrange(6):
-                self.failUnlessEqual(read("si1", [0], [(expected_sharedata_offset + (i * written_block_size), written_block_size)]),
+            for i in range(6):
+                self.failUnlessEqual(read(b"si1", [0], [(expected_sharedata_offset + (i * written_block_size), written_block_size)]),
                                 {0: [written_block]})
 
             self.failUnlessEqual(len(self.encprivkey), 7)
-            self.failUnlessEqual(read("si1", [0], [(expected_private_key_offset, 7)]),
+            self.failUnlessEqual(read(b"si1", [0], [(expected_private_key_offset, 7)]),
                                  {0: [self.encprivkey]})
 
             expected_block_hash_offset = expected_sharedata_offset + \
                         (6 * written_block_size)
             self.failUnlessEqual(len(self.block_hash_tree_s), 32 * 6)
-            self.failUnlessEqual(read("si1", [0], [(expected_block_hash_offset, 32 * 6)]),
+            self.failUnlessEqual(read(b"si1", [0], [(expected_block_hash_offset, 32 * 6)]),
                                  {0: [self.block_hash_tree_s]})
 
             expected_share_hash_offset = expected_private_key_offset + len(self.encprivkey)
-            self.failUnlessEqual(read("si1", [0],[(expected_share_hash_offset, (32 + 2) * 6)]),
+            self.failUnlessEqual(read(b"si1", [0],[(expected_share_hash_offset, (32 + 2) * 6)]),
                                  {0: [self.share_hash_chain_s]})
 
-            self.failUnlessEqual(read("si1", [0], [(9, 32)]),
+            self.failUnlessEqual(read(b"si1", [0], [(9, 32)]),
                                  {0: [self.root_hash]})
             expected_signature_offset = expected_share_hash_offset + \
                 len(self.share_hash_chain_s)
             self.failUnlessEqual(len(self.signature), 9)
-            self.failUnlessEqual(read("si1", [0], [(expected_signature_offset, 9)]),
+            self.failUnlessEqual(read(b"si1", [0], [(expected_signature_offset, 9)]),
                                  {0: [self.signature]})
 
             expected_verification_key_offset = expected_signature_offset + len(self.signature)
             self.failUnlessEqual(len(self.verification_key), 6)
-            self.failUnlessEqual(read("si1", [0], [(expected_verification_key_offset, 6)]),
+            self.failUnlessEqual(read(b"si1", [0], [(expected_verification_key_offset, 6)]),
                                  {0: [self.verification_key]})
 
             signable = mw.get_signable()
@@ -2082,49 +2086,49 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
 
             # Check the version number to make sure that it is correct.
             expected_version_number = struct.pack(">B", 1)
-            self.failUnlessEqual(read("si1", [0], [(0, 1)]),
+            self.failUnlessEqual(read(b"si1", [0], [(0, 1)]),
                                  {0: [expected_version_number]})
             # Check the sequence number to make sure that it is correct
             expected_sequence_number = struct.pack(">Q", 0)
-            self.failUnlessEqual(read("si1", [0], [(1, 8)]),
+            self.failUnlessEqual(read(b"si1", [0], [(1, 8)]),
                                  {0: [expected_sequence_number]})
             # Check that the encoding parameters (k, N, segement size, data
             # length) are what they should be. These are  3, 10, 6, 36
             expected_k = struct.pack(">B", 3)
-            self.failUnlessEqual(read("si1", [0], [(41, 1)]),
+            self.failUnlessEqual(read(b"si1", [0], [(41, 1)]),
                                  {0: [expected_k]})
             expected_n = struct.pack(">B", 10)
-            self.failUnlessEqual(read("si1", [0], [(42, 1)]),
+            self.failUnlessEqual(read(b"si1", [0], [(42, 1)]),
                                  {0: [expected_n]})
             expected_segment_size = struct.pack(">Q", 6)
-            self.failUnlessEqual(read("si1", [0], [(43, 8)]),
+            self.failUnlessEqual(read(b"si1", [0], [(43, 8)]),
                                  {0: [expected_segment_size]})
             expected_data_length = struct.pack(">Q", 36)
-            self.failUnlessEqual(read("si1", [0], [(51, 8)]),
+            self.failUnlessEqual(read(b"si1", [0], [(51, 8)]),
                                  {0: [expected_data_length]})
             expected_offset = struct.pack(">Q", expected_private_key_offset)
-            self.failUnlessEqual(read("si1", [0], [(59, 8)]),
+            self.failUnlessEqual(read(b"si1", [0], [(59, 8)]),
                                  {0: [expected_offset]})
             expected_offset = struct.pack(">Q", expected_share_hash_offset)
-            self.failUnlessEqual(read("si1", [0], [(67, 8)]),
+            self.failUnlessEqual(read(b"si1", [0], [(67, 8)]),
                                  {0: [expected_offset]})
             expected_offset = struct.pack(">Q", expected_signature_offset)
-            self.failUnlessEqual(read("si1", [0], [(75, 8)]),
+            self.failUnlessEqual(read(b"si1", [0], [(75, 8)]),
                                  {0: [expected_offset]})
             expected_offset = struct.pack(">Q", expected_verification_key_offset)
-            self.failUnlessEqual(read("si1", [0], [(83, 8)]),
+            self.failUnlessEqual(read(b"si1", [0], [(83, 8)]),
                                  {0: [expected_offset]})
             expected_offset = struct.pack(">Q", expected_verification_key_offset + len(self.verification_key))
-            self.failUnlessEqual(read("si1", [0], [(91, 8)]),
+            self.failUnlessEqual(read(b"si1", [0], [(91, 8)]),
                                  {0: [expected_offset]})
             expected_offset = struct.pack(">Q", expected_sharedata_offset)
-            self.failUnlessEqual(read("si1", [0], [(99, 8)]),
+            self.failUnlessEqual(read(b"si1", [0], [(99, 8)]),
                                  {0: [expected_offset]})
             expected_offset = struct.pack(">Q", expected_block_hash_offset)
-            self.failUnlessEqual(read("si1", [0], [(107, 8)]),
+            self.failUnlessEqual(read(b"si1", [0], [(107, 8)]),
                                  {0: [expected_offset]})
             expected_offset = struct.pack(">Q", expected_eof_offset)
-            self.failUnlessEqual(read("si1", [0], [(115, 8)]),
+            self.failUnlessEqual(read(b"si1", [0], [(115, 8)]),
                                  {0: [expected_offset]})
         d.addCallback(_check_publish)
         return d
@@ -2140,13 +2144,13 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
 
 
     def test_write_rejected_with_too_many_blocks(self):
-        mw = self._make_new_mw("si0", 0)
+        mw = self._make_new_mw(b"si0", 0)
 
         # Try writing too many blocks. We should not be able to write
         # more than 6
         # blocks into each share.
         d = defer.succeed(None)
-        for i in xrange(6):
+        for i in range(6):
             d.addCallback(lambda ignored, i=i:
                 mw.put_block(self.block, i, self.salt))
         d.addCallback(lambda ignored:
@@ -2159,8 +2163,8 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
     def test_write_rejected_with_invalid_salt(self):
         # Try writing an invalid salt. Salts are 16 bytes -- any more or
         # less should cause an error.
-        mw = self._make_new_mw("si1", 0)
-        bad_salt = "a" * 17 # 17 bytes
+        mw = self._make_new_mw(b"si1", 0)
+        bad_salt = b"a" * 17 # 17 bytes
         d = defer.succeed(None)
         d.addCallback(lambda ignored:
             self.shouldFail(LayoutInvalid, "test_invalid_salt",
@@ -2171,15 +2175,15 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
     def test_write_rejected_with_invalid_root_hash(self):
         # Try writing an invalid root hash. This should be SHA256d, and
         # 32 bytes long as a result.
-        mw = self._make_new_mw("si2", 0)
+        mw = self._make_new_mw(b"si2", 0)
         # 17 bytes != 32 bytes
-        invalid_root_hash = "a" * 17
+        invalid_root_hash = b"a" * 17
         d = defer.succeed(None)
         # Before this test can work, we need to put some blocks + salts,
         # a block hash tree, and a share hash tree. Otherwise, we'll see
         # failures that match what we are looking for, but are caused by
         # the constraints imposed on operation ordering.
-        for i in xrange(6):
+        for i in range(6):
             d.addCallback(lambda ignored, i=i:
                 mw.put_block(self.block, i, self.salt))
         d.addCallback(lambda ignored:
@@ -2199,8 +2203,8 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
         # _make_new_mw is 2bytes -- any more or any less than this
         # should be cause for failure, unless it is the tail segment, in
         # which case it may not be failure.
-        invalid_block = "a"
-        mw = self._make_new_mw("si3", 0, 33) # implies a tail segment with
+        invalid_block = b"a"
+        mw = self._make_new_mw(b"si3", 0, 33) # implies a tail segment with
                                              # one byte blocks
         # 1 bytes != 2 bytes
         d = defer.succeed(None)
@@ -2214,7 +2218,7 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
             self.shouldFail(LayoutInvalid, "test blocksize too large",
                             None,
                             mw.put_block, invalid_block, 0, self.salt))
-        for i in xrange(5):
+        for i in range(5):
             d.addCallback(lambda ignored, i=i:
                 mw.put_block(self.block, i, self.salt))
         # Try to put an invalid tail segment
@@ -2222,7 +2226,7 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
             self.shouldFail(LayoutInvalid, "test invalid tail segment",
                             None,
                             mw.put_block, self.block, 5, self.salt))
-        valid_block = "a"
+        valid_block = b"a"
         d.addCallback(lambda ignored:
             mw.put_block(valid_block, 5, self.salt))
         return d
@@ -2247,10 +2251,10 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
         #  - share hashes and block hashes before root hash
         #  - root hash before signature
         #  - signature before verification key
-        mw0 = self._make_new_mw("si0", 0)
+        mw0 = self._make_new_mw(b"si0", 0)
         # Write some shares
         d = defer.succeed(None)
-        for i in xrange(6):
+        for i in range(6):
             d.addCallback(lambda ignored, i=i:
                 mw0.put_block(self.block, i, self.salt))
 
@@ -2315,11 +2319,11 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
 
 
     def test_end_to_end(self):
-        mw = self._make_new_mw("si1", 0)
+        mw = self._make_new_mw(b"si1", 0)
         # Write a share using the mutable writer, and make sure that the
         # reader knows how to read everything back to us.
         d = defer.succeed(None)
-        for i in xrange(6):
+        for i in range(6):
             d.addCallback(lambda ignored, i=i:
                 mw.put_block(self.block, i, self.salt))
         d.addCallback(lambda ignored:
@@ -2337,13 +2341,13 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
         d.addCallback(lambda ignored:
             mw.finish_publishing())
 
-        mr = MDMFSlotReadProxy(self.storage_server, "si1", 0)
+        mr = MDMFSlotReadProxy(self.storage_server, b"si1", 0)
         def _check_block_and_salt(block_and_salt):
             (block, salt) = block_and_salt
             self.failUnlessEqual(block, self.block)
             self.failUnlessEqual(salt, self.salt)
 
-        for i in xrange(6):
+        for i in range(6):
             d.addCallback(lambda ignored, i=i:
                 mr.get_block_and_salt(i))
             d.addCallback(_check_block_and_salt)
@@ -2404,7 +2408,7 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
         # The MDMFSlotReadProxy should also know how to read SDMF files,
         # since it will encounter them on the grid. Callers use the
         # is_sdmf method to test this.
-        self.write_sdmf_share_to_server("si1")
+        self.write_sdmf_share_to_server(b"si1")
         mr = MDMFSlotReadProxy(self.storage_server, "si1", 0)
         d = mr.is_sdmf()
         d.addCallback(lambda issdmf:
@@ -2415,7 +2419,7 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
     def test_reads_sdmf(self):
         # The slot read proxy should, naturally, know how to tell us
         # about data in the SDMF format
-        self.write_sdmf_share_to_server("si1")
+        self.write_sdmf_share_to_server(b"si1")
         mr = MDMFSlotReadProxy(self.storage_server, "si1", 0)
         d = defer.succeed(None)
         d.addCallback(lambda ignored:
@@ -2486,7 +2490,7 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
         # SDMF shares have only one segment, so it doesn't make sense to
         # read more segments than that. The reader should know this and
         # complain if we try to do that.
-        self.write_sdmf_share_to_server("si1")
+        self.write_sdmf_share_to_server(b"si1")
         mr = MDMFSlotReadProxy(self.storage_server, "si1", 0)
         d = defer.succeed(None)
         d.addCallback(lambda ignored:
@@ -2507,7 +2511,7 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
         # finding out which shares are on the remote peer so that it
         # doesn't waste round trips.
         mdmf_data = self.build_test_mdmf_share()
-        self.write_test_share_to_server("si1")
+        self.write_test_share_to_server(b"si1")
         def _make_mr(ignored, length):
             mr = MDMFSlotReadProxy(self.storage_server, "si1", 0, mdmf_data[:length])
             return mr
@@ -2568,7 +2572,7 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
 
     def test_read_with_prefetched_sdmf_data(self):
         sdmf_data = self.build_test_sdmf_share()
-        self.write_sdmf_share_to_server("si1")
+        self.write_sdmf_share_to_server(b"si1")
         def _make_mr(ignored, length):
             mr = MDMFSlotReadProxy(self.storage_server, "si1", 0, sdmf_data[:length])
             return mr
@@ -2635,7 +2639,7 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
         # Some tests upload a file with no contents to test things
         # unrelated to the actual handling of the content of the file.
         # The reader should behave intelligently in these cases.
-        self.write_test_share_to_server("si1", empty=True)
+        self.write_test_share_to_server(b"si1", empty=True)
         mr = MDMFSlotReadProxy(self.storage_server, "si1", 0)
         # We should be able to get the encoding parameters, and they
         # should be correct.
@@ -2661,7 +2665,7 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
 
 
     def test_read_with_empty_sdmf_file(self):
-        self.write_sdmf_share_to_server("si1", empty=True)
+        self.write_sdmf_share_to_server(b"si1", empty=True)
         mr = MDMFSlotReadProxy(self.storage_server, "si1", 0)
         # We should be able to get the encoding parameters, and they
         # should be correct
@@ -2687,7 +2691,7 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
 
 
     def test_verinfo_with_sdmf_file(self):
-        self.write_sdmf_share_to_server("si1")
+        self.write_sdmf_share_to_server(b"si1")
         mr = MDMFSlotReadProxy(self.storage_server, "si1", 0)
         # We should be able to get the version information.
         d = defer.succeed(None)
@@ -2728,7 +2732,7 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
 
 
     def test_verinfo_with_mdmf_file(self):
-        self.write_test_share_to_server("si1")
+        self.write_test_share_to_server(b"si1")
         mr = MDMFSlotReadProxy(self.storage_server, "si1", 0)
         d = defer.succeed(None)
         d.addCallback(lambda ignored:
@@ -2804,7 +2808,7 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
         def _then(ignored):
             self.failUnlessEqual(self.rref.write_count, 1)
             read = self.ss.remote_slot_readv
-            self.failUnlessEqual(read("si1", [0], [(0, len(data))]),
+            self.failUnlessEqual(read(b"si1", [0], [(0, len(data))]),
                                  {0: [data]})
         d.addCallback(_then)
         return d
@@ -2812,7 +2816,7 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
 
     def test_sdmf_writer_preexisting_share(self):
         data = self.build_test_sdmf_share()
-        self.write_sdmf_share_to_server("si1")
+        self.write_sdmf_share_to_server(b"si1")
 
         # Now there is a share on the storage server. To successfully
         # write, we need to set the checkstring correctly. When we
@@ -2861,9 +2865,9 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
         def _then_again(results):
             self.failUnless(results[0])
             read = self.ss.remote_slot_readv
-            self.failUnlessEqual(read("si1", [0], [(1, 8)]),
+            self.failUnlessEqual(read(b"si1", [0], [(1, 8)]),
                                  {0: [struct.pack(">Q", 1)]})
-            self.failUnlessEqual(read("si1", [0], [(9, len(data) - 9)]),
+            self.failUnlessEqual(read(b"si1", [0], [(9, len(data) - 9)]),
                                  {0: [data[9:]]})
         d.addCallback(_then_again)
         return d
