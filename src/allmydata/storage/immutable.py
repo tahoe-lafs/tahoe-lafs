@@ -85,7 +85,7 @@ class ShareFile(object):
         seekpos = self._data_offset+offset
         actuallength = max(0, min(length, self._lease_offset-seekpos))
         if actuallength == 0:
-            return ""
+            return b""
         with open(self.home, 'rb') as f:
             f.seek(seekpos)
             return f.read(actuallength)

@@ -1,4 +1,4 @@
-from future.utils import native_str
+from future.utils import native_str, PY3
 
 import time
 import os.path
@@ -937,72 +937,72 @@ class MutableServer(unittest.TestCase):
 
     def test_allocate(self):
         ss = self.create("test_allocate")
-        self.allocate(ss, "si1", "we1", next(self._lease_secret),
+        self.allocate(ss, b"si1", b"we1", next(self._lease_secret),
                       set([0,1,2]), 100)
 
         read = ss.remote_slot_readv
-        self.failUnlessEqual(read("si1", [0], [(0, 10)]),
-                             {0: [""]})
-        self.failUnlessEqual(read("si1", [], [(0, 10)]),
-                             {0: [""], 1: [""], 2: [""]})
-        self.failUnlessEqual(read("si1", [0], [(100, 10)]),
-                             {0: [""]})
+        self.failUnlessEqual(read(b"si1", [0], [(0, 10)]),
+                             {0: [b""]})
+        self.failUnlessEqual(read(b"si1", [], [(0, 10)]),
+                             {0: [b""], 1: [b""], 2: [b""]})
+        self.failUnlessEqual(read(b"si1", [0], [(100, 10)]),
+                             {0: [b""]})
 
         # try writing to one
-        secrets = ( self.write_enabler("we1"),
-                    self.renew_secret("we1"),
-                    self.cancel_secret("we1") )
-        data = "".join([ ("%d" % i) * 10 for i in range(10) ])
+        secrets = ( self.write_enabler(b"we1"),
+                    self.renew_secret(b"we1"),
+                    self.cancel_secret(b"we1") )
+        data = b"".join([ (b"%d" % i) * 10 for i in range(10) ])
         write = ss.remote_slot_testv_and_readv_and_writev
-        answer = write("si1", secrets,
+        answer = write(b"si1", secrets,
                        {0: ([], [(0,data)], None)},
                        [])
         self.failUnlessEqual(answer, (True, {0:[],1:[],2:[]}) )
 
-        self.failUnlessEqual(read("si1", [0], [(0,20)]),
-                             {0: ["00000000001111111111"]})
-        self.failUnlessEqual(read("si1", [0], [(95,10)]),
-                             {0: ["99999"]})
+        self.failUnlessEqual(read(b"si1", [0], [(0,20)]),
+                             {0: [b"00000000001111111111"]})
+        self.failUnlessEqual(read(b"si1", [0], [(95,10)]),
+                             {0: [b"99999"]})
         #self.failUnlessEqual(s0.remote_get_length(), 100)
 
-        bad_secrets = ("bad write enabler", secrets[1], secrets[2])
+        bad_secrets = (b"bad write enabler", secrets[1], secrets[2])
         f = self.failUnlessRaises(BadWriteEnablerError,
-                                  write, "si1", bad_secrets,
+                                  write, b"si1", bad_secrets,
                                   {}, [])
-        self.failUnlessIn("The write enabler was recorded by nodeid 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'.", f)
+        self.failUnlessIn("The write enabler was recorded by nodeid 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'.", str(f))
 
         # this testv should fail
-        answer = write("si1", secrets,
-                       {0: ([(0, 12, "eq", "444444444444"),
-                             (20, 5, "eq", "22222"),
+        answer = write(b"si1", secrets,
+                       {0: ([(0, 12, b"eq", b"444444444444"),
+                             (20, 5, b"eq", b"22222"),
                              ],
-                            [(0, "x"*100)],
+                            [(0, b"x"*100)],
                             None),
                         },
                        [(0,12), (20,5)],
                        )
         self.failUnlessEqual(answer, (False,
-                                      {0: ["000000000011", "22222"],
-                                       1: ["", ""],
-                                       2: ["", ""],
+                                      {0: [b"000000000011", b"22222"],
+                                       1: [b"", b""],
+                                       2: [b"", b""],
                                        }))
-        self.failUnlessEqual(read("si1", [0], [(0,100)]), {0: [data]})
+        self.failUnlessEqual(read(b"si1", [0], [(0,100)]), {0: [data]})
 
         # as should this one
-        answer = write("si1", secrets,
-                       {0: ([(10, 5, "lt", "11111"),
+        answer = write(b"si1", secrets,
+                       {0: ([(10, 5, b"lt", b"11111"),
                              ],
-                            [(0, "x"*100)],
+                            [(0, b"x"*100)],
                             None),
                         },
                        [(10,5)],
                        )
         self.failUnlessEqual(answer, (False,
-                                      {0: ["11111"],
-                                       1: [""],
-                                       2: [""]},
+                                      {0: [b"11111"],
+                                       1: [b""],
+                                       2: [b""]},
                                       ))
-        self.failUnlessEqual(read("si1", [0], [(0,100)]), {0: [data]})
+        self.failUnlessEqual(read(b"si1", [0], [(0,100)]), {0: [data]})
 
 
     def test_operators(self):
@@ -1010,201 +1010,201 @@ class MutableServer(unittest.TestCase):
         # test both fail+pass, reset data after each one.
         ss = self.create("test_operators")
 
-        secrets = ( self.write_enabler("we1"),
-                    self.renew_secret("we1"),
-                    self.cancel_secret("we1") )
-        data = "".join([ ("%d" % i) * 10 for i in range(10) ])
+        secrets = ( self.write_enabler(b"we1"),
+                    self.renew_secret(b"we1"),
+                    self.cancel_secret(b"we1") )
+        data = b"".join([ (b"%d" % i) * 10 for i in range(10) ])
         write = ss.remote_slot_testv_and_readv_and_writev
         read = ss.remote_slot_readv
 
         def reset():
-            write("si1", secrets,
+            write(b"si1", secrets,
                   {0: ([], [(0,data)], None)},
                   [])
 
         reset()
 
         #  lt
-        answer = write("si1", secrets, {0: ([(10, 5, "lt", "11110"),
+        answer = write(b"si1", secrets, {0: ([(10, 5, b"lt", b"11110"),
                                              ],
-                                            [(0, "x"*100)],
+                                            [(0, b"x"*100)],
                                             None,
                                             )}, [(10,5)])
-        self.failUnlessEqual(answer, (False, {0: ["11111"]}))
-        self.failUnlessEqual(read("si1", [0], [(0,100)]), {0: [data]})
-        self.failUnlessEqual(read("si1", [], [(0,100)]), {0: [data]})
+        self.failUnlessEqual(answer, (False, {0: [b"11111"]}))
+        self.failUnlessEqual(read(b"si1", [0], [(0,100)]), {0: [data]})
+        self.failUnlessEqual(read(b"si1", [], [(0,100)]), {0: [data]})
         reset()
 
-        answer = write("si1", secrets, {0: ([(10, 5, "lt", "11111"),
+        answer = write(b"si1", secrets, {0: ([(10, 5, b"lt", b"11111"),
                                              ],
-                                            [(0, "x"*100)],
+                                            [(0, b"x"*100)],
                                             None,
                                             )}, [(10,5)])
-        self.failUnlessEqual(answer, (False, {0: ["11111"]}))
-        self.failUnlessEqual(read("si1", [0], [(0,100)]), {0: [data]})
+        self.failUnlessEqual(answer, (False, {0: [b"11111"]}))
+        self.failUnlessEqual(read(b"si1", [0], [(0,100)]), {0: [data]})
         reset()
 
-        answer = write("si1", secrets, {0: ([(10, 5, "lt", "11112"),
+        answer = write(b"si1", secrets, {0: ([(10, 5, b"lt", b"11112"),
                                              ],
-                                            [(0, "y"*100)],
+                                            [(0, b"y"*100)],
                                             None,
                                             )}, [(10,5)])
-        self.failUnlessEqual(answer, (True, {0: ["11111"]}))
-        self.failUnlessEqual(read("si1", [0], [(0,100)]), {0: ["y"*100]})
+        self.failUnlessEqual(answer, (True, {0: [b"11111"]}))
+        self.failUnlessEqual(read(b"si1", [0], [(0,100)]), {0: [b"y"*100]})
         reset()
 
         #  le
-        answer = write("si1", secrets, {0: ([(10, 5, "le", "11110"),
+        answer = write(b"si1", secrets, {0: ([(10, 5, b"le", b"11110"),
                                              ],
-                                            [(0, "x"*100)],
+                                            [(0, b"x"*100)],
                                             None,
                                             )}, [(10,5)])
-        self.failUnlessEqual(answer, (False, {0: ["11111"]}))
-        self.failUnlessEqual(read("si1", [0], [(0,100)]), {0: [data]})
+        self.failUnlessEqual(answer, (False, {0: [b"11111"]}))
+        self.failUnlessEqual(read(b"si1", [0], [(0,100)]), {0: [data]})
         reset()
 
-        answer = write("si1", secrets, {0: ([(10, 5, "le", "11111"),
+        answer = write(b"si1", secrets, {0: ([(10, 5, b"le", b"11111"),
                                              ],
-                                            [(0, "y"*100)],
+                                            [(0, b"y"*100)],
                                             None,
                                             )}, [(10,5)])
-        self.failUnlessEqual(answer, (True, {0: ["11111"]}))
-        self.failUnlessEqual(read("si1", [0], [(0,100)]), {0: ["y"*100]})
+        self.failUnlessEqual(answer, (True, {0: [b"11111"]}))
+        self.failUnlessEqual(read(b"si1", [0], [(0,100)]), {0: [b"y"*100]})
         reset()
 
-        answer = write("si1", secrets, {0: ([(10, 5, "le", "11112"),
+        answer = write(b"si1", secrets, {0: ([(10, 5, b"le", b"11112"),
                                              ],
-                                            [(0, "y"*100)],
+                                            [(0, b"y"*100)],
                                             None,
                                             )}, [(10,5)])
-        self.failUnlessEqual(answer, (True, {0: ["11111"]}))
-        self.failUnlessEqual(read("si1", [0], [(0,100)]), {0: ["y"*100]})
+        self.failUnlessEqual(answer, (True, {0: [b"11111"]}))
+        self.failUnlessEqual(read(b"si1", [0], [(0,100)]), {0: [b"y"*100]})
         reset()
 
         #  eq
-        answer = write("si1", secrets, {0: ([(10, 5, "eq", "11112"),
+        answer = write(b"si1", secrets, {0: ([(10, 5, b"eq", b"11112"),
                                              ],
-                                            [(0, "x"*100)],
+                                            [(0, b"x"*100)],
                                             None,
                                             )}, [(10,5)])
-        self.failUnlessEqual(answer, (False, {0: ["11111"]}))
-        self.failUnlessEqual(read("si1", [0], [(0,100)]), {0: [data]})
+        self.failUnlessEqual(answer, (False, {0: [b"11111"]}))
+        self.failUnlessEqual(read(b"si1", [0], [(0,100)]), {0: [data]})
         reset()
 
-        answer = write("si1", secrets, {0: ([(10, 5, "eq", "11111"),
+        answer = write(b"si1", secrets, {0: ([(10, 5, b"eq", b"11111"),
                                              ],
-                                            [(0, "y"*100)],
+                                            [(0, b"y"*100)],
                                             None,
                                             )}, [(10,5)])
-        self.failUnlessEqual(answer, (True, {0: ["11111"]}))
-        self.failUnlessEqual(read("si1", [0], [(0,100)]), {0: ["y"*100]})
+        self.failUnlessEqual(answer, (True, {0: [b"11111"]}))
+        self.failUnlessEqual(read(b"si1", [0], [(0,100)]), {0: [b"y"*100]})
         reset()
 
         #  ne
-        answer = write("si1", secrets, {0: ([(10, 5, "ne", "11111"),
+        answer = write(b"si1", secrets, {0: ([(10, 5, b"ne", b"11111"),
                                              ],
-                                            [(0, "x"*100)],
+                                            [(0, b"x"*100)],
                                             None,
                                             )}, [(10,5)])
-        self.failUnlessEqual(answer, (False, {0: ["11111"]}))
-        self.failUnlessEqual(read("si1", [0], [(0,100)]), {0: [data]})
+        self.failUnlessEqual(answer, (False, {0: [b"11111"]}))
+        self.failUnlessEqual(read(b"si1", [0], [(0,100)]), {0: [data]})
         reset()
 
-        answer = write("si1", secrets, {0: ([(10, 5, "ne", "11112"),
+        answer = write(b"si1", secrets, {0: ([(10, 5, b"ne", b"11112"),
                                              ],
-                                            [(0, "y"*100)],
+                                            [(0, b"y"*100)],
                                             None,
                                             )}, [(10,5)])
-        self.failUnlessEqual(answer, (True, {0: ["11111"]}))
-        self.failUnlessEqual(read("si1", [0], [(0,100)]), {0: ["y"*100]})
+        self.failUnlessEqual(answer, (True, {0: [b"11111"]}))
+        self.failUnlessEqual(read(b"si1", [0], [(0,100)]), {0: [b"y"*100]})
         reset()
 
         #  ge
-        answer = write("si1", secrets, {0: ([(10, 5, "ge", "11110"),
+        answer = write(b"si1", secrets, {0: ([(10, 5, b"ge", b"11110"),
                                              ],
-                                            [(0, "y"*100)],
+                                            [(0, b"y"*100)],
                                             None,
                                             )}, [(10,5)])
-        self.failUnlessEqual(answer, (True, {0: ["11111"]}))
-        self.failUnlessEqual(read("si1", [0], [(0,100)]), {0: ["y"*100]})
+        self.failUnlessEqual(answer, (True, {0: [b"11111"]}))
+        self.failUnlessEqual(read(b"si1", [0], [(0,100)]), {0: [b"y"*100]})
         reset()
 
-        answer = write("si1", secrets, {0: ([(10, 5, "ge", "11111"),
+        answer = write(b"si1", secrets, {0: ([(10, 5, b"ge", b"11111"),
                                              ],
-                                            [(0, "y"*100)],
+                                            [(0, b"y"*100)],
                                             None,
                                             )}, [(10,5)])
-        self.failUnlessEqual(answer, (True, {0: ["11111"]}))
-        self.failUnlessEqual(read("si1", [0], [(0,100)]), {0: ["y"*100]})
+        self.failUnlessEqual(answer, (True, {0: [b"11111"]}))
+        self.failUnlessEqual(read(b"si1", [0], [(0,100)]), {0: [b"y"*100]})
         reset()
 
-        answer = write("si1", secrets, {0: ([(10, 5, "ge", "11112"),
+        answer = write(b"si1", secrets, {0: ([(10, 5, b"ge", b"11112"),
                                              ],
-                                            [(0, "y"*100)],
+                                            [(0, b"y"*100)],
                                             None,
                                             )}, [(10,5)])
-        self.failUnlessEqual(answer, (False, {0: ["11111"]}))
-        self.failUnlessEqual(read("si1", [0], [(0,100)]), {0: [data]})
+        self.failUnlessEqual(answer, (False, {0: [b"11111"]}))
+        self.failUnlessEqual(read(b"si1", [0], [(0,100)]), {0: [data]})
         reset()
 
         #  gt
-        answer = write("si1", secrets, {0: ([(10, 5, "gt", "11110"),
+        answer = write(b"si1", secrets, {0: ([(10, 5, b"gt", b"11110"),
                                              ],
-                                            [(0, "y"*100)],
+                                            [(0, b"y"*100)],
                                             None,
                                             )}, [(10,5)])
-        self.failUnlessEqual(answer, (True, {0: ["11111"]}))
-        self.failUnlessEqual(read("si1", [0], [(0,100)]), {0: ["y"*100]})
+        self.failUnlessEqual(answer, (True, {0: [b"11111"]}))
+        self.failUnlessEqual(read(b"si1", [0], [(0,100)]), {0: [b"y"*100]})
         reset()
 
-        answer = write("si1", secrets, {0: ([(10, 5, "gt", "11111"),
+        answer = write(b"si1", secrets, {0: ([(10, 5, b"gt", b"11111"),
                                              ],
-                                            [(0, "x"*100)],
+                                            [(0, b"x"*100)],
                                             None,
                                             )}, [(10,5)])
-        self.failUnlessEqual(answer, (False, {0: ["11111"]}))
-        self.failUnlessEqual(read("si1", [0], [(0,100)]), {0: [data]})
+        self.failUnlessEqual(answer, (False, {0: [b"11111"]}))
+        self.failUnlessEqual(read(b"si1", [0], [(0,100)]), {0: [data]})
         reset()
 
-        answer = write("si1", secrets, {0: ([(10, 5, "gt", "11112"),
+        answer = write(b"si1", secrets, {0: ([(10, 5, b"gt", b"11112"),
                                              ],
-                                            [(0, "x"*100)],
+                                            [(0, b"x"*100)],
                                             None,
                                             )}, [(10,5)])
-        self.failUnlessEqual(answer, (False, {0: ["11111"]}))
-        self.failUnlessEqual(read("si1", [0], [(0,100)]), {0: [data]})
+        self.failUnlessEqual(answer, (False, {0: [b"11111"]}))
+        self.failUnlessEqual(read(b"si1", [0], [(0,100)]), {0: [data]})
         reset()
 
         # finally, test some operators against empty shares
-        answer = write("si1", secrets, {1: ([(10, 5, "eq", "11112"),
+        answer = write(b"si1", secrets, {1: ([(10, 5, b"eq", b"11112"),
                                              ],
-                                            [(0, "x"*100)],
+                                            [(0, b"x"*100)],
                                             None,
                                             )}, [(10,5)])
-        self.failUnlessEqual(answer, (False, {0: ["11111"]}))
-        self.failUnlessEqual(read("si1", [0], [(0,100)]), {0: [data]})
+        self.failUnlessEqual(answer, (False, {0: [b"11111"]}))
+        self.failUnlessEqual(read(b"si1", [0], [(0,100)]), {0: [data]})
         reset()
 
     def test_readv(self):
         ss = self.create("test_readv")
-        secrets = ( self.write_enabler("we1"),
-                    self.renew_secret("we1"),
-                    self.cancel_secret("we1") )
-        data = "".join([ ("%d" % i) * 10 for i in range(10) ])
+        secrets = ( self.write_enabler(b"we1"),
+                    self.renew_secret(b"we1"),
+                    self.cancel_secret(b"we1") )
+        data = b"".join([ (b"%d" % i) * 10 for i in range(10) ])
         write = ss.remote_slot_testv_and_readv_and_writev
         read = ss.remote_slot_readv
-        data = [("%d" % i) * 100 for i in range(3)]
-        rc = write("si1", secrets,
+        data = [(b"%d" % i) * 100 for i in range(3)]
+        rc = write(b"si1", secrets,
                    {0: ([], [(0,data[0])], None),
                     1: ([], [(0,data[1])], None),
                     2: ([], [(0,data[2])], None),
                     }, [])
         self.failUnlessEqual(rc, (True, {}))
 
-        answer = read("si1", [], [(0, 10)])
-        self.failUnlessEqual(answer, {0: ["0"*10],
-                                      1: ["1"*10],
-                                      2: ["2"*10]})
+        answer = read(b"si1", [], [(0, 10)])
+        self.failUnlessEqual(answer, {0: [b"0"*10],
+                                      1: [b"1"*10],
+                                      2: [b"2"*10]})
 
     def compare_leases_without_timestamps(self, leases_a, leases_b):
         self.failUnlessEqual(len(leases_a), len(leases_b))
@@ -1230,19 +1230,19 @@ class MutableServer(unittest.TestCase):
     def test_leases(self):
         ss = self.create("test_leases")
         def secrets(n):
-            return ( self.write_enabler("we1"),
-                     self.renew_secret("we1-%d" % n),
-                     self.cancel_secret("we1-%d" % n) )
-        data = "".join([ ("%d" % i) * 10 for i in range(10) ])
+            return ( self.write_enabler(b"we1"),
+                     self.renew_secret(b"we1-%d" % n),
+                     self.cancel_secret(b"we1-%d" % n) )
+        data = b"".join([ (b"%d" % i) * 10 for i in range(10) ])
         write = ss.remote_slot_testv_and_readv_and_writev
         read = ss.remote_slot_readv
-        rc = write("si1", secrets(0), {0: ([], [(0,data)], None)}, [])
+        rc = write(b"si1", secrets(0), {0: ([], [(0,data)], None)}, [])
         self.failUnlessEqual(rc, (True, {}))
 
         # create a random non-numeric file in the bucket directory, to
         # exercise the code that's supposed to ignore those.
         bucket_dir = os.path.join(self.workdir("test_leases"),
-                                  "shares", storage_index_to_dir("si1"))
+                                  "shares", storage_index_to_dir(b"si1"))
         f = open(os.path.join(bucket_dir, "ignore_me.txt"), "w")
         f.write("you ought to be ignoring me\n")
         f.close()
@@ -1251,45 +1251,45 @@ class MutableServer(unittest.TestCase):
         self.failUnlessEqual(len(list(s0.get_leases())), 1)
 
         # add-lease on a missing storage index is silently ignored
-        self.failUnlessEqual(ss.remote_add_lease("si18", "", ""), None)
+        self.failUnlessEqual(ss.remote_add_lease(b"si18", b"", b""), None)
 
         # re-allocate the slots and use the same secrets, that should update
         # the lease
-        write("si1", secrets(0), {0: ([], [(0,data)], None)}, [])
+        write(b"si1", secrets(0), {0: ([], [(0,data)], None)}, [])
         self.failUnlessEqual(len(list(s0.get_leases())), 1)
 
         # renew it directly
-        ss.remote_renew_lease("si1", secrets(0)[1])
+        ss.remote_renew_lease(b"si1", secrets(0)[1])
         self.failUnlessEqual(len(list(s0.get_leases())), 1)
 
         # now allocate them with a bunch of different secrets, to trigger the
         # extended lease code. Use add_lease for one of them.
-        write("si1", secrets(1), {0: ([], [(0,data)], None)}, [])
+        write(b"si1", secrets(1), {0: ([], [(0,data)], None)}, [])
         self.failUnlessEqual(len(list(s0.get_leases())), 2)
         secrets2 = secrets(2)
-        ss.remote_add_lease("si1", secrets2[1], secrets2[2])
+        ss.remote_add_lease(b"si1", secrets2[1], secrets2[2])
         self.failUnlessEqual(len(list(s0.get_leases())), 3)
-        write("si1", secrets(3), {0: ([], [(0,data)], None)}, [])
-        write("si1", secrets(4), {0: ([], [(0,data)], None)}, [])
-        write("si1", secrets(5), {0: ([], [(0,data)], None)}, [])
+        write(b"si1", secrets(3), {0: ([], [(0,data)], None)}, [])
+        write(b"si1", secrets(4), {0: ([], [(0,data)], None)}, [])
+        write(b"si1", secrets(5), {0: ([], [(0,data)], None)}, [])
 
         self.failUnlessEqual(len(list(s0.get_leases())), 6)
 
         all_leases = list(s0.get_leases())
         # and write enough data to expand the container, forcing the server
         # to move the leases
-        write("si1", secrets(0),
+        write(b"si1", secrets(0),
               {0: ([], [(0,data)], 200), },
               [])
 
         # read back the leases, make sure they're still intact.
         self.compare_leases_without_timestamps(all_leases, list(s0.get_leases()))
 
-        ss.remote_renew_lease("si1", secrets(0)[1])
-        ss.remote_renew_lease("si1", secrets(1)[1])
-        ss.remote_renew_lease("si1", secrets(2)[1])
-        ss.remote_renew_lease("si1", secrets(3)[1])
-        ss.remote_renew_lease("si1", secrets(4)[1])
+        ss.remote_renew_lease(b"si1", secrets(0)[1])
+        ss.remote_renew_lease(b"si1", secrets(1)[1])
+        ss.remote_renew_lease(b"si1", secrets(2)[1])
+        ss.remote_renew_lease(b"si1", secrets(3)[1])
+        ss.remote_renew_lease(b"si1", secrets(4)[1])
         self.compare_leases_without_timestamps(all_leases, list(s0.get_leases()))
         # get a new copy of the leases, with the current timestamps. Reading
         # data and failing to renew/cancel leases should leave the timestamps
@@ -1300,7 +1300,7 @@ class MutableServer(unittest.TestCase):
         # examine the exception thus raised, make sure the old nodeid is
         # present, to provide for share migration
         e = self.failUnlessRaises(IndexError,
-                                  ss.remote_renew_lease, "si1",
+                                  ss.remote_renew_lease, b"si1",
                                   secrets(20)[1])
         e_s = str(e)
         self.failUnlessIn("Unable to renew non-existent lease", e_s)
@@ -1310,56 +1310,58 @@ class MutableServer(unittest.TestCase):
         self.compare_leases(all_leases, list(s0.get_leases()))
 
         # reading shares should not modify the timestamp
-        read("si1", [], [(0,200)])
+        read(b"si1", [], [(0,200)])
         self.compare_leases(all_leases, list(s0.get_leases()))
 
-        write("si1", secrets(0),
-              {0: ([], [(200, "make me bigger")], None)}, [])
+        write(b"si1", secrets(0),
+              {0: ([], [(200, b"make me bigger")], None)}, [])
         self.compare_leases_without_timestamps(all_leases, list(s0.get_leases()))
 
-        write("si1", secrets(0),
-              {0: ([], [(500, "make me really bigger")], None)}, [])
+        write(b"si1", secrets(0),
+              {0: ([], [(500, b"make me really bigger")], None)}, [])
         self.compare_leases_without_timestamps(all_leases, list(s0.get_leases()))
 
     def test_remove(self):
         ss = self.create("test_remove")
-        self.allocate(ss, "si1", "we1", next(self._lease_secret),
+        self.allocate(ss, b"si1", b"we1", next(self._lease_secret),
                       set([0,1,2]), 100)
         readv = ss.remote_slot_readv
         writev = ss.remote_slot_testv_and_readv_and_writev
-        secrets = ( self.write_enabler("we1"),
-                    self.renew_secret("we1"),
-                    self.cancel_secret("we1") )
+        secrets = ( self.write_enabler(b"we1"),
+                    self.renew_secret(b"we1"),
+                    self.cancel_secret(b"we1") )
         # delete sh0 by setting its size to zero
-        answer = writev("si1", secrets,
+        answer = writev(b"si1", secrets,
                         {0: ([], [], 0)},
                         [])
         # the answer should mention all the shares that existed before the
         # write
         self.failUnlessEqual(answer, (True, {0:[],1:[],2:[]}) )
         # but a new read should show only sh1 and sh2
-        self.failUnlessEqual(readv("si1", [], [(0,10)]),
-                             {1: [""], 2: [""]})
+        self.failUnlessEqual(readv(b"si1", [], [(0,10)]),
+                             {1: [b""], 2: [b""]})
 
         # delete sh1 by setting its size to zero
-        answer = writev("si1", secrets,
+        answer = writev(b"si1", secrets,
                         {1: ([], [], 0)},
                         [])
         self.failUnlessEqual(answer, (True, {1:[],2:[]}) )
-        self.failUnlessEqual(readv("si1", [], [(0,10)]),
-                             {2: [""]})
+        self.failUnlessEqual(readv(b"si1", [], [(0,10)]),
+                             {2: [b""]})
 
         # delete sh2 by setting its size to zero
-        answer = writev("si1", secrets,
+        answer = writev(b"si1", secrets,
                         {2: ([], [], 0)},
                         [])
         self.failUnlessEqual(answer, (True, {2:[]}) )
-        self.failUnlessEqual(readv("si1", [], [(0,10)]),
+        self.failUnlessEqual(readv(b"si1", [], [(0,10)]),
                              {})
         # and the bucket directory should now be gone
-        si = base32.b2a("si1")
+        si = base32.b2a(b"si1")
         # note: this is a detail of the storage server implementation, and
         # may change in the future
+        if PY3:
+            si = si.decode("utf-8")
         prefix = si[:2]
         prefixdir = os.path.join(self.workdir("test_remove"), "shares", prefix)
         bucketdir = os.path.join(prefixdir, si)
@@ -1373,7 +1375,7 @@ class MutableServer(unittest.TestCase):
         """
         ss = self.create("test_writev_without_renew_lease")
 
-        storage_index = "si2"
+        storage_index = b"si2"
         secrets = (
             self.write_enabler(storage_index),
             self.renew_secret(storage_index),
@@ -1400,7 +1402,7 @@ class MutableServer(unittest.TestCase):
         When ``get_slot_leases`` is called for a slot for which the server has no
         shares, it returns an empty iterable.
         """
-        ss = self.create(b"test_get_slot_leases_empty_slot")
+        ss = self.create("test_get_slot_leases_empty_slot")
         self.assertEqual(
             list(ss.get_slot_leases(b"si1")),
             [],
@@ -1413,7 +1415,7 @@ class MutableServer(unittest.TestCase):
         """
         ss = self.create("test_remove_non_present")
 
-        storage_index = "si1"
+        storage_index = b"si1"
         secrets = (
             self.write_enabler(storage_index),
             self.renew_secret(storage_index),
@@ -1590,7 +1592,7 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
         # and the verification key
         data += self.verification_key
         # Then we'll add in gibberish until we get to the right point.
-        nulls = "".join([" " for i in xrange(len(data), share_data_offset)])
+        nulls = b"".join([b" " for i in xrange(len(data), share_data_offset)])
         data += nulls
 
         # Then the share data
@@ -1614,7 +1616,7 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
         data = self.build_test_mdmf_share(tail_segment, empty)
         # Finally, we write the whole thing to the storage server in one
         # pass.
-        testvs = [(0, 1, "eq", "")]
+        testvs = [(0, 1, b"eq", b"")]
         tws = {}
         tws[0] = (testvs, [(0, data)], None)
         readv = [(0, 1)]
@@ -1655,7 +1657,7 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
                               sharedata_offset,
                               encprivkey_offset,
                               eof_offset)
-        final_share = "".join([prefix,
+        final_share = b"".join([prefix,
                            offsets,
                            self.verification_key,
                            self.signature,
@@ -1680,7 +1682,7 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
         # read them. This method writes one, which resembles but is not
         write = self.ss.remote_slot_testv_and_readv_and_writev
         share = self.build_test_sdmf_share(empty)
-        testvs = [(0, 1, "eq", "")]
+        testvs = [(0, 1, b"eq", b"")]
         tws = {}
         tws[0] = (testvs, [(0, share)], None)
         readv = []
@@ -1690,7 +1692,7 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
 
     def test_read(self):
         self.write_test_share_to_server("si1")
-        mr = MDMFSlotReadProxy(self.storage_server, "si1", 0)
+        mr = MDMFSlotReadProxy(self.storage_server, b"si1", 0)
         # Check that every method equals what we expect it to.
         d = defer.succeed(None)
         def _check_block_and_salt(block_and_salt):
@@ -1762,19 +1764,19 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
 
     def test_read_with_different_tail_segment_size(self):
         self.write_test_share_to_server("si1", tail_segment=True)
-        mr = MDMFSlotReadProxy(self.storage_server, "si1", 0)
+        mr = MDMFSlotReadProxy(self.storage_server, b"si1", 0)
         d = mr.get_block_and_salt(5)
         def _check_tail_segment(results):
             block, salt = results
             self.failUnlessEqual(len(block), 1)
-            self.failUnlessEqual(block, "a")
+            self.failUnlessEqual(block, b"a")
         d.addCallback(_check_tail_segment)
         return d
 
 
     def test_get_block_with_invalid_segnum(self):
         self.write_test_share_to_server("si1")
-        mr = MDMFSlotReadProxy(self.storage_server, "si1", 0)
+        mr = MDMFSlotReadProxy(self.storage_server, b"si1", 0)
         d = defer.succeed(None)
         d.addCallback(lambda ignored:
             self.shouldFail(LayoutInvalid, "test invalid segnum",
@@ -1785,7 +1787,7 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
 
     def test_get_encoding_parameters_first(self):
         self.write_test_share_to_server("si1")
-        mr = MDMFSlotReadProxy(self.storage_server, "si1", 0)
+        mr = MDMFSlotReadProxy(self.storage_server, b"si1", 0)
         d = mr.get_encoding_parameters()
         def _check_encoding_parameters(args):
             (k, n, segment_size, datalen) = args
@@ -1799,7 +1801,7 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
 
     def test_get_seqnum_first(self):
         self.write_test_share_to_server("si1")
-        mr = MDMFSlotReadProxy(self.storage_server, "si1", 0)
+        mr = MDMFSlotReadProxy(self.storage_server, b"si1", 0)
         d = mr.get_seqnum()
         d.addCallback(lambda seqnum:
             self.failUnlessEqual(seqnum, 0))
@@ -1808,7 +1810,7 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
 
     def test_get_root_hash_first(self):
         self.write_test_share_to_server("si1")
-        mr = MDMFSlotReadProxy(self.storage_server, "si1", 0)
+        mr = MDMFSlotReadProxy(self.storage_server, b"si1", 0)
         d = mr.get_root_hash()
         d.addCallback(lambda root_hash:
             self.failUnlessEqual(root_hash, self.root_hash))
@@ -1817,7 +1819,7 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
 
     def test_get_checkstring_first(self):
         self.write_test_share_to_server("si1")
-        mr = MDMFSlotReadProxy(self.storage_server, "si1", 0)
+        mr = MDMFSlotReadProxy(self.storage_server, b"si1", 0)
         d = mr.get_checkstring()
         d.addCallback(lambda checkstring:
             self.failUnlessEqual(checkstring, self.checkstring))
@@ -1996,11 +1998,11 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
 
 
     def serialize_blockhashes(self, blockhashes):
-        return "".join(blockhashes)
+        return b"".join(blockhashes)
 
 
     def serialize_sharehashes(self, sharehashes):
-        ret = "".join([struct.pack(">H32s", i, sharehashes[i])
+        ret = b"".join([struct.pack(">H32s", i, sharehashes[i])
                         for i in sorted(sharehashes.keys())])
         return ret
 
