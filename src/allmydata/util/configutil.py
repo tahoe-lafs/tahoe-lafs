@@ -1,7 +1,31 @@
+"""
+Read/write config files.
 
-from six.moves.configparser import SafeConfigParser
+Configuration is returned as native strings.
+
+Ported to Python 3.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    # We don't do open(), because we want files to read/write native strs when
+    # we do "r" or "w".
+    from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+
+if PY2:
+    # In theory on Python 2 configparser also works, but then code gets the
+    # wrong exceptions and they don't get handled. So just use native parser
+    # for now.
+    from ConfigParser import SafeConfigParser
+else:
+    from configparser import SafeConfigParser
 
 import attr
+
 
 class UnknownConfigError(Exception):
     """
@@ -12,11 +36,16 @@ class UnknownConfigError(Exception):
 
 
 def get_config(tahoe_cfg):
+    """Load the config, returning a SafeConfigParser.
+
+    Configuration is returned as native strings.
+    """
     config = SafeConfigParser()
-    with open(tahoe_cfg, "rb") as f:
-        # Skip any initial Byte Order Mark. Since this is an ordinary file, we
-        # don't need to handle incomplete reads, and can assume seekability.
-        if f.read(3) != '\xEF\xBB\xBF':
+    with open(tahoe_cfg, "r") as f:
+        # On Python 2, where we read in bytes, skip any initial Byte Order
+        # Mark. Since this is an ordinary file, we don't need to handle
+        # incomplete reads, and can assume seekability.
+        if PY2 and f.read(3) != b'\xEF\xBB\xBF':
             f.seek(0)
         config.readfp(f)
     return config
@@ -28,7 +57,7 @@ def set_config(config, section, option, value):
     assert config.get(section, option) == value
 
 def write_config(tahoe_cfg, config):
-    with open(tahoe_cfg, "wb") as f:
+    with open(tahoe_cfg, "w") as f:
         config.write(f)
 
 def validate_config(fname, cfg, valid_config):

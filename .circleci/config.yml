@@ -285,7 +285,7 @@ jobs:
       # this reporter on Python 3.  So drop that and just specify the
       # reporter.
       TAHOE_LAFS_TRIAL_ARGS: "--reporter=subunitv2-file"
-      TAHOE_LAFS_TOX_ENVIRONMENT: "py36"
+      TAHOE_LAFS_TOX_ENVIRONMENT: "py36-coverage"
 
 
   ubuntu-20.04:
@@ -508,6 +508,7 @@ jobs:
     environment:
       DISTRO: "ubuntu"
       TAG: "20.04"
+      PYTHON_VERSION: "2.7"
 
 
   build-image-centos-8:
