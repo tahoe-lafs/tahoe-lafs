@@ -1662,13 +1662,13 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
                               encprivkey_offset,
                               eof_offset)
         final_share = b"".join([prefix,
-                           offsets,
-                           self.verification_key,
-                           self.signature,
-                           self.share_hash_chain_s,
-                           self.block_hash_tree_s,
-                           block,
-                           self.encprivkey])
+                                offsets,
+                                self.verification_key,
+                                self.signature,
+                                self.share_hash_chain_s,
+                                self.block_hash_tree_s,
+                                block,
+                                self.encprivkey])
         self.offsets = {}
         self.offsets['signature'] = signature_offset
         self.offsets['share_hash_chain'] = sharehashes_offset
