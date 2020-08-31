@@ -1,4 +1,12 @@
-from future.utils import native_str, PY3, bytes_to_native_str
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import native_str, PY2, PY3, bytes_to_native_str
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+
 
 import time
 import os.path
@@ -392,7 +400,7 @@ class Server(unittest.TestCase):
 
     def test_remove_incoming(self):
         ss = self.create("test_remove_incoming")
-        already, writers = self.allocate(ss, b"vid", range(3), 10)
+        already, writers = self.allocate(ss, b"vid", list(range(3)), 10)
         for i,wb in writers.items():
             wb.remote_write(0, b"%10d" % i)
             wb.remote_close()
@@ -563,7 +571,7 @@ class Server(unittest.TestCase):
 
         # now there should be ALLOCATED=1001+12+72=1085 bytes allocated, and
         # 5000-1085=3915 free, therefore we can fit 39 100byte shares
-        already3, writers3 = self.allocate(ss, b"vid3", range(100), 100, canary)
+        already3, writers3 = self.allocate(ss, b"vid3", list(range(100)), 100, canary)
         self.failUnlessEqual(len(writers3), 39)
         self.failUnlessEqual(len(ss._active_writers), 39)
 
@@ -598,7 +606,7 @@ class Server(unittest.TestCase):
     def test_leases(self):
         ss = self.create("test_leases")
         canary = FakeCanary()
-        sharenums = range(5)
+        sharenums = list(range(5))
         size = 100
 
         rs0,cs0 = (hashutil.tagged_hash(b"blah", b"%d" % next(self._lease_secret)),
