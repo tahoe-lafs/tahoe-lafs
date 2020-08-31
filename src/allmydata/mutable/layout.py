@@ -1744,7 +1744,7 @@ class MDMFSlotReadProxy(object):
 
 
     def _read(self, readvs, force_remote=False):
-        unsatisfiable = filter(lambda x: x[0] + x[1] > len(self._data), readvs)
+        unsatisfiable = list(filter(lambda x: x[0] + x[1] > len(self._data), readvs))
         # TODO: It's entirely possible to tweak this so that it just
         # fulfills the requests that it can, and not demand that all
         # requests are satisfiable before running it.
