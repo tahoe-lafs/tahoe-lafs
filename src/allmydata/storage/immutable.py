@@ -1,3 +1,5 @@
+from future.utils import bytes_to_native_str
+
 import os, stat, struct, time
 
 from foolscap.api import Referenceable
@@ -298,7 +300,9 @@ class BucketReader(Referenceable):
 
     def __repr__(self):
         return "<%s %s %s>" % (self.__class__.__name__,
-                               base32.b2a(self.storage_index[:8])[:12],
+                               bytes_to_native_str(
+                                   base32.b2a(self.storage_index[:8])[:12]
+                               ),
                                self.shnum)
 
     def remote_read(self, offset, length):
@@ -309,7 +313,7 @@ class BucketReader(Referenceable):
         return data
 
     def remote_advise_corrupt_share(self, reason):
-        return self.ss.remote_advise_corrupt_share("immutable",
+        return self.ss.remote_advise_corrupt_share(b"immutable",
                                                    self.storage_index,
                                                    self.shnum,
                                                    reason)

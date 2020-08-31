@@ -1,4 +1,4 @@
-from future.utils import native_str, PY3
+from future.utils import native_str, PY3, bytes_to_native_str
 
 import time
 import os.path
@@ -731,7 +731,7 @@ class Server(unittest.TestCase):
 
         si0_s = base32.b2a(b"si0")
         ss.remote_advise_corrupt_share(b"immutable", b"si0", 0,
-                                       "This share smells funny.\n")
+                                       b"This share smells funny.\n")
         reportdir = os.path.join(workdir, "corruption-advisories")
         reports = os.listdir(reportdir)
         self.failUnlessEqual(len(reports), 1)
@@ -755,11 +755,11 @@ class Server(unittest.TestCase):
 
         b = ss.remote_get_buckets(b"si1")
         self.failUnlessEqual(set(b.keys()), set([1]))
-        b[1].remote_advise_corrupt_share("This share tastes like dust.\n")
+        b[1].remote_advise_corrupt_share(b"This share tastes like dust.\n")
 
         reports = os.listdir(reportdir)
         self.failUnlessEqual(len(reports), 2)
-        report_si1 = [r for r in reports if si1_s in r][0]
+        report_si1 = [r for r in reports if bytes_to_native_str(si1_s) in r][0]
         f = open(os.path.join(reportdir, report_si1), "rb")
         report = f.read()
         f.close()
