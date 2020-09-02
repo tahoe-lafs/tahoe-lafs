@@ -798,7 +798,7 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
         log.msg("CONNECTED")
         # now find out where the web port was
         self.webish_url = self.clients[0].getServiceNamed("webish").getURL()
-        if self.numclients >=4:
+        if self.numclients >= 4:
             # and the helper-using webport
             self.helper_webish_url = self.clients[3].getServiceNamed("webish").getURL()
 
@@ -963,7 +963,7 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
         return True
 
     def wait_for_connections(self, ignored=None):
-        return self.poll(self._check_connections, timeout=200)
+        return self.poll(self._check_connections, timeout=30)
 
 class CountingDataUploadable(upload.Data):
     bytes_read = 0
@@ -1622,7 +1622,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
     def test_filesystem(self):
         self.basedir = "system/SystemTest/test_filesystem"
         self.data = LARGE_DATA
-        d = self.set_up_nodes(use_stats_gatherer=True)
+        d = self.set_up_nodes(4, use_stats_gatherer=True)
         def _new_happy_semantics(ign):
             for c in self.clients:
                 c.encoding_params['happy'] = 1
@@ -1691,8 +1691,8 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
                 newappverstr = "%s: %s" % (allmydata.__appname__, altverstr)
 
                 self.failUnless((appverstr in res) or (newappverstr in res), (appverstr, newappverstr, res))
-                self.failUnless("Announcement Summary: storage: 5" in res)
-                self.failUnless("Subscription Summary: storage: 5" in res)
+                self.failUnless("Announcement Summary: storage: 4" in res)
+                self.failUnless("Subscription Summary: storage: 4" in res)
                 self.failUnless("tahoe.css" in res)
             except unittest.FailTest:
                 print()
@@ -1707,9 +1707,9 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
             data = json.loads(res)
             try:
                 self.failUnlessEqual(data["subscription_summary"],
-                                     {"storage": 5})
+                                     {"storage": 4})
                 self.failUnlessEqual(data["announcement_summary"],
-                                     {"storage": 5})
+                                     {"storage": 4})
             except unittest.FailTest:
                 print()
                 print("GET %s?t=json output was:" % self.introweb_url)
