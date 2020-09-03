@@ -52,7 +52,7 @@ fi
 # This is primarily aimed at catching hangs on the PyPy job which runs for
 # about 21 minutes and then gets killed by CircleCI in a way that fails the
 # job and bypasses our "allowed failure" logic.
-TIMEOUT="timeout --kill-after 1m 20m"
+TIMEOUT="timeout --kill-after 1m 25m"
 
 # Run the test suite as a non-root user.  This is the expected usage some
 # small areas of the test suite assume non-root privileges (such as unreadable
