@@ -2,6 +2,7 @@ from __future__ import print_function
 
 import os, re, sys, time, json
 from functools import partial
+from unittest import skipIf
 
 from bs4 import BeautifulSoup
 
@@ -654,6 +655,7 @@ def _render_section_values(values):
 
 class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
 
+    @skipIf(os.environ.get("SKIP_TEST_SYSTEM"), "SKIP_TEST_SYSTEM was set.")
     def setUp(self):
         self.port_assigner = SameProcessStreamEndpointAssigner()
         self.port_assigner.setUp()
