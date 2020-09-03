@@ -40,17 +40,17 @@ workflows:
       # - "deprecations"
       # - "c-locale"
       # Any locale other than C or UTF-8.
-      - "another-locale"
+      # - "another-locale"
 
-      - "integration":
-          requires:
-            # If the unit test suite doesn't pass, don't bother running the
-            # integration tests.
-            - "debian-9"
+      # - "integration":
+      #     requires:
+      #       # If the unit test suite doesn't pass, don't bother running the
+      #       # integration tests.
+      #       - "debian-9"
 
       # Generate the underlying data for a visualization to aid with Python 3
       # porting.
-      - "build-porting-depgraph"
+      # - "build-porting-depgraph"
 
   images:
     # Build the Docker images used by the ci jobs.  This makes the ci jobs
