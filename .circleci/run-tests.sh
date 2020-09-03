@@ -46,7 +46,7 @@ fi
 # A prefix for the test command that ensure it will exit after no more than a
 # certain amount of time.  Ideally, we would only enforce a "silent" period
 # timeout but there isn't obviously a ready-made tool for that.  The test
-# suite only takes about 5 - 6 minutes on CircleCI right now.  15 minutes
+# suite only takes about 5 - 6 minutes on CircleCI right now.  25 minutes
 # seems like a moderately safe window.
 #
 # This is primarily aimed at catching hangs on the PyPy job which runs for
@@ -67,6 +67,10 @@ TIMEOUT="timeout --kill-after 1m 25m"
 export SUBUNITREPORTER_OUTPUT_PATH="${SUBUNIT2}"
 export TAHOE_LAFS_TRIAL_ARGS="${TAHOE_LAFS_TRIAL_ARGS:---reporter=subunitv2-file --rterrors}"
 export PIP_NO_INDEX="1"
+
+# Make output unbuffered, so realtime status reports from subunit2 get printed,
+# thus preventing CircleCI timeout after 20 minutes of "inactivity".
+export PYTHONUNBUFFERED=1
 
 if [ "${ALLOWED_FAILURE}" = "yes" ]; then
     alternative="true"
