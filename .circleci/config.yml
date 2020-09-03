@@ -6,51 +6,51 @@ workflows:
   ci:
     jobs:
       # Platforms
-      # - "debian-9"
-      # - "debian-8":
-      #     requires:
-      #       - "debian-9"
+      - "debian-9"
+      - "debian-8":
+          requires:
+            - "debian-9"
 
-      # - "ubuntu-20.04"
-      # - "ubuntu-18.04":
-      #     requires:
-      #       - "ubuntu-20.04"
-      # - "ubuntu-16.04":
-      #     requires:
-      #       - "ubuntu-20.04"
+      - "ubuntu-20.04"
+      - "ubuntu-18.04":
+          requires:
+            - "ubuntu-20.04"
+      - "ubuntu-16.04":
+          requires:
+            - "ubuntu-20.04"
 
-      # - "fedora-29"
-      # - "fedora-28":
-      #     requires:
-      #       - "fedora-29"
+      - "fedora-29"
+      - "fedora-28":
+          requires:
+            - "fedora-29"
 
-      # - "centos-8"
+      - "centos-8"
 
-      # - "nixos-19.09"
+      - "nixos-19.09"
 
       # Test against PyPy 2.7
       - "pypy2.7-buster"
 
       # Just one Python 3.6 configuration while the port is in-progress.
-      # - "python3.6"
+      - "python3.6"
 
       # Other assorted tasks and configurations
-      # - "lint"
-      # - "pyinstaller"
-      # - "deprecations"
-      # - "c-locale"
+      - "lint"
+      - "pyinstaller"
+      - "deprecations"
+      - "c-locale"
       # Any locale other than C or UTF-8.
-      # - "another-locale"
+      - "another-locale"
 
-      # - "integration":
-      #     requires:
-      #       # If the unit test suite doesn't pass, don't bother running the
-      #       # integration tests.
-      #       - "debian-9"
+      - "integration":
+          requires:
+            # If the unit test suite doesn't pass, don't bother running the
+            # integration tests.
+            - "debian-9"
 
       # Generate the underlying data for a visualization to aid with Python 3
       # porting.
-      # - "build-porting-depgraph"
+      - "build-porting-depgraph"
 
   images:
     # Build the Docker images used by the ci jobs.  This makes the ci jobs
