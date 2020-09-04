@@ -68,6 +68,10 @@ export SUBUNITREPORTER_OUTPUT_PATH="${SUBUNIT2}"
 export TAHOE_LAFS_TRIAL_ARGS="${TAHOE_LAFS_TRIAL_ARGS:---reporter=subunitv2-file --rterrors}"
 export PIP_NO_INDEX="1"
 
+# Make output unbuffered, so progress reports from subunitv2-file get streamed
+# and notify CircleCI we're still alive.
+export PYTHONUNBUFFERED=1
+
 if [ "${ALLOWED_FAILURE}" = "yes" ]; then
     alternative="true"
 else
