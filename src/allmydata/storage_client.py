@@ -30,9 +30,12 @@ the foolscap-based server implemented in src/allmydata/storage/*.py .
 
 
 import re, time, hashlib
-from ConfigParser import (
-    NoSectionError,
-)
+try:
+    from ConfigParser import (
+        NoSectionError,
+    )
+except ImportError:
+    from configparser import NoSectionError
 import attr
 from zope.interface import (
     Attribute,
@@ -534,11 +537,11 @@ class _NullStorage(object):
     which we can't communicate.
     """
     nickname = ""
-    permutation_seed = hashlib.sha256("").digest()
-    tubid = hashlib.sha256("").digest()
+    permutation_seed = hashlib.sha256(b"").digest()
+    tubid = hashlib.sha256(b"").digest()
     storage_server = None
 
-    lease_seed = hashlib.sha256("").digest()
+    lease_seed = hashlib.sha256(b"").digest()
 
     name = "<unsupported>"
     longname = "<storage with unsupported protocol>"
