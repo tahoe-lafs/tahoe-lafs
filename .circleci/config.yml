@@ -211,7 +211,8 @@ jobs:
 
     environment:
       <<: *UTF_8_ENVIRONMENT
-      TAHOE_LAFS_TOX_ENVIRONMENT: "pypy27-coverage"
+      # We don't do coverage since it makes PyPy far too slow:
+      TAHOE_LAFS_TOX_ENVIRONMENT: "pypy27"
 
 
   c-locale:
