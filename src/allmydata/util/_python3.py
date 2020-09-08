@@ -20,10 +20,11 @@ from __future__ import print_function
 
 from future.utils import PY2
 if PY2:
-    from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 # Keep these sorted alphabetically, to reduce merge conflicts:
 PORTED_MODULES = [
+    "allmydata.codec",
     "allmydata.crypto",
     "allmydata.crypto.aes",
     "allmydata.crypto.ed25519",
@@ -32,13 +33,19 @@ PORTED_MODULES = [
     "allmydata.crypto.util",
     "allmydata.hashtree",
     "allmydata.immutable.happiness_upload",
+    "allmydata.interfaces",
+    "allmydata.monitor",
     "allmydata.storage.crawler",
+    "allmydata.storage.expirer",
     "allmydata.test.common_py3",
+    "allmydata.uri",
     "allmydata.util._python3",
     "allmydata.util.abbreviate",
     "allmydata.util.assertutil",
     "allmydata.util.base32",
     "allmydata.util.base62",
+    "allmydata.util.configutil",
+    "allmydata.util.connection_status",
     "allmydata.util.deferredutil",
     "allmydata.util.fileutil",
     "allmydata.util.dictutil",
@@ -64,6 +71,9 @@ PORTED_TEST_MODULES = [
     "allmydata.test.test_abbreviate",
     "allmydata.test.test_base32",
     "allmydata.test.test_base62",
+    "allmydata.test.test_codec",
+    "allmydata.test.test_configutil",
+    "allmydata.test.test_connection_status",
     "allmydata.test.test_crawler",
     "allmydata.test.test_crypto",
     "allmydata.test.test_deferredutil",
@@ -75,13 +85,17 @@ PORTED_TEST_MODULES = [
     "allmydata.test.test_humanreadable",
     "allmydata.test.test_iputil",
     "allmydata.test.test_log",
+    "allmydata.test.test_monitor",
     "allmydata.test.test_netstring",
     "allmydata.test.test_observer",
     "allmydata.test.test_pipeline",
     "allmydata.test.test_python3",
     "allmydata.test.test_spans",
     "allmydata.test.test_statistics",
+    "allmydata.test.test_storage",
+    "allmydata.test.test_storage_web",
     "allmydata.test.test_time_format",
+    "allmydata.test.test_uri",
     "allmydata.test.test_util",
     "allmydata.test.test_version",
 ]

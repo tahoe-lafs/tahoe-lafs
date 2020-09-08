@@ -48,8 +48,9 @@ class MutableShareFile(object):
     # our sharefiles share with a recognizable string, plus some random
     # binary data to reduce the chance that a regular text file will look
     # like a sharefile.
-    MAGIC = "Tahoe mutable container v1\n" + "\x75\x09\x44\x03\x8e"
+    MAGIC = b"Tahoe mutable container v1\n" + b"\x75\x09\x44\x03\x8e"
     assert len(MAGIC) == 32
+    assert isinstance(MAGIC, bytes)
     MAX_SIZE = MAX_MUTABLE_SHARE_SIZE
     # TODO: decide upon a policy for max share size
 
@@ -86,7 +87,7 @@ class MutableShareFile(object):
                 self.MAGIC, my_nodeid, write_enabler,
                 data_length, extra_lease_offset,
             )
-            leases = ("\x00" * self.LEASE_SIZE) * 4
+            leases = (b"\x00" * self.LEASE_SIZE) * 4
             f.write(header + leases)
             # data goes here, empty after creation
             f.write(struct.pack(">L", num_extra_leases))
@@ -112,7 +113,7 @@ class MutableShareFile(object):
             # start beyond the end of the data return an empty string.
             length = max(0, data_length-offset)
         if length == 0:
-            return ""
+            return b""
         precondition(offset+length <= data_length)
         f.seek(self.DATA_OFFSET+offset)
         data = f.read(length)
@@ -154,7 +155,7 @@ class MutableShareFile(object):
         # Zero out the old lease info (in order to minimize the chance that
         # it could accidentally be exposed to a reader later, re #1528).
         f.seek(old_extra_lease_offset)
-        f.write('\x00' * leases_size)
+        f.write(b'\x00' * leases_size)
         f.flush()
 
         # An interrupt here will corrupt the leases.
@@ -193,7 +194,7 @@ class MutableShareFile(object):
             # Fill any newly exposed empty space with 0's.
             if offset > data_length:
                 f.seek(self.DATA_OFFSET+data_length)
-                f.write('\x00'*(offset - data_length))
+                f.write(b'\x00'*(offset - data_length))
                 f.flush()
 
             new_data_length = offset+length
@@ -325,10 +326,10 @@ class MutableShareFile(object):
         modified = 0
         remaining = 0
         blank_lease = LeaseInfo(owner_num=0,
-                                renew_secret="\x00"*32,
-                                cancel_secret="\x00"*32,
+                                renew_secret=b"\x00"*32,
+                                cancel_secret=b"\x00"*32,
                                 expiration_time=0,
-                                nodeid="\x00"*20)
+                                nodeid=b"\x00"*20)
         with open(self.home, 'rb+') as f:
             for (leasenum,lease) in self._enumerate_leases(f):
                 accepting_nodeids.add(lease.nodeid)
@@ -420,18 +421,18 @@ class MutableShareFile(object):
                     # self._change_container_size() here.
 
 def testv_compare(a, op, b):
-    assert op in ("lt", "le", "eq", "ne", "ge", "gt")
-    if op == "lt":
+    assert op in (b"lt", b"le", b"eq", b"ne", b"ge", b"gt")
+    if op == b"lt":
         return a < b
-    if op == "le":
+    if op == b"le":
         return a <= b
-    if op == "eq":
+    if op == b"eq":
         return a == b
-    if op == "ne":
+    if op == b"ne":
         return a != b
-    if op == "ge":
+    if op == b"ge":
         return a >= b
-    if op == "gt":
+    if op == b"gt":
         return a > b
     # never reached
 
@@ -440,7 +441,7 @@ class EmptyShare(object):
     def check_testv(self, testv):
         test_good = True
         for (offset, length, operator, specimen) in testv:
-            data = ""
+            data = b""
             if not testv_compare(data, operator, specimen):
                 test_good = False
                 break

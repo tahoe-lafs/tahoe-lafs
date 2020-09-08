@@ -1,4 +1,4 @@
-venv
+venv*
 
 # vim swap files
 *.swp
@@ -9,6 +9,7 @@ venv
 *~
 *.DS_Store
 .*.kate-swp
+*.bak
 
 /build/
 /support/

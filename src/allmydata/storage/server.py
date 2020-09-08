@@ -1,3 +1,4 @@
+from future.utils import bytes_to_native_str
 import os, re, struct, time
 import weakref
 import six
@@ -51,6 +52,7 @@ class StorageServer(service.MultiService, Referenceable):
         service.MultiService.__init__(self)
         assert isinstance(nodeid, bytes)
         assert len(nodeid) == 20
+        assert isinstance(nodeid, bytes)
         self.my_nodeid = nodeid
         self.storedir = storedir
         sharedir = os.path.join(storedir, "shares")
@@ -398,7 +400,7 @@ class StorageServer(service.MultiService, Referenceable):
         # since all shares get the same lease data, we just grab the leases
         # from the first share
         try:
-            shnum, filename = self._get_bucket_shares(storage_index).next()
+            shnum, filename = next(self._get_bucket_shares(storage_index))
             sf = ShareFile(filename)
             return sf.get_leases()
         except StopIteration:
@@ -676,6 +678,10 @@ class StorageServer(service.MultiService, Referenceable):
 
     def remote_advise_corrupt_share(self, share_type, storage_index, shnum,
                                     reason):
+        # This is a remote API, I believe, so this has to be bytes for legacy
+        # protocol backwards compatibility reasons.
+        assert isinstance(share_type, bytes)
+        assert isinstance(reason, bytes)
         fileutil.make_dirs(self.corruption_advisory_dir)
         now = time_format.iso_utc(sep="T")
         si_s = si_b2a(storage_index)
@@ -684,11 +690,11 @@ class StorageServer(service.MultiService, Referenceable):
                           "%s--%s-%d" % (now, si_s, shnum)).replace(":","")
         with open(fn, "w") as f:
             f.write("report: Share Corruption\n")
-            f.write("type: %s\n" % share_type)
-            f.write("storage_index: %s\n" % si_s)
+            f.write("type: %s\n" % bytes_to_native_str(share_type))
+            f.write("storage_index: %s\n" % bytes_to_native_str(si_s))
             f.write("share_number: %d\n" % shnum)
             f.write("\n")
-            f.write(reason)
+            f.write(bytes_to_native_str(reason))
             f.write("\n")
         log.msg(format=("client claims corruption in (%(share_type)s) " +
                         "%(si)s-%(shnum)d: %(reason)s"),
