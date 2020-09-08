@@ -1,15 +1,16 @@
 # Override defaults for codecov.io checks.
 #
-# Codecov's defaults seem to leave red marks in GitHub CI checks in a
-# rather arbitrary manner, probably because computers are bad with
-# floating point numbers.
-#
 # Documentation is at https://docs.codecov.io/docs/codecov-yaml;
 # reference is at https://docs.codecov.io/docs/codecovyml-reference.
 #
 # To validate this file, use:
 #
 #   curl --data-binary @.codecov.yml https://codecov.io/validate
+#
+# Codecov's defaults seem to leave red marks in GitHub CI checks in a
+# rather arbitrary manner, probably because of non-determinism in
+# coverage (see https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2891)
+# and maybe because computers are bad with floating point numbers.
 
 # Allow coverage percentage a precision of zero decimals, and round to
 # the nearest number (for example, 89.957 to to 90; 89.497 to 89%).
