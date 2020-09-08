@@ -171,7 +171,7 @@ class WriteBucketProxy(object):
     def put_block(self, segmentnum, data):
         offset = self._offsets['data'] + segmentnum * self._block_size
         assert offset + len(data) <= self._offsets['uri_extension']
-        assert isinstance(data, str)
+        assert isinstance(data, bytes)
         if segmentnum < self._num_segments-1:
             precondition(len(data) == self._block_size,
                          len(data), self._block_size)
@@ -185,7 +185,7 @@ class WriteBucketProxy(object):
     def put_crypttext_hashes(self, hashes):
         offset = self._offsets['crypttext_hash_tree']
         assert isinstance(hashes, list)
-        data = "".join(hashes)
+        data = b"".join(hashes)
         precondition(len(data) == self._segment_hash_size,
                      len(data), self._segment_hash_size)
         precondition(offset + len(data) <= self._offsets['block_hashes'],
@@ -196,7 +196,7 @@ class WriteBucketProxy(object):
     def put_block_hashes(self, blockhashes):
         offset = self._offsets['block_hashes']
         assert isinstance(blockhashes, list)
-        data = "".join(blockhashes)
+        data = b"".join(blockhashes)
         precondition(len(data) == self._segment_hash_size,
                      len(data), self._segment_hash_size)
         precondition(offset + len(data) <= self._offsets['share_hashes'],
@@ -209,7 +209,7 @@ class WriteBucketProxy(object):
         # as 2+32=34 bytes each
         offset = self._offsets['share_hashes']
         assert isinstance(sharehashes, list)
-        data = "".join([struct.pack(">H", hashnum) + hashvalue
+        data = b"".join([struct.pack(">H", hashnum) + hashvalue
                         for hashnum,hashvalue in sharehashes])
         precondition(len(data) == self._share_hashtree_size,
                      len(data), self._share_hashtree_size)
@@ -220,7 +220,7 @@ class WriteBucketProxy(object):
 
     def put_uri_extension(self, data):
         offset = self._offsets['uri_extension']
-        assert isinstance(data, str)
+        assert isinstance(data, bytes)
         precondition(len(data) <= self._uri_extension_size_max,
                      len(data), self._uri_extension_size_max)
         length = struct.pack(self.fieldstruct, len(data))
