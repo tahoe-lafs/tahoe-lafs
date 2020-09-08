@@ -52,6 +52,7 @@ class StorageServer(service.MultiService, Referenceable):
         service.MultiService.__init__(self)
         assert isinstance(nodeid, bytes)
         assert len(nodeid) == 20
+        assert isinstance(nodeid, bytes)
         self.my_nodeid = nodeid
         self.storedir = storedir
         sharedir = os.path.join(storedir, "shares")
