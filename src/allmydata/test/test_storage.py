@@ -8,7 +8,7 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
-from future.utils import native_str, PY2, PY3, bytes_to_native_str
+from future.utils import native_str, PY2, bytes_to_native_str
 if PY2:
     from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
@@ -1373,8 +1373,7 @@ class MutableServer(unittest.TestCase):
         si = base32.b2a(b"si1")
         # note: this is a detail of the storage server implementation, and
         # may change in the future
-        if PY3:
-            si = si.decode("utf-8")
+        si = bytes_to_native_str(si)  # filesystem paths are native strings
         prefix = si[:2]
         prefixdir = os.path.join(self.workdir("test_remove"), "shares", prefix)
         bucketdir = os.path.join(prefixdir, si)
