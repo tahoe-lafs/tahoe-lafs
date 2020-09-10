@@ -1,3 +1,5 @@
+from future.utils import bytes_to_native_str
+
 import os, stat, struct, time
 
 from foolscap.api import Referenceable
@@ -85,7 +87,7 @@ class ShareFile(object):
         seekpos = self._data_offset+offset
         actuallength = max(0, min(length, self._lease_offset-seekpos))
         if actuallength == 0:
-            return ""
+            return b""
         with open(self.home, 'rb') as f:
             f.seek(seekpos)
             return f.read(actuallength)
@@ -298,7 +300,9 @@ class BucketReader(Referenceable):
 
     def __repr__(self):
         return "<%s %s %s>" % (self.__class__.__name__,
-                               base32.b2a(self.storage_index[:8])[:12],
+                               bytes_to_native_str(
+                                   base32.b2a(self.storage_index[:8])[:12]
+                               ),
                                self.shnum)
 
     def remote_read(self, offset, length):
@@ -309,7 +313,7 @@ class BucketReader(Referenceable):
         return data
 
     def remote_advise_corrupt_share(self, reason):
-        return self.ss.remote_advise_corrupt_share("immutable",
+        return self.ss.remote_advise_corrupt_share(b"immutable",
                                                    self.storage_index,
                                                    self.shnum,
                                                    reason)

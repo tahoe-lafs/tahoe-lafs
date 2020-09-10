@@ -1,3 +1,18 @@
+"""
+Parse connection status from Foolscap.
+
+Ported to Python 3.
+"""
+
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+
 import time
 from zope.interface import implementer
 from ..interfaces import IConnectionStatus
@@ -37,9 +52,12 @@ def _hint_statuses(which, handlers, statuses):
 
 def from_foolscap_reconnector(rc, last_received):
     ri = rc.getReconnectionInfo()
-    # See foolscap/reconnector.py, ReconnectionInfo, for details about
-    # possible states.
+    # See foolscap/reconnector.py, ReconnectionInfo, for details about possible
+    # states. The returned result is a native string, it seems, so convert to
+    # unicode.
     state = ri.state
+    if isinstance(state, bytes):  # Python 2
+        state = str(state, "ascii")
     if state == "unstarted":
         return ConnectionStatus.unstarted()
 

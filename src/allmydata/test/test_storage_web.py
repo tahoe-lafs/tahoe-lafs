@@ -9,7 +9,7 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
-from future.utils import PY2, PY3
+from future.utils import PY2
 if PY2:
     # Omitted list sinc it broke a test on Python 2. Shouldn't require further
     # work, when we switch to Python 3 we'll be dropping this, anyway.
@@ -19,7 +19,6 @@ import time
 import os.path
 import re
 import json
-from unittest import skipIf
 
 from twisted.trial import unittest
 
@@ -107,7 +106,6 @@ class MyStorageServer(StorageServer):
 
 class BucketCounter(unittest.TestCase, pollmixin.PollMixin):
 
-    @skipIf(PY3, "Not ported yet.")
     def setUp(self):
         self.s = service.MultiService()
         self.s.startService()
@@ -130,12 +128,12 @@ class BucketCounter(unittest.TestCase, pollmixin.PollMixin):
 
         # this sample is before the crawler has started doing anything
         html = renderSynchronously(w)
-        self.failUnlessIn("<h1>Storage Server Status</h1>", html)
+        self.failUnlessIn(b"<h1>Storage Server Status</h1>", html)
         s = remove_tags(html)
-        self.failUnlessIn("Accepting new shares: Yes", s)
-        self.failUnlessIn("Reserved space: - 0 B (0)", s)
-        self.failUnlessIn("Total buckets: Not computed yet", s)
-        self.failUnlessIn("Next crawl in", s)
+        self.failUnlessIn(b"Accepting new shares: Yes", s)
+        self.failUnlessIn(b"Reserved space: - 0 B (0)", s)
+        self.failUnlessIn(b"Total buckets: Not computed yet", s)
+        self.failUnlessIn(b"Next crawl in", s)
 
         # give the bucket-counting-crawler one tick to get started. The
         # cpu_slice=0 will force it to yield right after it processes the
@@ -154,8 +152,8 @@ class BucketCounter(unittest.TestCase, pollmixin.PollMixin):
             ss.bucket_counter.cpu_slice = 100.0 # finish as fast as possible
             html = renderSynchronously(w)
             s = remove_tags(html)
-            self.failUnlessIn(" Current crawl ", s)
-            self.failUnlessIn(" (next work in ", s)
+            self.failUnlessIn(b" Current crawl ", s)
+            self.failUnlessIn(b" (next work in ", s)
         d.addCallback(_check)
 
         # now give it enough time to complete a full cycle
@@ -166,8 +164,8 @@ class BucketCounter(unittest.TestCase, pollmixin.PollMixin):
             ss.bucket_counter.cpu_slice = orig_cpu_slice
             html = renderSynchronously(w)
             s = remove_tags(html)
-            self.failUnlessIn("Total buckets: 0 (the number of", s)
-            self.failUnless("Next crawl in 59 minutes" in s or "Next crawl in 60 minutes" in s, s)
+            self.failUnlessIn(b"Total buckets: 0 (the number of", s)
+            self.failUnless(b"Next crawl in 59 minutes" in s or "Next crawl in 60 minutes" in s, s)
         d.addCallback(_check2)
         return d
 
@@ -228,20 +226,20 @@ class BucketCounter(unittest.TestCase, pollmixin.PollMixin):
             # no ETA is available yet
             html = renderSynchronously(w)
             s = remove_tags(html)
-            self.failUnlessIn("complete (next work", s)
+            self.failUnlessIn(b"complete (next work", s)
 
         def _check_2(ignored):
             # one prefix has finished, so an ETA based upon that elapsed time
             # should be available.
             html = renderSynchronously(w)
             s = remove_tags(html)
-            self.failUnlessIn("complete (ETA ", s)
+            self.failUnlessIn(b"complete (ETA ", s)
 
         def _check_3(ignored):
             # two prefixes have finished
             html = renderSynchronously(w)
             s = remove_tags(html)
-            self.failUnlessIn("complete (ETA ", s)
+            self.failUnlessIn(b"complete (ETA ", s)
             d.callback("done")
 
         hooks[0].addCallback(_check_1).addErrback(d.errback)
@@ -1172,7 +1170,6 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin):
 
 class WebStatus(unittest.TestCase, pollmixin.PollMixin):
 
-    @skipIf(PY3, "Not ported yet.")
     def setUp(self):
         self.s = service.MultiService()
         self.s.startService()
@@ -1182,7 +1179,7 @@ class WebStatus(unittest.TestCase, pollmixin.PollMixin):
     def test_no_server(self):
         w = StorageStatus(None)
         html = renderSynchronously(w)
-        self.failUnlessIn("<h1>No Storage Server Running</h1>", html)
+        self.failUnlessIn(b"<h1>No Storage Server Running</h1>", html)
 
     def test_status(self):
         basedir = "storage/WebStatus/status"
@@ -1193,12 +1190,12 @@ class WebStatus(unittest.TestCase, pollmixin.PollMixin):
         w = StorageStatus(ss, "nickname")
         d = renderDeferred(w)
         def _check_html(html):
-            self.failUnlessIn("<h1>Storage Server Status</h1>", html)
+            self.failUnlessIn(b"<h1>Storage Server Status</h1>", html)
             s = remove_tags(html)
-            self.failUnlessIn("Server Nickname: nickname", s)
-            self.failUnlessIn("Server Nodeid: %s"  % base32.b2a(nodeid), s)
-            self.failUnlessIn("Accepting new shares: Yes", s)
-            self.failUnlessIn("Reserved space: - 0 B (0)", s)
+            self.failUnlessIn(b"Server Nickname: nickname", s)
+            self.failUnlessIn(b"Server Nodeid: %s"  % base32.b2a(nodeid), s)
+            self.failUnlessIn(b"Accepting new shares: Yes", s)
+            self.failUnlessIn(b"Reserved space: - 0 B (0)", s)
         d.addCallback(_check_html)
         d.addCallback(lambda ign: renderJSON(w))
         def _check_json(raw):
@@ -1225,11 +1222,11 @@ class WebStatus(unittest.TestCase, pollmixin.PollMixin):
         ss.setServiceParent(self.s)
         w = StorageStatus(ss)
         html = renderSynchronously(w)
-        self.failUnlessIn("<h1>Storage Server Status</h1>", html)
+        self.failUnlessIn(b"<h1>Storage Server Status</h1>", html)
         s = remove_tags(html)
-        self.failUnlessIn("Accepting new shares: Yes", s)
-        self.failUnlessIn("Total disk space: ?", s)
-        self.failUnlessIn("Space Available to Tahoe: ?", s)
+        self.failUnlessIn(b"Accepting new shares: Yes", s)
+        self.failUnlessIn(b"Total disk space: ?", s)
+        self.failUnlessIn(b"Space Available to Tahoe: ?", s)
         self.failUnless(ss.get_available_space() is None)
 
     def test_status_bad_disk_stats(self):
@@ -1245,11 +1242,11 @@ class WebStatus(unittest.TestCase, pollmixin.PollMixin):
         ss.setServiceParent(self.s)
         w = StorageStatus(ss)
         html = renderSynchronously(w)
-        self.failUnlessIn("<h1>Storage Server Status</h1>", html)
+        self.failUnlessIn(b"<h1>Storage Server Status</h1>", html)
         s = remove_tags(html)
-        self.failUnlessIn("Accepting new shares: No", s)
-        self.failUnlessIn("Total disk space: ?", s)
-        self.failUnlessIn("Space Available to Tahoe: ?", s)
+        self.failUnlessIn(b"Accepting new shares: No", s)
+        self.failUnlessIn(b"Total disk space: ?", s)
+        self.failUnlessIn(b"Space Available to Tahoe: ?", s)
         self.failUnlessEqual(ss.get_available_space(), 0)
 
     def test_status_right_disk_stats(self):
@@ -1282,14 +1279,14 @@ class WebStatus(unittest.TestCase, pollmixin.PollMixin):
         w = StorageStatus(ss)
         html = renderSynchronously(w)
 
-        self.failUnlessIn("<h1>Storage Server Status</h1>", html)
+        self.failUnlessIn(b"<h1>Storage Server Status</h1>", html)
         s = remove_tags(html)
-        self.failUnlessIn("Total disk space: 5.00 GB", s)
-        self.failUnlessIn("Disk space used: - 1.00 GB", s)
-        self.failUnlessIn("Disk space free (root): 4.00 GB", s)
-        self.failUnlessIn("Disk space free (non-root): 3.00 GB", s)
-        self.failUnlessIn("Reserved space: - 1.00 GB", s)
-        self.failUnlessIn("Space Available to Tahoe: 2.00 GB", s)
+        self.failUnlessIn(b"Total disk space: 5.00 GB", s)
+        self.failUnlessIn(b"Disk space used: - 1.00 GB", s)
+        self.failUnlessIn(b"Disk space free (root): 4.00 GB", s)
+        self.failUnlessIn(b"Disk space free (non-root): 3.00 GB", s)
+        self.failUnlessIn(b"Reserved space: - 1.00 GB", s)
+        self.failUnlessIn(b"Space Available to Tahoe: 2.00 GB", s)
         self.failUnlessEqual(ss.get_available_space(), 2*GB)
 
     def test_readonly(self):
@@ -1299,9 +1296,9 @@ class WebStatus(unittest.TestCase, pollmixin.PollMixin):
         ss.setServiceParent(self.s)
         w = StorageStatus(ss)
         html = renderSynchronously(w)
-        self.failUnlessIn("<h1>Storage Server Status</h1>", html)
+        self.failUnlessIn(b"<h1>Storage Server Status</h1>", html)
         s = remove_tags(html)
-        self.failUnlessIn("Accepting new shares: No", s)
+        self.failUnlessIn(b"Accepting new shares: No", s)
 
     def test_reserved(self):
         basedir = "storage/WebStatus/reserved"
@@ -1310,9 +1307,9 @@ class WebStatus(unittest.TestCase, pollmixin.PollMixin):
         ss.setServiceParent(self.s)
         w = StorageStatus(ss)
         html = renderSynchronously(w)
-        self.failUnlessIn("<h1>Storage Server Status</h1>", html)
+        self.failUnlessIn(b"<h1>Storage Server Status</h1>", html)
         s = remove_tags(html)
-        self.failUnlessIn("Reserved space: - 10.00 MB (10000000)", s)
+        self.failUnlessIn(b"Reserved space: - 10.00 MB (10000000)", s)
 
     def test_huge_reserved(self):
         basedir = "storage/WebStatus/reserved"
@@ -1321,9 +1318,9 @@ class WebStatus(unittest.TestCase, pollmixin.PollMixin):
         ss.setServiceParent(self.s)
         w = StorageStatus(ss)
         html = renderSynchronously(w)
-        self.failUnlessIn("<h1>Storage Server Status</h1>", html)
+        self.failUnlessIn(b"<h1>Storage Server Status</h1>", html)
         s = remove_tags(html)
-        self.failUnlessIn("Reserved space: - 10.00 MB (10000000)", s)
+        self.failUnlessIn(b"Reserved space: - 10.00 MB (10000000)", s)
 
     def test_util(self):
         w = StorageStatusElement(None, None)

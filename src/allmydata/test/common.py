@@ -52,7 +52,6 @@ from twisted.internet.defer import inlineCallbacks, returnValue
 from twisted.internet.interfaces import IPullProducer
 from twisted.python import failure
 from twisted.python.filepath import FilePath
-from twisted.application import service
 from twisted.web.error import Error as WebError
 from twisted.internet.interfaces import (
     IStreamServerEndpointStringParser,
@@ -88,6 +87,8 @@ from ..crypto import (
 from .eliotutil import (
     EliotLoggedRunTest,
 )
+# Backwards compatibility imports:
+from .common_py3 import LoggingServiceParent, ShouldFailMixin  # noqa: F401
 
 
 TEST_RSA_KEY_SIZE = 522
@@ -780,53 +781,8 @@ def create_mutable_filenode(contents, mdmf=False, all_contents=None):
     return filenode
 
 
-class LoggingServiceParent(service.MultiService):
-    def log(self, *args, **kwargs):
-        return log.msg(*args, **kwargs)
-
-
 TEST_DATA="\x02"*(Uploader.URI_LIT_SIZE_THRESHOLD+1)
 
-class ShouldFailMixin(object):
-    def shouldFail(self, expected_failure, which, substring,
-                   callable, *args, **kwargs):
-        """Assert that a function call raises some exception. This is a
-        Deferred-friendly version of TestCase.assertRaises() .
-
-        Suppose you want to verify the following function:
-
-         def broken(a, b, c):
-             if a < 0:
-                 raise TypeError('a must not be negative')
-             return defer.succeed(b+c)
-
-        You can use:
-            d = self.shouldFail(TypeError, 'test name',
-                                'a must not be negative',
-                                broken, -4, 5, c=12)
-        in your test method. The 'test name' string will be included in the
-        error message, if any, because Deferred chains frequently make it
-        difficult to tell which assertion was tripped.
-
-        The substring= argument, if not None, must appear in the 'repr'
-        of the message wrapped by this Failure, or the test will fail.
-        """
-
-        assert substring is None or isinstance(substring, str)
-        d = defer.maybeDeferred(callable, *args, **kwargs)
-        def done(res):
-            if isinstance(res, failure.Failure):
-                res.trap(expected_failure)
-                if substring:
-                    message = repr(res.value.args[0])
-                    self.failUnless(substring in message,
-                                    "%s: substring '%s' not in '%s'"
-                                    % (which, substring, message))
-            else:
-                self.fail("%s was supposed to raise %s, not get '%s'" %
-                          (which, expected_failure, res))
-        d.addBoth(done)
-        return d
 
 class WebErrorMixin(object):
     def explain_web_error(self, f):

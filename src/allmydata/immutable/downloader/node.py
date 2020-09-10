@@ -13,10 +13,10 @@ from allmydata.hashtree import IncompleteHashTree, BadHashError, \
      NotEnoughHashesError
 
 # local imports
-from finder import ShareFinder
-from fetcher import SegmentFetcher
-from segmentation import Segmentation
-from common import BadCiphertextHashError
+from .finder import ShareFinder
+from .fetcher import SegmentFetcher
+from .segmentation import Segmentation
+from .common import BadCiphertextHashError
 
 class IDownloadStatusHandlingConsumer(Interface):
     def set_download_status_read_event(read_ev):

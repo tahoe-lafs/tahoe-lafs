@@ -19,11 +19,13 @@ import time
 import signal
 
 from twisted.internet import defer, reactor
+from twisted.application import service
 from twisted.python import failure
 from twisted.trial import unittest
 
 from ..util.assertutil import precondition
 from ..util.encodingutil import unicode_platform, get_filesystem_encoding
+from ..util import log
 
 
 class TimezoneMixin(object):
@@ -77,6 +79,28 @@ class ShouldFailMixin(object):
 
     def shouldFail(self, expected_failure, which, substring,
                    callable, *args, **kwargs):
+        """Assert that a function call raises some exception. This is a
+        Deferred-friendly version of TestCase.assertRaises() .
+
+        Suppose you want to verify the following function:
+
+         def broken(a, b, c):
+             if a < 0:
+                 raise TypeError('a must not be negative')
+             return defer.succeed(b+c)
+
+        You can use:
+            d = self.shouldFail(TypeError, 'test name',
+                                'a must not be negative',
+                                broken, -4, 5, c=12)
+        in your test method. The 'test name' string will be included in the
+        error message, if any, because Deferred chains frequently make it
+        difficult to tell which assertion was tripped.
+
+        The substring= argument, if not None, must appear in the 'repr'
+        of the message wrapped by this Failure, or the test will fail.
+        """
+
         assert substring is None or isinstance(substring, (bytes, unicode))
         d = defer.maybeDeferred(callable, *args, **kwargs)
         def done(res):
@@ -135,3 +159,9 @@ class FakeCanary(object):
         if self.ignore:
             return
         del self.disconnectors[marker]
+
+
+class LoggingServiceParent(service.MultiService):
+    def log(self, *args, **kwargs):
+        return log.msg(*args, **kwargs)
+

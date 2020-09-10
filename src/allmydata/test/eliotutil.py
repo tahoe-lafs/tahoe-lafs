@@ -2,6 +2,8 @@
 Tools aimed at the interaction between tests and Eliot.
 """
 
+from past.builtins import unicode
+
 __all__ = [
     "RUN_TEST",
     "EliotLoggedRunTest",

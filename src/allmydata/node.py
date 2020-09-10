@@ -2,12 +2,17 @@
 This module contains classes and functions to implement and manage
 a node for Tahoe-LAFS.
 """
+from past.builtins import unicode
+
 import datetime
 import os.path
 import re
 import types
 import errno
-import ConfigParser
+try:
+    import ConfigParser
+except ImportError:
+    import configparser as ConfigParser
 import tempfile
 from io import BytesIO
 from base64 import b32decode, b32encode
@@ -67,7 +72,7 @@ def _common_valid_config():
 
 # Add our application versions to the data that Foolscap's LogPublisher
 # reports.
-for thing, things_version in get_package_versions().iteritems():
+for thing, things_version in get_package_versions().items():
     app_versions.add_version(thing, str(things_version))
 
 # group 1 will be addr (dotted quad string), group 3 if any will be portnum (string)
@@ -272,7 +277,10 @@ class _Config(object):
         self.config = configparser
 
         nickname_utf8 = self.get_config("node", "nickname", "<unspecified>")
-        self.nickname = nickname_utf8.decode("utf-8")
+        if isinstance(nickname_utf8, bytes):  # Python 2
+            self.nickname = nickname_utf8.decode("utf-8")
+        else:
+            self.nickname = nickname_utf8
         assert type(self.nickname) is unicode
 
     def validate(self, valid_config_sections):
