@@ -9,7 +9,7 @@ from allmydata.util import log
 from allmydata.util.spans import overlap
 from allmydata.interfaces import DownloadStopped
 
-from common import BadSegmentNumberError, WrongSegmentError
+from .common import BadSegmentNumberError, WrongSegmentError
 
 @implementer(IPushProducer)
 class Segmentation(object):

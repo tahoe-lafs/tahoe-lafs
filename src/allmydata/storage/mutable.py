@@ -113,7 +113,7 @@ class MutableShareFile(object):
             # start beyond the end of the data return an empty string.
             length = max(0, data_length-offset)
         if length == 0:
-            return ""
+            return b""
         precondition(offset+length <= data_length)
         f.seek(self.DATA_OFFSET+offset)
         data = f.read(length)
@@ -421,18 +421,18 @@ class MutableShareFile(object):
                     # self._change_container_size() here.
 
 def testv_compare(a, op, b):
-    assert op in ("lt", "le", "eq", "ne", "ge", "gt")
-    if op == "lt":
+    assert op in (b"lt", b"le", b"eq", b"ne", b"ge", b"gt")
+    if op == b"lt":
         return a < b
-    if op == "le":
+    if op == b"le":
         return a <= b
-    if op == "eq":
+    if op == b"eq":
         return a == b
-    if op == "ne":
+    if op == b"ne":
         return a != b
-    if op == "ge":
+    if op == b"ge":
         return a >= b
-    if op == "gt":
+    if op == b"gt":
         return a > b
     # never reached
 
@@ -441,7 +441,7 @@ class EmptyShare(object):
     def check_testv(self, testv):
         test_good = True
         for (offset, length, operator, specimen) in testv:
-            data = ""
+            data = b""
             if not testv_compare(data, operator, specimen):
                 test_good = False
                 break

@@ -5,7 +5,7 @@ from foolscap.api import eventually
 from allmydata.util import base32, log
 from twisted.internet import reactor
 
-from share import Share, CommonShare
+from .share import Share, CommonShare
 
 def incidentally(res, f, *args, **kwargs):
     """Add me to a Deferred chain like this:

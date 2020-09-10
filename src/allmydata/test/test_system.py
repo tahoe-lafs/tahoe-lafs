@@ -980,6 +980,8 @@ class CountingDataUploadable(upload.Data):
 
 class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
 
+    timeout = 180
+
     def test_connections(self):
         self.basedir = "system/SystemTest/test_connections"
         d = self.set_up_nodes()

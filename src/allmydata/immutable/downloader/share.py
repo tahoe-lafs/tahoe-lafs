@@ -13,7 +13,7 @@ from allmydata.hashtree import IncompleteHashTree, BadHashError, \
 
 from allmydata.immutable.layout import make_write_bucket_proxy
 from allmydata.util.observer import EventStreamObserver
-from common import COMPLETE, CORRUPT, DEAD, BADSEGNUM
+from .common import COMPLETE, CORRUPT, DEAD, BADSEGNUM
 
 
 class LayoutInvalid(Exception):
