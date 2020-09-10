@@ -80,9 +80,11 @@ class MultiFormatResource(resource.Resource, object):
             try:
                 renderer = getattr(self, "render_{}".format(fmt.upper()))
             except AttributeError:
-                raise WebError(
+                return resource.ErrorPage(
+                    http.BAD_REQUEST,
+                    "Bad Format",
                     "Unknown {} value: {!r}".format(self.formatArgument, fmt),
-                )
+                ).render
 
         if renderer is None:
             renderer = self.render_HTML
