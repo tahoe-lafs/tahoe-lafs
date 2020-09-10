@@ -9,10 +9,7 @@ import os.path
 import re
 import types
 import errno
-try:
-    import ConfigParser
-except ImportError:
-    import configparser as ConfigParser
+from six.moves import configparser
 import tempfile
 from io import BytesIO
 from base64 import b32decode, b32encode
@@ -185,7 +182,7 @@ def read_config(basedir, portnumfile, generated_files=[], _valid_config=None):
 
     # (try to) read the main config file
     config_fname = os.path.join(basedir, "tahoe.cfg")
-    parser = ConfigParser.SafeConfigParser()
+    parser = configparser.SafeConfigParser()
     try:
         parser = configutil.get_config(config_fname)
     except EnvironmentError as e:
@@ -208,7 +205,7 @@ def config_from_string(basedir, portnumfile, config_str, _valid_config=None):
         _valid_config = _common_valid_config()
 
     # load configuration from in-memory string
-    parser = ConfigParser.SafeConfigParser()
+    parser = configparser.SafeConfigParser()
     parser.readfp(BytesIO(config_str))
 
     fname = "<in-memory>"
@@ -303,7 +300,7 @@ class _Config(object):
     def items(self, section, default=_None):
         try:
             return self.config.items(section)
-        except ConfigParser.NoSectionError:
+        except configparser.NoSectionError:
             if default is _None:
                 raise
             return default
@@ -318,7 +315,7 @@ class _Config(object):
                 raise UnescapedHashError(section, option, item)
 
             return item
-        except (ConfigParser.NoOptionError, ConfigParser.NoSectionError):
+        except (configparser.NoOptionError, configparser.NoSectionError):
             if default is _None:
                 raise MissingConfigEntry(
                     "{} is missing the [{}]{} entry".format(
