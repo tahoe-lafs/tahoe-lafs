@@ -11,7 +11,7 @@ For example::
 
 	tahoe-lafs $ pre-commit install
 	pre-commit installed at .git/hooks/pre-commit
-	tahoe-lafs $ echo "def foo():\n\t''" > src/allmydata/tabbed.py
+	tahoe-lafs $ python -c "import pathlib; pathlib.Path('src/allmydata/tabbed.py').write_text('def foo():\\n\\tpass\\n')"
 	tahoe-lafs $ git add src/allmydata/tabbed.py
 	tahoe-lafs $ git commit -a -m "Add a file that violates flake8"
 	flake8...................................................................Failed
