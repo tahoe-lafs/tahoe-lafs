@@ -6,7 +6,7 @@ orbs:
 workflows:
   ci:
     jobs:
-      - "windows-python3.6"
+      - "windows-python36"
   images:
     # Build the Docker images used by the ci jobs.  This makes the ci jobs
     # faster and takes various spurious failures out of the critical path.
@@ -215,21 +215,21 @@ jobs:
       - run: *RUN_TESTS
 
 
-  ubuntu-16.04:
+  ubuntu-16-04:
     <<: *DEBIAN
     docker:
       - image: "tahoelafsci/ubuntu:16.04-py2.7"
         user: "nobody"
 
 
-  ubuntu-18.04: &UBUNTU_18_04
+  ubuntu-18-04: &UBUNTU_18_04
     <<: *DEBIAN
     docker:
       - image: "tahoelafsci/ubuntu:18.04-py2.7"
         user: "nobody"
 
 
-  ubuntu-18.04-python3.6:
+  ubuntu-18-04-python36:
     <<: *UBUNTU_18_04
     docker:
       - image: "tahoelafsci/ubuntu:18.04-py3"
@@ -244,7 +244,7 @@ jobs:
       TAHOE_LAFS_TOX_ENVIRONMENT: "py36-coverage"
 
 
-  windows-python3.6:
+  windows-python36:
     executor:
       name: win/default
     steps:
@@ -257,7 +257,7 @@ jobs:
             docker run hello-world:nanoserver-1809
 
 
-  ubuntu-20.04:
+  ubuntu-20-04:
     <<: *DEBIAN
     docker:
       - image: "tahoelafsci/ubuntu:20.04"
@@ -299,7 +299,7 @@ jobs:
         user: "nobody"
 
 
-  nixos-19.09:
+  nixos-19-09:
     docker:
       # Run in a highly Nix-capable environment.
       - image: "nixorg/nix:circleci"
