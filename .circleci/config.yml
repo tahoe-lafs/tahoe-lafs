@@ -1,10 +1,9 @@
 # https://circleci.com/docs/2.0/
 
-version: 2
+version: 2.1
 orbs:
-  win: circleci/windows@2.2.0
+  win: circleci/windows@2.4.0
 workflows:
-  version: 2
   ci:
     jobs:
       - "windows-python3.6"
@@ -248,13 +247,11 @@ jobs:
   windows-python3.6:
     executor:
       name: win/default
-      shell: bash.exe
     steps:
       - checkout
       - run: systeminfo
       - run:
           name: "Check docker"
-          shell: bash.exe
           command: |
             docker info
             docker run hello-world:nanoserver-1809
