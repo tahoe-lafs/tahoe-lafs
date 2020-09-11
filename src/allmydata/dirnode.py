@@ -1,4 +1,6 @@
 """Directory Node implementation."""
+from past.builtins import unicode
+
 import time
 
 from zope.interface import implementer
@@ -227,7 +229,7 @@ def pack_children(childrenx, writekey, deep_immutable=False):
     return _pack_normalized_children(children, writekey=writekey, deep_immutable=deep_immutable)
 
 
-ZERO_LEN_NETSTR=netstring('')
+ZERO_LEN_NETSTR=netstring(b'')
 def _pack_normalized_children(children, writekey, deep_immutable=False):
     """Take a dict that maps:
          children[unicode_nfc_name] = (IFileSystemNode, metadata_dict)

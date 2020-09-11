@@ -1,3 +1,5 @@
+from past.builtins import long
+
 import os, time, weakref, itertools
 from zope.interface import implementer
 from twisted.python import failure
@@ -26,7 +28,7 @@ from allmydata.interfaces import IUploadable, IUploader, IUploadResults, \
 from allmydata.immutable import layout
 
 from six.moves import cStringIO as StringIO
-from happiness_upload import share_placement, calculate_happiness
+from .happiness_upload import share_placement, calculate_happiness
 
 from ..util.eliotutil import (
     log_call_deferred,

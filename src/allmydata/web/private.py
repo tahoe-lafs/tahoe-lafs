@@ -54,11 +54,6 @@ from .logs import (
     create_log_resources,
 )
 
-# Hotfix work-around https://github.com/twisted/nevow/issues/106
-from . import _nevow_106
-_nevow_106.patch()
-del _nevow_106
-
 SCHEME = b"tahoe-lafs"
 
 class IToken(ICredentials):
