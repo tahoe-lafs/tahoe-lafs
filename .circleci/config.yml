@@ -158,7 +158,7 @@ jobs:
         user: "nobody"
 
 
-  pypy2.7-buster:
+  pypy2-7-buster:
     <<: *DEBIAN
     docker:
       - image: "tahoelafsci/pypy:buster-py2"
