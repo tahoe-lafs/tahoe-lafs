@@ -22,13 +22,13 @@ workflows:
     jobs:
       - "build-image-debian-8"
       - "build-image-debian-9"
-      - "build-image-ubuntu-16.04"
-      - "build-image-ubuntu-18.04"
-      - "build-image-ubuntu-20.04"
+      - "build-image-ubuntu-16-04"
+      - "build-image-ubuntu-18-04"
+      - "build-image-ubuntu-20-04"
       - "build-image-fedora-28"
       - "build-image-fedora-29"
       - "build-image-centos-8"
-      - "build-image-pypy-2.7-buster"
+      - "build-image-pypy-2-7-buster"
       - "build-image-python36-ubuntu"
 
 
@@ -444,7 +444,7 @@ jobs:
       PYTHON_VERSION: "2.7"
 
 
-  build-image-ubuntu-16.04:
+  build-image-ubuntu-16-04:
     <<: *BUILD_IMAGE
 
     environment:
@@ -453,7 +453,7 @@ jobs:
       PYTHON_VERSION: "2.7"
 
 
-  build-image-ubuntu-18.04:
+  build-image-ubuntu-18-04:
     <<: *BUILD_IMAGE
 
     environment:
@@ -471,7 +471,7 @@ jobs:
       PYTHON_VERSION: "3"
 
 
-  build-image-ubuntu-20.04:
+  build-image-ubuntu-20-04:
     <<: *BUILD_IMAGE
 
     environment:
@@ -507,7 +507,7 @@ jobs:
       TAG: "29"
 
 
-  build-image-pypy-2.7-buster:
+  build-image-pypy-2-7-buster:
     <<: *BUILD_IMAGE
 
     environment:
