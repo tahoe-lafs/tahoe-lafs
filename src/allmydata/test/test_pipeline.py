@@ -29,8 +29,8 @@ class Pipeline(unittest.TestCase):
         return d
 
     def failUnlessCallsAre(self, expected):
-        #print self.calls
-        #print expected
+        #print(self.calls)
+        #print(expected)
         self.failUnlessEqual(len(self.calls), len(expected), self.calls)
         for i,c in enumerate(self.calls):
             self.failUnlessEqual(c[1:], expected[i], str(i))

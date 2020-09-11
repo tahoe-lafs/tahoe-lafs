@@ -346,7 +346,7 @@ def dump_MDMF_share(m, length, options):
     print(" MDMF contents:", file=out)
     print("  seqnum: %d" % seqnum, file=out)
     print("  root_hash: %s" % base32.b2a(root_hash), file=out)
-    #print >>out, "  IV: %s" % base32.b2a(IV)
+    #print("  IV: %s" % base32.b2a(IV), file=out)
     print("  required_shares: %d" % k, file=out)
     print("  total_shares: %d" % N, file=out)
     print("  segsize: %d" % segsize, file=out)
