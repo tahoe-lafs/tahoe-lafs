@@ -5,7 +5,7 @@ workflows:
   version: 2
   ci:
     jobs:
-      - "ubuntu-18.04-python3.6"
+      - "windows-python3.6"
   images:
     # Build the Docker images used by the ci jobs.  This makes the ci jobs
     # faster and takes various spurious failures out of the critical path.
@@ -241,6 +241,21 @@ jobs:
       # reporter.
       TAHOE_LAFS_TRIAL_ARGS: "--reporter=subunitv2-file"
       TAHOE_LAFS_TOX_ENVIRONMENT: "py36-coverage"
+
+
+  windows-python3.6:
+    executor:
+      name: win/default
+      shell: powershell.exe
+    steps:
+      - checkout
+      - run: systeminfo
+      - run:
+          name: "Check docker"
+          shell: powershell.exe
+          command: |
+            docker info
+            docker run hello-world:nanoserver-1809
 
 
   ubuntu-20.04:
