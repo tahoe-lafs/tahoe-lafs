@@ -32,7 +32,7 @@ workflows:
       - "pypy2.7-buster"
 
       # Just one Python 3.6 configuration while the port is in-progress.
-      - "python3.6"
+      - "ubuntu-18.04-python3.6"
 
       # Other assorted tasks and configurations
       - "lint"
@@ -274,7 +274,7 @@ jobs:
         user: "nobody"
 
 
-  python3.6:
+  ubuntu-18.04-python3.6:
     <<: *UBUNTU_18_04
     docker:
       - image: "tahoelafsci/ubuntu:18.04-py3"
