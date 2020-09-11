@@ -1,6 +1,8 @@
 # https://circleci.com/docs/2.0/
 
 version: 2
+orbs:
+  win: circleci/windows@2.2.0
 workflows:
   version: 2
   ci:
