@@ -5,7 +5,12 @@ import json
 import treq
 
 from bs4 import BeautifulSoup
-from jaraco.functools import retry
+
+try:
+    from jaraco.functools import retry
+except ImportError:
+    # nix fails to have the dependency
+    from ..nix_compat.jaraco.functools import retry
 
 from twisted.application import service
 from twisted.internet import defer
