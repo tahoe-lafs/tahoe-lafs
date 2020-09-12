@@ -5,6 +5,11 @@ from functools import partial
 
 from bs4 import BeautifulSoup
 
+try:
+    from jaraco.functools import retry
+except ImportError:
+    from .nix_compat.jaraco.functools import retry
+
 from twisted.internet import reactor
 from twisted.trial import unittest
 from twisted.internet import defer
@@ -2293,6 +2298,8 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         d.addCallback(lambda res: rref.callRemote("measure_peer_response_time"))
         return d
 
+    # flaky test (https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3412)
+    @retry(retries=2, trap=(unittest.FailTest))
     def _test_cli(self, res):
         # run various CLI commands (in a thread, since they use blocking
         # network calls)
