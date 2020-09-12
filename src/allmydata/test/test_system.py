@@ -10,6 +10,7 @@ try:
 except ImportError:
     from .nix_compat.jaraco.functools import retry
 
+import twisted.internet.error
 from twisted.internet import reactor
 from twisted.trial import unittest
 from twisted.internet import defer
@@ -1626,6 +1627,8 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
     # the key, which should cause the download to fail the post-download
     # plaintext_hash check.
 
+    # flaky test (https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3412)
+    @retry(retries=2, trap=(unittest.FailTest, twisted.internet.error.CannotListenError))
     def test_filesystem(self):
         self.basedir = "system/SystemTest/test_filesystem"
         self.data = LARGE_DATA
