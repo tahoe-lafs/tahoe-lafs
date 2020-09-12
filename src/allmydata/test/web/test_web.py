@@ -12,6 +12,7 @@ except ImportError:
     # nix fails to have the dependency
     from ..nix_compat.jaraco.functools import retry
 
+import twisted.trial.util
 from twisted.application import service
 from twisted.internet import defer
 from twisted.internet.defer import inlineCallbacks, returnValue, maybeDeferred
@@ -1153,6 +1154,8 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
 
         return d
 
+    # flaky test (https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3412)
+    @retry(retries=2, trap=(KeyError, twisted.trial.util.DirtyReactorAggregateError))
     def test_status_path_404_error(self):
         """
         Looking for non-existent statuses under child paths should
