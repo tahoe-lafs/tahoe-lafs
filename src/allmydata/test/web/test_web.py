@@ -5,6 +5,7 @@ import json
 import treq
 
 from bs4 import BeautifulSoup
+from jaraco.functools import retry
 
 from twisted.application import service
 from twisted.internet import defer
@@ -3030,6 +3031,8 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             print(f.value.response)
         return f
 
+    # flaky test (https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3412)
+    @retry(retries=2, trap=(KeyError, error.Error))
     def test_POST_upload_replace(self):
         d = self.POST(self.public_url + "/foo", t="upload",
                       file=("bar.txt", self.NEWFILE_CONTENTS))
