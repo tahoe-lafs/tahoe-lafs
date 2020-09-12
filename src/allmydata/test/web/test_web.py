@@ -3888,6 +3888,8 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
     def test_POST_unlink(self):
         return self.test_POST_delete(command_name='unlink')
 
+    # flaky test (https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3412)
+    @retry(retries=2, trap=(KeyError, error.Error))
     def test_POST_rename_file(self):
         d = self.POST(self.public_url + "/foo", t="rename",
                       from_name="bar.txt", to_name='wibble.txt')
