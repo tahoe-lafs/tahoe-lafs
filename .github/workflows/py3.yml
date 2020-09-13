@@ -19,6 +19,7 @@ jobs:
           - ubuntu-latest
         python-version:
           - 3.6
+          - pypy3
 
     steps:
 
@@ -77,6 +78,7 @@ jobs:
           - windows-latest
         python-version:
           - 3.6
+          - pypy3
 
     steps:
 
@@ -140,6 +142,7 @@ jobs:
           - ubuntu-latest
         python-version:
           - 3.6
+          - pypy3
 
     steps:
 
