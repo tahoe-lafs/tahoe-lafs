@@ -55,6 +55,10 @@ jobs:
         if: matrix.python-version == '3.6'
         run: tox -e py36-coverage
 
+      - name: Run "tox -e pypy36-coverage"
+        if: matrix.python-version == 'pypy3'
+        run: tox -e pypy36-coverage
+
       - name: Upload eliot.log in case of failure
         uses: actions/upload-artifact@v1
         if: failure()
