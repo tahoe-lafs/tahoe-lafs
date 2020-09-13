@@ -18,10 +18,7 @@ jobs:
           - windows-latest
           - ubuntu-latest
         python-version:
-          - 3.5
           - 3.6
-          - 3.7
-          - 3.8
 
     steps:
 
@@ -79,10 +76,7 @@ jobs:
           - ubuntu-latest
           - windows-latest
         python-version:
-          - 3.5
           - 3.6
-          - 3.7
-          - 3.8
 
     steps:
 
@@ -145,10 +139,7 @@ jobs:
           - windows-latest
           - ubuntu-latest
         python-version:
-          - 3.5
           - 3.6
-          - 3.7
-          - 3.8
 
     steps:
 
