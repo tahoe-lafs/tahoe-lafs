@@ -38,6 +38,11 @@ jobs:
       - name: Fetch all history for all tags and branches
         run: git fetch --prune --unshallow
 
+      - name: Upgrade OpenSSL
+        if: matrix.os == 'macos-latest'
+        run: |
+          brew upgrade openssl@1.1
+
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v1
         with:
