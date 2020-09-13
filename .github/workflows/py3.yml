@@ -52,6 +52,7 @@ jobs:
         run: python misc/build_helpers/show-tool-versions.py
 
       - name: Run "tox -e py36-coverage"
+        if: matrix.python-version == '3.6'
         run: tox -e py36-coverage
 
       - name: Upload eliot.log in case of failure
