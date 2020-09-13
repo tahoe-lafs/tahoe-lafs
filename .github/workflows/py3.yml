@@ -1,0 +1,194 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - "master"
+  pull_request:
+
+jobs:
+
+  coverage:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - macos-latest
+          - windows-latest
+          - ubuntu-latest
+        python-version:
+          - 3.5
+          - 3.6
+          - 3.7
+          - 3.8
+
+    steps:
+
+      # Get vcpython27 on Windows + Python 2.7, to build zfec
+      # extension.  See https://chocolatey.org/packages/vcpython27 and
+      # https://github.com/crazy-max/ghaction-chocolatey
+      - name: Install MSVC 9.0 for Python 2.7 [Windows]
+        if: matrix.os == 'windows-latest' && matrix.python-version == '2.7'
+        uses: crazy-max/ghaction-chocolatey@v1
+        with:
+          args: install vcpython27
+
+      - name: Check out Tahoe-LAFS sources
+        uses: actions/checkout@v2
+
+      - name: Fetch all history for all tags and branches
+        run: git fetch --prune --unshallow
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v1
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install Python packages
+        run: |
+          pip install --upgrade codecov tox setuptools
+          pip list
+
+      - name: Display tool versions
+        run: python misc/build_helpers/show-tool-versions.py
+
+      - name: Run "tox -e py27-coverage"
+        run: tox -e py27-coverage
+
+      - name: Upload eliot.log in case of failure
+        uses: actions/upload-artifact@v1
+        if: failure()
+        with:
+          name: eliot.log
+          path: eliot.log
+
+      - name: Upload coverage report
+        uses: codecov/codecov-action@v1
+        with:
+          token: abf679b6-e2e6-4b33-b7b5-6cfbd41ee691
+          file: coverage.xml
+
+  integration:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - macos-latest
+          - ubuntu-latest
+          - windows-latest
+        python-version:
+          - 3.5
+          - 3.6
+          - 3.7
+          - 3.8
+
+    steps:
+
+      - name: Install Tor [Ubuntu]
+        if: matrix.os == 'ubuntu-latest'
+        run: sudo apt install tor
+
+      - name: Install Tor [macOS]
+        if: matrix.os == 'macos-latest'
+        run: brew install tor
+
+      - name: Install Tor [Windows]
+        if: matrix.os == 'windows-latest'
+        uses: crazy-max/ghaction-chocolatey@v1
+        with:
+          args: install tor
+
+      - name: Install MSVC 9.0 for Python 2.7 [Windows]
+        if: matrix.os == 'windows-latest' && matrix.python-version == '2.7'
+        uses: crazy-max/ghaction-chocolatey@v1
+        with:
+          args: install vcpython27
+
+      - name: Check out Tahoe-LAFS sources
+        uses: actions/checkout@v2
+
+      - name: Fetch all history for all tags and branches
+        run: git fetch --prune --unshallow
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v1
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install Python packages
+        run: |
+          pip install --upgrade tox
+          pip list
+
+      - name: Display tool versions
+        run: python misc/build_helpers/show-tool-versions.py
+
+      - name: Run "tox -e integration"
+        run: tox -e integration
+
+      - name: Upload eliot.log in case of failure
+        uses: actions/upload-artifact@v1
+        if: failure()
+        with:
+          name: integration.eliot.json
+          path: integration.eliot.json
+
+  packaging:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - macos-latest
+          - windows-latest
+          - ubuntu-latest
+        python-version:
+          - 3.5
+          - 3.6
+          - 3.7
+          - 3.8
+
+    steps:
+
+      # Get vcpython27 on Windows + Python 2.7, to build zfec
+      # extension.  See https://chocolatey.org/packages/vcpython27 and
+      # https://github.com/crazy-max/ghaction-chocolatey
+      - name: Install MSVC 9.0 for Python 2.7 [Windows]
+        if: matrix.os == 'windows-latest' && matrix.python-version == '2.7'
+        uses: crazy-max/ghaction-chocolatey@v1
+        with:
+          args: install vcpython27
+
+      - name: Check out Tahoe-LAFS sources
+        uses: actions/checkout@v2
+
+      - name: Fetch all history for all tags and branches
+        run: git fetch --prune --unshallow
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v1
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install Python packages
+        run: |
+          pip install --upgrade tox
+          pip list
+
+      - name: Display tool versions
+        run: python misc/build_helpers/show-tool-versions.py
+
+      - name: Run "tox -e pyinstaller"
+        run: tox -e pyinstaller
+
+      # This step is to ensure there are no packaging/import errors.
+      - name: Test PyInstaller executable
+        run: dist/Tahoe-LAFS/tahoe --version
+
+      - name: Upload PyInstaller package
+        uses: actions/upload-artifact@v2
+        with:
+          name: Tahoe-LAFS-${{ matrix.os }}-Python-${{ matrix.python-version }}
+          path: dist/Tahoe-LAFS-*-*.*
