@@ -40,7 +40,7 @@ jobs:
 
       - name: Use OpenSSL 1.1
         if: matrix.os == 'macos-latest' && matrix.python-version == 'pypy3'
-        run:
+        run: |
           ::set-env name=LDFLAGS::"-L/usr/local/opt/openssl@1.1/lib"
           ::set-env name=CPPFLAGS::"-I/usr/local/opt/openssl@1.1/include"
 
