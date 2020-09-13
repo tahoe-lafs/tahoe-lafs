@@ -42,6 +42,8 @@ jobs:
         if: matrix.os == 'macos-latest' && matrix.python-version == 'pypy3'
         run: |
           brew upgrade openssl@1.1
+          export LDFLAGS="-L/usr/local/opt/openssl@1.1/lib"
+          export CPPFLAGS="-I/usr/local/opt/openssl@1.1/include"
 
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v1
