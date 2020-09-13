@@ -51,8 +51,8 @@ jobs:
       - name: Display tool versions
         run: python misc/build_helpers/show-tool-versions.py
 
-      - name: Run "tox -e py27-coverage"
-        run: tox -e py27-coverage
+      - name: Run "tox -e py36-coverage"
+        run: tox -e py36-coverage
 
       - name: Upload eliot.log in case of failure
         uses: actions/upload-artifact@v1
