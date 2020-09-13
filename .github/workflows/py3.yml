@@ -39,7 +39,7 @@ jobs:
         run: git fetch --prune --unshallow
 
       - name: Upgrade OpenSSL
-        if: matrix.os == 'macos-latest'
+        if: matrix.os == 'macos-latest' && matrix.python-version == 'pypy3'
         run: |
           brew upgrade openssl@1.1
 
