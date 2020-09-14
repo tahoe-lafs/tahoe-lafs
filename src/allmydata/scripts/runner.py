@@ -236,7 +236,8 @@ def _run_with_reactor(reactor):
 
     _setup_coverage(reactor)
 
-    d = defer.maybeDeferred(parse_or_exit_with_explanation, sys.argv[1:])
+    args = [el.encode('ascii') for el in sys.argv[1:]]
+    d = defer.maybeDeferred(parse_or_exit_with_explanation, args)
     d.addCallback(_maybe_enable_eliot_logging, reactor)
     d.addCallback(dispatch)
     def _show_exception(f):
