@@ -1,6 +1,16 @@
 # https://circleci.com/docs/2.0/
 
+# We use version 2.1 of CircleCI's configuration format (the docs are still at
+# the 2.0 link) in order to have access to Windows executors. This means we
+# can't use dots in job names anymore. They have a new "parameters" feature
+# that is supposed to remove the need to have version numbers in job names (the
+# source of our dots), but switching to that is going to be a bigger refactor:
+#
+#   https://discuss.circleci.com/t/v2-1-job-name-validation/31123
+#   https://circleci.com/docs/2.0/reusing-config/
+#
 version: 2.1
+
 workflows:
   ci:
     jobs:
