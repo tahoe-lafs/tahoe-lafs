@@ -238,5 +238,5 @@ def initialize():
     # as in the case of a frozen executable created by bb-freeze or similar.
 
     sys.argv = argv[-len(sys.argv):]
-    if sys.argv[0].endswith('.pyscript'):
+    if sys.argv[0].endswith(b".pyscript"):
         sys.argv[0] = sys.argv[0][:-9]
