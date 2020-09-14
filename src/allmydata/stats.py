@@ -1,5 +1,7 @@
 from __future__ import print_function
 
+from past.builtins import unicode
+
 import json
 import os
 import pprint
@@ -155,6 +157,8 @@ class StatsProvider(Referenceable, service.MultiService):
         service.MultiService.startService(self)
 
     def count(self, name, delta=1):
+        if isinstance(name, unicode):
+            name = name.encode("utf-8")
         val = self.counters.setdefault(name, 0)
         self.counters[name] = val + delta
 
@@ -170,7 +174,18 @@ class StatsProvider(Referenceable, service.MultiService):
         return ret
 
     def remote_get_stats(self):
-        return self.get_stats()
+        # The remote API expects keys to be bytes:
+        def to_bytes(d):
+            result = {}
+            for (k, v) in d.items():
+                if isinstance(k, unicode):
+                    k = k.encode("utf-8")
+                result[k] = v
+            return result
+
+        stats = self.get_stats()
+        return {b"counters": to_bytes(stats["counters"]),
+                b"stats": to_bytes(stats["stats"])}
 
     def _connected(self, gatherer, nickname):
         gatherer.callRemoteOnly('provide', self, nickname or '')
