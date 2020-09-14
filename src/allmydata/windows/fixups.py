@@ -2,8 +2,8 @@ from __future__ import print_function
 
 from future.utils import PY3
 if PY3:
-    import range as xrange
-    import chr as unichr
+    from builtins import range as xrange
+    from builtins import chr as unichr
 
 done = False
 
