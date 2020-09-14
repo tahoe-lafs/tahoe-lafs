@@ -1,9 +1,11 @@
+"""
+Ported to Python 3.
+"""
 from __future__ import division
 from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import unicode_literals
 
-from past.utils import old_div
 from future.utils import bytes_to_native_str, PY2
 if PY2:
     # Omit open() to get native behavior where open("w") always accepts native strings.
@@ -157,7 +159,7 @@ class StorageServer(service.MultiService, Referenceable):
             stats["samplesize"] = count
             samples.sort()
             if count > 1:
-                stats["mean"] = old_div(sum(samples), count)
+                stats["mean"] = sum(samples) / count
             else:
                 stats["mean"] = None
 
