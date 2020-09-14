@@ -10,13 +10,13 @@ workflows:
           requires:
             - "debian-9"
 
-      - "ubuntu-20.04"
-      - "ubuntu-18.04":
+      - "ubuntu-20-04"
+      - "ubuntu-18-04":
           requires:
-            - "ubuntu-20.04"
-      - "ubuntu-16.04":
+            - "ubuntu-20-04"
+      - "ubuntu-16-04":
           requires:
-            - "ubuntu-20.04"
+            - "ubuntu-20-04"
 
       - "fedora-29"
       - "fedora-28":
@@ -25,13 +25,13 @@ workflows:
 
       - "centos-8"
 
-      - "nixos-19.09"
+      - "nixos-19-09"
 
       # Test against PyPy 2.7
-      - "pypy2.7-buster"
+      - "pypy27-buster"
 
       # Just one Python 3.6 configuration while the port is in-progress.
-      - "python3.6"
+      - "python36"
 
       # Other assorted tasks and configurations
       - "lint"
@@ -66,13 +66,13 @@ workflows:
     jobs:
       - "build-image-debian-8"
       - "build-image-debian-9"
-      - "build-image-ubuntu-16.04"
-      - "build-image-ubuntu-18.04"
-      - "build-image-ubuntu-20.04"
+      - "build-image-ubuntu-16-04"
+      - "build-image-ubuntu-18-04"
+      - "build-image-ubuntu-20-04"
       - "build-image-fedora-28"
       - "build-image-fedora-29"
       - "build-image-centos-8"
-      - "build-image-pypy-2.7-buster"
+      - "build-image-pypy27-buster"
       - "build-image-python36-ubuntu"
 
 
@@ -202,7 +202,7 @@ jobs:
         user: "nobody"
 
 
-  pypy2.7-buster:
+  pypy27-buster:
     <<: *DEBIAN
     docker:
       - image: "tahoelafsci/pypy:buster-py2"
@@ -259,21 +259,21 @@ jobs:
       - run: *RUN_TESTS
 
 
-  ubuntu-16.04:
+  ubuntu-16-04:
     <<: *DEBIAN
     docker:
       - image: "tahoelafsci/ubuntu:16.04-py2.7"
         user: "nobody"
 
 
-  ubuntu-18.04: &UBUNTU_18_04
+  ubuntu-18-04: &UBUNTU_18_04
     <<: *DEBIAN
     docker:
       - image: "tahoelafsci/ubuntu:18.04-py2.7"
         user: "nobody"
 
 
-  python3.6:
+  python36:
     <<: *UBUNTU_18_04
     docker:
       - image: "tahoelafsci/ubuntu:18.04-py3"
@@ -288,7 +288,7 @@ jobs:
       TAHOE_LAFS_TOX_ENVIRONMENT: "py36-coverage"
 
 
-  ubuntu-20.04:
+  ubuntu-20-04:
     <<: *DEBIAN
     docker:
       - image: "tahoelafsci/ubuntu:20.04"
@@ -330,7 +330,7 @@ jobs:
         user: "nobody"
 
 
-  nixos-19.09:
+  nixos-19-09:
     docker:
       # Run in a highly Nix-capable environment.
       - image: "nixorg/nix:circleci"
@@ -475,7 +475,7 @@ jobs:
       PYTHON_VERSION: "2.7"
 
 
-  build-image-ubuntu-16.04:
+  build-image-ubuntu-16-04:
     <<: *BUILD_IMAGE
 
     environment:
@@ -484,7 +484,7 @@ jobs:
       PYTHON_VERSION: "2.7"
 
 
-  build-image-ubuntu-18.04:
+  build-image-ubuntu-18-04:
     <<: *BUILD_IMAGE
 
     environment:
@@ -502,7 +502,7 @@ jobs:
       PYTHON_VERSION: "3"
 
 
-  build-image-ubuntu-20.04:
+  build-image-ubuntu-20-04:
     <<: *BUILD_IMAGE
 
     environment:
@@ -538,7 +538,7 @@ jobs:
       TAG: "29"
 
 
-  build-image-pypy-2.7-buster:
+  build-image-pypy27-buster:
     <<: *BUILD_IMAGE
 
     environment:
