@@ -35,6 +35,7 @@ PORTED_MODULES = [
     "allmydata.immutable.happiness_upload",
     "allmydata.interfaces",
     "allmydata.monitor",
+    "allmydata.storage.common",
     "allmydata.storage.crawler",
     "allmydata.storage.expirer",
     "allmydata.storage.mutable",
