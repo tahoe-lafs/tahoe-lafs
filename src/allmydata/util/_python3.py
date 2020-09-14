@@ -37,6 +37,7 @@ PORTED_MODULES = [
     "allmydata.monitor",
     "allmydata.storage.crawler",
     "allmydata.storage.expirer",
+    "allmydata.storage.mutable",
     "allmydata.test.common_py3",
     "allmydata.uri",
     "allmydata.util._python3",
