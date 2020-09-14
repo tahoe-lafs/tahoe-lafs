@@ -702,6 +702,12 @@ class Server(unittest.TestCase):
         leases = list(ss.get_leases(b"si3"))
         self.failUnlessEqual(len(leases), 2)
 
+    def test_have_shares(self):
+        """By default the StorageServer has no shares."""
+        workdir = self.workdir("test_have_shares")
+        ss = StorageServer(workdir, b"\x00" * 20, readonly_storage=True)
+        self.assertFalse(ss.have_shares())
+
     def test_readonly(self):
         workdir = self.workdir("test_readonly")
         ss = StorageServer(workdir, b"\x00" * 20, readonly_storage=True)
