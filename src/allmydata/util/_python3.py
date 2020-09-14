@@ -38,6 +38,7 @@ PORTED_MODULES = [
     "allmydata.storage.common",
     "allmydata.storage.crawler",
     "allmydata.storage.expirer",
+    "allmydata.storage.lease",
     "allmydata.storage.mutable",
     "allmydata.test.common_py3",
     "allmydata.uri",
