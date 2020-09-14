@@ -1,4 +1,15 @@
-from future.utils import bytes_to_native_str
+from __future__ import division
+from __future__ import absolute_import
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from past.utils import old_div
+from future.utils import bytes_to_native_str, PY2
+if PY2:
+    # Omit open() to get native behavior where open("w") always accepts native strings.
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+
+
 import os, re, struct, time
 import weakref
 import six
@@ -146,7 +157,7 @@ class StorageServer(service.MultiService, Referenceable):
             stats["samplesize"] = count
             samples.sort()
             if count > 1:
-                stats["mean"] = sum(samples) / count
+                stats["mean"] = old_div(sum(samples), count)
             else:
                 stats["mean"] = None
 
@@ -671,7 +682,7 @@ class StorageServer(service.MultiService, Referenceable):
                 filename = os.path.join(bucketdir, sharenum_s)
                 msf = MutableShareFile(filename, self)
                 datavs[sharenum] = msf.readv(readv)
-        log.msg("returning shares %s" % (datavs.keys(),),
+        log.msg("returning shares %s" % (list(datavs.keys()),),
                 facility="tahoe.storage", level=log.NOISY, parent=lp)
         self.add_latency("readv", time.time() - start)
         return datavs
