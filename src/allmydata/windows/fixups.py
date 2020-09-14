@@ -1,5 +1,10 @@
 from __future__ import print_function
 
+from future.utils import PY3
+if PY3:
+    import range as xrange
+    import chr as unichr
+
 done = False
 
 def initialize():
