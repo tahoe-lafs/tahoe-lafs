@@ -24,7 +24,7 @@ from twisted.internet.error import (
 import pytest
 import pytest_twisted
 
-from util import (
+from .util import (
     _CollectOutputProtocol,
     _MagicTextProtocol,
     _DumpOutputProtocol,
