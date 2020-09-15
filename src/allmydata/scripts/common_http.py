@@ -2,7 +2,8 @@ from __future__ import print_function
 
 import os
 from six.moves import cStringIO as StringIO
-import urlparse, httplib
+from six.moves import urllib, http_client
+import six
 import allmydata # for __full_version__
 
 from allmydata.util.encodingutil import quote_output
@@ -12,9 +13,9 @@ from socket import error as socket_error
 # copied from twisted/web/client.py
 def parse_url(url, defaultPort=None):
     url = url.strip()
-    parsed = urlparse.urlparse(url)
+    parsed = urllib.parse.urlparse(url)
     scheme = parsed[0]
-    path = urlparse.urlunparse(('','')+parsed[2:])
+    path = urllib.parse.urlunparse(('','')+parsed[2:])
     if defaultPort is None:
         if scheme == 'https':
             defaultPort = 443
@@ -40,7 +41,7 @@ class BadResponse(object):
 def do_http(method, url, body=""):
     if isinstance(body, str):
         body = StringIO(body)
-    elif isinstance(body, unicode):
+    elif isinstance(body, six.text_type):
         raise TypeError("do_http body must be a bytestring, not unicode")
     else:
         # We must give a Content-Length header to twisted.web, otherwise it
@@ -51,9 +52,9 @@ def do_http(method, url, body=""):
         assert body.read
     scheme, host, port, path = parse_url(url)
     if scheme == "http":
-        c = httplib.HTTPConnection(host, port)
+        c = http_client.HTTPConnection(host, port)
     elif scheme == "https":
-        c = httplib.HTTPSConnection(host, port)
+        c = http_client.HTTPSConnection(host, port)
     else:
         raise ValueError("unknown scheme '%s', need http or https" % scheme)
     c.putrequest(method, path)

@@ -809,7 +809,7 @@ class Errors(GridTestMixin, CLITestMixin, unittest.TestCase):
         # Simulate a connection error
         def _socket_error(*args, **kwargs):
             raise socket_error('test error')
-        self.patch(allmydata.scripts.common_http.httplib.HTTPConnection,
+        self.patch(allmydata.scripts.common_http.http_client.HTTPConnection,
                    "endheaders", _socket_error)
 
         d = self.do_cli("mkdir")

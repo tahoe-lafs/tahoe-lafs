@@ -29,10 +29,12 @@ import itertools
 from allmydata import interfaces
 from allmydata.util import fileutil, hashutil, base32
 from allmydata.storage.server import StorageServer
+from allmydata.storage.shares import get_share_file
 from allmydata.storage.mutable import MutableShareFile
-from allmydata.storage.immutable import BucketWriter, BucketReader
+from allmydata.storage.immutable import BucketWriter, BucketReader, ShareFile
 from allmydata.storage.common import DataTooLargeError, storage_index_to_dir, \
-     UnknownMutableContainerVersionError, UnknownImmutableContainerVersionError
+     UnknownMutableContainerVersionError, UnknownImmutableContainerVersionError, \
+     si_b2a, si_a2b
 from allmydata.storage.lease import LeaseInfo
 from allmydata.immutable.layout import WriteBucketProxy, WriteBucketProxy_v2, \
      ReadBucketProxy
@@ -50,6 +52,42 @@ from allmydata.storage_client import (
     _StorageServer,
 )
 from .common_py3 import FakeCanary, LoggingServiceParent, ShouldFailMixin
+
+
+class UtilTests(unittest.TestCase):
+    """Tests for allmydata.storage.common and .shares."""
+
+    def test_encoding(self):
+        """b2a/a2b are the same as base32."""
+        s = b"\xFF HELLO \xF3"
+        result = si_b2a(s)
+        self.assertEqual(base32.b2a(s), result)
+        self.assertEqual(si_a2b(result), s)
+
+    def test_storage_index_to_dir(self):
+        """storage_index_to_dir creates a native string path."""
+        s = b"\xFF HELLO \xF3"
+        path = storage_index_to_dir(s)
+        parts = os.path.split(path)
+        self.assertEqual(parts[0], parts[1][:2])
+        self.assertIsInstance(path, native_str)
+
+    def test_get_share_file_mutable(self):
+        """A mutable share is identified by get_share_file()."""
+        path = self.mktemp()
+        msf = MutableShareFile(path)
+        msf.create(b"12", b"abc")  # arbitrary values
+        loaded = get_share_file(path)
+        self.assertIsInstance(loaded, MutableShareFile)
+        self.assertEqual(loaded.home, path)
+
+    def test_get_share_file_immutable(self):
+        """An immutable share is identified by get_share_file()."""
+        path = self.mktemp()
+        _ = ShareFile(path, max_size=1000, create=True)
+        loaded = get_share_file(path)
+        self.assertIsInstance(loaded, ShareFile)
+        self.assertEqual(loaded.home, path)
 
 
 class FakeStatsProvider(object):
