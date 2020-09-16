@@ -928,11 +928,11 @@ def unpack_extension(data):
         assert data[length:length+1] == b','
         data = data[length+1:]
 
-        d[key] = value
+        d[str(key, "utf-8")] = value
 
     # convert certain things to numbers
-    for intkey in (b'size', b'segment_size', b'num_segments',
-                   b'needed_shares', b'total_shares'):
+    for intkey in ('size', 'segment_size', 'num_segments',
+                   'needed_shares', 'total_shares'):
         if intkey in d:
             d[intkey] = int(d[intkey])
     return d
@@ -940,9 +940,9 @@ def unpack_extension(data):
 
 def unpack_extension_readable(data):
     unpacked = unpack_extension(data)
-    unpacked[b"UEB_hash"] = hashutil.uri_extension_hash(data)
+    unpacked["UEB_hash"] = hashutil.uri_extension_hash(data)
     for k in sorted(unpacked.keys()):
-        if b'hash' in k:
+        if 'hash' in k:
             unpacked[k] = base32.b2a(unpacked[k])
     return unpacked
 
