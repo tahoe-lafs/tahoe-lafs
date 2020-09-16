@@ -38,6 +38,7 @@ PORTED_MODULES = [
     "allmydata.storage.common",
     "allmydata.storage.crawler",
     "allmydata.storage.expirer",
+    "allmydata.storage.immutable",
     "allmydata.storage.lease",
     "allmydata.storage.mutable",
     "allmydata.storage.shares",

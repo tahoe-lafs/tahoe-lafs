@@ -3006,3 +3006,38 @@ class Stats(unittest.TestCase):
         self.failUnless(output["get"]["95_0_percentile"] is None, output)
         self.failUnless(output["get"]["99_0_percentile"] is None, output)
         self.failUnless(output["get"]["99_9_percentile"] is None, output)
+
+
+class ShareFileTests(unittest.TestCase):
+    """Tests for allmydata.storage.immutable.ShareFile."""
+
+    def get_sharefile(self):
+        sf = ShareFile(self.mktemp(), max_size=1000, create=True)
+        sf.write_share_data(0, b"abc")
+        sf.write_share_data(2, b"DEF")
+        # Should be b'abDEF' now.
+        return sf
+
+    def test_read_write(self):
+        """Basic writes can be read."""
+        sf = self.get_sharefile()
+        self.assertEqual(sf.read_share_data(0, 3), b"abD")
+        self.assertEqual(sf.read_share_data(1, 4), b"bDEF")
+
+    def test_reads_beyond_file_end(self):
+        """Reads beyond the file size are truncated."""
+        sf = self.get_sharefile()
+        self.assertEqual(sf.read_share_data(0, 10), b"abDEF")
+        self.assertEqual(sf.read_share_data(5, 10), b"")
+
+    def test_too_large_write(self):
+        """Can't do write larger than file size."""
+        sf = self.get_sharefile()
+        with self.assertRaises(DataTooLargeError):
+            sf.write_share_data(0, b"x" * 3000)
+
+    def test_no_leases_cancelled(self):
+        """If no leases were cancelled, IndexError is raised."""
+        sf = self.get_sharefile()
+        with self.assertRaises(IndexError):
+            sf.cancel_lease(b"garbage")
