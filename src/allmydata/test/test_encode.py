@@ -1,3 +1,13 @@
+from __future__ import division
+from __future__ import absolute_import
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+from past.builtins import chr as byteschr, long
+
 from zope.interface import implementer
 from twisted.trial import unittest
 from twisted.internet import defer
@@ -15,7 +25,7 @@ class LostPeerError(Exception):
     pass
 
 def flip_bit(good): # flips the last bit
-    return good[:-1] + chr(ord(good[-1]) ^ 0x01)
+    return good[:-1] + byteschr(ord(good[-1]) ^ 0x01)
 
 @implementer(IStorageBucketWriter, IStorageBucketReader)
 class FakeBucketReaderWriterProxy(object):
@@ -158,7 +168,7 @@ class FakeBucketReaderWriterProxy(object):
 
 
 def make_data(length):
-    data = "happy happy joy joy" * 100
+    data = b"happy happy joy joy" * 100
     assert length <= len(data)
     return data[:length]
 
@@ -173,32 +183,32 @@ class ValidatedExtendedURIProxy(unittest.TestCase):
     if _TMP % K != 0:
         _TMP += (K - (_TMP % K))
     TAIL_SEGSIZE = _TMP
-    _TMP = SIZE / SEGSIZE
+    _TMP = SIZE // SEGSIZE
     if SIZE % SEGSIZE != 0:
         _TMP += 1
     NUM_SEGMENTS = _TMP
     mindict = { 'segment_size': SEGSIZE,
-                'crypttext_root_hash': '0'*hashutil.CRYPTO_VAL_SIZE,
-                'share_root_hash': '1'*hashutil.CRYPTO_VAL_SIZE }
-    optional_consistent = { 'crypttext_hash': '2'*hashutil.CRYPTO_VAL_SIZE,
-                            'codec_name': "crs",
-                            'codec_params': "%d-%d-%d" % (SEGSIZE, K, M),
-                            'tail_codec_params': "%d-%d-%d" % (TAIL_SEGSIZE, K, M),
+                'crypttext_root_hash': b'0'*hashutil.CRYPTO_VAL_SIZE,
+                'share_root_hash': b'1'*hashutil.CRYPTO_VAL_SIZE }
+    optional_consistent = { 'crypttext_hash': b'2'*hashutil.CRYPTO_VAL_SIZE,
+                            'codec_name': b"crs",
+                            'codec_params': b"%d-%d-%d" % (SEGSIZE, K, M),
+                            'tail_codec_params': b"%d-%d-%d" % (TAIL_SEGSIZE, K, M),
                             'num_segments': NUM_SEGMENTS,
                             'size': SIZE,
                             'needed_shares': K,
                             'total_shares': M,
-                            'plaintext_hash': "anything",
-                            'plaintext_root_hash': "anything", }
+                            'plaintext_hash': b"anything",
+                            'plaintext_root_hash': b"anything", }
     # optional_inconsistent = { 'crypttext_hash': ('2'*(hashutil.CRYPTO_VAL_SIZE-1), "", 77),
     optional_inconsistent = { 'crypttext_hash': (77,),
-                              'codec_name': ("digital fountain", ""),
-                              'codec_params': ("%d-%d-%d" % (SEGSIZE, K-1, M),
-                                               "%d-%d-%d" % (SEGSIZE-1, K, M),
-                                               "%d-%d-%d" % (SEGSIZE, K, M-1)),
-                              'tail_codec_params': ("%d-%d-%d" % (TAIL_SEGSIZE, K-1, M),
-                                               "%d-%d-%d" % (TAIL_SEGSIZE-1, K, M),
-                                               "%d-%d-%d" % (TAIL_SEGSIZE, K, M-1)),
+                              'codec_name': (b"digital fountain", b""),
+                              'codec_params': (b"%d-%d-%d" % (SEGSIZE, K-1, M),
+                                               b"%d-%d-%d" % (SEGSIZE-1, K, M),
+                                               b"%d-%d-%d" % (SEGSIZE, K, M-1)),
+                              'tail_codec_params': (b"%d-%d-%d" % (TAIL_SEGSIZE, K-1, M),
+                                               b"%d-%d-%d" % (TAIL_SEGSIZE-1, K, M),
+                                               b"%d-%d-%d" % (TAIL_SEGSIZE, K, M-1)),
                               'num_segments': (NUM_SEGMENTS-1,),
                               'size': (SIZE-1,),
                               'needed_shares': (K-1,),
@@ -209,7 +219,7 @@ class ValidatedExtendedURIProxy(unittest.TestCase):
         uebhash = hashutil.uri_extension_hash(uebstring)
         fb = FakeBucketReaderWriterProxy()
         fb.put_uri_extension(uebstring)
-        verifycap = uri.CHKFileVerifierURI(storage_index='x'*16, uri_extension_hash=uebhash, needed_shares=self.K, total_shares=self.M, size=self.SIZE)
+        verifycap = uri.CHKFileVerifierURI(storage_index=b'x'*16, uri_extension_hash=uebhash, needed_shares=self.K, total_shares=self.M, size=self.SIZE)
         vup = checker.ValidatedExtendedURIProxy(fb, verifycap)
         return vup.start()
 
@@ -232,7 +242,7 @@ class ValidatedExtendedURIProxy(unittest.TestCase):
 
     def test_reject_insufficient(self):
         dl = []
-        for k in self.mindict.iterkeys():
+        for k in self.mindict.keys():
             insuffdict = self.mindict.copy()
             del insuffdict[k]
             d = self._test_reject(insuffdict)
@@ -241,7 +251,7 @@ class ValidatedExtendedURIProxy(unittest.TestCase):
 
     def test_accept_optional(self):
         dl = []
-        for k in self.optional_consistent.iterkeys():
+        for k in self.optional_consistent.keys():
             mydict = self.mindict.copy()
             mydict[k] = self.optional_consistent[k]
             d = self._test_accept(mydict)
@@ -250,7 +260,7 @@ class ValidatedExtendedURIProxy(unittest.TestCase):
 
     def test_reject_optional(self):
         dl = []
-        for k in self.optional_inconsistent.iterkeys():
+        for k in self.optional_inconsistent.keys():
             for v in self.optional_inconsistent[k]:
                 mydict = self.mindict.copy()
                 mydict[k] = v
@@ -398,7 +408,7 @@ class Roundtrip(GridTestMixin, unittest.TestCase):
         self.basedir = self.mktemp()
         self.set_up_grid()
         self.c0 = self.g.clients[0]
-        DATA = "p"*size
+        DATA = b"p"*size
         d = self.upload(DATA)
         d.addCallback(lambda n: download_to_data(n))
         def _downloaded(newdata):

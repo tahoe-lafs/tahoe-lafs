@@ -117,7 +117,7 @@ class ValidatedExtendedURIProxy(object):
 
 
         # Next: things that are optional and not redundant: crypttext_hash
-        if d.has_key('crypttext_hash'):
+        if 'crypttext_hash' in d:
             self.crypttext_hash = d['crypttext_hash']
             if len(self.crypttext_hash) != CRYPTO_VAL_SIZE:
                 raise BadURIExtension('crypttext_hash is required to be hashutil.CRYPTO_VAL_SIZE bytes, not %s bytes' % (len(self.crypttext_hash),))
@@ -126,11 +126,11 @@ class ValidatedExtendedURIProxy(object):
         # Next: things that are optional, redundant, and required to be
         # consistent: codec_name, codec_params, tail_codec_params,
         # num_segments, size, needed_shares, total_shares
-        if d.has_key('codec_name'):
+        if 'codec_name' in d:
             if d['codec_name'] != "crs":
                 raise UnsupportedErasureCodec(d['codec_name'])
 
-        if d.has_key('codec_params'):
+        if 'codec_params' in d:
             ucpss, ucpns, ucpts = codec.parse_params(d['codec_params'])
             if ucpss != self.segment_size:
                 raise BadURIExtension("inconsistent erasure code params: "
@@ -145,7 +145,7 @@ class ValidatedExtendedURIProxy(object):
                                       "self._verifycap.total_shares: %s" %
                                       (ucpts, self._verifycap.total_shares))
 
-        if d.has_key('tail_codec_params'):
+        if 'tail_codec_params' in d:
             utcpss, utcpns, utcpts = codec.parse_params(d['tail_codec_params'])
             if utcpss != self.tail_segment_size:
                 raise BadURIExtension("inconsistent erasure code params: utcpss: %s != "
@@ -162,7 +162,7 @@ class ValidatedExtendedURIProxy(object):
                                       "self._verifycap.total_shares: %s" % (utcpts,
                                                                             self._verifycap.total_shares))
 
-        if d.has_key('num_segments'):
+        if 'num_segments' in d:
             if d['num_segments'] != self.num_segments:
                 raise BadURIExtension("inconsistent num_segments: size: %s, "
                                       "segment_size: %s, computed_num_segments: %s, "
@@ -170,18 +170,18 @@ class ValidatedExtendedURIProxy(object):
                                                                 self.segment_size,
                                                                 self.num_segments, d['num_segments']))
 
-        if d.has_key('size'):
+        if 'size' in d:
             if d['size'] != self._verifycap.size:
                 raise BadURIExtension("inconsistent size: URI size: %s, UEB size: %s" %
                                       (self._verifycap.size, d['size']))
 
-        if d.has_key('needed_shares'):
+        if 'needed_shares' in d:
             if d['needed_shares'] != self._verifycap.needed_shares:
                 raise BadURIExtension("inconsistent needed shares: URI needed shares: %s, UEB "
                                       "needed shares: %s" % (self._verifycap.total_shares,
                                                              d['needed_shares']))
 
-        if d.has_key('total_shares'):
+        if 'total_shares' in d:
             if d['total_shares'] != self._verifycap.total_shares:
                 raise BadURIExtension("inconsistent total shares: URI total shares: %s, UEB "
                                       "total shares: %s" % (self._verifycap.total_shares,
@@ -428,7 +428,7 @@ class ValidatedReadBucketProxy(log.PrefixingLogMixin):
                 lines.append("%3d: %s" % (i, base32.b2a_or_none(h)))
             self.log(" sharehashes:\n" + "\n".join(lines) + "\n")
             lines = []
-            for i,h in blockhashes.items():
+            for i,h in list(blockhashes.items()):
                 lines.append("%3d: %s" % (i, base32.b2a_or_none(h)))
             log.msg(" blockhashes:\n" + "\n".join(lines) + "\n")
             raise BadOrMissingHash(le)
@@ -695,7 +695,7 @@ class Checker(log.PrefixingLogMixin):
             bucketdict, success = result
 
             shareverds = []
-            for (sharenum, bucket) in bucketdict.items():
+            for (sharenum, bucket) in list(bucketdict.items()):
                 d = self._download_and_verify(s, sharenum, bucket)
                 shareverds.append(d)
 
