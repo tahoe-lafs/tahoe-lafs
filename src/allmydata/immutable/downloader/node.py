@@ -353,17 +353,14 @@ class DownloadNode(object):
 
         # each segment is turned into N blocks. All but the last are of size
         # block_size, and the last is of size tail_block_size
-        block_size = segment_size / k
-        tail_block_size = tail_segment_padded / k
+        block_size = segment_size // k
+        tail_block_size = tail_segment_padded // k
 
         return { "tail_segment_size": tail_segment_size,
                  "tail_segment_padded": tail_segment_padded,
                  "num_segments": num_segments,
                  "block_size": block_size,
-                 "tail_block_size": tail_block_size,
-        block_size = segment_size // k
-        tail_block_size = tail_segment_padded // k
-
+                 "tail_block_size": tail_block_size
                  }
 
 
@@ -458,7 +455,7 @@ class DownloadNode(object):
 
         shares = []
         shareids = []
-        for (shareid, share) in blocks.iteritems():
+        for (shareid, share) in blocks.items():
             assert len(share) == block_size
             shareids.append(shareid)
             shares.append(share)
@@ -468,7 +465,7 @@ class DownloadNode(object):
         del shares
         def _process(buffers):
             decodetime = now() - start
-            segment = "".join(buffers)
+            segment = b"".join(buffers)
             assert len(segment) == decoded_size
             del buffers
             if tail:
