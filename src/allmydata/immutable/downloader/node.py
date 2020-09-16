@@ -361,6 +361,9 @@ class DownloadNode(object):
                  "num_segments": num_segments,
                  "block_size": block_size,
                  "tail_block_size": tail_block_size,
+        block_size = segment_size // k
+        tail_block_size = tail_segment_padded // k
+
                  }
 
 

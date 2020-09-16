@@ -1,3 +1,7 @@
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
 
 # This contains a test harness that creates a full Tahoe grid in a single
 # process (actually in a single MultiService) which does not use the network.
@@ -12,6 +16,11 @@
 # uploaded shares, checker/verifier/repairer tests, etc. The clients have no
 # Tubs, so it is not useful for tests that involve a Helper or the
 # control.furl .
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+from past.builtins import unicode
 
 import os
 from zope.interface import implementer
@@ -256,6 +265,8 @@ class _NoNetworkClient(_Client):
     def init_stub_client(self):
         pass
     #._servers will be set by the NoNetworkGrid which creates us
+    def init_web(self, *args, **kwargs):
+        pass
 
 class SimpleStats(object):
     def __init__(self):
@@ -308,6 +319,7 @@ class NoNetworkGrid(service.MultiService):
             d.addCallback(lambda c: self.clients.append(c))
 
             def _bad(f):
+                print(f)
                 self._setup_errors.append(f)
             d.addErrback(_bad)
 
@@ -323,7 +335,7 @@ class NoNetworkGrid(service.MultiService):
 
     @defer.inlineCallbacks
     def make_client(self, i, write_config=True):
-        clientid = hashutil.tagged_hash("clientid", str(i))[:20]
+        clientid = hashutil.tagged_hash(b"clientid", b"%d" % i)[:20]
         clientdir = os.path.join(self.basedir, "clients",
                                  idlib.shortnodeid_b2a(clientid))
         fileutil.make_dirs(clientdir)
@@ -358,7 +370,7 @@ class NoNetworkGrid(service.MultiService):
         defer.returnValue(c)
 
     def make_server(self, i, readonly=False):
-        serverid = hashutil.tagged_hash("serverid", str(i))[:20]
+        serverid = hashutil.tagged_hash(b"serverid", b"%d" % i)[:20]
         serverdir = os.path.join(self.basedir, "servers",
                                  idlib.shortnodeid_b2a(serverid), "storage")
         fileutil.make_dirs(serverdir)
@@ -381,18 +393,18 @@ class NoNetworkGrid(service.MultiService):
         self.rebuild_serverlist()
 
     def get_all_serverids(self):
-        return self.proxies_by_id.keys()
+        return list(self.proxies_by_id.keys())
 
     def rebuild_serverlist(self):
         self._check_clients()
-        self.all_servers = frozenset(self.proxies_by_id.values())
+        self.all_servers = frozenset(list(self.proxies_by_id.values()))
         for c in self.clients:
             c._servers = self.all_servers
 
     def remove_server(self, serverid):
         # it's enough to remove the server from c._servers (we don't actually
         # have to detach and stopService it)
-        for i,ss in self.servers_by_number.items():
+        for i,ss in list(self.servers_by_number.items()):
             if ss.my_nodeid == serverid:
                 del self.servers_by_number[i]
                 break
@@ -422,7 +434,7 @@ class NoNetworkGrid(service.MultiService):
 
     def nuke_from_orbit(self):
         """ Empty all share directories in this grid. It's the only way to be sure ;-) """
-        for server in self.servers_by_number.values():
+        for server in list(self.servers_by_number.values()):
             for prefixdir in os.listdir(server.sharedir):
                 if prefixdir != 'incoming':
                     fileutil.rm_dir(os.path.join(server.sharedir, prefixdir))
@@ -506,7 +518,7 @@ class GridTestMixin(object):
         si = tahoe_uri.from_string(uri).get_storage_index()
         prefixdir = storage_index_to_dir(si)
         shares = []
-        for i,ss in self.g.servers_by_number.items():
+        for i,ss in list(self.g.servers_by_number.items()):
             serverid = ss.my_nodeid
             basedir = os.path.join(ss.sharedir, prefixdir)
             if not os.path.exists(basedir):
@@ -527,7 +539,7 @@ class GridTestMixin(object):
         return shares
 
     def restore_all_shares(self, shares):
-        for sharefile, data in shares.items():
+        for sharefile, data in list(shares.items()):
             with open(sharefile, "wb") as f:
                 f.write(data)
 

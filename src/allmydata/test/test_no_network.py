@@ -41,8 +41,8 @@ class Harness(unittest.TestCase):
         g.setServiceParent(self.s)
 
         c0 = g.clients[0]
-        DATA = "Data to upload" * 100
-        data = Data(DATA, "")
+        DATA = b"Data to upload" * 100
+        data = Data(DATA, b"")
         d = c0.upload(data)
         def _uploaded(res):
             n = c0.create_node_from_uri(res.get_uri())

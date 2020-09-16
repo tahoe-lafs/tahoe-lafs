@@ -205,7 +205,7 @@ class Encoder(object):
             assert IStorageBucketWriter.providedBy(landlords[k])
         self.landlords = landlords.copy()
         assert isinstance(servermap, dict)
-        for v in servermap.itervalues():
+        for v in servermap.values():
             assert isinstance(v, set)
         self.servermap = servermap.copy()
 
@@ -410,7 +410,7 @@ class Encoder(object):
             assert isinstance(data, (list,tuple))
             if self._aborted:
                 raise UploadAborted()
-            data = "".join(data)
+            data = b"".join(data)
             precondition(len(data) <= read_size, len(data), read_size)
             if not allow_short:
                 precondition(len(data) == read_size, len(data), read_size)
@@ -418,7 +418,7 @@ class Encoder(object):
             self._crypttext_hasher.update(data)
             if allow_short and len(data) < read_size:
                 # padding
-                data += "\x00" * (read_size - len(data))
+                data += b"\x00" * (read_size - len(data))
             encrypted_pieces = [data[i:i+input_chunk_size]
                                 for i in range(0, len(data), input_chunk_size)]
             return encrypted_pieces

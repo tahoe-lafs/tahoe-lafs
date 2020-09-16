@@ -27,7 +27,7 @@ from allmydata.interfaces import IUploadable, IUploader, IUploadResults, \
      DEFAULT_MAX_SEGMENT_SIZE, IProgress, IPeerSelector
 from allmydata.immutable import layout
 
-from six.moves import cStringIO as StringIO
+from io import BytesIO
 from .happiness_upload import share_placement, calculate_happiness
 
 from ..util.eliotutil import (
@@ -226,7 +226,7 @@ EXTENSION_SIZE = 1000
 # this.
 
 def pretty_print_shnum_to_servers(s):
-    return ', '.join([ "sh%s: %s" % (k, '+'.join([idlib.shortnodeid_b2a(x) for x in v])) for k, v in s.iteritems() ])
+    return ', '.join([ "sh%s: %s" % (k, '+'.join([idlib.shortnodeid_b2a(x) for x in v])) for k, v in s.items() ])
 
 class ServerTracker(object):
     def __init__(self, server,
@@ -283,7 +283,7 @@ class ServerTracker(object):
         #log.msg("%s._got_reply(%s)" % (self, (alreadygot, buckets)))
         (alreadygot, buckets) = alreadygot_and_buckets
         b = {}
-        for sharenum, rref in buckets.iteritems():
+        for sharenum, rref in buckets.items():
             bp = self.wbp_class(rref, self._server, self.sharesize,
                                 self.blocksize,
                                 self.num_segments,
@@ -352,7 +352,7 @@ class PeerSelector(object):
 
     def get_sharemap_of_preexisting_shares(self):
         preexisting = dictutil.DictOfSets()
-        for server, shares in self.existing_shares.iteritems():
+        for server, shares in self.existing_shares.items():
             for share in shares:
                 preexisting.add(share, server)
         return preexisting
@@ -700,7 +700,7 @@ class Tahoe2ServerSelector(log.PrefixingLogMixin):
                % (self, self._get_progress_message(),
                   pretty_print_shnum_to_servers(merged),
                   [', '.join([str_shareloc(k,v)
-                              for k,v in st.buckets.iteritems()])
+                              for k,v in st.buckets.items()])
                    for st in self.use_trackers],
                   pretty_print_shnum_to_servers(self.preexisting_shares))
         self.log(msg, level=log.OPERATIONAL)
@@ -951,7 +951,7 @@ class EncryptAnUploadable(object):
             self._encryptor = aes.create_encryptor(key)
 
             storage_index = storage_index_hash(key)
-            assert isinstance(storage_index, str)
+            assert isinstance(storage_index, bytes)
             # There's no point to having the SI be longer than the key, so we
             # specify that it is truncated to the same 128 bits as the AES key.
             assert len(storage_index) == 16  # SHA-256 truncated to 128b
@@ -1120,7 +1120,7 @@ class UploadStatus(object):
         self.progress = [0.0, 0.0, 0.0]
         self.active = True
         self.results = None
-        self.counter = self.statusid_counter.next()
+        self.counter = next(self.statusid_counter)
         self.started = time.time()
 
     def get_started(self):
@@ -1281,7 +1281,7 @@ class CHKUploader(object):
         """
         msgtempl = "set_shareholders; upload_trackers is %s, already_serverids is %s"
         values = ([', '.join([str_shareloc(k,v)
-                              for k,v in st.buckets.iteritems()])
+                              for k,v in st.buckets.items()])
                    for st in upload_trackers], already_serverids)
         self.log(msgtempl % values, level=log.OPERATIONAL)
         # record already-present shares in self._results
@@ -1697,7 +1697,7 @@ class FileHandle(BaseUploadable):
         then the hash will be hashed together with the string in the
         "convergence" argument to form the encryption key.
         """
-        assert convergence is None or isinstance(convergence, str), (convergence, type(convergence))
+        assert convergence is None or isinstance(convergence, bytes), (convergence, type(convergence))
         self._filehandle = filehandle
         self._key = None
         self.convergence = convergence
@@ -1787,8 +1787,8 @@ class Data(FileHandle):
         then the hash will be hashed together with the string in the
         "convergence" argument to form the encryption key.
         """
-        assert convergence is None or isinstance(convergence, str), (convergence, type(convergence))
-        FileHandle.__init__(self, StringIO(data), convergence=convergence)
+        assert convergence is None or isinstance(convergence, bytes), (convergence, type(convergence))
+        FileHandle.__init__(self, BytesIO(data), convergence=convergence)
 
 @implementer(IUploader)
 class Uploader(service.MultiService, log.PrefixingLogMixin):
