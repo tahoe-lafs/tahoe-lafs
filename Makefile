@@ -1,4 +1,5 @@
-
+# Tahoe LFS Development and maintenance tasks
+#
 # NOTE: this Makefile requires GNU make
 
 ### Defensive settings for make:
@@ -11,25 +12,25 @@ SHELL := bash
 MAKEFLAGS += --warn-undefined-variables
 MAKEFLAGS += --no-builtin-rules
 
-default:
-	@echo "no default target"
-
+# Local target variables
 PYTHON=python
 export PYTHON
 PYFLAKES=flake8
 export PYFLAKES
-
 SOURCES=src/allmydata static misc setup.py
 APPNAME=tahoe-lafs
+
+
+# Top-level targets
+
+default:
+	@echo "no default target"
 
 # This is necessary only if you want to automatically produce a new
 # _version.py file from the current git history (without doing a build).
 .PHONY: make-version
 make-version:
 	$(PYTHON) ./setup.py update_version
-
-src/allmydata/_version.py:
-	$(MAKE) make-version
 
 # Build OS X pkg packages.
 .PHONY: build-osx-pkg test-osx-pkg upload-osx-pkg
@@ -65,7 +66,6 @@ upload-osx-pkg:
 ##
 ## # --include appeared in coverage-3.4
 ## COVERAGE_OMIT=--include '$(CURDIR)/src/allmydata/*' --omit '$(CURDIR)/src/allmydata/test/*'
-
 
 .PHONY: code-checks
 #code-checks: build version-and-path check-interfaces check-miscaptures -find-trailing-spaces -check-umids pyflakes
@@ -227,3 +227,9 @@ tarballs: # delegated to tox, so setup.py can update setuptools if needed
 .PHONY: upload-tarballs
 upload-tarballs:
 	@if [ "X${BB_BRANCH}" = "Xmaster" ] || [ "X${BB_BRANCH}" = "X" ]; then for f in dist/*; do flappclient --furlfile ~/.tahoe-tarball-upload.furl upload-file $$f; done ; else echo not uploading tarballs because this is not trunk but is branch \"${BB_BRANCH}\" ; fi
+
+
+# Real targets
+
+src/allmydata/_version.py:
+	$(MAKE) make-version
