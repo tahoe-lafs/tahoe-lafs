@@ -1,6 +1,16 @@
 
 # NOTE: this Makefile requires GNU make
 
+### Defensive settings for make:
+#     https://tech.davis-hansson.com/p/make/
+SHELL := bash
+.ONESHELL:
+.SHELLFLAGS := -xeu -o pipefail -c
+.SILENT:
+.DELETE_ON_ERROR:
+MAKEFLAGS += --warn-undefined-variables
+MAKEFLAGS += --no-builtin-rules
+
 default:
 	@echo "no default target"
 
