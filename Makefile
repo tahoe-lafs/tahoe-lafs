@@ -27,6 +27,11 @@ APPNAME=tahoe-lafs
 default:
 	@echo "no default target"
 
+.PHONY: test
+## Run all tests and code reports
+test: .tox
+	tox -p auto
+
 # This is necessary only if you want to automatically produce a new
 # _version.py file from the current git history (without doing a build).
 .PHONY: make-version
@@ -199,6 +204,7 @@ distclean: clean
 	rm -rf src/*.egg-info
 	rm -f src/allmydata/_version.py
 	rm -f src/allmydata/_appname.py
+	rm -rf ./.tox/
 
 
 .PHONY: find-trailing-spaces
@@ -237,3 +243,6 @@ upload-tarballs:
 
 src/allmydata/_version.py:
 	$(MAKE) make-version
+
+.tox: tox.ini setup.py
+	tox --notest -p all
