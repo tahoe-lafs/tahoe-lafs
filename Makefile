@@ -21,8 +21,9 @@ SOURCES=src/allmydata static misc setup.py
 APPNAME=tahoe-lafs
 
 
-# Top-level targets
+# Top-level, phony targets
 
+.PHONY: default
 default:
 	@echo "no default target"
 
@@ -33,13 +34,15 @@ make-version:
 	$(PYTHON) ./setup.py update_version
 
 # Build OS X pkg packages.
-.PHONY: build-osx-pkg test-osx-pkg upload-osx-pkg
+.PHONY: build-osx-pkg
 build-osx-pkg:
 	misc/build_helpers/build-osx-pkg.sh $(APPNAME)
 
+.PHONY: test-osx-pkg
 test-osx-pkg:
 	$(PYTHON) misc/build_helpers/test-osx-pkg.py
 
+.PHONY: upload-osx-pkg
 upload-osx-pkg:
 	# [Failure instance: Traceback: <class 'OpenSSL.SSL.Error'>: [('SSL routines', 'ssl3_read_bytes', 'tlsv1 alert unknown ca'), ('SSL routines', 'ssl3_write_bytes', 'ssl handshake failure')]
 	#
