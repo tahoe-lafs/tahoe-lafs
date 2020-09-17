@@ -58,23 +58,6 @@ upload-osx-pkg:
 	#   echo not uploading tahoe-lafs-osx-pkg because this is not trunk but is branch \"${BB_BRANCH}\" ; \
 	# fi
 
-# code coverage-based testing is disabled temporarily, as we switch to tox.
-# This will eventually be added to a tox environment. The following comments
-# and variable settings are retained as notes for that future effort.
-
-## # code coverage: install the "coverage" package from PyPI, do "make
-## # test-coverage" to do a unit test run with coverage-gathering enabled, then
-## # use "make coverage-output" to generate an HTML report. Also see "make
-## # .coverage.el" and misc/coding_tools/coverage.el for Emacs integration.
-##
-## # This might need to be python-coverage on Debian-based distros.
-## COVERAGE=coverage
-##
-## COVERAGEARGS=--branch --source=src/allmydata
-##
-## # --include appeared in coverage-3.4
-## COVERAGE_OMIT=--include '$(CURDIR)/src/allmydata/*' --omit '$(CURDIR)/src/allmydata/test/*'
-
 .PHONY: code-checks
 #code-checks: build version-and-path check-interfaces check-miscaptures -find-trailing-spaces -check-umids pyflakes
 code-checks: check-interfaces check-debugging check-miscaptures -find-trailing-spaces -check-umids pyflakes
