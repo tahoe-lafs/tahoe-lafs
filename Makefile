@@ -72,6 +72,7 @@ upload-osx-pkg:
 code-checks: check-interfaces check-debugging check-miscaptures -find-trailing-spaces -check-umids pyflakes
 
 .PHONY: check-interfaces
+check-interfaces:
 	$(PYTHON) misc/coding_tools/check-interfaces.py 2>&1 |tee violations.txt
 	@echo
 
