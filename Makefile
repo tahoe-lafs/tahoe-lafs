@@ -28,9 +28,6 @@ APPNAME=tahoe-lafs
 make-version:
 	$(PYTHON) ./setup.py update_version
 
-.built:
-	$(MAKE) build
-
 src/allmydata/_version.py:
 	$(MAKE) make-version
 
