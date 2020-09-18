@@ -419,8 +419,8 @@ class Tahoe2ServerSelector(log.PrefixingLogMixin):
         # 12GiB). See #439 for details.
         def _get_maxsize(server):
             v0 = server.get_version()
-            v1 = v0["http://allmydata.org/tahoe/protocols/storage/v1"]
-            return v1["maximum-immutable-share-size"]
+            v1 = v0[b"http://allmydata.org/tahoe/protocols/storage/v1"]
+            return v1[b"maximum-immutable-share-size"]
 
         for server in candidate_servers:
             self.peer_selector.add_peer(server.get_serverid())
