@@ -1377,7 +1377,7 @@ class LiteralUploader(object):
                 self._progress.set_progress_total(size)
             return read_this_many_bytes(uploadable, size)
         d.addCallback(_got_size)
-        d.addCallback(lambda data: uri.LiteralFileURI("".join(data)))
+        d.addCallback(lambda data: uri.LiteralFileURI(b"".join(data)))
         d.addCallback(lambda u: u.to_string())
         d.addCallback(self._build_results)
         return d

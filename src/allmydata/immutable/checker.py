@@ -127,7 +127,7 @@ class ValidatedExtendedURIProxy(object):
         # consistent: codec_name, codec_params, tail_codec_params,
         # num_segments, size, needed_shares, total_shares
         if 'codec_name' in d:
-            if d['codec_name'] != "crs":
+            if d['codec_name'] != b"crs":
                 raise UnsupportedErasureCodec(d['codec_name'])
 
         if 'codec_params' in d:
