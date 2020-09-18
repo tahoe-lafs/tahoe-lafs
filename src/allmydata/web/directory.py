@@ -2,7 +2,6 @@
 import json
 import urllib
 from datetime import timedelta
-from functools import wraps
 
 from zope.interface import implementer
 from twisted.internet import defer
@@ -680,7 +679,7 @@ class DirectoryAsHTML(Element):
         try:
             children = yield self.node.list()
         except Exception as e:
-            text, code = humanize_failure(Failure(e))
+            text, code = humanize_exception(e)
             children = None
             self.dirnode_children_error = text
 

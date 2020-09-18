@@ -1,10 +1,10 @@
 
 import time
 import json
+from functools import wraps
 
 from twisted.web import http, server, resource, template
 from twisted.python import log
-from twisted.python.failure import Failure
 from nevow import loaders, appserver
 from nevow.rend import Page
 from nevow.inevow import IRequest
@@ -22,7 +22,6 @@ from allmydata.util.encodingutil import to_bytes, quote_output
 # Originally part of this module, so still part of its API:
 from .common_py3 import (  # noqa: F401
     get_arg, abbreviate_time, MultiFormatResource, WebError,
-    BadRequest,
 )
 
 
@@ -516,23 +515,23 @@ def exception_to_child(f):
     @wraps(f)
     def g(self, name, req):
         try:
-            return m(self, name, req)
+            return f(self, name, req)
         except Exception as e:
             description, status = humanize_exception(e)
-            return ErrorPage(status, "Error", description)
+            return resource.ErrorPage(status, "Error", description)
     return g
 
 
-def render_exception(m):
+def render_exception(f):
     """
     Decorate a ``render_*`` method with exception handling behavior to render
     an error page reflecting the exception.
     """
-    @wraps(m)
+    @wraps(f)
     def g(self, request):
         try:
-            return m(self, request)
+            return f(self, request)
         except Exception as e:
             description, status = humanize_exception(e)
-            return ErrorPage(status, "Error", description).render(request)
+            return resource.ErrorPage(status, "Error", description).render(request)
     return g
