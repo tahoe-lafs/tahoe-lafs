@@ -203,19 +203,6 @@ def should_create_intermediate_directories(req):
     return bool(req.method in ("PUT", "POST") and
                 t not in ("delete", "rename", "rename-form", "check"))
 
-def humanize_failure(f):
-    """
-    Create an human-oriented description of a failure along with some HTTP
-    metadata.
-
-    :param Failure f: The failure to describe.
-
-    :return (bytes, int): A tuple of some prose and an HTTP code describing
-        the failure.
-    """
-    return humanize_exception(f.value)
-
-
 def humanize_exception(exc):
     """
     Like ``humanize_failure`` but for an exception.
@@ -303,6 +290,19 @@ def humanize_exception(exc):
     if isinstance(exc, FileTooLargeError):
         return ("FileTooLargeError: %s" % (exc,), http.REQUEST_ENTITY_TOO_LARGE)
     return (str(exc), None)
+
+
+def humanize_failure(f):
+    """
+    Create an human-oriented description of a failure along with some HTTP
+    metadata.
+
+    :param Failure f: The failure to describe.
+
+    :return (bytes, int): A tuple of some prose and an HTTP code describing
+        the failure.
+    """
+    return humanize_exception(f.value)
 
 
 class MyExceptionHandler(appserver.DefaultExceptionHandler, object):
