@@ -44,7 +44,7 @@ class ManifestStreamer(LineOnlyReceiver, object):
         if resp.status not in (200, 302):
             print(format_http_error("ERROR", resp), file=stderr)
             return 1
-        #print "RESP", dir(resp)
+        #print("RESP", dir(resp))
         # use Twisted to split this into lines
         self.in_error = False
         while True:

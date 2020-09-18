@@ -67,7 +67,7 @@ class DeferredUtilTests(unittest.TestCase, deferredutil.WaitForDelayedCallsMixin
         Trial would report an unclean reactor error for this test.
         """
         def _trigger():
-            #print "trigger"
+            #print("trigger")
             pass
         reactor.callLater(0.1, _trigger)
 

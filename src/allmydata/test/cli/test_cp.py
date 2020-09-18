@@ -983,7 +983,7 @@ class CopyOut(GridTestMixin, CLITestMixin, unittest.TestCase):
     def do_one_test(self, case, orig_expected):
         expected = set(orig_expected)
         printable_expected = ",".join(sorted(expected))
-        #print "---", case, ":", printable_expected
+        #print("---", case, ":", printable_expected)
 
         for f in orig_expected:
             # f is "dir/file" or "dir/sub/file" or "dir/" or "dir/sub/"
@@ -1010,7 +1010,7 @@ class CopyOut(GridTestMixin, CLITestMixin, unittest.TestCase):
         # then we run various forms of "cp [-r] TAHOETHING to[/missing]"
         # and see what happens.
         d = defer.succeed(None)
-        #print
+        #print()
 
         for line in COPYOUT_TESTCASES.splitlines():
             if "#" in line:
