@@ -274,7 +274,7 @@ class Encode(unittest.TestCase):
         data = make_data(datalen)
         # force use of multiple segments
         e = encode.Encoder()
-        u = upload.Data(data, convergence="some convergence string")
+        u = upload.Data(data, convergence=b"some convergence string")
         u.set_default_encoding_parameters({'max_segment_size': max_segment_size,
                                            'k': 25, 'happy': 75, 'n': 100})
         eu = upload.EncryptAnUploadable(u)
@@ -304,7 +304,7 @@ class Encode(unittest.TestCase):
 
         def _check(res):
             verifycap = res
-            self.failUnless(isinstance(verifycap.uri_extension_hash, str))
+            self.failUnless(isinstance(verifycap.uri_extension_hash, bytes))
             self.failUnlessEqual(len(verifycap.uri_extension_hash), 32)
             for i,peer in enumerate(all_shareholders):
                 self.failUnless(peer.closed)
