@@ -23,6 +23,15 @@ class WebError(Exception):
         self.code = code
 
 
+class BadRequest(resource.ErrorPage):
+    """
+    ``BadRequest`` is a specialiation of ``ErrorPage`` which returns the HTTP
+    response code **BAD REQUEST**.
+    """
+    def __init__(self, message=""):
+        resource.ErrorPage.__init__(self, http.BAD_REQUEST, "Bad Request", message)
+
+
 def get_arg(ctx_or_req, argname, default=None, multiple=False):
     """Extract an argument from either the query args (req.args) or the form
     body fields (req.fields). If multiple=False, this returns a single value

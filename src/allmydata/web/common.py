@@ -21,7 +21,8 @@ from allmydata.util.encodingutil import to_bytes, quote_output
 
 # Originally part of this module, so still part of its API:
 from .common_py3 import (  # noqa: F401
-    get_arg, abbreviate_time, MultiFormatResource, WebError
+    get_arg, abbreviate_time, MultiFormatResource, WebError,
+    BadRequest,
 )
 
 
