@@ -13,8 +13,9 @@ from __future__ import unicode_literals
 
 from future.utils import PY2
 if PY2:
-    # Don't import bytes, to prevent leaks.
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, dict, list, object, range, str, max, min  # noqa: F401
+    # Don't import bytes or str, to prevent leaks.
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, dict, list, object, range, max, min  # noqa: F401
+    str = unicode
 
 from past.builtins import unicode, long
 

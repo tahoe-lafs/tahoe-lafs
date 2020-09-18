@@ -1,4 +1,18 @@
-from future.utils import bytes_to_native_str
+"""
+Ported to Python 3.
+"""
+from __future__ import division
+from __future__ import absolute_import
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import bytes_to_native_str, PY2
+if PY2:
+    # Omit open() to get native behavior where open("w") always accepts native
+    # strings. Omit bytes so we don't leak future's custom bytes.
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, pow, round, super, dict, list, object, range, str, max, min  # noqa: F401
+
+
 import os, re, struct, time
 import weakref
 import six
@@ -228,16 +242,18 @@ class StorageServer(service.MultiService, Referenceable):
             # We're on a platform that has no API to get disk stats.
             remaining_space = 2**64
 
-        version = { "http://allmydata.org/tahoe/protocols/storage/v1" :
-                    { "maximum-immutable-share-size": remaining_space,
-                      "maximum-mutable-share-size": MAX_MUTABLE_SHARE_SIZE,
-                      "available-space": remaining_space,
-                      "tolerates-immutable-read-overrun": True,
-                      "delete-mutable-shares-with-zero-length-writev": True,
-                      "fills-holes-with-zero-bytes": True,
-                      "prevents-read-past-end-of-share-data": True,
+        # Unicode strings might be nicer, but for now sticking to bytes since
+        # this is what the wire protocol has always been.
+        version = { b"http://allmydata.org/tahoe/protocols/storage/v1" :
+                    { b"maximum-immutable-share-size": remaining_space,
+                      b"maximum-mutable-share-size": MAX_MUTABLE_SHARE_SIZE,
+                      b"available-space": remaining_space,
+                      b"tolerates-immutable-read-overrun": True,
+                      b"delete-mutable-shares-with-zero-length-writev": True,
+                      b"fills-holes-with-zero-bytes": True,
+                      b"prevents-read-past-end-of-share-data": True,
                       },
-                    "application-version": str(allmydata.__full_version__),
+                    b"application-version": allmydata.__full_version__.encode("utf-8"),
                     }
         return version
 
@@ -671,7 +687,7 @@ class StorageServer(service.MultiService, Referenceable):
                 filename = os.path.join(bucketdir, sharenum_s)
                 msf = MutableShareFile(filename, self)
                 datavs[sharenum] = msf.readv(readv)
-        log.msg("returning shares %s" % (datavs.keys(),),
+        log.msg("returning shares %s" % (list(datavs.keys()),),
                 facility="tahoe.storage", level=log.NOISY, parent=lp)
         self.add_latency("readv", time.time() - start)
         return datavs
