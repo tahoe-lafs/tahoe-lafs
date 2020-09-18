@@ -2,6 +2,7 @@
 import json
 import urllib
 from datetime import timedelta
+from functools import wraps
 
 from zope.interface import implementer
 from twisted.internet import defer
@@ -48,6 +49,7 @@ from allmydata.web.common import (
     parse_replace_arg,
     should_create_intermediate_directories,
     humanize_failure,
+    humanize_exception,
     convert_children_json,
     get_format,
     get_mutable_type,
@@ -55,6 +57,8 @@ from allmydata.web.common import (
     render_time,
     MultiFormatResource,
     SlotsSequenceElement,
+    exception_to_child,
+    render_exception,
 )
 from allmydata.web.filenode import ReplaceMeMixin, \
      FileNodeHandler, PlaceHolderNodeHandler
@@ -94,6 +98,7 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
         self.name = name
         self._operations = client.get_web_service().get_operations()
 
+    @exception_to_child
     def getChild(self, name, req):
         """
         Dynamically create a child for the given request and name
@@ -113,9 +118,7 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
         # we will follow suit.
         for segment in req.prepath:
             if not segment:
-                raise EmptyPathnameComponentError(
-                    u"The webapi does not allow empty pathname components",
-                )
+                raise EmptyPathnameComponentError()
 
         d = self.node.get(name)
         d.addBoth(self._got_child, req, name)
@@ -210,6 +213,7 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
         d.addCallback(lambda res: self.node.get_uri())
         return d
 
+    @render_exception
     def render_GET(self, req):
         # This is where all of the directory-related ?t=* code goes.
         t = get_arg(req, "t", "").strip()
@@ -248,6 +252,7 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
 
         raise WebError("GET directory: bad t=%s" % t)
 
+    @render_exception
     def render_PUT(self, req):
         t = get_arg(req, "t", "").strip()
         replace = parse_replace_arg(get_arg(req, "replace", "true"))
@@ -267,6 +272,7 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
 
         raise WebError("PUT to a directory")
 
+    @render_exception
     def render_POST(self, req):
         t = get_arg(req, "t", "").strip()
 
@@ -1458,6 +1464,7 @@ class UnknownNodeHandler(Resource, object):
         self.parentnode = parentnode
         self.name = name
 
+    @render_exception
     def render_GET(self, req):
         t = get_arg(req, "t", "").strip()
         if t == "info":
