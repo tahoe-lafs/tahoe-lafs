@@ -50,8 +50,8 @@ class NodeMaker(object):
 
     def create_from_cap(self, writecap, readcap=None, deep_immutable=False, name=u"<unknown name>"):
         # this returns synchronously. It starts with a "cap string".
-        assert isinstance(writecap, (str, type(None))), type(writecap)
-        assert isinstance(readcap,  (str, type(None))), type(readcap)
+        assert isinstance(writecap, (bytes, type(None))), type(writecap)
+        assert isinstance(readcap,  (bytes, type(None))), type(readcap)
 
         bigcap = writecap or readcap
         if not bigcap:
@@ -63,9 +63,9 @@ class NodeMaker(object):
         # The name doesn't matter for caching since it's only used in the error
         # attribute of an UnknownNode, and we don't cache those.
         if deep_immutable:
-            memokey = "I" + bigcap
+            memokey = b"I" + bigcap
         else:
-            memokey = "M" + bigcap
+            memokey = b"M" + bigcap
         if memokey in self._node_cache:
             node = self._node_cache[memokey]
         else:
