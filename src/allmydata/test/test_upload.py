@@ -1,5 +1,17 @@
 # -*- coding: utf-8 -*-
 
+"""
+Ported to Python 3.
+"""
+from __future__ import unicode_literals
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+
 import os, shutil
 from io import BytesIO
 
@@ -110,7 +122,7 @@ class FakeStorageServer(object):
             {
                 b"maximum-immutable-share-size": 2**32 - 1,
             },
-            b"application-version": str(allmydata.__full_version__),
+            b"application-version": bytes(allmydata.__full_version__, "ascii"),
         }
         if mode == "small":
             self.version = {
@@ -118,7 +130,7 @@ class FakeStorageServer(object):
                 {
                     b"maximum-immutable-share-size": 10,
                 },
-                b"application-version": str(allmydata.__full_version__),
+                b"application-version": bytes(allmydata.__full_version__, "ascii"),
             }
 
 
@@ -215,7 +227,7 @@ class FakeClient(object):
     def __init__(self, mode="good", num_servers=50, reactor=None):
         self.num_servers = num_servers
         self.encoding_params = self.DEFAULT_ENCODING_PARAMETERS.copy()
-        if type(mode) is str:
+        if isinstance(mode, str):
             mode = dict([i,mode] for i in range(num_servers))
         servers = [
             (b"%20d" % fakeid, FakeStorageServer(mode[fakeid], reactor=reactor))
