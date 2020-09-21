@@ -325,7 +325,6 @@ class NoNetworkGrid(service.MultiService):
             d.addCallback(lambda c: self.clients.append(c))
 
             def _bad(f):
-                print(f)
                 self._setup_errors.append(f)
             d.addErrback(_bad)
 
