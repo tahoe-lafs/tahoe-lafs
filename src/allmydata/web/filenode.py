@@ -17,14 +17,29 @@ from allmydata.mutable.publish import MutableFileHandle
 from allmydata.mutable.common import MODE_READ
 from allmydata.util import log, base32
 from allmydata.util.encodingutil import quote_output
-from allmydata.blacklist import FileProhibited, ProhibitedNode
+from allmydata.blacklist import (
+    FileProhibited,
+    ProhibitedNode,
+)
 
-from allmydata.web.common import text_plain, WebError, \
-     boolean_of_arg, get_arg, should_create_intermediate_directories, \
-     MyExceptionHandler, parse_replace_arg, parse_offset_arg, \
-     get_format, get_mutable_type, get_filenode_metadata
-from allmydata.web.check_results import CheckResultsRenderer, \
-     CheckAndRepairResultsRenderer, LiteralCheckResultsRenderer
+from allmydata.web.common import (
+    boolean_of_arg,
+    get_arg,
+    get_filenode_metadata,
+    get_format,
+    get_mutable_type,
+    parse_offset_arg,
+    parse_replace_arg,
+    should_create_intermediate_directories,
+    text_plain,
+    MyExceptionHandler,
+    WebError,
+)
+from allmydata.web.check_results import (
+    CheckResultsRenderer,
+    CheckAndRepairResultsRenderer,
+    LiteralCheckResultsRenderer,
+)
 from allmydata.web.info import MoreInfo
 
 class ReplaceMeMixin(object):
