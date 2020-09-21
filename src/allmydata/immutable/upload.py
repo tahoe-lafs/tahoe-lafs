@@ -1,4 +1,4 @@
-from past.builtins import long
+from past.builtins import long, unicode
 
 import os, time, weakref, itertools
 from zope.interface import implementer
@@ -1377,7 +1377,7 @@ class LiteralUploader(object):
                 self._progress.set_progress_total(size)
             return read_this_many_bytes(uploadable, size)
         d.addCallback(_got_size)
-        d.addCallback(lambda data: uri.LiteralFileURI("".join(data)))
+        d.addCallback(lambda data: uri.LiteralFileURI(b"".join(data)))
         d.addCallback(lambda u: u.to_string())
         d.addCallback(self._build_results)
         return d
@@ -1500,7 +1500,7 @@ class AssistedUploader(object):
 
         Returns a Deferred that will fire with the UploadResults instance.
         """
-        precondition(isinstance(storage_index, str), storage_index)
+        precondition(isinstance(storage_index, bytes), storage_index)
         self._started = time.time()
         eu = IEncryptedUploadable(encrypted_uploadable)
         eu.set_upload_status(self._upload_status)
@@ -1653,7 +1653,7 @@ class BaseUploadable(object):
     def set_default_encoding_parameters(self, default_params):
         assert isinstance(default_params, dict)
         for k,v in default_params.items():
-            precondition(isinstance(k, str), k, v)
+            precondition(isinstance(k, (bytes, unicode)), k, v)
             precondition(isinstance(v, int), k, v)
         if "k" in default_params:
             self.default_encoding_param_k = default_params["k"]
@@ -1773,7 +1773,7 @@ class FileName(FileHandle):
         then the hash will be hashed together with the string in the
         "convergence" argument to form the encryption key.
         """
-        assert convergence is None or isinstance(convergence, str), (convergence, type(convergence))
+        assert convergence is None or isinstance(convergence, bytes), (convergence, type(convergence))
         FileHandle.__init__(self, open(filename, "rb"), convergence=convergence)
     def close(self):
         FileHandle.close(self)

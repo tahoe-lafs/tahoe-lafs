@@ -1,4 +1,5 @@
-from six.moves import cStringIO as StringIO
+from io import BytesIO
+
 from zope.interface import implementer
 from twisted.internet import defer
 from twisted.internet.interfaces import IPushProducer
@@ -104,7 +105,7 @@ class LiteralFileNode(_ImmutableFileNodeBase):
         # vfs.adapters.ftp._FileToConsumerAdapter), neither of which is
         # likely to be used as the target for a Tahoe download.
 
-        d = basic.FileSender().beginFileTransfer(StringIO(data), consumer)
+        d = basic.FileSender().beginFileTransfer(BytesIO(data), consumer)
         d.addCallback(lambda lastSent: consumer)
         return d
 

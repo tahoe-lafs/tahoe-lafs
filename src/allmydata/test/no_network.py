@@ -479,10 +479,12 @@ class GridTestMixin(object):
 
     def _record_webports_and_baseurls(self):
         self.g._check_clients()
-        self.client_webports = [c.getServiceNamed("webish").getPortnum()
-                                for c in self.g.clients]
-        self.client_baseurls = [c.getServiceNamed("webish").getURL()
-                                for c in self.g.clients]
+        if PY2:
+            # Temporarily disabled on Python 3 until Nevow is gone:
+            self.client_webports = [c.getServiceNamed("webish").getPortnum()
+                                    for c in self.g.clients]
+            self.client_baseurls = [c.getServiceNamed("webish").getURL()
+                                    for c in self.g.clients]
 
     def get_client_config(self, i=0):
         self.g._check_clients()
