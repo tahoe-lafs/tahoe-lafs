@@ -495,7 +495,10 @@ class _FoolscapStorage(object):
         tubid_s = m.group(1).lower()
         tubid = base32.a2b(tubid_s)
         if "permutation-seed-base32" in ann:
-            ps = base32.a2b(str(ann["permutation-seed-base32"]))
+            seed = ann["permutation-seed-base32"]
+            if isinstance(seed, unicode):
+                seed = seed.encode("utf-8")
+            ps = base32.a2b(seed)
         elif re.search(r'^v0-[0-9a-zA-Z]{52}$', server_id):
             ps = base32.a2b(server_id[3:])
         else:
@@ -510,7 +513,7 @@ class _FoolscapStorage(object):
 
         assert server_id
         long_description = server_id
-        if server_id.startswith("v0-"):
+        if server_id.startswith(b"v0-"):
             # remove v0- prefix from abbreviated name
             short_description = server_id[3:3+8]
         else:
@@ -695,12 +698,14 @@ class NativeStorageServer(service.MultiService):
             # Nope
             pass
         else:
+            if isinstance(furl, unicode):
+                furl = furl.encode("utf-8")
             # See comment above for the _storage_from_foolscap_plugin case
             # about passing in get_rref.
             storage_server = _StorageServer(get_rref=self.get_rref)
             return _FoolscapStorage.from_announcement(
                 self._server_id,
-                furl.encode("utf-8"),
+                furl,
                 ann,
                 storage_server,
             )

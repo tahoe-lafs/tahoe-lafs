@@ -23,6 +23,7 @@ from allmydata.client import _Client
 from .common import (
     EMPTY_CLIENT_CONFIG,
 )
+from functools import reduce
 
 
 MiB = 1024*1024
@@ -839,10 +840,10 @@ def combinations(iterable, r):
     n = len(pool)
     if r > n:
         return
-    indices = range(r)
+    indices = list(range(r))
     yield tuple(pool[i] for i in indices)
     while True:
-        for i in reversed(range(r)):
+        for i in reversed(list(range(r))):
             if indices[i] != i + n - r:
                 break
         else:
@@ -856,7 +857,7 @@ def is_happy_enough(servertoshnums, h, k):
     """ I calculate whether servertoshnums achieves happiness level h. I do this with a naïve "brute force search" approach. (See src/allmydata/util/happinessutil.py for a better algorithm.) """
     if len(servertoshnums) < h:
         return False
-    for happysetcombo in combinations(servertoshnums.iterkeys(), h):
+    for happysetcombo in combinations(iter(servertoshnums.keys()), h):
         for subsetcombo in combinations(happysetcombo, k):
             shnums = reduce(set.union, [ servertoshnums[s] for s in subsetcombo ])
             if len(shnums) < k:
@@ -887,7 +888,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         assert self.g, "I tried to find a grid at self.g, but failed"
         servertoshnums = {} # k: server, v: set(shnum)
 
-        for i, c in self.g.servers_by_number.iteritems():
+        for i, c in self.g.servers_by_number.items():
             for (dirp, dirns, fns) in os.walk(c.sharedir):
                 for fn in fns:
                     try:
@@ -927,9 +928,9 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         def _have_shareholders(upload_trackers_and_already_servers):
             (upload_trackers, already_servers) = upload_trackers_and_already_servers
             assert servers_to_break <= len(upload_trackers)
-            for index in xrange(servers_to_break):
+            for index in range(servers_to_break):
                 tracker = list(upload_trackers)[index]
-                for share in tracker.buckets.keys():
+                for share in list(tracker.buckets.keys()):
                     tracker.buckets[share].abort()
             buckets = {}
             servermap = already_servers.copy()
@@ -1260,7 +1261,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
             self._add_server_with_share(server_number=1, share_number=2))
         # Copy all of the other shares to server number 2
         def _copy_shares(ign):
-            for i in xrange(0, 10):
+            for i in range(0, 10):
                 self._copy_share_to_server(i, 2)
         d.addCallback(_copy_shares)
         # Remove the first server, and add a placeholder with share 0
@@ -1354,7 +1355,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
                                         readonly=True))
         # Copy all of the other shares to server number 2
         def _copy_shares(ign):
-            for i in xrange(1, 10):
+            for i in range(1, 10):
                 self._copy_share_to_server(i, 2)
         d.addCallback(_copy_shares)
         # Remove server 0, and add another in its place
@@ -1397,7 +1398,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
             self._add_server_with_share(server_number=2, share_number=0,
                                         readonly=True))
         def _copy_shares(ign):
-            for i in xrange(1, 10):
+            for i in range(1, 10):
                 self._copy_share_to_server(i, 2)
         d.addCallback(_copy_shares)
         d.addCallback(lambda ign:
@@ -1513,7 +1514,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         d.addCallback(lambda ign:
             self._add_server(4))
         def _copy_shares(ign):
-            for i in xrange(1, 10):
+            for i in range(1, 10):
                 self._copy_share_to_server(i, 1)
         d.addCallback(_copy_shares)
         d.addCallback(lambda ign:
@@ -1537,7 +1538,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         self.basedir = self.mktemp()
         d = self._setup_and_upload()
         def _setup(ign):
-            for i in xrange(1, 11):
+            for i in range(1, 11):
                 self._add_server(server_number=i)
             self.g.remove_server(self.g.servers_by_number[0].my_nodeid)
             c = self.g.clients[0]
@@ -1562,7 +1563,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         d.addCallback(lambda ign:
             self._setup_and_upload())
         def _then(ign):
-            for i in xrange(1, 11):
+            for i in range(1, 11):
                 self._add_server(server_number=i)
             self._add_server(server_number=11, readonly=True)
             self._add_server(server_number=12, readonly=True)
@@ -1588,11 +1589,11 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
             self._setup_and_upload())
 
         def _next(ign):
-            for i in xrange(1, 11):
+            for i in range(1, 11):
                 self._add_server(server_number=i)
             # Copy all of the shares to server 9, since that will be
             # the first one that the selector sees.
-            for i in xrange(10):
+            for i in range(10):
                 self._copy_share_to_server(i, 9)
             # Remove server 0, and its contents
             self.g.remove_server(self.g.servers_by_number[0].my_nodeid)
@@ -1613,7 +1614,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         self.basedir = self.mktemp()
         d = self._setup_and_upload()
         def _then(ign):
-            for i in xrange(1, 11):
+            for i in range(1, 11):
                 self._add_server(server_number=i, readonly=True)
             self.g.remove_server(self.g.servers_by_number[0].my_nodeid)
             c = self.g.clients[0]
@@ -1936,7 +1937,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
             self._add_server_with_share(server_number=8, share_number=4)
             self._add_server_with_share(server_number=5, share_number=5)
             self._add_server_with_share(server_number=10, share_number=7)
-            for i in xrange(4):
+            for i in range(4):
                 self._copy_share_to_server(i, 2)
             return self.g.clients[0]
         d.addCallback(_server_setup)
@@ -1971,7 +1972,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
             return fireEventually(res)
         d.addCallback(_turn_barrier)
         def _then(ignored):
-            for server in self.g.servers_by_number.values():
+            for server in list(self.g.servers_by_number.values()):
                 self.failUnlessEqual(server.allocated_size(), 0)
         d.addCallback(_then)
         return d
@@ -1997,7 +1998,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
             return fireEventually(res)
         d.addCallback(_turn_barrier)
         def _then(ignored):
-            for server in self.g.servers_by_number.values():
+            for server in list(self.g.servers_by_number.values()):
                 self.failUnlessEqual(server.allocated_size(), 0)
         d.addCallback(_then)
         return d
