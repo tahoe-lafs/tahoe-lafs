@@ -1818,7 +1818,7 @@ class Uploader(service.MultiService, log.PrefixingLogMixin):
         self.log("got helper connection, getting versions")
         default = { "http://allmydata.org/tahoe/protocols/helper/v1" :
                     { },
-                    "application-version": "unknown: no get_version()",
+                    "application-version": b"unknown: no get_version()",
                     }
         d = add_version_to_remote_reference(helper, default)
         d.addCallback(self._got_versioned_helper)

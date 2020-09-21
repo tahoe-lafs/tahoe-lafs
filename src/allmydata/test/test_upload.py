@@ -106,19 +106,19 @@ class FakeStorageServer(object):
         self._alloc_queries = 0
         self._get_queries = 0
         self.version = {
-            "http://allmydata.org/tahoe/protocols/storage/v1" :
+            b"http://allmydata.org/tahoe/protocols/storage/v1" :
             {
-                "maximum-immutable-share-size": 2**32 - 1,
+                b"maximum-immutable-share-size": 2**32 - 1,
             },
-            "application-version": str(allmydata.__full_version__),
+            b"application-version": str(allmydata.__full_version__),
         }
         if mode == "small":
             self.version = {
-                "http://allmydata.org/tahoe/protocols/storage/v1" :
+                b"http://allmydata.org/tahoe/protocols/storage/v1" :
                 {
-                    "maximum-immutable-share-size": 10,
+                    b"maximum-immutable-share-size": 10,
                 },
-                "application-version": str(allmydata.__full_version__),
+                b"application-version": str(allmydata.__full_version__),
             }
 
 
@@ -306,9 +306,9 @@ class GoodServer(unittest.TestCase, ShouldFailMixin, SetDEPMixin):
     def _check_large(self, newuri, size):
         u = uri.from_string(newuri)
         self.failUnless(isinstance(u, uri.CHKFileURI))
-        self.failUnless(isinstance(u.get_storage_index(), str))
+        self.failUnless(isinstance(u.get_storage_index(), bytes))
         self.failUnlessEqual(len(u.get_storage_index()), 16)
-        self.failUnless(isinstance(u.key, str))
+        self.failUnless(isinstance(u.key, bytes))
         self.failUnlessEqual(len(u.key), 16)
         self.failUnlessEqual(u.size, size)
 
@@ -431,9 +431,9 @@ class ServerErrors(unittest.TestCase, ShouldFailMixin, SetDEPMixin):
     def _check_large(self, newuri, size):
         u = uri.from_string(newuri)
         self.failUnless(isinstance(u, uri.CHKFileURI))
-        self.failUnless(isinstance(u.get_storage_index(), str))
+        self.failUnless(isinstance(u.get_storage_index(), bytes))
         self.failUnlessEqual(len(u.get_storage_index()), 16)
-        self.failUnless(isinstance(u.key, str))
+        self.failUnless(isinstance(u.key, bytes))
         self.failUnlessEqual(len(u.key), 16)
         self.failUnlessEqual(u.size, size)
 
@@ -601,9 +601,9 @@ class ServerSelection(unittest.TestCase):
     def _check_large(self, newuri, size):
         u = uri.from_string(newuri)
         self.failUnless(isinstance(u, uri.CHKFileURI))
-        self.failUnless(isinstance(u.get_storage_index(), str))
+        self.failUnless(isinstance(u.get_storage_index(), bytes))
         self.failUnlessEqual(len(u.get_storage_index()), 16)
-        self.failUnless(isinstance(u.key, str))
+        self.failUnless(isinstance(u.key, bytes))
         self.failUnlessEqual(len(u.key), 16)
         self.failUnlessEqual(u.size, size)
 
@@ -1628,7 +1628,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
                             "test_upper_limit_on_readonly_queries",
                             "sent 8 queries to 8 servers",
                             client.upload,
-                            upload.Data('data' * 10000, convergence=b"")))
+                            upload.Data(b'data' * 10000, convergence=b"")))
         return d
 
 

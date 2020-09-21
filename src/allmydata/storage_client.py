@@ -625,14 +625,14 @@ class NativeStorageServer(service.MultiService):
     """
 
     VERSION_DEFAULTS = {
-        "http://allmydata.org/tahoe/protocols/storage/v1" :
-        { "maximum-immutable-share-size": 2**32 - 1,
-          "maximum-mutable-share-size": 2*1000*1000*1000, # maximum prior to v1.9.2
-          "tolerates-immutable-read-overrun": False,
-          "delete-mutable-shares-with-zero-length-writev": False,
-          "available-space": None,
+        b"http://allmydata.org/tahoe/protocols/storage/v1" :
+        { b"maximum-immutable-share-size": 2**32 - 1,
+          b"maximum-mutable-share-size": 2*1000*1000*1000, # maximum prior to v1.9.2
+          b"tolerates-immutable-read-overrun": False,
+          b"delete-mutable-shares-with-zero-length-writev": False,
+          b"available-space": None,
           },
-        "application-version": "unknown: no get_version()",
+        b"application-version": "unknown: no get_version()",
         }
 
     def __init__(self, server_id, ann, tub_maker, handler_overrides, node_config, config=StorageClientConfig()):
@@ -773,7 +773,7 @@ class NativeStorageServer(service.MultiService):
         version = self.get_version()
         if version is None:
             return None
-        protocol_v1_version = version.get('http://allmydata.org/tahoe/protocols/storage/v1', {})
+        protocol_v1_version = version.get(b'http://allmydata.org/tahoe/protocols/storage/v1', {})
         available_space = protocol_v1_version.get('available-space')
         if available_space is None:
             available_space = protocol_v1_version.get('maximum-immutable-share-size', None)
