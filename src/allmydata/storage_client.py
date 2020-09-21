@@ -28,6 +28,7 @@ the foolscap-based server implemented in src/allmydata/storage/*.py .
 #
 # 6: implement other sorts of IStorageClient classes: S3, etc
 
+from past.builtins import unicode
 
 import re, time, hashlib
 try:
@@ -489,7 +490,7 @@ class _FoolscapStorage(object):
 
         *nickname* is optional.
         """
-        m = re.match(r'pb://(\w+)@', furl)
+        m = re.match(br'pb://(\w+)@', furl)
         assert m, furl
         tubid_s = m.group(1).lower()
         tubid = base32.a2b(tubid_s)
@@ -633,7 +634,7 @@ class NativeStorageServer(service.MultiService):
 
     def __init__(self, server_id, ann, tub_maker, handler_overrides, node_config, config=StorageClientConfig()):
         service.MultiService.__init__(self)
-        assert isinstance(server_id, str)
+        assert isinstance(server_id, bytes)
         self._server_id = server_id
         self.announcement = ann
         self._tub_maker = tub_maker

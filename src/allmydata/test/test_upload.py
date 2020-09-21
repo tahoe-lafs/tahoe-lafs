@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 
 import os, shutil
-from six.moves import cStringIO as StringIO
+from io import BytesIO
+
 from twisted.trial import unittest
 from twisted.python.failure import Failure
 from twisted.internet import defer, task
@@ -33,25 +34,25 @@ class Uploadable(unittest.TestCase):
     def shouldEqual(self, data, expected):
         self.failUnless(isinstance(data, list))
         for e in data:
-            self.failUnless(isinstance(e, str))
-        s = "".join(data)
+            self.failUnless(isinstance(e, bytes))
+        s = b"".join(data)
         self.failUnlessEqual(s, expected)
 
     def test_filehandle_random_key(self):
         return self._test_filehandle(convergence=None)
 
     def test_filehandle_convergent_encryption(self):
-        return self._test_filehandle(convergence="some convergence string")
+        return self._test_filehandle(convergence=b"some convergence string")
 
     def _test_filehandle(self, convergence):
-        s = StringIO("a"*41)
+        s = BytesIO(b"a"*41)
         u = upload.FileHandle(s, convergence=convergence)
         d = u.get_size()
         d.addCallback(self.failUnlessEqual, 41)
         d.addCallback(lambda res: u.read(1))
-        d.addCallback(self.shouldEqual, "a")
+        d.addCallback(self.shouldEqual, b"a")
         d.addCallback(lambda res: u.read(80))
-        d.addCallback(self.shouldEqual, "a"*40)
+        d.addCallback(self.shouldEqual, b"a"*40)
         d.addCallback(lambda res: u.close()) # this doesn't close the filehandle
         d.addCallback(lambda res: s.close()) # that privilege is reserved for us
         return d
@@ -60,28 +61,28 @@ class Uploadable(unittest.TestCase):
         basedir = "upload/Uploadable/test_filename"
         os.makedirs(basedir)
         fn = os.path.join(basedir, "file")
-        f = open(fn, "w")
-        f.write("a"*41)
+        f = open(fn, "wb")
+        f.write(b"a"*41)
         f.close()
         u = upload.FileName(fn, convergence=None)
         d = u.get_size()
         d.addCallback(self.failUnlessEqual, 41)
         d.addCallback(lambda res: u.read(1))
-        d.addCallback(self.shouldEqual, "a")
+        d.addCallback(self.shouldEqual, b"a")
         d.addCallback(lambda res: u.read(80))
-        d.addCallback(self.shouldEqual, "a"*40)
+        d.addCallback(self.shouldEqual, b"a"*40)
         d.addCallback(lambda res: u.close())
         return d
 
     def test_data(self):
-        s = "a"*41
+        s = b"a"*41
         u = upload.Data(s, convergence=None)
         d = u.get_size()
         d.addCallback(self.failUnlessEqual, 41)
         d.addCallback(lambda res: u.read(1))
-        d.addCallback(self.shouldEqual, "a")
+        d.addCallback(self.shouldEqual, b"a")
         d.addCallback(lambda res: u.read(80))
-        d.addCallback(self.shouldEqual, "a"*40)
+        d.addCallback(self.shouldEqual, b"a"*40)
         d.addCallback(lambda res: u.close())
         return d
 
@@ -167,7 +168,7 @@ class FakeStorageServer(object):
 class FakeBucketWriter(object):
     # a diagnostic version of storageserver.BucketWriter
     def __init__(self, size):
-        self.data = StringIO()
+        self.data = BytesIO()
         self.closed = False
         self._size = size
 
@@ -216,7 +217,7 @@ class FakeClient(object):
         if type(mode) is str:
             mode = dict([i,mode] for i in range(num_servers))
         servers = [
-            ("%20d" % fakeid, FakeStorageServer(mode[fakeid], reactor=reactor))
+            (b"%20d" % fakeid, FakeStorageServer(mode[fakeid], reactor=reactor))
             for fakeid in range(self.num_servers)
         ]
         self.storage_broker = StorageFarmBroker(
@@ -225,7 +226,7 @@ class FakeClient(object):
             node_config=EMPTY_CLIENT_CONFIG,
         )
         for (serverid, rref) in servers:
-            ann = {"anonymous-storage-FURL": "pb://%s@nowhere/fake" % base32.b2a(serverid),
+            ann = {"anonymous-storage-FURL": b"pb://%s@nowhere/fake" % base32.b2a(serverid),
                    "permutation-seed-base32": base32.b2a(serverid) }
             self.storage_broker.test_add_rref(serverid, rref, ann)
         self.last_servers = [s[1] for s in servers]
@@ -236,7 +237,7 @@ class FakeClient(object):
         return self.encoding_params
     def get_storage_broker(self):
         return self.storage_broker
-    _secret_holder = client.SecretHolder("lease secret", "convergence secret")
+    _secret_holder = client.SecretHolder(b"lease secret", b"convergence secret")
 
 class GotTooFarError(Exception):
     pass
@@ -247,7 +248,7 @@ class GiganticUploadable(upload.FileHandle):
         self._fp = 0
 
     def get_encryption_key(self):
-        return defer.succeed("\x00" * 16)
+        return defer.succeed(b"\x00" * 16)
     def get_size(self):
         return defer.succeed(self._size)
     def read(self, length):
@@ -257,7 +258,7 @@ class GiganticUploadable(upload.FileHandle):
         if self._fp > 1000000:
             # terminate the test early.
             raise GotTooFarError("we shouldn't be allowed to get this far")
-        return defer.succeed(["\x00" * length])
+        return defer.succeed([b"\x00" * length])
     def close(self):
         pass
 
@@ -367,21 +368,21 @@ class GoodServer(unittest.TestCase, ShouldFailMixin, SetDEPMixin):
 
     def test_filehandle_zero(self):
         data = self.get_data(SIZE_ZERO)
-        d = upload_filehandle(self.u, StringIO(data))
+        d = upload_filehandle(self.u, BytesIO(data))
         d.addCallback(extract_uri)
         d.addCallback(self._check_small, SIZE_ZERO)
         return d
 
     def test_filehandle_small(self):
         data = self.get_data(SIZE_SMALL)
-        d = upload_filehandle(self.u, StringIO(data))
+        d = upload_filehandle(self.u, BytesIO(data))
         d.addCallback(extract_uri)
         d.addCallback(self._check_small, SIZE_SMALL)
         return d
 
     def test_filehandle_large(self):
         data = self.get_data(SIZE_LARGE)
-        d = upload_filehandle(self.u, StringIO(data))
+        d = upload_filehandle(self.u, BytesIO(data))
         d.addCallback(extract_uri)
         d.addCallback(self._check_large, SIZE_LARGE)
         return d
