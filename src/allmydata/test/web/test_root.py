@@ -57,8 +57,17 @@ class RenderSlashUri(unittest.TestCase):
         A (trivially) invalid capbility is an error
         """
         self.request.args[b"uri"] = [b"not a capability"]
-        with self.assertRaises(WebError):
-            self.res.render_GET(self.request)
+        response_body = self.res.render_GET(self.request)
+
+        self.assertIn(
+            "<title>400 - Error</title>", response_body,
+        )
+        self.assertIn(
+            "<h1>Error</h1>", response_body,
+        )
+        self.assertIn(
+            "<p>Invalid capability</p>", response_body,
+        )
 
     @given(
         text()
@@ -68,8 +77,17 @@ class RenderSlashUri(unittest.TestCase):
         Let hypothesis try a bunch of invalid capabilities
         """
         self.request.args[b"uri"] = [cap.encode('utf8')]
-        with self.assertRaises(WebError):
-            self.res.render_GET(self.request)
+        response_body = self.res.render_GET(self.request)
+
+        self.assertIn(
+            "<title>400 - Error</title>", response_body,
+        )
+        self.assertIn(
+            "<h1>Error</h1>", response_body,
+        )
+        self.assertIn(
+            "<p>Invalid capability</p>", response_body,
+        )
 
 
 class RenderServiceRow(unittest.TestCase):
