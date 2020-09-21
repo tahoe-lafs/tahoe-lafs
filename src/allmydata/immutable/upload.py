@@ -299,7 +299,7 @@ class ServerTracker(object):
         I abort the remote bucket writers for all shares. This is a good idea
         to conserve space on the storage server.
         """
-        self.abort_some_buckets(self.buckets.keys())
+        self.abort_some_buckets(list(self.buckets.keys()))
 
     def abort_some_buckets(self, sharenums):
         """

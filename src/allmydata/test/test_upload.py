@@ -262,7 +262,7 @@ class GiganticUploadable(upload.FileHandle):
     def close(self):
         pass
 
-DATA = """
+DATA = b"""
 Once upon a time, there was a beautiful princess named Buttercup. She lived
 in a magical land where every file was stored securely among millions of
 machines, and nobody ever worried about their data being lost ever again.
@@ -765,40 +765,40 @@ class ServerSelection(unittest.TestCase):
 
 class StorageIndex(unittest.TestCase):
     def test_params_must_matter(self):
-        DATA = "I am some data"
+        DATA = b"I am some data"
         PARAMS = _Client.DEFAULT_ENCODING_PARAMETERS
 
-        u = upload.Data(DATA, convergence="")
+        u = upload.Data(DATA, convergence=b"")
         u.set_default_encoding_parameters(PARAMS)
         eu = upload.EncryptAnUploadable(u)
         d1 = eu.get_storage_index()
 
         # CHK means the same data should encrypt the same way
-        u = upload.Data(DATA, convergence="")
+        u = upload.Data(DATA, convergence=b"")
         u.set_default_encoding_parameters(PARAMS)
         eu = upload.EncryptAnUploadable(u)
         d1a = eu.get_storage_index()
 
         # but if we use a different convergence string it should be different
-        u = upload.Data(DATA, convergence="wheee!")
+        u = upload.Data(DATA, convergence=b"wheee!")
         u.set_default_encoding_parameters(PARAMS)
         eu = upload.EncryptAnUploadable(u)
         d1salt1 = eu.get_storage_index()
 
         # and if we add yet a different convergence it should be different again
-        u = upload.Data(DATA, convergence="NOT wheee!")
+        u = upload.Data(DATA, convergence=b"NOT wheee!")
         u.set_default_encoding_parameters(PARAMS)
         eu = upload.EncryptAnUploadable(u)
         d1salt2 = eu.get_storage_index()
 
         # and if we use the first string again it should be the same as last time
-        u = upload.Data(DATA, convergence="wheee!")
+        u = upload.Data(DATA, convergence=b"wheee!")
         u.set_default_encoding_parameters(PARAMS)
         eu = upload.EncryptAnUploadable(u)
         d1salt1a = eu.get_storage_index()
 
         # and if we change the encoding parameters, it should be different (from the same convergence string with different encoding parameters)
-        u = upload.Data(DATA, convergence="")
+        u = upload.Data(DATA, convergence=b"")
         u.set_default_encoding_parameters(PARAMS)
         u.encoding_param_k = u.default_encoding_param_k + 1
         eu = upload.EncryptAnUploadable(u)
@@ -910,7 +910,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         assert self.g, "I tried to find a grid at self.g, but failed"
         broker = self.g.clients[0].storage_broker
         sh     = self.g.clients[0]._secret_holder
-        data = upload.Data("data" * 10000, convergence="")
+        data = upload.Data(b"data" * 10000, convergence=b"")
         data.set_default_encoding_parameters({'k': 3, 'happy': 4, 'n': 10})
         uploadable = upload.EncryptAnUploadable(data)
         encoder = encode.Encoder()
@@ -1003,7 +1003,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         if "n" in kwargs and "k" in kwargs:
             client.encoding_params['k'] = kwargs['k']
             client.encoding_params['n'] = kwargs['n']
-        data = upload.Data("data" * 10000, convergence="")
+        data = upload.Data(b"data" * 10000, convergence=b"")
         self.data = data
         d = client.upload(data)
         def _store_uri(ur):
@@ -1022,8 +1022,8 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         self.set_up_grid(client_config_hooks=hooks)
         c0 = self.g.clients[0]
 
-        DATA = "data" * 100
-        u = upload.Data(DATA, convergence="")
+        DATA = b"data" * 100
+        u = upload.Data(DATA, convergence=b"")
         d = c0.upload(u)
         d.addCallback(lambda ur: c0.create_node_from_uri(ur.get_uri()))
         m = monitor.Monitor()
@@ -1046,7 +1046,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
 
     def test_happy_semantics(self):
         self._setUp(2)
-        DATA = upload.Data("kittens" * 10000, convergence="")
+        DATA = upload.Data(b"kittens" * 10000, convergence=b"")
         # These parameters are unsatisfiable with only 2 servers.
         self.set_encoding_parameters(k=3, happy=5, n=10)
         d = self.shouldFail(UploadUnhappinessError, "test_happy_semantics",
@@ -1078,7 +1078,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         self.basedir = "upload/EncodingParameters/aborted_shares"
         self.set_up_grid(num_servers=4)
         c = self.g.clients[0]
-        DATA = upload.Data(100 * "kittens", convergence="")
+        DATA = upload.Data(100 * b"kittens", convergence=b"")
         # These parameters are unsatisfiable with only 4 servers, but should
         # work with 5, as long as the original 4 are not stuck in the open
         # BucketWriter state (open() but not
@@ -1156,8 +1156,8 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
                             "We were asked to place shares on at "
                             "least 4 servers such that any 3 of them have "
                             "enough shares to recover the file",
-                            client.upload, upload.Data("data" * 10000,
-                                                       convergence="")))
+                            client.upload, upload.Data(b"data" * 10000,
+                                                       convergence=b"")))
 
         # Do comment:52, but like this:
         # server 2: empty
@@ -1189,8 +1189,8 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
                             "that any 3 of them have enough shares to recover "
                             "the file, but we were asked to place shares on "
                             "at least 4 such servers.",
-                            client.upload, upload.Data("data" * 10000,
-                                                       convergence="")))
+                            client.upload, upload.Data(b"data" * 10000,
+                                                       convergence=b"")))
         return d
 
 
@@ -1231,7 +1231,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
             return client
         d.addCallback(_reset_encoding_parameters)
         d.addCallback(lambda client:
-            client.upload(upload.Data("data" * 10000, convergence="")))
+            client.upload(upload.Data(b"data" * 10000, convergence=b"")))
         d.addCallback(lambda ign:
             self.failUnless(self._has_happy_share_distribution()))
 
@@ -1271,7 +1271,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         # Now try uploading.
         d.addCallback(_reset_encoding_parameters)
         d.addCallback(lambda client:
-            client.upload(upload.Data("data" * 10000, convergence="")))
+            client.upload(upload.Data(b"data" * 10000, convergence=b"")))
         d.addCallback(lambda ign:
             self.failUnless(self._has_happy_share_distribution()))
 
@@ -1300,7 +1300,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
             self.g.remove_server(self.g.servers_by_number[0].my_nodeid))
         d.addCallback(_reset_encoding_parameters)
         d.addCallback(lambda client:
-            client.upload(upload.Data("data" * 10000, convergence="")))
+            client.upload(upload.Data(b"data" * 10000, convergence=b"")))
         # Make sure that only as many shares as necessary to satisfy
         # servers of happiness were pushed.
         d.addCallback(lambda results:
@@ -1331,7 +1331,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
 
         d.addCallback(_setup)
         d.addCallback(lambda client:
-            client.upload(upload.Data("data" * 10000, convergence="")))
+            client.upload(upload.Data(b"data" * 10000, convergence=b"")))
         d.addCallback(lambda ign:
             self.failUnless(self._has_happy_share_distribution()))
         return d
@@ -1369,7 +1369,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
             return client
         d.addCallback(_reset_encoding_parameters)
         d.addCallback(lambda client:
-            client.upload(upload.Data("data" * 10000, convergence="")))
+            client.upload(upload.Data(b"data" * 10000, convergence=b"")))
         d.addCallback(lambda ign:
             self.failUnless(self._has_happy_share_distribution()))
         return d
@@ -1408,7 +1408,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
             return client
         d.addCallback(_reset_encoding_parameters)
         d.addCallback(lambda client:
-            client.upload(upload.Data("data" * 10000, convergence="")))
+            client.upload(upload.Data(b"data" * 10000, convergence=b"")))
         d.addCallback(lambda ign:
             self.failUnless(self._has_happy_share_distribution()))
         return d
@@ -1524,7 +1524,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
             return client
         d.addCallback(_prepare_client)
         d.addCallback(lambda client:
-            client.upload(upload.Data("data" * 10000, convergence="")))
+            client.upload(upload.Data(b"data" * 10000, convergence=b"")))
         d.addCallback(lambda ign:
             self.failUnless(self._has_happy_share_distribution()))
         return d
@@ -1551,8 +1551,8 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         d.addCallback(lambda c:
             self.shouldFail(UploadUnhappinessError, "test_query_counting",
                             "0 queries placed some shares",
-                            c.upload, upload.Data("data" * 10000,
-                                                  convergence="")))
+                            c.upload, upload.Data(b"data" * 10000,
+                                                  convergence=b"")))
         # Now try with some readonly servers. We want to make sure that
         # the readonly server share discovery phase is counted correctly.
         def _reset(ign):
@@ -1575,8 +1575,8 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
             self.shouldFail(UploadUnhappinessError, "test_query_counting",
                             "4 placed none (of which 4 placed none due to "
                             "the server being full",
-                            c.upload, upload.Data("data" * 10000,
-                                                  convergence="")))
+                            c.upload, upload.Data(b"data" * 10000,
+                                                  convergence=b"")))
         # Now try the case where the upload process finds a bunch of the
         # shares that it wants to place on the first server, including
         # the one that it wanted to allocate there. Though no shares will
@@ -1604,8 +1604,8 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         d.addCallback(lambda c:
             self.shouldFail(UploadUnhappinessError, "test_query_counting",
                             "0 queries placed some shares",
-                            c.upload, upload.Data("data" * 10000,
-                                                  convergence="")))
+                            c.upload, upload.Data(b"data" * 10000,
+                                                  convergence=b"")))
         return d
 
 
@@ -1627,7 +1627,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
                             "test_upper_limit_on_readonly_queries",
                             "sent 8 queries to 8 servers",
                             client.upload,
-                            upload.Data('data' * 10000, convergence="")))
+                            upload.Data('data' * 10000, convergence=b"")))
         return d
 
 
@@ -1669,7 +1669,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
                             "(of which 5 placed none due to the server being "
                             "full and 0 placed none due to an error)",
                             client.upload,
-                            upload.Data("data" * 10000, convergence="")))
+                            upload.Data(b"data" * 10000, convergence=b"")))
 
 
         # server 1: read-only, no shares
@@ -1710,7 +1710,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
                             "(of which 4 placed none due to the server being "
                             "full and 1 placed none due to an error)",
                             client.upload,
-                            upload.Data("data" * 10000, convergence="")))
+                            upload.Data(b"data" * 10000, convergence=b"")))
         # server 0, server 1 = empty, accepting shares
         # This should place all of the shares, but still fail with happy=4.
         # We want to make sure that the exception message is worded correctly.
@@ -1726,8 +1726,8 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
                             "server(s). We were asked to place shares on at "
                             "least 4 server(s) such that any 3 of them have "
                             "enough shares to recover the file.",
-                            client.upload, upload.Data("data" * 10000,
-                                                       convergence="")))
+                            client.upload, upload.Data(b"data" * 10000,
+                                                       convergence=b"")))
         # servers 0 - 4 = empty, accepting shares
         # This too should place all the shares, and this too should fail,
         # but since the effective happiness is more than the k encoding
@@ -1751,8 +1751,8 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
                             "that any 3 of them have enough shares to recover "
                             "the file, but we were asked to place shares on "
                             "at least 7 such servers.",
-                            client.upload, upload.Data("data" * 10000,
-                                                       convergence="")))
+                            client.upload, upload.Data(b"data" * 10000,
+                                                       convergence=b"")))
         # server 0: shares 0 - 9
         # server 1: share 0, read-only
         # server 2: share 0, read-only
@@ -1783,8 +1783,8 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
                             "to place shares on at least 7 servers such that "
                             "any 3 of them have enough shares to recover the "
                             "file",
-                            client.upload, upload.Data("data" * 10000,
-                                                       convergence="")))
+                            client.upload, upload.Data(b"data" * 10000,
+                                                       convergence=b"")))
         return d
 
 
@@ -1816,7 +1816,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
 
         d.addCallback(_setup)
         d.addCallback(lambda client:
-            client.upload(upload.Data("data" * 10000, convergence="")))
+            client.upload(upload.Data(b"data" * 10000, convergence=b"")))
         d.addCallback(lambda ign:
             self.failUnless(self._has_happy_share_distribution()))
         return d
@@ -1874,7 +1874,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
 
         d.addCallback(_setup)
         d.addCallback(lambda client:
-                          client.upload(upload.Data("data" * 10000, convergence="")))
+                          client.upload(upload.Data(b"data" * 10000, convergence=b"")))
         d.addCallback(lambda ign:
             self.failUnless(self._has_happy_share_distribution()))
         return d
@@ -1912,7 +1912,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
             return c
         d.addCallback(_server_setup)
         d.addCallback(lambda client:
-            client.upload(upload.Data("data" * 10000, convergence="")))
+            client.upload(upload.Data(b"data" * 10000, convergence=b"")))
         d.addCallback(lambda ign:
             self.failUnless(self._has_happy_share_distribution()))
         return d
@@ -1941,7 +1941,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
             return self.g.clients[0]
         d.addCallback(_server_setup)
         d.addCallback(lambda client:
-            client.upload(upload.Data("data" * 10000, convergence="")))
+            client.upload(upload.Data(b"data" * 10000, convergence=b"")))
         d.addCallback(lambda ign:
             self.failUnless(self._has_happy_share_distribution()))
         return d
@@ -1964,8 +1964,8 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
             self.shouldFail(UploadUnhappinessError,
                             "test_server_selection_bucket_abort",
                             "",
-                            client.upload, upload.Data("data" * 10000,
-                                                       convergence="")))
+                            client.upload, upload.Data(b"data" * 10000,
+                                                       convergence=b"")))
         # wait for the abort messages to get there.
         def _turn_barrier(res):
             return fireEventually(res)
