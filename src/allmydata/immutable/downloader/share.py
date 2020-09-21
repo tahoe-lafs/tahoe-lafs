@@ -85,8 +85,8 @@ class Share(object):
 
         self._requested_blocks = [] # (segnum, set(observer2..))
         v = server.get_version()
-        ver = v["http://allmydata.org/tahoe/protocols/storage/v1"]
-        self._overrun_ok = ver["tolerates-immutable-read-overrun"]
+        ver = v[b"http://allmydata.org/tahoe/protocols/storage/v1"]
+        self._overrun_ok = ver[b"tolerates-immutable-read-overrun"]
         # If _overrun_ok and we guess the offsets correctly, we can get
         # everything in one RTT. If _overrun_ok and we guess wrong, we might
         # need two RTT (but we could get lucky and do it in one). If overrun

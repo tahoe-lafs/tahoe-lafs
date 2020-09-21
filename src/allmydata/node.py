@@ -362,7 +362,7 @@ class _Config(object):
             if default is _None:
                 raise MissingConfigEntry("The required configuration file %s is missing."
                                          % (quote_output(privname),))
-            if isinstance(default, basestring):
+            if isinstance(default, (bytes, unicode)):
                 value = default
             else:
                 value = default()
@@ -375,7 +375,7 @@ class _Config(object):
         return it.
         """
         privname = os.path.join(self._basedir, "private", name)
-        with open(privname, "w") as f:
+        with open(privname, "wb") as f:
             f.write(value)
 
     def get_private_config(self, name, default=_None):
@@ -759,7 +759,9 @@ class Node(service.MultiService):
         """
         Initialize/create a directory for temporary files.
         """
-        tempdir_config = self.config.get_config("node", "tempdir", "tmp").decode('utf-8')
+        tempdir_config = self.config.get_config("node", "tempdir", "tmp")
+        if isinstance(tempdir_config, bytes):
+            tempdir_config = tempdir_config.decode('utf-8')
         tempdir = self.config.get_config_path(tempdir_config)
         if not os.path.exists(tempdir):
             fileutil.make_dirs(tempdir)

@@ -1,3 +1,4 @@
+from future.utils import native_str
 
 import os, json, urllib
 from twisted.trial import unittest
@@ -945,7 +946,7 @@ class DeepCheckWebBad(DeepCheckBase, unittest.TestCase):
     def _corrupt_some_shares(self, node):
         for (shnum, serverid, sharefile) in self.find_uri_shares(node.get_uri()):
             if shnum in (0,1):
-                yield run_cli("debug", "corrupt-share", sharefile)
+                yield run_cli("debug", "corrupt-share", native_str(sharefile))
 
     def _delete_most_shares(self, node):
         self.delete_shares_numbered(node.get_uri(), range(1,10))

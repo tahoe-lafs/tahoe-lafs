@@ -366,21 +366,21 @@ class Server(unittest.TestCase):
     def test_declares_fixed_1528(self):
         ss = self.create("test_declares_fixed_1528")
         ver = ss.remote_get_version()
-        sv1 = ver['http://allmydata.org/tahoe/protocols/storage/v1']
-        self.failUnless(sv1.get('prevents-read-past-end-of-share-data'), sv1)
+        sv1 = ver[b'http://allmydata.org/tahoe/protocols/storage/v1']
+        self.failUnless(sv1.get(b'prevents-read-past-end-of-share-data'), sv1)
 
     def test_declares_maximum_share_sizes(self):
         ss = self.create("test_declares_maximum_share_sizes")
         ver = ss.remote_get_version()
-        sv1 = ver['http://allmydata.org/tahoe/protocols/storage/v1']
-        self.failUnlessIn('maximum-immutable-share-size', sv1)
-        self.failUnlessIn('maximum-mutable-share-size', sv1)
+        sv1 = ver[b'http://allmydata.org/tahoe/protocols/storage/v1']
+        self.failUnlessIn(b'maximum-immutable-share-size', sv1)
+        self.failUnlessIn(b'maximum-mutable-share-size', sv1)
 
     def test_declares_available_space(self):
         ss = self.create("test_declares_available_space")
         ver = ss.remote_get_version()
-        sv1 = ver['http://allmydata.org/tahoe/protocols/storage/v1']
-        self.failUnlessIn('available-space', sv1)
+        sv1 = ver[b'http://allmydata.org/tahoe/protocols/storage/v1']
+        self.failUnlessIn(b'available-space', sv1)
 
     def allocate(self, ss, storage_index, sharenums, size, canary=None):
         renew_secret = hashutil.tagged_hash(b"blah", b"%d" % next(self._lease_secret))
@@ -740,6 +740,12 @@ class Server(unittest.TestCase):
         leases = list(ss.get_leases(b"si3"))
         self.failUnlessEqual(len(leases), 2)
 
+    def test_have_shares(self):
+        """By default the StorageServer has no shares."""
+        workdir = self.workdir("test_have_shares")
+        ss = StorageServer(workdir, b"\x00" * 20, readonly_storage=True)
+        self.assertFalse(ss.have_shares())
+
     def test_readonly(self):
         workdir = self.workdir("test_readonly")
         ss = StorageServer(workdir, b"\x00" * 20, readonly_storage=True)
@@ -974,8 +980,8 @@ class MutableServer(unittest.TestCase):
         # Also see if the server explicitly declares that it supports this
         # feature.
         ver = ss.remote_get_version()
-        storage_v1_ver = ver["http://allmydata.org/tahoe/protocols/storage/v1"]
-        self.failUnless(storage_v1_ver.get("fills-holes-with-zero-bytes"))
+        storage_v1_ver = ver[b"http://allmydata.org/tahoe/protocols/storage/v1"]
+        self.failUnless(storage_v1_ver.get(b"fills-holes-with-zero-bytes"))
 
         # If the size is dropped to zero the share is deleted.
         answer = rstaraw(b"si1", secrets,
