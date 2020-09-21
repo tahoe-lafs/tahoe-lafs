@@ -59,7 +59,11 @@ from .common import (
     unknown_immcap,
 )
 
-from allmydata.interfaces import IMutableFileNode, SDMF_VERSION, MDMF_VERSION
+from allmydata.interfaces import (
+    IMutableFileNode, SDMF_VERSION, MDMF_VERSION,
+    FileTooLargeError,
+    MustBeReadonlyError,
+)
 from allmydata.mutable import servermap, publish, retrieve
 from .. import common_util as testutil
 from ..common_py3 import TimezoneMixin
@@ -67,6 +71,10 @@ from ..common_web import (
     do_http,
     Error,
 )
+from ...web.common import (
+    humanize_exception,
+)
+
 from allmydata.client import _Client, SecretHolder
 
 # create a fake uploader/downloader, and a couple of fake dirnodes, then
@@ -4790,3 +4798,33 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         # doesn't reveal anything. This addresses #1720.
         d.addCallback(lambda e: self.assertEquals(str(e), "404 Not Found"))
         return d
+
+
+class HumanizeExceptionTests(TrialTestCase):
+    """
+    Tests for ``humanize_exception``.
+    """
+    def test_mustbereadonly(self):
+        """
+        ``humanize_exception`` describes ``MustBeReadonlyError``.
+        """
+        text, code = humanize_exception(
+            MustBeReadonlyError(
+                "URI:DIR2 directory writecap used in a read-only context",
+                "<unknown name>",
+            ),
+        )
+        self.assertIn("MustBeReadonlyError", text)
+        self.assertEqual(code, http.BAD_REQUEST)
+
+    def test_filetoolarge(self):
+        """
+        ``humanize_exception`` describes ``FileTooLargeError``.
+        """
+        text, code = humanize_exception(
+            FileTooLargeError(
+                "This file is too large to be uploaded (data_size).",
+            ),
+        )
+        self.assertIn("FileTooLargeError", text)
+        self.assertEqual(code, http.REQUEST_ENTITY_TOO_LARGE)

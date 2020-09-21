@@ -1,10 +1,10 @@
 
 import time
 import json
+from functools import wraps
 
 from twisted.web import http, server, resource, template
 from twisted.python import log
-from twisted.python.failure import Failure
 from nevow import loaders, appserver
 from nevow.rend import Page
 from nevow.inevow import IRequest
@@ -21,7 +21,7 @@ from allmydata.util.encodingutil import to_bytes, quote_output
 
 # Originally part of this module, so still part of its API:
 from .common_py3 import (  # noqa: F401
-    get_arg, abbreviate_time, MultiFormatResource, WebError
+    get_arg, abbreviate_time, MultiFormatResource, WebError,
 )
 
 
@@ -202,34 +202,40 @@ def should_create_intermediate_directories(req):
     return bool(req.method in ("PUT", "POST") and
                 t not in ("delete", "rename", "rename-form", "check"))
 
-def humanize_failure(f):
-    # return text, responsecode
-    if f.check(EmptyPathnameComponentError):
+def humanize_exception(exc):
+    """
+    Like ``humanize_failure`` but for an exception.
+
+    :param Exception exc: The exception to describe.
+
+    :return: See ``humanize_failure``.
+    """
+    if isinstance(exc, EmptyPathnameComponentError):
         return ("The webapi does not allow empty pathname components, "
                 "i.e. a double slash", http.BAD_REQUEST)
-    if f.check(ExistingChildError):
+    if isinstance(exc, ExistingChildError):
         return ("There was already a child by that name, and you asked me "
                 "to not replace it.", http.CONFLICT)
-    if f.check(NoSuchChildError):
-        quoted_name = quote_output(f.value.args[0], encoding="utf-8", quotemarks=False)
+    if isinstance(exc, NoSuchChildError):
+        quoted_name = quote_output(exc.args[0], encoding="utf-8", quotemarks=False)
         return ("No such child: %s" % quoted_name, http.NOT_FOUND)
-    if f.check(NotEnoughSharesError):
+    if isinstance(exc, NotEnoughSharesError):
         t = ("NotEnoughSharesError: This indicates that some "
              "servers were unavailable, or that shares have been "
              "lost to server departure, hard drive failure, or disk "
              "corruption. You should perform a filecheck on "
              "this object to learn more.\n\nThe full error message is:\n"
-             "%s") % str(f.value)
+             "%s") % str(exc)
         return (t, http.GONE)
-    if f.check(NoSharesError):
+    if isinstance(exc, NoSharesError):
         t = ("NoSharesError: no shares could be found. "
              "Zero shares usually indicates a corrupt URI, or that "
              "no servers were connected, but it might also indicate "
              "severe corruption. You should perform a filecheck on "
              "this object to learn more.\n\nThe full error message is:\n"
-             "%s") % str(f.value)
+             "%s") % str(exc)
         return (t, http.GONE)
-    if f.check(UnrecoverableFileError):
+    if isinstance(exc, UnrecoverableFileError):
         t = ("UnrecoverableFileError: the directory (or mutable file) could "
              "not be retrieved, because there were insufficient good shares. "
              "This might indicate that no servers were connected, "
@@ -238,9 +244,9 @@ def humanize_failure(f):
              "failure, or disk corruption. You should perform a filecheck on "
              "this object to learn more.")
         return (t, http.GONE)
-    if f.check(MustNotBeUnknownRWError):
-        quoted_name = quote_output(f.value.args[1], encoding="utf-8")
-        immutable = f.value.args[2]
+    if isinstance(exc, MustNotBeUnknownRWError):
+        quoted_name = quote_output(exc.args[1], encoding="utf-8")
+        immutable = exc.args[2]
         if immutable:
             t = ("MustNotBeUnknownRWError: an operation to add a child named "
                  "%s to a directory was given an unknown cap in a write slot.\n"
@@ -260,29 +266,43 @@ def humanize_failure(f):
                  "writecap in the write slot if desired, would also work in this "
                  "case.") % quoted_name
         return (t, http.BAD_REQUEST)
-    if f.check(MustBeDeepImmutableError):
-        quoted_name = quote_output(f.value.args[1], encoding="utf-8")
+    if isinstance(exc, MustBeDeepImmutableError):
+        quoted_name = quote_output(exc.args[1], encoding="utf-8")
         t = ("MustBeDeepImmutableError: a cap passed to this operation for "
              "the child named %s, needed to be immutable but was not. Either "
              "the cap is being added to an immutable directory, or it was "
              "originally retrieved from an immutable directory as an unknown "
              "cap.") % quoted_name
         return (t, http.BAD_REQUEST)
-    if f.check(MustBeReadonlyError):
-        quoted_name = quote_output(f.value.args[1], encoding="utf-8")
+    if isinstance(exc, MustBeReadonlyError):
+        quoted_name = quote_output(exc.args[1], encoding="utf-8")
         t = ("MustBeReadonlyError: a cap passed to this operation for "
              "the child named '%s', needed to be read-only but was not. "
              "The cap is being passed in a read slot (ro_uri), or was retrieved "
              "from a read slot as an unknown cap.") % quoted_name
         return (t, http.BAD_REQUEST)
-    if f.check(blacklist.FileProhibited):
-        t = "Access Prohibited: %s" % quote_output(f.value.reason, encoding="utf-8", quotemarks=False)
+    if isinstance(exc, blacklist.FileProhibited):
+        t = "Access Prohibited: %s" % quote_output(exc.reason, encoding="utf-8", quotemarks=False)
         return (t, http.FORBIDDEN)
-    if f.check(WebError):
-        return (f.value.text, f.value.code)
-    if f.check(FileTooLargeError):
-        return (f.getTraceback(), http.REQUEST_ENTITY_TOO_LARGE)
-    return (str(f), None)
+    if isinstance(exc, WebError):
+        return (exc.text, exc.code)
+    if isinstance(exc, FileTooLargeError):
+        return ("FileTooLargeError: %s" % (exc,), http.REQUEST_ENTITY_TOO_LARGE)
+    return (str(exc), None)
+
+
+def humanize_failure(f):
+    """
+    Create an human-oriented description of a failure along with some HTTP
+    metadata.
+
+    :param Failure f: The failure to describe.
+
+    :return (bytes, int): A tuple of some prose and an HTTP code describing
+        the failure.
+    """
+    return humanize_exception(f.value)
+
 
 class MyExceptionHandler(appserver.DefaultExceptionHandler, object):
     def simple(self, ctx, text, code=http.BAD_REQUEST):
@@ -480,8 +500,38 @@ class TokenOnlyWebApi(resource.Resource, object):
                 req.setResponseCode(e.code)
                 return json.dumps({"error": e.text})
             except Exception as e:
-                message, code = humanize_failure(Failure())
+                message, code = humanize_exception(e)
                 req.setResponseCode(500 if code is None else code)
                 return json.dumps({"error": message})
         else:
             raise WebError("'%s' invalid type for 't' arg" % (t,), http.BAD_REQUEST)
+
+
+def exception_to_child(f):
+    """
+    Decorate ``getChild`` method with exception handling behavior to render an
+    error page reflecting the exception.
+    """
+    @wraps(f)
+    def g(self, name, req):
+        try:
+            return f(self, name, req)
+        except Exception as e:
+            description, status = humanize_exception(e)
+            return resource.ErrorPage(status, "Error", description)
+    return g
+
+
+def render_exception(f):
+    """
+    Decorate a ``render_*`` method with exception handling behavior to render
+    an error page reflecting the exception.
+    """
+    @wraps(f)
+    def g(self, request):
+        try:
+            return f(self, request)
+        except Exception as e:
+            description, status = humanize_exception(e)
+            return resource.ErrorPage(status, "Error", description).render(request)
+    return g
