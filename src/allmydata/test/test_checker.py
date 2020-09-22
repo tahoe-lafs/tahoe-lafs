@@ -7,7 +7,7 @@ from bs4 import BeautifulSoup
 from twisted.trial import unittest
 from twisted.internet import defer
 
-from nevow.inevow import IRequest
+from twisted.web.iweb import IRequest
 from zope.interface import implementer
 from twisted.web.server import Request
 from twisted.web.test.requesthelper import DummyChannel
@@ -47,16 +47,14 @@ class TestRequest(Request, object):
     """
     A minimal Request class to use in tests.
 
-    XXX: We have to have this class because `common.get_arg()` expects
-    a `nevow.inevow.IRequest`, which `twisted.web.server.Request`
-    isn't.  The request needs to have `args`, `fields`, `prepath`, and
-    `postpath` properties so that `allmydata.web.common.get_arg()`
-    won't complain.
+    XXX: We have to have this class because the request needs to have
+    `prepath`, and `postpath` properties -- otherwise some code (see
+    web.operations, web.common, web.directory, web.check_results, and
+    web.info) will break.
     """
-    def __init__(self, args=None, fields=None):
+    def __init__(self, args=None):
         super(TestRequest, self).__init__(DummyChannel())
         self.args = args or {}
-        self.fields = fields or {}
         self.prepath = [b""]
         self.postpath = [b""]
 
