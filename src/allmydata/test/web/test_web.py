@@ -672,7 +672,7 @@ class MultiFormatResourceTests(TrialTestCase):
         """
         Render a ``Resource`` against a request with the given query arguments.
 
-        :param resource: The Nevow resource to render.
+        :param resource: The Resource to render.
 
         :param query_args: The query arguments to put into the request being
             rendered.  A mapping from ``bytes`` to ``list`` of ``bytes``.
@@ -680,13 +680,10 @@ class MultiFormatResourceTests(TrialTestCase):
         :return: The rendered response body as ``bytes``.
         """
 
-        # TODO: probably should: (1) refactor this out of here to a
-        # common module (test.common_web maybe?), and (2) replace
-        # nevow.inevow.IRequest with twisted.web.iweb.IRequest.  For
-        # (2) to happen, we will have to update web.common.get_arg()
-        # etc first.
+        # XXX: Probably should refactor this out of here to a common
+        # module (test.common_web maybe?).
         from zope.interface import implementer
-        from nevow.inevow import IRequest
+        from twisted.web.iweb import IRequest
         from twisted.web.server import Request
         from twisted.web.test.requesthelper import DummyChannel
 
