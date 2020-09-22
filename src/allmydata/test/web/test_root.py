@@ -14,7 +14,6 @@ from ...storage_client import (
 from ...web.root import RootElement
 from ...util.connection_status import ConnectionStatus
 from allmydata.web.root import URIHandler
-from allmydata.web.common import WebError
 from allmydata.client import _Client
 
 from hypothesis import given
