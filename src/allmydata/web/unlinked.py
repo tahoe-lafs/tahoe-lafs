@@ -20,6 +20,7 @@ from allmydata.web.common import (
     WebError,
     get_format,
     get_mutable_type,
+    render_exception,
 )
 from allmydata.web import status
 
@@ -83,6 +84,7 @@ class UploadResultsPage(Resource, object):
         super(UploadResultsPage, self).__init__()
         self._upload_results = upload_results
 
+    @render_exception
     def render_POST(self, req):
         elem = UploadResultsElement(self._upload_results)
         return renderElement(req, elem)
