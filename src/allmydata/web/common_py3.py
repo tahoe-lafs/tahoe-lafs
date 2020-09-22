@@ -4,13 +4,6 @@ Common utilities that are available from Python 3.
 Can eventually be merged back into allmydata.web.common.
 """
 
-from future.utils import PY2
-
-if PY2:
-    from nevow.inevow import IRequest as INevowRequest
-else:
-    INevowRequest = None
-
 from twisted.web import resource, http
 from twisted.web.iweb import IRequest
 
@@ -23,6 +16,19 @@ class WebError(Exception):
         self.code = code
 
 
+def eitherIRequest(ctx_or_req):
+    """
+    XXX: Beat either a Nevow IRequest or a Twisted IRequest into the
+    shape we want.  This will be an intermediate step before removing
+    Nevow for good.
+    """
+    try:
+        return IRequest(ctx_or_req)
+    except:
+        from nevow.inevow import IRequest as INevowRequest
+        return INevowRequest(ctx_or_req)
+
+
 def get_arg(ctx_or_req, argname, default=None, multiple=False):
     """Extract an argument from either the query args (req.args) or the form
     body fields (req.fields). If multiple=False, this returns a single value
@@ -31,16 +37,17 @@ def get_arg(ctx_or_req, argname, default=None, multiple=False):
     empty), starting with all those in the query args.
     """
     results = []
-    if PY2:
-        req = INevowRequest(ctx_or_req)
-        if argname in req.args:
-            results.extend(req.args[argname])
-        if req.fields and argname in req.fields:
-            results.append(req.fields[argname].value)
-    else:
-        req = IRequest(ctx_or_req)
-        if argname in req.args:
-            results.extend(req.args[argname])
+    req = eitherIRequest(ctx_or_req)
+
+    if argname in req.args:
+        results.extend(req.args[argname])
+
+    # XXX: Nevow requests have a "fields" attribute, but twisted.web
+    # requests do not.  Tahoe still is using the information carried
+    # by req.fields in web.unlinked, web.filenode, and web.directory.
+    if hasattr(req, 'fields') and req.fields and argname in req.fields:
+        results.append(req.fields[argname].value)
+
     if multiple:
         return tuple(results)
     if results:
