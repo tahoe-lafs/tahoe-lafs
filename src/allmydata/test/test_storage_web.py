@@ -25,14 +25,7 @@ from twisted.trial import unittest
 from twisted.internet import defer
 from twisted.application import service
 from twisted.web.template import flattenString
-
-# We need to use `nevow.inevow.IRequest` for now for compatibility
-# with the code in web/common.py.  Once nevow bits are gone from
-# web/common.py, we can use `twisted.web.iweb.IRequest` here.
-if PY2:
-    from nevow.inevow import IRequest
-else:
-    from twisted.web.iweb import IRequest
+from twisted.web.iweb import IRequest
 
 from twisted.web.server import Request
 from twisted.web.test.requesthelper import DummyChannel
