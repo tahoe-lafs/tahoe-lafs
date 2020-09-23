@@ -73,7 +73,7 @@ def flip_bit(good, which):
 def flip_one_bit(s, offset=0, size=None):
     """ flip one random bit of the string s, in a byte greater than or equal to offset and less
     than offset+size. """
-    assert isinstance(s, binary_type)
+    precondition(isinstance(s, binary_type))
     if size is None:
         size=len(s)-offset
     i = randrange(offset, offset+size)

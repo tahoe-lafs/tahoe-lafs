@@ -22,9 +22,9 @@ class TestFlipOneBit(unittest.TestCase):
     def setUp(self):
         random.seed(42)  # I tried using version=1 on PY3 to avoid the if below, to no avail.
 
-    def test_bytestring(self):
+    def test_accepts_byte_string(self):
         actual = flip_one_bit(b'foo')
         self.assertEqual(actual, b'fno' if PY2 else b'fom')
 
-    def test_unicode(self):
+    def test_rejects_unicode_string(self):
         self.assertRaises(AssertionError, flip_one_bit, u'foo')
