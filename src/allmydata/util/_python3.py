@@ -87,6 +87,7 @@ PORTED_TEST_MODULES = [
     "allmydata.test.test_dictutil",
     "allmydata.test.test_encode",
     "allmydata.test.test_encodingutil",
+    "allmydata.test.test_filenode",
     "allmydata.test.test_happiness",
     "allmydata.test.test_hashtree",
     "allmydata.test.test_hashutil",
