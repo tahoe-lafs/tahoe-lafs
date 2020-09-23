@@ -197,7 +197,7 @@ class IntroducerRootTests(unittest.TestCase):
         resource = IntroducerRoot(introducer_node)
         response = json.loads(
             self.successResultOf(
-                render(resource, t=[b"json"]),
+                render(resource, {"t": [b"json"]}),
             ),
         )
         self.assertEqual(
