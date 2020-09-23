@@ -5,10 +5,9 @@ from functools import wraps
 
 from twisted.web import http, server, resource, template
 from twisted.python import log
-from nevow import loaders, appserver
+from nevow import appserver
 from nevow.rend import Page
 from nevow.inevow import IRequest
-from nevow.util import resource_filename
 from allmydata import blacklist
 from allmydata.interfaces import ExistingChildError, NoSuchChildError, \
      FileTooLargeError, NotEnoughSharesError, NoSharesError, \
@@ -41,9 +40,6 @@ def get_filenode_metadata(filenode):
     if size is not None:
         metadata['size'] = size
     return metadata
-
-def getxmlfile(name):
-    return loaders.xmlfile(resource_filename('allmydata.web', '%s' % name))
 
 def boolean_of_arg(arg):
     # TODO: ""
