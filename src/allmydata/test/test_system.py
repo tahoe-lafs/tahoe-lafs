@@ -11,7 +11,6 @@ from twisted.internet import defer
 from twisted.internet.defer import inlineCallbacks
 from twisted.application import service
 
-import allmydata
 from allmydata import client, uri
 from allmydata.introducer.server import create_introducer
 from allmydata.storage.mutable import MutableShareFile
@@ -1629,7 +1628,6 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
             for c in self.clients:
                 c.encoding_params['happy'] = 1
         d.addCallback(_new_happy_semantics)
-        d.addCallback(self._test_introweb)
         d.addCallback(self.log, "starting publish")
         d.addCallback(self._do_publish1)
         d.addCallback(self._test_runner)
@@ -1666,58 +1664,6 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         # P/s2-rw/
         # P/test_put/  (empty)
         d.addCallback(self._test_checker)
-        return d
-
-    def _test_introweb(self, res):
-        d = do_http("get", self.introweb_url)
-        def _check(res):
-            try:
-                self.failUnless("%s: %s" % (allmydata.__appname__, allmydata.__version__) in res)
-                verstr = str(allmydata.__version__)
-
-                # The Python "rational version numbering" convention
-                # disallows "-r$REV" but allows ".post$REV"
-                # instead. Eventually we'll probably move to
-                # that. When we do, this test won't go red:
-                ix = verstr.rfind('-r')
-                if ix != -1:
-                    altverstr = verstr[:ix] + '.post' + verstr[ix+2:]
-                else:
-                    ix = verstr.rfind('.post')
-                    if ix != -1:
-                        altverstr = verstr[:ix] + '-r' + verstr[ix+5:]
-                    else:
-                        altverstr = verstr
-
-                appverstr = "%s: %s" % (allmydata.__appname__, verstr)
-                newappverstr = "%s: %s" % (allmydata.__appname__, altverstr)
-
-                self.failUnless((appverstr in res) or (newappverstr in res), (appverstr, newappverstr, res))
-                self.failUnless("Announcement Summary: storage: 5" in res)
-                self.failUnless("Subscription Summary: storage: 5" in res)
-                self.failUnless("tahoe.css" in res)
-            except unittest.FailTest:
-                print()
-                print("GET %s output was:" % self.introweb_url)
-                print(res)
-                raise
-        d.addCallback(_check)
-        # make sure it serves the CSS too
-        d.addCallback(lambda res: do_http("get", self.introweb_url+"tahoe.css"))
-        d.addCallback(lambda res: do_http("get", self.introweb_url + "?t=json"))
-        def _check_json(res):
-            data = json.loads(res)
-            try:
-                self.failUnlessEqual(data["subscription_summary"],
-                                     {"storage": 5})
-                self.failUnlessEqual(data["announcement_summary"],
-                                     {"storage": 5})
-            except unittest.FailTest:
-                print()
-                print("GET %s?t=json output was:" % self.introweb_url)
-                print(res)
-                raise
-        d.addCallback(_check_json)
         return d
 
     def _do_publish1(self, res):
