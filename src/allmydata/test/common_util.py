@@ -3,8 +3,6 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
-from future.utils import PY2, bord, bchr, binary_type
-
 import os
 from random import randrange
 from six.moves import StringIO
@@ -16,6 +14,7 @@ from ..util.assertutil import precondition
 from ..scripts import runner
 from allmydata.util.encodingutil import get_io_encoding
 # Imported for backwards compatibility:
+from future.utils import PY2, bord, bchr, binary_type
 from .common_py3 import (
     SignalMixin, skip_if_cannot_represent_filename, ReallyEqualMixin, ShouldFailMixin
 )
