@@ -14,7 +14,6 @@ import random
 import unittest
 
 from allmydata.test.common_util import flip_one_bit
-from future.utils import PY2
 
 
 class TestFlipOneBit(unittest.TestCase):
