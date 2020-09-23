@@ -37,6 +37,7 @@ zope.interface-*.egg
 /tahoe-deps/
 /tahoe-deps.tar.gz
 /.coverage
+/.coverage.*
 /.coverage.el
 /coverage-html/
 /miscaptures.txt
