@@ -2,6 +2,8 @@ from mock import Mock
 
 import time
 
+from bs4 import BeautifulSoup
+
 from twisted.trial import unittest
 from twisted.web.template import Tag
 from twisted.web.test.requesthelper import DummyRequest
@@ -19,6 +21,9 @@ from allmydata.client import _Client
 from hypothesis import given
 from hypothesis.strategies import text
 
+from .common import (
+    assert_soup_has_tag_with_content,
+)
 
 from ..common import (
     EMPTY_CLIENT_CONFIG,
@@ -58,14 +63,16 @@ class RenderSlashUri(unittest.TestCase):
         self.request.args[b"uri"] = [b"not a capability"]
         response_body = self.res.render_GET(self.request)
 
-        self.assertIn(
-            "<title>400 - Error</title>", response_body,
+        soup = BeautifulSoup(response_body, 'html5lib')
+
+        assert_soup_has_tag_with_content(
+            self, soup, "title", "400 - Error",
         )
-        self.assertIn(
-            "<h1>Error</h1>", response_body,
+        assert_soup_has_tag_with_content(
+            self, soup, "h1", "Error",
         )
-        self.assertIn(
-            "<p>Invalid capability</p>", response_body,
+        assert_soup_has_tag_with_content(
+            self, soup, "p", "Invalid capability",
         )
 
     @given(
@@ -78,14 +85,16 @@ class RenderSlashUri(unittest.TestCase):
         self.request.args[b"uri"] = [cap.encode('utf8')]
         response_body = self.res.render_GET(self.request)
 
-        self.assertIn(
-            "<title>400 - Error</title>", response_body,
+        soup = BeautifulSoup(response_body, 'html5lib')
+
+        assert_soup_has_tag_with_content(
+            self, soup, "title", "400 - Error",
         )
-        self.assertIn(
-            "<h1>Error</h1>", response_body,
+        assert_soup_has_tag_with_content(
+            self, soup, "h1", "Error",
         )
-        self.assertIn(
-            "<p>Invalid capability</p>", response_body,
+        assert_soup_has_tag_with_content(
+            self, soup, "p", "Invalid capability",
         )
 
 
