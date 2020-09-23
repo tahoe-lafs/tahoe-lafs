@@ -38,7 +38,7 @@ def do_http(method, url, **kwargs):
     returnValue(body)
 
 
-def render(resource, **query_args):
+def render(resource, query_args):
     """
     Render (in the manner of the Nevow appserver) a Nevow ``Page`` or a
     Twisted ``Resource`` against a request with the given query arguments .
