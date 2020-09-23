@@ -64,5 +64,6 @@ def render(resource, query_args):
 
     resource = INevowResource(resource)
     d = maybeDeferred(resource.renderHTTP, ctx)
+    d.addErrback(processingFailed, req, ctx)
     d.addCallback(maybe_concat)
     return d
