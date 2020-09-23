@@ -4,13 +4,6 @@ Common utilities that are available from Python 3.
 Can eventually be merged back into allmydata.web.common.
 """
 
-from future.utils import PY2
-
-if PY2:
-    from nevow.inevow import IRequest as INevowRequest
-else:
-    INevowRequest = None
-
 from twisted.web import resource, http
 from twisted.web.iweb import IRequest
 
@@ -31,16 +24,9 @@ def get_arg(ctx_or_req, argname, default=None, multiple=False):
     empty), starting with all those in the query args.
     """
     results = []
-    if PY2:
-        req = INevowRequest(ctx_or_req)
-        if argname in req.args:
-            results.extend(req.args[argname])
-        if req.fields and argname in req.fields:
-            results.append(req.fields[argname].value)
-    else:
-        req = IRequest(ctx_or_req)
-        if argname in req.args:
-            results.extend(req.args[argname])
+    req = IRequest(ctx_or_req)
+    if argname in req.args:
+        results.extend(req.args[argname])
     if multiple:
         return tuple(results)
     if results:
