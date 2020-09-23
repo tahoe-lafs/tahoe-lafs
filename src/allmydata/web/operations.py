@@ -17,6 +17,7 @@ from allmydata.web.common import (
     get_root,
     get_arg,
     boolean_of_arg,
+    exception_to_child,
 )
 
 MINUTE = 60
@@ -95,6 +96,7 @@ class OphandleTable(resource.Resource, service.Service):
         # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3314
         return url.URL.fromString(target)
 
+    @exception_to_child
     def getChild(self, name, req):
         ophandle = name
         if ophandle not in self.handles:
