@@ -4,11 +4,6 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 from future.utils import PY2, bord, bchr, binary_type
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
-
-    # XXX this is a hack that makes some tests pass on Python3, remove in the future
-    from ..scripts import runner
 
 import os
 from random import randrange
@@ -18,6 +13,7 @@ from twisted.internet import reactor, defer
 from twisted.trial import unittest
 
 from ..util.assertutil import precondition
+from ..scripts import runner
 from allmydata.util.encodingutil import get_io_encoding
 # Imported for backwards compatibility:
 from .common_py3 import (
