@@ -171,7 +171,7 @@ class WebishServer(service.MultiService):
     def __init__(self, client, webport, nodeurl_path=None, staticdir=None,
                  clock=None, now_fn=time.time):
         service.MultiService.__init__(self)
-        # the 'data' argument to all render() methods default to the Client
+
         # the 'clock' argument to root.Root is, if set, a
         # twisted.internet.task.Clock that is provided by the unit tests
         # so that they can test features that involve the passage of
