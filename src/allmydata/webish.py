@@ -7,6 +7,7 @@ from twisted.application import (
 )
 from twisted.web import (
     http,
+    server,
     static,
 )
 from twisted.internet import defer
@@ -16,7 +17,7 @@ from twisted.internet.address import (
 )
 from nevow import (
     appserver,
-    inevow,
+    # inevow,
 )
 from allmydata.util import log, fileutil
 
@@ -189,9 +190,13 @@ class WebishServer(service.MultiService):
 
     def buildServer(self, webport, nodeurl_path, staticdir):
         self.webport = webport
-        self.site = site = appserver.NevowSite(self.root)
-        self.site.requestFactory = MyRequest
-        self.site.remember(MyExceptionHandler(), inevow.ICanHandleException)
+
+        # self.site = site = appserver.NevowSite(self.root)
+        # self.site.requestFactory = MyRequest
+        # self.site.remember(MyExceptionHandler(), inevow.ICanHandleException)
+
+        self.site = site = server.Site(self.root)
+
         self.staticdir = staticdir # so tests can check
         if staticdir:
             self.root.putChild("static", static.File(staticdir))
