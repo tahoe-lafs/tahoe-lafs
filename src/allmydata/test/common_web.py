@@ -4,15 +4,8 @@ from twisted.internet.defer import (
     maybeDeferred,
     inlineCallbacks,
     returnValue,
-    succeed,
 )
 from twisted.web.error import Error
-from twisted.web.resource import (
-    IResource as ITwistedResource,
-)
-from twisted.web.test.requesthelper import (
-    DummyRequest,
-)
 
 from nevow.context import WebContext
 from nevow.testutil import FakeRequest
