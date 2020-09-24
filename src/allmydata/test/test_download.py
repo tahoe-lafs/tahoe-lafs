@@ -1,6 +1,14 @@
+"""
+Ported to Python 3.
+"""
 from __future__ import print_function
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import unicode_literals
 
-from future.utils import bchr
+from future.utils import PY2, bchr
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 # system-level upload+download roundtrip test, but using shares created from
 # a previous run. This asserts that the current code is capable of decoding
@@ -333,7 +341,7 @@ class DownloadTest(_Base, unittest.TestCase):
         n = self.c0.create_node_from_uri(immutable_uri)
 
         c = MemoryConsumer()
-        d = n.read(c, long(0), long(10))
+        d = n.read(c, int(0), int(10))
         d.addCallback(lambda c: len(b"".join(c.chunks)))
         d.addCallback(lambda size: self.failUnlessEqual(size, 10))
         return d
@@ -526,8 +534,8 @@ class DownloadTest(_Base, unittest.TestCase):
             n._cnode._node._build_guessed_tables(u.max_segment_size)
             con1 = MemoryConsumer()
             con2 = MemoryConsumer()
-            d = n.read(con1, long(0), long(20))
-            d2 = n.read(con2, long(140), long(20))
+            d = n.read(con1, int(0), int(20))
+            d2 = n.read(con2, int(140), int(20))
             # con2 will be cancelled, so d2 should fail with DownloadStopped
             def _con2_should_not_succeed(res):
                 self.fail("the second read should not have succeeded")
@@ -567,8 +575,8 @@ class DownloadTest(_Base, unittest.TestCase):
             n._cnode._node._build_guessed_tables(u.max_segment_size)
             con1 = MemoryConsumer()
             con2 = MemoryConsumer()
-            d = n.read(con1, long(0), long(20))
-            d2 = n.read(con2, long(140), long(20))
+            d = n.read(con1, int(0), int(20))
+            d2 = n.read(con2, int(140), int(20))
             # con2 should wait for con1 to fail and then con2 should succeed.
             # In particular, we should not lose progress. If this test fails,
             # it will fail with a timeout error.
@@ -1049,7 +1057,7 @@ class Corruption(_Base, unittest.TestCase):
                           [(i, "2bad-need-3") for i in need3_victims] +
                           [(i, "need-4th") for i in need_4th_victims])
             if self.catalog_detection:
-                share_len = len(self.shares.values()[0])
+                share_len = len(list(self.shares.values())[0])
                 corrupt_me = [(i, "") for i in range(share_len)]
                 # This is a work around for ticket #2024.
                 corrupt_me = corrupt_me[0:8]+corrupt_me[12:]
@@ -1071,7 +1079,7 @@ class Corruption(_Base, unittest.TestCase):
             return d
         d.addCallback(_uploaded)
         def _show_results(ign):
-            share_len = len(self.shares.values()[0])
+            share_len = len(list(self.shares.values())[0])
             print()
             print("of [0:%d], corruption ignored in %s" %
                    (share_len, undetected.dump()))
