@@ -31,6 +31,10 @@ default:
 ## Run all tests and code reports
 test: .tox
 	tox --develop -p auto
+.PHONY: test-py3-all
+## Run all tests under Python 3
+test-py3-all: .tox
+	tox --develop -e py36 allmydata
 
 # This is necessary only if you want to automatically produce a new
 # _version.py file from the current git history (without doing a build).
