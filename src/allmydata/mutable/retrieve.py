@@ -39,7 +39,7 @@ class RetrieveStatus(object):
         self.size = None
         self.status = "Not started"
         self.progress = 0.0
-        self.counter = self.statusid_counter.next()
+        self.counter = next(self.statusid_counter)
         self.started = time.time()
 
     def get_started(self):
@@ -321,7 +321,7 @@ class Retrieve(object):
         self._active_readers = [] # list of active readers for this dl.
         self._block_hash_trees = {} # shnum => hashtree
 
-        for i in xrange(self._total_shares):
+        for i in range(self._total_shares):
             # So we don't have to do this later.
             self._block_hash_trees[i] = hashtree.IncompleteHashTree(self._num_segments)
 

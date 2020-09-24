@@ -697,7 +697,7 @@ class StorageServer(service.MultiService, Referenceable):
         # This is a remote API, I believe, so this has to be bytes for legacy
         # protocol backwards compatibility reasons.
         assert isinstance(share_type, bytes)
-        assert isinstance(reason, bytes)
+        assert isinstance(reason, bytes), "%r is not bytes" % (reason,)
         fileutil.make_dirs(self.corruption_advisory_dir)
         now = time_format.iso_utc(sep="T")
         si_s = si_b2a(storage_index)
