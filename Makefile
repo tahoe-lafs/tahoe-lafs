@@ -30,7 +30,7 @@ default:
 .PHONY: test
 ## Run all tests and code reports
 test: .tox
-	tox -p auto
+	tox --develop -p auto
 
 # This is necessary only if you want to automatically produce a new
 # _version.py file from the current git history (without doing a build).
