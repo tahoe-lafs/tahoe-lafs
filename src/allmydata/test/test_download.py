@@ -519,7 +519,7 @@ class DownloadTest(_Base, unittest.TestCase):
             # corrupt all the shares so the download will fail
             def _corruptor(s, debug=False):
                 which = 48 # first byte of block0
-                return s[:which] + bchr(bord(s[which])^0x01) + s[which+1:]
+                return s[:which] + bchr(ord(s[which:which+1])^0x01) + s[which+1:]
             self.corrupt_all_shares(ur.get_uri(), _corruptor)
             n = self.c0.create_node_from_uri(ur.get_uri())
             n._cnode._maybe_create_download_node()
@@ -560,7 +560,7 @@ class DownloadTest(_Base, unittest.TestCase):
             # corrupt all the shares so the download will fail
             def _corruptor(s, debug=False):
                 which = 48 # first byte of block0
-                return s[:which] + bchr(bord(s[which])^0x01) + s[which+1:]
+                return s[:which] + bchr(ord(s[which:which+1])^0x01) + s[which+1:]
             self.corrupt_all_shares(ur.get_uri(), _corruptor)
             n = self.c0.create_node_from_uri(ur.get_uri())
             n._cnode._maybe_create_download_node()
@@ -879,7 +879,7 @@ class BrokenDecoder(CRSDecoder):
         d = CRSDecoder.decode(self, shares, shareids)
         def _decoded(buffers):
             def _corruptor(s, which):
-                return s[:which] + chr(ord(s[which])^0x01) + s[which+1:]
+                return s[:which] + bchr(ord(s[which:which+1])^0x01) + s[which+1:]
             buffers[0] = _corruptor(buffers[0], 0) # flip lsb of first byte
             return buffers
         d.addCallback(_decoded)
@@ -939,13 +939,13 @@ class Corruption(_Base, unittest.TestCase):
     def _corrupt_flip(self, ign, imm_uri, which):
         log.msg("corrupt %d" % which)
         def _corruptor(s, debug=False):
-            return s[:which] + chr(ord(s[which])^0x01) + s[which+1:]
+            return s[:which] + bchr(ord(s[which:which+1])^0x01) + s[which+1:]
         self.corrupt_shares_numbered(imm_uri, [2], _corruptor)
 
     def _corrupt_set(self, ign, imm_uri, which, newvalue):
         log.msg("corrupt %d" % which)
         def _corruptor(s, debug=False):
-            return s[:which] + chr(newvalue) + s[which+1:]
+            return s[:which] + bchr(newvalue) + s[which+1:]
         self.corrupt_shares_numbered(imm_uri, [2], _corruptor)
 
     def test_each_byte(self):
@@ -1138,7 +1138,7 @@ class Corruption(_Base, unittest.TestCase):
 
     def _corrupt_flip_all(self, ign, imm_uri, which):
         def _corruptor(s, debug=False):
-            return s[:which] + chr(ord(s[which])^0x01) + s[which+1:]
+            return s[:which] + chr(ord(s[which:which+1])^0x01) + s[which+1:]
         self.corrupt_all_shares(imm_uri, _corruptor)
 
 class DownloadV2(_Base, unittest.TestCase):
