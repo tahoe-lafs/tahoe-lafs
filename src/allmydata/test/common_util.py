@@ -11,7 +11,7 @@ from ..util.assertutil import precondition
 from ..scripts import runner
 from allmydata.util.encodingutil import get_io_encoding
 # Imported for backwards compatibility:
-from future.utils import PY2, bord, bchr, binary_type
+from future.utils import bord, bchr, binary_type
 from .common_py3 import (
     SignalMixin, skip_if_cannot_represent_filename, ReallyEqualMixin, ShouldFailMixin
 )
