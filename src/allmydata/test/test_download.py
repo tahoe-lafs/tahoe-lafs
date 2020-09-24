@@ -1,5 +1,7 @@
 from __future__ import print_function
 
+from future.utils import bchr, bord
+
 # system-level upload+download roundtrip test, but using shares created from
 # a previous run. This asserts that the current code is capable of decoding
 # shares from a previous version.
@@ -312,7 +314,7 @@ class DownloadTest(_Base, unittest.TestCase):
             return self.n.read(c)
         d.addCallback(_download_again)
         def _check_failover(c):
-            self.failUnlessEqual("".join(c.chunks), plaintext)
+            self.failUnlessEqual(b"".join(c.chunks), plaintext)
             shares = self.n._cnode._node._shares
             shnums = sorted([s._shnum for s in shares])
             self.failIfEqual(shnums, self.killed_share_nums)
@@ -332,7 +334,7 @@ class DownloadTest(_Base, unittest.TestCase):
 
         c = MemoryConsumer()
         d = n.read(c, long(0), long(10))
-        d.addCallback(lambda c: len("".join(c.chunks)))
+        d.addCallback(lambda c: len(b"".join(c.chunks)))
         d.addCallback(lambda size: self.failUnlessEqual(size, 10))
         return d
 
@@ -356,7 +358,7 @@ class DownloadTest(_Base, unittest.TestCase):
         # really there's only one segment
         d = n.read(con1, 180, 20)
         def _done(res):
-            self.failUnlessEqual("".join(con1.chunks), plaintext[180:200])
+            self.failUnlessEqual(b"".join(con1.chunks), plaintext[180:200])
         d.addCallback(_done)
         return d
 
@@ -381,8 +383,8 @@ class DownloadTest(_Base, unittest.TestCase):
             return defer.gatherResults([d1,d2])
         d.addCallback(_uploaded)
         def _done(res):
-            self.failUnlessEqual("".join(con1.chunks), plaintext[70:90])
-            self.failUnlessEqual("".join(con2.chunks), plaintext[140:160])
+            self.failUnlessEqual(b"".join(con1.chunks), plaintext[70:90])
+            self.failUnlessEqual(b"".join(con2.chunks), plaintext[140:160])
         d.addCallback(_done)
         return d
 
@@ -408,8 +410,8 @@ class DownloadTest(_Base, unittest.TestCase):
             return defer.gatherResults([d1,d2])
         d.addCallback(_uploaded)
         def _done(res):
-            self.failUnlessEqual("".join(con1.chunks), plaintext[70:90])
-            self.failUnlessEqual("".join(con2.chunks), plaintext[140:160])
+            self.failUnlessEqual(b"".join(con1.chunks), plaintext[70:90])
+            self.failUnlessEqual(b"".join(con2.chunks), plaintext[140:160])
         d.addCallback(_done)
         return d
 
@@ -433,11 +435,11 @@ class DownloadTest(_Base, unittest.TestCase):
             n._cnode._node._build_guessed_tables(u.max_segment_size)
             d = n.read(con1, 12000, 20)
             def _read1(ign):
-                self.failUnlessEqual("".join(con1.chunks), data[12000:12020])
+                self.failUnlessEqual(b"".join(con1.chunks), data[12000:12020])
                 return n.read(con2, 24000, 20)
             d.addCallback(_read1)
             def _read2(ign):
-                self.failUnlessEqual("".join(con2.chunks), data[24000:24020])
+                self.failUnlessEqual(b"".join(con2.chunks), data[24000:24020])
             d.addCallback(_read2)
             return d
         d.addCallback(_uploaded)
@@ -517,7 +519,7 @@ class DownloadTest(_Base, unittest.TestCase):
             # corrupt all the shares so the download will fail
             def _corruptor(s, debug=False):
                 which = 48 # first byte of block0
-                return s[:which] + chr(ord(s[which])^0x01) + s[which+1:]
+                return s[:which] + bchr(bord(s[which])^0x01) + s[which+1:]
             self.corrupt_all_shares(ur.get_uri(), _corruptor)
             n = self.c0.create_node_from_uri(ur.get_uri())
             n._cnode._maybe_create_download_node()
@@ -558,7 +560,7 @@ class DownloadTest(_Base, unittest.TestCase):
             # corrupt all the shares so the download will fail
             def _corruptor(s, debug=False):
                 which = 48 # first byte of block0
-                return s[:which] + chr(ord(s[which])^0x01) + s[which+1:]
+                return s[:which] + bchr(bord(s[which])^0x01) + s[which+1:]
             self.corrupt_all_shares(ur.get_uri(), _corruptor)
             n = self.c0.create_node_from_uri(ur.get_uri())
             n._cnode._maybe_create_download_node()
@@ -574,7 +576,7 @@ class DownloadTest(_Base, unittest.TestCase):
                 # this should succeed because we only corrupted the first
                 # segment of each share. The segment that holds [140:160] is
                 # fine, as are the hash chains and UEB.
-                self.failUnlessEqual("".join(con2.chunks), plaintext[140:160])
+                self.failUnlessEqual(b"".join(con2.chunks), plaintext[140:160])
             d2.addCallback(_con2_should_succeed)
 
             def _con1_should_not_succeed(res):
@@ -687,7 +689,7 @@ class DownloadTest(_Base, unittest.TestCase):
         c = PausingConsumer()
         d = n.read(c)
         def _downloaded(mc):
-            newdata = "".join(mc.chunks)
+            newdata = b"".join(mc.chunks)
             self.failUnlessEqual(newdata, plaintext)
         d.addCallback(_downloaded)
         return d
@@ -823,8 +825,8 @@ class DownloadTest(_Base, unittest.TestCase):
             return defer.gatherResults([d1,d2])
         d.addCallback(_uploaded)
         def _done(res):
-            self.failUnlessEqual("".join(con1.chunks), plaintext[70:90])
-            self.failUnlessEqual("".join(con2.chunks), plaintext[140:160])
+            self.failUnlessEqual(b"".join(con1.chunks), plaintext[70:90])
+            self.failUnlessEqual(b"".join(con2.chunks), plaintext[140:160])
         #d.addCallback(_done)
         return d
 
@@ -1179,8 +1181,8 @@ class DownloadV2(_Base, unittest.TestCase):
         # the share. This exercises a different code path.
         for s in self.c0.storage_broker.get_connected_servers():
             v = s.get_version()
-            v1 = v["http://allmydata.org/tahoe/protocols/storage/v1"]
-            v1["tolerates-immutable-read-overrun"] = False
+            v1 = v[b"http://allmydata.org/tahoe/protocols/storage/v1"]
+            v1[b"tolerates-immutable-read-overrun"] = False
 
         # upload a file
         u = upload.Data(plaintext, None)
@@ -1279,7 +1281,7 @@ class Status(unittest.TestCase):
         self.failUnlessEqual(ds.get_active(), False)
 
 def make_server(clientid):
-    tubid = hashutil.tagged_hash("clientid", clientid)[:20]
+    tubid = hashutil.tagged_hash(b"clientid", clientid)[:20]
     return NoNetworkServer(tubid, None)
 def make_servers(clientids):
     servers = {}
@@ -1344,7 +1346,7 @@ class Selection(unittest.TestCase):
     def test_only_one_share(self):
         node = FakeNode()
         sf = MySegmentFetcher(node, 0, 3, None)
-        serverA = make_server("peer-A")
+        serverA = make_server(b"peer-A")
         shares = [MyShare(0, serverA, 0.0)]
         sf.add_shares(shares)
         d = flushEventualQueue()
@@ -1366,7 +1368,7 @@ class Selection(unittest.TestCase):
     def test_good_diversity_early(self):
         node = FakeNode()
         sf = MySegmentFetcher(node, 0, 3, None)
-        shares = [MyShare(i, make_server("peer-%d" % i), i) for i in range(10)]
+        shares = [MyShare(i, make_server(b"peer-%d" % i), i) for i in range(10)]
         sf.add_shares(shares)
         d = flushEventualQueue()
         def _check1(ign):
@@ -1388,7 +1390,7 @@ class Selection(unittest.TestCase):
     def test_good_diversity_late(self):
         node = FakeNode()
         sf = MySegmentFetcher(node, 0, 3, None)
-        shares = [MyShare(i, make_server("peer-%d" % i), i) for i in range(10)]
+        shares = [MyShare(i, make_server(b"peer-%d" % i), i) for i in range(10)]
         sf.add_shares([])
         d = flushEventualQueue()
         def _check1(ign):
@@ -1417,12 +1419,12 @@ class Selection(unittest.TestCase):
         # we could satisfy the read entirely from the first server, but we'd
         # prefer not to. Instead, we expect to only pull one share from the
         # first server
-        servers = make_servers(["peer-A", "peer-B", "peer-C"])
-        shares = [MyShare(0, servers["peer-A"], 0.0),
-                  MyShare(1, servers["peer-A"], 0.0),
-                  MyShare(2, servers["peer-A"], 0.0),
-                  MyShare(3, servers["peer-B"], 1.0),
-                  MyShare(4, servers["peer-C"], 2.0),
+        servers = make_servers([b"peer-A", b"peer-B", b"peer-C"])
+        shares = [MyShare(0, servers[b"peer-A"], 0.0),
+                  MyShare(1, servers[b"peer-A"], 0.0),
+                  MyShare(2, servers[b"peer-A"], 0.0),
+                  MyShare(3, servers[b"peer-B"], 1.0),
+                  MyShare(4, servers[b"peer-C"], 2.0),
                   ]
         sf.add_shares([])
         d = flushEventualQueue()
@@ -1452,7 +1454,7 @@ class Selection(unittest.TestCase):
         sf = MySegmentFetcher(node, 0, 3, None)
         # we satisfy the read entirely from the first server because we don't
         # have any other choice.
-        serverA = make_server("peer-A")
+        serverA = make_server(b"peer-A")
         shares = [MyShare(0, serverA, 0.0),
                   MyShare(1, serverA, 0.0),
                   MyShare(2, serverA, 0.0),
@@ -1488,7 +1490,7 @@ class Selection(unittest.TestCase):
         sf = MySegmentFetcher(node, 0, 3, None)
         # we satisfy the read entirely from the first server because we don't
         # have any other choice.
-        serverA = make_server("peer-A")
+        serverA = make_server(b"peer-A")
         shares = [MyShare(0, serverA, 0.0),
                   MyShare(1, serverA, 0.0),
                   MyShare(2, serverA, 0.0),
@@ -1517,7 +1519,7 @@ class Selection(unittest.TestCase):
     def test_overdue(self):
         node = FakeNode()
         sf = MySegmentFetcher(node, 0, 3, None)
-        shares = [MyShare(i, make_server("peer-%d" % i), i) for i in range(10)]
+        shares = [MyShare(i, make_server(b"peer-%d" % i), i) for i in range(10)]
         sf.add_shares(shares)
         d = flushEventualQueue()
         def _check1(ign):
@@ -1545,8 +1547,8 @@ class Selection(unittest.TestCase):
     def test_overdue_fails(self):
         node = FakeNode()
         sf = MySegmentFetcher(node, 0, 3, None)
-        servers = make_servers(["peer-%d" % i for i in range(6)])
-        shares = [MyShare(i, servers["peer-%d" % i], i) for i in range(6)]
+        servers = make_servers([b"peer-%d" % i for i in range(6)])
+        shares = [MyShare(i, servers[b"peer-%d" % i], i) for i in range(6)]
         sf.add_shares(shares)
         sf.no_more_shares()
         d = flushEventualQueue()
@@ -1579,7 +1581,7 @@ class Selection(unittest.TestCase):
         def _check4(ign):
             self.failUnless(node.failed)
             self.failUnless(node.failed.check(NotEnoughSharesError))
-            sname = servers["peer-2"].get_name()
+            sname = servers[b"peer-2"].get_name()
             self.failUnlessIn("complete=sh0 pending= overdue=sh2-on-%s unused=" % sname,
                               str(node.failed))
         d.addCallback(_check4)
@@ -1591,13 +1593,13 @@ class Selection(unittest.TestCase):
         # we could satisfy the read entirely from the first server, but we'd
         # prefer not to. Instead, we expect to only pull one share from the
         # first server
-        servers = make_servers(["peer-A", "peer-B", "peer-C", "peer-D",
-                                "peer-E"])
-        shares = [MyShare(0, servers["peer-A"],0.0),
-                  MyShare(1, servers["peer-B"],1.0),
-                  MyShare(0, servers["peer-C"],2.0), # this will be skipped
-                  MyShare(1, servers["peer-D"],3.0),
-                  MyShare(2, servers["peer-E"],4.0),
+        servers = make_servers([b"peer-A", b"peer-B", b"peer-C", b"peer-D",
+                                b"peer-E"])
+        shares = [MyShare(0, servers[b"peer-A"],0.0),
+                  MyShare(1, servers[b"peer-B"],1.0),
+                  MyShare(0, servers[b"peer-C"],2.0), # this will be skipped
+                  MyShare(1, servers[b"peer-D"],3.0),
+                  MyShare(2, servers[b"peer-E"],4.0),
                   ]
         sf.add_shares(shares[:3])
         d = flushEventualQueue()
