@@ -1816,15 +1816,15 @@ class Uploader(service.MultiService, log.PrefixingLogMixin):
 
     def _got_helper(self, helper):
         self.log("got helper connection, getting versions")
-        default = { "http://allmydata.org/tahoe/protocols/helper/v1" :
+        default = { b"http://allmydata.org/tahoe/protocols/helper/v1" :
                     { },
-                    "application-version": b"unknown: no get_version()",
+                    b"application-version": b"unknown: no get_version()",
                     }
         d = add_version_to_remote_reference(helper, default)
         d.addCallback(self._got_versioned_helper)
 
     def _got_versioned_helper(self, helper):
-        needed = "http://allmydata.org/tahoe/protocols/helper/v1"
+        needed = b"http://allmydata.org/tahoe/protocols/helper/v1"
         if needed not in helper.version:
             raise InsufficientVersionError(needed, helper.version)
         self._helper = helper
