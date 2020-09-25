@@ -125,8 +125,6 @@ class IntroducerWeb(unittest.TestCase):
         url = "http://localhost:%d/" % (ws.getPortnum(),)
         res = yield do_http("get", url)
         soup = BeautifulSoup(res, 'html5lib')
-        res = yield do_http("get", url)
-        soup = BeautifulSoup(res, 'html5lib')
         assert_soup_has_text(
             self,
             soup,
