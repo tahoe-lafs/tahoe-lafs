@@ -88,9 +88,9 @@ class IntroducerWeb(unittest.TestCase):
         self.port_assigner = SameProcessStreamEndpointAssigner()
         self.port_assigner.setUp()
         self.addCleanup(self.port_assigner.tearDown)
-
-    def tearDown(self):
-        return flushEventualQueue(None)
+        # Anything using Foolscap leaves some timer trash in the reactor that
+        # we have to arrange to have cleaned up.
+        self.addCleanup(lambda: flushEventualQueue(None))
 
     @defer.inlineCallbacks
     def test_welcome(self):
