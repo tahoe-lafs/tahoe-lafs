@@ -196,6 +196,7 @@ class WebishServer(service.MultiService):
         # self.site.remember(MyExceptionHandler(), inevow.ICanHandleException)
 
         self.site = site = server.Site(self.root)
+        self.site.requestFactory = MyRequest
 
         self.staticdir = staticdir # so tests can check
         if staticdir:
