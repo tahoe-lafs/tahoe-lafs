@@ -749,19 +749,38 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
     def test_create(self):
         pass
 
-    def test_frame_options(self):
+    def _assertResponseHeaders(self, name, values):
         """
-        All pages deny the ability to be loaded in frames.
+        Assert that the resource at **/** is served with a response header named
+        ``name`` and values ``values``.
+
+        :param bytes name: The name of the header item to check.
+        :param [bytes] values: The expected values.
+
+        :return Deferred: A Deferred that fires successfully if the expected
+            header item is found and which fails otherwise.
         """
         d = self.GET("/", return_response=True)
         def responded(result):
             _, _, headers = result
             self.assertEqual(
-                [b"DENY"],
-                headers.getRawHeaders(b"X-Frame-Options"),
+                values,
+                headers.getRawHeaders(name),
             )
         d.addCallback(responded)
         return d
+
+    def test_frame_options(self):
+        """
+        All pages deny the ability to be loaded in frames.
+        """
+        return self._assertResponseHeaders(b"X-Frame-Options", [b"DENY"])
+
+    def test_referrer_policy(self):
+        """
+        All pages set a **no-referrer** policy.
+        """
+        return self._assertResponseHeaders(b"Referrer-Policy", [b"no-referrer"])
 
     def test_welcome_json(self):
         """
