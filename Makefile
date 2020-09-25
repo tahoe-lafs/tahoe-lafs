@@ -13,6 +13,8 @@ MAKEFLAGS += --warn-undefined-variables
 MAKEFLAGS += --no-builtin-rules
 
 # Local target variables
+VCS_HOOK_SAMPLES=$(wildcard .git/hooks/*.sample)
+VCS_HOOKS=$(VCS_HOOK_SAMPLES:%.sample=%)
 PYTHON=python
 export PYTHON
 PYFLAKES=flake8
@@ -27,13 +29,22 @@ APPNAME=tahoe-lafs
 default:
 	@echo "no default target"
 
+.PHONY: build
+## Set up and build for local development
+# To also run checks on every commit:
+# $ make .git/hooks/pre-commit
+build: .tox .git/hooks/pre-push
+
 .PHONY: test
 ## Run all tests and code reports
-test: .tox
-	tox --develop -p auto
+test: build
+# Run codechecks first since it takes the least time to report issues early.
+	tox --develop -e codechecks
+# Run all the test environments in parallel to reduce run-time
+	tox --develop -p auto -e 'py27,py36,pypy27'
 .PHONY: test-py3-all
 ## Run all tests under Python 3
-test-py3-all: .tox
+test-py3-all: build
 	tox --develop -e py36 allmydata
 
 # This is necessary only if you want to automatically produce a new
@@ -233,3 +244,6 @@ src/allmydata/_version.py:
 
 .tox: tox.ini setup.py
 	tox --notest -p all
+
+$(VCS_HOOKS): .tox .pre-commit-config.yaml
+	"./$(<)/py36/bin/pre-commit" install --hook-type $(@:.git/hooks/%=%)
