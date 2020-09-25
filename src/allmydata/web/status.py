@@ -18,8 +18,10 @@ from allmydata.web.common import (
     abbreviate_time,
     abbreviate_rate,
     abbreviate_size,
+    exception_to_child,
     plural,
     compute_rate,
+    render_exception,
     render_time,
     MultiFormatResource,
     SlotsSequenceElement,
@@ -192,6 +194,7 @@ class UploadStatusPage(Resource, object):
         super(UploadStatusPage, self).__init__()
         self._upload_status = upload_status
 
+    @render_exception
     def render_GET(self, req):
         elem = UploadStatusElement(self._upload_status)
         return renderElement(req, elem)
@@ -367,6 +370,7 @@ class _EventJson(Resource, object):
     def __init__(self, download_status):
         self._download_status = download_status
 
+    @render_exception
     def render(self, request):
         request.setHeader("content-type", "text/plain")
         data = { } # this will be returned to the GET
@@ -424,6 +428,7 @@ class DownloadStatusPage(Resource, object):
         self._download_status = download_status
         self.putChild("event_json", _EventJson(self._download_status))
 
+    @render_exception
     def render_GET(self, req):
         elem = DownloadStatusElement(self._download_status)
         return renderElement(req, elem)
@@ -806,6 +811,7 @@ class RetrieveStatusPage(MultiFormatResource):
         super(RetrieveStatusPage, self).__init__()
         self._retrieve_status = retrieve_status
 
+    @render_exception
     def render_HTML(self, req):
         elem = RetrieveStatusElement(self._retrieve_status)
         return renderElement(req, elem)
@@ -929,6 +935,7 @@ class PublishStatusPage(MultiFormatResource):
         super(PublishStatusPage, self).__init__()
         self._publish_status = publish_status
 
+    @render_exception
     def render_HTML(self, req):
         elem = PublishStatusElement(self._publish_status);
         return renderElement(req, elem)
@@ -1087,6 +1094,7 @@ class MapupdateStatusPage(MultiFormatResource):
         super(MapupdateStatusPage, self).__init__()
         self._update_status = update_status
 
+    @render_exception
     def render_HTML(self, req):
         elem = MapupdateStatusElement(self._update_status);
         return renderElement(req, elem)
@@ -1248,11 +1256,13 @@ class Status(MultiFormatResource):
         super(Status, self).__init__()
         self.history = history
 
+    @render_exception
     def render_HTML(self, req):
         elem = StatusElement(self._get_active_operations(),
                              self._get_recent_operations())
         return renderElement(req, elem)
 
+    @render_exception
     def render_JSON(self, req):
         # modern browsers now render this instead of forcing downloads
         req.setHeader("content-type", "application/json")
@@ -1268,6 +1278,7 @@ class Status(MultiFormatResource):
 
         return json.dumps(data, indent=1) + "\n"
 
+    @exception_to_child
     def getChild(self, path, request):
         # The "if (path is empty) return self" line should handle
         # trailing slash in request path.
@@ -1420,9 +1431,11 @@ class HelperStatus(MultiFormatResource):
         super(HelperStatus, self).__init__()
         self._helper = helper
 
+    @render_exception
     def render_HTML(self, req):
         return renderElement(req, HelperStatusElement(self._helper))
 
+    @render_exception
     def render_JSON(self, req):
         req.setHeader("content-type", "text/plain")
         if self._helper:
@@ -1512,9 +1525,11 @@ class Statistics(MultiFormatResource):
         super(Statistics, self).__init__()
         self._provider = provider
 
+    @render_exception
     def render_HTML(self, req):
         return renderElement(req, StatisticsElement(self._provider))
 
+    @render_exception
     def render_JSON(self, req):
         stats = self._provider.get_stats()
         req.setHeader("content-type", "text/plain")

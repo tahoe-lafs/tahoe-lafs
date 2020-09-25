@@ -1308,7 +1308,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
             d = self.clients[1].tub.getReference(sp_furl)
             d.addCallback(lambda sp_rref: sp_rref.callRemote("get_stats"))
             def _got_stats(stats):
-                #print "STATS"
+                #print("STATS")
                 #from pprint import pprint
                 #pprint(stats)
                 s = stats["stats"]
@@ -1748,7 +1748,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         return d
 
     def log(self, res, *args, **kwargs):
-        # print "MSG: %s  RES: %s" % (msg, args)
+        # print("MSG: %s  RES: %s" % (msg, args))
         log.msg(*args, **kwargs)
         return res
 
@@ -2647,8 +2647,8 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
 ##             return self._run_cli(argv)
 ##         d.addCallback(_ls_missing)
 ##         def _check_ls_missing((out,err)):
-##             print "OUT", out
-##             print "ERR", err
+##             print("OUT", out)
+##             print("ERR", err)
 ##             self.failUnlessEqual(err, "")
 ##         d.addCallback(_check_ls_missing)
 

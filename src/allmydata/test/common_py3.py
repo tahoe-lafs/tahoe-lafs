@@ -123,7 +123,7 @@ class ShouldFailMixin(object):
 class ReallyEqualMixin(object):
     def failUnlessReallyEqual(self, a, b, msg=None):
         self.assertEqual(a, b, msg)
-        self.assertEqual(type(a), type(b), "a :: %r, b :: %r, %r" % (a, b, msg))
+        self.assertEqual(type(a), type(b), "a :: %r (%s), b :: %r (%s), %r" % (a, type(a), b, type(b), msg))
 
 
 def skip_if_cannot_represent_filename(u):

@@ -366,21 +366,21 @@ class Server(unittest.TestCase):
     def test_declares_fixed_1528(self):
         ss = self.create("test_declares_fixed_1528")
         ver = ss.remote_get_version()
-        sv1 = ver['http://allmydata.org/tahoe/protocols/storage/v1']
-        self.failUnless(sv1.get('prevents-read-past-end-of-share-data'), sv1)
+        sv1 = ver[b'http://allmydata.org/tahoe/protocols/storage/v1']
+        self.failUnless(sv1.get(b'prevents-read-past-end-of-share-data'), sv1)
 
     def test_declares_maximum_share_sizes(self):
         ss = self.create("test_declares_maximum_share_sizes")
         ver = ss.remote_get_version()
-        sv1 = ver['http://allmydata.org/tahoe/protocols/storage/v1']
-        self.failUnlessIn('maximum-immutable-share-size', sv1)
-        self.failUnlessIn('maximum-mutable-share-size', sv1)
+        sv1 = ver[b'http://allmydata.org/tahoe/protocols/storage/v1']
+        self.failUnlessIn(b'maximum-immutable-share-size', sv1)
+        self.failUnlessIn(b'maximum-mutable-share-size', sv1)
 
     def test_declares_available_space(self):
         ss = self.create("test_declares_available_space")
         ver = ss.remote_get_version()
-        sv1 = ver['http://allmydata.org/tahoe/protocols/storage/v1']
-        self.failUnlessIn('available-space', sv1)
+        sv1 = ver[b'http://allmydata.org/tahoe/protocols/storage/v1']
+        self.failUnlessIn(b'available-space', sv1)
 
     def allocate(self, ss, storage_index, sharenums, size, canary=None):
         renew_secret = hashutil.tagged_hash(b"blah", b"%d" % next(self._lease_secret))
@@ -740,6 +740,12 @@ class Server(unittest.TestCase):
         leases = list(ss.get_leases(b"si3"))
         self.failUnlessEqual(len(leases), 2)
 
+    def test_have_shares(self):
+        """By default the StorageServer has no shares."""
+        workdir = self.workdir("test_have_shares")
+        ss = StorageServer(workdir, b"\x00" * 20, readonly_storage=True)
+        self.assertFalse(ss.have_shares())
+
     def test_readonly(self):
         workdir = self.workdir("test_readonly")
         ss = StorageServer(workdir, b"\x00" * 20, readonly_storage=True)
@@ -974,8 +980,8 @@ class MutableServer(unittest.TestCase):
         # Also see if the server explicitly declares that it supports this
         # feature.
         ver = ss.remote_get_version()
-        storage_v1_ver = ver["http://allmydata.org/tahoe/protocols/storage/v1"]
-        self.failUnless(storage_v1_ver.get("fills-holes-with-zero-bytes"))
+        storage_v1_ver = ver[b"http://allmydata.org/tahoe/protocols/storage/v1"]
+        self.failUnless(storage_v1_ver.get(b"fills-holes-with-zero-bytes"))
 
         # If the size is dropped to zero the share is deleted.
         answer = rstaraw(b"si1", secrets,
@@ -3006,3 +3012,38 @@ class Stats(unittest.TestCase):
         self.failUnless(output["get"]["95_0_percentile"] is None, output)
         self.failUnless(output["get"]["99_0_percentile"] is None, output)
         self.failUnless(output["get"]["99_9_percentile"] is None, output)
+
+
+class ShareFileTests(unittest.TestCase):
+    """Tests for allmydata.storage.immutable.ShareFile."""
+
+    def get_sharefile(self):
+        sf = ShareFile(self.mktemp(), max_size=1000, create=True)
+        sf.write_share_data(0, b"abc")
+        sf.write_share_data(2, b"DEF")
+        # Should be b'abDEF' now.
+        return sf
+
+    def test_read_write(self):
+        """Basic writes can be read."""
+        sf = self.get_sharefile()
+        self.assertEqual(sf.read_share_data(0, 3), b"abD")
+        self.assertEqual(sf.read_share_data(1, 4), b"bDEF")
+
+    def test_reads_beyond_file_end(self):
+        """Reads beyond the file size are truncated."""
+        sf = self.get_sharefile()
+        self.assertEqual(sf.read_share_data(0, 10), b"abDEF")
+        self.assertEqual(sf.read_share_data(5, 10), b"")
+
+    def test_too_large_write(self):
+        """Can't do write larger than file size."""
+        sf = self.get_sharefile()
+        with self.assertRaises(DataTooLargeError):
+            sf.write_share_data(0, b"x" * 3000)
+
+    def test_no_leases_cancelled(self):
+        """If no leases were cancelled, IndexError is raised."""
+        sf = self.get_sharefile()
+        with self.assertRaises(IndexError):
+            sf.cancel_lease(b"garbage")

@@ -1,3 +1,4 @@
+from __future__ import print_function
 
 from twisted.python.failure import Failure
 from foolscap.api import eventually
@@ -100,7 +101,7 @@ class SegmentFetcher(object):
             self._node.fetch_failed(self, f)
             return
 
-        #print "LOOP", self._blocks.keys(), "active:", self._active_share_map, "overdue:", self._overdue_share_map, "unused:", self._shares
+        #print("LOOP", self._blocks.keys(), "active:", self._active_share_map, "overdue:", self._overdue_share_map, "unused:", self._shares)
         # Should we sent out more requests?
         while len(set(self._blocks.keys())
                   | set(self._active_share_map.keys())

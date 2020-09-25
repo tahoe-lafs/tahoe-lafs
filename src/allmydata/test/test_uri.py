@@ -210,17 +210,17 @@ class Extension(testutil.ReallyEqualMixin, unittest.TestCase):
                 }
         ext = uri.pack_extension(data)
         d = uri.unpack_extension(ext)
-        self.failUnlessReallyEqual(d[b"stuff"], b"value")
-        self.failUnlessReallyEqual(d[b"size"], 12)
-        self.failUnlessReallyEqual(d[b"big_hash"], hashutil.tagged_hash(b"foo", b"bar"))
+        self.failUnlessReallyEqual(d["stuff"], b"value")
+        self.failUnlessReallyEqual(d["size"], 12)
+        self.failUnlessReallyEqual(d["big_hash"], hashutil.tagged_hash(b"foo", b"bar"))
 
         readable = uri.unpack_extension_readable(ext)
-        self.failUnlessReallyEqual(readable[b"needed_shares"], 3)
-        self.failUnlessReallyEqual(readable[b"stuff"], b"value")
-        self.failUnlessReallyEqual(readable[b"size"], 12)
-        self.failUnlessReallyEqual(readable[b"big_hash"],
+        self.failUnlessReallyEqual(readable["needed_shares"], 3)
+        self.failUnlessReallyEqual(readable["stuff"], b"value")
+        self.failUnlessReallyEqual(readable["size"], 12)
+        self.failUnlessReallyEqual(readable["big_hash"],
                              base32.b2a(hashutil.tagged_hash(b"foo", b"bar")))
-        self.failUnlessReallyEqual(readable[b"UEB_hash"],
+        self.failUnlessReallyEqual(readable["UEB_hash"],
                              base32.b2a(hashutil.uri_extension_hash(ext)))
 
 class Unknown(testutil.ReallyEqualMixin, unittest.TestCase):

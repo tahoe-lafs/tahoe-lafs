@@ -15,8 +15,10 @@ from twisted.web.template import (
     tags,
 )
 from allmydata.web.common import (
+    exception_to_child,
     get_arg,
     get_root,
+    render_exception,
     WebError,
     MultiFormatResource,
     SlotsSequenceElement,
@@ -224,9 +226,11 @@ class LiteralCheckResultsRenderer(MultiFormatResource, ResultsBase):
         super(LiteralCheckResultsRenderer, self).__init__()
         self._client = client
 
+    @render_exception
     def render_HTML(self, req):
         return renderElement(req, LiteralCheckResultsRendererElement())
 
+    @render_exception
     def render_JSON(self, req):
         req.setHeader("content-type", "text/plain")
         data = json_check_results(None)
@@ -275,9 +279,11 @@ class CheckResultsRenderer(MultiFormatResource):
         self._client = client
         self._results = ICheckResults(results)
 
+    @render_exception
     def render_HTML(self, req):
         return renderElement(req, CheckResultsRendererElement(self._client, self._results))
 
+    @render_exception
     def render_JSON(self, req):
         req.setHeader("content-type", "text/plain")
         data = json_check_results(self._results)
@@ -343,10 +349,12 @@ class CheckAndRepairResultsRenderer(MultiFormatResource):
         if results:
             self._results = ICheckAndRepairResults(results)
 
+    @render_exception
     def render_HTML(self, req):
         elem = CheckAndRepairResultsRendererElement(self._client, self._results)
         return renderElement(req, elem)
 
+    @render_exception
     def render_JSON(self, req):
         req.setHeader("content-type", "text/plain")
         data = json_check_and_repair_results(self._results)
@@ -411,6 +419,7 @@ class DeepCheckResultsRenderer(MultiFormatResource):
         self._client = client
         self.monitor = monitor
 
+    @exception_to_child
     def getChild(self, name, req):
         if not name:
             return self
@@ -425,10 +434,12 @@ class DeepCheckResultsRenderer(MultiFormatResource):
             raise WebError("No detailed results for SI %s" % html.escape(name),
                            http.NOT_FOUND)
 
+    @render_exception
     def render_HTML(self, req):
         elem = DeepCheckResultsRendererElement(self.monitor)
         return renderElement(req, elem)
 
+    @render_exception
     def render_JSON(self, req):
         req.setHeader("content-type", "text/plain")
         data = {}
@@ -615,6 +626,7 @@ class DeepCheckAndRepairResultsRenderer(MultiFormatResource):
         self._client = client
         self.monitor = monitor
 
+    @exception_to_child
     def getChild(self, name, req):
         if not name:
             return self
@@ -629,10 +641,12 @@ class DeepCheckAndRepairResultsRenderer(MultiFormatResource):
             raise WebError("No detailed results for SI %s" % html.escape(name),
                            http.NOT_FOUND)
 
+    @render_exception
     def render_HTML(self, req):
         elem = DeepCheckAndRepairResultsRendererElement(self.monitor)
         return renderElement(req, elem)
 
+    @render_exception
     def render_JSON(self, req):
         req.setHeader("content-type", "text/plain")
         res = self.monitor.get_status()

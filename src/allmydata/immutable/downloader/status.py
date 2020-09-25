@@ -89,7 +89,7 @@ class DownloadStatus(object):
     def __init__(self, storage_index, size):
         self.storage_index = storage_index
         self.size = size
-        self.counter = self.statusid_counter.next()
+        self.counter = next(self.statusid_counter)
         self.helper = False
 
         self.first_timestamp = None

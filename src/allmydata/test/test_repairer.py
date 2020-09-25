@@ -335,7 +335,7 @@ class Verifier(GridTestMixin, unittest.TestCase, RepairTestMixin):
             self.corrupt_shares_numbered(self.uri, [0], _corruptor)
         results = {}
         def _did_check(vr, i):
-            #print "corrupt %d: healthy=%s" % (i, vr.is_healthy())
+            #print("corrupt %d: healthy=%s" % (i, vr.is_healthy()))
             results[i] = vr.is_healthy()
         def _start(ign):
             d = defer.succeed(None)

@@ -106,7 +106,7 @@ class ShareFinder(object):
         server = None
         try:
             if self._servers:
-                server = self._servers.next()
+                server = next(self._servers)
         except StopIteration:
             self._servers = None
 
@@ -175,7 +175,7 @@ class ShareFinder(object):
                  shnums=shnums_s, name=server.get_name(),
                  level=log.NOISY, parent=lp, umid="0fcEZw")
         shares = []
-        for shnum, bucket in buckets.iteritems():
+        for shnum, bucket in buckets.items():
             s = self._create_share(shnum, bucket, server, dyhb_rtt)
             shares.append(s)
         self._deliver_shares(shares)

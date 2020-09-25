@@ -17,14 +17,31 @@ from allmydata.mutable.publish import MutableFileHandle
 from allmydata.mutable.common import MODE_READ
 from allmydata.util import log, base32
 from allmydata.util.encodingutil import quote_output
-from allmydata.blacklist import FileProhibited, ProhibitedNode
+from allmydata.blacklist import (
+    FileProhibited,
+    ProhibitedNode,
+)
 
-from allmydata.web.common import text_plain, WebError, \
-     boolean_of_arg, get_arg, should_create_intermediate_directories, \
-     MyExceptionHandler, parse_replace_arg, parse_offset_arg, \
-     get_format, get_mutable_type, get_filenode_metadata
-from allmydata.web.check_results import CheckResultsRenderer, \
-     CheckAndRepairResultsRenderer, LiteralCheckResultsRenderer
+from allmydata.web.common import (
+    boolean_of_arg,
+    exception_to_child,
+    get_arg,
+    get_filenode_metadata,
+    get_format,
+    get_mutable_type,
+    parse_offset_arg,
+    parse_replace_arg,
+    render_exception,
+    should_create_intermediate_directories,
+    text_plain,
+    MyExceptionHandler,
+    WebError,
+)
+from allmydata.web.check_results import (
+    CheckResultsRenderer,
+    CheckAndRepairResultsRenderer,
+    LiteralCheckResultsRenderer,
+)
 from allmydata.web.info import MoreInfo
 
 class ReplaceMeMixin(object):
@@ -100,6 +117,7 @@ class PlaceHolderNodeHandler(Resource, ReplaceMeMixin):
         self.name = name
         self.node = None
 
+    @render_exception
     def render_PUT(self, req):
         t = get_arg(req, "t", "").strip()
         replace = parse_replace_arg(get_arg(req, "replace", "true"))
@@ -115,6 +133,7 @@ class PlaceHolderNodeHandler(Resource, ReplaceMeMixin):
 
         raise WebError("PUT to a file: bad t=%s" % t)
 
+    @render_exception
     def render_POST(self, req):
         t = get_arg(req, "t", "").strip()
         replace = boolean_of_arg(get_arg(req, "replace", "true"))
@@ -146,6 +165,7 @@ class FileNodeHandler(Resource, ReplaceMeMixin, object):
         self.parentnode = parentnode
         self.name = name
 
+    @exception_to_child
     def getChild(self, name, req):
         if isinstance(self.node, ProhibitedNode):
             raise FileProhibited(self.node.reason)
@@ -162,6 +182,7 @@ class FileNodeHandler(Resource, ReplaceMeMixin, object):
             "no details",
         )
 
+    @render_exception
     def render_GET(self, req):
         t = get_arg(req, "t", "").strip()
 
@@ -219,6 +240,7 @@ class FileNodeHandler(Resource, ReplaceMeMixin, object):
             return _file_read_only_uri(req, self.node)
         raise WebError("GET file: bad t=%s" % t)
 
+    @render_exception
     def render_HEAD(self, req):
         t = get_arg(req, "t", "").strip()
         if t:
@@ -228,6 +250,7 @@ class FileNodeHandler(Resource, ReplaceMeMixin, object):
         d.addCallback(lambda dn: FileDownloader(dn, filename))
         return d
 
+    @render_exception
     def render_PUT(self, req):
         t = get_arg(req, "t", "").strip()
         replace = parse_replace_arg(get_arg(req, "replace", "true"))
@@ -270,6 +293,7 @@ class FileNodeHandler(Resource, ReplaceMeMixin, object):
 
         raise WebError("PUT to a file: bad t=%s" % t)
 
+    @render_exception
     def render_POST(self, req):
         t = get_arg(req, "t", "").strip()
         replace = boolean_of_arg(get_arg(req, "replace", "true"))
@@ -313,6 +337,7 @@ class FileNodeHandler(Resource, ReplaceMeMixin, object):
             d.addCallback(self._maybe_literal, CheckResultsRenderer)
         return d
 
+    @render_exception
     def render_DELETE(self, req):
         assert self.parentnode and self.name
         d = self.parentnode.delete(self.name)
@@ -404,6 +429,7 @@ class FileDownloader(Resource, object):
         except ValueError:
             return None
 
+    @render_exception
     def render(self, req):
         gte = static.getTypeAndEncoding
         ctype, encoding = gte(self.filename,
@@ -526,5 +552,7 @@ def _file_read_only_uri(req, filenode):
 
 
 class FileNodeDownloadHandler(FileNodeHandler):
+
+    @exception_to_child
     def getChild(self, name, req):
         return FileNodeDownloadHandler(self.client, self.node, name=name)

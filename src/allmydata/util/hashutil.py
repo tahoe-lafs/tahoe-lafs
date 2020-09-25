@@ -10,7 +10,10 @@ from __future__ import unicode_literals
 
 from future.utils import PY2
 if PY2:
-    from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+    # Don't import bytes to prevent leaking future's bytes.
+    from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, dict, list, object, range, str, max, min, bytes as future_bytes  # noqa: F401
+else:
+    future_bytes = bytes
 
 from past.builtins import chr as byteschr
 
@@ -213,7 +216,7 @@ def bucket_cancel_secret_hash(file_cancel_secret, peerid):
 
 
 def _xor(a, b):
-    return b"".join([byteschr(c ^ b) for c in a])
+    return b"".join([byteschr(c ^ b) for c in future_bytes(a)])
 
 
 def hmac(tag, data):

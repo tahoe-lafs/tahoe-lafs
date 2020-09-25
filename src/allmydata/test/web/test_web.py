@@ -46,14 +46,23 @@ from .common import (
     unknown_immcap,
 )
 
-from allmydata.interfaces import IMutableFileNode, SDMF_VERSION, MDMF_VERSION
+from allmydata.interfaces import (
+    IMutableFileNode, SDMF_VERSION, MDMF_VERSION,
+    FileTooLargeError,
+    MustBeReadonlyError,
+)
 from allmydata.mutable import servermap, publish, retrieve
 from .. import common_util as testutil
 from ..common_py3 import TimezoneMixin
 from ..common_web import (
     do_http,
     Error,
+    render,
 )
+from ...web.common import (
+    humanize_exception,
+)
+
 from allmydata.client import _Client, SecretHolder
 
 # create a fake uploader/downloader, and a couple of fake dirnodes, then
@@ -648,6 +657,8 @@ class MultiFormatResourceTests(TrialTestCase):
     """
     Tests for ``MultiFormatResource``.
     """
+    def render(self, resource, **queryargs):
+        return self.successResultOf(render(resource, queryargs))
 
     def resource(self):
         """
@@ -666,38 +677,6 @@ class MultiFormatResourceTests(TrialTestCase):
                 return "b"
 
         return Content()
-
-
-    def render(self, resource, **query_args):
-        """
-        Render a ``Resource`` against a request with the given query arguments.
-
-        :param resource: The Nevow resource to render.
-
-        :param query_args: The query arguments to put into the request being
-            rendered.  A mapping from ``bytes`` to ``list`` of ``bytes``.
-
-        :return: The rendered response body as ``bytes``.
-        """
-
-        # TODO: probably should: (1) refactor this out of here to a
-        # common module (test.common_web maybe?), and (2) replace
-        # nevow.inevow.IRequest with twisted.web.iweb.IRequest.  For
-        # (2) to happen, we will have to update web.common.get_arg()
-        # etc first.
-        from zope.interface import implementer
-        from nevow.inevow import IRequest
-        from twisted.web.server import Request
-        from twisted.web.test.requesthelper import DummyChannel
-
-        @implementer(IRequest)
-        class FakeRequest(Request):
-            def __init__(self, args):
-                Request.__init__(self, DummyChannel())
-                self.args = args
-                self.fields = dict()
-
-        return resource.render(FakeRequest(args=query_args))
 
 
     def test_select_format(self):
@@ -4308,7 +4287,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         )
 
     def log(self, res, msg):
-        #print "MSG: %s  RES: %s" % (msg, res)
+        #print("MSG: %s  RES: %s" % (msg, res))
         log.msg(msg)
         return res
 
@@ -4788,3 +4767,33 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         # doesn't reveal anything. This addresses #1720.
         d.addCallback(lambda e: self.assertEquals(str(e), "404 Not Found"))
         return d
+
+
+class HumanizeExceptionTests(TrialTestCase):
+    """
+    Tests for ``humanize_exception``.
+    """
+    def test_mustbereadonly(self):
+        """
+        ``humanize_exception`` describes ``MustBeReadonlyError``.
+        """
+        text, code = humanize_exception(
+            MustBeReadonlyError(
+                "URI:DIR2 directory writecap used in a read-only context",
+                "<unknown name>",
+            ),
+        )
+        self.assertIn("MustBeReadonlyError", text)
+        self.assertEqual(code, http.BAD_REQUEST)
+
+    def test_filetoolarge(self):
+        """
+        ``humanize_exception`` describes ``FileTooLargeError``.
+        """
+        text, code = humanize_exception(
+            FileTooLargeError(
+                "This file is too large to be uploaded (data_size).",
+            ),
+        )
+        self.assertIn("FileTooLargeError", text)
+        self.assertEqual(code, http.REQUEST_ENTITY_TOO_LARGE)

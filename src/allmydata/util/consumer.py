@@ -36,5 +36,5 @@ def download_to_data(n, offset=0, size=None, progress=None):
     :param progress: None or an IProgress implementer
     """
     d = n.read(MemoryConsumer(progress=progress), offset, size)
-    d.addCallback(lambda mc: "".join(mc.chunks))
+    d.addCallback(lambda mc: b"".join(mc.chunks))
     return d
