@@ -3,21 +3,40 @@ import time
 import json
 from functools import wraps
 
-from twisted.web import http, server, resource, template
+from twisted.web import (
+    http,
+    resource,
+    server,
+    template,
+)
 from twisted.python import log
-from nevow import loaders, appserver
+from nevow import appserver
 from nevow.rend import Page
 from nevow.inevow import IRequest
-from nevow.util import resource_filename
 from allmydata import blacklist
-from allmydata.interfaces import ExistingChildError, NoSuchChildError, \
-     FileTooLargeError, NotEnoughSharesError, NoSharesError, \
-     EmptyPathnameComponentError, MustBeDeepImmutableError, \
-     MustBeReadonlyError, MustNotBeUnknownRWError, SDMF_VERSION, MDMF_VERSION
+from allmydata.interfaces import (
+    EmptyPathnameComponentError,
+    ExistingChildError,
+    FileTooLargeError,
+    MustBeDeepImmutableError,
+    MustBeReadonlyError,
+    MustNotBeUnknownRWError,
+    NoSharesError,
+    NoSuchChildError,
+    NotEnoughSharesError,
+    MDMF_VERSION,
+    SDMF_VERSION,
+)
 from allmydata.mutable.common import UnrecoverableFileError
 from allmydata.util.hashutil import timing_safe_compare
-from allmydata.util.time_format import format_time, format_delta
-from allmydata.util.encodingutil import to_bytes, quote_output
+from allmydata.util.time_format import (
+    format_delta,
+    format_time,
+)
+from allmydata.util.encodingutil import (
+    quote_output,
+    to_bytes,
+)
 
 # Originally part of this module, so still part of its API:
 from .common_py3 import (  # noqa: F401
@@ -41,9 +60,6 @@ def get_filenode_metadata(filenode):
     if size is not None:
         metadata['size'] = size
     return metadata
-
-def getxmlfile(name):
-    return loaders.xmlfile(resource_filename('allmydata.web', '%s' % name))
 
 def boolean_of_arg(arg):
     # TODO: ""
