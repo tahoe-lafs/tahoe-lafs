@@ -1,3 +1,5 @@
+from future.builtins import str
+
 import os
 from twisted.internet import defer
 from twisted.trial import unittest
@@ -18,7 +20,7 @@ from .common import (
 
 MiB = 1024*1024
 
-DATA = "I need help\n" * 1000
+DATA = b"I need help\n" * 1000
 
 class CHKUploadHelper_fake(offloaded.CHKUploadHelper):
     def start_encrypted(self, eu):
@@ -33,8 +35,8 @@ class CHKUploadHelper_fake(offloaded.CHKUploadHelper):
                             "segment_size": segsize,
                             "size": size,
                             }
-                ueb_hash = "fake"
-                v = uri.CHKFileVerifierURI(self._storage_index, "x"*32,
+                ueb_hash = b"fake"
+                v = uri.CHKFileVerifierURI(self._storage_index, b"x"*32,
                                            needed_shares, total_shares, size)
                 _UR = upload.UploadResults
                 ur = _UR(file_size=size,
@@ -56,7 +58,7 @@ class CHKUploadHelper_fake(offloaded.CHKUploadHelper):
 
 class Helper_fake_upload(offloaded.Helper):
     def _make_chk_upload_helper(self, storage_index, lp):
-        si_s = si_b2a(storage_index)
+        si_s = str(si_b2a(storage_index), "utf-8")
         incoming_file = os.path.join(self._chk_incoming, si_s)
         encoding_file = os.path.join(self._chk_encoding, si_s)
         uh = CHKUploadHelper_fake(storage_index, self,
@@ -69,7 +71,7 @@ class Helper_fake_upload(offloaded.Helper):
 class Helper_already_uploaded(Helper_fake_upload):
     def _check_chk(self, storage_index, lp):
         res = upload.HelperUploadResults()
-        res.uri_extension_hash = hashutil.uri_extension_hash("")
+        res.uri_extension_hash = hashutil.uri_extension_hash(b"")
 
         # we're pretending that the file they're trying to upload was already
         # present in the grid. We return some information about the file, so
@@ -127,7 +129,7 @@ class AssistedUpload(unittest.TestCase):
             lambda h: self.tub,
             EMPTY_CLIENT_CONFIG,
         )
-        self.s.secret_holder = client.SecretHolder("lease secret", "converge")
+        self.s.secret_holder = client.SecretHolder(b"lease secret", b"converge")
         self.s.startService()
 
         t.setServiceParent(self.s)
@@ -162,11 +164,11 @@ class AssistedUpload(unittest.TestCase):
         def _ready(res):
             assert u._helper
 
-            return upload_data(u, DATA, convergence="some convergence string")
+            return upload_data(u, DATA, convergence=b"some convergence string")
         d.addCallback(_ready)
         def _uploaded(results):
             the_uri = results.get_uri()
-            assert "CHK" in the_uri
+            assert b"CHK" in the_uri
         d.addCallback(_uploaded)
 
         def _check_empty(res):
@@ -195,11 +197,11 @@ class AssistedUpload(unittest.TestCase):
         # this must be a multiple of 'required_shares'==k
         segsize = mathutil.next_multiple(segsize, k)
 
-        key = hashutil.convergence_hash(k, n, segsize, DATA, "test convergence string")
+        key = hashutil.convergence_hash(k, n, segsize, DATA, b"test convergence string")
         assert len(key) == 16
         encryptor = aes.create_encryptor(key)
         SI = hashutil.storage_index_hash(key)
-        SI_s = si_b2a(SI)
+        SI_s = str(si_b2a(SI), "utf-8")
         encfile = os.path.join(self.basedir, "CHK_encoding", SI_s)
         f = open(encfile, "wb")
         f.write(aes.encrypt_data(encryptor, DATA))
@@ -212,7 +214,7 @@ class AssistedUpload(unittest.TestCase):
 
         def _ready(res):
             assert u._helper
-            return upload_data(u, DATA, convergence="test convergence string")
+            return upload_data(u, DATA, convergence=b"test convergence string")
         d.addCallback(_ready)
         def _uploaded(results):
             the_uri = results.get_uri()
@@ -239,11 +241,11 @@ class AssistedUpload(unittest.TestCase):
         def _ready(res):
             assert u._helper
 
-            return upload_data(u, DATA, convergence="some convergence string")
+            return upload_data(u, DATA, convergence=b"some convergence string")
         d.addCallback(_ready)
         def _uploaded(results):
             the_uri = results.get_uri()
-            assert "CHK" in the_uri
+            assert b"CHK" in the_uri
         d.addCallback(_uploaded)
 
         def _check_empty(res):
