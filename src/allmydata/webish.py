@@ -39,8 +39,12 @@ from .web.storage_plugins import (
 # that modifies the way form arguments are parsed. Note that this sort of
 # surgery may induce a dependency upon a particular version of twisted.web
 
+class MyRequest(server.Request, object):
+    pass
+
 parse_qs = http.parse_qs
-class MyRequest(appserver.NevowRequest, object):
+
+class MyNevowRequest(appserver.NevowRequest, object):
     fields = None
     _tahoe_request_had_error = None
 
