@@ -1,6 +1,5 @@
 import json
 from os.path import join
-from os import makedirs
 
 from bs4 import BeautifulSoup
 
