@@ -93,6 +93,7 @@ PORTED_TEST_MODULES = [
     "allmydata.test.test_happiness",
     "allmydata.test.test_hashtree",
     "allmydata.test.test_hashutil",
+    "allmydata.test.test_helper",
     "allmydata.test.test_humanreadable",
     "allmydata.test.test_immutable",
     "allmydata.test.test_iputil",
