@@ -104,6 +104,7 @@ PORTED_TEST_MODULES = [
     "allmydata.test.test_storage",
     "allmydata.test.test_storage_web",
     "allmydata.test.test_time_format",
+    "allmydata.test.test_upload",
     "allmydata.test.test_uri",
     "allmydata.test.test_util",
     "allmydata.test.test_version",

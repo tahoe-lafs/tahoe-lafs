@@ -299,7 +299,7 @@ class ServerTracker(object):
         I abort the remote bucket writers for all shares. This is a good idea
         to conserve space on the storage server.
         """
-        self.abort_some_buckets(self.buckets.keys())
+        self.abort_some_buckets(list(self.buckets.keys()))
 
     def abort_some_buckets(self, sharenums):
         """
@@ -1818,7 +1818,7 @@ class Uploader(service.MultiService, log.PrefixingLogMixin):
         self.log("got helper connection, getting versions")
         default = { "http://allmydata.org/tahoe/protocols/helper/v1" :
                     { },
-                    "application-version": "unknown: no get_version()",
+                    "application-version": b"unknown: no get_version()",
                     }
         d = add_version_to_remote_reference(helper, default)
         d.addCallback(self._got_versioned_helper)

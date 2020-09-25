@@ -1,7 +1,20 @@
 # -*- coding: utf-8 -*-
 
+"""
+Ported to Python 3.
+"""
+from __future__ import unicode_literals
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+
 import os, shutil
-from six.moves import cStringIO as StringIO
+from io import BytesIO
+
 from twisted.trial import unittest
 from twisted.python.failure import Failure
 from twisted.internet import defer, task
@@ -22,6 +35,7 @@ from allmydata.client import _Client
 from .common import (
     EMPTY_CLIENT_CONFIG,
 )
+from functools import reduce
 
 
 MiB = 1024*1024
@@ -33,25 +47,25 @@ class Uploadable(unittest.TestCase):
     def shouldEqual(self, data, expected):
         self.failUnless(isinstance(data, list))
         for e in data:
-            self.failUnless(isinstance(e, str))
-        s = "".join(data)
+            self.failUnless(isinstance(e, bytes))
+        s = b"".join(data)
         self.failUnlessEqual(s, expected)
 
     def test_filehandle_random_key(self):
         return self._test_filehandle(convergence=None)
 
     def test_filehandle_convergent_encryption(self):
-        return self._test_filehandle(convergence="some convergence string")
+        return self._test_filehandle(convergence=b"some convergence string")
 
     def _test_filehandle(self, convergence):
-        s = StringIO("a"*41)
+        s = BytesIO(b"a"*41)
         u = upload.FileHandle(s, convergence=convergence)
         d = u.get_size()
         d.addCallback(self.failUnlessEqual, 41)
         d.addCallback(lambda res: u.read(1))
-        d.addCallback(self.shouldEqual, "a")
+        d.addCallback(self.shouldEqual, b"a")
         d.addCallback(lambda res: u.read(80))
-        d.addCallback(self.shouldEqual, "a"*40)
+        d.addCallback(self.shouldEqual, b"a"*40)
         d.addCallback(lambda res: u.close()) # this doesn't close the filehandle
         d.addCallback(lambda res: s.close()) # that privilege is reserved for us
         return d
@@ -60,28 +74,28 @@ class Uploadable(unittest.TestCase):
         basedir = "upload/Uploadable/test_filename"
         os.makedirs(basedir)
         fn = os.path.join(basedir, "file")
-        f = open(fn, "w")
-        f.write("a"*41)
+        f = open(fn, "wb")
+        f.write(b"a"*41)
         f.close()
         u = upload.FileName(fn, convergence=None)
         d = u.get_size()
         d.addCallback(self.failUnlessEqual, 41)
         d.addCallback(lambda res: u.read(1))
-        d.addCallback(self.shouldEqual, "a")
+        d.addCallback(self.shouldEqual, b"a")
         d.addCallback(lambda res: u.read(80))
-        d.addCallback(self.shouldEqual, "a"*40)
+        d.addCallback(self.shouldEqual, b"a"*40)
         d.addCallback(lambda res: u.close())
         return d
 
     def test_data(self):
-        s = "a"*41
+        s = b"a"*41
         u = upload.Data(s, convergence=None)
         d = u.get_size()
         d.addCallback(self.failUnlessEqual, 41)
         d.addCallback(lambda res: u.read(1))
-        d.addCallback(self.shouldEqual, "a")
+        d.addCallback(self.shouldEqual, b"a")
         d.addCallback(lambda res: u.read(80))
-        d.addCallback(self.shouldEqual, "a"*40)
+        d.addCallback(self.shouldEqual, b"a"*40)
         d.addCallback(lambda res: u.close())
         return d
 
@@ -104,19 +118,19 @@ class FakeStorageServer(object):
         self._alloc_queries = 0
         self._get_queries = 0
         self.version = {
-            "http://allmydata.org/tahoe/protocols/storage/v1" :
+            b"http://allmydata.org/tahoe/protocols/storage/v1" :
             {
-                "maximum-immutable-share-size": 2**32 - 1,
+                b"maximum-immutable-share-size": 2**32 - 1,
             },
-            "application-version": str(allmydata.__full_version__),
+            b"application-version": bytes(allmydata.__full_version__, "ascii"),
         }
         if mode == "small":
             self.version = {
-                "http://allmydata.org/tahoe/protocols/storage/v1" :
+                b"http://allmydata.org/tahoe/protocols/storage/v1" :
                 {
-                    "maximum-immutable-share-size": 10,
+                    b"maximum-immutable-share-size": 10,
                 },
-                "application-version": str(allmydata.__full_version__),
+                b"application-version": bytes(allmydata.__full_version__, "ascii"),
             }
 
 
@@ -167,7 +181,7 @@ class FakeStorageServer(object):
 class FakeBucketWriter(object):
     # a diagnostic version of storageserver.BucketWriter
     def __init__(self, size):
-        self.data = StringIO()
+        self.data = BytesIO()
         self.closed = False
         self._size = size
 
@@ -213,10 +227,10 @@ class FakeClient(object):
     def __init__(self, mode="good", num_servers=50, reactor=None):
         self.num_servers = num_servers
         self.encoding_params = self.DEFAULT_ENCODING_PARAMETERS.copy()
-        if type(mode) is str:
+        if isinstance(mode, str):
             mode = dict([i,mode] for i in range(num_servers))
         servers = [
-            ("%20d" % fakeid, FakeStorageServer(mode[fakeid], reactor=reactor))
+            (b"%20d" % fakeid, FakeStorageServer(mode[fakeid], reactor=reactor))
             for fakeid in range(self.num_servers)
         ]
         self.storage_broker = StorageFarmBroker(
@@ -225,7 +239,7 @@ class FakeClient(object):
             node_config=EMPTY_CLIENT_CONFIG,
         )
         for (serverid, rref) in servers:
-            ann = {"anonymous-storage-FURL": "pb://%s@nowhere/fake" % base32.b2a(serverid),
+            ann = {"anonymous-storage-FURL": b"pb://%s@nowhere/fake" % base32.b2a(serverid),
                    "permutation-seed-base32": base32.b2a(serverid) }
             self.storage_broker.test_add_rref(serverid, rref, ann)
         self.last_servers = [s[1] for s in servers]
@@ -236,7 +250,7 @@ class FakeClient(object):
         return self.encoding_params
     def get_storage_broker(self):
         return self.storage_broker
-    _secret_holder = client.SecretHolder("lease secret", "convergence secret")
+    _secret_holder = client.SecretHolder(b"lease secret", b"convergence secret")
 
 class GotTooFarError(Exception):
     pass
@@ -247,7 +261,7 @@ class GiganticUploadable(upload.FileHandle):
         self._fp = 0
 
     def get_encryption_key(self):
-        return defer.succeed("\x00" * 16)
+        return defer.succeed(b"\x00" * 16)
     def get_size(self):
         return defer.succeed(self._size)
     def read(self, length):
@@ -257,11 +271,11 @@ class GiganticUploadable(upload.FileHandle):
         if self._fp > 1000000:
             # terminate the test early.
             raise GotTooFarError("we shouldn't be allowed to get this far")
-        return defer.succeed(["\x00" * length])
+        return defer.succeed([b"\x00" * length])
     def close(self):
         pass
 
-DATA = """
+DATA = b"""
 Once upon a time, there was a beautiful princess named Buttercup. She lived
 in a magical land where every file was stored securely among millions of
 machines, and nobody ever worried about their data being lost ever again.
@@ -304,9 +318,9 @@ class GoodServer(unittest.TestCase, ShouldFailMixin, SetDEPMixin):
     def _check_large(self, newuri, size):
         u = uri.from_string(newuri)
         self.failUnless(isinstance(u, uri.CHKFileURI))
-        self.failUnless(isinstance(u.get_storage_index(), str))
+        self.failUnless(isinstance(u.get_storage_index(), bytes))
         self.failUnlessEqual(len(u.get_storage_index()), 16)
-        self.failUnless(isinstance(u.key, str))
+        self.failUnless(isinstance(u.key, bytes))
         self.failUnlessEqual(len(u.key), 16)
         self.failUnlessEqual(u.size, size)
 
@@ -367,21 +381,21 @@ class GoodServer(unittest.TestCase, ShouldFailMixin, SetDEPMixin):
 
     def test_filehandle_zero(self):
         data = self.get_data(SIZE_ZERO)
-        d = upload_filehandle(self.u, StringIO(data))
+        d = upload_filehandle(self.u, BytesIO(data))
         d.addCallback(extract_uri)
         d.addCallback(self._check_small, SIZE_ZERO)
         return d
 
     def test_filehandle_small(self):
         data = self.get_data(SIZE_SMALL)
-        d = upload_filehandle(self.u, StringIO(data))
+        d = upload_filehandle(self.u, BytesIO(data))
         d.addCallback(extract_uri)
         d.addCallback(self._check_small, SIZE_SMALL)
         return d
 
     def test_filehandle_large(self):
         data = self.get_data(SIZE_LARGE)
-        d = upload_filehandle(self.u, StringIO(data))
+        d = upload_filehandle(self.u, BytesIO(data))
         d.addCallback(extract_uri)
         d.addCallback(self._check_large, SIZE_LARGE)
         return d
@@ -429,9 +443,9 @@ class ServerErrors(unittest.TestCase, ShouldFailMixin, SetDEPMixin):
     def _check_large(self, newuri, size):
         u = uri.from_string(newuri)
         self.failUnless(isinstance(u, uri.CHKFileURI))
-        self.failUnless(isinstance(u.get_storage_index(), str))
+        self.failUnless(isinstance(u.get_storage_index(), bytes))
         self.failUnlessEqual(len(u.get_storage_index()), 16)
-        self.failUnless(isinstance(u.key, str))
+        self.failUnless(isinstance(u.key, bytes))
         self.failUnlessEqual(len(u.key), 16)
         self.failUnlessEqual(u.size, size)
 
@@ -599,9 +613,9 @@ class ServerSelection(unittest.TestCase):
     def _check_large(self, newuri, size):
         u = uri.from_string(newuri)
         self.failUnless(isinstance(u, uri.CHKFileURI))
-        self.failUnless(isinstance(u.get_storage_index(), str))
+        self.failUnless(isinstance(u.get_storage_index(), bytes))
         self.failUnlessEqual(len(u.get_storage_index()), 16)
-        self.failUnless(isinstance(u.key, str))
+        self.failUnless(isinstance(u.key, bytes))
         self.failUnlessEqual(len(u.key), 16)
         self.failUnlessEqual(u.size, size)
 
@@ -764,40 +778,40 @@ class ServerSelection(unittest.TestCase):
 
 class StorageIndex(unittest.TestCase):
     def test_params_must_matter(self):
-        DATA = "I am some data"
+        DATA = b"I am some data"
         PARAMS = _Client.DEFAULT_ENCODING_PARAMETERS
 
-        u = upload.Data(DATA, convergence="")
+        u = upload.Data(DATA, convergence=b"")
         u.set_default_encoding_parameters(PARAMS)
         eu = upload.EncryptAnUploadable(u)
         d1 = eu.get_storage_index()
 
         # CHK means the same data should encrypt the same way
-        u = upload.Data(DATA, convergence="")
+        u = upload.Data(DATA, convergence=b"")
         u.set_default_encoding_parameters(PARAMS)
         eu = upload.EncryptAnUploadable(u)
         d1a = eu.get_storage_index()
 
         # but if we use a different convergence string it should be different
-        u = upload.Data(DATA, convergence="wheee!")
+        u = upload.Data(DATA, convergence=b"wheee!")
         u.set_default_encoding_parameters(PARAMS)
         eu = upload.EncryptAnUploadable(u)
         d1salt1 = eu.get_storage_index()
 
         # and if we add yet a different convergence it should be different again
-        u = upload.Data(DATA, convergence="NOT wheee!")
+        u = upload.Data(DATA, convergence=b"NOT wheee!")
         u.set_default_encoding_parameters(PARAMS)
         eu = upload.EncryptAnUploadable(u)
         d1salt2 = eu.get_storage_index()
 
         # and if we use the first string again it should be the same as last time
-        u = upload.Data(DATA, convergence="wheee!")
+        u = upload.Data(DATA, convergence=b"wheee!")
         u.set_default_encoding_parameters(PARAMS)
         eu = upload.EncryptAnUploadable(u)
         d1salt1a = eu.get_storage_index()
 
         # and if we change the encoding parameters, it should be different (from the same convergence string with different encoding parameters)
-        u = upload.Data(DATA, convergence="")
+        u = upload.Data(DATA, convergence=b"")
         u.set_default_encoding_parameters(PARAMS)
         u.encoding_param_k = u.default_encoding_param_k + 1
         eu = upload.EncryptAnUploadable(u)
@@ -838,10 +852,10 @@ def combinations(iterable, r):
     n = len(pool)
     if r > n:
         return
-    indices = range(r)
+    indices = list(range(r))
     yield tuple(pool[i] for i in indices)
     while True:
-        for i in reversed(range(r)):
+        for i in reversed(list(range(r))):
             if indices[i] != i + n - r:
                 break
         else:
@@ -855,7 +869,7 @@ def is_happy_enough(servertoshnums, h, k):
     """ I calculate whether servertoshnums achieves happiness level h. I do this with a naïve "brute force search" approach. (See src/allmydata/util/happinessutil.py for a better algorithm.) """
     if len(servertoshnums) < h:
         return False
-    for happysetcombo in combinations(servertoshnums.iterkeys(), h):
+    for happysetcombo in combinations(iter(servertoshnums.keys()), h):
         for subsetcombo in combinations(happysetcombo, k):
             shnums = reduce(set.union, [ servertoshnums[s] for s in subsetcombo ])
             if len(shnums) < k:
@@ -886,7 +900,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         assert self.g, "I tried to find a grid at self.g, but failed"
         servertoshnums = {} # k: server, v: set(shnum)
 
-        for i, c in self.g.servers_by_number.iteritems():
+        for i, c in self.g.servers_by_number.items():
             for (dirp, dirns, fns) in os.walk(c.sharedir):
                 for fn in fns:
                     try:
@@ -909,7 +923,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         assert self.g, "I tried to find a grid at self.g, but failed"
         broker = self.g.clients[0].storage_broker
         sh     = self.g.clients[0]._secret_holder
-        data = upload.Data("data" * 10000, convergence="")
+        data = upload.Data(b"data" * 10000, convergence=b"")
         data.set_default_encoding_parameters({'k': 3, 'happy': 4, 'n': 10})
         uploadable = upload.EncryptAnUploadable(data)
         encoder = encode.Encoder()
@@ -926,9 +940,9 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         def _have_shareholders(upload_trackers_and_already_servers):
             (upload_trackers, already_servers) = upload_trackers_and_already_servers
             assert servers_to_break <= len(upload_trackers)
-            for index in xrange(servers_to_break):
+            for index in range(servers_to_break):
                 tracker = list(upload_trackers)[index]
-                for share in tracker.buckets.keys():
+                for share in list(tracker.buckets.keys()):
                     tracker.buckets[share].abort()
             buckets = {}
             servermap = already_servers.copy()
@@ -1002,7 +1016,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         if "n" in kwargs and "k" in kwargs:
             client.encoding_params['k'] = kwargs['k']
             client.encoding_params['n'] = kwargs['n']
-        data = upload.Data("data" * 10000, convergence="")
+        data = upload.Data(b"data" * 10000, convergence=b"")
         self.data = data
         d = client.upload(data)
         def _store_uri(ur):
@@ -1021,8 +1035,8 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         self.set_up_grid(client_config_hooks=hooks)
         c0 = self.g.clients[0]
 
-        DATA = "data" * 100
-        u = upload.Data(DATA, convergence="")
+        DATA = b"data" * 100
+        u = upload.Data(DATA, convergence=b"")
         d = c0.upload(u)
         d.addCallback(lambda ur: c0.create_node_from_uri(ur.get_uri()))
         m = monitor.Monitor()
@@ -1045,7 +1059,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
 
     def test_happy_semantics(self):
         self._setUp(2)
-        DATA = upload.Data("kittens" * 10000, convergence="")
+        DATA = upload.Data(b"kittens" * 10000, convergence=b"")
         # These parameters are unsatisfiable with only 2 servers.
         self.set_encoding_parameters(k=3, happy=5, n=10)
         d = self.shouldFail(UploadUnhappinessError, "test_happy_semantics",
@@ -1077,7 +1091,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         self.basedir = "upload/EncodingParameters/aborted_shares"
         self.set_up_grid(num_servers=4)
         c = self.g.clients[0]
-        DATA = upload.Data(100 * "kittens", convergence="")
+        DATA = upload.Data(100 * b"kittens", convergence=b"")
         # These parameters are unsatisfiable with only 4 servers, but should
         # work with 5, as long as the original 4 are not stuck in the open
         # BucketWriter state (open() but not
@@ -1155,8 +1169,8 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
                             "We were asked to place shares on at "
                             "least 4 servers such that any 3 of them have "
                             "enough shares to recover the file",
-                            client.upload, upload.Data("data" * 10000,
-                                                       convergence="")))
+                            client.upload, upload.Data(b"data" * 10000,
+                                                       convergence=b"")))
 
         # Do comment:52, but like this:
         # server 2: empty
@@ -1188,8 +1202,8 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
                             "that any 3 of them have enough shares to recover "
                             "the file, but we were asked to place shares on "
                             "at least 4 such servers.",
-                            client.upload, upload.Data("data" * 10000,
-                                                       convergence="")))
+                            client.upload, upload.Data(b"data" * 10000,
+                                                       convergence=b"")))
         return d
 
 
@@ -1230,7 +1244,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
             return client
         d.addCallback(_reset_encoding_parameters)
         d.addCallback(lambda client:
-            client.upload(upload.Data("data" * 10000, convergence="")))
+            client.upload(upload.Data(b"data" * 10000, convergence=b"")))
         d.addCallback(lambda ign:
             self.failUnless(self._has_happy_share_distribution()))
 
@@ -1259,7 +1273,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
             self._add_server_with_share(server_number=1, share_number=2))
         # Copy all of the other shares to server number 2
         def _copy_shares(ign):
-            for i in xrange(0, 10):
+            for i in range(0, 10):
                 self._copy_share_to_server(i, 2)
         d.addCallback(_copy_shares)
         # Remove the first server, and add a placeholder with share 0
@@ -1270,7 +1284,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         # Now try uploading.
         d.addCallback(_reset_encoding_parameters)
         d.addCallback(lambda client:
-            client.upload(upload.Data("data" * 10000, convergence="")))
+            client.upload(upload.Data(b"data" * 10000, convergence=b"")))
         d.addCallback(lambda ign:
             self.failUnless(self._has_happy_share_distribution()))
 
@@ -1299,7 +1313,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
             self.g.remove_server(self.g.servers_by_number[0].my_nodeid))
         d.addCallback(_reset_encoding_parameters)
         d.addCallback(lambda client:
-            client.upload(upload.Data("data" * 10000, convergence="")))
+            client.upload(upload.Data(b"data" * 10000, convergence=b"")))
         # Make sure that only as many shares as necessary to satisfy
         # servers of happiness were pushed.
         d.addCallback(lambda results:
@@ -1330,7 +1344,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
 
         d.addCallback(_setup)
         d.addCallback(lambda client:
-            client.upload(upload.Data("data" * 10000, convergence="")))
+            client.upload(upload.Data(b"data" * 10000, convergence=b"")))
         d.addCallback(lambda ign:
             self.failUnless(self._has_happy_share_distribution()))
         return d
@@ -1353,7 +1367,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
                                         readonly=True))
         # Copy all of the other shares to server number 2
         def _copy_shares(ign):
-            for i in xrange(1, 10):
+            for i in range(1, 10):
                 self._copy_share_to_server(i, 2)
         d.addCallback(_copy_shares)
         # Remove server 0, and add another in its place
@@ -1368,7 +1382,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
             return client
         d.addCallback(_reset_encoding_parameters)
         d.addCallback(lambda client:
-            client.upload(upload.Data("data" * 10000, convergence="")))
+            client.upload(upload.Data(b"data" * 10000, convergence=b"")))
         d.addCallback(lambda ign:
             self.failUnless(self._has_happy_share_distribution()))
         return d
@@ -1396,7 +1410,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
             self._add_server_with_share(server_number=2, share_number=0,
                                         readonly=True))
         def _copy_shares(ign):
-            for i in xrange(1, 10):
+            for i in range(1, 10):
                 self._copy_share_to_server(i, 2)
         d.addCallback(_copy_shares)
         d.addCallback(lambda ign:
@@ -1407,7 +1421,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
             return client
         d.addCallback(_reset_encoding_parameters)
         d.addCallback(lambda client:
-            client.upload(upload.Data("data" * 10000, convergence="")))
+            client.upload(upload.Data(b"data" * 10000, convergence=b"")))
         d.addCallback(lambda ign:
             self.failUnless(self._has_happy_share_distribution()))
         return d
@@ -1512,7 +1526,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         d.addCallback(lambda ign:
             self._add_server(4))
         def _copy_shares(ign):
-            for i in xrange(1, 10):
+            for i in range(1, 10):
                 self._copy_share_to_server(i, 1)
         d.addCallback(_copy_shares)
         d.addCallback(lambda ign:
@@ -1523,7 +1537,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
             return client
         d.addCallback(_prepare_client)
         d.addCallback(lambda client:
-            client.upload(upload.Data("data" * 10000, convergence="")))
+            client.upload(upload.Data(b"data" * 10000, convergence=b"")))
         d.addCallback(lambda ign:
             self.failUnless(self._has_happy_share_distribution()))
         return d
@@ -1536,7 +1550,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         self.basedir = self.mktemp()
         d = self._setup_and_upload()
         def _setup(ign):
-            for i in xrange(1, 11):
+            for i in range(1, 11):
                 self._add_server(server_number=i)
             self.g.remove_server(self.g.servers_by_number[0].my_nodeid)
             c = self.g.clients[0]
@@ -1550,8 +1564,8 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         d.addCallback(lambda c:
             self.shouldFail(UploadUnhappinessError, "test_query_counting",
                             "0 queries placed some shares",
-                            c.upload, upload.Data("data" * 10000,
-                                                  convergence="")))
+                            c.upload, upload.Data(b"data" * 10000,
+                                                  convergence=b"")))
         # Now try with some readonly servers. We want to make sure that
         # the readonly server share discovery phase is counted correctly.
         def _reset(ign):
@@ -1561,7 +1575,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         d.addCallback(lambda ign:
             self._setup_and_upload())
         def _then(ign):
-            for i in xrange(1, 11):
+            for i in range(1, 11):
                 self._add_server(server_number=i)
             self._add_server(server_number=11, readonly=True)
             self._add_server(server_number=12, readonly=True)
@@ -1574,8 +1588,8 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
             self.shouldFail(UploadUnhappinessError, "test_query_counting",
                             "4 placed none (of which 4 placed none due to "
                             "the server being full",
-                            c.upload, upload.Data("data" * 10000,
-                                                  convergence="")))
+                            c.upload, upload.Data(b"data" * 10000,
+                                                  convergence=b"")))
         # Now try the case where the upload process finds a bunch of the
         # shares that it wants to place on the first server, including
         # the one that it wanted to allocate there. Though no shares will
@@ -1587,11 +1601,11 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
             self._setup_and_upload())
 
         def _next(ign):
-            for i in xrange(1, 11):
+            for i in range(1, 11):
                 self._add_server(server_number=i)
             # Copy all of the shares to server 9, since that will be
             # the first one that the selector sees.
-            for i in xrange(10):
+            for i in range(10):
                 self._copy_share_to_server(i, 9)
             # Remove server 0, and its contents
             self.g.remove_server(self.g.servers_by_number[0].my_nodeid)
@@ -1603,8 +1617,8 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         d.addCallback(lambda c:
             self.shouldFail(UploadUnhappinessError, "test_query_counting",
                             "0 queries placed some shares",
-                            c.upload, upload.Data("data" * 10000,
-                                                  convergence="")))
+                            c.upload, upload.Data(b"data" * 10000,
+                                                  convergence=b"")))
         return d
 
 
@@ -1612,7 +1626,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         self.basedir = self.mktemp()
         d = self._setup_and_upload()
         def _then(ign):
-            for i in xrange(1, 11):
+            for i in range(1, 11):
                 self._add_server(server_number=i, readonly=True)
             self.g.remove_server(self.g.servers_by_number[0].my_nodeid)
             c = self.g.clients[0]
@@ -1626,7 +1640,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
                             "test_upper_limit_on_readonly_queries",
                             "sent 8 queries to 8 servers",
                             client.upload,
-                            upload.Data('data' * 10000, convergence="")))
+                            upload.Data(b'data' * 10000, convergence=b"")))
         return d
 
 
@@ -1668,7 +1682,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
                             "(of which 5 placed none due to the server being "
                             "full and 0 placed none due to an error)",
                             client.upload,
-                            upload.Data("data" * 10000, convergence="")))
+                            upload.Data(b"data" * 10000, convergence=b"")))
 
 
         # server 1: read-only, no shares
@@ -1709,7 +1723,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
                             "(of which 4 placed none due to the server being "
                             "full and 1 placed none due to an error)",
                             client.upload,
-                            upload.Data("data" * 10000, convergence="")))
+                            upload.Data(b"data" * 10000, convergence=b"")))
         # server 0, server 1 = empty, accepting shares
         # This should place all of the shares, but still fail with happy=4.
         # We want to make sure that the exception message is worded correctly.
@@ -1725,8 +1739,8 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
                             "server(s). We were asked to place shares on at "
                             "least 4 server(s) such that any 3 of them have "
                             "enough shares to recover the file.",
-                            client.upload, upload.Data("data" * 10000,
-                                                       convergence="")))
+                            client.upload, upload.Data(b"data" * 10000,
+                                                       convergence=b"")))
         # servers 0 - 4 = empty, accepting shares
         # This too should place all the shares, and this too should fail,
         # but since the effective happiness is more than the k encoding
@@ -1750,8 +1764,8 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
                             "that any 3 of them have enough shares to recover "
                             "the file, but we were asked to place shares on "
                             "at least 7 such servers.",
-                            client.upload, upload.Data("data" * 10000,
-                                                       convergence="")))
+                            client.upload, upload.Data(b"data" * 10000,
+                                                       convergence=b"")))
         # server 0: shares 0 - 9
         # server 1: share 0, read-only
         # server 2: share 0, read-only
@@ -1782,8 +1796,8 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
                             "to place shares on at least 7 servers such that "
                             "any 3 of them have enough shares to recover the "
                             "file",
-                            client.upload, upload.Data("data" * 10000,
-                                                       convergence="")))
+                            client.upload, upload.Data(b"data" * 10000,
+                                                       convergence=b"")))
         return d
 
 
@@ -1815,7 +1829,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
 
         d.addCallback(_setup)
         d.addCallback(lambda client:
-            client.upload(upload.Data("data" * 10000, convergence="")))
+            client.upload(upload.Data(b"data" * 10000, convergence=b"")))
         d.addCallback(lambda ign:
             self.failUnless(self._has_happy_share_distribution()))
         return d
@@ -1873,7 +1887,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
 
         d.addCallback(_setup)
         d.addCallback(lambda client:
-                          client.upload(upload.Data("data" * 10000, convergence="")))
+                          client.upload(upload.Data(b"data" * 10000, convergence=b"")))
         d.addCallback(lambda ign:
             self.failUnless(self._has_happy_share_distribution()))
         return d
@@ -1911,7 +1925,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
             return c
         d.addCallback(_server_setup)
         d.addCallback(lambda client:
-            client.upload(upload.Data("data" * 10000, convergence="")))
+            client.upload(upload.Data(b"data" * 10000, convergence=b"")))
         d.addCallback(lambda ign:
             self.failUnless(self._has_happy_share_distribution()))
         return d
@@ -1935,12 +1949,12 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
             self._add_server_with_share(server_number=8, share_number=4)
             self._add_server_with_share(server_number=5, share_number=5)
             self._add_server_with_share(server_number=10, share_number=7)
-            for i in xrange(4):
+            for i in range(4):
                 self._copy_share_to_server(i, 2)
             return self.g.clients[0]
         d.addCallback(_server_setup)
         d.addCallback(lambda client:
-            client.upload(upload.Data("data" * 10000, convergence="")))
+            client.upload(upload.Data(b"data" * 10000, convergence=b"")))
         d.addCallback(lambda ign:
             self.failUnless(self._has_happy_share_distribution()))
         return d
@@ -1963,14 +1977,14 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
             self.shouldFail(UploadUnhappinessError,
                             "test_server_selection_bucket_abort",
                             "",
-                            client.upload, upload.Data("data" * 10000,
-                                                       convergence="")))
+                            client.upload, upload.Data(b"data" * 10000,
+                                                       convergence=b"")))
         # wait for the abort messages to get there.
         def _turn_barrier(res):
             return fireEventually(res)
         d.addCallback(_turn_barrier)
         def _then(ignored):
-            for server in self.g.servers_by_number.values():
+            for server in list(self.g.servers_by_number.values()):
                 self.failUnlessEqual(server.allocated_size(), 0)
         d.addCallback(_then)
         return d
@@ -1996,7 +2010,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
             return fireEventually(res)
         d.addCallback(_turn_barrier)
         def _then(ignored):
-            for server in self.g.servers_by_number.values():
+            for server in list(self.g.servers_by_number.values()):
                 self.failUnlessEqual(server.allocated_size(), 0)
         d.addCallback(_then)
         return d
