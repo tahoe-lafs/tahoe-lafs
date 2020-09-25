@@ -8,7 +8,7 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
-from future.utils import PY2
+from future.utils import PY2, native_str
 if PY2:
     # Don't import object/str/dict/etc. types, so we don't break any
     # interfaces. Not importing open() because it triggers bogus flake8 error.
@@ -105,7 +105,7 @@ ReadData = ListOf(ShareData)
 
 
 class RIStorageServer(RemoteInterface):
-    __remote_name__ = b"RIStorageServer.tahoe.allmydata.com"
+    __remote_name__ = native_str("RIStorageServer.tahoe.allmydata.com")
 
     def get_version():
         """
@@ -1231,7 +1231,7 @@ class IMutableFileNode(IFileNode):
         the old contents), a 'first_time' boolean, and a servermap. As with
         download_best_version(), the old contents will be from the best
         recoverable version, but the modifier can use the servermap to make
-        other decisions (such as refusing to apply the delta if there are
+1        other decisions (such as refusing to apply the delta if there are
         multiple parallel versions, or if there is evidence of a newer
         unrecoverable version). 'first_time' will be True the first time the
         modifier is called, and False on any subsequent calls.
@@ -2875,7 +2875,7 @@ UploadResults = Any() #DictOf(bytes, bytes)
 
 
 class RIEncryptedUploadable(RemoteInterface):
-    __remote_name__ = b"RIEncryptedUploadable.tahoe.allmydata.com"
+    __remote_name__ = native_str("RIEncryptedUploadable.tahoe.allmydata.com")
 
     def get_size():
         return Offset
@@ -2891,7 +2891,7 @@ class RIEncryptedUploadable(RemoteInterface):
 
 
 class RICHKUploadHelper(RemoteInterface):
-    __remote_name__ = b"RIUploadHelper.tahoe.allmydata.com"
+    __remote_name__ = native_str("RIUploadHelper.tahoe.allmydata.com")
 
     def get_version():
         """
@@ -2904,7 +2904,7 @@ class RICHKUploadHelper(RemoteInterface):
 
 
 class RIHelper(RemoteInterface):
-    __remote_name__ = b"RIHelper.tahoe.allmydata.com"
+    __remote_name__ = native_str("RIHelper.tahoe.allmydata.com")
 
     def get_version():
         """
@@ -2931,7 +2931,7 @@ class RIHelper(RemoteInterface):
 
 
 class RIStatsProvider(RemoteInterface):
-    __remote_name__ = b"RIStatsProvider.tahoe.allmydata.com"
+    __remote_name__ = native_str("RIStatsProvider.tahoe.allmydata.com")
     """
     Provides access to statistics and monitoring information.
     """
@@ -2948,7 +2948,7 @@ class RIStatsProvider(RemoteInterface):
 
 
 class RIStatsGatherer(RemoteInterface):
-    __remote_name__ = b"RIStatsGatherer.tahoe.allmydata.com"
+    __remote_name__ = native_str("RIStatsGatherer.tahoe.allmydata.com")
     """
     Provides a monitoring service for centralised collection of stats
     """
