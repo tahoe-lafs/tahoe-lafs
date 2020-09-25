@@ -45,6 +45,22 @@ from ..common_web import (
 
 @defer.inlineCallbacks
 def create_introducer_webish(reactor, port_assigner, basedir):
+    """
+    Create and start an introducer node and return it and its ``WebishServer``
+    service.
+
+    :param reactor: The reactor to use to allow the introducer node to use to
+        listen for connections.
+
+    :param SameProcessStreamEndpointAssigner port_assigner: The assigner to
+        use to assign a listening port for the introducer node.
+
+    :param bytes basedir: A non-existant path where the introducer node will
+        be created.
+
+    :return Deferred[(_IntroducerNode, WebishServer)]: A Deferred that fires
+        with the node and its webish service.
+    """
     node.create_node_dir(basedir, "testing")
     _, port_endpoint = port_assigner.assign(reactor)
     with open(join(basedir, "tahoe.cfg"), "w") as f:
@@ -64,6 +80,9 @@ def create_introducer_webish(reactor, port_assigner, basedir):
 
 
 class IntroducerWeb(unittest.TestCase):
+    """
+    Tests for web-facing functionality of an introducer node.
+    """
     def setUp(self):
         self.node = None
         self.port_assigner = SameProcessStreamEndpointAssigner()
