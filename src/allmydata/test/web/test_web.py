@@ -3,7 +3,6 @@ from __future__ import print_function
 import os.path, re, urllib, time
 import json
 import treq
-import html
 
 from bs4 import BeautifulSoup
 
@@ -373,9 +372,6 @@ class WebMixin(TimezoneMixin):
             self._htmlname_unicode = u"<&weirdly'named\"file>>>_<iframe />.txt"
             self._htmlname_raw = self._htmlname_unicode.encode('utf-8')
             self._htmlname_urlencoded = urllib.quote(self._htmlname_raw, '')
-            self._htmlname_escaped = html.escape(self._htmlname_raw)
-            self._htmlname_escaped_attr = html.escape(self._htmlname_raw, quote=True)
-            self._htmlname_escaped_double = html.escape(html.escape(self._htmlname_raw, quote=True))
             self.HTMLNAME_CONTENTS, n, self._htmlname_txt_uri = self.makefile(0)
             foo.set_uri(self._htmlname_unicode, self._htmlname_txt_uri, self._htmlname_txt_uri)
 
@@ -2007,16 +2003,6 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
                 for a in soup.find_all(u"a", {u"rel": u"noreferrer"})
             )
         )
-
-        # XXX leaving this as-is, but consider using beautfulsoup here too?
-        # Make sure that Nevow escaping actually works by checking for unsafe characters
-        # and that '&' is escaped.
-        for entity in '<>':
-            self.failUnlessIn(entity, self._htmlname_raw)
-            self.failIfIn(entity, self._htmlname_escaped)
-        self.failUnlessIn('&', re.sub(r'&(amp|lt|gt|quot|apos);', '', self._htmlname_raw))
-        # escaped string is now `weirdly&#x27;namedfile_iframe /.txt`
-        self.failUnlessIn('&', re.sub(r'&(amp|lt|gt|quot|apos);', '', self._htmlname_escaped))
 
     @inlineCallbacks
     def test_GET_root_html(self):
