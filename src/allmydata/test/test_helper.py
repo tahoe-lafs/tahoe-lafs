@@ -1,4 +1,11 @@
-from future.builtins import str
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 import os
 from twisted.internet import defer
@@ -136,7 +143,7 @@ class AssistedUpload(unittest.TestCase):
         self.s.tub = t
         # we never actually use this for network traffic, so it can use a
         # bogus host/port
-        t.setLocation("bogus:1234")
+        t.setLocation(b"bogus:1234")
 
     def setUpHelper(self, basedir, helper_class=Helper_fake_upload):
         fileutil.make_dirs(basedir)
