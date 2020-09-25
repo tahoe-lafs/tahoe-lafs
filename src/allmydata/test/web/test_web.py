@@ -8,24 +8,13 @@ from bs4 import BeautifulSoup
 
 from twisted.application import service
 from twisted.internet import defer
-from twisted.internet.defer import inlineCallbacks, returnValue, maybeDeferred
+from twisted.internet.defer import inlineCallbacks, returnValue
 from twisted.internet.task import Clock
 from twisted.web import client, error, http
 from twisted.python import failure, log
 
-from nevow.context import WebContext
-from nevow.inevow import (
-    ICanHandleException,
-    IRequest,
-    IData,
-)
 from nevow.util import escapeToXML
 from nevow.loaders import stan
-from nevow.testutil import FakeRequest
-from nevow.appserver import (
-    processingFailed,
-    DefaultExceptionHandler,
-)
 
 from allmydata import interfaces, uri, webish
 from allmydata.storage_client import StorageFarmBroker, StubServer
@@ -70,6 +59,7 @@ from ..common_py3 import TimezoneMixin
 from ..common_web import (
     do_http,
     Error,
+    render,
 )
 from ...web.common import (
     humanize_exception,
@@ -670,6 +660,9 @@ class MultiFormatPageTests(TrialTestCase):
     """
     Tests for ``MultiFormatPage``.
     """
+    def render(self, resource, **queryargs):
+        return self.successResultOf(render(resource, queryargs))
+
     def resource(self):
         """
         Create and return an instance of a ``MultiFormatPage`` subclass with two
@@ -684,31 +677,6 @@ class MultiFormatPageTests(TrialTestCase):
             def render_B(self, req):
                 return "b"
         return Content()
-
-
-    def render(self, resource, **query_args):
-        """
-        Render a Nevow ``Page`` against a request with the given query arguments.
-
-        :param resource: The Nevow resource to render.
-
-        :param query_args: The query arguments to put into the request being
-            rendered.  A mapping from ``bytes`` to ``list`` of ``bytes``.
-
-        :return: The rendered response body as ``bytes``.
-        """
-        ctx = WebContext(tag=resource)
-        req = FakeRequest(args=query_args)
-        ctx.remember(DefaultExceptionHandler(), ICanHandleException)
-        ctx.remember(req, IRequest)
-        ctx.remember(None, IData)
-
-        d = maybeDeferred(resource.renderHTTP, ctx)
-        d.addErrback(processingFailed, req, ctx)
-        res = self.successResultOf(d)
-        if isinstance(res, bytes):
-            return req.v + res
-        return req.v
 
 
     def test_select_format(self):
