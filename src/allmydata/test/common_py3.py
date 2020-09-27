@@ -159,9 +159,12 @@ class FakeCanary(object):
         if self.ignore:
             return
         del self.disconnectors[marker]
+    def getRemoteTubID(self):
+        return None
+    def getPeer(self):
+        return "<fake>"
 
 
 class LoggingServiceParent(service.MultiService):
     def log(self, *args, **kwargs):
         return log.msg(*args, **kwargs)
-
