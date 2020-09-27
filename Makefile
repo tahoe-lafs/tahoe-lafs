@@ -31,7 +31,7 @@ default:
 
 .PHONY: build
 ## Set up and build for local development
-build: .tox .git/hooks/pre-commit .git/hooks/pre-push
+build: .tox/log/create-venvs.log .git/hooks/pre-commit .git/hooks/pre-push
 
 .PHONY: test
 ## Run all tests and code reports
@@ -240,8 +240,8 @@ upload-tarballs:
 src/allmydata/_version.py:
 	$(MAKE) make-version
 
-.tox: tox.ini setup.py
-	tox --notest -p all
+.tox/log/create-venvs.log: tox.ini setup.py
+	tox --notest -p all | tee -a "$(@)"
 
-$(VCS_HOOKS): .tox .pre-commit-config.yaml
+$(VCS_HOOKS): .tox/log/create-venvs.log .pre-commit-config.yaml
 	"./$(<)/py36/bin/pre-commit" install --hook-type $(@:.git/hooks/%=%)
