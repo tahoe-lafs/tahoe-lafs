@@ -242,3 +242,18 @@ src/allmydata/_version.py:
 
 .tox: tox.ini setup.py
 	tox --notest -p all
+
+
+# BBB: Python 3 porting targets
+
+# Gauge the impact of changes on Python 3 compatibility
+# Compare the output from running all tests under Python 3 before and after changes.
+# Before changes:
+# `$ rm -f .tox/make-test-py3-all-*.log && make .tox/make-test-py3-all-old.log`
+# After changes:
+# `$ make .tox/make-test-py3-all.diff`
+$(foreach side,old new,.tox/make-test-py3-all-$(side).log):
+	(tox --develop -e py36-coverage allmydata || true) | \
+		sed -E 's/\([0-9]+\.[0-9]{3} secs\)/(#.### secs)/' | tee "$(@)"
+.tox/make-test-py3-all.diff: .tox/make-test-py3-all-new.log
+	(diff -u "$(<:%-new.log=%-old.log)" "$(<)" || true) | tee "$(@)"
