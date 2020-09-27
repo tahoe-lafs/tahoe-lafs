@@ -1,3 +1,6 @@
+# BBB: Python 2 compatibility
+from builtins import str
+
 from twisted.trial import unittest
 from twisted.python import filepath
 from twisted.cred import error, credentials
@@ -39,7 +42,7 @@ class AccountFileCheckerKeyTests(unittest.TestCase):
     def setUp(self):
         self.account_file = filepath.FilePath(self.mktemp())
         self.account_file.setContent(DUMMY_ACCOUNTS)
-        abspath = abspath_expanduser_unicode(unicode(self.account_file.path))
+        abspath = abspath_expanduser_unicode(str(self.account_file.path))
         self.checker = auth.AccountFileChecker(None, abspath)
 
     def test_unknown_user(self):

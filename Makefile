@@ -257,3 +257,9 @@ $(foreach side,old new,.tox/make-test-py3-all-$(side).log):
 		sed -E 's/\([0-9]+\.[0-9]{3} secs\)/(#.### secs)/' | tee "$(@)"
 .tox/make-test-py3-all.diff: .tox/make-test-py3-all-new.log
 	(diff -u "$(<:%-new.log=%-old.log)" "$(<)" || true) | tee "$(@)"
+
+# Locate modules that are candidates for naively converting `unicode` -> `str`.
+# List all Python source files that reference `unicode` but don't reference `str`
+.tox/py3-unicode-no-str.ls:
+	find src -type f -iname '*.py' -exec grep -l -E '\Wunicode\W' '{}' ';' | \
+		xargs grep -L '\Wstr\W' | xargs ls -ld | tee "$(@)"

@@ -1,7 +1,12 @@
 from __future__ import print_function
 
 import os
+
+# BBB: Python 2 compatibility
+from builtins import str
+
 from twisted.python import usage
+
 from allmydata.scripts.common import NoDefaultBasedirOptions
 from allmydata.scripts.create_node import write_tac
 from allmydata.util.assertutil import precondition
@@ -62,7 +67,7 @@ def create_stats_gatherer(config):
     err = config.stderr
     basedir = config['basedir']
     # This should always be called with an absolute Unicode basedir.
-    precondition(isinstance(basedir, unicode), basedir)
+    precondition(isinstance(basedir, str), basedir)
 
     if os.path.exists(basedir):
         if listdir_unicode(basedir):
