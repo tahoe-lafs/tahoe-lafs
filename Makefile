@@ -35,14 +35,14 @@ install-vcs-hooks: .git/hooks/pre-commit .git/hooks/pre-push
 
 .PHONY: test
 ## Run all tests and code reports
-test: .tox/log/create-venvs.log
+test: .tox/create-venvs.log
 # Run codechecks first since it takes the least time to report issues early.
 	tox --develop -e codechecks
 # Run all the test environments in parallel to reduce run-time
 	tox --develop -p auto -e 'py27,py36,pypy27'
 .PHONY: test-py3-all
 ## Run all tests under Python 3
-test-py3-all: .tox/log/create-venvs.log
+test-py3-all: .tox/create-venvs.log
 	tox --develop -e py36 allmydata
 
 # This is necessary only if you want to automatically produce a new
@@ -240,8 +240,8 @@ upload-tarballs:
 src/allmydata/_version.py:
 	$(MAKE) make-version
 
-.tox/log/create-venvs.log: tox.ini setup.py
+.tox/create-venvs.log: tox.ini setup.py
 	tox --notest -p all | tee -a "$(@)"
 
-$(VCS_HOOKS): .tox/log/create-venvs.log .pre-commit-config.yaml
+$(VCS_HOOKS): .tox/create-venvs.log .pre-commit-config.yaml
 	"./$(<)/py36/bin/pre-commit" install --hook-type $(@:.git/hooks/%=%)
