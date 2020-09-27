@@ -31,9 +31,7 @@ default:
 
 .PHONY: build
 ## Set up and build for local development
-# To also run checks on every commit:
-# $ make .git/hooks/pre-commit
-build: .tox .git/hooks/pre-push
+build: .tox .git/hooks/pre-commit .git/hooks/pre-push
 
 .PHONY: test
 ## Run all tests and code reports
