@@ -17,8 +17,10 @@ PYTHON=python
 export PYTHON
 PYFLAKES=flake8
 export PYFLAKES
+VIRTUAL_ENV=./.tox/py27
 SOURCES=src/allmydata static misc setup.py
 APPNAME=tahoe-lafs
+TEST_SUITE=allmydata
 
 
 # Top-level, phony targets
@@ -31,6 +33,17 @@ default:
 ## Run all tests and code reports
 test: .tox
 	tox -p auto
+.PHONY: test-venv-coverage
+## Run all tests with coverage collection and reporting.
+test-venv-coverage:
+# Special handling for reporting coverage even when the test run fails
+	test_exit=
+	$(VIRTUAL_ENV)/bin/coverage run -m twisted.trial --rterrors --reporter=timing \
+		$(TEST_SUITE) || test_exit="$$?"
+	$(VIRTUAL_ENV)/bin/coverage combine
+	$(VIRTUAL_ENV)/bin/coverage xml || true
+	$(VIRTUAL_ENV)/bin/coverage report
+	if [ ! -z "$$test_exit" ]; then exit "$$test_exit"; fi
 
 # This is necessary only if you want to automatically produce a new
 # _version.py file from the current git history (without doing a build).
