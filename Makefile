@@ -29,20 +29,20 @@ APPNAME=tahoe-lafs
 default:
 	@echo "no default target"
 
-.PHONY: build
-## Set up and build for local development
-build: .tox/log/create-venvs.log .git/hooks/pre-commit .git/hooks/pre-push
+.PHONY: install-vcs-hooks
+## Install the VCS hooks to run linters on commit and all tests on push
+install-vcs-hooks: .git/hooks/pre-commit .git/hooks/pre-push
 
 .PHONY: test
 ## Run all tests and code reports
-test: build
+test: .tox/log/create-venvs.log
 # Run codechecks first since it takes the least time to report issues early.
 	tox --develop -e codechecks
 # Run all the test environments in parallel to reduce run-time
 	tox --develop -p auto -e 'py27,py36,pypy27'
 .PHONY: test-py3-all
 ## Run all tests under Python 3
-test-py3-all: build
+test-py3-all: .tox/log/create-venvs.log
 	tox --develop -e py36 allmydata
 
 # This is necessary only if you want to automatically produce a new
