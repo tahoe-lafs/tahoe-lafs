@@ -180,17 +180,6 @@ class HookMixin(object):
         log.msg(msg, level=log.NOISY)
 
 
-def for_items(cb, mapping):
-    """
-    For each (key, value) pair in a mapping, I add a callback to cb(None, key, value)
-    to a Deferred that fires immediately. I return that Deferred.
-    """
-    d = defer.succeed(None)
-    for k, v in mapping.items():
-        d.addCallback(lambda ign, k=k, v=v: cb(None, k, v))
-    return d
-
-
 class WaitForDelayedCallsMixin(PollMixin):
     def _delayed_calls_done(self):
         # We're done when the only remaining DelayedCalls fire after threshold.

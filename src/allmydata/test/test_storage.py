@@ -547,7 +547,7 @@ class Server(unittest.TestCase):
         already,writers = self.allocate(ss, b"disconnect", [0,1,2], 75, canary)
         self.failUnlessEqual(already, set())
         self.failUnlessEqual(set(writers.keys()), set([0,1,2]))
-        for (f,args,kwargs) in canary.disconnectors.values():
+        for (f,args,kwargs) in list(canary.disconnectors.values()):
             f(*args, **kwargs)
         del already
         del writers
