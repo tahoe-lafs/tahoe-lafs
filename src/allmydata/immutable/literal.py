@@ -2,7 +2,6 @@ from io import BytesIO
 
 from zope.interface import implementer
 from twisted.internet import defer
-from twisted.internet.interfaces import IPushProducer
 from twisted.protocols import basic
 from allmydata.interfaces import IImmutableFileNode, ICheckable
 from allmydata.uri import LiteralFileURI
@@ -43,19 +42,6 @@ class _ImmutableFileNodeBase(object):
             return self.u.__eq__(other.u)
         else:
             return True
-
-
-@implementer(IPushProducer)
-class LiteralProducer(object):
-
-    def pauseProducing(self):
-        pass
-
-    def resumeProducing(self):
-        pass
-
-    def stopProducing(self):
-        pass
 
 
 class LiteralFileNode(_ImmutableFileNodeBase):
