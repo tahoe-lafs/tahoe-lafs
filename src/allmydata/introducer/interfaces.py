@@ -1,3 +1,16 @@
+"""
+Ported to Python 3.
+"""
+
+from __future__ import unicode_literals
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
+from future.utils import PY2, native_str
+if PY2:
+    # Omitted types (bytes etc.) so future variants don't confuse Foolscap.
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, object, range, max, min  # noqa: F401
 
 from zope.interface import Interface
 from foolscap.api import StringConstraint, SetOf, DictOf, Any, \
@@ -11,8 +24,8 @@ FURL = StringConstraint(1000)
 #     "app-versions", "my-version", "oldest-supported", and "service-name".
 #     Plus service-specific keys like "anonymous-storage-FURL" and
 #     "permutation-seed-base32" (both for service="storage").
-# * sig_vs (str): "v0-"+base32(signature(msg))
-# * claimed_key_vs (str): "v0-"+base32(pubkey)
+# * sig_vs (bytes): "v0-"+base32(signature(msg))
+# * claimed_key_vs (bytes): "v0-"+base32(pubkey)
 
 # (nickname, my_version, oldest_supported) refer to the client as a whole.
 # The my_version/oldest_supported strings can be parsed by an
@@ -28,26 +41,26 @@ FURL = StringConstraint(1000)
 Announcement_v2 = Any()
 
 class RIIntroducerSubscriberClient_v2(RemoteInterface):
-    __remote_name__ = "RIIntroducerSubscriberClient_v2.tahoe.allmydata.com"
+    __remote_name__ = native_str("RIIntroducerSubscriberClient_v2.tahoe.allmydata.com")
 
     def announce_v2(announcements=SetOf(Announcement_v2)):
         """I accept announcements from the publisher."""
         return None
 
-SubscriberInfo = DictOf(str, Any())
+SubscriberInfo = DictOf(bytes, Any())
 
 class RIIntroducerPublisherAndSubscriberService_v2(RemoteInterface):
     """To publish a service to the world, connect to me and give me your
     announcement message. I will deliver a copy to all connected subscribers.
     To hear about services, connect to me and subscribe to a specific
     service_name."""
-    __remote_name__ = "RIIntroducerPublisherAndSubscriberService_v2.tahoe.allmydata.com"
+    __remote_name__ = native_str("RIIntroducerPublisherAndSubscriberService_v2.tahoe.allmydata.com")
     def get_version():
-        return DictOf(str, Any())
+        return DictOf(bytes, Any())
     def publish_v2(announcement=Announcement_v2, canary=Referenceable):
         return None
     def subscribe_v2(subscriber=RIIntroducerSubscriberClient_v2,
-                     service_name=str, subscriber_info=SubscriberInfo):
+                     service_name=bytes, subscriber_info=SubscriberInfo):
         """Give me a subscriber reference, and I will call its announce_v2()
         method with any announcements that match the desired service name. I
         will ignore duplicate subscriptions. The subscriber_info dictionary
@@ -93,11 +106,11 @@ class IIntroducerClient(Interface):
          version: 0
          nickname: unicode
          app-versions: {}
-         my-version: str
-         oldest-supported: str
+         my-version: bytes
+         oldest-supported: bytes
 
-         service-name: str('storage')
-         anonymous-storage-FURL: str(furl)
+         service-name: bytes('storage')
+         anonymous-storage-FURL: bytes(furl)
 
         Note that app-version will be an empty dictionary if either the
         publishing client or the Introducer are running older code.
