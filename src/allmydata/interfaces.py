@@ -1231,7 +1231,7 @@ class IMutableFileNode(IFileNode):
         the old contents), a 'first_time' boolean, and a servermap. As with
         download_best_version(), the old contents will be from the best
         recoverable version, but the modifier can use the servermap to make
-1        other decisions (such as refusing to apply the delta if there are
+        other decisions (such as refusing to apply the delta if there are
         multiple parallel versions, or if there is evidence of a newer
         unrecoverable version). 'first_time' will be True the first time the
         modifier is called, and False on any subsequent calls.
