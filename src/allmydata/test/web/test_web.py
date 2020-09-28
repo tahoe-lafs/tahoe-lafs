@@ -772,14 +772,16 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
 
     def test_frame_options(self):
         """
-        All pages deny the ability to be loaded in frames.
+        Pages deny the ability to be loaded in frames.
         """
+        # It should be all pages but we only demonstrate it for / with this test.
         return self._assertResponseHeaders(b"X-Frame-Options", [b"DENY"])
 
     def test_referrer_policy(self):
         """
-        All pages set a **no-referrer** policy.
+        Pages set a **no-referrer** policy.
         """
+        # It should be all pages but we only demonstrate it for / with this test.
         return self._assertResponseHeaders(b"Referrer-Policy", [b"no-referrer"])
 
     def test_welcome_json(self):
