@@ -781,7 +781,7 @@ def create_mutable_filenode(contents, mdmf=False, all_contents=None):
     return filenode
 
 
-TEST_DATA="\x02"*(Uploader.URI_LIT_SIZE_THRESHOLD+1)
+TEST_DATA=b"\x02"*(Uploader.URI_LIT_SIZE_THRESHOLD+1)
 
 
 class WebErrorMixin(object):
@@ -958,12 +958,12 @@ def _corrupt_offset_of_block_hashes_to_truncate_crypttext_hashes(data, debug=Fal
     assert sharevernum in (1, 2), "This test is designed to corrupt immutable shares of v1 or v2 in specific ways."
     if sharevernum == 1:
         curval = struct.unpack(">L", data[0x0c+0x18:0x0c+0x18+4])[0]
-        newval = random.randrange(0, max(1, (curval/hashutil.CRYPTO_VAL_SIZE)/2))*hashutil.CRYPTO_VAL_SIZE
+        newval = random.randrange(0, max(1, (curval//hashutil.CRYPTO_VAL_SIZE)//2))*hashutil.CRYPTO_VAL_SIZE
         newvalstr = struct.pack(">L", newval)
         return data[:0x0c+0x18]+newvalstr+data[0x0c+0x18+4:]
     else:
         curval = struct.unpack(">Q", data[0x0c+0x2c:0x0c+0x2c+8])[0]
-        newval = random.randrange(0, max(1, (curval/hashutil.CRYPTO_VAL_SIZE)/2))*hashutil.CRYPTO_VAL_SIZE
+        newval = random.randrange(0, max(1, (curval//hashutil.CRYPTO_VAL_SIZE)//2))*hashutil.CRYPTO_VAL_SIZE
         newvalstr = struct.pack(">Q", newval)
         return data[:0x0c+0x2c]+newvalstr+data[0x0c+0x2c+8:]
 

@@ -8,12 +8,10 @@ from twisted.internet import reactor, defer
 from twisted.trial import unittest
 
 from ..util.assertutil import precondition
+from ..scripts import runner
 from allmydata.util.encodingutil import get_io_encoding
-from future.utils import PY2
-if PY2: # XXX this is a hack that makes some tests pass on Python3, remove
-        # in the future
-    from ..scripts import runner
 # Imported for backwards compatibility:
+from future.utils import bord, bchr, binary_type
 from .common_py3 import (
     SignalMixin, skip_if_cannot_represent_filename, ReallyEqualMixin, ShouldFailMixin
 )
@@ -57,9 +55,10 @@ class DevNullDictionary(dict):
         return
 
 def insecurerandstr(n):
-    return ''.join(map(chr, map(randrange, [0]*n, [256]*n)))
+    return b''.join(map(bchr, map(randrange, [0]*n, [256]*n)))
 
 def flip_bit(good, which):
+    # TODO Probs need to update with bchr/bord as with flip_one_bit, below.
     # flip the low-order bit of good[which]
     if which == -1:
         pieces = good[:which], good[-1:], ""
@@ -70,10 +69,11 @@ def flip_bit(good, which):
 def flip_one_bit(s, offset=0, size=None):
     """ flip one random bit of the string s, in a byte greater than or equal to offset and less
     than offset+size. """
+    precondition(isinstance(s, binary_type))
     if size is None:
         size=len(s)-offset
     i = randrange(offset, offset+size)
-    result = s[:i] + chr(ord(s[i])^(0x01<<randrange(0, 8))) + s[i+1:]
+    result = s[:i] + bchr(bord(s[i])^(0x01<<randrange(0, 8))) + s[i+1:]
     assert result != s, "Internal error -- flip_one_bit() produced the same string as its input: %s == %s" % (result, s)
     return result
 
