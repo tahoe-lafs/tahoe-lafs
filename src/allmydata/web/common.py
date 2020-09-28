@@ -304,7 +304,7 @@ def humanize_exception(exc):
         return (exc.text, exc.code)
     if isinstance(exc, FileTooLargeError):
         return ("FileTooLargeError: %s" % (exc,), http.REQUEST_ENTITY_TOO_LARGE)
-    return (str(exc), None)
+    return (str(exc), http.BAD_REQUEST)
 
 
 def humanize_failure(f):
