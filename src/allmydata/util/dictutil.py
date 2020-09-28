@@ -24,7 +24,7 @@ class DictOfSets(dict):
             self[key] = set([value])
 
     def update(self, otherdictofsets):
-        for key, values in otherdictofsets.items():
+        for key, values in list(otherdictofsets.items()):
             if key in self:
                 self[key].update(values)
             else:
