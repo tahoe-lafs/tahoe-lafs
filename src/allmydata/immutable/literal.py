@@ -32,16 +32,15 @@ class _ImmutableFileNodeBase(object):
 
     def __hash__(self):
         return self.u.__hash__()
+
     def __eq__(self, other):
         if isinstance(other, _ImmutableFileNodeBase):
-            return self.u.__eq__(other.u)
+            return self.u == other.u
         else:
             return False
+
     def __ne__(self, other):
-        if isinstance(other, _ImmutableFileNodeBase):
-            return self.u.__eq__(other.u)
-        else:
-            return True
+        return not self == other
 
 
 class LiteralFileNode(_ImmutableFileNodeBase):
