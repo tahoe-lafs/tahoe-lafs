@@ -2,6 +2,8 @@
 Interfaces for Tahoe-LAFS.
 
 Ported to Python 3.
+
+Note that for RemoteInterfaces, the __remote_name__ needs to be a native string because of https://github.com/warner/foolscap/blob/43f4485a42c9c28e2c79d655b3a9e24d4e6360ca/src/foolscap/remoteinterface.py#L67
 """
 from __future__ import absolute_import
 from __future__ import division
