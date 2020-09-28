@@ -203,7 +203,7 @@ class CHKUploadHelper(Referenceable, upload.CHKUploader):
     def _finished(self, ur):
         assert interfaces.IUploadResults.providedBy(ur), ur
         vcapstr = ur.get_verifycapstr()
-        precondition(isinstance(vcapstr, str), vcapstr)
+        precondition(isinstance(vcapstr, bytes), vcapstr)
         v = uri.from_string(vcapstr)
         f_times = self._fetcher.get_times()
 
@@ -492,9 +492,9 @@ class Helper(Referenceable):
     # helper at random.
 
     name = "helper"
-    VERSION = { "http://allmydata.org/tahoe/protocols/helper/v1" :
+    VERSION = { b"http://allmydata.org/tahoe/protocols/helper/v1" :
                  { },
-                "application-version": str(allmydata.__full_version__),
+                b"application-version": allmydata.__full_version__.encode("utf-8"),
                 }
     MAX_UPLOAD_STATUSES = 10
 
