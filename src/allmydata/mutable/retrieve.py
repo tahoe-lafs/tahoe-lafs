@@ -39,7 +39,7 @@ class RetrieveStatus(object):
         self.size = None
         self.status = "Not started"
         self.progress = 0.0
-        self.counter = self.statusid_counter.next()
+        self.counter = next(self.statusid_counter)
         self.started = time.time()
 
     def get_started(self):
@@ -321,7 +321,7 @@ class Retrieve(object):
         self._active_readers = [] # list of active readers for this dl.
         self._block_hash_trees = {} # shnum => hashtree
 
-        for i in xrange(self._total_shares):
+        for i in range(self._total_shares):
             # So we don't have to do this later.
             self._block_hash_trees[i] = hashtree.IncompleteHashTree(self._num_segments)
 
@@ -743,7 +743,7 @@ class Retrieve(object):
 
         block_and_salt, blockhashes, sharehashes = results
         block, salt = block_and_salt
-        _assert(type(block) is str, (block, salt))
+        _assert(isinstance(block, bytes), (block, salt))
 
         blockhashes = dict(enumerate(blockhashes))
         self.log("the reader gave me the following blockhashes: %s" % \
@@ -847,7 +847,7 @@ class Retrieve(object):
         # d.items()[0] is like (shnum, (block, salt))
         # d.items()[0][1] is like (block, salt)
         # d.items()[0][1][1] is the salt.
-        salt = blocks_and_salts.items()[0][1][1]
+        salt = list(blocks_and_salts.items())[0][1][1]
         # Next, extract just the blocks from the dict. We'll use the
         # salt in the next step.
         share_and_shareids = [(k, v[0]) for k, v in blocks_and_salts.items()]
@@ -870,7 +870,7 @@ class Retrieve(object):
         else:
             d = defer.maybeDeferred(self._segment_decoder.decode, shares, shareids)
         def _process(buffers):
-            segment = "".join(buffers)
+            segment = b"".join(buffers)
             self.log(format="now decoding segment %(segnum)s of %(numsegs)s",
                      segnum=segnum,
                      numsegs=self._num_segments,
