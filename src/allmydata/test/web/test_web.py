@@ -1,6 +1,6 @@
 from __future__ import print_function
 
-import os.path, re, urllib, time, cgi
+import os.path, re, urllib, time
 import json
 import treq
 
@@ -13,16 +13,13 @@ from twisted.internet.task import Clock
 from twisted.web import client, error, http
 from twisted.python import failure, log
 
-from nevow.util import escapeToXML
-from nevow.loaders import stan
-
 from allmydata import interfaces, uri, webish
 from allmydata.storage_client import StorageFarmBroker, StubServer
 from allmydata.immutable import upload
 from allmydata.immutable.downloader.status import DownloadStatus
 from allmydata.dirnode import DirectoryNode
 from allmydata.nodemaker import NodeMaker
-from allmydata.web.common import WebError, MultiFormatPage
+from allmydata.web.common import MultiFormatResource
 from allmydata.util import fileutil, base32, hashutil
 from allmydata.util.consumer import download_to_data
 from allmydata.util.encodingutil import to_bytes
@@ -375,9 +372,6 @@ class WebMixin(TimezoneMixin):
             self._htmlname_unicode = u"<&weirdly'named\"file>>>_<iframe />.txt"
             self._htmlname_raw = self._htmlname_unicode.encode('utf-8')
             self._htmlname_urlencoded = urllib.quote(self._htmlname_raw, '')
-            self._htmlname_escaped = escapeToXML(self._htmlname_raw)
-            self._htmlname_escaped_attr = cgi.escape(self._htmlname_raw, quote=True)
-            self._htmlname_escaped_double = escapeToXML(cgi.escape(self._htmlname_raw, quote=True))
             self.HTMLNAME_CONTENTS, n, self._htmlname_txt_uri = self.makefile(0)
             foo.set_uri(self._htmlname_unicode, self._htmlname_txt_uri, self._htmlname_txt_uri)
 
@@ -655,33 +649,35 @@ class WebMixin(TimezoneMixin):
                       (which, res))
 
 
-
-class MultiFormatPageTests(TrialTestCase):
+class MultiFormatResourceTests(TrialTestCase):
     """
-    Tests for ``MultiFormatPage``.
+    Tests for ``MultiFormatResource``.
     """
     def render(self, resource, **queryargs):
         return self.successResultOf(render(resource, queryargs))
 
     def resource(self):
         """
-        Create and return an instance of a ``MultiFormatPage`` subclass with two
-        formats: ``a`` and ``b``.
+        Create and return an instance of a ``MultiFormatResource`` subclass
+        with a default HTML format, and two custom formats: ``a`` and ``b``.
         """
-        class Content(MultiFormatPage):
-            docFactory = stan("doc factory")
+        class Content(MultiFormatResource):
+
+            def render_HTML(self, req):
+                return "html"
 
             def render_A(self, req):
                 return "a"
 
             def render_B(self, req):
                 return "b"
+
         return Content()
 
 
     def test_select_format(self):
         """
-        The ``formatArgument`` attribute of a ``MultiFormatPage`` subclass
+        The ``formatArgument`` attribute of a ``MultiFormatResource`` subclass
         identifies the query argument which selects the result format.
         """
         resource = self.resource()
@@ -691,8 +687,8 @@ class MultiFormatPageTests(TrialTestCase):
 
     def test_default_format_argument(self):
         """
-        If a ``MultiFormatPage`` subclass does not set ``formatArgument`` then the
-        ``t`` argument is used.
+        If a ``MultiFormatResource`` subclass does not set ``formatArgument``
+        then the ``t`` argument is used.
         """
         resource = self.resource()
         self.assertEqual("a", self.render(resource, t=["a"]))
@@ -701,16 +697,15 @@ class MultiFormatPageTests(TrialTestCase):
     def test_no_format(self):
         """
         If no value is given for the format argument and no default format has
-        been defined, the base Nevow rendering behavior is used
-        (``renderHTTP``).
+        been defined, the base rendering behavior is used (``render_HTML``).
         """
         resource = self.resource()
-        self.assertEqual("doc factory", self.render(resource))
+        self.assertEqual("html", self.render(resource))
 
 
     def test_default_format(self):
         """
-        If no value is given for the format argument and the ``MultiFormatPage``
+        If no value is given for the format argument and the ``MultiFormatResource``
         subclass defines a ``formatDefault``, that value is used as the format
         to render.
         """
@@ -722,11 +717,11 @@ class MultiFormatPageTests(TrialTestCase):
     def test_explicit_none_format_renderer(self):
         """
         If a format is selected which has a renderer set to ``None``, the base
-        Nevow rendering behavior is used (``renderHTTP``).
+        rendering behavior is used (``render_HTML``).
         """
         resource = self.resource()
         resource.render_FOO = None
-        self.assertEqual("doc factory", self.render(resource, t=["foo"]))
+        self.assertEqual("html", self.render(resource, t=["foo"]))
 
 
     def test_unknown_format(self):
@@ -735,12 +730,13 @@ class MultiFormatPageTests(TrialTestCase):
         returned.
         """
         resource = self.resource()
+        response_body = self.render(resource, t=["foo"])
         self.assertIn(
-            "<title>Exception</title>",
-            self.render(resource, t=["foo"]),
+            "<title>400 - Bad Format</title>", response_body,
         )
-        self.flushLoggedErrors(WebError)
-
+        self.assertIn(
+            "Unknown t value: 'foo'", response_body,
+        )
 
 
 class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixin, TrialTestCase):
@@ -1977,15 +1973,6 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
                 for a in soup.find_all(u"a", {u"rel": u"noreferrer"})
             )
         )
-
-        # XXX leaving this as-is, but consider using beautfulsoup here too?
-        # Make sure that Nevow escaping actually works by checking for unsafe characters
-        # and that '&' is escaped.
-        for entity in '<>':
-            self.failUnlessIn(entity, self._htmlname_raw)
-            self.failIfIn(entity, self._htmlname_escaped)
-        self.failUnlessIn('&', re.sub(r'&(amp|lt|gt|quot|apos);', '', self._htmlname_raw))
-        self.failIfIn('&', re.sub(r'&(amp|lt|gt|quot|apos);', '', self._htmlname_escaped))
 
     @inlineCallbacks
     def test_GET_root_html(self):
