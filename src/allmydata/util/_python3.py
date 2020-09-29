@@ -34,6 +34,8 @@ PORTED_MODULES = [
     "allmydata.hashtree",
     "allmydata.immutable.happiness_upload",
     "allmydata.immutable.downloader",
+    "allmydata.immutable.downloader.common",
+    "allmydata.immutable.downloader.node",
     "allmydata.immutable.downloader.status",
     "allmydata.interfaces",
     "allmydata.introducer.interfaces",
