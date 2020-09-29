@@ -33,6 +33,7 @@ PORTED_MODULES = [
     "allmydata.crypto.util",
     "allmydata.hashtree",
     "allmydata.immutable.happiness_upload",
+    "allmydata.immutable.downloader.share",
     "allmydata.interfaces",
     "allmydata.introducer.interfaces",
     "allmydata.monitor",
