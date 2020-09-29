@@ -22,7 +22,7 @@ from allmydata.immutable import upload
 from allmydata.immutable.downloader.status import DownloadStatus
 from allmydata.dirnode import DirectoryNode
 from allmydata.nodemaker import NodeMaker
-from allmydata.web.common import WebError, MultiFormatPage
+from allmydata.web.common import WebError
 from allmydata.util import fileutil, base32, hashutil
 from allmydata.util.consumer import download_to_data
 from allmydata.util.encodingutil import to_bytes
@@ -653,94 +653,6 @@ class WebMixin(TimezoneMixin):
         else:
             self.fail("%s was supposed to Error(302), not get '%s'" %
                       (which, res))
-
-
-
-class MultiFormatPageTests(TrialTestCase):
-    """
-    Tests for ``MultiFormatPage``.
-    """
-    def render(self, resource, **queryargs):
-        return self.successResultOf(render(resource, queryargs))
-
-    def resource(self):
-        """
-        Create and return an instance of a ``MultiFormatPage`` subclass with two
-        formats: ``a`` and ``b``.
-        """
-        class Content(MultiFormatPage):
-            docFactory = stan("doc factory")
-
-            def render_A(self, req):
-                return "a"
-
-            def render_B(self, req):
-                return "b"
-        return Content()
-
-
-    def test_select_format(self):
-        """
-        The ``formatArgument`` attribute of a ``MultiFormatPage`` subclass
-        identifies the query argument which selects the result format.
-        """
-        resource = self.resource()
-        resource.formatArgument = "foo"
-        self.assertEqual("a", self.render(resource, foo=["a"]))
-
-
-    def test_default_format_argument(self):
-        """
-        If a ``MultiFormatPage`` subclass does not set ``formatArgument`` then the
-        ``t`` argument is used.
-        """
-        resource = self.resource()
-        self.assertEqual("a", self.render(resource, t=["a"]))
-
-
-    def test_no_format(self):
-        """
-        If no value is given for the format argument and no default format has
-        been defined, the base Nevow rendering behavior is used
-        (``renderHTTP``).
-        """
-        resource = self.resource()
-        self.assertEqual("doc factory", self.render(resource))
-
-
-    def test_default_format(self):
-        """
-        If no value is given for the format argument and the ``MultiFormatPage``
-        subclass defines a ``formatDefault``, that value is used as the format
-        to render.
-        """
-        resource = self.resource()
-        resource.formatDefault = "b"
-        self.assertEqual("b", self.render(resource))
-
-
-    def test_explicit_none_format_renderer(self):
-        """
-        If a format is selected which has a renderer set to ``None``, the base
-        Nevow rendering behavior is used (``renderHTTP``).
-        """
-        resource = self.resource()
-        resource.render_FOO = None
-        self.assertEqual("doc factory", self.render(resource, t=["foo"]))
-
-
-    def test_unknown_format(self):
-        """
-        If a format is selected for which there is no renderer, an error is
-        returned.
-        """
-        resource = self.resource()
-        self.assertIn(
-            "<title>Exception</title>",
-            self.render(resource, t=["foo"]),
-        )
-        self.flushLoggedErrors(WebError)
-
 
 
 class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixin, TrialTestCase):
