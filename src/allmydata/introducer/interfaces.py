@@ -112,6 +112,11 @@ class IIntroducerClient(Interface):
          service-name: bytes('storage')
          anonymous-storage-FURL: bytes(furl)
 
+        In order to be JSON-serializable, all byte strings are assumed to be
+        ASCII-encoded, and the receiver can therefore decode them into Unicode
+        strings if they wish. Representation of these fields elsewhere in Tahoe
+        may differ, e.g. by being unicode strings.
+
         Note that app-version will be an empty dictionary if either the
         publishing client or the Introducer are running older code.
         """
