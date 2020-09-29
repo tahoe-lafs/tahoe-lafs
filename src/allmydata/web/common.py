@@ -10,7 +10,7 @@ from twisted.web import (
     template,
 )
 from twisted.python import log
-from nevow import loaders, appserver
+from nevow import appserver
 from nevow.inevow import IRequest
 from allmydata import blacklist
 from allmydata.interfaces import (
