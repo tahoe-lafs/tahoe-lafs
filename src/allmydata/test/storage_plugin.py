@@ -3,6 +3,8 @@ A storage server plugin the test suite can use to validate the
 functionality.
 """
 
+from future.utils import native_str
+
 from json import (
     dumps,
 )
@@ -36,7 +38,7 @@ from allmydata.client import (
 
 
 class RIDummy(RemoteInterface):
-    __remote_name__ = "RIDummy.tahoe.allmydata.com"
+    __remote_name__ = native_str("RIDummy.tahoe.allmydata.com")
 
     def just_some_method():
         """
