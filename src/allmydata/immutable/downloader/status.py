@@ -20,8 +20,8 @@ class ReadEvent(object):
         self._ev = ev
         self._ds = ds
 
-    def update(self, bytes, decrypttime, pausetime):
-        self._ev["bytes_returned"] += bytes
+    def update(self, bytes_returned, decrypttime, pausetime):
+        self._ev["bytes_returned"] += bytes_returned
         self._ev["decrypt_time"] += decrypttime
         self._ev["paused_time"] += pausetime
 
