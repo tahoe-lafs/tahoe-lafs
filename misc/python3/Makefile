@@ -19,6 +19,13 @@ MAKEFLAGS += --no-builtin-rules
 default:
 	@echo "no default target"
 
+.PHONY: test-py3-all-before
+## Log the output of running all tests under Python 3 before changes
+test-py3-all-before: ../../.tox/make-test-py3-all-old.log
+.PHONY: test-py3-all-diff
+## Compare the output of running all tests under Python 3 after changes
+test-py3-all-diff: ../../.tox/make-test-py3-all.diff
+
 
 # Real targets
 
