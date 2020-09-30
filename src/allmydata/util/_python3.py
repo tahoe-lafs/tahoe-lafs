@@ -34,6 +34,7 @@ PORTED_MODULES = [
     "allmydata.hashtree",
     "allmydata.immutable.happiness_upload",
     "allmydata.interfaces",
+    "allmydata.introducer.interfaces",
     "allmydata.monitor",
     "allmydata.storage.common",
     "allmydata.storage.crawler",
