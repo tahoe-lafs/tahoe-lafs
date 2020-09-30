@@ -244,4 +244,4 @@ src/allmydata/_version.py:
 	tox --notest -p all | tee -a "$(@)"
 
 $(VCS_HOOKS): .tox/create-venvs.log .pre-commit-config.yaml
-	"./$(<)/py36/bin/pre-commit" install --hook-type $(@:.git/hooks/%=%)
+	"./$(dir $(<))py36/bin/pre-commit" install --hook-type $(@:.git/hooks/%=%)
