@@ -13,6 +13,8 @@ MAKEFLAGS += --warn-undefined-variables
 MAKEFLAGS += --no-builtin-rules
 
 # Local target variables
+VCS_HOOK_SAMPLES=$(wildcard .git/hooks/*.sample)
+VCS_HOOKS=$(VCS_HOOK_SAMPLES:%.sample=%)
 PYTHON=python
 export PYTHON
 PYFLAKES=flake8
@@ -27,10 +29,26 @@ APPNAME=tahoe-lafs
 default:
 	@echo "no default target"
 
+.PHONY: install-vcs-hooks
+## Install the VCS hooks to run linters on commit and all tests on push
+install-vcs-hooks: .git/hooks/pre-commit .git/hooks/pre-push
+.PHONY: uninstall-vcs-hooks
+## Remove the VCS hooks
+uninstall-vcs-hooks: .tox/create-venvs.log
+	"./$(dir $(<))py36/bin/pre-commit" uninstall || true
+	"./$(dir $(<))py36/bin/pre-commit" uninstall -t pre-push || true
+
 .PHONY: test
 ## Run all tests and code reports
-test: .tox
-	tox -p auto
+test: .tox/create-venvs.log
+# Run codechecks first since it takes the least time to report issues early.
+	tox --develop -e codechecks
+# Run all the test environments in parallel to reduce run-time
+	tox --develop -p auto -e 'py27,py36,pypy27'
+.PHONY: test-py3-all
+## Run all tests under Python 3
+test-py3-all: .tox/create-venvs.log
+	tox --develop -e py36 allmydata
 
 # This is necessary only if you want to automatically produce a new
 # _version.py file from the current git history (without doing a build).
@@ -183,7 +201,7 @@ clean:
 	rm -f *.pkg
 
 .PHONY: distclean
-distclean: clean
+distclean: clean uninstall-vcs-hooks
 	rm -rf src/*.egg-info
 	rm -f src/allmydata/_version.py
 	rm -f src/allmydata/_appname.py
@@ -227,5 +245,8 @@ upload-tarballs:
 src/allmydata/_version.py:
 	$(MAKE) make-version
 
-.tox: tox.ini setup.py
-	tox --notest -p all
+.tox/create-venvs.log: tox.ini setup.py
+	tox --notest -p all | tee -a "$(@)"
+
+$(VCS_HOOKS): .tox/create-venvs.log .pre-commit-config.yaml
+	"./$(dir $(<))py36/bin/pre-commit" install --hook-type $(@:.git/hooks/%=%)

@@ -1,6 +1,15 @@
 repos:
--   repo: https://gitlab.com/pycqa/flake8
-    # TODO: update rev periodically to keep up with tox
-    rev: 3.8.3
+  - repo: local
     hooks:
-    - id: flake8
+    - id: codechecks
+      name: codechecks
+      stages: ["commit"]
+      entry: "tox -e codechecks"
+      language: system
+      pass_filenames: false
+    - id: test
+      name: test
+      stages: ["push"]
+      entry: "make test"
+      language: system
+      pass_filenames: false

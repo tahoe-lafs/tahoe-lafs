@@ -10,3 +10,7 @@ omit =
      */allmydata/_version.py
 parallel = True
 branch = True
+
+[report]
+show_missing = True
+skip_covered = True

@@ -286,7 +286,7 @@ result in a "all tests passed" mesage::
  PASSED (skips=7, expectedFailures=3, successes=1176)
  __________________________ summary ___________________________________
    py27: commands succeeded
-   congratulations :) 
+   congratulations :)
 
 Common Problems
 ===============
