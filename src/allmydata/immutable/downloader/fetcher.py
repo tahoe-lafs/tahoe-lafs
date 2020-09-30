@@ -1,4 +1,15 @@
+"""
+Ported to Python 3.
+"""
+
 from __future__ import print_function
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 from twisted.python.failure import Failure
 from foolscap.api import eventually
@@ -222,7 +233,7 @@ class SegmentFetcher(object):
             # add_shares() or no_more_shares() later.
 
     def _cancel_all_requests(self):
-        for o in self._share_observers.values():
+        for o in list(self._share_observers.values()):
             o.cancel()
         self._share_observers = {}
 
