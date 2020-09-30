@@ -45,6 +45,7 @@ zope.interface-*.egg
 /.tox/
 /docs/_build/
 /coverage.xml
+/.pre-commit-config.local.yaml
 /.hypothesis/
 /eliot.log
 /misc/python3/results.xml
