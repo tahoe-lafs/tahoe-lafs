@@ -81,7 +81,7 @@ class OphandleTable(resource.Resource, service.Service):
 
     def redirect_to(self, req):
         """
-        :param allmydata.webish.MyRequest req:
+        :param twisted.web.iweb.IRequest req:
         """
         ophandle = get_arg(req, "ophandle")
         assert ophandle
