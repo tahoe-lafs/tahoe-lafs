@@ -5,7 +5,11 @@ import hashlib
 import json
 from twisted.internet import defer
 from twisted.python.filepath import FilePath
-from twisted.web.resource import Resource
+from twisted.web.http import NOT_FOUND
+from twisted.web.resource import (
+    ErrorPage,
+    Resource,
+)
 from twisted.web.template import (
     Element,
     XMLFile,
@@ -1320,6 +1324,12 @@ class Status(MultiFormatResource):
             for s in h.list_all_retrieve_statuses():
                 if s.get_counter() == count:
                     return RetrieveStatusPage(s)
+
+        return ErrorPage(
+            NOT_FOUND,
+            "Not Found",
+            "Status not found for path {}".format(path),
+        )
 
     def _get_all_statuses(self):
         h = self.history
