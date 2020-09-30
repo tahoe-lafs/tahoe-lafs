@@ -691,11 +691,9 @@ class MultiFormatResourceTests(TrialTestCase):
         # (2) to happen, we will have to update web.common.get_arg()
         # etc first.
         from zope.interface import implementer
-        from nevow.inevow import IRequest
         from twisted.web.server import Request
         from twisted.web.test.requesthelper import DummyChannel
 
-        @implementer(IRequest)
         class FakeRequest(Request):
             def __init__(self, args):
                 Request.__init__(self, DummyChannel())
