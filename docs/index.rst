@@ -39,6 +39,8 @@ Contents:
    write_coordination
    backupdb
 
+   developer-guide
+
    anonymity-configuration
 
    nodekeys

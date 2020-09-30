@@ -1,3 +1,14 @@
+"""
+Ported to Python 3.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 from twisted.trial import unittest
 from allmydata import uri, client
@@ -22,12 +33,12 @@ class FakeClient(object):
         return None
     def get_history(self):
         return None
-    _secret_holder = client.SecretHolder("lease secret", "convergence secret")
+    _secret_holder = client.SecretHolder(b"lease secret", b"convergence secret")
 
 class Node(unittest.TestCase):
     def test_chk_filenode(self):
-        u = uri.CHKFileURI(key="\x00"*16,
-                           uri_extension_hash="\x00"*32,
+        u = uri.CHKFileURI(key=b"\x00"*16,
+                           uri_extension_hash=b"\x00"*32,
                            needed_shares=3,
                            total_shares=10,
                            size=1000)
@@ -59,7 +70,7 @@ class Node(unittest.TestCase):
 
 
     def test_literal_filenode(self):
-        DATA = "I am a short file."
+        DATA = b"I am a short file."
         u = uri.LiteralFileURI(data=DATA)
         fn1 = LiteralFileNode(u)
         fn2 = LiteralFileNode(u)
@@ -114,11 +125,11 @@ class Node(unittest.TestCase):
 
     def test_mutable_filenode(self):
         client = FakeClient()
-        wk = "\x00"*16
+        wk = b"\x00"*16
         rk = hashutil.ssk_readkey_hash(wk)
         si = hashutil.ssk_storage_index_hash(rk)
 
-        u = uri.WriteableSSKFileURI("\x00"*16, "\x00"*32)
+        u = uri.WriteableSSKFileURI(b"\x00"*16, b"\x00"*32)
         n = MutableFileNode(None, None, client.get_encoding_parameters(),
                             None).init_from_cap(u)
 
@@ -173,9 +184,28 @@ class Node(unittest.TestCase):
         self.failUnless(isinstance(v, uri.SSKVerifierURI))
         self.failUnlessEqual(n.get_repair_cap(), n._uri) # TODO: n.get_uri()
 
+    def test_mutable_filenode_equality(self):
+        client = FakeClient()
+        u = uri.WriteableSSKFileURI(b"\x00"*16, b"\x00"*32)
+        n = MutableFileNode(None, None, client.get_encoding_parameters(),
+                            None).init_from_cap(u)
+        u2 = uri.WriteableSSKFileURI(b"\x01"*16, b"\x01"*32)
+        n2 = MutableFileNode(None, None, client.get_encoding_parameters(),
+                             None).init_from_cap(u2)
+        n2b = MutableFileNode(None, None, client.get_encoding_parameters(),
+                              None).init_from_cap(u2)
+        self.assertTrue(n2 == n2b)
+        self.assertFalse(n2 != n2b)
+        self.assertTrue(n2 != n)
+        self.assertTrue(n != n2)
+        self.assertFalse(n == n2)
+        self.assertTrue(n != 3)
+        self.assertFalse(n == 3)
+
+
 class LiteralChecker(unittest.TestCase):
     def test_literal_filenode(self):
-        DATA = "I am a short file."
+        DATA = b"I am a short file."
         u = uri.LiteralFileURI(data=DATA)
         fn1 = LiteralFileNode(u)
 
