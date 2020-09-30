@@ -288,15 +288,6 @@ result in a "all tests passed" mesage::
    py27: commands succeeded
    congratulations :)
 
-You may also install VCS/git hooks to run linters and code checks to catch
-common errors before each commit and to run the full self-test suite to find
-less obvious regressions before each push to a remote.  Not that running the
-full self-test suite takes several minutes to expecting pushing to take some
-time.  If you can't or don't want to wait for the hooks in some cases, use
-the ``--no-verify`` option to ``git commit ...`` or ``$ git push ...``::
-
-  $ make install-vcs-hooks
-
 Common Problems
 ===============
 

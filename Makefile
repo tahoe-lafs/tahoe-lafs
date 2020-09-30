@@ -32,6 +32,11 @@ default:
 .PHONY: install-vcs-hooks
 ## Install the VCS hooks to run linters on commit and all tests on push
 install-vcs-hooks: .git/hooks/pre-commit .git/hooks/pre-push
+.PHONY: uninstall-vcs-hooks
+## Remove the VCS hooks
+uninstall-vcs-hooks: .tox/create-venvs.log
+	"./$(dir $(<))py36/bin/pre-commit" uninstall || true
+	"./$(dir $(<))py36/bin/pre-commit" uninstall -t pre-push || true
 
 .PHONY: test
 ## Run all tests and code reports
@@ -196,7 +201,7 @@ clean:
 	rm -f *.pkg
 
 .PHONY: distclean
-distclean: clean
+distclean: clean uninstall-vcs-hooks
 	rm -rf src/*.egg-info
 	rm -f src/allmydata/_version.py
 	rm -f src/allmydata/_appname.py
