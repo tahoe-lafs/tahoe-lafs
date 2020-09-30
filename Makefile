@@ -253,7 +253,9 @@ src/allmydata/_version.py:
 # After changes:
 # `$ make .tox/make-test-py3-all.diff`
 $(foreach side,old new,.tox/make-test-py3-all-$(side).log):
-	(tox --develop -e py36-coverage allmydata || true) | \
+	tox --develop --notest -e py36-coverage
+	(make VIRTUAL_ENV=.tox/py36-coverage TEST_SUITE=allmydata test-venv-coverage \
+		|| true) | \
 		sed -E 's/\([0-9]+\.[0-9]{3} secs\)/(#.### secs)/' | tee "$(@)"
 .tox/make-test-py3-all.diff: .tox/make-test-py3-all-new.log
 	(diff -u "$(<:%-new.log=%-old.log)" "$(<)" || true) | tee "$(@)"
