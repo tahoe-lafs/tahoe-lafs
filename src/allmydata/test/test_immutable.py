@@ -26,6 +26,7 @@ from allmydata.util.consumer import download_to_data
 from allmydata.interfaces import NotEnoughSharesError
 from allmydata.immutable.upload import Data
 from allmydata.immutable.downloader import finder
+from allmydata.immutable.literal import LiteralFileNode
 
 from .no_network import (
     NoNetworkServer,
@@ -338,6 +339,24 @@ class Test(GridTestMixin, unittest.TestCase, common.ShouldFailMixin):
         d.addCallback(lambda size:
             self.failUnlessEqual(size, len(common.TEST_DATA)))
         return d
+
+
+class LiteralFileNodeTests(unittest.TestCase):
+    """Tests for LiteralFileNode."""
+
+    def test_equality(self):
+        """LiteralFileNodes are equal iff they have the same URI."""
+        uri1 = uri.LiteralFileURI(b"1")
+        uri2 = uri.LiteralFileURI(b"2")
+        lfn1 = LiteralFileNode(uri1)
+        lfn1b = LiteralFileNode(uri1)
+        lfn2 = LiteralFileNode(uri2)
+        self.assertTrue(lfn1 == lfn1b)
+        self.assertFalse(lfn1 != lfn1b)
+        self.assertTrue(lfn1 != lfn2)
+        self.assertFalse(lfn1 == lfn2)
+        self.assertTrue(lfn1 != 300)
+        self.assertFalse(lfn1 == 300)
 
 
 # XXX extend these tests to show bad behavior of various kinds from servers:

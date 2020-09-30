@@ -1334,6 +1334,21 @@ class FakeNode(object):
 
 
 class Selection(unittest.TestCase):
+    def test_failure(self):
+        """If the fetch loop fails, it tell the Node the fetch failed."""
+        node = FakeNode()
+        # Simulate a failure:
+        node.get_num_segments = lambda: 1/0
+        sf = SegmentFetcher(node, 0, 3, None)
+        sf.add_shares([])
+        d = flushEventualQueue()
+        def _check1(ign):
+            [_] = self.flushLoggedErrors(ZeroDivisionError)
+            self.failUnless(node.failed)
+            self.failUnless(node.failed.check(ZeroDivisionError))
+        d.addCallback(_check1)
+        return d
+
     def test_no_shares(self):
         node = FakeNode()
         sf = SegmentFetcher(node, 0, 3, None)
