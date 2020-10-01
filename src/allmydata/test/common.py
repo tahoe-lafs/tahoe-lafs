@@ -88,8 +88,7 @@ from ..crypto import (
 from .eliotutil import (
     EliotLoggedRunTest,
 )
-# Backwards compatibility imports:
-from .common_py3 import ShouldFailMixin  # noqa: F401
+from .common_util import ShouldFailMixin  # noqa: F401
 
 
 TEST_RSA_KEY_SIZE = 522

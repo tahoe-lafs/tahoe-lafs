@@ -18,8 +18,7 @@ import os
 import time
 import signal
 
-from twisted.internet import defer, reactor
-from twisted.python import failure
+from twisted.internet import reactor
 from twisted.trial import unittest
 
 from ..util.assertutil import precondition
@@ -71,51 +70,6 @@ class SignalMixin(object):
         if self.sigchldHandler:
             signal.signal(signal.SIGCHLD, self.sigchldHandler)
         return super(SignalMixin, self).tearDown()
-
-
-class ShouldFailMixin(object):
-
-    def shouldFail(self, expected_failure, which, substring,
-                   callable, *args, **kwargs):
-        """Assert that a function call raises some exception. This is a
-        Deferred-friendly version of TestCase.assertRaises() .
-
-        Suppose you want to verify the following function:
-
-         def broken(a, b, c):
-             if a < 0:
-                 raise TypeError('a must not be negative')
-             return defer.succeed(b+c)
-
-        You can use:
-            d = self.shouldFail(TypeError, 'test name',
-                                'a must not be negative',
-                                broken, -4, 5, c=12)
-        in your test method. The 'test name' string will be included in the
-        error message, if any, because Deferred chains frequently make it
-        difficult to tell which assertion was tripped.
-
-        The substring= argument, if not None, must appear in the 'repr'
-        of the message wrapped by this Failure, or the test will fail.
-        """
-
-        assert substring is None or isinstance(substring, (bytes, unicode))
-        d = defer.maybeDeferred(callable, *args, **kwargs)
-        def done(res):
-            if isinstance(res, failure.Failure):
-                res.trap(expected_failure)
-                if substring:
-                    self.failUnless(substring in str(res),
-                                    "%s: substring '%s' not in '%s'"
-                                    % (which, substring, str(res)))
-                # return the Failure for further analysis, but in a form that
-                # doesn't make the Deferred chain think that we failed.
-                return [res]
-            else:
-                self.fail("%s was supposed to raise %s, not get '%s'" %
-                          (which, expected_failure, res))
-        d.addBoth(done)
-        return d
 
 
 class ReallyEqualMixin(object):
