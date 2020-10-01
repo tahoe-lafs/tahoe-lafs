@@ -1,3 +1,14 @@
+"""
+Ported to Python 3.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2, native_str
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 import struct
 import time
@@ -754,7 +765,9 @@ class Share(object):
                                  level=log.WEIRD, umid="qZu0wg"))
 
     def _send_request(self, start, length):
-        return self._rref.callRemote("read", start, length)
+        # For some reason tests fail on Python 2 if this is not a native
+        # string...
+        return self._rref.callRemote(native_str("read"), start, length)
 
     def _got_data(self, data, start, length, block_ev, lp):
         block_ev.finished(len(data), now())

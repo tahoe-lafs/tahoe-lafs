@@ -38,6 +38,7 @@ PORTED_MODULES = [
     "allmydata.immutable.downloader.finder",
     "allmydata.immutable.downloader.node",
     "allmydata.immutable.downloader.segmentation",
+    "allmydata.immutable.downloader.share",
     "allmydata.immutable.downloader.status",
     "allmydata.immutable.happiness_upload",
     "allmydata.immutable.literal",
