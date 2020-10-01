@@ -19,13 +19,11 @@ import time
 import signal
 
 from twisted.internet import defer, reactor
-from twisted.application import service
 from twisted.python import failure
 from twisted.trial import unittest
 
 from ..util.assertutil import precondition
 from ..util.encodingutil import unicode_platform, get_filesystem_encoding
-from ..util import log
 
 
 class TimezoneMixin(object):
@@ -163,8 +161,3 @@ class FakeCanary(object):
         return None
     def getPeer(self):
         return "<fake>"
-
-
-class LoggingServiceParent(service.MultiService):
-    def log(self, *args, **kwargs):
-        return log.msg(*args, **kwargs)

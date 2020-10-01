@@ -51,7 +51,8 @@ from allmydata.test.no_network import NoNetworkServer
 from allmydata.storage_client import (
     _StorageServer,
 )
-from .common_py3 import FakeCanary, LoggingServiceParent, ShouldFailMixin
+from .common import LoggingServiceParent
+from .common_py3 import FakeCanary, ShouldFailMixin
 
 
 class UtilTests(unittest.TestCase):
