@@ -38,7 +38,9 @@ import os, sys, httplib, binascii
 import urllib, json, random, time, urlparse
 
 # BBB: Python 2 compatibility
-from builtins import str
+from future.utils import PY2
+if PY2:
+    from future.builtins import str  # noqa: F401
 
 if sys.argv[1] == "--stats":
     statsfiles = sys.argv[2:]

@@ -1,5 +1,7 @@
 # BBB: Python 2 compatibility
-from builtins import str
+from future.utils import PY2
+if PY2:
+    from future.builtins import str  # noqa: F401
 
 from twisted.trial import unittest
 from twisted.python import filepath

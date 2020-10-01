@@ -3,7 +3,9 @@ from __future__ import print_function
 import os
 
 # BBB: Python 2 compatibility
-from builtins import str
+from future.utils import PY2
+if PY2:
+    from future.builtins import str  # noqa: F401
 from six.moves import cStringIO as StringIO
 
 from twisted.internet import defer

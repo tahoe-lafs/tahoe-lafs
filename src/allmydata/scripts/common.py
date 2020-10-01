@@ -5,7 +5,9 @@ import codecs
 from os.path import join
 
 # BBB: Python 2 compatibility
-from builtins import str
+from future.utils import PY2
+if PY2:
+    from future.builtins import str  # noqa: F401
 from six.moves.configparser import NoSectionError
 
 from twisted.python import usage

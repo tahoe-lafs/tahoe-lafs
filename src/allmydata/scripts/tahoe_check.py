@@ -4,7 +4,9 @@ import urllib
 import json
 
 # BBB: Python 2 compatibility
-from builtins import str
+from future.utils import PY2
+if PY2:
+    from future.builtins import str  # noqa: F401
 
 from twisted.protocols.basic import LineOnlyReceiver
 

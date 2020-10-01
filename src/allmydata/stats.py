@@ -7,7 +7,9 @@ import time
 from collections import deque
 
 # BBB: Python 2 compatibility
-from builtins import str
+from future.utils import PY2
+if PY2:
+    from future.builtins import str  # noqa: F401
 
 from twisted.internet import reactor
 from twisted.application import service
