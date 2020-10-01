@@ -52,7 +52,7 @@ from allmydata.storage_client import (
     _StorageServer,
 )
 from .common import LoggingServiceParent, ShouldFailMixin
-from .common_py3 import FakeCanary
+from .common_util import FakeCanary
 
 
 class UtilTests(unittest.TestCase):

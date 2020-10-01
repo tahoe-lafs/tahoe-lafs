@@ -27,8 +27,7 @@ from allmydata.util import fileutil, hashutil, pollmixin
 from allmydata.storage.server import StorageServer, si_b2a
 from allmydata.storage.crawler import ShareCrawler, TimeSliceExceeded
 
-from allmydata.test.common_py3 import FakeCanary
-from allmydata.test.common_util import StallMixin
+from allmydata.test.common_util import StallMixin, FakeCanary
 
 class BucketEnumeratingCrawler(ShareCrawler):
     cpu_slice = 500 # make sure it can complete in a single slice

@@ -87,6 +87,34 @@ class StallMixin(object):
         return d
 
 
+class Marker(object):
+    pass
+
+class FakeCanary(object):
+    """For use in storage tests.
+
+    Can be moved back to test_storage.py once enough Python 3 porting has been
+    done.
+    """
+    def __init__(self, ignore_disconnectors=False):
+        self.ignore = ignore_disconnectors
+        self.disconnectors = {}
+    def notifyOnDisconnect(self, f, *args, **kwargs):
+        if self.ignore:
+            return
+        m = Marker()
+        self.disconnectors[m] = (f, args, kwargs)
+        return m
+    def dontNotifyOnDisconnect(self, marker):
+        if self.ignore:
+            return
+        del self.disconnectors[marker]
+    def getRemoteTubID(self):
+        return None
+    def getPeer(self):
+        return "<fake>"
+
+
 class ShouldFailMixin(object):
 
     def shouldFail(self, expected_failure, which, substring,

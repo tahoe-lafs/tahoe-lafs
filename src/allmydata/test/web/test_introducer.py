@@ -33,7 +33,7 @@ from .common import (
 from ..common import (
     SameProcessStreamEndpointAssigner,
 )
-from ..common_py3 import (
+from ..common_util import (
     FakeCanary,
 )
 from ..common_web import (
