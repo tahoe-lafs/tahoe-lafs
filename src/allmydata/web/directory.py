@@ -17,6 +17,7 @@ from twisted.web.template import (
     renderer,
     tags,
 )
+from twisted.web.util import DeferredResource
 from hyperlink import URL
 from twisted.python.filepath import FilePath
 
@@ -58,7 +59,6 @@ from allmydata.web.common import (
     SlotsSequenceElement,
     exception_to_child,
     render_exception,
-    unwrapDeferred,
 )
 from allmydata.web.filenode import ReplaceMeMixin, \
      FileNodeHandler, PlaceHolderNodeHandler
@@ -124,7 +124,7 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
         d.addBoth(self._got_child, req, name)
 
         # XXX: thus probably not the best way to do this.
-        return unwrapDeferred(d)
+        return DeferredResource(d)
 
 
     def _got_child(self, node_or_failure, req, name):
@@ -215,7 +215,7 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
         assert self.parentnode and self.name
         d = self.parentnode.delete(self.name)
         d.addCallback(lambda res: self.node.get_uri())
-        return unwrapDeferred(d)
+        return DeferredResource(d)
 
     @render_exception
     def render_GET(self, req):
