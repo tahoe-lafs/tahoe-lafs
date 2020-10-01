@@ -821,7 +821,7 @@ class Node(service.MultiService):
         for o in twlog.theLogPublisher.observers:
             # o might be a FileLogObserver's .emit method
             if type(o) is type(self.setup_logging): # bound method
-                ob = o.im_self
+                ob = o.__self__
                 if isinstance(ob, twlog.FileLogObserver):
                     newmeth = types.UnboundMethodType(formatTimeTahoeStyle, ob, ob.__class__)
                     ob.formatTime = newmeth
