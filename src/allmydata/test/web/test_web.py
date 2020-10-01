@@ -52,7 +52,7 @@ from allmydata.interfaces import (
 )
 from allmydata.mutable import servermap, publish, retrieve
 from .. import common_util as testutil
-from ..common_py3 import TimezoneMixin
+from ..common_util import TimezoneMixin
 from ..common_web import (
     do_http,
     Error,

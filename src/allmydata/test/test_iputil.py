@@ -23,7 +23,7 @@ from tenacity import retry, stop_after_attempt
 from foolscap.api import Tub
 
 from allmydata.util import iputil, gcutil
-import allmydata.test.common_py3 as testutil
+import allmydata.test.common_util as testutil
 from allmydata.util.namespace import Namespace
 
 

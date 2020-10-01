@@ -1,6 +1,8 @@
 from __future__ import print_function
 
 import os
+import time
+import signal
 from random import randrange
 from six.moves import StringIO
 
@@ -14,7 +16,6 @@ from allmydata.util.encodingutil import unicode_platform, get_filesystem_encodin
 # Imported for backwards compatibility:
 from future.utils import bord, bchr, binary_type
 from past.builtins import unicode
-from .common_py3 import SignalMixin
 
 
 def skip_if_cannot_represent_filename(u):
@@ -92,6 +93,28 @@ class ReallyEqualMixin(object):
     def failUnlessReallyEqual(self, a, b, msg=None):
         self.assertEqual(a, b, msg)
         self.assertEqual(type(a), type(b), "a :: %r (%s), b :: %r (%s), %r" % (a, type(a), b, type(b), msg))
+
+
+class SignalMixin(object):
+    # This class is necessary for any code which wants to use Processes
+    # outside the usual reactor.run() environment. It is copied from
+    # Twisted's twisted.test.test_process . Note that Twisted-8.2.0 uses
+    # something rather different.
+    sigchldHandler = None
+
+    def setUp(self):
+        # make sure SIGCHLD handler is installed, as it should be on
+        # reactor.run(). problem is reactor may not have been run when this
+        # test runs.
+        if hasattr(reactor, "_handleSigchld") and hasattr(signal, "SIGCHLD"):
+            self.sigchldHandler = signal.signal(signal.SIGCHLD,
+                                                reactor._handleSigchld)
+        return super(SignalMixin, self).setUp()
+
+    def tearDown(self):
+        if self.sigchldHandler:
+            signal.signal(signal.SIGCHLD, self.sigchldHandler)
+        return super(SignalMixin, self).tearDown()
 
 
 class StallMixin(object):
@@ -219,6 +242,31 @@ class TestMixin(SignalMixin):
                 print("WEIRDNESS! pending timed call not active!")
         if required_to_quiesce and active:
             self.fail("Reactor was still active when it was required to be quiescent.")
+
+
+class TimezoneMixin(object):
+
+    def setTimezone(self, timezone):
+        def tzset_if_possible():
+            # Windows doesn't have time.tzset().
+            if hasattr(time, 'tzset'):
+                time.tzset()
+
+        unset = object()
+        originalTimezone = os.environ.get('TZ', unset)
+        def restoreTimezone():
+            if originalTimezone is unset:
+                del os.environ['TZ']
+            else:
+                os.environ['TZ'] = originalTimezone
+            tzset_if_possible()
+
+        os.environ['TZ'] = timezone
+        self.addCleanup(restoreTimezone)
+        tzset_if_possible()
+
+    def have_working_tzset(self):
+        return hasattr(time, 'tzset')
 
 
 try:
