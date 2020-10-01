@@ -1,7 +1,7 @@
 from zope.interface import implementer
 from twisted.trial import unittest
 from twisted.web import server
-from nevow.inevow import IRequest
+from twisted.web.iweb import IRequest
 from allmydata.web import common
 
 # XXX FIXME when we introduce "mock" as a dependency, these can
