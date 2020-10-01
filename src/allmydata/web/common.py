@@ -3,6 +3,7 @@ import time
 import json
 from functools import wraps
 
+from twisted.internet.defer import ensureDeferred
 from twisted.web import (
     http,
     resource,
@@ -495,3 +496,20 @@ def render_exception(f):
             description, status = humanize_exception(e)
             return resource.ErrorPage(status, "Error", description).render(request)
     return g
+
+
+def unwrapDeferred(deferred):
+    """
+    XXX: this function is just a quick and dirty imitation of
+    twisted.trial.unittest.TestCase.succeessResultOf().  This exists
+    only because I do not know any better.
+    """
+    d = ensureDeferred(deferred)
+
+    result = []
+    d.addBoth(result.append)
+
+    if not result:
+        return None
+
+    return result[0]

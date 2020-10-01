@@ -58,6 +58,7 @@ from allmydata.web.common import (
     SlotsSequenceElement,
     exception_to_child,
     render_exception,
+    unwrapDeferred,
 )
 from allmydata.web.filenode import ReplaceMeMixin, \
      FileNodeHandler, PlaceHolderNodeHandler
@@ -123,7 +124,7 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
         d.addBoth(self._got_child, req, name)
 
         # XXX: thus probably not the best way to do this.
-        return self._unwrapDeferred(d)
+        return unwrapDeferred(d)
 
 
     def _got_child(self, node_or_failure, req, name):
@@ -214,24 +215,7 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
         assert self.parentnode and self.name
         d = self.parentnode.delete(self.name)
         d.addCallback(lambda res: self.node.get_uri())
-        return self._unwrapDeferred(d)
-
-    def _unwrapDeferred(self, deferred):
-        """
-        XXX: this is just a quick and dirty imitation of
-        twisted.trial.unittest.TestCase.succeessResultOf(), and this
-        exists only because I do not know any better.
-        """
-        d = defer.ensureDeferred(deferred)
-
-        result = []
-        d.addBoth(result.append)
-
-        if not result:
-            return None
-
-        return result[0]
-
+        return unwrapDeferred(d)
 
     @render_exception
     def render_GET(self, req):
