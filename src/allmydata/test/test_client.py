@@ -252,11 +252,11 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
         is not set.
         """
         config = client.config_from_string(
-            b"test_storage_default_anonymous_enabled",
-            b"tub.port",
+            "test_storage_default_anonymous_enabled",
+            "tub.port",
             BASECONFIG + (
-                b"[storage]\n"
-                b"enabled = true\n"
+                "[storage]\n"
+                "enabled = true\n"
             )
         )
         self.assertTrue(client.anonymous_storage_enabled(config))
@@ -268,11 +268,11 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
         """
         config = client.config_from_string(
             self.id(),
-            b"tub.port",
+            "tub.port",
             BASECONFIG + (
-                b"[storage]\n"
-                b"enabled = true\n"
-                b"anonymous = true\n"
+                "[storage]\n"
+                "enabled = true\n"
+                "anonymous = true\n"
             )
         )
         self.assertTrue(client.anonymous_storage_enabled(config))
@@ -284,11 +284,11 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
         """
         config = client.config_from_string(
             self.id(),
-            b"tub.port",
+            "tub.port",
             BASECONFIG + (
-                b"[storage]\n"
-                b"enabled = true\n"
-                b"anonymous = false\n"
+                "[storage]\n"
+                "enabled = true\n"
+                "anonymous = false\n"
             )
         )
         self.assertFalse(client.anonymous_storage_enabled(config))
@@ -300,11 +300,11 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
         """
         config = client.config_from_string(
             self.id(),
-            b"tub.port",
+            "tub.port",
             BASECONFIG + (
-                b"[storage]\n"
-                b"enabled = false\n"
-                b"anonymous = true\n"
+                "[storage]\n"
+                "enabled = false\n"
+                "anonymous = true\n"
             )
         )
         self.assertFalse(client.anonymous_storage_enabled(config))
@@ -680,11 +680,11 @@ class AnonymousStorage(SyncTestCase):
         os.makedirs(basedir + b"/private")
         config = client.config_from_string(
             basedir,
-            b"tub.port",
+            "tub.port",
             BASECONFIG_I % (SOME_FURL,) + (
-                b"[storage]\n"
-                b"enabled = true\n"
-                b"anonymous = true\n"
+                "[storage]\n"
+                "enabled = true\n"
+                "anonymous = true\n"
             )
         )
         node = yield client.create_client_from_config(
@@ -711,11 +711,11 @@ class AnonymousStorage(SyncTestCase):
         os.makedirs(basedir + b"/private")
         config = client.config_from_string(
             basedir,
-            b"tub.port",
+            "tub.port",
             BASECONFIG_I % (SOME_FURL,) + (
-                b"[storage]\n"
-                b"enabled = true\n"
-                b"anonymous = false\n"
+                "[storage]\n"
+                "enabled = true\n"
+                "anonymous = false\n"
             )
         )
         node = yield client.create_client_from_config(
@@ -732,7 +732,7 @@ class AnonymousStorage(SyncTestCase):
             ]),
         )
         self.expectThat(
-            config.get_private_config(b"storage.furl", default=None),
+            config.get_private_config("storage.furl", default=None),
             Is(None),
         )
 
@@ -748,18 +748,18 @@ class AnonymousStorage(SyncTestCase):
         os.makedirs(basedir + b"/private")
         enabled_config = client.config_from_string(
             basedir,
-            b"tub.port",
+            "tub.port",
             BASECONFIG_I % (SOME_FURL,) + (
-                b"[storage]\n"
-                b"enabled = true\n"
-                b"anonymous = true\n"
+                "[storage]\n"
+                "enabled = true\n"
+                "anonymous = true\n"
             )
         )
         node = yield client.create_client_from_config(
             enabled_config,
             _introducer_factory=MemoryIntroducerClient,
         )
-        anonymous_storage_furl = enabled_config.get_private_config(b"storage.furl")
+        anonymous_storage_furl = enabled_config.get_private_config("storage.furl")
         def check_furl():
             return node.tub.getReferenceForURL(anonymous_storage_furl)
         # Perform a sanity check that our test code makes sense: is this a
@@ -772,11 +772,11 @@ class AnonymousStorage(SyncTestCase):
 
         disabled_config = client.config_from_string(
             basedir,
-            b"tub.port",
+            "tub.port",
             BASECONFIG_I % (SOME_FURL,) + (
-                b"[storage]\n"
-                b"enabled = true\n"
-                b"anonymous = false\n"
+                "[storage]\n"
+                "enabled = true\n"
+                "anonymous = false\n"
             )
         )
         node = yield client.create_client_from_config(
@@ -1137,8 +1137,8 @@ class StorageAnnouncementTests(SyncTestCase):
         create_node_dir(self.basedir, u"")
 
 
-    def get_config(self, storage_enabled, more_storage=b"", more_sections=b""):
-        return b"""
+    def get_config(self, storage_enabled, more_storage="", more_sections=""):
+        return """
 [node]
 tub.location = tcp:192.0.2.0:1234
 
@@ -1163,7 +1163,7 @@ introducer.furl = pb://abcde@nowhere/fake
         """
         config = client.config_from_string(
             self.basedir,
-            u"tub.port",
+            "tub.port",
             self.get_config(storage_enabled=False),
         )
         self.assertThat(
@@ -1185,7 +1185,7 @@ introducer.furl = pb://abcde@nowhere/fake
         """
         config = client.config_from_string(
             self.basedir,
-            u"tub.port",
+            "tub.port",
             self.get_config(storage_enabled=True),
         )
         client_deferred = client.create_client_from_config(
@@ -1217,13 +1217,13 @@ introducer.furl = pb://abcde@nowhere/fake
         value = u"thing"
         config = client.config_from_string(
             self.basedir,
-            u"tub.port",
+            "tub.port",
             self.get_config(
                 storage_enabled=True,
-                more_storage=b"plugins=tahoe-lafs-dummy-v1",
+                more_storage="plugins=tahoe-lafs-dummy-v1",
                 more_sections=(
-                    b"[storageserver.plugins.tahoe-lafs-dummy-v1]\n"
-                    b"some = {}\n".format(value)
+                    "[storageserver.plugins.tahoe-lafs-dummy-v1]\n"
+                    "some = {}\n".format(value)
                 ),
             ),
         )
@@ -1258,15 +1258,15 @@ introducer.furl = pb://abcde@nowhere/fake
 
         config = client.config_from_string(
             self.basedir,
-            u"tub.port",
+            "tub.port",
             self.get_config(
                 storage_enabled=True,
-                more_storage=b"plugins=tahoe-lafs-dummy-v1,tahoe-lafs-dummy-v2",
+                more_storage="plugins=tahoe-lafs-dummy-v1,tahoe-lafs-dummy-v2",
                 more_sections=(
-                    b"[storageserver.plugins.tahoe-lafs-dummy-v1]\n"
-                    b"some = thing-1\n"
-                    b"[storageserver.plugins.tahoe-lafs-dummy-v2]\n"
-                    b"some = thing-2\n"
+                    "[storageserver.plugins.tahoe-lafs-dummy-v1]\n"
+                    "some = thing-1\n"
+                    "[storageserver.plugins.tahoe-lafs-dummy-v2]\n"
+                    "some = thing-2\n"
                 ),
             ),
         )
@@ -1306,13 +1306,13 @@ introducer.furl = pb://abcde@nowhere/fake
 
         config = client.config_from_string(
             self.basedir,
-            u"tub.port",
+            "tub.port",
             self.get_config(
                 storage_enabled=True,
-                more_storage=b"plugins=tahoe-lafs-dummy-v1",
+                more_storage="plugins=tahoe-lafs-dummy-v1",
                 more_sections=(
-                    b"[storageserver.plugins.tahoe-lafs-dummy-v1]\n"
-                    b"some = thing\n"
+                    "[storageserver.plugins.tahoe-lafs-dummy-v1]\n"
+                    "some = thing\n"
                 ),
             ),
         )
@@ -1342,10 +1342,10 @@ introducer.furl = pb://abcde@nowhere/fake
 
         config = client.config_from_string(
             self.basedir,
-            u"tub.port",
+            "tub.port",
             self.get_config(
                 storage_enabled=True,
-                more_storage=b"plugins=tahoe-lafs-dummy-v1",
+                more_storage="plugins=tahoe-lafs-dummy-v1",
             ),
         )
         self.assertThat(
@@ -1380,14 +1380,14 @@ introducer.furl = pb://abcde@nowhere/fake
 
         config = client.config_from_string(
             self.basedir,
-            u"tub.port",
+            "tub.port",
             self.get_config(
                 storage_enabled=True,
-                more_storage=b"plugins=tahoe-lafs-dummy-v1",
+                more_storage="plugins=tahoe-lafs-dummy-v1",
                 more_sections=(
-                    b"[storageserver.plugins.tahoe-lafs-dummy-v1]\n"
+                    "[storageserver.plugins.tahoe-lafs-dummy-v1]\n"
                     # This will make it explode on instantiation.
-                    b"invalid = configuration\n"
+                    "invalid = configuration\n"
                 )
             ),
         )
@@ -1407,10 +1407,10 @@ introducer.furl = pb://abcde@nowhere/fake
         """
         config = client.config_from_string(
             self.basedir,
-            u"tub.port",
+            "tub.port",
             self.get_config(
                 storage_enabled=True,
-                more_storage=b"plugins=tahoe-lafs-dummy-vX",
+                more_storage="plugins=tahoe-lafs-dummy-vX",
             ),
         )
         self.assertThat(

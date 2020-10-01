@@ -94,9 +94,9 @@ from .common_py3 import LoggingServiceParent, ShouldFailMixin  # noqa: F401
 TEST_RSA_KEY_SIZE = 522
 
 EMPTY_CLIENT_CONFIG = config_from_string(
-    b"/dev/null",
-    b"tub.port",
-    b""
+    "/dev/null",
+    "tub.port",
+    ""
 )
 
 
@@ -249,8 +249,8 @@ class UseNode(object):
 
         self.config = config_from_string(
             self.basedir.asTextMode().path,
-            u"tub.port",
-b"""
+            "tub.port",
+"""
 [node]
 {node_config}
 

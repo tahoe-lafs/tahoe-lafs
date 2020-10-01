@@ -9,10 +9,15 @@ import os.path
 import re
 import types
 import errno
-from six.moves import configparser
+from io import StringIO
 import tempfile
-from io import BytesIO
 from base64 import b32decode, b32encode
+
+# BBB: Python 2 compatibility
+from six.moves import configparser
+from future.utils import PY2
+if PY2:
+    from io import BytesIO as StringIO  # noqa: F811
 
 from twisted.python import log as twlog
 from twisted.application import service
@@ -206,7 +211,7 @@ def config_from_string(basedir, portnumfile, config_str, _valid_config=None):
 
     # load configuration from in-memory string
     parser = configparser.SafeConfigParser()
-    parser.readfp(BytesIO(config_str))
+    parser.readfp(StringIO(config_str))
 
     fname = "<in-memory>"
     configutil.validate_config(fname, parser, _valid_config)
