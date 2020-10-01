@@ -209,6 +209,7 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
                 )
         return make_handler_for(node, self.client, self.node, name)
 
+    @render_exception
     def render_DELETE(self, req):
         assert self.parentnode and self.name
         d = self.parentnode.delete(self.name)
