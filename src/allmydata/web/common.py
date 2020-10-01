@@ -500,6 +500,8 @@ def render_exception(f):
 
 def unwrapDeferred(deferred):
     """
+    Get the first result out of a Deferred.
+
     XXX: this function is just a quick and dirty imitation of
     twisted.trial.unittest.TestCase.succeessResultOf().  This exists
     only because I do not know any better.
