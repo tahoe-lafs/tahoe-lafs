@@ -12,17 +12,12 @@ from __future__ import print_function
 from future.utils import PY2
 if PY2:
     from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
-from past.builtins import unicode
 
 import os
 import time
 import signal
 
 from twisted.internet import reactor
-from twisted.trial import unittest
-
-from ..util.assertutil import precondition
-from ..util.encodingutil import unicode_platform, get_filesystem_encoding
 
 
 class TimezoneMixin(object):
@@ -70,20 +65,3 @@ class SignalMixin(object):
         if self.sigchldHandler:
             signal.signal(signal.SIGCHLD, self.sigchldHandler)
         return super(SignalMixin, self).tearDown()
-
-
-class ReallyEqualMixin(object):
-    def failUnlessReallyEqual(self, a, b, msg=None):
-        self.assertEqual(a, b, msg)
-        self.assertEqual(type(a), type(b), "a :: %r (%s), b :: %r (%s), %r" % (a, type(a), b, type(b), msg))
-
-
-def skip_if_cannot_represent_filename(u):
-    precondition(isinstance(u, unicode))
-
-    enc = get_filesystem_encoding()
-    if not unicode_platform():
-        try:
-            u.encode(enc)
-        except UnicodeEncodeError:
-            raise unittest.SkipTest("A non-ASCII filename could not be encoded on this platform.")

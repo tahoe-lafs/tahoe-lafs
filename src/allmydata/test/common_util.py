@@ -10,14 +10,22 @@ from twisted.trial import unittest
 
 from ..util.assertutil import precondition
 from ..scripts import runner
-from allmydata.util.encodingutil import get_io_encoding
+from allmydata.util.encodingutil import unicode_platform, get_filesystem_encoding, get_io_encoding
 # Imported for backwards compatibility:
 from future.utils import bord, bchr, binary_type
 from past.builtins import unicode
-from .common_py3 import (
-    SignalMixin, skip_if_cannot_represent_filename, ReallyEqualMixin
-)
+from .common_py3 import SignalMixin
 
+
+def skip_if_cannot_represent_filename(u):
+    precondition(isinstance(u, unicode))
+
+    enc = get_filesystem_encoding()
+    if not unicode_platform():
+        try:
+            u.encode(enc)
+        except UnicodeEncodeError:
+            raise unittest.SkipTest("A non-ASCII filename could not be encoded on this platform.")
 
 def skip_if_cannot_represent_argv(u):
     precondition(isinstance(u, unicode))
@@ -78,6 +86,12 @@ def flip_one_bit(s, offset=0, size=None):
     result = s[:i] + bchr(bord(s[i])^(0x01<<randrange(0, 8))) + s[i+1:]
     assert result != s, "Internal error -- flip_one_bit() produced the same string as its input: %s == %s" % (result, s)
     return result
+
+
+class ReallyEqualMixin(object):
+    def failUnlessReallyEqual(self, a, b, msg=None):
+        self.assertEqual(a, b, msg)
+        self.assertEqual(type(a), type(b), "a :: %r (%s), b :: %r (%s), %r" % (a, type(a), b, type(b), msg))
 
 
 class StallMixin(object):
