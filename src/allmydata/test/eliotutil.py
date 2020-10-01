@@ -2,7 +2,10 @@
 Tools aimed at the interaction between tests and Eliot.
 """
 
-from past.builtins import unicode
+# BBB: Python 2 compatibility
+# Can't use `builtins.str` because it's not JSON encodable:
+# `exceptions.TypeError: <class 'future.types.newstr.newstr'> is not JSON-encodeable`
+from past.builtins import unicode as str
 
 __all__ = [
     "RUN_TEST",
@@ -29,7 +32,7 @@ from twisted.internet.defer import (
 
 _NAME = Field.for_types(
     u"name",
-    [unicode],
+    [str],
     u"The name of the test.",
 )
 
