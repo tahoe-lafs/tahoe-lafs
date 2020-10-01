@@ -24,6 +24,7 @@ if PY2:
 
 # Keep these sorted alphabetically, to reduce merge conflicts:
 PORTED_MODULES = [
+    "allmydata._monkeypatch",
     "allmydata.codec",
     "allmydata.crypto",
     "allmydata.crypto.aes",
