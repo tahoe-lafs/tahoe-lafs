@@ -751,13 +751,13 @@ class AddLease(GridTestMixin, unittest.TestCase):
         c0 = self.g.clients[0]
         c0.encoding_params['happy'] = 1
         self.uris = {}
-        DATA = "data" * 100
-        d = c0.upload(Data(DATA, convergence=""))
+        DATA = b"data" * 100
+        d = c0.upload(Data(DATA, convergence=b""))
         def _stash_immutable(ur):
             self.imm = c0.create_node_from_uri(ur.get_uri())
         d.addCallback(_stash_immutable)
         d.addCallback(lambda ign:
-            c0.create_mutable_file(MutableData("contents")))
+            c0.create_mutable_file(MutableData(b"contents")))
         def _stash_mutable(node):
             self.mut = node
         d.addCallback(_stash_mutable)

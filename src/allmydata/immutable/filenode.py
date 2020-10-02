@@ -1,4 +1,4 @@
-
+from functools import reduce
 import binascii
 from time import time as now
 
