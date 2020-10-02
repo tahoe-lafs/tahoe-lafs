@@ -121,7 +121,11 @@ def add_grid_manager_cert(options):
     cert_name = options['name']
 
     if exists(cert_path):
-        print("Already have file '{}'".format(cert_path), file=options.parent.parent.stderr)
+        msg = "Already have certificate for '{}' (at {})".format(
+            options['name'],
+            cert_path,
+        )
+        print(msg, file=options.parent.parent.stderr)
         return 1
 
     config.set_config("storage", "grid_management", "True")
