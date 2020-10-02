@@ -201,8 +201,8 @@ class WebResultsRendering(unittest.TestCase):
     def test_check(self):
         c = self.create_fake_client()
         sb = c.storage_broker
-        serverid_1 = "\x00"*20
-        serverid_f = "\xff"*20
+        serverid_1 = b"\x00"*20
+        serverid_f = b"\xff"*20
         server_1 = sb.get_stub_server(serverid_1)
         server_f = sb.get_stub_server(serverid_f)
         u = uri.CHKFileURI(b"\x00"*16, b"\x00"*32, 3, 10, 1234)
@@ -269,7 +269,7 @@ class WebResultsRendering(unittest.TestCase):
         self.failUnlessIn("Not Recoverable! : rather dead", s)
 
         html = self.render_element(w, args={"return_to": ["FOOURL"]})
-        self.failUnlessIn('<a href="FOOURL">Return to file/directory.</a>',
+        self.failUnlessIn(b'<a href="FOOURL">Return to file/directory.</a>',
                           html)
 
         w = web_check_results.CheckResultsRenderer(c, cr)
@@ -430,19 +430,19 @@ class WebResultsRendering(unittest.TestCase):
     def test_deep_check_renderer(self):
         status = check_results.DeepCheckResults(b"fake-root-si")
         status.add_check(
-            FakeCheckResults("<unhealthy/unrecoverable>", False, False),
+            FakeCheckResults(b"<unhealthy/unrecoverable>", False, False),
             (u"fake", u"unhealthy", u"unrecoverable")
         )
         status.add_check(
-            FakeCheckResults("<healthy/recoverable>", True, True),
+            FakeCheckResults(b"<healthy/recoverable>", True, True),
             (u"fake", u"healthy", u"recoverable")
         )
         status.add_check(
-            FakeCheckResults("<healthy/unrecoverable>", True, False),
+            FakeCheckResults(b"<healthy/unrecoverable>", True, False),
             (u"fake", u"healthy", u"unrecoverable")
         )
         status.add_check(
-            FakeCheckResults("<unhealthy/unrecoverable>", False, True),
+            FakeCheckResults(b"<unhealthy/unrecoverable>", False, True),
             (u"fake", u"unhealthy", u"recoverable")
         )
 
@@ -524,15 +524,15 @@ class WebResultsRendering(unittest.TestCase):
         status = check_results.DeepCheckAndRepairResults(b"")
 
         status.add_check_and_repair(
-            FakeCheckAndRepairResults("attempted/success", True, True),
+            FakeCheckAndRepairResults(b"attempted/success", True, True),
             (u"attempted", u"success")
         )
         status.add_check_and_repair(
-            FakeCheckAndRepairResults("attempted/failure", True, False),
+            FakeCheckAndRepairResults(b"attempted/failure", True, False),
             (u"attempted", u"failure")
         )
         status.add_check_and_repair(
-            FakeCheckAndRepairResults("unattempted/failure", False, False),
+            FakeCheckAndRepairResults(b"unattempted/failure", False, False),
             (u"unattempted", u"failure")
         )
 
