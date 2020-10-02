@@ -189,7 +189,10 @@ class StorageFarmBroker(service.MultiService):
         # this sorted order).
         for (server_id, server) in sorted(servers.items()):
             try:
-                storage_server = self._make_storage_server(server_id, server)
+                storage_server = self._make_storage_server(
+                    server_id.encode("utf-8"),
+                    server,
+                )
             except Exception:
                 # TODO: The _make_storage_server failure is logged but maybe
                 # we should write a traceback here.  Notably, tests don't
@@ -232,8 +235,19 @@ class StorageFarmBroker(service.MultiService):
         include_result=False,
     )
     def _make_storage_server(self, server_id, server):
-        assert isinstance(server_id, unicode) # from YAML
-        server_id = server_id.encode("ascii")
+        """
+        Create a new ``IServer`` for the given storage server announcement.
+
+        :param bytes server_id: The unique identifier for the server.
+
+        :param dict server: The server announcement.  See ``Static Server
+            Definitions`` in the configuration documentation for details about
+            the structure and contents.
+
+        :return IServer: The object-y representation of the server described
+            by the given announcement.
+        """
+        assert isinstance(server_id, bytes)
         handler_overrides = server.get("connections", {})
         s = NativeStorageServer(
             server_id,
@@ -260,7 +274,7 @@ class StorageFarmBroker(service.MultiService):
     # these two are used in unit tests
     def test_add_rref(self, serverid, rref, ann):
         s = self._make_storage_server(
-            serverid.decode("ascii"),
+            serverid,
             {"ann": ann.copy()},
         )
         s._rref = rref
@@ -303,8 +317,9 @@ class StorageFarmBroker(service.MultiService):
                     facility="tahoe.storage_broker", umid="AlxzqA",
                     level=log.UNUSUAL)
             return
+
         s = self._make_storage_server(
-            server_id.decode("utf-8"),
+            server_id,
             {u"ann": ann},
         )
         server_id = s.get_serverid()
