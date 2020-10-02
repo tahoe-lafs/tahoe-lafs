@@ -14,7 +14,7 @@ from twisted.web.template import (
     renderElement,
     tags,
 )
-from allmydata.web.common import (
+from allmydata.web.common_py3 import (
     exception_to_child,
     get_arg,
     get_root,
@@ -22,8 +22,8 @@ from allmydata.web.common import (
     WebError,
     MultiFormatResource,
     SlotsSequenceElement,
+    ReloadMixin,
 )
-from allmydata.web.operations import ReloadMixin
 from allmydata.interfaces import (
     ICheckAndRepairResults,
     ICheckResults,

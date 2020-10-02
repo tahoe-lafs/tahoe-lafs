@@ -7,39 +7,27 @@ from twisted.web import (
     http,
     resource,
     server,
-    template,
 )
 from twisted.python import log
 from nevow import appserver
 from nevow.inevow import IRequest
-from allmydata import blacklist
 from allmydata.interfaces import (
-    EmptyPathnameComponentError,
-    ExistingChildError,
-    FileTooLargeError,
-    MustBeDeepImmutableError,
-    MustBeReadonlyError,
-    MustNotBeUnknownRWError,
-    NoSharesError,
-    NoSuchChildError,
-    NotEnoughSharesError,
     MDMF_VERSION,
     SDMF_VERSION,
 )
-from allmydata.mutable.common import UnrecoverableFileError
 from allmydata.util.hashutil import timing_safe_compare
 from allmydata.util.time_format import (
     format_delta,
     format_time,
 )
 from allmydata.util.encodingutil import (
-    quote_output,
     to_bytes,
 )
 
 # Originally part of this module, so still part of its API:
 from .common_py3 import (  # noqa: F401
-    get_arg, abbreviate_time, MultiFormatResource, WebError,
+    get_arg, abbreviate_time, MultiFormatResource, WebError, humanize_exception,
+    SlotsSequenceElement, render_exception, get_root, exception_to_child
 )
 
 
@@ -115,13 +103,6 @@ def parse_offset_arg(offset):
         offset = int(offset)
 
     return offset
-
-
-def get_root(ctx_or_req):
-    req = IRequest(ctx_or_req)
-    depth = len(req.prepath) + len(req.postpath)
-    link = "/".join([".."] * depth)
-    return link
 
 
 def convert_children_json(nodemaker, children_json):
@@ -217,94 +198,6 @@ def should_create_intermediate_directories(req):
     return bool(req.method in ("PUT", "POST") and
                 t not in ("delete", "rename", "rename-form", "check"))
 
-def humanize_exception(exc):
-    """
-    Like ``humanize_failure`` but for an exception.
-
-    :param Exception exc: The exception to describe.
-
-    :return: See ``humanize_failure``.
-    """
-    if isinstance(exc, EmptyPathnameComponentError):
-        return ("The webapi does not allow empty pathname components, "
-                "i.e. a double slash", http.BAD_REQUEST)
-    if isinstance(exc, ExistingChildError):
-        return ("There was already a child by that name, and you asked me "
-                "to not replace it.", http.CONFLICT)
-    if isinstance(exc, NoSuchChildError):
-        quoted_name = quote_output(exc.args[0], encoding="utf-8", quotemarks=False)
-        return ("No such child: %s" % quoted_name, http.NOT_FOUND)
-    if isinstance(exc, NotEnoughSharesError):
-        t = ("NotEnoughSharesError: This indicates that some "
-             "servers were unavailable, or that shares have been "
-             "lost to server departure, hard drive failure, or disk "
-             "corruption. You should perform a filecheck on "
-             "this object to learn more.\n\nThe full error message is:\n"
-             "%s") % str(exc)
-        return (t, http.GONE)
-    if isinstance(exc, NoSharesError):
-        t = ("NoSharesError: no shares could be found. "
-             "Zero shares usually indicates a corrupt URI, or that "
-             "no servers were connected, but it might also indicate "
-             "severe corruption. You should perform a filecheck on "
-             "this object to learn more.\n\nThe full error message is:\n"
-             "%s") % str(exc)
-        return (t, http.GONE)
-    if isinstance(exc, UnrecoverableFileError):
-        t = ("UnrecoverableFileError: the directory (or mutable file) could "
-             "not be retrieved, because there were insufficient good shares. "
-             "This might indicate that no servers were connected, "
-             "insufficient servers were connected, the URI was corrupt, or "
-             "that shares have been lost due to server departure, hard drive "
-             "failure, or disk corruption. You should perform a filecheck on "
-             "this object to learn more.")
-        return (t, http.GONE)
-    if isinstance(exc, MustNotBeUnknownRWError):
-        quoted_name = quote_output(exc.args[1], encoding="utf-8")
-        immutable = exc.args[2]
-        if immutable:
-            t = ("MustNotBeUnknownRWError: an operation to add a child named "
-                 "%s to a directory was given an unknown cap in a write slot.\n"
-                 "If the cap is actually an immutable readcap, then using a "
-                 "webapi server that supports a later version of Tahoe may help.\n\n"
-                 "If you are using the webapi directly, then specifying an immutable "
-                 "readcap in the read slot (ro_uri) of the JSON PROPDICT, and "
-                 "omitting the write slot (rw_uri), would also work in this "
-                 "case.") % quoted_name
-        else:
-            t = ("MustNotBeUnknownRWError: an operation to add a child named "
-                 "%s to a directory was given an unknown cap in a write slot.\n"
-                 "Using a webapi server that supports a later version of Tahoe "
-                 "may help.\n\n"
-                 "If you are using the webapi directly, specifying a readcap in "
-                 "the read slot (ro_uri) of the JSON PROPDICT, as well as a "
-                 "writecap in the write slot if desired, would also work in this "
-                 "case.") % quoted_name
-        return (t, http.BAD_REQUEST)
-    if isinstance(exc, MustBeDeepImmutableError):
-        quoted_name = quote_output(exc.args[1], encoding="utf-8")
-        t = ("MustBeDeepImmutableError: a cap passed to this operation for "
-             "the child named %s, needed to be immutable but was not. Either "
-             "the cap is being added to an immutable directory, or it was "
-             "originally retrieved from an immutable directory as an unknown "
-             "cap.") % quoted_name
-        return (t, http.BAD_REQUEST)
-    if isinstance(exc, MustBeReadonlyError):
-        quoted_name = quote_output(exc.args[1], encoding="utf-8")
-        t = ("MustBeReadonlyError: a cap passed to this operation for "
-             "the child named '%s', needed to be read-only but was not. "
-             "The cap is being passed in a read slot (ro_uri), or was retrieved "
-             "from a read slot as an unknown cap.") % quoted_name
-        return (t, http.BAD_REQUEST)
-    if isinstance(exc, blacklist.FileProhibited):
-        t = "Access Prohibited: %s" % quote_output(exc.reason, encoding="utf-8", quotemarks=False)
-        return (t, http.FORBIDDEN)
-    if isinstance(exc, WebError):
-        return (exc.text, exc.code)
-    if isinstance(exc, FileTooLargeError):
-        return ("FileTooLargeError: %s" % (exc,), http.REQUEST_ENTITY_TOO_LARGE)
-    return (str(exc), None)
-
 
 def humanize_failure(f):
     """
@@ -368,49 +261,6 @@ class NeedOperationHandleError(WebError):
     pass
 
 
-class SlotsSequenceElement(template.Element):
-    """
-    ``SlotsSequenceElement` is a minimal port of nevow's sequence renderer for
-    twisted.web.template.
-
-    Tags passed in to be templated will have two renderers available: ``item``
-    and ``tag``.
-    """
-
-    def __init__(self, tag, seq):
-        self.loader = template.TagLoader(tag)
-        self.seq = seq
-
-    @template.renderer
-    def header(self, request, tag):
-        return tag
-
-    @template.renderer
-    def item(self, request, tag):
-        """
-        A template renderer for each sequence item.
-
-        ``tag`` will be cloned for each item in the sequence provided, and its
-        slots filled from the sequence item. Each item must be dict-like enough
-        for ``tag.fillSlots(**item)``. Each cloned tag will be siblings with no
-        separator beween them.
-        """
-        for item in self.seq:
-            yield tag.clone(deep=False).fillSlots(**item)
-
-    @template.renderer
-    def empty(self, request, tag):
-        """
-        A template renderer for empty sequences.
-
-        This renderer will either return ``tag`` unmodified if the provided
-        sequence has no items, or return the empty string if there are any
-        items.
-        """
-        if len(self.seq) > 0:
-            return u''
-        else:
-            return tag
 
 
 class TokenOnlyWebApi(resource.Resource, object):
@@ -465,32 +315,3 @@ class TokenOnlyWebApi(resource.Resource, object):
         else:
             raise WebError("'%s' invalid type for 't' arg" % (t,), http.BAD_REQUEST)
 
-
-def exception_to_child(f):
-    """
-    Decorate ``getChild`` method with exception handling behavior to render an
-    error page reflecting the exception.
-    """
-    @wraps(f)
-    def g(self, name, req):
-        try:
-            return f(self, name, req)
-        except Exception as e:
-            description, status = humanize_exception(e)
-            return resource.ErrorPage(status, "Error", description)
-    return g
-
-
-def render_exception(f):
-    """
-    Decorate a ``render_*`` method with exception handling behavior to render
-    an error page reflecting the exception.
-    """
-    @wraps(f)
-    def g(self, request):
-        try:
-            return f(self, request)
-        except Exception as e:
-            description, status = humanize_exception(e)
-            return resource.ErrorPage(status, "Error", description).render(request)
-    return g

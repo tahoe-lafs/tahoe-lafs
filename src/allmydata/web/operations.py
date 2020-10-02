@@ -20,6 +20,11 @@ from allmydata.web.common import (
     exception_to_child,
 )
 
+# Originally part of this module, so still part of its API:
+from .common_py3 import (  # noqa: F401
+    ReloadMixin,
+)
+
 MINUTE = 60
 HOUR = 60*MINUTE
 DAY = 24*HOUR
@@ -142,36 +147,3 @@ class OphandleTable(resource.Resource, service.Service):
             self.timers[ophandle].cancel()
         self.timers.pop(ophandle, None)
         self.handles.pop(ophandle, None)
-
-
-class ReloadMixin(object):
-    REFRESH_TIME = 1*MINUTE
-
-    @renderer
-    def refresh(self, req, tag):
-        if self.monitor.is_finished():
-            return ""
-        # dreid suggests ctx.tag(**dict([("http-equiv", "refresh")]))
-        # but I can't tell if he's joking or not
-        tag.attributes["http-equiv"] = "refresh"
-        tag.attributes["content"] = str(self.REFRESH_TIME)
-        return tag
-
-    @renderer
-    def reload(self, req, tag):
-        if self.monitor.is_finished():
-            return ""
-        # url.gethere would break a proxy, so the correct thing to do is
-        # req.path[-1] + queryargs
-        ophandle = req.prepath[-1]
-        reload_target = ophandle + "?output=html"
-        cancel_target = ophandle + "?t=cancel"
-        cancel_button = T.form(T.input(type="submit", value="Cancel"),
-                               action=cancel_target,
-                               method="POST",
-                               enctype="multipart/form-data",)
-
-        return (T.h2("Operation still running: ",
-                     T.a("Reload", href=reload_target),
-                     ),
-                cancel_button,)
