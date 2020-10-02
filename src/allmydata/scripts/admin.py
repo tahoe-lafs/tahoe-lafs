@@ -125,7 +125,6 @@ def add_grid_manager_cert(options):
         return 1
 
     config.set_config("storage", "grid_management", "True")
-    config.add_section("grid_manager_certificates")
     config.set_config("grid_manager_certificates", cert_name, cert_fname)
 
     # write all the data out
