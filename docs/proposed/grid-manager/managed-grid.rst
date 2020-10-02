@@ -204,8 +204,10 @@ Enrolling a Client: CLI
 -----------------------
 
 
-tahoe add-grid-manager
-``````````````````````
+tahoe add-grid-manager (PROPOSED)
+`````````````````````````````````
+
+DECIDE: this command hasn't actually been written yet.
 
 This takes two arguments: ``name`` and ``public-identity``.
 
@@ -295,7 +297,8 @@ certificates into the grid. We do this by adding some configuration
     default = gridmanager.cert
 
 Add the above bit to each node's ``tahoe.cfg`` and re-start the
-storage nodes.
+storage nodes. (Alternatively, use the ``tahoe add-grid-manager``
+command).
 
 Now try adding a new storage server ``storage2``. This client can join
 the grid just fine, and announce itself to the Introducer as providing
