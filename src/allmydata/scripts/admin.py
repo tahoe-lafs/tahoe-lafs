@@ -60,13 +60,17 @@ class AddGridManagerCertOptions(BaseOptions):
 
     optParameters = [
         ['filename', 'f', None, "Filename of the certificate ('-', a dash, for stdin)"],
-        ['name', 'n', "default", "Name to give this certificate"],
+        ['name', 'n', None, "Name to give this certificate"],
     ]
 
     def getSynopsis(self):
         return "Usage: tahoe [global-options] admin add-grid-manager-cert [options]"
 
     def postOptions(self):
+        if self['name'] is None:
+            raise usage.UsageError(
+                "Must provide --name option"
+            )
         if self['filename'] is None:
             raise usage.UsageError(
                 "Must provide --filename option"
