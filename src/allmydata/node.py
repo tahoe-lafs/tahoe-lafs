@@ -823,7 +823,7 @@ class Node(service.MultiService):
             if type(o) is type(self.setup_logging): # bound method
                 ob = o.__self__
                 if isinstance(ob, twlog.FileLogObserver):
-                    newmeth = types.UnboundMethodType(formatTimeTahoeStyle, ob, ob.__class__)
+                    newmeth = types.MethodType(formatTimeTahoeStyle, ob)
                     ob.formatTime = newmeth
         # TODO: twisted >2.5.0 offers maxRotatedFiles=50
 
