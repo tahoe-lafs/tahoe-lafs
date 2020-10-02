@@ -141,8 +141,8 @@ Enrolling a Storage Server: CLI
 tahoe admin add-grid-manager-cert
 `````````````````````````````````
 
-- `--filename`: the file to read the cert from (default: stdin)
-- `--name`: the name of this certificate (default: "default")
+- `--filename`: the file to read the cert from
+- `--name`: the name of this certificate
 
 Import a "version 1" storage-certificate produced by a grid-manager A
 storage server may have zero or more such certificates installed; for
