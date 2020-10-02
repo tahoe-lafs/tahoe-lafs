@@ -2,11 +2,26 @@
 import urllib
 from twisted.web import http
 from twisted.internet import defer
-from nevow import rend, url, tags as T
+from twisted.python.filepath import FilePath
+from twisted.web.resource import Resource
+from twisted.web.template import (
+    XMLFile,
+    renderer,
+    renderElement,
+    tags,
+)
+from nevow import url
 from allmydata.immutable.upload import FileHandle
 from allmydata.mutable.publish import MutableFileHandle
-from allmydata.web.common import getxmlfile, get_arg, boolean_of_arg, \
-     convert_children_json, WebError, get_format, get_mutable_type
+from allmydata.web.common import (
+    get_arg,
+    boolean_of_arg,
+    convert_children_json,
+    WebError,
+    get_format,
+    get_mutable_type,
+    render_exception,
+)
 from allmydata.web import status
 
 def PUTUnlinkedCHK(req, client):
@@ -59,33 +74,53 @@ def POSTUnlinkedCHK(req, client):
     return d
 
 
-class UploadResultsPage(status.UploadResultsRendererMixin, rend.Page):
+class UploadResultsPage(Resource, object):
     """'POST /uri', to create an unlinked file."""
-    docFactory = getxmlfile("upload-results.xhtml")
 
     def __init__(self, upload_results):
-        rend.Page.__init__(self)
-        self.results = upload_results
+        """
+        :param IUploadResults upload_results: stats provider.
+        """
+        super(UploadResultsPage, self).__init__()
+        self._upload_results = upload_results
+
+    @render_exception
+    def render_POST(self, req):
+        elem = UploadResultsElement(self._upload_results)
+        return renderElement(req, elem)
+
+
+class UploadResultsElement(status.UploadResultsRendererMixin):
+
+    loader = XMLFile(FilePath(__file__).sibling("upload-results.xhtml"))
+
+    def __init__(self, upload_results):
+        super(UploadResultsElement, self).__init__()
+        self._upload_results = upload_results
 
     def upload_results(self):
-        return defer.succeed(self.results)
+        return defer.succeed(self._upload_results)
 
-    def data_done(self, ctx, data):
+    @renderer
+    def done(self, req, tag):
         d = self.upload_results()
         d.addCallback(lambda res: "done!")
         return d
 
-    def data_uri(self, ctx, data):
+    @renderer
+    def uri(self, req, tag):
         d = self.upload_results()
         d.addCallback(lambda res: res.get_uri())
         return d
 
-    def render_download_link(self, ctx, data):
+    @renderer
+    def download_link(self, req, tag):
         d = self.upload_results()
         d.addCallback(lambda res:
-                      T.a(href="/uri/" + urllib.quote(res.get_uri()))
-                      ["/uri/" + res.get_uri()])
+                      tags.a("/uri/" + res.get_uri(),
+                             href="/uri/" + urllib.quote(res.get_uri())))
         return d
+
 
 def POSTUnlinkedSSK(req, client, version):
     # "POST /uri", to create an unlinked file.

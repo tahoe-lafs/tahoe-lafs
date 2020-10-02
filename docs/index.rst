@@ -24,6 +24,7 @@ Contents:
 
    known_issues
    ../.github/CONTRIBUTING
+   CODE_OF_CONDUCT
 
    servers
    helper
@@ -37,6 +38,8 @@ Contents:
    cautions
    write_coordination
    backupdb
+
+   developer-guide
 
    anonymity-configuration
 

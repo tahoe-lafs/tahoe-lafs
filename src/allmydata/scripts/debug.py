@@ -63,7 +63,7 @@ def dump_immutable_chk_share(f, out, options):
     from allmydata import uri
     from allmydata.util import base32
     from allmydata.immutable.layout import ReadBucketProxy
-    from allmydata.util.encodingutil import quote_output, to_str
+    from allmydata.util.encodingutil import quote_output, to_bytes
 
     # use a ReadBucketProxy to parse the bucket and find the uri extension
     bp = ReadBucketProxy(None, None, '')
@@ -109,7 +109,7 @@ def dump_immutable_chk_share(f, out, options):
     # knowing the parent directory name to get it
     pieces = options['filename'].split(os.sep)
     if len(pieces) >= 2:
-        piece = to_str(pieces[-2])
+        piece = to_bytes(pieces[-2])
         if base32.could_be_base32_encoded(piece):
             storage_index = base32.a2b(piece)
             uri_extension_hash = base32.a2b(unpacked["UEB_hash"])
@@ -221,7 +221,7 @@ def dump_SDMF_share(m, length, options):
     from allmydata.mutable.common import NeedMoreDataError
     from allmydata.util import base32, hashutil
     from allmydata.uri import SSKVerifierURI
-    from allmydata.util.encodingutil import quote_output, to_str
+    from allmydata.util.encodingutil import quote_output, to_bytes
 
     offset = m.DATA_OFFSET
 
@@ -269,7 +269,7 @@ def dump_SDMF_share(m, length, options):
     # knowing the parent directory name to get it
     pieces = options['filename'].split(os.sep)
     if len(pieces) >= 2:
-        piece = to_str(pieces[-2])
+        piece = to_bytes(pieces[-2])
         if base32.could_be_base32_encoded(piece):
             storage_index = base32.a2b(piece)
             fingerprint = hashutil.ssk_pubkey_fingerprint_hash(pubkey)
@@ -307,7 +307,7 @@ def dump_MDMF_share(m, length, options):
     from allmydata.mutable.layout import MDMFSlotReadProxy
     from allmydata.util import base32, hashutil
     from allmydata.uri import MDMFVerifierURI
-    from allmydata.util.encodingutil import quote_output, to_str
+    from allmydata.util.encodingutil import quote_output, to_bytes
 
     offset = m.DATA_OFFSET
     out = options.stdout
@@ -346,7 +346,7 @@ def dump_MDMF_share(m, length, options):
     print(" MDMF contents:", file=out)
     print("  seqnum: %d" % seqnum, file=out)
     print("  root_hash: %s" % base32.b2a(root_hash), file=out)
-    #print >>out, "  IV: %s" % base32.b2a(IV)
+    #print("  IV: %s" % base32.b2a(IV), file=out)
     print("  required_shares: %d" % k, file=out)
     print("  total_shares: %d" % N, file=out)
     print("  segsize: %d" % segsize, file=out)
@@ -363,7 +363,7 @@ def dump_MDMF_share(m, length, options):
     # knowing the parent directory name to get it
     pieces = options['filename'].split(os.sep)
     if len(pieces) >= 2:
-        piece = to_str(pieces[-2])
+        piece = to_bytes(pieces[-2])
         if base32.could_be_base32_encoded(piece):
             storage_index = base32.a2b(piece)
             fingerprint = hashutil.ssk_pubkey_fingerprint_hash(pubkey)

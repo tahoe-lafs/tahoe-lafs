@@ -1,4 +1,18 @@
-# from the Python Standard Library
+"""
+Utilities for getting IP addresses.
+
+Ported to Python 3.
+"""
+
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2, native_str
+if PY2:
+    from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+
 import os, re, socket, subprocess, errno
 from sys import platform
 
@@ -88,13 +102,18 @@ except ImportError:
     increase_rlimits = _increase_rlimits
 
 def get_local_addresses_sync():
-    return _synchronously_find_addresses_via_config()
+    """
+    Return a list of IPv4 addresses (as dotted-quad native strings) that are
+    currently configured on this host, sorted in descending order of how likely
+    we think they are to work.
+    """
+    return [native_str(a) for a in _synchronously_find_addresses_via_config()]
 
 def get_local_addresses_async(target="198.41.0.4"): # A.ROOT-SERVERS.NET
     """
     Return a Deferred that fires with a list of IPv4 addresses (as dotted-quad
-    strings) that are currently configured on this host, sorted in descending
-    order of how likely we think they are to work.
+    native strings) that are currently configured on this host, sorted in
+    descending order of how likely we think they are to work.
 
     @param target: we want to learn an IP address they could try using to
         connect to us; The default value is fine, but it might help if you
@@ -117,13 +136,13 @@ def get_local_addresses_async(target="198.41.0.4"): # A.ROOT-SERVERS.NET
                 addresses.append(addr)
         return addresses
     d.addCallback(_collect)
-
+    d.addCallback(lambda addresses: [native_str(s) for s in addresses])
     return d
 
 def get_local_ip_for(target):
     """Find out what our IP address is for use by a given target.
 
-    @return: the IP address as a dotted-quad string which could be used by
+    @return: the IP address as a dotted-quad native string which could be used
               to connect to us. It might work for them, it might not. If
               there is no suitable address (perhaps we don't currently have an
               externally-visible interface), this will return None.
@@ -162,7 +181,7 @@ def get_local_ip_for(target):
     except (socket.error, CannotListenError):
         # no route to that host
         localip = None
-    return localip
+    return native_str(localip)
 
 
 # Wow, I'm really amazed at home much mileage we've gotten out of calling
@@ -171,11 +190,11 @@ def get_local_ip_for(target):
 # ... thus wrote Greg Smith in time immemorial...
 # Also, the Win32 APIs for this are really klunky and error-prone. --Daira
 
-_win32_re = re.compile(r'^\s*\d+\.\d+\.\d+\.\d+\s.+\s(?P<address>\d+\.\d+\.\d+\.\d+)\s+(?P<metric>\d+)\s*$', flags=re.M|re.I|re.S)
+_win32_re = re.compile(br'^\s*\d+\.\d+\.\d+\.\d+\s.+\s(?P<address>\d+\.\d+\.\d+\.\d+)\s+(?P<metric>\d+)\s*$', flags=re.M|re.I|re.S)
 _win32_commands = (('route.exe', ('print',), _win32_re),)
 
 # These work in most Unices.
-_addr_re = re.compile(r'^\s*inet [a-zA-Z]*:?(?P<address>\d+\.\d+\.\d+\.\d+)[\s/].+$', flags=re.M|re.I|re.S)
+_addr_re = re.compile(br'^\s*inet [a-zA-Z]*:?(?P<address>\d+\.\d+\.\d+\.\d+)[\s/].+$', flags=re.M|re.I|re.S)
 _unix_commands = (('/bin/ip', ('addr',), _addr_re),
                   ('/sbin/ip', ('addr',), _addr_re),
                   ('/sbin/ifconfig', ('-a',), _addr_re),
@@ -209,10 +228,13 @@ def _synchronously_find_addresses_via_config():
         else:
             exes_to_try = which(pathtotool)
 
+        subprocess_error = getattr(
+            subprocess, "SubprocessError", subprocess.CalledProcessError
+        )
         for exe in exes_to_try:
             try:
                 addresses = _query(exe, args, regex)
-            except Exception:
+            except (IOError, OSError, ValueError, subprocess_error):
                 addresses = []
             if addresses:
                 return addresses
@@ -222,9 +244,9 @@ def _synchronously_find_addresses_via_config():
 def _query(path, args, regex):
     if not os.path.isfile(path):
         return []
-    env = {'LANG': 'en_US.UTF-8'}
+    env = {native_str('LANG'): native_str('en_US.UTF-8')}
     TRIES = 5
-    for trial in xrange(TRIES):
+    for trial in range(TRIES):
         try:
             p = subprocess.Popen([path] + list(args), stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env)
             (output, err) = p.communicate()
@@ -235,13 +257,13 @@ def _query(path, args, regex):
             raise
 
     addresses = []
-    outputsplit = output.split('\n')
+    outputsplit = output.split(b'\n')
     for outline in outputsplit:
         m = regex.match(outline)
         if m:
             addr = m.group('address')
             if addr not in addresses:
-                addresses.append(addr)
+                addresses.append(addr.decode("utf-8"))
 
     return addresses
 
@@ -304,7 +326,7 @@ def _foolscapEndpointForPortNumber(portnum):
             # approach is error prone for the reasons described on
             # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2787
             portnum = allocate_tcp_port()
-    return (portnum, "tcp:%d" % (portnum,))
+    return (portnum, native_str("tcp:%d" % (portnum,)))
 
 
 @implementer(IStreamServerEndpoint)
@@ -353,7 +375,7 @@ def listenOnUnused(tub, portnum=None):
     """
     portnum, endpoint = _foolscapEndpointForPortNumber(portnum)
     tub.listenOn(endpoint)
-    tub.setLocation("localhost:%d" % (portnum,))
+    tub.setLocation(native_str("localhost:%d" % (portnum,)))
     return portnum
 
 
@@ -362,4 +384,5 @@ __all__ = ["allocate_tcp_port",
            "get_local_addresses_sync",
            "get_local_addresses_async",
            "get_local_ip_for",
+           "listenOnUnused",
            ]

@@ -1,3 +1,22 @@
+"""
+Interfaces for Tahoe-LAFS.
+
+Ported to Python 3.
+
+Note that for RemoteInterfaces, the __remote_name__ needs to be a native string because of https://github.com/warner/foolscap/blob/43f4485a42c9c28e2c79d655b3a9e24d4e6360ca/src/foolscap/remoteinterface.py#L67
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2, native_str
+if PY2:
+    # Don't import object/str/dict/etc. types, so we don't break any
+    # interfaces. Not importing open() because it triggers bogus flake8 error.
+    from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, pow, round, super, range, max, min  # noqa: F401
+
+from past.builtins import long
 
 from zope.interface import Interface, Attribute
 from twisted.plugin import (
@@ -57,7 +76,7 @@ class RIBucketReader(RemoteInterface):
     def read(offset=Offset, length=ReadSize):
         return ShareData
 
-    def advise_corrupt_share(reason=str):
+    def advise_corrupt_share(reason=bytes):
         """Clients who discover hash failures in shares that they have
         downloaded from me will use this method to inform me about the
         failures. I will record their concern so that my operator can
@@ -70,7 +89,7 @@ class RIBucketReader(RemoteInterface):
         """
 
 
-TestVector = ListOf(TupleOf(Offset, ReadSize, str, str))
+TestVector = ListOf(TupleOf(Offset, ReadSize, bytes, bytes))
 # elements are (offset, length, operator, specimen)
 # operator is one of "lt, le, eq, ne, ge, gt"
 # nop always passes and is used to fetch data while writing.
@@ -88,13 +107,13 @@ ReadData = ListOf(ShareData)
 
 
 class RIStorageServer(RemoteInterface):
-    __remote_name__ = "RIStorageServer.tahoe.allmydata.com"
+    __remote_name__ = native_str("RIStorageServer.tahoe.allmydata.com")
 
     def get_version():
         """
         Return a dictionary of version information.
         """
-        return DictOf(str, Any())
+        return DictOf(bytes, Any())
 
     def allocate_buckets(storage_index=StorageIndex,
                          renew_secret=LeaseRenewSecret,
@@ -276,8 +295,8 @@ class RIStorageServer(RemoteInterface):
         """
         return TupleOf(bool, DictOf(int, ReadData))
 
-    def advise_corrupt_share(share_type=str, storage_index=StorageIndex,
-                             shnum=int, reason=str):
+    def advise_corrupt_share(share_type=bytes, storage_index=StorageIndex,
+                             shnum=int, reason=bytes):
         """Clients who discover hash failures in shares that they have
         downloaded from me will use this method to inform me about the
         failures. I will record their concern so that my operator can
@@ -2823,17 +2842,17 @@ class RIControlClient(RemoteInterface):
 
     # debug stuff
 
-    def upload_random_data_from_file(size=int, convergence=str):
+    def upload_random_data_from_file(size=int, convergence=bytes):
         return str
 
-    def download_to_tempfile_and_delete(uri=str):
+    def download_to_tempfile_and_delete(uri=bytes):
         return None
 
     def get_memory_usage():
         """Return a dict describes the amount of memory currently in use. The
         keys are 'VmPeak', 'VmSize', and 'VmData'. The values are integers,
         measuring memory consupmtion in bytes."""
-        return DictOf(str, int)
+        return DictOf(bytes, int)
 
     def speed_test(count=int, size=int, mutable=Any()):
         """Write 'count' tempfiles to disk, all of the given size. Measure
@@ -2858,11 +2877,11 @@ class RIControlClient(RemoteInterface):
         return DictOf(str, float)
 
 
-UploadResults = Any() #DictOf(str, str)
+UploadResults = Any() #DictOf(bytes, bytes)
 
 
 class RIEncryptedUploadable(RemoteInterface):
-    __remote_name__ = "RIEncryptedUploadable.tahoe.allmydata.com"
+    __remote_name__ = native_str("RIEncryptedUploadable.tahoe.allmydata.com")
 
     def get_size():
         return Offset
@@ -2871,33 +2890,33 @@ class RIEncryptedUploadable(RemoteInterface):
         return (int, int, int, long)
 
     def read_encrypted(offset=Offset, length=ReadSize):
-        return ListOf(str)
+        return ListOf(bytes)
 
     def close():
         return None
 
 
 class RICHKUploadHelper(RemoteInterface):
-    __remote_name__ = "RIUploadHelper.tahoe.allmydata.com"
+    __remote_name__ = native_str("RIUploadHelper.tahoe.allmydata.com")
 
     def get_version():
         """
         Return a dictionary of version information.
         """
-        return DictOf(str, Any())
+        return DictOf(bytes, Any())
 
     def upload(reader=RIEncryptedUploadable):
         return UploadResults
 
 
 class RIHelper(RemoteInterface):
-    __remote_name__ = "RIHelper.tahoe.allmydata.com"
+    __remote_name__ = native_str("RIHelper.tahoe.allmydata.com")
 
     def get_version():
         """
         Return a dictionary of version information.
         """
-        return DictOf(str, Any())
+        return DictOf(bytes, Any())
 
     def upload_chk(si=StorageIndex):
         """See if a file with a given storage index needs uploading. The
@@ -2918,7 +2937,7 @@ class RIHelper(RemoteInterface):
 
 
 class RIStatsProvider(RemoteInterface):
-    __remote_name__ = "RIStatsProvider.tahoe.allmydata.com"
+    __remote_name__ = native_str("RIStatsProvider.tahoe.allmydata.com")
     """
     Provides access to statistics and monitoring information.
     """
@@ -2931,16 +2950,16 @@ class RIStatsProvider(RemoteInterface):
         stats are instantaneous measures (potentially time averaged
         internally)
         """
-        return DictOf(str, DictOf(str, ChoiceOf(float, int, long, None)))
+        return DictOf(bytes, DictOf(bytes, ChoiceOf(float, int, long, None)))
 
 
 class RIStatsGatherer(RemoteInterface):
-    __remote_name__ = "RIStatsGatherer.tahoe.allmydata.com"
+    __remote_name__ = native_str("RIStatsGatherer.tahoe.allmydata.com")
     """
     Provides a monitoring service for centralised collection of stats
     """
 
-    def provide(provider=RIStatsProvider, nickname=str):
+    def provide(provider=RIStatsProvider, nickname=bytes):
         """
         @param provider: a stats collector instance that should be polled
                          periodically by the gatherer to collect stats.
@@ -2952,7 +2971,7 @@ class RIStatsGatherer(RemoteInterface):
 class IStatsProducer(Interface):
     def get_stats():
         """
-        returns a dictionary, with str keys representing the names of stats
+        returns a dictionary, with bytes keys representing the names of stats
         to be monitored, and numeric values.
         """
 

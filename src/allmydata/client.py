@@ -7,7 +7,10 @@ from allmydata import node
 from base64 import urlsafe_b64encode
 from functools import partial
 from errno import ENOENT, EPERM
-from ConfigParser import NoSectionError
+try:
+    from ConfigParser import NoSectionError
+except ImportError:
+    from configparser import NoSectionError
 
 from foolscap.furl import (
     decode_furl,
@@ -154,7 +157,7 @@ def _make_secret():
     Returns a base32-encoded random secret of hashutil.CRYPTO_VAL_SIZE
     bytes.
     """
-    return base32.b2a(os.urandom(hashutil.CRYPTO_VAL_SIZE)) + "\n"
+    return base32.b2a(os.urandom(hashutil.CRYPTO_VAL_SIZE)) + b"\n"
 
 
 class SecretHolder(object):
@@ -791,12 +794,12 @@ class _Client(node.Node, pollmixin.PollMixin):
         # existing key
         def _make_key():
             private_key, _ = ed25519.create_signing_keypair()
-            return ed25519.string_from_signing_key(private_key) + "\n"
+            return ed25519.string_from_signing_key(private_key) + b"\n"
 
         private_key_str = self.config.get_or_create_private_config("node.privkey", _make_key)
         private_key, public_key = ed25519.signing_keypair_from_string(private_key_str)
         public_key_str = ed25519.string_from_verifying_key(public_key)
-        self.config.write_config_file("node.pubkey", public_key_str + "\n")
+        self.config.write_config_file("node.pubkey", public_key_str + b"\n", "wb")
         self._node_private_key = private_key
         self._node_public_key = public_key
 
@@ -1035,7 +1038,7 @@ class _Client(node.Node, pollmixin.PollMixin):
         """
         self.config.write_private_config(
             'api_auth_token',
-            urlsafe_b64encode(os.urandom(32)) + '\n',
+            urlsafe_b64encode(os.urandom(32)) + b'\n',
         )
 
     def get_storage_broker(self):
@@ -1085,7 +1088,7 @@ class _Client(node.Node, pollmixin.PollMixin):
         c = ControlServer()
         c.setServiceParent(self)
         control_url = self.control_tub.registerReference(c)
-        self.config.write_private_config("control.furl", control_url + "\n")
+        self.config.write_private_config("control.furl", control_url + b"\n")
 
     def init_helper(self):
         self.helper = Helper(self.config.get_config_path("helper"),

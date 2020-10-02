@@ -1,3 +1,13 @@
+from __future__ import division
+from __future__ import absolute_import
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    # We omit anything that might end up in pickle, just in case.
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, range, str, max, min  # noqa: F401
+
 import time, os, pickle, struct
 from allmydata.storage.crawler import ShareCrawler
 from allmydata.storage.shares import get_share_file
@@ -84,9 +94,8 @@ class LeaseCheckingCrawler(ShareCrawler):
         # initialize history
         if not os.path.exists(self.historyfile):
             history = {} # cyclenum -> dict
-            f = open(self.historyfile, "wb")
-            pickle.dump(history, f)
-            f.close()
+            with open(self.historyfile, "wb") as f:
+                pickle.dump(history, f)
 
     def create_empty_cycle_dict(self):
         recovered = self.create_empty_recovered_dict()
@@ -303,14 +312,14 @@ class LeaseCheckingCrawler(ShareCrawler):
         # copy() needs to become a deepcopy
         h["space-recovered"] = s["space-recovered"].copy()
 
-        history = pickle.load(open(self.historyfile, "rb"))
+        with open(self.historyfile, "rb") as f:
+            history = pickle.load(f)
         history[cycle] = h
         while len(history) > 10:
             oldcycles = sorted(history.keys())
             del history[oldcycles[0]]
-        f = open(self.historyfile, "wb")
-        pickle.dump(history, f)
-        f.close()
+        with open(self.historyfile, "wb") as f:
+            pickle.dump(history, f)
 
     def get_state(self):
         """In addition to the crawler state described in
@@ -379,7 +388,8 @@ class LeaseCheckingCrawler(ShareCrawler):
         progress = self.get_progress()
 
         state = ShareCrawler.get_state(self) # does a shallow copy
-        history = pickle.load(open(self.historyfile, "rb"))
+        with open(self.historyfile, "rb") as f:
+            history = pickle.load(f)
         state["history"] = history
 
         if not progress["cycle-in-progress"]:

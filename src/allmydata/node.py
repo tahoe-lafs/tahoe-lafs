@@ -2,12 +2,14 @@
 This module contains classes and functions to implement and manage
 a node for Tahoe-LAFS.
 """
+from past.builtins import unicode
+
 import datetime
 import os.path
 import re
 import types
 import errno
-import ConfigParser
+from six.moves import configparser
 import tempfile
 from io import BytesIO
 from base64 import b32decode, b32encode
@@ -67,7 +69,7 @@ def _common_valid_config():
 
 # Add our application versions to the data that Foolscap's LogPublisher
 # reports.
-for thing, things_version in get_package_versions().iteritems():
+for thing, things_version in get_package_versions().items():
     app_versions.add_version(thing, str(things_version))
 
 # group 1 will be addr (dotted quad string), group 3 if any will be portnum (string)
@@ -180,7 +182,7 @@ def read_config(basedir, portnumfile, generated_files=[], _valid_config=None):
 
     # (try to) read the main config file
     config_fname = os.path.join(basedir, "tahoe.cfg")
-    parser = ConfigParser.SafeConfigParser()
+    parser = configparser.SafeConfigParser()
     try:
         parser = configutil.get_config(config_fname)
     except EnvironmentError as e:
@@ -203,7 +205,7 @@ def config_from_string(basedir, portnumfile, config_str, _valid_config=None):
         _valid_config = _common_valid_config()
 
     # load configuration from in-memory string
-    parser = ConfigParser.SafeConfigParser()
+    parser = configparser.SafeConfigParser()
     parser.readfp(BytesIO(config_str))
     fname = "<in-memory>"
     configutil.validate_config(fname, parser, _valid_config)
@@ -284,7 +286,10 @@ class _Config(object):
         self._write_config = write_new_tahoecfg
 
         nickname_utf8 = self.get_config("node", "nickname", "<unspecified>")
-        self.nickname = nickname_utf8.decode("utf-8")
+        if isinstance(nickname_utf8, bytes):  # Python 2
+            self.nickname = nickname_utf8.decode("utf-8")
+        else:
+            self.nickname = nickname_utf8
         assert type(self.nickname) is unicode
 
     def _default_write_new_tahoecfg(self, config):
@@ -321,14 +326,14 @@ class _Config(object):
         try:
             for k in self.config.options(section):
                 answer[k] = self.config.get(section, k)
-        except ConfigParser.NoSectionError:
+        except configparser.NoSectionError:
             pass
         return answer
 
     def items(self, section, default=_None):
         try:
             return self.config.items(section)
-        except ConfigParser.NoSectionError:
+        except configparser.NoSectionError:
             if default is _None:
                 raise
             return default
@@ -343,7 +348,7 @@ class _Config(object):
                 raise UnescapedHashError(section, option, item)
 
             return item
-        except (ConfigParser.NoOptionError, ConfigParser.NoSectionError):
+        except (configparser.NoOptionError, configparser.NoSectionError):
             if default is _None:
                 raise MissingConfigEntry(
                     "{} is missing the [{}]{} entry".format(
@@ -363,7 +368,7 @@ class _Config(object):
 
         try:
             self.config.add_section(section)
-        except ConfigParser.DuplicateSectionError:
+        except configparser.DuplicateSectionError:
             pass
         self.config.set(section, option, value)
         self._write_config(self.config)
@@ -404,7 +409,7 @@ class _Config(object):
             if default is _None:
                 raise MissingConfigEntry("The required configuration file %s is missing."
                                          % (quote_output(privname),))
-            if isinstance(default, basestring):
+            if isinstance(default, (bytes, unicode)):
                 value = default
             else:
                 value = default()
@@ -417,7 +422,7 @@ class _Config(object):
         return it.
         """
         privname = os.path.join(self._basedir, "private", name)
-        with open(privname, "w") as f:
+        with open(privname, "wb") as f:
             f.write(value)
 
     def get_private_config(self, name, default=_None):
@@ -801,7 +806,9 @@ class Node(service.MultiService):
         """
         Initialize/create a directory for temporary files.
         """
-        tempdir_config = self.config.get_config("node", "tempdir", "tmp").decode('utf-8')
+        tempdir_config = self.config.get_config("node", "tempdir", "tmp")
+        if isinstance(tempdir_config, bytes):
+            tempdir_config = tempdir_config.decode('utf-8')
         tempdir = self.config.get_config_path(tempdir_config)
         if not os.path.exists(tempdir):
             fileutil.make_dirs(tempdir)

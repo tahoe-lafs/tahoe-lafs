@@ -34,11 +34,13 @@ from allmydata.web import storage
 from allmydata.web.common import (
     abbreviate_size,
     WebError,
+    exception_to_child,
     get_arg,
     MultiFormatResource,
     SlotsSequenceElement,
     get_format,
     get_mutable_type,
+    render_exception,
     render_time_delta,
     render_time,
     render_time_attr,
@@ -58,6 +60,7 @@ class URIHandler(resource.Resource, object):
         super(URIHandler, self).__init__()
         self.client = client
 
+    @render_exception
     def render_GET(self, req):
         """
         Historically, accessing this via "GET /uri?uri=<capabilitiy>"
@@ -88,6 +91,7 @@ class URIHandler(resource.Resource, object):
                     redir_uri = redir_uri.add(k.decode('utf8'), v.decode('utf8'))
         return redirectTo(redir_uri.to_text().encode('utf8'), req)
 
+    @render_exception
     def render_PUT(self, req):
         """
         either "PUT /uri" to create an unlinked file, or
@@ -109,6 +113,7 @@ class URIHandler(resource.Resource, object):
         )
         raise WebError(errmsg, http.BAD_REQUEST)
 
+    @render_exception
     def render_POST(self, req):
         """
         "POST /uri?t=upload&file=newfile" to upload an
@@ -135,6 +140,7 @@ class URIHandler(resource.Resource, object):
                   "and POST?t=mkdir")
         raise WebError(errmsg, http.BAD_REQUEST)
 
+    @exception_to_child
     def getChild(self, name, req):
         """
         Most requests look like /uri/<cap> so this fetches the capability
@@ -167,6 +173,7 @@ class FileHandler(resource.Resource, object):
         super(FileHandler, self).__init__()
         self.client = client
 
+    @exception_to_child
     def getChild(self, name, req):
         if req.method not in ("GET", "HEAD"):
             raise WebError("/file can only be used with GET or HEAD")
@@ -181,6 +188,7 @@ class FileHandler(resource.Resource, object):
             raise WebError("'%s' is not a file-cap" % name)
         return filenode.FileNodeDownloadHandler(self.client, node)
 
+    @render_exception
     def render_GET(self, ctx):
         raise WebError("/file must be followed by a file-cap and a name",
                        http.NOT_FOUND)
@@ -188,6 +196,7 @@ class FileHandler(resource.Resource, object):
 class IncidentReporter(MultiFormatResource):
     """Handler for /report_incident POST request"""
 
+    @render_exception
     def render(self, req):
         if req.method != "POST":
             raise WebError("/report_incident can only be used with POST")
@@ -236,6 +245,7 @@ class Root(MultiFormatResource):
 
         self.putChild("report_incident", IncidentReporter())
 
+    @exception_to_child
     def getChild(self, path, request):
         if not path:
             # Render "/" path.
@@ -254,9 +264,11 @@ class Root(MultiFormatResource):
                 storage_server = None
             return storage.StorageStatus(storage_server, self._client.nickname)
 
+    @render_exception
     def render_HTML(self, req):
         return renderElement(req, RootElement(self._client, self._now_fn))
 
+    @render_exception
     def render_JSON(self, req):
         req.setHeader("content-type", "application/json; charset=utf-8")
         intro_summaries = [s.summary for s in self._client.introducer_connection_statuses()]

@@ -52,7 +52,6 @@ from twisted.internet.defer import inlineCallbacks, returnValue
 from twisted.internet.interfaces import IPullProducer
 from twisted.python import failure
 from twisted.python.filepath import FilePath
-from twisted.application import service
 from twisted.web.error import Error as WebError
 from twisted.internet.interfaces import (
     IStreamServerEndpointStringParser,
@@ -88,6 +87,8 @@ from ..crypto import (
 from .eliotutil import (
     EliotLoggedRunTest,
 )
+# Backwards compatibility imports:
+from .common_py3 import LoggingServiceParent, ShouldFailMixin  # noqa: F401
 
 
 TEST_RSA_KEY_SIZE = 522
@@ -780,53 +781,8 @@ def create_mutable_filenode(contents, mdmf=False, all_contents=None):
     return filenode
 
 
-class LoggingServiceParent(service.MultiService):
-    def log(self, *args, **kwargs):
-        return log.msg(*args, **kwargs)
+TEST_DATA=b"\x02"*(Uploader.URI_LIT_SIZE_THRESHOLD+1)
 
-
-TEST_DATA="\x02"*(Uploader.URI_LIT_SIZE_THRESHOLD+1)
-
-class ShouldFailMixin(object):
-    def shouldFail(self, expected_failure, which, substring,
-                   callable, *args, **kwargs):
-        """Assert that a function call raises some exception. This is a
-        Deferred-friendly version of TestCase.assertRaises() .
-
-        Suppose you want to verify the following function:
-
-         def broken(a, b, c):
-             if a < 0:
-                 raise TypeError('a must not be negative')
-             return defer.succeed(b+c)
-
-        You can use:
-            d = self.shouldFail(TypeError, 'test name',
-                                'a must not be negative',
-                                broken, -4, 5, c=12)
-        in your test method. The 'test name' string will be included in the
-        error message, if any, because Deferred chains frequently make it
-        difficult to tell which assertion was tripped.
-
-        The substring= argument, if not None, must appear in the 'repr'
-        of the message wrapped by this Failure, or the test will fail.
-        """
-
-        assert substring is None or isinstance(substring, str)
-        d = defer.maybeDeferred(callable, *args, **kwargs)
-        def done(res):
-            if isinstance(res, failure.Failure):
-                res.trap(expected_failure)
-                if substring:
-                    message = repr(res.value.args[0])
-                    self.failUnless(substring in message,
-                                    "%s: substring '%s' not in '%s'"
-                                    % (which, substring, message))
-            else:
-                self.fail("%s was supposed to raise %s, not get '%s'" %
-                          (which, expected_failure, res))
-        d.addBoth(done)
-        return d
 
 class WebErrorMixin(object):
     def explain_web_error(self, f):
@@ -1002,12 +958,12 @@ def _corrupt_offset_of_block_hashes_to_truncate_crypttext_hashes(data, debug=Fal
     assert sharevernum in (1, 2), "This test is designed to corrupt immutable shares of v1 or v2 in specific ways."
     if sharevernum == 1:
         curval = struct.unpack(">L", data[0x0c+0x18:0x0c+0x18+4])[0]
-        newval = random.randrange(0, max(1, (curval/hashutil.CRYPTO_VAL_SIZE)/2))*hashutil.CRYPTO_VAL_SIZE
+        newval = random.randrange(0, max(1, (curval//hashutil.CRYPTO_VAL_SIZE)//2))*hashutil.CRYPTO_VAL_SIZE
         newvalstr = struct.pack(">L", newval)
         return data[:0x0c+0x18]+newvalstr+data[0x0c+0x18+4:]
     else:
         curval = struct.unpack(">Q", data[0x0c+0x2c:0x0c+0x2c+8])[0]
-        newval = random.randrange(0, max(1, (curval/hashutil.CRYPTO_VAL_SIZE)/2))*hashutil.CRYPTO_VAL_SIZE
+        newval = random.randrange(0, max(1, (curval//hashutil.CRYPTO_VAL_SIZE)//2))*hashutil.CRYPTO_VAL_SIZE
         newvalstr = struct.pack(">Q", newval)
         return data[:0x0c+0x2c]+newvalstr+data[0x0c+0x2c+8:]
 
@@ -1269,5 +1225,5 @@ class TrialTestCase(_TrialTestCase):
 
         if six.PY2:
             if isinstance(msg, six.text_type):
-                return super(self, TrialTestCase).fail(msg.encode("utf8"))
-        return super(self, TrialTestCase).fail(msg)
+                return super(TrialTestCase, self).fail(msg.encode("utf8"))
+        return super(TrialTestCase, self).fail(msg)

@@ -1,4 +1,6 @@
+from __future__ import print_function
 
+import sys
 import os.path, time
 from six.moves import cStringIO as StringIO
 from twisted.trial import unittest
@@ -60,8 +62,11 @@ class BackupDB(unittest.TestCase):
         bdb = backupdb.get_backupdb(where, stderr_f)
         self.failUnlessEqual(bdb, None)
         stderr = stderr_f.getvalue()
-        self.failUnlessIn("Unable to create/open backupdb file %s" % (where,), stderr)
-        self.failUnlessIn("unable to open database file", stderr)
+        # the error-message is different under PyPy ... not sure why?
+        if 'pypy' in sys.version.lower():
+            self.failUnlessIn("Could not open database", stderr)
+        else:
+            self.failUnlessIn("unable to open database file", stderr)
 
 
     def writeto(self, filename, data):
@@ -226,7 +231,7 @@ class BackupDB(unittest.TestCase):
         files = [fn for fn in listdir_unicode(unicode(basedir)) if fn.endswith(".txt")]
         self.failUnlessEqual(len(files), 1)
         foo_fn = os.path.join(basedir, files[0])
-        #print foo_fn, type(foo_fn)
+        #print(foo_fn, type(foo_fn))
 
         r = bdb.check_file(foo_fn)
         self.failUnlessEqual(r.was_uploaded(), False)
@@ -237,7 +242,7 @@ class BackupDB(unittest.TestCase):
         self.failUnlessEqual(r.should_check(), False)
 
         bar_fn = self.writeto(u"b\u00e5r.txt", "bar.txt")
-        #print bar_fn, type(bar_fn)
+        #print(bar_fn, type(bar_fn))
 
         r = bdb.check_file(bar_fn)
         self.failUnlessEqual(r.was_uploaded(), False)

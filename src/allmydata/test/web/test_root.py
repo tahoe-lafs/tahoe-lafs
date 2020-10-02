@@ -2,6 +2,8 @@ from mock import Mock
 
 import time
 
+from bs4 import BeautifulSoup
+
 from twisted.trial import unittest
 from twisted.web.template import Tag
 from twisted.web.test.requesthelper import DummyRequest
@@ -14,12 +16,14 @@ from ...storage_client import (
 from ...web.root import RootElement
 from ...util.connection_status import ConnectionStatus
 from allmydata.web.root import URIHandler
-from allmydata.web.common import WebError
 from allmydata.client import _Client
 
 from hypothesis import given
 from hypothesis.strategies import text
 
+from .common import (
+    assert_soup_has_tag_with_content,
+)
 
 from ..common import (
     EMPTY_CLIENT_CONFIG,
@@ -57,8 +61,19 @@ class RenderSlashUri(unittest.TestCase):
         A (trivially) invalid capbility is an error
         """
         self.request.args[b"uri"] = [b"not a capability"]
-        with self.assertRaises(WebError):
-            self.res.render_GET(self.request)
+        response_body = self.res.render_GET(self.request)
+
+        soup = BeautifulSoup(response_body, 'html5lib')
+
+        assert_soup_has_tag_with_content(
+            self, soup, "title", "400 - Error",
+        )
+        assert_soup_has_tag_with_content(
+            self, soup, "h1", "Error",
+        )
+        assert_soup_has_tag_with_content(
+            self, soup, "p", "Invalid capability",
+        )
 
     @given(
         text()
@@ -68,8 +83,19 @@ class RenderSlashUri(unittest.TestCase):
         Let hypothesis try a bunch of invalid capabilities
         """
         self.request.args[b"uri"] = [cap.encode('utf8')]
-        with self.assertRaises(WebError):
-            self.res.render_GET(self.request)
+        response_body = self.res.render_GET(self.request)
+
+        soup = BeautifulSoup(response_body, 'html5lib')
+
+        assert_soup_has_tag_with_content(
+            self, soup, "title", "400 - Error",
+        )
+        assert_soup_has_tag_with_content(
+            self, soup, "h1", "Error",
+        )
+        assert_soup_has_tag_with_content(
+            self, soup, "p", "Invalid capability",
+        )
 
 
 class RenderServiceRow(unittest.TestCase):

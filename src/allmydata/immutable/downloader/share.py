@@ -13,7 +13,7 @@ from allmydata.hashtree import IncompleteHashTree, BadHashError, \
 
 from allmydata.immutable.layout import make_write_bucket_proxy
 from allmydata.util.observer import EventStreamObserver
-from common import COMPLETE, CORRUPT, DEAD, BADSEGNUM
+from .common import COMPLETE, CORRUPT, DEAD, BADSEGNUM
 
 
 class LayoutInvalid(Exception):
@@ -85,8 +85,8 @@ class Share(object):
 
         self._requested_blocks = [] # (segnum, set(observer2..))
         v = server.get_version()
-        ver = v["http://allmydata.org/tahoe/protocols/storage/v1"]
-        self._overrun_ok = ver["tolerates-immutable-read-overrun"]
+        ver = v[b"http://allmydata.org/tahoe/protocols/storage/v1"]
+        self._overrun_ok = ver[b"tolerates-immutable-read-overrun"]
         # If _overrun_ok and we guess the offsets correctly, we can get
         # everything in one RTT. If _overrun_ok and we guess wrong, we might
         # need two RTT (but we could get lucky and do it in one). If overrun
@@ -464,7 +464,7 @@ class Share(object):
         # there was corruption somewhere in the given range
         reason = "corruption in share[%d-%d): %s" % (start, start+offset,
                                                      str(f.value))
-        self._rref.callRemoteOnly("advise_corrupt_share", reason)
+        self._rref.callRemoteOnly("advise_corrupt_share", reason.encode("utf-8"))
 
     def _satisfy_block_hash_tree(self, needed_hashes):
         o_bh = self.actual_offsets["block_hashes"]

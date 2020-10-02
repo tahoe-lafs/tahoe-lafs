@@ -1,3 +1,14 @@
+"""
+Ported to Python 3.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 import time
 now = time.time
@@ -5,7 +16,7 @@ from foolscap.api import eventually
 from allmydata.util import base32, log
 from twisted.internet import reactor
 
-from share import Share, CommonShare
+from .share import Share, CommonShare
 
 def incidentally(res, f, *args, **kwargs):
     """Add me to a Deferred chain like this:
@@ -43,7 +54,7 @@ class ShareFinder(object):
         self.overdue_timers = {}
 
         self._storage_index = verifycap.storage_index
-        self._si_prefix = base32.b2a_l(self._storage_index[:8], 60)
+        self._si_prefix = base32.b2a(self._storage_index[:8])[:12]
         self._node_logparent = logparent
         self._download_status = download_status
         self._lp = log.msg(format="ShareFinder[si=%(si)s] starting",
@@ -106,7 +117,7 @@ class ShareFinder(object):
         server = None
         try:
             if self._servers:
-                server = self._servers.next()
+                server = next(self._servers)
         except StopIteration:
             self._servers = None
 
@@ -175,7 +186,7 @@ class ShareFinder(object):
                  shnums=shnums_s, name=server.get_name(),
                  level=log.NOISY, parent=lp, umid="0fcEZw")
         shares = []
-        for shnum, bucket in buckets.iteritems():
+        for shnum, bucket in buckets.items():
             s = self._create_share(shnum, bucket, server, dyhb_rtt)
             shares.append(s)
         self._deliver_shares(shares)

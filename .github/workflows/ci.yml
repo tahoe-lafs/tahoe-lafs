@@ -49,8 +49,8 @@ jobs:
       - name: Display tool versions
         run: python misc/build_helpers/show-tool-versions.py
 
-      - name: Run "tox -e coverage"
-        run: tox -e coverage
+      - name: Run "tox -e py27-coverage"
+        run: tox -e py27-coverage
 
       - name: Upload eliot.log in case of failure
         uses: actions/upload-artifact@v1
@@ -72,6 +72,7 @@ jobs:
       matrix:
         os:
           - macos-latest
+          - windows-latest
         python-version:
           - 2.7
 
@@ -162,7 +163,7 @@ jobs:
 
       - name: Install Python packages
         run: |
-          pip install --upgrade codecov tox setuptools
+          pip install --upgrade tox
           pip list
 
       - name: Display tool versions
@@ -170,3 +171,13 @@ jobs:
 
       - name: Run "tox -e pyinstaller"
         run: tox -e pyinstaller
+
+      # This step is to ensure there are no packaging/import errors.
+      - name: Test PyInstaller executable
+        run: dist/Tahoe-LAFS/tahoe --version
+
+      - name: Upload PyInstaller package
+        uses: actions/upload-artifact@v2
+        with:
+          name: Tahoe-LAFS-${{ matrix.os }}-Python-${{ matrix.python-version }}
+          path: dist/Tahoe-LAFS-*-*.*

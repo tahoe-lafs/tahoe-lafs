@@ -1,3 +1,14 @@
+"""
+Ported to Python 3.
+"""
+from __future__ import division
+from __future__ import absolute_import
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 import itertools
 from zope.interface import implementer
@@ -9,8 +20,8 @@ class ReadEvent(object):
         self._ev = ev
         self._ds = ds
 
-    def update(self, bytes, decrypttime, pausetime):
-        self._ev["bytes_returned"] += bytes
+    def update(self, bytes_returned, decrypttime, pausetime):
+        self._ev["bytes_returned"] += bytes_returned
         self._ev["decrypt_time"] += decrypttime
         self._ev["paused_time"] += pausetime
 
@@ -89,7 +100,7 @@ class DownloadStatus(object):
     def __init__(self, storage_index, size):
         self.storage_index = storage_index
         self.size = size
-        self.counter = self.statusid_counter.next()
+        self.counter = next(self.statusid_counter)
         self.helper = False
 
         self.first_timestamp = None
@@ -257,7 +268,7 @@ class DownloadStatus(object):
             # else ignore completed requests
         if not total_outstanding:
             return 1.0
-        return 1.0 * total_received / total_outstanding
+        return total_received / total_outstanding
 
     def using_helper(self):
         return False

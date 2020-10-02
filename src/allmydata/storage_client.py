@@ -28,15 +28,19 @@ the foolscap-based server implemented in src/allmydata/storage/*.py .
 #
 # 6: implement other sorts of IStorageClient classes: S3, etc
 
+from past.builtins import unicode
 
 import re
 import time
 import json
 import hashlib
 from datetime import datetime
-from ConfigParser import (
-    NoSectionError,
-)
+try:
+    from ConfigParser import (
+        NoSectionError,
+    )
+except ImportError:
+    from configparser import NoSectionError
 import attr
 from zope.interface import (
     Attribute,
@@ -579,12 +583,15 @@ class _FoolscapStorage(object):
 
         *nickname* and *grid-manager-certificates* are optional.
         """
-        m = re.match(r'pb://(\w+)@', furl)
+        m = re.match(br'pb://(\w+)@', furl)
         assert m, furl
         tubid_s = m.group(1).lower()
         tubid = base32.a2b(tubid_s)
         if "permutation-seed-base32" in ann:
-            ps = base32.a2b(str(ann["permutation-seed-base32"]))
+            seed = ann["permutation-seed-base32"]
+            if isinstance(seed, unicode):
+                seed = seed.encode("utf-8")
+            ps = base32.a2b(seed)
         elif re.search(r'^v0-[0-9a-zA-Z]{52}$', server_id):
             ps = base32.a2b(server_id[3:])
         else:
@@ -599,7 +606,7 @@ class _FoolscapStorage(object):
 
         assert server_id
         long_description = server_id
-        if server_id.startswith("v0-"):
+        if server_id.startswith(b"v0-"):
             # remove v0- prefix from abbreviated name
             short_description = server_id[3:3+8]
         else:
@@ -631,11 +638,11 @@ class _NullStorage(object):
     which we can't communicate.
     """
     nickname = ""
-    permutation_seed = hashlib.sha256("").digest()
-    tubid = hashlib.sha256("").digest()
+    permutation_seed = hashlib.sha256(b"").digest()
+    tubid = hashlib.sha256(b"").digest()
     storage_server = None
 
-    lease_seed = hashlib.sha256("").digest()
+    lease_seed = hashlib.sha256(b"").digest()
 
     name = "<unsupported>"
     longname = "<storage with unsupported protocol>"
@@ -715,20 +722,20 @@ class NativeStorageServer(service.MultiService):
     """
 
     VERSION_DEFAULTS = {
-        "http://allmydata.org/tahoe/protocols/storage/v1" :
-        { "maximum-immutable-share-size": 2**32 - 1,
-          "maximum-mutable-share-size": 2*1000*1000*1000, # maximum prior to v1.9.2
-          "tolerates-immutable-read-overrun": False,
-          "delete-mutable-shares-with-zero-length-writev": False,
-          "available-space": None,
+        b"http://allmydata.org/tahoe/protocols/storage/v1" :
+        { b"maximum-immutable-share-size": 2**32 - 1,
+          b"maximum-mutable-share-size": 2*1000*1000*1000, # maximum prior to v1.9.2
+          b"tolerates-immutable-read-overrun": False,
+          b"delete-mutable-shares-with-zero-length-writev": False,
+          b"available-space": None,
           },
-        "application-version": "unknown: no get_version()",
+        b"application-version": "unknown: no get_version()",
         }
 
     def __init__(self, server_id, ann, tub_maker, handler_overrides, node_config, config=None,
                  grid_manager_keys=None, grid_manager_certs=None):
         service.MultiService.__init__(self)
-        assert isinstance(server_id, str)
+        assert isinstance(server_id, bytes)
         self._server_id = server_id
         self.announcement = ann
         self._tub_maker = tub_maker
@@ -835,12 +842,14 @@ class NativeStorageServer(service.MultiService):
             # Nope
             pass
         else:
+            if isinstance(furl, unicode):
+                furl = furl.encode("utf-8")
             # See comment above for the _storage_from_foolscap_plugin case
             # about passing in get_rref.
             storage_server = _StorageServer(get_rref=self.get_rref)
             return _FoolscapStorage.from_announcement(
                 self._server_id,
-                furl.encode("utf-8"),
+                furl,
                 ann,
                 storage_server,
             )
@@ -908,7 +917,7 @@ class NativeStorageServer(service.MultiService):
         version = self.get_version()
         if version is None:
             return None
-        protocol_v1_version = version.get('http://allmydata.org/tahoe/protocols/storage/v1', {})
+        protocol_v1_version = version.get(b'http://allmydata.org/tahoe/protocols/storage/v1', {})
         available_space = protocol_v1_version.get('available-space')
         if available_space is None:
             available_space = protocol_v1_version.get('maximum-immutable-share-size', None)

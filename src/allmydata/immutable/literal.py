@@ -1,7 +1,20 @@
-from six.moves import cStringIO as StringIO
+"""
+Ported to Python 3.
+"""
+
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+
+from io import BytesIO
+
 from zope.interface import implementer
 from twisted.internet import defer
-from twisted.internet.interfaces import IPushProducer
 from twisted.protocols import basic
 from allmydata.interfaces import IImmutableFileNode, ICheckable
 from allmydata.uri import LiteralFileURI
@@ -32,29 +45,15 @@ class _ImmutableFileNodeBase(object):
 
     def __hash__(self):
         return self.u.__hash__()
+
     def __eq__(self, other):
         if isinstance(other, _ImmutableFileNodeBase):
-            return self.u.__eq__(other.u)
+            return self.u == other.u
         else:
             return False
+
     def __ne__(self, other):
-        if isinstance(other, _ImmutableFileNodeBase):
-            return self.u.__eq__(other.u)
-        else:
-            return True
-
-
-@implementer(IPushProducer)
-class LiteralProducer(object):
-
-    def pauseProducing(self):
-        pass
-
-    def resumeProducing(self):
-        pass
-
-    def stopProducing(self):
-        pass
+        return not self == other
 
 
 class LiteralFileNode(_ImmutableFileNodeBase):
@@ -104,7 +103,7 @@ class LiteralFileNode(_ImmutableFileNodeBase):
         # vfs.adapters.ftp._FileToConsumerAdapter), neither of which is
         # likely to be used as the target for a Tahoe download.
 
-        d = basic.FileSender().beginFileTransfer(StringIO(data), consumer)
+        d = basic.FileSender().beginFileTransfer(BytesIO(data), consumer)
         d.addCallback(lambda lastSent: consumer)
         return d
 

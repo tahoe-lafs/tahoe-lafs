@@ -1,24 +1,46 @@
 
 import time
 import json
+from functools import wraps
 
-from twisted.web import http, server, resource, template
+from twisted.web import (
+    http,
+    resource,
+    server,
+    template,
+)
 from twisted.python import log
-from twisted.python.failure import Failure
-from nevow import loaders, appserver
-from nevow.rend import Page
+from nevow import appserver
 from nevow.inevow import IRequest
-from nevow.util import resource_filename
 from allmydata import blacklist
-from allmydata.interfaces import ExistingChildError, NoSuchChildError, \
-     FileTooLargeError, NotEnoughSharesError, NoSharesError, \
-     EmptyPathnameComponentError, MustBeDeepImmutableError, \
-     MustBeReadonlyError, MustNotBeUnknownRWError, SDMF_VERSION, MDMF_VERSION
+from allmydata.interfaces import (
+    EmptyPathnameComponentError,
+    ExistingChildError,
+    FileTooLargeError,
+    MustBeDeepImmutableError,
+    MustBeReadonlyError,
+    MustNotBeUnknownRWError,
+    NoSharesError,
+    NoSuchChildError,
+    NotEnoughSharesError,
+    MDMF_VERSION,
+    SDMF_VERSION,
+)
 from allmydata.mutable.common import UnrecoverableFileError
-from allmydata.util import abbreviate
 from allmydata.util.hashutil import timing_safe_compare
-from allmydata.util.time_format import format_time, format_delta
-from allmydata.util.encodingutil import to_str, quote_output
+from allmydata.util.time_format import (
+    format_delta,
+    format_time,
+)
+from allmydata.util.encodingutil import (
+    quote_output,
+    to_bytes,
+)
+
+# Originally part of this module, so still part of its API:
+from .common_py3 import (  # noqa: F401
+    get_arg, abbreviate_time, MultiFormatResource, WebError,
+)
 
 
 def get_filenode_metadata(filenode):
@@ -37,9 +59,6 @@ def get_filenode_metadata(filenode):
     if size is not None:
         metadata['size'] = size
     return metadata
-
-def getxmlfile(name):
-    return loaders.xmlfile(resource_filename('allmydata.web', '%s' % name))
 
 def boolean_of_arg(arg):
     # TODO: ""
@@ -104,24 +123,6 @@ def get_root(ctx_or_req):
     link = "/".join([".."] * depth)
     return link
 
-def get_arg(ctx_or_req, argname, default=None, multiple=False):
-    """Extract an argument from either the query args (req.args) or the form
-    body fields (req.fields). If multiple=False, this returns a single value
-    (or the default, which defaults to None), and the query args take
-    precedence. If multiple=True, this returns a tuple of arguments (possibly
-    empty), starting with all those in the query args.
-    """
-    req = IRequest(ctx_or_req)
-    results = []
-    if argname in req.args:
-        results.extend(req.args[argname])
-    if req.fields and argname in req.fields:
-        results.append(req.fields[argname].value)
-    if multiple:
-        return tuple(results)
-    if results:
-        return results[0]
-    return default
 
 def convert_children_json(nodemaker, children_json):
     """I convert the JSON output of GET?t=json into the dict-of-nodes input
@@ -133,28 +134,14 @@ def convert_children_json(nodemaker, children_json):
         data = json.loads(children_json)
         for (namex, (ctype, propdict)) in data.iteritems():
             namex = unicode(namex)
-            writecap = to_str(propdict.get("rw_uri"))
-            readcap = to_str(propdict.get("ro_uri"))
+            writecap = to_bytes(propdict.get("rw_uri"))
+            readcap = to_bytes(propdict.get("ro_uri"))
             metadata = propdict.get("metadata", {})
             # name= argument is just for error reporting
             childnode = nodemaker.create_from_cap(writecap, readcap, name=namex)
             children[namex] = (childnode, metadata)
     return children
 
-def abbreviate_time(data):
-    # 1.23s, 790ms, 132us
-    if data is None:
-        return ""
-    s = float(data)
-    if s >= 10:
-        return abbreviate.abbreviate_time(data)
-    if s >= 1.0:
-        return "%.2fs" % s
-    if s >= 0.01:
-        return "%.0fms" % (1000*s)
-    if s >= 0.001:
-        return "%.1fms" % (1000*s)
-    return "%.0fus" % (1000000*s)
 
 def compute_rate(bytes, seconds):
     if bytes is None:
@@ -219,10 +206,6 @@ def render_time(t):
 def render_time_attr(t):
     return format_time(time.localtime(t))
 
-class WebError(Exception):
-    def __init__(self, text, code=http.BAD_REQUEST):
-        self.text = text
-        self.code = code
 
 # XXX: to make UnsupportedMethod return 501 NOT_IMPLEMENTED instead of 500
 # Internal Server Error, we either need to do that ICanHandleException trick,
@@ -234,34 +217,40 @@ def should_create_intermediate_directories(req):
     return bool(req.method in ("PUT", "POST") and
                 t not in ("delete", "rename", "rename-form", "check"))
 
-def humanize_failure(f):
-    # return text, responsecode
-    if f.check(EmptyPathnameComponentError):
+def humanize_exception(exc):
+    """
+    Like ``humanize_failure`` but for an exception.
+
+    :param Exception exc: The exception to describe.
+
+    :return: See ``humanize_failure``.
+    """
+    if isinstance(exc, EmptyPathnameComponentError):
         return ("The webapi does not allow empty pathname components, "
                 "i.e. a double slash", http.BAD_REQUEST)
-    if f.check(ExistingChildError):
+    if isinstance(exc, ExistingChildError):
         return ("There was already a child by that name, and you asked me "
                 "to not replace it.", http.CONFLICT)
-    if f.check(NoSuchChildError):
-        quoted_name = quote_output(f.value.args[0], encoding="utf-8", quotemarks=False)
+    if isinstance(exc, NoSuchChildError):
+        quoted_name = quote_output(exc.args[0], encoding="utf-8", quotemarks=False)
         return ("No such child: %s" % quoted_name, http.NOT_FOUND)
-    if f.check(NotEnoughSharesError):
+    if isinstance(exc, NotEnoughSharesError):
         t = ("NotEnoughSharesError: This indicates that some "
              "servers were unavailable, or that shares have been "
              "lost to server departure, hard drive failure, or disk "
              "corruption. You should perform a filecheck on "
              "this object to learn more.\n\nThe full error message is:\n"
-             "%s") % str(f.value)
+             "%s") % str(exc)
         return (t, http.GONE)
-    if f.check(NoSharesError):
+    if isinstance(exc, NoSharesError):
         t = ("NoSharesError: no shares could be found. "
              "Zero shares usually indicates a corrupt URI, or that "
              "no servers were connected, but it might also indicate "
              "severe corruption. You should perform a filecheck on "
              "this object to learn more.\n\nThe full error message is:\n"
-             "%s") % str(f.value)
+             "%s") % str(exc)
         return (t, http.GONE)
-    if f.check(UnrecoverableFileError):
+    if isinstance(exc, UnrecoverableFileError):
         t = ("UnrecoverableFileError: the directory (or mutable file) could "
              "not be retrieved, because there were insufficient good shares. "
              "This might indicate that no servers were connected, "
@@ -270,9 +259,9 @@ def humanize_failure(f):
              "failure, or disk corruption. You should perform a filecheck on "
              "this object to learn more.")
         return (t, http.GONE)
-    if f.check(MustNotBeUnknownRWError):
-        quoted_name = quote_output(f.value.args[1], encoding="utf-8")
-        immutable = f.value.args[2]
+    if isinstance(exc, MustNotBeUnknownRWError):
+        quoted_name = quote_output(exc.args[1], encoding="utf-8")
+        immutable = exc.args[2]
         if immutable:
             t = ("MustNotBeUnknownRWError: an operation to add a child named "
                  "%s to a directory was given an unknown cap in a write slot.\n"
@@ -292,29 +281,43 @@ def humanize_failure(f):
                  "writecap in the write slot if desired, would also work in this "
                  "case.") % quoted_name
         return (t, http.BAD_REQUEST)
-    if f.check(MustBeDeepImmutableError):
-        quoted_name = quote_output(f.value.args[1], encoding="utf-8")
+    if isinstance(exc, MustBeDeepImmutableError):
+        quoted_name = quote_output(exc.args[1], encoding="utf-8")
         t = ("MustBeDeepImmutableError: a cap passed to this operation for "
              "the child named %s, needed to be immutable but was not. Either "
              "the cap is being added to an immutable directory, or it was "
              "originally retrieved from an immutable directory as an unknown "
              "cap.") % quoted_name
         return (t, http.BAD_REQUEST)
-    if f.check(MustBeReadonlyError):
-        quoted_name = quote_output(f.value.args[1], encoding="utf-8")
+    if isinstance(exc, MustBeReadonlyError):
+        quoted_name = quote_output(exc.args[1], encoding="utf-8")
         t = ("MustBeReadonlyError: a cap passed to this operation for "
              "the child named '%s', needed to be read-only but was not. "
              "The cap is being passed in a read slot (ro_uri), or was retrieved "
              "from a read slot as an unknown cap.") % quoted_name
         return (t, http.BAD_REQUEST)
-    if f.check(blacklist.FileProhibited):
-        t = "Access Prohibited: %s" % quote_output(f.value.reason, encoding="utf-8", quotemarks=False)
+    if isinstance(exc, blacklist.FileProhibited):
+        t = "Access Prohibited: %s" % quote_output(exc.reason, encoding="utf-8", quotemarks=False)
         return (t, http.FORBIDDEN)
-    if f.check(WebError):
-        return (f.value.text, f.value.code)
-    if f.check(FileTooLargeError):
-        return (f.getTraceback(), http.REQUEST_ENTITY_TOO_LARGE)
-    return (str(f), None)
+    if isinstance(exc, WebError):
+        return (exc.text, exc.code)
+    if isinstance(exc, FileTooLargeError):
+        return ("FileTooLargeError: %s" % (exc,), http.REQUEST_ENTITY_TOO_LARGE)
+    return (str(exc), None)
+
+
+def humanize_failure(f):
+    """
+    Create an human-oriented description of a failure along with some HTTP
+    metadata.
+
+    :param Failure f: The failure to describe.
+
+    :return (bytes, int): A tuple of some prose and an HTTP code describing
+        the failure.
+    """
+    return humanize_exception(f.value)
+
 
 class MyExceptionHandler(appserver.DefaultExceptionHandler, object):
     def simple(self, ctx, text, code=http.BAD_REQUEST):
@@ -363,154 +366,6 @@ class MyExceptionHandler(appserver.DefaultExceptionHandler, object):
 
 class NeedOperationHandleError(WebError):
     pass
-
-
-# XXX should be phased out by the nevow -> twisted.web port (that is,
-# this whole class should have no users and can be deleted once the
-# port away from nevow is complete)
-class RenderMixin(object):
-
-    def renderHTTP(self, ctx):
-        request = IRequest(ctx)
-
-        # if we were using regular twisted.web Resources (and the regular
-        # twisted.web.server.Request object) then we could implement
-        # render_PUT and render_GET. But Nevow's request handler
-        # (NevowRequest.gotPageContext) goes directly to renderHTTP. Copy
-        # some code from the Resource.render method that Nevow bypasses, to
-        # do the same thing.
-        m = getattr(self, 'render_' + request.method, None)
-        if not m:
-            raise server.UnsupportedMethod(getattr(self, 'allowedMethods', ()))
-        return m(ctx)
-
-    def render_OPTIONS(self, ctx):
-        """
-        Handle HTTP OPTIONS request by adding appropriate headers.
-
-        :param ctx: client transaction from which request is extracted
-        :returns: str (empty)
-        """
-        req = IRequest(ctx)
-        req.setHeader("server", "Tahoe-LAFS gateway")
-        methods = ', '.join([m[7:] for m in dir(self) if m.startswith('render_')])
-        req.setHeader("allow", methods)
-        req.setHeader("public", methods)
-        req.setHeader("compliance", "rfc=2068, rfc=2616")
-        req.setHeader("content-length", 0)
-        return ""
-
-
-class MultiFormatPage(Page):
-    """
-    ```MultiFormatPage`` is a ``rend.Page`` that can be rendered in a number
-    of different formats.
-
-    Rendered format is controlled by a query argument (given by
-    ``self.formatArgument``).  Different resources may support different
-    formats but ``json`` is a pretty common one.
-    """
-    formatArgument = "t"
-    formatDefault = None
-
-    def renderHTTP(self, ctx):
-        """
-        Dispatch to a renderer for a particular format, as selected by a query
-        argument.
-
-        A renderer for the format given by the query argument matching
-        ``formatArgument`` will be selected and invoked.  The default ``Page``
-        rendering behavior will be used if no format is selected (either by
-        query arguments or by ``formatDefault``).
-
-        :return: The result of the selected renderer.
-        """
-        req = IRequest(ctx)
-        t = get_arg(req, self.formatArgument, self.formatDefault)
-        renderer = self._get_renderer(t)
-        result = renderer(ctx)
-        return result
-
-
-    def _get_renderer(self, fmt):
-        """
-        Get the renderer for the indicated format.
-
-        :param bytes fmt: The format.  If a method with a prefix of
-            ``render_`` and a suffix of this format (upper-cased) is found, it
-            will be used.
-
-        :return: A callable which takes a Nevow context and renders a
-            response.
-        """
-        if fmt is None:
-            return super(MultiFormatPage, self).renderHTTP
-        try:
-            renderer = getattr(self, "render_{}".format(fmt.upper()))
-        except AttributeError:
-            raise WebError(
-                "Unknown {} value: {!r}".format(self.formatArgument, fmt),
-            )
-        else:
-            if renderer is None:
-                return super(MultiFormatPage, self).renderHTTP
-            return lambda ctx: renderer(IRequest(ctx))
-
-
-class MultiFormatResource(resource.Resource, object):
-    """
-    ``MultiFormatResource`` is a ``resource.Resource`` that can be rendered in
-    a number of different formats.
-
-    Rendered format is controlled by a query argument (given by
-    ``self.formatArgument``).  Different resources may support different
-    formats but ``json`` is a pretty common one.  ``html`` is the default
-    format if nothing else is given as the ``formatDefault``.
-    """
-    formatArgument = "t"
-    formatDefault = None
-
-    def render(self, req):
-        """
-        Dispatch to a renderer for a particular format, as selected by a query
-        argument.
-
-        A renderer for the format given by the query argument matching
-        ``formatArgument`` will be selected and invoked.  render_HTML will be
-        used as a default if no format is selected (either by query arguments
-        or by ``formatDefault``).
-
-        :return: The result of the selected renderer.
-        """
-        t = get_arg(req, self.formatArgument, self.formatDefault)
-        renderer = self._get_renderer(t)
-        return renderer(req)
-
-    def _get_renderer(self, fmt):
-        """
-        Get the renderer for the indicated format.
-
-        :param str fmt: The format.  If a method with a prefix of ``render_``
-            and a suffix of this format (upper-cased) is found, it will be
-            used.
-
-        :return: A callable which takes a twisted.web Request and renders a
-            response.
-        """
-        renderer = None
-
-        if fmt is not None:
-            try:
-                renderer = getattr(self, "render_{}".format(fmt.upper()))
-            except AttributeError:
-                raise WebError(
-                    "Unknown {} value: {!r}".format(self.formatArgument, fmt),
-                )
-
-        if renderer is None:
-            renderer = self.render_HTML
-
-        return renderer
 
 
 class SlotsSequenceElement(template.Element):
@@ -604,8 +459,38 @@ class TokenOnlyWebApi(resource.Resource, object):
                 req.setResponseCode(e.code)
                 return json.dumps({"error": e.text})
             except Exception as e:
-                message, code = humanize_failure(Failure())
+                message, code = humanize_exception(e)
                 req.setResponseCode(500 if code is None else code)
                 return json.dumps({"error": message})
         else:
             raise WebError("'%s' invalid type for 't' arg" % (t,), http.BAD_REQUEST)
+
+
+def exception_to_child(f):
+    """
+    Decorate ``getChild`` method with exception handling behavior to render an
+    error page reflecting the exception.
+    """
+    @wraps(f)
+    def g(self, name, req):
+        try:
+            return f(self, name, req)
+        except Exception as e:
+            description, status = humanize_exception(e)
+            return resource.ErrorPage(status, "Error", description)
+    return g
+
+
+def render_exception(f):
+    """
+    Decorate a ``render_*`` method with exception handling behavior to render
+    an error page reflecting the exception.
+    """
+    @wraps(f)
+    def g(self, request):
+        try:
+            return f(self, request)
+        except Exception as e:
+            description, status = humanize_exception(e)
+            return resource.ErrorPage(status, "Error", description).render(request)
+    return g

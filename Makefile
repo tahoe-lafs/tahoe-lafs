@@ -1,16 +1,54 @@
-
+# Tahoe LFS Development and maintenance tasks
+#
 # NOTE: this Makefile requires GNU make
 
+### Defensive settings for make:
+#     https://tech.davis-hansson.com/p/make/
+SHELL := bash
+.ONESHELL:
+.SHELLFLAGS := -xeu -o pipefail -c
+.SILENT:
+.DELETE_ON_ERROR:
+MAKEFLAGS += --warn-undefined-variables
+MAKEFLAGS += --no-builtin-rules
+
+# Local target variables
+VCS_HOOK_SAMPLES=$(wildcard .git/hooks/*.sample)
+VCS_HOOKS=$(VCS_HOOK_SAMPLES:%.sample=%)
+PYTHON=python
+export PYTHON
+PYFLAKES=flake8
+export PYFLAKES
+SOURCES=src/allmydata static misc setup.py
+APPNAME=tahoe-lafs
+
+
+# Top-level, phony targets
+
+.PHONY: default
 default:
 	@echo "no default target"
 
-PYTHON=python
-export PYTHON
-PYFLAKES=pyflakes
-export PYFLAKES
+.PHONY: install-vcs-hooks
+## Install the VCS hooks to run linters on commit and all tests on push
+install-vcs-hooks: .git/hooks/pre-commit .git/hooks/pre-push
+.PHONY: uninstall-vcs-hooks
+## Remove the VCS hooks
+uninstall-vcs-hooks: .tox/create-venvs.log
+	"./$(dir $(<))py36/bin/pre-commit" uninstall || true
+	"./$(dir $(<))py36/bin/pre-commit" uninstall -t pre-push || true
 
-SOURCES=src/allmydata static misc setup.py
-APPNAME=tahoe-lafs
+.PHONY: test
+## Run all tests and code reports
+test: .tox/create-venvs.log
+# Run codechecks first since it takes the least time to report issues early.
+	tox --develop -e codechecks
+# Run all the test environments in parallel to reduce run-time
+	tox --develop -p auto -e 'py27,py36,pypy27'
+.PHONY: test-py3-all
+## Run all tests under Python 3
+test-py3-all: .tox/create-venvs.log
+	tox --develop -e py36 allmydata
 
 # This is necessary only if you want to automatically produce a new
 # _version.py file from the current git history (without doing a build).
@@ -18,20 +56,16 @@ APPNAME=tahoe-lafs
 make-version:
 	$(PYTHON) ./setup.py update_version
 
-.built:
-	$(MAKE) build
-
-src/allmydata/_version.py:
-	$(MAKE) make-version
-
 # Build OS X pkg packages.
-.PHONY: build-osx-pkg test-osx-pkg upload-osx-pkg
+.PHONY: build-osx-pkg
 build-osx-pkg:
 	misc/build_helpers/build-osx-pkg.sh $(APPNAME)
 
+.PHONY: test-osx-pkg
 test-osx-pkg:
 	$(PYTHON) misc/build_helpers/test-osx-pkg.py
 
+.PHONY: upload-osx-pkg
 upload-osx-pkg:
 	# [Failure instance: Traceback: <class 'OpenSSL.SSL.Error'>: [('SSL routines', 'ssl3_read_bytes', 'tlsv1 alert unknown ca'), ('SSL routines', 'ssl3_write_bytes', 'ssl handshake failure')]
 	#
@@ -42,29 +76,12 @@ upload-osx-pkg:
 	#   echo not uploading tahoe-lafs-osx-pkg because this is not trunk but is branch \"${BB_BRANCH}\" ; \
 	# fi
 
-# code coverage-based testing is disabled temporarily, as we switch to tox.
-# This will eventually be added to a tox environment. The following comments
-# and variable settings are retained as notes for that future effort.
-
-## # code coverage: install the "coverage" package from PyPI, do "make
-## # test-coverage" to do a unit test run with coverage-gathering enabled, then
-## # use "make coverage-output" to generate an HTML report. Also see "make
-## # .coverage.el" and misc/coding_tools/coverage.el for Emacs integration.
-##
-## # This might need to be python-coverage on Debian-based distros.
-## COVERAGE=coverage
-##
-## COVERAGEARGS=--branch --source=src/allmydata
-##
-## # --include appeared in coverage-3.4
-## COVERAGE_OMIT=--include '$(CURDIR)/src/allmydata/*' --omit '$(CURDIR)/src/allmydata/test/*'
-
-
 .PHONY: code-checks
 #code-checks: build version-and-path check-interfaces check-miscaptures -find-trailing-spaces -check-umids pyflakes
 code-checks: check-interfaces check-debugging check-miscaptures -find-trailing-spaces -check-umids pyflakes
 
 .PHONY: check-interfaces
+check-interfaces:
 	$(PYTHON) misc/coding_tools/check-interfaces.py 2>&1 |tee violations.txt
 	@echo
 
@@ -184,10 +201,11 @@ clean:
 	rm -f *.pkg
 
 .PHONY: distclean
-distclean: clean
+distclean: clean uninstall-vcs-hooks
 	rm -rf src/*.egg-info
 	rm -f src/allmydata/_version.py
 	rm -f src/allmydata/_appname.py
+	rm -rf ./.tox/
 
 
 .PHONY: find-trailing-spaces
@@ -220,3 +238,15 @@ tarballs: # delegated to tox, so setup.py can update setuptools if needed
 .PHONY: upload-tarballs
 upload-tarballs:
 	@if [ "X${BB_BRANCH}" = "Xmaster" ] || [ "X${BB_BRANCH}" = "X" ]; then for f in dist/*; do flappclient --furlfile ~/.tahoe-tarball-upload.furl upload-file $$f; done ; else echo not uploading tarballs because this is not trunk but is branch \"${BB_BRANCH}\" ; fi
+
+
+# Real targets
+
+src/allmydata/_version.py:
+	$(MAKE) make-version
+
+.tox/create-venvs.log: tox.ini setup.py
+	tox --notest -p all | tee -a "$(@)"
+
+$(VCS_HOOKS): .tox/create-venvs.log .pre-commit-config.yaml
+	"./$(dir $(<))py36/bin/pre-commit" install --hook-type $(@:.git/hooks/%=%)

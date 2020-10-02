@@ -1,4 +1,20 @@
-import os, re, weakref, struct, time
+"""
+Ported to Python 3.
+"""
+from __future__ import division
+from __future__ import absolute_import
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import bytes_to_native_str, PY2
+if PY2:
+    # Omit open() to get native behavior where open("w") always accepts native
+    # strings. Omit bytes so we don't leak future's custom bytes.
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, pow, round, super, dict, list, object, range, str, max, min  # noqa: F401
+
+
+import os, re, struct, time
+import weakref
 import six
 
 from foolscap.api import Referenceable
@@ -48,8 +64,9 @@ class StorageServer(service.MultiService, Referenceable):
                  expiration_cutoff_date=None,
                  expiration_sharetypes=("mutable", "immutable")):
         service.MultiService.__init__(self)
-        assert isinstance(nodeid, str)
+        assert isinstance(nodeid, bytes)
         assert len(nodeid) == 20
+        assert isinstance(nodeid, bytes)
         self.my_nodeid = nodeid
         self.storedir = storedir
         sharedir = os.path.join(storedir, "shares")
@@ -225,16 +242,18 @@ class StorageServer(service.MultiService, Referenceable):
             # We're on a platform that has no API to get disk stats.
             remaining_space = 2**64
 
-        version = { "http://allmydata.org/tahoe/protocols/storage/v1" :
-                    { "maximum-immutable-share-size": remaining_space,
-                      "maximum-mutable-share-size": MAX_MUTABLE_SHARE_SIZE,
-                      "available-space": remaining_space,
-                      "tolerates-immutable-read-overrun": True,
-                      "delete-mutable-shares-with-zero-length-writev": True,
-                      "fills-holes-with-zero-bytes": True,
-                      "prevents-read-past-end-of-share-data": True,
+        # Unicode strings might be nicer, but for now sticking to bytes since
+        # this is what the wire protocol has always been.
+        version = { b"http://allmydata.org/tahoe/protocols/storage/v1" :
+                    { b"maximum-immutable-share-size": remaining_space,
+                      b"maximum-mutable-share-size": MAX_MUTABLE_SHARE_SIZE,
+                      b"available-space": remaining_space,
+                      b"tolerates-immutable-read-overrun": True,
+                      b"delete-mutable-shares-with-zero-length-writev": True,
+                      b"fills-holes-with-zero-bytes": True,
+                      b"prevents-read-past-end-of-share-data": True,
                       },
-                    "application-version": str(allmydata.__full_version__),
+                    b"application-version": allmydata.__full_version__.encode("utf-8"),
                     }
         return version
 
@@ -317,9 +336,8 @@ class StorageServer(service.MultiService, Referenceable):
 
     def _iter_share_files(self, storage_index):
         for shnum, filename in self._get_bucket_shares(storage_index):
-            f = open(filename, 'rb')
-            header = f.read(32)
-            f.close()
+            with open(filename, 'rb') as f:
+                header = f.read(32)
             if header[:32] == MutableShareFile.MAGIC:
                 sf = MutableShareFile(filename, self)
                 # note: if the share has been migrated, the renew_lease()
@@ -398,7 +416,7 @@ class StorageServer(service.MultiService, Referenceable):
         # since all shares get the same lease data, we just grab the leases
         # from the first share
         try:
-            shnum, filename = self._get_bucket_shares(storage_index).next()
+            shnum, filename = next(self._get_bucket_shares(storage_index))
             sf = ShareFile(filename)
             return sf.get_leases()
         except StopIteration:
@@ -669,28 +687,31 @@ class StorageServer(service.MultiService, Referenceable):
                 filename = os.path.join(bucketdir, sharenum_s)
                 msf = MutableShareFile(filename, self)
                 datavs[sharenum] = msf.readv(readv)
-        log.msg("returning shares %s" % (datavs.keys(),),
+        log.msg("returning shares %s" % (list(datavs.keys()),),
                 facility="tahoe.storage", level=log.NOISY, parent=lp)
         self.add_latency("readv", time.time() - start)
         return datavs
 
     def remote_advise_corrupt_share(self, share_type, storage_index, shnum,
                                     reason):
+        # This is a remote API, I believe, so this has to be bytes for legacy
+        # protocol backwards compatibility reasons.
+        assert isinstance(share_type, bytes)
+        assert isinstance(reason, bytes), "%r is not bytes" % (reason,)
         fileutil.make_dirs(self.corruption_advisory_dir)
         now = time_format.iso_utc(sep="T")
         si_s = si_b2a(storage_index)
         # windows can't handle colons in the filename
         fn = os.path.join(self.corruption_advisory_dir,
                           "%s--%s-%d" % (now, si_s, shnum)).replace(":","")
-        f = open(fn, "w")
-        f.write("report: Share Corruption\n")
-        f.write("type: %s\n" % share_type)
-        f.write("storage_index: %s\n" % si_s)
-        f.write("share_number: %d\n" % shnum)
-        f.write("\n")
-        f.write(reason)
-        f.write("\n")
-        f.close()
+        with open(fn, "w") as f:
+            f.write("report: Share Corruption\n")
+            f.write("type: %s\n" % bytes_to_native_str(share_type))
+            f.write("storage_index: %s\n" % bytes_to_native_str(si_s))
+            f.write("share_number: %d\n" % shnum)
+            f.write("\n")
+            f.write(bytes_to_native_str(reason))
+            f.write("\n")
         log.msg(format=("client claims corruption in (%(share_type)s) " +
                         "%(si)s-%(shnum)d: %(reason)s"),
                 share_type=share_type, si=si_s, shnum=shnum, reason=reason,

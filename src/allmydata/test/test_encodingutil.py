@@ -1,4 +1,14 @@
 from __future__ import print_function
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import unicode_literals
+
+from future.utils import PY2, PY3
+if PY2:
+    # We don't import str because omg way too ambiguous in this context.
+    from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, max, min  # noqa: F401
+
+from past.builtins import unicode
 
 lumiere_nfc = u"lumi\u00E8re"
 Artonwall_nfc = u"\u00C4rtonwall.mp3"
@@ -43,8 +53,10 @@ if __name__ == "__main__":
         for fname in TEST_FILENAMES:
             open(os.path.join(tmpdir, fname), 'w').close()
 
-        # Use Unicode API under Windows or MacOS X
-        if sys.platform in ('win32', 'darwin'):
+        # On Python 2, listing directories returns unicode under Windows or
+        # MacOS X if the input is unicode. On Python 3, it always returns
+        # Unicode.
+        if PY2 and sys.platform in ('win32', 'darwin'):
             dirlist = os.listdir(unicode(tmpdir))
         else:
             dirlist = os.listdir(tmpdir)
@@ -59,20 +71,22 @@ if __name__ == "__main__":
 
 
 import os, sys, locale
+from unittest import skipIf
 
 from twisted.trial import unittest
 
 from twisted.python.filepath import FilePath
 
-from allmydata.test.common_util import ReallyEqualMixin
+from allmydata.test.common_py3 import (
+    ReallyEqualMixin, skip_if_cannot_represent_filename,
+)
 from allmydata.util import encodingutil, fileutil
 from allmydata.util.encodingutil import argv_to_unicode, unicode_to_url, \
     unicode_to_output, quote_output, quote_path, quote_local_unicode_path, \
     quote_filepath, unicode_platform, listdir_unicode, FilenameEncodingError, \
-    get_io_encoding, get_filesystem_encoding, to_str, from_utf8_or_none, _reload, \
-    to_filepath, extend_filepath, unicode_from_filepath, unicode_segments_from
-from allmydata.dirnode import normalize
-from .common_util import skip_if_cannot_represent_filename
+    get_io_encoding, get_filesystem_encoding, to_bytes, from_utf8_or_none, _reload, \
+    to_filepath, extend_filepath, unicode_from_filepath, unicode_segments_from, \
+    unicode_to_argv
 from twisted.python import usage
 
 
@@ -90,7 +104,7 @@ class EncodingUtilErrors(ReallyEqualMixin, unittest.TestCase):
 
         mock_stdout.encoding = 'cp65001'
         _reload()
-        self.failUnlessReallyEqual(get_io_encoding(), 'utf-8')
+        self.assertEqual(get_io_encoding(), 'utf-8')
 
         mock_stdout.encoding = 'koi8-r'
         expected = sys.platform == "win32" and 'utf-8' or 'koi8-r'
@@ -122,7 +136,7 @@ class EncodingUtilErrors(ReallyEqualMixin, unittest.TestCase):
 
         preferredencoding = None
         _reload()
-        self.failUnlessReallyEqual(get_io_encoding(), 'utf-8')
+        self.assertEqual(get_io_encoding(), 'utf-8')
 
     def test_argv_to_unicode(self):
         encodingutil.io_encoding = 'utf-8'
@@ -130,6 +144,7 @@ class EncodingUtilErrors(ReallyEqualMixin, unittest.TestCase):
                               argv_to_unicode,
                               lumiere_nfc.encode('latin1'))
 
+    @skipIf(PY3, "Python 2 only.")
     def test_unicode_to_output(self):
         encodingutil.io_encoding = 'koi8-r'
         self.failUnlessRaises(UnicodeEncodeError, unicode_to_output, lumiere_nfc)
@@ -150,6 +165,7 @@ class EncodingUtilErrors(ReallyEqualMixin, unittest.TestCase):
 # The following tests apply only to platforms that don't store filenames as
 # Unicode entities on the filesystem.
 class EncodingUtilNonUnicodePlatform(unittest.TestCase):
+    @skipIf(PY3, "Python 3 is always Unicode, regardless of OS.")
     def setUp(self):
         # Mock sys.platform because unicode_platform() uses it
         self.original_platform = sys.platform
@@ -211,9 +227,10 @@ class EncodingUtil(ReallyEqualMixin):
         self.failUnlessReallyEqual(argv_to_unicode(argv), argu)
 
     def test_unicode_to_url(self):
-        self.failUnless(unicode_to_url(lumiere_nfc), "lumi\xc3\xa8re")
+        self.failUnless(unicode_to_url(lumiere_nfc), b"lumi\xc3\xa8re")
 
-    def test_unicode_to_output(self):
+    @skipIf(PY3, "Python 3 is always Unicode, regardless of OS.")
+    def test_unicode_to_output_py2(self):
         if 'argv' not in dir(self):
             return
 
@@ -224,7 +241,22 @@ class EncodingUtil(ReallyEqualMixin):
         _reload()
         self.failUnlessReallyEqual(unicode_to_output(lumiere_nfc), self.argv)
 
-    def test_unicode_platform(self):
+    @skipIf(PY2, "Python 3 only.")
+    def test_unicode_to_output_py3(self):
+        self.failUnlessReallyEqual(unicode_to_output(lumiere_nfc), lumiere_nfc)
+
+    @skipIf(PY3, "Python 2 only.")
+    def test_unicode_to_argv_py2(self):
+        """unicode_to_argv() converts to bytes on Python 2."""
+        self.assertEqual(unicode_to_argv("abc"), u"abc".encode(self.io_encoding))
+
+    @skipIf(PY2, "Python 3 only.")
+    def test_unicode_to_argv_py3(self):
+        """unicode_to_argv() is noop on Python 3."""
+        self.assertEqual(unicode_to_argv("abc"), "abc")
+
+    @skipIf(PY3, "Python 3 only.")
+    def test_unicode_platform_py2(self):
         matrix = {
           'linux2': False,
           'linux3': False,
@@ -235,6 +267,11 @@ class EncodingUtil(ReallyEqualMixin):
 
         _reload()
         self.failUnlessReallyEqual(unicode_platform(), matrix[self.platform])
+
+    @skipIf(PY2, "Python 3 isn't Python 2.")
+    def test_unicode_platform_py3(self):
+        _reload()
+        self.failUnlessReallyEqual(unicode_platform(), True)
 
     def test_listdir_unicode(self):
         if 'dirlist' not in dir(self):
@@ -248,7 +285,14 @@ class EncodingUtil(ReallyEqualMixin):
                                     % (self.filesystem_encoding,))
 
         def call_os_listdir(path):
-            return self.dirlist
+            if PY2:
+                return self.dirlist
+            else:
+                # Python 3 always lists unicode filenames:
+                return [d.decode(self.filesystem_encoding) if isinstance(d, bytes)
+                        else d
+                        for d in self.dirlist]
+
         self.patch(os, 'listdir', call_os_listdir)
 
         def call_sys_getfilesystemencoding():
@@ -258,7 +302,7 @@ class EncodingUtil(ReallyEqualMixin):
         _reload()
         filenames = listdir_unicode(u'/dummy')
 
-        self.failUnlessEqual(set([normalize(fname) for fname in filenames]),
+        self.failUnlessEqual(set([encodingutil.normalize(fname) for fname in filenames]),
                              set(TEST_FILENAMES))
 
 
@@ -278,12 +322,16 @@ class StdlibUnicode(unittest.TestCase):
         fn = lumiere_nfc + u'/' + lumiere_nfc + u'.txt'
         open(fn, 'wb').close()
         self.failUnless(os.path.exists(fn))
-        self.failUnless(os.path.exists(os.path.join(os.getcwdu(), fn)))
+        if PY2:
+            getcwdu = os.getcwdu
+        else:
+            getcwdu = os.getcwd
+        self.failUnless(os.path.exists(os.path.join(getcwdu(), fn)))
         filenames = listdir_unicode(lumiere_nfc)
 
         # We only require that the listing includes a filename that is canonically equivalent
         # to lumiere_nfc (on Mac OS X, it will be the NFD equivalent).
-        self.failUnlessIn(lumiere_nfc + ".txt", set([normalize(fname) for fname in filenames]))
+        self.failUnlessIn(lumiere_nfc + u".txt", set([encodingutil.normalize(fname) for fname in filenames]))
 
         expanded = fileutil.expanduser(u"~/" + lumiere_nfc)
         self.failIfIn(u"~", expanded)
@@ -307,6 +355,8 @@ class QuoteOutput(ReallyEqualMixin, unittest.TestCase):
         _reload()
 
     def _check(self, inp, out, enc, optional_quotes, quote_newlines):
+        if PY3 and isinstance(out, bytes):
+            out = out.decode(enc or encodingutil.io_encoding)
         out2 = out
         if optional_quotes:
             out2 = out2[1:-1]
@@ -314,59 +364,73 @@ class QuoteOutput(ReallyEqualMixin, unittest.TestCase):
         self.failUnlessReallyEqual(quote_output(inp, encoding=enc, quotemarks=False, quote_newlines=quote_newlines), out2)
         if out[0:2] == 'b"':
             pass
-        elif isinstance(inp, str):
-            self.failUnlessReallyEqual(quote_output(unicode(inp), encoding=enc, quote_newlines=quote_newlines), out)
-            self.failUnlessReallyEqual(quote_output(unicode(inp), encoding=enc, quotemarks=False, quote_newlines=quote_newlines), out2)
+        elif isinstance(inp, bytes):
+            try:
+                unicode_inp = inp.decode("utf-8")
+            except UnicodeDecodeError:
+                # Some things decode on Python 2, but not Python 3...
+                return
+            self.failUnlessReallyEqual(quote_output(unicode_inp, encoding=enc, quote_newlines=quote_newlines), out)
+            self.failUnlessReallyEqual(quote_output(unicode_inp, encoding=enc, quotemarks=False, quote_newlines=quote_newlines), out2)
         else:
-            self.failUnlessReallyEqual(quote_output(inp.encode('utf-8'), encoding=enc, quote_newlines=quote_newlines), out)
-            self.failUnlessReallyEqual(quote_output(inp.encode('utf-8'), encoding=enc, quotemarks=False, quote_newlines=quote_newlines), out2)
+            try:
+                bytes_inp = inp.encode('utf-8')
+            except UnicodeEncodeError:
+                # Some things encode on Python 2, but not Python 3, e.g.
+                # surrogates like u"\uDC00\uD800"...
+                return
+            self.failUnlessReallyEqual(quote_output(bytes_inp, encoding=enc, quote_newlines=quote_newlines), out)
+            self.failUnlessReallyEqual(quote_output(bytes_inp, encoding=enc, quotemarks=False, quote_newlines=quote_newlines), out2)
 
     def _test_quote_output_all(self, enc):
         def check(inp, out, optional_quotes=False, quote_newlines=None):
+            if PY3:
+                # Result is always Unicode on Python 3
+                out = out.decode("ascii")
             self._check(inp, out, enc, optional_quotes, quote_newlines)
 
         # optional single quotes
-        check("foo",  "'foo'",  True)
-        check("\\",   "'\\'",   True)
-        check("$\"`", "'$\"`'", True)
-        check("\n",   "'\n'",   True, quote_newlines=False)
+        check(b"foo",  b"'foo'",  True)
+        check(b"\\",   b"'\\'",   True)
+        check(b"$\"`", b"'$\"`'", True)
+        check(b"\n",   b"'\n'",   True, quote_newlines=False)
 
         # mandatory single quotes
-        check("\"",   "'\"'")
+        check(b"\"",   b"'\"'")
 
         # double quotes
-        check("'",    "\"'\"")
-        check("\n",   "\"\\x0a\"", quote_newlines=True)
-        check("\x00", "\"\\x00\"")
+        check(b"'",    b"\"'\"")
+        check(b"\n",   b"\"\\x0a\"", quote_newlines=True)
+        check(b"\x00", b"\"\\x00\"")
 
         # invalid Unicode and astral planes
-        check(u"\uFDD0\uFDEF",       "\"\\ufdd0\\ufdef\"")
-        check(u"\uDC00\uD800",       "\"\\udc00\\ud800\"")
-        check(u"\uDC00\uD800\uDC00", "\"\\udc00\\U00010000\"")
-        check(u"\uD800\uDC00",       "\"\\U00010000\"")
-        check(u"\uD800\uDC01",       "\"\\U00010001\"")
-        check(u"\uD801\uDC00",       "\"\\U00010400\"")
-        check(u"\uDBFF\uDFFF",       "\"\\U0010ffff\"")
-        check(u"'\uDBFF\uDFFF",      "\"'\\U0010ffff\"")
-        check(u"\"\uDBFF\uDFFF",     "\"\\\"\\U0010ffff\"")
+        check(u"\uFDD0\uFDEF",       b"\"\\ufdd0\\ufdef\"")
+        check(u"\uDC00\uD800",       b"\"\\udc00\\ud800\"")
+        check(u"\uDC00\uD800\uDC00", b"\"\\udc00\\U00010000\"")
+        check(u"\uD800\uDC00",       b"\"\\U00010000\"")
+        check(u"\uD800\uDC01",       b"\"\\U00010001\"")
+        check(u"\uD801\uDC00",       b"\"\\U00010400\"")
+        check(u"\uDBFF\uDFFF",       b"\"\\U0010ffff\"")
+        check(u"'\uDBFF\uDFFF",      b"\"'\\U0010ffff\"")
+        check(u"\"\uDBFF\uDFFF",     b"\"\\\"\\U0010ffff\"")
 
         # invalid UTF-8
-        check("\xFF",                "b\"\\xff\"")
-        check("\x00\"$\\`\x80\xFF",  "b\"\\x00\\\"\\$\\\\\\`\\x80\\xff\"")
+        check(b"\xFF",                b"b\"\\xff\"")
+        check(b"\x00\"$\\`\x80\xFF",  b"b\"\\x00\\\"\\$\\\\\\`\\x80\\xff\"")
 
     def test_quote_output_ascii(self, enc='ascii'):
         def check(inp, out, optional_quotes=False, quote_newlines=None):
             self._check(inp, out, enc, optional_quotes, quote_newlines)
 
         self._test_quote_output_all(enc)
-        check(u"\u00D7",   "\"\\xd7\"")
-        check(u"'\u00D7",  "\"'\\xd7\"")
-        check(u"\"\u00D7", "\"\\\"\\xd7\"")
-        check(u"\u2621",   "\"\\u2621\"")
-        check(u"'\u2621",  "\"'\\u2621\"")
-        check(u"\"\u2621", "\"\\\"\\u2621\"")
-        check(u"\n",       "'\n'",      True, quote_newlines=False)
-        check(u"\n",       "\"\\x0a\"", quote_newlines=True)
+        check(u"\u00D7",   b"\"\\xd7\"")
+        check(u"'\u00D7",  b"\"'\\xd7\"")
+        check(u"\"\u00D7", b"\"\\\"\\xd7\"")
+        check(u"\u2621",   b"\"\\u2621\"")
+        check(u"'\u2621",  b"\"'\\u2621\"")
+        check(u"\"\u2621", b"\"\\\"\\u2621\"")
+        check(u"\n",       b"'\n'",      True, quote_newlines=False)
+        check(u"\n",       b"\"\\x0a\"", quote_newlines=True)
 
     def test_quote_output_latin1(self, enc='latin1'):
         def check(inp, out, optional_quotes=False, quote_newlines=None):
@@ -385,7 +449,10 @@ class QuoteOutput(ReallyEqualMixin, unittest.TestCase):
 
     def test_quote_output_utf8(self, enc='utf-8'):
         def check(inp, out, optional_quotes=False, quote_newlines=None):
-            self._check(inp, out.encode('utf-8'), enc, optional_quotes, quote_newlines)
+            if PY2:
+                # On Python 3 output is always Unicode:
+                out = out.encode('utf-8')
+            self._check(inp, out, enc, optional_quotes, quote_newlines)
 
         self._test_quote_output_all(enc)
         check(u"\u2621",   u"'\u2621'", True)
@@ -410,44 +477,51 @@ def win32_other(win32, other):
     return win32 if sys.platform == "win32" else other
 
 class QuotePaths(ReallyEqualMixin, unittest.TestCase):
-    def test_quote_path(self):
-        self.failUnlessReallyEqual(quote_path([u'foo', u'bar']), "'foo/bar'")
-        self.failUnlessReallyEqual(quote_path([u'foo', u'bar'], quotemarks=True), "'foo/bar'")
-        self.failUnlessReallyEqual(quote_path([u'foo', u'bar'], quotemarks=False), "foo/bar")
-        self.failUnlessReallyEqual(quote_path([u'foo', u'\nbar']), '"foo/\\x0abar"')
-        self.failUnlessReallyEqual(quote_path([u'foo', u'\nbar'], quotemarks=True), '"foo/\\x0abar"')
-        self.failUnlessReallyEqual(quote_path([u'foo', u'\nbar'], quotemarks=False), '"foo/\\x0abar"')
 
-        self.failUnlessReallyEqual(quote_local_unicode_path(u"\\\\?\\C:\\foo"),
-                                   win32_other("'C:\\foo'", "'\\\\?\\C:\\foo'"))
-        self.failUnlessReallyEqual(quote_local_unicode_path(u"\\\\?\\C:\\foo", quotemarks=True),
-                                   win32_other("'C:\\foo'", "'\\\\?\\C:\\foo'"))
-        self.failUnlessReallyEqual(quote_local_unicode_path(u"\\\\?\\C:\\foo", quotemarks=False),
-                                   win32_other("C:\\foo", "\\\\?\\C:\\foo"))
-        self.failUnlessReallyEqual(quote_local_unicode_path(u"\\\\?\\UNC\\foo\\bar"),
-                                   win32_other("'\\\\foo\\bar'", "'\\\\?\\UNC\\foo\\bar'"))
-        self.failUnlessReallyEqual(quote_local_unicode_path(u"\\\\?\\UNC\\foo\\bar", quotemarks=True),
-                                   win32_other("'\\\\foo\\bar'", "'\\\\?\\UNC\\foo\\bar'"))
-        self.failUnlessReallyEqual(quote_local_unicode_path(u"\\\\?\\UNC\\foo\\bar", quotemarks=False),
-                                   win32_other("\\\\foo\\bar", "\\\\?\\UNC\\foo\\bar"))
+    def assertPathsEqual(self, actual, expected):
+        if PY3:
+            # On Python 3, results should be unicode:
+            expected = expected.decode("ascii")
+        self.failUnlessReallyEqual(actual, expected)
+
+    def test_quote_path(self):
+        self.assertPathsEqual(quote_path([u'foo', u'bar']), b"'foo/bar'")
+        self.assertPathsEqual(quote_path([u'foo', u'bar'], quotemarks=True), b"'foo/bar'")
+        self.assertPathsEqual(quote_path([u'foo', u'bar'], quotemarks=False), b"foo/bar")
+        self.assertPathsEqual(quote_path([u'foo', u'\nbar']), b'"foo/\\x0abar"')
+        self.assertPathsEqual(quote_path([u'foo', u'\nbar'], quotemarks=True), b'"foo/\\x0abar"')
+        self.assertPathsEqual(quote_path([u'foo', u'\nbar'], quotemarks=False), b'"foo/\\x0abar"')
+
+        self.assertPathsEqual(quote_local_unicode_path(u"\\\\?\\C:\\foo"),
+                                   win32_other(b"'C:\\foo'", b"'\\\\?\\C:\\foo'"))
+        self.assertPathsEqual(quote_local_unicode_path(u"\\\\?\\C:\\foo", quotemarks=True),
+                                   win32_other(b"'C:\\foo'", b"'\\\\?\\C:\\foo'"))
+        self.assertPathsEqual(quote_local_unicode_path(u"\\\\?\\C:\\foo", quotemarks=False),
+                                   win32_other(b"C:\\foo", b"\\\\?\\C:\\foo"))
+        self.assertPathsEqual(quote_local_unicode_path(u"\\\\?\\UNC\\foo\\bar"),
+                                   win32_other(b"'\\\\foo\\bar'", b"'\\\\?\\UNC\\foo\\bar'"))
+        self.assertPathsEqual(quote_local_unicode_path(u"\\\\?\\UNC\\foo\\bar", quotemarks=True),
+                                   win32_other(b"'\\\\foo\\bar'", b"'\\\\?\\UNC\\foo\\bar'"))
+        self.assertPathsEqual(quote_local_unicode_path(u"\\\\?\\UNC\\foo\\bar", quotemarks=False),
+                                   win32_other(b"\\\\foo\\bar", b"\\\\?\\UNC\\foo\\bar"))
 
     def test_quote_filepath(self):
         foo_bar_fp = FilePath(win32_other(u'C:\\foo\\bar', u'/foo/bar'))
-        self.failUnlessReallyEqual(quote_filepath(foo_bar_fp),
-                                   win32_other("'C:\\foo\\bar'", "'/foo/bar'"))
-        self.failUnlessReallyEqual(quote_filepath(foo_bar_fp, quotemarks=True),
-                                   win32_other("'C:\\foo\\bar'", "'/foo/bar'"))
-        self.failUnlessReallyEqual(quote_filepath(foo_bar_fp, quotemarks=False),
-                                   win32_other("C:\\foo\\bar", "/foo/bar"))
+        self.assertPathsEqual(quote_filepath(foo_bar_fp),
+                                   win32_other(b"'C:\\foo\\bar'", b"'/foo/bar'"))
+        self.assertPathsEqual(quote_filepath(foo_bar_fp, quotemarks=True),
+                                   win32_other(b"'C:\\foo\\bar'", b"'/foo/bar'"))
+        self.assertPathsEqual(quote_filepath(foo_bar_fp, quotemarks=False),
+                                   win32_other(b"C:\\foo\\bar", b"/foo/bar"))
 
         if sys.platform == "win32":
             foo_longfp = FilePath(u'\\\\?\\C:\\foo')
-            self.failUnlessReallyEqual(quote_filepath(foo_longfp),
-                                       "'C:\\foo'")
-            self.failUnlessReallyEqual(quote_filepath(foo_longfp, quotemarks=True),
-                                       "'C:\\foo'")
-            self.failUnlessReallyEqual(quote_filepath(foo_longfp, quotemarks=False),
-                                       "C:\\foo")
+            self.assertPathsEqual(quote_filepath(foo_longfp),
+                                       b"'C:\\foo'")
+            self.assertPathsEqual(quote_filepath(foo_longfp, quotemarks=True),
+                                       b"'C:\\foo'")
+            self.assertPathsEqual(quote_filepath(foo_longfp, quotemarks=False),
+                                       b"C:\\foo")
 
 
 class FilePaths(ReallyEqualMixin, unittest.TestCase):
@@ -501,23 +575,23 @@ class FilePaths(ReallyEqualMixin, unittest.TestCase):
 
 class UbuntuKarmicUTF8(EncodingUtil, unittest.TestCase):
     uname = 'Linux korn 2.6.31-14-generic #48-Ubuntu SMP Fri Oct 16 14:05:01 UTC 2009 x86_64'
-    argv = 'lumi\xc3\xa8re'
+    argv = b'lumi\xc3\xa8re'
     platform = 'linux2'
     filesystem_encoding = 'UTF-8'
     io_encoding = 'UTF-8'
-    dirlist = ['test_file', '\xc3\x84rtonwall.mp3', 'Blah blah.txt']
+    dirlist = [b'test_file', b'\xc3\x84rtonwall.mp3', b'Blah blah.txt']
 
 class UbuntuKarmicLatin1(EncodingUtil, unittest.TestCase):
     uname = 'Linux korn 2.6.31-14-generic #48-Ubuntu SMP Fri Oct 16 14:05:01 UTC 2009 x86_64'
-    argv = 'lumi\xe8re'
+    argv = b'lumi\xe8re'
     platform = 'linux2'
     filesystem_encoding = 'ISO-8859-1'
     io_encoding = 'ISO-8859-1'
-    dirlist = ['test_file', 'Blah blah.txt', '\xc4rtonwall.mp3']
+    dirlist = [b'test_file', b'Blah blah.txt', b'\xc4rtonwall.mp3']
 
 class Windows(EncodingUtil, unittest.TestCase):
     uname = 'Windows XP 5.1.2600 x86 x86 Family 15 Model 75 Step ping 2, AuthenticAMD'
-    argv = 'lumi\xc3\xa8re'
+    argv = b'lumi\xc3\xa8re'
     platform = 'win32'
     filesystem_encoding = 'mbcs'
     io_encoding = 'utf-8'
@@ -525,7 +599,7 @@ class Windows(EncodingUtil, unittest.TestCase):
 
 class MacOSXLeopard(EncodingUtil, unittest.TestCase):
     uname = 'Darwin g5.local 9.8.0 Darwin Kernel Version 9.8.0: Wed Jul 15 16:57:01 PDT 2009; root:xnu-1228.15.4~1/RELEASE_PPC Power Macintosh powerpc'
-    output = 'lumi\xc3\xa8re'
+    output = b'lumi\xc3\xa8re'
     platform = 'darwin'
     filesystem_encoding = 'utf-8'
     io_encoding = 'UTF-8'
@@ -547,15 +621,15 @@ class OpenBSD(EncodingUtil, unittest.TestCase):
 
 
 class TestToFromStr(ReallyEqualMixin, unittest.TestCase):
-    def test_to_str(self):
-        self.failUnlessReallyEqual(to_str("foo"), "foo")
-        self.failUnlessReallyEqual(to_str("lumi\xc3\xa8re"), "lumi\xc3\xa8re")
-        self.failUnlessReallyEqual(to_str("\xFF"), "\xFF")  # passes through invalid UTF-8 -- is this what we want?
-        self.failUnlessReallyEqual(to_str(u"lumi\u00E8re"), "lumi\xc3\xa8re")
-        self.failUnlessReallyEqual(to_str(None), None)
+    def test_to_bytes(self):
+        self.failUnlessReallyEqual(to_bytes(b"foo"), b"foo")
+        self.failUnlessReallyEqual(to_bytes(b"lumi\xc3\xa8re"), b"lumi\xc3\xa8re")
+        self.failUnlessReallyEqual(to_bytes(b"\xFF"), b"\xFF")  # passes through invalid UTF-8 -- is this what we want?
+        self.failUnlessReallyEqual(to_bytes(u"lumi\u00E8re"), b"lumi\xc3\xa8re")
+        self.failUnlessReallyEqual(to_bytes(None), None)
 
     def test_from_utf8_or_none(self):
         self.failUnlessRaises(AssertionError, from_utf8_or_none, u"foo")
-        self.failUnlessReallyEqual(from_utf8_or_none("lumi\xc3\xa8re"), u"lumi\u00E8re")
+        self.failUnlessReallyEqual(from_utf8_or_none(b"lumi\xc3\xa8re"), u"lumi\u00E8re")
         self.failUnlessReallyEqual(from_utf8_or_none(None), None)
-        self.failUnlessRaises(UnicodeDecodeError, from_utf8_or_none, "\xFF")
+        self.failUnlessRaises(UnicodeDecodeError, from_utf8_or_none, b"\xFF")

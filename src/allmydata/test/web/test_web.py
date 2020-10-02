@@ -1,6 +1,6 @@
 from __future__ import print_function
 
-import os.path, re, urllib, time, cgi
+import os.path, re, urllib, time
 import json
 import treq
 
@@ -8,24 +8,10 @@ from bs4 import BeautifulSoup
 
 from twisted.application import service
 from twisted.internet import defer
-from twisted.internet.defer import inlineCallbacks, returnValue, maybeDeferred
+from twisted.internet.defer import inlineCallbacks, returnValue
 from twisted.internet.task import Clock
 from twisted.web import client, error, http
 from twisted.python import failure, log
-
-from nevow.context import WebContext
-from nevow.inevow import (
-    ICanHandleException,
-    IRequest,
-    IData,
-)
-from nevow.util import escapeToXML
-from nevow.loaders import stan
-from nevow.testutil import FakeRequest
-from nevow.appserver import (
-    processingFailed,
-    DefaultExceptionHandler,
-)
 
 from allmydata import interfaces, uri, webish
 from allmydata.storage_client import StorageFarmBroker, StubServer
@@ -33,11 +19,10 @@ from allmydata.immutable import upload
 from allmydata.immutable.downloader.status import DownloadStatus
 from allmydata.dirnode import DirectoryNode
 from allmydata.nodemaker import NodeMaker
-from allmydata.web import status
-from allmydata.web.common import WebError, MultiFormatPage
+from allmydata.web.common import MultiFormatResource
 from allmydata.util import fileutil, base32, hashutil
 from allmydata.util.consumer import download_to_data
-from allmydata.util.encodingutil import to_str
+from allmydata.util.encodingutil import to_bytes
 from ...util.connection_status import ConnectionStatus
 from ..common import (
     EMPTY_CLIENT_CONFIG,
@@ -55,17 +40,29 @@ from .common import (
     assert_soup_has_tag_with_attributes,
     assert_soup_has_tag_with_content,
     assert_soup_has_tag_with_attributes_and_content,
+    unknown_rwcap,
+    unknown_rocap,
+    unknown_immcap,
 )
 
-from allmydata.interfaces import IMutableFileNode, SDMF_VERSION, MDMF_VERSION
+from allmydata.interfaces import (
+    IMutableFileNode, SDMF_VERSION, MDMF_VERSION,
+    FileTooLargeError,
+    MustBeReadonlyError,
+)
 from allmydata.mutable import servermap, publish, retrieve
 from .. import common_util as testutil
+from ..common_py3 import TimezoneMixin
 from ..common_web import (
     do_http,
     Error,
+    render,
 )
+from ...web.common import (
+    humanize_exception,
+)
+
 from allmydata.client import _Client, SecretHolder
-from .common import unknown_rwcap, unknown_rocap, unknown_immcap, FAVICON_MARKUP
 
 # create a fake uploader/downloader, and a couple of fake dirnodes, then
 # create a webserver that works against them
@@ -311,7 +308,7 @@ class FakeClient(_Client):
 
     MUTABLE_SIZELIMIT = FakeMutableFileNode.MUTABLE_SIZELIMIT
 
-class WebMixin(testutil.TimezoneMixin):
+class WebMixin(TimezoneMixin):
     def setUp(self):
         self.setTimezone('UTC-13:00')
         self.s = FakeClient()
@@ -375,9 +372,6 @@ class WebMixin(testutil.TimezoneMixin):
             self._htmlname_unicode = u"<&weirdly'named\"file>>>_<iframe />.txt"
             self._htmlname_raw = self._htmlname_unicode.encode('utf-8')
             self._htmlname_urlencoded = urllib.quote(self._htmlname_raw, '')
-            self._htmlname_escaped = escapeToXML(self._htmlname_raw)
-            self._htmlname_escaped_attr = cgi.escape(self._htmlname_raw, quote=True)
-            self._htmlname_escaped_double = escapeToXML(cgi.escape(self._htmlname_raw, quote=True))
             self.HTMLNAME_CONTENTS, n, self._htmlname_txt_uri = self.makefile(0)
             foo.set_uri(self._htmlname_unicode, self._htmlname_txt_uri, self._htmlname_txt_uri)
 
@@ -455,8 +449,8 @@ class WebMixin(testutil.TimezoneMixin):
         self.failUnless(isinstance(data[1], dict))
         self.failIf(data[1]["mutable"])
         self.failIfIn("rw_uri", data[1]) # immutable
-        self.failUnlessReallyEqual(to_str(data[1]["ro_uri"]), self._bar_txt_uri)
-        self.failUnlessReallyEqual(to_str(data[1]["verify_uri"]), self._bar_txt_verifycap)
+        self.failUnlessReallyEqual(to_bytes(data[1]["ro_uri"]), self._bar_txt_uri)
+        self.failUnlessReallyEqual(to_bytes(data[1]["verify_uri"]), self._bar_txt_verifycap)
         self.failUnlessReallyEqual(data[1]["size"], len(self.BAR_CONTENTS))
 
     def failUnlessIsQuuxJSON(self, res, readonly=False):
@@ -485,9 +479,9 @@ class WebMixin(testutil.TimezoneMixin):
         self.failUnless(isinstance(data[1], dict))
         self.failUnless(data[1]["mutable"])
         self.failUnlessIn("rw_uri", data[1]) # mutable
-        self.failUnlessReallyEqual(to_str(data[1]["rw_uri"]), self._foo_uri)
-        self.failUnlessReallyEqual(to_str(data[1]["ro_uri"]), self._foo_readonly_uri)
-        self.failUnlessReallyEqual(to_str(data[1]["verify_uri"]), self._foo_verifycap)
+        self.failUnlessReallyEqual(to_bytes(data[1]["rw_uri"]), self._foo_uri)
+        self.failUnlessReallyEqual(to_bytes(data[1]["ro_uri"]), self._foo_readonly_uri)
+        self.failUnlessReallyEqual(to_bytes(data[1]["verify_uri"]), self._foo_verifycap)
 
         kidnames = sorted([unicode(n) for n in data[1]["children"]])
         self.failUnlessEqual(kidnames,
@@ -504,19 +498,19 @@ class WebMixin(testutil.TimezoneMixin):
         self.failUnlessIn("linkmotime", tahoe_md)
         self.failUnlessEqual(kids[u"bar.txt"][0], "filenode")
         self.failUnlessReallyEqual(kids[u"bar.txt"][1]["size"], len(self.BAR_CONTENTS))
-        self.failUnlessReallyEqual(to_str(kids[u"bar.txt"][1]["ro_uri"]), self._bar_txt_uri)
-        self.failUnlessReallyEqual(to_str(kids[u"bar.txt"][1]["verify_uri"]),
+        self.failUnlessReallyEqual(to_bytes(kids[u"bar.txt"][1]["ro_uri"]), self._bar_txt_uri)
+        self.failUnlessReallyEqual(to_bytes(kids[u"bar.txt"][1]["verify_uri"]),
                                    self._bar_txt_verifycap)
         self.failUnlessIn("metadata", kids[u"bar.txt"][1])
         self.failUnlessIn("tahoe", kids[u"bar.txt"][1]["metadata"])
         self.failUnlessReallyEqual(kids[u"bar.txt"][1]["metadata"]["tahoe"]["linkcrtime"],
                                    self._bar_txt_metadata["tahoe"]["linkcrtime"])
-        self.failUnlessReallyEqual(to_str(kids[u"n\u00fc.txt"][1]["ro_uri"]),
+        self.failUnlessReallyEqual(to_bytes(kids[u"n\u00fc.txt"][1]["ro_uri"]),
                                    self._bar_txt_uri)
         self.failUnlessIn("quux.txt", kids)
-        self.failUnlessReallyEqual(to_str(kids[u"quux.txt"][1]["rw_uri"]),
+        self.failUnlessReallyEqual(to_bytes(kids[u"quux.txt"][1]["rw_uri"]),
                                    self._quux_txt_uri)
-        self.failUnlessReallyEqual(to_str(kids[u"quux.txt"][1]["ro_uri"]),
+        self.failUnlessReallyEqual(to_bytes(kids[u"quux.txt"][1]["ro_uri"]),
                                    self._quux_txt_readonly_uri)
 
     @inlineCallbacks
@@ -655,55 +649,35 @@ class WebMixin(testutil.TimezoneMixin):
                       (which, res))
 
 
+class MultiFormatResourceTests(TrialTestCase):
+    """
+    Tests for ``MultiFormatResource``.
+    """
+    def render(self, resource, **queryargs):
+        return self.successResultOf(render(resource, queryargs))
 
-class MultiFormatPageTests(TrialTestCase):
-    """
-    Tests for ``MultiFormatPage``.
-    """
     def resource(self):
         """
-        Create and return an instance of a ``MultiFormatPage`` subclass with two
-        formats: ``a`` and ``b``.
+        Create and return an instance of a ``MultiFormatResource`` subclass
+        with a default HTML format, and two custom formats: ``a`` and ``b``.
         """
-        class Content(MultiFormatPage):
-            docFactory = stan("doc factory")
+        class Content(MultiFormatResource):
+
+            def render_HTML(self, req):
+                return "html"
 
             def render_A(self, req):
                 return "a"
 
             def render_B(self, req):
                 return "b"
+
         return Content()
-
-
-    def render(self, resource, **query_args):
-        """
-        Render a Nevow ``Page`` against a request with the given query arguments.
-
-        :param resource: The Nevow resource to render.
-
-        :param query_args: The query arguments to put into the request being
-            rendered.  A mapping from ``bytes`` to ``list`` of ``bytes``.
-
-        :return: The rendered response body as ``bytes``.
-        """
-        ctx = WebContext(tag=resource)
-        req = FakeRequest(args=query_args)
-        ctx.remember(DefaultExceptionHandler(), ICanHandleException)
-        ctx.remember(req, IRequest)
-        ctx.remember(None, IData)
-
-        d = maybeDeferred(resource.renderHTTP, ctx)
-        d.addErrback(processingFailed, req, ctx)
-        res = self.successResultOf(d)
-        if isinstance(res, bytes):
-            return req.v + res
-        return req.v
 
 
     def test_select_format(self):
         """
-        The ``formatArgument`` attribute of a ``MultiFormatPage`` subclass
+        The ``formatArgument`` attribute of a ``MultiFormatResource`` subclass
         identifies the query argument which selects the result format.
         """
         resource = self.resource()
@@ -713,8 +687,8 @@ class MultiFormatPageTests(TrialTestCase):
 
     def test_default_format_argument(self):
         """
-        If a ``MultiFormatPage`` subclass does not set ``formatArgument`` then the
-        ``t`` argument is used.
+        If a ``MultiFormatResource`` subclass does not set ``formatArgument``
+        then the ``t`` argument is used.
         """
         resource = self.resource()
         self.assertEqual("a", self.render(resource, t=["a"]))
@@ -723,16 +697,15 @@ class MultiFormatPageTests(TrialTestCase):
     def test_no_format(self):
         """
         If no value is given for the format argument and no default format has
-        been defined, the base Nevow rendering behavior is used
-        (``renderHTTP``).
+        been defined, the base rendering behavior is used (``render_HTML``).
         """
         resource = self.resource()
-        self.assertEqual("doc factory", self.render(resource))
+        self.assertEqual("html", self.render(resource))
 
 
     def test_default_format(self):
         """
-        If no value is given for the format argument and the ``MultiFormatPage``
+        If no value is given for the format argument and the ``MultiFormatResource``
         subclass defines a ``formatDefault``, that value is used as the format
         to render.
         """
@@ -744,11 +717,11 @@ class MultiFormatPageTests(TrialTestCase):
     def test_explicit_none_format_renderer(self):
         """
         If a format is selected which has a renderer set to ``None``, the base
-        Nevow rendering behavior is used (``renderHTTP``).
+        rendering behavior is used (``render_HTML``).
         """
         resource = self.resource()
         resource.render_FOO = None
-        self.assertEqual("doc factory", self.render(resource, t=["foo"]))
+        self.assertEqual("html", self.render(resource, t=["foo"]))
 
 
     def test_unknown_format(self):
@@ -757,12 +730,13 @@ class MultiFormatPageTests(TrialTestCase):
         returned.
         """
         resource = self.resource()
+        response_body = self.render(resource, t=["foo"])
         self.assertIn(
-            "<title>Exception</title>",
-            self.render(resource, t=["foo"]),
+            "<title>400 - Bad Format</title>", response_body,
         )
-        self.flushLoggedErrors(WebError)
-
+        self.assertIn(
+            "Unknown t value: 'foo'", response_body,
+        )
 
 
 class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixin, TrialTestCase):
@@ -771,19 +745,40 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
     def test_create(self):
         pass
 
-    def test_frame_options(self):
+    def _assertResponseHeaders(self, name, values):
         """
-        All pages deny the ability to be loaded in frames.
+        Assert that the resource at **/** is served with a response header named
+        ``name`` and values ``values``.
+
+        :param bytes name: The name of the header item to check.
+        :param [bytes] values: The expected values.
+
+        :return Deferred: A Deferred that fires successfully if the expected
+            header item is found and which fails otherwise.
         """
         d = self.GET("/", return_response=True)
         def responded(result):
             _, _, headers = result
             self.assertEqual(
-                [b"DENY"],
-                headers.getRawHeaders(b"X-Frame-Options"),
+                values,
+                headers.getRawHeaders(name),
             )
         d.addCallback(responded)
         return d
+
+    def test_frame_options(self):
+        """
+        Pages deny the ability to be loaded in frames.
+        """
+        # It should be all pages but we only demonstrate it for / with this test.
+        return self._assertResponseHeaders(b"X-Frame-Options", [b"DENY"])
+
+    def test_referrer_policy(self):
+        """
+        Pages set a **no-referrer** policy.
+        """
+        # It should be all pages but we only demonstrate it for / with this test.
+        return self._assertResponseHeaders(b"Referrer-Policy", [b"no-referrer"])
 
     def test_welcome_json(self):
         """
@@ -954,8 +949,9 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
     def test_storage(self):
         d = self.GET("/storage")
         def _check(res):
-            self.failUnlessIn('Storage Server Status', res)
-            self.failUnlessIn(FAVICON_MARKUP, res)
+            soup = BeautifulSoup(res, 'html5lib')
+            assert_soup_has_text(self, soup, 'Storage Server Status')
+            assert_soup_has_favicon(self, soup)
             res_u = res.decode('utf-8')
             self.failUnlessIn(u'<li>Server Nickname: <span class="nickname mine">fake_nickname \u263A</span></li>', res_u)
         d.addCallback(_check)
@@ -971,11 +967,11 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d = self.GET("/status", followRedirect=True)
         def _check(res):
             self.failUnlessIn('Recent and Active Operations', res)
-            self.failUnlessIn('"down-%d"' % dl_num, res)
-            self.failUnlessIn('"up-%d"' % ul_num, res)
-            self.failUnlessIn('"mapupdate-%d"' % mu_num, res)
-            self.failUnlessIn('"publish-%d"' % pub_num, res)
-            self.failUnlessIn('"retrieve-%d"' % ret_num, res)
+            self.failUnlessIn('"/status/down-%d"' % dl_num, res)
+            self.failUnlessIn('"/status/up-%d"' % ul_num, res)
+            self.failUnlessIn('"/status/mapupdate-%d"' % mu_num, res)
+            self.failUnlessIn('"/status/publish-%d"' % pub_num, res)
+            self.failUnlessIn('"/status/retrieve-%d"' % ret_num, res)
         d.addCallback(_check)
         d.addCallback(lambda res: self.GET("/status/?t=json"))
         def _check_json(res):
@@ -1034,28 +1030,209 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
 
         return d
 
-    def test_status_numbers(self):
-        drrm = status.DownloadResultsRendererMixin()
-        self.failUnlessReallyEqual(drrm.render_time(None, None), "")
-        self.failUnlessReallyEqual(drrm.render_time(None, 2.5), "2.50s")
-        self.failUnlessReallyEqual(drrm.render_time(None, 0.25), "250ms")
-        self.failUnlessReallyEqual(drrm.render_time(None, 0.0021), "2.1ms")
-        self.failUnlessReallyEqual(drrm.render_time(None, 0.000123), "123us")
-        self.failUnlessReallyEqual(drrm.render_rate(None, None), "")
-        self.failUnlessReallyEqual(drrm.render_rate(None, 2500000), "2.50MBps")
-        self.failUnlessReallyEqual(drrm.render_rate(None, 30100), "30.1kBps")
-        self.failUnlessReallyEqual(drrm.render_rate(None, 123), "123Bps")
+    def test_status_path_nodash_error(self):
+        """
+        Expect an error, because path is expected to be of the form
+        "/status/{up,down,..}-%number", with a hyphen.
+        """
+        return self.shouldFail2(error.Error,
+                                "test_status_path_nodash",
+                                "400 Bad Request",
+                                "no '-' in 'nodash'",
+                                self.GET,
+                                "/status/nodash")
 
-        urrm = status.UploadResultsRendererMixin()
-        self.failUnlessReallyEqual(urrm.render_time(None, None), "")
-        self.failUnlessReallyEqual(urrm.render_time(None, 2.5), "2.50s")
-        self.failUnlessReallyEqual(urrm.render_time(None, 0.25), "250ms")
-        self.failUnlessReallyEqual(urrm.render_time(None, 0.0021), "2.1ms")
-        self.failUnlessReallyEqual(urrm.render_time(None, 0.000123), "123us")
-        self.failUnlessReallyEqual(urrm.render_rate(None, None), "")
-        self.failUnlessReallyEqual(urrm.render_rate(None, 2500000), "2.50MBps")
-        self.failUnlessReallyEqual(urrm.render_rate(None, 30100), "30.1kBps")
-        self.failUnlessReallyEqual(urrm.render_rate(None, 123), "123Bps")
+    def test_status_page_contains_links(self):
+        """
+        Check that the rendered `/status` page contains all the
+        expected links.
+        """
+        def _check_status_page_links(response):
+            (body, status, _) = response
+
+            self.failUnlessReallyEqual(int(status), 200)
+
+            soup = BeautifulSoup(body, 'html5lib')
+            h = self.s.get_history()
+
+            # Check for `<a href="/status/retrieve-0">Not started</a>`
+            ret_num = h.list_all_retrieve_statuses()[0].get_counter()
+            assert_soup_has_tag_with_attributes_and_content(
+                self, soup, u"a",
+                u"Not started",
+                {u"href": u"/status/retrieve-{}".format(ret_num)}
+            )
+
+            # Check for `<a href="/status/publish-0">Not started</a></td>`
+            pub_num = h.list_all_publish_statuses()[0].get_counter()
+            assert_soup_has_tag_with_attributes_and_content(
+                self, soup, u"a",
+                u"Not started",
+                {u"href": u"/status/publish-{}".format(pub_num)}
+            )
+
+            # Check for `<a href="/status/mapupdate-0">Not started</a>`
+            mu_num = h.list_all_mapupdate_statuses()[0].get_counter()
+            assert_soup_has_tag_with_attributes_and_content(
+                self, soup, u"a",
+                u"Not started",
+                {u"href": u"/status/mapupdate-{}".format(mu_num)}
+            )
+
+            # Check for `<a href="/status/down-0">fetching segments
+            # 2,3; errors on segment 1</a>`: see build_one_ds() above.
+            dl_num = h.list_all_download_statuses()[0].get_counter()
+            assert_soup_has_tag_with_attributes_and_content(
+                self, soup, u"a",
+                u"fetching segments 2,3; errors on segment 1",
+                {u"href": u"/status/down-{}".format(dl_num)}
+            )
+
+            # Check for `<a href="/status/up-0">Not started</a>`
+            ul_num = h.list_all_upload_statuses()[0].get_counter()
+            assert_soup_has_tag_with_attributes_and_content(
+                self, soup, u"a",
+                u"Not started",
+                {u"href": u"/status/up-{}".format(ul_num)}
+            )
+
+        d = self.GET("/status", return_response=True)
+        d.addCallback(_check_status_page_links)
+        return d
+
+    def test_status_path_trailing_slashes(self):
+        """
+        Test that both `GET /status` and `GET /status/` are treated
+        alike, but reject any additional trailing slashes and other
+        non-existent child nodes.
+        """
+        def _check_status(response):
+            (body, status, _) = response
+
+            self.failUnlessReallyEqual(int(status), 200)
+
+            soup = BeautifulSoup(body, 'html5lib')
+            assert_soup_has_favicon(self, soup)
+            assert_soup_has_tag_with_content(
+                self, soup, u"title",
+                u"Tahoe-LAFS - Recent and Active Operations"
+            )
+
+        d = self.GET("/status", return_response=True)
+        d.addCallback(_check_status)
+
+        d = self.GET("/status/", return_response=True)
+        d.addCallback(_check_status)
+
+        d =  self.shouldFail2(error.Error,
+                              "test_status_path_trailing_slashes",
+                              "400 Bad Request",
+                              "no '-' in ''",
+                              self.GET,
+                              "/status//")
+
+        d =  self.shouldFail2(error.Error,
+                              "test_status_path_trailing_slashes",
+                              "400 Bad Request",
+                              "no '-' in ''",
+                              self.GET,
+                              "/status////////")
+
+        return d
+
+    def test_status_path_404_error(self):
+        """
+        Looking for non-existent statuses under child paths should
+        exercises all the iterators in web.status.Status.getChild().
+
+        The test suite (hopefully!) would not have done any setup for
+        a very large number of statuses at this point, now or in the
+        future, so these all should always return 404.
+        """
+        d = self.GET("/status/up-9999999")
+        d.addBoth(self.should404, "test_status_path_404_error (up)")
+
+        d = self.GET("/status/down-9999999")
+        d.addBoth(self.should404, "test_status_path_404_error (down)")
+
+        d = self.GET("/status/mapupdate-9999999")
+        d.addBoth(self.should404, "test_status_path_404_error (mapupdate)")
+
+        d = self.GET("/status/publish-9999999")
+        d.addBoth(self.should404, "test_status_path_404_error (publish)")
+
+        d = self.GET("/status/retrieve-9999999")
+        d.addBoth(self.should404, "test_status_path_404_error (retrieve)")
+
+        return d
+
+    def _check_status_subpath_result(self, result, expected_title):
+        """
+        Helper to verify that results of "GET /status/up-0" and
+        similar are as expected.
+        """
+        body, status, _ = result
+        self.failUnlessReallyEqual(int(status), 200)
+        soup = BeautifulSoup(body, 'html5lib')
+        assert_soup_has_favicon(self, soup)
+        assert_soup_has_tag_with_content(
+            self, soup, u"title", expected_title
+        )
+
+    def test_status_up_subpath(self):
+        """
+        See that "GET /status/up-0" works.
+        """
+        h = self.s.get_history()
+        ul_num = h.list_all_upload_statuses()[0].get_counter()
+        d = self.GET("/status/up-{}".format(ul_num), return_response=True)
+        d.addCallback(self._check_status_subpath_result,
+                      u"Tahoe-LAFS - File Upload Status")
+        return d
+
+    def test_status_down_subpath(self):
+        """
+        See that "GET /status/down-0" works.
+        """
+        h = self.s.get_history()
+        dl_num = h.list_all_download_statuses()[0].get_counter()
+        d = self.GET("/status/down-{}".format(dl_num), return_response=True)
+        d.addCallback(self._check_status_subpath_result,
+                      u"Tahoe-LAFS - File Download Status")
+        return d
+
+    def test_status_mapupdate_subpath(self):
+        """
+        See that "GET /status/mapupdate-0" works.
+        """
+        h = self.s.get_history()
+        mu_num = h.list_all_mapupdate_statuses()[0].get_counter()
+        d = self.GET("/status/mapupdate-{}".format(mu_num), return_response=True)
+        d.addCallback(self._check_status_subpath_result,
+                      u"Tahoe-LAFS - Mutable File Servermap Update Status")
+        return d
+
+    def test_status_publish_subpath(self):
+        """
+        See that "GET /status/publish-0" works.
+        """
+        h = self.s.get_history()
+        pub_num = h.list_all_publish_statuses()[0].get_counter()
+        d = self.GET("/status/publish-{}".format(pub_num), return_response=True)
+        d.addCallback(self._check_status_subpath_result,
+                      u"Tahoe-LAFS - Mutable File Publish Status")
+        return d
+
+    def test_status_retrieve_subpath(self):
+        """
+        See that "GET /status/retrieve-0" works.
+        """
+        h = self.s.get_history()
+        ret_num = h.list_all_retrieve_statuses()[0].get_counter()
+        d = self.GET("/status/retrieve-{}".format(ret_num), return_response=True)
+        d.addCallback(self._check_status_subpath_result,
+                      u"Tahoe-LAFS - Mutable File Retrieve Status")
+        return d
 
     def test_GET_FILEURL(self):
         d = self.GET(self.public_url + "/foo/bar.txt")
@@ -1797,15 +1974,6 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             )
         )
 
-        # XXX leaving this as-is, but consider using beautfulsoup here too?
-        # Make sure that Nevow escaping actually works by checking for unsafe characters
-        # and that '&' is escaped.
-        for entity in '<>':
-            self.failUnlessIn(entity, self._htmlname_raw)
-            self.failIfIn(entity, self._htmlname_escaped)
-        self.failUnlessIn('&', re.sub(r'&(amp|lt|gt|quot|apos);', '', self._htmlname_raw))
-        self.failIfIn('&', re.sub(r'&(amp|lt|gt|quot|apos);', '', self._htmlname_escaped))
-
     @inlineCallbacks
     def test_GET_root_html(self):
         data = yield self.GET("/")
@@ -1997,7 +2165,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             got = {}
             for (path_list, cap) in data:
                 got[tuple(path_list)] = cap
-            self.failUnlessReallyEqual(to_str(got[(u"sub",)]), self._sub_uri)
+            self.failUnlessReallyEqual(to_bytes(got[(u"sub",)]), self._sub_uri)
             self.failUnlessIn((u"sub", u"baz.txt"), got)
             self.failUnlessIn("finished", res)
             self.failUnlessIn("origin", res)
@@ -2082,9 +2250,9 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             self.failUnlessEqual(units[-1]["type"], "stats")
             first = units[0]
             self.failUnlessEqual(first["path"], [])
-            self.failUnlessReallyEqual(to_str(first["cap"]), self._foo_uri)
+            self.failUnlessReallyEqual(to_bytes(first["cap"]), self._foo_uri)
             self.failUnlessEqual(first["type"], "directory")
-            baz = [u for u in units[:-1] if to_str(u["cap"]) == self._baz_file_uri][0]
+            baz = [u for u in units[:-1] if to_bytes(u["cap"]) == self._baz_file_uri][0]
             self.failUnlessEqual(baz["path"], ["sub", "baz.txt"])
             self.failIfEqual(baz["storage-index"], None)
             self.failIfEqual(baz["verifycap"], None)
@@ -2097,14 +2265,14 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
     def test_GET_DIRURL_uri(self):
         d = self.GET(self.public_url + "/foo?t=uri")
         def _check(res):
-            self.failUnlessReallyEqual(to_str(res), self._foo_uri)
+            self.failUnlessReallyEqual(to_bytes(res), self._foo_uri)
         d.addCallback(_check)
         return d
 
     def test_GET_DIRURL_readonly_uri(self):
         d = self.GET(self.public_url + "/foo?t=readonly-uri")
         def _check(res):
-            self.failUnlessReallyEqual(to_str(res), self._foo_readonly_uri)
+            self.failUnlessReallyEqual(to_bytes(res), self._foo_readonly_uri)
         d.addCallback(_check)
         return d
 
@@ -2766,9 +2934,9 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             new_json = children[u"new.txt"]
             self.failUnlessEqual(new_json[0], "filenode")
             self.failUnless(new_json[1]["mutable"])
-            self.failUnlessReallyEqual(to_str(new_json[1]["rw_uri"]), self._mutable_uri)
+            self.failUnlessReallyEqual(to_bytes(new_json[1]["rw_uri"]), self._mutable_uri)
             ro_uri = self._mutable_node.get_readonly().to_string()
-            self.failUnlessReallyEqual(to_str(new_json[1]["ro_uri"]), ro_uri)
+            self.failUnlessReallyEqual(to_bytes(new_json[1]["ro_uri"]), ro_uri)
         d.addCallback(_check_page_json)
 
         # and the JSON form of the file
@@ -2778,9 +2946,9 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             parsed = json.loads(res)
             self.failUnlessEqual(parsed[0], "filenode")
             self.failUnless(parsed[1]["mutable"])
-            self.failUnlessReallyEqual(to_str(parsed[1]["rw_uri"]), self._mutable_uri)
+            self.failUnlessReallyEqual(to_bytes(parsed[1]["rw_uri"]), self._mutable_uri)
             ro_uri = self._mutable_node.get_readonly().to_string()
-            self.failUnlessReallyEqual(to_str(parsed[1]["ro_uri"]), ro_uri)
+            self.failUnlessReallyEqual(to_bytes(parsed[1]["ro_uri"]), ro_uri)
         d.addCallback(_check_file_json)
 
         # and look at t=uri and t=readonly-uri
@@ -3080,13 +3248,15 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         res = yield self.get_operation_results(None, "123", "html")
         self.failUnlessIn("Objects Checked: <span>11</span>", res)
         self.failUnlessIn("Objects Healthy: <span>11</span>", res)
-        self.failUnlessIn(FAVICON_MARKUP, res)
+        soup = BeautifulSoup(res, 'html5lib')
+        assert_soup_has_favicon(self, soup)
 
         res = yield self.GET("/operations/123/")
         # should be the same as without the slash
         self.failUnlessIn("Objects Checked: <span>11</span>", res)
         self.failUnlessIn("Objects Healthy: <span>11</span>", res)
-        self.failUnlessIn(FAVICON_MARKUP, res)
+        soup = BeautifulSoup(res, 'html5lib')
+        assert_soup_has_favicon(self, soup)
 
         yield self.shouldFail2(error.Error, "one", "404 Not Found",
                                "No detailed results for SI bogus",
@@ -3136,7 +3306,8 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             self.failUnlessIn("Objects Unhealthy (after repair): <span>0</span>", res)
             self.failUnlessIn("Corrupt Shares (after repair): <span>0</span>", res)
 
-            self.failUnlessIn(FAVICON_MARKUP, res)
+            soup = BeautifulSoup(res, 'html5lib')
+            assert_soup_has_favicon(self, soup)
         d.addCallback(_check_html)
         return d
 
@@ -4123,7 +4294,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         )
 
     def log(self, res, msg):
-        #print "MSG: %s  RES: %s" % (msg, res)
+        #print("MSG: %s  RES: %s" % (msg, res))
         log.msg(msg)
         return res
 
@@ -4603,3 +4774,33 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         # doesn't reveal anything. This addresses #1720.
         d.addCallback(lambda e: self.assertEquals(str(e), "404 Not Found"))
         return d
+
+
+class HumanizeExceptionTests(TrialTestCase):
+    """
+    Tests for ``humanize_exception``.
+    """
+    def test_mustbereadonly(self):
+        """
+        ``humanize_exception`` describes ``MustBeReadonlyError``.
+        """
+        text, code = humanize_exception(
+            MustBeReadonlyError(
+                "URI:DIR2 directory writecap used in a read-only context",
+                "<unknown name>",
+            ),
+        )
+        self.assertIn("MustBeReadonlyError", text)
+        self.assertEqual(code, http.BAD_REQUEST)
+
+    def test_filetoolarge(self):
+        """
+        ``humanize_exception`` describes ``FileTooLargeError``.
+        """
+        text, code = humanize_exception(
+            FileTooLargeError(
+                "This file is too large to be uploaded (data_size).",
+            ),
+        )
+        self.assertIn("FileTooLargeError", text)
+        self.assertEqual(code, http.REQUEST_ENTITY_TOO_LARGE)

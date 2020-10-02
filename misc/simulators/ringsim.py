@@ -130,8 +130,8 @@ class Ring(object):
         # used is actual per-server ciphertext
         usedpf = [1.0*u/numfiles for u in used]
         # usedpf is actual per-server-per-file ciphertext
-        #print "min/max usage: %s/%s" % (abbreviate_space(used[-1]),
-        #                                abbreviate_space(used[0]))
+        #print("min/max usage: %s/%s" % (abbreviate_space(used[-1]),
+        #                                abbreviate_space(used[0])))
         avg_usage_per_file = avg_space_per_file/len(self.servers)
         # avg_usage_per_file is expected per-server-per-file ciphertext
         spreadpf = usedpf[0] - usedpf[-1]
@@ -146,7 +146,7 @@ class Ring(object):
             abbreviate_space(avg_usage_per_file) ), end=' ')
         print("spread-pf: %s (%.2f%%)" % (
             abbreviate_space(spreadpf), 100.0*spreadpf/avg_usage_per_file), end=' ')
-        #print "average_usage:", abbreviate_space(average_usagepf)
+        #print("average_usage:", abbreviate_space(average_usagepf))
         print("stddev: %s (%.2f%%)" % (abbreviate_space(std_deviation),
                                        100.0*sd_of_total))
         if self.SHOW_MINMAX:
@@ -176,14 +176,14 @@ def do_run(ring, opts):
     for filenum in count(0):
         #used = list(reversed(sorted([s.used for s in ring.servers])))
         #used = [s.used for s in ring.servers]
-        #print used
+        #print(used)
         si = myhash(fileseed+str(filenum)).hexdigest()
         filesize = make_up_a_file_size(si)
         sharesize = filesize / opts["k"]
         if filenum%4000==0 and filenum > 1:
             ring.dump_usage(filenum, avg_space_per_file)
         servers = ring.servers_for_si(si)
-        #print ring.show_servers(servers[:opts["N"]])
+        #print(ring.show_servers(servers[:opts["N"]]))
         remaining_shares = opts["N"]
         index = 0
         server_was_full = False

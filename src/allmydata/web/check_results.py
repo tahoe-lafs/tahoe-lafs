@@ -1,12 +1,37 @@
 
 import time
 import json
-from nevow import rend, inevow, tags as T
-from twisted.web import http, html
-from allmydata.web.common import getxmlfile, get_arg, get_root, WebError
+
+from twisted.web import (
+    http,
+    html,
+)
+from twisted.python.filepath import FilePath
+from twisted.web.template import (
+    Element,
+    XMLFile,
+    renderer,
+    renderElement,
+    tags,
+)
+from allmydata.web.common import (
+    exception_to_child,
+    get_arg,
+    get_root,
+    render_exception,
+    WebError,
+    MultiFormatResource,
+    SlotsSequenceElement,
+)
 from allmydata.web.operations import ReloadMixin
-from allmydata.interfaces import ICheckAndRepairResults, ICheckResults
-from allmydata.util import base32, dictutil
+from allmydata.interfaces import (
+    ICheckAndRepairResults,
+    ICheckResults,
+)
+from allmydata.util import (
+    base32,
+    dictutil,
+)
 
 
 def json_check_counts(r):
@@ -64,53 +89,64 @@ def json_check_and_repair_results(r):
     return data
 
 class ResultsBase(object):
-    # self.client must point to the Client, so we can get nicknames and
+    # self._client must point to the Client, so we can get nicknames and
     # determine the permuted peer order
 
     def _join_pathstring(self, path):
+        """
+        :param tuple path: a path represented by a tuple, such as
+            ``(u'some', u'dir', u'file')``.
+
+        :return: a string joined by path separaters, such as
+            ``u'some/dir/file'``.
+        """
         if path:
             pathstring = "/".join(self._html(path))
         else:
             pathstring = "<root>"
         return pathstring
 
-    def _render_results(self, ctx, cr):
+    def _render_results(self, req, cr):
         assert ICheckResults(cr)
-        c = self.client
+        c = self._client
         sb = c.get_storage_broker()
         r = []
         def add(name, value):
-            r.append(T.li[name + ": ", value])
+            r.append(tags.li(name + ": ", value))
 
-        add("Report", T.pre["\n".join(self._html(cr.get_report()))])
+        add("Report", tags.pre("\n".join(self._html(cr.get_report()))))
+
         add("Share Counts",
             "need %d-of-%d, have %d" % (cr.get_encoding_needed(),
                                         cr.get_encoding_expected(),
                                         cr.get_share_counter_good()))
-        add("Happiness Level", cr.get_happiness())
-        add("Hosts with good shares", cr.get_host_counter_good_shares())
+        add("Happiness Level", str(cr.get_happiness()))
+        add("Hosts with good shares", str(cr.get_host_counter_good_shares()))
 
         if cr.get_corrupt_shares():
             badsharemap = []
             for (s, si, shnum) in cr.get_corrupt_shares():
-                d = T.tr[T.td["sh#%d" % shnum],
-                         T.td[T.div(class_="nickname")[s.get_nickname()],
-                              T.div(class_="nodeid")[T.tt[s.get_name()]]],
-                         ]
+                d = tags.tr(tags.td("sh#%d" % shnum),
+                            tags.td(tags.div(s.get_nickname(), class_="nickname"),
+                                    tags.div(tags.tt(s.get_name()), class_="nodeid")),)
                 badsharemap.append(d)
-            add("Corrupt shares", T.table()[
-                T.tr[T.th["Share ID"],
-                     T.th(class_="nickname-and-peerid")[T.div["Nickname"], T.div(class_="nodeid")["Node ID"]]],
-                badsharemap])
+            add("Corrupt shares",
+                tags.table(
+                    tags.tr(tags.th("Share ID"),
+                            tags.th((tags.div("Nickname"), tags.div("Node ID", class_="nodeid")), class_="nickname-and-peerid")),
+                    badsharemap))
         else:
             add("Corrupt shares", "none")
 
-        add("Wrong Shares", cr.get_share_counter_wrong())
+        add("Wrong Shares", str(cr.get_share_counter_wrong()))
 
         sharemap_data = []
         shares_on_server = dictutil.DictOfSets()
 
-        # FIXME: The two tables below contain nickname-and-nodeid table column markup which is duplicated with each other, introducer.xhtml, and deep-check-results.xhtml. All of these (and any other presentations of nickname-and-nodeid) should be combined.
+        # FIXME: The two tables below contain nickname-and-nodeid
+        # table column markup which is duplicated with each other,
+        # introducer.xhtml, and deep-check-results.xhtml. All of these
+        # (and any other presentations of nickname-and-nodeid) should be combined.
 
         for shareid in sorted(cr.get_sharemap().keys()):
             servers = sorted(cr.get_sharemap()[shareid],
@@ -119,19 +155,20 @@ class ResultsBase(object):
                 shares_on_server.add(s, shareid)
                 shareid_s = ""
                 if i == 0:
-                    shareid_s = shareid
-                d = T.tr[T.td[shareid_s],
-                         T.td[T.div(class_="nickname")[s.get_nickname()],
-                              T.div(class_="nodeid")[T.tt[s.get_name()]]]
-                         ]
+                    shareid_s = str(shareid)
+                d = tags.tr(tags.td(shareid_s),
+                            tags.td(tags.div(s.get_nickname(), class_="nickname"),
+                                    tags.div(tags.tt(s.get_name()), class_="nodeid")))
                 sharemap_data.append(d)
+
         add("Good Shares (sorted in share order)",
-            T.table()[T.tr[T.th["Share ID"], T.th(class_="nickname-and-peerid")[T.div["Nickname"], T.div(class_="nodeid")["Node ID"]]],
-                      sharemap_data])
+            tags.table(tags.tr(tags.th("Share ID"),
+                               tags.th(tags.div("Nickname"),
+                                       tags.div("Node ID", class_="nodeid"), class_="nickname-and-peerid")),
+                       sharemap_data))
 
-
-        add("Recoverable Versions", cr.get_version_counter_recoverable())
-        add("Unrecoverable Versions", cr.get_version_counter_unrecoverable())
+        add("Recoverable Versions", str(cr.get_version_counter_recoverable()))
+        add("Unrecoverable Versions", str(cr.get_version_counter_unrecoverable()))
 
         # this table is sorted by permuted order
         permuted_servers = [s
@@ -144,20 +181,23 @@ class ResultsBase(object):
         for s in permuted_servers:
             shareids = list(shares_on_server.get(s, []))
             shareids.reverse()
-            shareids_s = [ T.tt[shareid, " "] for shareid in sorted(shareids) ]
-            d = T.tr[T.td[T.div(class_="nickname")[s.get_nickname()],
-                          T.div(class_="nodeid")[T.tt[s.get_name()]]],
-                     T.td[shareids_s],
-                     ]
+            shareids_s = [tags.tt(str(shareid), " ") for shareid in sorted(shareids)]
+
+            d = tags.tr(tags.td(tags.div(s.get_nickname(), class_="nickname"),
+                             tags.div(tags.tt(s.get_name()), class_="nodeid")),
+                        tags.td(shareids_s), )
             servermap.append(d)
             num_shares_left -= len(shareids)
             if not num_shares_left:
                 break
-        add("Share Balancing (servers in permuted order)",
-            T.table()[T.tr[T.th(class_="nickname-and-peerid")[T.div["Nickname"], T.div(class_="nodeid")["Node ID"]], T.th["Share IDs"]],
-                      servermap])
 
-        return T.ul[r]
+        add("Share Balancing (servers in permuted order)",
+            tags.table(tags.tr(tags.th(tags.div("Nickname"),
+                                    tags.div("Node ID", class_="nodeid"), class_="nickname-and-peerid"),
+                            tags.th("Share IDs")),
+                       servermap))
+
+        return tags.ul(r)
 
     def _html(self, s):
         if isinstance(s, (str, unicode)):
@@ -165,91 +205,118 @@ class ResultsBase(object):
         assert isinstance(s, (list, tuple))
         return [html.escape(w) for w in s]
 
-    def want_json(self, ctx):
-        output = get_arg(inevow.IRequest(ctx), "output", "").lower()
-        if output.lower() == "json":
-            return True
-        return False
-
-    def _render_si_link(self, ctx, storage_index):
+    def _render_si_link(self, req, storage_index):
         si_s = base32.b2a(storage_index)
-        req = inevow.IRequest(ctx)
         ophandle = req.prepath[-1]
-        target = "%s/operations/%s/%s" % (get_root(ctx), ophandle, si_s)
-        output = get_arg(ctx, "output")
+        target = "%s/operations/%s/%s" % (get_root(req), ophandle, si_s)
+        output = get_arg(req, "output")
         if output:
             target = target + "?output=%s" % output
-        return T.a(href=target)[si_s]
+        return tags.a(si_s, href=target)
 
-class LiteralCheckResultsRenderer(rend.Page, ResultsBase):
-    docFactory = getxmlfile("literal-check-results.xhtml")
+
+class LiteralCheckResultsRenderer(MultiFormatResource, ResultsBase):
+
+    formatArgument = "output"
 
     def __init__(self, client):
-        self.client = client
-        rend.Page.__init__(self, client)
+        """
+        :param allmydata.interfaces.IStatsProducer client: stats provider.
+        """
+        super(LiteralCheckResultsRenderer, self).__init__()
+        self._client = client
 
-    def renderHTTP(self, ctx):
-        if self.want_json(ctx):
-            return self.json(ctx)
-        return rend.Page.renderHTTP(self, ctx)
+    @render_exception
+    def render_HTML(self, req):
+        return renderElement(req, LiteralCheckResultsRendererElement())
 
-    def json(self, ctx):
-        inevow.IRequest(ctx).setHeader("content-type", "text/plain")
+    @render_exception
+    def render_JSON(self, req):
+        req.setHeader("content-type", "text/plain")
         data = json_check_results(None)
         return json.dumps(data, indent=1) + "\n"
 
-    def render_return(self, ctx, data):
-        req = inevow.IRequest(ctx)
+
+class LiteralCheckResultsRendererElement(Element):
+
+    loader = XMLFile(FilePath(__file__).sibling("literal-check-results.xhtml"))
+
+    def __init__(self):
+        super(LiteralCheckResultsRendererElement, self).__init__()
+
+    @renderer
+    def return_to(self, req, tag):
         return_to = get_arg(req, "return_to", None)
         if return_to:
-            return T.div[T.a(href=return_to)["Return to file."]]
+            return tags.div(tags.a("Return to file.", href=return_to))
         return ""
+
 
 class CheckerBase(object):
 
-    def renderHTTP(self, ctx):
-        if self.want_json(ctx):
-            return self.json(ctx)
-        return rend.Page.renderHTTP(self, ctx)
+    @renderer
+    def storage_index(self, req, tag):
+        return self._results.get_storage_index_string()
 
-    def render_storage_index(self, ctx, data):
-        return self.r.get_storage_index_string()
-
-    def render_return(self, ctx, data):
-        req = inevow.IRequest(ctx)
+    @renderer
+    def return_to(self, req, tag):
         return_to = get_arg(req, "return_to", None)
         if return_to:
-            return T.div[T.a(href=return_to)["Return to file/directory."]]
+            return tags.div(tags.a("Return to file/directory.", href=return_to))
         return ""
 
-class CheckResultsRenderer(CheckerBase, rend.Page, ResultsBase):
-    docFactory = getxmlfile("check-results.xhtml")
+
+class CheckResultsRenderer(MultiFormatResource):
+
+    formatArgument = "output"
 
     def __init__(self, client, results):
-        self.client = client
-        self.r = ICheckResults(results)
-        rend.Page.__init__(self, results)
+        """
+        :param allmydata.interfaces.IStatsProducer client: stats provider.
+        :param allmydata.interfaces.ICheckResults results: results of check/vefify operation.
+        """
+        super(CheckResultsRenderer, self).__init__()
+        self._client = client
+        self._results = ICheckResults(results)
 
-    def json(self, ctx):
-        inevow.IRequest(ctx).setHeader("content-type", "text/plain")
-        data = json_check_results(self.r)
+    @render_exception
+    def render_HTML(self, req):
+        return renderElement(req, CheckResultsRendererElement(self._client, self._results))
+
+    @render_exception
+    def render_JSON(self, req):
+        req.setHeader("content-type", "text/plain")
+        data = json_check_results(self._results)
         return json.dumps(data, indent=1) + "\n"
 
-    def render_summary(self, ctx, data):
+
+class CheckResultsRendererElement(Element, CheckerBase, ResultsBase):
+
+    loader = XMLFile(FilePath(__file__).sibling("check-results.xhtml"))
+
+    def __init__(self, client, results):
+        super(CheckResultsRendererElement, self).__init__()
+        self._client = client
+        self._results = results
+
+    @renderer
+    def summary(self, req, tag):
         results = []
-        if data.is_healthy():
+        if self._results.is_healthy():
             results.append("Healthy")
-        elif data.is_recoverable():
+        elif self._results.is_recoverable():
             results.append("Not Healthy!")
         else:
             results.append("Not Recoverable!")
         results.append(" : ")
-        results.append(self._html(data.get_summary()))
-        return ctx.tag[results]
+        results.append(self._html(self._results.get_summary()))
+        return tag(results)
 
-    def render_repair(self, ctx, data):
-        if data.is_healthy():
+    @renderer
+    def repair(self, req, tag):
+        if self._results.is_healthy():
             return ""
+
         #repair = T.form(action=".", method="post",
         #                enctype="multipart/form-data")[
         #    T.fieldset[
@@ -258,30 +325,54 @@ class CheckResultsRenderer(CheckerBase, rend.Page, ResultsBase):
         #    T.input(type="submit", value="Repair"),
         #    ]]
         #return ctx.tag[repair]
+
         return "" # repair button disabled until we make it work correctly,
                   # see #622 for details
 
-    def render_results(self, ctx, data):
-        cr = self._render_results(ctx, data)
-        return ctx.tag[cr]
+    @renderer
+    def results(self, req, tag):
+        cr = self._render_results(req, self._results)
+        return tag(cr)
 
-class CheckAndRepairResultsRenderer(CheckerBase, rend.Page, ResultsBase):
-    docFactory = getxmlfile("check-and-repair-results.xhtml")
+class CheckAndRepairResultsRenderer(MultiFormatResource):
+
+    formatArgument = "output"
 
     def __init__(self, client, results):
-        self.client = client
-        self.r = None
+        """
+        :param allmydata.interfaces.IStatsProducer client: stats provider.
+        :param allmydata.interfaces.ICheckResults results: check/verify results.
+        """
+        super(CheckAndRepairResultsRenderer, self).__init__()
+        self._client = client
+        self._results = None
         if results:
-            self.r = ICheckAndRepairResults(results)
-        rend.Page.__init__(self, results)
+            self._results = ICheckAndRepairResults(results)
 
-    def json(self, ctx):
-        inevow.IRequest(ctx).setHeader("content-type", "text/plain")
-        data = json_check_and_repair_results(self.r)
+    @render_exception
+    def render_HTML(self, req):
+        elem = CheckAndRepairResultsRendererElement(self._client, self._results)
+        return renderElement(req, elem)
+
+    @render_exception
+    def render_JSON(self, req):
+        req.setHeader("content-type", "text/plain")
+        data = json_check_and_repair_results(self._results)
         return json.dumps(data, indent=1) + "\n"
 
-    def render_summary(self, ctx, data):
-        cr = data.get_post_repair_results()
+
+class CheckAndRepairResultsRendererElement(Element, CheckerBase, ResultsBase):
+
+    loader = XMLFile(FilePath(__file__).sibling("check-and-repair-results.xhtml"))
+
+    def __init__(self, client, results):
+        super(CheckAndRepairResultsRendererElement, self).__init__()
+        self._client = client
+        self._results = results
+
+    @renderer
+    def summary(self, req, tag):
+        cr = self._results.get_post_repair_results()
         results = []
         if cr.is_healthy():
             results.append("Healthy")
@@ -291,35 +382,45 @@ class CheckAndRepairResultsRenderer(CheckerBase, rend.Page, ResultsBase):
             results.append("Not Recoverable!")
         results.append(" : ")
         results.append(self._html(cr.get_summary()))
-        return ctx.tag[results]
+        return tag(results)
 
-    def render_repair_results(self, ctx, data):
-        if data.get_repair_attempted():
-            if data.get_repair_successful():
-                return ctx.tag["Repair successful"]
+    @renderer
+    def repair_results(self, req, tag):
+        if self._results.get_repair_attempted():
+            if self._results.get_repair_successful():
+                return tag("Repair successful")
             else:
-                return ctx.tag["Repair unsuccessful"]
-        return ctx.tag["No repair necessary"]
+                return tag("Repair unsuccessful")
+        return tag("No repair necessary")
 
-    def render_post_repair_results(self, ctx, data):
-        cr = self._render_results(ctx, data.get_post_repair_results())
-        return ctx.tag[T.div["Post-Repair Checker Results:"], cr]
+    @renderer
+    def post_repair_results(self, req, tag):
+        cr = self._render_results(req, self._results.get_post_repair_results())
+        return tag(tags.div("Post-Repair Checker Results:"), cr)
 
-    def render_maybe_pre_repair_results(self, ctx, data):
-        if data.get_repair_attempted():
-            cr = self._render_results(ctx, data.get_pre_repair_results())
-            return ctx.tag[T.div["Pre-Repair Checker Results:"], cr]
+    @renderer
+    def maybe_pre_repair_results(self, req, tag):
+        if self._results.get_repair_attempted():
+            cr = self._render_results(req, self._results.get_pre_repair_results())
+            return tag(tags.div("Pre-Repair Checker Results:"), cr)
         return ""
 
 
-class DeepCheckResultsRenderer(rend.Page, ResultsBase, ReloadMixin):
-    docFactory = getxmlfile("deep-check-results.xhtml")
+class DeepCheckResultsRenderer(MultiFormatResource):
+
+    formatArgument = "output"
 
     def __init__(self, client, monitor):
-        self.client = client
+        """
+        :param allmydata.interfaces.IStatsProducer client: stats provider.
+        :param allmydata.monitor.IMonitor monitor: status, progress, and cancellation provider.
+        """
+        super(DeepCheckResultsRenderer, self).__init__()
+        self._client = client
         self.monitor = monitor
 
-    def childFactory(self, ctx, name):
+    @exception_to_child
+    def getChild(self, name, req):
         if not name:
             return self
         # /operation/$OPHANDLE/$STORAGEINDEX provides detailed information
@@ -327,19 +428,20 @@ class DeepCheckResultsRenderer(rend.Page, ResultsBase, ReloadMixin):
         si = base32.a2b(name)
         r = self.monitor.get_status()
         try:
-            return CheckResultsRenderer(self.client,
+            return CheckResultsRenderer(self._client,
                                         r.get_results_for_storage_index(si))
         except KeyError:
             raise WebError("No detailed results for SI %s" % html.escape(name),
                            http.NOT_FOUND)
 
-    def renderHTTP(self, ctx):
-        if self.want_json(ctx):
-            return self.json(ctx)
-        return rend.Page.renderHTTP(self, ctx)
+    @render_exception
+    def render_HTML(self, req):
+        elem = DeepCheckResultsRendererElement(self.monitor)
+        return renderElement(req, elem)
 
-    def json(self, ctx):
-        inevow.IRequest(ctx).setHeader("content-type", "text/plain")
+    @render_exception
+    def render_JSON(self, req):
+        req.setHeader("content-type", "text/plain")
         data = {}
         data["finished"] = self.monitor.is_finished()
         res = self.monitor.get_status()
@@ -361,116 +463,171 @@ class DeepCheckResultsRenderer(rend.Page, ResultsBase, ReloadMixin):
         data["stats"] = res.get_stats()
         return json.dumps(data, indent=1) + "\n"
 
-    def render_root_storage_index(self, ctx, data):
+
+class DeepCheckResultsRendererElement(Element, ResultsBase, ReloadMixin):
+
+    loader = XMLFile(FilePath(__file__).sibling("deep-check-results.xhtml"))
+
+    def __init__(self, monitor):
+        super(DeepCheckResultsRendererElement, self).__init__()
+        self.monitor = monitor
+
+    @renderer
+    def root_storage_index(self, req, tag):
+        if not self.monitor.get_status():
+            return ""
         return self.monitor.get_status().get_root_storage_index_string()
 
-    def data_objects_checked(self, ctx, data):
-        return self.monitor.get_status().get_counters()["count-objects-checked"]
-    def data_objects_healthy(self, ctx, data):
-        return self.monitor.get_status().get_counters()["count-objects-healthy"]
-    def data_objects_unhealthy(self, ctx, data):
-        return self.monitor.get_status().get_counters()["count-objects-unhealthy"]
-    def data_objects_unrecoverable(self, ctx, data):
-        return self.monitor.get_status().get_counters()["count-objects-unrecoverable"]
+    def _get_monitor_counter(self, name):
+        if not self.monitor.get_status():
+            return ""
+        return str(self.monitor.get_status().get_counters().get(name))
 
-    def data_count_corrupt_shares(self, ctx, data):
-        return self.monitor.get_status().get_counters()["count-corrupt-shares"]
+    @renderer
+    def objects_checked(self, req, tag):
+        return self._get_monitor_counter("count-objects-checked")
 
-    def render_problems_p(self, ctx, data):
-        c = self.monitor.get_status().get_counters()
-        if c["count-objects-unhealthy"]:
-            return ctx.tag
+    @renderer
+    def objects_healthy(self, req, tag):
+        return self._get_monitor_counter("count-objects-healthy")
+
+    @renderer
+    def objects_unhealthy(self, req, tag):
+        return self._get_monitor_counter("count-objects-unhealthy")
+
+    @renderer
+    def objects_unrecoverable(self, req, tag):
+        return self._get_monitor_counter("count-objects-unrecoverable")
+
+    @renderer
+    def count_corrupt_shares(self, req, tag):
+        return self._get_monitor_counter("count-corrupt-shares")
+
+    @renderer
+    def problems_p(self, req, tag):
+        if self._get_monitor_counter("count-objects-unhealthy"):
+            return tag
         return ""
 
-    def data_problems(self, ctx, data):
+    @renderer
+    def problems(self, req, tag):
         all_objects = self.monitor.get_status().get_all_results()
+        problems = []
+
         for path in sorted(all_objects.keys()):
             cr = all_objects[path]
             assert ICheckResults.providedBy(cr)
             if not cr.is_healthy():
-                yield path, cr
+                summary_text = ""
+                summary = cr.get_summary()
+                if summary:
+                    summary_text = ": " + summary
+                summary_text += " [SI: %s]" % cr.get_storage_index_string()
+                problems.append({
+                    # Not sure self._join_pathstring(path) is the
+                    # right thing to use here.
+                    "problem": self._join_pathstring(path) + self._html(summary_text),
+                })
 
-    def render_problem(self, ctx, data):
-        path, cr = data
-        summary_text = ""
-        summary = cr.get_summary()
-        if summary:
-            summary_text = ": " + summary
-        summary_text += " [SI: %s]" % cr.get_storage_index_string()
-        return ctx.tag[self._join_pathstring(path), self._html(summary_text)]
+        return SlotsSequenceElement(tag, problems)
 
-
-    def render_servers_with_corrupt_shares_p(self, ctx, data):
-        if self.monitor.get_status().get_counters()["count-corrupt-shares"]:
-            return ctx.tag
+    @renderer
+    def servers_with_corrupt_shares_p(self, req, tag):
+        if self._get_monitor_counter("count-corrupt-shares"):
+            return tag
         return ""
 
-    def data_servers_with_corrupt_shares(self, ctx, data):
+    @renderer
+    def servers_with_corrupt_shares(self, req, tag):
         servers = [s
                    for (s, storage_index, sharenum)
                    in self.monitor.get_status().get_corrupt_shares()]
         servers.sort(key=lambda s: s.get_longname())
-        return servers
 
-    def render_server_problem(self, ctx, server):
-        data = [server.get_name()]
-        nickname = server.get_nickname()
-        if nickname:
-            data.append(" (%s)" % self._html(nickname))
-        return ctx.tag[data]
+        problems = []
 
+        for server in servers:
+            name = [server.get_name()]
+            nickname = server.get_nickname()
+            if nickname:
+                name.append(" (%s)" % self._html(nickname))
+            problems.append({"problem": name})
 
-    def render_corrupt_shares_p(self, ctx, data):
-        if self.monitor.get_status().get_counters()["count-corrupt-shares"]:
-            return ctx.tag
+        return SlotsSequenceElement(tag, problems)
+
+    @renderer
+    def corrupt_shares_p(self, req, tag):
+        if self._get_monitor_counter("count-corrupt-shares"):
+            return tag
         return ""
-    def data_corrupt_shares(self, ctx, data):
-        return self.monitor.get_status().get_corrupt_shares()
-    def render_share_problem(self, ctx, data):
-        server, storage_index, sharenum = data
-        nickname = server.get_nickname()
-        ctx.fillSlots("serverid", server.get_name())
-        if nickname:
-            ctx.fillSlots("nickname", self._html(nickname))
-        ctx.fillSlots("si", self._render_si_link(ctx, storage_index))
-        ctx.fillSlots("shnum", str(sharenum))
-        return ctx.tag
 
-    def render_return(self, ctx, data):
-        req = inevow.IRequest(ctx)
+    @renderer
+    def corrupt_shares(self, req, tag):
+        shares = self.monitor.get_status().get_corrupt_shares()
+        problems = []
+
+        for share in shares:
+            server, storage_index, sharenum = share
+            nickname = server.get_nickname()
+            problem = {
+                "serverid": server.get_name(),
+                "nickname": self._html(nickname),
+                "si": self._render_si_link(req, storage_index),
+                "shnum": str(sharenum),
+            }
+            problems.append(problem)
+
+        return SlotsSequenceElement(tag, problems)
+
+    @renderer
+    def return_to(self, req, tag):
         return_to = get_arg(req, "return_to", None)
         if return_to:
-            return T.div[T.a(href=return_to)["Return to file/directory."]]
+            return tags.div(tags.a("Return to file/directory.", href=return_to))
         return ""
 
-    def data_all_objects(self, ctx, data):
-        r = self.monitor.get_status().get_all_results()
-        for path in sorted(r.keys()):
-            yield (path, r[path])
+    @renderer
+    def all_objects(self, req, tag):
+        results = self.monitor.get_status().get_all_results()
+        objects = []
 
-    def render_object(self, ctx, data):
-        path, r = data
-        ctx.fillSlots("path", self._join_pathstring(path))
-        ctx.fillSlots("healthy", str(r.is_healthy()))
-        ctx.fillSlots("recoverable", str(r.is_recoverable()))
-        storage_index = r.get_storage_index()
-        ctx.fillSlots("storage_index", self._render_si_link(ctx, storage_index))
-        ctx.fillSlots("summary", self._html(r.get_summary()))
-        return ctx.tag
+        for path in sorted(results.keys()):
+            result = results.get(path)
+            storage_index = result.get_storage_index()
+            object = {
+                "path": self._join_pathstring(path),
+                "healthy": str(result.is_healthy()),
+                "recoverable": str(result.is_recoverable()),
+                "storage_index": self._render_si_link(req, storage_index),
+                "summary": self._html(result.get_summary()),
+            }
+            objects.append(object)
 
-    def render_runtime(self, ctx, data):
-        req = inevow.IRequest(ctx)
-        runtime = time.time() - req.processing_started_timestamp
-        return ctx.tag["runtime: %s seconds" % runtime]
+        return SlotsSequenceElement(tag, objects)
 
-class DeepCheckAndRepairResultsRenderer(rend.Page, ResultsBase, ReloadMixin):
-    docFactory = getxmlfile("deep-check-and-repair-results.xhtml")
+    @renderer
+    def runtime(self, req, tag):
+        runtime = 'unknown'
+        if hasattr(req, 'processing_started_timestamp'):
+            runtime = time.time() - req.processing_started_timestamp
+        return tag("runtime: %s seconds" % runtime)
+
+
+class DeepCheckAndRepairResultsRenderer(MultiFormatResource):
+
+    formatArgument = "output"
 
     def __init__(self, client, monitor):
-        self.client = client
+        """
+        :param allmydata.interfaces.IStatsProducer client: stats provider.
+        :param allmydata.monitor.IMonitor monitor: status, progress, and cancellation provider.
+        """
+        super(DeepCheckAndRepairResultsRenderer, self).__init__()
+        self._client = client
         self.monitor = monitor
 
-    def childFactory(self, ctx, name):
+    @exception_to_child
+    def getChild(self, name, req):
         if not name:
             return self
         # /operation/$OPHANDLE/$STORAGEINDEX provides detailed information
@@ -479,18 +636,19 @@ class DeepCheckAndRepairResultsRenderer(rend.Page, ResultsBase, ReloadMixin):
         s = self.monitor.get_status()
         try:
             results = s.get_results_for_storage_index(si)
-            return CheckAndRepairResultsRenderer(self.client, results)
+            return CheckAndRepairResultsRenderer(self._client, results)
         except KeyError:
             raise WebError("No detailed results for SI %s" % html.escape(name),
                            http.NOT_FOUND)
 
-    def renderHTTP(self, ctx):
-        if self.want_json(ctx):
-            return self.json(ctx)
-        return rend.Page.renderHTTP(self, ctx)
+    @render_exception
+    def render_HTML(self, req):
+        elem = DeepCheckAndRepairResultsRendererElement(self.monitor)
+        return renderElement(req, elem)
 
-    def json(self, ctx):
-        inevow.IRequest(ctx).setHeader("content-type", "text/plain")
+    @render_exception
+    def render_JSON(self, req):
+        req.setHeader("content-type", "text/plain")
         res = self.monitor.get_status()
         data = {}
         data["finished"] = self.monitor.is_finished()
@@ -531,119 +689,132 @@ class DeepCheckAndRepairResultsRenderer(rend.Page, ResultsBase, ReloadMixin):
         data["stats"] = res.get_stats()
         return json.dumps(data, indent=1) + "\n"
 
-    def render_root_storage_index(self, ctx, data):
-        return self.monitor.get_status().get_root_storage_index_string()
 
-    def data_objects_checked(self, ctx, data):
-        return self.monitor.get_status().get_counters()["count-objects-checked"]
+class DeepCheckAndRepairResultsRendererElement(DeepCheckResultsRendererElement):
+    """
+    The page generated here has several elements common to "deep check
+    results" page; hence the code reuse.
+    """
 
-    def data_objects_healthy(self, ctx, data):
-        return self.monitor.get_status().get_counters()["count-objects-healthy-pre-repair"]
-    def data_objects_unhealthy(self, ctx, data):
-        return self.monitor.get_status().get_counters()["count-objects-unhealthy-pre-repair"]
-    def data_corrupt_shares(self, ctx, data):
-        return self.monitor.get_status().get_counters()["count-corrupt-shares-pre-repair"]
+    loader = XMLFile(FilePath(__file__).sibling("deep-check-and-repair-results.xhtml"))
 
-    def data_repairs_attempted(self, ctx, data):
-        return self.monitor.get_status().get_counters()["count-repairs-attempted"]
-    def data_repairs_successful(self, ctx, data):
-        return self.monitor.get_status().get_counters()["count-repairs-successful"]
-    def data_repairs_unsuccessful(self, ctx, data):
-        return self.monitor.get_status().get_counters()["count-repairs-unsuccessful"]
+    def __init__(self, monitor):
+        super(DeepCheckAndRepairResultsRendererElement, self).__init__(monitor)
+        self.monitor = monitor
 
-    def data_objects_healthy_post(self, ctx, data):
-        return self.monitor.get_status().get_counters()["count-objects-healthy-post-repair"]
-    def data_objects_unhealthy_post(self, ctx, data):
-        return self.monitor.get_status().get_counters()["count-objects-unhealthy-post-repair"]
-    def data_corrupt_shares_post(self, ctx, data):
-        return self.monitor.get_status().get_counters()["count-corrupt-shares-post-repair"]
+    @renderer
+    def objects_healthy(self, req, tag):
+        return self._get_monitor_counter("count-objects-healthy-pre-repair")
 
-    def render_pre_repair_problems_p(self, ctx, data):
-        c = self.monitor.get_status().get_counters()
-        if c["count-objects-unhealthy-pre-repair"]:
-            return ctx.tag
+    @renderer
+    def objects_unhealthy(self, req, tag):
+        return self._get_monitor_counter("count-objects-unhealthy-pre-repair")
+
+    @renderer
+    def corrupt_shares(self, req, tag):
+        return self._get_monitor_counter("count-corrupt-shares-pre-repair")
+
+    @renderer
+    def repairs_attempted(self, req, tag):
+        return self._get_monitor_counter("count-repairs-attempted")
+
+    @renderer
+    def repairs_successful(self, req, tag):
+        return self._get_monitor_counter("count-repairs-successful")
+
+    @renderer
+    def repairs_unsuccessful(self, req, tag):
+        return self._get_monitor_counter("count-repairs-unsuccessful")
+
+    @renderer
+    def objects_healthy_post(self, req, tag):
+        return self._get_monitor_counter("count-objects-healthy-post-repair")
+
+    @renderer
+    def objects_unhealthy_post(self, req, tag):
+        return self._get_monitor_counter("count-objects-unhealthy-post-repair")
+
+    @renderer
+    def corrupt_shares_post(self, req, tag):
+        return self._get_monitor_counter("count-corrupt-shares-post-repair")
+
+    @renderer
+    def pre_repair_problems_p(self, req, tag):
+        if self._get_monitor_counter("count-objects-unhealthy-pre-repair"):
+            return tag
         return ""
 
-    def data_pre_repair_problems(self, ctx, data):
+    @renderer
+    def pre_repair_problems(self, req, tag):
         all_objects = self.monitor.get_status().get_all_results()
+        problems = []
+
         for path in sorted(all_objects.keys()):
             r = all_objects[path]
             assert ICheckAndRepairResults.providedBy(r)
             cr = r.get_pre_repair_results()
             if not cr.is_healthy():
-                yield path, cr
+                problem = self._join_pathstring(path), ": ", self._html(cr.get_summary())
+                problems.append({"problem": problem})
 
-    def render_problem(self, ctx, data):
-        path, cr = data
-        return ctx.tag[self._join_pathstring(path), ": ",
-                       self._html(cr.get_summary())]
+        return SlotsSequenceElement(tag, problems)
 
-    def render_post_repair_problems_p(self, ctx, data):
-        c = self.monitor.get_status().get_counters()
-        if (c["count-objects-unhealthy-post-repair"]
-            or c["count-corrupt-shares-post-repair"]):
-            return ctx.tag
+    @renderer
+    def post_repair_problems_p(self, req, tag):
+        if (self._get_monitor_counter("count-objects-unhealthy-post-repair")
+            or self._get_monitor_counter("count-corrupt-shares-post-repair")):
+            return tag
         return ""
 
-    def data_post_repair_problems(self, ctx, data):
+    @renderer
+    def post_repair_problems(self, req, tag):
         all_objects = self.monitor.get_status().get_all_results()
+        problems = []
+
         for path in sorted(all_objects.keys()):
             r = all_objects[path]
             assert ICheckAndRepairResults.providedBy(r)
             cr = r.get_post_repair_results()
             if not cr.is_healthy():
-                yield path, cr
+                problem = self._join_pathstring(path), ": ", self._html(cr.get_summary())
+                problems.append({"problem": problem})
 
-    def render_servers_with_corrupt_shares_p(self, ctx, data):
-        if self.monitor.get_status().get_counters()["count-corrupt-shares-pre-repair"]:
-            return ctx.tag
-        return ""
-    def data_servers_with_corrupt_shares(self, ctx, data):
-        return [] # TODO
-    def render_server_problem(self, ctx, data):
-        pass
+        return SlotsSequenceElement(tag, problems)
 
-
-    def render_remaining_corrupt_shares_p(self, ctx, data):
-        if self.monitor.get_status().get_counters()["count-corrupt-shares-post-repair"]:
-            return ctx.tag
-        return ""
-    def data_post_repair_corrupt_shares(self, ctx, data):
-        return [] # TODO
-
-    def render_share_problem(self, ctx, data):
-        pass
-
-
-    def render_return(self, ctx, data):
-        req = inevow.IRequest(ctx)
-        return_to = get_arg(req, "return_to", None)
-        if return_to:
-            return T.div[T.a(href=return_to)["Return to file/directory."]]
+    @renderer
+    def remaining_corrupt_shares_p(self, req, tag):
+        if self._get_monitor_counter("count-corrupt-shares-post-repair"):
+            return tag
         return ""
 
-    def data_all_objects(self, ctx, data):
-        r = self.monitor.get_status().get_all_results()
-        for path in sorted(r.keys()):
-            yield (path, r[path])
+    @renderer
+    def post_repair_corrupt_shares(self, req, tag):
+        # TODO: this was not implemented before porting to
+        # twisted.web.template; leaving it as such.
+        #
+        # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3371
+        corrupt = [{"share":"unimplemented"}]
+        return SlotsSequenceElement(tag, corrupt)
 
-    def render_object(self, ctx, data):
-        path, r = data
-        ctx.fillSlots("path", self._join_pathstring(path))
-        ctx.fillSlots("healthy_pre_repair",
-                      str(r.get_pre_repair_results().is_healthy()))
-        ctx.fillSlots("recoverable_pre_repair",
-                      str(r.get_pre_repair_results().is_recoverable()))
-        ctx.fillSlots("healthy_post_repair",
-                      str(r.get_post_repair_results().is_healthy()))
-        storage_index = r.get_storage_index()
-        ctx.fillSlots("storage_index",
-                      self._render_si_link(ctx, storage_index))
-        ctx.fillSlots("summary",
-                      self._html(r.get_pre_repair_results().get_summary()))
-        return ctx.tag
+    @renderer
+    def all_objects(self, req, tag):
+        results = {}
+        if self.monitor.get_status():
+            results = self.monitor.get_status().get_all_results()
+        objects = []
 
-    def render_runtime(self, ctx, data):
-        req = inevow.IRequest(ctx)
-        runtime = time.time() - req.processing_started_timestamp
-        return ctx.tag["runtime: %s seconds" % runtime]
+        for path in sorted(results.keys()):
+            result = results[path]
+            storage_index = result.get_storage_index()
+            obj = {
+                "path": self._join_pathstring(path),
+                "healthy_pre_repair": str(result.get_pre_repair_results().is_healthy()),
+                "recoverable_pre_repair": str(result.get_pre_repair_results().is_recoverable()),
+                "healthy_post_repair": str(result.get_post_repair_results().is_healthy()),
+                "storage_index": self._render_si_link(req, storage_index),
+                "summary": self._html(result.get_pre_repair_results().get_summary()),
+            }
+            objects.append(obj)
+
+        return SlotsSequenceElement(tag, objects)
+

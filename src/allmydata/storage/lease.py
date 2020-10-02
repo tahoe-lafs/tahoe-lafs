@@ -1,3 +1,16 @@
+"""
+Ported to Python 3.
+"""
+
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+
 import struct, time
 
 class LeaseInfo(object):
@@ -8,7 +21,7 @@ class LeaseInfo(object):
         self.cancel_secret = cancel_secret
         self.expiration_time = expiration_time
         if nodeid is not None:
-            assert isinstance(nodeid, str)
+            assert isinstance(nodeid, bytes)
             assert len(nodeid) == 20
         self.nodeid = nodeid
 

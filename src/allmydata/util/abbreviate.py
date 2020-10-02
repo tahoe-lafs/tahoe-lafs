@@ -1,3 +1,16 @@
+"""
+Convert timestamps to abbreviated English text.
+
+Ported to Python 3.
+"""
+from __future__ import division
+from __future__ import absolute_import
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 import re
 from datetime import timedelta
@@ -9,6 +22,10 @@ MONTH = 30*DAY
 YEAR = 365*DAY
 
 def abbreviate_time(s):
+    """
+    Given time in seconds (float or int) or timedelta, summarize as English by
+    returning unicode string.
+    """
     postfix = ''
     if isinstance(s, timedelta):
         # this feels counter-intuitive that positive numbers in a
@@ -45,6 +62,9 @@ def abbreviate_time(s):
     return _plural(s / YEAR, "year")
 
 def abbreviate_space(s, SI=True):
+    """
+    Given size in bytes summarize as English by returning unicode string.
+    """
     if s is None:
         return "unknown"
     if SI:

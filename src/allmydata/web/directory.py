@@ -22,7 +22,7 @@ from twisted.python.filepath import FilePath
 
 from allmydata.util import base32
 from allmydata.util.encodingutil import (
-    to_str,
+    to_bytes,
     quote_output,
 )
 from allmydata.uri import (
@@ -48,14 +48,16 @@ from allmydata.web.common import (
     parse_replace_arg,
     should_create_intermediate_directories,
     humanize_failure,
+    humanize_exception,
     convert_children_json,
     get_format,
     get_mutable_type,
     get_filenode_metadata,
     render_time,
-    MultiFormatPage,
     MultiFormatResource,
     SlotsSequenceElement,
+    exception_to_child,
+    render_exception,
 )
 from allmydata.web.filenode import ReplaceMeMixin, \
      FileNodeHandler, PlaceHolderNodeHandler
@@ -95,6 +97,7 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
         self.name = name
         self._operations = client.get_web_service().get_operations()
 
+    @exception_to_child
     def getChild(self, name, req):
         """
         Dynamically create a child for the given request and name
@@ -102,12 +105,19 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
         # trying to replicate what I have observed as Nevow behavior
         # for these nodes, which is that a URI like
         # "/uri/URI%3ADIR2%3Aj...vq/" (that is, with a trailing slash
-        # or no further children) renders "this" page
+        # or no further children) renders "this" page.  We also need
+        # to reject "/uri/URI:DIR2:..//", so we look at postpath.
         name = name.decode('utf8')
-        if not name:
-            raise EmptyPathnameComponentError(
-                u"The webapi does not allow empty pathname components",
-            )
+        if not name and req.postpath != ['']:
+            return self
+
+        # Rejecting URIs that contain empty path pieces (for example:
+        # "/uri/URI:DIR2:../foo//new.txt" or "/uri/URI:DIR2:..//") was
+        # the old nevow behavior and it is encoded in the test suite;
+        # we will follow suit.
+        for segment in req.prepath:
+            if not segment:
+                raise EmptyPathnameComponentError()
 
         d = self.node.get(name)
         d.addBoth(self._got_child, req, name)
@@ -202,6 +212,7 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
         d.addCallback(lambda res: self.node.get_uri())
         return d
 
+    @render_exception
     def render_GET(self, req):
         # This is where all of the directory-related ?t=* code goes.
         t = get_arg(req, "t", "").strip()
@@ -240,6 +251,7 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
 
         raise WebError("GET directory: bad t=%s" % t)
 
+    @render_exception
     def render_PUT(self, req):
         t = get_arg(req, "t", "").strip()
         replace = parse_replace_arg(get_arg(req, "replace", "true"))
@@ -259,6 +271,7 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
 
         raise WebError("PUT to a directory")
 
+    @render_exception
     def render_POST(self, req):
         t = get_arg(req, "t", "").strip()
 
@@ -475,7 +488,7 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
             to_dir = to_dir.decode(charset)
             assert isinstance(to_dir, unicode)
             to_path = to_dir.split(u"/")
-            to_root = self.client.nodemaker.create_from_cap(to_str(to_path[0]))
+            to_root = self.client.nodemaker.create_from_cap(to_bytes(to_path[0]))
             if not IDirectoryNode.providedBy(to_root):
                 raise WebError("to_dir is not a directory", http.BAD_REQUEST)
             d = to_root.get_child_at_path(to_path[1:])
@@ -666,7 +679,7 @@ class DirectoryAsHTML(Element):
         try:
             children = yield self.node.list()
         except Exception as e:
-            text, code = humanize_failure(Failure(e))
+            text, code = humanize_exception(e)
             children = None
             self.dirnode_children_error = text
 
@@ -1204,7 +1217,7 @@ class ManifestElement(ReloadableMonitorElement):
 
 class ManifestResults(MultiFormatResource, ReloadMixin):
 
-    # Control MultiFormatPage
+    # Control MultiFormatResource
     formatArgument = "output"
     formatDefault = "html"
 
@@ -1259,8 +1272,9 @@ class ManifestResults(MultiFormatResource, ReloadMixin):
         return json.dumps(status, indent=1)
 
 
-class DeepSizeResults(MultiFormatPage):
-    # Control MultiFormatPage
+class DeepSizeResults(MultiFormatResource):
+
+    # Control MultiFormatResource
     formatArgument = "output"
     formatDefault = "html"
 
@@ -1449,6 +1463,7 @@ class UnknownNodeHandler(Resource, object):
         self.parentnode = parentnode
         self.name = name
 
+    @render_exception
     def render_GET(self, req):
         t = get_arg(req, "t", "").strip()
         if t == "info":

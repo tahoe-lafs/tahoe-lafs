@@ -65,8 +65,12 @@ TIMEOUT="timeout --kill-after 1m 15m"
 # Send the output directly to a file because transporting the binary subunit2
 # via tox and then scraping it out is hideous and failure prone.
 export SUBUNITREPORTER_OUTPUT_PATH="${SUBUNIT2}"
-export TAHOE_LAFS_TRIAL_ARGS="--reporter=subunitv2-file --rterrors"
+export TAHOE_LAFS_TRIAL_ARGS="${TAHOE_LAFS_TRIAL_ARGS:---reporter=subunitv2-file --rterrors}"
 export PIP_NO_INDEX="1"
+
+# Make output unbuffered, so progress reports from subunitv2-file get streamed
+# and notify CircleCI we're still alive.
+export PYTHONUNBUFFERED=1
 
 if [ "${ALLOWED_FAILURE}" = "yes" ]; then
     alternative="true"
@@ -81,7 +85,12 @@ ${TIMEOUT} ${BOOTSTRAP_VENV}/bin/tox \
     ${TAHOE_LAFS_TOX_ARGS} || "${alternative}"
 
 if [ -n "${ARTIFACTS}" ]; then
+    if [ ! -e "${SUBUNIT2}" ]; then
+	echo "subunitv2 output file does not exist: ${SUBUNIT2}"
+	exit 1
+    fi
+
     # Create a junitxml results area.
     mkdir -p "$(dirname "${JUNITXML}")"
-    ${BOOTSTRAP_VENV}/bin/subunit2junitxml < "${SUBUNIT2}" > "${JUNITXML}" || "${alternative}"
+    "${BOOTSTRAP_VENV}"/bin/subunit2junitxml < "${SUBUNIT2}" > "${JUNITXML}" || "${alternative}"
 fi

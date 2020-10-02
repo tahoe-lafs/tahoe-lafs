@@ -280,13 +280,14 @@ class MutableFileNode(object):
 
     def __hash__(self):
         return hash((self.__class__, self._uri))
-    def __cmp__(self, them):
-        if cmp(type(self), type(them)):
-            return cmp(type(self), type(them))
-        if cmp(self.__class__, them.__class__):
-            return cmp(self.__class__, them.__class__)
-        return cmp(self._uri, them._uri)
 
+    def __eq__(self, them):
+        if type(self) != type(them):
+            return False
+        return self._uri == them._uri
+
+    def __ne__(self, them):
+        return not (self == them)
 
     #################################
     # ICheckable
@@ -946,7 +947,7 @@ class MutableFileVersion(object):
         """
         c = consumer.MemoryConsumer(progress=progress)
         d = self.read(c, fetch_privkey=fetch_privkey)
-        d.addCallback(lambda mc: "".join(mc.chunks))
+        d.addCallback(lambda mc: b"".join(mc.chunks))
         return d
 
 

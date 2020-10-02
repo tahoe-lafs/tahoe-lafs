@@ -1,10 +1,25 @@
 
 import json
 import os.path, shutil
+
+from bs4 import BeautifulSoup
+
 from twisted.trial import unittest
 from twisted.internet import defer
+
+from nevow.inevow import IRequest
+from zope.interface import implementer
+from twisted.web.server import Request
+from twisted.web.test.requesthelper import DummyChannel
+from twisted.web.template import flattenString
+
 from allmydata import check_results, uri
 from allmydata import uri as tahoe_uri
+from allmydata.interfaces import (
+    IServer,
+    ICheckResults,
+    ICheckAndRepairResults,
+)
 from allmydata.util import base32
 from allmydata.web import check_results as web_check_results
 from allmydata.storage_client import StorageFarmBroker, NativeStorageServer
@@ -12,18 +27,115 @@ from allmydata.storage.server import storage_index_to_dir
 from allmydata.monitor import Monitor
 from allmydata.test.no_network import GridTestMixin
 from allmydata.immutable.upload import Data
-from allmydata.test.common_web import WebRenderingMixin
 from allmydata.mutable.publish import MutableData
 
 from .common import (
     EMPTY_CLIENT_CONFIG,
 )
 
+from .web.common import (
+    assert_soup_has_favicon,
+    assert_soup_has_tag_with_content,
+)
+
 class FakeClient(object):
     def get_storage_broker(self):
         return self.storage_broker
 
-class WebResultsRendering(unittest.TestCase, WebRenderingMixin):
+@implementer(IRequest)
+class TestRequest(Request, object):
+    """
+    A minimal Request class to use in tests.
+
+    XXX: We have to have this class because `common.get_arg()` expects
+    a `nevow.inevow.IRequest`, which `twisted.web.server.Request`
+    isn't.  The request needs to have `args`, `fields`, `prepath`, and
+    `postpath` properties so that `allmydata.web.common.get_arg()`
+    won't complain.
+    """
+    def __init__(self, args=None, fields=None):
+        super(TestRequest, self).__init__(DummyChannel())
+        self.args = args or {}
+        self.fields = fields or {}
+        self.prepath = [b""]
+        self.postpath = [b""]
+
+
+@implementer(IServer)
+class FakeServer(object):
+
+    def get_name(self):
+        return "fake name"
+
+    def get_longname(self):
+        return "fake longname"
+
+    def get_nickname(self):
+        return "fake nickname"
+
+
+@implementer(ICheckResults)
+class FakeCheckResults(object):
+
+    def __init__(self, si=None,
+                 healthy=False, recoverable=False,
+                 summary="fake summary"):
+        self._storage_index = si
+        self._is_healthy = healthy
+        self._is_recoverable = recoverable
+        self._summary = summary
+
+    def get_storage_index(self):
+        return self._storage_index
+
+    def get_storage_index_string(self):
+        return base32.b2a_or_none(self._storage_index)
+
+    def is_healthy(self):
+        return self._is_healthy
+
+    def is_recoverable(self):
+        return self._is_recoverable
+
+    def get_summary(self):
+        return self._summary
+
+    def get_corrupt_shares(self):
+        # returns a list of (IServer, storage_index, sharenum)
+        return [(FakeServer(), "<fake-si>", 0)]
+
+
+@implementer(ICheckAndRepairResults)
+class FakeCheckAndRepairResults(object):
+
+    def __init__(self, si=None,
+                 repair_attempted=False,
+                 repair_success=False):
+        self._storage_index = si
+        self._repair_attempted = repair_attempted
+        self._repair_success = repair_success
+
+    def get_storage_index(self):
+        return self._storage_index
+
+    def get_pre_repair_results(self):
+        return FakeCheckResults()
+
+    def get_post_repair_results(self):
+        return FakeCheckResults()
+
+    def get_repair_attempted(self):
+        return self._repair_attempted
+
+    def get_repair_successful(self):
+        return self._repair_success
+
+
+class WebResultsRendering(unittest.TestCase):
+
+    @staticmethod
+    def remove_tags(html):
+        return BeautifulSoup(html).get_text(separator=" ")
 
     def create_fake_client(self):
         sb = StorageFarmBroker(True, None, EMPTY_CLIENT_CONFIG)
@@ -51,34 +163,31 @@ class WebResultsRendering(unittest.TestCase, WebRenderingMixin):
         c.storage_broker = sb
         return c
 
-    def render_json(self, page):
-        d = self.render1(page, args={"output": ["json"]})
-        return d
+    def render_json(self, resource):
+        return resource.render(TestRequest(args={"output": ["json"]}))
+
+    def render_element(self, element, args=None):
+        d = flattenString(TestRequest(args), element)
+        return unittest.TestCase().successResultOf(d)
 
     def test_literal(self):
+        lcr = web_check_results.LiteralCheckResultsRendererElement()
+
+        html = self.render_element(lcr)
+        self.failUnlessIn("Literal files are always healthy", html)
+
+        html = self.render_element(lcr, args={"return_to": ["FOOURL"]})
+        self.failUnlessIn("Literal files are always healthy", html)
+        self.failUnlessIn('<a href="FOOURL">Return to file.</a>', html)
+
         c = self.create_fake_client()
         lcr = web_check_results.LiteralCheckResultsRenderer(c)
 
-        d = self.render1(lcr)
-        def _check(html):
-            s = self.remove_tags(html)
-            self.failUnlessIn("Literal files are always healthy", s)
-        d.addCallback(_check)
-        d.addCallback(lambda ignored:
-                      self.render1(lcr, args={"return_to": ["FOOURL"]}))
-        def _check_return_to(html):
-            s = self.remove_tags(html)
-            self.failUnlessIn("Literal files are always healthy", s)
-            self.failUnlessIn('<a href="FOOURL">Return to file.</a>',
-                              html)
-        d.addCallback(_check_return_to)
-        d.addCallback(lambda ignored: self.render_json(lcr))
-        def _check_json(js):
-            j = json.loads(js)
-            self.failUnlessEqual(j["storage-index"], "")
-            self.failUnlessEqual(j["results"]["healthy"], True)
-        d.addCallback(_check_json)
-        return d
+        js = self.render_json(lcr)
+        j = json.loads(js)
+        self.failUnlessEqual(j["storage-index"], "")
+        self.failUnlessEqual(j["results"]["healthy"], True)
+
 
     def test_check(self):
         c = self.create_fake_client()
@@ -108,8 +217,8 @@ class WebResultsRendering(unittest.TestCase, WebRenderingMixin):
                                         healthy=True, recoverable=True,
                                         summary="groovy",
                                         **data)
-        w = web_check_results.CheckResultsRenderer(c, cr)
-        html = self.render2(w)
+        w = web_check_results.CheckResultsRendererElement(c, cr)
+        html = self.render_element(w)
         s = self.remove_tags(html)
         self.failUnlessIn("File Check Results for SI=2k6avp", s) # abbreviated
         self.failUnlessIn("Healthy : groovy", s)
@@ -120,14 +229,14 @@ class WebResultsRendering(unittest.TestCase, WebRenderingMixin):
         self.failUnlessIn("Wrong Shares: 0", s)
         self.failUnlessIn("Recoverable Versions: 1", s)
         self.failUnlessIn("Unrecoverable Versions: 0", s)
-        self.failUnlessIn("Good Shares (sorted in share order): Share ID Nickname Node ID shareid1 peer-0 00000000 peer-f ffffffff", s)
+        self.failUnlessIn("Good Shares (sorted in share order):  Share ID Nickname Node ID shareid1 peer-0 00000000 peer-f ffffffff", s)
 
         cr = check_results.CheckResults(u, u.get_storage_index(),
                                         healthy=False, recoverable=True,
                                         summary="ungroovy",
                                         **data)
-        w = web_check_results.CheckResultsRenderer(c, cr)
-        html = self.render2(w)
+        w = web_check_results.CheckResultsRendererElement(c, cr)
+        html = self.render_element(w)
         s = self.remove_tags(html)
         self.failUnlessIn("File Check Results for SI=2k6avp", s) # abbreviated
         self.failUnlessIn("Not Healthy! : ungroovy", s)
@@ -138,22 +247,23 @@ class WebResultsRendering(unittest.TestCase, WebRenderingMixin):
                                         healthy=False, recoverable=False,
                                         summary="rather dead",
                                         **data)
-        w = web_check_results.CheckResultsRenderer(c, cr)
-        html = self.render2(w)
+        w = web_check_results.CheckResultsRendererElement(c, cr)
+        html = self.render_element(w)
         s = self.remove_tags(html)
         self.failUnlessIn("File Check Results for SI=2k6avp", s) # abbreviated
         self.failUnlessIn("Not Recoverable! : rather dead", s)
-        self.failUnlessIn("Corrupt shares: Share ID Nickname Node ID sh#2 peer-0 00000000", s)
+        self.failUnlessIn("Corrupt shares:  Share ID Nickname Node ID sh#2 peer-0 00000000", s)
 
-        html = self.render2(w)
+        html = self.render_element(w)
         s = self.remove_tags(html)
         self.failUnlessIn("File Check Results for SI=2k6avp", s) # abbreviated
         self.failUnlessIn("Not Recoverable! : rather dead", s)
 
-        html = self.render2(w, args={"return_to": ["FOOURL"]})
+        html = self.render_element(w, args={"return_to": ["FOOURL"]})
         self.failUnlessIn('<a href="FOOURL">Return to file/directory.</a>',
                           html)
 
+        w = web_check_results.CheckResultsRenderer(c, cr)
         d = self.render_json(w)
         def _check_json(jdata):
             j = json.loads(jdata)
@@ -178,15 +288,15 @@ class WebResultsRendering(unittest.TestCase, WebRenderingMixin):
                         'recoverable': False,
                         }
             self.failUnlessEqual(j["results"], expected)
-        d.addCallback(_check_json)
-        d.addCallback(lambda ignored: self.render1(w))
+        _check_json(d)
+
+        w = web_check_results.CheckResultsRendererElement(c, cr)
+        d = self.render_element(w)
         def _check(html):
             s = self.remove_tags(html)
             self.failUnlessIn("File Check Results for SI=2k6avp", s)
             self.failUnlessIn("Not Recoverable! : rather dead", s)
-        d.addCallback(_check)
-        return d
-
+        _check(html)
 
     def test_check_and_repair(self):
         c = self.create_fake_client()
@@ -244,8 +354,8 @@ class WebResultsRendering(unittest.TestCase, WebRenderingMixin):
         crr.post_repair_results = post_cr
         crr.repair_attempted = False
 
-        w = web_check_results.CheckAndRepairResultsRenderer(c, crr)
-        html = self.render2(w)
+        w = web_check_results.CheckAndRepairResultsRendererElement(c, crr)
+        html = self.render_element(w)
         s = self.remove_tags(html)
 
         self.failUnlessIn("File Check-And-Repair Results for SI=2k6avp", s)
@@ -256,7 +366,7 @@ class WebResultsRendering(unittest.TestCase, WebRenderingMixin):
 
         crr.repair_attempted = True
         crr.repair_successful = True
-        html = self.render2(w)
+        html = self.render_element(w)
         s = self.remove_tags(html)
 
         self.failUnlessIn("File Check-And-Repair Results for SI=2k6avp", s)
@@ -271,7 +381,7 @@ class WebResultsRendering(unittest.TestCase, WebRenderingMixin):
                                              summary="better",
                                              **data)
         crr.post_repair_results = post_cr
-        html = self.render2(w)
+        html = self.render_element(w)
         s = self.remove_tags(html)
 
         self.failUnlessIn("File Check-And-Repair Results for SI=2k6avp", s)
@@ -286,7 +396,7 @@ class WebResultsRendering(unittest.TestCase, WebRenderingMixin):
                                              summary="worse",
                                              **data)
         crr.post_repair_results = post_cr
-        html = self.render2(w)
+        html = self.render_element(w)
         s = self.remove_tags(html)
 
         self.failUnlessIn("File Check-And-Repair Results for SI=2k6avp", s)
@@ -294,24 +404,218 @@ class WebResultsRendering(unittest.TestCase, WebRenderingMixin):
         self.failUnlessIn("Repair unsuccessful", s)
         self.failUnlessIn("Post-Repair Checker Results:", s)
 
-        d = self.render_json(w)
-        def _got_json(data):
-            j = json.loads(data)
-            self.failUnlessEqual(j["repair-attempted"], True)
-            self.failUnlessEqual(j["storage-index"],
-                                 "2k6avpjga3dho3zsjo6nnkt7n4")
-            self.failUnlessEqual(j["pre-repair-results"]["summary"], "illing")
-            self.failUnlessEqual(j["post-repair-results"]["summary"], "worse")
-        d.addCallback(_got_json)
+        w = web_check_results.CheckAndRepairResultsRenderer(c, crr)
+        j = json.loads(self.render_json(w))
+        self.failUnlessEqual(j["repair-attempted"], True)
+        self.failUnlessEqual(j["storage-index"],
+                             "2k6avpjga3dho3zsjo6nnkt7n4")
+        self.failUnlessEqual(j["pre-repair-results"]["summary"], "illing")
+        self.failUnlessEqual(j["post-repair-results"]["summary"], "worse")
 
-        w2 = web_check_results.CheckAndRepairResultsRenderer(c, None)
-        d.addCallback(lambda ignored: self.render_json(w2))
-        def _got_lit_results(data):
-            j = json.loads(data)
-            self.failUnlessEqual(j["repair-attempted"], False)
-            self.failUnlessEqual(j["storage-index"], "")
-        d.addCallback(_got_lit_results)
-        return d
+        w = web_check_results.CheckAndRepairResultsRenderer(c, None)
+        j = json.loads(self.render_json(w))
+        self.failUnlessEqual(j["repair-attempted"], False)
+        self.failUnlessEqual(j["storage-index"], "")
+
+
+    def test_deep_check_renderer(self):
+        status = check_results.DeepCheckResults("fake-root-si")
+        status.add_check(
+            FakeCheckResults("<unhealthy/unrecoverable>", False, False),
+            (u"fake", u"unhealthy", u"unrecoverable")
+        )
+        status.add_check(
+            FakeCheckResults("<healthy/recoverable>", True, True),
+            (u"fake", u"healthy", u"recoverable")
+        )
+        status.add_check(
+            FakeCheckResults("<healthy/unrecoverable>", True, False),
+            (u"fake", u"healthy", u"unrecoverable")
+        )
+        status.add_check(
+            FakeCheckResults("<unhealthy/unrecoverable>", False, True),
+            (u"fake", u"unhealthy", u"recoverable")
+        )
+
+        monitor = Monitor()
+        monitor.set_status(status)
+
+        elem = web_check_results.DeepCheckResultsRendererElement(monitor)
+        doc = self.render_element(elem)
+        soup = BeautifulSoup(doc, 'html5lib')
+
+        assert_soup_has_favicon(self, soup)
+
+        assert_soup_has_tag_with_content(
+            self, soup, u"title",
+            u"Tahoe-LAFS - Deep Check Results"
+        )
+
+        assert_soup_has_tag_with_content(
+            self, soup, u"h1",
+            "Deep-Check Results for root SI="
+        )
+
+        assert_soup_has_tag_with_content(
+            self, soup, u"li",
+            u"Objects Checked: 4"
+        )
+
+        assert_soup_has_tag_with_content(
+            self, soup, u"li",
+            u"Objects Healthy: 2"
+        )
+
+        assert_soup_has_tag_with_content(
+            self, soup, u"li",
+            u"Objects Unhealthy: 2"
+        )
+
+        assert_soup_has_tag_with_content(
+            self, soup, u"li",
+            u"Objects Unrecoverable: 2"
+        )
+
+        assert_soup_has_tag_with_content(
+            self, soup, u"li",
+            u"Corrupt Shares: 4"
+        )
+
+        assert_soup_has_tag_with_content(
+            self, soup, u"h2",
+            u"Files/Directories That Had Problems:"
+        )
+
+        assert_soup_has_tag_with_content(
+            self, soup, u"li",
+            u"fake/unhealthy/recoverable: fake summary"
+        )
+
+        assert_soup_has_tag_with_content(
+            self, soup, u"li",
+            u"fake/unhealthy/unrecoverable: fake summary"
+        )
+
+        assert_soup_has_tag_with_content(
+            self, soup, u"h2",
+            u"Servers on which corrupt shares were found"
+        )
+
+        assert_soup_has_tag_with_content(
+            self, soup, u"h2",
+            u"Corrupt Shares"
+        )
+
+        assert_soup_has_tag_with_content(
+            self, soup, u"h2",
+            u"All Results"
+        )
+
+    def test_deep_check_and_repair_renderer(self):
+        status = check_results.DeepCheckAndRepairResults("")
+
+        status.add_check_and_repair(
+            FakeCheckAndRepairResults("attempted/success", True, True),
+            (u"attempted", u"success")
+        )
+        status.add_check_and_repair(
+            FakeCheckAndRepairResults("attempted/failure", True, False),
+            (u"attempted", u"failure")
+        )
+        status.add_check_and_repair(
+            FakeCheckAndRepairResults("unattempted/failure", False, False),
+            (u"unattempted", u"failure")
+        )
+
+        monitor = Monitor()
+        monitor.set_status(status)
+
+        elem = web_check_results.DeepCheckAndRepairResultsRendererElement(monitor)
+        doc = self.render_element(elem)
+        soup = BeautifulSoup(doc, 'html5lib')
+
+        assert_soup_has_favicon(self, soup)
+
+        assert_soup_has_tag_with_content(
+            self, soup, u"title",
+            u"Tahoe-LAFS - Deep Check Results"
+        )
+
+        assert_soup_has_tag_with_content(
+            self, soup, u"h1",
+            u"Deep-Check-And-Repair Results for root SI="
+        )
+
+        assert_soup_has_tag_with_content(
+            self, soup, u"li",
+            u"Objects Checked: 3"
+        )
+
+        assert_soup_has_tag_with_content(
+            self, soup, u"li",
+            u"Objects Healthy (before repair): 0"
+        )
+
+        assert_soup_has_tag_with_content(
+            self, soup, u"li",
+            u"Objects Unhealthy (before repair): 3"
+        )
+
+        assert_soup_has_tag_with_content(
+            self, soup, u"li",
+            u"Corrupt Shares (before repair): 3"
+        )
+
+        assert_soup_has_tag_with_content(
+            self, soup, u"li",
+            u"Repairs Attempted: 2"
+        )
+
+        assert_soup_has_tag_with_content(
+            self, soup, u"li",
+            u"Repairs Successful: 1"
+        )
+
+        assert_soup_has_tag_with_content(
+            self, soup, u"li",
+            "Repairs Unsuccessful: 1"
+        )
+
+        assert_soup_has_tag_with_content(
+            self, soup, u"li",
+            u"Objects Healthy (after repair): 0"
+        )
+
+        assert_soup_has_tag_with_content(
+            self, soup, u"li",
+            u"Objects Unhealthy (after repair): 3"
+        )
+
+        assert_soup_has_tag_with_content(
+            self, soup, u"li",
+            u"Corrupt Shares (after repair): 3"
+        )
+
+        assert_soup_has_tag_with_content(
+            self, soup, u"h2",
+            u"Files/Directories That Had Problems:"
+        )
+
+        assert_soup_has_tag_with_content(
+            self, soup, u"h2",
+            u"Files/Directories That Still Have Problems:"
+        )
+
+        assert_soup_has_tag_with_content(
+            self, soup, u"h2",
+            u"Servers on which corrupt shares were found"
+        )
+
+        assert_soup_has_tag_with_content(
+            self, soup, u"h2",
+            u"Remaining Corrupt Shares"
+        )
+
 
 class BalancingAct(GridTestMixin, unittest.TestCase):
     # test for #1115 regarding the 'count-good-share-hosts' metric
@@ -387,7 +691,7 @@ class BalancingAct(GridTestMixin, unittest.TestCase):
         def add_three(_, i):
             # Add a new server with just share 3
             self.add_server_with_share(i, self.uri, 3)
-            #print self._pretty_shares_chart(self.uri)
+            #print(self._pretty_shares_chart(self.uri))
         for i in range(1,5):
             d.addCallback(add_three, i)
 
