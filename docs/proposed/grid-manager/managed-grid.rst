@@ -40,7 +40,7 @@ the statement: "Grid Manager X suggests you use storage-server Y to
 upload shares to" (X and Y are public-keys). Such a certificate
 consists of:
 
- - a version (currently 1)
+ - a version
  - the public-key of a storage-server
  - an expiry timestamp
  - a signature of the above
@@ -61,10 +61,10 @@ at which time you may be able to pass a directory-capability to this
 option).
 
 If you don't want to store the configuration on disk at all, you may
-use ``--config -`` (that's a dash) and write a valid JSON
-configuration to stdin.
+use ``--config -`` (the last character is a dash) and write a valid
+JSON configuration to stdin.
 
-All commands require the ``--config`` option, and they all behave
+All commands require the ``--config`` option and they all behave
 similarly for "data from stdin" versus "data from disk".
 
 
@@ -144,11 +144,11 @@ tahoe admin add-grid-manager-cert
 - `--filename`: the file to read the cert from (default: stdin)
 - `--name`: the name of this certificate (default: "default")
 
-Import a "version 1" storage-certificate produced by a grid-manager
-(probably: a storage server may have zero or more such certificates
-installed; for now just one is sufficient). You will have to re-start
-your node after this. Subsequent announcements to the Introducer will
-include this certificate.
+Import a "version 1" storage-certificate produced by a grid-manager A
+storage server may have zero or more such certificates installed; for
+now just one is sufficient. You will have to re-start your node after
+this. Subsequent announcements to the Introducer will include this
+certificate.
 
 .. note::
 
