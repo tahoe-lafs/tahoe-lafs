@@ -7,6 +7,9 @@ from os.path import exists, join
 from twisted.python import usage
 #from allmydata.node import read_config
 from allmydata.client import read_config
+from allmydata.storage_client import (
+    parse_grid_manager_data,
+)
 from allmydata.scripts.cli import _default_nodedir
 from allmydata.scripts.common import BaseOptions
 from allmydata.util.encodingutil import argv_to_abspath
@@ -82,15 +85,16 @@ class AddGridManagerCertOptions(BaseOptions):
                 raise usage.UsageError(
                     "Reading certificate from stdin failed"
                 )
-            from allmydata.storage_client import parse_grid_manager_data
-            try:
-                self.certificate_data = parse_grid_manager_data(data)
-            except ValueError as e:
-                print("Error parsing certificate: {}".format(e), file=self.parent.parent.stderr)
-                self.certificate_data = None
         else:
             with open(self['filename'], 'r') as f:
-                self.certificate_data = f.read()
+                data = f.read()
+
+        try:
+            self.certificate_data = parse_grid_manager_data(data)
+        except ValueError as e:
+            raise UsageError(
+                "Error parsing certificate: {}".format(e)
+            )
 
     def getUsage(self, width=None):
         t = BaseOptions.getUsage(self, width)
