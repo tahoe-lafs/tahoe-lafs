@@ -1,4 +1,5 @@
 
+import json
 
 from allmydata.client import (
     _load_grid_manager_certificates,
@@ -61,9 +62,17 @@ class GridManagerUtilities(SyncTestCase):
         self.assertFalse(nss.upload_permitted())
 
     def test_load_certificates(self):
+        cert_path = self.mktemp()
+        with open(cert_path, "w") as f:
+            f.write(json.dumps({
+                "certificate": "{\"expires\":1601687822,\"public_key\":\"pub-v0-cbq6hcf3pxcz6ouoafrbktmkixkeuywpcpbcomzd3lqbkq4nmfga\",\"version\":1}",
+                "signature": "fvjd3uvvupf2v6tnvkwjd473u3m3inyqkwiclhp7balmchkmn3px5pei3qyfjnhymq4cjcwvbpqmcwwnwswdtrfkpnlaxuih2zbdmda"
+            }))
         config_data = (
             "[grid_managers]\n"
             "fluffy = pub-v0-vqimc4s5eflwajttsofisp5st566dbq36xnpp4siz57ufdavpvlq\n"
+            "[grid_manager_certificates]\n"
+            "ding = {}\n".format(cert_path)
         )
         config = config_from_string("/foo", "portnum", config_data, client_valid_config())
         self.assertEqual(
