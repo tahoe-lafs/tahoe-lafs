@@ -112,6 +112,37 @@ def test_remove_last_client(reactor, request):
 
 
 @pytest_twisted.inlineCallbacks
+def test_add_remove_client_file(reactor, request, temp_dir):
+    """
+    A Grid Manager can add and successfully remove a client (when
+    keeping data on disk)
+    """
+    gmconfig = join(temp_dir, "gmtest")
+    gmconfig_file = join(temp_dir, "gmtest", "config.json")
+    yield util.run_tahoe(
+        reactor, request, "grid-manager", "--config", gmconfig, "create",
+    )
+
+    yield util.run_tahoe(
+        reactor, request, "grid-manager", "--config", gmconfig, "add",
+        "zara", "pub-v0-kzug3ut2m7ziihf3ndpqlquuxeie4foyl36wn54myqc4wmiwe4ga",
+    )
+    yield util.run_tahoe(
+        reactor, request, "grid-manager", "--config", gmconfig, "add",
+        "yakov", "pub-v0-kvxhb3nexybmipkrar2ztfrwp4uxxsmrjzkpzafit3ket4u5yldq",
+    )
+    assert "zara" in json.load(open(gmconfig_file, "r"))['storage_servers']
+    assert "yakov" in json.load(open(gmconfig_file, "r"))['storage_servers']
+
+    yield util.run_tahoe(
+        reactor, request, "grid-manager", "--config", gmconfig, "remove",
+        "zara",
+    )
+    assert "zara" not in json.load(open(gmconfig_file, "r"))['storage_servers']
+    assert "yakov" in json.load(open(gmconfig_file, "r"))['storage_servers']
+
+
+@pytest_twisted.inlineCallbacks
 def test_reject_storage_server(reactor, request, temp_dir, flog_gatherer, port_allocator):
     """
     A client with happines=2 fails to upload to a Grid when it is
