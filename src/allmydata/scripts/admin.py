@@ -92,7 +92,7 @@ class AddGridManagerCertOptions(BaseOptions):
         try:
             self.certificate_data = parse_grid_manager_data(data)
         except ValueError as e:
-            raise UsageError(
+            raise usage.UsageError(
                 "Error parsing certificate: {}".format(e)
             )
 

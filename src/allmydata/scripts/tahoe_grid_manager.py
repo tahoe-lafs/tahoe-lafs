@@ -2,7 +2,6 @@ from __future__ import print_function
 
 import sys
 import json
-import time
 from datetime import datetime, timedelta
 
 from allmydata.scripts.common import BaseOptions

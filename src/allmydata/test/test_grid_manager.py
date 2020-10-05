@@ -2,7 +2,6 @@
 import json
 
 from allmydata.client import (
-    _load_grid_manager_certificates,
     create_storage_farm_broker,
 )
 from allmydata.node import (
