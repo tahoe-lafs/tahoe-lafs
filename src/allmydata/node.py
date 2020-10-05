@@ -9,10 +9,15 @@ import os.path
 import re
 import types
 import errno
-from six.moves import configparser
+from io import StringIO
 import tempfile
-from io import BytesIO
 from base64 import b32decode, b32encode
+
+# BBB: Python 2 compatibility
+from six.moves import configparser
+from future.utils import PY2
+if PY2:
+    from io import BytesIO as StringIO  # noqa: F811
 
 from twisted.python import log as twlog
 from twisted.application import service
@@ -70,7 +75,7 @@ def _common_valid_config():
 # Add our application versions to the data that Foolscap's LogPublisher
 # reports.
 for thing, things_version in get_package_versions().items():
-    app_versions.add_version(thing, str(things_version))
+    app_versions.add_version(thing, things_version)
 
 # group 1 will be addr (dotted quad string), group 3 if any will be portnum (string)
 ADDR_RE = re.compile("^([1-9][0-9]*\.[1-9][0-9]*\.[1-9][0-9]*\.[1-9][0-9]*)(:([1-9][0-9]*))?$")
@@ -206,7 +211,7 @@ def config_from_string(basedir, portnumfile, config_str, _valid_config=None):
 
     # load configuration from in-memory string
     parser = configparser.SafeConfigParser()
-    parser.readfp(BytesIO(config_str))
+    parser.readfp(StringIO(config_str))
 
     fname = "<in-memory>"
     configutil.validate_config(fname, parser, _valid_config)
@@ -821,9 +826,9 @@ class Node(service.MultiService):
         for o in twlog.theLogPublisher.observers:
             # o might be a FileLogObserver's .emit method
             if type(o) is type(self.setup_logging): # bound method
-                ob = o.im_self
+                ob = o.__self__
                 if isinstance(ob, twlog.FileLogObserver):
-                    newmeth = types.UnboundMethodType(formatTimeTahoeStyle, ob, ob.__class__)
+                    newmeth = types.MethodType(formatTimeTahoeStyle, ob)
                     ob.formatTime = newmeth
         # TODO: twisted >2.5.0 offers maxRotatedFiles=50
 

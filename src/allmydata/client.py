@@ -69,8 +69,8 @@ def _is_valid_section(section_name):
     Currently considers all possible storage server plugin sections valid.
     """
     return (
-        section_name.startswith(b"storageserver.plugins.") or
-        section_name.startswith(b"storageclient.plugins.")
+        section_name.startswith("storageserver.plugins.") or
+        section_name.startswith("storageclient.plugins.")
     )
 
 

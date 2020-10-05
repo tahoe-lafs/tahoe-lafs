@@ -51,6 +51,7 @@ test: .tox/create-venvs.log
 ## Run all tests with coverage collection and reporting.
 test-venv-coverage:
 # Special handling for reporting coverage even when the test run fails
+	rm -f ./.coverage.*
 	test_exit=
 	$(VIRTUAL_ENV)/bin/coverage run -m twisted.trial --rterrors --reporter=timing \
 		$(TEST_SUITE) || test_exit="$$?"
