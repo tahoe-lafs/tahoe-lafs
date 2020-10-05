@@ -322,16 +322,6 @@ def _save_gridmanager_config(file_path, grid_manager):
             f.write("{}\n".format(data))
 
 
-def _config_to_filepath(gm_config_location):
-    """
-    Converts a command-line string specifying the GridManager
-    configuration's location into a readable file-like object.
-
-    :param gm_config_location str: a valid path, or '-' (a single
-        dash) to use stdin.
-    """
-
-
 def _load_gridmanager_config(gm_config):
     """
     Loads a Grid Manager configuration and returns it (a dict) after
