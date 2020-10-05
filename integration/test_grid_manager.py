@@ -42,7 +42,7 @@ def test_create_certificate(reactor, request):
         stdin=gm_config,
     )
     zara_cert_bytes = yield util.run_tahoe(
-        reactor, request, "grid-manager", "--config", "-", "sign", "zara",
+        reactor, request, "grid-manager", "--config", "-", "sign", "zara", "1",
         stdin=gm_config,
     )
     zara_cert = json.loads(zara_cert_bytes)
@@ -173,7 +173,7 @@ def test_reject_storage_server(reactor, request, temp_dir, flog_gatherer, port_a
 
     print("inserting certificate")
     cert = yield util.run_tahoe(
-        reactor, request, "grid-manager", "--config", "-", "sign", "storage0",
+        reactor, request, "grid-manager", "--config", "-", "sign", "storage0", "1",
         stdin=gm_config,
     )
 

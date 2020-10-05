@@ -3,7 +3,7 @@ from __future__ import print_function
 import sys
 import json
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from allmydata.scripts.common import BaseOptions
 from allmydata.util.abbreviate import abbreviate_time
@@ -81,15 +81,22 @@ class SignOptions(BaseOptions):
     )
 
     def getSynopsis(self):
-        return "{} NAME".format(super(SignOptions, self).getSynopsis())
+        return "{} NAME EXPIRY_DAYS".format(super(SignOptions, self).getSynopsis())
 
     def parseArgs(self, *args, **kw):
         BaseOptions.parseArgs(self, **kw)
-        if len(args) != 1:
+        if len(args) != 2:
             raise usage.UsageError(
-                "Requires one argument: name"
+                "Requires two arguments: name expiry_days"
             )
         self['name'] = unicode(args[0])
+        self['expiry_days'] = int(args[1])
+        if self['expiry_days'] < 1 or self['expiry_days'] > 20*365:
+            raise usage.UsageError(
+                "Certificate expires in an unreasonable number of days: {}".format(
+                    self['expiry_days'],
+                )
+            )
 
 
 class GridManagerOptions(BaseOptions):
@@ -236,15 +243,17 @@ class _GridManager(object):
     def public_identity(self):
         return ed25519.string_from_verifying_key(self._public_key)
 
-    def sign(self, name):
+    def sign(self, name, expiry_seconds):
         try:
             srv = self._storage_servers[name]
         except KeyError:
             raise KeyError(
                 u"No storage server named '{}'".format(name)
             )
+        expiration = datetime.utcnow() + timedelta(seconds=expiry_seconds)
+        epoch_offset = (expiration - datetime(1970, 1, 1)).total_seconds()
         cert_info = {
-            "expires": int(time.time() + 86400),  # XXX FIXME
+            "expires": epoch_offset,
             "public_key": srv.public_key(),
             "version": 1,
         }
@@ -422,7 +431,7 @@ def _list(gridoptions, options):
             while fp.child('{}.cert.{}'.format(name, cert_count)).exists():
                 container = json.load(fp.child('{}.cert.{}'.format(name, cert_count)).open('r'))
                 cert_data = json.loads(container['certificate'])
-                expires = datetime.fromtimestamp(cert_data['expires'])
+                expires = datetime.utcfromtimestamp(cert_data['expires'])
                 delta = datetime.utcnow() - expires
                 if delta.total_seconds() < 0:
                     print("{}: cert {}: valid until {} ({})".format(name, cert_count, expires, abbreviate_time(delta)))
@@ -439,8 +448,10 @@ def _sign(gridoptions, options):
     fp = FilePath(gm_config) if gm_config.strip() != '-' else None
     gm = _load_gridmanager_config(gm_config)
 
+    expiry_seconds = int(options['expiry_days']) * 86400
+
     try:
-        certificate = gm.sign(options['name'])
+        certificate = gm.sign(options['name'], expiry_seconds)
     except KeyError:
         raise usage.UsageError(
             "No storage-server called '{}' exists".format(options['name'])
