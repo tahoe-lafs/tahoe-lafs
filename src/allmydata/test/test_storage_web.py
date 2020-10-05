@@ -50,7 +50,7 @@ from allmydata.web.storage import (
     StorageStatusElement,
     remove_prefix
 )
-from .common_py3 import FakeCanary
+from .common_util import FakeCanary
 
 def remove_tags(s):
     s = re.sub(br'<[^>]*>', b' ', s)

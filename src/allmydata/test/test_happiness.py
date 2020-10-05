@@ -23,7 +23,7 @@ from hypothesis.strategies import text, sets
 from allmydata.immutable import happiness_upload
 from allmydata.util.happinessutil import servers_of_happiness, \
     shares_by_server, merge_servers
-from allmydata.test.common_py3 import ShouldFailMixin
+from allmydata.test.common import ShouldFailMixin
 
 
 class HappinessUploadUtils(unittest.TestCase):

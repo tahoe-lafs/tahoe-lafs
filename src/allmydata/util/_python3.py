@@ -54,7 +54,6 @@ PORTED_MODULES = [
     "allmydata.storage.mutable",
     "allmydata.storage.server",
     "allmydata.storage.shares",
-    "allmydata.test.common_py3",
     "allmydata.test.no_network",
     "allmydata.uri",
     "allmydata.util._python3",

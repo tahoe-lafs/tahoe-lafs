@@ -2,9 +2,16 @@ from __future__ import print_function
 
 import os, sys, urllib, textwrap
 import codecs
-from six.moves.configparser import NoSectionError
 from os.path import join
+
+# BBB: Python 2 compatibility
+from future.utils import PY2
+if PY2:
+    from future.builtins import str  # noqa: F401
+from six.moves.configparser import NoSectionError
+
 from twisted.python import usage
+
 from allmydata.util.assertutil import precondition
 from allmydata.util.encodingutil import unicode_to_url, quote_output, \
     quote_local_unicode_path, argv_to_abspath
@@ -188,7 +195,7 @@ def get_alias(aliases, path_unicode, default):
     and default is not found in aliases, an UnknownAliasError is
     raised.
     """
-    precondition(isinstance(path_unicode, unicode), path_unicode)
+    precondition(isinstance(path_unicode, str), path_unicode)
 
     from allmydata import uri
     path = path_unicode.encode('utf-8').strip(" ")
