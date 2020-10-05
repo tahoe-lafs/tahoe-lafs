@@ -5,6 +5,11 @@ import shutil
 from os import mkdir, unlink, listdir, utime
 from os.path import join, exists, getmtime
 
+from cryptography.hazmat.primitives.serialization import (
+    Encoding,
+    PublicFormat,
+)
+
 from allmydata.crypto import ed25519
 from allmydata.util import base32
 from allmydata.util import configutil
@@ -177,4 +182,33 @@ def test_reject_storage_server(reactor, request, temp_dir, flog_gatherer, port_a
         )
         assert False, "Should get a failure"
     except util.ProcessFailed as e:
-        assert 'UploadUnhappinessError' in e.output.getvalue()
+        assert 'UploadUnhappinessError' in e.output
+
+
+@pytest_twisted.inlineCallbacks
+def test_identity(reactor, request, temp_dir):
+    """
+    Dump public key to CLI
+    """
+    gm_config = join(temp_dir, "test_identity")
+    yield util.run_tahoe(
+        reactor, request, "grid-manager", "--config", gm_config, "create",
+    )
+
+    # ask the CLI for the grid-manager pubkey
+    pubkey = yield util.run_tahoe(
+        reactor, request, "grid-manager", "--config", gm_config, "public-identity",
+    )
+    alleged_pubkey = ed25519.verifying_key_from_string(pubkey.strip())
+
+    # load the grid-manager pubkey "ourselves"
+    with open(join(gm_config, "config.json"), "r") as f:
+        real_config = json.load(f)
+    real_privkey, real_pubkey = ed25519.signing_keypair_from_string(
+        real_config["private_key"].encode("ascii"),
+    )
+
+    # confirm the CLI told us the correct thing
+    alleged_bytes = alleged_pubkey.public_bytes(Encoding.Raw, PublicFormat.Raw)
+    real_bytes = real_pubkey.public_bytes(Encoding.Raw, PublicFormat.Raw)
+    assert alleged_bytes == real_bytes, "Keys don't match"

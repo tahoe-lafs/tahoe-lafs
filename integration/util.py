@@ -49,6 +49,9 @@ class ProcessFailed(Exception):
         self.reason = reason
         self.output = output
 
+    def __str__(self):
+        return "<ProcessFailed: {}>:\n{}".format(self.reason, self.output)
+
 
 class _CollectOutputProtocol(ProcessProtocol):
     """
@@ -72,7 +75,7 @@ class _CollectOutputProtocol(ProcessProtocol):
 
     def processExited(self, reason):
         if not isinstance(reason.value, ProcessDone):
-            self.done.errback(ProcessFailed(reason, self.output))
+            self.done.errback(ProcessFailed(reason, self.output.getvalue()))
 
     def outReceived(self, data):
         self.output.write(data)
