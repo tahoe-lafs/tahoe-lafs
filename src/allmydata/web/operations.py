@@ -1,10 +1,6 @@
 
 import time
 from nevow import url
-from twisted.web.template import (
-    renderer,
-    tags as T,
-)
 from twisted.python.failure import Failure
 from twisted.internet import reactor, defer
 from twisted.web import resource
