@@ -129,9 +129,6 @@ class Marker(object):
 
 class FakeCanary(object):
     """For use in storage tests.
-
-    Can be moved back to test_storage.py once enough Python 3 porting has been
-    done.
     """
     def __init__(self, ignore_disconnectors=False):
         self.ignore = ignore_disconnectors
