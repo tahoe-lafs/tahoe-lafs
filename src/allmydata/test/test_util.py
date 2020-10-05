@@ -13,15 +13,18 @@ if PY2:
 import six
 import os, time, sys
 import yaml
+import json
 
 from twisted.trial import unittest
 
 from allmydata.util import idlib, mathutil
 from allmydata.util import fileutil
+from allmydata.util import jsonbytes
 from allmydata.util import pollmixin
 from allmydata.util import yamlutil
 from allmydata.util.fileutil import EncryptedTemporaryFile
 from allmydata.test.common_util import ReallyEqualMixin
+
 
 if six.PY3:
     long = int
@@ -469,3 +472,19 @@ class YAML(unittest.TestCase):
         self.assertIsInstance(back[0], str)
         self.assertIsInstance(back[1], str)
         self.assertIsInstance(back[2], str)
+
+
+class JSONBytes(unittest.TestCase):
+    """Tests for BytesJSONEncoder."""
+
+    def test_encode_bytes(self):
+        """BytesJSONEncoder can encode bytes."""
+        data = {
+            b"hello": [1, b"cd"],
+        }
+        expected = {
+            u"hello": [1, u"cd"],
+        }
+        encoded = jsonbytes.dumps(data)
+        self.assertEqual(json.loads(encoded), expected)
+        self.assertEqual(jsonbytes.loads(encoded), expected)

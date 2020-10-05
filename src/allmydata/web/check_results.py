@@ -1,7 +1,6 @@
 from future.builtins import str
 
 import time
-import json
 
 from twisted.web import (
     http,
@@ -32,6 +31,7 @@ from allmydata.interfaces import (
 from allmydata.util import (
     base32,
     dictutil,
+    jsonbytes as json,  # Supporting dumping bytes
 )
 
 

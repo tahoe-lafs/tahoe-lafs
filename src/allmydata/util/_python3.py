@@ -72,6 +72,7 @@ PORTED_MODULES = [
     "allmydata.util.hashutil",
     "allmydata.util.humanreadable",
     "allmydata.util.iputil",
+    "allmydata.util.jsonbytes",
     "allmydata.util.log",
     "allmydata.util.mathutil",
     "allmydata.util.namespace",
