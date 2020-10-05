@@ -89,6 +89,7 @@ PORTED_TEST_MODULES = [
     "allmydata.test.test_abbreviate",
     "allmydata.test.test_base32",
     "allmydata.test.test_base62",
+    "allmydata.test.test_checker",
     "allmydata.test.test_codec",
     "allmydata.test.test_common_util",
     "allmydata.test.test_configutil",

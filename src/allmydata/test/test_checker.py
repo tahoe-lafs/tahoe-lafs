@@ -1,5 +1,16 @@
+"""
+Ported to Python 3.
+"""
+
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
 from future.utils import PY2
-from past.builtins import unicode
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+
 
 import json
 import os.path, shutil
@@ -161,7 +172,7 @@ class WebResultsRendering(unittest.TestCase):
                     "service-name": "storage",
                     "anonymous-storage-FURL": furl,
                     "permutation-seed-base32": "",
-                    "nickname": unicode(nickname),
+                    "nickname": str(nickname),
                     "app-versions": {}, # need #466 and v2 introducer
                     "my-version": "ver",
                     "oldest-supported": "oldest",
@@ -671,7 +682,7 @@ class BalancingAct(GridTestMixin, unittest.TestCase):
             "This little printing function is only meant for < 26 servers"
         shares_chart = {}
         names = dict(zip([ss.my_nodeid
-                          for _,ss in self.g.servers_by_number.iteritems()],
+                          for _,ss in self.g.servers_by_number.items()],
                          letters))
         for shnum, serverid, _ in self.find_uri_shares(uri):
             shares_chart.setdefault(shnum, []).append(names[serverid])
