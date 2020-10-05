@@ -140,14 +140,13 @@ def test_reject_storage_server(reactor, request, temp_dir, flog_gatherer, port_a
         reactor, request, "grid-manager", "--config", "-", "sign", "storage0",
         stdin=gm_config,
     )
-    with open(join(storage0.process.node_dir, "gridmanager.cert"), "w") as f:
-        f.write(cert)
 
     yield util.run_tahoe(
         reactor, request, "--node-directory", storage0.process.node_dir,
         "admin", "add-grid-manager-cert",
         "--name", "default",
-        "--filename", join(storage0.process.node_dir, "gridmanager.cert"),
+        "--filename", "-",
+        stdin=cert,
     )
 
     # re-start this storage server
