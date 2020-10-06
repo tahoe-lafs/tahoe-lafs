@@ -521,7 +521,7 @@ class FileDownloader(Resource, object):
                 eh = MyExceptionHandler()
                 eh.renderHTTP_exception(req, f)
         d.addCallbacks(_finished, _error)
-        return req.deferred
+        return ""
 
 
 def _file_json_metadata(req, filenode, edge_metadata):
