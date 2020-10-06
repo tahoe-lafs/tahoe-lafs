@@ -521,7 +521,14 @@ class FileDownloader(Resource, object):
                 eh = MyExceptionHandler()
                 eh.renderHTTP_exception(req, f)
         d.addCallbacks(_finished, _error)
-        return ""
+
+        # XXX: Things that I do not quite understand are going on
+        # here.  Previously this method was returning `req.deferred`
+        # (which had a `` as current result) here, which of course is
+        # not a thing in twisted.web.  Doing a `return d` here makes
+        # the test suite unhappy, because result held in `d` is None.
+        from twisted.web.util import DeferredResource
+        return DeferredResource(defer.Deferred())
 
 
 def _file_json_metadata(req, filenode, edge_metadata):
