@@ -162,7 +162,7 @@ class HelperUploadResults(Copyable, RemoteCopy):
     # note: don't change this string, it needs to match the value used on the
     # helper, and it does *not* need to match the fully-qualified
     # package/module/class name
-    # 
+    #
     # Needs to be native string to make Foolscap happy.
     typeToCopy = native_str("allmydata.upload.UploadResults.tahoe.allmydata.com")
     copytype = typeToCopy
