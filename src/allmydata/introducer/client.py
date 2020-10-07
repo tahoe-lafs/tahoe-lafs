@@ -1,7 +1,14 @@
 import time
+
+# Python 2 backwards compatibility
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+
 from zope.interface import implementer
 from twisted.application import service
 from foolscap.api import Referenceable, eventually
+
 from allmydata.interfaces import InsufficientVersionError
 from allmydata.introducer.interfaces import IIntroducerClient, \
      RIIntroducerSubscriberClient_v2
@@ -26,7 +33,7 @@ class IntroducerClient(service.Service, Referenceable):
         self._tub = tub
         self.introducer_furl = introducer_furl
 
-        assert type(nickname) is unicode
+        assert isinstance(nickname, str)
         self._nickname = nickname
         self._my_version = my_version
         self._oldest_supported = oldest_supported
@@ -161,7 +168,7 @@ class IntroducerClient(service.Service, Referenceable):
         self._subscribed_service_names.add(service_name)
         self._maybe_subscribe()
         for index,(ann,key_s,when) in self._inbound_announcements.items():
-            precondition(isinstance(key_s, str), key_s)
+            precondition(isinstance(key_s, bytes), key_s)
             servicename = index[0]
             if servicename == service_name:
                 eventually(cb, key_s, ann, *args, **kwargs)
@@ -237,7 +244,7 @@ class IntroducerClient(service.Service, Referenceable):
                 # this might raise UnknownKeyError or bad-sig error
                 ann, key_s = unsign_from_foolscap(ann_t)
                 # key is "v0-base32abc123"
-                precondition(isinstance(key_s, str), key_s)
+                precondition(isinstance(key_s, bytes), key_s)
             except BadSignature:
                 self.log("bad signature on inbound announcement: %s" % (ann_t,),
                          parent=lp, level=log.WEIRD, umid="ZAU15Q")
@@ -247,17 +254,17 @@ class IntroducerClient(service.Service, Referenceable):
             self._process_announcement(ann, key_s)
 
     def _process_announcement(self, ann, key_s):
-        precondition(isinstance(key_s, str), key_s)
+        precondition(isinstance(key_s, bytes), key_s)
         self._debug_counts["inbound_announcement"] += 1
-        service_name = str(ann["service-name"])
+        service_name = bytes(ann["service-name"], "utf-8")
         if service_name not in self._subscribed_service_names:
             self.log("announcement for a service we don't care about [%s]"
                      % (service_name,), level=log.UNUSUAL, umid="dIpGNA")
             self._debug_counts["wrong_service"] += 1
             return
         # for ASCII values, simplejson might give us unicode *or* bytes
-        if "nickname" in ann and isinstance(ann["nickname"], str):
-            ann["nickname"] = unicode(ann["nickname"])
+        if "nickname" in ann and isinstance(ann["nickname"], bytes):
+            ann["nickname"] = str(ann["nickname"])
         nick_s = ann.get("nickname",u"").encode("utf-8")
         lp2 = self.log(format="announcement for nickname '%(nick)s', service=%(svc)s: %(ann)s",
                        nick=nick_s, svc=service_name, ann=ann, umid="BoKEag")
@@ -319,8 +326,8 @@ class IntroducerClient(service.Service, Referenceable):
         self._deliver_announcements(key_s, ann)
 
     def _deliver_announcements(self, key_s, ann):
-        precondition(isinstance(key_s, str), key_s)
-        service_name = str(ann["service-name"])
+        precondition(isinstance(key_s, bytes), key_s)
+        service_name = bytes(ann["service-name"], "utf-8")
         for (service_name2,cb,args,kwargs) in self._local_subscribers:
             if service_name2 == service_name:
                 eventually(cb, key_s, ann, *args, **kwargs)
