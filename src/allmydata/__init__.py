@@ -42,3 +42,9 @@ __full_version__ = __appname__ + '/' + str(__version__)
 # Install Python 3 module locations in Python 2:
 from future import standard_library
 standard_library.install_aliases()
+
+
+# Monkey-patch 3rd party libraries:
+from ._monkeypatch import patch
+patch()
+del patch
