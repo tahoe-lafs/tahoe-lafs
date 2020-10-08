@@ -1,4 +1,4 @@
-# BBB: Python 3 porting targets
+# Python 3 porting targets
 #
 # NOTE: this Makefile requires GNU make
 

@@ -2,7 +2,7 @@
 Tools aimed at the interaction between tests and Eliot.
 """
 
-# BBB: Python 2 compatibility
+# Python 2 compatibility
 # Can't use `builtins.str` because it's not JSON encodable:
 # `exceptions.TypeError: <class 'future.types.newstr.newstr'> is not JSON-encodeable`
 from past.builtins import unicode as str

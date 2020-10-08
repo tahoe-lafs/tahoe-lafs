@@ -2,7 +2,7 @@ from __future__ import print_function
 
 import os, shutil, sys, urllib, time, stat, urlparse
 
-# BBB: Python 2 compatibility
+# Python 2 compatibility
 from future.utils import PY2
 if PY2:
     from future.builtins import str  # noqa: F401
