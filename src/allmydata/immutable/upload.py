@@ -1,3 +1,15 @@
+"""
+Ported to Python 3.
+"""
+
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2, native_str
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 from past.builtins import long, unicode
 
 import os, time, weakref, itertools
@@ -66,7 +78,7 @@ def _serialize_existing_shares(existing_shares):
     return {
         server: list(shares)
         for (server, shares)
-        in existing_shares.iteritems()
+        in existing_shares.items()
     }
 
 _EXISTING_SHARES = Field(
@@ -79,7 +91,7 @@ def _serialize_happiness_mappings(happiness_mappings):
     return {
         sharenum: base32.b2a(serverid)
         for (sharenum, serverid)
-        in happiness_mappings.iteritems()
+        in happiness_mappings.items()
     }
 
 _HAPPINESS_MAPPINGS = Field(
@@ -150,7 +162,9 @@ class HelperUploadResults(Copyable, RemoteCopy):
     # note: don't change this string, it needs to match the value used on the
     # helper, and it does *not* need to match the fully-qualified
     # package/module/class name
-    typeToCopy = "allmydata.upload.UploadResults.tahoe.allmydata.com"
+    #
+    # Needs to be native string to make Foolscap happy.
+    typeToCopy = native_str("allmydata.upload.UploadResults.tahoe.allmydata.com")
     copytype = typeToCopy
 
     # also, think twice about changing the shape of any existing attribute,
@@ -283,7 +297,7 @@ class ServerTracker(object):
         #log.msg("%s._got_reply(%s)" % (self, (alreadygot, buckets)))
         (alreadygot, buckets) = alreadygot_and_buckets
         b = {}
-        for sharenum, rref in buckets.items():
+        for sharenum, rref in list(buckets.items()):
             bp = self.wbp_class(rref, self._server, self.sharesize,
                                 self.blocksize,
                                 self.num_segments,
@@ -780,7 +794,7 @@ class Tahoe2ServerSelector(log.PrefixingLogMixin):
 
         shares_to_ask = set()
         servermap = self._share_placements
-        for shnum, tracker_id in servermap.items():
+        for shnum, tracker_id in list(servermap.items()):
             if tracker_id == None:
                 continue
             if tracker.get_serverid() == tracker_id:
@@ -1574,7 +1588,7 @@ class AssistedUploader(object):
         # abbreviated), so if we detect old results, just clobber them.
 
         sharemap = upload_results.sharemap
-        if str in [type(v) for v in sharemap.values()]:
+        if any(isinstance(v, (bytes, unicode)) for v in sharemap.values()):
             upload_results.sharemap = None
 
     def _build_verifycap(self, helper_upload_results):
