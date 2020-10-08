@@ -1,3 +1,20 @@
+"""
+Tests for the `allmydata.node` module.
+
+This module has been ported to Python 3.
+"""
+
+# Python 2 backwards compatibility
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+from builtins import str
+from builtins import object
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: # F401, F811
+
 import base64
 import os
 import stat
@@ -8,11 +25,6 @@ import mock
 from textwrap import dedent
 
 from unittest import skipIf
-
-# Python 2 backwards compatibility
-from future.utils import PY2
-if PY2:
-    from future.builtins import bytes
 
 from twisted.trial import unittest
 from twisted.internet import defer
