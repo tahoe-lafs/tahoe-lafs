@@ -77,7 +77,7 @@ from twisted.trial import unittest
 
 from twisted.python.filepath import FilePath
 
-from allmydata.test.common_py3 import (
+from allmydata.test.common_util import (
     ReallyEqualMixin, skip_if_cannot_represent_filename,
 )
 from allmydata.util import encodingutil, fileutil

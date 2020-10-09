@@ -16,7 +16,7 @@ import time
 
 from twisted.trial import unittest
 
-from allmydata.test.common_py3 import TimezoneMixin
+from allmydata.test.common_util import TimezoneMixin
 from allmydata.util import time_format
 
 

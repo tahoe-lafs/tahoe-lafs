@@ -24,6 +24,7 @@ if PY2:
 
 # Keep these sorted alphabetically, to reduce merge conflicts:
 PORTED_MODULES = [
+    "allmydata._monkeypatch",
     "allmydata.codec",
     "allmydata.crypto",
     "allmydata.crypto.aes",
@@ -40,8 +41,12 @@ PORTED_MODULES = [
     "allmydata.immutable.downloader.segmentation",
     "allmydata.immutable.downloader.share",
     "allmydata.immutable.downloader.status",
+    "allmydata.immutable.encode",
+    "allmydata.immutable.filenode",
     "allmydata.immutable.happiness_upload",
+    "allmydata.immutable.layout",
     "allmydata.immutable.literal",
+    "allmydata.immutable.upload",
     "allmydata.interfaces",
     "allmydata.introducer.interfaces",
     "allmydata.monitor",
@@ -53,7 +58,6 @@ PORTED_MODULES = [
     "allmydata.storage.mutable",
     "allmydata.storage.server",
     "allmydata.storage.shares",
-    "allmydata.test.common_py3",
     "allmydata.test.no_network",
     "allmydata.uri",
     "allmydata.util._python3",

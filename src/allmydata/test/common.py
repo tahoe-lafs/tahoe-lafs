@@ -46,6 +46,7 @@ from testtools.twistedsupport import (
     flush_logged_errors,
 )
 
+from twisted.application import service
 from twisted.plugin import IPlugin
 from twisted.internet import defer
 from twisted.internet.defer import inlineCallbacks, returnValue
@@ -87,16 +88,15 @@ from ..crypto import (
 from .eliotutil import (
     EliotLoggedRunTest,
 )
-# Backwards compatibility imports:
-from .common_py3 import LoggingServiceParent, ShouldFailMixin  # noqa: F401
+from .common_util import ShouldFailMixin  # noqa: F401
 
 
 TEST_RSA_KEY_SIZE = 522
 
 EMPTY_CLIENT_CONFIG = config_from_string(
-    b"/dev/null",
-    b"tub.port",
-    b""
+    "/dev/null",
+    "tub.port",
+    ""
 )
 
 
@@ -249,8 +249,8 @@ class UseNode(object):
 
         self.config = config_from_string(
             self.basedir.asTextMode().path,
-            u"tub.port",
-b"""
+            "tub.port",
+"""
 [node]
 {node_config}
 
@@ -779,6 +779,11 @@ def create_mutable_filenode(contents, mdmf=False, all_contents=None):
     else:
         filenode.create(MutableData(contents), version=SDMF_VERSION)
     return filenode
+
+
+class LoggingServiceParent(service.MultiService):
+    def log(self, *args, **kwargs):
+        return log.msg(*args, **kwargs)
 
 
 TEST_DATA=b"\x02"*(Uploader.URI_LIT_SIZE_THRESHOLD+1)

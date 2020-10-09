@@ -37,7 +37,7 @@ a mean of 10kB and a max of 100MB, so filesize=min(int(1.0/random(.0002)),1e8)
 import os, sys, httplib, binascii
 import urllib, json, random, time, urlparse
 
-# BBB: Python 2 compatibility
+# Python 2 compatibility
 from future.utils import PY2
 if PY2:
     from future.builtins import str  # noqa: F401

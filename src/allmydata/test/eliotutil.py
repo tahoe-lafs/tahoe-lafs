@@ -2,7 +2,7 @@
 Tools aimed at the interaction between tests and Eliot.
 """
 
-# BBB: Python 2 compatibility
+# Python 2 compatibility
 # Can't use `builtins.str` because it's not JSON encodable:
 # `exceptions.TypeError: <class 'future.types.newstr.newstr'> is not JSON-encodeable`
 from past.builtins import unicode as str
@@ -106,7 +106,7 @@ def eliot_logged_test(f):
 
         # Begin an action that should comprise all messages from the decorated
         # test method.
-        with RUN_TEST(name=self.id().decode("utf-8")).context() as action:
+        with RUN_TEST(name=self.id()).context() as action:
             # When the test method Deferred fires, the RUN_TEST action is
             # done.  However, we won't have re-published the MemoryLogger
             # messages into the global/default logger when this Deferred

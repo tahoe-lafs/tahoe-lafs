@@ -1,6 +1,6 @@
 import os, json, urllib
 
-# BBB: Python 2 compatibility
+# Python 2 compatibility
 # Can't use `builtins.str` because something deep in Twisted callbacks ends up repr'ing
 # a `future.types.newstr.newstr` as a *Python 3* byte string representation under
 # *Python 2*:
