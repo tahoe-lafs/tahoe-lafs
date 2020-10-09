@@ -388,7 +388,7 @@ class FoolscapStorageServers(unittest.TestCase):
             verifyObject(
                 IFoolscapStorageServer,
                 _FoolscapStorage.from_announcement(
-                    u"server-id",
+                    b"server-id",
                     SOME_FURL,
                     {u"permutation-seed-base32": base32.b2a(b"permutationseed")},
                     NotStorageServer(),
