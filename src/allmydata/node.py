@@ -2,7 +2,6 @@
 This module contains classes and functions to implement and manage
 a node for Tahoe-LAFS.
 """
-from past.builtins import unicode
 
 import datetime
 import os.path
@@ -18,6 +17,7 @@ from six.moves import configparser
 from future.utils import PY2
 if PY2:
     from io import BytesIO as StringIO  # noqa: F811
+from past.builtins import unicode
 
 from twisted.python import log as twlog
 from twisted.application import service
@@ -210,6 +210,8 @@ def config_from_string(basedir, portnumfile, config_str, _valid_config=None):
         _valid_config = _common_valid_config()
 
     # load configuration from in-memory string
+    if not PY2:
+        config_str = unicode(config_str, "utf-8")
     parser = configparser.SafeConfigParser()
     parser.readfp(StringIO(config_str))
 
@@ -549,8 +551,8 @@ def _convert_tub_port(s):
     :returns: a proper Twisted endpoint string like (`tcp:X`) is `s`
         is a bare number, or returns `s` as-is
     """
-    if re.search(r'^\d+$', s):
-        return "tcp:{}".format(int(s))
+    if re.search(b'^\\d+$', s):
+        return "tcp:{}".format(int(s)).encode("utf-8")
     return s
 
 
@@ -595,13 +597,15 @@ def _tub_portlocation(config):
             file_tubport = fileutil.read(config.portnum_fname).strip()
             tubport = _convert_tub_port(file_tubport)
         else:
-            tubport = "tcp:%d" % iputil.allocate_tcp_port()
-            fileutil.write_atomically(config.portnum_fname, tubport + "\n",
-                                      mode="")
+            tubport = b"tcp:%d" % iputil.allocate_tcp_port()
+            fileutil.write_atomically(
+                config.portnum_fname,
+                tubport.decode("utf-8") + "\n",
+                mode="")
     else:
-        tubport = _convert_tub_port(cfg_tubport)
+        tubport = _convert_tub_port(cfg_tubport.encode("utf-8"))
 
-    for port in tubport.split(","):
+    for port in tubport.split(b","):
         if port in ("0", "tcp:0"):
             raise ValueError("tub.port cannot be 0: you must choose")
 
@@ -617,7 +621,7 @@ def _tub_portlocation(config):
             raise PrivacyError("tub.location uses AUTO")
         local_addresses = iputil.get_local_addresses_sync()
         # tubport must be like "tcp:12345" or "tcp:12345:morestuff"
-        local_portnum = int(tubport.split(":")[1])
+        local_portnum = int(tubport.split(b":")[1])
     new_locations = []
     for loc in split_location:
         if loc == "AUTO":
@@ -674,7 +678,7 @@ def create_main_tub(config, tub_options,
 
     if portlocation:
         tubport, location = portlocation
-        for port in tubport.split(","):
+        for port in tubport.split(b","):
             if port == "listen:i2p":
                 # the I2P provider will read its section of tahoe.cfg and
                 # return either a fully-formed Endpoint, or a descriptor
@@ -742,7 +746,10 @@ class Node(service.MultiService):
         if self.tub is not None:
             self.nodeid = b32decode(self.tub.tubID.upper())  # binary format
             self.short_nodeid = b32encode(self.nodeid).lower()[:8]  # for printing
-            self.config.write_config_file("my_nodeid", b32encode(self.nodeid).lower() + "\n")
+            self.config.write_config_file(
+                "my_nodeid",
+                b32encode(self.nodeid).lower().decode("ascii") + "\n",
+            )
             self.tub.setServiceParent(self)
         else:
             self.nodeid = self.short_nodeid = None

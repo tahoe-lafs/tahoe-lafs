@@ -8,6 +8,11 @@ from textwrap import dedent
 
 from unittest import skipIf
 
+# Python 2 backwards compatibility
+from future.utils import PY2
+if PY2:
+    from future.builtins import bytes
+
 from twisted.trial import unittest
 from twisted.internet import defer
 from twisted.python import log
@@ -44,7 +49,7 @@ class LoggingMultiService(service.MultiService):
 
 
 # see https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2946
-def testing_tub(config_data=''):
+def testing_tub(config_data=b''):
     """
     Creates a 'main' Tub for testing purposes, from config data
     """
@@ -86,11 +91,11 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
 
     def _test_location(self, basedir, expected_addresses, tub_port=None, tub_location=None, local_addresses=None):
         create_node_dir(basedir, "testing")
-        config_data = "[node]\n"
+        config_data = b"[node]\n"
         if tub_port:
-            config_data += "tub.port = {}\n".format(tub_port)
+            config_data += bytes("tub.port = {}\n".format(tub_port), "utf-8")
         if tub_location is not None:
-            config_data += "tub.location = {}\n".format(tub_location)
+            config_data += bytes("tub.location = {}\n".format(tub_location), "utf-8")
 
         if local_addresses:
             self.patch(iputil, 'get_local_addresses_sync',
@@ -194,8 +199,8 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
         config = read_config(basedir, "portnum")
         self.assertEqual(
             config.items("node"),
-            [(b"nickname", b"foo"),
-             (b"timeout.disconnect", b"12"),
+            [("nickname", "foo"),
+             ("timeout.disconnect", "12"),
             ],
         )
 
@@ -210,7 +215,7 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
         basedir = u"test_node/test_private_config_unreadable"
         create_node_dir(basedir, "testing")
         config = read_config(basedir, "portnum")
-        config.get_or_create_private_config("foo", "contents")
+        config.get_or_create_private_config("foo", b"contents")
         fname = os.path.join(basedir, "private", "foo")
         os.chmod(fname, 0)
 
@@ -256,26 +261,26 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
         f.close()
 
         basedir = fileutil.abspath_expanduser_unicode(basedir)
-        config = config_from_string(basedir, "", "")
+        config = config_from_string(basedir, "", b"")
 
-        self.assertEqual(config.get_private_config("already"), "secret")
+        self.assertEqual(config.get_private_config("already"), b"secret")
         self.assertEqual(config.get_private_config("not", "default"), "default")
         self.assertRaises(MissingConfigEntry, config.get_private_config, "not")
-        value = config.get_or_create_private_config("new", "start")
-        self.assertEqual(value, "start")
-        self.assertEqual(config.get_private_config("new"), "start")
+        value = config.get_or_create_private_config("new", b"start")
+        self.assertEqual(value, b"start")
+        self.assertEqual(config.get_private_config("new"), b"start")
         counter = []
         def make_newer():
             counter.append("called")
-            return "newer"
+            return b"newer"
         value = config.get_or_create_private_config("newer", make_newer)
         self.assertEqual(len(counter), 1)
-        self.assertEqual(value, "newer")
-        self.assertEqual(config.get_private_config("newer"), "newer")
+        self.assertEqual(value, b"newer")
+        self.assertEqual(config.get_private_config("newer"), b"newer")
 
         value = config.get_or_create_private_config("newer", make_newer)
         self.assertEqual(len(counter), 1) # don't call unless necessary
-        self.assertEqual(value, "newer")
+        self.assertEqual(value, b"newer")
 
     def test_write_config_unwritable_file(self):
         """
@@ -285,7 +290,7 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
         """
         basedir = "test_node/configdir"
         fileutil.make_dirs(basedir)
-        config = config_from_string(basedir, "", "")
+        config = config_from_string(basedir, "", b"")
         with open(os.path.join(basedir, "bad"), "w") as f:
             f.write("bad")
         os.chmod(os.path.join(basedir, "bad"), 0o000)
@@ -333,7 +338,7 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
         ns.called = False
         def call_setLogDir(logdir):
             ns.called = True
-            self.failUnless(isinstance(logdir, str), logdir)
+            self.failUnless(isinstance(logdir, bytes), logdir)
         self.patch(foolscap.logging.log, 'setLogDir', call_setLogDir)
 
         create_node_dir(basedir, "nothing to see here")
@@ -363,15 +368,15 @@ class TestMissingPorts(unittest.TestCase):
             return_value=999,
         )
         config_data = (
-            "[node]\n"
-            "tub.port = tcp:777\n"
-            "tub.location = AUTO\n"
+            b"[node]\n"
+            b"tub.port = tcp:777\n"
+            b"tub.location = AUTO\n"
         )
         config = config_from_string(self.basedir, "portnum", config_data)
 
         with get_addr, alloc_port:
             tubport, tublocation = _tub_portlocation(config)
-        self.assertEqual(tubport, "tcp:777")
+        self.assertEqual(tubport, b"tcp:777")
         self.assertEqual(tublocation, "tcp:LOCAL:777")
 
     def test_parsing_defaults(self):
@@ -387,13 +392,13 @@ class TestMissingPorts(unittest.TestCase):
             return_value=999,
         )
         config_data = (
-            "[node]\n"
+            b"[node]\n"
         )
         config = config_from_string(self.basedir, "portnum", config_data)
 
         with get_addr, alloc_port:
             tubport, tublocation = _tub_portlocation(config)
-        self.assertEqual(tubport, "tcp:999")
+        self.assertEqual(tubport, b"tcp:999")
         self.assertEqual(tublocation, "tcp:LOCAL:999")
 
     def test_parsing_location_complex(self):
@@ -409,14 +414,14 @@ class TestMissingPorts(unittest.TestCase):
             return_value=999,
         )
         config_data = (
-            "[node]\n"
-            "tub.location = tcp:HOST:888,AUTO\n"
+            b"[node]\n"
+            b"tub.location = tcp:HOST:888,AUTO\n"
         )
         config = config_from_string(self.basedir, "portnum", config_data)
 
         with get_addr, alloc_port:
             tubport, tublocation = _tub_portlocation(config)
-        self.assertEqual(tubport, "tcp:999")
+        self.assertEqual(tubport, b"tcp:999")
         self.assertEqual(tublocation, "tcp:HOST:888,tcp:LOCAL:999")
 
     def test_parsing_all_disabled(self):
@@ -432,9 +437,9 @@ class TestMissingPorts(unittest.TestCase):
             return_value=999,
         )
         config_data = (
-            "[node]\n"
-            "tub.port = disabled\n"
-            "tub.location = disabled\n"
+            b"[node]\n"
+            b"tub.port = disabled\n"
+            b"tub.location = disabled\n"
         )
         config = config_from_string(self.basedir, "portnum", config_data)
 
@@ -447,8 +452,8 @@ class TestMissingPorts(unittest.TestCase):
         port povided, but empty is an error
         """
         config_data = (
-            "[node]\n"
-            "tub.port = \n"
+            b"[node]\n"
+            b"tub.port = \n"
         )
         config = config_from_string(self.basedir, "portnum", config_data)
 
@@ -464,8 +469,8 @@ class TestMissingPorts(unittest.TestCase):
         location povided, but empty is an error
         """
         config_data = (
-            "[node]\n"
-            "tub.location = \n"
+            b"[node]\n"
+            b"tub.location = \n"
         )
         config = config_from_string(self.basedir, "portnum", config_data)
 
@@ -481,9 +486,9 @@ class TestMissingPorts(unittest.TestCase):
         error to disable port but not location
         """
         config_data = (
-            "[node]\n"
-            "tub.port = disabled\n"
-            "tub.location = not_disabled\n"
+            b"[node]\n"
+            b"tub.port = disabled\n"
+            b"tub.location = not_disabled\n"
         )
         config = config_from_string(self.basedir, "portnum", config_data)
 
@@ -499,9 +504,9 @@ class TestMissingPorts(unittest.TestCase):
         error to disable location but not port
         """
         config_data = (
-            "[node]\n"
-            "tub.port = not_disabled\n"
-            "tub.location = disabled\n"
+            b"[node]\n"
+            b"tub.port = not_disabled\n"
+            b"tub.location = disabled\n"
         )
         config = config_from_string(self.basedir, "portnum", config_data)
 
@@ -545,7 +550,7 @@ enabled = true
 
 class FakeTub(object):
     def __init__(self):
-        self.tubID = base64.b32encode("foo")
+        self.tubID = base64.b32encode(b"foo")
         self.listening_ports = []
     def setOption(self, name, value): pass
     def removeAllConnectionHintHandlers(self): pass
@@ -607,9 +612,13 @@ class Listeners(unittest.TestCase):
 
         with mock.patch("allmydata.node.Tub", return_value=t):
             create_main_tub(config, tub_options, dfh, fch, i2p_provider, tor_provider)
-        self.assertEqual(t.listening_ports,
-                         ["tcp:%d:interface=127.0.0.1" % port1,
-                          "tcp:%d:interface=127.0.0.1" % port2])
+        self.assertEqual(
+            t.listening_ports,
+            [
+                b"tcp:%d:interface=127.0.0.1" % port1,
+                b"tcp:%d:interface=127.0.0.1" % port2,
+            ],
+        )
 
     def test_tor_i2p_listeners(self):
         basedir = self.mktemp()

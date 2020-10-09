@@ -11,7 +11,7 @@ from ..util.i2p_provider import create as create_i2p_provider
 from ..util.tor_provider import create as create_tor_provider
 
 
-BASECONFIG = ""
+BASECONFIG = b""
 
 
 class TCP(unittest.TestCase):
@@ -35,7 +35,7 @@ class Tor(unittest.TestCase):
         config = config_from_string(
             "fake.port",
             "no-basedir",
-            BASECONFIG + "[tor]\nenabled = false\n",
+            BASECONFIG + b"[tor]\nenabled = false\n",
         )
         tor_provider = create_tor_provider(reactor, config)
         h = tor_provider.get_tor_handler()
@@ -62,7 +62,7 @@ class Tor(unittest.TestCase):
 
     def _do_test_launch(self, executable):
         # the handler is created right away
-        config = BASECONFIG+"[tor]\nlaunch = true\n"
+        config = BASECONFIG + b"[tor]\nlaunch = true\n"
         if executable:
             config += "tor.executable = %s\n" % executable
         h1 = mock.Mock()
@@ -109,7 +109,10 @@ class Tor(unittest.TestCase):
             config = config_from_string(
                 "fake.port",
                 "no-basedir",
-                BASECONFIG + "[tor]\nsocks.port = unix:/var/lib/fw-daemon/tor_socks.socket\n",
+                (
+                    BASECONFIG +
+                    b"[tor]\nsocks.port = unix:/var/lib/fw-daemon/tor_socks.socket\n"
+                ),
             )
             tor_provider = create_tor_provider(reactor, config)
             h = tor_provider.get_tor_handler()
@@ -123,7 +126,7 @@ class Tor(unittest.TestCase):
             config = config_from_string(
                 "fake.port",
                 "no-basedir",
-                BASECONFIG + "[tor]\nsocks.port = tcp:127.0.0.1:1234\n",
+                BASECONFIG + b"[tor]\nsocks.port = tcp:127.0.0.1:1234\n",
             )
             tor_provider = create_tor_provider(reactor, config)
             h = tor_provider.get_tor_handler()
@@ -137,7 +140,7 @@ class Tor(unittest.TestCase):
             config = config_from_string(
                 "no-basedir",
                 "fake.port",
-                BASECONFIG + "[tor]\nsocks.port = tcp:otherhost:1234\n",
+                BASECONFIG + b"[tor]\nsocks.port = tcp:otherhost:1234\n",
             )
             tor_provider = create_tor_provider(reactor, config)
             h = tor_provider.get_tor_handler()
@@ -148,7 +151,7 @@ class Tor(unittest.TestCase):
         config = config_from_string(
             "fake.port",
             "no-basedir",
-            BASECONFIG + "[tor]\nsocks.port = meow:unsupported\n",
+            BASECONFIG + b"[tor]\nsocks.port = meow:unsupported\n",
         )
         with self.assertRaises(ValueError) as ctx:
             tor_provider = create_tor_provider(reactor, config)
@@ -162,7 +165,7 @@ class Tor(unittest.TestCase):
         config = config_from_string(
             "fake.port",
             "no-basedir",
-            BASECONFIG + "[tor]\nsocks.port = tcp:localhost:kumquat\n",
+            BASECONFIG + b"[tor]\nsocks.port = tcp:localhost:kumquat\n",
         )
         with self.assertRaises(ValueError) as ctx:
             tor_provider = create_tor_provider(reactor, config)
@@ -179,7 +182,7 @@ class Tor(unittest.TestCase):
             config = config_from_string(
                 "fake.port",
                 "no-basedir",
-                BASECONFIG + "[tor]\ncontrol.port = tcp:localhost:1234\n",
+                BASECONFIG + b"[tor]\ncontrol.port = tcp:localhost:1234\n",
             )
             tor_provider = create_tor_provider(reactor, config)
             h = tor_provider.get_tor_handler()
@@ -194,7 +197,7 @@ class I2P(unittest.TestCase):
         config = config_from_string(
             "fake.port",
             "no-basedir",
-            BASECONFIG + "[i2p]\nenabled = false\n",
+            BASECONFIG + b"[i2p]\nenabled = false\n",
         )
         i2p_provider = create_i2p_provider(None, config)
         h = i2p_provider.get_i2p_handler()
@@ -226,7 +229,7 @@ class I2P(unittest.TestCase):
         config = config_from_string(
             "fake.port",
             "no-basedir",
-            BASECONFIG + "[i2p]\nsam.port = tcp:localhost:1234\n",
+            BASECONFIG + b"[i2p]\nsam.port = tcp:localhost:1234\n",
         )
         h1 = mock.Mock()
         with mock.patch("foolscap.connections.i2p.sam_endpoint",
@@ -243,8 +246,12 @@ class I2P(unittest.TestCase):
         config = config_from_string(
             "no-basedir",
             "fake.port",
-            BASECONFIG + "[i2p]\n" +
-            "sam.port = tcp:localhost:1234\n" + "launch = true\n",
+            (
+                BASECONFIG +
+                b"[i2p]\n" +
+                b"sam.port = tcp:localhost:1234\n" +
+                b"launch = true\n"
+            ),
         )
         with self.assertRaises(ValueError) as ctx:
             i2p_provider = create_i2p_provider(reactor, config)
@@ -258,7 +265,7 @@ class I2P(unittest.TestCase):
         config = config_from_string(
             "fake.port",
             "no-basedir",
-            BASECONFIG + "[i2p]\nlaunch = true\n",
+            BASECONFIG + b"[i2p]\nlaunch = true\n",
         )
         h1 = mock.Mock()
         with mock.patch("foolscap.connections.i2p.launch",
@@ -273,7 +280,11 @@ class I2P(unittest.TestCase):
         config = config_from_string(
             "fake.port",
             "no-basedir",
-            BASECONFIG + "[i2p]\nlaunch = true\n" + "i2p.executable = i2p\n",
+            (
+                BASECONFIG +
+                b"[i2p]\nlaunch = true\n" +
+                b"i2p.executable = i2p\n"
+            ),
         )
         h1 = mock.Mock()
         with mock.patch("foolscap.connections.i2p.launch",
@@ -288,7 +299,11 @@ class I2P(unittest.TestCase):
         config = config_from_string(
             "fake.port",
             "no-basedir",
-            BASECONFIG + "[i2p]\nlaunch = true\n" + "i2p.configdir = cfg\n",
+            (
+                BASECONFIG +
+                b"[i2p]\nlaunch = true\n" +
+                b"i2p.configdir = cfg\n"
+            ),
         )
         h1 = mock.Mock()
         with mock.patch("foolscap.connections.i2p.launch",
@@ -303,8 +318,12 @@ class I2P(unittest.TestCase):
         config = config_from_string(
             "no-basedir",
             "fake.port",
-            BASECONFIG + "[i2p]\nlaunch = true\n" +
-            "i2p.executable = i2p\n" + "i2p.configdir = cfg\n",
+            (
+                BASECONFIG +
+                b"[i2p]\nlaunch = true\n" +
+                b"i2p.executable = i2p\n" +
+                b"i2p.configdir = cfg\n"
+            ),
         )
         h1 = mock.Mock()
         with mock.patch("foolscap.connections.i2p.launch",
@@ -319,7 +338,7 @@ class I2P(unittest.TestCase):
         config = config_from_string(
             "fake.port",
             "no-basedir",
-            BASECONFIG + "[i2p]\ni2p.configdir = cfg\n",
+            BASECONFIG + b"[i2p]\ni2p.configdir = cfg\n",
         )
         h1 = mock.Mock()
         with mock.patch("foolscap.connections.i2p.local_i2p",
@@ -346,7 +365,7 @@ class Connections(unittest.TestCase):
         config = config_from_string(
             "fake.port",
             "no-basedir",
-            BASECONFIG + "[connections]\ntcp = tor\n",
+            BASECONFIG + b"[connections]\ntcp = tor\n",
         )
         default_connection_handlers, _ = create_connection_handlers(None, config, mock.Mock(), mock.Mock())
 
@@ -360,7 +379,7 @@ class Connections(unittest.TestCase):
             self.config = config_from_string(
                 "fake.port",
                 "no-basedir",
-                BASECONFIG + "[connections]\ntcp = tor\n",
+                BASECONFIG + b"[connections]\ntcp = tor\n",
             )
             with self.assertRaises(ValueError) as ctx:
                 tor_provider = create_tor_provider(reactor, self.config)
@@ -376,7 +395,7 @@ class Connections(unittest.TestCase):
         config = config_from_string(
             "fake.port",
             "no-basedir",
-            BASECONFIG + "[connections]\ntcp = unknown\n",
+            BASECONFIG + b"[connections]\ntcp = unknown\n",
         )
         with self.assertRaises(ValueError) as ctx:
             create_connection_handlers(None, config, mock.Mock(), mock.Mock())
@@ -387,7 +406,7 @@ class Connections(unittest.TestCase):
         config = config_from_string(
             "fake.port",
             "no-basedir",
-            BASECONFIG + "[connections]\ntcp = disabled\n",
+            BASECONFIG + b"[connections]\ntcp = disabled\n",
         )
         default_connection_handlers, _ = create_connection_handlers(None, config, mock.Mock(), mock.Mock())
         self.assertEqual(default_connection_handlers["tcp"], None)
@@ -400,7 +419,7 @@ class Privacy(unittest.TestCase):
         config = config_from_string(
             "fake.port",
             "no-basedir",
-            BASECONFIG + "[node]\nreveal-IP-address = false\n",
+            BASECONFIG + b"[node]\nreveal-IP-address = false\n",
         )
 
         with self.assertRaises(PrivacyError) as ctx:
@@ -415,8 +434,11 @@ class Privacy(unittest.TestCase):
         config = config_from_string(
             "no-basedir",
             "fake.port",
-            BASECONFIG + "[connections]\ntcp = disabled\n" +
-            "[node]\nreveal-IP-address = false\n",
+            (
+                BASECONFIG +
+                b"[connections]\ntcp = disabled\n" +
+                b"[node]\nreveal-IP-address = false\n"
+            ),
         )
         default_connection_handlers, _ = create_connection_handlers(None, config, mock.Mock(), mock.Mock())
         self.assertEqual(default_connection_handlers["tcp"], None)
@@ -425,7 +447,7 @@ class Privacy(unittest.TestCase):
         config = config_from_string(
             "fake.port",
             "no-basedir",
-            BASECONFIG + "[node]\nreveal-IP-address = false\n",
+            BASECONFIG + b"[node]\nreveal-IP-address = false\n",
         )
 
         with self.assertRaises(PrivacyError) as ctx:
@@ -439,7 +461,10 @@ class Privacy(unittest.TestCase):
         config = config_from_string(
             "fake.port",
             "no-basedir",
-            BASECONFIG + "[node]\nreveal-IP-address = false\ntub.location=tcp:hostname:1234\n",
+            (
+                BASECONFIG +
+                b"[node]\nreveal-IP-address = false\ntub.location=tcp:hostname:1234\n"
+            ),
         )
         with self.assertRaises(PrivacyError) as ctx:
             _tub_portlocation(config)
@@ -452,7 +477,10 @@ class Privacy(unittest.TestCase):
         config = config_from_string(
             "fake.port",
             "no-basedir",
-            BASECONFIG + "[node]\nreveal-IP-address = false\ntub.location=hostname:1234\n",
+            (
+                BASECONFIG +
+                b"[node]\nreveal-IP-address = false\ntub.location=hostname:1234\n"
+            ),
         )
 
         with self.assertRaises(PrivacyError) as ctx:

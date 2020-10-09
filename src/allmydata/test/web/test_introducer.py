@@ -184,7 +184,7 @@ class IntroducerRootTests(unittest.TestCase):
         The JSON response includes totals for the number of subscriptions and
         announcements of each service type.
         """
-        config = node.config_from_string(self.mktemp(), "", "")
+        config = node.config_from_string(self.mktemp(), "", b"")
         config.get_private_path = lambda ignored: self.mktemp()
         main_tub = Tub()
         main_tub.listenOn(b"tcp:0")

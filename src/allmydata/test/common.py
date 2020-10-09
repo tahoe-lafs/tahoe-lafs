@@ -94,9 +94,9 @@ from .common_util import ShouldFailMixin  # noqa: F401
 TEST_RSA_KEY_SIZE = 522
 
 EMPTY_CLIENT_CONFIG = config_from_string(
-    "/dev/null",
-    "tub.port",
-    ""
+    b"/dev/null",
+    b"tub.port",
+    b""
 )
 
 
@@ -249,8 +249,8 @@ class UseNode(object):
 
         self.config = config_from_string(
             self.basedir.asTextMode().path,
-            "tub.port",
-"""
+            u"tub.port",
+b"""
 [node]
 {node_config}
 

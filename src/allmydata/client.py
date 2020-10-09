@@ -7,6 +7,11 @@ try:
 except ImportError:
     from configparser import NoSectionError
 
+# Python 2 backwards compatibility
+from future.utils import PY2
+if PY2:
+    from future.builtins import bytes
+
 from foolscap.furl import (
     decode_furl,
 )
@@ -781,7 +786,10 @@ class _Client(node.Node, pollmixin.PollMixin):
                 vk_string = ed25519.string_from_verifying_key(self._node_public_key)
                 vk_bytes = remove_prefix(vk_string, ed25519.PUBLIC_KEY_PREFIX)
                 seed = base32.b2a(vk_bytes)
-            self.config.write_config_file("permutation-seed", seed+"\n")
+            self.config.write_config_file(
+                "permutation-seed",
+                seed.decode("ascii") + "\n",
+            )
         return seed.strip()
 
     def get_anonymous_storage_server(self):
@@ -806,7 +814,9 @@ class _Client(node.Node, pollmixin.PollMixin):
 
         config_storedir = self.get_config(
             "storage", "storage_dir", self.STOREDIR,
-        ).decode('utf-8')
+        )
+        if PY2:
+            config_storedir = config_storedir.decode("utf-8")
         storedir = self.config.get_config_path(config_storedir)
 
         data = self.config.get_config("storage", "reserved_space", None)
@@ -1021,7 +1031,10 @@ class _Client(node.Node, pollmixin.PollMixin):
         c = ControlServer()
         c.setServiceParent(self)
         control_url = self.control_tub.registerReference(c)
-        self.config.write_private_config("control.furl", control_url + b"\n")
+        self.config.write_private_config(
+            "control.furl",
+            bytes(control_url, "utf-8") + b"\n",
+        )
 
     def init_helper(self):
         self.helper = Helper(self.config.get_config_path("helper"),

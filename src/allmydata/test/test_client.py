@@ -75,13 +75,15 @@ from .matchers import (
 
 SOME_FURL = b"pb://abcde@nowhere/fake"
 
-BASECONFIG = ("[client]\n"
-              "introducer.furl = \n"
-              )
+BASECONFIG = (
+    b"[client]\n"
+    b"introducer.furl = \n"
+)
 
-BASECONFIG_I = ("[client]\n"
-              "introducer.furl = %s\n"
-              )
+BASECONFIG_I = (
+    b"[client]\n"
+    b"introducer.furl = %s\n"
+)
 
 class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
     def test_loadable(self):
@@ -165,11 +167,13 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
     def test_error_on_old_config_files(self):
         basedir = "test_client.Basic.test_error_on_old_config_files"
         os.mkdir(basedir)
-        fileutil.write(os.path.join(basedir, "tahoe.cfg"),
-                       BASECONFIG +
-                       "[storage]\n" +
-                       "enabled = false\n" +
-                       "reserved_space = bogus\n")
+        fileutil.write(
+            os.path.join(basedir, "tahoe.cfg"),
+            BASECONFIG +
+            b"[storage]\n" +
+            b"enabled = false\n" +
+            b"reserved_space = bogus\n",
+        )
         fileutil.write(os.path.join(basedir, "introducer.furl"), "")
         fileutil.write(os.path.join(basedir, "no_storage"), "")
         fileutil.write(os.path.join(basedir, "readonly_storage"), "")
@@ -241,8 +245,10 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
         """
         basedir = "test_client.Basic.test_nodekey_no_storage"
         os.mkdir(basedir)
-        fileutil.write(os.path.join(basedir, "tahoe.cfg"),
-                       BASECONFIG + "[storage]\n" + "enabled = false\n")
+        fileutil.write(
+            os.path.join(basedir, "tahoe.cfg"),
+            BASECONFIG + b"[storage]\n" + b"enabled = false\n",
+        )
         c = yield client.create_client(basedir)
         self.failUnless(c.get_long_nodeid().startswith("v0-"))
 
@@ -252,11 +258,11 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
         is not set.
         """
         config = client.config_from_string(
-            "test_storage_default_anonymous_enabled",
-            "tub.port",
+            b"test_storage_default_anonymous_enabled",
+            b"tub.port",
             BASECONFIG + (
-                "[storage]\n"
-                "enabled = true\n"
+                b"[storage]\n"
+                b"enabled = true\n"
             )
         )
         self.assertTrue(client.anonymous_storage_enabled(config))
@@ -268,11 +274,11 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
         """
         config = client.config_from_string(
             self.id(),
-            "tub.port",
+            b"tub.port",
             BASECONFIG + (
-                "[storage]\n"
-                "enabled = true\n"
-                "anonymous = true\n"
+                b"[storage]\n"
+                b"enabled = true\n"
+                b"anonymous = true\n"
             )
         )
         self.assertTrue(client.anonymous_storage_enabled(config))
@@ -284,11 +290,11 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
         """
         config = client.config_from_string(
             self.id(),
-            "tub.port",
+            b"tub.port",
             BASECONFIG + (
-                "[storage]\n"
-                "enabled = true\n"
-                "anonymous = false\n"
+                b"[storage]\n"
+                b"enabled = true\n"
+                b"anonymous = false\n"
             )
         )
         self.assertFalse(client.anonymous_storage_enabled(config))
@@ -300,11 +306,11 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
         """
         config = client.config_from_string(
             self.id(),
-            "tub.port",
+            b"tub.port",
             BASECONFIG + (
-                "[storage]\n"
-                "enabled = false\n"
-                "anonymous = true\n"
+                b"[storage]\n"
+                b"enabled = false\n"
+                b"anonymous = true\n"
             )
         )
         self.assertFalse(client.anonymous_storage_enabled(config))
@@ -316,11 +322,13 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
         """
         basedir = "client.Basic.test_reserved_1"
         os.mkdir(basedir)
-        fileutil.write(os.path.join(basedir, "tahoe.cfg"), \
-                           BASECONFIG + \
-                           "[storage]\n" + \
-                           "enabled = true\n" + \
-                           "reserved_space = 1000\n")
+        fileutil.write(
+            os.path.join(basedir, "tahoe.cfg"),
+            BASECONFIG +
+            b"[storage]\n" +
+            b"enabled = true\n" +
+            b"reserved_space = 1000\n",
+        )
         c = yield client.create_client(basedir)
         self.failUnlessEqual(c.getServiceNamed("storage").reserved_space, 1000)
 
@@ -331,11 +339,13 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
         """
         basedir = "client.Basic.test_reserved_2"
         os.mkdir(basedir)
-        fileutil.write(os.path.join(basedir, "tahoe.cfg"),  \
-                           BASECONFIG + \
-                           "[storage]\n" + \
-                           "enabled = true\n" + \
-                           "reserved_space = 10K\n")
+        fileutil.write(
+            os.path.join(basedir, "tahoe.cfg"),
+            BASECONFIG +
+            b"[storage]\n" +
+            b"enabled = true\n" +
+            b"reserved_space = 10K\n",
+        )
         c = yield client.create_client(basedir)
         self.failUnlessEqual(c.getServiceNamed("storage").reserved_space, 10*1000)
 
@@ -346,11 +356,13 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
         """
         basedir = "client.Basic.test_reserved_3"
         os.mkdir(basedir)
-        fileutil.write(os.path.join(basedir, "tahoe.cfg"), \
-                           BASECONFIG + \
-                           "[storage]\n" + \
-                           "enabled = true\n" + \
-                           "reserved_space = 5mB\n")
+        fileutil.write(
+            os.path.join(basedir, "tahoe.cfg"),
+            BASECONFIG +
+            b"[storage]\n" +
+            b"enabled = true\n" +
+            b"reserved_space = 5mB\n",
+        )
         c = yield client.create_client(basedir)
         self.failUnlessEqual(c.getServiceNamed("storage").reserved_space,
                              5*1000*1000)
@@ -362,11 +374,13 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
         """
         basedir = "client.Basic.test_reserved_4"
         os.mkdir(basedir)
-        fileutil.write(os.path.join(basedir, "tahoe.cfg"), \
-                           BASECONFIG + \
-                           "[storage]\n" + \
-                           "enabled = true\n" + \
-                           "reserved_space = 78Gb\n")
+        fileutil.write(
+            os.path.join(basedir, "tahoe.cfg"),
+            BASECONFIG +
+            b"[storage]\n" +
+            b"enabled = true\n" +
+            b"reserved_space = 78Gb\n",
+        )
         c = yield client.create_client(basedir)
         self.failUnlessEqual(c.getServiceNamed("storage").reserved_space,
                              78*1000*1000*1000)
@@ -378,11 +392,13 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
         """
         basedir = "client.Basic.test_reserved_bad"
         os.mkdir(basedir)
-        fileutil.write(os.path.join(basedir, "tahoe.cfg"), \
-                           BASECONFIG + \
-                           "[storage]\n" + \
-                           "enabled = true\n" + \
-                           "reserved_space = bogus\n")
+        fileutil.write(
+            os.path.join(basedir, "tahoe.cfg"), \
+            BASECONFIG + \
+            b"[storage]\n" + \
+            b"enabled = true\n" + \
+            b"reserved_space = bogus\n",
+        )
         with self.assertRaises(ValueError):
             yield client.create_client(basedir)
 
@@ -410,11 +426,13 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
         """
         basedir = u"client.Basic.test_web_staticdir"
         os.mkdir(basedir)
-        fileutil.write(os.path.join(basedir, "tahoe.cfg"),
-                       BASECONFIG +
-                       "[node]\n" +
-                       "web.port = tcp:0:interface=127.0.0.1\n" +
-                       "web.static = relative\n")
+        fileutil.write(
+            os.path.join(basedir, "tahoe.cfg"),
+            BASECONFIG +
+            b"[node]\n" +
+            b"web.port = tcp:0:interface=127.0.0.1\n" +
+            b"web.static = relative\n",
+        )
         c = yield client.create_client(basedir)
         w = c.getServiceNamed("webish")
         abs_basedir = fileutil.abspath_expanduser_unicode(basedir)
@@ -449,12 +467,13 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
         """
         basedir = u"client.Basic.test_ftp_auth_keyfile"
         os.mkdir(basedir)
-        fileutil.write(os.path.join(basedir, "tahoe.cfg"),
-                       (BASECONFIG +
-                        "[ftpd]\n"
-                        "enabled = true\n"
-                        "port = tcp:0:interface=127.0.0.1\n"
-                        "accounts.file = private/accounts\n"))
+        fileutil.write(os.path.join(basedir, "tahoe.cfg"), (
+            BASECONFIG +
+            b"[ftpd]\n"
+            b"enabled = true\n"
+            b"port = tcp:0:interface=127.0.0.1\n"
+            b"accounts.file = private/accounts\n"
+        ))
         os.mkdir(os.path.join(basedir, "private"))
         fileutil.write(os.path.join(basedir, "private", "accounts"), "\n")
         c = yield client.create_client(basedir) # just make sure it can be instantiated
@@ -467,12 +486,13 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
         """
         basedir = u"client.Basic.test_ftp_auth_url"
         os.mkdir(basedir)
-        fileutil.write(os.path.join(basedir, "tahoe.cfg"),
-                       (BASECONFIG +
-                        "[ftpd]\n"
-                        "enabled = true\n"
-                        "port = tcp:0:interface=127.0.0.1\n"
-                        "accounts.url = http://0.0.0.0/\n"))
+        fileutil.write(os.path.join(basedir, "tahoe.cfg"), (
+            BASECONFIG +
+            b"[ftpd]\n"
+            b"enabled = true\n"
+            b"port = tcp:0:interface=127.0.0.1\n"
+            b"accounts.url = http://0.0.0.0/\n"
+        ))
         c = yield client.create_client(basedir) # just make sure it can be instantiated
         del c
 
@@ -483,11 +503,12 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
         """
         basedir = u"client.Basic.test_ftp_auth_no_accountfile_or_url"
         os.mkdir(basedir)
-        fileutil.write(os.path.join(basedir, "tahoe.cfg"),
-                       (BASECONFIG +
-                        "[ftpd]\n"
-                        "enabled = true\n"
-                        "port = tcp:0:interface=127.0.0.1\n"))
+        fileutil.write(os.path.join(basedir, "tahoe.cfg"), (
+            BASECONFIG +
+            b"[ftpd]\n"
+            b"enabled = true\n"
+            b"port = tcp:0:interface=127.0.0.1\n"
+        ))
         with self.assertRaises(NeedRootcapLookupScheme):
             yield client.create_client(basedir)
 
@@ -501,13 +522,13 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
         fileutil.write(
             cfg_path,
             BASECONFIG +
-            "[storage]\n"
-            "enabled = true\n",
+            b"[storage]\n"
+            b"enabled = true\n",
         )
         if storage_path is not None:
             fileutil.write(
                 cfg_path,
-                "storage_dir = %s\n" % (storage_path,),
+                b"storage_dir = %s\n" % (storage_path,),
                 mode="ab",
         )
         c = yield client.create_client(basedir)
@@ -615,10 +636,12 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
         """
         basedir = "test_client.Basic.test_versions"
         os.mkdir(basedir)
-        fileutil.write(os.path.join(basedir, "tahoe.cfg"), \
-                           BASECONFIG + \
-                           "[storage]\n" + \
-                           "enabled = true\n")
+        fileutil.write(
+            os.path.join(basedir, "tahoe.cfg"),
+            BASECONFIG +
+            b"[storage]\n" +
+            b"enabled = true\n",
+        )
         c = yield client.create_client(basedir)
         ss = c.getServiceNamed("storage")
         verdict = ss.remote_get_version()
@@ -652,10 +675,10 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
             self.failUnlessEqual(furl, expected_furl)
 
         yield _check("", None)
-        yield _check("helper.furl =\n", None)
-        yield _check("helper.furl = \n", None)
-        yield _check("helper.furl = None", None)
-        yield _check("helper.furl = pb://blah\n", "pb://blah")
+        yield _check(b"helper.furl =\n", None)
+        yield _check(b"helper.furl = \n", None)
+        yield _check(b"helper.furl = None", None)
+        yield _check(b"helper.furl = pb://blah\n", "pb://blah")
 
 
 def flush_but_dont_ignore(res):
@@ -680,11 +703,11 @@ class AnonymousStorage(SyncTestCase):
         os.makedirs(basedir + b"/private")
         config = client.config_from_string(
             basedir,
-            "tub.port",
+            b"tub.port",
             BASECONFIG_I % (SOME_FURL,) + (
-                "[storage]\n"
-                "enabled = true\n"
-                "anonymous = true\n"
+                b"[storage]\n"
+                b"enabled = true\n"
+                b"anonymous = true\n"
             )
         )
         node = yield client.create_client_from_config(
@@ -711,11 +734,11 @@ class AnonymousStorage(SyncTestCase):
         os.makedirs(basedir + b"/private")
         config = client.config_from_string(
             basedir,
-            "tub.port",
+            b"tub.port",
             BASECONFIG_I % (SOME_FURL,) + (
-                "[storage]\n"
-                "enabled = true\n"
-                "anonymous = false\n"
+                b"[storage]\n"
+                b"enabled = true\n"
+                b"anonymous = false\n"
             )
         )
         node = yield client.create_client_from_config(
@@ -732,7 +755,7 @@ class AnonymousStorage(SyncTestCase):
             ]),
         )
         self.expectThat(
-            config.get_private_config("storage.furl", default=None),
+            config.get_private_config(b"storage.furl", default=None),
             Is(None),
         )
 
@@ -748,18 +771,18 @@ class AnonymousStorage(SyncTestCase):
         os.makedirs(basedir + b"/private")
         enabled_config = client.config_from_string(
             basedir,
-            "tub.port",
+            b"tub.port",
             BASECONFIG_I % (SOME_FURL,) + (
-                "[storage]\n"
-                "enabled = true\n"
-                "anonymous = true\n"
+                b"[storage]\n"
+                b"enabled = true\n"
+                b"anonymous = true\n"
             )
         )
         node = yield client.create_client_from_config(
             enabled_config,
             _introducer_factory=MemoryIntroducerClient,
         )
-        anonymous_storage_furl = enabled_config.get_private_config("storage.furl")
+        anonymous_storage_furl = enabled_config.get_private_config(b"storage.furl")
         def check_furl():
             return node.tub.getReferenceForURL(anonymous_storage_furl)
         # Perform a sanity check that our test code makes sense: is this a
@@ -772,11 +795,11 @@ class AnonymousStorage(SyncTestCase):
 
         disabled_config = client.config_from_string(
             basedir,
-            "tub.port",
+            b"tub.port",
             BASECONFIG_I % (SOME_FURL,) + (
-                "[storage]\n"
-                "enabled = true\n"
-                "anonymous = false\n"
+                b"[storage]\n"
+                b"enabled = true\n"
+                b"anonymous = false\n"
             )
         )
         node = yield client.create_client_from_config(
@@ -797,8 +820,8 @@ class IntroducerClients(unittest.TestCase):
         create_introducer_clients to fail.
         """
         cfg = (
-            "[client]\n"
-            "introducer.furl = None\n"
+            b"[client]\n"
+            b"introducer.furl = None\n"
         )
         config = client.config_from_string("basedir", "client.port", cfg)
 
@@ -1137,8 +1160,8 @@ class StorageAnnouncementTests(SyncTestCase):
         create_node_dir(self.basedir, u"")
 
 
-    def get_config(self, storage_enabled, more_storage="", more_sections=""):
-        return """
+    def get_config(self, storage_enabled, more_storage=b"", more_sections=b""):
+        return b"""
 [node]
 tub.location = tcp:192.0.2.0:1234
 
@@ -1163,7 +1186,7 @@ introducer.furl = pb://abcde@nowhere/fake
         """
         config = client.config_from_string(
             self.basedir,
-            "tub.port",
+            u"tub.port",
             self.get_config(storage_enabled=False),
         )
         self.assertThat(
@@ -1185,7 +1208,7 @@ introducer.furl = pb://abcde@nowhere/fake
         """
         config = client.config_from_string(
             self.basedir,
-            "tub.port",
+            u"tub.port",
             self.get_config(storage_enabled=True),
         )
         client_deferred = client.create_client_from_config(
@@ -1217,13 +1240,13 @@ introducer.furl = pb://abcde@nowhere/fake
         value = u"thing"
         config = client.config_from_string(
             self.basedir,
-            "tub.port",
+            u"tub.port",
             self.get_config(
                 storage_enabled=True,
-                more_storage="plugins=tahoe-lafs-dummy-v1",
+                more_storage=b"plugins=tahoe-lafs-dummy-v1",
                 more_sections=(
-                    "[storageserver.plugins.tahoe-lafs-dummy-v1]\n"
-                    "some = {}\n".format(value)
+                    b"[storageserver.plugins.tahoe-lafs-dummy-v1]\n"
+                    b"some = {}\n".format(value)
                 ),
             ),
         )
@@ -1258,15 +1281,15 @@ introducer.furl = pb://abcde@nowhere/fake
 
         config = client.config_from_string(
             self.basedir,
-            "tub.port",
+            u"tub.port",
             self.get_config(
                 storage_enabled=True,
-                more_storage="plugins=tahoe-lafs-dummy-v1,tahoe-lafs-dummy-v2",
+                more_storage=b"plugins=tahoe-lafs-dummy-v1,tahoe-lafs-dummy-v2",
                 more_sections=(
-                    "[storageserver.plugins.tahoe-lafs-dummy-v1]\n"
-                    "some = thing-1\n"
-                    "[storageserver.plugins.tahoe-lafs-dummy-v2]\n"
-                    "some = thing-2\n"
+                    b"[storageserver.plugins.tahoe-lafs-dummy-v1]\n"
+                    b"some = thing-1\n"
+                    b"[storageserver.plugins.tahoe-lafs-dummy-v2]\n"
+                    b"some = thing-2\n"
                 ),
             ),
         )
@@ -1306,13 +1329,13 @@ introducer.furl = pb://abcde@nowhere/fake
 
         config = client.config_from_string(
             self.basedir,
-            "tub.port",
+            u"tub.port",
             self.get_config(
                 storage_enabled=True,
-                more_storage="plugins=tahoe-lafs-dummy-v1",
+                more_storage=b"plugins=tahoe-lafs-dummy-v1",
                 more_sections=(
-                    "[storageserver.plugins.tahoe-lafs-dummy-v1]\n"
-                    "some = thing\n"
+                    b"[storageserver.plugins.tahoe-lafs-dummy-v1]\n"
+                    b"some = thing\n"
                 ),
             ),
         )
@@ -1342,10 +1365,10 @@ introducer.furl = pb://abcde@nowhere/fake
 
         config = client.config_from_string(
             self.basedir,
-            "tub.port",
+            u"tub.port",
             self.get_config(
                 storage_enabled=True,
-                more_storage="plugins=tahoe-lafs-dummy-v1",
+                more_storage=b"plugins=tahoe-lafs-dummy-v1",
             ),
         )
         self.assertThat(
@@ -1380,14 +1403,14 @@ introducer.furl = pb://abcde@nowhere/fake
 
         config = client.config_from_string(
             self.basedir,
-            "tub.port",
+            u"tub.port",
             self.get_config(
                 storage_enabled=True,
-                more_storage="plugins=tahoe-lafs-dummy-v1",
+                more_storage=b"plugins=tahoe-lafs-dummy-v1",
                 more_sections=(
-                    "[storageserver.plugins.tahoe-lafs-dummy-v1]\n"
+                    b"[storageserver.plugins.tahoe-lafs-dummy-v1]\n"
                     # This will make it explode on instantiation.
-                    "invalid = configuration\n"
+                    b"invalid = configuration\n"
                 )
             ),
         )
@@ -1407,10 +1430,10 @@ introducer.furl = pb://abcde@nowhere/fake
         """
         config = client.config_from_string(
             self.basedir,
-            "tub.port",
+            u"tub.port",
             self.get_config(
                 storage_enabled=True,
-                more_storage="plugins=tahoe-lafs-dummy-vX",
+                more_storage=b"plugins=tahoe-lafs-dummy-vX",
             ),
         )
         self.assertThat(
