@@ -199,6 +199,11 @@ class StorageFarmBroker(service.MultiService):
                 # information.
                 pass
             else:
+                if isinstance(server_id, unicode):
+                    # Depending on where the ID came from (e.g. config file),
+                    # it might be a Unicode string. Server IDs are however
+                    # supposed to be bytes.
+                    server_id = server_id.encode("utf-8")
                 self._static_server_ids.add(server_id)
                 self.servers[server_id] = storage_server
                 storage_server.setServiceParent(self)
@@ -293,8 +298,8 @@ class StorageFarmBroker(service.MultiService):
         self._threshold_listeners = remaining
 
     def _got_announcement(self, key_s, ann):
-        precondition(isinstance(key_s, str), key_s)
-        precondition(key_s.startswith("v0-"), key_s)
+        precondition(isinstance(key_s, bytes), key_s)
+        precondition(key_s.startswith(b"v0-"), key_s)
         precondition(ann["service-name"] == "storage", ann["service-name"])
         server_id = key_s
         if server_id in self._static_server_ids:
