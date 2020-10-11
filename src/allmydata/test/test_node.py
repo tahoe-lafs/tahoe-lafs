@@ -3,6 +3,7 @@ import os
 import stat
 import sys
 import time
+import shutil
 import mock
 from textwrap import dedent
 
@@ -149,15 +150,20 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
 
     def test_tahoe_cfg_utf8(self):
         basedir = "test_node/test_tahoe_cfg_utf8"
-        fileutil.make_dirs(basedir)
-        f = open(os.path.join(basedir, 'tahoe.cfg'), 'wt')
-        f.write(u"\uFEFF[node]\n".encode('utf-8'))
-        f.write(u"nickname = \u2621\n".encode('utf-8'))
-        f.close()
+        shutil.copytree(
+            os.path.join(os.path.dirname(__file__), "data", basedir),
+            basedir,
+        )
 
         config = read_config(basedir, "")
-        self.failUnlessEqual(config.get_config("node", "nickname").decode('utf-8'),
-                             u"\u2621")
+        expected = u"\u2621"
+        if PY2:
+            expected = expected.encode("utf-8")
+        self.failUnlessEqual(
+            config.get_config("node", "nickname"),
+            expected,
+            "Wrong node configuration value with unicode character",
+        )
 
     def test_tahoe_cfg_hash_in_name(self):
         basedir = "test_node/test_cfg_hash_in_name"
