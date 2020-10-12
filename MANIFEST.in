@@ -4,7 +4,7 @@ include relnotes.txt
 include Dockerfile
 include tox.ini .appveyor.yml .travis.yml
 include .coveragerc
-recursive-include src *.xhtml *.js *.png *.css *.svg *.txt
+recursive-include src *.xhtml *.js *.png *.css *.svg *.txt *.cfg
 graft docs
 graft misc
 graft static
