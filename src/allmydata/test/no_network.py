@@ -1,4 +1,17 @@
-"""
+"""This contains a test harness that creates a full Tahoe grid in a single
+process (actually in a single MultiService) which does not use the network.
+It does not use an Introducer, and there are no foolscap Tubs. Each storage
+server puts real shares on disk, but is accessed through loopback
+RemoteReferences instead of over serialized SSL. It is not as complete as
+the common.SystemTestMixin framework (which does use the network), but
+should be considerably faster: on my laptop, it takes 50-80ms to start up,
+whereas SystemTestMixin takes close to 2s.
+
+This should be useful for tests which want to examine and/or manipulate the
+uploaded shares, checker/verifier/repairer tests, etc. The clients have no
+Tubs, so it is not useful for tests that involve a Helper or the
+control.furl.
+
 Ported to Python 3.
 """
 from __future__ import absolute_import
@@ -6,23 +19,8 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
-# This contains a test harness that creates a full Tahoe grid in a single
-# process (actually in a single MultiService) which does not use the network.
-# It does not use an Introducer, and there are no foolscap Tubs. Each storage
-# server puts real shares on disk, but is accessed through loopback
-# RemoteReferences instead of over serialized SSL. It is not as complete as
-# the common.SystemTestMixin framework (which does use the network), but
-# should be considerably faster: on my laptop, it takes 50-80ms to start up,
-# whereas SystemTestMixin takes close to 2s.
-
-# This should be useful for tests which want to examine and/or manipulate the
-# uploaded shares, checker/verifier/repairer tests, etc. The clients have no
-# Tubs, so it is not useful for tests that involve a Helper or the
-# control.furl .
-
+from ..util.future_builtins import *  # noqa: F401, F403
 from future.utils import PY2, PY3
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 from past.builtins import unicode
 
 import os

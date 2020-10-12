@@ -8,10 +8,8 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
-from future.utils import native_str, PY2, bytes_to_native_str
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
-
+from ..util.future_builtins import *  # noqa: F401, F403
+from future.utils import native_str, bytes_to_native_str
 
 import time
 import os.path
