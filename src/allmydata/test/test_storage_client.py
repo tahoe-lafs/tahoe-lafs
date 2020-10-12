@@ -280,7 +280,7 @@ class PluginMatchedAnnouncement(SyncTestCase):
         configuration is matched and the plugin's storage client is used.
         """
         plugin_config = {
-            b"abc": b"xyz",
+            "abc": "xyz",
         }
         plugin_name = b"tahoe-lafs-dummy-v1"
         yield self.make_node(
@@ -293,7 +293,7 @@ class PluginMatchedAnnouncement(SyncTestCase):
             u"service-name": u"storage",
             u"storage-options": [{
                 # and this announcement is for a plugin with a matching name
-                u"name": plugin_name,
+                u"name": plugin_name.decode("ascii"),
                 u"storage-server-FURL": SOME_FURL.decode("ascii"),
             }],
         }
@@ -344,7 +344,7 @@ class PluginMatchedAnnouncement(SyncTestCase):
             u"service-name": u"storage",
             u"storage-options": [{
                 # and this announcement is for a plugin with a matching name
-                u"name": plugin_name,
+                u"name": plugin_name.decode("ascii"),
                 u"storage-server-FURL": SOME_FURL.decode("ascii"),
             }],
         }

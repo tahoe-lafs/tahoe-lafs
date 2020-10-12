@@ -549,8 +549,11 @@ def _convert_tub_port(s):
     :returns: a proper Twisted endpoint string like (`tcp:X`) is `s`
         is a bare number, or returns `s` as-is
     """
-    if re.search(r'^\d+$', s):
-        return "tcp:{}".format(int(s))
+    us = s
+    if isinstance(s, bytes):
+        us = s.decode("utf-8")
+    if re.search(r'^\d+$', us):
+        return "tcp:{}".format(int(us))
     return s
 
 

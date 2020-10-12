@@ -243,7 +243,7 @@ class UseNode(object):
 [storageclient.plugins.{storage_plugin}]
 {config}
 """.format(
-    storage_plugin=self.storage_plugin,
+    storage_plugin=self.storage_plugin.decode("ascii"),
     config=format_config_items(self.plugin_config),
 )
 
@@ -259,8 +259,8 @@ introducer.furl = {furl}
 storage.plugins = {storage_plugin}
 {plugin_config_section}
 """.format(
-    furl=self.introducer_furl,
-    storage_plugin=self.storage_plugin,
+    furl=self.introducer_furl.decode("ascii"),
+    storage_plugin=self.storage_plugin.decode("ascii"),
     node_config=format_config_items(self.node_config),
     plugin_config_section=plugin_config_section,
 )

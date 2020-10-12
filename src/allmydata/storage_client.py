@@ -109,24 +109,24 @@ class StorageClientConfig(object):
 
         :param _Config config: The loaded Tahoe-LAFS node configuration.
         """
-        ps = config.get_config("client", "peers.preferred", b"").split(b",")
-        preferred_peers = tuple([p.strip() for p in ps if p != b""])
+        ps = config.get_config("client", "peers.preferred", "").split(",")
+        preferred_peers = tuple([p.strip() for p in ps if p != ""])
 
         enabled_storage_plugins = (
             name.strip()
             for name
             in config.get_config(
-                b"client",
-                b"storage.plugins",
-                b"",
-            ).decode("utf-8").split(u",")
+                "client",
+                "storage.plugins",
+                "",
+            ).split(",")
             if name.strip()
         )
 
         storage_plugins = {}
         for plugin_name in enabled_storage_plugins:
             try:
-                plugin_config = config.items(b"storageclient.plugins." + plugin_name)
+                plugin_config = config.items("storageclient.plugins." + plugin_name)
             except NoSectionError:
                 plugin_config = []
             storage_plugins[plugin_name] = dict(plugin_config)
@@ -264,6 +264,7 @@ class StorageFarmBroker(service.MultiService):
 
     # these two are used in unit tests
     def test_add_rref(self, serverid, rref, ann):
+        assert isinstance(serverid, bytes)
         s = self._make_storage_server(
             serverid.decode("ascii"),
             {"ann": ann.copy()},
@@ -273,6 +274,7 @@ class StorageFarmBroker(service.MultiService):
         self.servers[serverid] = s
 
     def test_add_server(self, server_id, s):
+        assert isinstance(server_id, bytes)
         s.on_status_changed(lambda _: self._got_connection())
         self.servers[server_id] = s
 
@@ -313,6 +315,7 @@ class StorageFarmBroker(service.MultiService):
             {u"ann": ann},
         )
         server_id = s.get_serverid()
+        assert isinstance(server_id, bytes)
         old = self.servers.get(server_id)
         if old:
             if old.get_announcement() == ann:
@@ -335,6 +338,7 @@ class StorageFarmBroker(service.MultiService):
             # almost always be the case for normal runtime).
         # now we forget about them and start using the new one
         s.setServiceParent(self)
+        assert isinstance(server_id, bytes)
         self.servers[server_id] = s
         s.start_connecting(self._trigger_connections)
         # the descriptor will manage their own Reconnector, and each time we
@@ -373,11 +377,13 @@ class StorageFarmBroker(service.MultiService):
         return frozenset(self.servers.values())
 
     def get_nickname_for_serverid(self, serverid):
+        assert isinstance(serverid, bytes)
         if serverid in self.servers:
             return self.servers[serverid].get_nickname()
         return None
 
     def get_stub_server(self, serverid):
+        assert isinstance(serverid, bytes)
         if serverid in self.servers:
             return self.servers[serverid]
         # some time before 1.12, we changed "serverid" to be "key_s" (the
@@ -504,7 +510,7 @@ class _FoolscapStorage(object):
             if isinstance(seed, unicode):
                 seed = seed.encode("utf-8")
             ps = base32.a2b(seed)
-        elif re.search(r'^v0-[0-9a-zA-Z]{52}$', server_id):
+        elif re.search(br'^v0-[0-9a-zA-Z]{52}$', server_id):
             ps = base32.a2b(server_id[3:])
         else:
             log.msg("unable to parse serverid '%(server_id)s as pubkey, "
