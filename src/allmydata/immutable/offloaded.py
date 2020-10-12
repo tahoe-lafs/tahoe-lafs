@@ -1,3 +1,14 @@
+"""
+Ported to Python 3.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 import os, stat, time, weakref
 from zope.interface import implementer
@@ -128,9 +139,9 @@ class CHKUploadHelper(Referenceable, upload.CHKUploader):
     peer selection, encoding, and share pushing. I read ciphertext from the
     remote AssistedUploader.
     """
-    VERSION = { "http://allmydata.org/tahoe/protocols/helper/chk-upload/v1" :
+    VERSION = { b"http://allmydata.org/tahoe/protocols/helper/chk-upload/v1" :
                  { },
-                "application-version": str(allmydata.__full_version__),
+                b"application-version": allmydata.__full_version__.encode("utf-8"),
                 }
 
     def __init__(self, storage_index,
