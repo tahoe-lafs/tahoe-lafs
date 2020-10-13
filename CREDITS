@@ -207,7 +207,7 @@ E: chad@zetaweb.com
 D: Python3 porting
 
 N: Itamar Turner-Trauring
-E: itamar@itamarst.org
+E: itamar@pythonspeed.com
 D: Python3 porting
 
 N: Jason R. Coombs
@@ -225,4 +225,8 @@ D: Python3 porting
 N: Sajith Sasidharan
 E: sajith@hcoop.net
 E: sajith@nonzen.in
+D: Python3 porting
+
+N: Pete Fein
+E: pete@snake.dev
 D: Python3 porting
