@@ -569,6 +569,9 @@ class Helper(Referenceable):
         return self.VERSION
 
     def remote_upload_chk(self, storage_index):
+        """
+        See ``RIHelper.upload_chk``
+        """
         self.count("chk_upload_helper.upload_requests")
         lp = self.log(format="helper: upload_chk query for SI %(si)s",
                       si=si_b2a(storage_index))
