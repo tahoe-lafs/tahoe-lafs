@@ -72,18 +72,6 @@ class CHKUploadHelper_fake(offloaded.CHKUploadHelper):
         d.addCallback(_got_size)
         return d
 
-class Helper_fake_upload(offloaded.Helper):
-    def _make_chk_upload_helper(self, storage_index, lp):
-        si_s = str(si_b2a(storage_index), "utf-8")
-        incoming_file = os.path.join(self._chk_incoming, si_s)
-        encoding_file = os.path.join(self._chk_encoding, si_s)
-        uh = CHKUploadHelper_fake(storage_index, self,
-                                  self._storage_broker,
-                                  self._secret_holder,
-                                  incoming_file, encoding_file,
-                                  lp)
-        return uh
-
 @attr.s
 class FakeCHKCheckerAndUEBFetcher(object):
     """
@@ -183,12 +171,17 @@ class AssistedUpload(unittest.TestCase):
         # bogus host/port
         t.setLocation(b"bogus:1234")
 
-    def setUpHelper(self, basedir, helper_class=Helper_fake_upload, chk_checker=None):
+    def setUpHelper(self, basedir, chk_upload=CHKUploadHelper_fake, chk_checker=None):
         fileutil.make_dirs(basedir)
-        self.helper = helper_class(basedir,
-                                       self.s.storage_broker,
-                                       self.s.secret_holder,
-                                       None, None)
+        self.helper = offloaded.Helper(
+            basedir,
+            self.s.storage_broker,
+            self.s.secret_holder,
+            None,
+            None,
+        )
+        if chk_upload is not None:
+            self.helper.chk_upload = chk_upload
         if chk_checker is not None:
             self.helper.chk_checker = chk_checker
         self.helper_furl = self.tub.registerReference(self.helper)

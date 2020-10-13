@@ -653,11 +653,15 @@ class Helper(Referenceable):
         si_s = si_b2a(storage_index)
         incoming_file = os.path.join(self._chk_incoming, si_s)
         encoding_file = os.path.join(self._chk_encoding, si_s)
-        uh = CHKUploadHelper(storage_index, self,
-                             self._storage_broker,
-                             self._secret_holder,
-                             incoming_file, encoding_file,
-                             lp)
+        uh = self.chk_upload(
+            storage_index,
+            self,
+            self._storage_broker,
+            self._secret_holder,
+            incoming_file,
+            encoding_file,
+            lp,
+        )
         return uh
 
     def _add_upload(self, uh):
