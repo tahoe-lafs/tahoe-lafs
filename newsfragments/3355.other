@@ -1,1 +1,0 @@
-The "coverage" tox environment has been replaced by the "py27-coverage" and "py36-coverage" environments.

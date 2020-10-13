@@ -5,6 +5,52 @@ User-Visible Changes in Tahoe-LAFS
 ==================================
 
 .. towncrier start line
+Release 1.14.0.post1530 (2020-10-13)
+''''''''''''''''''''''''''''''''''''
+
+Features
+--------
+
+- PyPy is now a supported platform. (`#1792 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1792>`_)
+- allmydata.testing.web, a new module, now offers a supported Python API for testing Tahoe-LAFS web API clients. (`#3317 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3317>`_)
+
+
+Bug Fixes
+---------
+
+- Make directory page links work. (`#3312 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3312>`_)
+- Use last known revision of Chutney that is known to work with Python 2 for Tor integration tests. (`#3348 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3348>`_)
+- Mutable files now use RSA exponent 65537 (`#3349 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3349>`_)
+
+
+Dependency/Installation Changes
+-------------------------------
+
+- Tahoe-LAFS now supports CentOS 8 and no longer supports CentOS 7. (`#3296 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3296>`_)
+- Tahoe-LAFS now supports Ubuntu 20.04. (`#3328 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3328>`_)
+
+
+Removed Features
+----------------
+
+- The Magic Folder frontend has been split out into a stand-alone project.  The functionality is no longer part of Tahoe-LAFS itself.  Learn more at <https://github.com/LeastAuthority/magic-folder>. (`#3284 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3284>`_)
+- Slackware 14.2 is no longer a Tahoe-LAFS supported platform. (`#3323 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3323>`_)
+
+
+Other Changes
+-------------
+
+- The Tahoe-LAFS project has adopted a formal code of conduct. (`#2755 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2755>`_)
+-  (`#3263 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3263>`_, `#3324 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3324>`_)
+- The "coverage" tox environment has been replaced by the "py27-coverage" and "py36-coverage" environments. (`#3355 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3355>`_)
+
+
+Misc/Other
+----------
+
+- `#3247 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3247>`_, `#3254 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3254>`_, `#3277 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3277>`_, `#3278 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3278>`_, `#3287 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3287>`_, `#3288 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3288>`_, `#3289 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3289>`_, `#3290 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3290>`_, `#3291 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3291>`_, `#3292 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3292>`_, `#3293 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3293>`_, `#3294 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3294>`_, `#3297 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3297>`_, `#3298 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3298>`_, `#3299 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3299>`_, `#3300 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3300>`_, `#3302 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3302>`_, `#3303 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3303>`_, `#3304 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3304>`_, `#3305 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3305>`_, `#3306 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3306>`_, `#3308 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3308>`_, `#3309 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3309>`_, `#3313 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3313>`_, `#3315 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3315>`_, `#3316 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3316>`_, `#3320 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3320>`_, `#3325 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3325>`_, `#3326 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3326>`_, `#3329 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3329>`_, `#3330 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3330>`_, `#3331 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3331>`_, `#3332 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3332>`_, `#3333 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3333>`_, `#3334 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3334>`_, `#3335 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3335>`_, `#3336 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3336>`_, `#3338 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3338>`_, `#3339 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3339>`_, `#3340 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3340>`_, `#3341 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3341>`_, `#3342 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3342>`_, `#3343 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3343>`_, `#3344 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3344>`_, `#3346 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3346>`_, `#3351 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3351>`_, `#3353 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3353>`_, `#3354 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3354>`_, `#3356 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3356>`_, `#3357 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3357>`_, `#3358 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3358>`_, `#3359 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3359>`_, `#3361 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3361>`_, `#3364 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3364>`_, `#3365 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3365>`_, `#3366 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3366>`_, `#3367 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3367>`_, `#3368 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3368>`_, `#3370 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3370>`_, `#3372 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3372>`_, `#3373 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3373>`_, `#3374 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3374>`_, `#3375 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3375>`_, `#3376 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3376>`_, `#3377 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3377>`_, `#3378 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3378>`_, `#3380 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3380>`_, `#3381 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3381>`_, `#3382 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3382>`_, `#3383 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3383>`_, `#3386 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3386>`_, `#3387 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3387>`_, `#3388 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3388>`_, `#3389 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3389>`_, `#3391 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3391>`_, `#3392 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3392>`_, `#3393 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3393>`_, `#3394 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3394>`_, `#3395 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3395>`_, `#3396 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3396>`_, `#3397 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3397>`_, `#3398 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3398>`_, `#3401 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3401>`_, `#3403 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3403>`_, `#3406 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3406>`_, `#3408 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3408>`_, `#3409 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3409>`_, `#3411 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3411>`_, `#3415 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3415>`_, `#3416 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3416>`_, `#3417 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3417>`_, `#3421 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3421>`_, `#3422 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3422>`_, `#3423 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3423>`_, `#3424 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3424>`_, `#3425 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3425>`_, `#3426 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3426>`_, `#3427 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3427>`_, `#3429 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3429>`_, `#3430 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3430>`_, `#3431 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3431>`_, `#3436 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3436>`_, `#3437 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3437>`_, `#3438 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3438>`_, `#3439 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3439>`_, `#3440 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3440>`_, `#3442 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3442>`_, `#3443 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3443>`_, `#3446 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3446>`_, `#3448 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3448>`_, `#3449 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3449>`_, `#3450 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3450>`_, `#3451 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3451>`_, `#3452 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3452>`_, `#3453 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3453>`_, `#3455 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3455>`_, `#3456 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3456>`_, `#3458 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3458>`_, `#3462 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3462>`_, `#3463 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3463>`_, `#3464 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3464>`_
+
+
 Release 1.14.0 (2020-03-11)
 '''''''''''''''''''''''''''
 
