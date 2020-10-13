@@ -201,3 +201,28 @@ N: meejah
 E: meejah@meejah.ca
 P: 0xC2602803128069A7, 9D5A 2BD5 688E CB88 9DEB  CD3F C260 2803 1280 69A7
 D: various bug-fixes and features
+
+N: Chad Whitacre
+E: chad@zetaweb.com
+D: Python3 porting
+
+N: Itamar Turner-Trauring
+E: itamar@itamarst.org
+D: Python3 porting
+
+N: Jason R. Coombs
+E: jaraco@jaraco.com
+D: Python3 porting
+
+N: Maciej Fijalkowski
+E: fijall@gmail.com
+D: Python3 porting
+
+N: Ross Patterson
+E: me@rpatterson.net
+D: Python3 porting
+
+N: Sajith Sasidharan
+E: sajith@hcoop.net
+E: sajith@nonzen.in
+D: Python3 porting
