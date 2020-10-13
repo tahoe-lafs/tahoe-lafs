@@ -9,11 +9,8 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
-from future.utils import PY2
-if PY2:
-    # Omitted list sinc it broke a test on Python 2. Shouldn't require further
-    # work, when we switch to Python 3 we'll be dropping this, anyway.
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, object, range, str, max, min  # noqa: F401
+from ..util.future_builtins import *  # noqa: F401, F403
+from six.moves.builtins import list  # future list breaks LeaseCrawler.test_basic on Python 2
 
 import time
 import os.path
@@ -29,6 +26,7 @@ from twisted.web.template import flattenString
 # We need to use `nevow.inevow.IRequest` for now for compatibility
 # with the code in web/common.py.  Once nevow bits are gone from
 # web/common.py, we can use `twisted.web.iweb.IRequest` here.
+from future.utils import PY2
 if PY2:
     from nevow.inevow import IRequest
 else:
