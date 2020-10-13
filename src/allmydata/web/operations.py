@@ -17,7 +17,7 @@ from allmydata.web.common import (
 )
 
 # Originally part of this module, so still part of its API:
-from .common_py3 import (  # noqa: F401
+from .common import (  # noqa: F401
     ReloadMixin,
 )
 

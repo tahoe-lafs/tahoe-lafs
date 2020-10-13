@@ -14,7 +14,7 @@ from twisted.web.template import (
     renderElement,
     tags,
 )
-from allmydata.web.common_py3 import (
+from allmydata.web.common import (
     exception_to_child,
     get_arg,
     get_root,
