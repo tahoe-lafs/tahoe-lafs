@@ -22,8 +22,8 @@ from allmydata.web.common import (
     WebError,
     MultiFormatResource,
     SlotsSequenceElement,
-    ReloadMixin,
 )
+from allmydata.web.operations import ReloadMixin
 from allmydata.interfaces import (
     ICheckAndRepairResults,
     ICheckResults,
