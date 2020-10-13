@@ -496,6 +496,14 @@ class Helper(Referenceable):
     :ivar dict[bytes, CHKUploadHelper] _active_uploads: For any uploads which
         have been started but not finished, a mapping from storage index to the
         upload helper.
+
+    :ivar chk_checker: A callable which returns an object like a
+        CHKCheckerAndUEBFetcher instance which can check CHK shares.
+        Primarily for the convenience of tests to override.
+
+    :ivar chk_upload: A callable which returns an object like a
+        CHKUploadHelper instance which can upload CHK shares.  Primarily for
+        the convenience of tests to override.
     """
     # this is the non-distributed version. When we need to have multiple
     # helpers, this object will become the HelperCoordinator, and will query
@@ -509,6 +517,9 @@ class Helper(Referenceable):
                 b"application-version": allmydata.__full_version__.encode("utf-8"),
                 }
     MAX_UPLOAD_STATUSES = 10
+
+    chk_checker = CHKCheckerAndUEBFetcher
+    chk_upload = CHKUploadHelper
 
     def __init__(self, basedir, storage_broker, secret_holder,
                  stats_provider, history):
@@ -600,8 +611,6 @@ class Helper(Referenceable):
             return f
         d.addErrback(_err)
         return d
-
-    chk_checker = CHKCheckerAndUEBFetcher
 
     def _check_chk(self, storage_index, lp):
         # see if this file is already in the grid
