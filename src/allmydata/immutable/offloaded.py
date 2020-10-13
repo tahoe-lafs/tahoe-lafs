@@ -25,10 +25,11 @@ class CHKCheckerAndUEBFetcher(object):
     less than 'N' shares present.
 
     If the file is completely healthy, I return a tuple of (sharemap,
-    UEB_data, UEB_hash).
+    UEB_data, UEB_hash).  A sharemap is a dict with share numbers as keys and
+    sets of server ids (which hold that share) as values.
     """
 
-    def __init__(self, peer_getter, storage_index, logparent=None):
+    def __init__(self, peer_getter, storage_index, logparent):
         self._peer_getter = peer_getter
         self._found_shares = set()
         self._storage_index = storage_index
@@ -46,6 +47,12 @@ class CHKCheckerAndUEBFetcher(object):
         return log.msg(*args, **kwargs)
 
     def check(self):
+        """
+        :return Deferred[bool|(DictOfSets, dict, bytes)]: If no share can be found
+            with a usable UEB block or fewer than N shares can be found then the
+            Deferred fires with ``False``.  Otherwise, it fires with a tuple of
+            the sharemap, the UEB data, and the UEB hash.
+        """
         d = self._get_all_shareholders(self._storage_index)
         d.addCallback(self._get_uri_extension)
         d.addCallback(self._done)
@@ -594,12 +601,14 @@ class Helper(Referenceable):
         d.addErrback(_err)
         return d
 
+    chk_checker = CHKCheckerAndUEBFetcher
+
     def _check_chk(self, storage_index, lp):
         # see if this file is already in the grid
         lp2 = self.log("doing a quick check+UEBfetch",
                        parent=lp, level=log.NOISY)
         sb = self._storage_broker
-        c = CHKCheckerAndUEBFetcher(sb.get_servers_for_psi, storage_index, lp2)
+        c = self.chk_checker(sb.get_servers_for_psi, storage_index, lp2)
         d = c.check()
         def _checked(res):
             if res:
