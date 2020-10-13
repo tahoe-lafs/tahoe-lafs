@@ -485,6 +485,11 @@ class LocalCiphertextReader(AskUntilSuccessMixin):
 
 @implementer(interfaces.RIHelper, interfaces.IStatsProducer)
 class Helper(Referenceable):
+    """
+    :ivar dict[bytes, CHKUploadHelper] _active_uploads: For any uploads which
+        have been started but not finished, a mapping from storage index to the
+        upload helper.
+    """
     # this is the non-distributed version. When we need to have multiple
     # helpers, this object will become the HelperCoordinator, and will query
     # the farm of Helpers to see if anyone has the storage_index of interest,
