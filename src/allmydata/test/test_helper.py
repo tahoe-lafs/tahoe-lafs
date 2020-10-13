@@ -322,7 +322,8 @@ class AssistedUpload(unittest.TestCase):
     @inline_callbacks
     def test_already_uploaded(self):
         """
-        If enough shares to satisfy the needed parameter already exist,
+        If enough shares to satisfy the needed parameter already exist, the upload
+        succeeds without pushing any shares.
         """
         params = FakeClient.DEFAULT_ENCODING_PARAMETERS
         chk_checker = partial(
