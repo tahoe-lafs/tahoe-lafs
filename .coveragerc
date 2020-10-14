@@ -23,3 +23,5 @@ source =
     D:/a/tahoe-lafs/tahoe-lafs/.tox/py27-coverage/Lib/site-packages/
 # Unless it looks like this instead
     .tox/py27-coverage/lib/python2.7/site-packages/
+# On some Linux CI jobs it looks like this
+    /tmp/tahoe-lafs.tox/py27-coverage/lib/python2.7/site-packages/
