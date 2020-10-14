@@ -1,5 +1,5 @@
 import os, time
-from six.moves import cStringIO as StringIO
+from io import BytesIO
 from itertools import count
 from zope.interface import implementer
 from twisted.internet import defer
@@ -1198,7 +1198,7 @@ class Publish(object):
 class MutableFileHandle(object):
     """
     I am a mutable uploadable built around a filehandle-like object,
-    usually either a StringIO instance or a handle to an actual file.
+    usually either a BytesIO instance or a handle to an actual file.
     """
 
     def __init__(self, filehandle):
@@ -1268,14 +1268,14 @@ class MutableFileHandle(object):
 class MutableData(MutableFileHandle):
     """
     I am a mutable uploadable built around a string, which I then cast
-    into a StringIO and treat as a filehandle.
+    into a BytesIO and treat as a filehandle.
     """
 
     def __init__(self, s):
         # Take a string and return a file-like uploadable.
-        assert isinstance(s, str)
+        assert isinstance(s, bytes)
 
-        MutableFileHandle.__init__(self, StringIO(s))
+        MutableFileHandle.__init__(self, BytesIO(s))
 
 
 @implementer(IMutableUploadable)
