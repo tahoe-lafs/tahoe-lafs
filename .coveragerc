@@ -20,10 +20,8 @@ source =
 # It looks like this in the checkout
     src/
 # It looks like this in the Windows build environment
-    D:/a/tahoe-lafs/tahoe-lafs/.tox/py27-coverage/Lib/site-packages/
+    D:/a/tahoe-lafs/tahoe-lafs/.tox/py*-coverage/Lib/site-packages/
 # Although sometimes it looks like this instead.  Also it looks like this on macOS.
-    .tox/py27-coverage/lib/python2.7/site-packages/
+    .tox/py*-coverage/lib/python*/site-packages/
 # On some Linux CI jobs it looks like this
-    /tmp/tahoe-lafs.tox/py27-coverage/lib/python2.7/site-packages/
-# On the Python 3 CI job it's more like this of course:
-    /tmp/tahoe-lafs.tox/py36-coverage/lib/python3.6/site-packages/
+    /tmp/tahoe-lafs.tox/py*-coverage/lib/python*/site-packages/
