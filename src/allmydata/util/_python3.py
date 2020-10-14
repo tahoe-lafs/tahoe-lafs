@@ -89,6 +89,7 @@ PORTED_MODULES = [
 ]
 
 PORTED_TEST_MODULES = [
+    "allmydata.test.mutable.test_datahandle",
     "allmydata.test.test_abbreviate",
     "allmydata.test.test_base32",
     "allmydata.test.test_base62",
