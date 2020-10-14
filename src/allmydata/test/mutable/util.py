@@ -1,4 +1,6 @@
-from six.moves import cStringIO as StringIO
+from past.builtins import long
+
+from io import BytesIO
 import attr
 from twisted.internet import defer, reactor
 from foolscap.api import eventually, fireEventually
@@ -75,8 +77,8 @@ class FakeStorage(object):
         if peerid not in self._peers:
             self._peers[peerid] = {}
         shares = self._peers[peerid]
-        f = StringIO()
-        f.write(shares.get(shnum, ""))
+        f = BytesIO()
+        f.write(shares.get(shnum, b""))
         f.seek(offset)
         f.write(data)
         shares[shnum] = f.getvalue()
@@ -129,7 +131,7 @@ class FakeStorageServer(object):
         readv = {}
         for shnum, (testv, writev, new_length) in tw_vectors.items():
             for (offset, length, op, specimen) in testv:
-                assert op in ("le", "eq", "ge")
+                assert op in (b"le", b"eq", b"ge")
             # TODO: this isn't right, the read is controlled by read_vector,
             # not by testv
             readv[shnum] = [ specimen
@@ -222,10 +224,10 @@ def make_peer(s, i):
 
     :rtype: ``Peer``
     """
-    peerid = base32.b2a(tagged_hash("peerid", "%d" % i)[:20])
+    peerid = base32.b2a(tagged_hash(b"peerid", b"%d" % i)[:20])
     fss = FakeStorageServer(peerid, s)
     ann = {
-        "anonymous-storage-FURL": "pb://%s@nowhere/fake" % (peerid,),
+        "anonymous-storage-FURL": b"pb://%s@nowhere/fake" % (peerid,),
         "permutation-seed-base32": peerid,
     }
     return Peer(peerid=peerid, storage_server=fss, announcement=ann)
@@ -297,7 +299,7 @@ def make_nodemaker_with_storage_broker(storage_broker, keysize):
 
     :param StorageFarmBroker peers: The storage broker to use.
     """
-    sh = client.SecretHolder("lease secret", "convergence secret")
+    sh = client.SecretHolder(b"lease secret", b"convergence secret")
     keygen = client.KeyGenerator()
     if keysize:
         keygen.set_default_keysize(keysize)
