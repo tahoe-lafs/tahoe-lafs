@@ -21,7 +21,7 @@ source =
     src/
 # It looks like this in the Windows build environment
     D:/a/tahoe-lafs/tahoe-lafs/.tox/py27-coverage/Lib/site-packages/
-# Unless it looks like this instead
+# Although sometimes it looks like this instead.  Also it looks like this on macOS.
     .tox/py27-coverage/lib/python2.7/site-packages/
 # On some Linux CI jobs it looks like this
     /tmp/tahoe-lafs.tox/py27-coverage/lib/python2.7/site-packages/
