@@ -25,3 +25,5 @@ source =
     .tox/py27-coverage/lib/python2.7/site-packages/
 # On some Linux CI jobs it looks like this
     /tmp/tahoe-lafs.tox/py27-coverage/lib/python2.7/site-packages/
+# On the Python 3 CI job it's more like this of course:
+    /tmp/tahoe-lafs.tox/py36-coverage/lib/python3.6/site-packages/
