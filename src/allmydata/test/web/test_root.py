@@ -25,6 +25,9 @@ from .common import (
     assert_soup_has_tag_with_content,
 )
 
+from ..common_web import (
+    render,
+)
 from ..common import (
     EMPTY_CLIENT_CONFIG,
 )
@@ -36,13 +39,6 @@ class RenderSlashUri(unittest.TestCase):
     """
 
     def setUp(self):
-        self.request = DummyRequest(b"/uri")
-        self.request.fields = {}
-
-        def prepathURL():
-            return b"http://127.0.0.1.99999/" + b"/".join(self.request.prepath)
-
-        self.request.prePathURL = prepathURL
         self.client = Mock()
         self.res = URIHandler(self.client)
 
@@ -50,18 +46,20 @@ class RenderSlashUri(unittest.TestCase):
         """
         A valid capbility does not result in error
         """
-        self.request.args[b"uri"] = [(
+        uri = (
             b"URI:CHK:nt2xxmrccp7sursd6yh2thhcky:"
             b"mukesarwdjxiyqsjinbfiiro6q7kgmmekocxfjcngh23oxwyxtzq:2:5:5874882"
-        )]
-        self.res.render_GET(self.request)
+        )
+        return render(self.res, {b"uri": [uri]})
 
     def test_invalid(self):
         """
         A (trivially) invalid capbility is an error
         """
-        self.request.args[b"uri"] = [b"not a capability"]
-        response_body = self.res.render_GET(self.request)
+        query_args = {b"uri": [b"not a capability"]}
+        response_body = self.successResultOf(
+            render(self.res, query_args),
+        )
 
         soup = BeautifulSoup(response_body, 'html5lib')
 
@@ -82,8 +80,11 @@ class RenderSlashUri(unittest.TestCase):
         """
         Let hypothesis try a bunch of invalid capabilities
         """
-        self.request.args[b"uri"] = [cap.encode('utf8')]
-        response_body = self.res.render_GET(self.request)
+        query_args = {b"uri": [cap.encode('utf8')]}
+        response_body = self.successResultOf(
+            render(self.res, query_args,
+            ),
+        )
 
         soup = BeautifulSoup(response_body, 'html5lib')
 
