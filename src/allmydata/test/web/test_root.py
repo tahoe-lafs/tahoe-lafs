@@ -18,9 +18,6 @@ from ...util.connection_status import ConnectionStatus
 from allmydata.web.root import URIHandler
 from allmydata.client import _Client
 
-from hypothesis import given
-from hypothesis.strategies import text
-
 from .common import (
     assert_soup_has_tag_with_content,
 )
@@ -46,11 +43,17 @@ class RenderSlashUri(unittest.TestCase):
         """
         A valid capbility does not result in error
         """
-        uri = (
+        query_args = {b"uri": [
             b"URI:CHK:nt2xxmrccp7sursd6yh2thhcky:"
             b"mukesarwdjxiyqsjinbfiiro6q7kgmmekocxfjcngh23oxwyxtzq:2:5:5874882"
+        ]}
+        response_body = self.successResultOf(
+            render(self.res, query_args),
         )
-        return render(self.res, {b"uri": [uri]})
+        self.assertNotEqual(
+            response_body,
+            "Invalid capability",
+        )
 
     def test_invalid(self):
         """
@@ -60,42 +63,9 @@ class RenderSlashUri(unittest.TestCase):
         response_body = self.successResultOf(
             render(self.res, query_args),
         )
-
-        soup = BeautifulSoup(response_body, 'html5lib')
-
-        assert_soup_has_tag_with_content(
-            self, soup, "title", "400 - Error",
-        )
-        assert_soup_has_tag_with_content(
-            self, soup, "h1", "Error",
-        )
-        assert_soup_has_tag_with_content(
-            self, soup, "p", "Invalid capability",
-        )
-
-    @given(
-        text()
-    )
-    def test_hypothesis_error_caps(self, cap):
-        """
-        Let hypothesis try a bunch of invalid capabilities
-        """
-        query_args = {b"uri": [cap.encode('utf8')]}
-        response_body = self.successResultOf(
-            render(self.res, query_args,
-            ),
-        )
-
-        soup = BeautifulSoup(response_body, 'html5lib')
-
-        assert_soup_has_tag_with_content(
-            self, soup, "title", "400 - Error",
-        )
-        assert_soup_has_tag_with_content(
-            self, soup, "h1", "Error",
-        )
-        assert_soup_has_tag_with_content(
-            self, soup, "p", "Invalid capability",
+        self.assertEqual(
+            response_body,
+            "Invalid capability",
         )
 
 
