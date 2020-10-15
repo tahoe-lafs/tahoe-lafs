@@ -483,18 +483,8 @@ def render_exception(render):
     def g(self, request):
         bound_render = render.__get__(self, type(self))
         result = maybeDeferred(bound_render, request)
-        if isinstance(result, Deferred):
-            result.addBoth(_finish, bound_render, request)
-            return NOT_DONE_YET
-        elif isinstance(result, bytes):
-            return result
-        elif result == NOT_DONE_YET:
-            return NOT_DONE_YET
-        else:
-            raise Exception("{!r} returned unusable {!r}".format(
-                fullyQualifiedName(bound_render),
-                result,
-            ))
+        result.addBoth(_finish, bound_render, request)
+        return NOT_DONE_YET
 
     return g
 
