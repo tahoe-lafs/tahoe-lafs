@@ -25,8 +25,9 @@ jobs:
       - name: Check out Tahoe-LAFS sources
         uses: actions/checkout@v2
 
-      - name: Fetch all history for all tags and branches
-        run: git fetch --prune --unshallow
+      - name: Fetch tags
+        # run: git fetch --prune --unshallow
+        run: "git fetch origin +refs/tags/*:refs/tags/*"
 
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v1
