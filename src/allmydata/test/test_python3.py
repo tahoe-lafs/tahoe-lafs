@@ -8,7 +8,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from future.utils import PY2
+from future.utils import PY2, native_str
 if PY2:
     from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
@@ -44,10 +44,9 @@ class Python3PortingEffortTests(SynchronousTestCase):
                 ),
             ),
         )
-    if PY2:
-        test_finished_porting.skip = "For some reason todo isn't working on Python 2 now"
-    else:
-        test_finished_porting.todo = "https://tahoe-lafs.org/trac/tahoe-lafs/milestone/Support%20Python%203 should be completed"
+    test_finished_porting.todo = native_str(
+        "https://tahoe-lafs.org/trac/tahoe-lafs/milestone/Support%20Python%203 should be completed",
+    )
 
     def test_ported_modules_exist(self):
         """
