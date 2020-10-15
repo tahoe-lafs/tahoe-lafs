@@ -305,7 +305,7 @@ class Publish(object):
         # Our update process fetched these for us. We need to update
         # them in place as publishing happens.
         self.blockhashes = {} # (shnum, [blochashes])
-        for (i, bht) in blockhashes.items():
+        for (i, bht) in list(blockhashes.items()):
             # We need to extract the leaves from our old hash tree.
             old_segcount = mathutil.div_ceil(version[4],
                                              version[3])
@@ -794,7 +794,7 @@ class Publish(object):
     def push_blockhashes(self):
         self.sharehash_leaves = [None] * len(self.blockhashes)
         self._status.set_status("Building and pushing block hash tree")
-        for shnum, blockhashes in self.blockhashes.items():
+        for shnum, blockhashes in list(self.blockhashes.items()):
             t = hashtree.HashTree(blockhashes)
             self.blockhashes[shnum] = list(t)
             # set the leaf for future use.
@@ -867,7 +867,7 @@ class Publish(object):
         ds = []
         verification_key = rsa.der_string_from_verifying_key(self._pubkey)
 
-        for (shnum, writers) in self.writers.copy().items():
+        for (shnum, writers) in list(self.writers.copy().items()):
             for writer in writers:
                 writer.put_verification_key(verification_key)
                 self.num_outstanding += 1
