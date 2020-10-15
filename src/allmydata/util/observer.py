@@ -61,7 +61,7 @@ class OneShotObserverList(object):
 
     def _fire(self, result):
         for w in self._watchers:
-            eventually(w.callback, result)
+            w.callback(result)
         del self._watchers
         self.__repr__ = self._fired_repr
 
