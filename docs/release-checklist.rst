@@ -126,20 +126,23 @@ Upload Artifacts
 Any release-candidate or actual release plus signature (.asc file)
 need to be uploaded to https://tahoe-lafs.org in ~source/downloads
 
-- how to do this?
-- who has access to do this?
+- secure-copy all release artifacts to the download area on the
+  tahoe-lafs.org host machine. `~source/downloads` on there maps to
+  https://tahoe-lafs.org/downloads/ on the Web.
+- scp dist/*1.15.0* meejah@tahoe-lafs.org:/home/source/downloads
+- the following developers have access to do this:
+  - exarkun
+  - meejah
+  - warner
 
 For the actual release, the tarball and signature files need to be
-uploaded to PyPI.
+uploaded to PyPI as well.
 
 - how to do this?
 - (original guide says only "twine upload dist/*")
-- who has access to do this?
-
-The actual release and signature also needs to be uploaded to GitHub
-so that it appears in "releases", e.g.:
-
-- https://github.com/tahoe-lafs/tahoe-lafs/releases/tag/tahoe-lafs-1.14.0
+- the following developers have access to do this:
+  - exarkun
+  - warner
 
 
 Upload Dependencies
@@ -150,4 +153,4 @@ https://tahoe-lafs.org/deps/" which seems to be all the wheels of all
 the dependencies. There are no instructions on how to collect these or
 where to put them on the tahoe-lafs.org machines.
 
-
+Is this step still useful?
