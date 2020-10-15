@@ -163,7 +163,6 @@ def POSTUnlinkedCreateDirectory(req, client):
             new_url = "uri/" + urllib.quote(res.get_uri())
             req.setResponseCode(http.SEE_OTHER) # 303
             req.setHeader('location', new_url)
-            req.finish()
             return ''
         d.addCallback(_then_redir)
     else:
@@ -182,7 +181,6 @@ def POSTUnlinkedCreateDirectoryWithChildren(req, client):
             new_url = "uri/" + urllib.quote(res.get_uri())
             req.setResponseCode(http.SEE_OTHER) # 303
             req.setHeader('location', new_url)
-            req.finish()
             return ''
         d.addCallback(_then_redir)
     else:
@@ -201,7 +199,6 @@ def POSTUnlinkedCreateImmutableDirectory(req, client):
             new_url = "uri/" + urllib.quote(res.get_uri())
             req.setResponseCode(http.SEE_OTHER) # 303
             req.setHeader('location', new_url)
-            req.finish()
             return ''
         d.addCallback(_then_redir)
     else:
