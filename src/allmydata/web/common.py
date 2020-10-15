@@ -3,15 +3,43 @@ import time
 import json
 from functools import wraps
 
+from hyperlink import (
+    DecodedURL,
+)
+
 from twisted.web import (
     http,
     resource,
     server,
     template,
 )
+from twisted.web.template import (
+    tags,
+)
+from twisted.web.util import (
+    FailureElement,
+    redirectTo,
+)
+from twisted.python.reflect import (
+    fullyQualifiedName,
+)
+from twisted.python.urlpath import (
+    URLPath,
+)
 from twisted.python import log
+from twisted.python.failure import (
+    Failure,
+)
+from twisted.internet.defer import (
+    Deferred,
+    maybeDeferred,
+)
+from twisted.web.resource import (
+    IResource,
+)
 from nevow import appserver
 from nevow.inevow import IRequest
+
 from allmydata import blacklist
 from allmydata.interfaces import (
     EmptyPathnameComponentError,
@@ -320,48 +348,10 @@ def humanize_failure(f):
 
 
 class MyExceptionHandler(appserver.DefaultExceptionHandler, object):
-    def simple(self, ctx, text, code=http.BAD_REQUEST):
-        req = IRequest(ctx)
-        req.setResponseCode(code)
-        #req.responseHeaders.setRawHeaders("content-encoding", [])
-        #req.responseHeaders.setRawHeaders("content-disposition", [])
-        req.setHeader("content-type", "text/plain;charset=utf-8")
-        if isinstance(text, unicode):
-            text = text.encode("utf-8")
-        req.setHeader("content-length", b"%d" % len(text))
-        req.write(text)
-        # TODO: consider putting the requested URL here
-        req.finishRequest(False)
-
     def renderHTTP_exception(self, ctx, f):
-        try:
-            text, code = humanize_failure(f)
-        except:
-            log.msg("exception in humanize_failure")
-            log.msg("argument was %s" % (f,))
-            log.err()
-            text, code = str(f), None
-        if code is not None:
-            return self.simple(ctx, text, code)
-        if f.check(server.UnsupportedMethod):
-            # twisted.web.server.Request.render() has support for transforming
-            # this into an appropriate 501 NOT_IMPLEMENTED or 405 NOT_ALLOWED
-            # return code, but nevow does not.
-            req = IRequest(ctx)
-            method = req.method
-            return self.simple(ctx,
-                               "I don't know how to treat a %s request." % method,
-                               http.NOT_IMPLEMENTED)
         req = IRequest(ctx)
-        accept = req.getHeader("accept")
-        if not accept:
-            accept = "*/*"
-        if "*/*" in accept or "text/*" in accept or "text/html" in accept:
-            super = appserver.DefaultExceptionHandler
-            return super.renderHTTP_exception(self, ctx, f)
-        # use plain text
-        traceback = f.getTraceback()
-        return self.simple(ctx, traceback, http.INTERNAL_SERVER_ERROR)
+        req.write(_renderHTTP_exception(req, f))
+        req.finishRequest(False)
 
 
 class NeedOperationHandleError(WebError):
@@ -481,16 +471,130 @@ def exception_to_child(f):
     return g
 
 
-def render_exception(f):
+def render_exception(render):
     """
     Decorate a ``render_*`` method with exception handling behavior to render
     an error page reflecting the exception.
     """
-    @wraps(f)
+    @wraps(render)
     def g(self, request):
-        try:
-            return f(self, request)
-        except Exception as e:
-            description, status = humanize_exception(e)
-            return resource.ErrorPage(status, "Error", description).render(request)
+        bound_render = render.__get__(self, type(self))
+        result = maybeDeferred(bound_render, request)
+        if isinstance(result, Deferred):
+            result.addBoth(_finish, bound_render, request)
+            return server.NOT_DONE_YET
+        elif isinstance(result, bytes):
+            return result
+        elif result == server.NOT_DONE_YET:
+            return server.NOT_DONE_YET
+        else:
+            raise Exception("{!r} returned unusable {!r}".format(
+                fullyQualifiedName(bound_render),
+                result,
+            ))
+
     return g
+
+
+def _finish(result, render, request):
+    if isinstance(result, Failure):
+        _finish(
+            _renderHTTP_exception(request, result),
+            render,
+            request,
+        )
+    elif IResource.providedBy(result):
+        # If result is also using @render_exception then we don't want to
+        # double-apply the logic.  This leads to an attempt to double-finish
+        # the request.  If it isn't using @render_exception then you should
+        # fix it so it is.
+        result.render(request)
+    elif isinstance(result, bytes):
+        request.write(result)
+        request.finish()
+    elif isinstance(result, URLPath):
+        if result.netloc == b"":
+            root = URLPath.fromRequest(request)
+            result.scheme = root.scheme
+            result.netloc = root.netloc
+        _finish(redirectTo(str(result), request), render, request)
+    elif isinstance(result, DecodedURL):
+        _finish(redirectTo(str(result), request), render, request)
+    elif result is None:
+        request.finish()
+    elif result == server.NOT_DONE_YET:
+        pass
+    else:
+        log.err("Request for {!r} handled by {!r} returned unusable {!r}".format(
+            request.uri,
+            fullyQualifiedName(render),
+            result,
+        ))
+        request.setResponseCode(http.INTERNAL_SERVER_ERROR)
+        _finish(b"", render, request)
+
+
+def _renderHTTP_exception(request, failure):
+    try:
+        text, code = humanize_failure(failure)
+    except:
+        log.msg("exception in humanize_failure")
+        log.msg("argument was %s" % (failure,))
+        log.err()
+        text = str(failure)
+        code = None
+
+    if code is not None:
+        return _renderHTTP_exception_simple(request, text, code)
+
+    if failure.check(server.UnsupportedMethod):
+        # twisted.web.server.Request.render() has support for transforming
+        # this into an appropriate 501 NOT_IMPLEMENTED or 405 NOT_ALLOWED
+        # return code, but nevow does not.
+        method = request.method
+        return _renderHTTP_exception_simple(
+            request,
+            "I don't know how to treat a %s request." % (method,),
+            http.NOT_IMPLEMENTED,
+        )
+
+    accept = request.getHeader("accept")
+    if not accept:
+        accept = "*/*"
+    if "*/*" in accept or "text/*" in accept or "text/html" in accept:
+        request.setResponseCode(http.INTERNAL_SERVER_ERROR)
+        return template.renderElement(
+            request,
+            tags.html(
+                tags.head(
+                    tags.title(u"Exception"),
+                ),
+                tags.body(
+                    FailureElement(failure),
+                ),
+            ),
+        )
+
+    # use plain text
+    traceback = failure.getTraceback()
+    return _renderHTTP_exception_simple(
+        request,
+        traceback,
+        http.INTERNAL_SERVER_ERROR,
+    )
+
+
+def _renderHTTP_exception_simple(request, text, code):
+    request.setResponseCode(code)
+    request.setHeader("content-type", "text/plain;charset=utf-8")
+    if isinstance(text, unicode):
+        text = text.encode("utf-8")
+    request.setHeader("content-length", b"%d" % len(text))
+    return text
+
+
+def handle_when_done(req, d):
+    when_done = get_arg(req, "when_done", None)
+    if when_done:
+        d.addCallback(lambda res: DecodedURL.from_text(when_done.decode("utf-8")))
+    return d

@@ -2,6 +2,9 @@
 import urllib
 from twisted.web import http
 from twisted.internet import defer
+from twisted.python.urlpath import (
+    URLPath,
+)
 from twisted.python.filepath import FilePath
 from twisted.web.resource import Resource
 from twisted.web.template import (
@@ -66,7 +69,7 @@ def POSTUnlinkedCHK(req, client):
         def _done(upload_results, redir_to):
             if "%(uri)s" in redir_to:
                 redir_to = redir_to.replace("%(uri)s", urllib.quote(upload_results.get_uri()))
-            return url.URL.fromString(redir_to)
+            return URLPath.fromString(redir_to)
         d.addCallback(_done, when_done)
     else:
         # return the Upload Results page, which includes the URI

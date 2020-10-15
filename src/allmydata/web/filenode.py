@@ -1,14 +1,16 @@
 
 import json
 
+from hyperlink import (
+    DecodedURL,
+)
+
 from twisted.web import http, static
 from twisted.internet import defer
 from twisted.web.resource import (
     Resource,  # note: Resource is an old-style class
     ErrorPage,
 )
-
-from nevow import url
 
 from allmydata.interfaces import ExistingChildError
 from allmydata.monitor import Monitor
@@ -34,8 +36,8 @@ from allmydata.web.common import (
     render_exception,
     should_create_intermediate_directories,
     text_plain,
-    MyExceptionHandler,
     WebError,
+    handle_when_done,
 )
 from allmydata.web.check_results import (
     CheckResultsRenderer,
@@ -150,10 +152,7 @@ class PlaceHolderNodeHandler(Resource, ReplaceMeMixin):
             # placeholder.
             raise WebError("POST to a file: bad t=%s" % t)
 
-        when_done = get_arg(req, "when_done", None)
-        if when_done:
-            d.addCallback(lambda res: when_done)
-        return d
+        return handle_when_done(req, d)
 
 
 class FileNodeHandler(Resource, ReplaceMeMixin, object):
@@ -315,10 +314,7 @@ class FileNodeHandler(Resource, ReplaceMeMixin, object):
         else:
             raise WebError("POST to file: bad t=%s" % t)
 
-        when_done = get_arg(req, "when_done", None)
-        if when_done:
-            d.addCallback(lambda res: url.URL.fromString(when_done))
-        return d
+        return handle_when_done(req, d)
 
     def _maybe_literal(self, res, Results_Class):
         if res:
@@ -485,23 +481,11 @@ class FileDownloader(Resource, object):
         if req.method == "HEAD":
             return ""
 
-        finished = []
-        def _request_finished(ign):
-            finished.append(True)
-        req.notifyFinish().addBoth(_request_finished)
-
         d = self.filenode.read(req, first, size)
 
-        def _finished(ign):
-            if not finished:
-                req.finish()
         def _error(f):
             lp = log.msg("error during GET", facility="tahoe.webish", failure=f,
                          level=log.UNUSUAL, umid="xSiF3w")
-            if finished:
-                log.msg("but it's too late to tell them", parent=lp,
-                        level=log.UNUSUAL, umid="j1xIbw")
-                return
             req._tahoe_request_had_error = f # for HTTP-style logging
             if req.startedWriting:
                 # The content-type is already set, and the response code has
@@ -513,15 +497,16 @@ class FileDownloader(Resource, object):
                 # error response be shorter than the intended results.
                 #
                 # We don't have a lot of options, unfortunately.
-                req.write("problem during download\n")
-                req.finish()
+                return b"problem during download\n"
             else:
                 # We haven't written anything yet, so we can provide a
                 # sensible error message.
-                eh = MyExceptionHandler()
-                eh.renderHTTP_exception(req, f)
-        d.addCallbacks(_finished, _error)
-        return req.deferred
+                return f
+        d.addCallbacks(
+            lambda ignored: None,
+            _error,
+        )
+        return d
 
 
 def _file_json_metadata(req, filenode, edge_metadata):

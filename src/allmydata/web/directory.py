@@ -58,6 +58,7 @@ from allmydata.web.common import (
     SlotsSequenceElement,
     exception_to_child,
     render_exception,
+    handle_when_done,
 )
 from allmydata.web.filenode import ReplaceMeMixin, \
      FileNodeHandler, PlaceHolderNodeHandler
@@ -206,6 +207,7 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
                 )
         return make_handler_for(node, self.client, self.node, name)
 
+    @render_exception
     def render_DELETE(self, req):
         assert self.parentnode and self.name
         d = self.parentnode.delete(self.name)
@@ -310,13 +312,7 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
         else:
             raise WebError("POST to a directory with bad t=%s" % t)
 
-        when_done = get_arg(req, "when_done", None)
-        if when_done:
-            def done(res):
-                req.redirect(when_done)
-                return res
-            d.addCallback(done)
-        return d
+        return handle_when_done(req, d)
 
     def _POST_mkdir(self, req):
         name = get_arg(req, "name", "")
