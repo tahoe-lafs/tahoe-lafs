@@ -36,6 +36,9 @@ from twisted.internet import defer
 from twisted.python.failure import Failure
 from twisted.web.error import Error
 from foolscap.api import Referenceable, fireEventually, RemoteException
+from foolscap.ipb import (
+    IRemoteReference,
+)
 import treq
 
 from allmydata.util.assertutil import _assert
@@ -64,7 +67,12 @@ class Marker(object):
 
 fireNow = partial(defer.succeed, None)
 
+@implementer(IRemoteReference)
 class LocalWrapper(object):
+    """
+    A ``LocalWrapper`` presents the remote reference interface to a local
+    object which implements a ``RemoteInterface``.
+    """
     def __init__(self, original, fireEventually=fireEventually):
         """
         :param Callable[[], Deferred[None]] fireEventually: Get a Deferred
