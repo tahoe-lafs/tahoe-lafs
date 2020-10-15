@@ -702,8 +702,8 @@ class Publish(object):
 
 
         self.log("Pushing segment %d of %d" % (segnum + 1, self.num_segments))
+        # XXX: Why does this return a list?
         data = self.data.read(segsize)
-        # XXX: This is dumb. Why return a list?
         data = b"".join(data)
 
         assert len(data) == segsize, len(data)
