@@ -20,6 +20,7 @@ from twisted.web.server import (
     UnsupportedMethod,
 )
 from twisted.web.util import (
+    DeferredResource,
     FailureElement,
     redirectTo,
 )
@@ -459,19 +460,33 @@ class TokenOnlyWebApi(resource.Resource, object):
             raise WebError("'%s' invalid type for 't' arg" % (t,), http.BAD_REQUEST)
 
 
-def exception_to_child(f):
+def exception_to_child(getChild):
     """
     Decorate ``getChild`` method with exception handling behavior to render an
     error page reflecting the exception.
     """
-    @wraps(f)
+    @wraps(getChild)
     def g(self, name, req):
-        try:
-            return f(self, name, req)
-        except Exception as e:
-            description, status = humanize_exception(e)
-            return resource.ErrorPage(status, "Error", description)
+        bound_getChild = getChild.__get__(self, type(self))
+        result = maybeDeferred(bound_getChild, name, req)
+        result.addCallbacks(
+            _getChild_done,
+            _getChild_failed,
+            callbackArgs=(self,),
+        )
+        return DeferredResource(result)
     return g
+
+
+def _getChild_done(child, parent):
+    if child is None:
+        return resource.NoResource()
+    return child
+
+
+def _getChild_failed(reason):
+    text, code = humanize_failure(reason)
+    return resource.ErrorPage(code, "Error", text)
 
 
 def render_exception(render):
