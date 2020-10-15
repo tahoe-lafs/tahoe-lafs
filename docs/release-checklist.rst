@@ -16,6 +16,7 @@ access need to do.
 So, follow *this* list for 1.16.0 and if it seems complete, we should
 delete the older checklist after that.
 
+
 Any Contributor
 ---------------
 
@@ -110,6 +111,7 @@ Privileged Contributor
 Steps in this portion require special access to keys or
 infrastructure. For example, **access to tahoe-lafs.org** to upload
 binaries or edit HTML.
+
 
 Hack Tahoe-LAFS
 ```````````````
