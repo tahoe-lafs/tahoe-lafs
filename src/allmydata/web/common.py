@@ -10,11 +10,14 @@ from hyperlink import (
 from twisted.web import (
     http,
     resource,
-    server,
     template,
 )
 from twisted.web.template import (
     tags,
+)
+from twisted.web.server import (
+    NOT_DONE_YET,
+    UnsupportedMethod,
 )
 from twisted.web.util import (
     FailureElement,
@@ -426,7 +429,7 @@ class TokenOnlyWebApi(resource.Resource, object):
 
     def render(self, req):
         if req.method != 'POST':
-            raise server.UnsupportedMethod(('POST',))
+            raise UnsupportedMethod(('POST',))
         if req.args.get('token', False):
             raise WebError("Do not pass 'token' as URL argument", http.BAD_REQUEST)
         # not using get_arg() here because we *don't* want the token
@@ -482,11 +485,11 @@ def render_exception(render):
         result = maybeDeferred(bound_render, request)
         if isinstance(result, Deferred):
             result.addBoth(_finish, bound_render, request)
-            return server.NOT_DONE_YET
+            return NOT_DONE_YET
         elif isinstance(result, bytes):
             return result
-        elif result == server.NOT_DONE_YET:
-            return server.NOT_DONE_YET
+        elif result == NOT_DONE_YET:
+            return NOT_DONE_YET
         else:
             raise Exception("{!r} returned unusable {!r}".format(
                 fullyQualifiedName(bound_render),
@@ -522,7 +525,7 @@ def _finish(result, render, request):
         _finish(redirectTo(str(result), request), render, request)
     elif result is None:
         request.finish()
-    elif result == server.NOT_DONE_YET:
+    elif result == NOT_DONE_YET:
         pass
     else:
         log.err("Request for {!r} handled by {!r} returned unusable {!r}".format(
@@ -547,7 +550,7 @@ def _renderHTTP_exception(request, failure):
     if code is not None:
         return _renderHTTP_exception_simple(request, text, code)
 
-    if failure.check(server.UnsupportedMethod):
+    if failure.check(UnsupportedMethod):
         # twisted.web.server.Request.render() has support for transforming
         # this into an appropriate 501 NOT_IMPLEMENTED or 405 NOT_ALLOWED
         # return code, but nevow does not.
