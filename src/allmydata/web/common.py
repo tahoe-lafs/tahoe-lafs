@@ -1,3 +1,5 @@
+from future.utils import PY2
+from past.builtins import unicode
 
 import time
 import json
@@ -50,6 +52,17 @@ from twisted.web.resource import (
 )
 from nevow import appserver
 from nevow.inevow import IRequest
+
+from twisted.web.iweb import IRequest as ITwistedRequest
+from twisted.python import log
+if PY2:
+    from nevow.appserver import DefaultExceptionHandler
+    from nevow.inevow import IRequest as INevowRequest
+else:
+    class DefaultExceptionHandler:
+        def __init__(self, *args, **kwargs):
+            raise NotImplementedError("Still not ported to Python 3")
+    INevowRequest = None
 
 from allmydata import blacklist
 from allmydata.interfaces import (
@@ -157,7 +170,10 @@ def parse_offset_arg(offset):
 
 
 def get_root(ctx_or_req):
-    req = IRequest(ctx_or_req)
+    if PY2:
+        req = INevowRequest(ctx_or_req)
+    else:
+        req = ITwistedRequest(ctx_or_req)
     depth = len(req.prepath) + len(req.postpath)
     link = "/".join([".."] * depth)
     return link
@@ -358,7 +374,7 @@ def humanize_failure(f):
     return humanize_exception(f.value)
 
 
-class MyExceptionHandler(appserver.DefaultExceptionHandler, object):
+class MyExceptionHandler(DefaultExceptionHandler, object):
     def renderHTTP_exception(self, ctx, f):
         req = IRequest(ctx)
         req.write(_renderHTTP_exception(req, f))

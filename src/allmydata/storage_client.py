@@ -189,7 +189,10 @@ class StorageFarmBroker(service.MultiService):
         # this sorted order).
         for (server_id, server) in sorted(servers.items()):
             try:
-                storage_server = self._make_storage_server(server_id, server)
+                storage_server = self._make_storage_server(
+                    server_id.encode("utf-8"),
+                    server,
+                )
             except Exception:
                 # TODO: The _make_storage_server failure is logged but maybe
                 # we should write a traceback here.  Notably, tests don't
@@ -232,8 +235,19 @@ class StorageFarmBroker(service.MultiService):
         include_result=False,
     )
     def _make_storage_server(self, server_id, server):
-        assert isinstance(server_id, unicode) # from YAML
-        server_id = server_id.encode("ascii")
+        """
+        Create a new ``IServer`` for the given storage server announcement.
+
+        :param bytes server_id: The unique identifier for the server.
+
+        :param dict server: The server announcement.  See ``Static Server
+            Definitions`` in the configuration documentation for details about
+            the structure and contents.
+
+        :return IServer: The object-y representation of the server described
+            by the given announcement.
+        """
+        assert isinstance(server_id, bytes)
         handler_overrides = server.get("connections", {})
         s = NativeStorageServer(
             server_id,
@@ -260,7 +274,7 @@ class StorageFarmBroker(service.MultiService):
     # these two are used in unit tests
     def test_add_rref(self, serverid, rref, ann):
         s = self._make_storage_server(
-            serverid.decode("ascii"),
+            serverid,
             {"ann": ann.copy()},
         )
         s._rref = rref
@@ -292,28 +306,71 @@ class StorageFarmBroker(service.MultiService):
                 remaining.append( (threshold, d) )
         self._threshold_listeners = remaining
 
-    def _got_announcement(self, key_s, ann):
-        precondition(isinstance(key_s, str), key_s)
-        precondition(key_s.startswith("v0-"), key_s)
-        precondition(ann["service-name"] == "storage", ann["service-name"])
-        server_id = key_s
+    def _should_ignore_announcement(self, server_id, ann):
+        """
+        Determine whether a new storage announcement should be discarded or used
+        to update our collection of storage servers.
+
+        :param bytes server_id: The unique identifier for the storage server
+            which made the announcement.
+
+        :param dict ann: The announcement.
+
+        :return bool: ``True`` if the announcement should be ignored,
+            ``False`` if it should be used to update our local storage server
+            state.
+        """
+        # Let local static configuration always override any announcement for
+        # a particular server.
         if server_id in self._static_server_ids:
             log.msg(format="ignoring announcement for static server '%(id)s'",
                     id=server_id,
                     facility="tahoe.storage_broker", umid="AlxzqA",
                     level=log.UNUSUAL)
+            return True
+
+        try:
+            old = self.servers[server_id]
+        except KeyError:
+            # We don't know anything about this server.  Let's use the
+            # announcement to change that.
+            return False
+        else:
+            # Determine if this announcement is at all difference from the
+            # announcement we already have for the server.  If it is the same,
+            # we don't need to change anything.
+            return old.get_announcement() == ann
+
+    def _got_announcement(self, key_s, ann):
+        """
+        This callback is given to the introducer and called any time an
+        announcement is received which has a valid signature and does not have
+        a sequence number less than or equal to a previous sequence number
+        seen for that server by that introducer.
+
+        Note sequence numbers are not considered between different introducers
+        so if we use more than one introducer it is possible for them to
+        deliver us stale announcements in some cases.
+        """
+        precondition(isinstance(key_s, str), key_s)
+        precondition(key_s.startswith("v0-"), key_s)
+        precondition(ann["service-name"] == "storage", ann["service-name"])
+        server_id = key_s
+
+        if self._should_ignore_announcement(server_id, ann):
             return
+
         s = self._make_storage_server(
-            server_id.decode("utf-8"),
+            server_id,
             {u"ann": ann},
         )
-        server_id = s.get_serverid()
-        old = self.servers.get(server_id)
-        if old:
-            if old.get_announcement() == ann:
-                return # duplicate
-            # replacement
-            del self.servers[server_id]
+
+        try:
+            old = self.servers.pop(server_id)
+        except KeyError:
+            pass
+        else:
+            # It's a replacement, get rid of the old one.
             old.stop_connecting()
             old.disownServiceParent()
             # NOTE: this disownServiceParent() returns a Deferred that
@@ -328,6 +385,7 @@ class StorageFarmBroker(service.MultiService):
             # until they have fired (but hopefully don't keep reference
             # cycles around when they fire earlier than that, which will
             # almost always be the case for normal runtime).
+
         # now we forget about them and start using the new one
         s.setServiceParent(self)
         self.servers[server_id] = s
