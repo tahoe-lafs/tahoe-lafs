@@ -742,7 +742,7 @@ class Node(service.MultiService):
         if self.tub is not None:
             self.nodeid = b32decode(self.tub.tubID.upper())  # binary format
             self.short_nodeid = b32encode(self.nodeid).lower()[:8]  # for printing
-            self.config.write_config_file("my_nodeid", b32encode(self.nodeid).lower() + "\n")
+            self.config.write_config_file("my_nodeid", b32encode(self.nodeid).lower() + b"\n", mode="wb")
             self.tub.setServiceParent(self)
         else:
             self.nodeid = self.short_nodeid = None

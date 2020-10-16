@@ -194,8 +194,8 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
         config = read_config(basedir, "portnum")
         self.assertEqual(
             config.items("node"),
-            [(b"nickname", b"foo"),
-             (b"timeout.disconnect", b"12"),
+            [("nickname", "foo"),
+             ("timeout.disconnect", "12"),
             ],
         )
 
@@ -545,7 +545,7 @@ enabled = true
 
 class FakeTub(object):
     def __init__(self):
-        self.tubID = base64.b32encode("foo")
+        self.tubID = base64.b32encode(b"foo")
         self.listening_ports = []
     def setOption(self, name, value): pass
     def removeAllConnectionHintHandlers(self): pass

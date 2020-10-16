@@ -628,7 +628,7 @@ def storage_enabled(config):
 
     :return bool: ``True`` if storage is enabled, ``False`` otherwise.
     """
-    return config.get_config(b"storage", b"enabled", True, boolean=True)
+    return config.get_config("storage", "enabled", True, boolean=True)
 
 
 def anonymous_storage_enabled(config):
@@ -1020,7 +1020,7 @@ class _Client(node.Node, pollmixin.PollMixin):
     def init_control(self):
         c = ControlServer()
         c.setServiceParent(self)
-        control_url = self.control_tub.registerReference(c)
+        control_url = self.control_tub.registerReference(c).encode("utf-8")
         self.config.write_private_config("control.furl", control_url + b"\n")
 
     def init_helper(self):
