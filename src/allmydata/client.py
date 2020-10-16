@@ -1020,8 +1020,8 @@ class _Client(node.Node, pollmixin.PollMixin):
     def init_control(self):
         c = ControlServer()
         c.setServiceParent(self)
-        control_url = self.control_tub.registerReference(c).encode("utf-8")
-        self.config.write_private_config("control.furl", control_url + b"\n")
+        control_url = self.control_tub.registerReference(c)
+        self.config.write_private_config("control.furl", control_url + "\n")
 
     def init_helper(self):
         self.helper = Helper(self.config.get_config_path("helper"),

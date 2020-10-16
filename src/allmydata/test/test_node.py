@@ -1,3 +1,5 @@
+from past.builtins import unicode
+
 import base64
 import os
 import stat
@@ -145,7 +147,7 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
     def test_tahoe_cfg_utf8(self):
         basedir = "test_node/test_tahoe_cfg_utf8"
         fileutil.make_dirs(basedir)
-        f = open(os.path.join(basedir, 'tahoe.cfg'), 'wt')
+        f = open(os.path.join(basedir, 'tahoe.cfg'), 'wb')
         f.write(u"\uFEFF[node]\n".encode('utf-8'))
         f.write(u"nickname = \u2621\n".encode('utf-8'))
         f.close()
@@ -333,7 +335,7 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
         ns.called = False
         def call_setLogDir(logdir):
             ns.called = True
-            self.failUnless(isinstance(logdir, str), logdir)
+            self.failUnless(isinstance(logdir, unicode), logdir)
         self.patch(foolscap.logging.log, 'setLogDir', call_setLogDir)
 
         create_node_dir(basedir, "nothing to see here")
