@@ -549,9 +549,12 @@ def _convert_tub_port(s):
     :returns: a proper Twisted endpoint string like (`tcp:X`) is `s`
         is a bare number, or returns `s` as-is
     """
-    if re.search(r'^\d+$', s):
-        return "tcp:{}".format(int(s))
-    return s
+    us = s
+    if isinstance(s, bytes):
+        us = s.decode("utf-8")
+    if re.search(r'^\d+$', us):
+        return "tcp:{}".format(int(us))
+    return us
 
 
 def _tub_portlocation(config):
@@ -844,7 +847,7 @@ class Node(service.MultiService):
                                self.config.get_config_path("log_gatherer.furl"))
 
         incident_dir = self.config.get_config_path("logs", "incidents")
-        foolscap.logging.log.setLogDir(incident_dir.encode(get_filesystem_encoding()))
+        foolscap.logging.log.setLogDir(incident_dir)
         twlog.msg("Foolscap logging initialized")
         twlog.msg("Note to developers: twistd.log does not receive very much.")
         twlog.msg("Use 'flogtool tail -c NODEDIR/private/logport.furl' instead")

@@ -642,7 +642,7 @@ def anonymous_storage_enabled(config):
     """
     return (
         storage_enabled(config) and
-        config.get_config(b"storage", b"anonymous", True, boolean=True)
+        config.get_config("storage", "anonymous", True, boolean=True)
     )
 
 
@@ -781,7 +781,7 @@ class _Client(node.Node, pollmixin.PollMixin):
                 vk_string = ed25519.string_from_verifying_key(self._node_public_key)
                 vk_bytes = remove_prefix(vk_string, ed25519.PUBLIC_KEY_PREFIX)
                 seed = base32.b2a(vk_bytes)
-            self.config.write_config_file("permutation-seed", seed+"\n")
+            self.config.write_config_file("permutation-seed", seed+b"\n", mode="wb")
         return seed.strip()
 
     def get_anonymous_storage_server(self):
@@ -806,7 +806,7 @@ class _Client(node.Node, pollmixin.PollMixin):
 
         config_storedir = self.get_config(
             "storage", "storage_dir", self.STOREDIR,
-        ).decode('utf-8')
+        )
         storedir = self.config.get_config_path(config_storedir)
 
         data = self.config.get_config("storage", "reserved_space", None)
