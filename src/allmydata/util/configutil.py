@@ -10,7 +10,7 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
-from future.utils import PY2
+from future.utils import PY2, PY3
 if PY2:
     # We don't do open(), because we want files to read/write native strs when
     # we do "r" or "w".
@@ -42,10 +42,11 @@ def get_config(tahoe_cfg):
     """
     config = SafeConfigParser()
     with open(tahoe_cfg, "r") as f:
-        # On Python 2, where we read in bytes, skip any initial Byte Order
-        # Mark. Since this is an ordinary file, we don't need to handle
-        # incomplete reads, and can assume seekability.
+        # Skip any initial Byte Order Mark. Since this is an ordinary file, we
+        # don't need to handle incomplete reads, and can assume seekability.
         if PY2 and f.read(3) != b'\xEF\xBB\xBF':
+            f.seek(0)
+        if PY3 and f.read(1) != u"\uFEFF":
             f.seek(0)
         config.readfp(f)
     return config

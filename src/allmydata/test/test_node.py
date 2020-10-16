@@ -1,3 +1,4 @@
+from future.utils import PY2
 from past.builtins import unicode
 
 import base64
@@ -153,8 +154,12 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
         f.close()
 
         config = read_config(basedir, "")
-        self.failUnlessEqual(config.get_config("node", "nickname").decode('utf-8'),
-                             u"\u2621")
+        # Config returns native strings:
+        expected_nick = u"\u2621"
+        if PY2:
+            expected_nick = expected_nick.encode("utf-8")
+        self.failUnlessEqual(config.get_config("node", "nickname"),
+                             expected_nick)
 
     def test_tahoe_cfg_hash_in_name(self):
         basedir = "test_node/test_cfg_hash_in_name"
