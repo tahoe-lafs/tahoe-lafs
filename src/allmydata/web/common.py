@@ -526,6 +526,10 @@ def render_exception(render):
             method=request.method,
             handler=fullyQualifiedName(bound_render),
         )
+        if getattr(request, "dont_apply_extra_processing", False):
+            with action:
+                return bound_render(request)
+
         with action.context():
             result = DeferredContext(maybeDeferred(bound_render, request))
             result.addBoth(_finish, bound_render, request)

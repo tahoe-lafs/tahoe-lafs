@@ -400,7 +400,10 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
         # delegate to it. We could return the resource back out of
         # DirectoryNodeHandler.renderHTTP, and nevow would recurse into it,
         # but the addCallback() that handles when_done= would break.
-        d.addCallback(lambda child: child.render(req))
+        def render_child(child):
+            req.dont_apply_extra_processing = True
+            return child.render(req)
+        d.addCallback(render_child)
         return d
 
     def _POST_uri(self, req):
