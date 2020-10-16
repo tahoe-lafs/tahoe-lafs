@@ -1,6 +1,10 @@
-
+from future.utils import PY2
 import time
-from nevow import url
+if PY2:
+    from nevow import url
+else:
+    # This module still needs porting to Python 3
+    url = None
 from twisted.web.template import (
     renderer,
     tags as T,
@@ -160,12 +164,12 @@ class ReloadMixin(object):
     @renderer
     def reload(self, req, tag):
         if self.monitor.is_finished():
-            return ""
+            return b""
         # url.gethere would break a proxy, so the correct thing to do is
         # req.path[-1] + queryargs
         ophandle = req.prepath[-1]
-        reload_target = ophandle + "?output=html"
-        cancel_target = ophandle + "?t=cancel"
+        reload_target = ophandle + b"?output=html"
+        cancel_target = ophandle + b"?t=cancel"
         cancel_button = T.form(T.input(type="submit", value="Cancel"),
                                action=cancel_target,
                                method="POST",

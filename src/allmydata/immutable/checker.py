@@ -616,7 +616,7 @@ class Checker(log.PrefixingLogMixin):
         d.addCallback(_got_ueb)
 
         def _discard_result(r):
-            assert isinstance(r, str), r
+            assert isinstance(r, bytes), r
             # to free up the RAM
             return None
 
