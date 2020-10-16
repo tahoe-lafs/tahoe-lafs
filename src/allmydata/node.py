@@ -9,7 +9,7 @@ import os.path
 import re
 import types
 import errno
-from io import StringIO
+from io import StringIO, BytesIO
 import tempfile
 from base64 import b32decode, b32encode
 
@@ -209,7 +209,10 @@ def config_from_string(basedir, portnumfile, config_str, _valid_config=None):
 
     # load configuration from in-memory string
     parser = configparser.SafeConfigParser()
-    parser.readfp(StringIO(config_str))
+    if PY2:
+        parser.readfp(BytesIO(config_str.encode("utf-8")))
+    else:
+        parser.readfp(StringIO(config_str))
 
     fname = "<in-memory>"
     configutil.validate_config(fname, parser, _valid_config)
