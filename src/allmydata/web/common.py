@@ -50,9 +50,6 @@ from twisted.internet.defer import (
 from twisted.web.resource import (
     IResource,
 )
-from nevow import appserver
-from nevow.inevow import IRequest
-
 from twisted.web.iweb import IRequest as ITwistedRequest
 from twisted.python import log
 if PY2:
@@ -376,7 +373,7 @@ def humanize_failure(f):
 
 class MyExceptionHandler(DefaultExceptionHandler, object):
     def renderHTTP_exception(self, ctx, f):
-        req = IRequest(ctx)
+        req = INevowRequest(ctx)
         req.write(_renderHTTP_exception(req, f))
         req.finishRequest(False)
 
