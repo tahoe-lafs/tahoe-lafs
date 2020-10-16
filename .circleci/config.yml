@@ -204,7 +204,9 @@ jobs:
       - run: &SUBMIT_COVERAGE
           name: "Submit coverage results"
           command: |
-            [ -n "${UPLOAD_COVERAGE}" ] && /tmp/venv/bin/codecov
+            if [ -n "${UPLOAD_COVERAGE}" ]; then
+              /tmp/venv/bin/codecov
+            fi
 
 
   debian-8:
