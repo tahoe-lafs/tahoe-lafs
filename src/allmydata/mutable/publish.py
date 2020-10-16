@@ -1,5 +1,5 @@
 import os, time
-from six.moves import cStringIO as StringIO
+from io import BytesIO
 from itertools import count
 from zope.interface import implementer
 from twisted.internet import defer
@@ -46,7 +46,7 @@ class PublishStatus(object):
         self.size = None
         self.status = "Not started"
         self.progress = 0.0
-        self.counter = self.statusid_counter.next()
+        self.counter = next(self.statusid_counter)
         self.started = time.time()
 
     def add_per_server_time(self, server, elapsed):
@@ -305,7 +305,7 @@ class Publish(object):
         # Our update process fetched these for us. We need to update
         # them in place as publishing happens.
         self.blockhashes = {} # (shnum, [blochashes])
-        for (i, bht) in blockhashes.iteritems():
+        for (i, bht) in list(blockhashes.items()):
             # We need to extract the leaves from our old hash tree.
             old_segcount = mathutil.div_ceil(version[4],
                                              version[3])
@@ -313,7 +313,7 @@ class Publish(object):
             bht = dict(enumerate(bht))
             h.set_hashes(bht)
             leaves = h[h.get_leaf_index(0):]
-            for j in xrange(self.num_segments - len(leaves)):
+            for j in range(self.num_segments - len(leaves)):
                 leaves.append(None)
 
             assert len(leaves) >= self.num_segments
@@ -509,10 +509,10 @@ class Publish(object):
         # This will eventually hold the block hash chain for each share
         # that we publish. We define it this way so that empty publishes
         # will still have something to write to the remote slot.
-        self.blockhashes = dict([(i, []) for i in xrange(self.total_shares)])
-        for i in xrange(self.total_shares):
+        self.blockhashes = dict([(i, []) for i in range(self.total_shares)])
+        for i in range(self.total_shares):
             blocks = self.blockhashes[i]
-            for j in xrange(self.num_segments):
+            for j in range(self.num_segments):
                 blocks.append(None)
         self.sharehash_leaves = None # eventually [sharehashes]
         self.sharehashes = {} # shnum -> [sharehash leaves necessary to
@@ -526,7 +526,7 @@ class Publish(object):
         return self.done_deferred
 
     def _get_some_writer(self):
-        return list(self.writers.values()[0])[0]
+        return list(list(self.writers.values())[0])[0]
 
     def _update_status(self):
         self._status.set_status("Sending Shares: %d placed out of %d, "
@@ -684,7 +684,7 @@ class Publish(object):
         salt = os.urandom(16)
         assert self._version == SDMF_VERSION
 
-        for shnum, writers in self.writers.iteritems():
+        for shnum, writers in self.writers.items():
             for writer in writers:
                 writer.put_salt(salt)
 
@@ -702,9 +702,9 @@ class Publish(object):
 
 
         self.log("Pushing segment %d of %d" % (segnum + 1, self.num_segments))
+        # XXX: Why does this return a list?
         data = self.data.read(segsize)
-        # XXX: This is dumb. Why return a list?
-        data = "".join(data)
+        data = b"".join(data)
 
         assert len(data) == segsize, len(data)
 
@@ -732,7 +732,7 @@ class Publish(object):
         for i in range(len(crypttext_pieces)):
             offset = i * piece_size
             piece = crypttext[offset:offset+piece_size]
-            piece = piece + "\x00"*(piece_size - len(piece)) # padding
+            piece = piece + b"\x00"*(piece_size - len(piece)) # padding
             crypttext_pieces[i] = piece
             assert len(piece) == piece_size
         d = fec.encode(crypttext_pieces)
@@ -751,7 +751,7 @@ class Publish(object):
         results, salt = encoded_and_salt
         shares, shareids = results
         self._status.set_status("Pushing segment")
-        for i in xrange(len(shares)):
+        for i in range(len(shares)):
             sharedata = shares[i]
             shareid = shareids[i]
             if self._version == MDMF_VERSION:
@@ -786,7 +786,7 @@ class Publish(object):
     def push_encprivkey(self):
         encprivkey = self._encprivkey
         self._status.set_status("Pushing encrypted private key")
-        for shnum, writers in self.writers.iteritems():
+        for shnum, writers in self.writers.items():
             for writer in writers:
                 writer.put_encprivkey(encprivkey)
 
@@ -794,7 +794,7 @@ class Publish(object):
     def push_blockhashes(self):
         self.sharehash_leaves = [None] * len(self.blockhashes)
         self._status.set_status("Building and pushing block hash tree")
-        for shnum, blockhashes in self.blockhashes.iteritems():
+        for shnum, blockhashes in list(self.blockhashes.items()):
             t = hashtree.HashTree(blockhashes)
             self.blockhashes[shnum] = list(t)
             # set the leaf for future use.
@@ -808,7 +808,7 @@ class Publish(object):
     def push_sharehashes(self):
         self._status.set_status("Building and pushing share hash chain")
         share_hash_tree = hashtree.HashTree(self.sharehash_leaves)
-        for shnum in xrange(len(self.sharehash_leaves)):
+        for shnum in range(len(self.sharehash_leaves)):
             needed_indices = share_hash_tree.needed_hashes(shnum)
             self.sharehashes[shnum] = dict( [ (i, share_hash_tree[i])
                                              for i in needed_indices] )
@@ -824,7 +824,7 @@ class Publish(object):
         #   - Get the checkstring of the resulting layout; sign that.
         #   - Push the signature
         self._status.set_status("Pushing root hashes and signature")
-        for shnum in xrange(self.total_shares):
+        for shnum in range(self.total_shares):
             writers = self.writers[shnum]
             for writer in writers:
                 writer.put_root_hash(self.root_hash)
@@ -852,7 +852,7 @@ class Publish(object):
         signable = self._get_some_writer().get_signable()
         self.signature = rsa.sign_data(self._privkey, signable)
 
-        for (shnum, writers) in self.writers.iteritems():
+        for (shnum, writers) in self.writers.items():
             for writer in writers:
                 writer.put_signature(self.signature)
         self._status.timings['sign'] = time.time() - started
@@ -867,7 +867,7 @@ class Publish(object):
         ds = []
         verification_key = rsa.der_string_from_verifying_key(self._pubkey)
 
-        for (shnum, writers) in self.writers.copy().iteritems():
+        for (shnum, writers) in list(self.writers.copy().items()):
             for writer in writers:
                 writer.put_verification_key(verification_key)
                 self.num_outstanding += 1
@@ -1003,7 +1003,7 @@ class Publish(object):
 
         # TODO: Precompute this.
         shares = []
-        for shnum, writers in self.writers.iteritems():
+        for shnum, writers in self.writers.items():
             shares.extend([x.shnum for x in writers if x.server == server])
         known_shnums = set(shares)
         surprise_shares -= known_shnums
@@ -1198,7 +1198,7 @@ class Publish(object):
 class MutableFileHandle(object):
     """
     I am a mutable uploadable built around a filehandle-like object,
-    usually either a StringIO instance or a handle to an actual file.
+    usually either a BytesIO instance or a handle to an actual file.
     """
 
     def __init__(self, filehandle):
@@ -1268,14 +1268,14 @@ class MutableFileHandle(object):
 class MutableData(MutableFileHandle):
     """
     I am a mutable uploadable built around a string, which I then cast
-    into a StringIO and treat as a filehandle.
+    into a BytesIO and treat as a filehandle.
     """
 
     def __init__(self, s):
         # Take a string and return a file-like uploadable.
-        assert isinstance(s, str)
+        assert isinstance(s, bytes)
 
-        MutableFileHandle.__init__(self, StringIO(s))
+        MutableFileHandle.__init__(self, BytesIO(s))
 
 
 @implementer(IMutableUploadable)
@@ -1361,7 +1361,7 @@ class TransformingUploadable(object):
 
         self.log("reading %d bytes of new data" % length)
         new_data = self._newdata.read(length)
-        new_data = "".join(new_data)
+        new_data = b"".join(new_data)
 
         self._read_marker += len(old_start_data + new_data + old_end_data)
 
