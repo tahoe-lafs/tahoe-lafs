@@ -16,8 +16,6 @@ from base64 import b32decode, b32encode
 # Python 2 compatibility
 from six.moves import configparser
 from future.utils import PY2
-if PY2:
-    from io import BytesIO as StringIO  # noqa: F811
 
 from twisted.python import log as twlog
 from twisted.application import service

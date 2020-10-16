@@ -1,5 +1,14 @@
+"""
+Ported to Python 3.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
 from future.utils import PY2
-from past.builtins import unicode
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 import base64
 import os
@@ -340,7 +349,7 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
         ns.called = False
         def call_setLogDir(logdir):
             ns.called = True
-            self.failUnless(isinstance(logdir, unicode), logdir)
+            self.failUnless(isinstance(logdir, str), logdir)
         self.patch(foolscap.logging.log, 'setLogDir', call_setLogDir)
 
         create_node_dir(basedir, "nothing to see here")
