@@ -7,6 +7,14 @@ from hyperlink import (
     DecodedURL,
 )
 
+from eliot import (
+    Message,
+    start_action,
+)
+from eliot.twisted import (
+    DeferredContext,
+)
+
 from twisted.web import (
     http,
     resource,
@@ -468,17 +476,31 @@ def exception_to_child(getChild):
     @wraps(getChild)
     def g(self, name, req):
         bound_getChild = getChild.__get__(self, type(self))
-        result = maybeDeferred(bound_getChild, name, req)
-        result.addCallbacks(
-            _getChild_done,
-            _getChild_failed,
-            callbackArgs=(self,),
+
+        action = start_action(
+            action_type=u"allmydata:web:common-getChild",
+            uri=req.uri,
+            method=req.method,
+            name=name,
+            handler=fullyQualifiedName(bound_getChild),
         )
+        with action.context():
+            result = DeferredContext(maybeDeferred(bound_getChild, name, req))
+            result.addCallbacks(
+                _getChild_done,
+                _getChild_failed,
+                callbackArgs=(self,),
+            )
+            result = result.addActionFinish()
         return DeferredResource(result)
     return g
 
 
 def _getChild_done(child, parent):
+    Message.log(
+        message_type=u"allmydata:web:common-getChild:result",
+        result=fullyQualifiedName(type(child)),
+    )
     if child is None:
         return resource.NoResource()
     return child
@@ -497,8 +519,17 @@ def render_exception(render):
     @wraps(render)
     def g(self, request):
         bound_render = render.__get__(self, type(self))
-        result = maybeDeferred(bound_render, request)
-        result.addBoth(_finish, bound_render, request)
+
+        action = start_action(
+            action_type=u"allmydata:web:common-render",
+            uri=request.uri,
+            method=request.method,
+            handler=fullyQualifiedName(bound_render),
+        )
+        with action.context():
+            result = DeferredContext(maybeDeferred(bound_render, request))
+            result.addBoth(_finish, bound_render, request)
+            result.addActionFinish()
         return NOT_DONE_YET
 
     return g
@@ -506,6 +537,10 @@ def render_exception(render):
 
 def _finish(result, render, request):
     if isinstance(result, Failure):
+        Message.log(
+            message_type=u"allmydata:web:common-render:failure",
+            message=result.getErrorMessage(),
+        )
         _finish(
             _renderHTTP_exception(request, result),
             render,
@@ -516,23 +551,45 @@ def _finish(result, render, request):
         # double-apply the logic.  This leads to an attempt to double-finish
         # the request.  If it isn't using @render_exception then you should
         # fix it so it is.
+        Message.log(
+            message_type=u"allmydata:web:common-render:resource",
+            resource=fullyQualifiedName(type(result)),
+        )
         result.render(request)
     elif isinstance(result, bytes):
+        Message.log(
+            message_type=u"allmydata:web:common-render:bytes",
+        )
         request.write(result)
         request.finish()
     elif isinstance(result, URLPath):
+        Message.log(
+            message_type=u"allmydata:web:common-render:URLPath",
+        )
         if result.netloc == b"":
             root = URLPath.fromRequest(request)
             result.scheme = root.scheme
             result.netloc = root.netloc
         _finish(redirectTo(str(result), request), render, request)
     elif isinstance(result, DecodedURL):
+        Message.log(
+            message_type=u"allmydata:web:common-render:DecodedURL",
+        )
         _finish(redirectTo(str(result), request), render, request)
     elif result is None:
+        Message.log(
+            message_type=u"allmydata:web:common-render:None",
+        )
         request.finish()
     elif result == NOT_DONE_YET:
+        Message.log(
+            message_type=u"allmydata:web:common-render:NOT_DONE_YET",
+        )
         pass
     else:
+        Message.log(
+            message_type=u"allmydata:web:common-render:unknown",
+        )
         log.err("Request for {!r} handled by {!r} returned unusable {!r}".format(
             request.uri,
             fullyQualifiedName(render),
