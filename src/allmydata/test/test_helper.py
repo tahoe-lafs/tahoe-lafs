@@ -167,8 +167,6 @@ def make_uploader(helper_furl, parent, override_name=None):
     :param str override_name: If not ``None``, a new name for the uploader
         service.  Multiple services cannot coexist with the same name.
     """
-    if not isinstance(helper_furl, bytes):
-        raise TypeError("helper_furl must be bytes, got {!r} instead".format(helper_furl))
     u = upload.Uploader(helper_furl)
     if override_name is not None:
         u.name = override_name
