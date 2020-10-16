@@ -136,10 +136,13 @@ def _test_streaming_logs(reactor, temp_dir, alice):
     client.on_close = Deferred()
     client.on_message = Deferred()
 
+    # Capture this now before on_message perhaps goes away.
+    racing = _race(client.on_close, client.on_message)
+
     # Provoke _some_ log event.
     yield treq.get(node_url)
 
-    result = yield _race(client.on_close, client.on_message)
+    result = yield racing
 
     assert isinstance(result, Right)
     json.loads(result.value)
