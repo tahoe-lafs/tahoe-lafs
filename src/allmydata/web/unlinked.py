@@ -13,7 +13,6 @@ from twisted.web.template import (
     renderElement,
     tags,
 )
-from nevow import url
 from allmydata.immutable.upload import FileHandle
 from allmydata.mutable.publish import MutableFileHandle
 from allmydata.web.common import (

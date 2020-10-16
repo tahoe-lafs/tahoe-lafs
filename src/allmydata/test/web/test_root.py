@@ -2,8 +2,6 @@ from mock import Mock
 
 import time
 
-from bs4 import BeautifulSoup
-
 from twisted.trial import unittest
 from twisted.web.template import Tag
 from twisted.web.test.requesthelper import DummyRequest
@@ -17,10 +15,6 @@ from ...web.root import RootElement
 from ...util.connection_status import ConnectionStatus
 from allmydata.web.root import URIHandler
 from allmydata.client import _Client
-
-from .common import (
-    assert_soup_has_tag_with_content,
-)
 
 from ..common_web import (
     render,

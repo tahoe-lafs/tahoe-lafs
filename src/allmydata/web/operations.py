@@ -19,7 +19,6 @@ from twisted.application import service
 
 from allmydata.web.common import (
     WebError,
-    get_root,
     get_arg,
     boolean_of_arg,
     exception_to_child,

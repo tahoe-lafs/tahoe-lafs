@@ -1,10 +1,6 @@
 
 import json
 
-from hyperlink import (
-    DecodedURL,
-)
-
 from twisted.web import http, static
 from twisted.internet import defer
 from twisted.web.resource import (
@@ -484,8 +480,6 @@ class FileDownloader(Resource, object):
         d = self.filenode.read(req, first, size)
 
         def _error(f):
-            lp = log.msg("error during GET", facility="tahoe.webish", failure=f,
-                         level=log.UNUSUAL, umid="xSiF3w")
             req._tahoe_request_had_error = f # for HTTP-style logging
             if req.startedWriting:
                 # The content-type is already set, and the response code has
