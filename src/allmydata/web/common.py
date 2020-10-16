@@ -51,7 +51,6 @@ from twisted.web.resource import (
     IResource,
 )
 from twisted.web.iweb import IRequest as ITwistedRequest
-from twisted.python import log
 if PY2:
     from nevow.appserver import DefaultExceptionHandler
     from nevow.inevow import IRequest as INevowRequest
