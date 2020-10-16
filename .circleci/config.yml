@@ -154,6 +154,8 @@ jobs:
       # we maintain.
       WHEELHOUSE_PATH: &WHEELHOUSE_PATH "/tmp/wheelhouse"
       PIP_FIND_LINKS: "file:///tmp/wheelhouse"
+      # Upload the coverage report.
+      UPLOAD_COVERAGE: "yes"
 
     # pip cannot install packages if the working directory is not readable.
     # We want to run a lot of steps as nobody instead of as root.
@@ -202,7 +204,9 @@ jobs:
       - run: &SUBMIT_COVERAGE
           name: "Submit coverage results"
           command: |
-            /tmp/venv/bin/codecov
+            if [ -n "${UPLOAD_COVERAGE}" ]; then
+              /tmp/venv/bin/codecov
+            fi
 
 
   debian-8:
@@ -222,6 +226,8 @@ jobs:
       <<: *UTF_8_ENVIRONMENT
       # We don't do coverage since it makes PyPy far too slow:
       TAHOE_LAFS_TOX_ENVIRONMENT: "pypy27"
+      # Since we didn't collect it, don't upload it.
+      UPLOAD_COVERAGE: ""
 
 
   c-locale:
@@ -250,6 +256,8 @@ jobs:
       TAHOE_LAFS_TOX_ENVIRONMENT: "deprecations,upcoming-deprecations"
       # Put the logs somewhere we can report them.
       TAHOE_LAFS_WARNINGS_LOG: "/tmp/artifacts/deprecation-warnings.log"
+      # The deprecations tox environments don't do coverage measurement.
+      UPLOAD_COVERAGE: ""
 
 
   integration:
