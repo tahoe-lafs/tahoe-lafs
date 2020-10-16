@@ -53,7 +53,12 @@ class _StreamingLogClientProtocol(WebSocketClientProtocol):
         self.factory.on_open.callback(self)
 
     def onMessage(self, payload, isBinary):
-        self.on_message.callback(payload)
+        if self.on_message is None:
+            # Already did our job, ignore it
+            return
+        on_message = self.on_message
+        self.on_message = None
+        on_message.callback(payload)
 
     def onClose(self, wasClean, code, reason):
         self.on_close.callback(reason)
