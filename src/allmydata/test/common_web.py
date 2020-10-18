@@ -1,8 +1,13 @@
+
+__all__ = [
+    "do_http",
+    "render",
+]
+
 from future.utils import PY2
 
 import treq
 from twisted.internet.defer import (
-    maybeDeferred,
     inlineCallbacks,
     returnValue,
 )

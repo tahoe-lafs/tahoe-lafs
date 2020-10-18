@@ -2,6 +2,10 @@
 General helpers related to Nevow.
 """
 
+from twisted.internet.defer import (
+    maybeDeferred,
+)
+
 from nevow.context import WebContext
 from nevow.testutil import FakeRequest
 from nevow.appserver import (
