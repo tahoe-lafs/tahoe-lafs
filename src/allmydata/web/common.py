@@ -571,6 +571,12 @@ def _finish(result, render, request):
             resource=fullyQualifiedName(type(result)),
         )
         result.render(request)
+    elif isinstance(result, unicode):
+        Message.log(
+            message_type=u"allmydata:web:common-render:unicode",
+        )
+        request.write(result.encode("utf-8"))
+        request.finish()
     elif isinstance(result, bytes):
         Message.log(
             message_type=u"allmydata:web:common-render:bytes",
