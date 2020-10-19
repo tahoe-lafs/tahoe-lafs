@@ -43,7 +43,7 @@ from .common import (
     assert_soup_has_tag_with_attributes,
 )
 
-class StaticResource(Resource):
+class StaticResource(Resource, object):
     def __init__(self, response):
         Resource.__init__(self)
         self._response = response
