@@ -37,9 +37,6 @@ from twisted.web.util import (
 from twisted.python.reflect import (
     fullyQualifiedName,
 )
-from twisted.python.urlpath import (
-    URLPath,
-)
 from twisted.python import log
 from twisted.python.failure import (
     Failure,
@@ -583,15 +580,6 @@ def _finish(result, render, request):
         )
         request.write(result)
         request.finish()
-    elif isinstance(result, URLPath):
-        Message.log(
-            message_type=u"allmydata:web:common-render:URLPath",
-        )
-        if result.netloc == b"":
-            root = URLPath.fromRequest(request)
-            result.scheme = root.scheme
-            result.netloc = root.netloc
-        _finish(redirectTo(str(result), request), render, request)
     elif isinstance(result, DecodedURL):
         Message.log(
             message_type=u"allmydata:web:common-render:DecodedURL",
@@ -684,3 +672,34 @@ def handle_when_done(req, d):
     if when_done:
         d.addCallback(lambda res: DecodedURL.from_text(when_done.decode("utf-8")))
     return d
+
+
+def url_for_string(req, url_string):
+    """
+    Construct a universal URL using the given URL string.
+
+    :param IRequest req: The request being served.  If ``redir_to`` is not
+        absolute then this is used to determine the net location of this
+        server and the resulting URL is made to point at it.
+
+    :param bytes url_string: A byte string giving a universal or absolute URL.
+
+    :return DecodedURL: An absolute URL based on this server's net location
+        and the given URL string.
+    """
+    url = DecodedURL.from_text(url_string.decode("utf-8"))
+    if url.host == b"":
+        root = req.URLPath()
+        netloc = root.netloc.split(b":", 1)
+        if len(netloc) == 1:
+            host = netloc
+            port = None
+        else:
+            host = netloc[0]
+            port = int(netloc[1])
+        url = url.replace(
+            scheme=root.scheme.decode("ascii"),
+            host=host.decode("ascii"),
+            port=port,
+        )
+    return url
