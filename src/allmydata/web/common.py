@@ -605,7 +605,7 @@ def _finish(result, render, request):
             result,
         ))
         request.setResponseCode(http.INTERNAL_SERVER_ERROR)
-        _finish(b"", render, request)
+        _finish(b"Internal Server Error", render, request)
 
 
 def _renderHTTP_exception(request, failure):
