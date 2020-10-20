@@ -37,7 +37,6 @@ from allmydata.interfaces import (
     SDMF_VERSION,
 )
 from allmydata.mutable.common import UnrecoverableFileError
-from allmydata.util.hashutil import timing_safe_compare
 from allmydata.util.time_format import (
     format_delta,
     format_time,
@@ -424,59 +423,6 @@ class SlotsSequenceElement(template.Element):
             return u''
         else:
             return tag
-
-
-class TokenOnlyWebApi(resource.Resource, object):
-    """
-    I provide a rend.Page implementation that only accepts POST calls,
-    and only if they have a 'token=' arg with the correct
-    authentication token (see
-    :meth:`allmydata.client.Client.get_auth_token`). Callers must also
-    provide the "t=" argument to indicate the return-value (the only
-    valid value for this is "json")
-
-    Subclasses should override 'post_json' which should process the
-    API call and return a string which encodes a valid JSON
-    object. This will only be called if the correct token is present
-    and valid (during renderHTTP processing).
-    """
-
-    def __init__(self, client):
-        self.client = client
-
-    def post_json(self, req):
-        return NotImplemented
-
-    def render(self, req):
-        if req.method != 'POST':
-            raise server.UnsupportedMethod(('POST',))
-        if req.args.get('token', False):
-            raise WebError("Do not pass 'token' as URL argument", http.BAD_REQUEST)
-        # not using get_arg() here because we *don't* want the token
-        # argument to work if you passed it as a GET-style argument
-        token = None
-        if req.fields and 'token' in req.fields:
-            token = req.fields['token'].value.strip()
-        if not token:
-            raise WebError("Missing token", http.UNAUTHORIZED)
-        if not timing_safe_compare(token, self.client.get_auth_token()):
-            raise WebError("Invalid token", http.UNAUTHORIZED)
-
-        t = get_arg(req, "t", "").strip()
-        if not t:
-            raise WebError("Must provide 't=' argument")
-        if t == u'json':
-            try:
-                return self.post_json(req)
-            except WebError as e:
-                req.setResponseCode(e.code)
-                return json.dumps({"error": e.text})
-            except Exception as e:
-                message, code = humanize_exception(e)
-                req.setResponseCode(500 if code is None else code)
-                return json.dumps({"error": message})
-        else:
-            raise WebError("'%s' invalid type for 't' arg" % (t,), http.BAD_REQUEST)
 
 
 def exception_to_child(f):
