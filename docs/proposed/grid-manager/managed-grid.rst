@@ -8,7 +8,7 @@ Managed Grid
 ============
 
 In a grid using an Introducer, a client will use any storage-server
-the Introducer announces (and the Introducer will annoucne any
+the Introducer announces (and the Introducer will announce any
 storage-server that connects to it). This means that anyone with the
 Introducer fURL can connect storage to the grid.
 
