@@ -7,12 +7,20 @@ from twisted.internet.defer import (
 from twisted.web.test.requesthelper import (
     DummyChannel,
 )
-from twisted.web.server import (
-    Request,
+from twisted.web.error import (
+    UnsupportedMethod,
+)
+from twisted.web.http import (
+    NOT_ALLOWED,
 )
 from twisted.web.server import (
     NOT_DONE_YET,
 )
+
+from ..webish import (
+    TahoeLAFSRequest,
+)
+
 
 def render(resource, query_args):
     """
@@ -28,9 +36,15 @@ def render(resource, query_args):
         ``bytes``.
     """
     channel = DummyChannel()
-    request = Request(channel)
+    request = TahoeLAFSRequest(channel)
+    request.method = b"GET"
     request.args = query_args
-    result = resource.render(request)
+    try:
+        result = resource.render(request)
+    except UnsupportedMethod:
+        request.setResponseCode(NOT_ALLOWED)
+        result = b""
+
     if isinstance(result, bytes):
         request.write(result)
         done = succeed(None)
