@@ -5,44 +5,43 @@ from cgi import (
 )
 
 from twisted.application import service, strports, internet
-from twisted.web import http, server, static
+from twisted.web import static
+from twisted.web.http import (
+    parse_qs,
+)
+from twisted.web.server import (
+    Request,
+    Site,
+)
 from twisted.internet import defer
 from twisted.internet.address import (
     IPv4Address,
     IPv6Address,
 )
-from nevow import appserver, inevow
 from allmydata.util import log, fileutil
 
 from allmydata.web import introweb, root
-from allmydata.web.common import MyExceptionHandler
 from allmydata.web.operations import OphandleTable
 
 from .web.storage_plugins import (
     StoragePlugins,
 )
 
-# we must override twisted.web.http.Request.requestReceived with a version
-# that doesn't use cgi.parse_multipart() . Since we actually use Nevow, we
-# override the nevow-specific subclass, nevow.appserver.NevowRequest . This
-# is an exact copy of twisted.web.http.Request (from SVN HEAD on 10-Aug-2007)
-# that modifies the way form arguments are parsed. Note that this sort of
-# surgery may induce a dependency upon a particular version of twisted.web
-
-parse_qs = http.parse_qs
-class TahoeLAFSRequest(server.Request, object):
+class TahoeLAFSRequest(Request, object):
     fields = None
     _tahoe_request_had_error = None
 
     def requestReceived(self, command, path, version):
-        """Called by channel when all data has been received.
+        """
+        Called by channel when all data has been received.
 
-        This method is not intended for users.
+        Override the base implementation to apply certain site-wide policies
+        and to provide less memory-intensive multipart/form-post handling for
+        large file uploads.
         """
         self.content.seek(0)
         self.args = {}
         self.stack = []
-        self.setHeader("Referrer-Policy", "no-referrer")
 
         self.method, self.uri = command, path
         self.clientproto = version
@@ -54,11 +53,10 @@ class TahoeLAFSRequest(server.Request, object):
             self.path, argstring = x
             self.args = parse_qs(argstring, 1)
 
-        # Adding security headers. These will be sent for *all* HTTP requests.
-        # See https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Frame-Options
-        self.responseHeaders.setRawHeaders("X-Frame-Options", ["DENY"])
-
         if self.method == 'POST':
+            # We use FieldStorage here because it performs better than
+            # cgi.parse_multipart(self.content, pdict) which is what
+            # twisted.web.http.Request uses.
             self.fields = FieldStorage(
                 self.content,
                 {
@@ -69,41 +67,22 @@ class TahoeLAFSRequest(server.Request, object):
                 environ={'REQUEST_METHOD': 'POST'})
             self.content.seek(0)
 
-        # Argument processing.
+        self._tahoeLAFSSecurityPolicy()
 
-##      The original twisted.web.http.Request.requestReceived code parsed the
-##      content and added the form fields it found there to self.args . It
-##      did this with cgi.parse_multipart, which holds the arguments in RAM
-##      and is thus unsuitable for large file uploads. The Nevow subclass
-##      (nevow.appserver.NevowRequest) uses cgi.FieldStorage instead (putting
-##      the results in self.fields), which is much more memory-efficient.
-##      Since we know we're using Nevow, we can anticipate these arguments
-##      appearing in self.fields instead of self.args, and thus skip the
-##      parse-content-into-self.args step.
-
-##      args = self.args
-##      ctype = self.getHeader('content-type')
-##      if self.method == "POST" and ctype:
-##          mfd = 'multipart/form-data'
-##          key, pdict = cgi.parse_header(ctype)
-##          if key == 'application/x-www-form-urlencoded':
-##              args.update(parse_qs(self.content.read(), 1))
-##          elif key == mfd:
-##              try:
-##                  args.update(cgi.parse_multipart(self.content, pdict))
-##              except KeyError, e:
-##                  if e.args[0] == 'content-disposition':
-##                      # Parse_multipart can't cope with missing
-##                      # content-dispostion headers in multipart/form-data
-##                      # parts, so we catch the exception and tell the client
-##                      # it was a bad request.
-##                      self.channel.transport.write(
-##                              "HTTP/1.1 400 Bad Request\r\n\r\n")
-##                      self.channel.transport.loseConnection()
-##                      return
-##                  raise
         self.processing_started_timestamp = time.time()
         self.process()
+
+    def _tahoeLAFSSecurityPolicy(self):
+        """
+        Set response properties related to Tahoe-LAFS-imposed security policy.
+        This will ensure that all HTTP requests received by the Tahoe-LAFS
+        HTTP server have this policy imposed, regardless of other
+        implementation details.
+        """
+        # See https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Frame-Options
+        self.responseHeaders.setRawHeaders("X-Frame-Options", ["DENY"])
+        # See https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Referrer-Policy
+        self.setHeader("Referrer-Policy", "no-referrer")
 
     def _logger(self):
         # we build up a log string that hides most of the cap, to preserve
@@ -191,15 +170,14 @@ class WebishServer(service.MultiService):
 
     def buildServer(self, webport, nodeurl_path, staticdir):
         self.webport = webport
-        self.site = site = appserver.NevowSite(self.root)
+        self.site = Site(self.root)
         self.site.requestFactory = TahoeLAFSRequest
-        self.site.remember(MyExceptionHandler(), inevow.ICanHandleException)
         self.staticdir = staticdir # so tests can check
         if staticdir:
             self.root.putChild("static", static.File(staticdir))
         if re.search(r'^\d', webport):
             webport = "tcp:"+webport # twisted warns about bare "0" or "3456"
-        s = strports.service(webport, site)
+        s = strports.service(webport, self.site)
         s.setServiceParent(self)
 
         self._scheme = None
