@@ -100,6 +100,15 @@ class TahoeLAFSSiteTests(SyncTestCase):
     """
     def _test_censoring(self, path, censored):
         """
+        Verify that the event logged for a request for ``path`` does not include
+        ``path`` but instead includes ``censored``.
+
+        :param bytes path: A request path.
+
+        :param bytes censored: A replacement value for the request path in the
+            access log.
+
+        :return: ``None`` if the logging looks good.
         """
         logPath = self.mktemp()
 
