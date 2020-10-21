@@ -13,13 +13,22 @@ from testtools.matchers import (
     Equals,
     Contains,
     MatchesPredicate,
+    AfterPreprocessing,
 )
 from testtools.twistedsupport import (
+    failed,
     succeeded,
     has_no_result,
 )
 
+from twisted.python.failure import (
+    Failure,
+)
+from twisted.internet.error import (
+    ConnectionDone,
+)
 from twisted.internet.defer import (
+    Deferred,
     fail,
 )
 from twisted.web.server import (
@@ -52,9 +61,11 @@ class StaticResource(Resource, object):
     def __init__(self, response):
         Resource.__init__(self)
         self._response = response
+        self._request = None
 
     @render_exception
     def render(self, request):
+        self._request = request
         return self._response
 
 
@@ -212,5 +223,27 @@ class RenderExceptionTests(SyncTestCase):
             render(StaticResource(object()), {}),
             succeeded(
                 Equals(b"Internal Server Error"),
+            ),
+        )
+
+    def test_disconnected(self):
+        """
+        If the transport is disconnected before the response is available, nothing
+        is written to the request.
+        """
+        result = Deferred()
+        resource = StaticResource(result)
+        d = render(resource, {})
+
+        resource._request.connectionLost(Failure(ConnectionDone()))
+        result.callback(b"Some result")
+
+        self.assertThat(
+            d,
+            failed(
+                AfterPreprocessing(
+                    lambda reason: reason.type,
+                    Equals(ConnectionDone),
+                ),
             ),
         )

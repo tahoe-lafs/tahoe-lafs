@@ -480,7 +480,10 @@ class FileDownloader(Resource, object):
         d = self.filenode.read(req, first, size)
 
         def _error(f):
-            req._tahoe_request_had_error = f # for HTTP-style logging
+            if f.check(defer.CancelledError):
+                # The HTTP connection was lost and we no longer have anywhere
+                # to send our result.  Let this pass through.
+                return f
             if req.startedWriting:
                 # The content-type is already set, and the response code has
                 # already been sent, so we can't provide a clean error

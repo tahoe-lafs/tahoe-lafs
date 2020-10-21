@@ -41,6 +41,7 @@ from twisted.python.failure import (
     Failure,
 )
 from twisted.internet.defer import (
+    CancelledError,
     maybeDeferred,
 )
 from twisted.web.resource import (
@@ -472,7 +473,17 @@ def render_exception(render):
             # Apply `_finish` all of our result handling logic to whatever it
             # returned.
             result.addBoth(_finish, bound_render, request)
-            result.addActionFinish()
+            d = result.addActionFinish()
+
+        # If the connection is lost then there's no point running our _finish
+        # logic because it has nowhere to send anything.  There may also be no
+        # point in finishing whatever operation was being performed because
+        # the client cannot be informed of its result.  Also, Twisted Web
+        # raises exceptions from some Request methods if they're used after
+        # the connection is lost.
+        request.notifyFinish().addErrback(
+            lambda ignored: d.cancel(),
+        )
         return NOT_DONE_YET
 
     return g
@@ -497,6 +508,8 @@ def _finish(result, render, request):
     :return: ``None``
     """
     if isinstance(result, Failure):
+        if result.check(CancelledError):
+            return
         Message.log(
             message_type=u"allmydata:web:common-render:failure",
             message=result.getErrorMessage(),
