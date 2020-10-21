@@ -1,6 +1,3 @@
-from zope.interface import (
-    classImplements,
-)
 from twisted.python.reflect import (
     fullyQualifiedName,
 )
@@ -12,9 +9,6 @@ from twisted.web.test.requesthelper import (
 )
 from twisted.web.server import (
     Request,
-)
-from twisted.web.iweb import (
-    IRequest,
 )
 from twisted.web.server import (
     NOT_DONE_YET,
