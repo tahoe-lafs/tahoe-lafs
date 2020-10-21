@@ -38,8 +38,7 @@ install_requires = [
     "zfec >= 1.1.0",
 
     # zope.interface >= 3.6.0 is required for Twisted >= 12.1.0.
-    # zope.interface 3.6.3 and 3.6.4 are incompatible with Nevow (#1435).
-    "zope.interface >= 3.6.0, != 3.6.3, != 3.6.4",
+    "zope.interface >= 3.6.0",
 
     # * foolscap < 0.5.1 had a performance bug which spent O(N**2) CPU for
     #   transferring large mutable files of size N.
@@ -70,7 +69,6 @@ install_requires = [
     #   rekeying bug <https://twistedmatrix.com/trac/ticket/4395>
     # * The FTP frontend depends on Twisted >= 11.1.0 for
     #   filepath.Permissions
-    # * Nevow 0.11.1 depends on Twisted >= 13.0.0.
     # * The SFTP frontend and manhole depend on the conch extra. However, we
     #   can't explicitly declare that without an undesirable dependency on gmpy,
     #   as explained in ticket #2740.
@@ -101,9 +99,6 @@ install_requires = [
     #   specified by Twisted[conch].  Since this would be the *whole point* of
     #   an sftp extra in Tahoe-LAFS, there is no point in having one.
     "Twisted[tls,conch] >= 18.4.0",
-
-    # We need Nevow >= 0.11.1 which can be installed using pip.
-    "Nevow >= 0.11.1",
 
     "PyYAML >= 3.11",
 
