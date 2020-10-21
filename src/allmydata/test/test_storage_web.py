@@ -26,14 +26,6 @@ from twisted.internet import defer
 from twisted.application import service
 from twisted.web.template import flattenString
 
-# We need to use `nevow.inevow.IRequest` for now for compatibility
-# with the code in web/common.py.  Once nevow bits are gone from
-# web/common.py, we can use `twisted.web.iweb.IRequest` here.
-if PY2:
-    from nevow.inevow import IRequest
-else:
-    from twisted.web.iweb import IRequest
-
 from twisted.web.server import Request
 from twisted.web.test.requesthelper import DummyChannel
 from zope.interface import implementer
@@ -51,6 +43,10 @@ from allmydata.web.storage import (
     remove_prefix
 )
 from .common_util import FakeCanary
+
+from .common_web import (
+    render,
+)
 
 def remove_tags(s):
     s = re.sub(br'<[^>]*>', b' ', s)
@@ -75,20 +71,10 @@ def renderDeferred(ss):
     return flattenString(None, elem)
 
 def renderJSON(resource):
-    """Render a JSON from the given resource."""
-
-    @implementer(IRequest)
-    class JSONRequest(Request):
-        """
-        A Request with t=json argument added to it.  This is useful to
-        invoke a Resouce.render_JSON() method.
-        """
-        def __init__(self):
-            Request.__init__(self, DummyChannel())
-            self.args = {"t": ["json"]}
-            self.fields = {}
-
-    return resource.render(JSONRequest())
+    """
+    Render a JSON from the given resource.
+    """
+    return render(resource, {"t": ["json"]})
 
 class MyBucketCountingCrawler(BucketCountingCrawler):
     def finished_prefix(self, cycle, prefix):
