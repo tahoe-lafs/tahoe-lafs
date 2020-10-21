@@ -569,17 +569,6 @@ def _renderHTTP_exception(request, failure):
     if code is not None:
         return _renderHTTP_exception_simple(request, text, code)
 
-    if failure.check(UnsupportedMethod):
-        # twisted.web.server.Request.render() has support for transforming
-        # this into an appropriate 501 NOT_IMPLEMENTED or 405 NOT_ALLOWED
-        # return code, but nevow does not.
-        method = request.method
-        return _renderHTTP_exception_simple(
-            request,
-            "I don't know how to treat a %s request." % (method,),
-            http.NOT_IMPLEMENTED,
-        )
-
     accept = request.getHeader("accept")
     if not accept:
         accept = "*/*"
