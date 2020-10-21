@@ -11,7 +11,7 @@ from __future__ import unicode_literals
 
 from future.utils import PY2
 if PY2:
-    # Omitted list sinc it broke a test on Python 2. Shouldn't require further
+    # Omitted list since it broke a test on Python 2. Shouldn't require further
     # work, when we switch to Python 3 we'll be dropping this, anyway.
     from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, object, range, str, max, min  # noqa: F401
 
