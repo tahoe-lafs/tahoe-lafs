@@ -60,7 +60,7 @@ class StaticResource(Resource, object):
 
 class RenderExceptionTests(SyncTestCase):
     """
-    Tests for ``render_exception``.
+    Tests for ``render_exception`` (including the private helper ``_finish``).
     """
     def test_exception(self):
         """
