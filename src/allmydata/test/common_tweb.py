@@ -39,6 +39,8 @@ def render(resource, query_args):
     request = TahoeLAFSRequest(channel)
     request.method = b"GET"
     request.args = query_args
+    request.prepath = [b""]
+    request.postpath = []
     try:
         result = resource.render(request)
     except UnsupportedMethod:
