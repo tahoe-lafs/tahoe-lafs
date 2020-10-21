@@ -47,14 +47,6 @@ from twisted.internet.defer import (
 from twisted.web.resource import (
     IResource,
 )
-if PY2:
-    from nevow.appserver import DefaultExceptionHandler
-    from nevow.inevow import IRequest as INevowRequest
-else:
-    class DefaultExceptionHandler:
-        def __init__(self, *args, **kwargs):
-            raise NotImplementedError("Still not ported to Python 3")
-    INevowRequest = None
 
 from allmydata import blacklist
 from allmydata.interfaces import (
@@ -359,13 +351,6 @@ def humanize_failure(f):
         the failure.
     """
     return humanize_exception(f.value)
-
-
-class MyExceptionHandler(DefaultExceptionHandler, object):
-    def renderHTTP_exception(self, ctx, f):
-        req = INevowRequest(ctx)
-        req.write(_renderHTTP_exception(req, f))
-        req.finishRequest(False)
 
 
 class NeedOperationHandleError(WebError):
