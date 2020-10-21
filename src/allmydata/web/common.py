@@ -548,6 +548,23 @@ def render_exception(render):
 
 
 def _finish(result, render, request):
+    """
+    Try to finish rendering the response to a request.
+
+    This implements extra convenience functionality not provided by Twisted
+    Web.  Various resources in Tahoe-LAFS made use of this functionality when
+    it was provided by Nevow.  Rather than making that application code do the
+    more tedious thing itself, we duplicate the functionality here.
+
+    :param result: Something returned by a render method which we can turn
+        into a response.
+
+    :param render: The original render method which produced the result.
+
+    :param request: The request being responded to.
+
+    :return: ``None``
+    """
     if isinstance(result, Failure):
         Message.log(
             message_type=u"allmydata:web:common-render:failure",
