@@ -44,6 +44,11 @@ from .common import (
 )
 
 class StaticResource(Resource, object):
+    """
+    ``StaticResource`` is a resource that returns whatever Python object it is
+    given from its render method.  This is useful for testing
+    ``render_exception``\\ 's handling of different render results.
+    """
     def __init__(self, response):
         Resource.__init__(self)
         self._response = response
