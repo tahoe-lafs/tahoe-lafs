@@ -398,8 +398,8 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
         d.addBoth(_maybe_got_node)
         # now we have a placeholder or a filenodehandler, and we can just
         # delegate to it. We could return the resource back out of
-        # DirectoryNodeHandler.renderHTTP, and nevow would recurse into it,
-        # but the addCallback() that handles when_done= would break.
+        # DirectoryNodeHandler.render_POST and it would get rendered but the
+        # addCallback() that handles when_done= would break.
         def render_child(child):
             req.dont_apply_extra_processing = True
             return child.render(req)
