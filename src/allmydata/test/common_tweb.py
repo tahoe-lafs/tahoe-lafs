@@ -8,7 +8,10 @@ from twisted.internet.defer import (
     succeed,
 )
 from twisted.web.test.requesthelper import (
-    DummyRequest,
+    DummyChannel,
+)
+from twisted.web.server import (
+    Request,
 )
 from twisted.web.iweb import (
     IRequest,
@@ -16,8 +19,6 @@ from twisted.web.iweb import (
 from twisted.web.server import (
     NOT_DONE_YET,
 )
-
-classImplements(DummyRequest, IRequest)
 
 def render(resource, query_args):
     """
@@ -32,7 +33,8 @@ def render(resource, query_args):
     :return Deferred: A Deferred that fires with the rendered response body as
         ``bytes``.
     """
-    request = DummyRequest([])
+    channel = DummyChannel()
+    request = Request(channel)
     request.args = query_args
     result = resource.render(request)
     if isinstance(result, bytes):
@@ -50,5 +52,9 @@ def render(resource, query_args):
                 result,
             ),
         )
-    done.addCallback(lambda ignored: b"".join(request.written))
+    def get_body(ignored):
+        complete_response = channel.transport.written.getvalue()
+        header, body = complete_response.split(b"\r\n\r\n", 1)
+        return body
+    done.addCallback(get_body)
     return done
