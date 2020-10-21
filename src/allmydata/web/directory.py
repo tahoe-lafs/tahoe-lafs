@@ -114,7 +114,7 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
 
         # Rejecting URIs that contain empty path pieces (for example:
         # "/uri/URI:DIR2:../foo//new.txt" or "/uri/URI:DIR2:..//") was
-        # the old nevow behavior and it is encoded in the test suite;
+        # the old Nevow behavior and it is encoded in the test suite;
         # we will follow suit.
         for segment in req.prepath:
             if not segment:

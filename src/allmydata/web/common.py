@@ -358,7 +358,7 @@ class NeedOperationHandleError(WebError):
 
 class SlotsSequenceElement(template.Element):
     """
-    ``SlotsSequenceElement` is a minimal port of nevow's sequence renderer for
+    ``SlotsSequenceElement` is a minimal port of Nevow's sequence renderer for
     twisted.web.template.
 
     Tags passed in to be templated will have two renderers available: ``item``
