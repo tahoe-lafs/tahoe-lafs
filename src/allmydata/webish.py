@@ -1,5 +1,8 @@
 import re, time
 
+from functools import (
+    partial,
+)
 from cgi import (
     FieldStorage,
 )
@@ -84,54 +87,6 @@ class TahoeLAFSRequest(Request, object):
         # See https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Referrer-Policy
         self.setHeader("Referrer-Policy", "no-referrer")
 
-    def _logger(self):
-        # we build up a log string that hides most of the cap, to preserve
-        # user privacy. We retain the query args so we can identify things
-        # like t=json. Then we send it to the flog. We make no attempt to
-        # match apache formatting. TODO: when we move to DSA dirnodes and
-        # shorter caps, consider exposing a few characters of the cap, or
-        # maybe a few characters of its hash.
-        x = self.uri.split("?", 1)
-        if len(x) == 1:
-            # no query args
-            path = self.uri
-            queryargs = ""
-        else:
-            path, queryargs = x
-            # there is a form handler which redirects POST /uri?uri=FOO into
-            # GET /uri/FOO so folks can paste in non-HTTP-prefixed uris. Make
-            # sure we censor these too.
-            if queryargs.startswith("uri="):
-                queryargs = "[uri=CENSORED]"
-            queryargs = "?" + queryargs
-        if path.startswith("/uri"):
-            path = "/uri/[CENSORED].."
-        elif path.startswith("/file"):
-            path = "/file/[CENSORED].."
-        elif path.startswith("/named"):
-            path = "/named/[CENSORED].."
-
-        uri = path + queryargs
-
-        error = ""
-        if self._tahoe_request_had_error:
-            error = " [ERROR]"
-
-        log.msg(
-            format=(
-                "web: %(clientip)s %(method)s %(uri)s %(code)s "
-                "%(length)s%(error)s"
-            ),
-            clientip=_get_client_ip(self),
-            method=self.method,
-            uri=uri,
-            code=self.code,
-            length=(self.sentLength or "-"),
-            error=error,
-            facility="tahoe.webish",
-            level=log.OPERATIONAL,
-        )
-
 
 def _get_client_ip(request):
     try:
@@ -143,6 +98,54 @@ def _get_client_ip(request):
         if isinstance(client_addr, (IPv4Address, IPv6Address)):
             return client_addr.host
         return None
+
+
+def _logFormatter(logDateTime, request):
+    # we build up a log string that hides most of the cap, to preserve
+    # user privacy. We retain the query args so we can identify things
+    # like t=json. Then we send it to the flog. We make no attempt to
+    # match apache formatting. TODO: when we move to DSA dirnodes and
+    # shorter caps, consider exposing a few characters of the cap, or
+    # maybe a few characters of its hash.
+    x = request.uri.split("?", 1)
+    if len(x) == 1:
+        # no query args
+        path = request.uri
+        queryargs = ""
+    else:
+        path, queryargs = x
+        # there is a form handler which redirects POST /uri?uri=FOO into
+        # GET /uri/FOO so folks can paste in non-HTTP-prefixed uris. Make
+        # sure we censor these too.
+        if queryargs.startswith("uri="):
+            queryargs = "uri=[CENSORED]"
+        queryargs = "?" + queryargs
+    if path.startswith("/uri/"):
+        path = "/uri/[CENSORED]"
+    elif path.startswith("/file/"):
+        path = "/file/[CENSORED]"
+    elif path.startswith("/named/"):
+        path = "/named/[CENSORED]"
+
+    uri = path + queryargs
+
+    template = "web: %(clientip)s %(method)s %(uri)s %(code)s %(length)s"
+    return template % dict(
+        clientip=_get_client_ip(request),
+        method=request.method,
+        uri=uri,
+        code=request.code,
+        length=(request.sentLength or "-"),
+        facility="tahoe.webish",
+        level=log.OPERATIONAL,
+    )
+
+
+tahoe_lafs_site = partial(
+    Site,
+    requestFactory=TahoeLAFSRequest,
+    logFormatter=_logFormatter,
+)
 
 
 class WebishServer(service.MultiService):
@@ -170,8 +173,7 @@ class WebishServer(service.MultiService):
 
     def buildServer(self, webport, nodeurl_path, staticdir):
         self.webport = webport
-        self.site = Site(self.root)
-        self.site.requestFactory = TahoeLAFSRequest
+        self.site = tahoe_lafs_site(self.root)
         self.staticdir = staticdir # so tests can check
         if staticdir:
             self.root.putChild("static", static.File(staticdir))

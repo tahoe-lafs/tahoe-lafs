@@ -8,11 +8,20 @@ from uuid import (
 
 from testtools.matchers import (
     AfterPreprocessing,
+    Contains,
     Equals,
+    MatchesAll,
+    Not,
 )
 
+from twisted.python.filepath import (
+    FilePath,
+)
 from twisted.web.test.requesthelper import (
     DummyChannel,
+)
+from twisted.web.resource import (
+    Resource,
 )
 
 from ..common import (
@@ -21,6 +30,7 @@ from ..common import (
 
 from ...webish import (
     TahoeLAFSRequest,
+    tahoe_lafs_site,
 )
 
 
@@ -83,6 +93,73 @@ class TahoeLAFSRequestTests(SyncTestCase):
             ),
         )
 
+
+class TahoeLAFSSiteTests(SyncTestCase):
+    """
+    Tests for the ``Site`` created by ``tahoe_lafs_site``.
+    """
+    def _test_censoring(self, path, censored):
+        """
+        """
+        logPath = self.mktemp()
+
+        site = tahoe_lafs_site(Resource(), logPath=logPath)
+        site.startFactory()
+
+        channel = DummyChannel()
+        channel.factory = site
+        request = TahoeLAFSRequest(channel)
+
+        request.gotLength(None)
+        request.requestReceived(b"GET", path, b"HTTP/1.1")
+
+        self.assertThat(
+            FilePath(logPath).getContent(),
+            MatchesAll(
+                Contains(censored),
+                Not(Contains(path)),
+            ),
+        )
+
+    def test_uri_censoring(self):
+        """
+        The log event for a request for **/uri/<CAP>** has the capability value
+        censored.
+        """
+        self._test_censoring(
+            b"/uri/URI:CHK:aaa:bbb",
+            b"/uri/[CENSORED]",
+        )
+
+    def test_file_censoring(self):
+        """
+        The log event for a request for **/file/<CAP>** has the capability value
+        censored.
+        """
+        self._test_censoring(
+            b"/file/URI:CHK:aaa:bbb",
+            b"/file/[CENSORED]",
+        )
+
+    def test_named_censoring(self):
+        """
+        The log event for a request for **/named/<CAP>** has the capability value
+        censored.
+        """
+        self._test_censoring(
+            b"/named/URI:CHK:aaa:bbb",
+            b"/named/[CENSORED]",
+        )
+
+    def test_uri_queryarg_censoring(self):
+        """
+        The log event for a request for **/uri?cap=<CAP>** has the capability
+        value censored.
+        """
+        self._test_censoring(
+            b"/uri?uri=URI:CHK:aaa:bbb",
+            b"/uri?uri=[CENSORED]",
+        )
 
 def param(name, value):
     return u"; {}={}".format(name, value)
