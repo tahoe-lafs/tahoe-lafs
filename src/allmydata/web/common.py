@@ -540,6 +540,8 @@ def render_exception(render):
 
         with action.context():
             result = DeferredContext(maybeDeferred(bound_render, request))
+            # Apply `_finish` all of our result handling logic to whatever it
+            # returned.
             result.addBoth(_finish, bound_render, request)
             result.addActionFinish()
         return NOT_DONE_YET
