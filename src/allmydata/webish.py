@@ -1,6 +1,11 @@
 import re, time
+
+from cgi import (
+    FieldStorage,
+)
+
 from twisted.application import service, strports, internet
-from twisted.web import http, static
+from twisted.web import http, server, static
 from twisted.internet import defer
 from twisted.internet.address import (
     IPv4Address,
@@ -25,7 +30,7 @@ from .web.storage_plugins import (
 # surgery may induce a dependency upon a particular version of twisted.web
 
 parse_qs = http.parse_qs
-class MyRequest(appserver.NevowRequest, object):
+class TahoeLAFSRequest(server.Request, object):
     fields = None
     _tahoe_request_had_error = None
 
@@ -34,7 +39,7 @@ class MyRequest(appserver.NevowRequest, object):
 
         This method is not intended for users.
         """
-        self.content.seek(0,0)
+        self.content.seek(0)
         self.args = {}
         self.stack = []
         self.setHeader("Referrer-Policy", "no-referrer")
@@ -52,6 +57,17 @@ class MyRequest(appserver.NevowRequest, object):
         # Adding security headers. These will be sent for *all* HTTP requests.
         # See https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Frame-Options
         self.responseHeaders.setRawHeaders("X-Frame-Options", ["DENY"])
+
+        if self.method == 'POST':
+            self.fields = FieldStorage(
+                self.content,
+                {
+                    name.lower(): value[-1]
+                    for (name, value)
+                    in self.requestHeaders.getAllRawHeaders()
+                },
+                environ={'REQUEST_METHOD': 'POST'})
+            self.content.seek(0)
 
         # Argument processing.
 
@@ -176,7 +192,7 @@ class WebishServer(service.MultiService):
     def buildServer(self, webport, nodeurl_path, staticdir):
         self.webport = webport
         self.site = site = appserver.NevowSite(self.root)
-        self.site.requestFactory = MyRequest
+        self.site.requestFactory = TahoeLAFSRequest
         self.site.remember(MyExceptionHandler(), inevow.ICanHandleException)
         self.staticdir = staticdir # so tests can check
         if staticdir:
