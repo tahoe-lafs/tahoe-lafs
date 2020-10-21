@@ -483,6 +483,8 @@ def exception_to_child(getChild):
     """
     @wraps(getChild)
     def g(self, name, req):
+        # Bind the method to the instance so it has a better
+        # fullyQualifiedName later on.  This is not necessary on Python 3.
         bound_getChild = getChild.__get__(self, type(self))
 
         action = start_action(
@@ -526,6 +528,8 @@ def render_exception(render):
     """
     @wraps(render)
     def g(self, request):
+        # Bind the method to the instance so it has a better
+        # fullyQualifiedName later on.  This is not necessary on Python 3.
         bound_render = render.__get__(self, type(self))
 
         action = start_action(
