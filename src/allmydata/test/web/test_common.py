@@ -2,6 +2,8 @@
 Tests for ``allmydata.web.common``.
 """
 
+import gc
+
 from bs4 import (
     BeautifulSoup,
 )
@@ -228,8 +230,8 @@ class RenderExceptionTests(SyncTestCase):
 
     def test_disconnected(self):
         """
-        If the transport is disconnected before the response is available, nothing
-        is written to the request.
+        If the transport is disconnected before the response is available, no
+        ``RuntimeError`` is logged for finishing a disconnected request.
         """
         result = Deferred()
         resource = StaticResource(result)
@@ -247,3 +249,9 @@ class RenderExceptionTests(SyncTestCase):
                 ),
             ),
         )
+
+        # Since we're not a trial TestCase we don't have flushLoggedErrors.
+        # The next best thing is to make sure any dangling Deferreds have been
+        # garbage collected and then let the generic trial logic for failing
+        # tests with logged errors kick in.
+        gc.collect()
