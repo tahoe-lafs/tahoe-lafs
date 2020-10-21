@@ -522,9 +522,9 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
             d.addCallback(self._maybe_literal, CheckResultsRenderer)
         return d
 
-    def _start_operation(self, monitor, renderer, ctx):
-        self._operations.add_monitor(ctx, monitor, renderer)
-        return self._operations.redirect_to(ctx)
+    def _start_operation(self, monitor, renderer, req):
+        self._operations.add_monitor(req, monitor, renderer)
+        return self._operations.redirect_to(req)
 
     def _POST_start_deep_check(self, req):
         # check this directory and everything reachable from it

@@ -152,8 +152,6 @@ class ReloadMixin(object):
     def refresh(self, req, tag):
         if self.monitor.is_finished():
             return ""
-        # dreid suggests ctx.tag(**dict([("http-equiv", "refresh")]))
-        # but I can't tell if he's joking or not
         tag.attributes["http-equiv"] = "refresh"
         tag.attributes["content"] = str(self.REFRESH_TIME)
         return tag
