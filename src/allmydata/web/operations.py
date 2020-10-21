@@ -1,13 +1,14 @@
-from future.utils import PY2
+
 import time
-if PY2:
-    from nevow import url
-else:
-    # This module still needs porting to Python 3
-    url = None
+from hyperlink import (
+    DecodedURL,
+)
 from twisted.web.template import (
     renderer,
     tags as T,
+)
+from twisted.python.urlpath import (
+    URLPath,
 )
 from twisted.python.failure import Failure
 from twisted.internet import reactor, defer
@@ -18,7 +19,6 @@ from twisted.application import service
 
 from allmydata.web.common import (
     WebError,
-    get_root,
     get_arg,
     boolean_of_arg,
     exception_to_child,
@@ -88,17 +88,14 @@ class OphandleTable(resource.Resource, service.Service):
         """
         :param allmydata.webish.MyRequest req:
         """
-        ophandle = get_arg(req, "ophandle")
+        ophandle = get_arg(req, "ophandle").decode("utf-8")
         assert ophandle
-        target = get_root(req) + "/operations/" + ophandle
+        here = DecodedURL.from_text(unicode(URLPath.fromRequest(req)))
+        target = here.click(u"/").child(u"operations", ophandle)
         output = get_arg(req, "output")
         if output:
-            target = target + "?output=%s" % output
-
-        # XXX: We have to use nevow.url here because nevow.appserver
-        # is unhappy with anything else; so this gets its own ticket.
-        # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3314
-        return url.URL.fromString(target)
+            target = target.add(u"output", output.decode("utf-8"))
+        return target
 
     @exception_to_child
     def getChild(self, name, req):

@@ -52,6 +52,9 @@ from allmydata.mutable.publish import MutableData
 from .common import (
     EMPTY_CLIENT_CONFIG,
 )
+from .common_web import (
+    render,
+)
 
 from .web.common import (
     assert_soup_has_favicon,
@@ -184,11 +187,11 @@ class WebResultsRendering(unittest.TestCase):
         return c
 
     def render_json(self, resource):
-        return resource.render(TestRequest(args={"output": ["json"]}))
+        return self.successResultOf(render(resource, {"output": ["json"]}))
 
     def render_element(self, element, args=None):
         d = flattenString(TestRequest(args), element)
-        return unittest.TestCase().successResultOf(d)
+        return self.successResultOf(d)
 
     def test_literal(self):
         lcr = web_check_results.LiteralCheckResultsRendererElement()
