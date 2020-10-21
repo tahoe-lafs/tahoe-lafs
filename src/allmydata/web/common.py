@@ -26,7 +26,6 @@ from twisted.web.template import (
 )
 from twisted.web.server import (
     NOT_DONE_YET,
-    UnsupportedMethod,
 )
 from twisted.web.util import (
     DeferredResource,
