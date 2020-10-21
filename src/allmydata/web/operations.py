@@ -90,8 +90,8 @@ class OphandleTable(resource.Resource, service.Service):
         """
         ophandle = get_arg(req, "ophandle").decode("utf-8")
         assert ophandle
-        root = DecodedURL.from_text(unicode(URLPath.fromRequest(req)))
-        target = root.click(u"/").child(u"operations", ophandle)
+        here = DecodedURL.from_text(unicode(URLPath.fromRequest(req)))
+        target = here.click(u"/").child(u"operations", ophandle)
         output = get_arg(req, "output")
         if output:
             target = target.add(u"output", output.decode("utf-8"))
