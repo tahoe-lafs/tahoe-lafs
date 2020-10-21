@@ -4,8 +4,6 @@ __all__ = [
     "render",
 ]
 
-from future.utils import PY2
-
 import treq
 from twisted.internet.defer import (
     inlineCallbacks,

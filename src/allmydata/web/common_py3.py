@@ -4,8 +4,6 @@ Common utilities that are available from Python 3.
 Can eventually be merged back into allmydata.web.common.
 """
 
-from future.utils import PY2
-
 from twisted.web import resource, http
 
 from allmydata.util import abbreviate

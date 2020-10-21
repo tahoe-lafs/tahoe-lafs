@@ -2,9 +2,6 @@
 Tests for ``allmydata.webish``.
 """
 
-from io import (
-    BytesIO,
-)
 from uuid import (
     uuid4,
 )
@@ -14,21 +11,8 @@ from testtools.matchers import (
     Equals,
 )
 
-from twisted.python.filepath import (
-    FilePath,
-)
 from twisted.web.test.requesthelper import (
     DummyChannel,
-)
-from twisted.web.client import (
-    FileBodyProducer,
-)
-from twisted.internet.task import (
-    Cooperator,
-)
-
-from treq.multipart import (
-    MultiPartProducer,
 )
 
 from ..common import (

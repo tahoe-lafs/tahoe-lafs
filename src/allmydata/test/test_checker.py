@@ -21,9 +21,6 @@ from twisted.trial import unittest
 from twisted.internet import defer
 
 from zope.interface import implementer
-from twisted.web.server import Request
-from twisted.web.test.requesthelper import DummyChannel
-from twisted.web.template import flattenString
 from twisted.web.resource import (
     Resource,
 )
@@ -39,9 +36,6 @@ from allmydata.interfaces import (
     ICheckAndRepairResults,
 )
 from allmydata.util import base32
-from allmydata.webish import (
-    TahoeLAFSRequest,
-)
 from allmydata.web import check_results as web_check_results
 from allmydata.storage_client import StorageFarmBroker, NativeStorageServer
 from allmydata.storage.server import storage_index_to_dir

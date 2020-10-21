@@ -26,10 +26,6 @@ from twisted.internet import defer
 from twisted.application import service
 from twisted.web.template import flattenString
 
-from twisted.web.server import Request
-from twisted.web.test.requesthelper import DummyChannel
-from zope.interface import implementer
-
 from foolscap.api import fireEventually
 from allmydata.util import fileutil, hashutil, base32, pollmixin
 from allmydata.storage.common import storage_index_to_dir, \
