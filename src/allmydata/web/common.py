@@ -47,7 +47,6 @@ from twisted.internet.defer import (
 from twisted.web.resource import (
     IResource,
 )
-from twisted.web.iweb import IRequest as ITwistedRequest
 if PY2:
     from nevow.appserver import DefaultExceptionHandler
     from nevow.inevow import IRequest as INevowRequest
@@ -161,11 +160,7 @@ def parse_offset_arg(offset):
     return offset
 
 
-def get_root(ctx_or_req):
-    if PY2:
-        req = INevowRequest(ctx_or_req)
-    else:
-        req = ITwistedRequest(ctx_or_req)
+def get_root(req):
     depth = len(req.prepath) + len(req.postpath)
     link = "/".join([".."] * depth)
     return link
