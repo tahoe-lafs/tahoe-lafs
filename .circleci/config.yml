@@ -134,9 +134,9 @@ jobs:
     # the DOCKERHUB_CONTEXT anchor will have access to the environment
     # variables used here.  These variables will allow the Docker Hub image
     # pull to be authenticated and hopefully avoid hitting and rate limits.
-    docker:
+    docker: &DOCKERHUB_AUTH
       - image: "null"
-        auth: &DOCKERHUB_AUTH
+        auth:
           username: $DOCKERHUB_USERNAME
           password: $DOCKERHUB_PASSWORD
 
