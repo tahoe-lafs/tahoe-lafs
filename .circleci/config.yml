@@ -145,7 +145,7 @@ jobs:
           name: "Schema conformity"
           command: |
 
- lint:
+  lint:
     docker:
       - <<: *DOCKERHUB_AUTH
         image: "circleci/python:2"
