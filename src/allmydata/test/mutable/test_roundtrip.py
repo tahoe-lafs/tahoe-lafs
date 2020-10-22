@@ -1,5 +1,6 @@
-from cStringIO import StringIO
+from __future__ import print_function
 
+from six.moves import cStringIO as StringIO
 from twisted.trial import unittest
 from twisted.internet import defer
 
@@ -41,11 +42,11 @@ class Roundtrip(unittest.TestCase, testutil.ShouldFailMixin, PublishMixin):
         return output
 
     def dump_servermap(self, servermap):
-        print "SERVERMAP", servermap
-        print "RECOVERABLE", [self.abbrev_verinfo(v)
-                              for v in servermap.recoverable_versions()]
-        print "BEST", self.abbrev_verinfo(servermap.best_recoverable_version())
-        print "available", self.abbrev_verinfo_dict(servermap.shares_available())
+        print("SERVERMAP", servermap)
+        print("RECOVERABLE", [self.abbrev_verinfo(v)
+                              for v in servermap.recoverable_versions()])
+        print("BEST", self.abbrev_verinfo(servermap.best_recoverable_version()))
+        print("available", self.abbrev_verinfo_dict(servermap.shares_available()))
 
     def do_download(self, servermap, version=None):
         if version is None:

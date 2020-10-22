@@ -5,8 +5,6 @@ from ..no_network import GridTestMixin
 from allmydata.scripts import tahoe_mv
 from .common import CLITestMixin
 
-timeout = 480 # deep_check takes 360s on Zandr's linksys box, others take > 240s
-
 class Mv(GridTestMixin, CLITestMixin, unittest.TestCase):
     def test_mv_behavior(self):
         self.basedir = "cli/Mv/mv_behavior"
@@ -28,16 +26,16 @@ class Mv(GridTestMixin, CLITestMixin, unittest.TestCase):
         # (we should be able to rename files)
         d.addCallback(lambda res:
             self.do_cli("mv", "tahoe:file1", "tahoe:file3"))
-        d.addCallback(lambda (rc, out, err):
-            self.failUnlessIn("OK", out, "mv didn't rename a file"))
+        d.addCallback(lambda rc_out_err:
+            self.failUnlessIn("OK", rc_out_err[1], "mv didn't rename a file"))
 
         # do mv file3 file2
         # (This should succeed without issue)
         d.addCallback(lambda res:
             self.do_cli("mv", "tahoe:file3", "tahoe:file2"))
         # Out should contain "OK" to show that the transfer worked.
-        d.addCallback(lambda (rc,out,err):
-            self.failUnlessIn("OK", out, "mv didn't output OK after mving"))
+        d.addCallback(lambda rc_out_err:
+            self.failUnlessIn("OK", rc_out_err[1], "mv didn't output OK after mving"))
 
         # Next, make a remote directory.
         d.addCallback(lambda res:
@@ -48,9 +46,9 @@ class Mv(GridTestMixin, CLITestMixin, unittest.TestCase):
         #  client should support this)
         d.addCallback(lambda res:
             self.do_cli("mv", "tahoe:file2", "tahoe:directory"))
-        d.addCallback(lambda (rc, out, err):
+        d.addCallback(lambda rc_out_err:
             self.failUnlessIn(
-                "Error: You can't overwrite a directory with a file", err,
+                "Error: You can't overwrite a directory with a file", rc_out_err[2],
                 "mv shouldn't overwrite directories" ))
 
         # mv file2 directory/
@@ -58,20 +56,20 @@ class Mv(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(lambda res:
             self.do_cli("mv", "tahoe:file2", "tahoe:directory/"))
         # We should see an "OK"...
-        d.addCallback(lambda (rc, out, err):
-            self.failUnlessIn("OK", out,
+        d.addCallback(lambda rc_out_err:
+            self.failUnlessIn("OK", rc_out_err[1],
                             "mv didn't mv a file into a directory"))
         # ... and be able to GET the file
         d.addCallback(lambda res:
             self.do_cli("get", "tahoe:directory/file2", self.basedir + "new"))
-        d.addCallback(lambda (rc, out, err):
+        d.addCallback(lambda rc_out_err:
             self.failUnless(os.path.exists(self.basedir + "new"),
                             "mv didn't write the destination file"))
         # ... and not find the file where it was before.
         d.addCallback(lambda res:
             self.do_cli("get", "tahoe:file2", "file2"))
-        d.addCallback(lambda (rc, out, err):
-            self.failUnlessIn("404", err,
+        d.addCallback(lambda rc_out_err:
+            self.failUnlessIn("404", rc_out_err[2],
                             "mv left the source file intact"))
 
         # Let's build:
@@ -92,13 +90,13 @@ class Mv(GridTestMixin, CLITestMixin, unittest.TestCase):
         # We should have just some_file in tahoe:directory3
         d.addCallback(lambda res:
             self.do_cli("get", "tahoe:directory3/some_file", "some_file"))
-        d.addCallback(lambda (rc, out, err):
-            self.failUnless("404" not in err,
+        d.addCallback(lambda rc_out_err:
+            self.failUnless("404" not in rc_out_err[2],
                               "mv didn't handle nested directories correctly"))
         d.addCallback(lambda res:
             self.do_cli("get", "tahoe:directory3/directory", "directory"))
-        d.addCallback(lambda (rc, out, err):
-            self.failUnlessIn("404", err,
+        d.addCallback(lambda rc_out_err:
+            self.failUnlessIn("404", rc_out_err[2],
                               "mv moved the wrong thing"))
         return d
 
@@ -112,7 +110,7 @@ class Mv(GridTestMixin, CLITestMixin, unittest.TestCase):
         original_do_http = tahoe_mv.do_http
         def mock_do_http(method, url, body=""):
             if method == "DELETE":
-                class FakeResponse:
+                class FakeResponse(object):
                     def read(self):
                         return "response"
                 resp = FakeResponse()
@@ -131,7 +129,8 @@ class Mv(GridTestMixin, CLITestMixin, unittest.TestCase):
         # do mv file1 file2
         d.addCallback(lambda res:
             self.do_cli("mv", "tahoe:file1", "tahoe:file2"))
-        def _check( (rc, out, err) ):
+        def _check(args ):
+            (rc, out, err) = args
             self.failIfIn("OK", out, "mv printed 'OK' even though the DELETE failed")
             self.failUnlessEqual(rc, 2)
         d.addCallback(_check)
@@ -149,7 +148,8 @@ class Mv(GridTestMixin, CLITestMixin, unittest.TestCase):
         self.basedir = "cli/Mv/mv_without_alias"
         self.set_up_grid(oneshare=True)
         d = self.do_cli("mv", "afile", "anotherfile")
-        def _check((rc, out, err)):
+        def _check(args):
+            (rc, out, err) = args
             self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("error:", err)
             self.failUnlessReallyEqual(out, "")
@@ -175,7 +175,8 @@ class Mv(GridTestMixin, CLITestMixin, unittest.TestCase):
         self.basedir = "cli/Mv/mv_with_nonexistent_alias"
         self.set_up_grid(oneshare=True)
         d = self.do_cli("mv", "fake:afile", "fake:anotherfile")
-        def _check((rc, out, err)):
+        def _check(args):
+            (rc, out, err) = args
             self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("error:", err)
             self.failUnlessIn("fake", err)

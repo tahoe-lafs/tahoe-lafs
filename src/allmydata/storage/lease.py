@@ -1,6 +1,19 @@
+"""
+Ported to Python 3.
+"""
+
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+
 import struct, time
 
-class LeaseInfo:
+class LeaseInfo(object):
     def __init__(self, owner_num=None, renew_secret=None, cancel_secret=None,
                  expiration_time=None, nodeid=None):
         self.owner_num = owner_num
@@ -8,15 +21,17 @@ class LeaseInfo:
         self.cancel_secret = cancel_secret
         self.expiration_time = expiration_time
         if nodeid is not None:
-            assert isinstance(nodeid, str)
+            assert isinstance(nodeid, bytes)
             assert len(nodeid) == 20
         self.nodeid = nodeid
 
     def get_expiration_time(self):
         return self.expiration_time
+
     def get_grant_renew_time_time(self):
         # hack, based upon fixed 31day expiration period
         return self.expiration_time - 31*24*60*60
+
     def get_age(self):
         return time.time() - self.get_grant_renew_time_time()
 
@@ -27,6 +42,7 @@ class LeaseInfo:
          self.expiration_time) = struct.unpack(">L32s32sL", data)
         self.nodeid = None
         return self
+
     def to_immutable_data(self):
         return struct.pack(">L32s32sL",
                            self.owner_num,
@@ -39,6 +55,7 @@ class LeaseInfo:
                            int(self.expiration_time),
                            self.renew_secret, self.cancel_secret,
                            self.nodeid)
+
     def from_mutable_data(self, data):
         (self.owner_num,
          self.expiration_time,

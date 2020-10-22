@@ -1,9 +1,15 @@
+from __future__ import print_function
 
 import json
 import os
 import pprint
 import time
 from collections import deque
+
+# Python 2 compatibility
+from future.utils import PY2
+if PY2:
+    from future.builtins import str  # noqa: F401
 
 from twisted.internet import reactor
 from twisted.application import service
@@ -154,6 +160,8 @@ class StatsProvider(Referenceable, service.MultiService):
         service.MultiService.startService(self)
 
     def count(self, name, delta=1):
+        if isinstance(name, str):
+            name = name.encode("utf-8")
         val = self.counters.setdefault(name, 0)
         self.counters[name] = val + delta
 
@@ -169,7 +177,18 @@ class StatsProvider(Referenceable, service.MultiService):
         return ret
 
     def remote_get_stats(self):
-        return self.get_stats()
+        # The remote API expects keys to be bytes:
+        def to_bytes(d):
+            result = {}
+            for (k, v) in d.items():
+                if isinstance(k, str):
+                    k = k.encode("utf-8")
+                result[k] = v
+            return result
+
+        stats = self.get_stats()
+        return {b"counters": to_bytes(stats["counters"]),
+                b"stats": to_bytes(stats["stats"])}
 
     def _connected(self, gatherer, nickname):
         gatherer.callRemoteOnly('provide', self, nickname or '')
@@ -196,7 +215,7 @@ class StatsGatherer(Referenceable, service.MultiService):
     def remote_provide(self, provider, nickname):
         tubid = self.get_tubid(provider)
         if tubid == '<unauth>':
-            print "WARNING: failed to get tubid for %s (%s)" % (provider, nickname)
+            print("WARNING: failed to get tubid for %s (%s)" % (provider, nickname))
             # don't add to clients to poll (polluting data) don't care about disconnect
             return
         self.clients[tubid] = provider
@@ -229,15 +248,15 @@ class StdOutStatsGatherer(StatsGatherer):
     def remote_provide(self, provider, nickname):
         tubid = self.get_tubid(provider)
         if self.verbose:
-            print 'connect "%s" [%s]' % (nickname, tubid)
+            print('connect "%s" [%s]' % (nickname, tubid))
             provider.notifyOnDisconnect(self.announce_lost_client, tubid)
         StatsGatherer.remote_provide(self, provider, nickname)
 
     def announce_lost_client(self, tubid):
-        print 'disconnect "%s" [%s]' % (self.nicknames[tubid], tubid)
+        print('disconnect "%s" [%s]' % (self.nicknames[tubid], tubid))
 
     def got_stats(self, stats, tubid, nickname):
-        print '"%s" [%s]:' % (nickname, tubid)
+        print('"%s" [%s]:' % (nickname, tubid))
         pprint.pprint(stats)
 
 class JSONStatsGatherer(StdOutStatsGatherer):
@@ -249,16 +268,15 @@ class JSONStatsGatherer(StdOutStatsGatherer):
         self.jsonfile = os.path.join(basedir, "stats.json")
 
         if os.path.exists(self.jsonfile):
-            f = open(self.jsonfile, 'rb')
             try:
-                self.gathered_stats = json.load(f)
+                with open(self.jsonfile, 'rb') as f:
+                    self.gathered_stats = json.load(f)
             except Exception:
-                print ("Error while attempting to load stats file %s.\n"
-                       "You may need to restore this file from a backup,"
-                       " or delete it if no backup is available.\n" %
-                       quote_local_unicode_path(self.jsonfile))
+                print("Error while attempting to load stats file %s.\n"
+                      "You may need to restore this file from a backup,"
+                      " or delete it if no backup is available.\n" %
+                      quote_local_unicode_path(self.jsonfile))
                 raise
-            f.close()
         else:
             self.gathered_stats = {}
 
@@ -271,9 +289,8 @@ class JSONStatsGatherer(StdOutStatsGatherer):
 
     def dump_json(self):
         tmp = "%s.tmp" % (self.jsonfile,)
-        f = open(tmp, 'wb')
-        json.dump(self.gathered_stats, f)
-        f.close()
+        with open(tmp, 'wb') as f:
+            json.dump(self.gathered_stats, f)
         if os.path.exists(self.jsonfile):
             os.unlink(self.jsonfile)
         os.rename(tmp, self.jsonfile)

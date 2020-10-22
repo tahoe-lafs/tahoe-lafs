@@ -1,9 +1,8 @@
-
 import os.path
-from cStringIO import StringIO
+from six.moves import cStringIO as StringIO
 import urllib, sys
 import re
-from mock import patch
+from mock import patch, Mock
 
 from twisted.trial import unittest
 from twisted.python.monkey import MonkeyPatcher
@@ -11,14 +10,14 @@ from twisted.internet import task
 from twisted.python.filepath import FilePath
 
 import allmydata
-from allmydata.util import fileutil, hashutil, base32, keyutil
+from allmydata.crypto import ed25519
+from allmydata.util import fileutil, hashutil, base32
 from allmydata.util.namespace import Namespace
 from allmydata import uri
 from allmydata.immutable import upload
 from allmydata.dirnode import normalize
 from allmydata.scripts.common_http import socket_error
 import allmydata.scripts.common_http
-from pycryptopp.publickey import ed25519
 
 # Test that the scripts can be imported.
 from allmydata.scripts import create_node, debug, tahoe_start, tahoe_restart, \
@@ -35,15 +34,13 @@ from allmydata.scripts.common import DEFAULT_ALIAS, get_aliases, get_alias, \
      DefaultAliasMarker
 
 from allmydata.scripts import cli, debug, runner
-from ..common_util import (ReallyEqualMixin, skip_if_cannot_represent_filename,
-                           run_cli)
-from ..no_network import GridTestMixin
-from .common import CLITestMixin, parse_options
+from allmydata.test.common_util import (ReallyEqualMixin, skip_if_cannot_represent_filename,
+                                         run_cli)
+from allmydata.test.no_network import GridTestMixin
+from allmydata.test.cli.common import CLITestMixin, parse_options
 from twisted.python import usage
 
 from allmydata.util.encodingutil import listdir_unicode, get_io_encoding
-
-timeout = 480 # deep_check takes 360s on Zandr's linksys box, others take > 240s
 
 class CLI(CLITestMixin, unittest.TestCase):
     def _dump_cap(self, *args):
@@ -528,7 +525,8 @@ class CLI(CLITestMixin, unittest.TestCase):
             self.failUnlessEqual(exitcode, 1)
 
         def fake_react(f):
-            d = f("reactor")
+            reactor = Mock()
+            d = f(reactor)
             # normally this Deferred would be errbacked with SystemExit, but
             # since we mocked out sys.exit, it will be fired with None. So
             # it's safe to drop it on the floor.
@@ -570,10 +568,6 @@ class Help(unittest.TestCase):
 
     def test_unlink(self):
         help = str(cli.UnlinkOptions())
-        self.failUnlessIn("[options] REMOTE_FILE", help)
-
-    def test_rm(self):
-        help = str(cli.RmOptions())
         self.failUnlessIn("[options] REMOTE_FILE", help)
 
     def test_mv(self):
@@ -685,7 +679,8 @@ class Ln(GridTestMixin, CLITestMixin, unittest.TestCase):
         self.basedir = "cli/Ln/ln_without_alias"
         self.set_up_grid(oneshare=True)
         d = self.do_cli("ln", "from", "to")
-        def _check((rc, out, err)):
+        def _check(args):
+            (rc, out, err) = args
             self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("error:", err)
             self.failUnlessReallyEqual(out, "")
@@ -705,7 +700,8 @@ class Ln(GridTestMixin, CLITestMixin, unittest.TestCase):
         self.basedir = "cli/Ln/ln_with_nonexistent_alias"
         self.set_up_grid(oneshare=True)
         d = self.do_cli("ln", "havasu:from", "havasu:to")
-        def _check((rc, out, err)):
+        def _check(args):
+            (rc, out, err) = args
             self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("error:", err)
         d.addCallback(_check)
@@ -723,7 +719,8 @@ class Ln(GridTestMixin, CLITestMixin, unittest.TestCase):
 class Admin(unittest.TestCase):
     def test_generate_keypair(self):
         d = run_cli("admin", "generate-keypair")
-        def _done( (rc, stdout, stderr) ):
+        def _done(args):
+            (rc, stdout, stderr) = args
             lines = [line.strip() for line in stdout.splitlines()]
             privkey_bits = lines[0].split()
             pubkey_bits = lines[1].split()
@@ -733,17 +730,22 @@ class Admin(unittest.TestCase):
             self.failUnlessEqual(pubkey_bits[0], vk_header, lines[1])
             self.failUnless(privkey_bits[1].startswith("priv-v0-"), lines[0])
             self.failUnless(pubkey_bits[1].startswith("pub-v0-"), lines[1])
-            sk_bytes = base32.a2b(keyutil.remove_prefix(privkey_bits[1], "priv-v0-"))
-            sk = ed25519.SigningKey(sk_bytes)
-            vk_bytes = base32.a2b(keyutil.remove_prefix(pubkey_bits[1], "pub-v0-"))
-            self.failUnlessEqual(sk.get_verifying_key_bytes(), vk_bytes)
+            sk, pk = ed25519.signing_keypair_from_string(privkey_bits[1])
+            vk_bytes = pubkey_bits[1]
+            self.assertEqual(
+                ed25519.string_from_verifying_key(pk),
+                vk_bytes,
+            )
         d.addCallback(_done)
         return d
 
     def test_derive_pubkey(self):
-        priv1,pub1 = keyutil.make_keypair()
-        d = run_cli("admin", "derive-pubkey", priv1)
-        def _done( (rc, stdout, stderr) ):
+        priv_key, pub_key = ed25519.create_signing_keypair()
+        priv_key_str = ed25519.string_from_signing_key(priv_key)
+        pub_key_str = ed25519.string_from_verifying_key(pub_key)
+        d = run_cli("admin", "derive-pubkey", priv_key_str)
+        def _done(args):
+            (rc, stdout, stderr) = args
             lines = stdout.split("\n")
             privkey_line = lines[0].strip()
             pubkey_line = lines[1].strip()
@@ -751,8 +753,8 @@ class Admin(unittest.TestCase):
             vk_header = "public: pub-v0-"
             self.failUnless(privkey_line.startswith(sk_header), privkey_line)
             self.failUnless(pubkey_line.startswith(vk_header), pubkey_line)
-            pub2 = pubkey_line[len(vk_header):]
-            self.failUnlessEqual("pub-v0-"+pub2, pub1)
+            pub_key_str2 = pubkey_line[len(vk_header):]
+            self.assertEqual("pub-v0-" + pub_key_str2, pub_key_str)
         d.addCallback(_done)
         return d
 
@@ -777,7 +779,8 @@ class Errors(GridTestMixin, CLITestMixin, unittest.TestCase):
         in_pending_msg_regex = "ran out of shares: complete= pending=Share\(.+\) overdue= unused= need 3"
 
         d.addCallback(lambda ign: self.do_cli("get", self.uri_1share))
-        def _check1((rc, out, err)):
+        def _check1(args):
+            (rc, out, err) = args
             self.failIfEqual(rc, 0)
             self.failUnless("410 Gone" in err, err)
             self.failUnlessIn("NotEnoughSharesError: ", err)
@@ -786,7 +789,8 @@ class Errors(GridTestMixin, CLITestMixin, unittest.TestCase):
 
         targetf = os.path.join(self.basedir, "output")
         d.addCallback(lambda ign: self.do_cli("get", self.uri_1share, targetf))
-        def _check2((rc, out, err)):
+        def _check2(args):
+            (rc, out, err) = args
             self.failIfEqual(rc, 0)
             self.failUnless("410 Gone" in err, err)
             self.failUnlessIn("NotEnoughSharesError: ", err)
@@ -805,11 +809,12 @@ class Errors(GridTestMixin, CLITestMixin, unittest.TestCase):
         # Simulate a connection error
         def _socket_error(*args, **kwargs):
             raise socket_error('test error')
-        self.patch(allmydata.scripts.common_http.httplib.HTTPConnection,
+        self.patch(allmydata.scripts.common_http.http_client.HTTPConnection,
                    "endheaders", _socket_error)
 
         d = self.do_cli("mkdir")
-        def _check_invalid((rc,stdout,stderr)):
+        def _check_invalid(args):
+            (rc, stdout, stderr) = args
             self.failIfEqual(rc, 0)
             self.failUnlessIn("Error trying to connect to http://127.0.0.1", stderr)
         d.addCallback(_check_invalid)
@@ -824,7 +829,8 @@ class Get(GridTestMixin, CLITestMixin, unittest.TestCase):
         self.basedir = "cli/Get/get_without_alias"
         self.set_up_grid(oneshare=True)
         d = self.do_cli('get', 'file')
-        def _check((rc, out, err)):
+        def _check(args):
+            (rc, out, err) = args
             self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("error:", err)
             self.failUnlessReallyEqual(out, "")
@@ -837,7 +843,8 @@ class Get(GridTestMixin, CLITestMixin, unittest.TestCase):
         self.basedir = "cli/Get/get_with_nonexistent_alias"
         self.set_up_grid(oneshare=True)
         d = self.do_cli("get", "nonexistent:file")
-        def _check((rc, out, err)):
+        def _check(args):
+            (rc, out, err) = args
             self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("error:", err)
             self.failUnlessIn("nonexistent", err)
@@ -854,7 +861,8 @@ class Manifest(GridTestMixin, CLITestMixin, unittest.TestCase):
         self.basedir = "cli/Manifest/manifest_without_alias"
         self.set_up_grid(oneshare=True)
         d = self.do_cli("manifest")
-        def _check((rc, out, err)):
+        def _check(args):
+            (rc, out, err) = args
             self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("error:", err)
             self.failUnlessReallyEqual(out, "")
@@ -867,7 +875,8 @@ class Manifest(GridTestMixin, CLITestMixin, unittest.TestCase):
         self.basedir = "cli/Manifest/manifest_with_nonexistent_alias"
         self.set_up_grid(oneshare=True)
         d = self.do_cli("manifest", "nonexistent:")
-        def _check((rc, out, err)):
+        def _check(args):
+            (rc, out, err) = args
             self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("error:", err)
             self.failUnlessIn("nonexistent", err)
@@ -883,7 +892,8 @@ class Mkdir(GridTestMixin, CLITestMixin, unittest.TestCase):
 
         d = self.do_cli("create-alias", "tahoe")
         d.addCallback(lambda res: self.do_cli("mkdir", "test"))
-        def _check((rc, out, err)):
+        def _check(args):
+            (rc, out, err) = args
             self.failUnlessReallyEqual(rc, 0)
             self.failUnlessReallyEqual(err, "")
             self.failUnlessIn("URI:", out)
@@ -895,13 +905,20 @@ class Mkdir(GridTestMixin, CLITestMixin, unittest.TestCase):
         self.basedir = os.path.dirname(self.mktemp())
         self.set_up_grid(oneshare=True)
         d = self.do_cli("create-alias", "tahoe")
-        def _check((rc, out, err), st):
+        def _check(args, st):
+            (rc, out, err) = args
             self.failUnlessReallyEqual(rc, 0)
             self.failUnlessReallyEqual(err, "")
             self.failUnlessIn(st, out)
             return out
+
         def _mkdir(ign, mutable_type, uri_prefix, dirname):
-            d2 = self.do_cli("mkdir", "--format="+mutable_type, dirname)
+            """
+            :param str mutable_type: 'sdmf' or 'mdmf' (or uppercase versions)
+            :param str uri_prefix: kind of URI
+            :param str dirname: the directory alias
+            """
+            d2 = self.do_cli("mkdir", "--format={}".format(mutable_type), dirname)
             d2.addCallback(_check, uri_prefix)
             def _stash_filecap(cap):
                 u = uri.from_string(cap)
@@ -924,7 +941,8 @@ class Mkdir(GridTestMixin, CLITestMixin, unittest.TestCase):
         self.basedir = os.path.dirname(self.mktemp())
         self.set_up_grid(oneshare=True)
         d = self.do_cli("mkdir", "--format=SDMF")
-        def _check((rc, out, err), st):
+        def _check(args, st):
+            (rc, out, err) = args
             self.failUnlessReallyEqual(rc, 0)
             self.failUnlessReallyEqual(err, "")
             self.failUnlessIn(st, out)
@@ -967,7 +985,8 @@ class Mkdir(GridTestMixin, CLITestMixin, unittest.TestCase):
 
         d = self.do_cli("create-alias", "tahoe")
         d.addCallback(lambda res: self.do_cli("mkdir", motorhead_arg))
-        def _check((rc, out, err)):
+        def _check(args):
+            (rc, out, err) = args
             self.failUnlessReallyEqual(rc, 0)
             self.failUnlessReallyEqual(err, "")
             self.failUnlessIn("URI:", out)
@@ -981,7 +1000,8 @@ class Mkdir(GridTestMixin, CLITestMixin, unittest.TestCase):
         self.basedir = "cli/Mkdir/mkdir_with_nonexistent_alias"
         self.set_up_grid(oneshare=True)
         d = self.do_cli("mkdir", "havasu:")
-        def _check((rc, out, err)):
+        def _check(args):
+            (rc, out, err) = args
             self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("error:", err)
             self.failUnlessReallyEqual(out, "")
@@ -1004,7 +1024,8 @@ class Unlink(GridTestMixin, CLITestMixin, unittest.TestCase):
         self.basedir = "cli/Unlink/%s_without_alias" % (self.command,)
         self.set_up_grid(oneshare=True)
         d = self.do_cli(self.command, "afile")
-        def _check((rc, out, err)):
+        def _check(args):
+            (rc, out, err) = args
             self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("error:", err)
             self.failUnlessReallyEqual(out, "")
@@ -1020,7 +1041,8 @@ class Unlink(GridTestMixin, CLITestMixin, unittest.TestCase):
         self.basedir = "cli/Unlink/%s_with_nonexistent_alias" % (self.command,)
         self.set_up_grid(oneshare=True)
         d = self.do_cli(self.command, "nonexistent:afile")
-        def _check((rc, out, err)):
+        def _check(args):
+            (rc, out, err) = args
             self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("error:", err)
             self.failUnlessIn("nonexistent", err)
@@ -1038,24 +1060,21 @@ class Unlink(GridTestMixin, CLITestMixin, unittest.TestCase):
         self._create_test_file()
         d = self.do_cli("create-alias", "tahoe")
         d.addCallback(lambda ign: self.do_cli("put", self.datafile, "tahoe:test"))
-        def _do_unlink((rc, out, err)):
+        def _do_unlink(args):
+            (rc, out, err) = args
             self.failUnlessReallyEqual(rc, 0)
             self.failUnless(out.startswith("URI:"), out)
             return self.do_cli(self.command, out.strip('\n'))
         d.addCallback(_do_unlink)
 
-        def _check((rc, out, err)):
+        def _check(args):
+            (rc, out, err) = args
             self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("'tahoe %s'" % (self.command,), err)
             self.failUnlessIn("path must be given", err)
             self.failUnlessReallyEqual(out, "")
         d.addCallback(_check)
         return d
-
-
-class Rm(Unlink):
-    """Test that 'tahoe rm' behaves in the same way as 'tahoe unlink'."""
-    command = "rm"
 
 
 class Stats(GridTestMixin, CLITestMixin, unittest.TestCase):
@@ -1072,7 +1091,8 @@ class Stats(GridTestMixin, CLITestMixin, unittest.TestCase):
 
         # make sure we can get stats on an empty directory too
         d.addCallback(lambda ign: self.do_cli("stats", self.rooturi))
-        def _check_stats((rc, out, err)):
+        def _check_stats(args):
+            (rc, out, err) = args
             self.failUnlessReallyEqual(err, "")
             self.failUnlessReallyEqual(rc, 0)
             lines = out.splitlines()
@@ -1093,7 +1113,8 @@ class Stats(GridTestMixin, CLITestMixin, unittest.TestCase):
         self.basedir = "cli/Stats/stats_without_alias"
         self.set_up_grid(oneshare=True)
         d = self.do_cli("stats")
-        def _check((rc, out, err)):
+        def _check(args):
+            (rc, out, err) = args
             self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("error:", err)
             self.failUnlessReallyEqual(out, "")
@@ -1106,7 +1127,8 @@ class Stats(GridTestMixin, CLITestMixin, unittest.TestCase):
         self.basedir = "cli/Stats/stats_with_nonexistent_alias"
         self.set_up_grid(oneshare=True)
         d = self.do_cli("stats", "havasu:")
-        def _check((rc, out, err)):
+        def _check(args):
+            (rc, out, err) = args
             self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("error:", err)
             self.failUnlessReallyEqual(out, "")
@@ -1122,7 +1144,8 @@ class Webopen(GridTestMixin, CLITestMixin, unittest.TestCase):
         self.basedir = "cli/Webopen/webopen_with_nonexistent_alias"
         self.set_up_grid(oneshare=True)
         d = self.do_cli("webopen", "fake:")
-        def _check((rc, out, err)):
+        def _check(args):
+            (rc, out, err) = args
             self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("error:", err)
             self.failUnlessReallyEqual(out, "")
@@ -1146,14 +1169,16 @@ class Webopen(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.basedir = "cli/Webopen/webopen"
             self.set_up_grid(oneshare=True)
             d = self.do_cli("create-alias", "alias:")
-            def _check_alias((rc, out, err)):
+            def _check_alias(args):
+                (rc, out, err) = args
                 self.failUnlessReallyEqual(rc, 0, repr((rc, out, err)))
                 self.failUnlessIn("Alias 'alias' created", out)
                 self.failUnlessReallyEqual(err, "")
                 self.alias_uri = get_aliases(self.get_clientdir())["alias"]
             d.addCallback(_check_alias)
             d.addCallback(lambda res: self.do_cli("webopen", "alias:"))
-            def _check_webopen((rc, out, err)):
+            def _check_webopen(args):
+                (rc, out, err) = args
                 self.failUnlessReallyEqual(rc, 0, repr((rc, out, err)))
                 self.failUnlessReallyEqual(out, "")
                 self.failUnlessReallyEqual(err, "")
@@ -1318,8 +1343,8 @@ class Stop(unittest.TestCase):
 
 class Start(unittest.TestCase):
 
-    @patch('allmydata.scripts.tahoe_daemonize.os.chdir')
-    @patch('allmydata.scripts.tahoe_daemonize.twistd')
+    @patch('allmydata.scripts.run_common.os.chdir')
+    @patch('allmydata.scripts.run_common.twistd')
     def test_non_numeric_pid(self, mock_twistd, chdir):
         """
         If the pidfile exists but does not contain a numeric value, a complaint to

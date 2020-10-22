@@ -5,18 +5,27 @@ import time
 import shutil
 from os import mkdir, unlink, listdir
 from os.path import join, exists
-from StringIO import StringIO
+from six.moves import StringIO
 
 from twisted.internet.protocol import ProcessProtocol
 from twisted.internet.error import ProcessExitedAlready, ProcessDone
 from twisted.internet.defer import inlineCallbacks, Deferred
+
 import pytest
+import pytest_twisted
 
 import util
 
-# see "conftest.py" for the fixtures (e.g. "magic_folder")
+# see "conftest.py" for the fixtures (e.g. "tor_network")
 
-@pytest.inlineCallbacks
+# XXX: Integration tests that involve Tor do not run reliably on
+# Windows.  They are skipped for now, in order to reduce CI noise.
+#
+# https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3347
+if sys.platform.startswith('win'):
+    pytest.skip('Skipping Tor tests on Windows', allow_module_level=True)
+
+@pytest_twisted.inlineCallbacks
 def test_onion_service_storage(reactor, request, temp_dir, flog_gatherer, tor_network, tor_introducer_furl):
     yield _create_anonymous_node(reactor, 'carol', 8008, request, temp_dir, flog_gatherer, tor_network, tor_introducer_furl)
     yield _create_anonymous_node(reactor, 'dave', 8009, request, temp_dir, flog_gatherer, tor_network, tor_introducer_furl)
@@ -62,7 +71,7 @@ def test_onion_service_storage(reactor, request, temp_dir, flog_gatherer, tor_ne
     assert dave_got == open(gold_path, 'r').read().strip()
 
 
-@pytest.inlineCallbacks
+@pytest_twisted.inlineCallbacks
 def _create_anonymous_node(reactor, name, control_port, request, temp_dir, flog_gatherer, tor_network, introducer_furl):
     node_dir = join(temp_dir, name)
     web_port = "tcp:{}:interface=localhost".format(control_port + 2000)

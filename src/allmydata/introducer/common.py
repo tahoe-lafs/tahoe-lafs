@@ -1,7 +1,9 @@
-
 import re
 import json
-from allmydata.util import keyutil, base32, rrefutil
+from allmydata.crypto.util import remove_prefix
+from allmydata.crypto import ed25519
+from allmydata.util import base32, rrefutil
+
 
 def get_tubid_string_from_ann(ann):
     return get_tubid_string(str(ann.get("anonymous-storage-FURL")
@@ -13,35 +15,51 @@ def get_tubid_string(furl):
     return m.group(1).lower()
 
 
-def sign_to_foolscap(ann, sk):
+def sign_to_foolscap(announcement, signing_key):
+    """
+    :param signing_key: a (private) signing key, as returned from
+        e.g. :func:`allmydata.crypto.ed25519.signing_keypair_from_string`
+
+    :returns: 3-tuple of (msg, sig, vk) where msg is a UTF8 JSON
+        serialization of the `announcement` (bytes), sig is bytes (a
+        signature of msg) and vk is the verifying key bytes
+    """
     # return (bytes, sig-str, pubkey-str). A future HTTP-based serialization
     # will use JSON({msg:b64(JSON(msg).utf8), sig:v0-b64(sig),
     # pubkey:v0-b64(pubkey)}) .
-    msg = json.dumps(ann).encode("utf-8")
-    sig = "v0-"+base32.b2a(sk.sign(msg))
-    vk_bytes = sk.get_verifying_key_bytes()
-    ann_t = (msg, sig, "v0-"+base32.b2a(vk_bytes))
+    msg = json.dumps(announcement).encode("utf-8")
+    sig = b"v0-" + base32.b2a(
+        ed25519.sign_data(signing_key, msg)
+    )
+    verifying_key_string = ed25519.string_from_verifying_key(
+        ed25519.verifying_key_from_signing_key(signing_key)
+    )
+    ann_t = (msg, sig, remove_prefix(verifying_key_string, b"pub-"))
     return ann_t
+
 
 class UnknownKeyError(Exception):
     pass
+
 
 def unsign_from_foolscap(ann_t):
     (msg, sig_vs, claimed_key_vs) = ann_t
     if not sig_vs or not claimed_key_vs:
         raise UnknownKeyError("only signed announcements recognized")
-    if not sig_vs.startswith("v0-"):
+    if not sig_vs.startswith(b"v0-"):
         raise UnknownKeyError("only v0- signatures recognized")
-    if not claimed_key_vs.startswith("v0-"):
+    if not claimed_key_vs.startswith(b"v0-"):
         raise UnknownKeyError("only v0- keys recognized")
-    claimed_key = keyutil.parse_pubkey("pub-"+claimed_key_vs)
-    sig_bytes = base32.a2b(keyutil.remove_prefix(sig_vs, "v0-"))
-    claimed_key.verify(sig_bytes, msg)
+
+    claimed_key = ed25519.verifying_key_from_string(b"pub-" + claimed_key_vs)
+    sig_bytes = base32.a2b(remove_prefix(sig_vs, b"v0-"))
+    ed25519.verify_signature(claimed_key, sig_bytes, msg)
     key_vs = claimed_key_vs
     ann = json.loads(msg.decode("utf-8"))
     return (ann, key_vs)
 
-class SubscriberDescriptor:
+
+class SubscriberDescriptor(object):
     """This describes a subscriber, for status display purposes. It contains
     the following attributes:
 
@@ -65,7 +83,7 @@ class SubscriberDescriptor:
         self.remote_address = remote_address
         self.tubid = tubid
 
-class AnnouncementDescriptor:
+class AnnouncementDescriptor(object):
     """This describes an announcement, for status display purposes. It
     contains the following attributes, which will be empty ("" for
     strings) if the client did not provide them:

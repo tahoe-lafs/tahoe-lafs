@@ -1,16 +1,28 @@
 import os
+from io import (
+    BytesIO,
+)
 from os.path import dirname, join
 from mock import patch, Mock
-from StringIO import StringIO
+from six.moves import StringIO
 from sys import getfilesystemencoding
 from twisted.trial import unittest
 from allmydata.scripts import runner
-from allmydata.scripts.tahoe_daemonize import identify_node_type
-from allmydata.scripts.tahoe_daemonize import DaemonizeTahoeNodePlugin
-from allmydata.scripts.tahoe_daemonize import DaemonizeOptions
+from allmydata.scripts.run_common import (
+    identify_node_type,
+    DaemonizeTahoeNodePlugin,
+    MyTwistdConfig,
+)
+from allmydata.scripts.tahoe_daemonize import (
+    DaemonizeOptions,
+)
 
 
 class Util(unittest.TestCase):
+    def setUp(self):
+        self.twistd_options = MyTwistdConfig()
+        self.twistd_options.parseOptions(["DaemonizeTahoeNode"])
+        self.options = self.twistd_options.subOptions
 
     def test_node_type_nothing(self):
         tmpdir = self.mktemp()
@@ -37,8 +49,9 @@ class Util(unittest.TestCase):
         with patch('twisted.internet.reactor') as r:
             def call(fn, *args, **kw):
                 fn()
+            r.stop = lambda: None
             r.callWhenRunning = call
-            service = plug.makeService(None)
+            service = plug.makeService(self.options)
             service.parent = Mock()
             service.startService()
 
@@ -46,20 +59,30 @@ class Util(unittest.TestCase):
 
     def test_daemonize_no_keygen(self):
         tmpdir = self.mktemp()
+        stderr = BytesIO()
         plug = DaemonizeTahoeNodePlugin('key-generator', tmpdir)
 
         with patch('twisted.internet.reactor') as r:
             def call(fn, *args, **kw):
-                fn()
+                d = fn()
+                d.addErrback(lambda _: None)  # ignore the error we'll trigger
             r.callWhenRunning = call
-            service = plug.makeService(None)
+            service = plug.makeService(self.options)
+            service.stderr = stderr
             service.parent = Mock()
-            with self.assertRaises(ValueError) as ctx:
-                service.startService()
-            self.assertIn(
-                "key-generator support removed",
-                str(ctx.exception)
-            )
+            # we'll raise ValueError because there's no key-generator
+            # .. BUT we do this in an async function called via
+            # "callWhenRunning" .. hence using a hook
+            d = service.set_hook('running')
+            service.startService()
+            def done(f):
+                self.assertIn(
+                    "key-generator support removed",
+                    stderr.getvalue(),
+                )
+                return None
+            d.addBoth(done)
+            return d
 
     def test_daemonize_unknown_nodetype(self):
         tmpdir = self.mktemp()
@@ -68,8 +91,9 @@ class Util(unittest.TestCase):
         with patch('twisted.internet.reactor') as r:
             def call(fn, *args, **kw):
                 fn()
+            r.stop = lambda: None
             r.callWhenRunning = call
-            service = plug.makeService(None)
+            service = plug.makeService(self.options)
             service.parent = Mock()
             with self.assertRaises(ValueError) as ctx:
                 service.startService()
@@ -97,7 +121,8 @@ class RunDaemonizeTests(unittest.TestCase):
         self._working = os.path.abspath('.')
         d = super(RunDaemonizeTests, self).setUp()
         self._reactor = patch('twisted.internet.reactor')
-        self._twistd = patch('allmydata.scripts.tahoe_daemonize.twistd')
+        self._reactor.stop = lambda: None
+        self._twistd = patch('allmydata.scripts.run_common.twistd')
         self.node_dir = self.mktemp()
         os.mkdir(self.node_dir)
         for cm in [self._reactor, self._twistd]:

@@ -1,16 +1,28 @@
 
 import time
-from zope.interface import implementer
-from nevow import rend, url, tags as T
-from nevow.inevow import IRequest
+from hyperlink import (
+    DecodedURL,
+)
+from twisted.web.template import (
+    renderer,
+    tags as T,
+)
+from twisted.python.urlpath import (
+    URLPath,
+)
 from twisted.python.failure import Failure
 from twisted.internet import reactor, defer
+from twisted.web import resource
 from twisted.web.http import NOT_FOUND
 from twisted.web.html import escape
 from twisted.application import service
 
-from allmydata.web.common import IOpHandleTable, WebError, \
-     get_root, get_arg, boolean_of_arg
+from allmydata.web.common import (
+    WebError,
+    get_arg,
+    boolean_of_arg,
+    exception_to_child,
+)
 
 MINUTE = 60
 HOUR = 60*MINUTE
@@ -18,13 +30,16 @@ DAY = 24*HOUR
 
 (MONITOR, RENDERER, WHEN_ADDED) = range(3)
 
-@implementer(IOpHandleTable)
-class OphandleTable(rend.Page, service.Service):
+class OphandleTable(resource.Resource, service.Service):
+    """Renders /operations/%d."""
+
+    name = "operations"
 
     UNCOLLECTED_HANDLE_LIFETIME = 4*DAY
     COLLECTED_HANDLE_LIFETIME = 1*DAY
 
     def __init__(self, clock=None):
+        super(OphandleTable, self).__init__()
         # both of these are indexed by ophandle
         self.handles = {} # tuple of (monitor, renderer, when_added)
         self.timers = {}
@@ -42,12 +57,17 @@ class OphandleTable(rend.Page, service.Service):
         del self.timers
         return service.Service.stopService(self)
 
-    def add_monitor(self, ctx, monitor, renderer):
-        ophandle = get_arg(ctx, "ophandle")
+    def add_monitor(self, req, monitor, renderer):
+        """
+        :param allmydata.webish.MyRequest req:
+        :param allmydata.monitor.Monitor monitor:
+        :param allmydata.web.directory.ManifestResults renderer:
+        """
+        ophandle = get_arg(req, "ophandle")
         assert ophandle
         now = time.time()
         self.handles[ophandle] = (monitor, renderer, now)
-        retain_for = get_arg(ctx, "retain-for", None)
+        retain_for = get_arg(req, "retain-for", None)
         if retain_for is not None:
             self._set_timer(ophandle, int(retain_for))
         monitor.when_done().addBoth(self._operation_complete, ophandle)
@@ -64,36 +84,40 @@ class OphandleTable(rend.Page, service.Service):
             # if we already have a timer, the client must have provided the
             # retain-for= value, so don't touch it.
 
-    def redirect_to(self, ctx):
-        ophandle = get_arg(ctx, "ophandle")
+    def redirect_to(self, req):
+        """
+        :param allmydata.webish.MyRequest req:
+        """
+        ophandle = get_arg(req, "ophandle").decode("utf-8")
         assert ophandle
-        target = get_root(ctx) + "/operations/" + ophandle
-        output = get_arg(ctx, "output")
+        here = DecodedURL.from_text(unicode(URLPath.fromRequest(req)))
+        target = here.click(u"/").child(u"operations", ophandle)
+        output = get_arg(req, "output")
         if output:
-            target = target + "?output=%s" % output
-        return url.URL.fromString(target)
+            target = target.add(u"output", output.decode("utf-8"))
+        return target
 
-    def childFactory(self, ctx, name):
+    @exception_to_child
+    def getChild(self, name, req):
         ophandle = name
         if ophandle not in self.handles:
             raise WebError("unknown/expired handle '%s'" % escape(ophandle),
                            NOT_FOUND)
         (monitor, renderer, when_added) = self.handles[ophandle]
 
-        request = IRequest(ctx)
-        t = get_arg(ctx, "t", "status")
-        if t == "cancel" and request.method == "POST":
+        t = get_arg(req, "t", "status")
+        if t == "cancel" and req.method == "POST":
             monitor.cancel()
             # return the status anyways, but release the handle
             self._release_ophandle(ophandle)
 
         else:
-            retain_for = get_arg(ctx, "retain-for", None)
+            retain_for = get_arg(req, "retain-for", None)
             if retain_for is not None:
                 self._set_timer(ophandle, int(retain_for))
 
             if monitor.is_finished():
-                if boolean_of_arg(get_arg(ctx, "release-after-complete", "false")):
+                if boolean_of_arg(get_arg(req, "release-after-complete", "false")):
                     self._release_ophandle(ophandle)
                 if retain_for is None:
                     # this GET is collecting the ophandle, so change its timer
@@ -120,34 +144,33 @@ class OphandleTable(rend.Page, service.Service):
         self.timers.pop(ophandle, None)
         self.handles.pop(ophandle, None)
 
-class ReloadMixin:
+
+class ReloadMixin(object):
     REFRESH_TIME = 1*MINUTE
 
-    def render_refresh(self, ctx, data):
+    @renderer
+    def refresh(self, req, tag):
         if self.monitor.is_finished():
             return ""
-        # dreid suggests ctx.tag(**dict([("http-equiv", "refresh")]))
-        # but I can't tell if he's joking or not
-        ctx.tag.attributes["http-equiv"] = "refresh"
-        ctx.tag.attributes["content"] = str(self.REFRESH_TIME)
-        return ctx.tag
+        tag.attributes["http-equiv"] = "refresh"
+        tag.attributes["content"] = str(self.REFRESH_TIME)
+        return tag
 
-    def render_reload(self, ctx, data):
+    @renderer
+    def reload(self, req, tag):
         if self.monitor.is_finished():
-            return ""
-        req = IRequest(ctx)
+            return b""
         # url.gethere would break a proxy, so the correct thing to do is
         # req.path[-1] + queryargs
         ophandle = req.prepath[-1]
-        reload_target = ophandle + "?output=html"
-        cancel_target = ophandle + "?t=cancel"
-        cancel_button = T.form(action=cancel_target, method="POST",
-                               enctype="multipart/form-data")[
-            T.input(type="submit", value="Cancel"),
-            ]
+        reload_target = ophandle + b"?output=html"
+        cancel_target = ophandle + b"?t=cancel"
+        cancel_button = T.form(T.input(type="submit", value="Cancel"),
+                               action=cancel_target,
+                               method="POST",
+                               enctype="multipart/form-data",)
 
-        return [T.h2["Operation still running: ",
-                     T.a(href=reload_target)["Reload"],
-                     ],
-                cancel_button,
-                ]
+        return (T.h2("Operation still running: ",
+                     T.a("Reload", href=reload_target),
+                     ),
+                cancel_button,)

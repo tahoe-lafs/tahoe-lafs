@@ -1,4 +1,4 @@
-venv
+venv*
 
 # vim swap files
 *.swp
@@ -9,6 +9,7 @@ venv
 *~
 *.DS_Store
 .*.kate-swp
+*.bak
 
 /build/
 /support/
@@ -27,6 +28,7 @@ Twisted-*.egg
 zope.interface-*.egg
 .pc
 
+/src/allmydata/test/plugins/dropin.cache
 /_trial_temp*
 /_test_memory/
 /tmp*
@@ -35,6 +37,7 @@ zope.interface-*.egg
 /tahoe-deps/
 /tahoe-deps.tar.gz
 /.coverage
+/.coverage.*
 /.coverage.el
 /coverage-html/
 /miscaptures.txt
@@ -42,5 +45,12 @@ zope.interface-*.egg
 /.tox/
 /docs/_build/
 /coverage.xml
-/smoke_magicfolder/
+/.pre-commit-config.local.yaml
 /.hypothesis/
+/eliot.log
+/misc/python3/results.xml
+/misc/python3/results.subunit2
+
+# This is the plaintext of the private environment needed for some CircleCI
+# operations.  It's never supposed to be checked in.
+secret-env-plain

@@ -1,4 +1,4 @@
-from cStringIO import StringIO
+from six.moves import cStringIO as StringIO
 from twisted.internet import defer, reactor
 from twisted.trial import unittest
 from allmydata import uri, client
@@ -11,7 +11,11 @@ from allmydata.mutable.publish import MutableData
 from ..test_download import PausingConsumer, PausingAndStoppingConsumer, \
      StoppingConsumer, ImmediatelyStoppingConsumer
 from .. import common_util as testutil
-from .util import FakeStorage, make_nodemaker
+from .util import (
+    FakeStorage,
+    make_nodemaker_with_peers,
+    make_peer,
+)
 
 class Filenode(unittest.TestCase, testutil.ShouldFailMixin):
     # this used to be in Publish, but we removed the limit. Some of
@@ -19,8 +23,15 @@ class Filenode(unittest.TestCase, testutil.ShouldFailMixin):
     # larger than the limit.
     OLD_MAX_SEGMENT_SIZE = 3500000
     def setUp(self):
-        self._storage = s = FakeStorage()
-        self.nodemaker = make_nodemaker(s)
+        self._storage = FakeStorage()
+        self._peers = list(
+            make_peer(self._storage, n)
+            for n
+            # 10 is the default for N.  We're trying to make enough servers
+            # here so that each only gets one share.
+            in range(10)
+        )
+        self.nodemaker = make_nodemaker_with_peers(self._peers)
 
     def test_create(self):
         d = self.nodemaker.create_mutable_file()
@@ -352,16 +363,19 @@ class Filenode(unittest.TestCase, testutil.ShouldFailMixin):
 
 
     def test_mdmf_write_count(self):
-        # Publishing an MDMF file should only cause one write for each
-        # share that is to be published. Otherwise, we introduce
-        # undesirable semantics that are a regression from SDMF
+        """
+        Publishing an MDMF file causes exactly one write for each share that is to
+        be published. Otherwise, we introduce undesirable semantics that are a
+        regression from SDMF.
+        """
         upload = MutableData("MDMF" * 100000) # about 400 KiB
         d = self.nodemaker.create_mutable_file(upload,
                                                version=MDMF_VERSION)
         def _check_server_write_counts(ignored):
-            sb = self.nodemaker.storage_broker
-            for server in sb.servers.itervalues():
-                self.failUnlessEqual(server.get_rref().queries, 1)
+            for peer in self._peers:
+                # There were enough servers for each to only get a single
+                # share.
+                self.assertEqual(peer.storage_server.queries, 1)
         d.addCallback(_check_server_write_counts)
         return d
 

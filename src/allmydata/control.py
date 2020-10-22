@@ -19,12 +19,13 @@ def get_memory_usage():
                   "VmData")
     stats = {}
     try:
-        for line in open("/proc/self/status", "r").readlines():
-            name, right = line.split(":",2)
-            if name in stat_names:
-                assert right.endswith(" kB\n")
-                right = right[:-4]
-                stats[name] = int(right) * 1024
+        with open("/proc/self/status", "r") as f:
+            for line in f:
+                name, right = line.split(":",2)
+                if name in stat_names:
+                    assert right.endswith(" kB\n")
+                    right = right[:-4]
+                    stats[name] = int(right) * 1024
     except:
         # Probably not on (a compatible version of) Linux
         stats['VmSize'] = 0
@@ -38,7 +39,7 @@ def log_memory_usage(where=""):
                                               where))
 
 @implementer(IConsumer)
-class FileWritingConsumer:
+class FileWritingConsumer(object):
     def __init__(self, filename):
         self.done = False
         self.f = open(filename, "wb")
@@ -123,9 +124,9 @@ class ControlServer(Referenceable, service.Service):
             return results
         server = everyone_left.pop(0)
         server_name = server.get_longname()
-        connection = server.get_rref()
+        storage_server = server.get_storage_server()
         start = time.time()
-        d = connection.callRemote("get_buckets", "\x00"*16)
+        d = storage_server.get_buckets("\x00" * 16)
         def _done(ignored):
             stop = time.time()
             elapsed = stop - start
@@ -143,14 +144,14 @@ class ControlServer(Referenceable, service.Service):
         d.addCallback(_average)
         return d
 
-class SpeedTest:
+class SpeedTest(object):
     def __init__(self, parent, count, size, mutable):
         self.parent = parent
         self.count = count
         self.size = size
         self.mutable_mode = mutable
         self.uris = {}
-        self.basedir = os.path.join(self.parent.basedir, "_speed_test_data")
+        self.basedir = self.parent.config.get_config_path("_speed_test_data")
 
     def run(self):
         self.create_data()

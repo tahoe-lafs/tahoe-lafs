@@ -1,3 +1,10 @@
+"""
+Ported to Python 3.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
 
 # This contains a test harness that creates a full Tahoe grid in a single
 # process (actually in a single MultiService) which does not use the network.
@@ -13,14 +20,25 @@
 # Tubs, so it is not useful for tests that involve a Helper or the
 # control.furl .
 
+from future.utils import PY2, PY3
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+from past.builtins import unicode
+
 import os
+from base64 import b32encode
+from functools import (
+    partial,
+)
 from zope.interface import implementer
 from twisted.application import service
 from twisted.internet import defer
 from twisted.python.failure import Failure
 from twisted.web.error import Error
 from foolscap.api import Referenceable, fireEventually, RemoteException
-from base64 import b32encode
+from foolscap.ipb import (
+    IRemoteReference,
+)
 import treq
 
 from allmydata.util.assertutil import _assert
@@ -30,24 +48,46 @@ from allmydata.client import _Client
 from allmydata.storage.server import StorageServer, storage_index_to_dir
 from allmydata.util import fileutil, idlib, hashutil
 from allmydata.util.hashutil import permute_server_hash
+from allmydata.util.fileutil import abspath_expanduser_unicode
 from allmydata.interfaces import IStorageBroker, IServer
-from .common import TEST_RSA_KEY_SIZE
+from allmydata.storage_client import (
+    _StorageServer,
+)
+from .common import (
+    TEST_RSA_KEY_SIZE,
+    SameProcessStreamEndpointAssigner,
+)
 
 
 class IntentionalError(Exception):
     pass
 
-class Marker:
+class Marker(object):
     pass
 
-class LocalWrapper:
-    def __init__(self, original):
+fireNow = partial(defer.succeed, None)
+
+@implementer(IRemoteReference)
+class LocalWrapper(object):
+    """
+    A ``LocalWrapper`` presents the remote reference interface to a local
+    object which implements a ``RemoteInterface``.
+    """
+    def __init__(self, original, fireEventually=fireEventually):
+        """
+        :param Callable[[], Deferred[None]] fireEventually: Get a Deferred
+            that will fire at some point.  This is used to control when
+            ``callRemote`` calls the remote method.  The default value allows
+            the reactor to iterate before the call happens.  Use ``fireNow``
+            to call the remote method synchronously.
+        """
         self.original = original
         self.broken = False
         self.hung_until = None
         self.post_call_notifier = None
         self.disconnectors = {}
         self.counter_by_methname = {}
+        self._fireEventually = fireEventually
 
     def _clear_counters(self):
         self.counter_by_methname = {}
@@ -63,7 +103,7 @@ class LocalWrapper:
         # selected return values.
         def wrap(a):
             if isinstance(a, Referenceable):
-                return LocalWrapper(a)
+                return self._wrap(a)
             else:
                 return a
         args = tuple([wrap(a) for a in args])
@@ -91,7 +131,7 @@ class LocalWrapper:
                 return d2
             return _really_call()
 
-        d = fireEventually()
+        d = self._fireEventually()
         d.addCallback(lambda res: _call())
         def _wrap_exception(f):
             return Failure(RemoteException(f))
@@ -105,10 +145,10 @@ class LocalWrapper:
             if methname == "allocate_buckets":
                 (alreadygot, allocated) = res
                 for shnum in allocated:
-                    allocated[shnum] = LocalWrapper(allocated[shnum])
+                    allocated[shnum] = self._wrap(allocated[shnum])
             if methname == "get_buckets":
                 for shnum in res:
-                    res[shnum] = LocalWrapper(res[shnum])
+                    res[shnum] = self._wrap(res[shnum])
             return res
         d.addCallback(_return_membrane)
         if self.post_call_notifier:
@@ -121,6 +161,10 @@ class LocalWrapper:
         return m
     def dontNotifyOnDisconnect(self, marker):
         del self.disconnectors[marker]
+
+    def _wrap(self, value):
+        return LocalWrapper(value, self._fireEventually)
+
 
 def wrap_storage_server(original):
     # Much of the upload/download code uses rref.version (which normally
@@ -162,6 +206,10 @@ class NoNetworkServer(object):
         return "nickname"
     def get_rref(self):
         return self.rref
+    def get_storage_server(self):
+        if self.rref is None:
+            return None
+        return _StorageServer(lambda: self.rref)
     def get_version(self):
         return self.rref.version
 
@@ -184,15 +232,36 @@ class NoNetworkStorageBroker(object):
         return []  # FIXME?
 
 
-def NoNetworkClient(basedir):
-    # XXX FIXME this is just to avoid massive search-replace for now;
-    # should be create_nonetwork_client() or something...
-    from allmydata.node import read_config
+def create_no_network_client(basedir):
+    """
+    :return: a Deferred yielding an instance of _Client subclass which
+        does no actual networking but has the same API.
+    """
+    basedir = abspath_expanduser_unicode(unicode(basedir))
+    fileutil.make_dirs(os.path.join(basedir, "private"), 0o700)
+
+    from allmydata.client import read_config
     config = read_config(basedir, u'client.port')
-    return _NoNetworkClient(config, basedir=basedir)
+    storage_broker = NoNetworkStorageBroker()
+    client = _NoNetworkClient(
+        config,
+        main_tub=None,
+        control_tub=None,
+        i2p_provider=None,
+        tor_provider=None,
+        introducer_clients=[],
+        storage_farm_broker=storage_broker,
+    )
+    # this is a (pre-existing) reference-cycle and also a bad idea, see:
+    # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2949
+    storage_broker.client = client
+    return defer.succeed(client)
 
 
 class _NoNetworkClient(_Client):
+    """
+    Overrides all _Client networking functionality to do nothing.
+    """
 
     def init_connections(self):
         pass
@@ -209,7 +278,7 @@ class _NoNetworkClient(_Client):
     def startService(self):
         service.MultiService.startService(self)
     def stopService(self):
-        service.MultiService.stopService(self)
+        return service.MultiService.stopService(self)
     def init_control(self):
         pass
     def init_helper(self):
@@ -225,7 +294,12 @@ class _NoNetworkClient(_Client):
         pass
     #._servers will be set by the NoNetworkGrid which creates us
 
-class SimpleStats:
+    if PY3:
+        def init_web(self, *args, **kwargs):
+            print("Web service is temporarily disabled until nevow is gone.")
+
+
+class SimpleStats(object):
     def __init__(self):
         self.counters = {}
         self.stats_producers = []
@@ -245,9 +319,17 @@ class SimpleStats:
         return ret
 
 class NoNetworkGrid(service.MultiService):
-    def __init__(self, basedir, num_clients=1, num_servers=10,
-                 client_config_hooks={}):
+    def __init__(self, basedir, num_clients, num_servers,
+                 client_config_hooks, port_assigner):
         service.MultiService.__init__(self)
+
+        # We really need to get rid of this pattern here (and
+        # everywhere) in Tahoe where "async work" is started in
+        # __init__ For now, we at least keep the errors so they can
+        # cause tests to fail less-improperly (see _check_clients)
+        self._setup_errors = []
+
+        self.port_assigner = port_assigner
         self.basedir = basedir
         fileutil.make_dirs(basedir)
 
@@ -264,24 +346,40 @@ class NoNetworkGrid(service.MultiService):
         self.rebuild_serverlist()
 
         for i in range(num_clients):
-            c = self.make_client(i)
-            self.clients.append(c)
+            d = self.make_client(i)
+            d.addCallback(lambda c: self.clients.append(c))
 
+            def _bad(f):
+                self._setup_errors.append(f)
+            d.addErrback(_bad)
+
+    def _check_clients(self):
+        """
+        The anti-pattern of doing async work in __init__ means we need to
+        check if that work completed successfully. This method either
+        returns nothing or raises an exception in case __init__ failed
+        to complete properly
+        """
+        if self._setup_errors:
+            raise self._setup_errors[0].value
+
+    @defer.inlineCallbacks
     def make_client(self, i, write_config=True):
-        clientid = hashutil.tagged_hash("clientid", str(i))[:20]
+        clientid = hashutil.tagged_hash(b"clientid", b"%d" % i)[:20]
         clientdir = os.path.join(self.basedir, "clients",
                                  idlib.shortnodeid_b2a(clientid))
         fileutil.make_dirs(clientdir)
 
         tahoe_cfg_path = os.path.join(clientdir, "tahoe.cfg")
         if write_config:
-            f = open(tahoe_cfg_path, "w")
-            f.write("[node]\n")
-            f.write("nickname = client-%d\n" % i)
-            f.write("web.port = tcp:0:interface=127.0.0.1\n")
-            f.write("[storage]\n")
-            f.write("enabled = false\n")
-            f.close()
+            from twisted.internet import reactor
+            _, port_endpoint = self.port_assigner.assign(reactor)
+            with open(tahoe_cfg_path, "w") as f:
+                f.write("[node]\n")
+                f.write("nickname = client-%d\n" % i)
+                f.write("web.port = {}\n".format(port_endpoint))
+                f.write("[storage]\n")
+                f.write("enabled = false\n")
         else:
             _assert(os.path.exists(tahoe_cfg_path), tahoe_cfg_path=tahoe_cfg_path)
 
@@ -292,17 +390,17 @@ class NoNetworkGrid(service.MultiService):
             c = self.client_config_hooks[i](clientdir)
 
         if not c:
-            c = NoNetworkClient(clientdir)
+            c = yield create_no_network_client(clientdir)
             c.set_default_mutable_keysize(TEST_RSA_KEY_SIZE)
 
         c.nodeid = clientid
         c.short_nodeid = b32encode(clientid).lower()[:8]
         c._servers = self.all_servers # can be updated later
         c.setServiceParent(self)
-        return c
+        defer.returnValue(c)
 
     def make_server(self, i, readonly=False):
-        serverid = hashutil.tagged_hash("serverid", str(i))[:20]
+        serverid = hashutil.tagged_hash(b"serverid", b"%d" % i)[:20]
         serverdir = os.path.join(self.basedir, "servers",
                                  idlib.shortnodeid_b2a(serverid), "storage")
         fileutil.make_dirs(serverdir)
@@ -325,17 +423,18 @@ class NoNetworkGrid(service.MultiService):
         self.rebuild_serverlist()
 
     def get_all_serverids(self):
-        return self.proxies_by_id.keys()
+        return list(self.proxies_by_id.keys())
 
     def rebuild_serverlist(self):
-        self.all_servers = frozenset(self.proxies_by_id.values())
+        self._check_clients()
+        self.all_servers = frozenset(list(self.proxies_by_id.values()))
         for c in self.clients:
             c._servers = self.all_servers
 
     def remove_server(self, serverid):
         # it's enough to remove the server from c._servers (we don't actually
         # have to detach and stopService it)
-        for i,ss in self.servers_by_number.items():
+        for i,ss in list(self.servers_by_number.items()):
             if ss.my_nodeid == serverid:
                 del self.servers_by_number[i]
                 break
@@ -365,27 +464,36 @@ class NoNetworkGrid(service.MultiService):
 
     def nuke_from_orbit(self):
         """ Empty all share directories in this grid. It's the only way to be sure ;-) """
-        for server in self.servers_by_number.values():
+        for server in list(self.servers_by_number.values()):
             for prefixdir in os.listdir(server.sharedir):
                 if prefixdir != 'incoming':
                     fileutil.rm_dir(os.path.join(server.sharedir, prefixdir))
 
 
-class GridTestMixin:
+class GridTestMixin(object):
     def setUp(self):
         self.s = service.MultiService()
         self.s.startService()
+        return super(GridTestMixin, self).setUp()
 
     def tearDown(self):
-        return self.s.stopService()
+        return defer.gatherResults([
+            self.s.stopService(),
+            defer.maybeDeferred(super(GridTestMixin, self).tearDown),
+        ])
 
     def set_up_grid(self, num_clients=1, num_servers=10,
                     client_config_hooks={}, oneshare=False):
         # self.basedir must be set
+        port_assigner = SameProcessStreamEndpointAssigner()
+        port_assigner.setUp()
+        self.addCleanup(port_assigner.tearDown)
         self.g = NoNetworkGrid(self.basedir,
                                num_clients=num_clients,
                                num_servers=num_servers,
-                               client_config_hooks=client_config_hooks)
+                               client_config_hooks=client_config_hooks,
+                               port_assigner=port_assigner,
+        )
         self.g.setServiceParent(self.s)
         if oneshare:
             c = self.get_client(0)
@@ -395,26 +503,36 @@ class GridTestMixin:
         self._record_webports_and_baseurls()
 
     def _record_webports_and_baseurls(self):
-        self.client_webports = [c.getServiceNamed("webish").getPortnum()
-                                for c in self.g.clients]
-        self.client_baseurls = [c.getServiceNamed("webish").getURL()
-                                for c in self.g.clients]
+        self.g._check_clients()
+        if PY2:
+            # Temporarily disabled on Python 3 until Nevow is gone:
+            self.client_webports = [c.getServiceNamed("webish").getPortnum()
+                                    for c in self.g.clients]
+            self.client_baseurls = [c.getServiceNamed("webish").getURL()
+                                    for c in self.g.clients]
+
+    def get_client_config(self, i=0):
+        self.g._check_clients()
+        return self.g.clients[i].config
 
     def get_clientdir(self, i=0):
-        return self.g.clients[i].basedir
-
-    def set_clientdir(self, basedir, i=0):
-        self.g.clients[i].basedir = basedir
+        # ideally, use something get_client_config() only, we
+        # shouldn't need to manipulate raw paths..
+        return self.get_client_config(i).get_config_path()
 
     def get_client(self, i=0):
+        self.g._check_clients()
         return self.g.clients[i]
 
     def restart_client(self, i=0):
+        self.g._check_clients()
         client = self.g.clients[i]
         d = defer.succeed(None)
         d.addCallback(lambda ign: self.g.removeService(client))
+
+        @defer.inlineCallbacks
         def _make_client(ign):
-            c = self.g.make_client(i, write_config=False)
+            c = yield self.g.make_client(i, write_config=False)
             self.g.clients[i] = c
             self._record_webports_and_baseurls()
         d.addCallback(_make_client)
@@ -432,7 +550,7 @@ class GridTestMixin:
         si = tahoe_uri.from_string(uri).get_storage_index()
         prefixdir = storage_index_to_dir(si)
         shares = []
-        for i,ss in self.g.servers_by_number.items():
+        for i,ss in list(self.g.servers_by_number.items()):
             serverid = ss.my_nodeid
             basedir = os.path.join(ss.sharedir, prefixdir)
             if not os.path.exists(basedir):
@@ -448,14 +566,17 @@ class GridTestMixin:
     def copy_shares(self, uri):
         shares = {}
         for (shnum, serverid, sharefile) in self.find_uri_shares(uri):
-            shares[sharefile] = open(sharefile, "rb").read()
+            with open(sharefile, "rb") as f:
+                shares[sharefile] = f.read()
         return shares
 
     def restore_all_shares(self, shares):
-        for sharefile, data in shares.items():
-            open(sharefile, "wb").write(data)
+        for sharefile, data in list(shares.items()):
+            with open(sharefile, "wb") as f:
+                f.write(data)
 
-    def delete_share(self, (shnum, serverid, sharefile)):
+    def delete_share(self, sharenum_and_serverid_and_sharefile):
+        (shnum, serverid, sharefile) = sharenum_and_serverid_and_sharefile
         os.unlink(sharefile)
 
     def delete_shares_numbered(self, uri, shnums):
@@ -469,17 +590,22 @@ class GridTestMixin:
             if prefixdir != 'incoming':
                 fileutil.rm_dir(os.path.join(sharedir, prefixdir))
 
-    def corrupt_share(self, (shnum, serverid, sharefile), corruptor_function):
-        sharedata = open(sharefile, "rb").read()
+    def corrupt_share(self, sharenum_and_serverid_and_sharefile, corruptor_function):
+        (shnum, serverid, sharefile) = sharenum_and_serverid_and_sharefile
+        with open(sharefile, "rb") as f:
+            sharedata = f.read()
         corruptdata = corruptor_function(sharedata)
-        open(sharefile, "wb").write(corruptdata)
+        with open(sharefile, "wb") as f:
+            f.write(corruptdata)
 
     def corrupt_shares_numbered(self, uri, shnums, corruptor, debug=False):
         for (i_shnum, i_serverid, i_sharefile) in self.find_uri_shares(uri):
             if i_shnum in shnums:
-                sharedata = open(i_sharefile, "rb").read()
+                with open(i_sharefile, "rb") as f:
+                    sharedata = f.read()
                 corruptdata = corruptor(sharedata, debug=debug)
-                open(i_sharefile, "wb").write(corruptdata)
+                with open(i_sharefile, "wb") as f:
+                    f.write(corruptdata)
 
     def corrupt_all_shares(self, uri, corruptor, debug=False):
         for (i_shnum, i_serverid, i_sharefile) in self.find_uri_shares(uri):

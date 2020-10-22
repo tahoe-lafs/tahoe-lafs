@@ -1,3 +1,5 @@
+from __future__ import print_function
+
 """
 this is a load-generating client program. It does all of its work through a
 given tahoe node (specified by URL), and performs random reads and writes
@@ -35,6 +37,11 @@ a mean of 10kB and a max of 100MB, so filesize=min(int(1.0/random(.0002)),1e8)
 import os, sys, httplib, binascii
 import urllib, json, random, time, urlparse
 
+# Python 2 compatibility
+from future.utils import PY2
+if PY2:
+    from future.builtins import str  # noqa: F401
+
 if sys.argv[1] == "--stats":
     statsfiles = sys.argv[2:]
     # gather stats every 10 seconds, do a moving-window average of the last
@@ -56,24 +63,24 @@ if sys.argv[1] == "--stats":
         if last_stats:
             delta = dict( [ (n,stats[n]-last_stats[n])
                             for n in stats ] )
-            print "THIS SAMPLE:"
+            print("THIS SAMPLE:")
             for name in sorted(delta.keys()):
                 avg = float(delta[name]) / float(DELAY)
-                print "%20s: %0.2f per second" % (name, avg)
+                print("%20s: %0.2f per second" % (name, avg))
             totals.append(delta)
             while len(totals) > MAXSAMPLES:
                 totals.pop(0)
 
             # now compute average
-            print
-            print "MOVING WINDOW AVERAGE:"
+            print()
+            print("MOVING WINDOW AVERAGE:")
             for name in sorted(delta.keys()):
                 avg = sum([ s[name] for s in totals]) / (DELAY*len(totals))
-                print "%20s %0.2f per second" % (name, avg)
+                print("%20s %0.2f per second" % (name, avg))
 
         last_stats = stats
-        print
-        print
+        print()
+        print()
         time.sleep(DELAY)
 
 stats_out = sys.argv[1]
@@ -107,14 +114,14 @@ def listdir(nodeurl, root, remote_pathname):
     try:
         parsed = json.loads(data)
     except ValueError:
-        print "URL was", url
-        print "DATA was", data
+        print("URL was", url)
+        print("DATA was", data)
         raise
     nodetype, d = parsed
     assert nodetype == "dirnode"
     global directories_read
     directories_read += 1
-    children = dict( [(unicode(name),value)
+    children = dict( [(str(name),value)
                       for (name,value)
                       in d["children"].iteritems()] )
     return children
@@ -238,11 +245,11 @@ while True:
         op = "read"
     else:
         op = "write"
-    print "OP:", op
+    print("OP:", op)
     server = random.choice(server_urls)
     if op == "read":
         pathname = choose_random_descendant(server, root)
-        print "  reading", pathname
+        print("  reading", pathname)
         read_and_discard(server, root, pathname)
         files_downloaded += 1
     elif op == "write":
@@ -253,9 +260,9 @@ while True:
             pathname = current_writedir + "/" + filename
         else:
             pathname = filename
-        print "  writing", pathname
+        print("  writing", pathname)
         size = choose_size()
-        print "   size", size
+        print("   size", size)
         generate_and_put(server, root, pathname, size)
         files_uploaded += 1
 
@@ -268,4 +275,3 @@ while True:
     f.write("directories-written: %d\n" % directories_written)
     f.close()
     os.rename(stats_out+".tmp", stats_out)
-

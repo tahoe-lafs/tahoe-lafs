@@ -1,3 +1,4 @@
+from __future__ import print_function
 
 import os.path, sys, time, random, stat
 
@@ -5,7 +6,7 @@ from allmydata.util.netstring import netstring
 from allmydata.util.hashutil import backupdb_dirhash
 from allmydata.util import base32
 from allmydata.util.fileutil import abspath_expanduser_unicode
-from allmydata.util.encodingutil import to_str
+from allmydata.util.encodingutil import to_bytes
 from allmydata.util.dbutil import get_db, DBError
 
 
@@ -72,12 +73,12 @@ def get_backupdb(dbfile, stderr=sys.stderr,
         (sqlite3, db) = get_db(dbfile, stderr, create_version, updaters=UPDATERS,
                                just_create=just_create, dbname="backupdb")
         return BackupDB_v2(sqlite3, db)
-    except DBError, e:
-        print >>stderr, e
+    except DBError as e:
+        print(e, file=stderr)
         return None
 
 
-class FileResult:
+class FileResult(object):
     def __init__(self, bdb, filecap, should_check,
                  path, mtime, ctime, size):
         self.bdb = bdb
@@ -105,7 +106,7 @@ class FileResult:
         self.bdb.did_check_file_healthy(self.filecap, results)
 
 
-class DirectoryResult:
+class DirectoryResult(object):
     def __init__(self, bdb, dirhash, dircap, should_check):
         self.bdb = bdb
         self.dircap = dircap
@@ -127,7 +128,7 @@ class DirectoryResult:
         self.bdb.did_check_directory_healthy(self.dircap, results)
 
 
-class BackupDB_v2:
+class BackupDB_v2(object):
     VERSION = 2
     NO_CHECK_BEFORE = 1*MONTH
     ALWAYS_CHECK_AFTER = 2*MONTH
@@ -217,7 +218,7 @@ class BackupDB_v2:
         probability = min(max(probability, 0.0), 1.0)
         should_check = bool(random.random() < probability)
 
-        return FileResult(self, to_str(filecap), should_check,
+        return FileResult(self, to_bytes(filecap), should_check,
                           path, mtime, ctime, size)
 
     def get_or_allocate_fileid_for_cap(self, filecap):
@@ -320,7 +321,7 @@ class BackupDB_v2:
         probability = min(max(probability, 0.0), 1.0)
         should_check = bool(random.random() < probability)
 
-        return DirectoryResult(self, dirhash_s, to_str(dircap), should_check)
+        return DirectoryResult(self, dirhash_s, to_bytes(dircap), should_check)
 
     def did_create_directory(self, dircap, dirhash):
         now = time.time()

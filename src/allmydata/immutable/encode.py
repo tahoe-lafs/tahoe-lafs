@@ -1,5 +1,18 @@
 # -*- test-case-name: allmydata.test.test_encode -*-
 
+"""
+Ported to Python 3.
+"""
+
+from __future__ import division
+from __future__ import absolute_import
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+
 import time
 from zope.interface import implementer
 from twisted.internet import defer
@@ -13,6 +26,9 @@ from allmydata.codec import CRSEncoder
 from allmydata.interfaces import IEncoder, IStorageBucketWriter, \
      IEncryptedUploadable, IUploadStatus, UploadUnhappinessError
 
+from ..util.eliotutil import (
+    log_call_deferred,
+)
 
 """
 The goal of the encoder is to turn the original file into a series of
@@ -100,6 +116,7 @@ class Encoder(object):
             kwargs["facility"] = "tahoe.encoder"
         return log.msg(*args, **kwargs)
 
+    @log_call_deferred(action_type=u"immutable:encode:set-encrypted-uploadable")
     def set_encrypted_uploadable(self, uploadable):
         eu = self._uploadable = IEncryptedUploadable(uploadable)
         d = eu.get_size()
@@ -201,10 +218,11 @@ class Encoder(object):
             assert IStorageBucketWriter.providedBy(landlords[k])
         self.landlords = landlords.copy()
         assert isinstance(servermap, dict)
-        for v in servermap.itervalues():
+        for v in servermap.values():
             assert isinstance(v, set)
         self.servermap = servermap.copy()
 
+    @log_call_deferred(action_type=u"immutable:encode:start")
     def start(self):
         """ Returns a Deferred that will fire with the verify cap (an instance of
         uri.CHKFileVerifierURI)."""
@@ -405,7 +423,7 @@ class Encoder(object):
             assert isinstance(data, (list,tuple))
             if self._aborted:
                 raise UploadAborted()
-            data = "".join(data)
+            data = b"".join(data)
             precondition(len(data) <= read_size, len(data), read_size)
             if not allow_short:
                 precondition(len(data) == read_size, len(data), read_size)
@@ -413,19 +431,20 @@ class Encoder(object):
             self._crypttext_hasher.update(data)
             if allow_short and len(data) < read_size:
                 # padding
-                data += "\x00" * (read_size - len(data))
+                data += b"\x00" * (read_size - len(data))
             encrypted_pieces = [data[i:i+input_chunk_size]
                                 for i in range(0, len(data), input_chunk_size)]
             return encrypted_pieces
         d.addCallback(_got)
         return d
 
-    def _send_segment(self, (shares, shareids), segnum):
+    def _send_segment(self, shares_and_shareids, segnum):
         # To generate the URI, we must generate the roothash, so we must
         # generate all shares, even if we aren't actually giving them to
         # anybody. This means that the set of shares we create will be equal
         # to or larger than the set of landlords. If we have any landlord who
         # *doesn't* have a share, that's an error.
+        (shares, shareids) = shares_and_shareids
         _assert(set(self.landlords.keys()).issubset(set(shareids)),
                 shareids=shareids, landlords=self.landlords)
         start = time.time()
@@ -462,7 +481,7 @@ class Encoder(object):
                      (self,
                       self.segment_size*(segnum+1),
                       self.segment_size*self.num_segments,
-                      100 * (segnum+1) / self.num_segments,
+                      100 * (segnum+1) // self.num_segments,
                       ),
                      level=log.OPERATIONAL)
             elapsed = time.time() - start

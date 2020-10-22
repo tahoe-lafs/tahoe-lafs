@@ -1,0 +1,35 @@
+In December 2018, the Tahoe-LAFS project engaged Aspiration[1], a US 501(c)3
+nonprofit technology organization, as a "fiscal sponsor"[2]. A portion of the
+project's Bitcoin will be given to Aspiration, from which they can pay
+developers and contractors to work on the Tahoe codebase. Aspiration will
+handle the payroll, taxes, accounting, project management, and oversight, and
+is compensated by an 8% management fee. This provides the tax-withholding
+structure to use our project's BTC for significant development.
+
+We're using 25% of our ~369 BTC for this initial stage of the project,
+which will give us about $300K-$350K of development work, spread out
+over the 2019 calendar year. While it would have been nice to make this
+happen a year ago (given the recent decline of the BTC price), we think
+this is a reasonable value, and we're excited to finally get to use this
+surprise windfall to improve the codebase.
+
+Our initial set of projects to fund, drafted by Liz Steininger of Least
+Authority and approved by Zooko and Brian, looks like this:
+
+* porting Tahoe and dependent libraries to Python 3
+* improving grid operation/management tools
+* community outreach, UI/UX improvements, documentation
+* adding new community-requested features, improving garbage collection
+* possibly run another summit
+
+If this goes well (and especially if the BTC price recovers), we'll
+probably do more next year.
+
+As usual, the transfer amounts and addresses will be logged in
+"donations.rst" and "expenses.rst" in the docs/ directory.
+
+Many thanks to Gunner and Josh Black of Aspiration, and Liz Steininger
+of Least Authority, for making this possible.
+
+[1]: https://aspirationtech.org/
+[2]: https://aspirationtech.org/services/openprojects

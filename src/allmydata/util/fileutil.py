@@ -1,20 +1,32 @@
 """
+Ported to Python3.
+
 Futz with files like a pro.
 """
 
-import sys, exceptions, os, stat, tempfile, time, binascii
+from __future__ import print_function
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    # open is not here because we want to use native strings on Py2
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+
+import sys, os, stat, tempfile, time, binascii
+import six
 from collections import namedtuple
 from errno import ENOENT
 
 if sys.platform == "win32":
     from ctypes import WINFUNCTYPE, WinError, windll, POINTER, byref, c_ulonglong, \
         create_unicode_buffer, get_last_error
-    from ctypes.wintypes import BOOL, DWORD, LPCWSTR, LPWSTR, LPVOID, HANDLE
+    from ctypes.wintypes import BOOL, DWORD, LPCWSTR, LPWSTR, LPVOID
 
 from twisted.python import log
 
-from pycryptopp.cipher.aes import AES
-
+from allmydata.crypto import aes
 from allmydata.util.assertutil import _assert
 
 
@@ -35,7 +47,7 @@ def rename(src, dst, tries=4, basedelay=0.1):
     for i in range(tries-1):
         try:
             return os.rename(src, dst)
-        except EnvironmentError, le:
+        except EnvironmentError as le:
             # XXX Tighten this to check if this is a permission denied error (possibly due to another Windows process having the file open and execute the superkludge only in this case.
             log.msg("XXX KLUDGE Attempting to move file %s => %s; got %s; sleeping %s seconds" % (src, dst, le, basedelay,))
             time.sleep(basedelay)
@@ -63,7 +75,7 @@ def remove(f, tries=4, basedelay=0.1):
     for i in range(tries-1):
         try:
             return os.remove(f)
-        except EnvironmentError, le:
+        except EnvironmentError as le:
             # XXX Tighten this to check if this is a permission denied error (possibly due to another Windows process having the file open and execute the superkludge only in this case.
             if not os.path.exists(f):
                 return
@@ -72,7 +84,7 @@ def remove(f, tries=4, basedelay=0.1):
             basedelay *= 2
     return os.remove(f) # The last try.
 
-class ReopenableNamedTemporaryFile:
+class ReopenableNamedTemporaryFile(object):
     """
     This uses tempfile.mkstemp() to generate a secure temp file.  It then closes
     the file, leaving a zero-length file as a placeholder.  You can get the
@@ -96,7 +108,7 @@ class ReopenableNamedTemporaryFile:
     def shutdown(self):
         remove(self.name)
 
-class EncryptedTemporaryFile:
+class EncryptedTemporaryFile(object):
     # not implemented: next, readline, readlines, xreadlines, writelines
 
     def __init__(self):
@@ -107,9 +119,10 @@ class EncryptedTemporaryFile:
         offset_big = offset // 16
         offset_small = offset % 16
         iv = binascii.unhexlify("%032x" % offset_big)
-        cipher = AES(self.key, iv=iv)
-        cipher.process("\x00"*offset_small)
-        return cipher.process(data)
+        cipher = aes.create_encryptor(self.key, iv)
+        # this is just to advance the counter
+        aes.encrypt_data(cipher, b"\x00" * offset_small)
+        return aes.encrypt_data(cipher, data)
 
     def close(self):
         self.file.close()
@@ -170,7 +183,7 @@ def is_ancestor_path(parent, dirname):
             return False
     return True
 
-def make_dirs(dirname, mode=0777):
+def make_dirs(dirname, mode=0o777):
     """
     An idempotent version of os.makedirs().  If the dir already exists, do
     nothing and return without raising an exception.  If this call creates the
@@ -181,13 +194,13 @@ def make_dirs(dirname, mode=0777):
     tx = None
     try:
         os.makedirs(dirname, mode)
-    except OSError, x:
+    except OSError as x:
         tx = x
 
     if not os.path.isdir(dirname):
         if tx:
             raise tx
-        raise exceptions.IOError, "unknown error prevented creation of directory, or deleted the directory immediately after creation: %s" % dirname # careful not to construct an IOError with a 2-tuple, as that has a special meaning...
+        raise IOError("unknown error prevented creation of directory, or deleted the directory immediately after creation: %s" % dirname) # careful not to construct an IOError with a 2-tuple, as that has a special meaning...
 
 def rm_dir(dirname):
     """
@@ -208,7 +221,7 @@ def rm_dir(dirname):
             else:
                 remove(fullname)
         os.rmdir(dirname)
-    except Exception, le:
+    except Exception as le:
         # Ignore "No such file or directory"
         if (not isinstance(le, OSError)) or le.args[0] != 2:
             excs.append(le)
@@ -220,8 +233,8 @@ def rm_dir(dirname):
         if len(excs) == 1:
             raise excs[0]
         if len(excs) == 0:
-            raise OSError, "Failed to remove dir for unknown reason."
-        raise OSError, excs
+            raise OSError("Failed to remove dir for unknown reason.")
+        raise OSError(excs)
 
 
 def remove_if_possible(f):
@@ -250,6 +263,9 @@ def move_into_place(source, dest):
     os.rename(source, dest)
 
 def write_atomically(target, contents, mode="b"):
+    assert (
+        isinstance(contents, bytes) and "b" in mode or
+        isinstance(contents, str) and "t" in mode or mode == ""), (type(contents), mode)
     with open(target+".tmp", "w"+mode) as f:
         f.write(contents)
     move_into_place(target+".tmp", target)
@@ -274,7 +290,7 @@ def put_file(path, inf):
             outf.write(data)
 
 def precondition_abspath(path):
-    if not isinstance(path, unicode):
+    if not isinstance(path, str):
         raise AssertionError("an abspath must be a Unicode string")
 
     if sys.platform == "win32":
@@ -306,7 +322,7 @@ def abspath_expanduser_unicode(path, base=None, long_path=True):
     abspath_expanduser_unicode.
     On Windows, the result will be a long path unless long_path is given as False.
     """
-    if not isinstance(path, unicode):
+    if not isinstance(path, str):
         raise AssertionError("paths must be Unicode strings")
     if base is not None and long_path:
         precondition_abspath(base)
@@ -327,7 +343,10 @@ def abspath_expanduser_unicode(path, base=None, long_path=True):
 
     if not os.path.isabs(path):
         if base is None:
-            path = os.path.join(os.getcwdu(), path)
+            cwd = os.getcwd()
+            if PY2:
+                cwd = cwd.decode('utf8')
+            path = os.path.join(cwd, path)
         else:
             path = os.path.join(base, path)
 
@@ -412,7 +431,7 @@ ERROR_ENVVAR_NOT_FOUND = 203
 def windows_getenv(name):
     # Based on <http://stackoverflow.com/questions/2608200/problems-with-umlauts-in-python-appdata-environvent-variable/2608368#2608368>,
     # with improved error handling. Returns None if there is no enivronment variable of the given name.
-    if not isinstance(name, unicode):
+    if not isinstance(name, str):
         raise AssertionError("name must be Unicode")
 
     n = GetEnvironmentVariableW(name, None, 0)
@@ -535,70 +554,19 @@ def get_available_space(whichdir, reserved_space):
         return 0
 
 
-if sys.platform == "win32":
-    # <http://msdn.microsoft.com/en-us/library/aa363858%28v=vs.85%29.aspx>
-    CreateFileW = WINFUNCTYPE(
-        HANDLE,  LPCWSTR, DWORD, DWORD, LPVOID, DWORD, DWORD, HANDLE,
-        use_last_error=True
-    )(("CreateFileW", windll.kernel32))
-
-    GENERIC_WRITE        = 0x40000000
-    FILE_SHARE_READ      = 0x00000001
-    FILE_SHARE_WRITE     = 0x00000002
-    OPEN_EXISTING        = 3
-    INVALID_HANDLE_VALUE = 0xFFFFFFFF
-
-    # <http://msdn.microsoft.com/en-us/library/aa364439%28v=vs.85%29.aspx>
-    FlushFileBuffers = WINFUNCTYPE(
-        BOOL,  HANDLE,
-        use_last_error=True
-    )(("FlushFileBuffers", windll.kernel32))
-
-    # <http://msdn.microsoft.com/en-us/library/ms724211%28v=vs.85%29.aspx>
-    CloseHandle = WINFUNCTYPE(
-        BOOL,  HANDLE,
-        use_last_error=True
-    )(("CloseHandle", windll.kernel32))
-
-    # <http://social.msdn.microsoft.com/forums/en-US/netfxbcl/thread/4465cafb-f4ed-434f-89d8-c85ced6ffaa8/>
-    def flush_volume(path):
-        abspath = os.path.realpath(path)
-        if abspath.startswith("\\\\?\\"):
-            abspath = abspath[4 :]
-        drive = os.path.splitdrive(abspath)[0]
-
-        print "flushing %r" % (drive,)
-        hVolume = CreateFileW(u"\\\\.\\" + drive,
-                              GENERIC_WRITE,
-                              FILE_SHARE_READ | FILE_SHARE_WRITE,
-                              None,
-                              OPEN_EXISTING,
-                              0,
-                              None
-                             )
-        if hVolume == INVALID_HANDLE_VALUE:
-            raise WinError(get_last_error())
-
-        if FlushFileBuffers(hVolume) == 0:
-            raise WinError(get_last_error())
-
-        CloseHandle(hVolume)
-else:
-    def flush_volume(path):
-        # use sync()?
-        pass
-
-
 class ConflictError(Exception):
     pass
+
 
 class UnableToUnlinkReplacementError(Exception):
     pass
 
+
 def reraise(wrapper):
-    _, exc, tb = sys.exc_info()
-    wrapper_exc = wrapper("%s: %s" % (exc.__class__.__name__, exc))
-    raise wrapper_exc.__class__, wrapper_exc, tb
+    cls, exc, tb = sys.exc_info()
+    wrapper_exc = wrapper("%s: %s" % (cls.__name__, exc))
+    six.reraise(wrapper, wrapper_exc, tb)
+
 
 if sys.platform == "win32":
     # <https://msdn.microsoft.com/en-us/library/windows/desktop/aa365512%28v=vs.85%29.aspx>

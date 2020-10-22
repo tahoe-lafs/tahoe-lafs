@@ -1,3 +1,17 @@
+"""
+Polling utility that returns Deferred.
+
+Ported to Python 3.
+"""
+
+from __future__ import print_function
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 import time
 from twisted.internet import task
@@ -8,7 +22,7 @@ class TimeoutError(Exception):
 class PollComplete(Exception):
     pass
 
-class PollMixin:
+class PollMixin(object):
     _poll_should_ignore_these_errors = []
 
     def poll(self, check_f, pollinterval=0.01, timeout=1000):
@@ -45,6 +59,6 @@ class PollMixin:
                 if not e.check(*self._poll_should_ignore_these_errors):
                     errs.append(e)
             if errs:
-                print errs
+                print(errs)
                 self.fail("Errors snooped, terminating early")
 

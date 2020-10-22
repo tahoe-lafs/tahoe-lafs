@@ -4,6 +4,9 @@ VERSION=`sh -c "cat src/allmydata/_version.py | grep verstr | head -n 1 | cut -d
 PWD=`pwd`
 TARGET="/Applications/tahoe.app"
 
+# Clean up any test garbage that might be left over from a recent test run.
+rm -rvf _trial_temp
+
 virtualenv osx-venv
 osx-venv/bin/pip install .
 

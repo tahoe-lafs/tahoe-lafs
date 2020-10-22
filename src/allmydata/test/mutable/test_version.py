@@ -1,7 +1,16 @@
+from __future__ import print_function
+
 import os
-from cStringIO import StringIO
+
+# Python 2 compatibility
+from future.utils import PY2
+if PY2:
+    from future.builtins import str  # noqa: F401
+from six.moves import cStringIO as StringIO
+
 from twisted.internet import defer
 from twisted.trial import unittest
+
 from allmydata import uri
 from allmydata.interfaces import SDMF_VERSION, MDMF_VERSION
 from allmydata.util import base32, consumer, mathutil
@@ -73,7 +82,7 @@ class Version(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin, \
             fso = debug.FindSharesOptions()
             storage_index = base32.b2a(n.get_storage_index())
             fso.si_s = storage_index
-            fso.nodedirs = [os.path.dirname(abspath_expanduser_unicode(unicode(storedir)))
+            fso.nodedirs = [os.path.dirname(abspath_expanduser_unicode(str(storedir)))
                             for (i,ss,storedir)
                             in self.iterate_servers()]
             fso.stdout = StringIO()
@@ -346,10 +355,10 @@ class Version(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin, \
         d.addCallback(lambda ignored: "".join(c.chunks))
         def _check(results):
             if results != expected_range:
-                print "read([%d]+%s) got %d bytes, not %d" % \
-                      (offset, length, len(results), len(expected_range))
-                print "got: %s ... %s" % (results[:20], results[-20:])
-                print "exp: %s ... %s" % (expected_range[:20], expected_range[-20:])
+                print("read([%d]+%s) got %d bytes, not %d" % \
+                      (offset, length, len(results), len(expected_range)))
+                print("got: %s ... %s" % (results[:20], results[-20:]))
+                print("exp: %s ... %s" % (expected_range[:20], expected_range[-20:]))
                 self.fail("results[%s] != expected_range" % name)
             return version # daisy-chained to next call
         d.addCallback(_check)

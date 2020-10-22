@@ -18,6 +18,8 @@
 #  env.basedir_NODE3 /path/to/node3
 #
 
+from __future__ import print_function
+
 import os, sys
 
 nodedirs = []
@@ -41,7 +43,7 @@ for nodename, basedir in nodedirs:
 
 if len(sys.argv) > 1:
     if sys.argv[1] == "config":
-        print configinfo.rstrip()
+        print(configinfo.rstrip())
         sys.exit(0)
 
 for nodename, basedir in nodedirs:
@@ -52,5 +54,5 @@ for nodename, basedir in nodedirs:
         if dirpath == root and "incoming" in dirnames:
             dirnames.remove("incoming")
         shares += len(filenames)
-    print "%s.value %d" % (nodename, shares)
+    print("%s.value %d" % (nodename, shares))
 

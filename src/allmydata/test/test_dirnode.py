@@ -1,5 +1,5 @@
 """Tests for the dirnode module."""
-
+import six
 import time
 import unicodedata
 from zope.interface import implementer
@@ -9,6 +9,7 @@ from twisted.internet.interfaces import IConsumer
 from allmydata import uri, dirnode
 from allmydata.client import _Client
 from allmydata.immutable import upload
+from allmydata.immutable.literal import LiteralFileNode
 from allmydata.interfaces import IImmutableFileNode, IMutableFileNode, \
      ExistingChildError, NoSuchChildError, MustNotBeUnknownRWError, \
      MustBeDeepImmutableError, MustBeReadonlyError, \
@@ -26,6 +27,13 @@ from allmydata.unknown import UnknownNode, strip_prefix_for_ro
 from allmydata.nodemaker import NodeMaker
 from base64 import b32decode
 import allmydata.test.common_util as testutil
+
+from hypothesis import given
+from hypothesis.strategies import text
+
+if six.PY3:
+    long = int
+
 
 @implementer(IConsumer)
 class MemAccum(object):
@@ -59,7 +67,6 @@ one_nfd = u"one\u0304"
 
 class Dirnode(GridTestMixin, unittest.TestCase,
               testutil.ReallyEqualMixin, testutil.ShouldFailMixin, testutil.StallMixin, ErrorMixin):
-    timeout = 480 # It occasionally takes longer than 240 seconds on Francois's arm box.
 
     def _do_create_test(self, mdmf=False):
         c = self.g.clients[0]
@@ -1377,7 +1384,7 @@ class Dirnode(GridTestMixin, unittest.TestCase,
         self.set_up_grid(oneshare=True)
         return self._do_initial_children_test(mdmf=True)
 
-class MinimalFakeMutableFile:
+class MinimalFakeMutableFile(object):
     def get_writekey(self):
         return "writekey"
 
@@ -1456,6 +1463,33 @@ class Packing(testutil.ReallyEqualMixin, unittest.TestCase):
         for name in which:
             kids[unicode(name)] = (nm.create_from_cap(caps[name]), {})
         return kids
+
+    @given(text(min_size=1, max_size=20))
+    def test_pack_unpack_unicode_hypothesis(self, name):
+        """
+        pack -> unpack results in the same objects (with a unicode name)
+        """
+        nm = NodeMaker(None, None, None, None, None, {"k": 3, "n": 10}, None, None)
+        fn = MinimalFakeMutableFile()
+
+        # FIXME TODO: we shouldn't have to do this out here, but
+        # Hypothesis found that a name with "\x2000" does not make the
+        # round-trip properly .. so for now we'll only give the packer
+        # normalized names.
+        # See also:
+        # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2606
+        # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1076
+        name = unicodedata.normalize('NFC', name)
+
+        kids = {
+            name: (LiteralFileNode(uri.from_string(one_uri)), {}),
+        }
+        packed = dirnode.pack_children(kids, fn.get_writekey(), deep_immutable=False)
+        write_uri = "URI:SSK-RO:e3mdrzfwhoq42hy5ubcz6rp3o4:ybyibhnp3vvwuq2vaw2ckjmesgkklfs6ghxleztqidihjyofgw7q"
+        filenode = nm.create_from_cap(write_uri)
+        dn = dirnode.DirectoryNode(filenode, nm, None)
+        unkids = dn._unpack_contents(packed)
+        self.assertEqual(kids, unkids)
 
     def test_deep_immutable(self):
         nm = NodeMaker(None, None, None, None, None, {"k": 3, "n": 10}, None, None)
@@ -1754,7 +1788,6 @@ class Dirnode2(testutil.ReallyEqualMixin, testutil.ShouldFailMixin, unittest.Tes
 
 
 class DeepStats(testutil.ReallyEqualMixin, unittest.TestCase):
-    timeout = 240 # It takes longer than 120 seconds on Francois's arm box.
     def test_stats(self):
         ds = dirnode.DeepStats(None)
         ds.add("count-files")
@@ -1794,7 +1827,7 @@ class DeepStats(testutil.ReallyEqualMixin, unittest.TestCase):
                                      (101, 316, 216),
                                      (317, 1000, 684),
                                      (1001, 3162, 99),
-                                     (3162277660169L, 10000000000000L, 1),
+                                     (long(3162277660169), long(10000000000000), 1),
                                      ])
 
 class UCWEingMutableFileNode(MutableFileNode):
@@ -1819,7 +1852,6 @@ class UCWEingNodeMaker(NodeMaker):
 
 
 class Deleter(GridTestMixin, testutil.ReallyEqualMixin, unittest.TestCase):
-    timeout = 3600 # It takes longer than 433 seconds on Zandr's ARM box.
     def test_retry(self):
         # ticket #550, a dirnode.delete which experiences an
         # UncoordinatedWriteError will fail with an incorrect "you're

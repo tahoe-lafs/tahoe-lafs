@@ -1,3 +1,14 @@
+"""
+Ported to Python 3.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 import time
 now = time.time
@@ -13,26 +24,28 @@ from allmydata.hashtree import IncompleteHashTree, BadHashError, \
      NotEnoughHashesError
 
 # local imports
-from finder import ShareFinder
-from fetcher import SegmentFetcher
-from segmentation import Segmentation
-from common import BadCiphertextHashError
+from .finder import ShareFinder
+from .fetcher import SegmentFetcher
+from .segmentation import Segmentation
+from .common import BadCiphertextHashError
 
 class IDownloadStatusHandlingConsumer(Interface):
     def set_download_status_read_event(read_ev):
         """Record the DownloadStatus 'read event', to be updated with the
         time it takes to decrypt each chunk of data."""
 
-class Cancel:
+class Cancel(object):
     def __init__(self, f):
         self._f = f
         self.active = True
+
     def cancel(self):
         if self.active:
             self.active = False
             self._f(self)
 
-class DownloadNode:
+
+class DownloadNode(object):
     """Internal class which manages downloads and holds state. External
     callers use CiphertextFileNode instead."""
 
@@ -42,7 +55,7 @@ class DownloadNode:
         assert isinstance(verifycap, uri.CHKFileVerifierURI)
         self._verifycap = verifycap
         self._storage_broker = storage_broker
-        self._si_prefix = base32.b2a_l(verifycap.storage_index[:8], 60)
+        self._si_prefix = base32.b2a(verifycap.storage_index[:8])[:12]
         self.running = True
         if terminator:
             terminator.register(self) # calls self.stop() at stopService()
@@ -351,14 +364,14 @@ class DownloadNode:
 
         # each segment is turned into N blocks. All but the last are of size
         # block_size, and the last is of size tail_block_size
-        block_size = segment_size / k
-        tail_block_size = tail_segment_padded / k
+        block_size = segment_size // k
+        tail_block_size = tail_segment_padded // k
 
         return { "tail_segment_size": tail_segment_size,
                  "tail_segment_padded": tail_segment_padded,
                  "num_segments": num_segments,
                  "block_size": block_size,
-                 "tail_block_size": tail_block_size,
+                 "tail_block_size": tail_block_size
                  }
 
 
@@ -453,7 +466,7 @@ class DownloadNode:
 
         shares = []
         shareids = []
-        for (shareid, share) in blocks.iteritems():
+        for (shareid, share) in blocks.items():
             assert len(share) == block_size
             shareids.append(shareid)
             shares.append(share)
@@ -463,7 +476,7 @@ class DownloadNode:
         del shares
         def _process(buffers):
             decodetime = now() - start
-            segment = "".join(buffers)
+            segment = b"".join(buffers)
             assert len(segment) == decoded_size
             del buffers
             if tail:
@@ -473,7 +486,8 @@ class DownloadNode:
         d.addCallback(_process)
         return d
 
-    def _check_ciphertext_hash(self, (segment, decodetime), segnum):
+    def _check_ciphertext_hash(self, segment_and_decodetime, segnum):
+        (segment, decodetime) = segment_and_decodetime
         start = now()
         assert self._active_segment.segnum == segnum
         assert self.segment_size is not None

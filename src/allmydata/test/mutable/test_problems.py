@@ -1,8 +1,11 @@
+from __future__ import print_function
+
 import os, base64
 from twisted.trial import unittest
 from twisted.internet import defer
 from foolscap.logging import log
 from allmydata import uri
+from allmydata.crypto import rsa
 from allmydata.interfaces import NotEnoughSharesError, SDMF_VERSION, MDMF_VERSION
 from allmydata.util import fileutil
 from allmydata.util.hashutil import ssk_writekey_hash, ssk_pubkey_fingerprint_hash
@@ -17,14 +20,14 @@ from ..no_network import GridTestMixin
 from .. import common_util as testutil
 from ..common_util import DevNullDictionary
 
-class SameKeyGenerator:
+class SameKeyGenerator(object):
     def __init__(self, pubkey, privkey):
         self.pubkey = pubkey
         self.privkey = privkey
     def generate(self, keysize=None):
         return defer.succeed( (self.pubkey, self.privkey) )
 
-class FirstServerGetsKilled:
+class FirstServerGetsKilled(object):
     done = False
     def notify(self, retval, wrapper, methname):
         if not self.done:
@@ -32,7 +35,7 @@ class FirstServerGetsKilled:
             self.done = True
         return retval
 
-class FirstServerGetsDeleted:
+class FirstServerGetsDeleted(object):
     def __init__(self):
         self.done = False
         self.silenced = None
@@ -206,10 +209,11 @@ class Problems(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
         # the choice of server for share[0].
 
         d = nm.key_generator.generate(TEST_RSA_KEY_SIZE)
-        def _got_key( (pubkey, privkey) ):
+        def _got_key(keypair):
+            (pubkey, privkey) = keypair
             nm.key_generator = SameKeyGenerator(pubkey, privkey)
-            pubkey_s = pubkey.serialize()
-            privkey_s = privkey.serialize()
+            pubkey_s = rsa.der_string_from_verifying_key(pubkey)
+            privkey_s = rsa.der_string_from_signing_key(privkey)
             u = uri.WriteableSSKFileURI(ssk_writekey_hash(privkey_s),
                                         ssk_pubkey_fingerprint_hash(pubkey_s))
             self._storage_index = u.get_storage_index()
@@ -236,9 +240,9 @@ class Problems(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
             d.addCallback(lambda res: n.download_best_version())
             d.addCallback(lambda res: self.failUnlessEqual(res, "contents 2"))
             def _explain_error(f):
-                print f
+                print(f)
                 if f.check(NotEnoughServersError):
-                    print "first_error:", f.value.first_error
+                    print("first_error:", f.value.first_error)
                 return f
             d.addErrback(_explain_error)
             return d

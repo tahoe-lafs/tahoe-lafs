@@ -1,5 +1,27 @@
+"""
+Interfaces for Tahoe-LAFS.
+
+Ported to Python 3.
+
+Note that for RemoteInterfaces, the __remote_name__ needs to be a native string because of https://github.com/warner/foolscap/blob/43f4485a42c9c28e2c79d655b3a9e24d4e6360ca/src/foolscap/remoteinterface.py#L67
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2, native_str
+if PY2:
+    # Don't import object/str/dict/etc. types, so we don't break any
+    # interfaces. Not importing open() because it triggers bogus flake8 error.
+    from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, pow, round, super, range, max, min  # noqa: F401
+
+from past.builtins import long
 
 from zope.interface import Interface, Attribute
+from twisted.plugin import (
+    IPlugin,
+)
 from foolscap.api import StringConstraint, ListOf, TupleOf, SetOf, DictOf, \
      ChoiceOf, IntegerConstraint, Any, RemoteInterface, Referenceable
 
@@ -54,7 +76,7 @@ class RIBucketReader(RemoteInterface):
     def read(offset=Offset, length=ReadSize):
         return ShareData
 
-    def advise_corrupt_share(reason=str):
+    def advise_corrupt_share(reason=bytes):
         """Clients who discover hash failures in shares that they have
         downloaded from me will use this method to inform me about the
         failures. I will record their concern so that my operator can
@@ -67,7 +89,7 @@ class RIBucketReader(RemoteInterface):
         """
 
 
-TestVector = ListOf(TupleOf(Offset, ReadSize, str, str))
+TestVector = ListOf(TupleOf(Offset, ReadSize, bytes, bytes))
 # elements are (offset, length, operator, specimen)
 # operator is one of "lt, le, eq, ne, ge, gt"
 # nop always passes and is used to fetch data while writing.
@@ -85,13 +107,13 @@ ReadData = ListOf(ShareData)
 
 
 class RIStorageServer(RemoteInterface):
-    __remote_name__ = "RIStorageServer.tahoe.allmydata.com"
+    __remote_name__ = native_str("RIStorageServer.tahoe.allmydata.com")
 
     def get_version():
         """
         Return a dictionary of version information.
         """
-        return DictOf(str, Any())
+        return DictOf(bytes, Any())
 
     def allocate_buckets(storage_index=StorageIndex,
                          renew_secret=LeaseRenewSecret,
@@ -273,8 +295,8 @@ class RIStorageServer(RemoteInterface):
         """
         return TupleOf(bool, DictOf(int, ReadData))
 
-    def advise_corrupt_share(share_type=str, storage_index=StorageIndex,
-                             shnum=int, reason=str):
+    def advise_corrupt_share(share_type=bytes, storage_index=StorageIndex,
+                             shnum=int, reason=bytes):
         """Clients who discover hash failures in shares that they have
         downloaded from me will use this method to inform me about the
         failures. I will record their concern so that my operator can
@@ -288,6 +310,81 @@ class RIStorageServer(RemoteInterface):
         include a hash of the public key (the same value that appears in the
         mutable-file verify-cap), since the current share format does not
         store that on disk.
+        """
+
+
+class IStorageServer(Interface):
+    """
+    An object capable of storing shares for a storage client.
+    """
+    def get_version():
+        """
+        :see: ``RIStorageServer.get_version``
+        """
+
+    def allocate_buckets(
+            storage_index,
+            renew_secret,
+            cancel_secret,
+            sharenums,
+            allocated_size,
+            canary,
+    ):
+        """
+        :see: ``RIStorageServer.allocate_buckets``
+        """
+
+    def add_lease(
+            storage_index,
+            renew_secret,
+            cancel_secret,
+    ):
+        """
+        :see: ``RIStorageServer.add_lease``
+        """
+
+    def renew_lease(
+            storage_index,
+            renew_secret,
+    ):
+        """
+        :see: ``RIStorageServer.renew_lease``
+        """
+
+    def get_buckets(
+            storage_index,
+    ):
+        """
+        :see: ``RIStorageServer.get_buckets``
+        """
+
+    def slot_readv(
+            storage_index,
+            shares,
+            readv,
+    ):
+        """
+        :see: ``RIStorageServer.slot_readv``
+        """
+
+    def slot_testv_and_readv_and_writev(
+            storage_index,
+            secrets,
+            tw_vectors,
+            r_vector,
+    ):
+        """
+        :see: ``RIStorageServer.slot_testv_readv_and_writev``
+        """
+
+    def advise_corrupt_share(
+            share_type,
+            storage_index,
+            shnum,
+            reason,
+    ):
+        """
+        :see: ``RIStorageServer.advise_corrupt_share``
         """
 
 
@@ -463,12 +560,25 @@ class IServer(IDisplayableServer):
         pass
 
     def get_rref():
-        """Once a server is connected, I return a RemoteReference.
+        """Obsolete.  Use ``get_storage_server`` instead.
+
+        Once a server is connected, I return a RemoteReference.
         Before a server is connected for the first time, I return None.
 
         Note that the rref I return will start producing DeadReferenceErrors
         once the connection is lost.
         """
+
+    def get_storage_server():
+        """
+        Once a server is connected, I return an ``IStorageServer``.
+        Before a server is connected for the first time, I return None.
+
+        Note that the ``IStorageServer`` I return will start producing
+        DeadReferenceErrors once the connection is lost.
+        """
+
+
 
 
 class IMutableSlotWriter(Interface):
@@ -2728,17 +2838,17 @@ class RIControlClient(RemoteInterface):
 
     # debug stuff
 
-    def upload_random_data_from_file(size=int, convergence=str):
+    def upload_random_data_from_file(size=int, convergence=bytes):
         return str
 
-    def download_to_tempfile_and_delete(uri=str):
+    def download_to_tempfile_and_delete(uri=bytes):
         return None
 
     def get_memory_usage():
         """Return a dict describes the amount of memory currently in use. The
         keys are 'VmPeak', 'VmSize', and 'VmData'. The values are integers,
         measuring memory consupmtion in bytes."""
-        return DictOf(str, int)
+        return DictOf(bytes, int)
 
     def speed_test(count=int, size=int, mutable=Any()):
         """Write 'count' tempfiles to disk, all of the given size. Measure
@@ -2763,11 +2873,11 @@ class RIControlClient(RemoteInterface):
         return DictOf(str, float)
 
 
-UploadResults = Any() #DictOf(str, str)
+UploadResults = Any() #DictOf(bytes, bytes)
 
 
 class RIEncryptedUploadable(RemoteInterface):
-    __remote_name__ = "RIEncryptedUploadable.tahoe.allmydata.com"
+    __remote_name__ = native_str("RIEncryptedUploadable.tahoe.allmydata.com")
 
     def get_size():
         return Offset
@@ -2776,33 +2886,33 @@ class RIEncryptedUploadable(RemoteInterface):
         return (int, int, int, long)
 
     def read_encrypted(offset=Offset, length=ReadSize):
-        return ListOf(str)
+        return ListOf(bytes)
 
     def close():
         return None
 
 
 class RICHKUploadHelper(RemoteInterface):
-    __remote_name__ = "RIUploadHelper.tahoe.allmydata.com"
+    __remote_name__ = native_str("RIUploadHelper.tahoe.allmydata.com")
 
     def get_version():
         """
         Return a dictionary of version information.
         """
-        return DictOf(str, Any())
+        return DictOf(bytes, Any())
 
     def upload(reader=RIEncryptedUploadable):
         return UploadResults
 
 
 class RIHelper(RemoteInterface):
-    __remote_name__ = "RIHelper.tahoe.allmydata.com"
+    __remote_name__ = native_str("RIHelper.tahoe.allmydata.com")
 
     def get_version():
         """
         Return a dictionary of version information.
         """
-        return DictOf(str, Any())
+        return DictOf(bytes, Any())
 
     def upload_chk(si=StorageIndex):
         """See if a file with a given storage index needs uploading. The
@@ -2823,7 +2933,7 @@ class RIHelper(RemoteInterface):
 
 
 class RIStatsProvider(RemoteInterface):
-    __remote_name__ = "RIStatsProvider.tahoe.allmydata.com"
+    __remote_name__ = native_str("RIStatsProvider.tahoe.allmydata.com")
     """
     Provides access to statistics and monitoring information.
     """
@@ -2836,16 +2946,16 @@ class RIStatsProvider(RemoteInterface):
         stats are instantaneous measures (potentially time averaged
         internally)
         """
-        return DictOf(str, DictOf(str, ChoiceOf(float, int, long, None)))
+        return DictOf(bytes, DictOf(bytes, ChoiceOf(float, int, long, None)))
 
 
 class RIStatsGatherer(RemoteInterface):
-    __remote_name__ = "RIStatsGatherer.tahoe.allmydata.com"
+    __remote_name__ = native_str("RIStatsGatherer.tahoe.allmydata.com")
     """
     Provides a monitoring service for centralised collection of stats
     """
 
-    def provide(provider=RIStatsProvider, nickname=str):
+    def provide(provider=RIStatsProvider, nickname=bytes):
         """
         @param provider: a stats collector instance that should be polled
                          periodically by the gatherer to collect stats.
@@ -2857,7 +2967,7 @@ class RIStatsGatherer(RemoteInterface):
 class IStatsProducer(Interface):
     def get_stats():
         """
-        returns a dictionary, with str keys representing the names of stats
+        returns a dictionary, with bytes keys representing the names of stats
         to be monitored, and numeric values.
         """
 
@@ -2936,3 +3046,131 @@ class IConnectionStatus(Interface):
         (pending, connected, refused, or other errors).
         """)
 
+
+
+class IFoolscapStoragePlugin(IPlugin):
+    """
+    An ``IStoragePlugin`` provides client- and server-side implementations of
+    a Foolscap-based protocol which can be used to store and retrieve data.
+
+    Implementations are free to apply access control or authorization policies
+    to this storage service and doing so is a large part of the motivation for
+    providing this point of pluggability.
+
+    There should be enough information and hook points to support at
+    least these use-cases:
+
+      - anonymous, everything allowed (current default)
+      - "storage club" / "friend-net" (possibly identity based)
+      - cryptocurrencies (ideally, paying for each API call)
+      - anonymous tokens (payment for service, but without identities)
+    """
+    name = Attribute(
+        """
+        A name for referring to this plugin.  This name is both user-facing
+        (for example, it is written in configuration files) and machine-facing
+        (for example, it may be used to construct URLs).  It should be unique
+        across all plugins for this interface.  Two plugins with the same name
+        cannot be used in one client.
+
+        Because it is used to construct URLs, it is constrained to URL safe
+        characters (it must be a *segment* as defined by RFC 3986, section
+        3.3).
+
+        :type: ``unicode``
+        """
+    )
+
+    def get_storage_server(configuration, get_anonymous_storage_server):
+        """
+        Get an ``IAnnounceableStorageServer`` provider that gives an announcement
+        for and an implementation of the server side of the storage protocol.
+        This will be exposed and offered to clients in the storage server's
+        announcement.
+
+        :param dict configuration: Any configuration given in the section for
+            this plugin in the node's configuration file.  As an example, the
+            configuration for the original anonymous-access filesystem-based
+            storage server might look like::
+
+                {u"storedir": u"/foo/bar/storage",
+                 u"nodeid": u"abcdefg...",
+                 u"reserved_space": 0,
+                 u"discard_storage": False,
+                 u"readonly_storage": False,
+                 u"expiration_enabled": False,
+                 u"expiration_mode": u"age",
+                 u"expiration_override_lease_duration": None,
+                 u"expiration_cutoff_date": None,
+                 u"expiration_sharetypes": (u"mutable, u"immutable"),
+                }
+
+        :param get_anonymous_storage_server: A no-argument callable which
+            returns a single instance of the original, anonymous-access
+            storage server.  This may be helpful in providing actual storage
+            implementation behavior for a wrapper-style plugin.  This is also
+            provided to keep the Python API offered by Tahoe-LAFS to plugin
+            developers narrow (do not try to find and instantiate the original
+            storage server yourself; if you want it, call this).
+
+        :rtype: ``Deferred`` firing with ``IAnnounceableStorageServer``
+        """
+
+    def get_storage_client(configuration, announcement, get_rref):
+        """
+        Get an ``IStorageServer`` provider that implements the client side of the
+        storage protocol.
+
+        :param allmydata.node._Config configuration: A representation of the
+            configuration for the node into which this plugin has been loaded.
+
+        :param dict announcement: The announcement for the corresponding
+            server portion of this plugin received from a storage server which
+            is offering it.
+
+        :param get_rref: A no-argument callable which returns a
+            ``foolscap.referenceable.RemoteReference`` which refers to the
+            server portion of this plugin on the currently active connection,
+            or ``None`` if no connection has been established yet.
+
+        :rtype: ``IStorageServer``
+        """
+
+    def get_client_resource(configuration):
+        """
+        Get an ``IResource`` that can be published in the Tahoe-LAFS web interface
+        to expose information related to this plugin.
+
+        :param allmydata.node._Config configuration: A representation of the
+            configuration for the node into which this plugin has been loaded.
+
+        :rtype: ``IResource``
+        """
+
+
+class IAnnounceableStorageServer(Interface):
+    announcement = Attribute(
+        """
+        Data for an announcement for the associated storage server.
+
+        :note: This does not include the storage server nickname nor Foolscap
+            fURL.  These will be added to the announcement automatically.  It
+            may be usual for this announcement to contain no information.
+            Once the client connects to this server it can use other methods
+            to query for additional information (eg, in the manner of
+            ``RIStorageServer.remote_get_version``).  The announcement only
+            needs to contain information to help the client determine how to
+            connect.
+
+        :type: ``dict`` of JSON-serializable types
+        """
+    )
+
+    storage_server = Attribute(
+        """
+        A Foolscap referenceable object implementing the server side of the
+        storage protocol.
+
+        :type: ``IReferenceable`` provider
+        """
+    )

@@ -1,17 +1,47 @@
 
 import os, urllib
 
-from nevow import rend, tags as T
-from nevow.inevow import IRequest
+from twisted.python.filepath import FilePath
+from twisted.web.template import tags as T, Element, renderElement, XMLFile, renderer
 
 from allmydata.util import base32
 from allmydata.interfaces import IDirectoryNode, IFileNode, MDMF_VERSION
-from allmydata.web.common import getxmlfile
+from allmydata.web.common import MultiFormatResource
 from allmydata.mutable.common import UnrecoverableFileError # TODO: move
 
-class MoreInfo(rend.Page):
-    addSlash = False
-    docFactory = getxmlfile("info.xhtml")
+
+class MoreInfo(MultiFormatResource):
+    """
+    A ``Resource`` for describing more information about a node.
+
+    :param node Node: The node to describe.
+    """
+
+    def __init__(self, node):
+        super(MoreInfo, self).__init__()
+        self.node = node
+
+    def render_HTML(self, req):
+        """
+        Render an HTML template describing this node.
+        """
+        return renderElement(req, MoreInfoElement(self.node))
+
+    render_INFO = render_HTML
+
+
+class MoreInfoElement(Element):
+    """
+    An ``Element`` HTML template which can be flattened to describe this node.
+
+    :param Node node: The node to describe.
+    """
+
+    loader = XMLFile(FilePath(__file__).sibling("info.xhtml"))
+
+    def __init__(self, node):
+        super(MoreInfoElement, self).__init__()
+        self.original = node
 
     def abbrev(self, storage_index_or_none):
         if storage_index_or_none:
@@ -38,27 +68,32 @@ class MoreInfo(rend.Page):
             return "immutable LIT file"
         return "unknown"
 
-    def render_title(self, ctx, data):
+    @renderer
+    def title(self, req, tag):
         node = self.original
         si = node.get_storage_index()
         t = "More Info for %s" % self.get_type()
         if si:
             t += " (SI=%s)" % self.abbrev(si)
-        return ctx.tag[t]
+        return tag(t)
 
-    def render_header(self, ctx, data):
-        return self.render_title(ctx, data)
+    @renderer
+    def header(self, req, tag):
+        return self.title(req, tag)
 
-    def render_type(self, ctx, data):
-        return ctx.tag[self.get_type()]
+    @renderer
+    def type(self, req, tag):
+        return tag(self.get_type())
 
-    def render_si(self, ctx, data):
+    @renderer
+    def si(self, req, tag):
         si = self.original.get_storage_index()
         if not si:
             return "None"
-        return ctx.tag[base32.b2a(si)]
+        return tag(base32.b2a(si))
 
-    def render_size(self, ctx, data):
+    @renderer
+    def size(self, req, tag):
         node = self.original
         d = node.get_current_size()
         def _no_size(size):
@@ -70,67 +105,73 @@ class MoreInfo(rend.Page):
             f.trap(UnrecoverableFileError)
             return "?"
         d.addErrback(_handle_unrecoverable)
-        d.addCallback(lambda size: ctx.tag[size])
+        d.addCallback(lambda size: tag(str(size)))
         return d
 
-    def render_directory_writecap(self, ctx, data):
+    @renderer
+    def directory_writecap(self, req, tag):
         node = self.original
         if not IDirectoryNode.providedBy(node):
             return ""
         if node.is_readonly():
             return ""
-        return ctx.tag[node.get_uri()]
+        return tag(node.get_uri())
 
-    def render_directory_readcap(self, ctx, data):
+    @renderer
+    def directory_readcap(self, req, tag):
         node = self.original
         if not IDirectoryNode.providedBy(node):
             return ""
-        return ctx.tag[node.get_readonly_uri()]
+        return tag(node.get_readonly_uri())
 
-    def render_directory_verifycap(self, ctx, data):
+    @renderer
+    def directory_verifycap(self, req, tag):
         node = self.original
         if not IDirectoryNode.providedBy(node):
             return ""
         verifier = node.get_verify_cap()
         if verifier:
-            return ctx.tag[node.get_verify_cap().to_string()]
+            return tag(node.get_verify_cap().to_string())
         return ""
 
-    def render_file_writecap(self, ctx, data):
+    @renderer
+    def file_writecap(self, req, tag):
         node = self.original
         if IDirectoryNode.providedBy(node):
             node = node._node
         write_uri = node.get_write_uri()
         if not write_uri:
             return ""
-        return ctx.tag[write_uri]
+        return tag(write_uri)
 
-    def render_file_readcap(self, ctx, data):
+    @renderer
+    def file_readcap(self, req, tag):
         node = self.original
         if IDirectoryNode.providedBy(node):
             node = node._node
         read_uri = node.get_readonly_uri()
         if not read_uri:
             return ""
-        return ctx.tag[read_uri]
+        return tag(read_uri)
 
-    def render_file_verifycap(self, ctx, data):
+    @renderer
+    def file_verifycap(self, req, tag):
         node = self.original
         if IDirectoryNode.providedBy(node):
             node = node._node
         verifier = node.get_verify_cap()
         if verifier:
-            return ctx.tag[node.get_verify_cap().to_string()]
+            return tag(node.get_verify_cap().to_string())
         return ""
 
-    def get_root(self, ctx):
-        req = IRequest(ctx)
+    def get_root(self, req):
         # the addSlash=True gives us one extra (empty) segment
         depth = len(req.prepath) + len(req.postpath) - 1
         link = "/".join([".."] * depth)
         return link
 
-    def render_raw_link(self, ctx, data):
+    @renderer
+    def raw_link(self, req, tag):
         node = self.original
         if IDirectoryNode.providedBy(node):
             node = node._node
@@ -138,147 +179,156 @@ class MoreInfo(rend.Page):
             pass
         else:
             return ""
-        root = self.get_root(ctx)
+        root = self.get_root(req)
         quoted_uri = urllib.quote(node.get_uri())
         text_plain_url = "%s/file/%s/@@named=/raw.txt" % (root, quoted_uri)
-        return T.li["Raw data as ", T.a(href=text_plain_url)["text/plain"]]
+        return T.li("Raw data as ", T.a("text/plain", href=text_plain_url))
 
-    def render_is_checkable(self, ctx, data):
+    @renderer
+    def is_checkable(self, req, tag):
         node = self.original
         si = node.get_storage_index()
         if si:
-            return ctx.tag
+            return tag
         # don't show checker button for LIT files
         return ""
 
-    def render_check_form(self, ctx, data):
+    @renderer
+    def check_form(self, req, tag):
         node = self.original
         quoted_uri = urllib.quote(node.get_uri())
-        target = self.get_root(ctx) + "/uri/" + quoted_uri
+        target = self.get_root(req) + "/uri/" + quoted_uri
         if IDirectoryNode.providedBy(node):
             target += "/"
         check = T.form(action=target, method="post",
-                       enctype="multipart/form-data")[
-            T.fieldset[
+                       enctype="multipart/form-data")(
+            T.fieldset(
             T.input(type="hidden", name="t", value="check"),
             T.input(type="hidden", name="return_to", value="."),
-            T.legend(class_="freeform-form-label")["Check on this object"],
-            T.div[
+            T.legend("Check on this object", class_="freeform-form-label"),
+            T.div(
             "Verify every bit? (EXPENSIVE):",
             T.input(type="checkbox", name="verify"),
-            ],
-            T.div["Repair any problems?: ",
-                  T.input(type="checkbox", name="repair")],
-            T.div["Add/renew lease on all shares?: ",
-                  T.input(type="checkbox", name="add-lease")],
-            T.div["Emit results in JSON format?: ",
-                  T.input(type="checkbox", name="output", value="JSON")],
+            ),
+            T.div("Repair any problems?: ",
+                  T.input(type="checkbox", name="repair")),
+            T.div("Add/renew lease on all shares?: ",
+                  T.input(type="checkbox", name="add-lease")),
+            T.div("Emit results in JSON format?: ",
+                  T.input(type="checkbox", name="output", value="JSON")),
 
             T.input(type="submit", value="Check"),
 
-            ]]
-        return ctx.tag[check]
+            ))
+        return tag(check)
 
-    def render_is_mutable_file(self, ctx, data):
+    @renderer
+    def is_mutable_file(self, req, tag):
         node = self.original
         if IDirectoryNode.providedBy(node):
             return ""
         if (IFileNode.providedBy(node)
             and node.is_mutable() and not node.is_readonly()):
-            return ctx.tag
+            return tag
         return ""
 
-    def render_overwrite_form(self, ctx, data):
+    @renderer
+    def overwrite_form(self, req, tag):
         node = self.original
-        root = self.get_root(ctx)
+        root = self.get_root(req)
         action = "%s/uri/%s" % (root, urllib.quote(node.get_uri()))
         done_url = "%s/uri/%s?t=info" % (root, urllib.quote(node.get_uri()))
         overwrite = T.form(action=action, method="post",
-                           enctype="multipart/form-data")[
-            T.fieldset[
+                           enctype="multipart/form-data")(
+            T.fieldset(
             T.input(type="hidden", name="t", value="upload"),
             T.input(type='hidden', name='when_done', value=done_url),
-            T.legend(class_="freeform-form-label")["Overwrite"],
+            T.legend("Overwrite", class_="freeform-form-label"),
             "Upload new contents: ",
             T.input(type="file", name="file"),
             " ",
             T.input(type="submit", value="Replace Contents")
-            ]]
-        return ctx.tag[overwrite]
+            ))
+        return tag(overwrite)
 
-    def render_is_directory(self, ctx, data):
+    @renderer
+    def is_directory(self, req, tag):
         node = self.original
         if IDirectoryNode.providedBy(node):
-            return ctx.tag
+            return tag
         return ""
 
-    def render_deep_check_form(self, ctx, data):
+    @renderer
+    def deep_check_form(self, req, tag):
         ophandle = base32.b2a(os.urandom(16))
-        deep_check = T.form(action=".", method="post",
-                            enctype="multipart/form-data")[
-            T.fieldset[
+        deep_check = T.form(action=req.path, method="post",
+                            enctype="multipart/form-data")(
+            T.fieldset(
             T.input(type="hidden", name="t", value="start-deep-check"),
             T.input(type="hidden", name="return_to", value="."),
-            T.legend(class_="freeform-form-label")["Run a deep-check operation (EXPENSIVE)"],
-            T.div[
+            T.legend("Run a deep-check operation (EXPENSIVE)", class_="freeform-form-label"),
+            T.div(
             "Verify every bit? (EVEN MORE EXPENSIVE):",
             T.input(type="checkbox", name="verify"),
-            ],
-            T.div["Repair any problems?: ",
-                  T.input(type="checkbox", name="repair")],
-            T.div["Add/renew lease on all shares?: ",
-                  T.input(type="checkbox", name="add-lease")],
-            T.div["Emit results in JSON format?: ",
-                  T.input(type="checkbox", name="output", value="JSON")],
+            ),
+            T.div("Repair any problems?: ",
+                  T.input(type="checkbox", name="repair")),
+            T.div("Add/renew lease on all shares?: ",
+                  T.input(type="checkbox", name="add-lease")),
+            T.div("Emit results in JSON format?: ",
+                  T.input(type="checkbox", name="output", value="JSON")),
 
             T.input(type="hidden", name="ophandle", value=ophandle),
             T.input(type="submit", value="Deep-Check"),
 
-            ]]
-        return ctx.tag[deep_check]
+            ))
+        return tag(deep_check)
 
-    def render_deep_size_form(self, ctx, data):
+    @renderer
+    def deep_size_form(self, req, tag):
         ophandle = base32.b2a(os.urandom(16))
-        deep_size = T.form(action=".", method="post",
-                            enctype="multipart/form-data")[
-            T.fieldset[
+        deep_size = T.form(action=req.path, method="post",
+                            enctype="multipart/form-data")(
+            T.fieldset(
             T.input(type="hidden", name="t", value="start-deep-size"),
-            T.legend(class_="freeform-form-label")["Run a deep-size operation (EXPENSIVE)"],
+            T.legend("Run a deep-size operation (EXPENSIVE)", class_="freeform-form-label"),
             T.input(type="hidden", name="ophandle", value=ophandle),
             T.input(type="submit", value="Deep-Size"),
-            ]]
-        return ctx.tag[deep_size]
+            ))
+        return tag(deep_size)
 
-    def render_deep_stats_form(self, ctx, data):
+    @renderer
+    def deep_stats_form(self, req, tag):
         ophandle = base32.b2a(os.urandom(16))
-        deep_stats = T.form(action=".", method="post",
-                            enctype="multipart/form-data")[
-            T.fieldset[
+        deep_stats = T.form(action=req.path, method="post",
+                            enctype="multipart/form-data")(
+            T.fieldset(
             T.input(type="hidden", name="t", value="start-deep-stats"),
-            T.legend(class_="freeform-form-label")["Run a deep-stats operation (EXPENSIVE)"],
+            T.legend("Run a deep-stats operation (EXPENSIVE)", class_="freeform-form-label"),
             T.input(type="hidden", name="ophandle", value=ophandle),
             T.input(type="submit", value="Deep-Stats"),
-            ]]
-        return ctx.tag[deep_stats]
+            ))
+        return tag(deep_stats)
 
-    def render_manifest_form(self, ctx, data):
+    @renderer
+    def manifest_form(self, req, tag):
         ophandle = base32.b2a(os.urandom(16))
-        manifest = T.form(action=".", method="post",
-                            enctype="multipart/form-data")[
-            T.fieldset[
+        manifest = T.form(action=req.path, method="post",
+                            enctype="multipart/form-data")(
+            T.fieldset(
             T.input(type="hidden", name="t", value="start-manifest"),
-            T.legend(class_="freeform-form-label")["Run a manifest operation (EXPENSIVE)"],
-            T.div["Output Format: ",
+            T.legend("Run a manifest operation (EXPENSIVE)", class_="freeform-form-label"),
+            T.div("Output Format: ",
                   T.select(name="output")
-                  [ T.option(value="html", selected="true")["HTML"],
-                    T.option(value="text")["text"],
-                    T.option(value="json")["JSON"],
-                    ],
-                  ],
+                  ( T.option("HTML", value="html", selected="true"),
+                    T.option("text", value="text"),
+                    T.option("JSON", value="json"),
+                    ),
+                  ),
             T.input(type="hidden", name="ophandle", value=ophandle),
             T.input(type="submit", value="Manifest"),
-            ]]
-        return ctx.tag[manifest]
+            ))
+        return tag(manifest)
 
 
 # TODO: edge metadata

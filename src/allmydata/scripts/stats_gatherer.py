@@ -1,5 +1,14 @@
+from __future__ import print_function
+
 import os
+
+# Python 2 compatibility
+from future.utils import PY2
+if PY2:
+    from future.builtins import str  # noqa: F401
+
 from twisted.python import usage
+
 from allmydata.scripts.common import NoDefaultBasedirOptions
 from allmydata.scripts.create_node import write_tac
 from allmydata.util.assertutil import precondition
@@ -60,13 +69,13 @@ def create_stats_gatherer(config):
     err = config.stderr
     basedir = config['basedir']
     # This should always be called with an absolute Unicode basedir.
-    precondition(isinstance(basedir, unicode), basedir)
+    precondition(isinstance(basedir, str), basedir)
 
     if os.path.exists(basedir):
         if listdir_unicode(basedir):
-            print >>err, "The base directory %s is not empty." % quote_output(basedir)
-            print >>err, "To avoid clobbering anything, I am going to quit now."
-            print >>err, "Please use a different directory, or empty this one."
+            print("The base directory %s is not empty." % quote_output(basedir), file=err)
+            print("To avoid clobbering anything, I am going to quit now.", file=err)
+            print("Please use a different directory, or empty this one.", file=err)
             return -1
         # we're willing to use an empty directory
     else:

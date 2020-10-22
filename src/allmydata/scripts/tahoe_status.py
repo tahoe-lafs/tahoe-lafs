@@ -83,6 +83,163 @@ def pretty_progress(percent, size=10, ascii=False):
     curr = int(curr)
     return '%s%s%s' % ((block_chr * curr), part, (' ' * (size - curr - 1)))
 
+OP_MAP = {
+    'upload': ' put ',
+    'download': ' get ',
+    'retrieve': 'retr ',
+    'publish': ' pub ',
+    'mapupdate': 'mapup',
+    'unknown': ' ??? ',
+}
+
+def _render_active_upload(op):
+    total = (
+        op['progress-hash'] +
+        op['progress-ciphertext'] +
+        op['progress-encode-push']
+    ) / 3.0 * 100.0
+    return {
+        u"op_type": u" put ",
+        u"total": "{:3.0f}".format(total),
+        u"progress_bar": u"{}".format(pretty_progress(total, size=15)),
+        u"storage-index-string": op["storage-index-string"],
+        u"status": op["status"],
+    }
+
+def _render_active_download(op):
+    return {
+        u"op_type": u" get ",
+        u"total": op["progress"],
+        u"progress_bar": u"{}".format(pretty_progress(op['progress'] * 100.0, size=15)),
+        u"storage-index-string": op["storage-index-string"],
+        u"status": op["status"],
+    }
+
+def _render_active_generic(op):
+    return {
+        u"op_type": OP_MAP[op["type"]],
+        u"progress_bar": u"",
+        u"total": u"???",
+        u"storage-index-string": op["storage-index-string"],
+        u"status": op["status"],
+    }
+
+active_renderers = {
+    "upload": _render_active_upload,
+    "download": _render_active_download,
+    "publish": _render_active_generic,
+    "retrieve": _render_active_generic,
+    "mapupdate": _render_active_generic,
+    "unknown": _render_active_generic,
+}
+
+
+def render_active(stdout, status_data):
+    active = status_data.get('active', None)
+    if not active:
+        print(u"No active operations.", file=stdout)
+        return
+
+    header = u"\u2553 {:<5} \u2565 {:<26} \u2565 {:<22} \u2565 {}".format(
+        "type",
+        "storage index",
+        "progress",
+        "status message",
+    )
+    header_bar = u"\u255f\u2500{}\u2500\u256b\u2500{}\u2500\u256b\u2500{}\u2500\u256b\u2500{}".format(
+        u'\u2500' * 5,
+        u'\u2500' * 26,
+        u'\u2500' * 22,
+        u'\u2500' * 20,
+    )
+    line_template = (
+        u"\u2551 {op_type} "
+        u"\u2551 {storage-index-string} "
+        u"\u2551 {progress_bar:15} "
+        u"({total}%) "
+        u"\u2551 {status}"
+    )
+    footer_bar = u"\u2559\u2500{}\u2500\u2568\u2500{}\u2500\u2568\u2500{}\u2500\u2568\u2500{}".format(
+        u'\u2500' * 5,
+        u'\u2500' * 26,
+        u'\u2500' * 22,
+        u'\u2500' * 20,
+    )
+    print(u"Active operations:", file=stdout)
+    print(header, file=stdout)
+    print(header_bar, file=stdout)
+    for op in active:
+        print(line_template.format(
+            **active_renderers[op["type"]](op)
+        ))
+    print(footer_bar, file=stdout)
+
+def _render_recent_generic(op):
+    return {
+        u"op_type": OP_MAP[op["type"]],
+        u"storage-index-string": op["storage-index-string"],
+        u"nice_size": abbreviate_space(op["total-size"]),
+        u"status": op["status"],
+    }
+
+def _render_recent_mapupdate(op):
+    return {
+        u"op_type": u"mapup",
+        u"storage-index-string": op["storage-index-string"],
+        u"nice_size": op["mode"],
+        u"status": op["status"],
+    }
+
+recent_renderers = {
+    "upload": _render_recent_generic,
+    "download": _render_recent_generic,
+    "publish": _render_recent_generic,
+    "retrieve": _render_recent_generic,
+    "mapupdate": _render_recent_mapupdate,
+    "unknown": _render_recent_generic,
+}
+
+def render_recent(verbose, stdout, status_data):
+    recent = status_data.get('recent', None)
+    if not recent:
+        print(u"No recent operations.", file=stdout)
+
+    header = u"\u2553 {:<5} \u2565 {:<26} \u2565 {:<10} \u2565 {}".format(
+        "type",
+        "storage index",
+        "size",
+        "status message",
+    )
+    line_template = (
+        u"\u2551 {op_type} "
+        u"\u2551 {storage-index-string} "
+        u"\u2551 {nice_size:<10} "
+        u"\u2551 {status}"
+    )
+    footer = u"\u2559\u2500{}\u2500\u2568\u2500{}\u2500\u2568\u2500{}\u2500\u2568\u2500{}".format(
+        u'\u2500' * 5,
+        u'\u2500' * 26,
+        u'\u2500' * 10,
+        u'\u2500' * 20,
+    )
+    non_verbose_ops = ('upload', 'download')
+    recent = [op for op in status_data['recent'] if op['type'] in non_verbose_ops]
+    print(u"\nRecent operations:", file=stdout)
+    if len(recent) or verbose:
+        print(header, file=stdout)
+
+    ops_to_show = status_data['recent'] if verbose else recent
+    for op in ops_to_show:
+        print(line_template.format(
+            **recent_renderers[op["type"]](op)
+        ))
+    if len(recent) or verbose:
+        print(footer, file=stdout)
+
+    skipped = len(status_data['recent']) - len(ops_to_show)
+    if not verbose and skipped:
+        print(u"   Skipped {} non-upload/download operations; use --verbose to see".format(skipped), file=stdout)
+
 
 def do_status(options):
     nodedir = options["node-directory"]
@@ -125,83 +282,8 @@ def do_status(options):
     print(u"  downloaded {} in {} files".format(abbreviate_space(downloaded_bytes), downloaded_files), file=options.stdout)
     print(u"", file=options.stdout)
 
-    if status_data.get('active', None):
-        print(u"Active operations:", file=options.stdout)
-        print(
-            u"\u2553 {:<5} \u2565 {:<26} \u2565 {:<22} \u2565 {}".format(
-                "type",
-                "storage index",
-                "progress",
-                "status message",
-            ), file=options.stdout
-        )
-        print(u"\u255f\u2500{}\u2500\u256b\u2500{}\u2500\u256b\u2500{}\u2500\u256b\u2500{}".format(u'\u2500' * 5, u'\u2500' * 26, u'\u2500' * 22, u'\u2500' * 20), file=options.stdout)
-        for op in status_data['active']:
-            if 'progress-hash' in op:
-                op_type = ' put '
-                total = (op['progress-hash'] + op['progress-ciphertext'] + op['progress-encode-push']) / 3.0
-                progress_bar = u"{}".format(pretty_progress(total * 100.0, size=15))
-            else:
-                op_type = ' get '
-                total = op['progress']
-                progress_bar = u"{}".format(pretty_progress(op['progress'] * 100.0, size=15))
-            print(
-                u"\u2551 {op_type} \u2551 {storage-index-string} \u2551 {progress_bar} ({total:3}%) \u2551 {status}".format(
-                    op_type=op_type,
-                    progress_bar=progress_bar,
-                    total=int(total * 100.0),
-                    **op
-                ), file=options.stdout
-            )
-
-        print(u"\u2559\u2500{}\u2500\u2568\u2500{}\u2500\u2568\u2500{}\u2500\u2568\u2500{}".format(u'\u2500' * 5, u'\u2500' * 26, u'\u2500' * 22, u'\u2500' * 20), file=options.stdout)
-    else:
-        print(u"No active operations.", file=options.stdout)
-
-    if status_data.get('recent', None):
-        non_verbose_ops = ('upload', 'download')
-        recent = [op for op in status_data['recent'] if op['type'] in non_verbose_ops]
-        print(u"\nRecent operations:", file=options.stdout)
-        if len(recent) or options['verbose']:
-            print(
-                u"\u2553 {:<5} \u2565 {:<26} \u2565 {:<10} \u2565 {}".format(
-                    "type",
-                    "storage index",
-                    "size",
-                    "status message",
-                ), file=options.stdout
-            )
-
-        op_map = {
-            'upload': ' put ',
-            'download': ' get ',
-            'retrieve': 'retr ',
-            'publish': ' pub ',
-            'mapupdate': 'mapup',
-        }
-
-        ops_to_show = status_data['recent'] if options['verbose'] else recent
-        for op in ops_to_show:
-            op_type = op_map[op.get('type', None)]
-            if op['type'] == 'mapupdate':
-                nice_size = op['mode']
-            else:
-                nice_size = abbreviate_space(op['total-size'])
-            print(
-                u"\u2551 {op_type} \u2551 {storage-index-string} \u2551 {nice_size:<10} \u2551 {status}".format(
-                    op_type=op_type,
-                    nice_size=nice_size,
-                    **op
-                ), file=options.stdout
-            )
-
-        if len(recent) or options['verbose']:
-            print(u"\u2559\u2500{}\u2500\u2568\u2500{}\u2500\u2568\u2500{}\u2500\u2568\u2500{}".format(u'\u2500' * 5, u'\u2500' * 26, u'\u2500' * 10, u'\u2500' * 20), file=options.stdout)
-        skipped = len(status_data['recent']) - len(ops_to_show)
-        if not options['verbose'] and skipped:
-            print(u"   Skipped {} non-upload/download operations; use --verbose to see".format(skipped), file=options.stdout)
-    else:
-        print(u"No recent operations.", file=options.stdout)
+    render_active(options.stdout, status_data)
+    render_recent(options['verbose'], options.stdout, status_data)
 
     # open question: should we return non-zero if there were no
     # operations at all to display?

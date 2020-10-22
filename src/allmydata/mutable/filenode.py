@@ -1,9 +1,11 @@
-
 import random
 
 from zope.interface import implementer
 from twisted.internet import defer, reactor
 from foolscap.api import eventually
+
+from allmydata.crypto import aes
+from allmydata.crypto import rsa
 from allmydata.interfaces import IMutableFileNode, ICheckable, ICheckResults, \
      NotEnoughSharesError, MDMF_VERSION, SDMF_VERSION, IMutableUploadable, \
      IMutableFileVersion, IWriteable
@@ -12,8 +14,6 @@ from allmydata.util.assertutil import precondition
 from allmydata.uri import WriteableSSKFileURI, ReadonlySSKFileURI, \
                           WriteableMDMFFileURI, ReadonlyMDMFFileURI
 from allmydata.monitor import Monitor
-from pycryptopp.cipher.aes import AES
-
 from allmydata.mutable.publish import Publish, MutableData,\
                                       TransformingUploadable
 from allmydata.mutable.common import MODE_READ, MODE_WRITE, MODE_CHECK, UnrecoverableFileError, \
@@ -24,7 +24,7 @@ from allmydata.mutable.checker import MutableChecker, MutableCheckAndRepairer
 from allmydata.mutable.repairer import Repairer
 
 
-class BackoffAgent:
+class BackoffAgent(object):
     # these parameters are copied from foolscap.reconnector, which gets them
     # from twisted.internet.protocol.ReconnectingClientFactory
     initialDelay = 1.0
@@ -119,7 +119,7 @@ class MutableFileNode(object):
 
         return self
 
-    def create_with_keys(self, (pubkey, privkey), contents,
+    def create_with_keys(self, keypair, contents,
                          version=SDMF_VERSION):
         """Call this to create a brand-new mutable file. It will create the
         shares, find homes for them, and upload the initial contents (created
@@ -127,9 +127,10 @@ class MutableFileNode(object):
         Deferred that fires (with the MutableFileNode instance you should
         use) when it completes.
         """
+        (pubkey, privkey) = keypair
         self._pubkey, self._privkey = pubkey, privkey
-        pubkey_s = self._pubkey.serialize()
-        privkey_s = self._privkey.serialize()
+        pubkey_s = rsa.der_string_from_verifying_key(self._pubkey)
+        privkey_s = rsa.der_string_from_signing_key(self._privkey)
         self._writekey = hashutil.ssk_writekey_hash(privkey_s)
         self._encprivkey = self._encrypt_privkey(self._writekey, privkey_s)
         self._fingerprint = hashutil.ssk_pubkey_fingerprint_hash(pubkey_s)
@@ -146,9 +147,9 @@ class MutableFileNode(object):
 
     def _get_initial_contents(self, contents):
         if contents is None:
-            return MutableData("")
+            return MutableData(b"")
 
-        if isinstance(contents, str):
+        if isinstance(contents, bytes):
             return MutableData(contents)
 
         if IMutableUploadable.providedBy(contents):
@@ -159,13 +160,13 @@ class MutableFileNode(object):
         return contents(self)
 
     def _encrypt_privkey(self, writekey, privkey):
-        enc = AES(writekey)
-        crypttext = enc.process(privkey)
+        encryptor = aes.create_encryptor(writekey)
+        crypttext = aes.encrypt_data(encryptor, privkey)
         return crypttext
 
     def _decrypt_privkey(self, enc_privkey):
-        enc = AES(self._writekey)
-        privkey = enc.process(enc_privkey)
+        decryptor = aes.create_decryptor(self._writekey)
+        privkey = aes.decrypt_data(decryptor, enc_privkey)
         return privkey
 
     def _populate_pubkey(self, pubkey):
@@ -279,13 +280,14 @@ class MutableFileNode(object):
 
     def __hash__(self):
         return hash((self.__class__, self._uri))
-    def __cmp__(self, them):
-        if cmp(type(self), type(them)):
-            return cmp(type(self), type(them))
-        if cmp(self.__class__, them.__class__):
-            return cmp(self.__class__, them.__class__)
-        return cmp(self._uri, them._uri)
 
+    def __eq__(self, them):
+        if type(self) != type(them):
+            return False
+        return self._uri == them._uri
+
+    def __ne__(self, them):
+        return not (self == them)
 
     #################################
     # ICheckable
@@ -338,7 +340,8 @@ class MutableFileNode(object):
         representing the best recoverable version of the file.
         """
         d = self._get_version_from_servermap(MODE_READ, servermap, version)
-        def _build_version((servermap, their_version)):
+        def _build_version(servermap_and_their_version):
+            (servermap, their_version) = servermap_and_their_version
             assert their_version in servermap.recoverable_versions()
             assert their_version in servermap.make_versionmap()
 
@@ -490,8 +493,9 @@ class MutableFileNode(object):
         # get_mutable_version => write intent, so we require that the
         # servermap is updated in MODE_WRITE
         d = self._get_version_from_servermap(MODE_WRITE, servermap, version)
-        def _build_version((servermap, smap_version)):
+        def _build_version(servermap_and_smap_version):
             # these should have been set by the servermap update.
+            (servermap, smap_version) = servermap_and_smap_version
             assert self._secret_holder
             assert self._writekey
 
@@ -880,9 +884,9 @@ class MutableFileVersion(object):
         d = self._try_to_download_data()
         def _apply(old_contents):
             new_contents = modifier(old_contents, self._servermap, first_time)
-            precondition((isinstance(new_contents, str) or
+            precondition((isinstance(new_contents, bytes) or
                           new_contents is None),
-                         "Modifier function must return a string "
+                         "Modifier function must return bytes "
                          "or None")
 
             if new_contents is None or new_contents == old_contents:
@@ -943,7 +947,7 @@ class MutableFileVersion(object):
         """
         c = consumer.MemoryConsumer(progress=progress)
         d = self.read(c, fetch_privkey=fetch_privkey)
-        d.addCallback(lambda mc: "".join(mc.chunks))
+        d.addCallback(lambda mc: b"".join(mc.chunks))
         return d
 
 
@@ -956,7 +960,7 @@ class MutableFileVersion(object):
         c = consumer.MemoryConsumer()
         # modify will almost certainly write, so we need the privkey.
         d = self._read(c, fetch_privkey=True)
-        d.addCallback(lambda mc: "".join(mc.chunks))
+        d.addCallback(lambda mc: b"".join(mc.chunks))
         return d
 
 
@@ -1072,7 +1076,7 @@ class MutableFileVersion(object):
             start = offset
             rest = offset + data.get_size()
             new = old[:start]
-            new += "".join(data.read(data.get_size()))
+            new += b"".join(data.read(data.get_size()))
             new += old[rest:]
             return new
         return self._modify(m, None)

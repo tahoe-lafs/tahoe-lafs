@@ -1,4 +1,17 @@
+"""
+Ported to Python 3.
+"""
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+
+from functools import reduce
 import binascii
 from time import time as now
 
@@ -7,12 +20,12 @@ from twisted.internet import defer
 
 from allmydata import uri
 from twisted.internet.interfaces import IConsumer
+from allmydata.crypto import aes
 from allmydata.interfaces import IImmutableFileNode, IUploadResults
 from allmydata.util import consumer
 from allmydata.check_results import CheckResults, CheckAndRepairResults
 from allmydata.util.dictutil import DictOfSets
 from allmydata.util.happinessutil import servers_of_happiness
-from pycryptopp.cipher.aes import AES
 
 # local imports
 from allmydata.immutable.checker import Checker
@@ -21,7 +34,7 @@ from allmydata.immutable.downloader.node import DownloadNode, \
      IDownloadStatusHandlingConsumer
 from allmydata.immutable.downloader.status import DownloadStatus
 
-class CiphertextFileNode:
+class CiphertextFileNode(object):
     def __init__(self, verifycap, storage_broker, secret_holder,
                  terminator, history):
         assert isinstance(verifycap, uri.CHKFileVerifierURI)
@@ -139,7 +152,6 @@ class CiphertextFileNode:
             for server in servers:
                 sm.add(shnum, server)
                 servers_responding.add(server)
-        servers_responding = sorted(servers_responding)
 
         good_hosts = len(reduce(set.union, sm.values(), set()))
         is_healthy = bool(len(sm) >= verifycap.total_shares)
@@ -201,8 +213,9 @@ class DecryptingConsumer(object):
         offset_big = offset // 16
         offset_small = offset % 16
         iv = binascii.unhexlify("%032x" % offset_big)
-        self._decryptor = AES(readkey, iv=iv)
-        self._decryptor.process("\x00"*offset_small)
+        self._decryptor = aes.create_decryptor(readkey, iv)
+        # this is just to advance the counter
+        aes.decrypt_data(self._decryptor, b"\x00" * offset_small)
 
     def set_download_status_read_event(self, read_ev):
         self._read_ev = read_ev
@@ -219,7 +232,7 @@ class DecryptingConsumer(object):
         self._consumer.unregisterProducer()
     def write(self, ciphertext):
         started = now()
-        plaintext = self._decryptor.process(ciphertext)
+        plaintext = aes.decrypt_data(self._decryptor, ciphertext)
         if self._read_ev:
             elapsed = now() - started
             self._read_ev.update(0, elapsed, 0)

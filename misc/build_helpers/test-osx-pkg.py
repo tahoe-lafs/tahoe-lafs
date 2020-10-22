@@ -15,7 +15,6 @@
 
 # allmydata-tahoe: 1.10.0.post185.dev0 [2249-deps-and-osx-packaging-1: 76ac53846042d9a4095995be92af66cdc09d5ad0-dirty] (/Applications/tahoe.app/src)
 # foolscap: 0.7.0 (/Applications/tahoe.app/support/lib/python2.7/site-packages/foolscap-0.7.0-py2.7.egg)
-# pycryptopp: 0.6.0.1206569328141510525648634803928199668821045408958 (/Applications/tahoe.app/support/lib/python2.7/site-packages/pycryptopp-0.6.0.1206569328141510525648634803928199668821045408958-py2.7-macosx-10.9-intel.egg)
 # zfec: 1.4.24 (/Applications/tahoe.app/support/lib/python2.7/site-packages/zfec-1.4.24-py2.7-macosx-10.9-intel.egg)
 # Twisted: 13.0.0 (/Applications/tahoe.app/support/lib/python2.7/site-packages/Twisted-13.0.0-py2.7-macosx-10.9-intel.egg)
 # Nevow: 0.11.1 (/Applications/tahoe.app/support/lib/python2.7/site-packages/Nevow-0.11.1-py2.7.egg)
@@ -23,13 +22,14 @@
 # python: 2.7.5 (/usr/bin/python)
 # platform: Darwin-13.4.0-x86_64-i386-64bit (None)
 # pyOpenSSL: 0.13 (/System/Library/Frameworks/Python.framework/Versions/2.7/Extras/lib/python)
-# pycrypto: 2.6.1 (/Applications/tahoe.app/support/lib/python2.7/site-packages/pycrypto-2.6.1-py2.7-macosx-10.9-intel.egg)
 # pyasn1: 0.1.7 (/Applications/tahoe.app/support/lib/python2.7/site-packages/pyasn1-0.1.7-py2.7.egg)
 # mock: 1.0.1 (/Applications/tahoe.app/support/lib/python2.7/site-packages)
 # setuptools: 0.6c16dev6 (/Applications/tahoe.app/support/lib/python2.7/site-packages/setuptools-0.6c16dev6.egg)
 # service-identity: 14.0.0 (/Applications/tahoe.app/support/lib/python2.7/site-packages/service_identity-14.0.0-py2.7.egg)
 # characteristic: 14.1.0 (/Applications/tahoe.app/support/lib/python2.7/site-packages)
 # pyasn1-modules: 0.0.5 (/Applications/tahoe.app/support/lib/python2.7/site-packages/pyasn1_modules-0.0.5-py2.7.egg)
+
+from __future__ import print_function
 
 import os, re, shutil, subprocess, sys, tempfile
 
@@ -56,7 +56,7 @@ def test_osx_pkg(pkgfile):
     gunzip_process = subprocess.Popen(['gunzip', '-dc'],
                                       stdin=cat_process.stdout,
                                       stdout=subprocess.PIPE)
-    cpio_process = subprocess.Popen(['cpio', '-i'],
+    cpio_process = subprocess.Popen(['cpio', '-i', '--verbose'],
                                     stdin=gunzip_process.stdout,
                                     stdout=subprocess.PIPE)
     cpio_process.communicate()
@@ -68,6 +68,13 @@ def test_osx_pkg(pkgfile):
 
         rc = callit.wait()
         if rc != 0:
+            print(
+                "{} failed.\n"
+                "stdout: {}\n"
+                "stderr: {}\n".format(
+                    cmd, callit.stdout.read(), callit.stderr.read(),
+                ),
+            )
             raise Exception("FAIL: '%s' returned non-zero exit code: %r" % (" ".join(cmd), rc))
         stdouttxt = callit.stdout.read()
 
@@ -86,9 +93,8 @@ def test_osx_pkg(pkgfile):
 if __name__ == '__main__':
     pkgs = [fn for fn in os.listdir(".") if fn.endswith("-osx.pkg")]
     if len(pkgs) != 1:
-        print "ERR: unable to find a single .pkg file:", pkgs
+        print("ERR: unable to find a single .pkg file:", pkgs)
         sys.exit(1)
-    print "Testing %s ..." % pkgs[0]
+    print("Testing %s ..." % pkgs[0])
     test_osx_pkg(pkgs[0])
-    print "Looks OK!"
-
+    print("Looks OK!")

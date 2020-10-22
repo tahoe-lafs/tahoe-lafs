@@ -1,3 +1,4 @@
+from __future__ import print_function
 
 import re, struct, traceback, time, calendar
 from stat import S_IFREG, S_IFDIR
@@ -11,18 +12,15 @@ from allmydata.util import deferredutil
 conch_interfaces = None
 sftp = None
 sftpd = None
-have_pycrypto = False
-try:
-    from Crypto import Util
-    Util  # hush pyflakes
-    have_pycrypto = True
-except ImportError:
-    pass
 
-if have_pycrypto:
+try:
     from twisted.conch import interfaces as conch_interfaces
     from twisted.conch.ssh import filetransfer as sftp
     from allmydata.frontends import sftpd
+except ImportError as e:
+    conch_unavailable_reason = e
+else:
+    conch_unavailable_reason = None
 
 from allmydata.interfaces import IDirectoryNode, ExistingChildError, NoSuchChildError
 from allmydata.mutable.common import NotWriteableError
@@ -34,13 +32,13 @@ from allmydata.test.no_network import GridTestMixin
 from allmydata.test.common import ShouldFailMixin
 from allmydata.test.common_util import ReallyEqualMixin
 
-timeout = 240
-
 class Handler(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, unittest.TestCase):
     """This is a no-network unit test of the SFTPUserHandler and the abstractions it uses."""
 
-    if not have_pycrypto:
-        skip = "SFTP support requires pycrypto, which is not installed"
+    if conch_unavailable_reason:
+        skip = "SFTP support requires Twisted Conch which is not available: {}".format(
+            conch_unavailable_reason,
+        )
 
     def shouldFailWithSFTPError(self, expected_code, which, callable, *args, **kwargs):
         assert isinstance(expected_code, int), repr(expected_code)
@@ -54,7 +52,7 @@ class Handler(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, unittest.TestCas
                                            "%s was supposed to raise SFTPError(%r), not SFTPError(%r): %s" %
                                            (which, expected_code, res.value.code, res))
             else:
-                print '@' + '@'.join(s)
+                print('@' + '@'.join(s))
                 self.fail("%s was supposed to raise SFTPError(%r), not get %r" %
                           (which, expected_code, res))
         d.addBoth(_done)
@@ -292,16 +290,16 @@ class Handler(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, unittest.TestCas
 
         gross = u"gro\u00DF".encode("utf-8")
         expected_root = [
-            ('empty_lit_dir', r'dr-xr-xr-x .* 0 .* empty_lit_dir$',       {'permissions': S_IFDIR | 0555}),
-            (gross,           r'-rw-rw-rw- .* 1010 .* '+gross+'$',        {'permissions': S_IFREG | 0666, 'size': 1010}),
+            ('empty_lit_dir', r'dr-xr-xr-x .* 0 .* empty_lit_dir$',       {'permissions': S_IFDIR | 0o555}),
+            (gross,           r'-rw-rw-rw- .* 1010 .* '+gross+'$',        {'permissions': S_IFREG | 0o666, 'size': 1010}),
             # The fall of the Berlin wall may have been on 9th or 10th November 1989 depending on the gateway's timezone.
             #('loop',          r'drwxrwxrwx .* 0 Nov (09|10)  1989 loop$', {'permissions': S_IFDIR | 0777}),
-            ('loop',          r'drwxrwxrwx .* 0 .* loop$',                {'permissions': S_IFDIR | 0777}),
-            ('mutable',       r'-rw-rw-rw- .* 0 .* mutable$',             {'permissions': S_IFREG | 0666}),
-            ('readonly',      r'-r--r--r-- .* 0 .* readonly$',            {'permissions': S_IFREG | 0444}),
-            ('small',         r'-rw-rw-rw- .* 10 .* small$',              {'permissions': S_IFREG | 0666, 'size': 10}),
-            ('small2',        r'-rw-rw-rw- .* 26 .* small2$',             {'permissions': S_IFREG | 0666, 'size': 26}),
-            ('tiny_lit_dir',  r'dr-xr-xr-x .* 0 .* tiny_lit_dir$',        {'permissions': S_IFDIR | 0555}),
+            ('loop',          r'drwxrwxrwx .* 0 .* loop$',                {'permissions': S_IFDIR | 0o777}),
+            ('mutable',       r'-rw-rw-rw- .* 0 .* mutable$',             {'permissions': S_IFREG | 0o666}),
+            ('readonly',      r'-r--r--r-- .* 0 .* readonly$',            {'permissions': S_IFREG | 0o444}),
+            ('small',         r'-rw-rw-rw- .* 10 .* small$',              {'permissions': S_IFREG | 0o666, 'size': 10}),
+            ('small2',        r'-rw-rw-rw- .* 26 .* small2$',             {'permissions': S_IFREG | 0o666, 'size': 26}),
+            ('tiny_lit_dir',  r'dr-xr-xr-x .* 0 .* tiny_lit_dir$',        {'permissions': S_IFDIR | 0o555}),
             ('unknown',       r'\?--------- .* 0 .* unknown$',            {'permissions': 0}),
         ]
 
@@ -319,20 +317,20 @@ class Handler(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, unittest.TestCas
 
         # The UTC epoch may either be in Jan 1 1970 or Dec 31 1969 depending on the gateway's timezone.
         expected_tiny_lit = [
-            ('short', r'-r--r--r-- .* 8 (Jan 01  1970|Dec 31  1969) short$', {'permissions': S_IFREG | 0444, 'size': 8}),
+            ('short', r'-r--r--r-- .* 8 (Jan 01  1970|Dec 31  1969) short$', {'permissions': S_IFREG | 0o444, 'size': 8}),
         ]
 
         d.addCallback(lambda ign: self.handler.openDirectory("tiny_lit_dir"))
         d.addCallback(lambda res: self._compareDirLists(res, expected_tiny_lit))
 
         d.addCallback(lambda ign: self.handler.getAttrs("small", True))
-        d.addCallback(lambda attrs: self._compareAttributes(attrs, {'permissions': S_IFREG | 0666, 'size': 10}))
+        d.addCallback(lambda attrs: self._compareAttributes(attrs, {'permissions': S_IFREG | 0o666, 'size': 10}))
 
         d.addCallback(lambda ign: self.handler.setAttrs("small", {}))
         d.addCallback(lambda res: self.failUnlessReallyEqual(res, None))
 
         d.addCallback(lambda ign: self.handler.getAttrs("small", True))
-        d.addCallback(lambda attrs: self._compareAttributes(attrs, {'permissions': S_IFREG | 0666, 'size': 10}))
+        d.addCallback(lambda attrs: self._compareAttributes(attrs, {'permissions': S_IFREG | 0o666, 'size': 10}))
 
         d.addCallback(lambda ign:
             self.shouldFailWithSFTPError(sftp.FX_OP_UNSUPPORTED, "setAttrs size",
@@ -407,10 +405,10 @@ class Handler(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, unittest.TestCas
                                              rf.readChunk, 11, 1))
 
             d2.addCallback(lambda ign: rf.getAttrs())
-            d2.addCallback(lambda attrs: self._compareAttributes(attrs, {'permissions': S_IFREG | 0666, 'size': 10}))
+            d2.addCallback(lambda attrs: self._compareAttributes(attrs, {'permissions': S_IFREG | 0o666, 'size': 10}))
 
             d2.addCallback(lambda ign: self.handler.getAttrs("small", followLinks=0))
-            d2.addCallback(lambda attrs: self._compareAttributes(attrs, {'permissions': S_IFREG | 0666, 'size': 10}))
+            d2.addCallback(lambda attrs: self._compareAttributes(attrs, {'permissions': S_IFREG | 0o666, 'size': 10}))
 
             d2.addCallback(lambda ign:
                 self.shouldFailWithSFTPError(sftp.FX_PERMISSION_DENIED, "writeChunk on read-only handle denied",
@@ -459,10 +457,10 @@ class Handler(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, unittest.TestCas
                                              rf.readChunk, 1011, 1))
 
             d2.addCallback(lambda ign: rf.getAttrs())
-            d2.addCallback(lambda attrs: self._compareAttributes(attrs, {'permissions': S_IFREG | 0666, 'size': 1010}))
+            d2.addCallback(lambda attrs: self._compareAttributes(attrs, {'permissions': S_IFREG | 0o666, 'size': 1010}))
 
             d2.addCallback(lambda ign: self.handler.getAttrs(gross, followLinks=0))
-            d2.addCallback(lambda attrs: self._compareAttributes(attrs, {'permissions': S_IFREG | 0666, 'size': 1010}))
+            d2.addCallback(lambda attrs: self._compareAttributes(attrs, {'permissions': S_IFREG | 0o666, 'size': 1010}))
 
             d2.addCallback(lambda ign:
                 self.shouldFailWithSFTPError(sftp.FX_PERMISSION_DENIED, "writeChunk on read-only handle denied",
@@ -668,10 +666,10 @@ class Handler(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, unittest.TestCas
             d2.addCallback(lambda ign: wf.writeChunk(13, "abc"))
 
             d2.addCallback(lambda ign: wf.getAttrs())
-            d2.addCallback(lambda attrs: self._compareAttributes(attrs, {'permissions': S_IFREG | 0666, 'size': 16}))
+            d2.addCallback(lambda attrs: self._compareAttributes(attrs, {'permissions': S_IFREG | 0o666, 'size': 16}))
 
             d2.addCallback(lambda ign: self.handler.getAttrs("newfile", followLinks=0))
-            d2.addCallback(lambda attrs: self._compareAttributes(attrs, {'permissions': S_IFREG | 0666, 'size': 16}))
+            d2.addCallback(lambda attrs: self._compareAttributes(attrs, {'permissions': S_IFREG | 0o666, 'size': 16}))
 
             d2.addCallback(lambda ign: wf.setAttrs({}))
 
@@ -902,15 +900,15 @@ class Handler(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, unittest.TestCas
         def _write_mutable_setattr(wf):
             d2 = wf.writeChunk(8, "read-only link from parent")
 
-            d2.addCallback(lambda ign: self.handler.setAttrs("mutable", {'permissions': 0444}))
+            d2.addCallback(lambda ign: self.handler.setAttrs("mutable", {'permissions': 0o444}))
 
             d2.addCallback(lambda ign: self.root.get(u"mutable"))
             d2.addCallback(lambda node: self.failUnless(node.is_readonly()))
 
             d2.addCallback(lambda ign: wf.getAttrs())
-            d2.addCallback(lambda attrs: self.failUnlessReallyEqual(attrs['permissions'], S_IFREG | 0666))
+            d2.addCallback(lambda attrs: self.failUnlessReallyEqual(attrs['permissions'], S_IFREG | 0o666))
             d2.addCallback(lambda ign: self.handler.getAttrs("mutable", followLinks=0))
-            d2.addCallback(lambda attrs: self.failUnlessReallyEqual(attrs['permissions'], S_IFREG | 0444))
+            d2.addCallback(lambda attrs: self.failUnlessReallyEqual(attrs['permissions'], S_IFREG | 0o444))
 
             d2.addCallback(lambda ign: wf.close())
             return d2
@@ -931,16 +929,16 @@ class Handler(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, unittest.TestCas
         def _write_mutable2_setattr(wf):
             d2 = wf.writeChunk(7, "2")
 
-            d2.addCallback(lambda ign: wf.setAttrs({'permissions': 0444, 'size': 8}))
+            d2.addCallback(lambda ign: wf.setAttrs({'permissions': 0o444, 'size': 8}))
 
             # The link isn't made read-only until the file is closed.
             d2.addCallback(lambda ign: self.root.get(u"mutable2"))
             d2.addCallback(lambda node: self.failIf(node.is_readonly()))
 
             d2.addCallback(lambda ign: wf.getAttrs())
-            d2.addCallback(lambda attrs: self.failUnlessReallyEqual(attrs['permissions'], S_IFREG | 0444))
+            d2.addCallback(lambda attrs: self.failUnlessReallyEqual(attrs['permissions'], S_IFREG | 0o444))
             d2.addCallback(lambda ign: self.handler.getAttrs("mutable2", followLinks=0))
-            d2.addCallback(lambda attrs: self.failUnlessReallyEqual(attrs['permissions'], S_IFREG | 0666))
+            d2.addCallback(lambda attrs: self.failUnlessReallyEqual(attrs['permissions'], S_IFREG | 0o666))
 
             d2.addCallback(lambda ign: wf.close())
             return d2
@@ -1347,7 +1345,8 @@ class Handler(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, unittest.TestCas
         d.addCallback(lambda ign: self.handler.makeDirectory("newdir", {'ext_foo': 'bar', 'ctime': 42}))
 
         d.addCallback(lambda ign: self.root.get_child_and_metadata(u"newdir"))
-        def _got( (child, metadata) ):
+        def _got(child_and_metadata):
+            (child, metadata) = child_and_metadata
             self.failUnless(IDirectoryNode.providedBy(child))
             self.failUnless(child.is_mutable())
             # FIXME
@@ -1386,14 +1385,14 @@ class Handler(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, unittest.TestCas
         d.addCallback(lambda ign:
             self.shouldFailWithSFTPError(sftp.FX_PERMISSION_DENIED, "makeDirectory newdir2 permissions:0444 denied",
                                          self.handler.makeDirectory, "newdir2",
-                                         {'permissions': 0444}))
+                                         {'permissions': 0o444}))
 
         d.addCallback(lambda ign: self.failUnlessEqual(sftpd.all_heisenfiles, {}))
         d.addCallback(lambda ign: self.failUnlessEqual(self.handler._heisenfiles, {}))
         return d
 
     def test_execCommand_and_openShell(self):
-        class MockProtocol:
+        class MockProtocol(object):
             def __init__(self):
                 self.output = ""
                 self.error = ""

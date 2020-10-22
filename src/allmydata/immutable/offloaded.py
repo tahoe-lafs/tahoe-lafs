@@ -16,7 +16,7 @@ class NotEnoughWritersError(Exception):
     pass
 
 
-class CHKCheckerAndUEBFetcher:
+class CHKCheckerAndUEBFetcher(object):
     """I check to see if a file is already present in the grid. I also fetch
     the URI Extension Block, which is useful for an uploading client who
     wants to avoid the work of encryption and encoding.
@@ -54,7 +54,7 @@ class CHKCheckerAndUEBFetcher:
     def _get_all_shareholders(self, storage_index):
         dl = []
         for s in self._peer_getter(storage_index):
-            d = s.get_rref().callRemote("get_buckets", storage_index)
+            d = s.get_storage_server().get_buckets(storage_index)
             d.addCallbacks(self._got_response, self._got_error,
                            callbackArgs=(s,))
             dl.append(d)
@@ -203,7 +203,7 @@ class CHKUploadHelper(Referenceable, upload.CHKUploader):
     def _finished(self, ur):
         assert interfaces.IUploadResults.providedBy(ur), ur
         vcapstr = ur.get_verifycapstr()
-        precondition(isinstance(vcapstr, str), vcapstr)
+        precondition(isinstance(vcapstr, bytes), vcapstr)
         v = uri.from_string(vcapstr)
         f_times = self._fetcher.get_times()
 
@@ -244,7 +244,7 @@ class CHKUploadHelper(Referenceable, upload.CHKUploader):
         self._helper.upload_finished(self._storage_index, 0)
         del self._reader
 
-class AskUntilSuccessMixin:
+class AskUntilSuccessMixin(object):
     # create me with a _reader array
     _last_failure = None
 
@@ -492,9 +492,9 @@ class Helper(Referenceable):
     # helper at random.
 
     name = "helper"
-    VERSION = { "http://allmydata.org/tahoe/protocols/helper/v1" :
+    VERSION = { b"http://allmydata.org/tahoe/protocols/helper/v1" :
                  { },
-                "application-version": str(allmydata.__full_version__),
+                b"application-version": allmydata.__full_version__.encode("utf-8"),
                 }
     MAX_UPLOAD_STATUSES = 10
 

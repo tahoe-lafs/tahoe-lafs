@@ -546,16 +546,15 @@ The "restrictions dictionary" is a table which establishes an upper bound on
 how this authority (or any attenuations thereof) may be used. It is
 effectively a set of key-value pairs.
 
-A "signing key" is an EC-DSA192 private key string, as supplied to the
-pycryptopp SigningKey() constructor, and is 12 bytes long. A "verifying key"
-is an EC-DSA192 public key string, as produced by pycryptopp, and is 24 bytes
-long. A "key identifier" is a string which securely identifies a specific
-signing/verifying keypair: for long RSA keys it would be a secure hash of the
-public key, but since ECDSA192 keys are so short, we simply use the full
-verifying key verbatim. A "key hint" is a variable-length prefix of the key
-identifier, perhaps zero bytes long, used to help a recipient reduce the
-number of verifying keys that it must search to find one that matches a
-signed message.
+A "signing key" is an EC-DSA192 private key string and is 12 bytes
+long. A "verifying key" is an EC-DSA192 public key string, and is 24
+bytes long. A "key identifier" is a string which securely identifies a
+specific signing/verifying keypair: for long RSA keys it would be a
+secure hash of the public key, but since ECDSA192 keys are so short,
+we simply use the full verifying key verbatim. A "key hint" is a
+variable-length prefix of the key identifier, perhaps zero bytes long,
+used to help a recipient reduce the number of verifying keys that it
+must search to find one that matches a signed message.
 
 ==== Authority Chains ====
 

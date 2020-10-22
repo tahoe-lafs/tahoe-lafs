@@ -1,3 +1,4 @@
+from __future__ import print_function
 
 import urllib
 from allmydata.scripts.common_http import do_http, format_http_success, format_http_error
@@ -18,12 +19,12 @@ def unlink(options, command="unlink"):
         nodeurl += "/"
     try:
         rootcap, path = get_alias(aliases, where, DEFAULT_ALIAS)
-    except UnknownAliasError, e:
+    except UnknownAliasError as e:
         e.display(stderr)
         return 1
     if not path:
-        print >>stderr, """
-'tahoe %s' can only unlink directory entries, so a path must be given.""" % (command,)
+        print("""
+'tahoe %s' can only unlink directory entries, so a path must be given.""" % (command,), file=stderr)
         return 1
 
     url = nodeurl + "uri/%s" % urllib.quote(rootcap)
@@ -32,8 +33,8 @@ def unlink(options, command="unlink"):
     resp = do_http("DELETE", url)
 
     if resp.status in (200,):
-        print >>stdout, format_http_success(resp)
+        print(format_http_success(resp), file=stdout)
         return 0
 
-    print >>stderr, format_http_error("ERROR", resp)
+    print(format_http_error("ERROR", resp), file=stderr)
     return 1

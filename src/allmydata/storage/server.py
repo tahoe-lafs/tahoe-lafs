@@ -1,4 +1,21 @@
-import os, re, weakref, struct, time
+"""
+Ported to Python 3.
+"""
+from __future__ import division
+from __future__ import absolute_import
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import bytes_to_native_str, PY2
+if PY2:
+    # Omit open() to get native behavior where open("w") always accepts native
+    # strings. Omit bytes so we don't leak future's custom bytes.
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, pow, round, super, dict, list, object, range, str, max, min  # noqa: F401
+
+
+import os, re, struct, time
+import weakref
+import six
 
 from foolscap.api import Referenceable
 from twisted.application import service
@@ -47,8 +64,9 @@ class StorageServer(service.MultiService, Referenceable):
                  expiration_cutoff_date=None,
                  expiration_sharetypes=("mutable", "immutable")):
         service.MultiService.__init__(self)
-        assert isinstance(nodeid, str)
+        assert isinstance(nodeid, bytes)
         assert len(nodeid) == 20
+        assert isinstance(nodeid, bytes)
         self.my_nodeid = nodeid
         self.storedir = storedir
         sharedir = os.path.join(storedir, "shares")
@@ -224,16 +242,18 @@ class StorageServer(service.MultiService, Referenceable):
             # We're on a platform that has no API to get disk stats.
             remaining_space = 2**64
 
-        version = { "http://allmydata.org/tahoe/protocols/storage/v1" :
-                    { "maximum-immutable-share-size": remaining_space,
-                      "maximum-mutable-share-size": MAX_MUTABLE_SHARE_SIZE,
-                      "available-space": remaining_space,
-                      "tolerates-immutable-read-overrun": True,
-                      "delete-mutable-shares-with-zero-length-writev": True,
-                      "fills-holes-with-zero-bytes": True,
-                      "prevents-read-past-end-of-share-data": True,
+        # Unicode strings might be nicer, but for now sticking to bytes since
+        # this is what the wire protocol has always been.
+        version = { b"http://allmydata.org/tahoe/protocols/storage/v1" :
+                    { b"maximum-immutable-share-size": remaining_space,
+                      b"maximum-mutable-share-size": MAX_MUTABLE_SHARE_SIZE,
+                      b"available-space": remaining_space,
+                      b"tolerates-immutable-read-overrun": True,
+                      b"delete-mutable-shares-with-zero-length-writev": True,
+                      b"fills-holes-with-zero-bytes": True,
+                      b"prevents-read-past-end-of-share-data": True,
                       },
-                    "application-version": str(allmydata.__full_version__),
+                    b"application-version": allmydata.__full_version__.encode("utf-8"),
                     }
         return version
 
@@ -316,9 +336,8 @@ class StorageServer(service.MultiService, Referenceable):
 
     def _iter_share_files(self, storage_index):
         for shnum, filename in self._get_bucket_shares(storage_index):
-            f = open(filename, 'rb')
-            header = f.read(32)
-            f.close()
+            with open(filename, 'rb') as f:
+                header = f.read(32)
             if header[:32] == MutableShareFile.MAGIC:
                 sf = MutableShareFile(filename, self)
                 # note: if the share has been migrated, the renew_lease()
@@ -391,31 +410,51 @@ class StorageServer(service.MultiService, Referenceable):
         bucket. Each lease is returned as a LeaseInfo instance.
 
         This method is not for client use.
-        """
 
+        :note: Only for immutable shares.
+        """
         # since all shares get the same lease data, we just grab the leases
         # from the first share
         try:
-            shnum, filename = self._get_bucket_shares(storage_index).next()
+            shnum, filename = next(self._get_bucket_shares(storage_index))
             sf = ShareFile(filename)
             return sf.get_leases()
         except StopIteration:
             return iter([])
 
-    def remote_slot_testv_and_readv_and_writev(self, storage_index,
-                                               secrets,
-                                               test_and_write_vectors,
-                                               read_vector):
-        start = time.time()
-        self.count("writev")
-        si_s = si_b2a(storage_index)
-        log.msg("storage: slot_writev %s" % si_s)
-        si_dir = storage_index_to_dir(storage_index)
-        (write_enabler, renew_secret, cancel_secret) = secrets
-        # shares exist if there is a file for them
-        bucketdir = os.path.join(self.sharedir, si_dir)
+    def get_slot_leases(self, storage_index):
+        """
+        This method is not for client use.
+
+        :note: Only for mutable shares.
+
+        :return: An iterable of the leases attached to this slot.
+        """
+        for _, share_filename in self._get_bucket_shares(storage_index):
+            share = MutableShareFile(share_filename)
+            return share.get_leases()
+        return []
+
+    def _collect_mutable_shares_for_storage_index(self, bucketdir, write_enabler, si_s):
+        """
+        Gather up existing mutable shares for the given storage index.
+
+        :param bytes bucketdir: The filesystem path containing shares for the
+            given storage index.
+
+        :param bytes write_enabler: The write enabler secret for the shares.
+
+        :param bytes si_s: The storage index in encoded (base32) form.
+
+        :raise BadWriteEnablerError: If the write enabler is not correct for
+            any of the collected shares.
+
+        :return dict[int, MutableShareFile]: The collected shares in a mapping
+            from integer share numbers to ``MutableShareFile`` instances.
+        """
         shares = {}
         if os.path.isdir(bucketdir):
+            # shares exist if there is a file for them
             for sharenum_s in os.listdir(bucketdir):
                 try:
                     sharenum = int(sharenum_s)
@@ -425,66 +464,196 @@ class StorageServer(service.MultiService, Referenceable):
                 msf = MutableShareFile(filename, self)
                 msf.check_write_enabler(write_enabler, si_s)
                 shares[sharenum] = msf
-        # write_enabler is good for all existing shares.
+        return shares
 
-        # Now evaluate test vectors.
-        testv_is_good = True
+    def _evaluate_test_vectors(self, test_and_write_vectors, shares):
+        """
+        Execute test vectors against share data.
+
+        :param test_and_write_vectors: See
+            ``allmydata.interfaces.TestAndWriteVectorsForShares``.
+
+        :param dict[int, MutableShareFile] shares: The shares against which to
+            execute the vectors.
+
+        :return bool: ``True`` if and only if all of the test vectors succeed
+            against the given shares.
+        """
         for sharenum in test_and_write_vectors:
             (testv, datav, new_length) = test_and_write_vectors[sharenum]
             if sharenum in shares:
                 if not shares[sharenum].check_testv(testv):
                     self.log("testv failed: [%d]: %r" % (sharenum, testv))
-                    testv_is_good = False
-                    break
+                    return False
             else:
                 # compare the vectors against an empty share, in which all
                 # reads return empty strings.
                 if not EmptyShare().check_testv(testv):
                     self.log("testv failed (empty): [%d] %r" % (sharenum,
                                                                 testv))
-                    testv_is_good = False
-                    break
+                    return False
+        return True
 
-        # now gather the read vectors, before we do any writes
+    def _evaluate_read_vectors(self, read_vector, shares):
+        """
+        Execute read vectors against share data.
+
+        :param read_vector: See ``allmydata.interfaces.ReadVector``.
+
+        :param dict[int, MutableShareFile] shares: The shares against which to
+            execute the vector.
+
+        :return dict[int, bytes]: The data read from the shares.
+        """
         read_data = {}
         for sharenum, share in shares.items():
             read_data[sharenum] = share.readv(read_vector)
+        return read_data
 
+    def _evaluate_write_vectors(self, bucketdir, secrets, test_and_write_vectors, shares):
+        """
+        Execute write vectors against share data.
+
+        :param bytes bucketdir: The parent directory holding the shares.  This
+            is removed if the last share is removed from it.  If shares are
+            created, they are created in it.
+
+        :param secrets: A tuple of ``WriteEnablerSecret``,
+            ``LeaseRenewSecret``, and ``LeaseCancelSecret``.  These secrets
+            are used to initialize new shares.
+
+        :param test_and_write_vectors: See
+            ``allmydata.interfaces.TestAndWriteVectorsForShares``.
+
+        :param dict[int, MutableShareFile]: The shares against which to
+            execute the vectors.
+
+        :return dict[int, MutableShareFile]: The shares which still exist
+            after applying the vectors.
+        """
+        remaining_shares = {}
+
+        for sharenum in test_and_write_vectors:
+            (testv, datav, new_length) = test_and_write_vectors[sharenum]
+            if new_length == 0:
+                if sharenum in shares:
+                    shares[sharenum].unlink()
+            else:
+                if sharenum not in shares:
+                    # allocate a new share
+                    allocated_size = 2000 # arbitrary, really
+                    share = self._allocate_slot_share(bucketdir, secrets,
+                                                      sharenum,
+                                                      allocated_size,
+                                                      owner_num=0)
+                    shares[sharenum] = share
+                shares[sharenum].writev(datav, new_length)
+                remaining_shares[sharenum] = shares[sharenum]
+
+            if new_length == 0:
+                # delete bucket directories that exist but are empty.  They
+                # might not exist if a client showed up and asked us to
+                # truncate a share we weren't even holding.
+                if os.path.exists(bucketdir) and [] == os.listdir(bucketdir):
+                    os.rmdir(bucketdir)
+        return remaining_shares
+
+    def _make_lease_info(self, renew_secret, cancel_secret):
+        """
+        :return LeaseInfo: Information for a new lease for a share.
+        """
         ownerid = 1 # TODO
         expire_time = time.time() + 31*24*60*60   # one month
         lease_info = LeaseInfo(ownerid,
                                renew_secret, cancel_secret,
                                expire_time, self.my_nodeid)
+        return lease_info
+
+    def _add_or_renew_leases(self, shares, lease_info):
+        """
+        Put the given lease onto the given shares.
+
+        :param dict[int, MutableShareFile] shares: The shares to put the lease
+            onto.
+
+        :param LeaseInfo lease_info: The lease to put on the shares.
+        """
+        for share in six.viewvalues(shares):
+            share.add_or_renew_lease(lease_info)
+
+    def slot_testv_and_readv_and_writev(
+            self,
+            storage_index,
+            secrets,
+            test_and_write_vectors,
+            read_vector,
+            renew_leases,
+    ):
+        """
+        Read data from shares and conditionally write some data to them.
+
+        :param bool renew_leases: If and only if this is ``True`` and the test
+            vectors pass then shares in this slot will also have an updated
+            lease applied to them.
+
+        See ``allmydata.interfaces.RIStorageServer`` for details about other
+        parameters and return value.
+        """
+        start = time.time()
+        self.count("writev")
+        si_s = si_b2a(storage_index)
+        log.msg("storage: slot_writev %s" % si_s)
+        si_dir = storage_index_to_dir(storage_index)
+        (write_enabler, renew_secret, cancel_secret) = secrets
+        bucketdir = os.path.join(self.sharedir, si_dir)
+
+        # If collection succeeds we know the write_enabler is good for all
+        # existing shares.
+        shares = self._collect_mutable_shares_for_storage_index(
+            bucketdir,
+            write_enabler,
+            si_s,
+        )
+
+        # Now evaluate test vectors.
+        testv_is_good = self._evaluate_test_vectors(
+            test_and_write_vectors,
+            shares,
+        )
+
+        # now gather the read vectors, before we do any writes
+        read_data = self._evaluate_read_vectors(
+            read_vector,
+            shares,
+        )
 
         if testv_is_good:
             # now apply the write vectors
-            for sharenum in test_and_write_vectors:
-                (testv, datav, new_length) = test_and_write_vectors[sharenum]
-                if new_length == 0:
-                    if sharenum in shares:
-                        shares[sharenum].unlink()
-                else:
-                    if sharenum not in shares:
-                        # allocate a new share
-                        allocated_size = 2000 # arbitrary, really
-                        share = self._allocate_slot_share(bucketdir, secrets,
-                                                          sharenum,
-                                                          allocated_size,
-                                                          owner_num=0)
-                        shares[sharenum] = share
-                    shares[sharenum].writev(datav, new_length)
-                    # and update the lease
-                    shares[sharenum].add_or_renew_lease(lease_info)
-
-            if new_length == 0:
-                # delete empty bucket directories
-                if not os.listdir(bucketdir):
-                    os.rmdir(bucketdir)
-
+            remaining_shares = self._evaluate_write_vectors(
+                bucketdir,
+                secrets,
+                test_and_write_vectors,
+                shares,
+            )
+            if renew_leases:
+                lease_info = self._make_lease_info(renew_secret, cancel_secret)
+                self._add_or_renew_leases(remaining_shares, lease_info)
 
         # all done
         self.add_latency("writev", time.time() - start)
         return (testv_is_good, read_data)
+
+    def remote_slot_testv_and_readv_and_writev(self, storage_index,
+                                               secrets,
+                                               test_and_write_vectors,
+                                               read_vector):
+        return self.slot_testv_and_readv_and_writev(
+            storage_index,
+            secrets,
+            test_and_write_vectors,
+            read_vector,
+            renew_leases=True,
+        )
 
     def _allocate_slot_share(self, bucketdir, secrets, sharenum,
                              allocated_size, owner_num=0):
@@ -518,28 +687,31 @@ class StorageServer(service.MultiService, Referenceable):
                 filename = os.path.join(bucketdir, sharenum_s)
                 msf = MutableShareFile(filename, self)
                 datavs[sharenum] = msf.readv(readv)
-        log.msg("returning shares %s" % (datavs.keys(),),
+        log.msg("returning shares %s" % (list(datavs.keys()),),
                 facility="tahoe.storage", level=log.NOISY, parent=lp)
         self.add_latency("readv", time.time() - start)
         return datavs
 
     def remote_advise_corrupt_share(self, share_type, storage_index, shnum,
                                     reason):
+        # This is a remote API, I believe, so this has to be bytes for legacy
+        # protocol backwards compatibility reasons.
+        assert isinstance(share_type, bytes)
+        assert isinstance(reason, bytes), "%r is not bytes" % (reason,)
         fileutil.make_dirs(self.corruption_advisory_dir)
         now = time_format.iso_utc(sep="T")
         si_s = si_b2a(storage_index)
         # windows can't handle colons in the filename
         fn = os.path.join(self.corruption_advisory_dir,
                           "%s--%s-%d" % (now, si_s, shnum)).replace(":","")
-        f = open(fn, "w")
-        f.write("report: Share Corruption\n")
-        f.write("type: %s\n" % share_type)
-        f.write("storage_index: %s\n" % si_s)
-        f.write("share_number: %d\n" % shnum)
-        f.write("\n")
-        f.write(reason)
-        f.write("\n")
-        f.close()
+        with open(fn, "w") as f:
+            f.write("report: Share Corruption\n")
+            f.write("type: %s\n" % bytes_to_native_str(share_type))
+            f.write("storage_index: %s\n" % bytes_to_native_str(si_s))
+            f.write("share_number: %d\n" % shnum)
+            f.write("\n")
+            f.write(bytes_to_native_str(reason))
+            f.write("\n")
         log.msg(format=("client claims corruption in (%(share_type)s) " +
                         "%(si)s-%(shnum)d: %(reason)s"),
                 share_type=share_type, si=si_s, shnum=shnum, reason=reason,

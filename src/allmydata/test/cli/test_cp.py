@@ -1,3 +1,5 @@
+from __future__ import print_function
+
 import os.path, json
 from twisted.trial import unittest
 from twisted.python import usage
@@ -6,13 +8,11 @@ from twisted.internet import defer
 from allmydata.scripts import cli
 from allmydata.util import fileutil
 from allmydata.util.encodingutil import (quote_output, get_io_encoding,
-                                         unicode_to_output, to_str)
+                                         unicode_to_output, to_bytes)
 from allmydata.util.assertutil import _assert
 from ..no_network import GridTestMixin
 from .common import CLITestMixin
 from ..common_util import skip_if_cannot_represent_filename
-
-timeout = 480 # deep_check takes 360s on Zandr's linksys box, others take > 240s
 
 class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
 
@@ -47,15 +47,16 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(lambda res: self.do_cli("cp", fn1_arg, "tahoe:"))
 
         d.addCallback(lambda res: self.do_cli("get", "tahoe:" + artonwall_arg))
-        d.addCallback(lambda (rc,out,err): self.failUnlessReallyEqual(out, DATA1))
+        d.addCallback(lambda rc_out_err: self.failUnlessReallyEqual(rc_out_err[1], DATA1))
 
         d.addCallback(lambda res: self.do_cli("cp", fn2, "tahoe:"))
 
         d.addCallback(lambda res: self.do_cli("get", "tahoe:Metallica"))
-        d.addCallback(lambda (rc,out,err): self.failUnlessReallyEqual(out, DATA2))
+        d.addCallback(lambda rc_out_err: self.failUnlessReallyEqual(rc_out_err[1], DATA2))
 
         d.addCallback(lambda res: self.do_cli("ls", "tahoe:"))
-        def _check((rc, out, err)):
+        def _check(args):
+            (rc, out, err) = args
             try:
                 unicode_to_output(u"\u00C4rtonwall")
             except UnicodeEncodeError:
@@ -102,7 +103,8 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
 
         d = self.do_cli("create-alias", "tahoe")
         d.addCallback(lambda ign: self.do_cli("put", fn1))
-        def _put_file((rc, out, err)):
+        def _put_file(args):
+            (rc, out, err) = args
             self.failUnlessReallyEqual(rc, 0)
             self.failUnlessIn("200 OK", err)
             # keep track of the filecap
@@ -111,7 +113,8 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
 
         # Let's try copying this to the disk using the filecap.
         d.addCallback(lambda ign: self.do_cli("cp", self.filecap, fn2))
-        def _copy_file((rc, out, err)):
+        def _copy_file(args):
+            (rc, out, err) = args
             self.failUnlessReallyEqual(rc, 0)
             results = fileutil.read(fn2)
             self.failUnlessReallyEqual(results, DATA1)
@@ -120,7 +123,8 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
         # Test copying a filecap to local dir, which should fail without a
         # destination filename (#761).
         d.addCallback(lambda ign: self.do_cli("cp", self.filecap, outdir))
-        def _resp((rc, out, err)):
+        def _resp(args):
+            (rc, out, err) = args
             self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("when copying into a directory, all source files must have names, but",
                               err)
@@ -129,7 +133,8 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
 
         # Create a directory, linked at tahoe:test .
         d.addCallback(lambda ign: self.do_cli("mkdir", "tahoe:test"))
-        def _get_dir((rc, out, err)):
+        def _get_dir(args):
+            (rc, out, err) = args
             self.failUnlessReallyEqual(rc, 0)
             self.dircap = out.strip()
         d.addCallback(_get_dir)
@@ -137,13 +142,14 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
         # Upload a file to the directory.
         d.addCallback(lambda ign:
                       self.do_cli("put", fn1, "tahoe:test/test_file"))
-        d.addCallback(lambda (rc, out, err): self.failUnlessReallyEqual(rc, 0))
+        d.addCallback(lambda rc_out_err: self.failUnlessReallyEqual(rc_out_err[0], 0))
 
         # Copying DIRCAP/filename to a local dir should work, because the
         # destination filename can be inferred.
         d.addCallback(lambda ign:
                       self.do_cli("cp",  self.dircap + "/test_file", outdir))
-        def _get_resp((rc, out, err)):
+        def _get_resp(args):
+            (rc, out, err) = args
             self.failUnlessReallyEqual(rc, 0)
             results = fileutil.read(os.path.join(outdir, "test_file"))
             self.failUnlessReallyEqual(results, DATA1)
@@ -152,7 +158,8 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
         # ... and to an explicit filename different from the source filename.
         d.addCallback(lambda ign:
                       self.do_cli("cp",  self.dircap + "/test_file", fn3))
-        def _get_resp2((rc, out, err)):
+        def _get_resp2(args):
+            (rc, out, err) = args
             self.failUnlessReallyEqual(rc, 0)
             results = fileutil.read(fn3)
             self.failUnlessReallyEqual(results, DATA1)
@@ -161,7 +168,8 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
         # Test that the --verbose option prints correct indices (#1805).
         d.addCallback(lambda ign:
                       self.do_cli("cp", "--verbose", fn3, self.dircap))
-        def _test_for_wrong_indices((rc, out, err)):
+        def _test_for_wrong_indices(args):
+            (rc, out, err) = args
             lines = err.split('\n')
             self.failUnlessIn('examining 1 of 1', lines)
             self.failUnlessIn('starting copy, 1 files, 1 directories', lines)
@@ -175,7 +183,8 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
         self.basedir = "cli/Cp/cp_with_nonexistent_alias"
         self.set_up_grid(oneshare=True)
         d = self.do_cli("cp", "fake:file1", "fake:file2")
-        def _check((rc, out, err)):
+        def _check(args):
+            (rc, out, err) = args
             self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("error:", err)
         d.addCallback(_check)
@@ -207,7 +216,8 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(lambda res: self.do_cli("mkdir", "tahoe:test/" + artonwall_arg))
         d.addCallback(lambda res: self.do_cli("cp", "-r", "tahoe:test", "tahoe:test2"))
         d.addCallback(lambda res: self.do_cli("ls", "tahoe:test2/test"))
-        def _check((rc, out, err)):
+        def _check(args):
+            (rc, out, err) = args
             try:
                 unicode_to_output(u"\u00C4rtonwall")
             except UnicodeEncodeError:
@@ -243,7 +253,8 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.do_cli("put", "--mutable", test_txt_path, "tahoe:test/test.txt"))
         d.addCallback(lambda ignored:
             self.do_cli("get", "tahoe:test/test.txt"))
-        def _check((rc, out, err)):
+        def _check(args):
+            (rc, out, err) = args
             self.failUnlessEqual(rc, 0)
             self.failUnlessEqual(out, test_txt_contents)
         d.addCallback(_check)
@@ -252,7 +263,8 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
         # file we've just uploaded.
         d.addCallback(lambda ignored:
             self.do_cli("ls", "--json", "tahoe:test/test.txt"))
-        def _get_test_txt_uris((rc, out, err)):
+        def _get_test_txt_uris(args):
+            (rc, out, err) = args
             self.failUnlessEqual(rc, 0)
             filetype, data = json.loads(out)
 
@@ -260,9 +272,9 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.failUnless(data['mutable'])
 
             self.failUnlessIn("rw_uri", data)
-            self.rw_uri = to_str(data["rw_uri"])
+            self.rw_uri = to_bytes(data["rw_uri"])
             self.failUnlessIn("ro_uri", data)
-            self.ro_uri = to_str(data["ro_uri"])
+            self.ro_uri = to_bytes(data["ro_uri"])
         d.addCallback(_get_test_txt_uris)
 
         # Now make a new file to copy in place of test.txt.
@@ -279,13 +291,14 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
         # If we get test.txt now, we should see the new data.
         d.addCallback(lambda ignored:
             self.do_cli("get", "tahoe:test/test.txt"))
-        d.addCallback(lambda (rc, out, err):
-            self.failUnlessEqual(out, new_txt_contents))
+        d.addCallback(lambda rc_out_err:
+            self.failUnlessEqual(rc_out_err[1], new_txt_contents))
         # If we get the json of the new file, we should see that the old
         # uri is there
         d.addCallback(lambda ignored:
             self.do_cli("ls", "--json", "tahoe:test/test.txt"))
-        def _check_json((rc, out, err)):
+        def _check_json(args):
+            (rc, out, err) = args
             self.failUnlessEqual(rc, 0)
             filetype, data = json.loads(out)
 
@@ -293,17 +306,17 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.failUnless(data['mutable'])
 
             self.failUnlessIn("ro_uri", data)
-            self.failUnlessEqual(to_str(data["ro_uri"]), self.ro_uri)
+            self.failUnlessEqual(to_bytes(data["ro_uri"]), self.ro_uri)
             self.failUnlessIn("rw_uri", data)
-            self.failUnlessEqual(to_str(data["rw_uri"]), self.rw_uri)
+            self.failUnlessEqual(to_bytes(data["rw_uri"]), self.rw_uri)
         d.addCallback(_check_json)
 
         # and, finally, doing a GET directly on one of the old uris
         # should give us the new contents.
         d.addCallback(lambda ignored:
             self.do_cli("get", self.rw_uri))
-        d.addCallback(lambda (rc, out, err):
-            self.failUnlessEqual(out, new_txt_contents))
+        d.addCallback(lambda rc_out_err:
+            self.failUnlessEqual(rc_out_err[1], new_txt_contents))
         # Now copy the old test.txt without an explicit destination
         # file. tahoe cp will match it to the existing file and
         # overwrite it appropriately.
@@ -311,15 +324,15 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.do_cli("cp", test_txt_path, "tahoe:test"))
         d.addCallback(lambda ignored:
             self.do_cli("get", "tahoe:test/test.txt"))
-        d.addCallback(lambda (rc, out, err):
-            self.failUnlessEqual(out, test_txt_contents))
+        d.addCallback(lambda rc_out_err:
+            self.failUnlessEqual(rc_out_err[1], test_txt_contents))
         d.addCallback(lambda ignored:
             self.do_cli("ls", "--json", "tahoe:test/test.txt"))
         d.addCallback(_check_json)
         d.addCallback(lambda ignored:
             self.do_cli("get", self.rw_uri))
-        d.addCallback(lambda (rc, out, err):
-            self.failUnlessEqual(out, test_txt_contents))
+        d.addCallback(lambda rc_out_err:
+            self.failUnlessEqual(rc_out_err[1], test_txt_contents))
 
         # Now we'll make a more complicated directory structure.
         # test2/
@@ -344,7 +357,8 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.do_cli("put", imm_test_txt_path, "tahoe:test2/imm2"))
         d.addCallback(lambda ignored:
             self.do_cli("ls", "--json", "tahoe:test2"))
-        def _process_directory_json((rc, out, err)):
+        def _process_directory_json(args):
+            (rc, out, err) = args
             self.failUnlessEqual(rc, 0)
 
             filetype, data = json.loads(out)
@@ -367,7 +381,7 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
                     self.failIf(childdata['mutable'])
                     self.failUnlessIn("ro_uri", childdata)
                     uri_key = "ro_uri"
-                self.childuris[k] = to_str(childdata[uri_key])
+                self.childuris[k] = to_bytes(childdata[uri_key])
         d.addCallback(_process_directory_json)
         # Now build a local directory to copy into place, like the following:
         # test2/
@@ -387,7 +401,8 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
 
         # We expect that mutable1 and mutable2 are overwritten in-place,
         # so they'll retain their URIs but have different content.
-        def _process_file_json((rc, out, err), fn):
+        def _process_file_json(args, fn):
+            (rc, out, err) = args
             self.failUnlessEqual(rc, 0)
             filetype, data = json.loads(out)
             self.failUnlessEqual(filetype, "filenode")
@@ -395,17 +410,17 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
             if "mutable" in fn:
                 self.failUnless(data['mutable'])
                 self.failUnlessIn("rw_uri", data)
-                self.failUnlessEqual(to_str(data["rw_uri"]), self.childuris[fn])
+                self.failUnlessEqual(to_bytes(data["rw_uri"]), self.childuris[fn])
             else:
                 self.failIf(data['mutable'])
                 self.failUnlessIn("ro_uri", data)
-                self.failIfEqual(to_str(data["ro_uri"]), self.childuris[fn])
+                self.failIfEqual(to_bytes(data["ro_uri"]), self.childuris[fn])
 
         for fn in ("mutable1", "mutable2"):
             d.addCallback(lambda ignored, fn=fn:
                 self.do_cli("get", "tahoe:test2/%s" % fn))
-            d.addCallback(lambda (rc, out, err), fn=fn:
-                self.failUnlessEqual(out, fn * 1000))
+            d.addCallback(lambda rc_out_err, fn=fn:
+                self.failUnlessEqual(rc_out_err[1], fn * 1000))
             d.addCallback(lambda ignored, fn=fn:
                 self.do_cli("ls", "--json", "tahoe:test2/%s" % fn))
             d.addCallback(_process_file_json, fn=fn)
@@ -414,8 +429,8 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
         # should be different.
         d.addCallback(lambda ignored:
             self.do_cli("get", "tahoe:test2/imm1"))
-        d.addCallback(lambda (rc, out, err):
-            self.failUnlessEqual(out, "imm1" * 1000))
+        d.addCallback(lambda rc_out_err:
+            self.failUnlessEqual(rc_out_err[1], "imm1" * 1000))
         d.addCallback(lambda ignored:
             self.do_cli("ls", "--json", "tahoe:test2/imm1"))
         d.addCallback(_process_file_json, fn="imm1")
@@ -423,24 +438,25 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
         # imm3 should have been created.
         d.addCallback(lambda ignored:
             self.do_cli("get", "tahoe:test2/imm3"))
-        d.addCallback(lambda (rc, out, err):
-            self.failUnlessEqual(out, "imm3" * 1000))
+        d.addCallback(lambda rc_out_err:
+            self.failUnlessEqual(rc_out_err[1], "imm3" * 1000))
 
         # imm2 should be exactly as we left it, since our newly-copied
         # directory didn't contain an imm2 entry.
         d.addCallback(lambda ignored:
             self.do_cli("get", "tahoe:test2/imm2"))
-        d.addCallback(lambda (rc, out, err):
-            self.failUnlessEqual(out, imm_test_txt_contents))
+        d.addCallback(lambda rc_out_err:
+            self.failUnlessEqual(rc_out_err[1], imm_test_txt_contents))
         d.addCallback(lambda ignored:
             self.do_cli("ls", "--json", "tahoe:test2/imm2"))
-        def _process_imm2_json((rc, out, err)):
+        def _process_imm2_json(args):
+            (rc, out, err) = args
             self.failUnlessEqual(rc, 0)
             filetype, data = json.loads(out)
             self.failUnlessEqual(filetype, "filenode")
             self.failIf(data['mutable'])
             self.failUnlessIn("ro_uri", data)
-            self.failUnlessEqual(to_str(data["ro_uri"]), self.childuris["imm2"])
+            self.failUnlessEqual(to_bytes(data["ro_uri"]), self.childuris["imm2"])
         d.addCallback(_process_imm2_json)
         return d
 
@@ -465,31 +481,34 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
         d = self.do_cli("create-alias", "tahoe:")
         d.addCallback(lambda ignored:
             self.do_cli("put", "--mutable", test_file_path))
-        def _get_test_uri((rc, out, err)):
+        def _get_test_uri(args):
+            (rc, out, err) = args
             self.failUnlessEqual(rc, 0)
             # this should be a write uri
             self._test_write_uri = out
         d.addCallback(_get_test_uri)
         d.addCallback(lambda ignored:
             self.do_cli("ls", "--json", self._test_write_uri))
-        def _process_test_json((rc, out, err)):
+        def _process_test_json(args):
+            (rc, out, err) = args
             self.failUnlessEqual(rc, 0)
             filetype, data = json.loads(out)
 
             self.failUnlessEqual(filetype, "filenode")
             self.failUnless(data['mutable'])
             self.failUnlessIn("ro_uri", data)
-            self._test_read_uri = to_str(data["ro_uri"])
+            self._test_read_uri = to_bytes(data["ro_uri"])
         d.addCallback(_process_test_json)
         # Now we'll link the readonly URI into the tahoe: alias.
         d.addCallback(lambda ignored:
             self.do_cli("ln", self._test_read_uri, "tahoe:test_file.txt"))
-        d.addCallback(lambda (rc, out, err):
-            self.failUnlessEqual(rc, 0))
+        d.addCallback(lambda rc_out_err:
+            self.failUnlessEqual(rc_out_err[0], 0))
         # Let's grab the json of that to make sure that we did it right.
         d.addCallback(lambda ignored:
             self.do_cli("ls", "--json", "tahoe:"))
-        def _process_tahoe_json((rc, out, err)):
+        def _process_tahoe_json(args):
+            (rc, out, err) = args
             self.failUnlessEqual(rc, 0)
 
             filetype, data = json.loads(out)
@@ -502,47 +521,48 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.failUnlessEqual(testtype, "filenode")
             self.failUnless(testdata['mutable'])
             self.failUnlessIn("ro_uri", testdata)
-            self.failUnlessEqual(to_str(testdata["ro_uri"]), self._test_read_uri)
+            self.failUnlessEqual(to_bytes(testdata["ro_uri"]), self._test_read_uri)
             self.failIfIn("rw_uri", testdata)
         d.addCallback(_process_tahoe_json)
         # Okay, now we're going to try uploading another mutable file in
         # place of that one. We should get an error.
         d.addCallback(lambda ignored:
             self.do_cli("cp", replacement_file_path, "tahoe:test_file.txt"))
-        def _check_error_message((rc, out, err)):
+        def _check_error_message(args):
+            (rc, out, err) = args
             self.failUnlessEqual(rc, 1)
             self.failUnlessIn("replace or update requested with read-only cap", err)
         d.addCallback(_check_error_message)
         # Make extra sure that that didn't work.
         d.addCallback(lambda ignored:
             self.do_cli("get", "tahoe:test_file.txt"))
-        d.addCallback(lambda (rc, out, err):
-            self.failUnlessEqual(out, test_file_contents))
+        d.addCallback(lambda rc_out_err:
+            self.failUnlessEqual(rc_out_err[1], test_file_contents))
         d.addCallback(lambda ignored:
             self.do_cli("get", self._test_read_uri))
-        d.addCallback(lambda (rc, out, err):
-            self.failUnlessEqual(out, test_file_contents))
+        d.addCallback(lambda rc_out_err:
+            self.failUnlessEqual(rc_out_err[1], test_file_contents))
         # Now we'll do it without an explicit destination.
         d.addCallback(lambda ignored:
             self.do_cli("cp", test_file_path, "tahoe:"))
         d.addCallback(_check_error_message)
         d.addCallback(lambda ignored:
             self.do_cli("get", "tahoe:test_file.txt"))
-        d.addCallback(lambda (rc, out, err):
-            self.failUnlessEqual(out, test_file_contents))
+        d.addCallback(lambda rc_out_err:
+            self.failUnlessEqual(rc_out_err[1], test_file_contents))
         d.addCallback(lambda ignored:
             self.do_cli("get", self._test_read_uri))
-        d.addCallback(lambda (rc, out, err):
-            self.failUnlessEqual(out, test_file_contents))
+        d.addCallback(lambda rc_out_err:
+            self.failUnlessEqual(rc_out_err[1], test_file_contents))
         # Now we'll link a readonly file into a subdirectory.
         d.addCallback(lambda ignored:
             self.do_cli("mkdir", "tahoe:testdir"))
-        d.addCallback(lambda (rc, out, err):
-            self.failUnlessEqual(rc, 0))
+        d.addCallback(lambda rc_out_err:
+            self.failUnlessEqual(rc_out_err[0], 0))
         d.addCallback(lambda ignored:
             self.do_cli("ln", self._test_read_uri, "tahoe:test/file2.txt"))
-        d.addCallback(lambda (rc, out, err):
-            self.failUnlessEqual(rc, 0))
+        d.addCallback(lambda rc_out_err:
+            self.failUnlessEqual(rc_out_err[0], 0))
 
         test_dir_path = os.path.join(self.basedir, "test")
         fileutil.make_dirs(test_dir_path)
@@ -554,7 +574,8 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(_check_error_message)
         d.addCallback(lambda ignored:
             self.do_cli("ls", "--json", "tahoe:test"))
-        def _got_testdir_json((rc, out, err)):
+        def _got_testdir_json(args):
+            (rc, out, err) = args
             self.failUnlessEqual(rc, 0)
 
             filetype, data = json.loads(out)
@@ -568,7 +589,7 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.failUnlessEqual(file2type, "filenode")
             self.failUnless(file2data['mutable'])
             self.failUnlessIn("ro_uri", file2data)
-            self.failUnlessEqual(to_str(file2data["ro_uri"]), self._test_read_uri)
+            self.failUnlessEqual(to_bytes(file2data["ro_uri"]), self._test_read_uri)
             self.failIfIn("rw_uri", file2data)
         d.addCallback(_got_testdir_json)
         return d
@@ -962,7 +983,7 @@ class CopyOut(GridTestMixin, CLITestMixin, unittest.TestCase):
     def do_one_test(self, case, orig_expected):
         expected = set(orig_expected)
         printable_expected = ",".join(sorted(expected))
-        #print "---", case, ":", printable_expected
+        #print("---", case, ":", printable_expected)
 
         for f in orig_expected:
             # f is "dir/file" or "dir/sub/file" or "dir/" or "dir/sub/"
@@ -976,8 +997,8 @@ class CopyOut(GridTestMixin, CLITestMixin, unittest.TestCase):
         def _dump(got):
             ok = "ok" if got == expected else "FAIL"
             printable_got = ",".join(sorted(got))
-            print "%-31s: got %-19s, want %-19s %s" % (case, printable_got,
-                                                       printable_expected, ok)
+            print("%-31s: got %-19s, want %-19s %s" % (case, printable_got,
+                                                       printable_expected, ok))
             return got
         #d.addCallback(_dump)
         def _check(got):
@@ -989,7 +1010,7 @@ class CopyOut(GridTestMixin, CLITestMixin, unittest.TestCase):
         # then we run various forms of "cp [-r] TAHOETHING to[/missing]"
         # and see what happens.
         d = defer.succeed(None)
-        #print
+        #print()
 
         for line in COPYOUT_TESTCASES.splitlines():
             if "#" in line:

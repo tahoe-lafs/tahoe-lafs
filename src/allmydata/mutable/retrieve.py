@@ -1,5 +1,5 @@
-
 import time
+
 from itertools import count
 from zope.interface import implementer
 from twisted.internet import defer
@@ -8,6 +8,8 @@ from twisted.internet.interfaces import IPushProducer, IConsumer
 from foolscap.api import eventually, fireEventually, DeadReferenceError, \
      RemoteException
 
+from allmydata.crypto import aes
+from allmydata.crypto import rsa
 from allmydata.interfaces import IRetrieveStatus, NotEnoughSharesError, \
      DownloadStopped, MDMF_VERSION, SDMF_VERSION
 from allmydata.util.assertutil import _assert, precondition
@@ -15,8 +17,6 @@ from allmydata.util import hashutil, log, mathutil, deferredutil
 from allmydata.util.dictutil import DictOfSets
 from allmydata import hashtree, codec
 from allmydata.storage.server import si_b2a
-from pycryptopp.cipher.aes import AES
-from pycryptopp.publickey import rsa
 
 from allmydata.mutable.common import CorruptShareError, BadShareError, \
      UncoordinatedWriteError
@@ -39,7 +39,7 @@ class RetrieveStatus(object):
         self.size = None
         self.status = "Not started"
         self.progress = 0.0
-        self.counter = self.statusid_counter.next()
+        self.counter = next(self.statusid_counter)
         self.started = time.time()
 
     def get_started(self):
@@ -89,7 +89,7 @@ class RetrieveStatus(object):
         serverid = server.get_serverid()
         self._problems[serverid] = f
 
-class Marker:
+class Marker(object):
     pass
 
 @implementer(IPushProducer)
@@ -309,7 +309,7 @@ class Retrieve(object):
             if key in self.servermap.proxies:
                 reader = self.servermap.proxies[key]
             else:
-                reader = MDMFSlotReadProxy(server.get_rref(),
+                reader = MDMFSlotReadProxy(server.get_storage_server(),
                                            self._storage_index, shnum, None)
             reader.server = server
             self.readers[shnum] = reader
@@ -321,7 +321,7 @@ class Retrieve(object):
         self._active_readers = [] # list of active readers for this dl.
         self._block_hash_trees = {} # shnum => hashtree
 
-        for i in xrange(self._total_shares):
+        for i in range(self._total_shares):
             # So we don't have to do this later.
             self._block_hash_trees[i] = hashtree.IncompleteHashTree(self._num_segments)
 
@@ -743,7 +743,7 @@ class Retrieve(object):
 
         block_and_salt, blockhashes, sharehashes = results
         block, salt = block_and_salt
-        _assert(type(block) is str, (block, salt))
+        _assert(isinstance(block, bytes), (block, salt))
 
         blockhashes = dict(enumerate(blockhashes))
         self.log("the reader gave me the following blockhashes: %s" % \
@@ -756,7 +756,7 @@ class Retrieve(object):
             try:
                 bht.set_hashes(blockhashes)
             except (hashtree.BadHashError, hashtree.NotEnoughHashesError, \
-                    IndexError), e:
+                    IndexError) as e:
                 raise CorruptShareError(server,
                                         reader.shnum,
                                         "block hash tree failure: %s" % e)
@@ -770,7 +770,7 @@ class Retrieve(object):
         try:
            bht.set_hashes(leaves={segnum: blockhash})
         except (hashtree.BadHashError, hashtree.NotEnoughHashesError, \
-                IndexError), e:
+                IndexError) as e:
             raise CorruptShareError(server,
                                     reader.shnum,
                                     "block hash tree failure: %s" % e)
@@ -788,7 +788,7 @@ class Retrieve(object):
             self.share_hash_tree.set_hashes(hashes=sharehashes,
                                         leaves={reader.shnum: bht[0]})
         except (hashtree.BadHashError, hashtree.NotEnoughHashesError, \
-                IndexError), e:
+                IndexError) as e:
             raise CorruptShareError(server,
                                     reader.shnum,
                                     "corrupt hashes: %s" % e)
@@ -847,7 +847,7 @@ class Retrieve(object):
         # d.items()[0] is like (shnum, (block, salt))
         # d.items()[0][1] is like (block, salt)
         # d.items()[0][1][1] is the salt.
-        salt = blocks_and_salts.items()[0][1][1]
+        salt = list(blocks_and_salts.items())[0][1][1]
         # Next, extract just the blocks from the dict. We'll use the
         # salt in the next step.
         share_and_shareids = [(k, v[0]) for k, v in blocks_and_salts.items()]
@@ -870,7 +870,7 @@ class Retrieve(object):
         else:
             d = defer.maybeDeferred(self._segment_decoder.decode, shares, shareids)
         def _process(buffers):
-            segment = "".join(buffers)
+            segment = b"".join(buffers)
             self.log(format="now decoding segment %(segnum)s of %(numsegs)s",
                      segnum=segnum,
                      numsegs=self._num_segments,
@@ -899,16 +899,20 @@ class Retrieve(object):
         self.log("decrypting segment %d" % self._current_segment)
         started = time.time()
         key = hashutil.ssk_readkey_data_hash(salt, self._node.get_readkey())
-        decryptor = AES(key)
-        plaintext = decryptor.process(segment)
+        decryptor = aes.create_decryptor(key)
+        plaintext = aes.decrypt_data(decryptor, segment)
         self._status.accumulate_decrypt_time(time.time() - started)
         return plaintext
 
 
     def notify_server_corruption(self, server, shnum, reason):
-        rref = server.get_rref()
-        rref.callRemoteOnly("advise_corrupt_share",
-                            "mutable", self._storage_index, shnum, reason)
+        storage_server = server.get_storage_server()
+        storage_server.advise_corrupt_share(
+            "mutable",
+            self._storage_index,
+            shnum,
+            reason,
+        )
 
 
     def _try_to_validate_privkey(self, enc_privkey, reader, server):
@@ -931,12 +935,10 @@ class Retrieve(object):
         # it's good
         self.log("got valid privkey from shnum %d on reader %s" %
                  (reader.shnum, reader))
-        privkey = rsa.create_signing_key_from_string(alleged_privkey_s)
+        privkey, _ = rsa.create_signing_keypair_from_string(alleged_privkey_s)
         self._node._populate_encprivkey(enc_privkey)
         self._node._populate_privkey(privkey)
         self._need_privkey = False
-
-
 
     def _done(self):
         """
@@ -967,7 +969,6 @@ class Retrieve(object):
             ret = self._consumer
             self._consumer.unregisterProducer()
         eventually(self._done_deferred.callback, ret)
-
 
     def _raise_notenoughshareserror(self):
         """

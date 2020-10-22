@@ -1,3 +1,4 @@
+from six.moves import StringIO
 import os.path
 from twisted.trial import unittest
 import urllib
@@ -8,8 +9,6 @@ from ..no_network import GridTestMixin
 from allmydata.util.encodingutil import quote_output, get_io_encoding
 from .common import CLITestMixin
 
-timeout = 480 # deep_check takes 360s on Zandr's linksys box, others take > 240s
-
 class CreateAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
 
     def _test_webopen(self, args, expected_url):
@@ -17,7 +16,10 @@ class CreateAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
         o.parseOptions(["--node-directory", self.get_clientdir(), "webopen"]
                        + list(args))
         urls = []
-        rc = cli.webopen(o, urls.append)
+        o.subOptions.stdout = StringIO()
+        o.subOptions.stderr = StringIO()
+        o.subOptions.stdin = StringIO()
+        rc = cli.webopen(o.subOptions, urls.append)
         self.failUnlessReallyEqual(rc, 0)
         self.failUnlessReallyEqual(len(urls), 1)
         self.failUnlessReallyEqual(urls[0], expected_url)
@@ -28,9 +30,10 @@ class CreateAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
         aliasfile = os.path.join(self.get_clientdir(), "private", "aliases")
 
         d = self.do_cli("create-alias", "tahoe")
-        def _done((rc,stdout,stderr)):
-            self.failUnless("Alias 'tahoe' created" in stdout)
-            self.failIf(stderr)
+        def _done(args):
+            (rc, stdout, stderr) = args
+            self.assertEqual(stderr, "")
+            self.assertIn("Alias 'tahoe' created", stdout)
             aliases = get_aliases(self.get_clientdir())
             self.failUnless("tahoe" in aliases)
             self.failUnless(aliases["tahoe"].startswith("URI:DIR2:"))
@@ -50,7 +53,8 @@ class CreateAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(_stash_urls)
 
         d.addCallback(lambda res: self.do_cli("create-alias", "two")) # dup
-        def _check_create_duplicate((rc,stdout,stderr)):
+        def _check_create_duplicate(args):
+            (rc, stdout, stderr) = args
             self.failIfEqual(rc, 0)
             self.failUnless("Alias 'two' already exists!" in stderr)
             aliases = get_aliases(self.get_clientdir())
@@ -58,14 +62,16 @@ class CreateAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(_check_create_duplicate)
 
         d.addCallback(lambda res: self.do_cli("add-alias", "added", self.two_uri))
-        def _check_add((rc,stdout,stderr)):
+        def _check_add(args):
+            (rc, stdout, stderr) = args
             self.failUnlessReallyEqual(rc, 0)
             self.failUnless("Alias 'added' added" in stdout)
         d.addCallback(_check_add)
 
         # check add-alias with a duplicate
         d.addCallback(lambda res: self.do_cli("add-alias", "two", self.two_uri))
-        def _check_add_duplicate((rc,stdout,stderr)):
+        def _check_add_duplicate(args):
+            (rc, stdout, stderr) = args
             self.failIfEqual(rc, 0)
             self.failUnless("Alias 'two' already exists!" in stderr)
             aliases = get_aliases(self.get_clientdir())
@@ -73,7 +79,8 @@ class CreateAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(_check_add_duplicate)
 
         # check create-alias and add-alias with invalid aliases
-        def _check_invalid((rc,stdout,stderr)):
+        def _check_invalid(args):
+            (rc, stdout, stderr) = args
             self.failIfEqual(rc, 0)
             self.failUnlessIn("cannot contain", stderr)
 
@@ -112,7 +119,8 @@ class CreateAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
             fileutil.write(aliasfile, old.rstrip())
             return self.do_cli("create-alias", "un-corrupted1")
         d.addCallback(_remove_trailing_newline_and_create_alias)
-        def _check_not_corrupted1((rc,stdout,stderr)):
+        def _check_not_corrupted1(args):
+            (rc, stdout, stderr) = args
             self.failUnless("Alias 'un-corrupted1' created" in stdout, stdout)
             self.failIf(stderr)
             # the old behavior was to simply append the new record, causing a
@@ -135,7 +143,8 @@ class CreateAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
             fileutil.write(aliasfile, old.rstrip())
             return self.do_cli("add-alias", "un-corrupted2", self.two_uri)
         d.addCallback(_remove_trailing_newline_and_add_alias)
-        def _check_not_corrupted((rc,stdout,stderr)):
+        def _check_not_corrupted(args):
+            (rc, stdout, stderr) = args
             self.failUnless("Alias 'un-corrupted2' added" in stdout, stdout)
             self.failIf(stderr)
             aliases = get_aliases(self.get_clientdir())
@@ -145,6 +154,7 @@ class CreateAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.failUnless("un-corrupted2" in aliases)
             self.failUnless(aliases["un-corrupted2"].startswith("URI:DIR2:"))
         d.addCallback(_check_not_corrupted)
+        return d
 
     def test_create_unicode(self):
         self.basedir = "cli/CreateAlias/create_unicode"
@@ -157,7 +167,8 @@ class CreateAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
             raise unittest.SkipTest("A non-ASCII command argument could not be encoded on this platform.")
 
         d = self.do_cli("create-alias", etudes_arg)
-        def _check_create_unicode((rc, out, err)):
+        def _check_create_unicode(args):
+            (rc, out, err) = args
             self.failUnlessReallyEqual(rc, 0)
             self.failUnlessReallyEqual(err, "")
             self.failUnlessIn("Alias %s created" % quote_output(u"\u00E9tudes"), out)
@@ -167,7 +178,8 @@ class CreateAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(_check_create_unicode)
 
         d.addCallback(lambda res: self.do_cli("ls", etudes_arg + ":"))
-        def _check_ls1((rc, out, err)):
+        def _check_ls1(args):
+            (rc, out, err) = args
             self.failUnlessReallyEqual(rc, 0)
             self.failUnlessReallyEqual(err, "")
             self.failUnlessReallyEqual(out, "")
@@ -177,14 +189,16 @@ class CreateAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
                                               stdin="Blah blah blah"))
 
         d.addCallback(lambda res: self.do_cli("ls", etudes_arg + ":"))
-        def _check_ls2((rc, out, err)):
+        def _check_ls2(args):
+            (rc, out, err) = args
             self.failUnlessReallyEqual(rc, 0)
             self.failUnlessReallyEqual(err, "")
             self.failUnlessReallyEqual(out, "uploaded.txt\n")
         d.addCallback(_check_ls2)
 
         d.addCallback(lambda res: self.do_cli("get", etudes_arg + ":uploaded.txt"))
-        def _check_get((rc, out, err)):
+        def _check_get(args):
+            (rc, out, err) = args
             self.failUnlessReallyEqual(rc, 0)
             self.failUnlessReallyEqual(err, "")
             self.failUnlessReallyEqual(out, "Blah blah blah")
@@ -196,7 +210,8 @@ class CreateAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
 
         d.addCallback(lambda res: self.do_cli("get",
                                               get_aliases(self.get_clientdir())[u"\u00E9tudes"] + "/" + lumiere_arg))
-        def _check_get2((rc, out, err)):
+        def _check_get2(args):
+            (rc, out, err) = args
             self.failUnlessReallyEqual(rc, 0)
             self.failUnlessReallyEqual(err, "")
             self.failUnlessReallyEqual(out, "Let the sunshine In!")
@@ -205,5 +220,3 @@ class CreateAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
         return d
 
     # TODO: test list-aliases, including Unicode
-
-

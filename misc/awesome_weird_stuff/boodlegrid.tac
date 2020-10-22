@@ -1,5 +1,7 @@
 # -*- python -*-
 
+from __future__ import print_function
+
 """Monitor a Tahoe grid, by playing sounds in response to remote events.
 
 To install:
@@ -47,20 +49,20 @@ class Listener:
 
         # messages emitted by the Introducer: client join/leave
         if message.startswith("introducer: subscription[storage] request"):
-            print "new client"
+            print("new client")
             self.sound("voice/hooray.aiff")
         if message.startswith("introducer: unsubscribing"):
-            print "unsubscribe"
+            print("unsubscribe")
             self.sound("electro/zaptrill-fade.aiff")
 
         # messages from the helper
         if message == "file already found in grid":
-            print "already found"
+            print("already found")
             self.sound("mech/ziplash-high.aiff")
         #if message == "upload done":
         if format == "plaintext_hash=%(plaintext_hash)s, SI=%(SI)s, size=%(size)d":
             size = m.get("size")
-            print "upload done, size", size
+            print("upload done, size", size)
             self.sound("mech/ziplash-low.aiff")
         if "fetching " in message:
             # helper grabbing ciphertext from client
@@ -90,31 +92,31 @@ class Listener:
             pass
         elif format == "excessive reactor delay (%ss)":
             self.sound("animal/frog-cheep.aiff")
-            print "excessive delay %s: %s" % (m['args'][0], furl)
+            print("excessive delay %s: %s" % (m['args'][0], furl))
         elif format == "excessive reactor delay (%(delay)ss)":
             self.sound("animal/frog-cheep.aiff")
-            print "excessive delay %s: %s" % (m['delay'], furl)
+            print("excessive delay %s: %s" % (m['delay'], furl))
         elif facility == "foolscap.negotiation":
           if (message == "got offer for an existing connection"
               or "master told us to use a new connection" in message):
-              print "foolscap: got offer for an existing connection", message, furl
+              print("foolscap: got offer for an existing connection", message, furl)
           else:
               #print "foolscap:", message
               pass
         elif m['level'] > 30: # SCARY or BAD
             #self.sound("mech/alarm-bell.aiff")
             self.sound("environ/thunder-tense.aiff")
-            print m, furl
+            print(m, furl)
         elif m['level'] == 30: # WEIRD
             self.sound("mech/glass-breaking.aiff")
-            print m, furl
+            print(m, furl)
         elif m['level'] > 20: # UNUSUAL or INFREQUENT or CURIOUS
             self.sound("mech/telephone-ring-old.aiff")
-            print m, furl
+            print(m, furl)
 
 class BoodleSender(protocol.Protocol):
     def connectionMade(self):
-        print "connected to boodler"
+        print("connected to boodler")
         self.factory.listener.boodler = self.transport
 
 class Bridge(Referenceable):
@@ -150,7 +152,7 @@ class Monitor(service.MultiService):
         reactor.connectTCP("localhost", 31863, cf)
 
     def _got_logpublisher(self, publisher, fn, i, target):
-        print "connected to %s:%d, %s" % (fn, i, target)
+        print("connected to %s:%d, %s" % (fn, i, target))
         b = Bridge(target, self.listener)
         publisher.callRemote("subscribe_to_all", b)
 

@@ -1,5 +1,7 @@
 # -*- python -*-
 
+from __future__ import print_function
+
 """
 # run this tool on a linux box in its own directory, with a file named
 # 'pids.txt' describing which processes to watch. It will follow CPU usage of
@@ -18,7 +20,6 @@
 
 # TODO:
 #  built-in graphs on web interface
-
 
 
 import pickle, os.path, time, pprint
@@ -210,7 +211,7 @@ class CPUWatcher(service.MultiService, resource.Resource, Referenceable):
                 row.append(self._average_N(pid, avg))
             current.append(tuple(row))
         self.current = current
-        print current
+        print(current)
         for ob in self.observers:
             eventual.eventually(self.notify, ob)
 

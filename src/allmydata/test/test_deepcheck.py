@@ -1,8 +1,22 @@
-
 import os, json, urllib
+
+# Python 2 compatibility
+# Can't use `builtins.str` because something deep in Twisted callbacks ends up repr'ing
+# a `future.types.newstr.newstr` as a *Python 3* byte string representation under
+# *Python 2*:
+#   File "/home/rpatterson/src/work/sfu/tahoe-lafs/.tox/py27/lib/python2.7/site-packages/allmydata/util/netstring.py", line 43, in split_netstring
+#    assert data[position] == b","[0], position
+# exceptions.AssertionError: 15
+# ...
+# (Pdb) pp data
+# '334:12:b\'mutable-good\',90:URI:SSK-RO:...
+from past.builtins import unicode as str
+from future.utils import native_str
+
 from twisted.trial import unittest
 from twisted.internet import defer
 from twisted.internet.defer import inlineCallbacks, returnValue
+
 from allmydata.immutable import upload
 from allmydata.mutable.common import UnrecoverableFileError
 from allmydata.mutable.publish import MutableData
@@ -19,8 +33,6 @@ from .common_util import StallMixin, run_cli
 from .common_web import do_http
 from allmydata.test.no_network import GridTestMixin
 from .cli.common import CLITestMixin
-
-timeout = 2400 # One of these took 1046.091s on Zandr's ARM box.
 
 class MutableChecker(GridTestMixin, unittest.TestCase, ErrorMixin):
     def test_good(self):
@@ -131,7 +143,8 @@ class DeepCheckBase(GridTestMixin, ErrorMixin, StallMixin, ShouldFailMixin,
         d.addCallback(self.decode_json)
         return d
 
-    def decode_json(self, (s,url)):
+    def decode_json(self, args):
+        (s, url) = args
         try:
             data = json.loads(s)
         except ValueError:
@@ -145,7 +158,7 @@ class DeepCheckBase(GridTestMixin, ErrorMixin, StallMixin, ShouldFailMixin,
                 continue
             try:
                 yield json.loads(unit)
-            except ValueError, le:
+            except ValueError as le:
                 le.args = tuple(le.args + (unit,))
                 raise
 
@@ -357,8 +370,8 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
 
     def do_web_stream_manifest(self, ignored):
         d = self.web(self.root, method="POST", t="stream-manifest")
-        d.addCallback(lambda (output,url):
-                      self._check_streamed_manifest(output))
+        d.addCallback(lambda output_and_url:
+                      self._check_streamed_manifest(output_and_url[0]))
         return d
 
     def _check_streamed_manifest(self, output):
@@ -733,7 +746,8 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
 
     def do_cli_manifest_stream1(self):
         d = self.do_cli("manifest", self.root_uri)
-        def _check((rc,out,err)):
+        def _check(args):
+            (rc, out, err) = args
             self.failUnlessEqual(err, "")
             lines = [l for l in out.split("\n") if l]
             self.failUnlessEqual(len(lines), 8)
@@ -758,7 +772,8 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
 
     def do_cli_manifest_stream2(self):
         d = self.do_cli("manifest", "--raw", self.root_uri)
-        def _check((rc,out,err)):
+        def _check(args):
+            (rc, out, err) = args
             self.failUnlessEqual(err, "")
             # this should be the same as the POST t=stream-manifest output
             self._check_streamed_manifest(out)
@@ -767,7 +782,8 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
 
     def do_cli_manifest_stream3(self):
         d = self.do_cli("manifest", "--storage-index", self.root_uri)
-        def _check((rc,out,err)):
+        def _check(args):
+            (rc, out, err) = args
             self.failUnlessEqual(err, "")
             self._check_manifest_storage_index(out)
         d.addCallback(_check)
@@ -775,7 +791,8 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
 
     def do_cli_manifest_stream4(self):
         d = self.do_cli("manifest", "--verify-cap", self.root_uri)
-        def _check((rc,out,err)):
+        def _check(args):
+            (rc, out, err) = args
             self.failUnlessEqual(err, "")
             lines = [l for l in out.split("\n") if l]
             self.failUnlessEqual(len(lines), 3)
@@ -787,7 +804,8 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
 
     def do_cli_manifest_stream5(self):
         d = self.do_cli("manifest", "--repair-cap", self.root_uri)
-        def _check((rc,out,err)):
+        def _check(args):
+            (rc, out, err) = args
             self.failUnlessEqual(err, "")
             lines = [l for l in out.split("\n") if l]
             self.failUnlessEqual(len(lines), 3)
@@ -799,7 +817,8 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
 
     def do_cli_stats1(self):
         d = self.do_cli("stats", self.root_uri)
-        def _check3((rc,out,err)):
+        def _check3(args):
+            (rc, out, err) = args
             lines = [l.strip() for l in out.split("\n") if l]
             self.failUnless("count-immutable-files: 1" in lines)
             self.failUnless("count-mutable-files: 1" in lines)
@@ -816,7 +835,8 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
 
     def do_cli_stats2(self):
         d = self.do_cli("stats", "--raw", self.root_uri)
-        def _check4((rc,out,err)):
+        def _check4(args):
+            (rc, out, err) = args
             data = json.loads(out)
             self.failUnlessEqual(data["count-immutable-files"], 1)
             self.failUnlessEqual(data["count-immutable-files"], 1)
@@ -910,13 +930,13 @@ class DeepCheckWebBad(DeepCheckBase, unittest.TestCase):
         if nodetype == "mutable":
             mutable_uploadable = MutableData("mutable file contents")
             d = self.g.clients[0].create_mutable_file(mutable_uploadable)
-            d.addCallback(lambda n: self.root.set_node(unicode(name), n))
+            d.addCallback(lambda n: self.root.set_node(str(name), n))
         elif nodetype == "large":
             large = upload.Data("Lots of data\n" * 1000 + name + "\n", None)
-            d = self.root.add_file(unicode(name), large)
+            d = self.root.add_file(str(name), large)
         elif nodetype == "small":
             small = upload.Data("Small enough for a LIT", None)
-            d = self.root.add_file(unicode(name), small)
+            d = self.root.add_file(str(name), small)
 
         d.addCallback(self._stash_node, name)
 
@@ -939,7 +959,7 @@ class DeepCheckWebBad(DeepCheckBase, unittest.TestCase):
     def _corrupt_some_shares(self, node):
         for (shnum, serverid, sharefile) in self.find_uri_shares(node.get_uri()):
             if shnum in (0,1):
-                yield run_cli("debug", "corrupt-share", sharefile)
+                yield run_cli("debug", "corrupt-share", native_str(sharefile))
 
     def _delete_most_shares(self, node):
         self.delete_shares_numbered(node.get_uri(), range(1,10))
@@ -953,7 +973,7 @@ class DeepCheckWebBad(DeepCheckBase, unittest.TestCase):
             self.failUnlessEqual(cr.get_version_counter_recoverable(), 1, where)
             self.failUnlessEqual(cr.get_version_counter_unrecoverable(), 0, where)
             return cr
-        except Exception, le:
+        except Exception as le:
             le.args = tuple(le.args + (where,))
             raise
 
@@ -1189,7 +1209,8 @@ class Large(DeepCheckBase, unittest.TestCase):
         def _start_deepcheck(ignored):
             return self.web(self.root, method="POST", t="stream-deep-check")
         d.addCallback(_start_deepcheck)
-        def _check( (output, url) ):
+        def _check(output_and_url):
+            (output, url) = output_and_url
             units = list(self.parse_streamed_json(output))
             self.failUnlessEqual(len(units), 2+COUNT+1)
         d.addCallback(_check)

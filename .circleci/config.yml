@@ -1,0 +1,568 @@
+# https://circleci.com/docs/2.0/
+
+# We use version 2.1 of CircleCI's configuration format (the docs are still at
+# the 2.0 link) in order to have access to Windows executors. This means we
+# can't use dots in job names anymore. They have a new "parameters" feature
+# that is supposed to remove the need to have version numbers in job names (the
+# source of our dots), but switching to that is going to be a bigger refactor:
+#
+#   https://discuss.circleci.com/t/v2-1-job-name-validation/31123
+#   https://circleci.com/docs/2.0/reusing-config/
+#
+version: 2.1
+
+workflows:
+  ci:
+    jobs:
+      # Platforms
+      - "debian-9"
+      - "debian-8":
+          requires:
+            - "debian-9"
+
+      - "ubuntu-20-04"
+      - "ubuntu-18-04":
+          requires:
+            - "ubuntu-20-04"
+      - "ubuntu-16-04":
+          requires:
+            - "ubuntu-20-04"
+
+      - "fedora-29"
+      - "fedora-28":
+          requires:
+            - "fedora-29"
+
+      - "centos-8"
+
+      - "nixos-19-09"
+
+      # Test against PyPy 2.7
+      - "pypy27-buster"
+
+      # Just one Python 3.6 configuration while the port is in-progress.
+      - "python36"
+
+      # Other assorted tasks and configurations
+      - "lint"
+      - "pyinstaller"
+      - "deprecations"
+      - "c-locale"
+      # Any locale other than C or UTF-8.
+      - "another-locale"
+
+      - "integration":
+          requires:
+            # If the unit test suite doesn't pass, don't bother running the
+            # integration tests.
+            - "debian-9"
+
+      # Generate the underlying data for a visualization to aid with Python 3
+      # porting.
+      - "build-porting-depgraph"
+
+  images:
+    # Build the Docker images used by the ci jobs.  This makes the ci jobs
+    # faster and takes various spurious failures out of the critical path.
+    triggers:
+      # Build once a day
+      - schedule:
+          cron: "0 0 * * *"
+          filters:
+            branches:
+              only:
+                - "master"
+
+    jobs:
+      - "build-image-debian-8"
+      - "build-image-debian-9"
+      - "build-image-ubuntu-16-04"
+      - "build-image-ubuntu-18-04"
+      - "build-image-ubuntu-20-04"
+      - "build-image-fedora-28"
+      - "build-image-fedora-29"
+      - "build-image-centos-8"
+      - "build-image-pypy27-buster"
+      - "build-image-python36-ubuntu"
+
+
+jobs:
+  lint:
+    docker:
+      - image: "circleci/python:2"
+
+    steps:
+      - "checkout"
+
+      - run:
+          name: "Install tox"
+          command: |
+            pip install --user tox
+
+      - run:
+          name: "Static-ish code checks"
+          command: |
+            ~/.local/bin/tox -e codechecks
+
+  pyinstaller:
+    docker:
+      - image: "circleci/python:2"
+
+    steps:
+      - "checkout"
+
+      - run:
+          name: "Install tox"
+          command: |
+            pip install --user tox
+
+      - run:
+          name: "Make PyInstaller executable"
+          command: |
+            ~/.local/bin/tox -e pyinstaller
+
+      - run:
+          # To verify that the resultant PyInstaller-generated binary executes
+          # cleanly (i.e., that it terminates with an exit code of 0 and isn't
+          # failing due to import/packaging-related errors, etc.).
+          name: "Test PyInstaller executable"
+          command: |
+            dist/Tahoe-LAFS/tahoe --version
+
+  debian-9: &DEBIAN
+    docker:
+      - image: "tahoelafsci/debian:9-py2.7"
+        user: "nobody"
+
+    environment: &UTF_8_ENVIRONMENT
+      # In general, the test suite is not allowed to fail while the job
+      # succeeds.  But you can set this to "yes" if you want it to be
+      # otherwise.
+      ALLOWED_FAILURE: "no"
+      # Tell Hypothesis which configuration we want it to use.
+      TAHOE_LAFS_HYPOTHESIS_PROFILE: "ci"
+      # Tell the C runtime things about character encoding (mainly to do with
+      # filenames and argv).
+      LANG: "en_US.UTF-8"
+      # Select a tox environment to run for this job.
+      TAHOE_LAFS_TOX_ENVIRONMENT: "py27-coverage"
+      # Additional arguments to pass to tox.
+      TAHOE_LAFS_TOX_ARGS: ""
+      # The path in which test artifacts will be placed.
+      ARTIFACTS_OUTPUT_PATH: "/tmp/artifacts"
+      # Convince all of our pip invocations to look at the cached wheelhouse
+      # we maintain.
+      WHEELHOUSE_PATH: &WHEELHOUSE_PATH "/tmp/wheelhouse"
+      PIP_FIND_LINKS: "file:///tmp/wheelhouse"
+      # Upload the coverage report.
+      UPLOAD_COVERAGE: "yes"
+
+    # pip cannot install packages if the working directory is not readable.
+    # We want to run a lot of steps as nobody instead of as root.
+    working_directory: "/tmp/project"
+
+    steps:
+      - "checkout"
+      - run: &SETUP_VIRTUALENV
+          name: "Setup virtualenv"
+          command: |
+            /tmp/project/.circleci/setup-virtualenv.sh \
+                "/tmp/venv" \
+                "/tmp/project" \
+                "${WHEELHOUSE_PATH}" \
+                "${TAHOE_LAFS_TOX_ENVIRONMENT}" \
+                "${TAHOE_LAFS_TOX_ARGS}"
+
+      - run: &RUN_TESTS
+          name: "Run test suite"
+          command: |
+            /tmp/project/.circleci/run-tests.sh \
+                "/tmp/venv" \
+                "/tmp/project" \
+                "${ALLOWED_FAILURE}" \
+                "${ARTIFACTS_OUTPUT_PATH}" \
+                "${TAHOE_LAFS_TOX_ENVIRONMENT}" \
+                "${TAHOE_LAFS_TOX_ARGS}"
+          # trial output gets directed straight to a log.  avoid the circleci
+          # timeout while the test suite runs.
+          no_output_timeout: "20m"
+
+      - store_test_results: &STORE_TEST_RESULTS
+          path: "/tmp/artifacts/junit"
+
+      - store_artifacts: &STORE_TEST_LOG
+          # Despite passing --workdir /tmp to tox above, it still runs trial
+          # in the project source checkout.
+          path: "/tmp/project/_trial_temp/test.log"
+
+      - store_artifacts: &STORE_OTHER_ARTIFACTS
+          # Store any other artifacts, too.  This is handy to allow other jobs
+          # sharing most of the definition of this one to be able to
+          # contribute artifacts easily.
+          path: "/tmp/artifacts"
+
+      - run: &SUBMIT_COVERAGE
+          name: "Submit coverage results"
+          command: |
+            if [ -n "${UPLOAD_COVERAGE}" ]; then
+              /tmp/venv/bin/codecov
+            fi
+
+
+  debian-8:
+    <<: *DEBIAN
+    docker:
+      - image: "tahoelafsci/debian:8-py2.7"
+        user: "nobody"
+
+
+  pypy27-buster:
+    <<: *DEBIAN
+    docker:
+      - image: "tahoelafsci/pypy:buster-py2"
+        user: "nobody"
+
+    environment:
+      <<: *UTF_8_ENVIRONMENT
+      # We don't do coverage since it makes PyPy far too slow:
+      TAHOE_LAFS_TOX_ENVIRONMENT: "pypy27"
+      # Since we didn't collect it, don't upload it.
+      UPLOAD_COVERAGE: ""
+
+
+  c-locale:
+    <<: *DEBIAN
+
+    environment:
+      <<: *UTF_8_ENVIRONMENT
+      LANG: "C"
+
+
+  another-locale:
+    <<: *DEBIAN
+
+    environment:
+      <<: *UTF_8_ENVIRONMENT
+      # aka "Latin 1"
+      LANG: "en_US.ISO-8859-1"
+
+
+  deprecations:
+    <<: *DEBIAN
+
+    environment:
+      <<: *UTF_8_ENVIRONMENT
+      # Select the deprecations tox environments.
+      TAHOE_LAFS_TOX_ENVIRONMENT: "deprecations,upcoming-deprecations"
+      # Put the logs somewhere we can report them.
+      TAHOE_LAFS_WARNINGS_LOG: "/tmp/artifacts/deprecation-warnings.log"
+      # The deprecations tox environments don't do coverage measurement.
+      UPLOAD_COVERAGE: ""
+
+
+  integration:
+    <<: *DEBIAN
+
+    environment:
+      <<: *UTF_8_ENVIRONMENT
+      # Select the integration tests tox environments.
+      TAHOE_LAFS_TOX_ENVIRONMENT: "integration"
+      # Disable artifact collection because py.test can't produce any.
+      ARTIFACTS_OUTPUT_PATH: ""
+
+    steps:
+      - "checkout"
+      # DRY, YAML-style.  See the debian-9 steps.
+      - run: *SETUP_VIRTUALENV
+      - run: *RUN_TESTS
+
+
+  ubuntu-16-04:
+    <<: *DEBIAN
+    docker:
+      - image: "tahoelafsci/ubuntu:16.04-py2.7"
+        user: "nobody"
+
+
+  ubuntu-18-04: &UBUNTU_18_04
+    <<: *DEBIAN
+    docker:
+      - image: "tahoelafsci/ubuntu:18.04-py2.7"
+        user: "nobody"
+
+
+  python36:
+    <<: *UBUNTU_18_04
+    docker:
+      - image: "tahoelafsci/ubuntu:18.04-py3"
+        user: "nobody"
+
+    environment:
+      <<: *UTF_8_ENVIRONMENT
+      # The default trial args include --rterrors which is incompatible with
+      # this reporter on Python 3.  So drop that and just specify the
+      # reporter.
+      TAHOE_LAFS_TRIAL_ARGS: "--reporter=subunitv2-file"
+      TAHOE_LAFS_TOX_ENVIRONMENT: "py36-coverage"
+
+
+  ubuntu-20-04:
+    <<: *DEBIAN
+    docker:
+      - image: "tahoelafsci/ubuntu:20.04"
+        user: "nobody"
+
+
+  centos-8: &RHEL_DERIV
+    docker:
+      - image: "tahoelafsci/centos:8-py2"
+        user: "nobody"
+
+    environment: *UTF_8_ENVIRONMENT
+
+    # pip cannot install packages if the working directory is not readable.
+    # We want to run a lot of steps as nobody instead of as root.
+    working_directory: "/tmp/project"
+
+    steps:
+      - "checkout"
+      - run: *SETUP_VIRTUALENV
+      - run: *RUN_TESTS
+      - store_test_results: *STORE_TEST_RESULTS
+      - store_artifacts: *STORE_TEST_LOG
+      - store_artifacts: *STORE_OTHER_ARTIFACTS
+      - run: *SUBMIT_COVERAGE
+
+
+  fedora-28:
+    <<: *RHEL_DERIV
+    docker:
+      - image: "tahoelafsci/fedora:28-py"
+        user: "nobody"
+
+
+  fedora-29:
+    <<: *RHEL_DERIV
+    docker:
+      - image: "tahoelafsci/fedora:29-py"
+        user: "nobody"
+
+
+  nixos-19-09:
+    docker:
+      # Run in a highly Nix-capable environment.
+      - image: "nixorg/nix:circleci"
+
+    environment:
+      NIX_PATH: "nixpkgs=https://github.com/NixOS/nixpkgs-channels/archive/nixos-19.09-small.tar.gz"
+
+    steps:
+      - "checkout"
+      - "run":
+          name: "Build and Test"
+          command: |
+            # CircleCI build environment looks like it has a zillion and a
+            # half cores.  Don't let Nix autodetect this high core count
+            # because it blows up memory usage and fails the test run.  Pick a
+            # number of cores that suites the build environment we're paying
+            # for (the free one!).
+            #
+            # Also, let it run more than one job at a time because we have to
+            # build a couple simple little dependencies that don't take
+            # advantage of multiple cores and we get a little speedup by doing
+            # them in parallel.
+            nix-build --cores 3 --max-jobs 2 nix/
+
+  # Generate up-to-date data for the dependency graph visualizer.
+  build-porting-depgraph:
+    # Get a system in which we can easily install Tahoe-LAFS and all its
+    # dependencies.  The dependency graph analyzer works by executing the code.
+    # It's Python, what do you expect?
+    <<: *DEBIAN
+
+    steps:
+      - "checkout"
+
+      - add_ssh_keys:
+          fingerprints:
+            # Jean-Paul Calderone <exarkun@twistedmatrix.com> (CircleCI depgraph key)
+            # This lets us push to tahoe-lafs/tahoe-depgraph in the next step.
+            - "86:38:18:a7:c0:97:42:43:18:46:55:d6:21:b0:5f:d4"
+
+      - run:
+          name: "Setup Python Environment"
+          command: |
+            /tmp/venv/bin/pip install -e /tmp/project
+
+      - run:
+          name: "Generate dependency graph data"
+          command: |
+            . /tmp/venv/bin/activate
+            ./misc/python3/depgraph.sh
+
+  build-image: &BUILD_IMAGE
+    # This is a template for a job to build a Docker image that has as much of
+    # the setup as we can manage already done and baked in.  This cuts down on
+    # the per-job setup time the actual testing jobs have to perform - by
+    # perhaps 10% - 20%.
+    #
+    # https://circleci.com/blog/how-to-build-a-docker-image-on-circleci-2-0/
+    docker:
+      - image: "docker:17.05.0-ce-git"
+
+    environment:
+      DISTRO: "tahoelafsci/<DISTRO>:foo-py2"
+      TAG: "tahoelafsci/distro:<TAG>-py2"
+      PYTHON_VERSION: "tahoelafsci/distro:tag-py<PYTHON_VERSION}"
+
+    steps:
+      - "checkout"
+      - "setup_remote_docker"
+      - run:
+          name: "Get openssl"
+          command: |
+            apk add --no-cache openssl
+      - run:
+          name: "Get Dockerhub secrets"
+          command: |
+            # If you create an encryption key like this:
+            #
+            #   openssl enc -aes-256-cbc -k secret -P -md sha256
+
+            # From the output that looks like:
+            #
+            #  salt=...
+            #  key=...
+            #  iv =...
+            #
+            # extract just the value for ``key``.
+
+            # then you can re-generate ``secret-env-cipher`` locally using the
+            # command:
+            #
+            #   openssl aes-256-cbc -e -md sha256 -in secret-env-plain -out .circleci/secret-env-cipher -pass env:KEY
+            #
+            # Make sure the key is set as the KEY environment variable in the
+            # CircleCI web interface.  You can do this by visiting
+            # <https://circleci.com/gh/tahoe-lafs/tahoe-lafs/edit#env-vars>
+            # after logging in to CircleCI with an account in the tahoe-lafs
+            # CircleCI team.
+            #
+            # Then you can recover the environment plaintext (for example, to
+            # change and re-encrypt it) like just like CircleCI recovers it
+            # here:
+            #
+            openssl aes-256-cbc -d -md sha256 -in .circleci/secret-env-cipher -pass env:KEY >> ~/.env
+      - run:
+          name: "Log in to Dockerhub"
+          command: |
+            . ~/.env
+            # TAHOELAFSCI_PASSWORD come from the secret env.
+            docker login -u tahoelafsci -p ${TAHOELAFSCI_PASSWORD}
+      - run:
+          name: "Build image"
+          command: |
+            docker \
+                build \
+                --build-arg TAG=${TAG} \
+                --build-arg PYTHON_VERSION=${PYTHON_VERSION} \
+                -t tahoelafsci/${DISTRO}:${TAG}-py${PYTHON_VERSION} \
+                -f ~/project/.circleci/Dockerfile.${DISTRO} \
+                ~/project/
+      - run:
+          name: "Push image"
+          command: |
+            docker push tahoelafsci/${DISTRO}:${TAG}-py${PYTHON_VERSION}
+
+
+  build-image-debian-8:
+    <<: *BUILD_IMAGE
+
+    environment:
+      DISTRO: "debian"
+      TAG: "8"
+      PYTHON_VERSION: "2.7"
+
+
+  build-image-debian-9:
+    <<: *BUILD_IMAGE
+
+    environment:
+      DISTRO: "debian"
+      TAG: "9"
+      PYTHON_VERSION: "2.7"
+
+
+  build-image-ubuntu-16-04:
+    <<: *BUILD_IMAGE
+
+    environment:
+      DISTRO: "ubuntu"
+      TAG: "16.04"
+      PYTHON_VERSION: "2.7"
+
+
+  build-image-ubuntu-18-04:
+    <<: *BUILD_IMAGE
+
+    environment:
+      DISTRO: "ubuntu"
+      TAG: "18.04"
+      PYTHON_VERSION: "2.7"
+
+
+  build-image-python36-ubuntu:
+    <<: *BUILD_IMAGE
+
+    environment:
+      DISTRO: "ubuntu"
+      TAG: "18.04"
+      PYTHON_VERSION: "3"
+
+
+  build-image-ubuntu-20-04:
+    <<: *BUILD_IMAGE
+
+    environment:
+      DISTRO: "ubuntu"
+      TAG: "20.04"
+      PYTHON_VERSION: "2.7"
+
+
+  build-image-centos-8:
+    <<: *BUILD_IMAGE
+
+    environment:
+      DISTRO: "centos"
+      TAG: "8"
+      PYTHON_VERSION: "2"
+
+
+  build-image-fedora-28:
+    <<: *BUILD_IMAGE
+
+    environment:
+      DISTRO: "fedora"
+      TAG: "28"
+      # The default on Fedora (this version anyway) is still Python 2.
+      PYTHON_VERSION: ""
+
+
+  build-image-fedora-29:
+    <<: *BUILD_IMAGE
+
+    environment:
+      DISTRO: "fedora"
+      TAG: "29"
+
+
+  build-image-pypy27-buster:
+    <<: *BUILD_IMAGE
+
+    environment:
+      DISTRO: "pypy"
+      TAG: "buster"
+      # We only have Python 2 for PyPy right now so there's no support for
+      # setting up PyPy 3 in the image building toolchain.  This value is just
+      # for constructing the right Docker image tag.
+      PYTHON_VERSION: "2"

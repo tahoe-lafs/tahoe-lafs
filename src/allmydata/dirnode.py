@@ -1,11 +1,14 @@
 """Directory Node implementation."""
-import time, unicodedata
+from past.builtins import unicode
+
+import time
 
 from zope.interface import implementer
 from twisted.internet import defer
 from foolscap.api import fireEventually
 import json
 
+from allmydata.crypto import aes
 from allmydata.deep_stats import DeepStats
 from allmydata.mutable.common import NotWriteableError
 from allmydata.mutable.filenode import MutableFileNode
@@ -17,14 +20,46 @@ from allmydata.check_results import DeepCheckResults, \
      DeepCheckAndRepairResults
 from allmydata.monitor import Monitor
 from allmydata.util import hashutil, base32, log
-from allmydata.util.encodingutil import quote_output
+from allmydata.util.encodingutil import quote_output, normalize
 from allmydata.util.assertutil import precondition
 from allmydata.util.netstring import netstring, split_netstring
 from allmydata.util.consumer import download_to_data
 from allmydata.uri import wrap_dirnode_cap
-from pycryptopp.cipher.aes import AES
 from allmydata.util.dictutil import AuxValueDict
 
+from eliot import (
+    ActionType,
+    Field,
+)
+from eliot.twisted import (
+    DeferredContext,
+)
+
+NAME = Field.for_types(
+    u"name",
+    [unicode],
+    u"The name linking the parent to this node.",
+)
+
+METADATA = Field.for_types(
+    u"metadata",
+    [dict],
+    u"Data about a node.",
+)
+
+OVERWRITE = Field.for_types(
+    u"overwrite",
+    [bool],
+    u"True to replace an existing file of the same name, "
+    u"false to fail with a collision error.",
+)
+
+ADD_FILE = ActionType(
+    u"dirnode:add-file",
+    [NAME, METADATA, OVERWRITE],
+    [],
+    u"Add a new file as a child of a directory.",
+)
 
 def update_metadata(metadata, new_metadata, now):
     """Updates 'metadata' in-place with the information in 'new_metadata'.
@@ -68,17 +103,11 @@ def update_metadata(metadata, new_metadata, now):
     return metadata
 
 
-# 'x' at the end of a variable name indicates that it holds a Unicode string that may not
-# be NFC-normalized.
-
-def normalize(namex):
-    return unicodedata.normalize('NFC', namex)
-
 # TODO: {Deleter,MetadataSetter,Adder}.modify all start by unpacking the
 # contents and end by repacking them. It might be better to apply them to
 # the unpacked contents.
 
-class Deleter:
+class Deleter(object):
     def __init__(self, node, namex, must_exist=True, must_be_directory=False, must_be_file=False):
         self.node = node
         self.name = normalize(namex)
@@ -106,7 +135,7 @@ class Deleter:
         return new_contents
 
 
-class MetadataSetter:
+class MetadataSetter(object):
     def __init__(self, node, namex, metadata, create_readonly_node=None):
         self.node = node
         self.name = normalize(namex)
@@ -131,7 +160,7 @@ class MetadataSetter:
         return new_contents
 
 
-class Adder:
+class Adder(object):
     def __init__(self, node, entries=None, overwrite=True, create_readonly_node=None):
         self.node = node
         if entries is None:
@@ -181,8 +210,8 @@ def _encrypt_rw_uri(writekey, rw_uri):
 
     salt = hashutil.mutable_rwcap_salt_hash(rw_uri)
     key = hashutil.mutable_rwcap_key_hash(salt, writekey)
-    cryptor = AES(key)
-    crypttext = cryptor.process(rw_uri)
+    encryptor = aes.create_encryptor(key)
+    crypttext = aes.encrypt_data(encryptor, rw_uri)
     mac = hashutil.hmac(key, salt + crypttext)
     assert len(mac) == 32
     return salt + crypttext + mac
@@ -200,7 +229,7 @@ def pack_children(childrenx, writekey, deep_immutable=False):
     return _pack_normalized_children(children, writekey=writekey, deep_immutable=deep_immutable)
 
 
-ZERO_LEN_NETSTR=netstring('')
+ZERO_LEN_NETSTR=netstring(b'')
 def _pack_normalized_children(children, writekey, deep_immutable=False):
     """Take a dict that maps:
          children[unicode_nfc_name] = (IFileSystemNode, metadata_dict)
@@ -298,8 +327,8 @@ class DirectoryNode(object):
         salt = encwrcap[:16]
         crypttext = encwrcap[16:-32]
         key = hashutil.mutable_rwcap_key_hash(salt, self._node.get_writekey())
-        cryptor = AES(key)
-        plaintext = cryptor.process(crypttext)
+        encryptor = aes.create_decryptor(key)
+        plaintext = aes.decrypt_data(encryptor, crypttext)
         return plaintext
 
     def _create_and_validate_node(self, rw_uri, ro_uri, name):
@@ -369,7 +398,7 @@ class DirectoryNode(object):
                     log.msg(format="mutable cap for child %(name)s unpacked from an immutable directory",
                             name=quote_output(name, encoding='utf-8'),
                             facility="tahoe.webish", level=log.UNUSUAL)
-            except CapConstraintError, e:
+            except CapConstraintError as e:
                 log.msg(format="unmet constraint on cap for child %(name)s unpacked from a directory:\n"
                                "%(message)s", message=e.args[0], name=quote_output(name, encoding='utf-8'),
                                facility="tahoe.webish", level=log.UNUSUAL)
@@ -499,7 +528,7 @@ class DirectoryNode(object):
         path-name elements.
         """
         d = self.get_child_and_metadata_at_path(pathx)
-        d.addCallback(lambda (node, metadata): node)
+        d.addCallback(lambda node_and_metadata: node_and_metadata[0])
         return d
 
     def get_child_and_metadata_at_path(self, pathx):
@@ -596,17 +625,20 @@ class DirectoryNode(object):
         resulting FileNode to the directory at the given name. I return a
         Deferred that fires (with the IFileNode of the uploaded file) when
         the operation completes."""
-        name = normalize(namex)
-        if self.is_readonly():
-            return defer.fail(NotWriteableError())
-        # XXX should pass reactor arg
-        d = self._uploader.upload(uploadable, progress=progress)
-        d.addCallback(lambda results:
-                      self._create_and_validate_node(results.get_uri(), None,
-                                                     name))
-        d.addCallback(lambda node:
-                      self.set_node(name, node, metadata, overwrite))
-        return d
+        with ADD_FILE(name=namex, metadata=metadata, overwrite=overwrite).context():
+            name = normalize(namex)
+            if self.is_readonly():
+                d = DeferredContext(defer.fail(NotWriteableError()))
+            else:
+                # XXX should pass reactor arg
+                d = DeferredContext(self._uploader.upload(uploadable, progress=progress))
+                d.addCallback(lambda results:
+                              self._create_and_validate_node(results.get_uri(), None,
+                                                             name))
+                d.addCallback(lambda node:
+                              self.set_node(name, node, metadata, overwrite))
+
+        return d.addActionFinish()
 
     def delete(self, namex, must_exist=True, must_be_directory=False, must_be_file=False):
         """I remove the child at the specific name. I return a Deferred that
@@ -673,7 +705,8 @@ class DirectoryNode(object):
             return defer.succeed("redundant rename/relink")
 
         d = self.get_child_and_metadata(current_child_name)
-        def _got_child( (child, metadata) ):
+        def _got_child(child_and_metadata):
+            (child, metadata) = child_and_metadata
             return new_parent.set_node(new_child_name, child, metadata,
                                        overwrite=overwrite)
         d.addCallback(_got_child)
@@ -824,7 +857,7 @@ class ManifestWalker(DeepStats):
                 }
 
 
-class DeepChecker:
+class DeepChecker(object):
     def __init__(self, root, verify, repair, add_lease):
         root_si = root.get_storage_index()
         if root_si:

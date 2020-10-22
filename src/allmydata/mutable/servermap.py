@@ -1,3 +1,4 @@
+from __future__ import print_function
 
 import sys, time, copy
 from zope.interface import implementer
@@ -7,11 +8,12 @@ from twisted.internet import defer
 from twisted.python import failure
 from foolscap.api import DeadReferenceError, RemoteException, eventually, \
                          fireEventually
+from allmydata.crypto.error import BadSignature
+from allmydata.crypto import rsa
 from allmydata.util import base32, hashutil, log, deferredutil
 from allmydata.util.dictutil import DictOfSets
 from allmydata.storage.server import si_b2a
 from allmydata.interfaces import IServermapUpdaterStatus
-from pycryptopp.publickey import rsa
 
 from allmydata.mutable.common import MODE_CHECK, MODE_ANYTHING, MODE_WRITE, \
      MODE_READ, MODE_REPAIR, CorruptShareError
@@ -31,7 +33,7 @@ class UpdateStatus(object):
         self.mode = "?"
         self.status = "Not started"
         self.progress = 0.0
-        self.counter = self.statusid_counter.next()
+        self.counter = next(self.statusid_counter)
         self.started = time.time()
         self.finished = None
 
@@ -79,7 +81,7 @@ class UpdateStatus(object):
     def set_finished(self, when):
         self.finished = when
 
-class ServerMap:
+class ServerMap(object):
     """I record the placement of mutable shares.
 
     This object records which shares (of various versions) are located on
@@ -181,19 +183,19 @@ class ServerMap:
         return (self._last_update_mode, self._last_update_time)
 
     def dump(self, out=sys.stdout):
-        print >>out, "servermap:"
+        print("servermap:", file=out)
 
         for ( (server, shnum), (verinfo, timestamp) ) in self._known_shares.items():
             (seqnum, root_hash, IV, segsize, datalength, k, N, prefix,
              offsets_tuple) = verinfo
-            print >>out, ("[%s]: sh#%d seq%d-%s %d-of-%d len%d" %
-                          (server.get_name(), shnum,
-                           seqnum, base32.b2a(root_hash)[:4], k, N,
-                           datalength))
+            print("[%s]: sh#%d seq%d-%s %d-of-%d len%d" %
+                         (server.get_name(), shnum,
+                          seqnum, base32.b2a(root_hash)[:4], k, N,
+                          datalength), file=out)
         if self._problems:
-            print >>out, "%d PROBLEMS" % len(self._problems)
+            print("%d PROBLEMS" % len(self._problems), file=out)
             for f in self._problems:
-                print >>out, str(f)
+                print(str(f), file=out)
         return out
 
     def all_servers(self):
@@ -377,7 +379,7 @@ class ServerMap:
         self.update_data.setdefault(shnum , []).append((verinfo, data))
 
 
-class ServermapUpdater:
+class ServermapUpdater(object):
     def __init__(self, filenode, storage_broker, monitor, servermap,
                  mode=MODE_READ, add_lease=False, update_range=None):
         """I update a servermap, locating a sufficient number of useful
@@ -591,7 +593,7 @@ class ServermapUpdater:
         return d
 
     def _do_read(self, server, storage_index, shnums, readv):
-        ss = server.get_rref()
+        ss = server.get_storage_server()
         if self._add_lease:
             # send an add-lease message in parallel. The results are handled
             # separately. This is sent before the slot_readv() so that we can
@@ -600,11 +602,14 @@ class ServermapUpdater:
             # add_lease is synchronous).
             renew_secret = self._node.get_renewal_secret(server)
             cancel_secret = self._node.get_cancel_secret(server)
-            d2 = ss.callRemote("add_lease", storage_index,
-                               renew_secret, cancel_secret)
+            d2 = ss.add_lease(
+                storage_index,
+                renew_secret,
+                cancel_secret,
+            )
             # we ignore success
             d2.addErrback(self._add_lease_failed, server, storage_index)
-        d = ss.callRemote("slot_readv", storage_index, shnums, readv)
+        d = ss.slot_readv(storage_index, shnums, readv)
         return d
 
 
@@ -637,7 +642,7 @@ class ServermapUpdater:
         lp = self.log(format="got result from [%(name)s], %(numshares)d shares",
                       name=server.get_name(),
                       numshares=len(datavs))
-        ss = server.get_rref()
+        ss = server.get_storage_server()
         now = time.time()
         elapsed = now - started
         def _done_processing(ignored=None):
@@ -795,9 +800,13 @@ class ServermapUpdater:
 
 
     def notify_server_corruption(self, server, shnum, reason):
-        rref = server.get_rref()
-        rref.callRemoteOnly("advise_corrupt_share",
-                            "mutable", self._storage_index, shnum, reason)
+        ss = server.get_storage_server()
+        ss.advise_corrupt_share(
+            "mutable",
+            self._storage_index,
+            shnum,
+            reason,
+        )
 
 
     def _got_signature_one_share(self, results, shnum, server, lp):
@@ -835,8 +844,9 @@ class ServermapUpdater:
             # This is a new version tuple, and we need to validate it
             # against the public key before keeping track of it.
             assert self._node.get_pubkey()
-            valid = self._node.get_pubkey().verify(prefix, signature[1])
-            if not valid:
+            try:
+                rsa.verify_signature(self._node.get_pubkey(), signature[1], prefix)
+            except BadSignature:
                 raise CorruptShareError(server, shnum,
                                         "signature is invalid")
 
@@ -905,11 +915,9 @@ class ServermapUpdater:
                                                               verinfo,
                                                               update_data)
 
-
     def _deserialize_pubkey(self, pubkey_s):
         verifier = rsa.create_verifying_key_from_string(pubkey_s)
         return verifier
-
 
     def _try_to_validate_privkey(self, enc_privkey, server, shnum, lp):
         """
@@ -929,7 +937,7 @@ class ServermapUpdater:
         self.log("got valid privkey from shnum %d on serverid %s" %
                  (shnum, server.get_name()),
                  parent=lp)
-        privkey = rsa.create_signing_key_from_string(alleged_privkey_s)
+        privkey, _ = rsa.create_signing_keypair_from_string(alleged_privkey_s)
         self._node._populate_encprivkey(enc_privkey)
         self._node._populate_privkey(privkey)
         self._need_privkey = False
@@ -1219,5 +1227,3 @@ class ServermapUpdater:
     def _fatal_error(self, f):
         self.log("fatal error", failure=f, level=log.WEIRD, umid="1cNvlw")
         self._done_deferred.errback(f)
-
-

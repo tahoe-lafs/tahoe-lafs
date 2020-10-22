@@ -1,5 +1,14 @@
+from __future__ import print_function
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import unicode_literals
 
-class Spans:
+from future.utils import PY2
+if PY2:
+    from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+
+
+class Spans(object):
     """I represent a compressed list of booleans, one per index (an integer).
     Typically, each index represents an offset into a large string, pointing
     to a specific byte of a share. In this context, True means that byte has
@@ -40,16 +49,16 @@ class Spans:
                     assert start > prev_end
                 prev_end = start+length
         except AssertionError:
-            print "BAD:", self.dump()
+            print("BAD:", self.dump())
             raise
 
     def add(self, start, length):
         assert start >= 0
         assert length > 0
-        #print " ADD [%d+%d -%d) to %s" % (start, length, start+length, self.dump())
+        #print(" ADD [%d+%d -%d) to %s" % (start, length, start+length, self.dump()))
         first_overlap = last_overlap = None
         for i,(s_start,s_length) in enumerate(self._spans):
-            #print "  (%d+%d)-> overlap=%s adjacent=%s" % (s_start,s_length, overlap(s_start, s_length, start, length), adjacent(s_start, s_length, start, length))
+            #print("  (%d+%d)-> overlap=%s adjacent=%s" % (s_start,s_length, overlap(s_start, s_length, start, length), adjacent(s_start, s_length, start, length)))
             if (overlap(s_start, s_length, start, length)
                 or adjacent(s_start, s_length, start, length)):
                 last_overlap = i
@@ -59,7 +68,7 @@ class Spans:
             # no overlap
             if first_overlap is not None:
                 break
-        #print "  first_overlap", first_overlap, last_overlap
+        #print("  first_overlap", first_overlap, last_overlap)
         if first_overlap is None:
             # no overlap, so just insert the span and sort by starting
             # position.
@@ -74,7 +83,7 @@ class Spans:
             newspan_length = newspan_end - newspan_start
             newspan = (newspan_start, newspan_length)
             self._spans[first_overlap:last_overlap+1] = [newspan]
-        #print "  ADD done: %s" % self.dump()
+        #print("  ADD done: %s" % self.dump())
         self._check()
 
         return self
@@ -82,7 +91,7 @@ class Spans:
     def remove(self, start, length):
         assert start >= 0
         assert length > 0
-        #print " REMOVE [%d+%d -%d) from %s" % (start, length, start+length, self.dump())
+        #print(" REMOVE [%d+%d -%d) from %s" % (start, length, start+length, self.dump()))
         first_complete_overlap = last_complete_overlap = None
         for i,(s_start,s_length) in enumerate(self._spans):
             s_end = s_start + s_length
@@ -135,7 +144,7 @@ class Spans:
                     break
         if first_complete_overlap is not None:
             del self._spans[first_complete_overlap:last_complete_overlap+1]
-        #print "  REMOVE done: %s" % self.dump()
+        #print("  REMOVE done: %s" % self.dump())
         self._check()
         return self
 
@@ -153,8 +162,10 @@ class Spans:
         for s in self._spans:
             yield s
 
-    def __nonzero__(self): # this gets us bool()
+    def __bool__(self): # this gets us bool()
         return bool(self.len())
+
+    #__nonzero__ = __bool__  # Python 2 backwards compatibility
 
     def len(self):
         # guess what! python doesn't allow __len__ to return a long, only an
@@ -191,7 +202,8 @@ class Spans:
         not_other = bounds - other
         return self - not_other
 
-    def __contains__(self, (start,length)):
+    def __contains__(self, start_and_length):
+        (start, length) = start_and_length
         for span_start,span_length in self._spans:
             o = overlap(start, length, span_start, span_length)
             if o:
@@ -219,7 +231,7 @@ def adjacent(start0, length0, start1, length1):
         return True
     return False
 
-class DataSpans:
+class DataSpans(object):
     """I represent portions of a large string. Equivalently, I can be said to
     maintain a large array of characters (with gaps of empty elements). I can
     be used to manage access to a remote share, where some pieces have been
@@ -232,7 +244,7 @@ class DataSpans:
             for (start, data) in other.get_chunks():
                 self.add(start, data)
 
-    def __nonzero__(self): # this gets us bool()
+    def __bool__(self): # this gets us bool()
         return bool(self.len())
 
     def len(self):
@@ -265,31 +277,31 @@ class DataSpans:
         for start, data in self.spans[1:]:
             if not start > prev_end:
                 # adjacent or overlapping: bad
-                print "ASSERTION FAILED", self.spans
+                print("ASSERTION FAILED", self.spans)
                 raise AssertionError
 
     def get(self, start, length):
         # returns a string of LENGTH, or None
-        #print "get", start, length, self.spans
+        #print("get", start, length, self.spans)
         end = start+length
         for (s_start,s_data) in self.spans:
             s_end = s_start+len(s_data)
-            #print " ",s_start,s_end
+            #print(" ",s_start,s_end)
             if s_start <= start < s_end:
                 # we want some data from this span. Because we maintain
                 # strictly merged and non-overlapping spans, everything we
                 # want must be in this span.
                 offset = start - s_start
                 if offset + length > len(s_data):
-                    #print " None, span falls short"
+                    #print(" None, span falls short")
                     return None # span falls short
-                #print " some", s_data[offset:offset+length]
+                #print(" some", s_data[offset:offset+length])
                 return s_data[offset:offset+length]
             if s_start >= end:
                 # we've gone too far: no further spans will overlap
-                #print " None, gone too far"
+                #print(" None, gone too far")
                 return None
-        #print " None, ran out of spans"
+        #print(" None, ran out of spans")
         return None
 
     def add(self, start, data):
@@ -298,13 +310,13 @@ class DataSpans:
         #  add new spans
         #  sort
         #  merge adjacent spans
-        #print "add", start, data, self.spans
+        #print("add", start, data, self.spans)
         end = start + len(data)
         i = 0
         while len(data):
-            #print " loop", start, data, i, len(self.spans), self.spans
+            #print(" loop", start, data, i, len(self.spans), self.spans)
             if i >= len(self.spans):
-                #print " append and done"
+                #print(" append and done")
                 # append a last span
                 self.spans.append( (start, data) )
                 break
@@ -321,7 +333,7 @@ class DataSpans:
             # A). We handle E by replacing the middle and terminating.
             if start < s_start:
                 # case A: insert a new span, then loop with the remainder
-                #print " insert new span"
+                #print(" insert new span")
                 s_len = s_start-start
                 self.spans.insert(i, (start, data[:s_len]))
                 i += 1
@@ -331,12 +343,12 @@ class DataSpans:
             s_len = len(s_data)
             s_end = s_start+s_len
             if s_start <= start < s_end:
-                #print " modify this span", s_start, start, s_end
+                #print(" modify this span", s_start, start, s_end)
                 # we want to modify some data in this span: a prefix, a
                 # suffix, or the whole thing
                 if s_start == start:
                     if s_end <= end:
-                        #print " replace whole segment"
+                        #print(" replace whole segment")
                         # case C: replace this segment
                         self.spans[i] = (s_start, data[:s_len])
                         i += 1
@@ -345,36 +357,36 @@ class DataSpans:
                         # C2 is where len(data)>0
                         continue
                     # case B: modify the prefix, retain the suffix
-                    #print " modify prefix"
+                    #print(" modify prefix")
                     self.spans[i] = (s_start, data + s_data[len(data):])
                     break
                 if start > s_start and end < s_end:
                     # case E: modify the middle
-                    #print " modify middle"
+                    #print(" modify middle")
                     prefix_len = start - s_start # we retain this much
                     suffix_len = s_end - end # and retain this much
                     newdata = s_data[:prefix_len] + data + s_data[-suffix_len:]
                     self.spans[i] = (s_start, newdata)
                     break
                 # case D: retain the prefix, modify the suffix
-                #print " modify suffix"
+                #print(" modify suffix")
                 prefix_len = start - s_start # we retain this much
                 suffix_len = s_len - prefix_len # we replace this much
-                #print "  ", s_data, prefix_len, suffix_len, s_len, data
+                #print("  ", s_data, prefix_len, suffix_len, s_len, data)
                 self.spans[i] = (s_start,
                                  s_data[:prefix_len] + data[:suffix_len])
                 i += 1
                 start += suffix_len
                 data = data[suffix_len:]
-                #print "  now", start, data
+                #print("  now", start, data)
                 # D2 is where len(data)>0
                 continue
             # else we're not there yet
-            #print " still looking"
+            #print(" still looking")
             i += 1
             continue
         # now merge adjacent spans
-        #print " merging", self.spans
+        #print(" merging", self.spans)
         newspans = []
         for (s_start,s_data) in self.spans:
             if newspans and adjacent(newspans[-1][0], len(newspans[-1][1]),
@@ -384,12 +396,12 @@ class DataSpans:
                 newspans.append( (s_start, s_data) )
         self.spans = newspans
         self.assert_invariants()
-        #print " done", self.spans
+        #print(" done", self.spans)
 
     def remove(self, start, length):
         i = 0
         end = start + length
-        #print "remove", start, length, self.spans
+        #print("remove", start, length, self.spans)
         while i < len(self.spans):
             (s_start,s_data) = self.spans[i]
             if s_start >= end:
@@ -429,7 +441,7 @@ class DataSpans:
             self.spans[i] = (s_start, left)
             self.spans.insert(i+1, (o_end, right))
             break
-        #print " done", self.spans
+        #print(" done", self.spans)
 
     def pop(self, start, length):
         data = self.get(start, length)

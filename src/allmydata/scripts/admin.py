@@ -1,3 +1,4 @@
+from __future__ import print_function
 
 from twisted.python import usage
 from allmydata.scripts.common import BaseOptions
@@ -13,11 +14,11 @@ Generate a public/private keypair, dumped to stdout as two lines of ASCII..
         return t
 
 def print_keypair(options):
-    from allmydata.util.keyutil import make_keypair
+    from allmydata.crypto import ed25519
     out = options.stdout
-    privkey_vs, pubkey_vs = make_keypair()
-    print >>out, "private:", privkey_vs
-    print >>out, "public:", pubkey_vs
+    private_key, public_key = ed25519.create_signing_keypair()
+    print("private:", ed25519.string_from_signing_key(private_key), file=out)
+    print("public:", ed25519.string_from_verifying_key(public_key), file=out)
 
 class DerivePubkeyOptions(BaseOptions):
     def parseArgs(self, privkey):
@@ -37,11 +38,11 @@ generate-keypair, derive the public key and print it to stdout.
 
 def derive_pubkey(options):
     out = options.stdout
-    from allmydata.util import keyutil
+    from allmydata.crypto import ed25519
     privkey_vs = options.privkey
-    sk, pubkey_vs = keyutil.parse_privkey(privkey_vs)
-    print >>out, "private:", privkey_vs
-    print >>out, "public:", pubkey_vs
+    private_key, public_key = ed25519.signing_keypair_from_string(privkey_vs)
+    print("private:", ed25519.string_from_signing_key(private_key), file=out)
+    print("public:", ed25519.string_from_verifying_key(public_key), file=out)
     return 0
 
 class AdminCommand(BaseOptions):

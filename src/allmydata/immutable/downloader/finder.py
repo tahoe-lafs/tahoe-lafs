@@ -1,3 +1,14 @@
+"""
+Ported to Python 3.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 import time
 now = time.time
@@ -5,7 +16,7 @@ from foolscap.api import eventually
 from allmydata.util import base32, log
 from twisted.internet import reactor
 
-from share import Share, CommonShare
+from .share import Share, CommonShare
 
 def incidentally(res, f, *args, **kwargs):
     """Add me to a Deferred chain like this:
@@ -20,11 +31,11 @@ def incidentally(res, f, *args, **kwargs):
     f(*args, **kwargs)
     return res
 
-class RequestToken:
+class RequestToken(object):
     def __init__(self, server):
         self.server = server
 
-class ShareFinder:
+class ShareFinder(object):
     OVERDUE_TIMEOUT = 10.0
 
     def __init__(self, storage_broker, verifycap, node, download_status,
@@ -43,7 +54,7 @@ class ShareFinder:
         self.overdue_timers = {}
 
         self._storage_index = verifycap.storage_index
-        self._si_prefix = base32.b2a_l(self._storage_index[:8], 60)
+        self._si_prefix = base32.b2a(self._storage_index[:8])[:12]
         self._node_logparent = logparent
         self._download_status = download_status
         self._lp = log.msg(format="ShareFinder[si=%(si)s] starting",
@@ -106,7 +117,7 @@ class ShareFinder:
         server = None
         try:
             if self._servers:
-                server = self._servers.next()
+                server = next(self._servers)
         except StopIteration:
             self._servers = None
 
@@ -139,7 +150,7 @@ class ShareFinder:
         # TODO: get the timer from a Server object, it knows best
         self.overdue_timers[req] = reactor.callLater(self.OVERDUE_TIMEOUT,
                                                      self.overdue, req)
-        d = server.get_rref().callRemote("get_buckets", self._storage_index)
+        d = server.get_storage_server().get_buckets(self._storage_index)
         d.addBoth(incidentally, self._request_retired, req)
         d.addCallbacks(self._got_response, self._got_error,
                        callbackArgs=(server, req, d_ev, time_sent, lp),
@@ -175,7 +186,7 @@ class ShareFinder:
                  shnums=shnums_s, name=server.get_name(),
                  level=log.NOISY, parent=lp, umid="0fcEZw")
         shares = []
-        for shnum, bucket in buckets.iteritems():
+        for shnum, bucket in buckets.items():
             s = self._create_share(shnum, bucket, server, dyhb_rtt)
             shares.append(s)
         self._deliver_shares(shares)
@@ -221,5 +232,3 @@ class ShareFinder:
         self.log(format="got error from [%(name)s]",
                  name=server.get_name(), failure=f,
                  level=log.UNUSUAL, parent=lp, umid="zUKdCw")
-
-

@@ -1,3 +1,4 @@
+from __future__ import print_function
 
 import os.path
 import time
@@ -10,7 +11,7 @@ from allmydata.scripts.common_http import do_http, HTTPError, format_http_error
 from allmydata.util import time_format
 from allmydata.scripts import backupdb
 from allmydata.util.encodingutil import listdir_unicode, quote_output, \
-     quote_local_unicode_path, to_str, FilenameEncodingError, unicode_to_url
+     quote_local_unicode_path, to_bytes, FilenameEncodingError, unicode_to_url
 from allmydata.util.assertutil import precondition
 from allmydata.util.fileutil import abspath_expanduser_unicode, precondition_abspath
 
@@ -46,12 +47,12 @@ def mkdir(contents, options):
     if resp.status < 200 or resp.status >= 300:
         raise HTTPError("Error during mkdir", resp)
 
-    dircap = to_str(resp.read().strip())
+    dircap = to_bytes(resp.read().strip())
     return dircap
 
 def put_child(dirurl, childname, childcap):
-    assert dirurl[-1] == "/"
-    url = dirurl + urllib.quote(unicode_to_url(childname)) + "?t=uri"
+    assert dirurl[-1] != "/"
+    url = dirurl + "/" + urllib.quote(unicode_to_url(childname)) + "?t=uri"
     resp = do_http("PUT", url, childcap)
     if resp.status not in (200, 201):
         raise HTTPError("Error during put_child", resp)
@@ -88,7 +89,7 @@ class BackerUpper(object):
         bdbfile = abspath_expanduser_unicode(bdbfile)
         self.backupdb = backupdb.get_backupdb(bdbfile, stderr)
         if not self.backupdb:
-            print >>stderr, "ERROR: Unable to load backup db."
+            print("ERROR: Unable to load backup db.", file=stderr)
             return 1
 
         try:
@@ -104,13 +105,16 @@ class BackerUpper(object):
 
         archives_url = to_url + "Archives/"
 
+        archives_url = archives_url.rstrip("/")
+        to_url = to_url.rstrip("/")
+
         # first step: make sure the target directory exists, as well as the
         # Archives/ subdirectory.
         resp = do_http("GET", archives_url + "?t=json")
         if resp.status == 404:
             resp = do_http("POST", archives_url + "?t=mkdir")
             if resp.status != 200:
-                print >>stderr, format_http_error("Unable to create target directory", resp)
+                print(format_http_error("Unable to create target directory", resp), file=stderr)
                 return 1
 
         # second step: process the tree
@@ -134,11 +138,11 @@ class BackerUpper(object):
 
         put_child(archives_url, now, new_backup_dircap)
         put_child(to_url, "Latest", new_backup_dircap)
-        print >>stdout, completed.report(
+        print(completed.report(
             self.verbosity,
             self._files_checked,
             self._directories_checked,
-        )
+        ), file=stdout)
 
         # The command exits with code 2 if files or directories were skipped
         if completed.any_skips():
@@ -150,11 +154,11 @@ class BackerUpper(object):
     def verboseprint(self, msg):
         precondition(isinstance(msg, str), msg)
         if self.verbosity >= 2:
-            print >>self.options.stdout, msg
+            print(msg, file=self.options.stdout)
 
     def warn(self, msg):
         precondition(isinstance(msg, str), msg)
-        print >>self.options.stderr, msg
+        print(msg, file=self.options.stderr)
 
     def upload_directory(self, path, compare_contents, create_contents):
         must_create, r = self.check_backupdb_directory(compare_contents)
@@ -323,7 +327,7 @@ def run_backup(
         # Currently, BackupProgress is mutable, though, and everything just
         # mutates it.
         progress = target.backup(progress, upload_file, upload_directory)
-        print >>stdout, progress.report(datetime.datetime.now())
+        print(progress.report(datetime.datetime.now()), file=stdout)
     return progress.backup_finished()
 
 
@@ -364,7 +368,7 @@ class DirectoryTarget(object):
 
 
 class _ErrorTarget(object):
-    def __init__(self, path, isdir):
+    def __init__(self, path, isdir=False):
         self._path = path
         self._quoted_path = quote_local_unicode_path(path)
         self._isdir = isdir

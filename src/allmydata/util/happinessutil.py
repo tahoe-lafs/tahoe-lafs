@@ -1,7 +1,18 @@
 """
 I contain utilities useful for calculating servers_of_happiness, and for
-reporting it in messages
+reporting it in messages.
+
+Ported to Python 3.
 """
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    # We omit dict, just in case newdict breaks things.
+    from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, list, object, range, str, max, min  # noqa: F401
 
 from copy import deepcopy
 from allmydata.immutable.happiness_upload import residual_network
@@ -51,7 +62,7 @@ def shares_by_server(servermap):
     dictionary of sets of shares, indexed by peerids.
     """
     ret = {}
-    for shareid, peers in servermap.iteritems():
+    for shareid, peers in servermap.items():
         assert isinstance(peers, set)
         for peerid in peers:
             ret.setdefault(peerid, set()).add(shareid)
@@ -146,7 +157,7 @@ def servers_of_happiness(sharemap):
     # The implementation here is an adapation of an algorithm described in
     # "Introduction to Algorithms", Cormen et al, 2nd ed., pp 658-662.
     dim = len(graph)
-    flow_function = [[0 for sh in xrange(dim)] for s in xrange(dim)]
+    flow_function = [[0 for sh in range(dim)] for s in range(dim)]
     residual_graph, residual_function = residual_network(graph, flow_function)
     while augmenting_path_for(residual_graph):
         path = augmenting_path_for(residual_graph)
@@ -156,8 +167,7 @@ def servers_of_happiness(sharemap):
         # is the amount of unused capacity on that edge. Taking the
         # minimum of a list of those values for each edge in the
         # augmenting path gives us our delta.
-        delta = min(map(lambda (u, v), rf=residual_function: rf[u][v],
-                        path))
+        delta = min(residual_function[u][v] for (u, v) in path)
         for (u, v) in path:
             flow_function[u][v] += delta
             flow_function[v][u] -= delta
@@ -170,7 +180,7 @@ def servers_of_happiness(sharemap):
     # our graph, so we can stop after summing flow across those. The
     # value of a flow computed in this way is the size of a maximum
     # matching on the bipartite graph described above.
-    return sum([flow_function[0][v] for v in xrange(1, num_servers+1)])
+    return sum([flow_function[0][v] for v in range(1, num_servers+1)])
 
 def _flow_network_for(servermap):
     """
@@ -199,14 +209,14 @@ def _flow_network_for(servermap):
     graph = [] # index -> [index], an adjacency list
     # Add an entry at the top (index 0) that has an edge to every server
     # in servermap
-    graph.append(servermap.keys())
+    graph.append(list(servermap.keys()))
     # For each server, add an entry that has an edge to every share that it
     # contains (or will contain).
     for k in servermap:
         graph.append(servermap[k])
     # For each share, add an entry that has an edge to the sink.
     sink_num = num_servers + num_shares + 1
-    for i in xrange(num_shares):
+    for i in range(num_shares):
         graph.append([sink_num])
     # Add an empty entry for the sink, which has no outbound edges.
     graph.append([])
@@ -232,8 +242,8 @@ def _reindex(servermap, base_index):
     # Number the shares
     for k in ret:
         for shnum in ret[k]:
-            if not shares.has_key(shnum):
+            if shnum not in shares:
                 shares[shnum] = num
                 num += 1
-        ret[k] = map(lambda x: shares[x], ret[k])
+        ret[k] = [shares[x] for x in ret[k]]
     return (ret, len(shares))

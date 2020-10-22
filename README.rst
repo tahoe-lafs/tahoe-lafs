@@ -10,7 +10,8 @@ function correctly, preserving your privacy and security.
 For full documentation, please see
 http://tahoe-lafs.readthedocs.io/en/latest/ .
 
-|readthedocs|  |travis|  |codecov|
+|Contributor Covenant|  |readthedocs|  |travis|  |circleci|  |codecov|
+
 
 INSTALLING
 ==========
@@ -69,7 +70,7 @@ up your first Tahoe-LAFS node.
 LICENCE
 =======
 
-Copyright 2006-2016 The Tahoe-LAFS Software Foundation
+Copyright 2006-2018 The Tahoe-LAFS Software Foundation
 
 You may use this package under the GNU General Public License, version 2 or,
 at your option, any later version. You may use this package under the
@@ -99,6 +100,13 @@ slides.
     :alt: build status
     :target: https://travis-ci.org/tahoe-lafs/tahoe-lafs
 
+.. |circleci| image:: https://circleci.com/gh/tahoe-lafs/tahoe-lafs.svg?style=svg
+    :target: https://circleci.com/gh/tahoe-lafs/tahoe-lafs
+
 .. |codecov| image:: https://codecov.io/github/tahoe-lafs/tahoe-lafs/coverage.svg?branch=master
     :alt: test coverage percentage
     :target: https://codecov.io/github/tahoe-lafs/tahoe-lafs?branch=master
+
+.. |Contributor Covenant| image:: https://img.shields.io/badge/Contributor%20Covenant-v2.0%20adopted-ff69b4.svg
+    :alt: code of conduct
+    :target: docs/CODE_OF_CONDUCT.md

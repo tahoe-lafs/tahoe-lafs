@@ -1,27 +1,45 @@
+"""
+Ported to Python 3.
+"""
+from __future__ import division
+from __future__ import absolute_import
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 import itertools
 from zope.interface import implementer
 from allmydata.interfaces import IDownloadStatus
 
-class ReadEvent:
+class ReadEvent(object):
+
     def __init__(self, ev, ds):
         self._ev = ev
         self._ds = ds
-    def update(self, bytes, decrypttime, pausetime):
-        self._ev["bytes_returned"] += bytes
+
+    def update(self, bytes_returned, decrypttime, pausetime):
+        self._ev["bytes_returned"] += bytes_returned
         self._ev["decrypt_time"] += decrypttime
         self._ev["paused_time"] += pausetime
+
     def finished(self, finishtime):
         self._ev["finish_time"] = finishtime
         self._ds.update_last_timestamp(finishtime)
 
-class SegmentEvent:
+
+class SegmentEvent(object):
+
     def __init__(self, ev, ds):
         self._ev = ev
         self._ds = ds
+
     def activate(self, when):
         if self._ev["active_time"] is None:
             self._ev["active_time"] = when
+
     def deliver(self, when, start, length, decodetime):
         assert self._ev["active_time"] is not None
         self._ev["finish_time"] = when
@@ -30,34 +48,43 @@ class SegmentEvent:
         self._ev["segment_start"] = start
         self._ev["segment_length"] = length
         self._ds.update_last_timestamp(when)
+
     def error(self, when):
         self._ev["finish_time"] = when
         self._ev["success"] = False
         self._ds.update_last_timestamp(when)
 
-class DYHBEvent:
+
+class DYHBEvent(object):
+
     def __init__(self, ev, ds):
         self._ev = ev
         self._ds = ds
+
     def error(self, when):
         self._ev["finish_time"] = when
         self._ev["success"] = False
         self._ds.update_last_timestamp(when)
+
     def finished(self, shnums, when):
         self._ev["finish_time"] = when
         self._ev["success"] = True
         self._ev["response_shnums"] = shnums
         self._ds.update_last_timestamp(when)
 
-class BlockRequestEvent:
+
+class BlockRequestEvent(object):
+
     def __init__(self, ev, ds):
         self._ev = ev
         self._ds = ds
+
     def finished(self, received, when):
         self._ev["finish_time"] = when
         self._ev["success"] = True
         self._ev["response_length"] = received
         self._ds.update_last_timestamp(when)
+
     def error(self, when):
         self._ev["finish_time"] = when
         self._ev["success"] = False
@@ -73,7 +100,7 @@ class DownloadStatus(object):
     def __init__(self, storage_index, size):
         self.storage_index = storage_index
         self.size = size
-        self.counter = self.statusid_counter.next()
+        self.counter = next(self.statusid_counter)
         self.helper = False
 
         self.first_timestamp = None
@@ -241,7 +268,7 @@ class DownloadStatus(object):
             # else ignore completed requests
         if not total_outstanding:
             return 1.0
-        return 1.0 * total_received / total_outstanding
+        return total_received / total_outstanding
 
     def using_helper(self):
         return False

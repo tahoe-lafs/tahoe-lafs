@@ -1,12 +1,66 @@
+from __future__ import print_function
+
+__all__ = [
+    "SyncTestCase",
+    "AsyncTestCase",
+    "AsyncBrokenTestCase",
+    "TrialTestCase",
+
+    "flush_logged_errors",
+    "skip",
+    "skipIf",
+]
+
 import os, random, struct
+import six
+import tempfile
+from tempfile import mktemp
+from functools import partial
+from unittest import case as _case
+from socket import (
+    AF_INET,
+    SOCK_STREAM,
+    SOMAXCONN,
+    socket,
+    error as socket_error,
+)
+from errno import (
+    EADDRINUSE,
+)
+
+import attr
+
 import treq
+
 from zope.interface import implementer
+
+from testtools import (
+    TestCase,
+    skip,
+    skipIf,
+)
+from testtools.twistedsupport import (
+    SynchronousDeferredRunTest,
+    AsynchronousDeferredRunTest,
+    AsynchronousDeferredRunTestForBrokenTwisted,
+    flush_logged_errors,
+)
+
+from twisted.application import service
+from twisted.plugin import IPlugin
 from twisted.internet import defer
 from twisted.internet.defer import inlineCallbacks, returnValue
 from twisted.internet.interfaces import IPullProducer
 from twisted.python import failure
-from twisted.application import service
+from twisted.python.filepath import FilePath
 from twisted.web.error import Error as WebError
+from twisted.internet.interfaces import (
+    IStreamServerEndpointStringParser,
+    IReactorSocket,
+)
+from twisted.internet.endpoints import AdoptedStreamServerEndpoint
+from twisted.trial.unittest import TestCase as _TrialTestCase
+
 from allmydata import uri
 from allmydata.interfaces import IMutableFileNode, IImmutableFileNode,\
                                  NotEnoughSharesError, ICheckable, \
@@ -18,13 +72,319 @@ from allmydata.storage_client import StubServer
 from allmydata.mutable.layout import unpack_header
 from allmydata.mutable.publish import MutableData
 from allmydata.storage.mutable import MutableShareFile
-from allmydata.util import hashutil, log
+from allmydata.util import hashutil, log, iputil
 from allmydata.util.assertutil import precondition
 from allmydata.util.consumer import download_to_data
 import allmydata.test.common_util as testutil
 from allmydata.immutable.upload import Uploader
+from allmydata.client import (
+    config_from_string,
+    create_client_from_config,
+)
+
+from ..crypto import (
+    ed25519,
+)
+from .eliotutil import (
+    EliotLoggedRunTest,
+)
+from .common_util import ShouldFailMixin  # noqa: F401
+
 
 TEST_RSA_KEY_SIZE = 522
+
+EMPTY_CLIENT_CONFIG = config_from_string(
+    "/dev/null",
+    "tub.port",
+    ""
+)
+
+
+@attr.s
+class MemoryIntroducerClient(object):
+    """
+    A model-only (no behavior) stand-in for ``IntroducerClient``.
+    """
+    tub = attr.ib()
+    introducer_furl = attr.ib()
+    nickname = attr.ib()
+    my_version = attr.ib()
+    oldest_supported = attr.ib()
+    app_versions = attr.ib()
+    sequencer = attr.ib()
+    cache_filepath = attr.ib()
+
+    subscribed_to = attr.ib(default=attr.Factory(list))
+    published_announcements = attr.ib(default=attr.Factory(list))
+
+
+    def setServiceParent(self, parent):
+        pass
+
+
+    def subscribe_to(self, service_name, cb, *args, **kwargs):
+        self.subscribed_to.append(Subscription(service_name, cb, args, kwargs))
+
+
+    def publish(self, service_name, ann, signing_key):
+        self.published_announcements.append(Announcement(
+            service_name,
+            ann,
+            ed25519.string_from_signing_key(signing_key),
+        ))
+
+
+@attr.s
+class Subscription(object):
+    """
+    A model of an introducer subscription.
+    """
+    service_name = attr.ib()
+    cb = attr.ib()
+    args = attr.ib()
+    kwargs = attr.ib()
+
+
+@attr.s
+class Announcement(object):
+    """
+    A model of an introducer announcement.
+    """
+    service_name = attr.ib()
+    ann = attr.ib()
+    signing_key_bytes = attr.ib(type=bytes)
+
+    @property
+    def signing_key(self):
+        return ed25519.signing_keypair_from_string(self.signing_key_bytes)[0]
+
+
+def get_published_announcements(client):
+    """
+    Get a flattened list of all announcements sent using all introducer
+    clients.
+    """
+    return list(
+        announcement
+        for introducer_client
+        in client.introducer_clients
+        for announcement
+        in introducer_client.published_announcements
+    )
+
+
+class UseTestPlugins(object):
+    """
+    A fixture which enables loading Twisted plugins from the Tahoe-LAFS test
+    suite.
+    """
+    def setUp(self):
+        """
+        Add the testing package ``plugins`` directory to the ``twisted.plugins``
+        aggregate package.
+        """
+        import twisted.plugins
+        testplugins = FilePath(__file__).sibling("plugins")
+        twisted.plugins.__path__.insert(0, testplugins.path)
+
+    def cleanUp(self):
+        """
+        Remove the testing package ``plugins`` directory from the
+        ``twisted.plugins`` aggregate package.
+        """
+        import twisted.plugins
+        testplugins = FilePath(__file__).sibling("plugins")
+        twisted.plugins.__path__.remove(testplugins.path)
+
+    def getDetails(self):
+        return {}
+
+
+@attr.s
+class UseNode(object):
+    """
+    A fixture which creates a client node.
+
+    :ivar dict[bytes, bytes] plugin_config: Configuration items to put in the
+        node's configuration.
+
+    :ivar bytes storage_plugin: The name of a storage plugin to enable.
+
+    :ivar FilePath basedir: The base directory of the node.
+
+    :ivar bytes introducer_furl: The introducer furl with which to
+        configure the client.
+
+    :ivar dict[bytes, bytes] node_config: Configuration items for the *node*
+        section of the configuration.
+
+    :ivar _Config config: The complete resulting configuration.
+    """
+    plugin_config = attr.ib()
+    storage_plugin = attr.ib()
+    basedir = attr.ib()
+    introducer_furl = attr.ib()
+    node_config = attr.ib(default=attr.Factory(dict))
+
+    config = attr.ib(default=None)
+
+    def setUp(self):
+        def format_config_items(config):
+            return b"\n".join(
+                b" = ".join((key, value))
+                for (key, value)
+                in config.items()
+            )
+
+        if self.plugin_config is None:
+            plugin_config_section = b""
+        else:
+            plugin_config_section = b"""
+[storageclient.plugins.{storage_plugin}]
+{config}
+""".format(
+    storage_plugin=self.storage_plugin,
+    config=format_config_items(self.plugin_config),
+)
+
+        self.config = config_from_string(
+            self.basedir.asTextMode().path,
+            "tub.port",
+"""
+[node]
+{node_config}
+
+[client]
+introducer.furl = {furl}
+storage.plugins = {storage_plugin}
+{plugin_config_section}
+""".format(
+    furl=self.introducer_furl,
+    storage_plugin=self.storage_plugin,
+    node_config=format_config_items(self.node_config),
+    plugin_config_section=plugin_config_section,
+)
+        )
+
+    def create_node(self):
+        return create_client_from_config(
+            self.config,
+            _introducer_factory=MemoryIntroducerClient,
+        )
+
+    def cleanUp(self):
+        pass
+
+
+    def getDetails(self):
+        return {}
+
+
+
+@implementer(IPlugin, IStreamServerEndpointStringParser)
+class AdoptedServerPort(object):
+    """
+    Parse an ``adopt-socket:<fd>`` endpoint description by adopting ``fd`` as
+    a listening TCP port.
+    """
+    prefix = "adopt-socket"
+
+    def parseStreamServer(self, reactor, fd):
+        log.msg("Adopting {}".format(fd))
+        # AdoptedStreamServerEndpoint wants to own the file descriptor.  It
+        # will duplicate it and then close the one we pass in.  This means it
+        # is really only possible to adopt a particular file descriptor once.
+        #
+        # This wouldn't matter except one of the tests wants to stop one of
+        # the nodes and start it up again.  This results in exactly an attempt
+        # to adopt a particular file descriptor twice.
+        #
+        # So we'll dup it ourselves.  AdoptedStreamServerEndpoint can do
+        # whatever it wants to the result - the original will still be valid
+        # and reusable.
+        return AdoptedStreamServerEndpoint(reactor, os.dup(int(fd)), AF_INET)
+
+
+def really_bind(s, addr):
+    # Arbitrarily decide we'll try 100 times.  We don't want to try forever in
+    # case this is a persistent problem.  Trying is cheap, though, so we may
+    # as well try a lot.  Hopefully the OS isn't so bad at allocating a port
+    # for us that it takes more than 2 iterations.
+    for i in range(100):
+        try:
+            s.bind(addr)
+        except socket_error as e:
+            if e.errno == EADDRINUSE:
+                continue
+            raise
+        else:
+            return
+    raise Exception("Many bind attempts failed with EADDRINUSE")
+
+
+class SameProcessStreamEndpointAssigner(object):
+    """
+    A fixture which can assign streaming server endpoints for use *in this
+    process only*.
+
+    An effort is made to avoid address collisions for this port but the logic
+    for doing so is platform-dependent (sorry, Windows).
+
+    This is more reliable than trying to listen on a hard-coded non-zero port
+    number.  It is at least as reliable as trying to listen on port number
+    zero on Windows and more reliable than doing that on other platforms.
+    """
+    def setUp(self):
+        self._cleanups = []
+        # Make sure the `adopt-socket` endpoint is recognized.  We do this
+        # instead of providing a dropin because we don't want to make this
+        # endpoint available to random other applications.
+        f = UseTestPlugins()
+        f.setUp()
+        self._cleanups.append(f.cleanUp)
+
+    def tearDown(self):
+        for c in self._cleanups:
+            c()
+
+    def assign(self, reactor):
+        """
+        Make a new streaming server endpoint and return its string description.
+
+        This is intended to help write config files that will then be read and
+        used in this process.
+
+        :param reactor: The reactor which will be used to listen with the
+            resulting endpoint.  If it provides ``IReactorSocket`` then
+            resulting reliability will be extremely high.  If it doesn't,
+            resulting reliability will be pretty alright.
+
+        :return: A two-tuple of (location hint, port endpoint description) as
+            strings.
+        """
+        if IReactorSocket.providedBy(reactor):
+            # On this platform, we can reliable pre-allocate a listening port.
+            # Once it is bound we know it will not fail later with EADDRINUSE.
+            s = socket(AF_INET, SOCK_STREAM)
+            # We need to keep ``s`` alive as long as the file descriptor we put in
+            # this string might still be used.  We could dup() the descriptor
+            # instead but then we've only inverted the cleanup problem: gone from
+            # don't-close-too-soon to close-just-late-enough.  So we'll leave
+            # ``s`` alive and use it as the cleanup mechanism.
+            self._cleanups.append(s.close)
+            s.setblocking(False)
+            really_bind(s, ("127.0.0.1", 0))
+            s.listen(SOMAXCONN)
+            host, port = s.getsockname()
+            location_hint = "tcp:%s:%d" % (host, port)
+            port_endpoint = "adopt-socket:fd=%d" % (s.fileno(),)
+        else:
+            # On other platforms, we blindly guess and hope we get lucky.
+            portnum = iputil.allocate_tcp_port()
+            location_hint = "tcp:127.0.0.1:%d" % (portnum,)
+            port_endpoint = "tcp:%d:interface=127.0.0.1" % (portnum,)
+
+        return location_hint, port_endpoint
 
 @implementer(IPullProducer)
 class DummyProducer(object):
@@ -32,7 +392,7 @@ class DummyProducer(object):
         pass
 
 @implementer(IImmutableFileNode)
-class FakeCHKFileNode:
+class FakeCHKFileNode(object):
     """I provide IImmutableFileNode, but all of my data is stored in a
     class-level dictionary."""
 
@@ -105,7 +465,7 @@ class FakeCHKFileNode:
             return self.my_uri.get_size()
         try:
             data = self.all_contents[self.my_uri.to_string()]
-        except KeyError, le:
+        except KeyError as le:
             raise NotEnoughSharesError(le, 0, 3)
         return len(data)
     def get_current_size(self):
@@ -170,7 +530,7 @@ def create_chk_filenode(contents, all_contents):
 
 
 @implementer(IMutableFileNode, ICheckable)
-class FakeMutableFileNode:
+class FakeMutableFileNode(object):
     """I provide IMutableFileNode, but all of my data is stored in a
     class-level dictionary."""
 
@@ -426,50 +786,10 @@ class LoggingServiceParent(service.MultiService):
         return log.msg(*args, **kwargs)
 
 
-TEST_DATA="\x02"*(Uploader.URI_LIT_SIZE_THRESHOLD+1)
+TEST_DATA=b"\x02"*(Uploader.URI_LIT_SIZE_THRESHOLD+1)
 
-class ShouldFailMixin:
-    def shouldFail(self, expected_failure, which, substring,
-                   callable, *args, **kwargs):
-        """Assert that a function call raises some exception. This is a
-        Deferred-friendly version of TestCase.assertRaises() .
 
-        Suppose you want to verify the following function:
-
-         def broken(a, b, c):
-             if a < 0:
-                 raise TypeError('a must not be negative')
-             return defer.succeed(b+c)
-
-        You can use:
-            d = self.shouldFail(TypeError, 'test name',
-                                'a must not be negative',
-                                broken, -4, 5, c=12)
-        in your test method. The 'test name' string will be included in the
-        error message, if any, because Deferred chains frequently make it
-        difficult to tell which assertion was tripped.
-
-        The substring= argument, if not None, must appear in the 'repr'
-        of the message wrapped by this Failure, or the test will fail.
-        """
-
-        assert substring is None or isinstance(substring, str)
-        d = defer.maybeDeferred(callable, *args, **kwargs)
-        def done(res):
-            if isinstance(res, failure.Failure):
-                res.trap(expected_failure)
-                if substring:
-                    message = repr(res.value.args[0])
-                    self.failUnless(substring in message,
-                                    "%s: substring '%s' not in '%s'"
-                                    % (which, substring, message))
-            else:
-                self.fail("%s was supposed to raise %s, not get '%s'" %
-                          (which, expected_failure, res))
-        d.addBoth(done)
-        return d
-
-class WebErrorMixin:
+class WebErrorMixin(object):
     def explain_web_error(self, f):
         # an error on the server side causes the client-side getPage() to
         # return a failure(t.web.error.Error), and its str() doesn't show the
@@ -477,7 +797,7 @@ class WebErrorMixin:
         # this method as an errback handler, and it will reveal the hidden
         # message.
         f.trap(WebError)
-        print "Web Error:", f.value, ":", f.value.response
+        print("Web Error:", f.value, ":", f.value.response)
         return f
 
     def _shouldHTTPError(self, res, which, validator):
@@ -526,7 +846,7 @@ class WebErrorMixin:
 class ErrorMixin(WebErrorMixin):
     def explain_error(self, f):
         if f.check(defer.FirstError):
-            print "First Error:", f.value.subFailure
+            print("First Error:", f.value.subFailure)
         return f
 
 def corrupt_field(data, offset, size, debug=False):
@@ -643,12 +963,12 @@ def _corrupt_offset_of_block_hashes_to_truncate_crypttext_hashes(data, debug=Fal
     assert sharevernum in (1, 2), "This test is designed to corrupt immutable shares of v1 or v2 in specific ways."
     if sharevernum == 1:
         curval = struct.unpack(">L", data[0x0c+0x18:0x0c+0x18+4])[0]
-        newval = random.randrange(0, max(1, (curval/hashutil.CRYPTO_VAL_SIZE)/2))*hashutil.CRYPTO_VAL_SIZE
+        newval = random.randrange(0, max(1, (curval//hashutil.CRYPTO_VAL_SIZE)//2))*hashutil.CRYPTO_VAL_SIZE
         newvalstr = struct.pack(">L", newval)
         return data[:0x0c+0x18]+newvalstr+data[0x0c+0x18+4:]
     else:
         curval = struct.unpack(">Q", data[0x0c+0x2c:0x0c+0x2c+8])[0]
-        newval = random.randrange(0, max(1, (curval/hashutil.CRYPTO_VAL_SIZE)/2))*hashutil.CRYPTO_VAL_SIZE
+        newval = random.randrange(0, max(1, (curval//hashutil.CRYPTO_VAL_SIZE)//2))*hashutil.CRYPTO_VAL_SIZE
         newvalstr = struct.pack(">Q", newval)
         return data[:0x0c+0x2c]+newvalstr+data[0x0c+0x2c+8:]
 
@@ -817,3 +1137,98 @@ def _corrupt_uri_extension(data, debug=False):
         uriextlen = struct.unpack(">Q", data[0x0c+uriextoffset:0x0c+uriextoffset+8])[0]
 
     return corrupt_field(data, 0x0c+uriextoffset, uriextlen)
+
+
+class _TestCaseMixin(object):
+    """
+    A mixin for ``TestCase`` which collects helpful behaviors for subclasses.
+
+    Those behaviors are:
+
+    * All of the features of testtools TestCase.
+    * Each test method will be run in a unique Eliot action context which
+      identifies the test and collects all Eliot log messages emitted by that
+      test (including setUp and tearDown messages).
+    * trial-compatible mktemp method
+    * unittest2-compatible assertRaises helper
+    * Automatic cleanup of tempfile.tempdir mutation (pervasive through the
+      Tahoe-LAFS test suite).
+    """
+    def setUp(self):
+        # Restore the original temporary directory.  Node ``init_tempdir``
+        # mangles it and many tests manage to get that method called.
+        self.addCleanup(
+            partial(setattr, tempfile, "tempdir", tempfile.tempdir),
+        )
+        return super(_TestCaseMixin, self).setUp()
+
+    class _DummyCase(_case.TestCase):
+        def dummy(self):
+            pass
+    _dummyCase = _DummyCase("dummy")
+
+    def mktemp(self):
+        return mktemp()
+
+    def assertRaises(self, *a, **kw):
+        return self._dummyCase.assertRaises(*a, **kw)
+
+
+class SyncTestCase(_TestCaseMixin, TestCase):
+    """
+    A ``TestCase`` which can run tests that may return an already-fired
+    ``Deferred``.
+    """
+    run_tests_with = EliotLoggedRunTest.make_factory(
+        SynchronousDeferredRunTest,
+    )
+
+
+class AsyncTestCase(_TestCaseMixin, TestCase):
+    """
+    A ``TestCase`` which can run tests that may return a Deferred that will
+    only fire if the global reactor is running.
+    """
+    run_tests_with = EliotLoggedRunTest.make_factory(
+        AsynchronousDeferredRunTest.make_factory(timeout=60.0),
+    )
+
+
+class AsyncBrokenTestCase(_TestCaseMixin, TestCase):
+    """
+    A ``TestCase`` like ``AsyncTestCase`` but which spins the reactor a little
+    longer than apparently necessary to clean out lingering unaccounted for
+    event sources.
+
+    Tests which require this behavior are broken and should be fixed so they
+    pass with ``AsyncTestCase``.
+    """
+    run_tests_with = EliotLoggedRunTest.make_factory(
+        AsynchronousDeferredRunTestForBrokenTwisted.make_factory(timeout=60.0),
+    )
+
+
+class TrialTestCase(_TrialTestCase):
+    """
+    A twisted.trial.unittest.TestCaes with Tahoe required fixes
+    applied. Currently these are:
+
+      - ensure that .fail() passes a bytes msg on Python2
+    """
+
+    def fail(self, msg):
+        """
+        Ensure our msg is a native string on Python2. If it was Unicode,
+        we encode it as utf8 and hope for the best. On Python3 we take
+        no action.
+
+        This is necessary because Twisted passes the 'msg' argument
+        along to the constructor of an exception; on Python2,
+        Exception will accept a `unicode` instance but will fail if
+        you try to turn that Exception instance into a string.
+        """
+
+        if six.PY2:
+            if isinstance(msg, six.text_type):
+                return super(TrialTestCase, self).fail(msg.encode("utf8"))
+        return super(TrialTestCase, self).fail(msg)

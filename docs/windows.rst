@@ -77,9 +77,9 @@ If you're planning to hack on the source code, you might want to add
 Dependencies
 ------------
 
-Tahoe-LAFS depends upon several packages that use compiled C code, such as
-zfec, pycryptopp, and others. This code must be built separately for each
-platform (Windows, OS-X, and different flavors of Linux).
+Tahoe-LAFS depends upon several packages that use compiled C code
+(such as zfec). This code must be built separately for each platform
+(Windows, OS-X, and different flavors of Linux).
 
 Pre-compiled "wheels" of all Tahoe's dependencies are hosted on the
 tahoe-lafs.org website in the ``deps/`` directory. The ``--find-links=``

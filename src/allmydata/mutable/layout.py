@@ -1,3 +1,4 @@
+from past.utils import old_div
 
 import struct
 from allmydata.mutable.common import NeedMoreDataError, UnknownVersionError, \
@@ -180,11 +181,11 @@ def pack_offsets(verification_key_length, signature_length,
 def pack_share(prefix, verification_key, signature,
                share_hash_chain, block_hash_tree,
                share_data, encprivkey):
-    share_hash_chain_s = "".join([struct.pack(">H32s", i, share_hash_chain[i])
-                                  for i in sorted(share_hash_chain.keys())])
+    share_hash_chain_s = b"".join([struct.pack(">H32s", i, share_hash_chain[i])
+                                   for i in sorted(share_hash_chain.keys())])
     for h in block_hash_tree:
         assert len(h) == 32
-    block_hash_tree_s = "".join(block_hash_tree)
+    block_hash_tree_s = b"".join(block_hash_tree)
 
     offsets = pack_offsets(len(verification_key),
                            len(signature),
@@ -192,14 +193,14 @@ def pack_share(prefix, verification_key, signature,
                            len(block_hash_tree_s),
                            len(share_data),
                            len(encprivkey))
-    final_share = "".join([prefix,
-                           offsets,
-                           verification_key,
-                           signature,
-                           share_hash_chain_s,
-                           block_hash_tree_s,
-                           share_data,
-                           encprivkey])
+    final_share = b"".join([prefix,
+                            offsets,
+                            verification_key,
+                            signature,
+                            share_hash_chain_s,
+                            block_hash_tree_s,
+                            share_data,
+                            encprivkey])
     return final_share
 
 def pack_prefix(seqnum, root_hash, IV,
@@ -230,7 +231,7 @@ class SDMFSlotWriteProxy(object):
     """
     def __init__(self,
                  shnum,
-                 rref, # a remote reference to a storage server
+                 storage_server, # an IStorageServer
                  storage_index,
                  secrets, # (write_enabler, renew_secret, cancel_secret)
                  seqnum, # the sequence number of the mutable file
@@ -239,7 +240,7 @@ class SDMFSlotWriteProxy(object):
                  segment_size,
                  data_length): # the length of the original file
         self.shnum = shnum
-        self._rref = rref
+        self._storage_server = storage_server
         self._storage_index = storage_index
         self._secrets = secrets
         self._seqnum = seqnum
@@ -255,7 +256,7 @@ class SDMFSlotWriteProxy(object):
                                                        self._required_shares)
         assert expected_segment_size == segment_size
 
-        self._block_size = self._segment_size / self._required_shares
+        self._block_size = old_div(self._segment_size, self._required_shares)
 
         # This is meant to mimic how SDMF files were built before MDMF
         # entered the picture: we generate each share in its entirety,
@@ -296,7 +297,7 @@ class SDMFSlotWriteProxy(object):
                                       salt)
         else:
             checkstring = checkstring_or_seqnum
-        self._testvs = [(0, len(checkstring), "eq", checkstring)]
+        self._testvs = [(0, len(checkstring), b"eq", checkstring)]
 
 
     def get_checkstring(self):
@@ -306,7 +307,7 @@ class SDMFSlotWriteProxy(object):
         """
         if self._testvs:
             return self._testvs[0][3]
-        return ""
+        return b""
 
 
     def put_block(self, data, segnum, salt):
@@ -343,7 +344,7 @@ class SDMFSlotWriteProxy(object):
             assert len(h) == HASH_SIZE
 
         # serialize the blockhashes, then set them.
-        blockhashes_s = "".join(blockhashes)
+        blockhashes_s = b"".join(blockhashes)
         self._share_pieces['block_hash_tree'] = blockhashes_s
 
         return defer.succeed(None)
@@ -354,12 +355,12 @@ class SDMFSlotWriteProxy(object):
         Add the share hash chain to the share.
         """
         assert isinstance(sharehashes, dict)
-        for h in sharehashes.itervalues():
+        for h in sharehashes.values():
             assert len(h) == HASH_SIZE
 
         # serialize the sharehashes, then set them.
-        sharehashes_s = "".join([struct.pack(">H32s", i, sharehashes[i])
-                                 for i in sorted(sharehashes.keys())])
+        sharehashes_s = b"".join([struct.pack(">H32s", i, sharehashes[i])
+                                  for i in sorted(sharehashes.keys())])
         self._share_pieces['share_hash_chain'] = sharehashes_s
 
         return defer.succeed(None)
@@ -383,7 +384,7 @@ class SDMFSlotWriteProxy(object):
         assert len(salt) == SALT_SIZE
 
         self._share_pieces['salt'] = salt
-        self._share_pieces['sharedata'] = ""
+        self._share_pieces['sharedata'] = b""
 
 
     def get_signable(self):
@@ -519,14 +520,14 @@ class SDMFSlotWriteProxy(object):
         # to the remote server in one write.
         offsets = self._pack_offsets()
         prefix = self.get_signable()
-        final_share = "".join([prefix,
-                               offsets,
-                               self._share_pieces['verification_key'],
-                               self._share_pieces['signature'],
-                               self._share_pieces['share_hash_chain'],
-                               self._share_pieces['block_hash_tree'],
-                               self._share_pieces['sharedata'],
-                               self._share_pieces['encprivkey']])
+        final_share = b"".join([prefix,
+                                offsets,
+                                self._share_pieces['verification_key'],
+                                self._share_pieces['signature'],
+                                self._share_pieces['share_hash_chain'],
+                                self._share_pieces['block_hash_tree'],
+                                self._share_pieces['sharedata'],
+                                self._share_pieces['encprivkey']])
 
         # Our only data vector is going to be writing the final share,
         # in its entirely.
@@ -537,16 +538,17 @@ class SDMFSlotWriteProxy(object):
             # yet, so we assume that we are writing a new share, and set
             # a test vector that will allow a new share to be written.
             self._testvs = []
-            self._testvs.append(tuple([0, 1, "eq", ""]))
+            self._testvs.append(tuple([0, 1, b"eq", b""]))
 
         tw_vectors = {}
         tw_vectors[self.shnum] = (self._testvs, datavs, None)
-        return self._rref.callRemote("slot_testv_and_readv_and_writev",
-                                     self._storage_index,
-                                     self._secrets,
-                                     tw_vectors,
-                                     # TODO is it useful to read something?
-                                     self._readvs)
+        return self._storage_server.slot_testv_and_readv_and_writev(
+            self._storage_index,
+            self._secrets,
+            tw_vectors,
+            # TODO is it useful to read something?
+            self._readvs,
+        )
 
 
 MDMFHEADER = ">BQ32sBBQQ QQQQQQQQ"
@@ -729,7 +731,7 @@ class MDMFSlotWriteProxy(object):
     # disruption.
     def __init__(self,
                  shnum,
-                 rref, # a remote reference to a storage server
+                 storage_server, # a remote reference to a storage server
                  storage_index,
                  secrets, # (write_enabler, renew_secret, cancel_secret)
                  seqnum, # the sequence number of the mutable file
@@ -738,7 +740,7 @@ class MDMFSlotWriteProxy(object):
                  segment_size,
                  data_length): # the length of the original file
         self.shnum = shnum
-        self._rref = rref
+        self._storage_server = storage_server
         self._storage_index = storage_index
         self._seqnum = seqnum
         self._required_shares = required_shares
@@ -787,7 +789,7 @@ class MDMFSlotWriteProxy(object):
         # and also because it provides a useful amount of bounds checking.
         self._num_segments = mathutil.div_ceil(self._data_length,
                                                self._segment_size)
-        self._block_size = self._segment_size / self._required_shares
+        self._block_size = old_div(self._segment_size, self._required_shares)
         # We also calculate the share size, to help us with block
         # constraints later.
         tail_size = self._data_length % self._segment_size
@@ -796,7 +798,7 @@ class MDMFSlotWriteProxy(object):
         else:
             self._tail_block_size = mathutil.next_multiple(tail_size,
                                                            self._required_shares)
-            self._tail_block_size /= self._required_shares
+            self._tail_block_size = old_div(self._tail_block_size, self._required_shares)
 
         # We already know where the sharedata starts; right after the end
         # of the header (which is defined as the signable part + the offsets)
@@ -867,7 +869,7 @@ class MDMFSlotWriteProxy(object):
         else:
             checkstring = seqnum_or_checkstring
 
-        if checkstring == "":
+        if checkstring == b"":
             # We special-case this, since len("") = 0, but we need
             # length of 1 for the case of an empty share to work on the
             # storage server, which is what a checkstring that is the
@@ -875,7 +877,7 @@ class MDMFSlotWriteProxy(object):
             self._testvs = []
         else:
             self._testvs = []
-            self._testvs.append((0, len(checkstring), "eq", checkstring))
+            self._testvs.append((0, len(checkstring), b"eq", checkstring))
 
 
     def __repr__(self):
@@ -892,7 +894,7 @@ class MDMFSlotWriteProxy(object):
         if self._root_hash:
             roothash = self._root_hash
         else:
-            roothash = "\x00" * 32
+            roothash = b"\x00" * 32
         return struct.pack(MDMFCHECKSTRING,
                            1,
                            self._seqnum,
@@ -963,7 +965,7 @@ class MDMFSlotWriteProxy(object):
 
         assert isinstance(blockhashes, list)
 
-        blockhashes_s = "".join(blockhashes)
+        blockhashes_s = b"".join(blockhashes)
         self._offsets['EOF'] = self._offsets['block_hash_tree'] + len(blockhashes_s)
 
         self._writevs.append(tuple([self._offsets['block_hash_tree'],
@@ -997,7 +999,7 @@ class MDMFSlotWriteProxy(object):
         if "verification_key" in self._offsets:
             raise LayoutInvalid("You must write the share hash chain "
                                 "before you write the signature")
-        sharehashes_s = "".join([struct.pack(">H32s", i, sharehashes[i])
+        sharehashes_s = b"".join([struct.pack(">H32s", i, sharehashes[i])
                                   for i in sorted(sharehashes.keys())])
         self._offsets['signature'] = self._offsets['share_hash_chain'] + \
             len(sharehashes_s)
@@ -1148,7 +1150,7 @@ class MDMFSlotWriteProxy(object):
         tw_vectors = {}
         if not self._testvs:
             self._testvs = []
-            self._testvs.append(tuple([0, 1, "eq", ""]))
+            self._testvs.append(tuple([0, 1, b"eq", b""]))
         if not self._written:
             # Write a new checkstring to the share when we write it, so
             # that we have something to check later.
@@ -1156,14 +1158,15 @@ class MDMFSlotWriteProxy(object):
             datavs.append((0, new_checkstring))
             def _first_write():
                 self._written = True
-                self._testvs = [(0, len(new_checkstring), "eq", new_checkstring)]
+                self._testvs = [(0, len(new_checkstring), b"eq", new_checkstring)]
             on_success = _first_write
         tw_vectors[self.shnum] = (self._testvs, datavs, None)
-        d = self._rref.callRemote("slot_testv_and_readv_and_writev",
-                                  self._storage_index,
-                                  self._secrets,
-                                  tw_vectors,
-                                  self._readv)
+        d = self._storage_server.slot_testv_and_readv_and_writev(
+            self._storage_index,
+            self._secrets,
+            tw_vectors,
+            self._readv,
+        )
         def _result(results):
             if isinstance(results, failure.Failure) or not results[0]:
                 # Do nothing; the write was unsuccessful.
@@ -1180,7 +1183,7 @@ def _handle_bad_struct(f):
     f.trap(struct.error)
     raise BadShareError(f.value.args[0])
 
-class MDMFSlotReadProxy:
+class MDMFSlotReadProxy(object):
     """
     I read from a mutable slot filled with data written in the MDMF data
     format (which is described above).
@@ -1189,13 +1192,13 @@ class MDMFSlotReadProxy:
     it is valid) to eliminate some of the need to fetch it from servers.
     """
     def __init__(self,
-                 rref,
+                 storage_server,
                  storage_index,
                  shnum,
-                 data="",
+                 data=b"",
                  data_is_everything=False):
         # Start the initialization process.
-        self._rref = rref
+        self._storage_server = storage_server
         self._storage_index = storage_index
         self.shnum = shnum
 
@@ -1236,7 +1239,7 @@ class MDMFSlotReadProxy:
         # None if there isn't any cached data, but the way we index the
         # cached data requires a string, so convert None to "".
         if self._data == None:
-            self._data = ""
+            self._data = b""
 
 
     def _maybe_fetch_offsets_and_header(self, force_remote=False):
@@ -1315,7 +1318,7 @@ class MDMFSlotReadProxy:
         self._segment_size = segsize
         self._data_length = datalen
 
-        self._block_size = self._segment_size / self._required_shares
+        self._block_size = old_div(self._segment_size, self._required_shares)
         # We can upload empty files, and need to account for this fact
         # so as to avoid zero-division and zero-modulo errors.
         if datalen > 0:
@@ -1327,7 +1330,7 @@ class MDMFSlotReadProxy:
         else:
             self._tail_block_size = mathutil.next_multiple(tail_size,
                                                     self._required_shares)
-            self._tail_block_size /= self._required_shares
+            self._tail_block_size = old_div(self._tail_block_size, self._required_shares)
 
         return encoding_parameters
 
@@ -1414,7 +1417,7 @@ class MDMFSlotReadProxy:
                 # when we fetched the header
                 data = results[self.shnum]
                 if not data:
-                    data = ""
+                    data = b""
                 else:
                     if len(data) != 1:
                         raise BadShareError("got %d vectors, not 1" % len(data))
@@ -1423,7 +1426,7 @@ class MDMFSlotReadProxy:
             else:
                 data = results[self.shnum]
                 if not data:
-                    salt = data = ""
+                    salt = data = b""
                 else:
                     salt_and_data = results[self.shnum][0]
                     salt = salt_and_data[:SALT_SIZE]
@@ -1741,7 +1744,7 @@ class MDMFSlotReadProxy:
 
 
     def _read(self, readvs, force_remote=False):
-        unsatisfiable = filter(lambda x: x[0] + x[1] > len(self._data), readvs)
+        unsatisfiable = list(filter(lambda x: x[0] + x[1] > len(self._data), readvs))
         # TODO: It's entirely possible to tweak this so that it just
         # fulfills the requests that it can, and not demand that all
         # requests are satisfiable before running it.
@@ -1752,10 +1755,11 @@ class MDMFSlotReadProxy:
             results = {self.shnum: results}
             return defer.succeed(results)
         else:
-            return self._rref.callRemote("slot_readv",
-                                         self._storage_index,
-                                         [self.shnum],
-                                         readvs)
+            return self._storage_server.slot_readv(
+                self._storage_index,
+                [self.shnum],
+                readvs,
+            )
 
 
     def is_sdmf(self):

@@ -1,3 +1,20 @@
+"""
+Tests for allmydata.storage.crawler.
+
+Ported to Python 3.
+"""
+
+from __future__ import print_function
+from __future__ import division
+from __future__ import absolute_import
+from __future__ import unicode_literals
+
+from future.utils import PY2, PY3
+if PY2:
+    # Don't use future bytes, since it breaks tests. No further works is
+    # needed, once we're only on Python 3 we'll be deleting this future imports
+    # anyway, and tests pass just fine on Python 3.
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, dict, list, object, range, str, max, min  # noqa: F401
 
 import time
 import os.path
@@ -10,8 +27,7 @@ from allmydata.util import fileutil, hashutil, pollmixin
 from allmydata.storage.server import StorageServer, si_b2a
 from allmydata.storage.crawler import ShareCrawler, TimeSliceExceeded
 
-from allmydata.test.test_storage import FakeCanary
-from allmydata.test.common_util import StallMixin
+from allmydata.test.common_util import StallMixin, FakeCanary
 
 class BucketEnumeratingCrawler(ShareCrawler):
     cpu_slice = 500 # make sure it can complete in a single slice
@@ -21,6 +37,10 @@ class BucketEnumeratingCrawler(ShareCrawler):
         self.all_buckets = []
         self.finished_d = defer.Deferred()
     def process_bucket(self, cycle, prefix, prefixdir, storage_index_b32):
+        if PY3:
+            # Bucket _inputs_ are bytes, and that's what we will compare this
+            # to:
+            storage_index_b32 = storage_index_b32.encode("ascii")
         self.all_buckets.append(storage_index_b32)
     def finished_cycle(self, cycle):
         eventually(self.finished_d.callback, None)
@@ -35,6 +55,10 @@ class PacedCrawler(ShareCrawler):
         self.finished_d = defer.Deferred()
         self.yield_cb = None
     def process_bucket(self, cycle, prefix, prefixdir, storage_index_b32):
+        if PY3:
+            # Bucket _inputs_ are bytes, and that's what we will compare this
+            # to:
+            storage_index_b32 = storage_index_b32.encode("ascii")
         self.all_buckets.append(storage_index_b32)
         self.countdown -= 1
         if self.countdown == 0:
@@ -91,27 +115,27 @@ class Basic(unittest.TestCase, StallMixin, pollmixin.PollMixin):
         return self.s.stopService()
 
     def si(self, i):
-        return hashutil.storage_index_hash(str(i))
+        return hashutil.storage_index_hash(b"%d" % (i,))
     def rs(self, i, serverid):
-        return hashutil.bucket_renewal_secret_hash(str(i), serverid)
+        return hashutil.bucket_renewal_secret_hash(b"%d" % (i,), serverid)
     def cs(self, i, serverid):
-        return hashutil.bucket_cancel_secret_hash(str(i), serverid)
+        return hashutil.bucket_cancel_secret_hash(b"%d" % (i,), serverid)
 
     def write(self, i, ss, serverid, tail=0):
         si = self.si(i)
-        si = si[:-1] + chr(tail)
+        si = si[:-1] + bytes(bytearray((tail,)))
         had,made = ss.remote_allocate_buckets(si,
                                               self.rs(i, serverid),
                                               self.cs(i, serverid),
                                               set([0]), 99, FakeCanary())
-        made[0].remote_write(0, "data")
+        made[0].remote_write(0, b"data")
         made[0].remote_close()
         return si_b2a(si)
 
     def test_immediate(self):
         self.basedir = "crawler/Basic/immediate"
         fileutil.make_dirs(self.basedir)
-        serverid = "\x00" * 20
+        serverid = b"\x00" * 20
         ss = StorageServer(self.basedir, serverid)
         ss.setServiceParent(self.s)
 
@@ -140,7 +164,7 @@ class Basic(unittest.TestCase, StallMixin, pollmixin.PollMixin):
     def test_service(self):
         self.basedir = "crawler/Basic/service"
         fileutil.make_dirs(self.basedir)
-        serverid = "\x00" * 20
+        serverid = b"\x00" * 20
         ss = StorageServer(self.basedir, serverid)
         ss.setServiceParent(self.s)
 
@@ -168,7 +192,7 @@ class Basic(unittest.TestCase, StallMixin, pollmixin.PollMixin):
     def test_paced(self):
         self.basedir = "crawler/Basic/paced"
         fileutil.make_dirs(self.basedir)
-        serverid = "\x00" * 20
+        serverid = b"\x00" * 20
         ss = StorageServer(self.basedir, serverid)
         ss.setServiceParent(self.s)
 
@@ -270,7 +294,7 @@ class Basic(unittest.TestCase, StallMixin, pollmixin.PollMixin):
     def test_paced_service(self):
         self.basedir = "crawler/Basic/paced_service"
         fileutil.make_dirs(self.basedir)
-        serverid = "\x00" * 20
+        serverid = b"\x00" * 20
         ss = StorageServer(self.basedir, serverid)
         ss.setServiceParent(self.s)
 
@@ -293,7 +317,7 @@ class Basic(unittest.TestCase, StallMixin, pollmixin.PollMixin):
                 left = p["remaining-sleep-time"]
                 self.failUnless(isinstance(left, float), left)
                 self.failUnless(left > 0.0, left)
-            except Exception, e:
+            except Exception as e:
                 did_check_progress[0] = e
             else:
                 did_check_progress[0] = True
@@ -337,7 +361,7 @@ class Basic(unittest.TestCase, StallMixin, pollmixin.PollMixin):
 
         self.basedir = "crawler/Basic/cpu_usage"
         fileutil.make_dirs(self.basedir)
-        serverid = "\x00" * 20
+        serverid = b"\x00" * 20
         ss = StorageServer(self.basedir, serverid)
         ss.setServiceParent(self.s)
 
@@ -373,16 +397,16 @@ class Basic(unittest.TestCase, StallMixin, pollmixin.PollMixin):
             # our buildslaves vary too much in their speeds and load levels,
             # and many of them only manage to hit 7% usage when our target is
             # 50%. So don't assert anything about the results, just log them.
-            print
-            print "crawler: got %d%% percent when trying for 50%%" % percent
-            print "crawler: got %d full cycles" % c.cycles
+            print()
+            print("crawler: got %d%% percent when trying for 50%%" % percent)
+            print("crawler: got %d full cycles" % c.cycles)
         d.addCallback(_done)
         return d
 
     def test_empty_subclass(self):
         self.basedir = "crawler/Basic/empty_subclass"
         fileutil.make_dirs(self.basedir)
-        serverid = "\x00" * 20
+        serverid = b"\x00" * 20
         ss = StorageServer(self.basedir, serverid)
         ss.setServiceParent(self.s)
 
@@ -410,7 +434,7 @@ class Basic(unittest.TestCase, StallMixin, pollmixin.PollMixin):
     def test_oneshot(self):
         self.basedir = "crawler/Basic/oneshot"
         fileutil.make_dirs(self.basedir)
-        serverid = "\x00" * 20
+        serverid = b"\x00" * 20
         ss = StorageServer(self.basedir, serverid)
         ss.setServiceParent(self.s)
 

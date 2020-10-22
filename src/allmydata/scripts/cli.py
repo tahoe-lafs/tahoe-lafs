@@ -1,3 +1,5 @@
+from __future__ import print_function
+
 import os.path, re, fnmatch
 from twisted.python import usage
 from allmydata.scripts.common import get_aliases, get_default_nodedir, \
@@ -36,7 +38,8 @@ class FileStoreOptions(BaseOptions):
                 raise usage.UsageError(msg)
         else:
             node_url_file = os.path.join(self['node-directory'], "node.url")
-            self['node-url'] = open(node_url_file, "r").read().strip()
+            with open(node_url_file, "r") as f:
+                self['node-url'] = f.read().strip()
         if self['node-url'][-1] != "/":
             self['node-url'] += "/"
 
@@ -257,10 +260,6 @@ class UnlinkOptions(FileStoreOptions):
     synopsis = "[options] REMOTE_FILE"
     description = "Remove a named file from its parent directory."
 
-class RmOptions(UnlinkOptions):
-    synopsis = "[options] REMOTE_FILE"
-    description = "Remove a named file from its parent directory."
-
 class MvOptions(FileStoreOptions):
     def parseArgs(self, frompath, topath):
         self.from_file = argv_to_unicode(frompath)
@@ -465,7 +464,6 @@ subCommands = [
     ["put", None, PutOptions, "Upload a file into the grid."],
     ["cp", None, CpOptions, "Copy one or more files or directories."],
     ["unlink", None, UnlinkOptions, "Unlink a file or directory on the grid."],
-    ["rm", None, RmOptions, "Unlink a file or directory on the grid (same as unlink)."],
     ["mv", None, MvOptions, "Move a file within the grid."],
     ["ln", None, LnOptions, "Make an additional link to an existing file or directory."],
     ["backup", None, BackupOptions, "Make target dir look like local dir."],
@@ -512,8 +510,8 @@ def get(options):
             # enough to have picked an empty file
             pass
         else:
-            print >>options.stderr, "%s retrieved and written to %s" % \
-                  (options.from_file, options.to_file)
+            print("%s retrieved and written to %s" % \
+                  (options.from_file, options.to_file), file=options.stderr)
     return rc
 
 def put(options):
