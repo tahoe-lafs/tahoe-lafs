@@ -14,44 +14,73 @@ version: 2.1
 workflows:
   ci:
     jobs:
-      # Platforms
-      - "debian-9"
+      # Start with jobs testing various platforms.
+
+      # Every job that pulls a Docker image from Docker Hub needs to provide
+      # credentials for that pull operation to avoid being subjected to
+      # unauthenticated pull limits shared across all of CircleCI.  Use this
+      # first job to define a yaml anchor that can be used to supply a
+      # CircleCI job context which makes Docker Hub credentials available in
+      # the environment.
+      #
+      # Contexts are managed in the CircleCI web interface:
+      #
+      #  https://app.circleci.com/settings/organization/github/tahoe-lafs/contexts
+      - "debian-9": &DOCKERHUB_CONTEXT
+          context: "dockerhub-auth"
+
       - "debian-8":
+          <<: *DOCKERHUB_CONTEXT
           requires:
             - "debian-9"
 
-      - "ubuntu-20-04"
+      - "ubuntu-20-04":
+          <<: *DOCKERHUB_CONTEXT
       - "ubuntu-18-04":
+          <<: *DOCKERHUB_CONTEXT
           requires:
             - "ubuntu-20-04"
       - "ubuntu-16-04":
+          <<: *DOCKERHUB_CONTEXT
           requires:
             - "ubuntu-20-04"
 
-      - "fedora-29"
+      - "fedora-29":
+          <<: *DOCKERHUB_CONTEXT
       - "fedora-28":
+          <<: *DOCKERHUB_CONTEXT
           requires:
             - "fedora-29"
 
-      - "centos-8"
+      - "centos-8":
+          <<: *DOCKERHUB_CONTEXT
 
-      - "nixos-19-09"
+      - "nixos-19-09":
+          <<: *DOCKERHUB_CONTEXT
 
       # Test against PyPy 2.7
-      - "pypy27-buster"
+      - "pypy27-buster":
+          <<: *DOCKERHUB_CONTEXT
 
       # Just one Python 3.6 configuration while the port is in-progress.
-      - "python36"
+      - "python36":
+          <<: *DOCKERHUB_CONTEXT
 
       # Other assorted tasks and configurations
-      - "lint"
-      - "pyinstaller"
-      - "deprecations"
-      - "c-locale"
+      - "lint":
+          <<: *DOCKERHUB_CONTEXT
+      - "pyinstaller":
+          <<: *DOCKERHUB_CONTEXT
+      - "deprecations":
+          <<: *DOCKERHUB_CONTEXT
+      - "c-locale":
+          <<: *DOCKERHUB_CONTEXT
       # Any locale other than C or UTF-8.
-      - "another-locale"
+      - "another-locale":
+          <<: *DOCKERHUB_CONTEXT
 
       - "integration":
+          <<: *DOCKERHUB_CONTEXT
           requires:
             # If the unit test suite doesn't pass, don't bother running the
             # integration tests.
@@ -59,7 +88,8 @@ workflows:
 
       # Generate the underlying data for a visualization to aid with Python 3
       # porting.
-      - "build-porting-depgraph"
+      - "build-porting-depgraph":
+          <<: *DOCKERHUB_CONTEXT
 
   images:
     # Build the Docker images used by the ci jobs.  This makes the ci jobs
@@ -74,16 +104,26 @@ workflows:
                 - "master"
 
     jobs:
-      - "build-image-debian-8"
-      - "build-image-debian-9"
-      - "build-image-ubuntu-16-04"
-      - "build-image-ubuntu-18-04"
-      - "build-image-ubuntu-20-04"
-      - "build-image-fedora-28"
-      - "build-image-fedora-29"
-      - "build-image-centos-8"
-      - "build-image-pypy27-buster"
-      - "build-image-python36-ubuntu"
+      - "build-image-debian-8":
+          <<: *DOCKERHUB_CONTEXT
+      - "build-image-debian-9":
+          <<: *DOCKERHUB_CONTEXT
+      - "build-image-ubuntu-16-04":
+          <<: *DOCKERHUB_CONTEXT
+      - "build-image-ubuntu-18-04":
+          <<: *DOCKERHUB_CONTEXT
+      - "build-image-ubuntu-20-04":
+          <<: *DOCKERHUB_CONTEXT
+      - "build-image-fedora-28":
+          <<: *DOCKERHUB_CONTEXT
+      - "build-image-fedora-29":
+          <<: *DOCKERHUB_CONTEXT
+      - "build-image-centos-8":
+          <<: *DOCKERHUB_CONTEXT
+      - "build-image-pypy27-buster":
+          <<: *DOCKERHUB_CONTEXT
+      - "build-image-python36-ubuntu":
+          <<: *DOCKERHUB_CONTEXT
 
 
 jobs:
