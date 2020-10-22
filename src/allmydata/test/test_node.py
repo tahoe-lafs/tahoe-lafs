@@ -613,16 +613,15 @@ class Listeners(unittest.TestCase):
         ``tub.location`` configuration, the node's *main* port listens on all
         of them.
         """
-        n = EmptyNode()
-        n.basedir = self.mktemp()
-        n.config_fname = os.path.join(n.basedir, "tahoe.cfg")
-        os.mkdir(n.basedir)
-        os.mkdir(os.path.join(n.basedir, "private"))
+        basedir = self.mktemp()
+        config_fname = os.path.join(basedir, "tahoe.cfg")
+        os.mkdir(basedir)
+        os.mkdir(os.path.join(basedir, "private"))
         port1, port2 = iter(ports)
         port = ("tcp:%d:interface=127.0.0.1,tcp:%d:interface=127.0.0.1" %
                 (port1, port2))
         location = "tcp:localhost:%d,tcp:localhost:%d" % (port1, port2)
-        with open(os.path.join(basedir, "tahoe.cfg"), "w") as f:
+        with open(config_fname, "w") as f:
             f.write(BASE_CONFIG)
             f.write("[node]\n")
             f.write("tub.port = %s\n" % port)
