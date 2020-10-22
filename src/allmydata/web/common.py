@@ -152,6 +152,17 @@ def parse_offset_arg(offset):
 
 
 def get_root(req):
+    """
+    Get a relative path with parent directory segments that refers to the root
+    location known to the given request.  This seems a lot like the constant
+    absolute path **/** but it will behave differently if the Tahoe-LAFS HTTP
+    server is reverse-proxied and mounted somewhere other than at the root.
+
+    :param twisted.web.iweb.IRequest req: The request to consider.
+
+    :return: A string like ``../../..`` with the correct number of segments to
+        reach the root.
+    """
     depth = len(req.prepath) + len(req.postpath)
     link = "/".join([".."] * depth)
     return link
