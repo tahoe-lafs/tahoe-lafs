@@ -84,19 +84,10 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
     def setUp(self):
         testutil.SignalMixin.setUp(self)
         self.parent = LoggingMultiService()
-        self.parent.startService()
         # We can use a made-up port number because these tests never actually
         # try to bind the port.  We'll use a low-numbered one that's likely to
         # conflict with another service to prove it.
         self._available_port = 22
-
-    def tearDown(self):
-        log.msg("%s.tearDown" % self.__class__.__name__)
-        testutil.SignalMixin.tearDown(self)
-        d = defer.succeed(None)
-        d.addCallback(lambda res: self.parent.stopService())
-        d.addCallback(flushEventualQueue)
-        return d
 
     def _test_location(self, basedir, expected_addresses, tub_port=None, tub_location=None, local_addresses=None):
         create_node_dir(basedir, "testing")
