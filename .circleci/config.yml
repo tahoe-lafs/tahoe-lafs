@@ -129,7 +129,7 @@ workflows:
 jobs:
   dockerhub-auth-template:
     # This isn't a real job.  It doesn't get scheduled as part of any
-    # workhlow.  Instead, it's just a place we can hang a yaml anchor to
+    # workflow.  Instead, it's just a place we can hang a yaml anchor to
     # finish the Docker Hub authentication configuration.  Workflow jobs using
     # the DOCKERHUB_CONTEXT anchor will have access to the environment
     # variables used here.  These variables will allow the Docker Hub image
