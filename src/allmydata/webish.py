@@ -31,6 +31,14 @@ from .web.storage_plugins import (
 )
 
 class TahoeLAFSRequest(Request, object):
+    """
+    ``TahoeLAFSRequest`` adds several features to a Twisted Web ``Request``
+    that are useful for Tahoe-LAFS.
+
+    :ivar NoneType|FieldStorage fields: For POST requests, a structured
+        representation of the contents of the request body.  For anything
+        else, ``None``.
+    """
     fields = None
     _tahoe_request_had_error = None
 
