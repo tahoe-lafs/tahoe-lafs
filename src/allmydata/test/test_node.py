@@ -19,9 +19,7 @@ from unittest import skipIf
 
 from twisted.trial import unittest
 from twisted.internet import defer
-from twisted.python import log
 
-from foolscap.api import flushEventualQueue
 import foolscap.logging.log
 
 from twisted.application import service
