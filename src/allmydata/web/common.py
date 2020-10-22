@@ -21,6 +21,9 @@ from twisted.web import (
     resource,
     template,
 )
+from twisted.web.iweb import (
+    IRequest,
+)
 from twisted.web.template import (
     tags,
 )
@@ -163,6 +166,10 @@ def get_root(req):
     :return: A string like ``../../..`` with the correct number of segments to
         reach the root.
     """
+    if not IRequest.providedBy(req):
+        raise TypeError(
+            "get_root requires IRequest provider, got {!r}".format(req),
+        )
     depth = len(req.prepath) + len(req.postpath)
     link = "/".join([".."] * depth)
     return link
