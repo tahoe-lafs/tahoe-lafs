@@ -91,19 +91,19 @@ workflows:
       - "build-porting-depgraph":
           <<: *DOCKERHUB_CONTEXT
 
-  # images:
-  #   # Build the Docker images used by the ci jobs.  This makes the ci jobs
-  #   # faster and takes various spurious failures out of the critical path.
-  #   triggers:
-  #     # Build once a day
-  #     - schedule:
-  #         cron: "0 0 * * *"
-  #         filters:
-  #           branches:
-  #             only:
-  #               - "master"
+  images:
+    # Build the Docker images used by the ci jobs.  This makes the ci jobs
+    # faster and takes various spurious failures out of the critical path.
+    triggers:
+      # Build once a day
+      - schedule:
+          cron: "0 0 * * *"
+          filters:
+            branches:
+              only:
+                - "master"
 
-  #   jobs:
+    jobs:
       - "build-image-debian-8":
           <<: *DOCKERHUB_CONTEXT
       - "build-image-debian-9":
