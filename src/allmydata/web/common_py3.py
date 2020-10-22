@@ -21,6 +21,8 @@ def get_arg(req, argname, default=None, multiple=False):
     (or the default, which defaults to None), and the query args take
     precedence. If multiple=True, this returns a tuple of arguments (possibly
     empty), starting with all those in the query args.
+
+    :param TahoeLAFSRequest req: The request to consider.
     """
     results = []
     if argname in req.args:
