@@ -142,8 +142,12 @@ jobs:
 
     steps:
       - run:
-          name: "Schema conformity"
+          name: "CircleCI YAML schema conformity"
           command: |
+            # This isn't a real command.  We have to have something in this
+            # space, though, or the CircleCI yaml schema validator gets angry.
+            # Since this job is never scheduled this step is never run so the
+            # actual value here is irrelevant.
 
   lint:
     docker:
