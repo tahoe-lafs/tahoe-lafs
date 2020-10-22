@@ -117,7 +117,6 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
             pass
 
         furl = tub.registerReference(Foo())
-
         for address in expected_addresses:
             self.assertIn(address, furl)
 
@@ -571,6 +570,7 @@ class FakeTub(object):
     def setServiceParent(self, parent): pass
 
 class Listeners(unittest.TestCase):
+
     def test_listen_on_zero(self):
         """
         Trying to listen on port 0 should be an error
