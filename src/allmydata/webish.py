@@ -40,7 +40,6 @@ class TahoeLAFSRequest(Request, object):
         else, ``None``.
     """
     fields = None
-    _tahoe_request_had_error = None
 
     def requestReceived(self, command, path, version):
         """
