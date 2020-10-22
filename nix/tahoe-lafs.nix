@@ -1,6 +1,6 @@
 { fetchFromGitHub, lib
 , nettools, python
-, twisted, foolscap, nevow, zfec
+, twisted, foolscap, zfec
 , setuptools, setuptoolsTrial, pyasn1, zope_interface
 , service-identity, pyyaml, magic-wormhole, treq, appdirs
 , beautifulsoup4, eliot, autobahn, cryptography
@@ -46,7 +46,7 @@ python.pkgs.buildPythonPackage rec {
   ];
 
   propagatedBuildInputs = with python.pkgs; [
-    twisted foolscap nevow zfec appdirs
+    twisted foolscap zfec appdirs
     setuptoolsTrial pyasn1 zope_interface
     service-identity pyyaml magic-wormhole treq
     eliot autobahn cryptography setuptools

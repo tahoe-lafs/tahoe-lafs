@@ -4,15 +4,7 @@ Common utilities that are available from Python 3.
 Can eventually be merged back into allmydata.web.common.
 """
 
-from future.utils import PY2
-
-if PY2:
-    from nevow.inevow import IRequest as INevowRequest
-else:
-    INevowRequest = None
-
 from twisted.web import resource, http
-from twisted.web.iweb import IRequest
 
 from allmydata.util import abbreviate
 
@@ -23,24 +15,20 @@ class WebError(Exception):
         self.code = code
 
 
-def get_arg(ctx_or_req, argname, default=None, multiple=False):
+def get_arg(req, argname, default=None, multiple=False):
     """Extract an argument from either the query args (req.args) or the form
     body fields (req.fields). If multiple=False, this returns a single value
     (or the default, which defaults to None), and the query args take
     precedence. If multiple=True, this returns a tuple of arguments (possibly
     empty), starting with all those in the query args.
+
+    :param TahoeLAFSRequest req: The request to consider.
     """
     results = []
-    if PY2:
-        req = INevowRequest(ctx_or_req)
-        if argname in req.args:
-            results.extend(req.args[argname])
-        if req.fields and argname in req.fields:
-            results.append(req.fields[argname].value)
-    else:
-        req = IRequest(ctx_or_req)
-        if argname in req.args:
-            results.extend(req.args[argname])
+    if argname in req.args:
+        results.extend(req.args[argname])
+    if req.fields and argname in req.fields:
+        results.append(req.fields[argname].value)
     if multiple:
         return tuple(results)
     if results:

@@ -114,7 +114,7 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
 
         # Rejecting URIs that contain empty path pieces (for example:
         # "/uri/URI:DIR2:../foo//new.txt" or "/uri/URI:DIR2:..//") was
-        # the old nevow behavior and it is encoded in the test suite;
+        # the old Nevow behavior and it is encoded in the test suite;
         # we will follow suit.
         for segment in req.prepath:
             if not segment:
@@ -398,8 +398,8 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
         d.addBoth(_maybe_got_node)
         # now we have a placeholder or a filenodehandler, and we can just
         # delegate to it. We could return the resource back out of
-        # DirectoryNodeHandler.renderHTTP, and nevow would recurse into it,
-        # but the addCallback() that handles when_done= would break.
+        # DirectoryNodeHandler.render_POST and it would get rendered but the
+        # addCallback() that handles when_done= would break.
         def render_child(child):
             req.dont_apply_extra_processing = True
             return child.render(req)
@@ -522,9 +522,9 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
             d.addCallback(self._maybe_literal, CheckResultsRenderer)
         return d
 
-    def _start_operation(self, monitor, renderer, ctx):
-        self._operations.add_monitor(ctx, monitor, renderer)
-        return self._operations.redirect_to(ctx)
+    def _start_operation(self, monitor, renderer, req):
+        self._operations.add_monitor(req, monitor, renderer)
+        return self._operations.redirect_to(req)
 
     def _POST_start_deep_check(self, req):
         # check this directory and everything reachable from it

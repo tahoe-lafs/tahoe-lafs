@@ -1,4 +1,3 @@
-from future.utils import PY2
 from past.builtins import unicode
 
 import time
@@ -22,12 +21,14 @@ from twisted.web import (
     resource,
     template,
 )
+from twisted.web.iweb import (
+    IRequest,
+)
 from twisted.web.template import (
     tags,
 )
 from twisted.web.server import (
     NOT_DONE_YET,
-    UnsupportedMethod,
 )
 from twisted.web.util import (
     DeferredResource,
@@ -42,20 +43,12 @@ from twisted.python.failure import (
     Failure,
 )
 from twisted.internet.defer import (
+    CancelledError,
     maybeDeferred,
 )
 from twisted.web.resource import (
     IResource,
 )
-from twisted.web.iweb import IRequest as ITwistedRequest
-if PY2:
-    from nevow.appserver import DefaultExceptionHandler
-    from nevow.inevow import IRequest as INevowRequest
-else:
-    class DefaultExceptionHandler:
-        def __init__(self, *args, **kwargs):
-            raise NotImplementedError("Still not ported to Python 3")
-    INevowRequest = None
 
 from allmydata import blacklist
 from allmydata.interfaces import (
@@ -161,11 +154,22 @@ def parse_offset_arg(offset):
     return offset
 
 
-def get_root(ctx_or_req):
-    if PY2:
-        req = INevowRequest(ctx_or_req)
-    else:
-        req = ITwistedRequest(ctx_or_req)
+def get_root(req):
+    """
+    Get a relative path with parent directory segments that refers to the root
+    location known to the given request.  This seems a lot like the constant
+    absolute path **/** but it will behave differently if the Tahoe-LAFS HTTP
+    server is reverse-proxied and mounted somewhere other than at the root.
+
+    :param twisted.web.iweb.IRequest req: The request to consider.
+
+    :return: A string like ``../../..`` with the correct number of segments to
+        reach the root.
+    """
+    if not IRequest.providedBy(req):
+        raise TypeError(
+            "get_root requires IRequest provider, got {!r}".format(req),
+        )
     depth = len(req.prepath) + len(req.postpath)
     link = "/".join([".."] * depth)
     return link
@@ -366,20 +370,13 @@ def humanize_failure(f):
     return humanize_exception(f.value)
 
 
-class MyExceptionHandler(DefaultExceptionHandler, object):
-    def renderHTTP_exception(self, ctx, f):
-        req = INevowRequest(ctx)
-        req.write(_renderHTTP_exception(req, f))
-        req.finishRequest(False)
-
-
 class NeedOperationHandleError(WebError):
     pass
 
 
 class SlotsSequenceElement(template.Element):
     """
-    ``SlotsSequenceElement` is a minimal port of nevow's sequence renderer for
+    ``SlotsSequenceElement` is a minimal port of Nevow's sequence renderer for
     twisted.web.template.
 
     Tags passed in to be templated will have two renderers available: ``item``
@@ -493,7 +490,17 @@ def render_exception(render):
             # Apply `_finish` all of our result handling logic to whatever it
             # returned.
             result.addBoth(_finish, bound_render, request)
-            result.addActionFinish()
+            d = result.addActionFinish()
+
+        # If the connection is lost then there's no point running our _finish
+        # logic because it has nowhere to send anything.  There may also be no
+        # point in finishing whatever operation was being performed because
+        # the client cannot be informed of its result.  Also, Twisted Web
+        # raises exceptions from some Request methods if they're used after
+        # the connection is lost.
+        request.notifyFinish().addErrback(
+            lambda ignored: d.cancel(),
+        )
         return NOT_DONE_YET
 
     return g
@@ -518,6 +525,8 @@ def _finish(result, render, request):
     :return: ``None``
     """
     if isinstance(result, Failure):
+        if result.check(CancelledError):
+            return
         Message.log(
             message_type=u"allmydata:web:common-render:failure",
             message=result.getErrorMessage(),
@@ -589,17 +598,6 @@ def _renderHTTP_exception(request, failure):
 
     if code is not None:
         return _renderHTTP_exception_simple(request, text, code)
-
-    if failure.check(UnsupportedMethod):
-        # twisted.web.server.Request.render() has support for transforming
-        # this into an appropriate 501 NOT_IMPLEMENTED or 405 NOT_ALLOWED
-        # return code, but nevow does not.
-        method = request.method
-        return _renderHTTP_exception_simple(
-            request,
-            "I don't know how to treat a %s request." % (method,),
-            http.NOT_IMPLEMENTED,
-        )
 
     accept = request.getHeader("accept")
     if not accept:
