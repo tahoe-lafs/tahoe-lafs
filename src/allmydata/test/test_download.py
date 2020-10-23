@@ -44,6 +44,21 @@ plaintext = b"This is a moderate-sized file.\n" * 10
 mutable_plaintext = b"This is a moderate-sized mutable file.\n" * 10
 
 def load_share_data(root, name_template, placement):
+    """
+    Load some pre-generated share data.
+
+    :param FilePath root: The root directory beneath which to find the data.
+
+    :param unicode name_template: A string into which client number and share
+        number can be interpolated to create the correct basename for a file
+        holding some share data.
+
+    :param {int: [int]} placement: A mapping from client numbers to lists of
+        share numbers held by those clients.
+
+    :return {int: {int: bytes}}: A mapping from client numbers to mappings
+        from share numbers to bytes giving the corresponding share data.
+    """
     return {
         client_num: {
             share_num: root.child(
