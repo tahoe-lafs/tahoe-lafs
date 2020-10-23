@@ -3,13 +3,7 @@ repos:
     hooks:
     - id: codechecks
       name: codechecks
-      stages: ["commit"]
-      entry: "tox -e codechecks"
-      language: system
-      pass_filenames: false
-    - id: test
-      name: test
       stages: ["push"]
-      entry: "make test"
+      entry: "tox -e codechecks"
       language: system
       pass_filenames: false
