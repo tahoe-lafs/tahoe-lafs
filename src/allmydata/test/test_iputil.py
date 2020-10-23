@@ -16,6 +16,13 @@ if PY2:
 import re, os, socket
 import gc
 
+from testtools.matchers import (
+    MatchesAll,
+    IsInstance,
+    AllMatch,
+    MatchesPredicate,
+)
+
 from twisted.trial import unittest
 
 from tenacity import retry, stop_after_attempt
@@ -24,6 +31,13 @@ from foolscap.api import Tub
 
 from allmydata.util import iputil, gcutil
 
+from ..util.iputil import (
+    get_local_addresses_sync,
+)
+
+from .common import (
+    SyncTestCase,
+)
 
 class ListenOnUsed(unittest.TestCase):
     """Tests for listenOnUnused."""
@@ -96,3 +110,29 @@ class GcUtil(unittest.TestCase):
             self.assertEqual(len(collections), 0)
         tracker.allocate()
         self.assertEqual(len(collections), 1)
+
+
+class GetLocalAddressesSyncTests(SyncTestCase):
+    """
+    Tests for ``get_local_addresses_sync``.
+    """
+    def test_some_ipv4_addresses(self):
+        """
+        ``get_local_addresses_sync`` returns a list of IPv4 addresses as native
+        strings.
+        """
+        self.assertThat(
+            get_local_addresses_sync(),
+            MatchesAll(
+                IsInstance(list),
+                AllMatch(
+                    MatchesAll(
+                        IsInstance(native_str),
+                        MatchesPredicate(
+                            lambda addr: socket.inet_pton(socket.AF_INET, addr),
+                            "%r is not an IPv4 address.",
+                        ),
+                    ),
+                ),
+            ),
+        )

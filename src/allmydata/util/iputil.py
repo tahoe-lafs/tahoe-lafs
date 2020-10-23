@@ -114,7 +114,7 @@ def get_local_addresses_sync():
         for iface_name
         in interfaces()
         for address
-        in ifaddresses(iface_name).get(socket.AF_INET)
+        in ifaddresses(iface_name).get(socket.AF_INET, [])
     )
 
 
