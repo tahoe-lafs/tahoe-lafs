@@ -20,18 +20,13 @@ from bs4 import BeautifulSoup
 from twisted.trial import unittest
 from twisted.internet import defer
 
-# We need to use `nevow.inevow.IRequest` for now for compatibility
-# with the code in web/common.py.  Once nevow bits are gone from
-# web/common.py, we can use `twisted.web.iweb.IRequest` here.
-if PY2:
-    from nevow.inevow import IRequest
-else:
-    from twisted.web.iweb import IRequest
-
 from zope.interface import implementer
-from twisted.web.server import Request
-from twisted.web.test.requesthelper import DummyChannel
-from twisted.web.template import flattenString
+from twisted.web.resource import (
+    Resource,
+)
+from twisted.web.template import (
+    renderElement,
+)
 
 from allmydata import check_results, uri
 from allmydata import uri as tahoe_uri
@@ -52,6 +47,9 @@ from allmydata.mutable.publish import MutableData
 from .common import (
     EMPTY_CLIENT_CONFIG,
 )
+from .common_web import (
+    render,
+)
 
 from .web.common import (
     assert_soup_has_favicon,
@@ -61,24 +59,6 @@ from .web.common import (
 class FakeClient(object):
     def get_storage_broker(self):
         return self.storage_broker
-
-@implementer(IRequest)
-class TestRequest(Request, object):
-    """
-    A minimal Request class to use in tests.
-
-    XXX: We have to have this class because `common.get_arg()` expects
-    a `nevow.inevow.IRequest`, which `twisted.web.server.Request`
-    isn't.  The request needs to have `args`, `fields`, `prepath`, and
-    `postpath` properties so that `allmydata.web.common.get_arg()`
-    won't complain.
-    """
-    def __init__(self, args=None, fields=None):
-        super(TestRequest, self).__init__(DummyChannel())
-        self.args = args or {}
-        self.fields = fields or {}
-        self.prepath = [b""]
-        self.postpath = [b""]
 
 
 @implementer(IServer)
@@ -151,6 +131,15 @@ class FakeCheckAndRepairResults(object):
         return self._repair_success
 
 
+class ElementResource(Resource, object):
+    def __init__(self, element):
+        Resource.__init__(self)
+        self.element = element
+
+    def render(self, request):
+        return renderElement(request, self.element)
+
+
 class WebResultsRendering(unittest.TestCase):
 
     @staticmethod
@@ -184,11 +173,12 @@ class WebResultsRendering(unittest.TestCase):
         return c
 
     def render_json(self, resource):
-        return resource.render(TestRequest(args={"output": ["json"]}))
+        return self.successResultOf(render(resource, {"output": ["json"]}))
 
     def render_element(self, element, args=None):
-        d = flattenString(TestRequest(args), element)
-        return unittest.TestCase().successResultOf(d)
+        if args is None:
+            args = {}
+        return self.successResultOf(render(ElementResource(element), args))
 
     def test_literal(self):
         lcr = web_check_results.LiteralCheckResultsRendererElement()

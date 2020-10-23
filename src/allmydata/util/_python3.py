@@ -46,6 +46,7 @@ PORTED_MODULES = [
     "allmydata.immutable.happiness_upload",
     "allmydata.immutable.layout",
     "allmydata.immutable.literal",
+    "allmydata.immutable.offloaded",
     "allmydata.immutable.upload",
     "allmydata.interfaces",
     "allmydata.introducer.interfaces",

@@ -8,6 +8,10 @@ from os.path import join, exists
 from tempfile import mkdtemp, mktemp
 from functools import partial
 
+from foolscap.furl import (
+    decode_furl,
+)
+
 from eliot import (
     to_file,
     log_call,
@@ -226,6 +230,16 @@ def introducer_furl(introducer, temp_dir):
         print("Don't see {} yet".format(furl_fname))
         sleep(.1)
     furl = open(furl_fname, 'r').read()
+    tubID, location_hints, name = decode_furl(furl)
+    if not location_hints:
+        # If there are no location hints then nothing can ever possibly
+        # connect to it and the only thing that can happen next is something
+        # will hang or time out.  So just give up right now.
+        raise ValueError(
+            "Introducer ({!r}) fURL has no location hints!".format(
+                introducer_furl,
+            ),
+        )
     return furl
 
 

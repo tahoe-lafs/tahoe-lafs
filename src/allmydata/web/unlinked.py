@@ -1,5 +1,6 @@
 
 import urllib
+
 from twisted.web import http
 from twisted.internet import defer
 from twisted.python.filepath import FilePath
@@ -10,7 +11,6 @@ from twisted.web.template import (
     renderElement,
     tags,
 )
-from nevow import url
 from allmydata.immutable.upload import FileHandle
 from allmydata.mutable.publish import MutableFileHandle
 from allmydata.web.common import (
@@ -21,6 +21,7 @@ from allmydata.web.common import (
     get_format,
     get_mutable_type,
     render_exception,
+    url_for_string,
 )
 from allmydata.web import status
 
@@ -66,7 +67,7 @@ def POSTUnlinkedCHK(req, client):
         def _done(upload_results, redir_to):
             if "%(uri)s" in redir_to:
                 redir_to = redir_to.replace("%(uri)s", urllib.quote(upload_results.get_uri()))
-            return url.URL.fromString(redir_to)
+            return url_for_string(req, redir_to)
         d.addCallback(_done, when_done)
     else:
         # return the Upload Results page, which includes the URI
@@ -160,7 +161,6 @@ def POSTUnlinkedCreateDirectory(req, client):
             new_url = "uri/" + urllib.quote(res.get_uri())
             req.setResponseCode(http.SEE_OTHER) # 303
             req.setHeader('location', new_url)
-            req.finish()
             return ''
         d.addCallback(_then_redir)
     else:
@@ -179,7 +179,6 @@ def POSTUnlinkedCreateDirectoryWithChildren(req, client):
             new_url = "uri/" + urllib.quote(res.get_uri())
             req.setResponseCode(http.SEE_OTHER) # 303
             req.setHeader('location', new_url)
-            req.finish()
             return ''
         d.addCallback(_then_redir)
     else:
@@ -198,7 +197,6 @@ def POSTUnlinkedCreateImmutableDirectory(req, client):
             new_url = "uri/" + urllib.quote(res.get_uri())
             req.setResponseCode(http.SEE_OTHER) # 303
             req.setHeader('location', new_url)
-            req.finish()
             return ''
         d.addCallback(_then_redir)
     else:
