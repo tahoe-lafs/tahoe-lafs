@@ -1,5 +1,5 @@
 { fetchFromGitHub, lib
-, nettools, python
+, python
 , twisted, foolscap, zfec
 , setuptools, setuptoolsTrial, pyasn1, zope_interface
 , service-identity, pyyaml, magic-wormhole, treq, appdirs
@@ -40,10 +40,6 @@ python.pkgs.buildPythonPackage rec {
     rm src/allmydata/test/test_eliotutil.py
   '';
 
-
-  propagatedNativeBuildInputs = [
-    nettools
-  ];
 
   propagatedBuildInputs = with python.pkgs; [
     twisted foolscap zfec appdirs
