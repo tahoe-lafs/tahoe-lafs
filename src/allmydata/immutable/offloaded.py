@@ -670,7 +670,7 @@ class Helper(Referenceable):
         return (None, uh)
 
     def _make_chk_upload_helper(self, storage_index, lp):
-        si_s = si_b2a(storage_index)
+        si_s = si_b2a(storage_index).decode('ascii')
         incoming_file = os.path.join(self._chk_incoming, si_s)
         encoding_file = os.path.join(self._chk_encoding, si_s)
         uh = self.chk_upload(
