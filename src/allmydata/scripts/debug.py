@@ -32,34 +32,39 @@ verify-cap for the file that uses the share.
         self['filename'] = argv_to_abspath(filename)
 
 def dump_share(options):
-    from allmydata.storage.mutable import MutableShareFile
     from allmydata.util.encodingutil import quote_output
-
-    out = options.stdout
-
+    filename = options['filename']
     # check the version, to see if we have a mutable or immutable share
-    print("share filename: %s" % quote_output(options['filename']), file=out)
+    print("share filename: %s" % quote_output(filename), file=options.stdout)
+    with open(filename, "rb") as sharefile:
+        print(b"\n".join(dump_share_impl(
+            sharefile,
+            filename,
+            options["leases-only"],
+            options["offsets"],
+        )), file=options.stdout)
 
-    f = open(options['filename'], "rb")
-    prefix = f.read(32)
-    f.close()
+
+def dump_share_impl(sharefile, sharefilename, leases_only, show_offsets):
+    from allmydata.storage.mutable import MutableShareFile
+
+    prefix = sharefile.read(32)
     if prefix == MutableShareFile.MAGIC:
-        return dump_mutable_share(options)
+        return dump_mutable_share(sharefile, sharefilename, show_offsets)
     # otherwise assume it's immutable
-    return dump_immutable_share(options)
+    return dump_immutable_share(sharefile, leases_only, show_offsets)
 
-def dump_immutable_share(options):
+
+def dump_immutable_share(sharefile, leases_only, show_offsets):
     from allmydata.storage.immutable import ShareFile
 
-    out = options.stdout
-    f = ShareFile(options['filename'])
-    if not options["leases-only"]:
-        dump_immutable_chk_share(f, out, options)
-    dump_immutable_lease_info(f, out)
-    print(file=out)
-    return 0
+    f = ShareFile(sharefilename)
+    if leases_only:
+        return dump_immutable_lease_info(f, sharefile.name)
+    return dump_immutable_chk_share(f, show_offsets)
 
-def dump_immutable_chk_share(f, out, options):
+
+def dump_immutable_chk_share(f, show_offsets):
     from allmydata import uri
     from allmydata.util import base32
     from allmydata.immutable.layout import ReadBucketProxy
@@ -68,7 +73,7 @@ def dump_immutable_chk_share(f, out, options):
     # use a ReadBucketProxy to parse the bucket and find the uri extension
     bp = ReadBucketProxy(None, None, '')
     offsets = bp._parse_offsets(f.read_share_data(0, 0x44))
-    print("%20s: %d" % ("version", bp._version), file=out)
+    yield "%20s: %d" % ("version", bp._version)
     seek = offsets['uri_extension']
     length = struct.unpack(bp._fieldstruct,
                            f.read_share_data(seek, bp._fieldsize))[0]
@@ -86,28 +91,28 @@ def dump_immutable_chk_share(f, out, options):
     for k in keys1:
         if k in unpacked:
             dk = display_keys.get(k, k)
-            print("%20s: %s" % (dk, unpacked[k]), file=out)
-    print(file=out)
+            yield "%20s: %s" % (dk, unpacked[k])
+    yield ""
     for k in keys2:
         if k in unpacked:
             dk = display_keys.get(k, k)
-            print("%20s: %s" % (dk, unpacked[k]), file=out)
-    print(file=out)
+            yield "%20s: %s" % (dk, unpacked[k])
+    yield ""
     for k in keys3:
         if k in unpacked:
             dk = display_keys.get(k, k)
-            print("%20s: %s" % (dk, unpacked[k]), file=out)
+            yield "%20s: %s" % (dk, unpacked[k])
 
     leftover = set(unpacked.keys()) - set(keys1 + keys2 + keys3)
     if leftover:
-        print(file=out)
-        print("LEFTOVER:", file=out)
+        yield ""
+        yield "LEFTOVER:"
         for k in sorted(leftover):
-            print("%20s: %s" % (k, unpacked[k]), file=out)
+            yield "%20s: %s" % (k, unpacked[k])
 
     # the storage index isn't stored in the share itself, so we depend upon
     # knowing the parent directory name to get it
-    pieces = options['filename'].split(os.sep)
+    pieces = f.home.split(os.sep)
     if len(pieces) >= 2:
         piece = to_bytes(pieces[-2])
         if base32.could_be_base32_encoded(piece):
@@ -117,7 +122,7 @@ def dump_immutable_chk_share(f, out, options):
                                       unpacked["needed_shares"],
                                       unpacked["total_shares"], unpacked["size"])
             verify_cap = u.to_string()
-            print("%20s: %s" % ("verify-cap", quote_output(verify_cap, quotemarks=False)), file=out)
+            yield "%20s: %s" % ("verify-cap", quote_output(verify_cap, quotemarks=False))
 
     sizes = {}
     sizes['data'] = (offsets['plaintext_hash_tree'] -
@@ -125,21 +130,22 @@ def dump_immutable_chk_share(f, out, options):
     sizes['validation'] = (offsets['uri_extension'] -
                            offsets['plaintext_hash_tree'])
     sizes['uri-extension'] = len(UEB_data)
-    print(file=out)
-    print(" Size of data within the share:", file=out)
+    yield ""
+    yield " Size of data within the share:"
     for k in sorted(sizes):
-        print("%20s: %s" % (k, sizes[k]), file=out)
+        yield "%20s: %s" % (k, sizes[k])
 
-    if options['offsets']:
-        print(file=out)
-        print(" Section Offsets:", file=out)
-        print("%20s: %s" % ("share data", f._data_offset), file=out)
+    if show_offsets:
+        yield ""
+        yield " Section Offsets:"
+        yield "%20s: %s" % ("share data", f._data_offset)
         for k in ["data", "plaintext_hash_tree", "crypttext_hash_tree",
                   "block_hashes", "share_hashes", "uri_extension"]:
             name = {"data": "block data"}.get(k,k)
             offset = f._data_offset + offsets[k]
-            print("  %20s: %s   (0x%x)" % (name, offset, offset), file=out)
-        print("%20s: %s" % ("leases", f._lease_offset), file=out)
+            yield "  %20s: %s   (0x%x)" % (name, offset, offset)
+        yield "%20s: %s" % ("leases", f._lease_offset)
+
 
 def dump_immutable_lease_info(f, out):
     # display lease information too
@@ -164,59 +170,59 @@ def format_expiration_time(expiration_time):
     return when
 
 
-def dump_mutable_share(options):
+def dump_mutable_share(sharefile, sharefilename, show_offsets):
     from allmydata.storage.mutable import MutableShareFile
     from allmydata.util import base32, idlib
-    out = options.stdout
-    m = MutableShareFile(options['filename'])
-    f = open(options['filename'], "rb")
-    WE, nodeid = m._read_write_enabler_and_nodeid(f)
-    num_extra_leases = m._read_num_extra_leases(f)
-    data_length = m._read_data_length(f)
-    extra_lease_offset = m._read_extra_lease_offset(f)
+
+    m = MutableShareFile(sharefilename)
+
+    WE, nodeid = m._read_write_enabler_and_nodeid(sharefile)
+    num_extra_leases = m._read_num_extra_leases(sharefile)
+    data_length = m._read_data_length(sharefile)
+    extra_lease_offset = m._read_extra_lease_offset(sharefile)
     container_size = extra_lease_offset - m.DATA_OFFSET
-    leases = list(m._enumerate_leases(f))
+    leases = list(m._enumerate_leases(sharefile))
 
     share_type = "unknown"
-    f.seek(m.DATA_OFFSET)
-    version = f.read(1)
+    sharefile.seek(m.DATA_OFFSET)
+    version = sharefile.read(1)
     if version == "\x00":
         # this slot contains an SMDF share
         share_type = "SDMF"
     elif version == "\x01":
         share_type = "MDMF"
-    f.close()
 
-    print(file=out)
-    print("Mutable slot found:", file=out)
-    print(" share_type: %s" % share_type, file=out)
-    print(" write_enabler: %s" % base32.b2a(WE), file=out)
-    print(" WE for nodeid: %s" % idlib.nodeid_b2a(nodeid), file=out)
-    print(" num_extra_leases: %d" % num_extra_leases, file=out)
-    print(" container_size: %d" % container_size, file=out)
-    print(" data_length: %d" % data_length, file=out)
+    yield ""
+    yield "Mutable slot found:"
+    yield " share_type: %s" % (share_type,)
+    yield " write_enabler: %s" % (base32.b2a(WE),)
+    yield " WE for nodeid: %s" % (idlib.nodeid_b2a(nodeid),)
+    yield " num_extra_leases: %d" % (num_extra_leases,)
+    yield " container_size: %d" % (container_size,)
+    yield " data_length: %d" % (data_length,)
     if leases:
         for (leasenum, lease) in leases:
-            print(file=out)
-            print(" Lease #%d:" % leasenum, file=out)
-            print("  ownerid: %d" % lease.owner_num, file=out)
+            yield ""
+            yield " Lease #%d:" % (leasenum,)
+            yield "  ownerid: %d" % (lease.owner_num,)
             when = format_expiration_time(lease.expiration_time)
-            print("  expires in %s" % when, file=out)
-            print("  renew_secret: %s" % base32.b2a(lease.renew_secret), file=out)
-            print("  cancel_secret: %s" % base32.b2a(lease.cancel_secret), file=out)
-            print("  secrets are for nodeid: %s" % idlib.nodeid_b2a(lease.nodeid), file=out)
+            yield "  expires in %s" % (when,)
+            yield "  renew_secret: %s" % (base32.b2a(lease.renew_secret),)
+            yield "  cancel_secret: %s" % (base32.b2a(lease.cancel_secret),)
+            yield "  secrets are for nodeid: %s" % (idlib.nodeid_b2a(lease.nodeid),)
     else:
-        print("No leases.", file=out)
-    print(file=out)
+        yield "No leases."
+    yield ""
 
     if share_type == "SDMF":
-        dump_SDMF_share(m, data_length, options)
+        for line in dump_SDMF_share(m, data_length, sharefile, sharefilename, show_offsets):
+            yield line
     elif share_type == "MDMF":
-        dump_MDMF_share(m, data_length, options)
+        for line in dump_MDMF_share(m, data_length):
+            yield line
 
-    return 0
 
-def dump_SDMF_share(m, length, options):
+def dump_SDMF_share(m, length, sharefile, sharefilename, show_offsets):
     from allmydata.mutable.layout import unpack_share, unpack_header
     from allmydata.mutable.common import NeedMoreDataError
     from allmydata.util import base32, hashutil
@@ -225,22 +231,16 @@ def dump_SDMF_share(m, length, options):
 
     offset = m.DATA_OFFSET
 
-    out = options.stdout
-
-    f = open(options['filename'], "rb")
-    f.seek(offset)
-    data = f.read(min(length, 2000))
-    f.close()
+    sharefile.seek(offset)
+    data = sharefile.read(min(length, 2000))
 
     try:
         pieces = unpack_share(data)
     except NeedMoreDataError as e:
         # retry once with the larger size
         size = e.needed_bytes
-        f = open(options['filename'], "rb")
-        f.seek(offset)
-        data = f.read(min(length, size))
-        f.close()
+        sharefile.seek(offset)
+        data = sharefile.read(min(length, size))
         pieces = unpack_share(data)
 
     (seqnum, root_hash, IV, k, N, segsize, datalen,
@@ -249,25 +249,25 @@ def dump_SDMF_share(m, length, options):
     (ig_version, ig_seqnum, ig_roothash, ig_IV, ig_k, ig_N, ig_segsize,
      ig_datalen, offsets) = unpack_header(data)
 
-    print(" SDMF contents:", file=out)
-    print("  seqnum: %d" % seqnum, file=out)
-    print("  root_hash: %s" % base32.b2a(root_hash), file=out)
-    print("  IV: %s" % base32.b2a(IV), file=out)
-    print("  required_shares: %d" % k, file=out)
-    print("  total_shares: %d" % N, file=out)
-    print("  segsize: %d" % segsize, file=out)
-    print("  datalen: %d" % datalen, file=out)
-    print("  enc_privkey: %d bytes" % len(enc_privkey), file=out)
-    print("  pubkey: %d bytes" % len(pubkey), file=out)
-    print("  signature: %d bytes" % len(signature), file=out)
+    yield " SDMF contents:"
+    yield "  seqnum: %d" % (seqnum,)
+    yield "  root_hash: %s" % (base32.b2a(root_hash),)
+    yield "  IV: %s" % (base32.b2a(IV),)
+    yield "  required_shares: %d" % (k,)
+    yield "  total_shares: %d" % (N,)
+    yield "  segsize: %d" % (segsize,)
+    yield "  datalen: %d" % (datalen,)
+    yield "  enc_privkey: %d bytes" % (len(enc_privkey),)
+    yield "  pubkey: %d bytes" % (len(pubkey),)
+    yield "  signature: %d bytes" % (len(signature),)
     share_hash_ids = ",".join(sorted([str(hid)
                                       for hid in share_hash_chain.keys()]))
-    print("  share_hash_chain: %s" % share_hash_ids, file=out)
-    print("  block_hash_tree: %d nodes" % len(block_hash_tree), file=out)
+    yield "  share_hash_chain: %s" % (share_hash_ids,)
+    yield "  block_hash_tree: %d nodes" % (len(block_hash_tree),)
 
     # the storage index isn't stored in the share itself, so we depend upon
     # knowing the parent directory name to get it
-    pieces = options['filename'].split(os.sep)
+    pieces = sharefilename.split(os.sep)
     if len(pieces) >= 2:
         piece = to_bytes(pieces[-2])
         if base32.could_be_base32_encoded(piece):
@@ -275,52 +275,49 @@ def dump_SDMF_share(m, length, options):
             fingerprint = hashutil.ssk_pubkey_fingerprint_hash(pubkey)
             u = SSKVerifierURI(storage_index, fingerprint)
             verify_cap = u.to_string()
-            print("  verify-cap:", quote_output(verify_cap, quotemarks=False), file=out)
+            yield "  verify-cap: " + quote_output(verify_cap, quotemarks=False)
 
-    if options['offsets']:
+    if show_offsets:
         # NOTE: this offset-calculation code is fragile, and needs to be
         # merged with MutableShareFile's internals.
-        print(file=out)
-        print(" Section Offsets:", file=out)
+        yield ""
+        yield " Section Offsets:"
         def printoffset(name, value, shift=0):
-            print("%s%20s: %s   (0x%x)" % (" "*shift, name, value, value), file=out)
-        printoffset("first lease", m.HEADER_SIZE)
-        printoffset("share data", m.DATA_OFFSET)
+            return "%s%20s: %s   (0x%x)" % (" "*shift, name, value, value)
+        yield printoffset("first lease", m.HEADER_SIZE)
+        yield printoffset("share data", m.DATA_OFFSET)
         o_seqnum = m.DATA_OFFSET + struct.calcsize(">B")
-        printoffset("seqnum", o_seqnum, 2)
+        yield printoffset("seqnum", o_seqnum, 2)
         o_root_hash = m.DATA_OFFSET + struct.calcsize(">BQ")
-        printoffset("root_hash", o_root_hash, 2)
+        yield printoffset("root_hash", o_root_hash, 2)
         for k in ["signature", "share_hash_chain", "block_hash_tree",
                   "share_data",
                   "enc_privkey", "EOF"]:
             name = {"share_data": "block data",
                     "EOF": "end of share data"}.get(k,k)
             offset = m.DATA_OFFSET + offsets[k]
-            printoffset(name, offset, 2)
-        f = open(options['filename'], "rb")
-        printoffset("extra leases", m._read_extra_lease_offset(f) + 4)
-        f.close()
+            yield printoffset(name, offset, 2)
+        yield printoffset("extra leases", m._read_extra_lease_offset(sharefile) + 4)
 
-    print(file=out)
+    yield ""
 
-def dump_MDMF_share(m, length, options):
+def dump_MDMF_share(m, length, sharefile, sharefilename, show_offsets):
     from allmydata.mutable.layout import MDMFSlotReadProxy
     from allmydata.util import base32, hashutil
     from allmydata.uri import MDMFVerifierURI
     from allmydata.util.encodingutil import quote_output, to_bytes
 
     offset = m.DATA_OFFSET
-    out = options.stdout
 
-    f = open(options['filename'], "rb")
-    storage_index = None; shnum = 0
+    storage_index = None
+    shnum = 0
 
     class ShareDumper(MDMFSlotReadProxy):
         def _read(self, readvs, force_remote=False, queue=False):
             data = []
             for (where,length) in readvs:
-                f.seek(offset+where)
-                data.append(f.read(length))
+                sharefile.seek(offset+where)
+                data.append(sharefile.read(length))
             return defer.succeed({shnum: data})
 
     p = ShareDumper(None, storage_index, shnum)
@@ -338,30 +335,28 @@ def dump_MDMF_share(m, length, options):
     pubkey = extract(p.get_verification_key)
     block_hash_tree = extract(p.get_blockhashes)
     share_hash_chain = extract(p.get_sharehashes)
-    f.close()
 
     (seqnum, root_hash, salt_to_use, segsize, datalen, k, N, prefix,
      offsets) = verinfo
 
-    print(" MDMF contents:", file=out)
-    print("  seqnum: %d" % seqnum, file=out)
-    print("  root_hash: %s" % base32.b2a(root_hash), file=out)
-    #print("  IV: %s" % base32.b2a(IV), file=out)
-    print("  required_shares: %d" % k, file=out)
-    print("  total_shares: %d" % N, file=out)
-    print("  segsize: %d" % segsize, file=out)
-    print("  datalen: %d" % datalen, file=out)
-    print("  enc_privkey: %d bytes" % len(encprivkey), file=out)
-    print("  pubkey: %d bytes" % len(pubkey), file=out)
-    print("  signature: %d bytes" % len(signature), file=out)
+    yield " MDMF contents:"
+    yield "  seqnum: %d" % (seqnum,)
+    yield "  root_hash: %s" % (base32.b2a(root_hash),)
+    yield "  required_shares: %d" % (k,)
+    yield "  total_shares: %d" % (N,)
+    yield "  segsize: %d" % (segsize,)
+    yield "  datalen: %d" % (datalen,)
+    yield "  enc_privkey: %d bytes" % (len(encprivkey),)
+    yield "  pubkey: %d bytes" % (len(pubkey),)
+    yield "  signature: %d bytes" % (len(signature),)
     share_hash_ids = ",".join([str(hid)
                                for hid in sorted(share_hash_chain.keys())])
-    print("  share_hash_chain: %s" % share_hash_ids, file=out)
-    print("  block_hash_tree: %d nodes" % len(block_hash_tree), file=out)
+    yield "  share_hash_chain: %s" % (share_hash_ids,)
+    yield "  block_hash_tree: %d nodes" % (len(block_hash_tree),)
 
     # the storage index isn't stored in the share itself, so we depend upon
     # knowing the parent directory name to get it
-    pieces = options['filename'].split(os.sep)
+    pieces = sharefilename.split(os.sep)
     if len(pieces) >= 2:
         piece = to_bytes(pieces[-2])
         if base32.could_be_base32_encoded(piece):
@@ -369,22 +364,22 @@ def dump_MDMF_share(m, length, options):
             fingerprint = hashutil.ssk_pubkey_fingerprint_hash(pubkey)
             u = MDMFVerifierURI(storage_index, fingerprint)
             verify_cap = u.to_string()
-            print("  verify-cap:", quote_output(verify_cap, quotemarks=False), file=out)
+            yield "  verify-cap:" + quote_output(verify_cap, quotemarks=False)
 
-    if options['offsets']:
+    if show_offsets:
         # NOTE: this offset-calculation code is fragile, and needs to be
         # merged with MutableShareFile's internals.
 
-        print(file=out)
-        print(" Section Offsets:", file=out)
+        yield ""
+        yield " Section Offsets:"
         def printoffset(name, value, shift=0):
-            print("%s%.20s: %s   (0x%x)" % (" "*shift, name, value, value), file=out)
-        printoffset("first lease", m.HEADER_SIZE, 2)
-        printoffset("share data", m.DATA_OFFSET, 2)
+            return "%s%.20s: %s   (0x%x)" % (" "*shift, name, value, value)
+        yield printoffset("first lease", m.HEADER_SIZE, 2)
+        yield printoffset("share data", m.DATA_OFFSET, 2)
         o_seqnum = m.DATA_OFFSET + struct.calcsize(">B")
-        printoffset("seqnum", o_seqnum, 4)
+        yield printoffset("seqnum", o_seqnum, 4)
         o_root_hash = m.DATA_OFFSET + struct.calcsize(">BQ")
-        printoffset("root_hash", o_root_hash, 4)
+        yield printoffset("root_hash", o_root_hash, 4)
         for k in ["enc_privkey", "share_hash_chain", "signature",
                   "verification_key", "verification_key_end",
                   "share_data", "block_hash_tree", "EOF"]:
@@ -393,12 +388,10 @@ def dump_MDMF_share(m, length, options):
                     "verification_key_end": "end of pubkey",
                     "EOF": "end of share data"}.get(k,k)
             offset = m.DATA_OFFSET + offsets[k]
-            printoffset(name, offset, 4)
-        f = open(options['filename'], "rb")
-        printoffset("extra leases", m._read_extra_lease_offset(f) + 4, 2)
-        f.close()
+            yield printoffset(name, offset, 4)
+        printoffset("extra leases", m._read_extra_lease_offset(sharefile) + 4, 2)
 
-    print(file=out)
+    yield ""
 
 
 
