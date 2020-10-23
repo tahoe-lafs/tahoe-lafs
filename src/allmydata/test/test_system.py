@@ -2341,14 +2341,6 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
             datas.append(data)
             open(fn,"wb").write(data)
 
-        def _check_stdout_against(out_and_err, filenum=None, data=None):
-            (out, err) = out_and_err
-            self.failUnlessEqual(err, "")
-            if filenum is not None:
-                self.failUnlessEqual(out, datas[filenum])
-            if data is not None:
-                self.failUnlessEqual(out, data)
-
         # test all both forms of put: from a file, and from stdin
         #  tahoe put bar FOO
         d.addCallback(run, "put", files[0], "tahoe-file0")
@@ -2369,8 +2361,6 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
             (out, err) = out_and_err
             self._mutable_file3_uri = out.strip()
         d.addCallback(_check_put_mutable)
-        d.addCallback(run, "get", "tahoe:file3")
-        d.addCallback(_check_stdout_against, 3)
 
         #  tahoe put FOO
         STDIN_DATA = "This is the file to upload from stdin."
@@ -2392,10 +2382,6 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         d.addCallback(_check_ls, ["subdir2"])
 
         # tahoe get: (to stdin and to a file)
-        d.addCallback(run, "get", "tahoe-file0")
-        d.addCallback(_check_stdout_against, 0)
-        d.addCallback(run, "get", "tahoe:subdir/tahoe-file1")
-        d.addCallback(_check_stdout_against, 1)
         outfile0 = os.path.join(self.basedir, "outfile0")
         d.addCallback(run, "get", "file2", outfile0)
         def _check_outfile0(out_and_err):
@@ -2461,15 +2447,11 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         d.addCallback(run, "cp", "tahoe:file3", "tahoe:file3-copy")
         d.addCallback(run, "ls")
         d.addCallback(_check_ls, ["file3", "file3-copy"])
-        d.addCallback(run, "get", "tahoe:file3-copy")
-        d.addCallback(_check_stdout_against, 3)
 
         # copy from disk into tahoe
         d.addCallback(run, "cp", files[4], "tahoe:file4")
         d.addCallback(run, "ls")
         d.addCallback(_check_ls, ["file3", "file3-copy", "file4"])
-        d.addCallback(run, "get", "tahoe:file4")
-        d.addCallback(_check_stdout_against, 4)
 
         # copy from tahoe into disk
         target_filename = os.path.join(self.basedir, "file-out")
@@ -2504,15 +2486,11 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         d.addCallback(run, "cp", files[5], "tahoe:file4")
         d.addCallback(run, "ls")
         d.addCallback(_check_ls, ["file3", "file3-copy", "file4"])
-        d.addCallback(run, "get", "tahoe:file4")
-        d.addCallback(_check_stdout_against, 5)
 
         # copy from disk into tahoe, overwriting an existing mutable file
         d.addCallback(run, "cp", files[5], "tahoe:file3")
         d.addCallback(run, "ls")
         d.addCallback(_check_ls, ["file3", "file3-copy", "file4"])
-        d.addCallback(run, "get", "tahoe:file3")
-        d.addCallback(_check_stdout_against, 5)
 
         # recursive copy: setup
         dn = os.path.join(self.basedir, "dir1")
@@ -2535,8 +2513,6 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         d.addCallback(run, "ls", "tahoe:dir1/subdir2")
         d.addCallback(_check_ls, ["rfile4", "rfile5"],
                       ["rfile1", "rfile2", "rfile3"])
-        d.addCallback(run, "get", "dir1/subdir2/rfile4")
-        d.addCallback(_check_stdout_against, data="rfile4")
 
         # and back out again
         dn_copy = os.path.join(self.basedir, "dir1-copy")
@@ -2580,8 +2556,6 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         d.addCallback(run, "ls", "tahoe:dir1-copy/dir1/subdir2")
         d.addCallback(_check_ls, ["rfile4", "rfile5"],
                       ["rfile1", "rfile2", "rfile3"])
-        d.addCallback(run, "get", "dir1-copy/dir1/subdir2/rfile4")
-        d.addCallback(_check_stdout_against, data="rfile4")
 
         # and copy it a second time, which ought to overwrite the same files
         d.addCallback(run, "cp", "-r", "tahoe:dir1", "tahoe:dir1-copy")
