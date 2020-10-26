@@ -936,6 +936,10 @@ class _Client(node.Node, pollmixin.PollMixin):
         if helper_furl in ("None", ""):
             helper_furl = None
 
+        # FURLs need to be bytes:
+        if helper_furl is not None:
+            helper_furl = helper_furl.encode("utf-8")
+
         DEP = self.encoding_params
         DEP["k"] = int(self.config.get_config("client", "shares.needed", DEP["k"]))
         DEP["n"] = int(self.config.get_config("client", "shares.total", DEP["n"]))

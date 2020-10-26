@@ -848,6 +848,7 @@ class Node(service.MultiService):
         lgfurl = self.config.get_config("node", "log_gatherer.furl", "")
         if lgfurl:
             # this is in addition to the contents of log-gatherer-furlfile
+            lgfurl = lgfurl.encode("utf-8")
             self.log_tub.setOption("log-gatherer-furl", lgfurl)
         self.log_tub.setOption("log-gatherer-furlfile",
                                self.config.get_config_path("log_gatherer.furl"))
