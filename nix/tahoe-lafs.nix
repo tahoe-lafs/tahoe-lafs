@@ -1,9 +1,9 @@
 { fetchFromGitHub, lib
-, nettools, python
+, python
 , twisted, foolscap, zfec
 , setuptools, setuptoolsTrial, pyasn1, zope_interface
 , service-identity, pyyaml, magic-wormhole, treq, appdirs
-, beautifulsoup4, eliot, autobahn, cryptography
+, beautifulsoup4, eliot, autobahn, cryptography, netifaces
 , html5lib, pyutil, distro
 }:
 python.pkgs.buildPythonPackage rec {
@@ -41,15 +41,11 @@ python.pkgs.buildPythonPackage rec {
   '';
 
 
-  propagatedNativeBuildInputs = [
-    nettools
-  ];
-
   propagatedBuildInputs = with python.pkgs; [
     twisted foolscap zfec appdirs
     setuptoolsTrial pyasn1 zope_interface
     service-identity pyyaml magic-wormhole treq
-    eliot autobahn cryptography setuptools
+    eliot autobahn cryptography netifaces setuptools
     future pyutil distro
   ];
 
