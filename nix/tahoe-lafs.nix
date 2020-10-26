@@ -4,7 +4,7 @@
 , setuptools, setuptoolsTrial, pyasn1, zope_interface
 , service-identity, pyyaml, magic-wormhole, treq, appdirs
 , beautifulsoup4, eliot, autobahn, cryptography
-, html5lib, pyutil, distro
+, html5lib, pyutil, distro, configparser
 }:
 python.pkgs.buildPythonPackage rec {
   version = "1.14.0.dev";
@@ -50,7 +50,7 @@ python.pkgs.buildPythonPackage rec {
     setuptoolsTrial pyasn1 zope_interface
     service-identity pyyaml magic-wormhole treq
     eliot autobahn cryptography setuptools
-    future pyutil distro
+    future pyutil distro configparser
   ];
 
   checkInputs = with python.pkgs; [
