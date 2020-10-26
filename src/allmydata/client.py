@@ -34,8 +34,7 @@ from allmydata.util import (
     hashutil, base32, pollmixin, log, idlib,
     yamlutil, configutil,
 )
-from allmydata.util.encodingutil import (get_filesystem_encoding,
-                                         from_utf8_or_none)
+from allmydata.util.encodingutil import get_filesystem_encoding
 from allmydata.util.abbreviate import parse_abbreviated_size
 from allmydata.util.time_format import parse_duration, parse_date
 from allmydata.util.i2p_provider import create as create_i2p_provider
@@ -805,7 +804,7 @@ class _Client(node.Node, pollmixin.PollMixin):
 
         config_storedir = self.get_config(
             "storage", "storage_dir", self.STOREDIR,
-        ).decode('utf-8')
+        )
         storedir = self.config.get_config_path(config_storedir)
 
         data = self.config.get_config("storage", "reserved_space", None)
@@ -1042,15 +1041,14 @@ class _Client(node.Node, pollmixin.PollMixin):
 
         from allmydata.webish import WebishServer
         nodeurl_path = self.config.get_config_path("node.url")
-        staticdir_config = self.config.get_config("node", "web.static", "public_html").decode("utf-8")
+        staticdir_config = self.config.get_config("node", "web.static", "public_html")
         staticdir = self.config.get_config_path(staticdir_config)
         ws = WebishServer(self, webport, nodeurl_path, staticdir)
         ws.setServiceParent(self)
 
     def init_ftp_server(self):
         if self.config.get_config("ftpd", "enabled", False, boolean=True):
-            accountfile = from_utf8_or_none(
-                self.config.get_config("ftpd", "accounts.file", None))
+            accountfile = self.config.get_config("ftpd", "accounts.file", None)
             if accountfile:
                 accountfile = self.config.get_config_path(accountfile)
             accounturl = self.config.get_config("ftpd", "accounts.url", None)
@@ -1062,14 +1060,13 @@ class _Client(node.Node, pollmixin.PollMixin):
 
     def init_sftp_server(self):
         if self.config.get_config("sftpd", "enabled", False, boolean=True):
-            accountfile = from_utf8_or_none(
-                self.config.get_config("sftpd", "accounts.file", None))
+            accountfile = self.config.get_config("sftpd", "accounts.file", None)
             if accountfile:
                 accountfile = self.config.get_config_path(accountfile)
             accounturl = self.config.get_config("sftpd", "accounts.url", None)
             sftp_portstr = self.config.get_config("sftpd", "port", "8022")
-            pubkey_file = from_utf8_or_none(self.config.get_config("sftpd", "host_pubkey_file"))
-            privkey_file = from_utf8_or_none(self.config.get_config("sftpd", "host_privkey_file"))
+            pubkey_file = self.config.get_config("sftpd", "host_pubkey_file")
+            privkey_file = self.config.get_config("sftpd", "host_privkey_file")
 
             from allmydata.frontends import sftpd
             s = sftpd.SFTPServer(self, accountfile, accounturl,
