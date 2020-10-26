@@ -3,6 +3,7 @@ This module contains classes and functions to implement and manage
 a node for Tahoe-LAFS.
 """
 from past.builtins import unicode
+from six import ensure_str
 
 import datetime
 import os.path
@@ -640,6 +641,10 @@ def _tub_portlocation(config):
             new_locations.append(loc)
     location = ",".join(new_locations)
 
+    # Lacking this, Python 2 blows up in PB when it is confused by a Unicode
+    # FURL.
+    location = location.encode("utf-8")
+
     return tubport, location
 
 
@@ -687,6 +692,9 @@ def create_main_tub(config, tub_options,
                 port_or_endpoint = tor_provider.get_listener()
             else:
                 port_or_endpoint = port
+            # Foolscap requires native strings:
+            if isinstance(port_or_endpoint, (bytes, unicode)):
+                port_or_endpoint = ensure_str(port_or_endpoint)
             tub.listenOn(port_or_endpoint)
         tub.setLocation(location)
         log.msg("Tub location set to %s" % (location,))

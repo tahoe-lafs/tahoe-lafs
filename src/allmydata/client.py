@@ -717,6 +717,9 @@ class _Client(node.Node, pollmixin.PollMixin):
 
     def init_stats_provider(self):
         gatherer_furl = self.config.get_config("client", "stats_gatherer.furl", None)
+        if gatherer_furl:
+            # FURLs should be bytes:
+            gatherer_furl = gatherer_furl.encode("utf-8")
         self.stats_provider = StatsProvider(self, gatherer_furl)
         self.stats_provider.setServiceParent(self)
         self.stats_provider.register_producer(self)

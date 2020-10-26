@@ -34,7 +34,7 @@ def get_config(tahoe_cfg):
 
     Configuration is returned as native strings.
     """
-    config = SafeConfigParser()
+    config = SafeConfigParser(strict=False)
     with open(tahoe_cfg, "r") as f:
         # Who put the BOM in the BOM SHOO BOP SHOO BOP.
         #
