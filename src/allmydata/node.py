@@ -13,8 +13,9 @@ from io import StringIO
 import tempfile
 from base64 import b32decode, b32encode
 
-# Python 2 compatibility
-from six.moves import configparser
+# On Python 2 this will be the backported package.
+import configparser
+
 from future.utils import PY2
 if PY2:
     from io import BytesIO as StringIO  # noqa: F811

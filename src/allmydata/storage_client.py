@@ -31,12 +31,10 @@ the foolscap-based server implemented in src/allmydata/storage/*.py .
 from past.builtins import unicode
 
 import re, time, hashlib
-try:
-    from ConfigParser import (
-        NoSectionError,
-    )
-except ImportError:
-    from configparser import NoSectionError
+
+# On Python 2 this will be the backport.
+from configparser import NoSectionError
+
 import attr
 from zope.interface import (
     Attribute,

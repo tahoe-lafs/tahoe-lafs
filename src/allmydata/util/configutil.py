@@ -16,13 +16,9 @@ if PY2:
     # we do "r" or "w".
     from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
-if PY2:
-    # In theory on Python 2 configparser also works, but then code gets the
-    # wrong exceptions and they don't get handled. So just use native parser
-    # for now.
-    from ConfigParser import SafeConfigParser
-else:
-    from configparser import SafeConfigParser
+# On Python 2 we use the backport package; that means we always get unicode
+# out.
+from configparser import SafeConfigParser
 
 import attr
 

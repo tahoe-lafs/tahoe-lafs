@@ -2,10 +2,9 @@ import os, stat, time, weakref
 from base64 import urlsafe_b64encode
 from functools import partial
 from errno import ENOENT, EPERM
-try:
-    from ConfigParser import NoSectionError
-except ImportError:
-    from configparser import NoSectionError
+
+# On Python 2 this will be the backported package:
+from configparser import NoSectionError
 
 from foolscap.furl import (
     decode_furl,
