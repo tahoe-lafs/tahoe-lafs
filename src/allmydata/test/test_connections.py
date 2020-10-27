@@ -168,7 +168,11 @@ class Tor(unittest.TestCase):
             tor_provider = create_tor_provider(reactor, config)
             tor_provider.get_tor_handler()
         self.assertIn(
-            "invalid literal for int() with base 10: 'kumquat'",
+            "invalid literal for int()",
+            str(ctx.exception)
+        )
+        self.assertIn(
+            "kumquat",
             str(ctx.exception)
         )
 

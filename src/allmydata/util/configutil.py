@@ -35,15 +35,11 @@ def get_config(tahoe_cfg):
     Configuration is returned as native strings.
     """
     config = SafeConfigParser(strict=False)
-    with open(tahoe_cfg, "r") as f:
-        # Who put the BOM in the BOM SHOO BOP SHOO BOP.
-        #
-        # Byte Order Mark is an optional garbage byte you sometimes get at the
-        # start of UTF-8 encoded files. Especially on Windows. Skip it.
-        # https://en.wikipedia.org/wiki/Byte_order_mark
-        if f.read(1) != u'\uFEFF':
-            f.seek(0)
-        config.readfp(f)
+    # Byte Order Mark is an optional garbage byte you sometimes get at the
+    # start of UTF-8 encoded files. Especially on Windows. Skip it by using
+    # utf-8-sig. https://en.wikipedia.org/wiki/Byte_order_mark
+    with open(tahoe_cfg, "r", encoding="utf-8-sig") as f:
+        config.read_file(f)
     return config
 
 def set_config(config, section, option, value):
