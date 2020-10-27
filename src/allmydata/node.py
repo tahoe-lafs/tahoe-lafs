@@ -638,8 +638,8 @@ def _tub_portlocation(config):
             new_locations.append(loc)
     location = ",".join(new_locations)
 
-    # Lacking this, Python 2 blows up in PB when it is confused by a Unicode
-    # FURL.
+    # Lacking this, Python 2 blows up in Foolscap when it is confused by a
+    # Unicode FURL.
     location = location.encode("utf-8")
 
     return tubport, location

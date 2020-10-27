@@ -1,7 +1,7 @@
 """
 Read/write config files.
 
-Configuration is returned as native strings.
+Configuration is returned as Unicode strings.
 
 Ported to Python 3.
 """
@@ -32,11 +32,11 @@ class UnknownConfigError(Exception):
 def get_config(tahoe_cfg):
     """Load the config, returning a ConfigParser.
 
-    Configuration is returned as native strings.
+    Configuration is returned as Unicode strings.
     """
     config = ConfigParser(strict=False)
-    # Byte Order Mark is an optional garbage byte you sometimes get at the
-    # start of UTF-8 encoded files. Especially on Windows. Skip it by using
+    # Byte Order Mark is an optional garbage code point you sometimes get at
+    # the start of UTF-8 encoded files. Especially on Windows. Skip it by using
     # utf-8-sig. https://en.wikipedia.org/wiki/Byte_order_mark
     with open(tahoe_cfg, "r", encoding="utf-8-sig") as f:
         config.read_file(f)
