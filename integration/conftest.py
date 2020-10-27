@@ -15,7 +15,6 @@ from foolscap.furl import (
 from eliot import (
     to_file,
     log_call,
-    start_action,
 )
 
 from twisted.python.procutils import which
@@ -34,7 +33,6 @@ from util import (
     _DumpOutputProtocol,
     _ProcessExitedProtocol,
     _create_node,
-    _run_node,
     _cleanup_tahoe_process,
     _tahoe_runner_optional_coverage,
     await_client_ready,
