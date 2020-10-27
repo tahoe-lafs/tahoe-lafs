@@ -29,12 +29,20 @@ class UnknownConfigError(Exception):
     """
 
 
+def create_parser():
+    """
+    Create a ConfigParser pre-configured the way we want it, for consistency
+    across different code paths.
+    """
+    return ConfigParser(strict=False)
+
+
 def get_config(tahoe_cfg):
     """Load the config, returning a ConfigParser.
 
     Configuration is returned as Unicode strings.
     """
-    config = ConfigParser(strict=False)
+    config = create_parser()
     # Byte Order Mark is an optional garbage code point you sometimes get at
     # the start of UTF-8 encoded files. Especially on Windows. Skip it by using
     # utf-8-sig. https://en.wikipedia.org/wiki/Byte_order_mark
