@@ -1,3 +1,4 @@
+from six import ensure_str
 
 from types import NoneType
 
@@ -333,5 +334,7 @@ class FTPServer(service.MultiService):
             raise NeedRootcapLookupScheme("must provide some translation")
 
         f = ftp.FTPFactory(p)
+        # strports requires a native string.
+        ftp_portstr = ensure_str(ftp_portstr)
         s = strports.service(ftp_portstr, f)
         s.setServiceParent(self)

@@ -134,6 +134,9 @@ install_requires = [
 
     # Linux distribution detection:
     "distro >= 1.4.0",
+
+    # Backported configparser for Python 2:
+    "configparser ; python_version < '3.0'",
 ]
 
 setup_requires = [

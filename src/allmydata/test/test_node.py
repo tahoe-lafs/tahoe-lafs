@@ -163,12 +163,8 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
         f.close()
 
         config = read_config(basedir, "")
-        # Config returns native strings:
-        expected_nick = u"\u2621"
-        if PY2:
-            expected_nick = expected_nick.encode("utf-8")
         self.failUnlessEqual(config.get_config("node", "nickname"),
-                             expected_nick)
+                             u"\u2621")
 
     def test_tahoe_cfg_hash_in_name(self):
         basedir = "test_node/test_cfg_hash_in_name"
