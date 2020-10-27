@@ -184,7 +184,7 @@ def read_config(basedir, portnumfile, generated_files=[], _valid_config=None):
 
     # (try to) read the main config file
     config_fname = os.path.join(basedir, "tahoe.cfg")
-    parser = configparser.SafeConfigParser()
+    parser = configparser.ConfigParser()
     try:
         parser = configutil.get_config(config_fname)
     except EnvironmentError as e:
@@ -207,7 +207,7 @@ def config_from_string(basedir, portnumfile, config_str, _valid_config=None):
         _valid_config = _common_valid_config()
 
     # load configuration from in-memory string
-    parser = configparser.SafeConfigParser()
+    parser = configparser.ConfigParser()
     if isinstance(config_str, bytes):
         config_str = config_str.decode("utf-8")
     parser.read_string(config_str)

@@ -16,7 +16,7 @@ if PY2:
 
 # On Python 2 we use the backport package; that means we always get unicode
 # out.
-from configparser import SafeConfigParser
+from configparser import ConfigParser
 
 import attr
 
@@ -30,11 +30,11 @@ class UnknownConfigError(Exception):
 
 
 def get_config(tahoe_cfg):
-    """Load the config, returning a SafeConfigParser.
+    """Load the config, returning a ConfigParser.
 
     Configuration is returned as native strings.
     """
-    config = SafeConfigParser(strict=False)
+    config = ConfigParser(strict=False)
     # Byte Order Mark is an optional garbage byte you sometimes get at the
     # start of UTF-8 encoded files. Especially on Windows. Skip it by using
     # utf-8-sig. https://en.wikipedia.org/wiki/Byte_order_mark
