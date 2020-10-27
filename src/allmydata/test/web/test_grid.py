@@ -18,6 +18,10 @@ from allmydata.storage.shares import get_share_file
 from allmydata.scripts.debug import CorruptShareOptions, corrupt_share
 from allmydata.immutable import upload
 from allmydata.mutable import publish
+
+from ...web.common import (
+    render_exception,
+)
 from .. import common_util as testutil
 from ..common import WebErrorMixin, ShouldFailMixin
 from ..no_network import GridTestMixin
@@ -34,6 +38,7 @@ class CompletelyUnhandledError(Exception):
     pass
 
 class ErrorBoom(object, resource.Resource):
+    @render_exception
     def render(self, req):
         raise CompletelyUnhandledError("whoops")
 

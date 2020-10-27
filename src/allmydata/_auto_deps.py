@@ -11,7 +11,6 @@ package_imports = [
     ('foolscap',         'foolscap'),
     ('zfec',             'zfec'),
     ('Twisted',          'twisted'),
-    ('Nevow',            'nevow'),
     ('zope.interface',   'zope.interface'),
     ('python',           None),
     ('platform',         None),
@@ -72,7 +71,6 @@ runtime_warning_messages = [
 ]
 
 warning_imports = [
-    'nevow',
     'twisted.persisted.sob',
     'twisted.python.filepath',
 ]

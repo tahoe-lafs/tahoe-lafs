@@ -58,6 +58,7 @@ from allmydata.web.common import (
     SlotsSequenceElement,
     exception_to_child,
     render_exception,
+    handle_when_done,
 )
 from allmydata.web.filenode import ReplaceMeMixin, \
      FileNodeHandler, PlaceHolderNodeHandler
@@ -113,7 +114,7 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
 
         # Rejecting URIs that contain empty path pieces (for example:
         # "/uri/URI:DIR2:../foo//new.txt" or "/uri/URI:DIR2:..//") was
-        # the old nevow behavior and it is encoded in the test suite;
+        # the old Nevow behavior and it is encoded in the test suite;
         # we will follow suit.
         for segment in req.prepath:
             if not segment:
@@ -206,6 +207,7 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
                 )
         return make_handler_for(node, self.client, self.node, name)
 
+    @render_exception
     def render_DELETE(self, req):
         assert self.parentnode and self.name
         d = self.parentnode.delete(self.name)
@@ -310,13 +312,7 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
         else:
             raise WebError("POST to a directory with bad t=%s" % t)
 
-        when_done = get_arg(req, "when_done", None)
-        if when_done:
-            def done(res):
-                req.redirect(when_done)
-                return res
-            d.addCallback(done)
-        return d
+        return handle_when_done(req, d)
 
     def _POST_mkdir(self, req):
         name = get_arg(req, "name", "")
@@ -402,9 +398,12 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
         d.addBoth(_maybe_got_node)
         # now we have a placeholder or a filenodehandler, and we can just
         # delegate to it. We could return the resource back out of
-        # DirectoryNodeHandler.renderHTTP, and nevow would recurse into it,
-        # but the addCallback() that handles when_done= would break.
-        d.addCallback(lambda child: child.render(req))
+        # DirectoryNodeHandler.render_POST and it would get rendered but the
+        # addCallback() that handles when_done= would break.
+        def render_child(child):
+            req.dont_apply_extra_processing = True
+            return child.render(req)
+        d.addCallback(render_child)
         return d
 
     def _POST_uri(self, req):
@@ -523,9 +522,9 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
             d.addCallback(self._maybe_literal, CheckResultsRenderer)
         return d
 
-    def _start_operation(self, monitor, renderer, ctx):
-        self._operations.add_monitor(ctx, monitor, renderer)
-        return self._operations.redirect_to(ctx)
+    def _start_operation(self, monitor, renderer, req):
+        self._operations.add_monitor(req, monitor, renderer)
+        return self._operations.redirect_to(req)
 
     def _POST_start_deep_check(self, req):
         # check this directory and everything reachable from it
