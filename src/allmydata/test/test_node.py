@@ -384,7 +384,7 @@ class TestMissingPorts(unittest.TestCase):
         with get_addr, alloc_port:
             tubport, tublocation = _tub_portlocation(config)
         self.assertEqual(tubport, "tcp:777")
-        self.assertEqual(tublocation, "tcp:LOCAL:777")
+        self.assertEqual(tublocation, b"tcp:LOCAL:777")
 
     def test_parsing_defaults(self):
         """
@@ -406,7 +406,7 @@ class TestMissingPorts(unittest.TestCase):
         with get_addr, alloc_port:
             tubport, tublocation = _tub_portlocation(config)
         self.assertEqual(tubport, "tcp:999")
-        self.assertEqual(tublocation, "tcp:LOCAL:999")
+        self.assertEqual(tublocation, b"tcp:LOCAL:999")
 
     def test_parsing_location_complex(self):
         """
@@ -429,7 +429,7 @@ class TestMissingPorts(unittest.TestCase):
         with get_addr, alloc_port:
             tubport, tublocation = _tub_portlocation(config)
         self.assertEqual(tubport, "tcp:999")
-        self.assertEqual(tublocation, "tcp:HOST:888,tcp:LOCAL:999")
+        self.assertEqual(tublocation, b"tcp:HOST:888,tcp:LOCAL:999")
 
     def test_parsing_all_disabled(self):
         """
