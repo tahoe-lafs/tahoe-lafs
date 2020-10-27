@@ -3,21 +3,18 @@ This module contains classes and functions to implement and manage
 a node for Tahoe-LAFS.
 """
 from past.builtins import unicode
+from six import ensure_str
 
 import datetime
 import os.path
 import re
 import types
 import errno
-from io import StringIO
 import tempfile
 from base64 import b32decode, b32encode
 
-# Python 2 compatibility
-from six.moves import configparser
-from future.utils import PY2
-if PY2:
-    from io import BytesIO as StringIO  # noqa: F811
+# On Python 2 this will be the backported package.
+import configparser
 
 from twisted.python import log as twlog
 from twisted.application import service
@@ -187,12 +184,13 @@ def read_config(basedir, portnumfile, generated_files=[], _valid_config=None):
 
     # (try to) read the main config file
     config_fname = os.path.join(basedir, "tahoe.cfg")
-    parser = configparser.SafeConfigParser()
     try:
         parser = configutil.get_config(config_fname)
     except EnvironmentError as e:
         if e.errno != errno.ENOENT:
             raise
+        # The file is missing, just create empty ConfigParser.
+        parser = configutil.get_config_from_string(u"")
 
     configutil.validate_config(config_fname, parser, _valid_config)
 
@@ -209,9 +207,11 @@ def config_from_string(basedir, portnumfile, config_str, _valid_config=None):
     if _valid_config is None:
         _valid_config = _common_valid_config()
 
+    if isinstance(config_str, bytes):
+        config_str = config_str.decode("utf-8")
+
     # load configuration from in-memory string
-    parser = configparser.SafeConfigParser()
-    parser.readfp(StringIO(config_str))
+    parser = configutil.get_config_from_string(config_str)
 
     fname = "<in-memory>"
     configutil.validate_config(fname, parser, _valid_config)
@@ -639,6 +639,10 @@ def _tub_portlocation(config):
             new_locations.append(loc)
     location = ",".join(new_locations)
 
+    # Lacking this, Python 2 blows up in Foolscap when it is confused by a
+    # Unicode FURL.
+    location = location.encode("utf-8")
+
     return tubport, location
 
 
@@ -686,6 +690,9 @@ def create_main_tub(config, tub_options,
                 port_or_endpoint = tor_provider.get_listener()
             else:
                 port_or_endpoint = port
+            # Foolscap requires native strings:
+            if isinstance(port_or_endpoint, (bytes, unicode)):
+                port_or_endpoint = ensure_str(port_or_endpoint)
             tub.listenOn(port_or_endpoint)
         tub.setLocation(location)
         log.msg("Tub location set to %s" % (location,))
@@ -839,6 +846,7 @@ class Node(service.MultiService):
         lgfurl = self.config.get_config("node", "log_gatherer.furl", "")
         if lgfurl:
             # this is in addition to the contents of log-gatherer-furlfile
+            lgfurl = lgfurl.encode("utf-8")
             self.log_tub.setOption("log-gatherer-furl", lgfurl)
         self.log_tub.setOption("log-gatherer-furlfile",
                                self.config.get_config_path("log_gatherer.furl"))

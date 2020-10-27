@@ -1,3 +1,5 @@
+from six import ensure_str
+
 import re, time
 
 from functools import (
@@ -186,6 +188,8 @@ class WebishServer(service.MultiService):
             self.root.putChild("static", static.File(staticdir))
         if re.search(r'^\d', webport):
             webport = "tcp:"+webport # twisted warns about bare "0" or "3456"
+        # strports must be native strings.
+        webport = ensure_str(webport)
         s = strports.service(webport, self.site)
         s.setServiceParent(self)
 

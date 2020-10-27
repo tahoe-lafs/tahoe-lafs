@@ -151,7 +151,7 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
         f.close()
 
         config = read_config(basedir, "")
-        self.failUnlessEqual(config.get_config("node", "nickname").decode('utf-8'),
+        self.failUnlessEqual(config.get_config("node", "nickname"),
                              u"\u2621")
 
     def test_tahoe_cfg_hash_in_name(self):

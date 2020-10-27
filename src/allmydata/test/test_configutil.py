@@ -154,3 +154,12 @@ enabled = false
             self.dynamic_valid_config,
         )
         self.assertIn("section [node] contains unknown option 'invalid'", str(e))
+
+    def test_duplicate_sections(self):
+        """
+        Duplicate section names are merged.
+        """
+        fname = self.create_tahoe_cfg('[node]\na = foo\n[node]\n b = bar\n')
+        config = configutil.get_config(fname)
+        self.assertEqual(config.get("node", "a"), "foo")
+        self.assertEqual(config.get("node", "b"), "bar")
