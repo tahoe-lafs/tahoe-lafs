@@ -7,6 +7,8 @@ import attr
 from testtools.matchers import (
     Mismatch,
     AfterPreprocessing,
+    IsInstance,
+    MatchesAll,
     MatchesStructure,
     MatchesDict,
     MatchesListwise,
@@ -27,6 +29,10 @@ from allmydata.node import (
 from allmydata.crypto import (
     ed25519,
     error,
+)
+
+from .common import (
+    Announcement,
 )
 
 @attr.s
@@ -63,7 +69,7 @@ class MatchesNodePublicKey(object):
 
 def matches_storage_announcement(basedir, anonymous=True, options=None):
     """
-    Match a storage announcement.
+    Match a storage announcement in the form of an ``Announcement``.
 
     :param bytes basedir: The path to the node base directory which is
         expected to emit the announcement.  This is used to determine the key
@@ -87,11 +93,14 @@ def matches_storage_announcement(basedir, anonymous=True, options=None):
         announcement[u"anonymous-storage-FURL"] = matches_furl()
     if options:
         announcement[u"storage-options"] = MatchesListwise(options)
-    return MatchesStructure(
-        # Has each of these keys with associated values that match
-        service_name=Equals(u"storage"),
-        ann=MatchesDict(announcement),
-        signing_key=MatchesNodePublicKey(basedir),
+    return MatchesAll(
+        IsInstance(Announcement),
+        MatchesStructure(
+            # Has each of these keys with associated values that match
+            service_name=Equals(u"storage"),
+            ann=MatchesDict(announcement),
+            signing_key=MatchesNodePublicKey(basedir),
+        ),
     )
 
 

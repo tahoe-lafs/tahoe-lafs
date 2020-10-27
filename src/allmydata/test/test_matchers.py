@@ -11,6 +11,10 @@ from testtools.matchers import (
     Is,
 )
 
+from hypothesis import (
+    given,
+)
+
 from twisted.internet.defer import (
     inlineCallbacks,
 )
@@ -23,9 +27,16 @@ from ..client import (
 )
 from .common import (
     SyncTestCase,
+    Announcement,
 )
+
+from .strategies import (
+    storage_announcements,
+)
+
 from .matchers import (
     MatchesNodePublicKey,
+    matches_storage_announcement,
 )
 
 
@@ -65,5 +76,28 @@ class MatchesNodePublicKeyTestCase(SyncTestCase):
         matcher = MatchesNodePublicKey(self.basedir)
         self.assertThat(
             matcher.match(other_private_key),
+            Not(Is(None)),
+        )
+
+
+class MatchesStorageAnnouncementTests(SyncTestCase):
+    """
+    Tests for ``matches_storage_announcement``.
+    """
+    @inlineCallbacks
+    def setUp(self):
+        super(MatchesStorageAnnouncementTests, self).setUp()
+        self.tempdir = self.useFixture(TempDir())
+        self.basedir = self.tempdir.join(b"node")
+        yield create_client(self.basedir)
+
+    def test_mismatch_missing_permutation_seed(self, announcement):
+        """
+        An announcement without a **permutation-seed-base32** item does not match.
+        """
+        del announcement[u"permutation-seed-base32"]
+        matcher = matches_storage_announcement(self.basedir)
+        self.assertThat(
+            matcher.match(Announcement(**announcement)),
             Not(Is(None)),
         )
