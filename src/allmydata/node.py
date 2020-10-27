@@ -190,7 +190,7 @@ def read_config(basedir, portnumfile, generated_files=[], _valid_config=None):
         if e.errno != errno.ENOENT:
             raise
         # The file is missing, just create empty ConfigParser.
-        parser = configutil.create_parser()
+        parser = configutil.get_config_from_string(u"")
 
     configutil.validate_config(config_fname, parser, _valid_config)
 
@@ -207,11 +207,11 @@ def config_from_string(basedir, portnumfile, config_str, _valid_config=None):
     if _valid_config is None:
         _valid_config = _common_valid_config()
 
-    # load configuration from in-memory string
-    parser = configutil.create_parser()
     if isinstance(config_str, bytes):
         config_str = config_str.decode("utf-8")
-    parser.read_string(config_str)
+
+    # load configuration from in-memory string
+    parser = configutil.get_config_from_string(config_str)
 
     fname = "<in-memory>"
     configutil.validate_config(fname, parser, _valid_config)

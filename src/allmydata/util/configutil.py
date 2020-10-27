@@ -29,26 +29,28 @@ class UnknownConfigError(Exception):
     """
 
 
-def create_parser():
-    """
-    Create a ConfigParser pre-configured the way we want it, for consistency
-    across different code paths.
-    """
-    return ConfigParser(strict=False)
-
-
 def get_config(tahoe_cfg):
     """Load the config, returning a ConfigParser.
 
     Configuration is returned as Unicode strings.
     """
-    config = create_parser()
     # Byte Order Mark is an optional garbage code point you sometimes get at
     # the start of UTF-8 encoded files. Especially on Windows. Skip it by using
     # utf-8-sig. https://en.wikipedia.org/wiki/Byte_order_mark
     with open(tahoe_cfg, "r", encoding="utf-8-sig") as f:
-        config.read_file(f)
-    return config
+        cfg_string = f.read()
+    return get_config_from_string(cfg_string)
+
+
+def get_config_from_string(tahoe_cfg_string):
+    """Load the config from a string, return the ConfigParser.
+
+    Configuration is returned as Unicode strings.
+    """
+    parser = ConfigParser(strict=False)
+    parser.read_string(tahoe_cfg_string)
+    return parser
+
 
 def set_config(config, section, option, value):
     if not config.has_section(section):
