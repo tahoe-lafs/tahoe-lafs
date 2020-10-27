@@ -136,7 +136,7 @@ install_requires = [
     "distro >= 1.4.0",
 
     # Backported configparser for Python 2:
-    "configparser >= 4.0.0 ; python_version < '3.0'",
+    "configparser ; python_version < '3.0'",
 ]
 
 setup_requires = [
