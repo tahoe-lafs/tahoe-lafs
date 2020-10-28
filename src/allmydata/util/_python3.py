@@ -24,6 +24,8 @@ if PY2:
 
 # Keep these sorted alphabetically, to reduce merge conflicts:
 PORTED_MODULES = [
+    "allmydata.__main__",
+    "allmydata._auto_deps",
     "allmydata._monkeypatch",
     "allmydata.codec",
     "allmydata.crypto",
@@ -69,9 +71,9 @@ PORTED_MODULES = [
     "allmydata.util.configutil",
     "allmydata.util.connection_status",
     "allmydata.util.deferredutil",
-    "allmydata.util.fileutil",
     "allmydata.util.dictutil",
     "allmydata.util.encodingutil",
+    "allmydata.util.fileutil",
     "allmydata.util.gcutil",
     "allmydata.util.happinessutil",
     "allmydata.util.hashutil",

@@ -272,4 +272,4 @@ class T(unittest.TestCase):
 
         foolscap_stuffs = [stuff for (pkg, stuff) in vers_and_locs if pkg == 'foolscap']
         self.failUnlessEqual(len(foolscap_stuffs), 1)
-        self.failUnless([e for e in errors if "dependency \'foolscap\' could not be imported" in e])
+        self.failUnless([e for e in errors if "\'foolscap\' could not be imported" in e])
