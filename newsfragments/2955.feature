@@ -1,1 +1,0 @@
-Fedora 29 is now tested as part of the project's continuous integration system.

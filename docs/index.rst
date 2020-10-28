@@ -20,11 +20,11 @@ Contents:
    frontends/CLI
    frontends/webapi
    frontends/FTP-and-SFTP
-   frontends/magic-folder
    frontends/download-status
 
    known_issues
    ../.github/CONTRIBUTING
+   CODE_OF_CONDUCT
 
    servers
    helper
@@ -37,8 +37,9 @@ Contents:
    expenses
    cautions
    write_coordination
-   magic-folder-howto
    backupdb
+
+   developer-guide
 
    anonymity-configuration
 

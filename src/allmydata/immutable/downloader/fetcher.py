@@ -1,10 +1,22 @@
+"""
+Ported to Python 3.
+"""
+
+from __future__ import print_function
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 from twisted.python.failure import Failure
 from foolscap.api import eventually
 from allmydata.interfaces import NotEnoughSharesError, NoSharesError
 from allmydata.util import log
 from allmydata.util.dictutil import DictOfSets
-from common import OVERDUE, COMPLETE, CORRUPT, DEAD, BADSEGNUM, \
+from .common import OVERDUE, COMPLETE, CORRUPT, DEAD, BADSEGNUM, \
      BadSegmentNumberError
 
 class SegmentFetcher(object):
@@ -100,7 +112,7 @@ class SegmentFetcher(object):
             self._node.fetch_failed(self, f)
             return
 
-        #print "LOOP", self._blocks.keys(), "active:", self._active_share_map, "overdue:", self._overdue_share_map, "unused:", self._shares
+        #print("LOOP", self._blocks.keys(), "active:", self._active_share_map, "overdue:", self._overdue_share_map, "unused:", self._shares)
         # Should we sent out more requests?
         while len(set(self._blocks.keys())
                   | set(self._active_share_map.keys())
@@ -221,7 +233,7 @@ class SegmentFetcher(object):
             # add_shares() or no_more_shares() later.
 
     def _cancel_all_requests(self):
-        for o in self._share_observers.values():
+        for o in list(self._share_observers.values()):
             o.cancel()
         self._share_observers = {}
 

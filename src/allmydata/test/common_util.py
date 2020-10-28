@@ -1,6 +1,8 @@
 from __future__ import print_function
 
-import os, signal, sys, time
+import os
+import time
+import signal
 from random import randrange
 from six.moves import StringIO
 
@@ -8,11 +10,13 @@ from twisted.internet import reactor, defer
 from twisted.python import failure
 from twisted.trial import unittest
 
-from allmydata.util import fileutil, log
 from ..util.assertutil import precondition
-from allmydata.util.encodingutil import (unicode_platform, get_filesystem_encoding,
-                                         get_io_encoding)
 from ..scripts import runner
+from allmydata.util.encodingutil import unicode_platform, get_filesystem_encoding, get_io_encoding
+# Imported for backwards compatibility:
+from future.utils import bord, bchr, binary_type
+from past.builtins import unicode
+
 
 def skip_if_cannot_represent_filename(u):
     precondition(isinstance(u, unicode))
@@ -62,9 +66,10 @@ class DevNullDictionary(dict):
         return
 
 def insecurerandstr(n):
-    return ''.join(map(chr, map(randrange, [0]*n, [256]*n)))
+    return b''.join(map(bchr, map(randrange, [0]*n, [256]*n)))
 
 def flip_bit(good, which):
+    # TODO Probs need to update with bchr/bord as with flip_one_bit, below.
     # flip the low-order bit of good[which]
     if which == -1:
         pieces = good[:which], good[-1:], ""
@@ -75,10 +80,11 @@ def flip_bit(good, which):
 def flip_one_bit(s, offset=0, size=None):
     """ flip one random bit of the string s, in a byte greater than or equal to offset and less
     than offset+size. """
+    precondition(isinstance(s, binary_type))
     if size is None:
         size=len(s)-offset
     i = randrange(offset, offset+size)
-    result = s[:i] + chr(ord(s[i])^(0x01<<randrange(0, 8))) + s[i+1:]
+    result = s[:i] + bchr(bord(s[i])^(0x01<<randrange(0, 8))) + s[i+1:]
     assert result != s, "Internal error -- flip_one_bit() produced the same string as its input: %s == %s" % (result, s)
     return result
 
@@ -86,40 +92,7 @@ def flip_one_bit(s, offset=0, size=None):
 class ReallyEqualMixin(object):
     def failUnlessReallyEqual(self, a, b, msg=None):
         self.assertEqual(a, b, msg)
-        self.assertEqual(type(a), type(b), "a :: %r, b :: %r, %r" % (a, b, msg))
-
-
-class NonASCIIPathMixin(object):
-    def mkdir_nonascii(self, dirpath):
-        # Kludge to work around the fact that buildbot can't remove a directory tree that has
-        # any non-ASCII directory names on Windows. (#1472)
-        if sys.platform == "win32":
-            def _cleanup():
-                try:
-                    fileutil.rm_dir(dirpath)
-                finally:
-                    if os.path.exists(dirpath):
-                        msg = ("We were unable to delete a non-ASCII directory %r created by the test. "
-                               "This is liable to cause failures on future builds." % (dirpath,))
-                        print(msg)
-                        log.err(msg)
-            self.addCleanup(_cleanup)
-        os.mkdir(dirpath)
-
-    def unicode_or_fallback(self, unicode_name, fallback_name, io_as_well=False):
-        if not unicode_platform():
-            try:
-                unicode_name.encode(get_filesystem_encoding())
-            except UnicodeEncodeError:
-                return fallback_name
-
-        if io_as_well:
-            try:
-                unicode_name.encode(get_io_encoding())
-            except UnicodeEncodeError:
-                return fallback_name
-
-        return unicode_name
+        self.assertEqual(type(a), type(b), "a :: %r (%s), b :: %r (%s), %r" % (a, type(a), b, type(b), msg))
 
 
 class SignalMixin(object):
@@ -143,17 +116,66 @@ class SignalMixin(object):
             signal.signal(signal.SIGCHLD, self.sigchldHandler)
         return super(SignalMixin, self).tearDown()
 
+
 class StallMixin(object):
     def stall(self, res=None, delay=1):
         d = defer.Deferred()
         reactor.callLater(delay, d.callback, res)
         return d
 
+
+class Marker(object):
+    pass
+
+class FakeCanary(object):
+    """For use in storage tests.
+    """
+    def __init__(self, ignore_disconnectors=False):
+        self.ignore = ignore_disconnectors
+        self.disconnectors = {}
+    def notifyOnDisconnect(self, f, *args, **kwargs):
+        if self.ignore:
+            return
+        m = Marker()
+        self.disconnectors[m] = (f, args, kwargs)
+        return m
+    def dontNotifyOnDisconnect(self, marker):
+        if self.ignore:
+            return
+        del self.disconnectors[marker]
+    def getRemoteTubID(self):
+        return None
+    def getPeer(self):
+        return "<fake>"
+
+
 class ShouldFailMixin(object):
 
     def shouldFail(self, expected_failure, which, substring,
                    callable, *args, **kwargs):
-        assert substring is None or isinstance(substring, str)
+        """Assert that a function call raises some exception. This is a
+        Deferred-friendly version of TestCase.assertRaises() .
+
+        Suppose you want to verify the following function:
+
+         def broken(a, b, c):
+             if a < 0:
+                 raise TypeError('a must not be negative')
+             return defer.succeed(b+c)
+
+        You can use:
+            d = self.shouldFail(TypeError, 'test name',
+                                'a must not be negative',
+                                broken, -4, 5, c=12)
+        in your test method. The 'test name' string will be included in the
+        error message, if any, because Deferred chains frequently make it
+        difficult to tell which assertion was tripped.
+
+        The substring= argument, if not None, must appear in the 'repr'
+        of the message wrapped by this Failure, or the test will fail.
+        """
+
+        assert substring is None or isinstance(substring, (bytes, unicode))
         d = defer.maybeDeferred(callable, *args, **kwargs)
         def done(res):
             if isinstance(res, failure.Failure):
@@ -261,3 +283,11 @@ except ImportError:
         os.chmod(path, stat.S_IWRITE | stat.S_IEXEC | stat.S_IREAD)
     make_readonly = _make_readonly
     make_accessible = _make_accessible
+
+
+__all__ = [
+    "make_readonly", "make_accessible", "TestMixin", "ShouldFailMixin",
+    "StallMixin", "skip_if_cannot_represent_argv", "run_cli", "parse_cli",
+    "DevNullDictionary", "insecurerandstr", "flip_bit", "flip_one_bit",
+    "SignalMixin", "skip_if_cannot_represent_filename", "ReallyEqualMixin"
+]

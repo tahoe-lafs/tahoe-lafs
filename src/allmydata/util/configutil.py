@@ -1,7 +1,25 @@
+"""
+Read/write config files.
 
-from ConfigParser import SafeConfigParser
+Configuration is returned as Unicode strings.
+
+Ported to Python 3.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+
+# On Python 2 we use the backport package; that means we always get unicode
+# out.
+from configparser import ConfigParser
 
 import attr
+
 
 class UnknownConfigError(Exception):
     """
@@ -12,17 +30,27 @@ class UnknownConfigError(Exception):
 
 
 def get_config(tahoe_cfg):
-    config = SafeConfigParser()
-    f = open(tahoe_cfg, "rb")
-    try:
-        # Skip any initial Byte Order Mark. Since this is an ordinary file, we
-        # don't need to handle incomplete reads, and can assume seekability.
-        if f.read(3) != '\xEF\xBB\xBF':
-            f.seek(0)
-        config.readfp(f)
-    finally:
-        f.close()
-    return config
+    """Load the config, returning a ConfigParser.
+
+    Configuration is returned as Unicode strings.
+    """
+    # Byte Order Mark is an optional garbage code point you sometimes get at
+    # the start of UTF-8 encoded files. Especially on Windows. Skip it by using
+    # utf-8-sig. https://en.wikipedia.org/wiki/Byte_order_mark
+    with open(tahoe_cfg, "r", encoding="utf-8-sig") as f:
+        cfg_string = f.read()
+    return get_config_from_string(cfg_string)
+
+
+def get_config_from_string(tahoe_cfg_string):
+    """Load the config from a string, return the ConfigParser.
+
+    Configuration is returned as Unicode strings.
+    """
+    parser = ConfigParser(strict=False)
+    parser.read_string(tahoe_cfg_string)
+    return parser
+
 
 def set_config(config, section, option, value):
     if not config.has_section(section):
@@ -31,11 +59,8 @@ def set_config(config, section, option, value):
     assert config.get(section, option) == value
 
 def write_config(tahoe_cfg, config):
-    f = open(tahoe_cfg, "wb")
-    try:
+    with open(tahoe_cfg, "w") as f:
         config.write(f)
-    finally:
-        f.close()
 
 def validate_config(fname, cfg, valid_config):
     """

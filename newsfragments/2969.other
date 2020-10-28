@@ -1,1 +1,0 @@
-The magic-folder integration test suite now performs more aggressive cleanup of the processes it launches.

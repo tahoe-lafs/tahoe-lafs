@@ -3,8 +3,10 @@ import json
 
 from twisted.web import http, static
 from twisted.internet import defer
-from nevow import url, rend
-from nevow.inevow import IRequest
+from twisted.web.resource import (
+    Resource,  # note: Resource is an old-style class
+    ErrorPage,
+)
 
 from allmydata.interfaces import ExistingChildError
 from allmydata.monitor import Monitor
@@ -13,14 +15,31 @@ from allmydata.mutable.publish import MutableFileHandle
 from allmydata.mutable.common import MODE_READ
 from allmydata.util import log, base32
 from allmydata.util.encodingutil import quote_output
-from allmydata.blacklist import FileProhibited, ProhibitedNode
+from allmydata.blacklist import (
+    FileProhibited,
+    ProhibitedNode,
+)
 
-from allmydata.web.common import text_plain, WebError, RenderMixin, \
-     boolean_of_arg, get_arg, should_create_intermediate_directories, \
-     MyExceptionHandler, parse_replace_arg, parse_offset_arg, \
-     get_format, get_mutable_type, get_filenode_metadata
-from allmydata.web.check_results import CheckResultsRenderer, \
-     CheckAndRepairResultsRenderer, LiteralCheckResultsRenderer
+from allmydata.web.common import (
+    boolean_of_arg,
+    exception_to_child,
+    get_arg,
+    get_filenode_metadata,
+    get_format,
+    get_mutable_type,
+    parse_offset_arg,
+    parse_replace_arg,
+    render_exception,
+    should_create_intermediate_directories,
+    text_plain,
+    WebError,
+    handle_when_done,
+)
+from allmydata.web.check_results import (
+    CheckResultsRenderer,
+    CheckAndRepairResultsRenderer,
+    LiteralCheckResultsRenderer,
+)
 from allmydata.web.info import MoreInfo
 
 class ReplaceMeMixin(object):
@@ -87,17 +106,17 @@ class ReplaceMeMixin(object):
         return d
 
 
-class PlaceHolderNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
+class PlaceHolderNodeHandler(Resource, ReplaceMeMixin):
     def __init__(self, client, parentnode, name):
-        rend.Page.__init__(self)
+        super(PlaceHolderNodeHandler, self).__init__()
         self.client = client
         assert parentnode
         self.parentnode = parentnode
         self.name = name
         self.node = None
 
-    def render_PUT(self, ctx):
-        req = IRequest(ctx)
+    @render_exception
+    def render_PUT(self, req):
         t = get_arg(req, "t", "").strip()
         replace = parse_replace_arg(get_arg(req, "replace", "true"))
 
@@ -112,8 +131,8 @@ class PlaceHolderNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
 
         raise WebError("PUT to a file: bad t=%s" % t)
 
-    def render_POST(self, ctx):
-        req = IRequest(ctx)
+    @render_exception
+    def render_POST(self, req):
         t = get_arg(req, "t", "").strip()
         replace = boolean_of_arg(get_arg(req, "replace", "true"))
         if t == "upload":
@@ -129,33 +148,37 @@ class PlaceHolderNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
             # placeholder.
             raise WebError("POST to a file: bad t=%s" % t)
 
-        when_done = get_arg(req, "when_done", None)
-        if when_done:
-            d.addCallback(lambda res: url.URL.fromString(when_done))
-        return d
+        return handle_when_done(req, d)
 
 
-class FileNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
+class FileNodeHandler(Resource, ReplaceMeMixin, object):
     def __init__(self, client, node, parentnode=None, name=None):
-        rend.Page.__init__(self)
+        super(FileNodeHandler, self).__init__()
         self.client = client
         assert node
         self.node = node
         self.parentnode = parentnode
         self.name = name
 
-    def childFactory(self, ctx, name):
-        req = IRequest(ctx)
+    @exception_to_child
+    def getChild(self, name, req):
         if isinstance(self.node, ProhibitedNode):
             raise FileProhibited(self.node.reason)
         if should_create_intermediate_directories(req):
-            raise WebError("Cannot create directory %s, because its "
-                           "parent is a file, not a directory" % quote_output(name, encoding='utf-8'))
-        raise WebError("Files have no children, certainly not named %s"
-                       % quote_output(name, encoding='utf-8'))
+                return ErrorPage(
+                    http.CONFLICT,
+                    u"Cannot create directory %s, because its parent is a file, "
+                    u"not a directory" % quote_output(name, encoding='utf-8'),
+                    "no details"
+                )
+        return ErrorPage(
+            http.BAD_REQUEST,
+            u"Files have no children named %s" % quote_output(name, encoding='utf-8'),
+            "no details",
+        )
 
-    def render_GET(self, ctx):
-        req = IRequest(ctx)
+    @render_exception
+    def render_GET(self, req):
         t = get_arg(req, "t", "").strip()
 
         # t=info contains variable ophandles, so is not allowed an ETag.
@@ -202,18 +225,18 @@ class FileNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
                     self.parentnode.get_metadata_for(self.name))
             else:
                 d.addCallback(lambda ignored: None)
-            d.addCallback(lambda md: FileJSONMetadata(ctx, self.node, md))
+            d.addCallback(lambda md: _file_json_metadata(req, self.node, md))
             return d
         if t == "info":
             return MoreInfo(self.node)
         if t == "uri":
-            return FileURI(ctx, self.node)
+            return _file_uri(req, self.node)
         if t == "readonly-uri":
-            return FileReadOnlyURI(ctx, self.node)
+            return _file_read_only_uri(req, self.node)
         raise WebError("GET file: bad t=%s" % t)
 
-    def render_HEAD(self, ctx):
-        req = IRequest(ctx)
+    @render_exception
+    def render_HEAD(self, req):
         t = get_arg(req, "t", "").strip()
         if t:
             raise WebError("HEAD file: bad t=%s" % t)
@@ -222,8 +245,8 @@ class FileNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
         d.addCallback(lambda dn: FileDownloader(dn, filename))
         return d
 
-    def render_PUT(self, ctx):
-        req = IRequest(ctx)
+    @render_exception
+    def render_PUT(self, req):
         t = get_arg(req, "t", "").strip()
         replace = parse_replace_arg(get_arg(req, "replace", "true"))
         offset = parse_offset_arg(get_arg(req, "offset", None))
@@ -265,8 +288,8 @@ class FileNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
 
         raise WebError("PUT to a file: bad t=%s" % t)
 
-    def render_POST(self, ctx):
-        req = IRequest(ctx)
+    @render_exception
+    def render_POST(self, req):
         t = get_arg(req, "t", "").strip()
         replace = boolean_of_arg(get_arg(req, "replace", "true"))
         if t == "check":
@@ -287,10 +310,7 @@ class FileNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
         else:
             raise WebError("POST to file: bad t=%s" % t)
 
-        when_done = get_arg(req, "when_done", None)
-        if when_done:
-            d.addCallback(lambda res: url.URL.fromString(when_done))
-        return d
+        return handle_when_done(req, d)
 
     def _maybe_literal(self, res, Results_Class):
         if res:
@@ -309,7 +329,8 @@ class FileNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
             d.addCallback(self._maybe_literal, CheckResultsRenderer)
         return d
 
-    def render_DELETE(self, ctx):
+    @render_exception
+    def render_DELETE(self, req):
         assert self.parentnode and self.name
         d = self.parentnode.delete(self.name)
         d.addCallback(lambda res: self.node.get_uri())
@@ -346,9 +367,9 @@ class FileNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
         return d
 
 
-class FileDownloader(rend.Page):
+class FileDownloader(Resource, object):
     def __init__(self, filenode, filename):
-        rend.Page.__init__(self)
+        super(FileDownloader, self).__init__()
         self.filenode = filenode
         self.filename = filename
 
@@ -400,8 +421,8 @@ class FileDownloader(rend.Page):
         except ValueError:
             return None
 
-    def renderHTTP(self, ctx):
-        req = IRequest(ctx)
+    @render_exception
+    def render(self, req):
         gte = static.getTypeAndEncoding
         ctype, encoding = gte(self.filename,
                               static.File.contentTypes,
@@ -456,24 +477,13 @@ class FileDownloader(rend.Page):
         if req.method == "HEAD":
             return ""
 
-        finished = []
-        def _request_finished(ign):
-            finished.append(True)
-        req.notifyFinish().addBoth(_request_finished)
-
         d = self.filenode.read(req, first, size)
 
-        def _finished(ign):
-            if not finished:
-                req.finish()
         def _error(f):
-            lp = log.msg("error during GET", facility="tahoe.webish", failure=f,
-                         level=log.UNUSUAL, umid="xSiF3w")
-            if finished:
-                log.msg("but it's too late to tell them", parent=lp,
-                        level=log.UNUSUAL, umid="j1xIbw")
-                return
-            req._tahoe_request_had_error = f # for HTTP-style logging
+            if f.check(defer.CancelledError):
+                # The HTTP connection was lost and we no longer have anywhere
+                # to send our result.  Let this pass through.
+                return f
             if req.startedWriting:
                 # The content-type is already set, and the response code has
                 # already been sent, so we can't provide a clean error
@@ -484,18 +494,19 @@ class FileDownloader(rend.Page):
                 # error response be shorter than the intended results.
                 #
                 # We don't have a lot of options, unfortunately.
-                req.write("problem during download\n")
-                req.finish()
+                return b"problem during download\n"
             else:
                 # We haven't written anything yet, so we can provide a
                 # sensible error message.
-                eh = MyExceptionHandler()
-                eh.renderHTTP_exception(ctx, f)
-        d.addCallbacks(_finished, _error)
-        return req.deferred
+                return f
+        d.addCallbacks(
+            lambda ignored: None,
+            _error,
+        )
+        return d
 
 
-def FileJSONMetadata(ctx, filenode, edge_metadata):
+def _file_json_metadata(req, filenode, edge_metadata):
     rw_uri = filenode.get_write_uri()
     ro_uri = filenode.get_readonly_uri()
     data = ("filenode", get_filenode_metadata(filenode))
@@ -509,16 +520,21 @@ def FileJSONMetadata(ctx, filenode, edge_metadata):
     if edge_metadata is not None:
         data[1]['metadata'] = edge_metadata
 
-    return text_plain(json.dumps(data, indent=1) + "\n", ctx)
+    return text_plain(json.dumps(data, indent=1) + "\n", req)
 
-def FileURI(ctx, filenode):
-    return text_plain(filenode.get_uri(), ctx)
 
-def FileReadOnlyURI(ctx, filenode):
+def _file_uri(req, filenode):
+    return text_plain(filenode.get_uri(), req)
+
+
+def _file_read_only_uri(req, filenode):
     if filenode.is_readonly():
-        return text_plain(filenode.get_uri(), ctx)
-    return text_plain(filenode.get_readonly_uri(), ctx)
+        return text_plain(filenode.get_uri(), req)
+    return text_plain(filenode.get_readonly_uri(), req)
+
 
 class FileNodeDownloadHandler(FileNodeHandler):
-    def childFactory(self, ctx, name):
+
+    @exception_to_child
+    def getChild(self, name, req):
         return FileNodeDownloadHandler(self.client, self.node, name=name)

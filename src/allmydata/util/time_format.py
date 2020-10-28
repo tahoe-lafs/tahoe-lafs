@@ -1,5 +1,18 @@
-# ISO-8601:
-# http://www.cl.cam.ac.uk/~mgk25/iso-time.html
+"""
+Time formatting utilities.
+
+ISO-8601:
+http://www.cl.cam.ac.uk/~mgk25/iso-time.html
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+from future.utils import native_str
 
 import calendar, datetime, re, time
 
@@ -14,6 +27,7 @@ def iso_utc_date(now=None, t=time.time):
 def iso_utc(now=None, sep='_', t=time.time):
     if now is None:
         now = t()
+    sep = native_str(sep)  # Python 2 doesn't allow unicode input to isoformat
     return datetime.datetime.utcfromtimestamp(now).isoformat(sep)
 
 def iso_utc_time_to_seconds(isotime, _conversion_re=re.compile(r"(?P<year>\d{4})-(?P<month>\d{2})-(?P<day>\d{2})[T_ ](?P<hour>\d{2}):(?P<minute>\d{2}):(?P<second>\d{2})(?P<subsecond>\.\d+)?")):
@@ -74,11 +88,11 @@ def format_delta(time_1, time_2):
     delta = int(time_2 - time_1)
     seconds = delta % 60
     delta  -= seconds
-    minutes = (delta / 60) % 60
+    minutes = (delta // 60) % 60
     delta  -= minutes * 60
-    hours   = delta / (60*60) % 24
+    hours   = delta // (60*60) % 24
     delta  -= hours * 24
-    days    = delta / (24*60*60)
+    days    = delta // (24*60*60)
     if not days:
         if not hours:
             if not minutes:

@@ -38,7 +38,8 @@ class FileStoreOptions(BaseOptions):
                 raise usage.UsageError(msg)
         else:
             node_url_file = os.path.join(self['node-directory'], "node.url")
-            self['node-url'] = open(node_url_file, "r").read().strip()
+            with open(node_url_file, "r") as f:
+                self['node-url'] = f.read().strip()
         if self['node-url'][-1] != "/":
             self['node-url'] += "/"
 

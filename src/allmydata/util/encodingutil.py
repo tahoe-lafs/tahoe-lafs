@@ -1,16 +1,35 @@
 """
 Functions used to convert inputs from whatever encoding used in the system to
 unicode and back.
+
+Ported to Python 3.
+
+Once Python 2 support is dropped, most of this module will obsolete, since
+Unicode is the default everywhere in Python 3.
 """
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2, PY3, native_str
+if PY2:
+    # We omit str() because that seems too tricky to get right.
+    from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, max, min  # noqa: F401
+
+from past.builtins import unicode
 
 import sys, os, re, locale
-from types import NoneType
+import unicodedata
+import warnings
 
 from allmydata.util.assertutil import precondition, _assert
 from twisted.python import usage
 from twisted.python.filepath import FilePath
 from allmydata.util import log
 from allmydata.util.fileutil import abspath_expanduser_unicode
+
+NoneType = type(None)
 
 
 def canonical_encoding(encoding):
@@ -61,13 +80,17 @@ def _reload():
 
     check_encoding(io_encoding)
 
-    is_unicode_platform = sys.platform in ["win32", "darwin"]
+    is_unicode_platform = PY3 or sys.platform in ["win32", "darwin"]
 
     # Despite the Unicode-mode FilePath support added to Twisted in
     # <https://twistedmatrix.com/trac/ticket/7805>, we can't yet use
-    # Unicode-mode FilePaths with INotify on non-Windows platforms
-    # due to <https://twistedmatrix.com/trac/ticket/7928>.
-    use_unicode_filepath = sys.platform == "win32"
+    # Unicode-mode FilePaths with INotify on non-Windows platforms due to
+    # <https://twistedmatrix.com/trac/ticket/7928>. Supposedly 7928 is fixed,
+    # though... and Tahoe-LAFS doesn't use inotify anymore!
+    #
+    # In the interest of not breaking anything, this logic is unchanged for
+    # Python 2, but on Python 3 the paths are always unicode, like it or not.
+    use_unicode_filepath = PY3 or sys.platform == "win32"
 
 _reload()
 
@@ -88,7 +111,10 @@ def argv_to_unicode(s):
     """
     Decode given argv element to unicode. If this fails, raise a UsageError.
     """
-    precondition(isinstance(s, str), s)
+    if isinstance(s, unicode):
+        return s
+
+    precondition(isinstance(s, bytes), s)
 
     try:
         return unicode(s, io_encoding)
@@ -113,39 +139,49 @@ def unicode_to_argv(s, mangle=False):
     If the argument is to be passed to a different process, then the 'mangle' argument
     should be true; on Windows, this uses a mangled encoding that will be reversed by
     code in runner.py.
+
+    On Python 3, just return the string unchanged, since argv is unicode.
     """
     precondition(isinstance(s, unicode), s)
+    if PY3:
+        warnings.warn("This will be unnecessary once Python 2 is dropped.",
+                      DeprecationWarning)
+        return s
 
     if mangle and sys.platform == "win32":
         # This must be the same as 'mangle' in bin/tahoe-script.template.
-        return str(re.sub(u'[^\\x20-\\x7F]', lambda m: u'\x7F%x;' % (ord(m.group(0)),), s))
+        return bytes(re.sub(u'[^\\x20-\\x7F]', lambda m: u'\x7F%x;' % (ord(m.group(0)),), s), io_encoding)
     else:
         return s.encode(io_encoding)
 
 def unicode_to_url(s):
     """
-    Encode an unicode object used in an URL.
+    Encode an unicode object used in an URL to bytes.
     """
     # According to RFC 2718, non-ascii characters in URLs must be UTF-8 encoded.
 
     # FIXME
-    return to_str(s)
+    return to_bytes(s)
     #precondition(isinstance(s, unicode), s)
     #return s.encode('utf-8')
 
-def to_str(s):
-    if s is None or isinstance(s, str):
+def to_bytes(s):
+    """Convert unicode to bytes.
+
+    None and bytes are passed through unchanged.
+    """
+    if s is None or isinstance(s, bytes):
         return s
     return s.encode('utf-8')
 
 def from_utf8_or_none(s):
-    precondition(isinstance(s, (NoneType, str)), s)
+    precondition(isinstance(s, bytes) or s is None, s)
     if s is None:
         return s
     return s.decode('utf-8')
 
-PRINTABLE_ASCII = re.compile(r'^[\n\r\x20-\x7E]*$',          re.DOTALL)
-PRINTABLE_8BIT  = re.compile(r'^[\n\r\x20-\x7E\x80-\xFF]*$', re.DOTALL)
+PRINTABLE_ASCII = re.compile(br'^[\n\r\x20-\x7E]*$',          re.DOTALL)
+PRINTABLE_8BIT  = re.compile(br'^[\n\r\x20-\x7E\x80-\xFF]*$', re.DOTALL)
 
 def is_printable_ascii(s):
     return PRINTABLE_ASCII.search(s) is not None
@@ -153,20 +189,27 @@ def is_printable_ascii(s):
 def unicode_to_output(s):
     """
     Encode an unicode object for representation on stdout or stderr.
+
+    On Python 3 just returns the unicode string unchanged, since encoding is
+    the responsibility of stdout/stderr, they expect Unicode by default.
     """
     precondition(isinstance(s, unicode), s)
+    if PY3:
+        warnings.warn("This will be unnecessary once Python 2 is dropped.",
+                      DeprecationWarning)
+        return s
 
     try:
         out = s.encode(io_encoding)
     except (UnicodeEncodeError, UnicodeDecodeError):
-        raise UnicodeEncodeError(io_encoding, s, 0, 0,
-                                 "A string could not be encoded as %s for output to the terminal:\n%r" %
-                                 (io_encoding, repr(s)))
+        raise UnicodeEncodeError(native_str(io_encoding), s, 0, 0,
+                                 native_str("A string could not be encoded as %s for output to the terminal:\n%r" %
+                                 (io_encoding, repr(s))))
 
     if PRINTABLE_8BIT.search(out) is None:
-        raise UnicodeEncodeError(io_encoding, s, 0, 0,
-                                 "A string encoded as %s for output to the terminal contained unsafe bytes:\n%r" %
-                                 (io_encoding, repr(s)))
+        raise UnicodeEncodeError(native_str(io_encoding), s, 0, 0,
+                                 native_str("A string encoded as %s for output to the terminal contained unsafe bytes:\n%r" %
+                                 (io_encoding, repr(s))))
     return out
 
 
@@ -187,14 +230,17 @@ def _unicode_escape(m, quote_newlines):
     else:
         return u'\\x%02x' % (codepoint,)
 
-def _str_escape(m, quote_newlines):
+def _bytes_escape(m, quote_newlines):
+    """
+    Takes a re match on bytes, the result is escaped bytes of group(0).
+    """
     c = m.group(0)
-    if c == '"' or c == '$' or c == '`' or c == '\\':
-        return '\\' + c
-    elif c == '\n' and not quote_newlines:
+    if c == b'"' or c == b'$' or c == b'`' or c == b'\\':
+        return b'\\' + c
+    elif c == b'\n' and not quote_newlines:
         return c
     else:
-        return '\\x%02x' % (ord(c),)
+        return b'\\x%02x' % (ord(c),)
 
 MUST_DOUBLE_QUOTE_NL = re.compile(u'[^\\x20-\\x26\\x28-\\x7E\u00A0-\uD7FF\uE000-\uFDCF\uFDF0-\uFFFC]', re.DOTALL)
 MUST_DOUBLE_QUOTE    = re.compile(u'[^\\n\\x20-\\x26\\x28-\\x7E\u00A0-\uD7FF\uE000-\uFDCF\uFDF0-\uFFFC]', re.DOTALL)
@@ -204,7 +250,7 @@ ESCAPABLE_UNICODE = re.compile(u'([\uD800-\uDBFF][\uDC00-\uDFFF])|'  # valid sur
                                u'[^ !#\\x25-\\x5B\\x5D-\\x5F\\x61-\\x7E\u00A0-\uD7FF\uE000-\uFDCF\uFDF0-\uFFFC]',
                                re.DOTALL)
 
-ESCAPABLE_8BIT    = re.compile( r'[^ !#\x25-\x5B\x5D-\x5F\x61-\x7E]', re.DOTALL)
+ESCAPABLE_8BIT    = re.compile( br'[^ !#\x25-\x5B\x5D-\x5F\x61-\x7E]', re.DOTALL)
 
 def quote_output(s, quotemarks=True, quote_newlines=None, encoding=None):
     """
@@ -219,33 +265,53 @@ def quote_output(s, quotemarks=True, quote_newlines=None, encoding=None):
     Python-compatible backslash escaping is used.
 
     If not explicitly given, quote_newlines is True when quotemarks is True.
+
+    On Python 3, returns Unicode strings.
     """
-    precondition(isinstance(s, (str, unicode)), s)
+    precondition(isinstance(s, (bytes, unicode)), s)
+    encoding = encoding or io_encoding
+
     if quote_newlines is None:
         quote_newlines = quotemarks
 
-    if isinstance(s, str):
-        try:
-            s = s.decode('utf-8')
-        except UnicodeDecodeError:
-            return 'b"%s"' % (ESCAPABLE_8BIT.sub(lambda m: _str_escape(m, quote_newlines), s),)
+    def _encode(s):
+        if isinstance(s, bytes):
+            try:
+                s = s.decode('utf-8')
+            except UnicodeDecodeError:
+                return b'b"%s"' % (ESCAPABLE_8BIT.sub(lambda m: _bytes_escape(m, quote_newlines), s),)
 
-    must_double_quote = quote_newlines and MUST_DOUBLE_QUOTE_NL or MUST_DOUBLE_QUOTE
-    if must_double_quote.search(s) is None:
-        try:
-            out = s.encode(encoding or io_encoding)
-            if quotemarks or out.startswith('"'):
-                return "'%s'" % (out,)
-            else:
-                return out
-        except (UnicodeDecodeError, UnicodeEncodeError):
-            pass
+        must_double_quote = quote_newlines and MUST_DOUBLE_QUOTE_NL or MUST_DOUBLE_QUOTE
+        if must_double_quote.search(s) is None:
+            try:
+                out = s.encode(encoding)
+                if quotemarks or out.startswith(b'"'):
+                    return b"'%s'" % (out,)
+                else:
+                    return out
+            except (UnicodeDecodeError, UnicodeEncodeError):
+                pass
 
-    escaped = ESCAPABLE_UNICODE.sub(lambda m: _unicode_escape(m, quote_newlines), s)
-    return '"%s"' % (escaped.encode(encoding or io_encoding, 'backslashreplace'),)
+        escaped = ESCAPABLE_UNICODE.sub(lambda m: _unicode_escape(m, quote_newlines), s)
+        return b'"%s"' % (escaped.encode(encoding, 'backslashreplace'),)
+
+    result = _encode(s)
+    if PY3:
+        # On Python 3 half of what this function does is unnecessary, since
+        # sys.stdout typically expects Unicode. To ensure no encode errors, one
+        # can do:
+        #
+        # sys.stdout.reconfigure(encoding=sys.stdout.encoding, errors="backslashreplace")
+        #
+        # Although the problem is that doesn't work in Python 3.6, only 3.7 or
+        # later... For now not thinking about it, just returning unicode since
+        # that is the right thing to do on Python 3.
+        result = result.decode(encoding)
+    return result
+
 
 def quote_path(path, quotemarks=True):
-    return quote_output("/".join(map(to_str, path)), quotemarks=quotemarks, quote_newlines=True)
+    return quote_output(b"/".join(map(to_bytes, path)), quotemarks=quotemarks, quote_newlines=True)
 
 def quote_local_unicode_path(path, quotemarks=True):
     precondition(isinstance(path, unicode), path)
@@ -274,7 +340,7 @@ def extend_filepath(fp, segments):
         return fp
 
 def to_filepath(path):
-    precondition(isinstance(path, unicode if use_unicode_filepath else basestring),
+    precondition(isinstance(path, unicode if use_unicode_filepath else (bytes, unicode)),
                  path=path)
 
     if isinstance(path, unicode) and not use_unicode_filepath:
@@ -289,7 +355,7 @@ def to_filepath(path):
     return FilePath(path)
 
 def _decode(s):
-    precondition(isinstance(s, basestring), s=s)
+    precondition(isinstance(s, (bytes, unicode)), s=s)
 
     if isinstance(s, bytes):
         return s.decode(filesystem_encoding)
@@ -355,3 +421,9 @@ def listdir_unicode(path):
 
 def listdir_filepath(fp):
     return listdir_unicode(unicode_from_filepath(fp))
+
+
+# 'x' at the end of a variable name indicates that it holds a Unicode string that may not
+# be NFC-normalized.
+def normalize(namex):
+    return unicodedata.normalize('NFC', namex)

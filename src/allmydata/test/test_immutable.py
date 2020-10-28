@@ -1,3 +1,14 @@
+"""
+This module has been ported to Python 3.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 import random
 
@@ -15,6 +26,7 @@ from allmydata.util.consumer import download_to_data
 from allmydata.interfaces import NotEnoughSharesError
 from allmydata.immutable.upload import Data
 from allmydata.immutable.downloader import finder
+from allmydata.immutable.literal import LiteralFileNode
 
 from .no_network import (
     NoNetworkServer,
@@ -79,7 +91,7 @@ class TestShareFinder(unittest.TestCase):
         # ever", and then immediately tell them "oh, and here's
         # another share", then you lose.
 
-        rcap = uri.CHKFileURI('a'*32, 'a'*32, 3, 99, 100)
+        rcap = uri.CHKFileURI(b'a'*32, b'a'*32, 3, 99, 100)
         vcap = rcap.get_verify_cap()
 
         class MockBuckets(object):
@@ -88,8 +100,8 @@ class TestShareFinder(unittest.TestCase):
         class MockServer(object):
             def __init__(self, buckets):
                 self.version = {
-                    'http://allmydata.org/tahoe/protocols/storage/v1': {
-                        "tolerates-immutable-read-overrun": True
+                    b'http://allmydata.org/tahoe/protocols/storage/v1': {
+                        b"tolerates-immutable-read-overrun": True
                         }
                     }
                 self.buckets = buckets
@@ -126,9 +138,9 @@ class TestShareFinder(unittest.TestCase):
         mockserver1 = MockServer({1: MockBuckets(), 2: MockBuckets()})
         mockserver2 = MockServer({})
         mockserver3 = MockServer({3: MockBuckets()})
-        servers = [ NoNetworkServer("ms1", mockserver1),
-                    NoNetworkServer("ms2", mockserver2),
-                    NoNetworkServer("ms3", mockserver3), ]
+        servers = [ NoNetworkServer(b"ms1", mockserver1),
+                    NoNetworkServer(b"ms2", mockserver2),
+                    NoNetworkServer(b"ms3", mockserver3), ]
         mockstoragebroker = MockStorageBroker(servers)
         mockdownloadstatus = MockDownloadStatus()
         mocknode = MockNode(check_reneging=True, check_fetch_failed=True)
@@ -155,7 +167,7 @@ class Test(GridTestMixin, unittest.TestCase, common.ShouldFailMixin):
         # Tests that need to test servers of happiness using this should
         # set their own value for happy -- the default (7) breaks stuff.
         c1.encoding_params['happy'] = 1
-        d = c1.upload(Data(TEST_DATA, convergence=""))
+        d = c1.upload(Data(TEST_DATA, convergence=b""))
         def _after_upload(ur):
             self.uri = ur.get_uri()
             self.filenode = self.g.clients[0].create_node_from_uri(ur.get_uri())
@@ -176,7 +188,7 @@ class Test(GridTestMixin, unittest.TestCase, common.ShouldFailMixin):
         return d
 
     def _shuffled(self, num_shnums):
-        shnums = range(10)
+        shnums = list(range(10))
         random.shuffle(shnums)
         return shnums[:num_shnums]
 
@@ -224,7 +236,7 @@ class Test(GridTestMixin, unittest.TestCase, common.ShouldFailMixin):
         d.addCallback(self._download_and_check_plaintext)
         def _after_download(ign):
             num_reads = self._count_reads()
-            #print num_reads
+            #print(num_reads)
             self.failIf(num_reads > 41, num_reads)
         d.addCallback(_after_download)
         return d
@@ -237,7 +249,7 @@ class Test(GridTestMixin, unittest.TestCase, common.ShouldFailMixin):
                       self.delete_shares_numbered(self.uri, range(7)))
         d.addCallback(self._download_and_check_plaintext)
         def _after_download(num_reads):
-            #print num_reads
+            #print(num_reads)
             self.failIf(num_reads > 41, num_reads)
         d.addCallback(_after_download)
         return d
@@ -284,7 +296,7 @@ class Test(GridTestMixin, unittest.TestCase, common.ShouldFailMixin):
                                  download_to_data, self.filenode)
             def _check_numreads(ign):
                 num_reads = self._count_reads() - start_reads
-                #print num_reads
+                #print(num_reads)
 
                 # To pass this test, you are required to give up before
                 # reading all of the share data. Actually, we could give up
@@ -327,6 +339,24 @@ class Test(GridTestMixin, unittest.TestCase, common.ShouldFailMixin):
         d.addCallback(lambda size:
             self.failUnlessEqual(size, len(common.TEST_DATA)))
         return d
+
+
+class LiteralFileNodeTests(unittest.TestCase):
+    """Tests for LiteralFileNode."""
+
+    def test_equality(self):
+        """LiteralFileNodes are equal iff they have the same URI."""
+        uri1 = uri.LiteralFileURI(b"1")
+        uri2 = uri.LiteralFileURI(b"2")
+        lfn1 = LiteralFileNode(uri1)
+        lfn1b = LiteralFileNode(uri1)
+        lfn2 = LiteralFileNode(uri2)
+        self.assertTrue(lfn1 == lfn1b)
+        self.assertFalse(lfn1 != lfn1b)
+        self.assertTrue(lfn1 != lfn2)
+        self.assertFalse(lfn1 == lfn2)
+        self.assertTrue(lfn1 != 300)
+        self.assertFalse(lfn1 == 300)
 
 
 # XXX extend these tests to show bad behavior of various kinds from servers:

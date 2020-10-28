@@ -13,7 +13,7 @@ from allmydata import uri
 from allmydata.util import fileutil
 from allmydata.util.fileutil import abspath_expanduser_unicode, precondition_abspath
 from allmydata.util.encodingutil import unicode_to_url, listdir_unicode, quote_output, \
-    quote_local_unicode_path, to_str
+    quote_local_unicode_path, to_bytes
 from allmydata.util.assertutil import precondition, _assert
 
 
@@ -254,8 +254,8 @@ class TahoeDirectorySource(object):
 
     def init_from_parsed(self, parsed):
         nodetype, d = parsed
-        self.writecap = to_str(d.get("rw_uri"))
-        self.readcap = to_str(d.get("ro_uri"))
+        self.writecap = to_bytes(d.get("rw_uri"))
+        self.readcap = to_bytes(d.get("ro_uri"))
         self.mutable = d.get("mutable", False) # older nodes don't provide it
         self.children_d = dict( [(unicode(name),value)
                                  for (name,value)
@@ -270,13 +270,13 @@ class TahoeDirectorySource(object):
             self.progressfunc("examining %d of %d" % (i+1, len(self.children_d)))
             if data[0] == "filenode":
                 mutable = data[1].get("mutable", False)
-                writecap = to_str(data[1].get("rw_uri"))
-                readcap = to_str(data[1].get("ro_uri"))
+                writecap = to_bytes(data[1].get("rw_uri"))
+                readcap = to_bytes(data[1].get("ro_uri"))
                 self.children[name] = TahoeFileSource(self.nodeurl, mutable,
                                                       writecap, readcap, name)
             elif data[0] == "dirnode":
-                writecap = to_str(data[1].get("rw_uri"))
-                readcap = to_str(data[1].get("ro_uri"))
+                writecap = to_bytes(data[1].get("rw_uri"))
+                readcap = to_bytes(data[1].get("ro_uri"))
                 if writecap and writecap in self.cache:
                     child = self.cache[writecap]
                 elif readcap and readcap in self.cache:
@@ -324,8 +324,8 @@ class TahoeDirectoryTarget(object):
 
     def init_from_parsed(self, parsed):
         nodetype, d = parsed
-        self.writecap = to_str(d.get("rw_uri"))
-        self.readcap = to_str(d.get("ro_uri"))
+        self.writecap = to_bytes(d.get("rw_uri"))
+        self.readcap = to_bytes(d.get("ro_uri"))
         self.mutable = d.get("mutable", False) # older nodes don't provide it
         self.children_d = dict( [(unicode(name),value)
                                  for (name,value)
@@ -365,8 +365,8 @@ class TahoeDirectoryTarget(object):
             self.progressfunc("examining %d of %d" % (i+1, len(self.children_d)))
             if data[0] == "filenode":
                 mutable = data[1].get("mutable", False)
-                writecap = to_str(data[1].get("rw_uri"))
-                readcap = to_str(data[1].get("ro_uri"))
+                writecap = to_bytes(data[1].get("rw_uri"))
+                readcap = to_bytes(data[1].get("ro_uri"))
                 url = None
                 if self.writecap:
                     url = self.nodeurl + "/".join(["uri",
@@ -375,8 +375,8 @@ class TahoeDirectoryTarget(object):
                 self.children[name] = TahoeFileTarget(self.nodeurl, mutable,
                                                       writecap, readcap, url)
             elif data[0] == "dirnode":
-                writecap = to_str(data[1].get("rw_uri"))
-                readcap = to_str(data[1].get("ro_uri"))
+                writecap = to_bytes(data[1].get("rw_uri"))
+                readcap = to_bytes(data[1].get("ro_uri"))
                 if writecap and writecap in self.cache:
                     child = self.cache[writecap]
                 elif readcap and readcap in self.cache:
@@ -619,8 +619,8 @@ class Copier(object):
                                              self.progress)
                     t.init_from_parsed(parsed)
                 else:
-                    writecap = to_str(d.get("rw_uri"))
-                    readcap = to_str(d.get("ro_uri"))
+                    writecap = to_bytes(d.get("rw_uri"))
+                    readcap = to_bytes(d.get("ro_uri"))
                     mutable = d.get("mutable", False)
                     t = TahoeFileTarget(self.nodeurl, mutable,
                                         writecap, readcap, url)
@@ -682,8 +682,8 @@ class Copier(object):
             else:
                 if had_trailing_slash:
                     raise FilenameWithTrailingSlashError(source_spec)
-                writecap = to_str(d.get("rw_uri"))
-                readcap = to_str(d.get("ro_uri"))
+                writecap = to_bytes(d.get("rw_uri"))
+                readcap = to_bytes(d.get("ro_uri"))
                 mutable = d.get("mutable", False) # older nodes don't provide it
                 t = TahoeFileSource(self.nodeurl, mutable, writecap, readcap, name)
         return t
@@ -858,7 +858,7 @@ class Copier(object):
 
 
     def progress(self, message):
-        #print message
+        #print(message)
         if self.progressfunc:
             self.progressfunc(message)
 

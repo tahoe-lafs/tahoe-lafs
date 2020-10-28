@@ -1,4 +1,4 @@
-<html xmlns:n="http://nevow.com/ns/nevow/0.1">
+<html xmlns:t="http://twistedmatrix.com/ns/twisted.web.template/0.1">
   <head>
     <title>Tahoe-LAFS - Check Results</title>
     <link href="/tahoe.css" rel="stylesheet" type="text/css"/>
@@ -7,17 +7,17 @@
   </head>
   <body>
 
-<h1>File Check-And-Repair Results for SI=<span n:render="storage_index" /></h1>
+<h1>File Check-And-Repair Results for SI=<span t:render="storage_index" /></h1>
 
-<div n:render="summary" />
+<div t:render="summary" />
 
-<div n:render="repair_results" />
+<div t:render="repair_results" />
 
-<div n:render="post_repair_results" />
+<div t:render="post_repair_results" />
 
-<div n:render="maybe_pre_repair_results" />
+<div t:render="maybe_pre_repair_results" />
 
-<div n:render="return" />
+<div t:render="return_to" />
 
   </body>
 </html>

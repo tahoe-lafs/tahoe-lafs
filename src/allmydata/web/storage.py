@@ -1,10 +1,17 @@
+from future.utils import PY2
 
 import time, json
-from nevow import rend, tags as T
-from allmydata.web.common import (
-    getxmlfile,
+from twisted.python.filepath import FilePath
+from twisted.web.template import (
+    Element,
+    XMLFile,
+    tags as T,
+    renderer,
+    renderElement
+)
+from allmydata.web.common_py3 import (
     abbreviate_time,
-    MultiFormatPage,
+    MultiFormatResource
 )
 from allmydata.util.abbreviate import abbreviate_space
 from allmydata.util import time_format, idlib
@@ -16,91 +23,108 @@ def remove_prefix(s, prefix):
     return s[len(prefix):]
 
 
-class StorageStatus(MultiFormatPage):
-    docFactory = getxmlfile("storage_status.xhtml")
-    # the default 'data' argument is the StorageServer instance
+class StorageStatusElement(Element):
+    """Class to render a storage status page."""
+
+    loader = XMLFile(FilePath(__file__).sibling("storage_status.xhtml"))
 
     def __init__(self, storage, nickname=""):
-        rend.Page.__init__(self, storage)
-        self.storage = storage
-        self.nickname = nickname
+        """
+        :param _StorageServer storage: data about storage.
+        :param string nickname: friendly name for storage.
+        """
+        super(StorageStatusElement, self).__init__()
+        self._storage = storage
+        self._nickname = nickname
 
-    def render_JSON(self, req):
-        req.setHeader("content-type", "text/plain")
-        d = {"stats": self.storage.get_stats(),
-             "bucket-counter": self.storage.bucket_counter.get_state(),
-             "lease-checker": self.storage.lease_checker.get_state(),
-             "lease-checker-progress": self.storage.lease_checker.get_progress(),
-             }
-        return json.dumps(d, indent=1) + "\n"
+    @renderer
+    def nickname(self, req, tag):
+        return tag(self._nickname)
 
-    def data_nickname(self, ctx, storage):
-        return self.nickname
-    def data_nodeid(self, ctx, storage):
-        return idlib.nodeid_b2a(self.storage.my_nodeid)
+    @renderer
+    def nodeid(self, req, tag):
+        return tag(idlib.nodeid_b2a(self._storage.my_nodeid))
 
-    def render_storage_running(self, ctx, storage):
-        if storage:
-            return ctx.tag
-        else:
-            return T.h1["No Storage Server Running"]
+    def _get_storage_stat(self, key):
+        """Get storage server statistics.
 
-    def render_bool(self, ctx, data):
-        return {True: "Yes", False: "No"}[bool(data)]
+        Storage Server keeps a dict that contains various usage and
+        latency statistics.  The dict looks like this:
 
-    def render_abbrev_space(self, ctx, size):
+          {
+            'storage_server.accepting_immutable_shares': 1,
+            'storage_server.allocated': 0,
+            'storage_server.disk_avail': 106539192320,
+            'storage_server.disk_free_for_nonroot': 106539192320,
+            'storage_server.disk_free_for_root': 154415284224,
+            'storage_server.disk_total': 941088460800,
+            'storage_server.disk_used': 786673176576,
+            'storage_server.latencies.add-lease.01_0_percentile': None,
+            'storage_server.latencies.add-lease.10_0_percentile': None,
+            ...
+          }
+
+        ``StorageServer.get_stats()`` returns the above dict.  Storage
+        status page uses a subset of the items in the dict, concerning
+        disk usage.
+
+        :param str key: storage server statistic we want to know.
+        """
+        return self._storage.get_stats().get(key)
+
+    def render_abbrev_space(self, size):
         if size is None:
-            return "?"
+            return u"?"
         return abbreviate_space(size)
 
-    def render_space(self, ctx, size):
+    def render_space(self, size):
         if size is None:
-            return "?"
-        return "%d" % size
+            return u"?"
+        return u"%d" % size
 
-    def data_stats(self, ctx, data):
-        # FYI: 'data' appears to be self, rather than the StorageServer
-        # object in self.original that gets passed to render_* methods. I
-        # still don't understand Nevow.
+    @renderer
+    def storage_stats(self, req, tag):
+        # Render storage status table that appears near the top of the page.
+        total = self._get_storage_stat("storage_server.disk_total")
+        used = self._get_storage_stat("storage_server.disk_used")
+        free_root = self._get_storage_stat("storage_server.disk_free_for_root")
+        free_nonroot = self._get_storage_stat("storage_server.disk_free_for_nonroot")
+        reserved = self._get_storage_stat("storage_server.reserved_space")
+        available = self._get_storage_stat("storage_server.disk_avail")
 
-        # Nevow has nevow.accessors.DictionaryContainer: Any data= directive
-        # that appears in a context in which the current data is a dictionary
-        # will be looked up as keys in that dictionary. So if data_stats()
-        # returns a dictionary, then we can use something like this:
-        #
-        #  <ul n:data="stats">
-        #   <li>disk_total: <span n:render="abbrev" n:data="disk_total" /></li>
-        #  </ul>
+        tag.fillSlots(
+            disk_total = self.render_space(total),
+            disk_total_abbrev = self.render_abbrev_space(total),
+            disk_used = self.render_space(used),
+            disk_used_abbrev = self.render_abbrev_space(used),
+            disk_free_for_root = self.render_space(free_root),
+            disk_free_for_root_abbrev = self.render_abbrev_space(free_root),
+            disk_free_for_nonroot = self.render_space(free_nonroot),
+            disk_free_for_nonroot_abbrev = self.render_abbrev_space(free_nonroot),
+            reserved_space = self.render_space(reserved),
+            reserved_space_abbrev = self.render_abbrev_space(reserved),
+            disk_avail = self.render_space(available),
+            disk_avail_abbrev = self.render_abbrev_space(available)
+        )
+        return tag
 
-        # to use get_stats()["storage_server.disk_total"] . However,
-        # DictionaryContainer does a raw d[] instead of d.get(), so any
-        # missing keys will cause an error, even if the renderer can tolerate
-        # None values. To overcome this, we either need a dict-like object
-        # that always returns None for unknown keys, or we must pre-populate
-        # our dict with those missing keys, or we should get rid of data_
-        # methods that return dicts (or find some way to override Nevow's
-        # handling of dictionaries).
+    @renderer
+    def accepting_immutable_shares(self, req, tag):
+        accepting = self._get_storage_stat("storage_server.accepting_immutable_shares")
+        return tag({True: "Yes", False: "No"}[bool(accepting)])
 
-        d = dict([ (remove_prefix(k, "storage_server."), v)
-                   for k,v in self.storage.get_stats().items() ])
-        d.setdefault("disk_total", None)
-        d.setdefault("disk_used", None)
-        d.setdefault("disk_free_for_root", None)
-        d.setdefault("disk_free_for_nonroot", None)
-        d.setdefault("reserved_space", None)
-        d.setdefault("disk_avail", None)
-        return d
-
-    def data_last_complete_bucket_count(self, ctx, data):
-        s = self.storage.bucket_counter.get_state()
+    @renderer
+    def last_complete_bucket_count(self, req, tag):
+        s = self._storage.bucket_counter.get_state()
         count = s.get("last-complete-bucket-count")
         if count is None:
-            return "Not computed yet"
-        return count
+            return tag("Not computed yet")
+        return tag(str(count))
 
-    def render_count_crawler_status(self, ctx, storage):
-        p = self.storage.bucket_counter.get_progress()
-        return ctx.tag[self.format_crawler_progress(p)]
+    @renderer
+    def count_crawler_status(self, req, tag):
+        p = self._storage.bucket_counter.get_progress()
+        return tag(self.format_crawler_progress(p))
 
     def format_crawler_progress(self, p):
         cycletime = p["estimated-time-per-cycle"]
@@ -127,56 +151,52 @@ class StorageStatus(MultiFormatPage):
             return ["Next crawl in %s" % abbreviate_time(soon),
                     cycletime_s]
 
-    def render_lease_expiration_enabled(self, ctx, data):
-        lc = self.storage.lease_checker
-        if lc.expiration_enabled:
-            return ctx.tag["Enabled: expired leases will be removed"]
-        else:
-            return ctx.tag["Disabled: scan-only mode, no leases will be removed"]
+    @renderer
+    def storage_running(self, req, tag):
+        if self._storage:
+            return tag
+        return T.h1("No Storage Server Running")
 
-    def render_lease_expiration_mode(self, ctx, data):
-        lc = self.storage.lease_checker
+    @renderer
+    def lease_expiration_enabled(self, req, tag):
+        lc = self._storage.lease_checker
+        if lc.expiration_enabled:
+            return tag("Enabled: expired leases will be removed")
+        else:
+            return tag("Disabled: scan-only mode, no leases will be removed")
+
+    @renderer
+    def lease_expiration_mode(self, req, tag):
+        lc = self._storage.lease_checker
         if lc.mode == "age":
             if lc.override_lease_duration is None:
-                ctx.tag["Leases will expire naturally, probably 31 days after "
-                        "creation or renewal."]
+                tag("Leases will expire naturally, probably 31 days after "
+                    "creation or renewal.")
             else:
-                ctx.tag["Leases created or last renewed more than %s ago "
-                        "will be considered expired."
-                        % abbreviate_time(lc.override_lease_duration)]
+                tag("Leases created or last renewed more than %s ago "
+                    "will be considered expired."
+                    % abbreviate_time(lc.override_lease_duration))
         else:
             assert lc.mode == "cutoff-date"
             localizedutcdate = time.strftime("%d-%b-%Y", time.gmtime(lc.cutoff_date))
             isoutcdate = time_format.iso_utc_date(lc.cutoff_date)
-            ctx.tag["Leases created or last renewed before %s (%s) UTC "
-                    "will be considered expired." % (isoutcdate, localizedutcdate, )]
+            tag("Leases created or last renewed before %s (%s) UTC "
+                "will be considered expired."
+                % (isoutcdate, localizedutcdate, ))
         if len(lc.mode) > 2:
-            ctx.tag[" The following sharetypes will be expired: ",
-                    " ".join(sorted(lc.sharetypes_to_expire)), "."]
-        return ctx.tag
+            tag(" The following sharetypes will be expired: ",
+                " ".join(sorted(lc.sharetypes_to_expire)), ".")
+        return tag
 
-    def format_recovered(self, sr, a):
-        def maybe(d):
-            if d is None:
-                return "?"
-            return "%d" % d
-        return "%s shares, %s buckets (%s mutable / %s immutable), %s (%s / %s)" % \
-               (maybe(sr["%s-shares" % a]),
-                maybe(sr["%s-buckets" % a]),
-                maybe(sr["%s-buckets-mutable" % a]),
-                maybe(sr["%s-buckets-immutable" % a]),
-                abbreviate_space(sr["%s-diskbytes" % a]),
-                abbreviate_space(sr["%s-diskbytes-mutable" % a]),
-                abbreviate_space(sr["%s-diskbytes-immutable" % a]),
-                )
-
-    def render_lease_current_cycle_progress(self, ctx, data):
-        lc = self.storage.lease_checker
+    @renderer
+    def lease_current_cycle_progress(self, req, tag):
+        lc = self._storage.lease_checker
         p = lc.get_progress()
-        return ctx.tag[self.format_crawler_progress(p)]
+        return tag(self.format_crawler_progress(p))
 
-    def render_lease_current_cycle_results(self, ctx, data):
-        lc = self.storage.lease_checker
+    @renderer
+    def lease_current_cycle_results(self, req, tag):
+        lc = self._storage.lease_checker
         p = lc.get_progress()
         if not p["cycle-in-progress"]:
             return ""
@@ -190,7 +210,7 @@ class StorageStatus(MultiFormatPage):
 
         p = T.ul()
         def add(*pieces):
-            p[T.li[pieces]]
+            p(T.li(pieces))
 
         def maybe(d):
             if d is None:
@@ -226,29 +246,29 @@ class StorageStatus(MultiFormatPage):
 
         if so_far["corrupt-shares"]:
             add("Corrupt shares:",
-                T.ul[ [T.li[ ["SI %s shnum %d" % corrupt_share
+                T.ul( (T.li( ["SI %s shnum %d" % corrupt_share
                               for corrupt_share in so_far["corrupt-shares"] ]
-                             ]]])
+                             ))))
+        return tag("Current cycle:", p)
 
-        return ctx.tag["Current cycle:", p]
-
-    def render_lease_last_cycle_results(self, ctx, data):
-        lc = self.storage.lease_checker
+    @renderer
+    def lease_last_cycle_results(self, req, tag):
+        lc = self._storage.lease_checker
         h = lc.get_state()["history"]
         if not h:
             return ""
         last = h[max(h.keys())]
 
         start, end = last["cycle-start-finish-times"]
-        ctx.tag["Last complete cycle (which took %s and finished %s ago)"
-                " recovered: " % (abbreviate_time(end-start),
-                                  abbreviate_time(time.time() - end)),
-                self.format_recovered(last["space-recovered"], "actual")
-                ]
+        tag("Last complete cycle (which took %s and finished %s ago)"
+            " recovered: " % (abbreviate_time(end-start),
+                              abbreviate_time(time.time() - end)),
+            self.format_recovered(last["space-recovered"], "actual"))
 
         p = T.ul()
+
         def add(*pieces):
-            p[T.li[pieces]]
+            p(T.li(pieces))
 
         saw = self.format_recovered(last["space-recovered"], "examined")
         add("and saw a total of ", saw)
@@ -260,8 +280,45 @@ class StorageStatus(MultiFormatPage):
 
         if last["corrupt-shares"]:
             add("Corrupt shares:",
-                T.ul[ [T.li[ ["SI %s shnum %d" % corrupt_share
+                T.ul( (T.li( ["SI %s shnum %d" % corrupt_share
                               for corrupt_share in last["corrupt-shares"] ]
-                             ]]])
+                             ))))
 
-        return ctx.tag[p]
+        return tag(p)
+
+    @staticmethod
+    def format_recovered(sr, a):
+        def maybe(d):
+            if d is None:
+                return "?"
+            return "%d" % d
+        return "%s shares, %s buckets (%s mutable / %s immutable), %s (%s / %s)" % \
+               (maybe(sr["%s-shares" % a]),
+                maybe(sr["%s-buckets" % a]),
+                maybe(sr["%s-buckets-mutable" % a]),
+                maybe(sr["%s-buckets-immutable" % a]),
+                abbreviate_space(sr["%s-diskbytes" % a]),
+                abbreviate_space(sr["%s-diskbytes-mutable" % a]),
+                abbreviate_space(sr["%s-diskbytes-immutable" % a]),
+                )
+
+class StorageStatus(MultiFormatResource):
+    def __init__(self, storage, nickname=""):
+        super(StorageStatus, self).__init__()
+        self._storage = storage
+        self._nickname = nickname
+
+    def render_HTML(self, req):
+        return renderElement(req, StorageStatusElement(self._storage, self._nickname))
+
+    def render_JSON(self, req):
+        req.setHeader("content-type", "text/plain")
+        d = {"stats": self._storage.get_stats(),
+             "bucket-counter": self._storage.bucket_counter.get_state(),
+             "lease-checker": self._storage.lease_checker.get_state(),
+             "lease-checker-progress": self._storage.lease_checker.get_progress(),
+             }
+        result = json.dumps(d, indent=1) + "\n"
+        if PY2:
+            result = result.decode("utf-8")
+        return result.encode("utf-8")

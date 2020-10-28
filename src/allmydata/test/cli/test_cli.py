@@ -809,7 +809,7 @@ class Errors(GridTestMixin, CLITestMixin, unittest.TestCase):
         # Simulate a connection error
         def _socket_error(*args, **kwargs):
             raise socket_error('test error')
-        self.patch(allmydata.scripts.common_http.httplib.HTTPConnection,
+        self.patch(allmydata.scripts.common_http.http_client.HTTPConnection,
                    "endheaders", _socket_error)
 
         d = self.do_cli("mkdir")
@@ -911,8 +911,14 @@ class Mkdir(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.failUnlessReallyEqual(err, "")
             self.failUnlessIn(st, out)
             return out
+
         def _mkdir(ign, mutable_type, uri_prefix, dirname):
-            d2 = self.do_cli("mkdir", "--format="+mutable_type, dirname)
+            """
+            :param str mutable_type: 'sdmf' or 'mdmf' (or uppercase versions)
+            :param str uri_prefix: kind of URI
+            :param str dirname: the directory alias
+            """
+            d2 = self.do_cli("mkdir", "--format={}".format(mutable_type), dirname)
             d2.addCallback(_check, uri_prefix)
             def _stash_filecap(cap):
                 u = uri.from_string(cap)

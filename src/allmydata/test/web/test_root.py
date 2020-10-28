@@ -1,36 +1,27 @@
 from mock import Mock
 
-from twisted.trial import unittest
-from twisted.web.test.requesthelper import DummyRequest
+import time
 
-from ...storage_client import NativeStorageServer
-from ...web.root import Root
+from twisted.trial import unittest
+from twisted.web.template import Tag
+from twisted.web.test.requesthelper import DummyRequest
+from twisted.application import service
+
+from ...storage_client import (
+    NativeStorageServer,
+    StorageFarmBroker,
+)
+from ...web.root import RootElement
 from ...util.connection_status import ConnectionStatus
 from allmydata.web.root import URIHandler
-from allmydata.web.common import WebError
+from allmydata.client import _Client
 
-from hypothesis import given
-from hypothesis.strategies import text
-
-
+from ..common_web import (
+    render,
+)
 from ..common import (
     EMPTY_CLIENT_CONFIG,
 )
-
-class FakeRoot(Root):
-    def __init__(self):
-        pass
-    def now_fn(self):
-        return 0
-
-
-class FakeContext(object):
-    def __init__(self):
-        self.slots = {}
-        self.tag = self
-    def fillSlots(self, slotname, contents):
-        self.slots[slotname] = contents
-
 
 class RenderSlashUri(unittest.TestCase):
     """
@@ -39,13 +30,6 @@ class RenderSlashUri(unittest.TestCase):
     """
 
     def setUp(self):
-        self.request = DummyRequest(b"/uri")
-        self.request.fields = {}
-
-        def prepathURL():
-            return b"http://127.0.0.1.99999/" + b"/".join(self.request.prepath)
-
-        self.request.prePathURL = prepathURL
         self.client = Mock()
         self.res = URIHandler(self.client)
 
@@ -53,30 +37,30 @@ class RenderSlashUri(unittest.TestCase):
         """
         A valid capbility does not result in error
         """
-        self.request.args[b"uri"] = [(
+        query_args = {b"uri": [
             b"URI:CHK:nt2xxmrccp7sursd6yh2thhcky:"
             b"mukesarwdjxiyqsjinbfiiro6q7kgmmekocxfjcngh23oxwyxtzq:2:5:5874882"
-        )]
-        self.res.render_GET(self.request)
+        ]}
+        response_body = self.successResultOf(
+            render(self.res, query_args),
+        )
+        self.assertNotEqual(
+            response_body,
+            "Invalid capability",
+        )
 
     def test_invalid(self):
         """
         A (trivially) invalid capbility is an error
         """
-        self.request.args[b"uri"] = [b"not a capability"]
-        with self.assertRaises(WebError):
-            self.res.render_GET(self.request)
-
-    @given(
-        text()
-    )
-    def test_hypothesis_error_caps(self, cap):
-        """
-        Let hypothesis try a bunch of invalid capabilities
-        """
-        self.request.args[b"uri"] = [cap.encode('utf8')]
-        with self.assertRaises(WebError):
-            self.res.render_GET(self.request)
+        query_args = {b"uri": [b"not a capability"]}
+        response_body = self.successResultOf(
+            render(self.res, query_args),
+        )
+        self.assertEqual(
+            response_body,
+            "Invalid capability",
+        )
 
 
 class RenderServiceRow(unittest.TestCase):
@@ -90,13 +74,28 @@ class RenderServiceRow(unittest.TestCase):
         ann = {"anonymous-storage-FURL": "pb://w2hqnbaa25yw4qgcvghl5psa3srpfgw3@tcp:127.0.0.1:51309/vucto2z4fxment3vfxbqecblbf6zyp6x",
                "permutation-seed-base32": "w2hqnbaa25yw4qgcvghl5psa3srpfgw3",
                }
-        s = NativeStorageServer("server_id", ann, None, {}, EMPTY_CLIENT_CONFIG)
-        cs = ConnectionStatus(False, "summary", {}, 0, 0)
-        s.get_connection_status = lambda: cs
+        srv = NativeStorageServer("server_id", ann, None, {}, EMPTY_CLIENT_CONFIG)
+        srv.get_connection_status = lambda: ConnectionStatus(False, "summary", {}, 0, 0)
 
-        r = FakeRoot()
-        ctx = FakeContext()
-        res = r.render_service_row(ctx, s)
-        self.assertIdentical(res, ctx)
-        self.assertEqual(ctx.slots["version"], "")
-        self.assertEqual(ctx.slots["nickname"], "")
+        class FakeClient(_Client):
+            def __init__(self):
+                service.MultiService.__init__(self)
+                self.storage_broker = StorageFarmBroker(
+                    permute_peers=True,
+                    tub_maker=None,
+                    node_config=EMPTY_CLIENT_CONFIG,
+                )
+                self.storage_broker.test_add_server("test-srv", srv)
+
+        root = RootElement(FakeClient(), time.time)
+        req = DummyRequest(b"")
+        tag = Tag(b"")
+
+        # Pick all items from services table.
+        items = root.services_table(req, tag).item(req, tag)
+
+        # Coerce `items` to list and pick the first item from it.
+        item = list(items)[0]
+
+        self.assertEqual(item.slotData.get("version"), "")
+        self.assertEqual(item.slotData.get("nickname"), "")

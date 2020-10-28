@@ -16,15 +16,6 @@ __all__ = [
     "opt_help_eliot_destinations",
     "validateInstanceOf",
     "validateSetMembership",
-    "MAYBE_NOTIFY",
-    "CALLBACK",
-    "INOTIFY_EVENTS",
-    "RELPATH",
-    "VERSION",
-    "LAST_UPLOADED_URI",
-    "LAST_DOWNLOADED_URI",
-    "LAST_DOWNLOADED_TIMESTAMP",
-    "PATHINFO",
 ]
 
 from sys import (
@@ -51,8 +42,6 @@ from attr.validators import (
 from eliot import (
     ILogger,
     Message,
-    Field,
-    ActionType,
     FileDestination,
     add_destinations,
     remove_destination,
@@ -86,14 +75,6 @@ from twisted.internet.defer import (
 )
 from twisted.application.service import Service
 
-
-from .fileutil import (
-    PathInfo,
-)
-from .fake_inotify import (
-    humanReadableMask,
-)
-
 def validateInstanceOf(t):
     """
     Return an Eliot validator that requires values to be instances of ``t``.
@@ -111,72 +92,6 @@ def validateSetMembership(s):
         if v not in s:
             raise ValidationError("{} not in {}".format(v, s))
     return validator
-
-RELPATH = Field.for_types(
-    u"relpath",
-    [unicode],
-    u"The relative path of a file in a magic-folder.",
-)
-
-VERSION = Field.for_types(
-    u"version",
-    [int, long],
-    u"The version of the file.",
-)
-
-LAST_UPLOADED_URI = Field.for_types(
-    u"last_uploaded_uri",
-    [unicode, bytes, None],
-    u"The filecap to which this version of this file was uploaded.",
-)
-
-LAST_DOWNLOADED_URI = Field.for_types(
-    u"last_downloaded_uri",
-    [unicode, bytes, None],
-    u"The filecap from which the previous version of this file was downloaded.",
-)
-
-LAST_DOWNLOADED_TIMESTAMP = Field.for_types(
-    u"last_downloaded_timestamp",
-    [float, int, long],
-    u"(XXX probably not really, don't trust this) The timestamp of the last download of this file.",
-)
-
-PATHINFO = Field(
-    u"pathinfo",
-    lambda v: None if v is None else {
-        "isdir": v.isdir,
-        "isfile": v.isfile,
-        "islink": v.islink,
-        "exists": v.exists,
-        "size": v.size,
-        "mtime_ns": v.mtime_ns,
-        "ctime_ns": v.ctime_ns,
-    },
-    u"The metadata for this version of this file.",
-    validateInstanceOf((type(None), PathInfo)),
-)
-
-INOTIFY_EVENTS = Field(
-    u"inotify_events",
-    humanReadableMask,
-    u"Details about a filesystem event generating a notification event.",
-    validateInstanceOf((int, long)),
-)
-
-MAYBE_NOTIFY = ActionType(
-    u"filesystem:notification:maybe-notify",
-    [],
-    [],
-    u"A filesystem event is being considered for dispatch to an application handler.",
-)
-
-CALLBACK = ActionType(
-    u"filesystem:notification:callback",
-    [INOTIFY_EVENTS],
-    [],
-    u"A filesystem event is being dispatched to an application callback."
-)
 
 def eliot_logging_service(reactor, destinations):
     """

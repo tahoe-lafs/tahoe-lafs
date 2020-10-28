@@ -28,11 +28,13 @@ the foolscap-based server implemented in src/allmydata/storage/*.py .
 #
 # 6: implement other sorts of IStorageClient classes: S3, etc
 
+from past.builtins import unicode
 
 import re, time, hashlib
-from ConfigParser import (
-    NoSectionError,
-)
+
+# On Python 2 this will be the backport.
+from configparser import NoSectionError
+
 import attr
 from zope.interface import (
     Attribute,
@@ -185,7 +187,10 @@ class StorageFarmBroker(service.MultiService):
         # this sorted order).
         for (server_id, server) in sorted(servers.items()):
             try:
-                storage_server = self._make_storage_server(server_id, server)
+                storage_server = self._make_storage_server(
+                    server_id.encode("utf-8"),
+                    server,
+                )
             except Exception:
                 # TODO: The _make_storage_server failure is logged but maybe
                 # we should write a traceback here.  Notably, tests don't
@@ -228,8 +233,19 @@ class StorageFarmBroker(service.MultiService):
         include_result=False,
     )
     def _make_storage_server(self, server_id, server):
-        assert isinstance(server_id, unicode) # from YAML
-        server_id = server_id.encode("ascii")
+        """
+        Create a new ``IServer`` for the given storage server announcement.
+
+        :param bytes server_id: The unique identifier for the server.
+
+        :param dict server: The server announcement.  See ``Static Server
+            Definitions`` in the configuration documentation for details about
+            the structure and contents.
+
+        :return IServer: The object-y representation of the server described
+            by the given announcement.
+        """
+        assert isinstance(server_id, bytes)
         handler_overrides = server.get("connections", {})
         s = NativeStorageServer(
             server_id,
@@ -256,7 +272,7 @@ class StorageFarmBroker(service.MultiService):
     # these two are used in unit tests
     def test_add_rref(self, serverid, rref, ann):
         s = self._make_storage_server(
-            serverid.decode("ascii"),
+            serverid,
             {"ann": ann.copy()},
         )
         s._rref = rref
@@ -288,28 +304,71 @@ class StorageFarmBroker(service.MultiService):
                 remaining.append( (threshold, d) )
         self._threshold_listeners = remaining
 
-    def _got_announcement(self, key_s, ann):
-        precondition(isinstance(key_s, str), key_s)
-        precondition(key_s.startswith("v0-"), key_s)
-        precondition(ann["service-name"] == "storage", ann["service-name"])
-        server_id = key_s
+    def _should_ignore_announcement(self, server_id, ann):
+        """
+        Determine whether a new storage announcement should be discarded or used
+        to update our collection of storage servers.
+
+        :param bytes server_id: The unique identifier for the storage server
+            which made the announcement.
+
+        :param dict ann: The announcement.
+
+        :return bool: ``True`` if the announcement should be ignored,
+            ``False`` if it should be used to update our local storage server
+            state.
+        """
+        # Let local static configuration always override any announcement for
+        # a particular server.
         if server_id in self._static_server_ids:
             log.msg(format="ignoring announcement for static server '%(id)s'",
                     id=server_id,
                     facility="tahoe.storage_broker", umid="AlxzqA",
                     level=log.UNUSUAL)
+            return True
+
+        try:
+            old = self.servers[server_id]
+        except KeyError:
+            # We don't know anything about this server.  Let's use the
+            # announcement to change that.
+            return False
+        else:
+            # Determine if this announcement is at all difference from the
+            # announcement we already have for the server.  If it is the same,
+            # we don't need to change anything.
+            return old.get_announcement() == ann
+
+    def _got_announcement(self, key_s, ann):
+        """
+        This callback is given to the introducer and called any time an
+        announcement is received which has a valid signature and does not have
+        a sequence number less than or equal to a previous sequence number
+        seen for that server by that introducer.
+
+        Note sequence numbers are not considered between different introducers
+        so if we use more than one introducer it is possible for them to
+        deliver us stale announcements in some cases.
+        """
+        precondition(isinstance(key_s, str), key_s)
+        precondition(key_s.startswith("v0-"), key_s)
+        precondition(ann["service-name"] == "storage", ann["service-name"])
+        server_id = key_s
+
+        if self._should_ignore_announcement(server_id, ann):
             return
+
         s = self._make_storage_server(
-            server_id.decode("utf-8"),
+            server_id,
             {u"ann": ann},
         )
-        server_id = s.get_serverid()
-        old = self.servers.get(server_id)
-        if old:
-            if old.get_announcement() == ann:
-                return # duplicate
-            # replacement
-            del self.servers[server_id]
+
+        try:
+            old = self.servers.pop(server_id)
+        except KeyError:
+            pass
+        else:
+            # It's a replacement, get rid of the old one.
             old.stop_connecting()
             old.disownServiceParent()
             # NOTE: this disownServiceParent() returns a Deferred that
@@ -324,6 +383,7 @@ class StorageFarmBroker(service.MultiService):
             # until they have fired (but hopefully don't keep reference
             # cycles around when they fire earlier than that, which will
             # almost always be the case for normal runtime).
+
         # now we forget about them and start using the new one
         s.setServiceParent(self)
         self.servers[server_id] = s
@@ -486,12 +546,15 @@ class _FoolscapStorage(object):
 
         *nickname* is optional.
         """
-        m = re.match(r'pb://(\w+)@', furl)
+        m = re.match(br'pb://(\w+)@', furl)
         assert m, furl
         tubid_s = m.group(1).lower()
         tubid = base32.a2b(tubid_s)
         if "permutation-seed-base32" in ann:
-            ps = base32.a2b(str(ann["permutation-seed-base32"]))
+            seed = ann["permutation-seed-base32"]
+            if isinstance(seed, unicode):
+                seed = seed.encode("utf-8")
+            ps = base32.a2b(seed)
         elif re.search(r'^v0-[0-9a-zA-Z]{52}$', server_id):
             ps = base32.a2b(server_id[3:])
         else:
@@ -506,7 +569,7 @@ class _FoolscapStorage(object):
 
         assert server_id
         long_description = server_id
-        if server_id.startswith("v0-"):
+        if server_id.startswith(b"v0-"):
             # remove v0- prefix from abbreviated name
             short_description = server_id[3:3+8]
         else:
@@ -534,11 +597,11 @@ class _NullStorage(object):
     which we can't communicate.
     """
     nickname = ""
-    permutation_seed = hashlib.sha256("").digest()
-    tubid = hashlib.sha256("").digest()
+    permutation_seed = hashlib.sha256(b"").digest()
+    tubid = hashlib.sha256(b"").digest()
     storage_server = None
 
-    lease_seed = hashlib.sha256("").digest()
+    lease_seed = hashlib.sha256(b"").digest()
 
     name = "<unsupported>"
     longname = "<storage with unsupported protocol>"
@@ -618,19 +681,19 @@ class NativeStorageServer(service.MultiService):
     """
 
     VERSION_DEFAULTS = {
-        "http://allmydata.org/tahoe/protocols/storage/v1" :
-        { "maximum-immutable-share-size": 2**32 - 1,
-          "maximum-mutable-share-size": 2*1000*1000*1000, # maximum prior to v1.9.2
-          "tolerates-immutable-read-overrun": False,
-          "delete-mutable-shares-with-zero-length-writev": False,
-          "available-space": None,
+        b"http://allmydata.org/tahoe/protocols/storage/v1" :
+        { b"maximum-immutable-share-size": 2**32 - 1,
+          b"maximum-mutable-share-size": 2*1000*1000*1000, # maximum prior to v1.9.2
+          b"tolerates-immutable-read-overrun": False,
+          b"delete-mutable-shares-with-zero-length-writev": False,
+          b"available-space": None,
           },
-        "application-version": "unknown: no get_version()",
+        b"application-version": "unknown: no get_version()",
         }
 
     def __init__(self, server_id, ann, tub_maker, handler_overrides, node_config, config=StorageClientConfig()):
         service.MultiService.__init__(self)
-        assert isinstance(server_id, str)
+        assert isinstance(server_id, bytes)
         self._server_id = server_id
         self.announcement = ann
         self._tub_maker = tub_maker
@@ -691,12 +754,14 @@ class NativeStorageServer(service.MultiService):
             # Nope
             pass
         else:
+            if isinstance(furl, unicode):
+                furl = furl.encode("utf-8")
             # See comment above for the _storage_from_foolscap_plugin case
             # about passing in get_rref.
             storage_server = _StorageServer(get_rref=self.get_rref)
             return _FoolscapStorage.from_announcement(
                 self._server_id,
-                furl.encode("utf-8"),
+                furl,
                 ann,
                 storage_server,
             )
@@ -764,7 +829,7 @@ class NativeStorageServer(service.MultiService):
         version = self.get_version()
         if version is None:
             return None
-        protocol_v1_version = version.get('http://allmydata.org/tahoe/protocols/storage/v1', {})
+        protocol_v1_version = version.get(b'http://allmydata.org/tahoe/protocols/storage/v1', {})
         available_space = protocol_v1_version.get('available-space')
         if available_space is None:
             available_space = protocol_v1_version.get('maximum-immutable-share-size', None)

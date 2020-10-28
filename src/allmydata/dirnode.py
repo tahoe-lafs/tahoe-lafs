@@ -1,5 +1,7 @@
 """Directory Node implementation."""
-import time, unicodedata
+from past.builtins import unicode
+
+import time
 
 from zope.interface import implementer
 from twisted.internet import defer
@@ -18,7 +20,7 @@ from allmydata.check_results import DeepCheckResults, \
      DeepCheckAndRepairResults
 from allmydata.monitor import Monitor
 from allmydata.util import hashutil, base32, log
-from allmydata.util.encodingutil import quote_output
+from allmydata.util.encodingutil import quote_output, normalize
 from allmydata.util.assertutil import precondition
 from allmydata.util.netstring import netstring, split_netstring
 from allmydata.util.consumer import download_to_data
@@ -100,12 +102,6 @@ def update_metadata(metadata, new_metadata, now):
 
     return metadata
 
-
-# 'x' at the end of a variable name indicates that it holds a Unicode string that may not
-# be NFC-normalized.
-
-def normalize(namex):
-    return unicodedata.normalize('NFC', namex)
 
 # TODO: {Deleter,MetadataSetter,Adder}.modify all start by unpacking the
 # contents and end by repacking them. It might be better to apply them to
@@ -233,7 +229,7 @@ def pack_children(childrenx, writekey, deep_immutable=False):
     return _pack_normalized_children(children, writekey=writekey, deep_immutable=deep_immutable)
 
 
-ZERO_LEN_NETSTR=netstring('')
+ZERO_LEN_NETSTR=netstring(b'')
 def _pack_normalized_children(children, writekey, deep_immutable=False):
     """Take a dict that maps:
          children[unicode_nfc_name] = (IFileSystemNode, metadata_dict)

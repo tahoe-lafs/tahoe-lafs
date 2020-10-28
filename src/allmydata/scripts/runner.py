@@ -2,6 +2,7 @@ from __future__ import print_function
 
 import os, sys
 from six.moves import StringIO
+import six
 
 from twisted.python import usage
 from twisted.internet import defer, task, threads
@@ -9,7 +10,7 @@ from twisted.internet import defer, task, threads
 from allmydata.version_checks import get_package_versions_string
 from allmydata.scripts.common import get_default_nodedir
 from allmydata.scripts import debug, create_node, cli, \
-    stats_gatherer, admin, magic_folder_cli, tahoe_daemonize, tahoe_start, \
+    stats_gatherer, admin, tahoe_daemonize, tahoe_start, \
     tahoe_stop, tahoe_restart, tahoe_run, tahoe_invite
 from allmydata.util.encodingutil import quote_output, quote_local_unicode_path, get_io_encoding
 from allmydata.util.eliotutil import (
@@ -61,7 +62,6 @@ class Options(usage.Options):
                     +   process_control_commands
                     +   debug.subCommands
                     +   cli.subCommands
-                    +   magic_folder_cli.subCommands
                     +   tahoe_invite.subCommands
                     )
 
@@ -72,8 +72,8 @@ class Options(usage.Options):
     ]
     optParameters = [
         ["node-directory", "d", None, NODEDIR_HELP],
-        ["wormhole-server", None, u"ws://wormhole.tahoe-lafs.org:4000/v1", "The magic wormhole server to use.", unicode],
-        ["wormhole-invite-appid", None, u"tahoe-lafs.org/invite", "The appid to use on the wormhole server.", unicode],
+        ["wormhole-server", None, u"ws://wormhole.tahoe-lafs.org:4000/v1", "The magic wormhole server to use.", six.text_type],
+        ["wormhole-invite-appid", None, u"tahoe-lafs.org/invite", "The appid to use on the wormhole server.", six.text_type],
     ]
 
     def opt_version(self):
@@ -154,10 +154,6 @@ def dispatch(config,
         # these are blocking, and must be run in a thread
         f0 = cli.dispatch[command]
         f = lambda so: threads.deferToThread(f0, so)
-    elif command in magic_folder_cli.dispatch:
-        # same
-        f0 = magic_folder_cli.dispatch[command]
-        f = lambda so: threads.deferToThread(f0, so)
     elif command in tahoe_invite.dispatch:
         f = tahoe_invite.dispatch[command]
     else:
@@ -185,7 +181,9 @@ def _maybe_enable_eliot_logging(options, reactor):
     return options
 
 def run():
-    assert sys.version_info < (3,), u"Tahoe-LAFS does not run under Python 3. Please use Python 2.7.x."
+    # TODO(3035): Remove tox-check when error becomes a warning
+    if 'TOX_ENV_NAME' not in os.environ:
+        assert sys.version_info < (3,), u"Tahoe-LAFS does not run under Python 3. Please use Python 2.7.x."
 
     if sys.platform == "win32":
         from allmydata.windows.fixups import initialize

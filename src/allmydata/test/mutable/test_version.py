@@ -1,9 +1,16 @@
 from __future__ import print_function
 
 import os
+
+# Python 2 compatibility
+from future.utils import PY2
+if PY2:
+    from future.builtins import str  # noqa: F401
 from six.moves import cStringIO as StringIO
+
 from twisted.internet import defer
 from twisted.trial import unittest
+
 from allmydata import uri
 from allmydata.interfaces import SDMF_VERSION, MDMF_VERSION
 from allmydata.util import base32, consumer, mathutil
@@ -75,7 +82,7 @@ class Version(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin, \
             fso = debug.FindSharesOptions()
             storage_index = base32.b2a(n.get_storage_index())
             fso.si_s = storage_index
-            fso.nodedirs = [os.path.dirname(abspath_expanduser_unicode(unicode(storedir)))
+            fso.nodedirs = [os.path.dirname(abspath_expanduser_unicode(str(storedir)))
                             for (i,ss,storedir)
                             in self.iterate_servers()]
             fso.stdout = StringIO()

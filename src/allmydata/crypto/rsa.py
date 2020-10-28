@@ -9,8 +9,17 @@ features of any objects that `cryptography` documents.
 
 That is, the public and private keys are opaque objects; DO NOT depend
 on any of their methods.
-"""
 
+Ported to Python 3.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.backends import default_backend
@@ -46,18 +55,8 @@ def create_signing_keypair(key_size):
 
     :returns: 2-tuple of (private_key, public_key)
     """
-    # Tahoe's original use of pycryptopp would use cryptopp's default
-    # public_exponent, which is 17
-    #
-    # Thus, we are using 17 here as well. However, there are other
-    # choices; see this for more discussion:
-    # https://security.stackexchange.com/questions/2335/should-rsa-public-exponent-be-only-in-3-5-17-257-or-65537-due-to-security-c
-    #
-    # Another popular choice is 65537. See:
-    # https://cryptography.io/en/latest/hazmat/primitives/asymmetric/rsa/#cryptography.hazmat.primitives.asymmetric.rsa.generate_private_key
-    # https://www.daemonology.net/blog/2009-06-11-cryptographic-right-answers.html
     priv_key = rsa.generate_private_key(
-        public_exponent=17,
+        public_exponent=65537,
         key_size=key_size,
         backend=default_backend()
     )

@@ -1,7 +1,7 @@
 import sys
 import time
 import json
-from os import mkdir
+from os import mkdir, environ
 from os.path import exists, join
 from six.moves import StringIO
 from functools import partial
@@ -145,6 +145,7 @@ def _tahoe_runner_optional_coverage(proto, reactor, request, other_args):
         proto,
         sys.executable,
         args,
+        env=environ,
     )
 
 
@@ -498,7 +499,3 @@ def await_client_ready(tahoe, timeout=10, liveness=60*2):
             tahoe,
         )
     )
-
-
-def magic_folder_cli(request, reactor, node_dir, *argv):
-    return cli(request, reactor, node_dir, "magic-folder", *argv)

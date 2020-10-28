@@ -1,17 +1,31 @@
-# from the Python Standard Library
-import os, re, socket, subprocess, errno
-from sys import platform
+"""
+Utilities for getting IP addresses.
+
+Ported to Python 3.
+"""
+
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2, native_str
+if PY2:
+    from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+
+import os, socket
 
 from zope.interface import implementer
 
 import attr
 
+from netifaces import (
+    interfaces,
+    ifaddresses,
+)
+
 # from Twisted
 from twisted.python.reflect import requireModule
-from twisted.internet import defer, threads, reactor
-from twisted.internet.protocol import DatagramProtocol
-from twisted.internet.error import CannotListenError
-from twisted.python.procutils import which
 from twisted.python import log
 from twisted.internet.endpoints import AdoptedStreamServerEndpoint
 from twisted.internet.interfaces import (
@@ -87,172 +101,21 @@ except ImportError:
     # since one might be shadowing the other. This hack appeases pyflakes.
     increase_rlimits = _increase_rlimits
 
+
 def get_local_addresses_sync():
-    return _synchronously_find_addresses_via_config()
-
-def get_local_addresses_async(target="198.41.0.4"): # A.ROOT-SERVERS.NET
     """
-    Return a Deferred that fires with a list of IPv4 addresses (as dotted-quad
-    strings) that are currently configured on this host, sorted in descending
-    order of how likely we think they are to work.
+    Get locally assigned addresses as dotted-quad native strings.
 
-    @param target: we want to learn an IP address they could try using to
-        connect to us; The default value is fine, but it might help if you
-        pass the address of a host that you are actually trying to be
-        reachable to.
+    :return [str]: A list of IPv4 addresses which are assigned to interfaces
+        on the local system.
     """
-    addresses = []
-    local_ip = get_local_ip_for(target)
-    if local_ip is not None:
-        addresses.append(local_ip)
-
-    if platform == "cygwin":
-        d = _cygwin_hack_find_addresses()
-    else:
-        d = _find_addresses_via_config()
-
-    def _collect(res):
-        for addr in res:
-            if addr != "0.0.0.0" and not addr in addresses:
-                addresses.append(addr)
-        return addresses
-    d.addCallback(_collect)
-
-    return d
-
-def get_local_ip_for(target):
-    """Find out what our IP address is for use by a given target.
-
-    @return: the IP address as a dotted-quad string which could be used by
-              to connect to us. It might work for them, it might not. If
-              there is no suitable address (perhaps we don't currently have an
-              externally-visible interface), this will return None.
-    """
-
-    try:
-        target_ipaddr = socket.gethostbyname(target)
-    except socket.gaierror:
-        # DNS isn't running, or somehow we encountered an error
-
-        # note: if an interface is configured and up, but nothing is
-        # connected to it, gethostbyname("A.ROOT-SERVERS.NET") will take 20
-        # seconds to raise socket.gaierror . This is synchronous and occurs
-        # for each node being started, so users of
-        # test.common.SystemTestMixin (like test_system) will see something
-        # like 120s of delay, which may be enough to hit the default trial
-        # timeouts. For that reason, get_local_addresses_async() was changed
-        # to default to the numerical ip address for A.ROOT-SERVERS.NET, to
-        # avoid this DNS lookup. This also makes node startup fractionally
-        # faster.
-        return None
-
-    try:
-        udpprot = DatagramProtocol()
-        port = reactor.listenUDP(0, udpprot)
-        try:
-            # connect() will fail if we're offline (e.g. running tests on a
-            # disconnected laptop), which is fine (localip=None), but we must
-            # still do port.stopListening() or we'll get a DirtyReactorError
-            udpprot.transport.connect(target_ipaddr, 7)
-            localip = udpprot.transport.getHost().host
-            return localip
-        finally:
-            d = port.stopListening()
-            d.addErrback(log.err)
-    except (socket.error, CannotListenError):
-        # no route to that host
-        localip = None
-    return localip
-
-
-# Wow, I'm really amazed at home much mileage we've gotten out of calling
-# the external route.exe program on windows...  It appears to work on all
-# versions so far.
-# ... thus wrote Greg Smith in time immemorial...
-# Also, the Win32 APIs for this are really klunky and error-prone. --Daira
-
-_win32_re = re.compile(r'^\s*\d+\.\d+\.\d+\.\d+\s.+\s(?P<address>\d+\.\d+\.\d+\.\d+)\s+(?P<metric>\d+)\s*$', flags=re.M|re.I|re.S)
-_win32_commands = (('route.exe', ('print',), _win32_re),)
-
-# These work in most Unices.
-_addr_re = re.compile(r'^\s*inet [a-zA-Z]*:?(?P<address>\d+\.\d+\.\d+\.\d+)[\s/].+$', flags=re.M|re.I|re.S)
-_unix_commands = (('/bin/ip', ('addr',), _addr_re),
-                  ('/sbin/ip', ('addr',), _addr_re),
-                  ('/sbin/ifconfig', ('-a',), _addr_re),
-                  ('/usr/sbin/ifconfig', ('-a',), _addr_re),
-                  ('/usr/etc/ifconfig', ('-a',), _addr_re),
-                  ('ifconfig', ('-a',), _addr_re),
-                  ('/sbin/ifconfig', (), _addr_re),
-                 )
-
-
-def _find_addresses_via_config():
-    return threads.deferToThread(_synchronously_find_addresses_via_config)
-
-def _synchronously_find_addresses_via_config():
-    # originally by Greg Smith, hacked by Zooko and then Daira
-
-    # We don't reach here for cygwin.
-    if platform == 'win32':
-        commands = _win32_commands
-    else:
-        commands = _unix_commands
-
-    for (pathtotool, args, regex) in commands:
-        # If pathtotool is a fully qualified path then we just try that.
-        # If it is merely an executable name then we use Twisted's
-        # "which()" utility and try each executable in turn until one
-        # gives us something that resembles a dotted-quad IPv4 address.
-
-        if os.path.isabs(pathtotool):
-            exes_to_try = [pathtotool]
-        else:
-            exes_to_try = which(pathtotool)
-
-        for exe in exes_to_try:
-            try:
-                addresses = _query(exe, args, regex)
-            except Exception:
-                addresses = []
-            if addresses:
-                return addresses
-
-    return []
-
-def _query(path, args, regex):
-    if not os.path.isfile(path):
-        return []
-    env = {'LANG': 'en_US.UTF-8'}
-    TRIES = 5
-    for trial in xrange(TRIES):
-        try:
-            p = subprocess.Popen([path] + list(args), stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env)
-            (output, err) = p.communicate()
-            break
-        except OSError as e:
-            if e.errno == errno.EINTR and trial < TRIES-1:
-                continue
-            raise
-
-    addresses = []
-    outputsplit = output.split('\n')
-    for outline in outputsplit:
-        m = regex.match(outline)
-        if m:
-            addr = m.group('address')
-            if addr not in addresses:
-                addresses.append(addr)
-
-    return addresses
-
-def _cygwin_hack_find_addresses():
-    addresses = []
-    for h in ["localhost", "127.0.0.1",]:
-        addr = get_local_ip_for(h)
-        if addr is not None and addr not in addresses:
-            addresses.append(addr)
-
-    return defer.succeed(addresses)
+    return list(
+        native_str(address[native_str("addr")])
+        for iface_name
+        in interfaces()
+        for address
+        in ifaddresses(iface_name).get(socket.AF_INET, [])
+    )
 
 
 def _foolscapEndpointForPortNumber(portnum):
@@ -304,7 +167,7 @@ def _foolscapEndpointForPortNumber(portnum):
             # approach is error prone for the reasons described on
             # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2787
             portnum = allocate_tcp_port()
-    return (portnum, "tcp:%d" % (portnum,))
+    return (portnum, native_str("tcp:%d" % (portnum,)))
 
 
 @implementer(IStreamServerEndpoint)
@@ -353,13 +216,12 @@ def listenOnUnused(tub, portnum=None):
     """
     portnum, endpoint = _foolscapEndpointForPortNumber(portnum)
     tub.listenOn(endpoint)
-    tub.setLocation("localhost:%d" % (portnum,))
+    tub.setLocation(native_str("localhost:%d" % (portnum,)))
     return portnum
 
 
 __all__ = ["allocate_tcp_port",
            "increase_rlimits",
            "get_local_addresses_sync",
-           "get_local_addresses_async",
-           "get_local_ip_for",
+           "listenOnUnused",
            ]

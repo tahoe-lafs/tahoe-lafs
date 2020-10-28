@@ -1,14 +1,26 @@
+"""
+Tests for allmydata.util.configutil.
+
+Ported to Python 3.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    # Omitted dict, cause worried about interactions.
+    from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, list, object, range, str, max, min  # noqa: F401
+
 import os.path
 
 from twisted.trial import unittest
 
 from allmydata.util import configutil
-from allmydata.test.no_network import GridTestMixin
-from ..scripts import create_node
-from .. import client
 
 
-class ConfigUtilTests(GridTestMixin, unittest.TestCase):
+class ConfigUtilTests(unittest.TestCase):
     def setUp(self):
         super(ConfigUtilTests, self).setUp()
         self.static_valid_config = configutil.ValidConfiguration(
@@ -20,10 +32,22 @@ class ConfigUtilTests(GridTestMixin, unittest.TestCase):
             lambda section_name, item_name: (section_name, item_name) == ("node", "valid"),
         )
 
+    def create_tahoe_cfg(self, cfg):
+        d = self.mktemp()
+        os.mkdir(d)
+        fname = os.path.join(d, 'tahoe.cfg')
+        with open(fname, "w") as f:
+            f.write(cfg)
+        return fname
+
     def test_config_utils(self):
-        self.basedir = "cli/ConfigUtilTests/test-config-utils"
-        self.set_up_grid(oneshare=True)
-        tahoe_cfg = os.path.join(self.get_clientdir(i=0), "tahoe.cfg")
+        tahoe_cfg = self.create_tahoe_cfg("""\
+[node]
+nickname = client-0
+web.port = adopt-socket:fd=5
+[storage]
+enabled = false
+""")
 
         # test that at least one option was read correctly
         config = configutil.get_config(tahoe_cfg)
@@ -45,12 +69,7 @@ class ConfigUtilTests(GridTestMixin, unittest.TestCase):
         self.failUnlessEqual(config.get("node", "descriptor"), descriptor)
 
     def test_config_validation_success(self):
-        d = self.mktemp()
-        os.mkdir(d)
-        fname = os.path.join(d, 'tahoe.cfg')
-
-        with open(fname, 'w') as f:
-            f.write('[node]\nvalid = foo\n')
+        fname = self.create_tahoe_cfg('[node]\nvalid = foo\n')
 
         config = configutil.get_config(fname)
         # should succeed, no exceptions
@@ -66,12 +85,7 @@ class ConfigUtilTests(GridTestMixin, unittest.TestCase):
         validation but are matched by the dynamic validation is considered
         valid.
         """
-        d = self.mktemp()
-        os.mkdir(d)
-        fname = os.path.join(d, 'tahoe.cfg')
-
-        with open(fname, 'w') as f:
-            f.write('[node]\nvalid = foo\n')
+        fname = self.create_tahoe_cfg('[node]\nvalid = foo\n')
 
         config = configutil.get_config(fname)
         # should succeed, no exceptions
@@ -82,12 +96,7 @@ class ConfigUtilTests(GridTestMixin, unittest.TestCase):
         )
 
     def test_config_validation_invalid_item(self):
-        d = self.mktemp()
-        os.mkdir(d)
-        fname = os.path.join(d, 'tahoe.cfg')
-
-        with open(fname, 'w') as f:
-            f.write('[node]\nvalid = foo\ninvalid = foo\n')
+        fname = self.create_tahoe_cfg('[node]\nvalid = foo\ninvalid = foo\n')
 
         config = configutil.get_config(fname)
         e = self.assertRaises(
@@ -103,12 +112,7 @@ class ConfigUtilTests(GridTestMixin, unittest.TestCase):
         A configuration with a section that is matched by neither the static nor
         dynamic validators is rejected.
         """
-        d = self.mktemp()
-        os.mkdir(d)
-        fname = os.path.join(d, 'tahoe.cfg')
-
-        with open(fname, 'w') as f:
-            f.write('[node]\nvalid = foo\n[invalid]\n')
+        fname = self.create_tahoe_cfg('[node]\nvalid = foo\n[invalid]\n')
 
         config = configutil.get_config(fname)
         e = self.assertRaises(
@@ -124,12 +128,7 @@ class ConfigUtilTests(GridTestMixin, unittest.TestCase):
         A configuration with a section that is matched by neither the static nor
         dynamic validators is rejected.
         """
-        d = self.mktemp()
-        os.mkdir(d)
-        fname = os.path.join(d, 'tahoe.cfg')
-
-        with open(fname, 'w') as f:
-            f.write('[node]\nvalid = foo\n[invalid]\n')
+        fname = self.create_tahoe_cfg('[node]\nvalid = foo\n[invalid]\n')
 
         config = configutil.get_config(fname)
         e = self.assertRaises(
@@ -145,12 +144,7 @@ class ConfigUtilTests(GridTestMixin, unittest.TestCase):
         A configuration with a section, item pair that is matched by neither the
         static nor dynamic validators is rejected.
         """
-        d = self.mktemp()
-        os.mkdir(d)
-        fname = os.path.join(d, 'tahoe.cfg')
-
-        with open(fname, 'w') as f:
-            f.write('[node]\nvalid = foo\ninvalid = foo\n')
+        fname = self.create_tahoe_cfg('[node]\nvalid = foo\ninvalid = foo\n')
 
         config = configutil.get_config(fname)
         e = self.assertRaises(
@@ -161,27 +155,11 @@ class ConfigUtilTests(GridTestMixin, unittest.TestCase):
         )
         self.assertIn("section [node] contains unknown option 'invalid'", str(e))
 
-    def test_create_client_config(self):
-        d = self.mktemp()
-        os.mkdir(d)
-        fname = os.path.join(d, 'tahoe.cfg')
-
-        with open(fname, 'w') as f:
-            opts = {"nickname": "nick",
-                    "webport": "tcp:3456",
-                    "hide-ip": False,
-                    "listen": "none",
-                    "shares-needed": "1",
-                    "shares-happy": "1",
-                    "shares-total": "1",
-                    }
-            create_node.write_node_config(f, opts)
-            create_node.write_client_config(f, opts)
-
+    def test_duplicate_sections(self):
+        """
+        Duplicate section names are merged.
+        """
+        fname = self.create_tahoe_cfg('[node]\na = foo\n[node]\n b = bar\n')
         config = configutil.get_config(fname)
-        # should succeed, no exceptions
-        configutil.validate_config(
-            fname,
-            config,
-            client._valid_config(),
-        )
+        self.assertEqual(config.get("node", "a"), "foo")
+        self.assertEqual(config.get("node", "b"), "bar")

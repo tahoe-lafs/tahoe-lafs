@@ -1,10 +1,10 @@
 { fetchFromGitHub, lib
-, nettools, python
-, twisted, foolscap, nevow, zfec
+, python
+, twisted, foolscap, zfec
 , setuptools, setuptoolsTrial, pyasn1, zope_interface
 , service-identity, pyyaml, magic-wormhole, treq, appdirs
-, beautifulsoup4, eliot, autobahn, cryptography
-, html5lib
+, beautifulsoup4, eliot, autobahn, cryptography, netifaces
+, html5lib, pyutil, distro, configparser
 }:
 python.pkgs.buildPythonPackage rec {
   version = "1.14.0.dev";
@@ -41,15 +41,12 @@ python.pkgs.buildPythonPackage rec {
   '';
 
 
-  propagatedNativeBuildInputs = [
-    nettools
-  ];
-
   propagatedBuildInputs = with python.pkgs; [
-    twisted foolscap nevow zfec appdirs
+    twisted foolscap zfec appdirs
     setuptoolsTrial pyasn1 zope_interface
     service-identity pyyaml magic-wormhole treq
-    eliot autobahn cryptography setuptools
+    eliot autobahn cryptography netifaces setuptools
+    future pyutil distro configparser
   ];
 
   checkInputs = with python.pkgs; [
@@ -58,6 +55,7 @@ python.pkgs.buildPythonPackage rec {
     fixtures
     beautifulsoup4
     html5lib
+    tenacity
   ];
 
   checkPhase = ''

@@ -2,9 +2,18 @@ from __future__ import print_function
 
 import os, sys, urllib, textwrap
 import codecs
-from ConfigParser import NoSectionError
 from os.path import join
+
+# Python 2 compatibility
+from future.utils import PY2
+if PY2:
+    from future.builtins import str  # noqa: F401
+
+# On Python 2 this will be the backported package:
+from configparser import NoSectionError
+
 from twisted.python import usage
+
 from allmydata.util.assertutil import precondition
 from allmydata.util.encodingutil import unicode_to_url, quote_output, \
     quote_local_unicode_path, argv_to_abspath
@@ -131,22 +140,22 @@ def get_aliases(nodedir):
     aliasfile = os.path.join(nodedir, "private", "aliases")
     rootfile = os.path.join(nodedir, "private", "root_dir.cap")
     try:
-        f = open(rootfile, "r")
-        rootcap = f.read().strip()
-        if rootcap:
-            aliases[DEFAULT_ALIAS] = rootcap
+        with open(rootfile, "r") as f:
+            rootcap = f.read().strip()
+            if rootcap:
+                aliases[DEFAULT_ALIAS] = rootcap
     except EnvironmentError:
         pass
     try:
-        f = codecs.open(aliasfile, "r", "utf-8")
-        for line in f.readlines():
-            line = line.strip()
-            if line.startswith("#") or not line:
-                continue
-            name, cap = line.split(u":", 1)
-            # normalize it: remove http: prefix, urldecode
-            cap = cap.strip().encode('utf-8')
-            aliases[name] = cap
+        with codecs.open(aliasfile, "r", "utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if line.startswith("#") or not line:
+                    continue
+                name, cap = line.split(u":", 1)
+                # normalize it: remove http: prefix, urldecode
+                cap = cap.strip().encode('utf-8')
+                aliases[name] = cap
     except EnvironmentError:
         pass
     return aliases
@@ -188,7 +197,7 @@ def get_alias(aliases, path_unicode, default):
     and default is not found in aliases, an UnknownAliasError is
     raised.
     """
-    precondition(isinstance(path_unicode, unicode), path_unicode)
+    precondition(isinstance(path_unicode, str), path_unicode)
 
     from allmydata import uri
     path = path_unicode.encode('utf-8').strip(" ")

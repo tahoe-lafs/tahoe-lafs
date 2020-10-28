@@ -37,6 +37,11 @@ a mean of 10kB and a max of 100MB, so filesize=min(int(1.0/random(.0002)),1e8)
 import os, sys, httplib, binascii
 import urllib, json, random, time, urlparse
 
+# Python 2 compatibility
+from future.utils import PY2
+if PY2:
+    from future.builtins import str  # noqa: F401
+
 if sys.argv[1] == "--stats":
     statsfiles = sys.argv[2:]
     # gather stats every 10 seconds, do a moving-window average of the last
@@ -116,7 +121,7 @@ def listdir(nodeurl, root, remote_pathname):
     assert nodetype == "dirnode"
     global directories_read
     directories_read += 1
-    children = dict( [(unicode(name),value)
+    children = dict( [(str(name),value)
                       for (name,value)
                       in d["children"].iteritems()] )
     return children

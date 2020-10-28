@@ -147,9 +147,9 @@ class MutableFileNode(object):
 
     def _get_initial_contents(self, contents):
         if contents is None:
-            return MutableData("")
+            return MutableData(b"")
 
-        if isinstance(contents, str):
+        if isinstance(contents, bytes):
             return MutableData(contents)
 
         if IMutableUploadable.providedBy(contents):
@@ -280,13 +280,14 @@ class MutableFileNode(object):
 
     def __hash__(self):
         return hash((self.__class__, self._uri))
-    def __cmp__(self, them):
-        if cmp(type(self), type(them)):
-            return cmp(type(self), type(them))
-        if cmp(self.__class__, them.__class__):
-            return cmp(self.__class__, them.__class__)
-        return cmp(self._uri, them._uri)
 
+    def __eq__(self, them):
+        if type(self) != type(them):
+            return False
+        return self._uri == them._uri
+
+    def __ne__(self, them):
+        return not (self == them)
 
     #################################
     # ICheckable
@@ -883,9 +884,9 @@ class MutableFileVersion(object):
         d = self._try_to_download_data()
         def _apply(old_contents):
             new_contents = modifier(old_contents, self._servermap, first_time)
-            precondition((isinstance(new_contents, str) or
+            precondition((isinstance(new_contents, bytes) or
                           new_contents is None),
-                         "Modifier function must return a string "
+                         "Modifier function must return bytes "
                          "or None")
 
             if new_contents is None or new_contents == old_contents:
@@ -946,7 +947,7 @@ class MutableFileVersion(object):
         """
         c = consumer.MemoryConsumer(progress=progress)
         d = self.read(c, fetch_privkey=fetch_privkey)
-        d.addCallback(lambda mc: "".join(mc.chunks))
+        d.addCallback(lambda mc: b"".join(mc.chunks))
         return d
 
 
@@ -959,7 +960,7 @@ class MutableFileVersion(object):
         c = consumer.MemoryConsumer()
         # modify will almost certainly write, so we need the privkey.
         d = self._read(c, fetch_privkey=True)
-        d.addCallback(lambda mc: "".join(mc.chunks))
+        d.addCallback(lambda mc: b"".join(mc.chunks))
         return d
 
 
@@ -1075,7 +1076,7 @@ class MutableFileVersion(object):
             start = offset
             rest = offset + data.get_size()
             new = old[:start]
-            new += "".join(data.read(data.get_size()))
+            new += b"".join(data.read(data.get_size()))
             new += old[rest:]
             return new
         return self._modify(m, None)

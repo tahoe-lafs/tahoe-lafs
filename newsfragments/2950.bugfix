@@ -1,1 +1,0 @@
-`tahoe backup` no longer fails with an unhandled exception when it encounters a special file (device, fifo) in the backup source.

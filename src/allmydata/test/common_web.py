@@ -1,66 +1,42 @@
 
-import re
+__all__ = [
+    "do_http",
+    "render",
+]
+
+from twisted.internet.defer import (
+    inlineCallbacks,
+    returnValue,
+)
+from twisted.web.error import (
+    Error,
+)
+from twisted.python.reflect import (
+    fullyQualifiedName,
+)
+from twisted.internet.defer import (
+    succeed,
+)
+from twisted.web.test.requesthelper import (
+    DummyChannel,
+)
+from twisted.web.error import (
+    UnsupportedMethod,
+)
+from twisted.web.http import (
+    NOT_ALLOWED,
+)
+from twisted.web.server import (
+    NOT_DONE_YET,
+)
+
 import treq
-from twisted.internet import defer
-from twisted.web.error import Error
-from nevow.testutil import FakeRequest
-from nevow import inevow, context
 
-class WebRenderingMixin(object):
-    # d=page.renderString() or s=page.renderSynchronously() will exercise
-    # docFactory, render_*/data_* . It won't exercise want_json(), or my
-    # renderHTTP() override which tests want_json(). To exercise args=, we
-    # must build a context. Pages which use a return_to= argument need a
-    # context.
+from ..webish import (
+    TahoeLAFSRequest,
+)
 
-    # d=page.renderHTTP(ctx) will exercise my renderHTTP, want_json, and
-    # docFactory/render_*/data_*, but it requires building a context. Since
-    # we're already building a context, it is easy to exercise args= .
-
-    # so, use at least two d=page.renderHTTP(ctx) per page (one for json, one
-    # for html), then use lots of simple s=page.renderSynchronously() to
-    # exercise the fine details (the ones that don't require args=).
-
-    def make_context(self, req):
-        ctx = context.RequestContext(tag=req)
-        ctx.remember(req, inevow.IRequest)
-        ctx.remember(None, inevow.IData)
-        ctx = context.WovenContext(parent=ctx, precompile=False)
-        return ctx
-
-    def render1(self, page, **kwargs):
-        # use this to exercise an overridden renderHTTP, usually for
-        # output=json or render_GET. It always returns a Deferred.
-        req = FakeRequest(**kwargs)
-        req.fields = None
-        ctx = self.make_context(req)
-        d = defer.maybeDeferred(page.renderHTTP, ctx)
-        def _done(res):
-            if isinstance(res, str):
-                return res + req.v
-            return req.v
-        d.addCallback(_done)
-        return d
-
-    def render2(self, page, **kwargs):
-        # use this to exercise the normal Nevow docFactory rendering. It
-        # returns a string. If one of the render_* methods returns a
-        # Deferred, this will throw an exception. (note that
-        # page.renderString is the Deferred-returning equivalent)
-        req = FakeRequest(**kwargs)
-        req.fields = None
-        ctx = self.make_context(req)
-        return page.renderSynchronously(ctx)
-
-    def failUnlessIn(self, substring, s):
-        self.failUnless(substring in s, s)
-
-    def remove_tags(self, s):
-        s = re.sub(r'<[^>]*>', ' ', s)
-        s = re.sub(r'\s+', ' ', s)
-        return s
-
-@defer.inlineCallbacks
+@inlineCallbacks
 def do_http(method, url, **kwargs):
     response = yield treq.request(method, url, persistent=False, **kwargs)
     body = yield treq.content(response)
@@ -68,4 +44,52 @@ def do_http(method, url, **kwargs):
     # https://github.com/twisted/treq/pull/159 has landed
     if 400 <= response.code < 600:
         raise Error(response.code, response=body)
-    defer.returnValue(body)
+    returnValue(body)
+
+
+def render(resource, query_args):
+    """
+    Render (in the manner of the Twisted Web Site) a Twisted ``Resource``
+    against a request with the given query arguments .
+
+    :param resource: The page or resource to render.
+
+    :param query_args: The query arguments to put into the request being
+        rendered.  A mapping from ``bytes`` to ``list`` of ``bytes``.
+
+    :return Deferred: A Deferred that fires with the rendered response body as
+        ``bytes``.
+    """
+    channel = DummyChannel()
+    request = TahoeLAFSRequest(channel)
+    request.method = b"GET"
+    request.args = query_args
+    request.prepath = [b""]
+    request.postpath = []
+    try:
+        result = resource.render(request)
+    except UnsupportedMethod:
+        request.setResponseCode(NOT_ALLOWED)
+        result = b""
+
+    if isinstance(result, bytes):
+        request.write(result)
+        done = succeed(None)
+    elif result == NOT_DONE_YET:
+        if request.finished:
+            done = succeed(None)
+        else:
+            done = request.notifyFinish()
+    else:
+        raise ValueError(
+            "{!r} returned {!r}, required bytes or NOT_DONE_YET.".format(
+                fullyQualifiedName(resource.render),
+                result,
+            ),
+        )
+    def get_body(ignored):
+        complete_response = channel.transport.written.getvalue()
+        header, body = complete_response.split(b"\r\n\r\n", 1)
+        return body
+    done.addCallback(get_body)
+    return done

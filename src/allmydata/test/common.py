@@ -4,6 +4,7 @@ __all__ = [
     "SyncTestCase",
     "AsyncTestCase",
     "AsyncBrokenTestCase",
+    "TrialTestCase",
 
     "flush_logged_errors",
     "skip",
@@ -11,6 +12,7 @@ __all__ = [
 ]
 
 import os, random, struct
+import six
 import tempfile
 from tempfile import mktemp
 from functools import partial
@@ -44,19 +46,20 @@ from testtools.twistedsupport import (
     flush_logged_errors,
 )
 
+from twisted.application import service
 from twisted.plugin import IPlugin
 from twisted.internet import defer
 from twisted.internet.defer import inlineCallbacks, returnValue
 from twisted.internet.interfaces import IPullProducer
 from twisted.python import failure
 from twisted.python.filepath import FilePath
-from twisted.application import service
 from twisted.web.error import Error as WebError
 from twisted.internet.interfaces import (
     IStreamServerEndpointStringParser,
     IReactorSocket,
 )
 from twisted.internet.endpoints import AdoptedStreamServerEndpoint
+from twisted.trial.unittest import TestCase as _TrialTestCase
 
 from allmydata import uri
 from allmydata.interfaces import IMutableFileNode, IImmutableFileNode,\
@@ -85,14 +88,15 @@ from ..crypto import (
 from .eliotutil import (
     EliotLoggedRunTest,
 )
+from .common_util import ShouldFailMixin  # noqa: F401
 
 
 TEST_RSA_KEY_SIZE = 522
 
 EMPTY_CLIENT_CONFIG = config_from_string(
-    b"/dev/null",
-    b"tub.port",
-    b""
+    "/dev/null",
+    "tub.port",
+    ""
 )
 
 
@@ -245,8 +249,8 @@ class UseNode(object):
 
         self.config = config_from_string(
             self.basedir.asTextMode().path,
-            u"tub.port",
-b"""
+            "tub.port",
+"""
 [node]
 {node_config}
 
@@ -782,48 +786,8 @@ class LoggingServiceParent(service.MultiService):
         return log.msg(*args, **kwargs)
 
 
-TEST_DATA="\x02"*(Uploader.URI_LIT_SIZE_THRESHOLD+1)
+TEST_DATA=b"\x02"*(Uploader.URI_LIT_SIZE_THRESHOLD+1)
 
-class ShouldFailMixin(object):
-    def shouldFail(self, expected_failure, which, substring,
-                   callable, *args, **kwargs):
-        """Assert that a function call raises some exception. This is a
-        Deferred-friendly version of TestCase.assertRaises() .
-
-        Suppose you want to verify the following function:
-
-         def broken(a, b, c):
-             if a < 0:
-                 raise TypeError('a must not be negative')
-             return defer.succeed(b+c)
-
-        You can use:
-            d = self.shouldFail(TypeError, 'test name',
-                                'a must not be negative',
-                                broken, -4, 5, c=12)
-        in your test method. The 'test name' string will be included in the
-        error message, if any, because Deferred chains frequently make it
-        difficult to tell which assertion was tripped.
-
-        The substring= argument, if not None, must appear in the 'repr'
-        of the message wrapped by this Failure, or the test will fail.
-        """
-
-        assert substring is None or isinstance(substring, str)
-        d = defer.maybeDeferred(callable, *args, **kwargs)
-        def done(res):
-            if isinstance(res, failure.Failure):
-                res.trap(expected_failure)
-                if substring:
-                    message = repr(res.value.args[0])
-                    self.failUnless(substring in message,
-                                    "%s: substring '%s' not in '%s'"
-                                    % (which, substring, message))
-            else:
-                self.fail("%s was supposed to raise %s, not get '%s'" %
-                          (which, expected_failure, res))
-        d.addBoth(done)
-        return d
 
 class WebErrorMixin(object):
     def explain_web_error(self, f):
@@ -999,12 +963,12 @@ def _corrupt_offset_of_block_hashes_to_truncate_crypttext_hashes(data, debug=Fal
     assert sharevernum in (1, 2), "This test is designed to corrupt immutable shares of v1 or v2 in specific ways."
     if sharevernum == 1:
         curval = struct.unpack(">L", data[0x0c+0x18:0x0c+0x18+4])[0]
-        newval = random.randrange(0, max(1, (curval/hashutil.CRYPTO_VAL_SIZE)/2))*hashutil.CRYPTO_VAL_SIZE
+        newval = random.randrange(0, max(1, (curval//hashutil.CRYPTO_VAL_SIZE)//2))*hashutil.CRYPTO_VAL_SIZE
         newvalstr = struct.pack(">L", newval)
         return data[:0x0c+0x18]+newvalstr+data[0x0c+0x18+4:]
     else:
         curval = struct.unpack(">Q", data[0x0c+0x2c:0x0c+0x2c+8])[0]
-        newval = random.randrange(0, max(1, (curval/hashutil.CRYPTO_VAL_SIZE)/2))*hashutil.CRYPTO_VAL_SIZE
+        newval = random.randrange(0, max(1, (curval//hashutil.CRYPTO_VAL_SIZE)//2))*hashutil.CRYPTO_VAL_SIZE
         newvalstr = struct.pack(">Q", newval)
         return data[:0x0c+0x2c]+newvalstr+data[0x0c+0x2c+8:]
 
@@ -1242,3 +1206,29 @@ class AsyncBrokenTestCase(_TestCaseMixin, TestCase):
     run_tests_with = EliotLoggedRunTest.make_factory(
         AsynchronousDeferredRunTestForBrokenTwisted.make_factory(timeout=60.0),
     )
+
+
+class TrialTestCase(_TrialTestCase):
+    """
+    A twisted.trial.unittest.TestCaes with Tahoe required fixes
+    applied. Currently these are:
+
+      - ensure that .fail() passes a bytes msg on Python2
+    """
+
+    def fail(self, msg):
+        """
+        Ensure our msg is a native string on Python2. If it was Unicode,
+        we encode it as utf8 and hope for the best. On Python3 we take
+        no action.
+
+        This is necessary because Twisted passes the 'msg' argument
+        along to the constructor of an exception; on Python2,
+        Exception will accept a `unicode` instance but will fail if
+        you try to turn that Exception instance into a string.
+        """
+
+        if six.PY2:
+            if isinstance(msg, six.text_type):
+                return super(TrialTestCase, self).fail(msg.encode("utf8"))
+        return super(TrialTestCase, self).fail(msg)

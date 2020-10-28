@@ -2,7 +2,14 @@ from __future__ import print_function
 
 import urllib
 import json
+
+# Python 2 compatibility
+from future.utils import PY2
+if PY2:
+    from future.builtins import str  # noqa: F401
+
 from twisted.protocols.basic import LineOnlyReceiver
+
 from allmydata.scripts.common import get_alias, DEFAULT_ALIAS, escape_path, \
                                      UnknownAliasError
 from allmydata.scripts.common_http import do_http, format_http_error
@@ -101,7 +108,7 @@ def check_location(options, where):
 
 def check(options):
     if len(options.locations) == 0:
-        errno = check_location(options, unicode())
+        errno = check_location(options, str())
         if errno != 0:
             return errno
         return 0
@@ -325,7 +332,7 @@ class DeepCheckStreamer(LineOnlyReceiver, object):
 
     def run(self, options):
         if len(options.locations) == 0:
-            errno = self.deepcheck_location(options, unicode())
+            errno = self.deepcheck_location(options, str())
             if errno != 0:
                 return errno
             return 0

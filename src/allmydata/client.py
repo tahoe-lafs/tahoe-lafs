@@ -2,7 +2,9 @@ import os, stat, time, weakref
 from base64 import urlsafe_b64encode
 from functools import partial
 from errno import ENOENT, EPERM
-from ConfigParser import NoSectionError
+
+# On Python 2 this will be the backported package:
+from configparser import NoSectionError
 
 from foolscap.furl import (
     decode_furl,
@@ -32,8 +34,7 @@ from allmydata.util import (
     hashutil, base32, pollmixin, log, idlib,
     yamlutil, configutil,
 )
-from allmydata.util.encodingutil import (get_filesystem_encoding,
-                                         from_utf8_or_none)
+from allmydata.util.encodingutil import get_filesystem_encoding
 from allmydata.util.abbreviate import parse_abbreviated_size
 from allmydata.util.time_format import parse_duration, parse_date
 from allmydata.util.i2p_provider import create as create_i2p_provider
@@ -66,8 +67,8 @@ def _is_valid_section(section_name):
     Currently considers all possible storage server plugin sections valid.
     """
     return (
-        section_name.startswith(b"storageserver.plugins.") or
-        section_name.startswith(b"storageclient.plugins.")
+        section_name.startswith("storageserver.plugins.") or
+        section_name.startswith("storageclient.plugins.")
     )
 
 
@@ -84,9 +85,6 @@ _client_config = configutil.ValidConfiguration(
             "shares.total",
             "stats_gatherer.furl",
             "storage.plugins",
-        ),
-        "drop_upload": (  # deprecated already?
-            "enabled",
         ),
         "ftpd": (
             "accounts.file",
@@ -121,12 +119,6 @@ _client_config = configutil.ValidConfiguration(
         "helper": (
             "enabled",
         ),
-        "magic_folder": (
-            "download.umask",
-            "enabled",
-            "local.directory",
-            "poll_interval",
-        ),
     },
     is_valid_section=_is_valid_section,
     # Anything in a valid section is a valid item, for now.
@@ -153,7 +145,7 @@ def _make_secret():
     Returns a base32-encoded random secret of hashutil.CRYPTO_VAL_SIZE
     bytes.
     """
-    return base32.b2a(os.urandom(hashutil.CRYPTO_VAL_SIZE)) + "\n"
+    return base32.b2a(os.urandom(hashutil.CRYPTO_VAL_SIZE)) + b"\n"
 
 
 class SecretHolder(object):
@@ -634,7 +626,7 @@ def storage_enabled(config):
 
     :return bool: ``True`` if storage is enabled, ``False`` otherwise.
     """
-    return config.get_config(b"storage", b"enabled", True, boolean=True)
+    return config.get_config("storage", "enabled", True, boolean=True)
 
 
 def anonymous_storage_enabled(config):
@@ -648,7 +640,7 @@ def anonymous_storage_enabled(config):
     """
     return (
         storage_enabled(config) and
-        config.get_config(b"storage", b"anonymous", True, boolean=True)
+        config.get_config("storage", "anonymous", True, boolean=True)
     )
 
 
@@ -681,7 +673,6 @@ class _Client(node.Node, pollmixin.PollMixin):
         """
         node.Node.__init__(self, config, main_tub, control_tub, i2p_provider, tor_provider)
 
-        self._magic_folders = dict()
         self.started_timestamp = time.time()
         self.logSource = "Client"
         self.encoding_params = self.DEFAULT_ENCODING_PARAMETERS.copy()
@@ -707,7 +698,6 @@ class _Client(node.Node, pollmixin.PollMixin):
             self.init_helper()
         self.init_ftp_server()
         self.init_sftp_server()
-        self.init_magic_folder()
 
         # If the node sees an exit_trigger file, it will poll every second to see
         # whether the file still exists, and what its mtime is. If the file does not
@@ -727,6 +717,9 @@ class _Client(node.Node, pollmixin.PollMixin):
 
     def init_stats_provider(self):
         gatherer_furl = self.config.get_config("client", "stats_gatherer.furl", None)
+        if gatherer_furl:
+            # FURLs should be bytes:
+            gatherer_furl = gatherer_furl.encode("utf-8")
         self.stats_provider = StatsProvider(self, gatherer_furl)
         self.stats_provider.setServiceParent(self)
         self.stats_provider.register_producer(self)
@@ -747,12 +740,12 @@ class _Client(node.Node, pollmixin.PollMixin):
         # existing key
         def _make_key():
             private_key, _ = ed25519.create_signing_keypair()
-            return ed25519.string_from_signing_key(private_key) + "\n"
+            return ed25519.string_from_signing_key(private_key) + b"\n"
 
         private_key_str = self.config.get_or_create_private_config("node.privkey", _make_key)
         private_key, public_key = ed25519.signing_keypair_from_string(private_key_str)
         public_key_str = ed25519.string_from_verifying_key(public_key)
-        self.config.write_config_file("node.pubkey", public_key_str + "\n")
+        self.config.write_config_file("node.pubkey", public_key_str + b"\n", "wb")
         self._node_private_key = private_key
         self._node_public_key = public_key
 
@@ -789,7 +782,7 @@ class _Client(node.Node, pollmixin.PollMixin):
                 vk_string = ed25519.string_from_verifying_key(self._node_public_key)
                 vk_bytes = remove_prefix(vk_string, ed25519.PUBLIC_KEY_PREFIX)
                 seed = base32.b2a(vk_bytes)
-            self.config.write_config_file("permutation-seed", seed+"\n")
+            self.config.write_config_file("permutation-seed", seed+b"\n", mode="wb")
         return seed.strip()
 
     def get_anonymous_storage_server(self):
@@ -814,7 +807,7 @@ class _Client(node.Node, pollmixin.PollMixin):
 
         config_storedir = self.get_config(
             "storage", "storage_dir", self.STOREDIR,
-        ).decode('utf-8')
+        )
         storedir = self.config.get_config_path(config_storedir)
 
         data = self.config.get_config("storage", "reserved_space", None)
@@ -943,6 +936,10 @@ class _Client(node.Node, pollmixin.PollMixin):
         if helper_furl in ("None", ""):
             helper_furl = None
 
+        # FURLs need to be bytes:
+        if helper_furl is not None:
+            helper_furl = helper_furl.encode("utf-8")
+
         DEP = self.encoding_params
         DEP["k"] = int(self.config.get_config("client", "shares.needed", DEP["k"]))
         DEP["n"] = int(self.config.get_config("client", "shares.total", DEP["n"]))
@@ -968,9 +965,6 @@ class _Client(node.Node, pollmixin.PollMixin):
         This returns a local authentication token, which is just some
         random data in "api_auth_token" which must be echoed to API
         calls.
-
-        Currently only the URI '/magic' for magic-folder status; other
-        endpoints are invited to include this as well, as appropriate.
         """
         return self.config.get_private_config('api_auth_token')
 
@@ -982,7 +976,7 @@ class _Client(node.Node, pollmixin.PollMixin):
         """
         self.config.write_private_config(
             'api_auth_token',
-            urlsafe_b64encode(os.urandom(32)) + '\n',
+            urlsafe_b64encode(os.urandom(32)) + b'\n',
         )
 
     def get_storage_broker(self):
@@ -1054,15 +1048,14 @@ class _Client(node.Node, pollmixin.PollMixin):
 
         from allmydata.webish import WebishServer
         nodeurl_path = self.config.get_config_path("node.url")
-        staticdir_config = self.config.get_config("node", "web.static", "public_html").decode("utf-8")
+        staticdir_config = self.config.get_config("node", "web.static", "public_html")
         staticdir = self.config.get_config_path(staticdir_config)
         ws = WebishServer(self, webport, nodeurl_path, staticdir)
         ws.setServiceParent(self)
 
     def init_ftp_server(self):
         if self.config.get_config("ftpd", "enabled", False, boolean=True):
-            accountfile = from_utf8_or_none(
-                self.config.get_config("ftpd", "accounts.file", None))
+            accountfile = self.config.get_config("ftpd", "accounts.file", None)
             if accountfile:
                 accountfile = self.config.get_config_path(accountfile)
             accounturl = self.config.get_config("ftpd", "accounts.url", None)
@@ -1074,53 +1067,18 @@ class _Client(node.Node, pollmixin.PollMixin):
 
     def init_sftp_server(self):
         if self.config.get_config("sftpd", "enabled", False, boolean=True):
-            accountfile = from_utf8_or_none(
-                self.config.get_config("sftpd", "accounts.file", None))
+            accountfile = self.config.get_config("sftpd", "accounts.file", None)
             if accountfile:
                 accountfile = self.config.get_config_path(accountfile)
             accounturl = self.config.get_config("sftpd", "accounts.url", None)
             sftp_portstr = self.config.get_config("sftpd", "port", "8022")
-            pubkey_file = from_utf8_or_none(self.config.get_config("sftpd", "host_pubkey_file"))
-            privkey_file = from_utf8_or_none(self.config.get_config("sftpd", "host_privkey_file"))
+            pubkey_file = self.config.get_config("sftpd", "host_pubkey_file")
+            privkey_file = self.config.get_config("sftpd", "host_privkey_file")
 
             from allmydata.frontends import sftpd
             s = sftpd.SFTPServer(self, accountfile, accounturl,
                                  sftp_portstr, pubkey_file, privkey_file)
             s.setServiceParent(self)
-
-    def init_magic_folder(self):
-        #print "init_magic_folder"
-        if self.config.get_config("drop_upload", "enabled", False, boolean=True):
-            raise node.OldConfigOptionError(
-                "The [drop_upload] section must be renamed to [magic_folder].\n"
-                "See docs/frontends/magic-folder.rst for more information."
-            )
-
-        if self.config.get_config("magic_folder", "enabled", False, boolean=True):
-            from allmydata.frontends import magic_folder
-
-            try:
-                magic_folders = magic_folder.load_magic_folders(self.config._basedir)
-            except Exception as e:
-                log.msg("Error loading magic-folder config: {}".format(e))
-                raise
-
-            # start processing the upload queue when we've connected to
-            # enough servers
-            threshold = min(self.encoding_params["k"],
-                            self.encoding_params["happy"] + 1)
-
-            for (name, mf_config) in magic_folders.items():
-                self.log("Starting magic_folder '{}'".format(name))
-                s = magic_folder.MagicFolder.from_config(self, name, mf_config)
-                self._magic_folders[name] = s
-                s.setServiceParent(self)
-
-                connected_d = self.storage_broker.when_connected_enough(threshold)
-                def connected_enough(ign, mf):
-                    mf.ready()  # returns a Deferred we ignore
-                    return None
-                connected_d.addCallback(connected_enough, s)
 
     def _check_exit_trigger(self, exit_trigger_file):
         if os.path.exists(exit_trigger_file):

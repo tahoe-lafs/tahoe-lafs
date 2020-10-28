@@ -1,10 +1,20 @@
-from __future__ import print_function
-
 """
+Ported to Python3.
+
 Futz with files like a pro.
 """
 
-import sys, exceptions, os, stat, tempfile, time, binascii
+from __future__ import print_function
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    # open is not here because we want to use native strings on Py2
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+
+import sys, os, stat, tempfile, time, binascii
 import six
 from collections import namedtuple
 from errno import ENOENT
@@ -12,7 +22,7 @@ from errno import ENOENT
 if sys.platform == "win32":
     from ctypes import WINFUNCTYPE, WinError, windll, POINTER, byref, c_ulonglong, \
         create_unicode_buffer, get_last_error
-    from ctypes.wintypes import BOOL, DWORD, LPCWSTR, LPWSTR, LPVOID, HANDLE
+    from ctypes.wintypes import BOOL, DWORD, LPCWSTR, LPWSTR, LPVOID
 
 from twisted.python import log
 
@@ -190,7 +200,7 @@ def make_dirs(dirname, mode=0o777):
     if not os.path.isdir(dirname):
         if tx:
             raise tx
-        raise exceptions.IOError("unknown error prevented creation of directory, or deleted the directory immediately after creation: %s" % dirname) # careful not to construct an IOError with a 2-tuple, as that has a special meaning...
+        raise IOError("unknown error prevented creation of directory, or deleted the directory immediately after creation: %s" % dirname) # careful not to construct an IOError with a 2-tuple, as that has a special meaning...
 
 def rm_dir(dirname):
     """
@@ -253,16 +263,21 @@ def move_into_place(source, dest):
     os.rename(source, dest)
 
 def write_atomically(target, contents, mode="b"):
+    assert (
+        isinstance(contents, bytes) and "b" in mode or
+        isinstance(contents, str) and "t" in mode or mode == ""), (type(contents), mode)
     with open(target+".tmp", "w"+mode) as f:
         f.write(contents)
     move_into_place(target+".tmp", target)
 
 def write(path, data, mode="wb"):
+    if "b" in mode and isinstance(data, str):
+        data = data.encode("utf-8")
     with open(path, mode) as f:
         f.write(data)
 
-def read(path):
-    with open(path, "rb") as rf:
+def read(path, mode="rb"):
+    with open(path, mode) as rf:
         return rf.read()
 
 def put_file(path, inf):
@@ -277,7 +292,7 @@ def put_file(path, inf):
             outf.write(data)
 
 def precondition_abspath(path):
-    if not isinstance(path, unicode):
+    if not isinstance(path, str):
         raise AssertionError("an abspath must be a Unicode string")
 
     if sys.platform == "win32":
@@ -309,7 +324,7 @@ def abspath_expanduser_unicode(path, base=None, long_path=True):
     abspath_expanduser_unicode.
     On Windows, the result will be a long path unless long_path is given as False.
     """
-    if not isinstance(path, unicode):
+    if not isinstance(path, str):
         raise AssertionError("paths must be Unicode strings")
     if base is not None and long_path:
         precondition_abspath(base)
@@ -330,7 +345,10 @@ def abspath_expanduser_unicode(path, base=None, long_path=True):
 
     if not os.path.isabs(path):
         if base is None:
-            path = os.path.join(os.getcwdu(), path)
+            cwd = os.getcwd()
+            if PY2:
+                cwd = cwd.decode('utf8')
+            path = os.path.join(cwd, path)
         else:
             path = os.path.join(base, path)
 
@@ -415,7 +433,7 @@ ERROR_ENVVAR_NOT_FOUND = 203
 def windows_getenv(name):
     # Based on <http://stackoverflow.com/questions/2608200/problems-with-umlauts-in-python-appdata-environvent-variable/2608368#2608368>,
     # with improved error handling. Returns None if there is no enivronment variable of the given name.
-    if not isinstance(name, unicode):
+    if not isinstance(name, str):
         raise AssertionError("name must be Unicode")
 
     n = GetEnvironmentVariableW(name, None, 0)
@@ -536,60 +554,6 @@ def get_available_space(whichdir, reserved_space):
     except EnvironmentError:
         log.msg("OS call to get disk statistics failed")
         return 0
-
-
-if sys.platform == "win32":
-    # <http://msdn.microsoft.com/en-us/library/aa363858%28v=vs.85%29.aspx>
-    CreateFileW = WINFUNCTYPE(
-        HANDLE,  LPCWSTR, DWORD, DWORD, LPVOID, DWORD, DWORD, HANDLE,
-        use_last_error=True
-    )(("CreateFileW", windll.kernel32))
-
-    GENERIC_WRITE        = 0x40000000
-    FILE_SHARE_READ      = 0x00000001
-    FILE_SHARE_WRITE     = 0x00000002
-    OPEN_EXISTING        = 3
-    INVALID_HANDLE_VALUE = 0xFFFFFFFF
-
-    # <http://msdn.microsoft.com/en-us/library/aa364439%28v=vs.85%29.aspx>
-    FlushFileBuffers = WINFUNCTYPE(
-        BOOL,  HANDLE,
-        use_last_error=True
-    )(("FlushFileBuffers", windll.kernel32))
-
-    # <http://msdn.microsoft.com/en-us/library/ms724211%28v=vs.85%29.aspx>
-    CloseHandle = WINFUNCTYPE(
-        BOOL,  HANDLE,
-        use_last_error=True
-    )(("CloseHandle", windll.kernel32))
-
-    # <http://social.msdn.microsoft.com/forums/en-US/netfxbcl/thread/4465cafb-f4ed-434f-89d8-c85ced6ffaa8/>
-    def flush_volume(path):
-        abspath = os.path.realpath(path)
-        if abspath.startswith("\\\\?\\"):
-            abspath = abspath[4 :]
-        drive = os.path.splitdrive(abspath)[0]
-
-        print("flushing %r" % (drive,))
-        hVolume = CreateFileW(u"\\\\.\\" + drive,
-                              GENERIC_WRITE,
-                              FILE_SHARE_READ | FILE_SHARE_WRITE,
-                              None,
-                              OPEN_EXISTING,
-                              0,
-                              None
-                             )
-        if hVolume == INVALID_HANDLE_VALUE:
-            raise WinError(get_last_error())
-
-        if FlushFileBuffers(hVolume) == 0:
-            raise WinError(get_last_error())
-
-        CloseHandle(hVolume)
-else:
-    def flush_volume(path):
-        # use sync()?
-        pass
 
 
 class ConflictError(Exception):

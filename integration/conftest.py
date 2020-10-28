@@ -8,6 +8,10 @@ from os.path import join, exists
 from tempfile import mkdtemp, mktemp
 from functools import partial
 
+from foolscap.furl import (
+    decode_furl,
+)
+
 from eliot import (
     to_file,
     log_call,
@@ -226,6 +230,16 @@ def introducer_furl(introducer, temp_dir):
         print("Don't see {} yet".format(furl_fname))
         sleep(.1)
     furl = open(furl_fname, 'r').read()
+    tubID, location_hints, name = decode_furl(furl)
+    if not location_hints:
+        # If there are no location hints then nothing can ever possibly
+        # connect to it and the only thing that can happen next is something
+        # will hang or time out.  So just give up right now.
+        raise ValueError(
+            "Introducer ({!r}) fURL has no location hints!".format(
+                introducer_furl,
+            ),
+        )
     return furl
 
 
@@ -332,11 +346,6 @@ def storage_nodes(reactor, temp_dir, introducer, introducer_furl, flog_gatherer,
 @pytest.fixture(scope='session')
 @log_call(action_type=u"integration:alice", include_args=[], include_result=False)
 def alice(reactor, temp_dir, introducer_furl, flog_gatherer, storage_nodes, request):
-    try:
-        mkdir(join(temp_dir, 'magic-alice'))
-    except OSError:
-        pass
-
     process = pytest_twisted.blockon(
         _create_node(
             reactor, request, temp_dir, introducer_furl, flog_gatherer, "alice",
@@ -351,11 +360,6 @@ def alice(reactor, temp_dir, introducer_furl, flog_gatherer, storage_nodes, requ
 @pytest.fixture(scope='session')
 @log_call(action_type=u"integration:bob", include_args=[], include_result=False)
 def bob(reactor, temp_dir, introducer_furl, flog_gatherer, storage_nodes, request):
-    try:
-        mkdir(join(temp_dir, 'magic-bob'))
-    except OSError:
-        pass
-
     process = pytest_twisted.blockon(
         _create_node(
             reactor, request, temp_dir, introducer_furl, flog_gatherer, "bob",
@@ -368,98 +372,10 @@ def bob(reactor, temp_dir, introducer_furl, flog_gatherer, storage_nodes, reques
 
 
 @pytest.fixture(scope='session')
-@log_call(action_type=u"integration:alice:invite", include_args=["temp_dir"])
-def alice_invite(reactor, alice, temp_dir, request):
-    node_dir = join(temp_dir, 'alice')
-
-    with start_action(action_type=u"integration:alice:magic_folder:create"):
-        # FIXME XXX by the time we see "client running" in the logs, the
-        # storage servers aren't "really" ready to roll yet (uploads fairly
-        # consistently fail if we don't hack in this pause...)
-        proto = _CollectOutputProtocol()
-        _tahoe_runner_optional_coverage(
-            proto,
-            reactor,
-            request,
-            [
-                'magic-folder', 'create',
-                '--poll-interval', '2',
-                '--basedir', node_dir, 'magik:', 'alice',
-                join(temp_dir, 'magic-alice'),
-            ]
-        )
-        pytest_twisted.blockon(proto.done)
-
-    with start_action(action_type=u"integration:alice:magic_folder:invite") as a:
-        proto = _CollectOutputProtocol()
-        _tahoe_runner_optional_coverage(
-            proto,
-            reactor,
-            request,
-            [
-                'magic-folder', 'invite',
-                '--basedir', node_dir, 'magik:', 'bob',
-            ]
-        )
-        pytest_twisted.blockon(proto.done)
-        invite = proto.output.getvalue()
-        a.add_success_fields(invite=invite)
-
-    with start_action(action_type=u"integration:alice:magic_folder:restart"):
-        # before magic-folder works, we have to stop and restart (this is
-        # crappy for the tests -- can we fix it in magic-folder?)
-        try:
-            alice.transport.signalProcess('TERM')
-            pytest_twisted.blockon(alice.transport.exited)
-        except ProcessExitedAlready:
-            pass
-        with start_action(action_type=u"integration:alice:magic_folder:magic-text"):
-            magic_text = 'Completed initial Magic Folder scan successfully'
-            pytest_twisted.blockon(_run_node(reactor, node_dir, request, magic_text))
-            await_client_ready(alice)
-    return invite
-
-
-@pytest.fixture(scope='session')
-@log_call(
-    action_type=u"integration:magic_folder",
-    include_args=["alice_invite", "temp_dir"],
-)
-def magic_folder(reactor, alice_invite, alice, bob, temp_dir, request):
-    print("pairing magic-folder")
-    bob_dir = join(temp_dir, 'bob')
-    proto = _CollectOutputProtocol()
-    _tahoe_runner_optional_coverage(
-        proto,
-        reactor,
-        request,
-        [
-            'magic-folder', 'join',
-            '--poll-interval', '1',
-            '--basedir', bob_dir,
-            alice_invite,
-            join(temp_dir, 'magic-bob'),
-        ]
-    )
-    pytest_twisted.blockon(proto.done)
-
-    # before magic-folder works, we have to stop and restart (this is
-    # crappy for the tests -- can we fix it in magic-folder?)
-    try:
-        print("Sending TERM to Bob")
-        bob.transport.signalProcess('TERM')
-        pytest_twisted.blockon(bob.transport.exited)
-    except ProcessExitedAlready:
-        pass
-
-    magic_text = 'Completed initial Magic Folder scan successfully'
-    pytest_twisted.blockon(_run_node(reactor, bob_dir, request, magic_text))
-    await_client_ready(bob)
-    return (join(temp_dir, 'magic-alice'), join(temp_dir, 'magic-bob'))
-
-
-@pytest.fixture(scope='session')
+@pytest.mark.skipif(sys.platform.startswith('win'),
+                    'Tor tests are unstable on Windows')
 def chutney(reactor, temp_dir):
+
     chutney_dir = join(temp_dir, 'chutney')
     mkdir(chutney_dir)
 
@@ -478,18 +394,39 @@ def chutney(reactor, temp_dir):
         proto,
         'git',
         (
-            'git', 'clone', '--depth=1',
+            'git', 'clone',
             'https://git.torproject.org/chutney.git',
             chutney_dir,
         ),
         env=environ,
     )
     pytest_twisted.blockon(proto.done)
+
+    # XXX: Here we reset Chutney to the last revision known to work
+    # with Python 2, as a workaround for Chutney moving to Python 3.
+    # When this is no longer necessary, we will have to drop this and
+    # add '--depth=1' back to the above 'git clone' subprocess.
+    proto = _DumpOutputProtocol(None)
+    reactor.spawnProcess(
+        proto,
+        'git',
+        (
+            'git', '-C', chutney_dir,
+            'reset', '--hard',
+            '99bd06c7554b9113af8c0877b6eca4ceb95dcbaa'
+        ),
+        env=environ,
+    )
+    pytest_twisted.blockon(proto.done)
+
     return chutney_dir
 
 
 @pytest.fixture(scope='session')
+@pytest.mark.skipif(sys.platform.startswith('win'),
+                    reason='Tor tests are unstable on Windows')
 def tor_network(reactor, temp_dir, chutney, request):
+
     # this is the actual "chutney" script at the root of a chutney checkout
     chutney_dir = chutney
     chut = join(chutney_dir, 'chutney')

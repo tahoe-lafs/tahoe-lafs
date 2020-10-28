@@ -1,1 +1,0 @@
-Added a simple sytax checker so that once a file has reached python3 compatibility, it will not regress.

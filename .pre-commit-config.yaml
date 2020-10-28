@@ -1,0 +1,9 @@
+repos:
+  - repo: local
+    hooks:
+    - id: codechecks
+      name: codechecks
+      stages: ["push"]
+      entry: "tox -e codechecks"
+      language: system
+      pass_filenames: false

@@ -33,7 +33,7 @@ class UpdateStatus(object):
         self.mode = "?"
         self.status = "Not started"
         self.progress = 0.0
-        self.counter = self.statusid_counter.next()
+        self.counter = next(self.statusid_counter)
         self.started = time.time()
         self.finished = None
 

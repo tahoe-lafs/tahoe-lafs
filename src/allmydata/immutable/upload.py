@@ -1,3 +1,17 @@
+"""
+Ported to Python 3.
+"""
+
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2, native_str
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+from past.builtins import long, unicode
+
 import os, time, weakref, itertools
 from zope.interface import implementer
 from twisted.python import failure
@@ -25,8 +39,8 @@ from allmydata.interfaces import IUploadable, IUploader, IUploadResults, \
      DEFAULT_MAX_SEGMENT_SIZE, IProgress, IPeerSelector
 from allmydata.immutable import layout
 
-from six.moves import cStringIO as StringIO
-from happiness_upload import share_placement, calculate_happiness
+from io import BytesIO
+from .happiness_upload import share_placement, calculate_happiness
 
 from ..util.eliotutil import (
     log_call_deferred,
@@ -64,7 +78,7 @@ def _serialize_existing_shares(existing_shares):
     return {
         server: list(shares)
         for (server, shares)
-        in existing_shares.iteritems()
+        in existing_shares.items()
     }
 
 _EXISTING_SHARES = Field(
@@ -77,7 +91,7 @@ def _serialize_happiness_mappings(happiness_mappings):
     return {
         sharenum: base32.b2a(serverid)
         for (sharenum, serverid)
-        in happiness_mappings.iteritems()
+        in happiness_mappings.items()
     }
 
 _HAPPINESS_MAPPINGS = Field(
@@ -148,7 +162,9 @@ class HelperUploadResults(Copyable, RemoteCopy):
     # note: don't change this string, it needs to match the value used on the
     # helper, and it does *not* need to match the fully-qualified
     # package/module/class name
-    typeToCopy = "allmydata.upload.UploadResults.tahoe.allmydata.com"
+    #
+    # Needs to be native string to make Foolscap happy.
+    typeToCopy = native_str("allmydata.upload.UploadResults.tahoe.allmydata.com")
     copytype = typeToCopy
 
     # also, think twice about changing the shape of any existing attribute,
@@ -224,7 +240,7 @@ EXTENSION_SIZE = 1000
 # this.
 
 def pretty_print_shnum_to_servers(s):
-    return ', '.join([ "sh%s: %s" % (k, '+'.join([idlib.shortnodeid_b2a(x) for x in v])) for k, v in s.iteritems() ])
+    return ', '.join([ "sh%s: %s" % (k, '+'.join([idlib.shortnodeid_b2a(x) for x in v])) for k, v in s.items() ])
 
 class ServerTracker(object):
     def __init__(self, server,
@@ -281,7 +297,7 @@ class ServerTracker(object):
         #log.msg("%s._got_reply(%s)" % (self, (alreadygot, buckets)))
         (alreadygot, buckets) = alreadygot_and_buckets
         b = {}
-        for sharenum, rref in buckets.iteritems():
+        for sharenum, rref in list(buckets.items()):
             bp = self.wbp_class(rref, self._server, self.sharesize,
                                 self.blocksize,
                                 self.num_segments,
@@ -297,7 +313,7 @@ class ServerTracker(object):
         I abort the remote bucket writers for all shares. This is a good idea
         to conserve space on the storage server.
         """
-        self.abort_some_buckets(self.buckets.keys())
+        self.abort_some_buckets(list(self.buckets.keys()))
 
     def abort_some_buckets(self, sharenums):
         """
@@ -350,7 +366,7 @@ class PeerSelector(object):
 
     def get_sharemap_of_preexisting_shares(self):
         preexisting = dictutil.DictOfSets()
-        for server, shares in self.existing_shares.iteritems():
+        for server, shares in self.existing_shares.items():
             for share in shares:
                 preexisting.add(share, server)
         return preexisting
@@ -417,8 +433,8 @@ class Tahoe2ServerSelector(log.PrefixingLogMixin):
         # 12GiB). See #439 for details.
         def _get_maxsize(server):
             v0 = server.get_version()
-            v1 = v0["http://allmydata.org/tahoe/protocols/storage/v1"]
-            return v1["maximum-immutable-share-size"]
+            v1 = v0[b"http://allmydata.org/tahoe/protocols/storage/v1"]
+            return v1[b"maximum-immutable-share-size"]
 
         for server in candidate_servers:
             self.peer_selector.add_peer(server.get_serverid())
@@ -698,7 +714,7 @@ class Tahoe2ServerSelector(log.PrefixingLogMixin):
                % (self, self._get_progress_message(),
                   pretty_print_shnum_to_servers(merged),
                   [', '.join([str_shareloc(k,v)
-                              for k,v in st.buckets.iteritems()])
+                              for k,v in st.buckets.items()])
                    for st in self.use_trackers],
                   pretty_print_shnum_to_servers(self.preexisting_shares))
         self.log(msg, level=log.OPERATIONAL)
@@ -778,7 +794,7 @@ class Tahoe2ServerSelector(log.PrefixingLogMixin):
 
         shares_to_ask = set()
         servermap = self._share_placements
-        for shnum, tracker_id in servermap.items():
+        for shnum, tracker_id in list(servermap.items()):
             if tracker_id == None:
                 continue
             if tracker.get_serverid() == tracker_id:
@@ -949,7 +965,7 @@ class EncryptAnUploadable(object):
             self._encryptor = aes.create_encryptor(key)
 
             storage_index = storage_index_hash(key)
-            assert isinstance(storage_index, str)
+            assert isinstance(storage_index, bytes)
             # There's no point to having the SI be longer than the key, so we
             # specify that it is truncated to the same 128 bits as the AES key.
             assert len(storage_index) == 16  # SHA-256 truncated to 128b
@@ -1118,7 +1134,7 @@ class UploadStatus(object):
         self.progress = [0.0, 0.0, 0.0]
         self.active = True
         self.results = None
-        self.counter = self.statusid_counter.next()
+        self.counter = next(self.statusid_counter)
         self.started = time.time()
 
     def get_started(self):
@@ -1279,7 +1295,7 @@ class CHKUploader(object):
         """
         msgtempl = "set_shareholders; upload_trackers is %s, already_serverids is %s"
         values = ([', '.join([str_shareloc(k,v)
-                              for k,v in st.buckets.iteritems()])
+                              for k,v in st.buckets.items()])
                    for st in upload_trackers], already_serverids)
         self.log(msgtempl % values, level=log.OPERATIONAL)
         # record already-present shares in self._results
@@ -1375,7 +1391,7 @@ class LiteralUploader(object):
                 self._progress.set_progress_total(size)
             return read_this_many_bytes(uploadable, size)
         d.addCallback(_got_size)
-        d.addCallback(lambda data: uri.LiteralFileURI("".join(data)))
+        d.addCallback(lambda data: uri.LiteralFileURI(b"".join(data)))
         d.addCallback(lambda u: u.to_string())
         d.addCallback(self._build_results)
         return d
@@ -1498,7 +1514,7 @@ class AssistedUploader(object):
 
         Returns a Deferred that will fire with the UploadResults instance.
         """
-        precondition(isinstance(storage_index, str), storage_index)
+        precondition(isinstance(storage_index, bytes), storage_index)
         self._started = time.time()
         eu = IEncryptedUploadable(encrypted_uploadable)
         eu.set_upload_status(self._upload_status)
@@ -1572,7 +1588,7 @@ class AssistedUploader(object):
         # abbreviated), so if we detect old results, just clobber them.
 
         sharemap = upload_results.sharemap
-        if str in [type(v) for v in sharemap.values()]:
+        if any(isinstance(v, (bytes, unicode)) for v in sharemap.values()):
             upload_results.sharemap = None
 
     def _build_verifycap(self, helper_upload_results):
@@ -1651,7 +1667,7 @@ class BaseUploadable(object):
     def set_default_encoding_parameters(self, default_params):
         assert isinstance(default_params, dict)
         for k,v in default_params.items():
-            precondition(isinstance(k, str), k, v)
+            precondition(isinstance(k, (bytes, unicode)), k, v)
             precondition(isinstance(v, int), k, v)
         if "k" in default_params:
             self.default_encoding_param_k = default_params["k"]
@@ -1695,7 +1711,7 @@ class FileHandle(BaseUploadable):
         then the hash will be hashed together with the string in the
         "convergence" argument to form the encryption key.
         """
-        assert convergence is None or isinstance(convergence, str), (convergence, type(convergence))
+        assert convergence is None or isinstance(convergence, bytes), (convergence, type(convergence))
         self._filehandle = filehandle
         self._key = None
         self.convergence = convergence
@@ -1771,7 +1787,7 @@ class FileName(FileHandle):
         then the hash will be hashed together with the string in the
         "convergence" argument to form the encryption key.
         """
-        assert convergence is None or isinstance(convergence, str), (convergence, type(convergence))
+        assert convergence is None or isinstance(convergence, bytes), (convergence, type(convergence))
         FileHandle.__init__(self, open(filename, "rb"), convergence=convergence)
     def close(self):
         FileHandle.close(self)
@@ -1785,8 +1801,8 @@ class Data(FileHandle):
         then the hash will be hashed together with the string in the
         "convergence" argument to form the encryption key.
         """
-        assert convergence is None or isinstance(convergence, str), (convergence, type(convergence))
-        FileHandle.__init__(self, StringIO(data), convergence=convergence)
+        assert convergence is None or isinstance(convergence, bytes), (convergence, type(convergence))
+        FileHandle.__init__(self, BytesIO(data), convergence=convergence)
 
 @implementer(IUploader)
 class Uploader(service.MultiService, log.PrefixingLogMixin):
@@ -1814,15 +1830,15 @@ class Uploader(service.MultiService, log.PrefixingLogMixin):
 
     def _got_helper(self, helper):
         self.log("got helper connection, getting versions")
-        default = { "http://allmydata.org/tahoe/protocols/helper/v1" :
+        default = { b"http://allmydata.org/tahoe/protocols/helper/v1" :
                     { },
-                    "application-version": "unknown: no get_version()",
+                    b"application-version": b"unknown: no get_version()",
                     }
         d = add_version_to_remote_reference(helper, default)
         d.addCallback(self._got_versioned_helper)
 
     def _got_versioned_helper(self, helper):
-        needed = "http://allmydata.org/tahoe/protocols/helper/v1"
+        needed = b"http://allmydata.org/tahoe/protocols/helper/v1"
         if needed not in helper.version:
             raise InsufficientVersionError(needed, helper.version)
         self._helper = helper

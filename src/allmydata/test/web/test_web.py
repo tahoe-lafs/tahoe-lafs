@@ -1,33 +1,17 @@
 from __future__ import print_function
 
-import os.path, re, urllib, time, cgi
+import os.path, re, urllib, time
 import json
 import treq
-import mock
 
 from bs4 import BeautifulSoup
 
 from twisted.application import service
-from twisted.trial import unittest
 from twisted.internet import defer
-from twisted.internet.defer import inlineCallbacks, returnValue, maybeDeferred
+from twisted.internet.defer import inlineCallbacks, returnValue
 from twisted.internet.task import Clock
 from twisted.web import client, error, http
 from twisted.python import failure, log
-
-from nevow.context import WebContext
-from nevow.inevow import (
-    ICanHandleException,
-    IRequest,
-    IData,
-)
-from nevow.util import escapeToXML
-from nevow.loaders import stan
-from nevow.testutil import FakeRequest
-from nevow.appserver import (
-    processingFailed,
-    DefaultExceptionHandler,
-)
 
 from allmydata import interfaces, uri, webish
 from allmydata.storage_client import StorageFarmBroker, StubServer
@@ -35,12 +19,10 @@ from allmydata.immutable import upload
 from allmydata.immutable.downloader.status import DownloadStatus
 from allmydata.dirnode import DirectoryNode
 from allmydata.nodemaker import NodeMaker
-from allmydata.frontends.magic_folder import QueuedItem
-from allmydata.web import status
-from allmydata.web.common import WebError, MultiFormatPage
+from allmydata.web.common import MultiFormatResource
 from allmydata.util import fileutil, base32, hashutil
 from allmydata.util.consumer import download_to_data
-from allmydata.util.encodingutil import to_str
+from allmydata.util.encodingutil import to_bytes
 from ...util.connection_status import ConnectionStatus
 from ..common import (
     EMPTY_CLIENT_CONFIG,
@@ -50,21 +32,37 @@ from ..common import (
     WebErrorMixin,
     make_mutable_file_uri,
     create_mutable_filenode,
+    TrialTestCase,
 )
 from .common import (
     assert_soup_has_favicon,
     assert_soup_has_text,
+    assert_soup_has_tag_with_attributes,
+    assert_soup_has_tag_with_content,
+    assert_soup_has_tag_with_attributes_and_content,
+    unknown_rwcap,
+    unknown_rocap,
+    unknown_immcap,
 )
-from allmydata.interfaces import IMutableFileNode, SDMF_VERSION, MDMF_VERSION
+
+from allmydata.interfaces import (
+    IMutableFileNode, SDMF_VERSION, MDMF_VERSION,
+    FileTooLargeError,
+    MustBeReadonlyError,
+)
 from allmydata.mutable import servermap, publish, retrieve
 from .. import common_util as testutil
+from ..common_util import TimezoneMixin
 from ..common_web import (
     do_http,
     Error,
+    render,
 )
+from ...web.common import (
+    humanize_exception,
+)
+
 from allmydata.client import _Client, SecretHolder
-from .common import unknown_rwcap, unknown_rocap, unknown_immcap, FAVICON_MARKUP
-from ..status import FakeStatus
 
 # create a fake uploader/downloader, and a couple of fake dirnodes, then
 # create a webserver that works against them
@@ -123,29 +121,6 @@ class FakeUploader(service.Service):
 
     def get_helper_info(self):
         return (self.helper_furl, self.helper_connected)
-
-
-def create_test_queued_item(relpath_u, history=[]):
-    progress = mock.Mock()
-    progress.progress = 100.0
-    item = QueuedItem(relpath_u, progress, 1234)
-    for the_status, timestamp in history:
-        item.set_status(the_status, current_time=timestamp)
-    return item
-
-
-class FakeMagicFolder(object):
-    def __init__(self):
-        self.uploader = FakeStatus()
-        self.downloader = FakeStatus()
-
-    def get_public_status(self):
-        return (
-            True,
-            [
-                'a magic-folder status message'
-            ],
-        )
 
 
 def build_one_ds():
@@ -282,7 +257,6 @@ class FakeClient(_Client):
         # don't upcall to Client.__init__, since we only want to initialize a
         # minimal subset
         service.MultiService.__init__(self)
-        self._magic_folders = dict()
         self.all_contents = {}
         self.nodeid = "fake_nodeid"
         self.nickname = u"fake_nickname \u263A"
@@ -334,7 +308,7 @@ class FakeClient(_Client):
 
     MUTABLE_SIZELIMIT = FakeMutableFileNode.MUTABLE_SIZELIMIT
 
-class WebMixin(testutil.TimezoneMixin):
+class WebMixin(TimezoneMixin):
     def setUp(self):
         self.setTimezone('UTC-13:00')
         self.s = FakeClient()
@@ -398,9 +372,6 @@ class WebMixin(testutil.TimezoneMixin):
             self._htmlname_unicode = u"<&weirdly'named\"file>>>_<iframe />.txt"
             self._htmlname_raw = self._htmlname_unicode.encode('utf-8')
             self._htmlname_urlencoded = urllib.quote(self._htmlname_raw, '')
-            self._htmlname_escaped = escapeToXML(self._htmlname_raw)
-            self._htmlname_escaped_attr = cgi.escape(self._htmlname_raw, quote=True)
-            self._htmlname_escaped_double = escapeToXML(cgi.escape(self._htmlname_raw, quote=True))
             self.HTMLNAME_CONTENTS, n, self._htmlname_txt_uri = self.makefile(0)
             foo.set_uri(self._htmlname_unicode, self._htmlname_txt_uri, self._htmlname_txt_uri)
 
@@ -478,8 +449,8 @@ class WebMixin(testutil.TimezoneMixin):
         self.failUnless(isinstance(data[1], dict))
         self.failIf(data[1]["mutable"])
         self.failIfIn("rw_uri", data[1]) # immutable
-        self.failUnlessReallyEqual(to_str(data[1]["ro_uri"]), self._bar_txt_uri)
-        self.failUnlessReallyEqual(to_str(data[1]["verify_uri"]), self._bar_txt_verifycap)
+        self.failUnlessReallyEqual(to_bytes(data[1]["ro_uri"]), self._bar_txt_uri)
+        self.failUnlessReallyEqual(to_bytes(data[1]["verify_uri"]), self._bar_txt_verifycap)
         self.failUnlessReallyEqual(data[1]["size"], len(self.BAR_CONTENTS))
 
     def failUnlessIsQuuxJSON(self, res, readonly=False):
@@ -508,9 +479,9 @@ class WebMixin(testutil.TimezoneMixin):
         self.failUnless(isinstance(data[1], dict))
         self.failUnless(data[1]["mutable"])
         self.failUnlessIn("rw_uri", data[1]) # mutable
-        self.failUnlessReallyEqual(to_str(data[1]["rw_uri"]), self._foo_uri)
-        self.failUnlessReallyEqual(to_str(data[1]["ro_uri"]), self._foo_readonly_uri)
-        self.failUnlessReallyEqual(to_str(data[1]["verify_uri"]), self._foo_verifycap)
+        self.failUnlessReallyEqual(to_bytes(data[1]["rw_uri"]), self._foo_uri)
+        self.failUnlessReallyEqual(to_bytes(data[1]["ro_uri"]), self._foo_readonly_uri)
+        self.failUnlessReallyEqual(to_bytes(data[1]["verify_uri"]), self._foo_verifycap)
 
         kidnames = sorted([unicode(n) for n in data[1]["children"]])
         self.failUnlessEqual(kidnames,
@@ -527,19 +498,19 @@ class WebMixin(testutil.TimezoneMixin):
         self.failUnlessIn("linkmotime", tahoe_md)
         self.failUnlessEqual(kids[u"bar.txt"][0], "filenode")
         self.failUnlessReallyEqual(kids[u"bar.txt"][1]["size"], len(self.BAR_CONTENTS))
-        self.failUnlessReallyEqual(to_str(kids[u"bar.txt"][1]["ro_uri"]), self._bar_txt_uri)
-        self.failUnlessReallyEqual(to_str(kids[u"bar.txt"][1]["verify_uri"]),
+        self.failUnlessReallyEqual(to_bytes(kids[u"bar.txt"][1]["ro_uri"]), self._bar_txt_uri)
+        self.failUnlessReallyEqual(to_bytes(kids[u"bar.txt"][1]["verify_uri"]),
                                    self._bar_txt_verifycap)
         self.failUnlessIn("metadata", kids[u"bar.txt"][1])
         self.failUnlessIn("tahoe", kids[u"bar.txt"][1]["metadata"])
         self.failUnlessReallyEqual(kids[u"bar.txt"][1]["metadata"]["tahoe"]["linkcrtime"],
                                    self._bar_txt_metadata["tahoe"]["linkcrtime"])
-        self.failUnlessReallyEqual(to_str(kids[u"n\u00fc.txt"][1]["ro_uri"]),
+        self.failUnlessReallyEqual(to_bytes(kids[u"n\u00fc.txt"][1]["ro_uri"]),
                                    self._bar_txt_uri)
         self.failUnlessIn("quux.txt", kids)
-        self.failUnlessReallyEqual(to_str(kids[u"quux.txt"][1]["rw_uri"]),
+        self.failUnlessReallyEqual(to_bytes(kids[u"quux.txt"][1]["rw_uri"]),
                                    self._quux_txt_uri)
-        self.failUnlessReallyEqual(to_str(kids[u"quux.txt"][1]["ro_uri"]),
+        self.failUnlessReallyEqual(to_bytes(kids[u"quux.txt"][1]["ro_uri"]),
                                    self._quux_txt_readonly_uri)
 
     @inlineCallbacks
@@ -678,55 +649,35 @@ class WebMixin(testutil.TimezoneMixin):
                       (which, res))
 
 
+class MultiFormatResourceTests(TrialTestCase):
+    """
+    Tests for ``MultiFormatResource``.
+    """
+    def render(self, resource, **queryargs):
+        return self.successResultOf(render(resource, queryargs))
 
-class MultiFormatPageTests(unittest.TestCase):
-    """
-    Tests for ``MultiFormatPage``.
-    """
     def resource(self):
         """
-        Create and return an instance of a ``MultiFormatPage`` subclass with two
-        formats: ``a`` and ``b``.
+        Create and return an instance of a ``MultiFormatResource`` subclass
+        with a default HTML format, and two custom formats: ``a`` and ``b``.
         """
-        class Content(MultiFormatPage):
-            docFactory = stan("doc factory")
+        class Content(MultiFormatResource):
+
+            def render_HTML(self, req):
+                return "html"
 
             def render_A(self, req):
                 return "a"
 
             def render_B(self, req):
                 return "b"
+
         return Content()
-
-
-    def render(self, resource, **query_args):
-        """
-        Render a Nevow ``Page`` against a request with the given query arguments.
-
-        :param resource: The Nevow resource to render.
-
-        :param query_args: The query arguments to put into the request being
-            rendered.  A mapping from ``bytes`` to ``list`` of ``bytes``.
-
-        :return: The rendered response body as ``bytes``.
-        """
-        ctx = WebContext(tag=resource)
-        req = FakeRequest(args=query_args)
-        ctx.remember(DefaultExceptionHandler(), ICanHandleException)
-        ctx.remember(req, IRequest)
-        ctx.remember(None, IData)
-
-        d = maybeDeferred(resource.renderHTTP, ctx)
-        d.addErrback(processingFailed, req, ctx)
-        res = self.successResultOf(d)
-        if isinstance(res, bytes):
-            return req.v + res
-        return req.v
 
 
     def test_select_format(self):
         """
-        The ``formatArgument`` attribute of a ``MultiFormatPage`` subclass
+        The ``formatArgument`` attribute of a ``MultiFormatResource`` subclass
         identifies the query argument which selects the result format.
         """
         resource = self.resource()
@@ -736,8 +687,8 @@ class MultiFormatPageTests(unittest.TestCase):
 
     def test_default_format_argument(self):
         """
-        If a ``MultiFormatPage`` subclass does not set ``formatArgument`` then the
-        ``t`` argument is used.
+        If a ``MultiFormatResource`` subclass does not set ``formatArgument``
+        then the ``t`` argument is used.
         """
         resource = self.resource()
         self.assertEqual("a", self.render(resource, t=["a"]))
@@ -746,16 +697,15 @@ class MultiFormatPageTests(unittest.TestCase):
     def test_no_format(self):
         """
         If no value is given for the format argument and no default format has
-        been defined, the base Nevow rendering behavior is used
-        (``renderHTTP``).
+        been defined, the base rendering behavior is used (``render_HTML``).
         """
         resource = self.resource()
-        self.assertEqual("doc factory", self.render(resource))
+        self.assertEqual("html", self.render(resource))
 
 
     def test_default_format(self):
         """
-        If no value is given for the format argument and the ``MultiFormatPage``
+        If no value is given for the format argument and the ``MultiFormatResource``
         subclass defines a ``formatDefault``, that value is used as the format
         to render.
         """
@@ -767,11 +717,11 @@ class MultiFormatPageTests(unittest.TestCase):
     def test_explicit_none_format_renderer(self):
         """
         If a format is selected which has a renderer set to ``None``, the base
-        Nevow rendering behavior is used (``renderHTTP``).
+        rendering behavior is used (``render_HTML``).
         """
         resource = self.resource()
         resource.render_FOO = None
-        self.assertEqual("doc factory", self.render(resource, t=["foo"]))
+        self.assertEqual("html", self.render(resource, t=["foo"]))
 
 
     def test_unknown_format(self):
@@ -780,33 +730,55 @@ class MultiFormatPageTests(unittest.TestCase):
         returned.
         """
         resource = self.resource()
+        response_body = self.render(resource, t=["foo"])
         self.assertIn(
-            "<title>Exception</title>",
-            self.render(resource, t=["foo"]),
+            "<title>400 - Bad Format</title>", response_body,
         )
-        self.flushLoggedErrors(WebError)
+        self.assertIn(
+            "Unknown t value: 'foo'", response_body,
+        )
 
 
-
-class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixin, unittest.TestCase):
+class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixin, TrialTestCase):
     maxDiff = None
 
     def test_create(self):
         pass
 
-    def test_frame_options(self):
+    def _assertResponseHeaders(self, name, values):
         """
-        All pages deny the ability to be loaded in frames.
+        Assert that the resource at **/** is served with a response header named
+        ``name`` and values ``values``.
+
+        :param bytes name: The name of the header item to check.
+        :param [bytes] values: The expected values.
+
+        :return Deferred: A Deferred that fires successfully if the expected
+            header item is found and which fails otherwise.
         """
         d = self.GET("/", return_response=True)
         def responded(result):
             _, _, headers = result
             self.assertEqual(
-                [b"DENY"],
-                headers.getRawHeaders(b"X-Frame-Options"),
+                values,
+                headers.getRawHeaders(name),
             )
         d.addCallback(responded)
         return d
+
+    def test_frame_options(self):
+        """
+        Pages deny the ability to be loaded in frames.
+        """
+        # It should be all pages but we only demonstrate it for / with this test.
+        return self._assertResponseHeaders(b"X-Frame-Options", [b"DENY"])
+
+    def test_referrer_policy(self):
+        """
+        Pages set a **no-referrer** policy.
+        """
+        # It should be all pages but we only demonstrate it for / with this test.
+        return self._assertResponseHeaders(b"Referrer-Policy", [b"no-referrer"])
 
     def test_welcome_json(self):
         """
@@ -841,64 +813,6 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d.addCallback(_check)
         return d
 
-    def test_welcome(self):
-        d = self.GET("/")
-        def _check(res):
-            # TODO: replace this with a parser
-            self.failUnlessIn('<title>Tahoe-LAFS - Welcome</title>', res)
-            self.failUnlessIn(FAVICON_MARKUP, res)
-            self.failUnlessIn('<a href="status">Recent and Active Operations</a>', res)
-            self.failUnlessIn('<a href="statistics">Operational Statistics</a>', res)
-            self.failUnless(re.search('<input (type="hidden" |name="t" |value="report-incident" ){3}/>',res), res)
-            self.failUnlessIn('Page rendered at', res)
-            self.failUnlessIn('Tahoe-LAFS code imported from:', res)
-            res_u = res.decode('utf-8')
-            self.failUnlessIn(u'<td>fake_nickname \u263A</td>', res_u)
-            self.failUnlessIn(u'<div class="nickname">other_nickname \u263B</div>', res_u)
-            self.failUnlessIn(u'Connected to <span>1</span>\n              of <span>2</span> known storage servers', res_u)
-            def timestamp(t):
-                return (u'"%s"' % (t,)) if self.have_working_tzset() else u'"[^"]*"'
-
-            # TODO: use a real parser to make sure these two nodes are siblings
-            self.failUnless(re.search(
-                u'<div class="status-indicator"><img (src="img/connected-yes.png" |alt="Connected" ){2}/></div>'
-                u'\s+'
-                u'<div class="nickname">other_nickname \u263B</div>',
-                res_u), repr(res_u))
-            self.failUnless(re.search(
-                u'<a( class="timestamp"| title=%s){2}>\s+1d\u00A00h\u00A00m\u00A050s\s+</a>'
-                % timestamp(u'1970-01-01 13:00:10'), res_u), repr(res_u))
-
-            # same for these two nodes
-            self.failUnless(re.search(
-                u'<div class="status-indicator"><img (src="img/connected-no.png" |alt="Disconnected" ){2}/></div>'
-                u'\s+'
-                u'<div class="nickname">disconnected_nickname \u263B</div>',
-                res_u), repr(res_u))
-            self.failUnless(re.search(
-                u'<a( class="timestamp"| title="N/A"){2}>\s+N/A\s+</a>',
-                res_u), repr(res_u))
-
-            self.failUnless(re.search(
-                u'<td class="service-last-received-data"><a( class="timestamp"| title=%s){2}>'
-                u'1d\u00A00h\u00A00m\u00A030s</a></td>'
-                % timestamp(u'1970-01-01 13:00:30'), res_u), repr(res_u))
-            self.failUnless(re.search(
-                u'<td class="service-last-received-data"><a( class="timestamp"| title=%s){2}>'
-                u'1d\u00A00h\u00A00m\u00A025s</a></td>'
-                % timestamp(u'1970-01-01 13:00:35'), res_u), repr(res_u))
-
-            self.failUnlessIn(u'\u00A9 <a href="https://tahoe-lafs.org/">Tahoe-LAFS Software Foundation', res_u)
-            self.failUnlessIn('<td><h3>Available</h3></td>', res)
-            self.failUnlessIn('123.5kB', res)
-
-            self.s.basedir = 'web/test_welcome'
-            fileutil.make_dirs("web/test_welcome")
-            fileutil.make_dirs("web/test_welcome/private")
-            return self.GET("/")
-        d.addCallback(_check)
-        return d
-
     def test_introducer_status(self):
         class MockIntroducerClient(object):
             def __init__(self, connected):
@@ -915,10 +829,16 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             return self.GET("/")
         d.addCallback(_set_introducer_not_connected_unguessable)
         def _check_introducer_not_connected_unguessable(res):
-            html = res.replace('\n', ' ')
-            self.failIfIn('pb://someIntroducer/secret', html)
-            self.failUnless(re.search('<img (alt="Disconnected" |src="img/connected-no.png" ){2}/></div>[ ]*<div>No introducers connected</div>', html), res)
-
+            soup = BeautifulSoup(res, 'html5lib')
+            self.failIfIn('pb://someIntroducer/secret', res)
+            assert_soup_has_tag_with_attributes(
+                self, soup, u"img",
+                {u"alt": u"Disconnected", u"src": u"img/connected-no.png"}
+            )
+            assert_soup_has_tag_with_content(
+                self, soup, u"div",
+                u"No introducers connected"
+            )
         d.addCallback(_check_introducer_not_connected_unguessable)
 
         # introducer connected, unguessable furl
@@ -928,10 +848,21 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             return self.GET("/")
         d.addCallback(_set_introducer_connected_unguessable)
         def _check_introducer_connected_unguessable(res):
-            html = res.replace('\n', ' ')
-            self.failUnlessIn('<div class="connection-status" title="(no other hints)">summary</div>', html)
-            self.failIfIn('pb://someIntroducer/secret', html)
-            self.failUnless(re.search('<img (src="img/connected-yes.png" |alt="Connected" ){2}/></div>[ ]*<div>1 introducer connected</div>', html), res)
+            soup = BeautifulSoup(res, 'html5lib')
+            assert_soup_has_tag_with_attributes_and_content(
+                self, soup, u"div",
+                u"summary",
+                { u"class": u"connection-status", u"title": u"(no other hints)" }
+            )
+            self.failIfIn('pb://someIntroducer/secret', res)
+            assert_soup_has_tag_with_attributes(
+                self, soup, u"img",
+                { u"alt": u"Connected", u"src": u"img/connected-yes.png" }
+            )
+            assert_soup_has_tag_with_content(
+                self, soup, u"div",
+                u"1 introducer connected"
+            )
         d.addCallback(_check_introducer_connected_unguessable)
 
         # introducer connected, guessable furl
@@ -941,9 +872,20 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             return self.GET("/")
         d.addCallback(_set_introducer_connected_guessable)
         def _check_introducer_connected_guessable(res):
-            html = res.replace('\n', ' ')
-            self.failUnlessIn('<div class="connection-status" title="(no other hints)">summary</div>', html)
-            self.failUnless(re.search('<img (src="img/connected-yes.png" |alt="Connected" ){2}/></div>[ ]*<div>1 introducer connected</div>', html), res)
+            soup = BeautifulSoup(res, 'html5lib')
+            assert_soup_has_tag_with_attributes_and_content(
+                self, soup, u"div",
+                u"summary",
+                { u"class": u"connection-status", u"title": u"(no other hints)" }
+            )
+            assert_soup_has_tag_with_attributes(
+                self, soup, u"img",
+                { u"src": u"img/connected-yes.png", u"alt": u"Connected" }
+            )
+            assert_soup_has_tag_with_content(
+                self, soup, u"div",
+                u"1 introducer connected"
+            )
         d.addCallback(_check_introducer_connected_guessable)
         return d
 
@@ -956,8 +898,11 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             return self.GET("/")
         d.addCallback(_set_no_helper)
         def _check_no_helper(res):
-            html = res.replace('\n', ' ')
-            self.failUnless(re.search('<img (src="img/connected-not-configured.png" |alt="Not Configured" ){2}/>', html), res)
+            soup = BeautifulSoup(res, 'html5lib')
+            assert_soup_has_tag_with_attributes(
+                self, soup, u"img",
+                { u"src": u"img/connected-not-configured.png", u"alt": u"Not Configured" }
+            )
         d.addCallback(_check_no_helper)
 
         # enable helper, not connected
@@ -967,10 +912,17 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             return self.GET("/")
         d.addCallback(_set_helper_not_connected)
         def _check_helper_not_connected(res):
-            html = res.replace('\n', ' ')
-            self.failUnlessIn('<div class="furl">pb://someHelper/[censored]</div>', html)
-            self.failIfIn('pb://someHelper/secret', html)
-            self.failUnless(re.search('<img (src="img/connected-no.png" |alt="Disconnected" ){2}/>', html), res)
+            soup = BeautifulSoup(res, 'html5lib')
+            assert_soup_has_tag_with_attributes_and_content(
+                self, soup, u"div",
+                u"pb://someHelper/[censored]",
+                { u"class": u"furl" }
+            )
+            self.failIfIn('pb://someHelper/secret', res)
+            assert_soup_has_tag_with_attributes(
+                self, soup, u"img",
+                { u"src": u"img/connected-no.png", u"alt": u"Disconnected" }
+            )
         d.addCallback(_check_helper_not_connected)
 
         # enable helper, connected
@@ -980,95 +932,30 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             return self.GET("/")
         d.addCallback(_set_helper_connected)
         def _check_helper_connected(res):
-            html = res.replace('\n', ' ')
-            self.failUnlessIn('<div class="furl">pb://someHelper/[censored]</div>', html)
-            self.failIfIn('pb://someHelper/secret', html)
-            self.failUnless(re.search('<img (src="img/connected-yes.png" |alt="Connected" ){2}/>', html), res)
+            soup = BeautifulSoup(res, 'html5lib')
+            assert_soup_has_tag_with_attributes_and_content(
+                self, soup, u"div",
+                u"pb://someHelper/[censored]",
+                { u"class": u"furl" }
+            )
+            self.failIfIn('pb://someHelper/secret', res)
+            assert_soup_has_tag_with_attributes(
+                self, soup, u"img",
+                { u"src": u"img/connected-yes.png", "alt": u"Connected" }
+            )
         d.addCallback(_check_helper_connected)
         return d
 
     def test_storage(self):
         d = self.GET("/storage")
         def _check(res):
-            self.failUnlessIn('Storage Server Status', res)
-            self.failUnlessIn(FAVICON_MARKUP, res)
+            soup = BeautifulSoup(res, 'html5lib')
+            assert_soup_has_text(self, soup, 'Storage Server Status')
+            assert_soup_has_favicon(self, soup)
             res_u = res.decode('utf-8')
             self.failUnlessIn(u'<li>Server Nickname: <span class="nickname mine">fake_nickname \u263A</span></li>', res_u)
         d.addCallback(_check)
         return d
-
-    @defer.inlineCallbacks
-    def test_magicfolder_status_bad_token(self):
-        with self.assertRaises(Error):
-            yield self.POST(
-                '/magic_folder?t=json',
-                t='json',
-                name='default',
-                token='not the token you are looking for',
-            )
-
-    @defer.inlineCallbacks
-    def test_magicfolder_status_wrong_folder(self):
-        with self.assertRaises(Exception) as ctx:
-            yield self.POST(
-                '/magic_folder?t=json',
-                t='json',
-                name='a non-existent magic-folder',
-                token=self.s.get_auth_token(),
-            )
-        self.assertIn(
-            "Not Found",
-            str(ctx.exception)
-        )
-
-    @defer.inlineCallbacks
-    def test_magicfolder_status_success(self):
-        self.s._magic_folders['default'] = mf = FakeMagicFolder()
-        mf.uploader.status = [
-            create_test_queued_item(u"rel/uppath", [('done', 12345)])
-        ]
-        mf.downloader.status = [
-            create_test_queued_item(u"rel/downpath", [('done', 23456)])
-        ]
-        data = yield self.POST(
-            '/magic_folder?t=json',
-            t='json',
-            name='default',
-            token=self.s.get_auth_token(),
-        )
-        data = json.loads(data)
-        self.assertEqual(
-            data,
-            [
-                {
-                    "status": "done",
-                    "path": "rel/uppath",
-                    "kind": "upload",
-                    "percent_done": 100.0,
-                    "done_at": 12345,
-                    "size": 1234,
-                },
-                {
-                    "status": "done",
-                    "path": "rel/downpath",
-                    "kind": "download",
-                    "percent_done": 100.0,
-                    "done_at": 23456,
-                    "size": 1234,
-                },
-            ]
-        )
-
-    @defer.inlineCallbacks
-    def test_magicfolder_root_success(self):
-        self.s._magic_folders['default'] = mf = FakeMagicFolder()
-        mf.uploader.status = [
-            create_test_queued_item(u"rel/path", [('done', 12345)])
-        ]
-        data = yield self.GET(
-            '/',
-        )
-        del data
 
     def test_status(self):
         h = self.s.get_history()
@@ -1080,11 +967,11 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d = self.GET("/status", followRedirect=True)
         def _check(res):
             self.failUnlessIn('Recent and Active Operations', res)
-            self.failUnlessIn('"down-%d"' % dl_num, res)
-            self.failUnlessIn('"up-%d"' % ul_num, res)
-            self.failUnlessIn('"mapupdate-%d"' % mu_num, res)
-            self.failUnlessIn('"publish-%d"' % pub_num, res)
-            self.failUnlessIn('"retrieve-%d"' % ret_num, res)
+            self.failUnlessIn('"/status/down-%d"' % dl_num, res)
+            self.failUnlessIn('"/status/up-%d"' % ul_num, res)
+            self.failUnlessIn('"/status/mapupdate-%d"' % mu_num, res)
+            self.failUnlessIn('"/status/publish-%d"' % pub_num, res)
+            self.failUnlessIn('"/status/retrieve-%d"' % ret_num, res)
         d.addCallback(_check)
         d.addCallback(lambda res: self.GET("/status/?t=json"))
         def _check_json(res):
@@ -1143,28 +1030,209 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
 
         return d
 
-    def test_status_numbers(self):
-        drrm = status.DownloadResultsRendererMixin()
-        self.failUnlessReallyEqual(drrm.render_time(None, None), "")
-        self.failUnlessReallyEqual(drrm.render_time(None, 2.5), "2.50s")
-        self.failUnlessReallyEqual(drrm.render_time(None, 0.25), "250ms")
-        self.failUnlessReallyEqual(drrm.render_time(None, 0.0021), "2.1ms")
-        self.failUnlessReallyEqual(drrm.render_time(None, 0.000123), "123us")
-        self.failUnlessReallyEqual(drrm.render_rate(None, None), "")
-        self.failUnlessReallyEqual(drrm.render_rate(None, 2500000), "2.50MBps")
-        self.failUnlessReallyEqual(drrm.render_rate(None, 30100), "30.1kBps")
-        self.failUnlessReallyEqual(drrm.render_rate(None, 123), "123Bps")
+    def test_status_path_nodash_error(self):
+        """
+        Expect an error, because path is expected to be of the form
+        "/status/{up,down,..}-%number", with a hyphen.
+        """
+        return self.shouldFail2(error.Error,
+                                "test_status_path_nodash",
+                                "400 Bad Request",
+                                "no '-' in 'nodash'",
+                                self.GET,
+                                "/status/nodash")
 
-        urrm = status.UploadResultsRendererMixin()
-        self.failUnlessReallyEqual(urrm.render_time(None, None), "")
-        self.failUnlessReallyEqual(urrm.render_time(None, 2.5), "2.50s")
-        self.failUnlessReallyEqual(urrm.render_time(None, 0.25), "250ms")
-        self.failUnlessReallyEqual(urrm.render_time(None, 0.0021), "2.1ms")
-        self.failUnlessReallyEqual(urrm.render_time(None, 0.000123), "123us")
-        self.failUnlessReallyEqual(urrm.render_rate(None, None), "")
-        self.failUnlessReallyEqual(urrm.render_rate(None, 2500000), "2.50MBps")
-        self.failUnlessReallyEqual(urrm.render_rate(None, 30100), "30.1kBps")
-        self.failUnlessReallyEqual(urrm.render_rate(None, 123), "123Bps")
+    def test_status_page_contains_links(self):
+        """
+        Check that the rendered `/status` page contains all the
+        expected links.
+        """
+        def _check_status_page_links(response):
+            (body, status, _) = response
+
+            self.failUnlessReallyEqual(int(status), 200)
+
+            soup = BeautifulSoup(body, 'html5lib')
+            h = self.s.get_history()
+
+            # Check for `<a href="/status/retrieve-0">Not started</a>`
+            ret_num = h.list_all_retrieve_statuses()[0].get_counter()
+            assert_soup_has_tag_with_attributes_and_content(
+                self, soup, u"a",
+                u"Not started",
+                {u"href": u"/status/retrieve-{}".format(ret_num)}
+            )
+
+            # Check for `<a href="/status/publish-0">Not started</a></td>`
+            pub_num = h.list_all_publish_statuses()[0].get_counter()
+            assert_soup_has_tag_with_attributes_and_content(
+                self, soup, u"a",
+                u"Not started",
+                {u"href": u"/status/publish-{}".format(pub_num)}
+            )
+
+            # Check for `<a href="/status/mapupdate-0">Not started</a>`
+            mu_num = h.list_all_mapupdate_statuses()[0].get_counter()
+            assert_soup_has_tag_with_attributes_and_content(
+                self, soup, u"a",
+                u"Not started",
+                {u"href": u"/status/mapupdate-{}".format(mu_num)}
+            )
+
+            # Check for `<a href="/status/down-0">fetching segments
+            # 2,3; errors on segment 1</a>`: see build_one_ds() above.
+            dl_num = h.list_all_download_statuses()[0].get_counter()
+            assert_soup_has_tag_with_attributes_and_content(
+                self, soup, u"a",
+                u"fetching segments 2,3; errors on segment 1",
+                {u"href": u"/status/down-{}".format(dl_num)}
+            )
+
+            # Check for `<a href="/status/up-0">Not started</a>`
+            ul_num = h.list_all_upload_statuses()[0].get_counter()
+            assert_soup_has_tag_with_attributes_and_content(
+                self, soup, u"a",
+                u"Not started",
+                {u"href": u"/status/up-{}".format(ul_num)}
+            )
+
+        d = self.GET("/status", return_response=True)
+        d.addCallback(_check_status_page_links)
+        return d
+
+    def test_status_path_trailing_slashes(self):
+        """
+        Test that both `GET /status` and `GET /status/` are treated
+        alike, but reject any additional trailing slashes and other
+        non-existent child nodes.
+        """
+        def _check_status(response):
+            (body, status, _) = response
+
+            self.failUnlessReallyEqual(int(status), 200)
+
+            soup = BeautifulSoup(body, 'html5lib')
+            assert_soup_has_favicon(self, soup)
+            assert_soup_has_tag_with_content(
+                self, soup, u"title",
+                u"Tahoe-LAFS - Recent and Active Operations"
+            )
+
+        d = self.GET("/status", return_response=True)
+        d.addCallback(_check_status)
+
+        d = self.GET("/status/", return_response=True)
+        d.addCallback(_check_status)
+
+        d =  self.shouldFail2(error.Error,
+                              "test_status_path_trailing_slashes",
+                              "400 Bad Request",
+                              "no '-' in ''",
+                              self.GET,
+                              "/status//")
+
+        d =  self.shouldFail2(error.Error,
+                              "test_status_path_trailing_slashes",
+                              "400 Bad Request",
+                              "no '-' in ''",
+                              self.GET,
+                              "/status////////")
+
+        return d
+
+    def test_status_path_404_error(self):
+        """
+        Looking for non-existent statuses under child paths should
+        exercises all the iterators in web.status.Status.getChild().
+
+        The test suite (hopefully!) would not have done any setup for
+        a very large number of statuses at this point, now or in the
+        future, so these all should always return 404.
+        """
+        d = self.GET("/status/up-9999999")
+        d.addBoth(self.should404, "test_status_path_404_error (up)")
+
+        d = self.GET("/status/down-9999999")
+        d.addBoth(self.should404, "test_status_path_404_error (down)")
+
+        d = self.GET("/status/mapupdate-9999999")
+        d.addBoth(self.should404, "test_status_path_404_error (mapupdate)")
+
+        d = self.GET("/status/publish-9999999")
+        d.addBoth(self.should404, "test_status_path_404_error (publish)")
+
+        d = self.GET("/status/retrieve-9999999")
+        d.addBoth(self.should404, "test_status_path_404_error (retrieve)")
+
+        return d
+
+    def _check_status_subpath_result(self, result, expected_title):
+        """
+        Helper to verify that results of "GET /status/up-0" and
+        similar are as expected.
+        """
+        body, status, _ = result
+        self.failUnlessReallyEqual(int(status), 200)
+        soup = BeautifulSoup(body, 'html5lib')
+        assert_soup_has_favicon(self, soup)
+        assert_soup_has_tag_with_content(
+            self, soup, u"title", expected_title
+        )
+
+    def test_status_up_subpath(self):
+        """
+        See that "GET /status/up-0" works.
+        """
+        h = self.s.get_history()
+        ul_num = h.list_all_upload_statuses()[0].get_counter()
+        d = self.GET("/status/up-{}".format(ul_num), return_response=True)
+        d.addCallback(self._check_status_subpath_result,
+                      u"Tahoe-LAFS - File Upload Status")
+        return d
+
+    def test_status_down_subpath(self):
+        """
+        See that "GET /status/down-0" works.
+        """
+        h = self.s.get_history()
+        dl_num = h.list_all_download_statuses()[0].get_counter()
+        d = self.GET("/status/down-{}".format(dl_num), return_response=True)
+        d.addCallback(self._check_status_subpath_result,
+                      u"Tahoe-LAFS - File Download Status")
+        return d
+
+    def test_status_mapupdate_subpath(self):
+        """
+        See that "GET /status/mapupdate-0" works.
+        """
+        h = self.s.get_history()
+        mu_num = h.list_all_mapupdate_statuses()[0].get_counter()
+        d = self.GET("/status/mapupdate-{}".format(mu_num), return_response=True)
+        d.addCallback(self._check_status_subpath_result,
+                      u"Tahoe-LAFS - Mutable File Servermap Update Status")
+        return d
+
+    def test_status_publish_subpath(self):
+        """
+        See that "GET /status/publish-0" works.
+        """
+        h = self.s.get_history()
+        pub_num = h.list_all_publish_statuses()[0].get_counter()
+        d = self.GET("/status/publish-{}".format(pub_num), return_response=True)
+        d.addCallback(self._check_status_subpath_result,
+                      u"Tahoe-LAFS - Mutable File Publish Status")
+        return d
+
+    def test_status_retrieve_subpath(self):
+        """
+        See that "GET /status/retrieve-0" works.
+        """
+        h = self.s.get_history()
+        ret_num = h.list_all_retrieve_statuses()[0].get_counter()
+        d = self.GET("/status/retrieve-{}".format(ret_num), return_response=True)
+        d.addCallback(self._check_status_subpath_result,
+                      u"Tahoe-LAFS - Mutable File Retrieve Status")
+        return d
 
     def test_GET_FILEURL(self):
         d = self.GET(self.public_url + "/foo/bar.txt")
@@ -1391,7 +1459,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
 
     def test_GET_FILE_URI_badchild(self):
         base = "/uri/%s/boguschild" % urllib.quote(self._bar_txt_uri)
-        errmsg = "Files have no children, certainly not named 'boguschild'"
+        errmsg = "Files have no children named 'boguschild'"
         d = self.shouldFail2(error.Error, "test_GET_FILE_URI_badchild",
                              "400 Bad Request", errmsg,
                              self.GET, base)
@@ -1401,7 +1469,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         base = "/uri/%s/boguschild" % urllib.quote(self._bar_txt_uri)
         errmsg = "Cannot create directory 'boguschild', because its parent is a file, not a directory"
         d = self.shouldFail2(error.Error, "test_GET_FILE_URI_badchild",
-                             "400 Bad Request", errmsg,
+                             "409 Conflict", errmsg,
                              self.PUT, base, "")
         return d
 
@@ -1856,134 +1924,162 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d.addBoth(self.should404, "test_GET_FILEURL_uri_missing")
         return d
 
-    def _check_upload_and_mkdir_forms(self, html):
-        # We should have a form to create a file, with radio buttons that allow
-        # the user to toggle whether it is a CHK/LIT (default), SDMF, or MDMF file.
-        self.failUnless(re.search('<input (name="t" |value="upload" |type="hidden" ){3}/>', html), html)
-        self.failUnless(re.search('<input [^/]*id="upload-chk"', html), html)
-        self.failUnless(re.search('<input [^/]*id="upload-sdmf"', html), html)
-        self.failUnless(re.search('<input [^/]*id="upload-mdmf"', html), html)
+    def _check_upload_and_mkdir_forms(self, soup):
+        """
+        Confirm `soup` contains a form to create a file, with radio
+        buttons that allow the user to toggle whether it is a CHK/LIT
+        (default), SDMF, or MDMF file.
+        """
+        found = []
+        desired_ids = (
+            u"upload-chk",
+            u"upload-sdmf",
+            u"upload-mdmf",
+            u"mkdir-sdmf",
+            u"mkdir-mdmf",
+        )
+        for input_tag in soup.find_all(u"input"):
+            if input_tag.get(u"id", u"") in desired_ids:
+                found.append(input_tag)
+            else:
+                if input_tag.get(u"name", u"") == u"t" and input_tag.get(u"type", u"") == u"hidden":
+                    if input_tag[u"value"] == u"upload":
+                        found.append(input_tag)
+                    elif input_tag[u"value"] == u"mkdir":
+                        found.append(input_tag)
+        self.assertEqual(len(found), 7, u"Failed to find all 7 <input> tags")
+        assert_soup_has_favicon(self, soup)
 
-        # We should also have the ability to create a mutable directory, with
-        # radio buttons that allow the user to toggle whether it is an SDMF (default)
-        # or MDMF directory.
-        self.failUnless(re.search('<input (name="t" |value="mkdir" |type="hidden" ){3}/>', html), html)
-        self.failUnless(re.search('<input [^/]*id="mkdir-sdmf"', html), html)
-        self.failUnless(re.search('<input [^/]*id="mkdir-mdmf"', html), html)
-
-        self.failUnlessIn(FAVICON_MARKUP, html)
-
+    @inlineCallbacks
     def test_GET_DIRECTORY_html(self):
-        d = self.GET(self.public_url + "/foo", followRedirect=True)
-        def _check(html):
-            self.failUnlessIn('<li class="toolbar-item"><a href="../../..">Return to Welcome page</a></li>', html)
-            self._check_upload_and_mkdir_forms(html)
-            self.failUnlessIn("quux", html)
-        d.addCallback(_check)
-        return d
+        data = yield self.GET(self.public_url + "/foo", followRedirect=True)
+        soup = BeautifulSoup(data, 'html5lib')
+        self._check_upload_and_mkdir_forms(soup)
+        toolbars = soup.find_all(u"li", {u"class": u"toolbar-item"})
+        self.assertTrue(any(li.text == u"Return to Welcome page" for li in toolbars))
+        self.failUnlessIn("quux", data)
 
+    @inlineCallbacks
     def test_GET_DIRECTORY_html_filenode_encoding(self):
-        d = self.GET(self.public_url + "/foo", followRedirect=True)
-        def _check(html):
-            # Check if encoded entries are there
-            self.failUnlessIn('@@named=/' + self._htmlname_urlencoded + '" rel="noreferrer">'
-                              + self._htmlname_escaped + '</a>', html)
-            self.failUnlessIn('value="' + self._htmlname_escaped_attr + '"', html)
-            self.failIfIn(self._htmlname_escaped_double, html)
-            # Make sure that Nevow escaping actually works by checking for unsafe characters
-            # and that '&' is escaped.
-            for entity in '<>':
-                self.failUnlessIn(entity, self._htmlname_raw)
-                self.failIfIn(entity, self._htmlname_escaped)
-            self.failUnlessIn('&', re.sub(r'&(amp|lt|gt|quot|apos);', '', self._htmlname_raw))
-            self.failIfIn('&', re.sub(r'&(amp|lt|gt|quot|apos);', '', self._htmlname_escaped))
-        d.addCallback(_check)
-        return d
+        data = yield self.GET(self.public_url + "/foo", followRedirect=True)
+        soup = BeautifulSoup(data, 'html5lib')
+        # Check if encoded entries are there
+        target_ref = u'@@named=/{}'.format(self._htmlname_urlencoded)
+        # at least one <a> tag has our weirdly-named file properly
+        # encoded (or else BeautifulSoup would produce an error)
+        self.assertTrue(
+            any(
+                a.text == self._htmlname_unicode and a[u"href"].endswith(target_ref)
+                for a in soup.find_all(u"a", {u"rel": u"noreferrer"})
+            )
+        )
 
+    @inlineCallbacks
     def test_GET_root_html(self):
-        d = self.GET("/")
-        d.addCallback(self._check_upload_and_mkdir_forms)
-        return d
+        data = yield self.GET("/")
+        soup = BeautifulSoup(data, 'html5lib')
+        self._check_upload_and_mkdir_forms(soup)
 
+    @inlineCallbacks
     def test_GET_DIRURL(self):
-        # the addSlash means we get a redirect here
+        data = yield self.GET(self.public_url + "/foo", followRedirect=True)
+        soup = BeautifulSoup(data, 'html5lib')
+
         # from /uri/$URI/foo/ , we need ../../../ to get back to the root
-        ROOT = "../../.."
-        d = self.GET(self.public_url + "/foo", followRedirect=True)
-        def _check(res):
-            self.failUnlessIn('<a href="%s">Return to Welcome page' % ROOT, res)
+        root = u"../../.."
+        self.assertTrue(
+            any(
+                a.text == u"Return to Welcome page"
+                for a in soup.find_all(u"a", {u"href": root})
+            )
+        )
 
-            # the FILE reference points to a URI, but it should end in bar.txt
-            bar_url = ("%s/file/%s/@@named=/bar.txt" %
-                       (ROOT, urllib.quote(self._bar_txt_uri)))
-            get_bar = "".join([r'<td>FILE</td>',
-                               r'\s+<td>',
-                               r'<a href="%s" rel="noreferrer">bar.txt</a>' % bar_url,
-                               r'</td>',
-                               r'\s+<td align="right">%d</td>' % len(self.BAR_CONTENTS),
-                               ])
-            self.failUnless(re.search(get_bar, res), res)
-            for label in ['unlink', 'rename/relink']:
-                for line in res.split("\n"):
-                    # find the line that contains the relevant button for bar.txt
-                    if ("form action" in line and
-                        ('value="%s"' % (label,)) in line and
-                        'value="bar.txt"' in line):
-                        # the form target should use a relative URL
-                        foo_url = urllib.quote("%s/uri/%s/" % (ROOT, self._foo_uri))
-                        self.failUnlessIn('action="%s"' % foo_url, line)
-                        # and the when_done= should too
-                        #done_url = urllib.quote(???)
-                        #self.failUnlessIn('name="when_done" value="%s"' % done_url, line)
+        # the FILE reference points to a URI, but it should end in bar.txt
+        bar_url = "{}/file/{}/@@named=/bar.txt".format(root, urllib.quote(self._bar_txt_uri))
+        self.assertTrue(
+            any(
+                a.text == u"bar.txt"
+                for a in soup.find_all(u"a", {u"href": bar_url})
+            )
+        )
+        self.assertTrue(
+            any(
+                td.text == u"{}".format(len(self.BAR_CONTENTS))
+                for td in soup.find_all(u"td", {u"align": u"right"})
+            )
+        )
+        foo_url = urllib.quote("{}/uri/{}/".format(root, self._foo_uri))
+        forms = soup.find_all(u"form", {u"action": foo_url})
+        found = []
+        for form in forms:
+            if form.find_all(u"input", {u"name": u"name", u"value": u"bar.txt"}):
+                kind = form.find_all(u"input", {u"type": u"submit"})[0][u"value"]
+                found.append(kind)
+                if kind == u"unlink":
+                    self.assertTrue(form[u"method"] == u"post")
+        self.assertEqual(
+            set(found),
+            {u"unlink", u"rename/relink"}
+        )
 
-                        # 'unlink' needs to use POST because it directly has a side effect
-                        if label == 'unlink':
-                            self.failUnlessIn('method="post"', line)
-                        break
-                else:
-                    self.fail("unable to find '%s bar.txt' line" % (label,))
+        sub_url = "{}/uri/{}/".format(root, urllib.quote(self._sub_uri))
+        self.assertTrue(
+            any(
+                td.findNextSibling()(u"a")[0][u"href"] == sub_url
+                for td in soup.find_all(u"td")
+                if td.text == u"DIR"
+            )
+        )
 
-            # the DIR reference just points to a URI
-            sub_url = ("%s/uri/%s/" % (ROOT, urllib.quote(self._sub_uri)))
-            get_sub = ((r'<td>DIR</td>')
-                       +r'\s+<td><a href="%s">sub</a></td>' % sub_url)
-            self.failUnless(re.search(get_sub, res), res)
-        d.addCallback(_check)
-
+    @inlineCallbacks
+    def test_GET_DIRURL_readonly(self):
         # look at a readonly directory
-        d.addCallback(lambda res:
-                      self.GET(self.public_url + "/reedownlee", followRedirect=True))
-        def _check2(res):
-            self.failUnlessIn("(read-only)", res)
-            self.failIfIn("Upload a file", res)
-        d.addCallback(_check2)
+        data = yield self.GET(self.public_url + "/reedownlee", followRedirect=True)
+        self.failUnlessIn("(read-only)", data)
+        self.failIfIn("Upload a file", data)
 
-        # and at a directory that contains a readonly directory
-        d.addCallback(lambda res:
-                      self.GET(self.public_url, followRedirect=True))
-        def _check3(res):
-            self.failUnless(re.search('<td>DIR-RO</td>'
-                                      r'\s+<td><a href="[\.\/]+/uri/URI%3ADIR2-RO%3A[^"]+">reedownlee</a></td>', res), res)
-        d.addCallback(_check3)
+    @inlineCallbacks
+    def test_GET_DIRURL_readonly_dir(self):
+        # look at a directory that contains a readonly directory
+        data = yield self.GET(self.public_url, followRedirect=True)
+        soup = BeautifulSoup(data, 'html5lib')
+        ro_links = list(
+            td.findNextSibling()(u"a")[0]
+            for td in soup.find_all(u"td")
+            if td.text == u"DIR-RO"
+        )
+        self.assertEqual(1, len(ro_links))
+        self.assertEqual(u"reedownlee", ro_links[0].text)
+        self.assertTrue(u"URI%3ADIR2-RO%3A" in ro_links[0][u"href"])
 
-        # and an empty directory
-        d.addCallback(lambda res: self.GET(self.public_url + "/foo/empty/"))
-        def _check4(res):
-            self.failUnlessIn("directory is empty", res)
-            MKDIR_BUTTON_RE=re.compile('<input (type="hidden" |name="t" |value="mkdir" ){3}/>.*<legend class="freeform-form-label">Create a new directory in this directory</legend>.*<input (type="submit" |class="btn" |value="Create" ){3}/>', re.I)
-            self.failUnless(MKDIR_BUTTON_RE.search(res), res)
-        d.addCallback(_check4)
+    @inlineCallbacks
+    def test_GET_DIRURL_empty(self):
+        # look at an empty directory
+        data = yield self.GET(self.public_url + "/foo/empty")
+        soup = BeautifulSoup(data, 'html5lib')
+        self.failUnlessIn("directory is empty", data)
+        mkdir_inputs = soup.find_all(u"input", {u"type": u"hidden", u"name": u"t", u"value": u"mkdir"})
+        self.assertEqual(1, len(mkdir_inputs))
+        self.assertEqual(
+            u"Create a new directory in this directory",
+            mkdir_inputs[0].parent(u"legend")[0].text
+        )
 
-        # and at a literal directory
+    @inlineCallbacks
+    def test_GET_DIRURL_literal(self):
+        # look at a literal directory
         tiny_litdir_uri = "URI:DIR2-LIT:gqytunj2onug64tufqzdcosvkjetutcjkq5gw4tvm5vwszdgnz5hgyzufqydulbshj5x2lbm" # contains one child which is itself also LIT
-        d.addCallback(lambda res:
-                      self.GET("/uri/" + tiny_litdir_uri + "/", followRedirect=True))
-        def _check5(res):
-            self.failUnlessIn('(immutable)', res)
-            self.failUnless(re.search('<td>FILE</td>'
-                                      r'\s+<td><a href="[\.\/]+/file/URI%3ALIT%3Akrugkidfnzsc4/@@named=/short" rel="noreferrer">short</a></td>', res), res)
-        d.addCallback(_check5)
-        return d
+        data = yield self.GET("/uri/" + tiny_litdir_uri, followRedirect=True)
+        soup = BeautifulSoup(data, 'html5lib')
+        self.failUnlessIn('(immutable)', data)
+        file_links = list(
+            td.findNextSibling()(u"a")[0]
+            for td in soup.find_all(u"td")
+            if td.text == u"FILE"
+        )
+        self.assertEqual(1, len(file_links))
+        self.assertEqual(u"short", file_links[0].text)
+        self.assertTrue(file_links[0][u"href"].endswith(u"/file/URI%3ALIT%3Akrugkidfnzsc4/@@named=/short"))
 
     @inlineCallbacks
     def test_GET_DIRURL_badtype(self):
@@ -2036,7 +2132,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
     def test_POST_DIRURL_manifest(self):
         d = defer.succeed(None)
         def getman(ignored, output):
-            url = self.webish_url + self.public_url + "/foo/?t=start-manifest&ophandle=125"
+            url = self.webish_url + self.public_url + "/foo?t=start-manifest&ophandle=125"
             d = do_http("post", url, allow_redirects=True,
                         browser_like_redirects=True)
             d.addCallback(self.wait_for_operation, "125")
@@ -2069,7 +2165,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             got = {}
             for (path_list, cap) in data:
                 got[tuple(path_list)] = cap
-            self.failUnlessReallyEqual(to_str(got[(u"sub",)]), self._sub_uri)
+            self.failUnlessReallyEqual(to_bytes(got[(u"sub",)]), self._sub_uri)
             self.failUnlessIn((u"sub", u"baz.txt"), got)
             self.failUnlessIn("finished", res)
             self.failUnlessIn("origin", res)
@@ -2088,7 +2184,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         return d
 
     def test_POST_DIRURL_deepsize(self):
-        url = self.webish_url + self.public_url + "/foo/?t=start-deep-size&ophandle=126"
+        url = self.webish_url + self.public_url + "/foo?t=start-deep-size&ophandle=126"
         d = do_http("post", url, allow_redirects=True,
                     browser_like_redirects=True)
         d.addCallback(self.wait_for_operation, "126")
@@ -2117,7 +2213,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         return d
 
     def test_POST_DIRURL_deepstats(self):
-        url = self.webish_url + self.public_url + "/foo/?t=start-deep-stats&ophandle=127"
+        url = self.webish_url + self.public_url + "/foo?t=start-deep-stats&ophandle=127"
         d = do_http("post", url,
                     allow_redirects=True, browser_like_redirects=True)
         d.addCallback(self.wait_for_operation, "127")
@@ -2146,7 +2242,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         return d
 
     def test_POST_DIRURL_stream_manifest(self):
-        d = self.POST(self.public_url + "/foo/?t=stream-manifest")
+        d = self.POST(self.public_url + "/foo?t=stream-manifest")
         def _check(res):
             self.failUnless(res.endswith("\n"))
             units = [json.loads(t) for t in res[:-1].split("\n")]
@@ -2154,9 +2250,9 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             self.failUnlessEqual(units[-1]["type"], "stats")
             first = units[0]
             self.failUnlessEqual(first["path"], [])
-            self.failUnlessReallyEqual(to_str(first["cap"]), self._foo_uri)
+            self.failUnlessReallyEqual(to_bytes(first["cap"]), self._foo_uri)
             self.failUnlessEqual(first["type"], "directory")
-            baz = [u for u in units[:-1] if to_str(u["cap"]) == self._baz_file_uri][0]
+            baz = [u for u in units[:-1] if to_bytes(u["cap"]) == self._baz_file_uri][0]
             self.failUnlessEqual(baz["path"], ["sub", "baz.txt"])
             self.failIfEqual(baz["storage-index"], None)
             self.failIfEqual(baz["verifycap"], None)
@@ -2169,14 +2265,14 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
     def test_GET_DIRURL_uri(self):
         d = self.GET(self.public_url + "/foo?t=uri")
         def _check(res):
-            self.failUnlessReallyEqual(to_str(res), self._foo_uri)
+            self.failUnlessReallyEqual(to_bytes(res), self._foo_uri)
         d.addCallback(_check)
         return d
 
     def test_GET_DIRURL_readonly_uri(self):
         d = self.GET(self.public_url + "/foo?t=readonly-uri")
         def _check(res):
-            self.failUnlessReallyEqual(to_str(res), self._foo_readonly_uri)
+            self.failUnlessReallyEqual(to_bytes(res), self._foo_readonly_uri)
         d.addCallback(_check)
         return d
 
@@ -2808,7 +2904,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         # slightly differently
 
         d.addCallback(lambda res:
-                      self.GET(self.public_url + "/foo/",
+                      self.GET(self.public_url + "/foo",
                                followRedirect=True))
         def _check_page(res):
             # TODO: assert more about the contents
@@ -2826,7 +2922,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
 
         # look at the JSON form of the enclosing directory
         d.addCallback(lambda res:
-                      self.GET(self.public_url + "/foo/?t=json",
+                      self.GET(self.public_url + "/foo?t=json",
                                followRedirect=True))
         def _check_page_json(res):
             parsed = json.loads(res)
@@ -2838,9 +2934,9 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             new_json = children[u"new.txt"]
             self.failUnlessEqual(new_json[0], "filenode")
             self.failUnless(new_json[1]["mutable"])
-            self.failUnlessReallyEqual(to_str(new_json[1]["rw_uri"]), self._mutable_uri)
+            self.failUnlessReallyEqual(to_bytes(new_json[1]["rw_uri"]), self._mutable_uri)
             ro_uri = self._mutable_node.get_readonly().to_string()
-            self.failUnlessReallyEqual(to_str(new_json[1]["ro_uri"]), ro_uri)
+            self.failUnlessReallyEqual(to_bytes(new_json[1]["ro_uri"]), ro_uri)
         d.addCallback(_check_page_json)
 
         # and the JSON form of the file
@@ -2850,9 +2946,9 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             parsed = json.loads(res)
             self.failUnlessEqual(parsed[0], "filenode")
             self.failUnless(parsed[1]["mutable"])
-            self.failUnlessReallyEqual(to_str(parsed[1]["rw_uri"]), self._mutable_uri)
+            self.failUnlessReallyEqual(to_bytes(parsed[1]["rw_uri"]), self._mutable_uri)
             ro_uri = self._mutable_node.get_readonly().to_string()
-            self.failUnlessReallyEqual(to_str(parsed[1]["ro_uri"]), ro_uri)
+            self.failUnlessReallyEqual(to_bytes(parsed[1]["ro_uri"]), ro_uri)
         d.addCallback(_check_file_json)
 
         # and look at t=uri and t=readonly-uri
@@ -2964,7 +3060,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         body, headers = self.build_form(t="upload", when_done="/THERE",
                                         file=("new.txt", self.NEWFILE_CONTENTS))
         yield self.shouldRedirectTo(self.webish_url + self.public_url + "/foo",
-                                    self.webish_url + "/THERE",
+                                    "/THERE",
                                     method="post", data=body, headers=headers,
                                     code=http.FOUND)
         fn = self._foo_node
@@ -3040,7 +3136,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
 
     @inlineCallbacks
     def test_POST_DIRURL_check(self):
-        foo_url = self.public_url + "/foo/"
+        foo_url = self.public_url + "/foo"
         res = yield self.POST(foo_url, t="check")
         self.failUnlessIn("Healthy :", res)
 
@@ -3062,7 +3158,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
 
     @inlineCallbacks
     def test_POST_DIRURL_check_and_repair(self):
-        foo_url = self.public_url + "/foo/"
+        foo_url = self.public_url + "/foo"
         res = yield self.POST(foo_url, t="check", repair="true")
         self.failUnlessIn("Healthy :", res)
 
@@ -3152,13 +3248,15 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         res = yield self.get_operation_results(None, "123", "html")
         self.failUnlessIn("Objects Checked: <span>11</span>", res)
         self.failUnlessIn("Objects Healthy: <span>11</span>", res)
-        self.failUnlessIn(FAVICON_MARKUP, res)
+        soup = BeautifulSoup(res, 'html5lib')
+        assert_soup_has_favicon(self, soup)
 
         res = yield self.GET("/operations/123/")
         # should be the same as without the slash
         self.failUnlessIn("Objects Checked: <span>11</span>", res)
         self.failUnlessIn("Objects Healthy: <span>11</span>", res)
-        self.failUnlessIn(FAVICON_MARKUP, res)
+        soup = BeautifulSoup(res, 'html5lib')
+        assert_soup_has_favicon(self, soup)
 
         yield self.shouldFail2(error.Error, "one", "404 Not Found",
                                "No detailed results for SI bogus",
@@ -3208,7 +3306,8 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             self.failUnlessIn("Objects Unhealthy (after repair): <span>0</span>", res)
             self.failUnlessIn("Corrupt Shares (after repair): <span>0</span>", res)
 
-            self.failUnlessIn(FAVICON_MARKUP, res)
+            soup = BeautifulSoup(res, 'html5lib')
+            assert_soup_has_favicon(self, soup)
         d.addCallback(_check_html)
         return d
 
@@ -3618,7 +3717,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         body, headers = self.build_form(t="mkdir", name="newdir",
                                         when_done="/THERE")
         yield self.shouldRedirectTo(self.webish_url + self.public_url + "/foo",
-                                    self.webish_url + "/THERE",
+                                    "/THERE",
                                     method="post", data=body, headers=headers,
                                     code=http.FOUND)
         res = yield self._foo_node.get(u"newdir")
@@ -3628,7 +3727,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
     def test_POST_mkdir_whendone_queryarg(self):
         body, headers = self.build_form(t="mkdir", name="newdir")
         url = self.webish_url + self.public_url + "/foo?when_done=/THERE"
-        yield self.shouldRedirectTo(url, self.webish_url + "/THERE",
+        yield self.shouldRedirectTo(url, "/THERE",
                                     method="post", data=body, headers=headers,
                                     code=http.FOUND)
         res = yield self._foo_node.get(u"newdir")
@@ -4177,18 +4276,25 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
                              self.GET, "/uri")
         return d
 
+    @inlineCallbacks
     def test_GET_rename_form(self):
-        d = self.GET(self.public_url + "/foo?t=rename-form&name=bar.txt",
-                     followRedirect=True)
-        def _check(res):
-            self.failUnless(re.search('<input (name="when_done" |value="." |type="hidden" ){3}/>', res), res)
-            self.failUnless(re.search(r'<input (readonly="true" |type="text" |name="from_name" |value="bar\.txt" ){4}/>', res), res)
-            self.failUnlessIn(FAVICON_MARKUP, res)
-        d.addCallback(_check)
-        return d
+        data = yield self.GET(
+            self.public_url + "/foo?t=rename-form&name=bar.txt",
+            followRedirect=True
+        )
+        soup = BeautifulSoup(data, 'html5lib')
+        assert_soup_has_favicon(self, soup)
+        assert_soup_has_tag_with_attributes(
+            self, soup, u"input",
+            {u"name": u"when_done", u"value": u".", u"type": u"hidden"},
+        )
+        assert_soup_has_tag_with_attributes(
+            self, soup, u"input",
+            {u"readonly": u"true", u"name": u"from_name", u"value": u"bar.txt", u"type": u"text"},
+        )
 
     def log(self, res, msg):
-        #print "MSG: %s  RES: %s" % (msg, res)
+        #print("MSG: %s  RES: %s" % (msg, res))
         log.msg(msg)
         return res
 
@@ -4532,7 +4638,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
 
     @inlineCallbacks
     def test_ophandle_cancel(self):
-        url = self.webish_url + self.public_url + "/foo/?t=start-manifest&ophandle=128"
+        url = self.webish_url + self.public_url + "/foo?t=start-manifest&ophandle=128"
         yield do_http("post", url,
                       allow_redirects=True, browser_like_redirects=True)
         res = yield self.GET("/operations/128?t=status&output=JSON")
@@ -4551,7 +4657,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
 
     @inlineCallbacks
     def test_ophandle_retainfor(self):
-        url = self.webish_url + self.public_url + "/foo/?t=start-manifest&ophandle=129&retain-for=60"
+        url = self.webish_url + self.public_url + "/foo?t=start-manifest&ophandle=129&retain-for=60"
         yield do_http("post", url,
                       allow_redirects=True, browser_like_redirects=True)
         res = yield self.GET("/operations/129?t=status&output=JSON&retain-for=0")
@@ -4565,7 +4671,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
 
     @inlineCallbacks
     def test_ophandle_release_after_complete(self):
-        url = self.webish_url + self.public_url + "/foo/?t=start-manifest&ophandle=130"
+        url = self.webish_url + self.public_url + "/foo?t=start-manifest&ophandle=130"
         yield do_http("post", url,
                       allow_redirects=True, browser_like_redirects=True)
         yield self.wait_for_operation(None, "130")
@@ -4579,7 +4685,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         # uncollected ophandles should expire after 4 days
         def _make_uncollected_ophandle(ophandle):
             url = (self.webish_url + self.public_url +
-                   "/foo/?t=start-manifest&ophandle=%d" % ophandle)
+                   "/foo?t=start-manifest&ophandle=%d" % ophandle)
             # When we start the operation, the webapi server will want to
             # redirect us to the page for the ophandle, so we get
             # confirmation that the operation has started. If the manifest
@@ -4617,7 +4723,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         # collected ophandles should expire after 1 day
         def _make_collected_ophandle(ophandle):
             url = (self.webish_url + self.public_url +
-                   "/foo/?t=start-manifest&ophandle=%d" % ophandle)
+                   "/foo?t=start-manifest&ophandle=%d" % ophandle)
             # By following the initial redirect, we collect the ophandle
             # we've just created.
             return do_http("post", url,
@@ -4661,10 +4767,38 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
     def test_static_missing(self):
         # self.staticdir does not exist yet, because we used self.mktemp()
         d = self.assertFailure(self.GET("/static"), error.Error)
-        # nevow.static throws an exception when it tries to os.stat the
-        # missing directory, which gives the client a 500 Internal Server
-        # Error, and the traceback reveals the parent directory name. By
-        # switching to plain twisted.web.static, this gives a normal 404 that
-        # doesn't reveal anything. This addresses #1720.
+        # If os.stat raises an exception for the missing directory and the
+        # traceback reveals the parent directory name we don't want to see
+        # that parent directory name in the response.  This addresses #1720.
         d.addCallback(lambda e: self.assertEquals(str(e), "404 Not Found"))
         return d
+
+
+class HumanizeExceptionTests(TrialTestCase):
+    """
+    Tests for ``humanize_exception``.
+    """
+    def test_mustbereadonly(self):
+        """
+        ``humanize_exception`` describes ``MustBeReadonlyError``.
+        """
+        text, code = humanize_exception(
+            MustBeReadonlyError(
+                "URI:DIR2 directory writecap used in a read-only context",
+                "<unknown name>",
+            ),
+        )
+        self.assertIn("MustBeReadonlyError", text)
+        self.assertEqual(code, http.BAD_REQUEST)
+
+    def test_filetoolarge(self):
+        """
+        ``humanize_exception`` describes ``FileTooLargeError``.
+        """
+        text, code = humanize_exception(
+            FileTooLargeError(
+                "This file is too large to be uploaded (data_size).",
+            ),
+        )
+        self.assertIn("FileTooLargeError", text)
+        self.assertEqual(code, http.REQUEST_ENTITY_TOO_LARGE)
