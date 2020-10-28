@@ -360,14 +360,16 @@ class _Config(object):
         """
         privname = os.path.join(self._basedir, "private", name)
         try:
-            value = fileutil.read(privname)
+            value = fileutil.read(privname, mode="r")
         except EnvironmentError as e:
             if e.errno != errno.ENOENT:
                 raise  # we only care about "file doesn't exist"
             if default is _None:
                 raise MissingConfigEntry("The required configuration file %s is missing."
                                          % (quote_output(privname),))
-            if isinstance(default, (bytes, unicode)):
+            if isinstance(default, bytes):
+                default = unicode(default, "utf-8")
+            if isinstance(default, unicode):
                 value = default
             else:
                 value = default()
@@ -379,19 +381,21 @@ class _Config(object):
         config file that resides within the subdirectory named 'private'), and
         return it.
         """
+        if isinstance(value, unicode):
+            value = value.encode("utf-8")
         privname = os.path.join(self._basedir, "private", name)
         with open(privname, "wb") as f:
             f.write(value)
 
     def get_private_config(self, name, default=_None):
-        """Read the (string) contents of a private config file (which is a
+        """Read the (native string) contents of a private config file (a
         config file that resides within the subdirectory named 'private'),
         and return it. Return a default, or raise an error if one was not
         given.
         """
         privname = os.path.join(self._basedir, "private", name)
         try:
-            return fileutil.read(privname).strip()
+            return fileutil.read(privname, mode="r").strip()
         except EnvironmentError as e:
             if e.errno != errno.ENOENT:
                 raise  # we only care about "file doesn't exist"
@@ -549,9 +553,12 @@ def _convert_tub_port(s):
     :returns: a proper Twisted endpoint string like (`tcp:X`) is `s`
         is a bare number, or returns `s` as-is
     """
-    if re.search(r'^\d+$', s):
-        return "tcp:{}".format(int(s))
-    return s
+    us = s
+    if isinstance(s, bytes):
+        us = s.decode("utf-8")
+    if re.search(r'^\d+$', us):
+        return "tcp:{}".format(int(us))
+    return us
 
 
 def _tub_portlocation(config):
@@ -749,7 +756,7 @@ class Node(service.MultiService):
         if self.tub is not None:
             self.nodeid = b32decode(self.tub.tubID.upper())  # binary format
             self.short_nodeid = b32encode(self.nodeid).lower()[:8]  # for printing
-            self.config.write_config_file("my_nodeid", b32encode(self.nodeid).lower() + "\n")
+            self.config.write_config_file("my_nodeid", b32encode(self.nodeid).lower() + b"\n", mode="wb")
             self.tub.setServiceParent(self)
         else:
             self.nodeid = self.short_nodeid = None
@@ -852,7 +859,7 @@ class Node(service.MultiService):
                                self.config.get_config_path("log_gatherer.furl"))
 
         incident_dir = self.config.get_config_path("logs", "incidents")
-        foolscap.logging.log.setLogDir(incident_dir.encode(get_filesystem_encoding()))
+        foolscap.logging.log.setLogDir(incident_dir)
         twlog.msg("Foolscap logging initialized")
         twlog.msg("Note to developers: twistd.log does not receive very much.")
         twlog.msg("Use 'flogtool tail -c NODEDIR/private/logport.furl' instead")

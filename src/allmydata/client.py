@@ -626,7 +626,7 @@ def storage_enabled(config):
 
     :return bool: ``True`` if storage is enabled, ``False`` otherwise.
     """
-    return config.get_config(b"storage", b"enabled", True, boolean=True)
+    return config.get_config("storage", "enabled", True, boolean=True)
 
 
 def anonymous_storage_enabled(config):
@@ -640,7 +640,7 @@ def anonymous_storage_enabled(config):
     """
     return (
         storage_enabled(config) and
-        config.get_config(b"storage", b"anonymous", True, boolean=True)
+        config.get_config("storage", "anonymous", True, boolean=True)
     )
 
 
@@ -782,7 +782,7 @@ class _Client(node.Node, pollmixin.PollMixin):
                 vk_string = ed25519.string_from_verifying_key(self._node_public_key)
                 vk_bytes = remove_prefix(vk_string, ed25519.PUBLIC_KEY_PREFIX)
                 seed = base32.b2a(vk_bytes)
-            self.config.write_config_file("permutation-seed", seed+"\n")
+            self.config.write_config_file("permutation-seed", seed+b"\n", mode="wb")
         return seed.strip()
 
     def get_anonymous_storage_server(self):
@@ -1026,7 +1026,7 @@ class _Client(node.Node, pollmixin.PollMixin):
         c = ControlServer()
         c.setServiceParent(self)
         control_url = self.control_tub.registerReference(c)
-        self.config.write_private_config("control.furl", control_url + b"\n")
+        self.config.write_private_config("control.furl", control_url + "\n")
 
     def init_helper(self):
         self.helper = Helper(self.config.get_config_path("helper"),

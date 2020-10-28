@@ -1,3 +1,5 @@
+from past.builtins import unicode
+
 import time
 from zope.interface import implementer
 from twisted.application import service
