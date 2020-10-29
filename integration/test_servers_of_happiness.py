@@ -1,7 +1,6 @@
 import sys
 from os.path import join
 
-from twisted.internet import task
 from twisted.internet.error import ProcessTerminated
 
 import util
