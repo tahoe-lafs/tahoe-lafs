@@ -277,13 +277,8 @@ class _Config(object):
         self._basedir = abspath_expanduser_unicode(unicode(basedir))
         self._config_fname = config_fname
         self.config = configparser
-
-        nickname_utf8 = self.get_config("node", "nickname", "<unspecified>")
-        if isinstance(nickname_utf8, bytes):  # Python 2
-            self.nickname = nickname_utf8.decode("utf-8")
-        else:
-            self.nickname = nickname_utf8
-        assert type(self.nickname) is unicode
+        self.nickname = self.get_config("node", "nickname", u"<unspecified>")
+        assert isinstance(self.nickname, unicode)
 
     def validate(self, valid_config_sections):
         configutil.validate_config(self._config_fname, self.config, valid_config_sections)
