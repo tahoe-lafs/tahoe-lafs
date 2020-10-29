@@ -57,6 +57,9 @@ After the storage server has been configured this way and started it will upload
 Use As A Grid Coordinator
 -------------------------
 
+Setup
+~~~~~
+
 You want to offer a collection of storage servers as a Tahoe-LAFS storage grid.
 
 The ``grid-introducer`` tool requires a client node it can use to store and publish announcements.
@@ -72,6 +75,9 @@ If ``<path>`` is ``-`` then the configuration is written to stdout.
 This is the grid introducer's state and is required by future commands.
 It is the operator's responsibility to persist this state.
 
+Enrolling Servers
+~~~~~~~~~~~~~~~~~
+
 A Tahoe-LAFS storage server which is to be enrolled first shares its announcement readcap with you.
 Then, you will add it to the announcement directory::
 
@@ -79,3 +85,20 @@ Then, you will add it to the announcement directory::
 
 ``<path>`` should have previously been created by ``grid-introducer create``.
 If ``<path>`` is ``-`` then the configuration is read from stdin.
+
+
+Inviting Clients
+~~~~~~~~~~~~~~~~
+
+A Tahoe-LAFS client node which is to use the grid introducer needs to be configured with a couple items.
+A configuration blob for clients can be generated like this::
+
+  grid-introducer generate-client-config --config <path>
+
+``<path>`` is handled here as elsewhere.
+The output is a string which can be added to a ``tahoe.cfg`` file.
+It will look something like::
+
+  [client]
+  grid-introducer.cap = URI:DIR2-RO:4bnx...
+  grid-introducer.furl = pb://sokl...@192.168.69.247:44801/eqpw...
