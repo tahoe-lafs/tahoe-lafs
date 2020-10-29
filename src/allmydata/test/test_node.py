@@ -185,7 +185,6 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
         """
         Hashes in furl options are not allowed, resulting in exception.
         """
-        escaped = "lalal\\#onohash"
         basedir = self.mktemp()
         fileutil.make_dirs(basedir)
         with open(os.path.join(basedir, 'tahoe.cfg'), 'wt') as f:
@@ -195,11 +194,6 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
         config = read_config(basedir, "")
         with self.assertRaises(UnescapedHashError):
             config.get_config("node", "log_gatherer.furl")
-
-        with open(os.path.join(basedir, 'tahoe.cfg'), 'wt') as f:
-            f.write("[node]\n")
-            f.write("log_gatherer.furl = %s\n" % (escaped,))
-        self.assertEquals(config.get_config("node", "log_gatherer.furl"), escaped)
 
     def test_missing_config_item(self):
         """

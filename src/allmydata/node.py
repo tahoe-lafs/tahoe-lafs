@@ -311,7 +311,7 @@ class _Config(object):
                 return self.config.getboolean(section, option)
 
             item = self.config.get(section, option)
-            if option.endswith(".furl") and self._contains_unescaped_hash(item):
+            if option.endswith(".furl") and '#' in item:
                 raise UnescapedHashError(section, option, item)
 
             return item
