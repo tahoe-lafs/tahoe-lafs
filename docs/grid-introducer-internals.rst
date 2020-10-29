@@ -40,3 +40,36 @@ The target of the entry is the mutable readcap where the storage server writes i
 
 Storage clients are configured with the readcap for the directory.
 This allows them to read all announcements for enrolled servers.
+
+Management Command Line
+-----------------------
+
+Storage server enrollment is done using the ``grid-introducer`` command line tool.
+The tool requires:
+
+* a Tahoe-LAFS client node which it can use to create and modify stored objects
+* the write-cap of a mutable directory where it can link and unlink announcements
+
+This state is persisted in "configuration" which can either:
+
+* be written to the local fileystem
+* or written to stdout and read from stdin for persistence by another system.
+
+The configuration consists of a simple JSON document along the lines of::
+
+  { "version": 1
+  , "client-api-root": "http://127.0.0.1:4567/"
+  , "collection-writecap": "URI:DIR2:5cmy..."
+  }
+
+To add a storage server,
+its mutable announcement readcap is linked into the directory referenced by ``collection-writecap``.
+
+To remove a storage server,
+its mutable announcement readcap is unlinked from the directory.
+
+A storage server can change its own announcement details at all time by rewriting the mutable object.
+
+The two pieces of client configuration required by the system can be generated from this state.
+The ``grid-introducer.cap`` value is just the read-only capability for ``collection-writecap``.
+The ``grid-introducer.furl`` value is the storage fURL for any currently enrolled storage server.
