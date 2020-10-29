@@ -47,7 +47,6 @@ Next, a storage server must be configured to maintain its announcement on the gr
 This is also done in ``tahoe.cfg``,
 in the ``[storage]`` section's ``grid-introducer.enable`` item.
 
-
 For example::
 
   [storage]
@@ -60,12 +59,23 @@ Use As A Grid Coordinator
 
 You want to offer a collection of storage servers as a Tahoe-LAFS storage grid.
 
-First,
-initialize the announcement directory::
+The ``grid-introducer`` tool requires a client node it can use to store and publish announcements.
+With that in place,
+the first step is to create the introducer's persistent state::
 
-  grid-introducer initialize
+  grid-introducer create --config <path> --client-api-root <Tahoe-LAFS client node HTTP API root>
+
+This is an error if ``<path>`` exists already.
+If it does not then a new grid introducer configuration is written there.
+If ``<path>`` is ``-`` then the configuration is written to stdout.
+
+This is the grid introducer's state and is required by future commands.
+It is the operator's responsibility to persist this state.
 
 A Tahoe-LAFS storage server which is to be enrolled first shares its announcement readcap with you.
 Then, you will add it to the announcement directory::
 
-   grid-introducer add-storage-server --server-api-root http://storage-server/
+   grid-introducer add-storage-server --config <path> --readcap URI:CHK-RO:5cmy...
+
+``<path>`` should have previously been created by ``grid-introducer create``.
+If ``<path>`` is ``-`` then the configuration is read from stdin.
