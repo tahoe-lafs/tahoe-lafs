@@ -40,7 +40,6 @@ from allmydata.node import (
     _tub_portlocation,
     formatTimeTahoeStyle,
     UnescapedHashError,
-    PrivacyError,
 )
 from allmydata.introducer.server import create_introducer
 from allmydata import client
