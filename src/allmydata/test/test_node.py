@@ -847,20 +847,3 @@ class CreateConnectionHandlers(unittest.TestCase):
             reactor, config, provider, provider
         )
         self.assertIs(default_handlers["tcp"], None)
-
-    def test_reveal_ip_tcp(self):
-        """
-        If reveal IP setting is false, TCP handler is not allowed.
-        """
-        config = config_from_string("", "", dedent("""
-        [node]
-        reveal-IP-address = False
-
-        [connections]
-        tcp = tcp
-        """))
-        reactor = object()  # it's not actually used?!
-        provider = FakeProvider()
-        with self.assertRaises(PrivacyError):
-            create_connection_handlers(reactor, config, provider, provider)
-
