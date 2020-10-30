@@ -1,6 +1,8 @@
 """
 This module contains classes and functions to implement and manage
 a node for Tahoe-LAFS.
+
+Ported to Python 3.
 """
 from __future__ import absolute_import
 from __future__ import division
@@ -424,17 +426,6 @@ class _Config(object):
         return abspath_expanduser_unicode(
             os.path.join(self._basedir, *args)
         )
-
-    @staticmethod
-    def _contains_unescaped_hash(item):
-        characters = iter(item)
-        for c in characters:
-            if c == '\\':
-                next(characters)
-            elif c == '#':
-                return True
-
-        return False
 
 
 def create_tub_options(config):
