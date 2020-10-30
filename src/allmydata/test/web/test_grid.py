@@ -58,7 +58,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
 
     def CHECK(self, ign, which, args, clientnum=0):
         fileurl = self.fileurls[which]
-        url = fileurl + "?" + args
+        url = (fileurl + "?" + args).encode('ascii')
         return self.GET(url, method="POST", clientnum=clientnum)
 
     def test_filecheck(self):
