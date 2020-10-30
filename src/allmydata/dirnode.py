@@ -1,5 +1,6 @@
 """Directory Node implementation."""
 from past.builtins import unicode
+from future.utils import iteritems
 
 import time
 
@@ -179,7 +180,7 @@ class Adder(object):
     def modify(self, old_contents, servermap, first_time):
         children = self.node._unpack_contents(old_contents)
         now = time.time()
-        for (namex, (child, new_metadata)) in self.entries.iteritems():
+        for (namex, (child, new_metadata)) in iteritems(self.entries):
             name = normalize(namex)
             precondition(IFilesystemNode.providedBy(child), child)
 
@@ -221,7 +222,7 @@ def _encrypt_rw_uri(writekey, rw_uri):
 def pack_children(childrenx, writekey, deep_immutable=False):
     # initial_children must have metadata (i.e. {} instead of None)
     children = {}
-    for (namex, (node, metadata)) in childrenx.iteritems():
+    for (namex, (node, metadata)) in iteritems(childrenx):
         precondition(isinstance(metadata, dict),
                      "directory creation requires metadata to be a dict, not None", metadata)
         children[normalize(namex)] = (node, metadata)
@@ -569,7 +570,7 @@ class DirectoryNode(object):
         # this takes URIs
         a = Adder(self, overwrite=overwrite,
                   create_readonly_node=self._create_readonly_node)
-        for (namex, e) in entries.iteritems():
+        for (namex, e) in iteritems(entries):
             assert isinstance(namex, unicode), namex
             if len(e) == 2:
                 writecap, readcap = e
@@ -779,7 +780,7 @@ class DirectoryNode(object):
         # in the nodecache) seem to consume about 2000 bytes.
         dirkids = []
         filekids = []
-        for name, (child, metadata) in sorted(children.iteritems()):
+        for name, (child, metadata) in sorted(iteritems(children)):
             childpath = path + [name]
             if isinstance(child, UnknownNode):
                 walker.add_node(child, childpath)

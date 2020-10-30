@@ -1,3 +1,5 @@
+from future.utils import iteritems
+
 import weakref
 from zope.interface import implementer
 from allmydata.util.assertutil import precondition
@@ -126,7 +128,7 @@ class NodeMaker(object):
 
     def create_new_mutable_directory(self, initial_children={}, version=None):
         # initial_children must have metadata (i.e. {} instead of None)
-        for (name, (node, metadata)) in initial_children.iteritems():
+        for (name, (node, metadata)) in iteritems(initial_children):
             precondition(isinstance(metadata, dict),
                          "create_new_mutable_directory requires metadata to be a dict, not None", metadata)
             node.raise_error()
