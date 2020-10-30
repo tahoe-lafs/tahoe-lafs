@@ -93,7 +93,7 @@ they will need to evaluate which contributers' signatures they trust.
   - ls dist/ | grep 1.15.0rc0
 - inspect and test the tarballs
   - install each in a fresh virtualenv
-  - run basic tests
+  - run `tahoe` command
 - when satisfied, sign the tarballs:
   - gpg --pinentry=loopback --armor --sign dist/tahoe_lafs-1.15.0rc0-py2-none-any.whl
   - gpg --pinentry=loopback --armor --sign dist/tahoe_lafs-1.15.0rc0.tar.bz2
