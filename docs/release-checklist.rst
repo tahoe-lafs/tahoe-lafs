@@ -7,9 +7,11 @@ These instructions were produced while making the 1.15.0 release. They
 are based on the original instructions (in old revisions in the file
 `docs/how_to_make_a_tahoe-lafs_release.org`).
 
-Any contributer can do the first part of the release preparation. Only
-certain contributers can perform other parts. These are the two main
+Any contributor can do the first part of the release preparation. Only
+certain contributors can perform other parts. These are the two main
 sections of this checklist (and could be done by different people).
+
+A final section describes how to announce the release.
 
 
 Any Contributor
@@ -41,7 +43,7 @@ Create Branch and Apply Updates
   - newsfragments/<ticket number>.minor
   - commit it
 - manually fix NEWS.txt
-  - proper title for lastest release ("Release 1.15.0" instead of "Release ...post1432")
+  - proper title for latest release ("Release 1.15.0" instead of "Release ...post1432")
   - double-check date (maybe release will be in the future)
   - spot-check the release notes (these come from the newsfragments
     files though so don't do heavy editing)
@@ -52,7 +54,7 @@ Create Branch and Apply Updates
   - summarize major changes
   - commit it
 - update "CREDITS"
-  - are there any new contributers in this release?
+  - are there any new contributors in this release?
   - one way: git log release-1.14.0.. | grep Author | sort | uniq
   - commit it
 - update "docs/known_issues.rst" if appropriate
@@ -60,7 +62,7 @@ Create Branch and Apply Updates
 - Push the branch to github
 - Create a (draft) PR; this should trigger CI (note that github
   doesn't let you create a PR without some changes on the branch so
-  running + commiting the NEWS.txt file achieves that without changing
+  running + committing the NEWS.txt file achieves that without changing
   any code)
 - Confirm CI runs successfully on all platforms
 
@@ -76,7 +78,7 @@ released. Anyone can sign these releases (ideally they'd be signed
 that).
 
 Typically expert users will be the ones testing release candidates and
-they will need to evaluate which contributers' signatures they trust.
+they will need to evaluate which contributors' signatures they trust.
 
 - (all steps above are completed)
 - sign the release
@@ -140,3 +142,30 @@ uploaded to PyPI as well.
   - warner
   - exarkun (partial?)
   - meejah (partial?)
+
+
+Announcing the Release
+----------------------
+
+
+mailing-lists
+`````````````
+
+A new Tahoe release is traditionally announced on our mailing-list
+(tahoe-dev@tahoe-lafs.org). The former version of these instructions
+also announced the release on the following other lists:
+
+- twisted-python@twistedmatrix.com
+- liberationtech@lists.stanford.edu
+- lwn@lwn.net
+- p2p-hackers@lists.zooko.com
+- python-list@python.org
+- http://listcultures.org/pipermail/p2presearch_listcultures.org/
+- cryptopp-users@googlegroups.com
+
+
+wiki
+````
+
+Edit the "News" section of the front page of https://tahoe-lafs.org
+with a link to the mailing-list archive of the announcement message.
