@@ -136,16 +136,6 @@ uploaded to PyPI as well.
 - how to do this?
 - (original guide says only "twine upload dist/*")
 - the following developers have access to do this:
-  - exarkun
   - warner
-
-
-Upload Dependencies
-```````````````````
-
-The original guide says, "upload wheels to
-https://tahoe-lafs.org/deps/" which seems to be all the wheels of all
-the dependencies. There are no instructions on how to collect these or
-where to put them on the tahoe-lafs.org machines.
-
-Is this step still useful?
+  - exarkun (partial?)
+  - meejah (partial?)
