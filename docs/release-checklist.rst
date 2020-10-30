@@ -143,6 +143,31 @@ uploaded to PyPI as well.
   - exarkun (partial?)
   - meejah (partial?)
 
+Announcing the Release Candidate
+````````````````````````````````
+
+The release-candidate should be announced by posting to the
+mailing-list (tahoe-dev@tahoe-lafs.org). For example:
+https://tahoe-lafs.org/pipermail/tahoe-dev/2020-October/009995.html
+
+
+Is The Release Done Yet?
+````````````````````````
+
+If anyone reports a problem with a release-candidate then a new
+release-candidate should be made once a fix has been merged to
+master. Repeat the above instructions with `rc1` or `rc2` or whatever
+is appropriate.
+
+Once a release-candidate has marinated for some time then it can be
+made into a the actual release.
+
+XXX Write this section when doing 1.15.0 actual release
+
+(In general, this means dropping the "rcX" part of the release and the
+tag, uploading those artifacts, uploading to PyPI, ... )
+
+
 
 Announcing the Release
 ----------------------
@@ -155,6 +180,7 @@ A new Tahoe release is traditionally announced on our mailing-list
 (tahoe-dev@tahoe-lafs.org). The former version of these instructions
 also announced the release on the following other lists:
 
+- tahoe-announce@tahoe-lafs.org
 - twisted-python@twistedmatrix.com
 - liberationtech@lists.stanford.edu
 - lwn@lwn.net
