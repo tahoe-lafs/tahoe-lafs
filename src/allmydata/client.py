@@ -131,7 +131,7 @@ def _valid_config():
     return cfg.update(_client_config)
 
 # this is put into README in new node-directories
-CLIENT_README = """
+CLIENT_README = u"""
 This directory contains files which contain private data for the Tahoe node,
 such as private keys.  On Unix-like systems, the permissions on this directory
 are set to disallow users other than its owner from reading the contents of
@@ -512,7 +512,7 @@ def create_introducer_clients(config, main_tub, _introducer_factory=None):
             config.nickname,
             str(allmydata.__full_version__),
             str(_Client.OLDEST_SUPPORTED_VERSION),
-            node.get_app_versions(),
+            list(node.get_app_versions()),
             partial(_sequencer, config),
             introducer_cache_filepath,
         )

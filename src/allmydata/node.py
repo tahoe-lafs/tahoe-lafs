@@ -106,8 +106,8 @@ def formatTimeTahoeStyle(self, when):
     """
     d = datetime.datetime.utcfromtimestamp(when)
     if d.microsecond:
-        return d.isoformat(" ")[:-3]+"Z"
-    return d.isoformat(" ") + ".000Z"
+        return d.isoformat(ensure_str(" "))[:-3]+"Z"
+    return d.isoformat(ensure_str(" ")) + ".000Z"
 
 PRIV_README = """
 This directory contains files which contain private data for the Tahoe node,
@@ -161,6 +161,7 @@ def create_node_dir(basedir, readme_text):
     privdir = os.path.join(basedir, "private")
     if not os.path.exists(privdir):
         fileutil.make_dirs(privdir, 0o700)
+        readme_text = ensure_text(readme_text)
         with open(os.path.join(privdir, 'README'), 'w') as f:
             f.write(readme_text)
 
