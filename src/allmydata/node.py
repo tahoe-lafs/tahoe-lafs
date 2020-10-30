@@ -12,7 +12,7 @@ from __future__ import unicode_literals
 from future.utils import PY2
 if PY2:
     from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
-from six import ensure_str
+from six import ensure_str, ensure_text
 
 import datetime
 import os.path
@@ -181,7 +181,7 @@ def read_config(basedir, portnumfile, generated_files=[], _valid_config=None):
 
     :returns: :class:`allmydata.node._Config` instance
     """
-    basedir = abspath_expanduser_unicode(ensure_str(basedir))
+    basedir = abspath_expanduser_unicode(ensure_text(basedir))
     if _valid_config is None:
         _valid_config = _common_valid_config()
 
@@ -283,7 +283,7 @@ class _Config(object):
             configparser (might be 'fake' if using in-memory data)
         """
         self.portnum_fname = portnum_fname
-        self._basedir = abspath_expanduser_unicode(ensure_str(basedir))
+        self._basedir = abspath_expanduser_unicode(ensure_text(basedir))
         self._config_fname = config_fname
         self.config = configparser
         self.nickname = self.get_config("node", "nickname", u"<unspecified>")
