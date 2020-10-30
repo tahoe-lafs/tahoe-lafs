@@ -80,7 +80,7 @@ they will need to evaluate which contributers' signatures they trust.
 
 - (all steps above are completed)
 - sign the release
-  - git tag -s -u 0xE34E62D06D0E69CFCA4179FFBDE0D31D68666A7A -m "release Tahoe-LAFS-1.15.0rc0" tahoe-lafs-1.15.0.rc0
+  - git tag -s -u 0xE34E62D06D0E69CFCA4179FFBDE0D31D68666A7A -m "release Tahoe-LAFS-1.15.0rc0" tahoe-lafs-1.15.0rc0
   - (replace the key-id above with your own)
 - build all code locally
   - these should all pass:
