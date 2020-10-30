@@ -1,3 +1,5 @@
+from six import ensure_text
+
 import hashlib
 from mock import Mock
 from json import (
@@ -271,7 +273,7 @@ class PluginMatchedAnnouncement(SyncTestCase):
         """
         yield self.make_node(
             introducer_furl=SOME_FURL,
-            storage_plugin=b"tahoe-lafs-dummy-v1",
+            storage_plugin="tahoe-lafs-dummy-v1",
             plugin_config=None,
         )
         server_id = b"v0-abcdef"
@@ -295,9 +297,9 @@ class PluginMatchedAnnouncement(SyncTestCase):
         configuration is matched and the plugin's storage client is used.
         """
         plugin_config = {
-            b"abc": b"xyz",
+            "abc": "xyz",
         }
-        plugin_name = b"tahoe-lafs-dummy-v1"
+        plugin_name = "tahoe-lafs-dummy-v1"
         yield self.make_node(
             introducer_furl=SOME_FURL,
             storage_plugin=plugin_name,
@@ -348,7 +350,7 @@ class PluginMatchedAnnouncement(SyncTestCase):
         An announcement that could be matched by a plugin that is enabled with no
         configuration is matched and the plugin's storage client is used.
         """
-        plugin_name = b"tahoe-lafs-dummy-v1"
+        plugin_name = "tahoe-lafs-dummy-v1"
         yield self.make_node(
             introducer_furl=SOME_FURL,
             storage_plugin=plugin_name,
@@ -425,7 +427,7 @@ class StoragePluginWebPresence(AsyncTestCase):
         self.port_assigner = SameProcessStreamEndpointAssigner()
         self.port_assigner.setUp()
         self.addCleanup(self.port_assigner.tearDown)
-        self.storage_plugin = b"tahoe-lafs-dummy-v1"
+        self.storage_plugin = "tahoe-lafs-dummy-v1"
 
         from twisted.internet import reactor
         _, port_endpoint = self.port_assigner.assign(reactor)
@@ -436,15 +438,15 @@ class StoragePluginWebPresence(AsyncTestCase):
         self.basedir.child(u"private").makedirs()
         self.node_fixture = self.useFixture(UseNode(
             plugin_config={
-                b"web": b"1",
+                "web": "1",
             },
             node_config={
-                b"tub.location": b"127.0.0.1:1",
-                b"web.port": port_endpoint,
+                "tub.location": "127.0.0.1:1",
+                "web.port": ensure_text(port_endpoint),
             },
             storage_plugin=self.storage_plugin,
             basedir=self.basedir,
-            introducer_furl=SOME_FURL,
+            introducer_furl=ensure_text(SOME_FURL),
         ))
         self.node = yield self.node_fixture.create_node()
         self.webish = self.node.getServiceNamed(WebishServer.name)
@@ -461,7 +463,7 @@ class StoragePluginWebPresence(AsyncTestCase):
             port=self.port,
             plugin_name=self.storage_plugin,
         ).encode("utf-8")
-        result = yield do_http(b"get", url)
+        result = yield do_http("get", url)
         self.assertThat(result, Equals(dumps({b"web": b"1"})))
 
     @inlineCallbacks
@@ -476,13 +478,13 @@ class StoragePluginWebPresence(AsyncTestCase):
             port=self.port,
             path=(
                 u"storage-plugins",
-                self.storage_plugin.decode("utf-8"),
+                self.storage_plugin,
                 u"counter",
             ),
         ).to_text().encode("utf-8")
         values = {
-            loads((yield do_http(b"get", url)))[u"value"],
-            loads((yield do_http(b"get", url)))[u"value"],
+            loads((yield do_http("get", url)))[u"value"],
+            loads((yield do_http("get", url)))[u"value"],
         }
         self.assertThat(
             values,

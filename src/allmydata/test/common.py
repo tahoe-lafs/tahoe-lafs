@@ -230,16 +230,16 @@ class UseNode(object):
 
     def setUp(self):
         def format_config_items(config):
-            return b"\n".join(
-                b" = ".join((key, value))
+            return "\n".join(
+                " = ".join((key, value))
                 for (key, value)
                 in config.items()
             )
 
         if self.plugin_config is None:
-            plugin_config_section = b""
+            plugin_config_section = ""
         else:
-            plugin_config_section = b"""
+            plugin_config_section = """
 [storageclient.plugins.{storage_plugin}]
 {config}
 """.format(
