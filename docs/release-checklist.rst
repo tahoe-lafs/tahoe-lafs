@@ -3,17 +3,13 @@
 Release Checklist
 =================
 
-meejah produced this list while making the 1.15.0 release. Many of the
-things in the `how_to_make_a_tahoe-lafs_release.org` document aren't
-relevant anymore. However, until we are sure that a "new release list"
-is correct and works, I don't just want to completely revise it.
+These instructions were produced while making the 1.15.0 release. They
+are based on the original instructions (in old revisions in the file
+`docs/how_to_make_a_tahoe-lafs_release.org`).
 
-A major difference here is splitting into things that "any
-contributer" can do and things that contributers with possibly more
-access need to do.
-
-So, follow *this* list for 1.16.0 and if it seems complete, we should
-delete the older checklist after that.
+Any contributer can do the first part of the release preparation. Only
+certain contributers can perform other parts. These are the two main
+sections of this checklist (and could be done by different people).
 
 
 Any Contributor
