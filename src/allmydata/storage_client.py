@@ -350,8 +350,8 @@ class StorageFarmBroker(service.MultiService):
         so if we use more than one introducer it is possible for them to
         deliver us stale announcements in some cases.
         """
-        precondition(isinstance(key_s, str), key_s)
-        precondition(key_s.startswith("v0-"), key_s)
+        precondition(isinstance(key_s, bytes), key_s)
+        precondition(key_s.startswith(b"v0-"), key_s)
         precondition(ann["service-name"] == "storage", ann["service-name"])
         server_id = key_s
 

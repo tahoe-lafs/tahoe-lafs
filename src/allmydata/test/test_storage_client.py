@@ -107,7 +107,7 @@ class TestNativeStorageServer(unittest.TestCase):
         ann = {"anonymous-storage-FURL": "pb://w2hqnbaa25yw4qgcvghl5psa3srpfgw3@tcp:127.0.0.1:51309/vucto2z4fxment3vfxbqecblbf6zyp6x",
                "permutation-seed-base32": "w2hqnbaa25yw4qgcvghl5psa3srpfgw3",
                }
-        nss = NativeStorageServer("server_id", ann, None, {}, EMPTY_CLIENT_CONFIG)
+        nss = NativeStorageServer(b"server_id", ann, None, {}, EMPTY_CLIENT_CONFIG)
         self.assertEqual(nss.get_nickname(), "")
 
 
@@ -123,7 +123,7 @@ class GetConnectionStatus(unittest.TestCase):
         """
         # Pretty hard to recognize anything from an empty announcement.
         ann = {}
-        nss = NativeStorageServer("server_id", ann, Tub, {}, EMPTY_CLIENT_CONFIG)
+        nss = NativeStorageServer(b"server_id", ann, Tub, {}, EMPTY_CLIENT_CONFIG)
         nss.start_connecting(lambda: None)
         connection_status = nss.get_connection_status()
         self.assertTrue(IConnectionStatus.providedBy(connection_status))
@@ -505,7 +505,7 @@ class TestStorageFarmBroker(unittest.TestCase):
         broker = make_broker()
 
         key_s = 'v0-1234-1'
-        servers_yaml = b"""\
+        servers_yaml = """\
 storage:
   v0-1234-1:
     ann:
@@ -513,7 +513,7 @@ storage:
       permutation-seed-base32: aaaaaaaaaaaaaaaaaaaaaaaa
 """.format(furl=SOME_FURL)
         servers = yamlutil.safe_load(servers_yaml)
-        permseed = base32.a2b("aaaaaaaaaaaaaaaaaaaaaaaa")
+        permseed = base32.a2b(b"aaaaaaaaaaaaaaaaaaaaaaaa")
         broker.set_static_servers(servers["storage"])
         self.failUnlessEqual(len(broker._static_server_ids), 1)
         s = broker.servers[key_s]
@@ -537,7 +537,7 @@ storage:
 
     def test_static_permutation_seed_pubkey(self):
         broker = make_broker()
-        server_id = "v0-4uazse3xb6uu5qpkb7tel2bm6bpea4jhuigdhqcuvvse7hugtsia"
+        server_id = b"v0-4uazse3xb6uu5qpkb7tel2bm6bpea4jhuigdhqcuvvse7hugtsia"
         k = "4uazse3xb6uu5qpkb7tel2bm6bpea4jhuigdhqcuvvse7hugtsia"
         ann = {
             "anonymous-storage-FURL": SOME_FURL,
@@ -548,7 +548,7 @@ storage:
 
     def test_static_permutation_seed_explicit(self):
         broker = make_broker()
-        server_id = "v0-4uazse3xb6uu5qpkb7tel2bm6bpea4jhuigdhqcuvvse7hugtsia"
+        server_id = b"v0-4uazse3xb6uu5qpkb7tel2bm6bpea4jhuigdhqcuvvse7hugtsia"
         k = "w5gl5igiexhwmftwzhai5jy2jixn7yx7"
         ann = {
             "anonymous-storage-FURL": SOME_FURL,
@@ -560,7 +560,7 @@ storage:
 
     def test_static_permutation_seed_hashed(self):
         broker = make_broker()
-        server_id = "unparseable"
+        server_id = b"unparseable"
         ann = {
             "anonymous-storage-FURL": SOME_FURL,
         }
@@ -591,10 +591,10 @@ storage:
         }
 
         def add_one_server(x):
-            data["anonymous-storage-FURL"] = "pb://{}@nowhere/fake".format(base32.b2a(str(x)))
+            data["anonymous-storage-FURL"] = b"pb://%s@nowhere/fake" % (base32.b2a(b"%d" % x),)
             tub = Mock()
             new_tubs.append(tub)
-            got_announcement('v0-1234-{}'.format(x), data)
+            got_announcement(b'v0-1234-%d' % x, data)
             self.assertEqual(tub.mock_calls[-1][0], 'connectTo')
             got_connection = tub.mock_calls[-1][1][1]
             rref = Mock()
