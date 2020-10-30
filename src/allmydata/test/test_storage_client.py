@@ -504,14 +504,14 @@ class TestStorageFarmBroker(unittest.TestCase):
     def test_static_servers(self):
         broker = make_broker()
 
-        key_s = 'v0-1234-1'
+        key_s = b'v0-1234-1'
         servers_yaml = """\
 storage:
   v0-1234-1:
     ann:
       anonymous-storage-FURL: {furl}
       permutation-seed-base32: aaaaaaaaaaaaaaaaaaaaaaaa
-""".format(furl=SOME_FURL)
+""".format(furl=SOME_FURL.decode("utf-8"))
         servers = yamlutil.safe_load(servers_yaml)
         permseed = base32.a2b(b"aaaaaaaaaaaaaaaaaaaaaaaa")
         broker.set_static_servers(servers["storage"])
@@ -527,7 +527,7 @@ storage:
 
         ann2 = {
             "service-name": "storage",
-            "anonymous-storage-FURL": "pb://{}@nowhere/fake2".format(base32.b2a(str(1))),
+            "anonymous-storage-FURL": "pb://{}@nowhere/fake2".format(base32.b2a(b"1")),
             "permutation-seed-base32": "bbbbbbbbbbbbbbbbbbbbbbbb",
         }
         broker._got_announcement(key_s, ann2)
@@ -538,7 +538,7 @@ storage:
     def test_static_permutation_seed_pubkey(self):
         broker = make_broker()
         server_id = b"v0-4uazse3xb6uu5qpkb7tel2bm6bpea4jhuigdhqcuvvse7hugtsia"
-        k = "4uazse3xb6uu5qpkb7tel2bm6bpea4jhuigdhqcuvvse7hugtsia"
+        k = b"4uazse3xb6uu5qpkb7tel2bm6bpea4jhuigdhqcuvvse7hugtsia"
         ann = {
             "anonymous-storage-FURL": SOME_FURL,
         }
@@ -549,7 +549,7 @@ storage:
     def test_static_permutation_seed_explicit(self):
         broker = make_broker()
         server_id = b"v0-4uazse3xb6uu5qpkb7tel2bm6bpea4jhuigdhqcuvvse7hugtsia"
-        k = "w5gl5igiexhwmftwzhai5jy2jixn7yx7"
+        k = b"w5gl5igiexhwmftwzhai5jy2jixn7yx7"
         ann = {
             "anonymous-storage-FURL": SOME_FURL,
             "permutation-seed-base32": k,

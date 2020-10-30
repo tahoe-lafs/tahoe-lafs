@@ -65,6 +65,8 @@ from allmydata.util.assertutil import precondition
 from allmydata.util.observer import ObserverList
 from allmydata.util.rrefutil import add_version_to_remote_reference
 from allmydata.util.hashutil import permute_server_hash
+from allmydata.util.dictutil import BytesKeyDict
+
 
 # who is responsible for de-duplication?
 #  both?
@@ -92,7 +94,7 @@ class StorageClientConfig(object):
         decreasing preference.  See the *[client]peers.preferred*
         documentation for details.
 
-    :ivar dict[unicode, dict[bytes, bytes]] storage_plugins: A mapping from
+    :ivar dict[unicode, dict[unicode, unicode]] storage_plugins: A mapping from
         names of ``IFoolscapStoragePlugin`` configured in *tahoe.cfg* to the
         respective configuration.
     """
@@ -107,24 +109,24 @@ class StorageClientConfig(object):
 
         :param _Config config: The loaded Tahoe-LAFS node configuration.
         """
-        ps = config.get_config("client", "peers.preferred", b"").split(b",")
-        preferred_peers = tuple([p.strip() for p in ps if p != b""])
+        ps = config.get_config("client", "peers.preferred", "").split(",")
+        preferred_peers = tuple([p.strip() for p in ps if p != ""])
 
         enabled_storage_plugins = (
             name.strip()
             for name
             in config.get_config(
-                b"client",
-                b"storage.plugins",
-                b"",
-            ).decode("utf-8").split(u",")
+                "client",
+                "storage.plugins",
+                "",
+            ).split(u",")
             if name.strip()
         )
 
         storage_plugins = {}
         for plugin_name in enabled_storage_plugins:
             try:
-                plugin_config = config.items(b"storageclient.plugins." + plugin_name)
+                plugin_config = config.items("storageclient.plugins." + plugin_name)
             except NoSectionError:
                 plugin_config = []
             storage_plugins[plugin_name] = dict(plugin_config)
@@ -173,7 +175,7 @@ class StorageFarmBroker(service.MultiService):
         # storage servers that we've heard about. Each descriptor manages its
         # own Reconnector, and will give us a RemoteReference when we ask
         # them for it.
-        self.servers = {}
+        self.servers = BytesKeyDict()
         self._static_server_ids = set() # ignore announcements for these
         self.introducer_client = None
         self._threshold_listeners = [] # tuples of (threshold, Deferred)
@@ -198,8 +200,10 @@ class StorageFarmBroker(service.MultiService):
                 # written tests will still fail if a surprising exception
                 # arrives here but they might be harder to debug without this
                 # information.
-                pass
+                raise
             else:
+                if isinstance(server_id, unicode):
+                    server_id = server_id.encode("utf-8")
                 self._static_server_ids.add(server_id)
                 self.servers[server_id] = storage_server
                 storage_server.setServiceParent(self)
@@ -555,7 +559,7 @@ class _FoolscapStorage(object):
             if isinstance(seed, unicode):
                 seed = seed.encode("utf-8")
             ps = base32.a2b(seed)
-        elif re.search(r'^v0-[0-9a-zA-Z]{52}$', server_id):
+        elif re.search(br'^v0-[0-9a-zA-Z]{52}$', server_id):
             ps = base32.a2b(server_id[3:])
         else:
             log.msg("unable to parse serverid '%(server_id)s as pubkey, "
