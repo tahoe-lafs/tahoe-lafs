@@ -22,10 +22,11 @@ portion of the release process.
 Prepare for the Release
 ```````````````````````
 
-The `master` branch should always be releasable. However, it is worth
-asking on appropriate channels (IRC, the mailing-list, Nuts and Bolts
-meetings) whether there are interesting changes that should be
-included (or NOT included) etc.
+The `master` branch should always be releasable.
+
+It may be worth asking (on IRC or mailing-ist) if anything will be
+merged imminently (for example, "I will prepare a release this coming
+Tuesday if you want to get anything in").
 
 - Create a ticket for the release in Trac
 - Ticket number needed in next section
