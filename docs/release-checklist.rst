@@ -37,7 +37,7 @@ Tuesday if you want to get anything in").
 Create Branch and Apply Updates
 ```````````````````````````````
 
-- Create a branch for release-candidates (e.g. `release-1.15.0.rc0`)
+- Create a branch for release-candidates (e.g. `XXXX.release-1.15.0.rc0`)
 - run `tox -e news` to produce a new NEWS.txt file (this does a commit)
 - create the news for the release
   - newsfragments/<ticket number>.minor
