@@ -413,6 +413,16 @@ class FileUtil(ReallyEqualMixin, unittest.TestCase):
         f.write(b"foobar")
         f.close()
 
+    def test_write(self):
+        """fileutil.write() can write both unicode and bytes."""
+        path = self.mktemp()
+        fileutil.write(path, b"abc")
+        with open(path, "rb") as f:
+            self.assertEqual(f.read(), b"abc")
+        fileutil.write(path, u"def \u1234")
+        with open(path, "rb") as f:
+            self.assertEqual(f.read(), u"def \u1234".encode("utf-8"))
+
 
 class PollMixinTests(unittest.TestCase):
     def setUp(self):

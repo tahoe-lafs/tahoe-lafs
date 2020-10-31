@@ -1,15 +1,8 @@
 from __future__ import print_function
 
 import sys
-import time
-import shutil
-from os import mkdir, unlink, listdir
-from os.path import join, exists
-from six.moves import StringIO
-
-from twisted.internet.protocol import ProcessProtocol
-from twisted.internet.error import ProcessExitedAlready, ProcessDone
-from twisted.internet.defer import inlineCallbacks, Deferred
+from os import mkdir
+from os.path import join
 
 import pytest
 import pytest_twisted

@@ -126,11 +126,17 @@ install_requires = [
     # Support for Python 3 transition
     "future >= 0.18.2",
 
+    # Discover local network configuration
+    "netifaces",
+
     # Utility code:
     "pyutil >= 3.3.0",
 
     # Linux distribution detection:
     "distro >= 1.4.0",
+
+    # Backported configparser for Python 2:
+    "configparser ; python_version < '3.0'",
 ]
 
 setup_requires = [

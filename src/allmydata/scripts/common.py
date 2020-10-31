@@ -8,7 +8,9 @@ from os.path import join
 from future.utils import PY2
 if PY2:
     from future.builtins import str  # noqa: F401
-from six.moves.configparser import NoSectionError
+
+# On Python 2 this will be the backported package:
+from configparser import NoSectionError
 
 from twisted.python import usage
 

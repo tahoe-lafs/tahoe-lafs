@@ -1,3 +1,15 @@
+"""
+Ported to Python 3.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+
 import base64
 import os
 import stat
@@ -166,13 +178,13 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
     def test_tahoe_cfg_utf8(self):
         basedir = "test_node/test_tahoe_cfg_utf8"
         fileutil.make_dirs(basedir)
-        f = open(os.path.join(basedir, 'tahoe.cfg'), 'wt')
+        f = open(os.path.join(basedir, 'tahoe.cfg'), 'wb')
         f.write(u"\uFEFF[node]\n".encode('utf-8'))
         f.write(u"nickname = \u2621\n".encode('utf-8'))
         f.close()
 
         config = read_config(basedir, "")
-        self.failUnlessEqual(config.get_config("node", "nickname").decode('utf-8'),
+        self.failUnlessEqual(config.get_config("node", "nickname"),
                              u"\u2621")
 
     def test_tahoe_cfg_hash_in_name(self):
@@ -215,8 +227,8 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
         config = read_config(basedir, "portnum")
         self.assertEqual(
             config.items("node"),
-            [(b"nickname", b"foo"),
-             (b"timeout.disconnect", b"12"),
+            [("nickname", "foo"),
+             ("timeout.disconnect", "12"),
             ],
         )
 
@@ -393,7 +405,7 @@ class TestMissingPorts(unittest.TestCase):
         with get_addr, alloc_port:
             tubport, tublocation = _tub_portlocation(config)
         self.assertEqual(tubport, "tcp:777")
-        self.assertEqual(tublocation, "tcp:LOCAL:777")
+        self.assertEqual(tublocation, b"tcp:LOCAL:777")
 
     def test_parsing_defaults(self):
         """
@@ -415,7 +427,7 @@ class TestMissingPorts(unittest.TestCase):
         with get_addr, alloc_port:
             tubport, tublocation = _tub_portlocation(config)
         self.assertEqual(tubport, "tcp:999")
-        self.assertEqual(tublocation, "tcp:LOCAL:999")
+        self.assertEqual(tublocation, b"tcp:LOCAL:999")
 
     def test_parsing_location_complex(self):
         """
@@ -438,7 +450,7 @@ class TestMissingPorts(unittest.TestCase):
         with get_addr, alloc_port:
             tubport, tublocation = _tub_portlocation(config)
         self.assertEqual(tubport, "tcp:999")
-        self.assertEqual(tublocation, "tcp:HOST:888,tcp:LOCAL:999")
+        self.assertEqual(tublocation, b"tcp:HOST:888,tcp:LOCAL:999")
 
     def test_parsing_all_disabled(self):
         """
@@ -566,7 +578,7 @@ enabled = true
 
 class FakeTub(object):
     def __init__(self):
-        self.tubID = base64.b32encode("foo")
+        self.tubID = base64.b32encode(b"foo")
         self.listening_ports = []
     def setOption(self, name, value): pass
     def removeAllConnectionHintHandlers(self): pass

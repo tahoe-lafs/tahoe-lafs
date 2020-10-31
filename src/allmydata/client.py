@@ -2,10 +2,9 @@ import os, stat, time, weakref
 from base64 import urlsafe_b64encode
 from functools import partial
 from errno import ENOENT, EPERM
-try:
-    from ConfigParser import NoSectionError
-except ImportError:
-    from configparser import NoSectionError
+
+# On Python 2 this will be the backported package:
+from configparser import NoSectionError
 
 from foolscap.furl import (
     decode_furl,
@@ -35,8 +34,7 @@ from allmydata.util import (
     hashutil, base32, pollmixin, log, idlib,
     yamlutil, configutil,
 )
-from allmydata.util.encodingutil import (get_filesystem_encoding,
-                                         from_utf8_or_none)
+from allmydata.util.encodingutil import get_filesystem_encoding
 from allmydata.util.abbreviate import parse_abbreviated_size
 from allmydata.util.time_format import parse_duration, parse_date
 from allmydata.util.i2p_provider import create as create_i2p_provider
@@ -628,7 +626,7 @@ def storage_enabled(config):
 
     :return bool: ``True`` if storage is enabled, ``False`` otherwise.
     """
-    return config.get_config(b"storage", b"enabled", True, boolean=True)
+    return config.get_config("storage", "enabled", True, boolean=True)
 
 
 def anonymous_storage_enabled(config):
@@ -642,7 +640,7 @@ def anonymous_storage_enabled(config):
     """
     return (
         storage_enabled(config) and
-        config.get_config(b"storage", b"anonymous", True, boolean=True)
+        config.get_config("storage", "anonymous", True, boolean=True)
     )
 
 
@@ -719,6 +717,9 @@ class _Client(node.Node, pollmixin.PollMixin):
 
     def init_stats_provider(self):
         gatherer_furl = self.config.get_config("client", "stats_gatherer.furl", None)
+        if gatherer_furl:
+            # FURLs should be bytes:
+            gatherer_furl = gatherer_furl.encode("utf-8")
         self.stats_provider = StatsProvider(self, gatherer_furl)
         self.stats_provider.setServiceParent(self)
         self.stats_provider.register_producer(self)
@@ -781,7 +782,7 @@ class _Client(node.Node, pollmixin.PollMixin):
                 vk_string = ed25519.string_from_verifying_key(self._node_public_key)
                 vk_bytes = remove_prefix(vk_string, ed25519.PUBLIC_KEY_PREFIX)
                 seed = base32.b2a(vk_bytes)
-            self.config.write_config_file("permutation-seed", seed+"\n")
+            self.config.write_config_file("permutation-seed", seed+b"\n", mode="wb")
         return seed.strip()
 
     def get_anonymous_storage_server(self):
@@ -806,7 +807,7 @@ class _Client(node.Node, pollmixin.PollMixin):
 
         config_storedir = self.get_config(
             "storage", "storage_dir", self.STOREDIR,
-        ).decode('utf-8')
+        )
         storedir = self.config.get_config_path(config_storedir)
 
         data = self.config.get_config("storage", "reserved_space", None)
@@ -935,6 +936,10 @@ class _Client(node.Node, pollmixin.PollMixin):
         if helper_furl in ("None", ""):
             helper_furl = None
 
+        # FURLs need to be bytes:
+        if helper_furl is not None:
+            helper_furl = helper_furl.encode("utf-8")
+
         DEP = self.encoding_params
         DEP["k"] = int(self.config.get_config("client", "shares.needed", DEP["k"]))
         DEP["n"] = int(self.config.get_config("client", "shares.total", DEP["n"]))
@@ -1021,7 +1026,7 @@ class _Client(node.Node, pollmixin.PollMixin):
         c = ControlServer()
         c.setServiceParent(self)
         control_url = self.control_tub.registerReference(c)
-        self.config.write_private_config("control.furl", control_url + b"\n")
+        self.config.write_private_config("control.furl", control_url + "\n")
 
     def init_helper(self):
         self.helper = Helper(self.config.get_config_path("helper"),
@@ -1043,15 +1048,14 @@ class _Client(node.Node, pollmixin.PollMixin):
 
         from allmydata.webish import WebishServer
         nodeurl_path = self.config.get_config_path("node.url")
-        staticdir_config = self.config.get_config("node", "web.static", "public_html").decode("utf-8")
+        staticdir_config = self.config.get_config("node", "web.static", "public_html")
         staticdir = self.config.get_config_path(staticdir_config)
         ws = WebishServer(self, webport, nodeurl_path, staticdir)
         ws.setServiceParent(self)
 
     def init_ftp_server(self):
         if self.config.get_config("ftpd", "enabled", False, boolean=True):
-            accountfile = from_utf8_or_none(
-                self.config.get_config("ftpd", "accounts.file", None))
+            accountfile = self.config.get_config("ftpd", "accounts.file", None)
             if accountfile:
                 accountfile = self.config.get_config_path(accountfile)
             accounturl = self.config.get_config("ftpd", "accounts.url", None)
@@ -1063,14 +1067,13 @@ class _Client(node.Node, pollmixin.PollMixin):
 
     def init_sftp_server(self):
         if self.config.get_config("sftpd", "enabled", False, boolean=True):
-            accountfile = from_utf8_or_none(
-                self.config.get_config("sftpd", "accounts.file", None))
+            accountfile = self.config.get_config("sftpd", "accounts.file", None)
             if accountfile:
                 accountfile = self.config.get_config_path(accountfile)
             accounturl = self.config.get_config("sftpd", "accounts.url", None)
             sftp_portstr = self.config.get_config("sftpd", "port", "8022")
-            pubkey_file = from_utf8_or_none(self.config.get_config("sftpd", "host_pubkey_file"))
-            privkey_file = from_utf8_or_none(self.config.get_config("sftpd", "host_privkey_file"))
+            pubkey_file = self.config.get_config("sftpd", "host_pubkey_file")
+            privkey_file = self.config.get_config("sftpd", "host_privkey_file")
 
             from allmydata.frontends import sftpd
             s = sftpd.SFTPServer(self, accountfile, accounturl,
