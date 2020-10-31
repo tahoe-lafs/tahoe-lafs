@@ -8,7 +8,6 @@ from textwrap import dedent
 
 from hypothesis import (
     given,
-    settings,
 )
 from hypothesis.strategies import (
     integers,
