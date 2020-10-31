@@ -611,10 +611,6 @@ class Listeners(unittest.TestCase):
     # use" on the system or not.  We just want a couple distinct values we can
     # check expected results against.
     @given(ports=sets(elements=port_numbers(), min_size=2, max_size=2))
-    # A few examples should satisfy us here.  The logic for dealing with these
-    # numbers is hardly complex.  On the flip side, all of the setup work we
-    # do to get a node we can test against is pretty expensive.
-    @settings(max_examples=10)
     def test_multiple_ports(self, ports):
         """
         When there are multiple listen addresses suggested by the ``tub.port`` and
