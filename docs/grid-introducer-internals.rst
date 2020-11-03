@@ -38,7 +38,7 @@ Each entry in the directory corresponds to a storage server that has been enroll
 The name is grid-manager assigned human-meaningful string (a "petname") with "v1." as a prefix.
 The "v1." prefix versions this entry in the directory to better support future changes to the structure of this directory.
 Placing the version information directly in the directory entry name avoids the need for additional round-trips to interrogate the version.
-The target of the entry is the mutable readcap where the storage server writes its announcement.
+The target of the entry is the read capability for a mutable object where the storage server writes its announcement.
 
 Storage clients are configured with the readcap for the directory.
 This allows them to read all announcements for enrolled servers.
