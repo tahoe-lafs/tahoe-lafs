@@ -36,6 +36,8 @@ the read capability for this mutable object is linked into a Tahoe-LAFS director
 
 Each entry in the directory corresponds to a storage server that has been enrolled.
 The name is grid-manager assigned human-meaningful string (a "petname") with "v1." as a prefix.
+The "v1." prefix versions this entry in the directory to better support future changes to the structure of this directory.
+Placing the version information directly in the directory entry name avoids the need for additional round-trips to interrogate the version.
 The target of the entry is the mutable readcap where the storage server writes its announcement.
 
 Storage clients are configured with the readcap for the directory.
