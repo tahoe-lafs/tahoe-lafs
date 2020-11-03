@@ -6,6 +6,7 @@ Tools aimed at the interaction between tests and Eliot.
 # Can't use `builtins.str` because it's not JSON encodable:
 # `exceptions.TypeError: <class 'future.types.newstr.newstr'> is not JSON-encodeable`
 from past.builtins import unicode as str
+from future.utils import PY3
 
 __all__ = [
     "RUN_TEST",
@@ -164,6 +165,9 @@ class EliotLoggedRunTest(object):
 
     @eliot_logged_test
     def run(self, result=None):
+        # Workaround for https://github.com/itamarst/eliot/issues/456
+        if PY3:
+            self.case.eliot_logger._validate_message = lambda *args, **kwargs: None
         return self._run_tests_with_factory(
             self.case,
             self.handlers,
