@@ -70,7 +70,7 @@ a *read capability* provided by the storage server for a mutable announcement is
 To remove a storage server,
 the capability for its announcement is unlinked from the directory.
 
-A storage server can change its own announcement details at all time by rewriting the mutable object.
+A storage server can change its own announcement details at any time by rewriting the mutable object.
 
 The two pieces of client configuration required by the system can be generated from this state.
 The ``grid-introducer.cap`` value is just the read-only capability for ``collection-writecap``.
