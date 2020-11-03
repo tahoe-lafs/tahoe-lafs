@@ -35,7 +35,7 @@ When a storage server is enrolled in a grid,
 the read capability for this mutable object is linked into a Tahoe-LAFS directory.
 
 Each entry in the directory corresponds to a storage server that has been enrolled.
-The name is the v0 public key string with the ".v1" as a suffix.
+The name is grid-manager assigned human-meaningful string (a "petname") with "v1." as a prefix.
 The target of the entry is the mutable readcap where the storage server writes its announcement.
 
 Storage clients are configured with the readcap for the directory.
