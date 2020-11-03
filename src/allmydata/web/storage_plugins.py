@@ -27,6 +27,8 @@ class StoragePlugins(Resource, object):
 
         :see: ``twisted.web.iweb.IResource.getChild``
         """
+        # Technically client could be using some other encoding?
+        segment = segment.decode("utf-8")
         resources = self._client.get_client_storage_plugin_web_resources()
         try:
             result = resources[segment]
