@@ -65,10 +65,10 @@ The configuration consists of a simple JSON document along the lines of::
   }
 
 To add a storage server,
-its mutable announcement readcap is linked into the directory referenced by ``collection-writecap``.
+a *read capability* provided by the storage server for a mutable announcement is linked into the directory referenced by ``collection-writecap``.
 
 To remove a storage server,
-its mutable announcement readcap is unlinked from the directory.
+the capability for its announcement is unlinked from the directory.
 
 A storage server can change its own announcement details at all time by rewriting the mutable object.
 
