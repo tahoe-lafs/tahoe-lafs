@@ -53,6 +53,12 @@ For example::
   grid-introducer.enable = true
 
 After the storage server has been configured this way and started it will upload its announcement.
+After the initial announcement upload has finished two new files are written to the ``private`` area.
+The write capability for the mutable announcement is written to ``grid-introducer-announcement.write-cap``.
+The read capability is written to ``grid-introducer-announcement.read-cap``.
+The capability in ``grid-introducer-announcement.read-cap`` is the capability that is shared with the grid coordinate for enrollment
+(see below).
+
 
 Use As A Grid Coordinator
 -------------------------
