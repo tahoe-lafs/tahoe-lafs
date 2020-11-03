@@ -33,15 +33,13 @@ It uses 1 of 1 erasure encoding for this object so that any single share is suff
 
 When a storage server is enrolled in a grid,
 the read capability for this mutable object is linked into a Tahoe-LAFS directory.
+This is the **announcement directory**.
 
 Each entry in the directory corresponds to a storage server that has been enrolled.
 The name is grid-manager assigned human-meaningful string (a "petname") with "v1." as a prefix.
 The "v1." prefix versions this entry in the directory to better support future changes to the structure of this directory.
 Placing the version information directly in the directory entry name avoids the need for additional round-trips to interrogate the version.
 The target of the entry is the read capability for a mutable object where the storage server writes its announcement.
-
-Storage clients are configured with the readcap for the directory.
-This allows them to read all announcements for enrolled servers.
 
 Management Command Line
 -----------------------
@@ -75,3 +73,24 @@ A storage server can change its own announcement details at any time by rewritin
 The two pieces of client configuration required by the system can be generated from this state.
 The ``grid-introducer.cap`` value is just the read-only capability for ``collection-writecap``.
 The ``grid-introducer.furl`` value is the storage fURL for any currently enrolled storage server.
+
+Operation
+---------
+
+Storage clients are configured with the readcap for the **announcement directory**.
+They are also configured with one or more bootstrap storage fURLs.
+These two pieces of information allow them to read all announcements for enrolled servers.
+
+When a client starts it checks its local state for a cache of announcements.
+If found these storage servers are added to a pool of candidates for further announcement discovery.
+The configured ``grid-introducer.furl`` is also added to the pool of candidates.
+Next, an attempt is made to download the **announcement directory**.
+Only one share is required to reconstruct the value so if any single server from the candidate pool can supply that share then recent announcements will be available.
+
+After the **announcement directory** is downloaded each of its children can be downloaded following the same process.
+Each announcement is added to the local cache of announcements.
+
+Finally,
+all locally cached announcements are available to be used to initialize ``NativeStorageServer`` instances.
+
+The client can periodically repeat this process to discover new announcements and changes to existing announcements.
