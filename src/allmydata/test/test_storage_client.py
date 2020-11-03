@@ -405,7 +405,7 @@ class FoolscapStorageServers(unittest.TestCase):
             verifyObject(
                 IFoolscapStorageServer,
                 _FoolscapStorage.from_announcement(
-                    u"server-id",
+                    b"server-id",
                     SOME_FURL,
                     {u"permutation-seed-base32": base32.b2a(b"permutationseed")},
                     NotStorageServer(),
@@ -427,7 +427,7 @@ class StoragePluginWebPresence(AsyncTestCase):
         self.port_assigner = SameProcessStreamEndpointAssigner()
         self.port_assigner.setUp()
         self.addCleanup(self.port_assigner.tearDown)
-        self.storage_plugin = "tahoe-lafs-dummy-v1"
+        self.storage_plugin = u"tahoe-lafs-dummy-v1"
 
         from twisted.internet import reactor
         _, port_endpoint = self.port_assigner.assign(reactor)
