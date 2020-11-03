@@ -59,6 +59,9 @@ The read capability is written to ``grid-introducer-announcement.read-cap``.
 The capability in ``grid-introducer-announcement.read-cap`` is the capability that is shared with the grid coordinate for enrollment
 (see below).
 
+The ``grid-introducer-announcement.write-cap`` is essential state.
+Without it the storage node cannot update its announcement.
+It should be made as durable as the rest of the private storage node state.
 
 Use As A Grid Coordinator
 -------------------------
