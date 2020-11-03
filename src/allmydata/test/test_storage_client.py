@@ -1,11 +1,11 @@
 from six import ensure_text
 
-import hashlib
-from mock import Mock
 from json import (
-    dumps,
     loads,
 )
+
+import hashlib
+from mock import Mock
 from fixtures import (
     TempDir,
 )
@@ -464,7 +464,7 @@ class StoragePluginWebPresence(AsyncTestCase):
             plugin_name=self.storage_plugin,
         ).encode("utf-8")
         result = yield do_http("get", url)
-        self.assertThat(result, Equals(dumps({b"web": b"1"})))
+        self.assertThat(loads(result), Equals({"web": "1"}))
 
     @inlineCallbacks
     def test_plugin_resource_persistent_across_requests(self):
