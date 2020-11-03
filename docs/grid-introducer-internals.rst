@@ -28,7 +28,7 @@ Depending on how the storage server is exposed,
 these details may vary in structure.
 
 A storage announcement is created by a storage server trying to expose a storage service.
-The storage server writes (or rewrites) a mutable object on itself and potentially many other storage servers it knows of.
+The storage server writes (or rewrites) a mutable object on itself and all other storage servers it knows of.
 It uses 1 of 1 erasure encoding for this object so that any single share is sufficient to reconstruct the document.
 
 When a storage server is enrolled in a grid,
