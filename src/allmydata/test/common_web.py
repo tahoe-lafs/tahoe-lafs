@@ -1,3 +1,4 @@
+from six import ensure_str
 
 __all__ = [
     "do_http",
@@ -36,6 +37,14 @@ from ..webish import (
     TahoeLAFSRequest,
 )
 
+
+class VerboseError(Error):
+    """Include the HTTP body response too."""
+
+    def __str__(self):
+        return Error.__str__(self) + " " + ensure_str(self.response)
+
+
 @inlineCallbacks
 def do_http(method, url, **kwargs):
     response = yield treq.request(method, url, persistent=False, **kwargs)
@@ -43,7 +52,7 @@ def do_http(method, url, **kwargs):
     # TODO: replace this with response.fail_for_status when
     # https://github.com/twisted/treq/pull/159 has landed
     if 400 <= response.code < 600:
-        raise Error(response.code, response=body)
+        raise VerboseError(response.code, response=body)
     returnValue(body)
 
 
