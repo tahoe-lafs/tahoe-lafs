@@ -17,6 +17,7 @@ import sys
 import time
 import mock
 from textwrap import dedent
+import configparser
 
 from hypothesis import (
     given,
@@ -44,6 +45,7 @@ from allmydata.node import (
     MissingConfigEntry,
     _tub_portlocation,
     formatTimeTahoeStyle,
+    UnescapedHashError,
 )
 from allmydata.introducer.server import create_introducer
 from allmydata import client
@@ -199,6 +201,37 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
         config = read_config(basedir, "")
         self.failUnless(config.nickname == nickname)
 
+    def test_hash_in_furl(self):
+        """
+        Hashes in furl options are not allowed, resulting in exception.
+        """
+        basedir = self.mktemp()
+        fileutil.make_dirs(basedir)
+        with open(os.path.join(basedir, 'tahoe.cfg'), 'wt') as f:
+            f.write("[node]\n")
+            f.write("log_gatherer.furl = lalal#onohash\n")
+
+        config = read_config(basedir, "")
+        with self.assertRaises(UnescapedHashError):
+            config.get_config("node", "log_gatherer.furl")
+
+    def test_missing_config_item(self):
+        """
+        If a config item is missing:
+
+        1. Given a default, return default.
+        2. Otherwise, raise MissingConfigEntry.
+        """
+        basedir = self.mktemp()
+        fileutil.make_dirs(basedir)
+        with open(os.path.join(basedir, 'tahoe.cfg'), 'wt') as f:
+            f.write("[node]\n")
+        config = read_config(basedir, "")
+
+        self.assertEquals(config.get_config("node", "log_gatherer.furl", "def"), "def")
+        with self.assertRaises(MissingConfigEntry):
+            config.get_config("node", "log_gatherer.furl")
+
     def test_config_required(self):
         """
         Asking for missing (but required) configuration is an error
@@ -231,6 +264,31 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
              ("timeout.disconnect", "12"),
             ],
         )
+        self.assertEqual(
+            config.items("node", [("unnecessary", "default")]),
+            [("nickname", "foo"),
+             ("timeout.disconnect", "12"),
+            ],
+        )
+
+
+    def test_config_items_missing_section(self):
+        """
+        If a default is given for a missing section, the default is used.
+
+        Lacking both default and section, an error is raised.
+        """
+        basedir = self.mktemp()
+        create_node_dir(basedir, "testing")
+
+        with open(os.path.join(basedir, 'tahoe.cfg'), 'wt') as f:
+            f.write("")
+
+        config = read_config(basedir, "portnum")
+        with self.assertRaises(configparser.NoSectionError):
+            config.items("nosuch")
+        default = [("hello", "world")]
+        self.assertEqual(config.items("nosuch", default), default)
 
     @skipIf(
         "win32" in sys.platform.lower() or "cygwin" in sys.platform.lower(),
@@ -788,3 +846,35 @@ class Configuration(unittest.TestCase):
             "invalid section",
             str(ctx.exception),
         )
+
+
+
+class FakeProvider(object):
+    """Emulate Tor and I2P providers."""
+
+    def get_tor_handler(self):
+        return "TORHANDLER!"
+
+    def get_i2p_handler(self):
+        return "I2PHANDLER!"
+
+
+class CreateConnectionHandlers(unittest.TestCase):
+    """
+    Tests for create_connection_handlers().
+    """
+
+    def test_tcp_disabled(self):
+        """
+        If tcp is set to disabled, no TCP handler is set.
+        """
+        config = config_from_string("", "", dedent("""
+        [connections]
+        tcp = disabled
+        """))
+        reactor = object()  # it's not actually used?!
+        provider = FakeProvider()
+        default_handlers, _ = create_connection_handlers(
+            reactor, config, provider, provider
+        )
+        self.assertIs(default_handlers["tcp"], None)

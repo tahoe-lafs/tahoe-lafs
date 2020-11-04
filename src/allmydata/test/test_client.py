@@ -39,7 +39,7 @@ from testtools.twistedsupport import (
 import allmydata
 import allmydata.util.log
 
-from allmydata.node import OldConfigError, UnescapedHashError, _Config, create_node_dir
+from allmydata.node import OldConfigError, UnescapedHashError, create_node_dir
 from allmydata.frontends.auth import NeedRootcapLookupScheme
 from allmydata.version_checks import (
     get_package_versions_string,
@@ -112,11 +112,11 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
     @defer.inlineCallbacks
     def test_comment(self):
         """
-        An unescaped comment character (#) in a furl results in an
+        A comment character (#) in a furl results in an
         UnescapedHashError Failure.
         """
-        should_fail = [r"test#test", r"#testtest", r"test\\#test"]
-        should_not_fail = [r"test\#test", r"test\\\#test", r"testtest"]
+        should_fail = [r"test#test", r"#testtest", r"test\\#test", r"test\#test",
+                       r"test\\\#test"]
 
         basedir = "test_client.Basic.test_comment"
         os.mkdir(basedir)
@@ -127,16 +127,10 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
             fileutil.write(os.path.join(basedir, "tahoe.cfg"), config)
 
         for s in should_fail:
-            self.failUnless(_Config._contains_unescaped_hash(s))
             write_config(s)
             with self.assertRaises(UnescapedHashError) as ctx:
                 yield client.create_client(basedir)
             self.assertIn("[client]introducer.furl", str(ctx.exception))
-
-        for s in should_not_fail:
-            self.failIf(_Config._contains_unescaped_hash(s))
-            write_config(s)
-            yield client.create_client(basedir)
 
     def test_unreadable_config(self):
         if sys.platform == "win32":

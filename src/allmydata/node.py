@@ -1,9 +1,18 @@
 """
 This module contains classes and functions to implement and manage
 a node for Tahoe-LAFS.
+
+Ported to Python 3.
 """
-from past.builtins import unicode
-from six import ensure_str
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+from six import ensure_str, ensure_text
 
 import datetime
 import os.path
@@ -71,7 +80,7 @@ def _common_valid_config():
 
 # Add our application versions to the data that Foolscap's LogPublisher
 # reports.
-for thing, things_version in get_package_versions().items():
+for thing, things_version in list(get_package_versions().items()):
     app_versions.add_version(thing, things_version)
 
 # group 1 will be addr (dotted quad string), group 3 if any will be portnum (string)
@@ -97,8 +106,8 @@ def formatTimeTahoeStyle(self, when):
     """
     d = datetime.datetime.utcfromtimestamp(when)
     if d.microsecond:
-        return d.isoformat(" ")[:-3]+"Z"
-    return d.isoformat(" ") + ".000Z"
+        return d.isoformat(ensure_str(" "))[:-3]+"Z"
+    return d.isoformat(ensure_str(" ")) + ".000Z"
 
 PRIV_README = """
 This directory contains files which contain private data for the Tahoe node,
@@ -152,6 +161,7 @@ def create_node_dir(basedir, readme_text):
     privdir = os.path.join(basedir, "private")
     if not os.path.exists(privdir):
         fileutil.make_dirs(privdir, 0o700)
+        readme_text = ensure_text(readme_text)
         with open(os.path.join(privdir, 'README'), 'w') as f:
             f.write(readme_text)
 
@@ -172,7 +182,7 @@ def read_config(basedir, portnumfile, generated_files=[], _valid_config=None):
 
     :returns: :class:`allmydata.node._Config` instance
     """
-    basedir = abspath_expanduser_unicode(unicode(basedir))
+    basedir = abspath_expanduser_unicode(ensure_text(basedir))
     if _valid_config is None:
         _valid_config = _common_valid_config()
 
@@ -274,16 +284,11 @@ class _Config(object):
             configparser (might be 'fake' if using in-memory data)
         """
         self.portnum_fname = portnum_fname
-        self._basedir = abspath_expanduser_unicode(unicode(basedir))
+        self._basedir = abspath_expanduser_unicode(ensure_text(basedir))
         self._config_fname = config_fname
         self.config = configparser
-
-        nickname_utf8 = self.get_config("node", "nickname", "<unspecified>")
-        if isinstance(nickname_utf8, bytes):  # Python 2
-            self.nickname = nickname_utf8.decode("utf-8")
-        else:
-            self.nickname = nickname_utf8
-        assert type(self.nickname) is unicode
+        self.nickname = self.get_config("node", "nickname", u"<unspecified>")
+        assert isinstance(self.nickname, str)
 
     def validate(self, valid_config_sections):
         configutil.validate_config(self._config_fname, self.config, valid_config_sections)
@@ -316,7 +321,7 @@ class _Config(object):
                 return self.config.getboolean(section, option)
 
             item = self.config.get(section, option)
-            if option.endswith(".furl") and self._contains_unescaped_hash(item):
+            if option.endswith(".furl") and '#' in item:
                 raise UnescapedHashError(section, option, item)
 
             return item
@@ -368,8 +373,8 @@ class _Config(object):
                 raise MissingConfigEntry("The required configuration file %s is missing."
                                          % (quote_output(privname),))
             if isinstance(default, bytes):
-                default = unicode(default, "utf-8")
-            if isinstance(default, unicode):
+                default = str(default, "utf-8")
+            if isinstance(default, str):
                 value = default
             else:
                 value = default()
@@ -381,7 +386,7 @@ class _Config(object):
         config file that resides within the subdirectory named 'private'), and
         return it.
         """
-        if isinstance(value, unicode):
+        if isinstance(value, str):
             value = value.encode("utf-8")
         privname = os.path.join(self._basedir, "private", name)
         with open(privname, "wb") as f:
@@ -422,17 +427,6 @@ class _Config(object):
         return abspath_expanduser_unicode(
             os.path.join(self._basedir, *args)
         )
-
-    @staticmethod
-    def _contains_unescaped_hash(item):
-        characters = iter(item)
-        for c in characters:
-            if c == '\\':
-                characters.next()
-            elif c == '#':
-                return True
-
-        return False
 
 
 def create_tub_options(config):
@@ -536,12 +530,12 @@ def create_tub(tub_options, default_connection_handlers, foolscap_connection_han
         the new Tub via `Tub.setOption`
     """
     tub = Tub(**kwargs)
-    for (name, value) in tub_options.items():
+    for (name, value) in list(tub_options.items()):
         tub.setOption(name, value)
     handlers = default_connection_handlers.copy()
     handlers.update(handler_overrides)
     tub.removeAllConnectionHintHandlers()
-    for hint_type, handler_name in handlers.items():
+    for hint_type, handler_name in list(handlers.items()):
         handler = foolscap_connection_handlers.get(handler_name)
         if handler:
             tub.addConnectionHintHandler(hint_type, handler)
@@ -698,7 +692,7 @@ def create_main_tub(config, tub_options,
             else:
                 port_or_endpoint = port
             # Foolscap requires native strings:
-            if isinstance(port_or_endpoint, (bytes, unicode)):
+            if isinstance(port_or_endpoint, (bytes, str)):
                 port_or_endpoint = ensure_str(port_or_endpoint)
             tub.listenOn(port_or_endpoint)
         tub.setLocation(location)
