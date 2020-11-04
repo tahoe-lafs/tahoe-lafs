@@ -104,7 +104,18 @@ for _method_name in ["__setitem__", "__getitem__", "setdefault", "get",
 del _method_name
 
 
-class BytesKeyDict(_TypedKeyDict):
-    """Keys should be bytes."""
+if PY2:
+    # No need for enforcement, can use either bytes or unicode as keys and it's
+    # fine.
+    BytesKeyDict = UnicodeKeyDict = dict
+else:
+    class BytesKeyDict(_TypedKeyDict):
+        """Keys should be bytes."""
 
-    KEY_TYPE = bytes
+        KEY_TYPE = bytes
+
+
+    class UnicodeKeyDict(_TypedKeyDict):
+        """Keys should be unicode strings."""
+
+        KEY_TYPE = str

@@ -65,7 +65,7 @@ from allmydata.util.assertutil import precondition
 from allmydata.util.observer import ObserverList
 from allmydata.util.rrefutil import add_version_to_remote_reference
 from allmydata.util.hashutil import permute_server_hash
-from allmydata.util.dictutil import BytesKeyDict
+from allmydata.util.dictutil import BytesKeyDict, UnicodeKeyDict
 
 
 # who is responsible for de-duplication?
@@ -684,16 +684,16 @@ class NativeStorageServer(service.MultiService):
     @ivar remote_host: the IAddress, if connected, otherwise None
     """
 
-    VERSION_DEFAULTS = {
-        b"http://allmydata.org/tahoe/protocols/storage/v1" :
-        { b"maximum-immutable-share-size": 2**32 - 1,
-          b"maximum-mutable-share-size": 2*1000*1000*1000, # maximum prior to v1.9.2
-          b"tolerates-immutable-read-overrun": False,
-          b"delete-mutable-shares-with-zero-length-writev": False,
-          b"available-space": None,
-          },
-        b"application-version": "unknown: no get_version()",
-        }
+    VERSION_DEFAULTS = UnicodeKeyDict({
+        "http://allmydata.org/tahoe/protocols/storage/v1" :
+        UnicodeKeyDict({ "maximum-immutable-share-size": 2**32 - 1,
+          "maximum-mutable-share-size": 2*1000*1000*1000, # maximum prior to v1.9.2
+          "tolerates-immutable-read-overrun": False,
+          "delete-mutable-shares-with-zero-length-writev": False,
+          "available-space": None,
+          }),
+        "application-version": "unknown: no get_version()",
+        })
 
     def __init__(self, server_id, ann, tub_maker, handler_overrides, node_config, config=StorageClientConfig()):
         service.MultiService.__init__(self)
@@ -833,10 +833,10 @@ class NativeStorageServer(service.MultiService):
         version = self.get_version()
         if version is None:
             return None
-        protocol_v1_version = version.get(b'http://allmydata.org/tahoe/protocols/storage/v1', {})
-        available_space = protocol_v1_version.get('available-space')
+        protocol_v1_version = version.get('http://allmydata.org/tahoe/protocols/storage/v1', UnicodeKeyDict())
+        available_space = protocol_v1_version.get(u'available-space')
         if available_space is None:
-            available_space = protocol_v1_version.get('maximum-immutable-share-size', None)
+            available_space = protocol_v1_version.get(u'maximum-immutable-share-size', None)
         return available_space
 
     def start_connecting(self, trigger_cb):
