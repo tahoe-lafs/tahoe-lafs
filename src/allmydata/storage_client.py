@@ -209,7 +209,7 @@ class StorageFarmBroker(service.MultiService):
                 # written tests will still fail if a surprising exception
                 # arrives here but they might be harder to debug without this
                 # information.
-                raise
+                pass
             else:
                 if isinstance(server_id, str):
                     server_id = server_id.encode("utf-8")
