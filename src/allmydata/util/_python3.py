@@ -52,6 +52,7 @@ PORTED_MODULES = [
     "allmydata.introducer.interfaces",
     "allmydata.monitor",
     "allmydata.node",
+    "allmydata.storage_client",
     "allmydata.storage.common",
     "allmydata.storage.crawler",
     "allmydata.storage.expirer",
