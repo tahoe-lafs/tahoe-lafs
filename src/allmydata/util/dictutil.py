@@ -90,10 +90,19 @@ class _TypedKeyDict(dict):
 
     KEY_TYPE = object
 
+    def __init__(self, *args, **kwargs):
+        dict.__init__(self, *args, **kwargs)
+        for key in self:
+            if not isinstance(key, self.KEY_TYPE):
+                raise TypeError("{} must be of type {}".format(
+                    repr(key), self.KEY_TYPE))
+
 
 def _make_enforcing_override(K, method_name):
     def f(self, key, *args, **kwargs):
-        assert isinstance(key, self.KEY_TYPE)
+        if not isinstance(key, self.KEY_TYPE):
+            raise TypeError("{} must be of type {}".format(
+                repr(key), self.KEY_TYPE))
         return getattr(dict, method_name)(self, key, *args, **kwargs)
     f.__name__ = ensure_str(method_name)
     setattr(K, method_name, f)
