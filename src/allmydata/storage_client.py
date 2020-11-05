@@ -843,9 +843,9 @@ class NativeStorageServer(service.MultiService):
         if version is None:
             return None
         protocol_v1_version = version.get('http://allmydata.org/tahoe/protocols/storage/v1', UnicodeKeyDict())
-        available_space = protocol_v1_version.get(u'available-space')
+        available_space = protocol_v1_version.get('available-space')
         if available_space is None:
-            available_space = protocol_v1_version.get(u'maximum-immutable-share-size', None)
+            available_space = protocol_v1_version.get('maximum-immutable-share-size', None)
         return available_space
 
     def start_connecting(self, trigger_cb):
