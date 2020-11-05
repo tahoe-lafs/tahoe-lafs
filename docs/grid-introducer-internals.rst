@@ -62,6 +62,8 @@ The configuration consists of a simple JSON document along the lines of::
   , "collection-writecap": "URI:DIR2:5cmy..."
   }
 
+The two pieces of client configuration required by the system can be generated from this state.
+
 To add a storage server,
 a *read capability* provided by the storage server for a mutable announcement is linked into the directory referenced by ``collection-writecap``.
 
@@ -70,9 +72,21 @@ the capability for its announcement is unlinked from the directory.
 
 A storage server can change its own announcement details at any time by rewriting the mutable object.
 
-The two pieces of client configuration required by the system can be generated from this state.
-The ``grid-introducer.cap`` value is just the read-only capability for ``collection-writecap``.
-The ``grid-introducer.furl`` value is the storage fURL for any currently enrolled storage server.
+Client Configuration
+--------------------
+
+The grid introducer configuration string provided to a client is a JSON string.
+The structure of the JSON document is::
+
+  { "version": 1
+  , "cap": "URI:DIR2-RO:4bnx..."
+  , "furls": [ "pb://sokl...@192.168.69.247:44801/eqpw..." ]
+  }
+
+The string value for the ``cap`` property is the read-only capability for ``collection-writecap`` in the ``grid-introducer``\ 's persistent state.
+The list of strings value for the ``furls`` property gives storage server hints for bootstrapping purposes
+(see `Operation`_).
+These values can be extracted from announcements already present in the directory referenced by ``collective-writecap``.
 
 Operation
 ---------
@@ -83,7 +97,7 @@ These two pieces of information allow them to read all announcements for enrolle
 
 When a client starts it checks its local state for a cache of announcements.
 If found these storage servers are added to a pool of candidates for further announcement discovery.
-The configured ``grid-introducer.furl`` is also added to the pool of candidates.
+The configured bootstrap storage fURLs are also added to the pool of candidates.
 Next, an attempt is made to download the **announcement directory**.
 Only one share is required to reconstruct the value so if any single server from the candidate pool can supply that share then recent announcements will be available.
 

@@ -21,14 +21,22 @@ By configuring your client with one small static connection hint,
 the "Grid Introducer" system enables the client to find more information and future updates to that information.
 
 Before attempting this configuration,
-you should have the Grid Introducer *cap* and *furl* which you received from the operator of a Tahoe-LAFS storage grid which uses the Grid Introducer system.
+you should have an introduction configuration string from the operator of a Grid Introducer-enabled Tahoe-LAFS storage grid.
 
-The Grid Introducer is configured in ``tahoe.cfg`` in the ``[client]`` section's ``grid-introducer.cap`` and ``grid-introducer.furl`` items.
+The Grid Introducer is configured in two parts.
+First,
+the introduction configuration string is written to a new file.
+This configuration should be treated as a secret.
+The node's ``private`` directory is a good location to consider for this file.
+For example,
+for a grid you refer to as the "foo grid" you might use ``private/foogrid-introduction``.
+
+Next,
+in ``tahoe.cfg`` the ``grid-introducer-path`` item in the ``[client]`` section is set to refer to this file.
 For example::
 
   [client]
-  grid-introducer.cap = URI:DIR2-RO:4bnx...
-  grid-introducer.furl = pb://sokl...@192.168.69.247:44801/eqpw...
+  grid-introducer-path = private/foogrid-introduction
 
 Start a Tahoe-LAFS client node with these items configured and the client will be able to find and follow all storage servers that are part of that grid.
 
@@ -58,6 +66,8 @@ The write capability for the mutable announcement is written to ``grid-introduce
 The read capability is written to ``grid-introducer-announcement.read-cap``.
 The capability in ``grid-introducer-announcement.read-cap`` is the capability that is shared with the grid coordinate for enrollment
 (see below).
+It is also possible to pre-allocate a mutable object and write it to ``grid-introducer-announcement.write-cap``.
+When the storage server starts up it will discover and use this value instead of allocating a new one.
 
 The ``grid-introducer-announcement.write-cap`` is essential state.
 Without it the storage node cannot update its announcement.
@@ -90,7 +100,7 @@ Enrolling Servers
 A Tahoe-LAFS storage server which is to be enrolled first shares its announcement readcap with you.
 Then, you will add it to the announcement directory::
 
-   grid-introducer add-storage-server --config <path> --readcap URI:CHK-RO:5cmy...
+   grid-introducer add-storage-server --config <path> --announcement-readcap URI:CHK-RO:5cmy...
 
 ``<path>`` should have previously been created by ``grid-introducer create``.
 If ``<path>`` is ``-`` then the configuration is read from stdin.
@@ -105,9 +115,6 @@ A configuration blob for clients can be generated like this::
   grid-introducer generate-client-config --config <path>
 
 ``<path>`` is handled here as elsewhere.
-The output is a string which can be added to a ``tahoe.cfg`` file.
-It will look something like::
-
-  [client]
-  grid-introducer.cap = URI:DIR2-RO:4bnx...
-  grid-introducer.furl = pb://sokl...@192.168.69.247:44801/eqpw...
+The output is a configuration string which should be made available to a client node and referenced from that client's configuration.
+The configuration should be treated as secret because it includes secrets that allow access to the grid.
+The configuration is used in the process described by `Use As A Client`_ .
