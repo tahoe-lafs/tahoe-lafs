@@ -104,6 +104,7 @@ PORTED_TEST_MODULES = [
     "allmydata.test.mutable.test_interoperability",
     "allmydata.test.mutable.test_multiple_encodings",
     "allmydata.test.mutable.test_multiple_versions",
+    "allmydata.test.mutable.test_problems",
     "allmydata.test.test_abbreviate",
     "allmydata.test.test_base32",
     "allmydata.test.test_base62",
