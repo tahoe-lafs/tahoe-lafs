@@ -1,9 +1,23 @@
-import hashlib
-from mock import Mock
+"""
+Ported from Python 3.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+
+from six import ensure_text
+
 from json import (
-    dumps,
     loads,
 )
+
+import hashlib
+from mock import Mock
 from fixtures import (
     TempDir,
 )
@@ -107,7 +121,7 @@ class TestNativeStorageServer(unittest.TestCase):
         ann = {"anonymous-storage-FURL": "pb://w2hqnbaa25yw4qgcvghl5psa3srpfgw3@tcp:127.0.0.1:51309/vucto2z4fxment3vfxbqecblbf6zyp6x",
                "permutation-seed-base32": "w2hqnbaa25yw4qgcvghl5psa3srpfgw3",
                }
-        nss = NativeStorageServer("server_id", ann, None, {}, EMPTY_CLIENT_CONFIG)
+        nss = NativeStorageServer(b"server_id", ann, None, {}, EMPTY_CLIENT_CONFIG)
         self.assertEqual(nss.get_nickname(), "")
 
 
@@ -123,7 +137,7 @@ class GetConnectionStatus(unittest.TestCase):
         """
         # Pretty hard to recognize anything from an empty announcement.
         ann = {}
-        nss = NativeStorageServer("server_id", ann, Tub, {}, EMPTY_CLIENT_CONFIG)
+        nss = NativeStorageServer(b"server_id", ann, Tub, {}, EMPTY_CLIENT_CONFIG)
         nss.start_connecting(lambda: None)
         connection_status = nss.get_connection_status()
         self.assertTrue(IConnectionStatus.providedBy(connection_status))
@@ -271,7 +285,7 @@ class PluginMatchedAnnouncement(SyncTestCase):
         """
         yield self.make_node(
             introducer_furl=SOME_FURL,
-            storage_plugin=b"tahoe-lafs-dummy-v1",
+            storage_plugin="tahoe-lafs-dummy-v1",
             plugin_config=None,
         )
         server_id = b"v0-abcdef"
@@ -295,9 +309,9 @@ class PluginMatchedAnnouncement(SyncTestCase):
         configuration is matched and the plugin's storage client is used.
         """
         plugin_config = {
-            b"abc": b"xyz",
+            "abc": "xyz",
         }
-        plugin_name = b"tahoe-lafs-dummy-v1"
+        plugin_name = "tahoe-lafs-dummy-v1"
         yield self.make_node(
             introducer_furl=SOME_FURL,
             storage_plugin=plugin_name,
@@ -348,7 +362,7 @@ class PluginMatchedAnnouncement(SyncTestCase):
         An announcement that could be matched by a plugin that is enabled with no
         configuration is matched and the plugin's storage client is used.
         """
-        plugin_name = b"tahoe-lafs-dummy-v1"
+        plugin_name = "tahoe-lafs-dummy-v1"
         yield self.make_node(
             introducer_furl=SOME_FURL,
             storage_plugin=plugin_name,
@@ -403,7 +417,7 @@ class FoolscapStorageServers(unittest.TestCase):
             verifyObject(
                 IFoolscapStorageServer,
                 _FoolscapStorage.from_announcement(
-                    u"server-id",
+                    b"server-id",
                     SOME_FURL,
                     {u"permutation-seed-base32": base32.b2a(b"permutationseed")},
                     NotStorageServer(),
@@ -425,7 +439,7 @@ class StoragePluginWebPresence(AsyncTestCase):
         self.port_assigner = SameProcessStreamEndpointAssigner()
         self.port_assigner.setUp()
         self.addCleanup(self.port_assigner.tearDown)
-        self.storage_plugin = b"tahoe-lafs-dummy-v1"
+        self.storage_plugin = u"tahoe-lafs-dummy-v1"
 
         from twisted.internet import reactor
         _, port_endpoint = self.port_assigner.assign(reactor)
@@ -436,15 +450,15 @@ class StoragePluginWebPresence(AsyncTestCase):
         self.basedir.child(u"private").makedirs()
         self.node_fixture = self.useFixture(UseNode(
             plugin_config={
-                b"web": b"1",
+                "web": "1",
             },
             node_config={
-                b"tub.location": b"127.0.0.1:1",
-                b"web.port": port_endpoint,
+                "tub.location": "127.0.0.1:1",
+                "web.port": ensure_text(port_endpoint),
             },
             storage_plugin=self.storage_plugin,
             basedir=self.basedir,
-            introducer_furl=SOME_FURL,
+            introducer_furl=ensure_text(SOME_FURL),
         ))
         self.node = yield self.node_fixture.create_node()
         self.webish = self.node.getServiceNamed(WebishServer.name)
@@ -461,8 +475,8 @@ class StoragePluginWebPresence(AsyncTestCase):
             port=self.port,
             plugin_name=self.storage_plugin,
         ).encode("utf-8")
-        result = yield do_http(b"get", url)
-        self.assertThat(result, Equals(dumps({b"web": b"1"})))
+        result = yield do_http("get", url)
+        self.assertThat(loads(result), Equals({"web": "1"}))
 
     @inlineCallbacks
     def test_plugin_resource_persistent_across_requests(self):
@@ -476,13 +490,13 @@ class StoragePluginWebPresence(AsyncTestCase):
             port=self.port,
             path=(
                 u"storage-plugins",
-                self.storage_plugin.decode("utf-8"),
+                self.storage_plugin,
                 u"counter",
             ),
         ).to_text().encode("utf-8")
         values = {
-            loads((yield do_http(b"get", url)))[u"value"],
-            loads((yield do_http(b"get", url)))[u"value"],
+            loads((yield do_http("get", url)))[u"value"],
+            loads((yield do_http("get", url)))[u"value"],
         }
         self.assertThat(
             values,
@@ -504,16 +518,16 @@ class TestStorageFarmBroker(unittest.TestCase):
     def test_static_servers(self):
         broker = make_broker()
 
-        key_s = 'v0-1234-1'
-        servers_yaml = b"""\
+        key_s = b'v0-1234-1'
+        servers_yaml = """\
 storage:
   v0-1234-1:
     ann:
       anonymous-storage-FURL: {furl}
       permutation-seed-base32: aaaaaaaaaaaaaaaaaaaaaaaa
-""".format(furl=SOME_FURL)
+""".format(furl=SOME_FURL.decode("utf-8"))
         servers = yamlutil.safe_load(servers_yaml)
-        permseed = base32.a2b("aaaaaaaaaaaaaaaaaaaaaaaa")
+        permseed = base32.a2b(b"aaaaaaaaaaaaaaaaaaaaaaaa")
         broker.set_static_servers(servers["storage"])
         self.failUnlessEqual(len(broker._static_server_ids), 1)
         s = broker.servers[key_s]
@@ -527,7 +541,7 @@ storage:
 
         ann2 = {
             "service-name": "storage",
-            "anonymous-storage-FURL": "pb://{}@nowhere/fake2".format(base32.b2a(str(1))),
+            "anonymous-storage-FURL": "pb://{}@nowhere/fake2".format(base32.b2a(b"1")),
             "permutation-seed-base32": "bbbbbbbbbbbbbbbbbbbbbbbb",
         }
         broker._got_announcement(key_s, ann2)
@@ -537,8 +551,8 @@ storage:
 
     def test_static_permutation_seed_pubkey(self):
         broker = make_broker()
-        server_id = "v0-4uazse3xb6uu5qpkb7tel2bm6bpea4jhuigdhqcuvvse7hugtsia"
-        k = "4uazse3xb6uu5qpkb7tel2bm6bpea4jhuigdhqcuvvse7hugtsia"
+        server_id = b"v0-4uazse3xb6uu5qpkb7tel2bm6bpea4jhuigdhqcuvvse7hugtsia"
+        k = b"4uazse3xb6uu5qpkb7tel2bm6bpea4jhuigdhqcuvvse7hugtsia"
         ann = {
             "anonymous-storage-FURL": SOME_FURL,
         }
@@ -548,8 +562,8 @@ storage:
 
     def test_static_permutation_seed_explicit(self):
         broker = make_broker()
-        server_id = "v0-4uazse3xb6uu5qpkb7tel2bm6bpea4jhuigdhqcuvvse7hugtsia"
-        k = "w5gl5igiexhwmftwzhai5jy2jixn7yx7"
+        server_id = b"v0-4uazse3xb6uu5qpkb7tel2bm6bpea4jhuigdhqcuvvse7hugtsia"
+        k = b"w5gl5igiexhwmftwzhai5jy2jixn7yx7"
         ann = {
             "anonymous-storage-FURL": SOME_FURL,
             "permutation-seed-base32": k,
@@ -560,7 +574,7 @@ storage:
 
     def test_static_permutation_seed_hashed(self):
         broker = make_broker()
-        server_id = "unparseable"
+        server_id = b"unparseable"
         ann = {
             "anonymous-storage-FURL": SOME_FURL,
         }
@@ -591,10 +605,10 @@ storage:
         }
 
         def add_one_server(x):
-            data["anonymous-storage-FURL"] = "pb://{}@nowhere/fake".format(base32.b2a(str(x)))
+            data["anonymous-storage-FURL"] = b"pb://%s@nowhere/fake" % (base32.b2a(b"%d" % x),)
             tub = Mock()
             new_tubs.append(tub)
-            got_announcement('v0-1234-{}'.format(x), data)
+            got_announcement(b'v0-1234-%d' % x, data)
             self.assertEqual(tub.mock_calls[-1][0], 'connectTo')
             got_connection = tub.mock_calls[-1][1][1]
             rref = Mock()

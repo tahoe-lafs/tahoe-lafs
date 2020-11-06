@@ -3,11 +3,8 @@ A storage server plugin the test suite can use to validate the
 functionality.
 """
 
-from future.utils import native_str
-
-from json import (
-    dumps,
-)
+from future.utils import native_str, native_str_to_bytes
+from six import ensure_str
 
 import attr
 
@@ -34,6 +31,9 @@ from allmydata.interfaces import (
 )
 from allmydata.client import (
     AnnounceableStorageServer,
+)
+from allmydata.util.jsonbytes import (
+    dumps,
 )
 
 
@@ -84,8 +84,8 @@ class DummyStorage(object):
         """
         items = configuration.items(self._client_section_name, [])
         resource = Data(
-            dumps(dict(items)),
-            b"text/json",
+            native_str_to_bytes(dumps(dict(items))),
+            ensure_str("text/json"),
         )
         # Give it some dynamic stuff too.
         resource.putChild(b"counter", GetCounter())
@@ -102,7 +102,7 @@ class GetCounter(Resource, object):
     value = 0
     def render_GET(self, request):
         self.value += 1
-        return dumps({"value": self.value})
+        return native_str_to_bytes(dumps({"value": self.value}))
 
 
 @implementer(RIDummy)

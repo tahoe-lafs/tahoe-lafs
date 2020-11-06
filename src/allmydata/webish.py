@@ -57,7 +57,7 @@ class TahoeLAFSRequest(Request, object):
 
         self.method, self.uri = command, path
         self.clientproto = version
-        x = self.uri.split('?', 1)
+        x = self.uri.split(b'?', 1)
 
         if len(x) == 1:
             self.path = self.uri
@@ -116,25 +116,25 @@ def _logFormatter(logDateTime, request):
     # match apache formatting. TODO: when we move to DSA dirnodes and
     # shorter caps, consider exposing a few characters of the cap, or
     # maybe a few characters of its hash.
-    x = request.uri.split("?", 1)
+    x = request.uri.split(b"?", 1)
     if len(x) == 1:
         # no query args
         path = request.uri
-        queryargs = ""
+        queryargs = b""
     else:
         path, queryargs = x
         # there is a form handler which redirects POST /uri?uri=FOO into
         # GET /uri/FOO so folks can paste in non-HTTP-prefixed uris. Make
         # sure we censor these too.
-        if queryargs.startswith("uri="):
-            queryargs = "uri=[CENSORED]"
+        if queryargs.startswith(b"uri="):
+            queryargs = b"uri=[CENSORED]"
         queryargs = "?" + queryargs
-    if path.startswith("/uri/"):
-        path = "/uri/[CENSORED]"
-    elif path.startswith("/file/"):
-        path = "/file/[CENSORED]"
-    elif path.startswith("/named/"):
-        path = "/named/[CENSORED]"
+    if path.startswith(b"/uri/"):
+        path = b"/uri/[CENSORED]"
+    elif path.startswith(b"/file/"):
+        path = b"/file/[CENSORED]"
+    elif path.startswith(b"/named/"):
+        path = b"/named/[CENSORED]"
 
     uri = path + queryargs
 

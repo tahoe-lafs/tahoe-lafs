@@ -2,7 +2,13 @@
 """
 I contain the client-side code which speaks to storage servers, in particular
 the foolscap-based server implemented in src/allmydata/storage/*.py .
+
+Ported to Python 3.
 """
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
 
 # roadmap:
 #
@@ -28,7 +34,10 @@ the foolscap-based server implemented in src/allmydata/storage/*.py .
 #
 # 6: implement other sorts of IStorageClient classes: S3, etc
 
-from past.builtins import unicode
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+
 
 import re, time, hashlib
 
@@ -65,6 +74,8 @@ from allmydata.util.assertutil import precondition
 from allmydata.util.observer import ObserverList
 from allmydata.util.rrefutil import add_version_to_remote_reference
 from allmydata.util.hashutil import permute_server_hash
+from allmydata.util.dictutil import BytesKeyDict, UnicodeKeyDict
+
 
 # who is responsible for de-duplication?
 #  both?
@@ -92,7 +103,7 @@ class StorageClientConfig(object):
         decreasing preference.  See the *[client]peers.preferred*
         documentation for details.
 
-    :ivar dict[unicode, dict[bytes, bytes]] storage_plugins: A mapping from
+    :ivar dict[unicode, dict[unicode, unicode]] storage_plugins: A mapping from
         names of ``IFoolscapStoragePlugin`` configured in *tahoe.cfg* to the
         respective configuration.
     """
@@ -107,24 +118,24 @@ class StorageClientConfig(object):
 
         :param _Config config: The loaded Tahoe-LAFS node configuration.
         """
-        ps = config.get_config("client", "peers.preferred", b"").split(b",")
-        preferred_peers = tuple([p.strip() for p in ps if p != b""])
+        ps = config.get_config("client", "peers.preferred", "").split(",")
+        preferred_peers = tuple([p.strip() for p in ps if p != ""])
 
         enabled_storage_plugins = (
             name.strip()
             for name
             in config.get_config(
-                b"client",
-                b"storage.plugins",
-                b"",
-            ).decode("utf-8").split(u",")
+                "client",
+                "storage.plugins",
+                "",
+            ).split(u",")
             if name.strip()
         )
 
         storage_plugins = {}
         for plugin_name in enabled_storage_plugins:
             try:
-                plugin_config = config.items(b"storageclient.plugins." + plugin_name)
+                plugin_config = config.items("storageclient.plugins." + plugin_name)
             except NoSectionError:
                 plugin_config = []
             storage_plugins[plugin_name] = dict(plugin_config)
@@ -173,7 +184,7 @@ class StorageFarmBroker(service.MultiService):
         # storage servers that we've heard about. Each descriptor manages its
         # own Reconnector, and will give us a RemoteReference when we ask
         # them for it.
-        self.servers = {}
+        self.servers = BytesKeyDict()
         self._static_server_ids = set() # ignore announcements for these
         self.introducer_client = None
         self._threshold_listeners = [] # tuples of (threshold, Deferred)
@@ -200,6 +211,8 @@ class StorageFarmBroker(service.MultiService):
                 # information.
                 pass
             else:
+                if isinstance(server_id, str):
+                    server_id = server_id.encode("utf-8")
                 self._static_server_ids.add(server_id)
                 self.servers[server_id] = storage_server
                 storage_server.setServiceParent(self)
@@ -350,8 +363,8 @@ class StorageFarmBroker(service.MultiService):
         so if we use more than one introducer it is possible for them to
         deliver us stale announcements in some cases.
         """
-        precondition(isinstance(key_s, str), key_s)
-        precondition(key_s.startswith("v0-"), key_s)
+        precondition(isinstance(key_s, bytes), key_s)
+        precondition(key_s.startswith(b"v0-"), key_s)
         precondition(ann["service-name"] == "storage", ann["service-name"])
         server_id = key_s
 
@@ -399,7 +412,7 @@ class StorageFarmBroker(service.MultiService):
         # connections to only a subset of the servers, which would increase
         # the chances that we'll put shares in weird places (and not update
         # existing shares of mutable files). See #374 for more details.
-        for dsc in self.servers.values():
+        for dsc in list(self.servers.values()):
             dsc.try_to_connect()
 
     def get_servers_for_psi(self, peer_selection_index):
@@ -439,7 +452,7 @@ class StorageFarmBroker(service.MultiService):
         # Upload Results web page). If the Helper is running 1.12 or newer,
         # it will send pubkeys, but if it's still running 1.11, it will send
         # tubids. This clause maps the old tubids to our existing servers.
-        for s in self.servers.values():
+        for s in list(self.servers.values()):
             if isinstance(s, NativeStorageServer):
                 if serverid == s.get_tubid():
                     return s
@@ -552,10 +565,10 @@ class _FoolscapStorage(object):
         tubid = base32.a2b(tubid_s)
         if "permutation-seed-base32" in ann:
             seed = ann["permutation-seed-base32"]
-            if isinstance(seed, unicode):
+            if isinstance(seed, str):
                 seed = seed.encode("utf-8")
             ps = base32.a2b(seed)
-        elif re.search(r'^v0-[0-9a-zA-Z]{52}$', server_id):
+        elif re.search(br'^v0-[0-9a-zA-Z]{52}$', server_id):
             ps = base32.a2b(server_id[3:])
         else:
             log.msg("unable to parse serverid '%(server_id)s as pubkey, "
@@ -647,7 +660,7 @@ def _storage_from_foolscap_plugin(node_config, config, announcement, get_rref):
         in getPlugins(IFoolscapStoragePlugin)
     }
     storage_options = announcement.get(u"storage-options", [])
-    for plugin_name, plugin_config in config.storage_plugins.items():
+    for plugin_name, plugin_config in list(config.storage_plugins.items()):
         try:
             plugin = plugins[plugin_name]
         except KeyError:
@@ -680,16 +693,16 @@ class NativeStorageServer(service.MultiService):
     @ivar remote_host: the IAddress, if connected, otherwise None
     """
 
-    VERSION_DEFAULTS = {
-        b"http://allmydata.org/tahoe/protocols/storage/v1" :
-        { b"maximum-immutable-share-size": 2**32 - 1,
-          b"maximum-mutable-share-size": 2*1000*1000*1000, # maximum prior to v1.9.2
-          b"tolerates-immutable-read-overrun": False,
-          b"delete-mutable-shares-with-zero-length-writev": False,
-          b"available-space": None,
-          },
-        b"application-version": "unknown: no get_version()",
-        }
+    VERSION_DEFAULTS = UnicodeKeyDict({
+        "http://allmydata.org/tahoe/protocols/storage/v1" :
+        UnicodeKeyDict({ "maximum-immutable-share-size": 2**32 - 1,
+          "maximum-mutable-share-size": 2*1000*1000*1000, # maximum prior to v1.9.2
+          "tolerates-immutable-read-overrun": False,
+          "delete-mutable-shares-with-zero-length-writev": False,
+          "available-space": None,
+          }),
+        "application-version": "unknown: no get_version()",
+        })
 
     def __init__(self, server_id, ann, tub_maker, handler_overrides, node_config, config=StorageClientConfig()):
         service.MultiService.__init__(self)
@@ -754,7 +767,7 @@ class NativeStorageServer(service.MultiService):
             # Nope
             pass
         else:
-            if isinstance(furl, unicode):
+            if isinstance(furl, str):
                 furl = furl.encode("utf-8")
             # See comment above for the _storage_from_foolscap_plugin case
             # about passing in get_rref.
@@ -829,7 +842,7 @@ class NativeStorageServer(service.MultiService):
         version = self.get_version()
         if version is None:
             return None
-        protocol_v1_version = version.get(b'http://allmydata.org/tahoe/protocols/storage/v1', {})
+        protocol_v1_version = version.get('http://allmydata.org/tahoe/protocols/storage/v1', UnicodeKeyDict())
         available_space = protocol_v1_version.get('available-space')
         if available_space is None:
             available_space = protocol_v1_version.get('maximum-immutable-share-size', None)
