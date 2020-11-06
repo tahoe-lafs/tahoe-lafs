@@ -1,3 +1,4 @@
+from future.utils import bchr
 from past.builtins import long
 
 from io import BytesIO
@@ -146,14 +147,14 @@ class FakeStorageServer(object):
 
 def flip_bit(original, byte_offset):
     return (original[:byte_offset] +
-            chr(ord(original[byte_offset]) ^ 0x01) +
+            bchr(ord(original[byte_offset:byte_offset+1]) ^ 0x01) +
             original[byte_offset+1:])
 
 def add_two(original, byte_offset):
     # It isn't enough to simply flip the bit for the version number,
     # because 1 is a valid version number. So we add two instead.
     return (original[:byte_offset] +
-            chr(ord(original[byte_offset]) ^ 0x02) +
+            bchr(ord(original[byte_offset:byte_offset+1]) ^ 0x02) +
             original[byte_offset+1:])
 
 def corrupt(res, s, offset, shnums_to_corrupt=None, offset_offset=0):

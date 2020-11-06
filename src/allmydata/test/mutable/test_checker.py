@@ -41,7 +41,7 @@ class Checker(unittest.TestCase, CheckerMixin, PublishMixin):
 
     def test_check_not_enough_shares(self):
         for shares in self._storage._peers.values():
-            for shnum in shares.keys():
+            for shnum in list(shares.keys()):
                 if shnum > 0:
                     del shares[shnum]
         d = self._fn.check(Monitor())
@@ -52,7 +52,7 @@ class Checker(unittest.TestCase, CheckerMixin, PublishMixin):
         d = self.publish_mdmf()
         def _then(ignored):
             for shares in self._storage._peers.values():
-                for shnum in shares.keys():
+                for shnum in list(shares.keys()):
                     if shnum > 0:
                         del shares[shnum]
         d.addCallback(_then)
@@ -242,14 +242,14 @@ class Checker(unittest.TestCase, CheckerMixin, PublishMixin):
         return d
 
     def test_verify_sdmf_empty(self):
-        d = self.publish_sdmf("")
+        d = self.publish_sdmf(b"")
         d.addCallback(lambda ignored: self._fn.check(Monitor(), verify=True))
         d.addCallback(self.check_good, "test_verify_sdmf")
         d.addCallback(flushEventualQueue)
         return d
 
     def test_verify_mdmf_empty(self):
-        d = self.publish_mdmf("")
+        d = self.publish_mdmf(b"")
         d.addCallback(lambda ignored: self._fn.check(Monitor(), verify=True))
         d.addCallback(self.check_good, "test_verify_mdmf")
         d.addCallback(flushEventualQueue)
