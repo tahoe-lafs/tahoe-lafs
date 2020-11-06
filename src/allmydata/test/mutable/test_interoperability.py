@@ -1,3 +1,15 @@
+"""
+Ported to Python 3.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+
 import os, base64
 from twisted.trial import unittest
 from allmydata import uri
@@ -22,10 +34,10 @@ class Interoperability(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixi
     sdmf_old_contents = b"This is a test file.\n"
     def copy_sdmf_shares(self):
         # We'll basically be short-circuiting the upload process.
-        servernums = self.g.servers_by_number.keys()
+        servernums = list(self.g.servers_by_number.keys())
         assert len(servernums) == 10
 
-        assignments = zip(self.sdmf_old_shares.keys(), servernums)
+        assignments = list(zip(self.sdmf_old_shares.keys(), servernums))
         # Get the storage index.
         cap = uri.from_string(self.sdmf_old_cap)
         si = cap.get_storage_index()

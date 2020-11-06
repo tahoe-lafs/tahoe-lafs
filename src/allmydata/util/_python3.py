@@ -101,6 +101,7 @@ PORTED_TEST_MODULES = [
     "allmydata.test.mutable.test_exceptions",
     "allmydata.test.mutable.test_filehandle",
     "allmydata.test.mutable.test_filenode",
+    "allmydata.test.mutable.test_interoperability",
     "allmydata.test.test_abbreviate",
     "allmydata.test.test_base32",
     "allmydata.test.test_base62",
