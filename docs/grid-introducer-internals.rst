@@ -108,3 +108,26 @@ Finally,
 all locally cached announcements are available to be used to initialize ``NativeStorageServer`` instances.
 
 The client can periodically repeat this process to discover new announcements and changes to existing announcements.
+
+Failure Modes
+-------------
+
+Grid Introducer imposes the following requirements:
+
+* Storage servers must pro-actively publish their announcement to N servers.
+  If a new server joins the grid the storage server must push their existing announcement to it.
+  If a storage server's announcement changes it must push the new announcement to all storage servers on the grid.
+
+  * If storage servers cannot communicate with each other then announcements cannot be uploaded or updated.
+  * If storage servers are full then announcements cannot be uploaded
+    (and possibly cannot be updated).
+
+* Storage servers must retain the write capability for their announcement object.
+  It must be kept secret or another agent will be able to forge announcements.
+  It must not be lost or the storage server will be unable to update its announcement without re-enrollment.
+
+* An administrator must retain the grid introducer state.
+  It must be kept secret or another agent will be able to control server enrollment.
+  It must not be lost or the administrator will be unable to manage the grid without distributing new configuration to all clients.
+
+* At least one storage server from the list of bootstrap storage servers must remain reachable as long as any clients exist which will bootstrap from that list.
