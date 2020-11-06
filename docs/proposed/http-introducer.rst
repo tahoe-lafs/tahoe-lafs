@@ -109,3 +109,45 @@ run this command::
 The output is the *introducer fURL* which should be made available to a client node and referenced from that client's configuration.
 The configuration should be treated as secret because it includes secrets that allow access to the grid.
 The configuration is used in the process described by `Use As A Client`_ .
+
+Example Scenario
+----------------
+
+Alice operates an HTTP introducer.
+Bob operates a storage server.
+Carol operates a client node.
+
+::
+
+   [alice@aaa:~]$ CFG=myintroducer.json
+   [alice@aaa:~]$ http-introducer create --config $CFG --listen-endpoint tcp:12345
+   [alice@aaa:~]$ http-introducer get-introducer-furl --config $CFG
+   xxx://zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz@somewhere:12345/pqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpq
+   [alice@aaa:~]$ daemonize http-introducer run --config $CFG
+   [alice@aaa:~]$
+
+::
+
+   [bob@bbb:~]$ cat >> storage-node/tahoe.cfg
+   [client]
+   http-introducer-path = storage-node/private/alicegrid.json
+   ^D
+   [bob@bbb:~]$ cat > storage-node/private/alicegrid.json
+   xxx://zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz@somewhere:12345/pqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpq
+   ^D
+   [bob@bbb:~]$ kill $(cat storage-node/twistd.pid)
+   [bob@bbb:~]$ daemonize tahoe run storage-node
+   [bob@bbb:~]$
+
+::
+
+   [carol@ccc:~]$ cat >> storage-node/tahoe.cfg
+   [client]
+   http-introducer-path = storage-node/private/alicegrid.json
+   ^D
+   [carol@ccc:~]$ cat > storage-node/private/alicegrid.json
+   xxx://zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz@somewhere:12345/pqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpq
+   ^D
+   [carol@ccc:~]$ kill $(cat storage-node/twistd.pid)
+   [carol@ccc:~]$ daemonize tahoe run storage-node
+   [carol@ccc:~]$
