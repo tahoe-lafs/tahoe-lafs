@@ -64,11 +64,22 @@ The ``http-introducer`` tool is a stand-alone server which implements basic publ
 
 The first step is to create the introducer's persistent state::
 
-  http-introducer create --config <path> --listen-endpoint <endpoint>
+  http-introducer create --config <path> --listen-endpoint <endpoint> [--certificate-path <path> --private-key-path <path>]
 
 This is an error if ``<path>`` exists already.
 If it does not then a new HTTP Introducer configuration is written there.
 If ``<path>`` is ``-`` then the configuration is written to stdout.
+
+``--listen-endpoint`` may be used repeatedly to listen on multiple addresses.
+Whatever endpoint type is chosen,
+``http-introducer`` will *always* _automatically_ negotiate TLS over it.
+
+If given,
+the files given by ``--certificate-path`` and ``--private-key-path`` have their contents read and added to the configuration state.
+After the execution of this command,
+these files are not read again.
+If not given,
+a new private key and self-signed certificate is generated and used.
 
 This is the HTTP Introducer's state and is required by future commands.
 It is the operator's responsibility to persist this state.
