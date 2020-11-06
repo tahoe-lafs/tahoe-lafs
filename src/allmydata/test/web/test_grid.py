@@ -44,7 +44,7 @@ from .common import (
     unknown_rwcap,
 )
 
-DIR_HTML_TAG = '<html lang="en">'
+DIR_HTML_TAG = b'<html lang="en">'
 
 class CompletelyUnhandledError(Exception):
     pass
@@ -60,6 +60,11 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
         fileurl = self.fileurls[which]
         url = (fileurl + "?" + args).encode('ascii')
         return self.GET(url, method="POST", clientnum=clientnum)
+
+    def _compute_fileurls(self, ignored):
+        self.fileurls = {}
+        for which in self.uris:
+            self.fileurls[which] = "uri/" + urllib.parse.quote(self.uris[which])
 
     def test_filecheck(self):
         self.basedir = "web/Grid/filecheck"
@@ -89,10 +94,6 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
         d.addCallback(lambda ign: c0.create_immutable_dirnode({}))
         d.addCallback(_stash_mutable_uri, "smalldir")
 
-        def _compute_fileurls(ignored):
-            self.fileurls = {}
-            for which in self.uris:
-                self.fileurls[which] = "uri/" + urllib.parse.quote(self.uris[which])
         d.addCallback(_compute_fileurls)
 
         def _clobber_shares(ignored):
@@ -233,10 +234,6 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
             c0.create_mutable_file(publish.MutableData(DATA+b"3")))
         d.addCallback(_stash_mutable_uri, "corrupt")
 
-        def _compute_fileurls(ignored):
-            self.fileurls = {}
-            for which in self.uris:
-                self.fileurls[which] = "uri/" + urllib.parse.quote(self.uris[which])
         d.addCallback(_compute_fileurls)
 
         def _clobber_shares(ignored):
@@ -304,10 +301,6 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
             self.uris[which] = ur.get_uri()
         d.addCallback(_stash_uri, "sick")
 
-        def _compute_fileurls(ignored):
-            self.fileurls = {}
-            for which in self.uris:
-                self.fileurls[which] = "uri/" + urllib.parse.quote(self.uris[which])
         d.addCallback(_compute_fileurls)
 
         def _clobber_shares(ignored):
@@ -612,7 +605,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
         d = c0.create_dirnode()
         def _stash_root_and_create_file(n):
             self.rootnode = n
-            self.fileurls["root"] = "uri/" + urllib.parse.quote(n.get_uri())
+            self.fileurls["root"] = b"uri/" + urllib.parse.quote(n.get_uri())
             return n.add_file(u"good", upload.Data(DATA, convergence=b""))
         d.addCallback(_stash_root_and_create_file)
         def _stash_uri(fn, which):
@@ -786,7 +779,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
         d = c0.create_dirnode()
         def _stash_root_and_create_file(n):
             self.rootnode = n
-            self.fileurls["root"] = "uri/" + urllib.parse.quote(n.get_uri())
+            self.fileurls["root"] = b"uri/" + urllib.parse.quote(n.get_uri())
             return n.add_file(u"good", upload.Data(DATA, convergence=b""))
         d.addCallback(_stash_root_and_create_file)
         def _stash_uri(fn, which):
@@ -915,10 +908,6 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
             c0.create_mutable_file(publish.MutableData(DATA+b"2")))
         d.addCallback(_stash_mutable_uri, "mutable")
 
-        def _compute_fileurls(ignored):
-            self.fileurls = {}
-            for which in self.uris:
-                self.fileurls[which] = "uri/" + urllib.parse.quote(self.uris[which])
         d.addCallback(_compute_fileurls)
 
         d.addCallback(self._count_leases, "one")
@@ -999,7 +988,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
         def _stash_root_and_create_file(n):
             self.rootnode = n
             self.uris["root"] = n.get_uri()
-            self.fileurls["root"] = "uri/" + urllib.parse.quote(n.get_uri())
+            self.fileurls["root"] = b"uri/" + urllib.parse.quote(n.get_uri())
             return n.add_file(u"one", upload.Data(DATA, convergence=b""))
         d.addCallback(_stash_root_and_create_file)
         def _stash_uri(fn, which):
@@ -1066,32 +1055,32 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
         DATA = b"data" * 100
         d = c0.create_dirnode()
         def _stash_root(n):
-            self.fileurls["root"] = "uri/" + urllib.parse.quote(n.get_uri())
-            self.fileurls["imaginary"] = self.fileurls["root"] + "/imaginary"
+            self.fileurls["root"] = b"uri/" + urllib.parse.quote(n.get_uri())
+            self.fileurls["imaginary"] = self.fileurls["root"] + b"/imaginary"
             return n
         d.addCallback(_stash_root)
         d.addCallback(lambda ign: c0.upload(upload.Data(DATA, convergence=b"")))
         def _stash_bad(ur):
-            self.fileurls["1share"] = "uri/" + urllib.parse.quote(ur.get_uri())
+            self.fileurls["1share"] = b"uri/" + urllib.parse.quote(ur.get_uri())
             self.delete_shares_numbered(ur.get_uri(), range(1,10))
 
             u = uri.from_string(ur.get_uri())
             u.key = testutil.flip_bit(u.key, 0)
             baduri = u.to_string()
-            self.fileurls["0shares"] = "uri/" + urllib.parse.quote(baduri)
+            self.fileurls["0shares"] = b"uri/" + urllib.parse.quote(baduri)
         d.addCallback(_stash_bad)
         d.addCallback(lambda ign: c0.create_dirnode())
         def _mangle_dirnode_1share(n):
             u = n.get_uri()
-            url = self.fileurls["dir-1share"] = "uri/" + urllib.parse.quote(u)
-            self.fileurls["dir-1share-json"] = url + "?t=json"
+            url = self.fileurls["dir-1share"] = b"uri/" + urllib.parse.quote(u)
+            self.fileurls["dir-1share-json"] = url + b"?t=json"
             self.delete_shares_numbered(u, range(1,10))
         d.addCallback(_mangle_dirnode_1share)
         d.addCallback(lambda ign: c0.create_dirnode())
         def _mangle_dirnode_0share(n):
             u = n.get_uri()
-            url = self.fileurls["dir-0share"] = "uri/" + urllib.parse.quote(u)
-            self.fileurls["dir-0share-json"] = url + "?t=json"
+            url = self.fileurls["dir-0share"] = b"uri/" + urllib.parse.quote(u)
+            self.fileurls["dir-0share-json"] = url + b"?t=json"
             self.delete_shares_numbered(u, range(0,10))
         d.addCallback(_mangle_dirnode_0share)
 
@@ -1101,7 +1090,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
 
         d.addCallback(lambda ignored:
                       self.shouldHTTPError("GET unrecoverable",
-                                           410, "Gone", "NoSharesError",
+                                           410, b"Gone", b"NoSharesError",
                                            self.GET, self.fileurls["0shares"]))
         def _check_zero_shares(body):
             self.failIfIn("<html>", body)
@@ -1118,7 +1107,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
 
         d.addCallback(lambda ignored:
                       self.shouldHTTPError("GET 1share",
-                                           410, "Gone", "NotEnoughSharesError",
+                                           410, b"Gone", b"NotEnoughSharesError",
                                            self.GET, self.fileurls["1share"]))
         def _check_one_share(body):
             self.failIfIn("<html>", body)
@@ -1142,7 +1131,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
 
         d.addCallback(lambda ignored:
                       self.shouldHTTPError("GET imaginary",
-                                           404, "Not Found", None,
+                                           404, b"Not Found", None,
                                            self.GET, self.fileurls["imaginary"]))
         def _missing_child(body):
             self.failUnlessIn("No such child: imaginary", body)
@@ -1153,18 +1142,18 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
             self.failUnlessIn(DIR_HTML_TAG, body)
             # we should see the regular page, but without the child table or
             # the dirops forms
-            body = " ".join(body.strip().split())
-            self.failUnlessIn('href="?t=info">More info on this directory',
+            body = b" ".join(body.strip().split())
+            self.failUnlessIn(b'href="?t=info">More info on this directory',
                               body)
-            exp = ("UnrecoverableFileError: the directory (or mutable file) "
-                   "could not be retrieved, because there were insufficient "
-                   "good shares. This might indicate that no servers were "
-                   "connected, insufficient servers were connected, the URI "
-                   "was corrupt, or that shares have been lost due to server "
-                   "departure, hard drive failure, or disk corruption. You "
-                   "should perform a filecheck on this object to learn more.")
+            exp = (b"UnrecoverableFileError: the directory (or mutable file) "
+                   b"could not be retrieved, because there were insufficient "
+                   b"good shares. This might indicate that no servers were "
+                   b"connected, insufficient servers were connected, the URI "
+                   b"was corrupt, or that shares have been lost due to server "
+                   b"departure, hard drive failure, or disk corruption. You "
+                   b"should perform a filecheck on this object to learn more.")
             self.failUnlessIn(exp, body)
-            self.failUnlessIn("No upload forms: directory is unreadable", body)
+            self.failUnlessIn(b"No upload forms: directory is unreadable", body)
         d.addCallback(_check_0shares_dir_html)
 
         d.addCallback(lambda ignored: self.GET(self.fileurls["dir-1share"]))
@@ -1174,53 +1163,52 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
             # are different sorts of advice to offer in each case). For now,
             # they present the same way.
             self.failUnlessIn(DIR_HTML_TAG, body)
-            body = " ".join(body.strip().split())
-            self.failUnlessIn('href="?t=info">More info on this directory',
+            body = b" ".join(body.strip().split())
+            self.failUnlessIn(b'href="?t=info">More info on this directory',
                               body)
-            exp = ("UnrecoverableFileError: the directory (or mutable file) "
-                   "could not be retrieved, because there were insufficient "
-                   "good shares. This might indicate that no servers were "
-                   "connected, insufficient servers were connected, the URI "
-                   "was corrupt, or that shares have been lost due to server "
-                   "departure, hard drive failure, or disk corruption. You "
-                   "should perform a filecheck on this object to learn more.")
+            exp = (b"UnrecoverableFileError: the directory (or mutable file) "
+                   b"could not be retrieved, because there were insufficient "
+                   b"good shares. This might indicate that no servers were "
+                   b"connected, insufficient servers were connected, the URI "
+                   b"was corrupt, or that shares have been lost due to server "
+                   b"departure, hard drive failure, or disk corruption. You "
+                   b"should perform a filecheck on this object to learn more.")
             self.failUnlessIn(exp, body)
-            self.failUnlessIn("No upload forms: directory is unreadable", body)
+            self.failUnlessIn(b"No upload forms: directory is unreadable", body)
         d.addCallback(_check_1shares_dir_html)
 
         d.addCallback(lambda ignored:
                       self.shouldHTTPError("GET dir-0share-json",
-                                           410, "Gone", "UnrecoverableFileError",
+                                           410, b"Gone", b"UnrecoverableFileError",
                                            self.GET,
                                            self.fileurls["dir-0share-json"]))
         def _check_unrecoverable_file(body):
-            self.failIfIn("<html>", body)
-            body = " ".join(body.strip().split())
-            exp = ("UnrecoverableFileError: the directory (or mutable file) "
-                   "could not be retrieved, because there were insufficient "
-                   "good shares. This might indicate that no servers were "
-                   "connected, insufficient servers were connected, the URI "
-                   "was corrupt, or that shares have been lost due to server "
-                   "departure, hard drive failure, or disk corruption. You "
-                   "should perform a filecheck on this object to learn more.")
+            self.failIfIn(b"<html>", body)
+            body = b" ".join(body.strip().split())
+            exp = (b"UnrecoverableFileError: the directory (or mutable file) "
+                   b"could not be retrieved, because there were insufficient "
+                   b"good shares. This might indicate that no servers were "
+                   b"connected, insufficient servers were connected, the URI "
+                   b"was corrupt, or that shares have been lost due to server "
+                   b"departure, hard drive failure, or disk corruption. You "
+                   b"should perform a filecheck on this object to learn more.")
             self.failUnlessIn(exp, body)
         d.addCallback(_check_unrecoverable_file)
 
         d.addCallback(lambda ignored:
                       self.shouldHTTPError("GET dir-1share-json",
-                                           410, "Gone", "UnrecoverableFileError",
+                                           410, b"Gone", b"UnrecoverableFileError",
                                            self.GET,
                                            self.fileurls["dir-1share-json"]))
         d.addCallback(_check_unrecoverable_file)
 
         d.addCallback(lambda ignored:
                       self.shouldHTTPError("GET imaginary",
-                                           404, "Not Found", None,
+                                           404, b"Not Found", None,
                                            self.GET, self.fileurls["imaginary"]))
 
         # attach a webapi child that throws a random error, to test how it
         # gets rendered.
-        import pdb; pdb.set_trace()
         w = c0.getServiceNamed("webish")
         w.root.putChild("ERRORBOOM", ErrorBoom())
 
@@ -1231,40 +1219,40 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
 
         d.addCallback(lambda ignored:
                       self.shouldHTTPError("GET errorboom_html",
-                                           500, "Internal Server Error", None,
-                                           self.GET, "ERRORBOOM",
+                                           500, b"Internal Server Error", None,
+                                           self.GET, b"ERRORBOOM",
                                            headers={"accept": "*/*"}))
         def _internal_error_html1(body):
-            self.failUnlessIn("<html>", "expected HTML, not '%s'" % body)
+            self.failUnlessIn(b"<html>", b"expected HTML, not '%s'" % body)
         d.addCallback(_internal_error_html1)
 
         d.addCallback(lambda ignored:
                       self.shouldHTTPError("GET errorboom_text",
-                                           500, "Internal Server Error", None,
-                                           self.GET, "ERRORBOOM",
+                                           500, b"Internal Server Error", None,
+                                           self.GET, b"ERRORBOOM",
                                            headers={"accept": "text/plain"}))
         def _internal_error_text2(body):
-            self.failIfIn("<html>", body)
-            self.failUnless(body.startswith("Traceback "), body)
+            self.failIfIn(b"<html>", body)
+            self.failUnless(body.startswith(b"Traceback "), body)
         d.addCallback(_internal_error_text2)
 
         CLI_accepts = "text/plain, application/octet-stream"
         d.addCallback(lambda ignored:
                       self.shouldHTTPError("GET errorboom_text",
-                                           500, "Internal Server Error", None,
-                                           self.GET, "ERRORBOOM",
+                                           500, b"Internal Server Error", None,
+                                           self.GET, b"ERRORBOOM",
                                            headers={"accept": CLI_accepts}))
         def _internal_error_text3(body):
-            self.failIfIn("<html>", body)
-            self.failUnless(body.startswith("Traceback "), body)
+            self.failIfIn(b"<html>", body)
+            self.failUnless(body.startswith(b"Traceback "), body)
         d.addCallback(_internal_error_text3)
 
         d.addCallback(lambda ignored:
                       self.shouldHTTPError("GET errorboom_text",
-                                           500, "Internal Server Error", None,
-                                           self.GET, "ERRORBOOM"))
+                                           500, b"Internal Server Error", None,
+                                           self.GET, b"ERRORBOOM"))
         def _internal_error_html4(body):
-            self.failUnlessIn("<html>", body)
+            self.failUnlessIn(b"<html>", body)
         d.addCallback(_internal_error_html4)
 
         def _flush_errors(res):
@@ -1273,6 +1261,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
             return res
         d.addBoth(_flush_errors)
 
+        d.addErrback(self.explain_web_error)
         return d
 
     def test_blacklist(self):
@@ -1317,8 +1306,8 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
             # need to restart the client
         d.addCallback(_blacklist)
         d.addCallback(lambda ign: self.shouldHTTPError("get_from_blacklisted_uri",
-                                                       403, "Forbidden",
-                                                       "Access Prohibited: off-limits",
+                                                       403, b"Forbidden",
+                                                       b"Access Prohibited: off-limits",
                                                        self.GET, self.url))
 
         # We should still be able to list the parent directory, in HTML...
@@ -1392,24 +1381,24 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
             self.g.clients[0].blacklist.last_mtime -= 2.0
         d.addCallback(_block_dir)
         d.addCallback(lambda ign: self.shouldHTTPError("get_from_blacklisted_dir base",
-                                                       403, "Forbidden",
-                                                       "Access Prohibited: dir-off-limits",
+                                                       403, b"Forbidden",
+                                                       b"Access Prohibited: dir-off-limits",
                                                        self.GET, self.dir_url_base))
         d.addCallback(lambda ign: self.shouldHTTPError("get_from_blacklisted_dir json1",
-                                                       403, "Forbidden",
-                                                       "Access Prohibited: dir-off-limits",
+                                                       403, b"Forbidden",
+                                                       b"Access Prohibited: dir-off-limits",
                                                        self.GET, self.dir_url_json1))
         d.addCallback(lambda ign: self.shouldHTTPError("get_from_blacklisted_dir json2",
-                                                       403, "Forbidden",
-                                                       "Access Prohibited: dir-off-limits",
+                                                       403, b"Forbidden",
+                                                       b"Access Prohibited: dir-off-limits",
                                                        self.GET, self.dir_url_json2))
         d.addCallback(lambda ign: self.shouldHTTPError("get_from_blacklisted_dir json_ro",
-                                                       403, "Forbidden",
-                                                       "Access Prohibited: dir-off-limits",
+                                                       403, b"Forbidden",
+                                                       b"Access Prohibited: dir-off-limits",
                                                        self.GET, self.dir_url_json_ro))
         d.addCallback(lambda ign: self.shouldHTTPError("get_from_blacklisted_dir child",
-                                                       403, "Forbidden",
-                                                       "Access Prohibited: dir-off-limits",
+                                                       403, b"Forbidden",
+                                                       b"Access Prohibited: dir-off-limits",
                                                        self.GET, self.child_url))
         return d
 
