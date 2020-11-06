@@ -101,7 +101,7 @@ class Filenode(unittest.TestCase, testutil.ShouldFailMixin):
             self._node.download_best_version())
         # ...and check to make sure everything went okay.
         d.addCallback(lambda contents:
-            self.failUnlessEqual("contents" * 50000, contents))
+            self.failUnlessEqual(b"contents" * 50000, contents))
         return d
 
     def test_max_shares_mdmf(self):
@@ -123,7 +123,7 @@ class Filenode(unittest.TestCase, testutil.ShouldFailMixin):
         d.addCallback(lambda ignored:
             self._node.download_best_version())
         d.addCallback(lambda contents:
-            self.failUnlessEqual(contents, "contents" * 50000))
+            self.failUnlessEqual(contents, b"contents" * 50000))
         return d
 
     def test_mdmf_filenode_cap(self):
@@ -148,7 +148,7 @@ class Filenode(unittest.TestCase, testutil.ShouldFailMixin):
         def _created(n):
             self.failUnless(isinstance(n, MutableFileNode))
             s = n.get_uri()
-            self.failUnless(s.startswith("URI:MDMF"))
+            self.failUnless(s.startswith(b"URI:MDMF"))
             n2 = self.nodemaker.create_from_cap(s)
             self.failUnless(isinstance(n2, MutableFileNode))
             self.failUnlessEqual(n.get_storage_index(), n2.get_storage_index())
@@ -381,7 +381,7 @@ class Filenode(unittest.TestCase, testutil.ShouldFailMixin):
 
 
     def test_create_with_initial_contents(self):
-        upload1 = MutableData("contents 1")
+        upload1 = MutableData(b"contents 1")
         d = self.nodemaker.create_mutable_file(upload1)
         def _created(n):
             d = n.download_best_version()
