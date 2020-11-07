@@ -242,6 +242,11 @@ class StorageFarmBroker(service.MultiService):
         assert isinstance(server_id, unicode) # from YAML
         server_id = server_id.encode("ascii")
         handler_overrides = server.get("connections", {})
+        gm_verifier = create_grid_manager_verifier(
+            self._grid_manager_keys,
+            server["ann"].get("grid-manager-certificates", []),
+        )
+
         s = NativeStorageServer(
             server_id,
             server["ann"],
@@ -249,8 +254,7 @@ class StorageFarmBroker(service.MultiService):
             handler_overrides,
             self.node_config,
             self.storage_client_config,
-            self._grid_manager_keys,
-            server["ann"].get("grid-manager-certificates", []),
+            gm_verifier,
         )
         s.on_status_changed(lambda _: self._got_connection())
         return s
@@ -459,7 +463,7 @@ def parse_grid_manager_data(gm_data):
     return js
 
 
-def validate_grid_manager_certificate(gm_key, alleged_cert, now_fn=None):
+def _validate_grid_manager_certificate(gm_key, alleged_cert):
     """
     :param gm_key: a VerifyingKey instance, a Grid Manager's public
         key.
@@ -468,15 +472,10 @@ def validate_grid_manager_certificate(gm_key, alleged_cert, now_fn=None):
         "certificate" contains a JSON-serialized certificate for a Storage
         Server (comes from a Grid Manager).
 
-    :param now_fn: a zero-argument callable that returns a UTC
-        timestamp (will use datetime.utcnow by default)
-
-    :return: False if the signature is invalid or the certificate is
-        expired.
+    :return: a dict consisting of the deserialized certificate data or
+        None if the signature is invalid. Note we do NOT check the
+        expiry time in this function.
     """
-    if now_fn is None:
-        now_fn = datetime.utcnow
-
     try:
         ed25519.verify_signature(
             gm_key,
@@ -484,15 +483,70 @@ def validate_grid_manager_certificate(gm_key, alleged_cert, now_fn=None):
             alleged_cert['certificate'].encode('ascii'),
         )
     except ed25519.BadSignature:
-        return False
+        return None
     # signature is valid; now we can load the actual data
     cert = json.loads(alleged_cert['certificate'])
-    now = now_fn()
-    expires = datetime.utcfromtimestamp(cert['expires'])
-    # cert_pubkey = keyutil.parse_pubkey(cert['public_key'].encode('ascii'))
-    if expires < now:
-        return False  # certificate is expired
-    return True
+    return cert
+
+
+def create_grid_manager_verifier(keys, certs, now_fn=None):
+    """
+    Creates a predicate for confirming some Grid Manager-issued
+    certificates against Grid Manager keys. A predicate is used
+    (instead of just returning True/False here) so that the
+    expiry-time can be tested on each call.
+
+    :param list keys: 0 or more `VerifyingKey` instances
+
+    :param list certs: 1 or more Grid Manager certificates each of
+        which is a `dict` containing 'signature' and 'certificate' keys.
+
+    :param callable now_fn: a callable which returns the current UTC
+        timestamp (or datetime.utcnow if None).
+
+    :returns: a callable which will return True only-if there is at
+        least one valid certificate in `certs` signed by one of the keys
+        in `keys`.
+    """
+
+    now_fn = datetime.utcnow if now_fn is None else now_fn
+    valid_certs = []
+
+    # if we have zero grid-manager keys then everything is valid
+    if not keys:
+        return lambda: True
+
+    # validate the signatures on any certificates we have (not yet the expiry dates)
+    for alleged_cert in certs:
+        for key in keys:
+            cert = _validate_grid_manager_certificate(key, alleged_cert)
+            if cert is not None:
+                valid_certs.append(cert)
+            else:
+                # we might want to let the user know about this
+                # failed-to-verify certificate .. but also if you have
+                # multiple grid-managers then a bunch of these
+                # messages would appear
+                print(
+                    "Grid Manager certificate signature failed. Certificate: "
+                    "\"{cert}\" for key \"{key}\".".format(
+                        key=key,
+                        cert=alleged_cert,
+                    )
+                )
+
+    def validate():
+        now = now_fn()
+        # if *any* certificate is still valid then we consider the server valid
+        for cert in valid_certs:
+            expires = datetime.utcfromtimestamp(cert['expires'])
+            # cert_pubkey = keyutil.parse_pubkey(cert['public_key'].encode('ascii'))
+            if expires > now:
+                # not-expired
+                return True
+        return False
+
+    return validate
 
 
 class IFoolscapStorageServer(Interface):
@@ -733,7 +787,7 @@ class NativeStorageServer(service.MultiService):
         }
 
     def __init__(self, server_id, ann, tub_maker, handler_overrides, node_config, config=None,
-                 grid_manager_keys=None, grid_manager_certs=None):
+                 grid_manager_verifier=None):
         service.MultiService.__init__(self)
         assert isinstance(server_id, bytes)
         self._server_id = server_id
@@ -744,18 +798,7 @@ class NativeStorageServer(service.MultiService):
         if config is None:
             config = StorageClientConfig()
 
-        # XXX we should validate as much as we can about the
-        # certificates right now -- the only thing we HAVE to be lazy
-        # about is the expiry, which should be checked before any
-        # possible upload...
-
-        # any public-keys which the user has configured (if none, it
-        # means use any storage servers)
-        self._grid_manager_keys = grid_manager_keys or []
-
-        # any storage-certificates that this storage-server included
-        # in its announcement
-        self._grid_manager_certificates = grid_manager_certs or []
+        self._grid_manager_verifier = grid_manager_verifier
 
         self._storage = self._make_storage_system(node_config, config, ann)
 
@@ -778,25 +821,10 @@ class NativeStorageServer(service.MultiService):
         :return: True if we should use this server for uploads, False
             otherwise.
         """
-        # print("upload permitted? {}".format(self._server_id))
         # if we have no Grid Manager keys configured, choice is easy
-        if not self._grid_manager_keys:
-            # print("{} no grid manager keys at all (so yes)".format(self._server_id))
+        if self._grid_manager_verifier is None:
             return True
-
-        # XXX probably want to cache the answer to this? (ignoring
-        # that for now because certificates expire, so .. slightly
-        # more complex)
-        if not self._grid_manager_certificates:
-            # print("{} no grid-manager certificates {} (so no)".format(self._server_id, self._grid_manager_certificates))
-            return False
-        for gm_key in self._grid_manager_keys:
-            for cert in self._grid_manager_certificates:
-                if validate_grid_manager_certificate(gm_key, cert):
-                    # print("valid: {}\n{}".format(gm_key, cert))
-                    return True
-        # print("didn't validate {} keys".format(len(self._grid_manager_keys)))
-        return False
+        return self._grid_manager_verifier()
 
     def _make_storage_system(self, node_config, config, ann):
         """
