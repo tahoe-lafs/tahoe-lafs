@@ -330,22 +330,15 @@ def _save_gridmanager_config(file_path, grid_manager):
             f.write("{}\n".format(data))
 
 
-def _load_gridmanager_config(gm_config):
+def _load_gridmanager_config(fp):
     """
     Loads a Grid Manager configuration and returns it (a dict) after
     validating. Exceptions if the config can't be found, or has
     problems.
 
-    :param gm_config str: "-" (a single dash) for stdin or a filename
+    :param FilePath fp: None for stdin or a path to a Grid Manager
+        configuration directory
     """
-    fp = None
-    if gm_config.strip() != '-':
-        fp = FilePath(gm_config.strip())
-        if not fp.exists():
-            raise RuntimeError(
-                "No such directory '{}'".format(gm_config)
-            )
-
     if fp is None:
         gm = json.load(sys.stdin)
     else:
@@ -353,7 +346,7 @@ def _load_gridmanager_config(gm_config):
             gm = json.load(f)
 
     try:
-        return _GridManager.from_config(gm, gm_config)
+        return _GridManager.from_config(gm, fp or "<stdin>")
     except ValueError as e:
         raise usage.UsageError(str(e))
 
