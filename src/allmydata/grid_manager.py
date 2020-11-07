@@ -328,7 +328,7 @@ def create_grid_manager_verifier(keys, certs, now_fn=None, bad_cert=None):
     # validate the signatures on any certificates we have (not yet the expiry dates)
     for alleged_cert in certs:
         for key in keys:
-            cert = _validate_grid_manager_certificate(key, alleged_cert)
+            cert = validate_grid_manager_certificate(key, alleged_cert)
             if cert is not None:
                 valid_certs.append(cert)
             else:

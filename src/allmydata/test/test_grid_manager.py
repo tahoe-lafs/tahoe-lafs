@@ -24,6 +24,8 @@ from allmydata.grid_manager import (
     load_grid_manager,
     save_grid_manager,
     create_grid_manager,
+    parse_grid_manager_certificate,
+    create_grid_manager_verifier,
 )
 
 from .common import SyncTestCase
@@ -272,3 +274,52 @@ class GridManagerVerifier(SyncTestCase):
             "No 'public_key' for storage server",
             str(ctx.exception),
         )
+
+    def test_parse_cert(self):
+        """
+        Parse an ostensibly valid storage certificate
+        """
+        js = parse_grid_manager_certificate('{"certificate": "", "signature": ""}')
+        self.assertEqual(
+            set(js.keys()),
+            {"certificate", "signature"}
+        )
+        # the signature isn't *valid*, but that's checked in a
+        # different function
+
+    def test_parse_cert_not_dict(self):
+        """
+        Certificate data not even a dict
+        """
+        with self.assertRaises(ValueError) as ctx:
+            parse_grid_manager_certificate("[]")
+        self.assertIn(
+            "must be a dict",
+            str(ctx.exception),
+        )
+
+    def test_parse_cert_missing_signature(self):
+        """
+        Missing the signature
+        """
+        with self.assertRaises(ValueError) as ctx:
+            parse_grid_manager_certificate('{"certificate": ""}')
+        self.assertIn(
+            "must contain",
+            str(ctx.exception),
+        )
+
+    def test_validate_cert(self):
+        """
+        Validate a correctly-signed certificate
+        """
+        priv0, pub0 = ed25519.create_signing_keypair()
+        self.gm.add_storage_server("test0", pub0)
+        cert0 = self.gm.sign("test0", 86400)
+
+        verify = create_grid_manager_verifier(
+            [self.gm._public_key],
+            [cert0],
+        )
+
+        self.assertTrue(verify())

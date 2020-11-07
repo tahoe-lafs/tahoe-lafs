@@ -66,6 +66,9 @@ from allmydata.interfaces import (
     IStorageServer,
     IFoolscapStoragePlugin,
 )
+from allmydata.grid_manager import (
+    create_grid_manager_verifier,
+)
 from allmydata.util import log, base32, connection_status
 from allmydata.util.assertutil import precondition
 from allmydata.util.observer import ObserverList
