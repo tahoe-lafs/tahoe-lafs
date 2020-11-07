@@ -7,8 +7,8 @@ from os.path import exists, join
 from twisted.python import usage
 #from allmydata.node import read_config
 from allmydata.client import read_config
-from allmydata.storage_client import (
-    parse_grid_manager_data,
+from allmydata.grid_manager import (
+    parse_grid_manager_certificate,
 )
 from allmydata.scripts.cli import _default_nodedir
 from allmydata.scripts.common import BaseOptions
@@ -90,7 +90,7 @@ class AddGridManagerCertOptions(BaseOptions):
                 data = f.read()
 
         try:
-            self.certificate_data = parse_grid_manager_data(data)
+            self.certificate_data = parse_grid_manager_certificate(data)
         except ValueError as e:
             raise usage.UsageError(
                 "Error parsing certificate: {}".format(e)
@@ -142,11 +142,9 @@ def add_grid_manager_cert(options):
     # write all the data out
 
     fileutil.write(cert_path, cert_bytes)
-    # print("created {}: {} bytes".format(cert_fname, len(cert_bytes)))
     with open(config_path, "w") as f:
-        # XXX probably want a _Config.write_tahoe_cfg() or something? or just set_config() does that automagically
+        # XXX probably want a _Config.write_tahoe_cfg() or something?
         config.config.write(f)
-    # print("wrote {}".format(config_fname))
 
     cert_count = len(config.enumerate_section("grid_manager_certificates"))
     print("There are now {} certificates".format(cert_count), file=options.parent.parent.stderr)

@@ -70,9 +70,12 @@ def load_grid_manager(config_path, config_location):
     with config_file:
         config = json.load(config_file)
 
-    if not config:
+    gm_version = config.get(u'grid_manager_config_version', None)
+    if gm_version != 0:
         raise ValueError(
-            "Invalid Grid Manager config in '{}'".format(config_location)
+            "Missing or unknown version '{}' of Grid Manager config".format(
+                gm_version
+            )
         )
     if 'private_key' not in config:
         raise ValueError(
@@ -101,13 +104,6 @@ def load_grid_manager(config_path, config_location):
             None,
         )
 
-    gm_version = config.get(u'grid_manager_config_version', None)
-    if gm_version != 0:
-        raise ValueError(
-            "Missing or unknown version '{}' of Grid Manager config".format(
-                gm_version
-            )
-        )
     return _GridManager(private_key_bytes, storage_servers)
 
 
@@ -153,6 +149,7 @@ class _GridManager(object):
         vk = ed25519.verifying_key_from_signing_key(self._private_key)
         ed25519.verify_signature(vk, sig, cert_data)
 
+        srv.add_certificate(certificate)
         return certificate
 
     def add_storage_server(self, name, public_key):
@@ -215,3 +212,137 @@ def save_grid_manager(file_path, grid_manager):
         fileutil.make_dirs(file_path.path, mode=0o700)
         with file_path.child("config.json").open("w") as f:
             f.write("{}\n".format(data))
+
+
+def parse_grid_manager_certificate(gm_data):
+    """
+    :param gm_data: some data that might be JSON that might be a valid
+       Grid Manager Certificate
+
+    :returns: json data of a valid Grid Manager certificate, or an
+        exception if the data is not valid.
+    """
+
+    required_keys = {
+        'certificate',
+        'signature',
+    }
+
+    js = json.loads(gm_data)
+
+    if not isinstance(js, dict):
+        raise ValueError(
+            "Grid Manager certificate must be a dict"
+        )
+    if set(js.keys()) != required_keys:
+            raise ValueError(
+                "Grid Manager certificate must contain: {}".format(
+                    ", ".join("'{}'".format(k) for k in js.keys()),
+                )
+            )
+    return js
+
+
+def validate_grid_manager_certificate(gm_key, alleged_cert):
+    """
+    :param gm_key: a VerifyingKey instance, a Grid Manager's public
+        key.
+
+    :param alleged_cert: dict with "certificate" and "signature" keys, where
+        "certificate" contains a JSON-serialized certificate for a Storage
+        Server (comes from a Grid Manager).
+
+    :return: a dict consisting of the deserialized certificate data or
+        None if the signature is invalid. Note we do NOT check the
+        expiry time in this function.
+    """
+    try:
+        ed25519.verify_signature(
+            gm_key,
+            base32.a2b(alleged_cert['signature'].encode('ascii')),
+            alleged_cert['certificate'].encode('ascii'),
+        )
+    except ed25519.BadSignature:
+        return None
+    # signature is valid; now we can load the actual data
+    cert = json.loads(alleged_cert['certificate'])
+    return cert
+
+
+def create_grid_manager_verifier(keys, certs, now_fn=None, bad_cert=None):
+    """
+    Creates a predicate for confirming some Grid Manager-issued
+    certificates against Grid Manager keys. A predicate is used
+    (instead of just returning True/False here) so that the
+    expiry-time can be tested on each call.
+
+    :param list keys: 0 or more `VerifyingKey` instances
+
+    :param list certs: 1 or more Grid Manager certificates each of
+        which is a `dict` containing 'signature' and 'certificate' keys.
+
+    :param callable now_fn: a callable which returns the current UTC
+        timestamp (or datetime.utcnow if None).
+
+    :param callable bad_cert: a two-argument callable which is invoked
+        when a certificate verification fails. The first argument is
+        the verifying key and the second is the certificate. If None
+        (the default) errors are print()-ed. Note that we may have
+        several certificates and only one must be valid, so this may
+        be called (multiple times) even if the function ultimately
+        returns successfully.
+
+    :returns: a callable which will return True only-if there is at
+        least one valid certificate (that has not at this moment
+        expired) in `certs` signed by one of the keys in `keys`.
+    """
+
+    now_fn = datetime.utcnow if now_fn is None else now_fn
+    valid_certs = []
+
+    # if we have zero grid-manager keys then everything is valid
+    if not keys:
+        return lambda: True
+
+    if bad_cert is None:
+
+        def bad_cert(key, alleged_cert):
+            """
+            We might want to let the user know about this failed-to-verify
+            certificate .. but also if you have multiple grid-managers
+            then a bunch of these messages would appear. Better would
+            be to bubble this up to some sort of status API (or maybe
+            on the Welcome page?)
+
+            The only thing that might actually be interesting, though,
+            is whether this whole function returns false or not..
+            """
+            print(
+                "Grid Manager certificate signature failed. Certificate: "
+                "\"{cert}\" for key \"{key}\".".format(
+                    cert=alleged_cert,
+                    key=ed25519.string_from_verifying_key(key),
+                )
+            )
+
+    # validate the signatures on any certificates we have (not yet the expiry dates)
+    for alleged_cert in certs:
+        for key in keys:
+            cert = _validate_grid_manager_certificate(key, alleged_cert)
+            if cert is not None:
+                valid_certs.append(cert)
+            else:
+                bad_cert(key, alleged_cert)
+
+    def validate():
+        now = now_fn()
+        # if *any* certificate is still valid then we consider the server valid
+        for cert in valid_certs:
+            expires = datetime.utcfromtimestamp(cert['expires'])
+            # cert_pubkey = keyutil.parse_pubkey(cert['public_key'].encode('ascii'))
+            if expires > now:
+                # not-expired
+                return True
+        return False
+
+    return validate
