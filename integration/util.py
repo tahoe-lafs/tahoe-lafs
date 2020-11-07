@@ -5,7 +5,6 @@ from os import mkdir
 from os.path import exists, join
 from six.moves import StringIO
 from functools import partial
-from shutil import rmtree
 
 from twisted.internet.defer import Deferred, succeed
 from twisted.internet.protocol import ProcessProtocol
@@ -36,38 +35,15 @@ class _ProcessExitedProtocol(ProcessProtocol):
         self.done.callback(None)
 
 
-class ProcessFailed(Exception):
-    """
-    A subprocess has failed.
-
-    :ivar ProcessTerminated reason: the original reason from .processExited
-
-    :ivar StringIO output: all stdout and stderr collected to this point.
-    """
-
-    def __init__(self, reason, output):
-        self.reason = reason
-        self.output = output
-
-    def __str__(self):
-        return "<ProcessFailed: {}>:\n{}".format(self.reason, self.output)
-
-
 class _CollectOutputProtocol(ProcessProtocol):
     """
     Internal helper. Collects all output (stdout + stderr) into
     self.output, and callback's on done with all of it after the
     process exits (for any reason).
     """
-    def __init__(self, stdin=None):
+    def __init__(self):
         self.done = Deferred()
         self.output = StringIO()
-        self._stdin = stdin
-
-    def connectionMade(self):
-        if self._stdin is not None:
-            self.transport.write(self._stdin)
-            self.transport.closeStdin()
 
     def processEnded(self, reason):
         if not self.done.called:
@@ -75,7 +51,7 @@ class _CollectOutputProtocol(ProcessProtocol):
 
     def processExited(self, reason):
         if not isinstance(reason.value, ProcessDone):
-            self.done.errback(ProcessFailed(reason, self.output.getvalue()))
+            self.done.errback(reason)
 
     def outReceived(self, data):
         self.output.write(data)
@@ -147,25 +123,11 @@ def _cleanup_tahoe_process(tahoe_transport, exited):
     try:
         print("signaling {} with TERM".format(tahoe_transport.pid))
         tahoe_transport.signalProcess('TERM')
-        print("signaled, blocking on exit {}".format(exited))
+        print("signaled, blocking on exit")
         pytest_twisted.blockon(exited)
         print("exited, goodbye")
     except ProcessExitedAlready:
         pass
-
-
-def run_tahoe(reactor, request, *args, **kwargs):
-    """
-    Helper to run tahoe with optional coverage.
-
-    :returns: a Deferred that fires when the command is done (or a
-        ProcessFailed exception if it exits non-zero)
-    """
-    stdin = kwargs.get("stdin", None)
-    protocol = _CollectOutputProtocol(stdin=stdin)
-    process = _tahoe_runner_optional_coverage(protocol, reactor, request, args)
-    process.exited = protocol.done
-    return protocol.done
 
 
 def _tahoe_runner_optional_coverage(proto, reactor, request, other_args):
@@ -269,7 +231,7 @@ def _create_node(reactor, request, temp_dir, introducer_furl, flog_gatherer, nam
     if exists(node_dir):
         created_d = succeed(None)
     else:
-        print("creating: {}".format(node_dir))
+        print("creating", node_dir)
         mkdir(node_dir)
         done_proto = _ProcessExitedProtocol()
         args = [
@@ -294,7 +256,7 @@ def _create_node(reactor, request, temp_dir, introducer_furl, flog_gatherer, nam
         def created(_):
             config_path = join(node_dir, 'tahoe.cfg')
             config = get_config(config_path)
-            set_config(config, 'node', 'log_gatherer.furl', flog_gatherer.furl)
+            set_config(config, 'node', 'log_gatherer.furl', flog_gatherer)
             write_config(config_path, config)
         created_d.addCallback(created)
 
@@ -481,7 +443,7 @@ def web_post(tahoe, uri_fragment, **kwargs):
     return resp.content
 
 
-def await_client_ready(tahoe, timeout=10, liveness=60*2, servers=1):
+def await_client_ready(tahoe, timeout=10, liveness=60*2):
     """
     Uses the status API to wait for a client-type node (in `tahoe`, a
     `TahoeProcess` instance usually from a fixture e.g. `alice`) to be
@@ -505,8 +467,8 @@ def await_client_ready(tahoe, timeout=10, liveness=60*2, servers=1):
             time.sleep(1)
             continue
 
-        if len(js['servers']) < servers:
-            print("waiting because fewer than {} server(s)".format(servers))
+        if len(js['servers']) == 0:
+            print("waiting because no servers at all")
             time.sleep(1)
             continue
         server_times = [
