@@ -51,7 +51,7 @@ def load_grid_manager(config_path, config_location):
     """
     Load a Grid Manager from existing configuration.
 
-    :param FilePath config_path: the configuratino location (or None for
+    :param FilePath config_path: the configuration location (or None for
         stdin)
 
     :param str config_location: a string describing the config's location
