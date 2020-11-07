@@ -20,7 +20,7 @@ from __future__ import unicode_literals
 # Tubs, so it is not useful for tests that involve a Helper or the
 # control.furl .
 
-from future.utils import PY2, PY3
+from future.utils import PY2
 if PY2:
     from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 from past.builtins import unicode
@@ -294,10 +294,6 @@ class _NoNetworkClient(_Client):
         pass
     #._servers will be set by the NoNetworkGrid which creates us
 
-    if PY3:
-        def init_web(self, *args, **kwargs):
-            print("Web service is temporarily disabled until nevow is gone.")
-
 
 class SimpleStats(object):
     def __init__(self):
@@ -504,12 +500,10 @@ class GridTestMixin(object):
 
     def _record_webports_and_baseurls(self):
         self.g._check_clients()
-        if PY2:
-            # Temporarily disabled on Python 3 until Nevow is gone:
-            self.client_webports = [c.getServiceNamed("webish").getPortnum()
-                                    for c in self.g.clients]
-            self.client_baseurls = [c.getServiceNamed("webish").getURL()
-                                    for c in self.g.clients]
+        self.client_webports = [c.getServiceNamed("webish").getPortnum()
+                                for c in self.g.clients]
+        self.client_baseurls = [c.getServiceNamed("webish").getURL()
+                                for c in self.g.clients]
 
     def get_client_config(self, i=0):
         self.g._check_clients()
