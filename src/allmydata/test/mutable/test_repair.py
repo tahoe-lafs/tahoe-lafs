@@ -1,3 +1,15 @@
+"""
+Ported to Python 3.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+
 from twisted.trial import unittest
 from allmydata.interfaces import IRepairResults, ICheckAndRepairResults
 from allmydata.monitor import Monitor
@@ -239,7 +251,7 @@ class Repair(unittest.TestCase, PublishMixin, ShouldFailMixin):
         def _get_readcap(res):
             self._fn3 = self._fn.get_readonly()
             # also delete some shares
-            for peerid,shares in self._storage._peers.items():
+            for peerid,shares in list(self._storage._peers.items()):
                 shares.pop(0, None)
         d.addCallback(_get_readcap)
         d.addCallback(lambda res: self._fn3.check_and_repair(Monitor()))
@@ -258,7 +270,7 @@ class Repair(unittest.TestCase, PublishMixin, ShouldFailMixin):
         # In the buggy version, the check that precedes the retrieve+publish
         # cycle uses MODE_READ, instead of MODE_REPAIR, and fails to get the
         # privkey that repair needs.
-        d = self.publish_sdmf("")
+        d = self.publish_sdmf(b"")
         def _delete_one_share(ign):
             shares = self._storage._peers
             for peerid in shares:
