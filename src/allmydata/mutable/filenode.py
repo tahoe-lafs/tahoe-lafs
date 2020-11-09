@@ -1141,7 +1141,7 @@ class MutableFileVersion(object):
         start_segments = {} # shnum -> start segment
         end_segments = {} # shnum -> end segment
         blockhashes = {} # shnum -> blockhash tree
-        for (shnum, original_data) in update_data.iteritems():
+        for (shnum, original_data) in update_data.items():
             data = [d[1] for d in original_data if d[0] == self._version]
             # data is [(blockhashes,start,end)..]
 
