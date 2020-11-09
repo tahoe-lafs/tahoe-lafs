@@ -1,3 +1,5 @@
+from past.builtins import unicode
+
 import time
 
 from itertools import count
@@ -906,9 +908,11 @@ class Retrieve(object):
 
 
     def notify_server_corruption(self, server, shnum, reason):
+        if isinstance(reason, unicode):
+            reason = reason.encode("utf-8")
         storage_server = server.get_storage_server()
         storage_server.advise_corrupt_share(
-            "mutable",
+            b"mutable",
             self._storage_index,
             shnum,
             reason,

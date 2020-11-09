@@ -1,3 +1,15 @@
+"""
+Ported to Python 3.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+
 from twisted.trial import unittest
 from foolscap.api import flushEventualQueue
 from allmydata.monitor import Monitor
@@ -22,7 +34,7 @@ class Checker(unittest.TestCase, CheckerMixin, PublishMixin):
         return d
 
     def test_check_no_shares(self):
-        for shares in self._storage._peers.values():
+        for shares in list(self._storage._peers.values()):
             shares.clear()
         d = self._fn.check(Monitor())
         d.addCallback(self.check_bad, "test_check_no_shares")
@@ -31,7 +43,7 @@ class Checker(unittest.TestCase, CheckerMixin, PublishMixin):
     def test_check_mdmf_no_shares(self):
         d = self.publish_mdmf()
         def _then(ignored):
-            for share in self._storage._peers.values():
+            for share in list(self._storage._peers.values()):
                 share.clear()
         d.addCallback(_then)
         d.addCallback(lambda ignored:
@@ -40,8 +52,8 @@ class Checker(unittest.TestCase, CheckerMixin, PublishMixin):
         return d
 
     def test_check_not_enough_shares(self):
-        for shares in self._storage._peers.values():
-            for shnum in shares.keys():
+        for shares in list(self._storage._peers.values()):
+            for shnum in list(shares.keys()):
                 if shnum > 0:
                     del shares[shnum]
         d = self._fn.check(Monitor())
@@ -51,8 +63,8 @@ class Checker(unittest.TestCase, CheckerMixin, PublishMixin):
     def test_check_mdmf_not_enough_shares(self):
         d = self.publish_mdmf()
         def _then(ignored):
-            for shares in self._storage._peers.values():
-                for shnum in shares.keys():
+            for shares in list(self._storage._peers.values()):
+                for shnum in list(shares.keys()):
                     if shnum > 0:
                         del shares[shnum]
         d.addCallback(_then)
@@ -83,7 +95,7 @@ class Checker(unittest.TestCase, CheckerMixin, PublishMixin):
         # On 8 of the shares, corrupt the beginning of the share data.
         # The signature check during the servermap update won't catch this.
         d.addCallback(lambda ignored:
-            corrupt(None, self._storage, "share_data", range(8)))
+            corrupt(None, self._storage, "share_data", list(range(8))))
         # On 2 of the shares, corrupt the end of the share data.
         # The signature check during the servermap update won't catch
         # this either, and the retrieval process will have to process
@@ -242,14 +254,14 @@ class Checker(unittest.TestCase, CheckerMixin, PublishMixin):
         return d
 
     def test_verify_sdmf_empty(self):
-        d = self.publish_sdmf("")
+        d = self.publish_sdmf(b"")
         d.addCallback(lambda ignored: self._fn.check(Monitor(), verify=True))
         d.addCallback(self.check_good, "test_verify_sdmf")
         d.addCallback(flushEventualQueue)
         return d
 
     def test_verify_mdmf_empty(self):
-        d = self.publish_mdmf("")
+        d = self.publish_mdmf(b"")
         d.addCallback(lambda ignored: self._fn.check(Monitor(), verify=True))
         d.addCallback(self.check_good, "test_verify_mdmf")
         d.addCallback(flushEventualQueue)
