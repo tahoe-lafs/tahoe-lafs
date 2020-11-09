@@ -187,7 +187,7 @@ class MutableChecker(object):
         if self.bad_shares:
             report.append("Corrupt Shares:")
             summary.append("Corrupt Shares:")
-        for (server, shnum, f) in sorted(self.bad_shares):
+        for (server, shnum, f) in sorted(self.bad_shares, key=id):
             serverid = server.get_serverid()
             locator = (server, self._storage_index, shnum)
             corrupt_share_locators.append(locator)
