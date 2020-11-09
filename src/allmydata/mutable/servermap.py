@@ -158,6 +158,7 @@ class ServerMap(object):
         corrupted or badly signed) so that a repair operation can do the
         test-and-set using it as a reference.
         """
+        assert isinstance(checkstring, bytes)
         key = (server, shnum) # record checkstring
         self._bad_shares[key] = checkstring
         self._known_shares.pop(key, None)
