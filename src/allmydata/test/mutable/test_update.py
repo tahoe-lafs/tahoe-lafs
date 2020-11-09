@@ -1,4 +1,14 @@
+"""
+Ported to Python 3.
+"""
 from __future__ import print_function
+from __future__ import division
+from __future__ import absolute_import
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 import re
 from twisted.trial import unittest
@@ -24,7 +34,7 @@ class Update(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
         self.nm = self.c.nodemaker
         # self.data should be at least three segments long.
         td = b"testdata "
-        self.data = td*(int(3*SEGSIZE/len(td))+10) # currently about 400kB
+        self.data = td*(int(3*SEGSIZE//len(td))+10) # currently about 400kB
         assert len(self.data) > 3*SEGSIZE
         self.small_data = b"test data" * 10 # 90 B; SDMF
 
