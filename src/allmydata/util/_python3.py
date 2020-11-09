@@ -106,6 +106,7 @@ PORTED_TEST_MODULES = [
     "allmydata.test.mutable.test_multiple_versions",
     "allmydata.test.mutable.test_problems",
     "allmydata.test.mutable.test_repair",
+    "allmydata.test.mutable.test_roundtrip",
     "allmydata.test.test_abbreviate",
     "allmydata.test.test_base32",
     "allmydata.test.test_base62",
