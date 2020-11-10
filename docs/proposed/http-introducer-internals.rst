@@ -42,6 +42,10 @@ The *swissnum* property is string that is randomly generated at ``create``-time.
 Introducer fURL
 ---------------
 
+.. TODO: What actual scheme will we use instead of "xxx"?
+.. TODO: Link to the discussion of security properties of this scheme in the GBS doc
+.. TODO: Update that doc to link to any Tor or Foolscap docs about the security properties of their systems
+
 The *introducer fURL* is derived from *certificate* and *swissnum*.
 It has the form ``xxx://<spki-hash>@<network-location>[,...]/<swissnum>``
 ``<spki-hash>`` is the SPKI hash of the certificate.
@@ -61,6 +65,12 @@ it runs a WebSocket server with two endpoints.
 
 The server does not require the client to present a certificate.
 The client requires the server to present a certificate with an SPKI hash matching that in the *introducer fURL*.
+
+.. TODO: Add docs about the WebSocket protocol negotiation that happens for the pub/sub protocol
+.. TODO: Collapse the two simplex endpoints into one duplex endpoint.
+   If client sends server a message, it's publishing an announcement.
+   If server sends client a message, it's delivering an announcement someone published.
+.. TODO: Add discussion of connection management, esp reconnection on lost connection.
 
 /<swissnum>/publish
 ~~~~~~~~~~~~~~~~~~~
