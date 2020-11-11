@@ -119,3 +119,58 @@ HTTP Introducer imposes the following requirements:
   (however all they can do is deny service).
   It must not be lost or the introducer will be unable to operate.
   In this case new configuration must be distributed to all storage servers and client nodes.
+
+Open Questions
+--------------
+
+URI Scheme
+~~~~~~~~~~
+
+What URI scheme does the HTTP Introducer URI use?
+Foolscap URLs use *pb*
+(deriving from Foolscap's origin as the successor of Twisted **P**\ erspective **B**\ roker).
+
+PB
+```
+
+HTTP Introducer could continue to use *pb*.
+This would sensibly reflect the fact that two properties remain the same:
+
+* The URI has the same self-certifying capability nature as the Foolscap URL is supersedes.
+  "tubid" has been replaced with the SPKI hash which serves a parallel purpose.
+  "swissnum" remains an unguessable string which imues the URI with the capability nature.
+* It refers to the same underlying service.
+  Only the protocol is changing.
+
+It is common to think of a URI scheme as identifying a protocol
+(https, wss, xmpp, etc).
+However this only reflects the fact that the vast majority of resources are accessible via only one protocol and so that protocol and the resource itself become conflated.
+There *are* URI schemes which are protocol agnostic
+(mailto, im, pres, etc).
+The "https" example is also something of a trick.
+The resource identified by an "https"-scheme URI may be reachable via any one (or more!) of several different HTTP-family protocols
+(0.9, 1.0, 1.1, 2.0, and likely soon 3.0).
+
+In implementation terms the complication introduced by using "pb" is that the client is not given a signal as to which protocol to use to attempt to interact with the resource.
+This could be addressed in one of at least two ways:
+
+1. Try all protocols the client supports concurrently and allow the attempts with the incorrect protocol to fail gracefully.
+  The result of this could also be remembered to avoid the need for such concurrent efforts on all future connection attempts.
+2. Use one of the protocol negotiation features of TLS (eg ALPN).
+  This is exactly the mechanism used to negotiate the version of the HTTP protocol.
+
+pb+http
+```````
+
+HTTP Introducer could continue to use *pb* but with a hint about its divergence from the default/historical wire protocol.
+This is similar to the "git+https" scheme.
+An advantage of this scheme is that it makes the protocol explicit and removes the need for further negotiation.
+A disadvantage is that since it forces the new HTTP protocol it requires two different URIs if there is to be a period where both protocols are offered.
+The two URIs must each be transmitted to to clients somehow.
+Clients must persist both of them.
+etc.
+
+x-ocap
+``````
+
+Or some other nice-looking brand new string.
