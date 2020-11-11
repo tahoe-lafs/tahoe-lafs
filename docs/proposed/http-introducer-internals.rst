@@ -155,9 +155,9 @@ In implementation terms the complication introduced by using "pb" is that the cl
 This could be addressed in one of at least two ways:
 
 1. Try all protocols the client supports concurrently and allow the attempts with the incorrect protocol to fail gracefully.
-  The result of this could also be remembered to avoid the need for such concurrent efforts on all future connection attempts.
+   The result of this could also be remembered to avoid the need for such concurrent efforts on all future connection attempts.
 2. Use one of the protocol negotiation features of TLS (eg ALPN).
-  This is exactly the mechanism used to negotiate the version of the HTTP protocol.
+   This is exactly the mechanism used to negotiate the version of the HTTP protocol.
 
 pb+http
 ```````
