@@ -1,4 +1,15 @@
-from future.utils import bchr
+"""
+Ported to Python 3.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2, bchr
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+
 from past.builtins import long
 
 from io import BytesIO
@@ -130,7 +141,7 @@ class FakeStorageServer(object):
                                         tw_vectors, read_vector):
         # always-pass: parrot the test vectors back to them.
         readv = {}
-        for shnum, (testv, writev, new_length) in tw_vectors.items():
+        for shnum, (testv, writev, new_length) in list(tw_vectors.items()):
             for (offset, length, op, specimen) in testv:
                 assert op in (b"le", b"eq", b"ge")
             # TODO: this isn't right, the read is controlled by read_vector,

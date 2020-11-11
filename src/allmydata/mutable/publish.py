@@ -702,9 +702,10 @@ class Publish(object):
 
 
         self.log("Pushing segment %d of %d" % (segnum + 1, self.num_segments))
-        # XXX: Why does this return a list?
         data = self.data.read(segsize)
-        data = b"".join(data)
+        if not isinstance(data, bytes):
+            # XXX: Why does this return a list?
+            data = b"".join(data)
 
         assert len(data) == segsize, len(data)
 
@@ -1327,7 +1328,7 @@ class TransformingUploadable(object):
         # are we in state 0?
         self.log("reading %d bytes" % length)
 
-        old_start_data = ""
+        old_start_data = b""
         old_data_length = self._first_segment_offset - self._read_marker
         if old_data_length > 0:
             if old_data_length > length:
@@ -1345,7 +1346,7 @@ class TransformingUploadable(object):
         # to pad the end of the data with data from our last segment.
         old_end_length = length - \
             (self._newdata.get_size() - self._newdata.pos())
-        old_end_data = ""
+        old_end_data = b""
         if old_end_length > 0:
             self.log("reading %d bytes of old end data" % old_end_length)
 

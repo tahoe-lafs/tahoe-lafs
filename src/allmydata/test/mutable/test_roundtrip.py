@@ -1,4 +1,14 @@
+"""
+Ported to Python 3.
+"""
 from __future__ import print_function
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 from six.moves import cStringIO as StringIO
 from twisted.trial import unittest
@@ -35,7 +45,7 @@ class Roundtrip(unittest.TestCase, testutil.ShouldFailMixin, PublishMixin):
 
     def abbrev_verinfo_dict(self, verinfo_d):
         output = {}
-        for verinfo,value in verinfo_d.items():
+        for verinfo,value in list(verinfo_d.items()):
             (seqnum, root_hash, IV, segsize, datalength, k, N, prefix,
              offsets_tuple) = verinfo
             output["%d-%s" % (seqnum, base32.b2a(root_hash)[:4])] = value
@@ -54,7 +64,7 @@ class Roundtrip(unittest.TestCase, testutil.ShouldFailMixin, PublishMixin):
         r = Retrieve(self._fn, self._storage_broker, servermap, version)
         c = consumer.MemoryConsumer()
         d = r.download(consumer=c)
-        d.addCallback(lambda mc: "".join(mc.chunks))
+        d.addCallback(lambda mc: b"".join(mc.chunks))
         return d
 
 
@@ -88,7 +98,7 @@ class Roundtrip(unittest.TestCase, testutil.ShouldFailMixin, PublishMixin):
     def test_all_shares_vanished(self):
         d = self.make_servermap()
         def _remove_shares(servermap):
-            for shares in self._storage._peers.values():
+            for shares in list(self._storage._peers.values()):
                 shares.clear()
             d1 = self.shouldFail(NotEnoughSharesError,
                                  "test_all_shares_vanished",
@@ -103,7 +113,7 @@ class Roundtrip(unittest.TestCase, testutil.ShouldFailMixin, PublishMixin):
         d = self.make_servermap()
         def _remove_shares(servermap):
             self._version = servermap.best_recoverable_version()
-            for shares in self._storage._peers.values()[2:]:
+            for shares in list(self._storage._peers.values())[2:]:
                 shares.clear()
             return self.make_servermap(servermap)
         d.addCallback(_remove_shares)
@@ -317,7 +327,7 @@ class Roundtrip(unittest.TestCase, testutil.ShouldFailMixin, PublishMixin):
         N = self._fn.get_total_shares()
         d = defer.succeed(None)
         d.addCallback(corrupt, self._storage, "pubkey",
-                      shnums_to_corrupt=range(0, N-k))
+                      shnums_to_corrupt=list(range(0, N-k)))
         d.addCallback(lambda res: self.make_servermap())
         def _do_retrieve(servermap):
             self.failUnless(servermap.get_problems())
@@ -328,7 +338,7 @@ class Roundtrip(unittest.TestCase, testutil.ShouldFailMixin, PublishMixin):
             c = consumer.MemoryConsumer()
             return r.download(c)
         d.addCallback(_do_retrieve)
-        d.addCallback(lambda mc: "".join(mc.chunks))
+        d.addCallback(lambda mc: b"".join(mc.chunks))
         d.addCallback(lambda new_contents:
                       self.failUnlessEqual(new_contents, self.CONTENTS))
         return d
@@ -340,7 +350,7 @@ class Roundtrip(unittest.TestCase, testutil.ShouldFailMixin, PublishMixin):
         else:
             d = defer.succeed(None)
         d.addCallback(lambda ignored:
-            corrupt(None, self._storage, offset, range(5)))
+            corrupt(None, self._storage, offset, list(range(5))))
         d.addCallback(lambda ignored:
             self.make_servermap())
         def _do_retrieve(servermap):
