@@ -179,3 +179,14 @@ x-ocap
 ``````
 
 Or some other nice-looking brand new string.
+
+This option has the least obvious semantics.
+In inventing an entirely new scheme,
+we have to invent all of its behavior.
+
+This could be like the *pb* option but with a new name and no baggage from Foolscap.
+As soon as we decide to make another protocol change then we're back in the same place as we are now.
+The only difference is that the "HTTP Introducer" protocol would play the part Foolscap now plays.
+
+For the purposes of migrating from Foolscap it has the same drawback as *pb+http*:
+there are two URIs clients must be made aware of.
