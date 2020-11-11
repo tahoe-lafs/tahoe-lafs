@@ -170,6 +170,11 @@ The two URIs must each be transmitted to to clients somehow.
 Clients must persist both of them.
 etc.
 
+This also lends itself well to future protocol transitions.
+For example,
+we might have *pb+wss* or *pb+X* for some yet-to-be-invented *X*.
+
+
 x-ocap
 ``````
 
