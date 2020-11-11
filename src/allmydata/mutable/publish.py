@@ -1,3 +1,15 @@
+"""
+Ported to Python 3.
+"""
+from __future__ import division
+from __future__ import absolute_import
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+
 import os, time
 from io import BytesIO
 from itertools import count
@@ -446,7 +458,7 @@ class Publish(object):
 
         # then we add in all the shares that were bad (corrupted, bad
         # signatures, etc). We want to replace these.
-        for key, old_checkstring in self._servermap.get_bad_shares().items():
+        for key, old_checkstring in list(self._servermap.get_bad_shares().items()):
             (server, shnum) = key
             self.goal.add( (server,shnum) )
             self.bad_share_checkstrings[(server,shnum)] = old_checkstring
@@ -1105,7 +1117,7 @@ class Publish(object):
             self.bad_servers.add(server) # don't ask them again
             # use the checkstring to add information to the log message
             unknown_format = False
-            for (shnum,readv) in read_data.items():
+            for (shnum,readv) in list(read_data.items()):
                 checkstring = readv[0]
                 version = get_version_from_checkstring(checkstring)
                 if version == MDMF_VERSION:
