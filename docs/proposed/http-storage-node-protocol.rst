@@ -25,7 +25,7 @@ Summary
 The storage node protocol should offer at minimum the security properties offered by the Foolscap-based protocol.
 The Foolscap-based protocol offers:
 
-* **Peer authentication** by way of checked x509 certificates
+* **Peer authentication** by way of `checked x509 certificates <https://github.com/warner/foolscap/blob/845bea550447991b194ef884713a7b3be4b4a6c2/doc/using-foolscap.rst#making-your-tub-remotely-accessible>`_
 * **Message authentication** by way of TLS
 * **Message confidentiality** by way of TLS
 

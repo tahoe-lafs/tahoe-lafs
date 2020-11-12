@@ -44,7 +44,7 @@ Introducer fURL
 
 .. TODO: What actual scheme will we use instead of "xxx"?
 .. TODO: Link to the discussion of security properties of this scheme in the GBS doc
-.. TODO: Update that doc to link to any Tor or Foolscap docs about the security properties of their systems
+.. TODO: Update that doc to link to any Tor docs about the security properties of their systems
 
 The *introducer fURL* is derived from *certificate* and *swissnum*.
 It has the form ``xxx://<spki-hash>@<network-location>[,...]/<swissnum>``
