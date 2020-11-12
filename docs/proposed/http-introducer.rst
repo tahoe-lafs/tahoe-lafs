@@ -5,6 +5,8 @@ HTTP Introducer
 
 This document explains use and operation of the "HTTP Introducer" system.
 This system replaces the earlier "Introducer node" system.
+The intended audience is administrators of an HTTP Introducer system as well as operators of both storage and client nodes.
+For maintainer-focused documentation about the implementation and other internal concerns see :doc:`http-introducer-internals`.
 
 The "HTTP Introducer" system is a means for client nodes to initially learn about available storage nodes.
 It also allows client nodes to receive updates to this information.

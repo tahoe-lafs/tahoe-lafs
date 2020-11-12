@@ -4,6 +4,8 @@ HTTP Introducer Internals
 =========================
 
 This document explains the implementation of the "HTTP Introducer" system.
+The intended audience is Tahoe-LAFS maintainers and other developers interested in the inner-workings of the software.
+For user-focused documentation see :doc:`http-introducer`.
 
 Overview
 --------
