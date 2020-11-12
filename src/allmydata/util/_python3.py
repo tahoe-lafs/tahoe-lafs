@@ -56,6 +56,7 @@ PORTED_MODULES = [
     "allmydata.mutable.checker",
     "allmydata.mutable.common",
     "allmydata.mutable.filenode",
+    "allmydata.mutable.layout",
     "allmydata.mutable.publish",
     "allmydata.node",
     "allmydata.storage_client",
