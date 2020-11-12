@@ -1,4 +1,15 @@
-from past.builtins import unicode
+"""
+Ported to Python 3.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    # Don't import bytes and str, to prevent API leakage
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, dict, list, object, range, max, min  # noqa: F401
 
 import time
 
@@ -749,9 +760,9 @@ class Retrieve(object):
 
         blockhashes = dict(enumerate(blockhashes))
         self.log("the reader gave me the following blockhashes: %s" % \
-                 blockhashes.keys())
+                 list(blockhashes.keys()))
         self.log("the reader gave me the following sharehashes: %s" % \
-                 sharehashes.keys())
+                 list(sharehashes.keys()))
         bht = self._block_hash_trees[reader.shnum]
 
         if bht.needed_hashes(segnum, include_leaf=True):
@@ -908,7 +919,7 @@ class Retrieve(object):
 
 
     def notify_server_corruption(self, server, shnum, reason):
-        if isinstance(reason, unicode):
+        if isinstance(reason, str):
             reason = reason.encode("utf-8")
         storage_server = server.get_storage_server()
         storage_server.advise_corrupt_share(
