@@ -43,11 +43,11 @@ For example,
 for a grid you refer to as the "foo grid" you might use ``private/foogrid-introducer``.
 
 Next,
-in ``tahoe.cfg`` the ``grid-introducer-path`` item in the ``[client]`` section is set to refer to this file.
+in ``tahoe.cfg`` the ``introducer-url-path`` item in the ``[client]`` section is set to refer to this file.
 For example::
 
   [client]
-  http-introducer-path = private/foogrid-introduction
+  introducer-url-path = private/foogrid-introducer
 
 Start a Tahoe-LAFS client node with these items configured and the client will be able to find and follow all storage servers that are part of that grid.
 
