@@ -180,10 +180,10 @@ def dump_mutable_share(options):
     share_type = "unknown"
     f.seek(m.DATA_OFFSET)
     version = f.read(1)
-    if version == "\x00":
+    if version == b"\x00":
         # this slot contains an SMDF share
         share_type = "SDMF"
-    elif version == "\x01":
+    elif version == b"\x01":
         share_type = "MDMF"
     f.close()
 
@@ -714,10 +714,10 @@ def describe_share(abs_sharefile, si_s, shnum_s, now, out):
         share_type = "unknown"
         f.seek(m.DATA_OFFSET)
         version = f.read(1)
-        if version == "\x00":
+        if version == b"\x00":
             # this slot contains an SMDF share
             share_type = "SDMF"
-        elif version == "\x01":
+        elif version == b"\x01":
             share_type = "MDMF"
 
         if share_type == "SDMF":
@@ -920,7 +920,7 @@ def corrupt_share(options):
         f.seek(m.DATA_OFFSET)
         data = f.read(2000)
         # make sure this slot contains an SMDF share
-        assert data[0] == "\x00", "non-SDMF mutable shares not supported"
+        assert data[0] == b"\x00", "non-SDMF mutable shares not supported"
         f.close()
 
         (version, ig_seqnum, ig_roothash, ig_IV, ig_k, ig_N, ig_segsize,

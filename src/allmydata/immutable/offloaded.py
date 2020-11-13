@@ -1,3 +1,14 @@
+"""
+Ported to Python 3.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 import os, stat, time, weakref
 from zope.interface import implementer
@@ -25,10 +36,11 @@ class CHKCheckerAndUEBFetcher(object):
     less than 'N' shares present.
 
     If the file is completely healthy, I return a tuple of (sharemap,
-    UEB_data, UEB_hash).
+    UEB_data, UEB_hash).  A sharemap is a dict with share numbers as keys and
+    sets of server ids (which hold that share) as values.
     """
 
-    def __init__(self, peer_getter, storage_index, logparent=None):
+    def __init__(self, peer_getter, storage_index, logparent):
         self._peer_getter = peer_getter
         self._found_shares = set()
         self._storage_index = storage_index
@@ -46,6 +58,12 @@ class CHKCheckerAndUEBFetcher(object):
         return log.msg(*args, **kwargs)
 
     def check(self):
+        """
+        :return Deferred[bool|(DictOfSets, dict, bytes)]: If no share can be found
+            with a usable UEB block or fewer than N shares can be found then the
+            Deferred fires with ``False``.  Otherwise, it fires with a tuple of
+            the sharemap, the UEB data, and the UEB hash.
+        """
         d = self._get_all_shareholders(self._storage_index)
         d.addCallback(self._get_uri_extension)
         d.addCallback(self._done)
@@ -128,9 +146,9 @@ class CHKUploadHelper(Referenceable, upload.CHKUploader):
     peer selection, encoding, and share pushing. I read ciphertext from the
     remote AssistedUploader.
     """
-    VERSION = { "http://allmydata.org/tahoe/protocols/helper/chk-upload/v1" :
+    VERSION = { b"http://allmydata.org/tahoe/protocols/helper/chk-upload/v1" :
                  { },
-                "application-version": str(allmydata.__full_version__),
+                b"application-version": allmydata.__full_version__.encode("utf-8"),
                 }
 
     def __init__(self, storage_index,
@@ -485,6 +503,19 @@ class LocalCiphertextReader(AskUntilSuccessMixin):
 
 @implementer(interfaces.RIHelper, interfaces.IStatsProducer)
 class Helper(Referenceable):
+    """
+    :ivar dict[bytes, CHKUploadHelper] _active_uploads: For any uploads which
+        have been started but not finished, a mapping from storage index to the
+        upload helper.
+
+    :ivar chk_checker: A callable which returns an object like a
+        CHKCheckerAndUEBFetcher instance which can check CHK shares.
+        Primarily for the convenience of tests to override.
+
+    :ivar chk_upload: A callable which returns an object like a
+        CHKUploadHelper instance which can upload CHK shares.  Primarily for
+        the convenience of tests to override.
+    """
     # this is the non-distributed version. When we need to have multiple
     # helpers, this object will become the HelperCoordinator, and will query
     # the farm of Helpers to see if anyone has the storage_index of interest,
@@ -497,6 +528,9 @@ class Helper(Referenceable):
                 b"application-version": allmydata.__full_version__.encode("utf-8"),
                 }
     MAX_UPLOAD_STATUSES = 10
+
+    chk_checker = CHKCheckerAndUEBFetcher
+    chk_upload = CHKUploadHelper
 
     def __init__(self, basedir, storage_broker, secret_holder,
                  stats_provider, history):
@@ -569,6 +603,9 @@ class Helper(Referenceable):
         return self.VERSION
 
     def remote_upload_chk(self, storage_index):
+        """
+        See ``RIHelper.upload_chk``
+        """
         self.count("chk_upload_helper.upload_requests")
         lp = self.log(format="helper: upload_chk query for SI %(si)s",
                       si=si_b2a(storage_index))
@@ -591,7 +628,7 @@ class Helper(Referenceable):
         lp2 = self.log("doing a quick check+UEBfetch",
                        parent=lp, level=log.NOISY)
         sb = self._storage_broker
-        c = CHKCheckerAndUEBFetcher(sb.get_servers_for_psi, storage_index, lp2)
+        c = self.chk_checker(sb.get_servers_for_psi, storage_index, lp2)
         d = c.check()
         def _checked(res):
             if res:
@@ -633,14 +670,18 @@ class Helper(Referenceable):
         return (None, uh)
 
     def _make_chk_upload_helper(self, storage_index, lp):
-        si_s = si_b2a(storage_index)
+        si_s = si_b2a(storage_index).decode('ascii')
         incoming_file = os.path.join(self._chk_incoming, si_s)
         encoding_file = os.path.join(self._chk_encoding, si_s)
-        uh = CHKUploadHelper(storage_index, self,
-                             self._storage_broker,
-                             self._secret_holder,
-                             incoming_file, encoding_file,
-                             lp)
+        uh = self.chk_upload(
+            storage_index,
+            self,
+            self._storage_broker,
+            self._secret_holder,
+            incoming_file,
+            encoding_file,
+            lp,
+        )
         return uh
 
     def _add_upload(self, uh):

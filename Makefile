@@ -19,8 +19,10 @@ PYTHON=python
 export PYTHON
 PYFLAKES=flake8
 export PYFLAKES
+VIRTUAL_ENV=./.tox/py27
 SOURCES=src/allmydata static misc setup.py
 APPNAME=tahoe-lafs
+TEST_SUITE=allmydata
 
 
 # Top-level, phony targets
@@ -45,6 +47,18 @@ test: .tox/create-venvs.log
 	tox --develop -e codechecks
 # Run all the test environments in parallel to reduce run-time
 	tox --develop -p auto -e 'py27,py36,pypy27'
+.PHONY: test-venv-coverage
+## Run all tests with coverage collection and reporting.
+test-venv-coverage:
+# Special handling for reporting coverage even when the test run fails
+	rm -f ./.coverage.*
+	test_exit=
+	$(VIRTUAL_ENV)/bin/coverage run -m twisted.trial --rterrors --reporter=timing \
+		$(TEST_SUITE) || test_exit="$$?"
+	$(VIRTUAL_ENV)/bin/coverage combine
+	$(VIRTUAL_ENV)/bin/coverage xml || true
+	$(VIRTUAL_ENV)/bin/coverage report
+	if [ ! -z "$$test_exit" ]; then exit "$$test_exit"; fi
 .PHONY: test-py3-all
 ## Run all tests under Python 3
 test-py3-all: .tox/create-venvs.log

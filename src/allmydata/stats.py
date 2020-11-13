@@ -1,12 +1,15 @@
 from __future__ import print_function
 
-from past.builtins import unicode
-
 import json
 import os
 import pprint
 import time
 from collections import deque
+
+# Python 2 compatibility
+from future.utils import PY2
+if PY2:
+    from future.builtins import str  # noqa: F401
 
 from twisted.internet import reactor
 from twisted.application import service
@@ -157,7 +160,7 @@ class StatsProvider(Referenceable, service.MultiService):
         service.MultiService.startService(self)
 
     def count(self, name, delta=1):
-        if isinstance(name, unicode):
+        if isinstance(name, str):
             name = name.encode("utf-8")
         val = self.counters.setdefault(name, 0)
         self.counters[name] = val + delta
@@ -178,7 +181,7 @@ class StatsProvider(Referenceable, service.MultiService):
         def to_bytes(d):
             result = {}
             for (k, v) in d.items():
-                if isinstance(k, unicode):
+                if isinstance(k, str):
                     k = k.encode("utf-8")
                 result[k] = v
             return result

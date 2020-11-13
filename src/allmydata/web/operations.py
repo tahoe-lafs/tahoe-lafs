@@ -1,9 +1,14 @@
 
 import time
-from nevow import url
+from hyperlink import (
+    DecodedURL,
+)
 from twisted.web.template import (
     renderer,
     tags as T,
+)
+from twisted.python.urlpath import (
+    URLPath,
 )
 from twisted.python.failure import Failure
 from twisted.internet import reactor, defer
@@ -14,7 +19,6 @@ from twisted.application import service
 
 from allmydata.web.common import (
     WebError,
-    get_root,
     get_arg,
     boolean_of_arg,
     exception_to_child,
@@ -84,17 +88,14 @@ class OphandleTable(resource.Resource, service.Service):
         """
         :param allmydata.webish.MyRequest req:
         """
-        ophandle = get_arg(req, "ophandle")
+        ophandle = get_arg(req, "ophandle").decode("utf-8")
         assert ophandle
-        target = get_root(req) + "/operations/" + ophandle
+        here = DecodedURL.from_text(unicode(URLPath.fromRequest(req)))
+        target = here.click(u"/").child(u"operations", ophandle)
         output = get_arg(req, "output")
         if output:
-            target = target + "?output=%s" % output
-
-        # XXX: We have to use nevow.url here because nevow.appserver
-        # is unhappy with anything else; so this gets its own ticket.
-        # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3314
-        return url.URL.fromString(target)
+            target = target.add(u"output", output.decode("utf-8"))
+        return target
 
     @exception_to_child
     def getChild(self, name, req):
@@ -151,8 +152,6 @@ class ReloadMixin(object):
     def refresh(self, req, tag):
         if self.monitor.is_finished():
             return ""
-        # dreid suggests ctx.tag(**dict([("http-equiv", "refresh")]))
-        # but I can't tell if he's joking or not
         tag.attributes["http-equiv"] = "refresh"
         tag.attributes["content"] = str(self.REFRESH_TIME)
         return tag
@@ -160,12 +159,12 @@ class ReloadMixin(object):
     @renderer
     def reload(self, req, tag):
         if self.monitor.is_finished():
-            return ""
+            return b""
         # url.gethere would break a proxy, so the correct thing to do is
         # req.path[-1] + queryargs
         ophandle = req.prepath[-1]
-        reload_target = ophandle + "?output=html"
-        cancel_target = ophandle + "?t=cancel"
+        reload_target = ophandle + b"?output=html"
+        cancel_target = ophandle + b"?t=cancel"
         cancel_button = T.form(T.input(type="submit", value="Cancel"),
                                action=cancel_target,
                                method="POST",

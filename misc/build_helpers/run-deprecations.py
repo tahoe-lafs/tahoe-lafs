@@ -20,7 +20,7 @@ class Options(usage.Options):
         self["args"] = list(args)
 
     description = """Run as:
-PYTHONWARNINGS=default::DeprecationWarning python run-deprecations.py [--warnings=STDERRFILE] [--package=PYTHONPACKAGE ] COMMAND ARGS..
+python run-deprecations.py [--warnings=STDERRFILE] [--package=PYTHONPACKAGE ] COMMAND ARGS..
 """
 
 class RunPP(protocol.ProcessProtocol):
@@ -78,12 +78,6 @@ def run_command(main):
             raise ValueError("unable to find '%s' in PATH (%s)" %
                              (command, os.environ.get("PATH")))
         exe = executables[0]
-
-    pw = os.environ.get("PYTHONWARNINGS")
-    DDW = "default::DeprecationWarning"
-    if pw != DDW:
-        print("note: $PYTHONWARNINGS is '%s', not the expected %s" % (pw, DDW))
-        sys.stdout.flush()
 
     pp = RunPP()
     pp.d = defer.Deferred()

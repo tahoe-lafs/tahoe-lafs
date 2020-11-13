@@ -1,3 +1,15 @@
+"""
+Ported to Python 3.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+
 import base64
 import os
 import stat
@@ -5,14 +17,21 @@ import sys
 import time
 import mock
 from textwrap import dedent
+import configparser
+
+from hypothesis import (
+    given,
+)
+from hypothesis.strategies import (
+    integers,
+    sets,
+)
 
 from unittest import skipIf
 
 from twisted.trial import unittest
 from twisted.internet import defer
-from twisted.python import log
 
-from foolscap.api import flushEventualQueue
 import foolscap.logging.log
 
 from twisted.application import service
@@ -26,6 +45,7 @@ from allmydata.node import (
     MissingConfigEntry,
     _tub_portlocation,
     formatTimeTahoeStyle,
+    UnescapedHashError,
 )
 from allmydata.introducer.server import create_introducer
 from allmydata import client
@@ -37,6 +57,9 @@ from allmydata.util.i2p_provider import create as create_i2p_provider
 from allmydata.util.tor_provider import create as create_tor_provider
 import allmydata.test.common_util as testutil
 
+
+def port_numbers():
+    return integers(min_value=1, max_value=2 ** 16 - 1)
 
 class LoggingMultiService(service.MultiService):
     def log(self, msg, **kw):
@@ -69,22 +92,39 @@ def testing_tub(config_data=''):
 
 class TestCase(testutil.SignalMixin, unittest.TestCase):
 
-    @defer.inlineCallbacks
     def setUp(self):
         testutil.SignalMixin.setUp(self)
         self.parent = LoggingMultiService()
-        self.parent.startService()
-        self._available_port = yield iputil.allocate_tcp_port()
+        # We can use a made-up port number because these tests never actually
+        # try to bind the port.  We'll use a low-numbered one that's likely to
+        # conflict with another service to prove it.
+        self._available_port = 22
 
-    def tearDown(self):
-        log.msg("%s.tearDown" % self.__class__.__name__)
-        testutil.SignalMixin.tearDown(self)
-        d = defer.succeed(None)
-        d.addCallback(lambda res: self.parent.stopService())
-        d.addCallback(flushEventualQueue)
-        return d
+    def _test_location(
+            self,
+            expected_addresses,
+            tub_port=None,
+            tub_location=None,
+            local_addresses=None,
+    ):
+        """
+        Verify that a Tub configured with the given *tub.port* and *tub.location*
+        values generates fURLs with the given addresses in its location hints.
 
-    def _test_location(self, basedir, expected_addresses, tub_port=None, tub_location=None, local_addresses=None):
+        :param [str] expected_addresses: The addresses which must appear in
+            the generated fURL for the test to pass.  All addresses must
+            appear.
+
+        :param tub_port: If not ``None`` then a value for the *tub.port*
+            configuration item.
+
+        :param tub_location: If not ``None`` then a value for the *tub.port*
+            configuration item.
+
+        :param local_addresses: If not ``None`` then a list of addresses to
+            supply to the system under test as local addresses.
+        """
+        basedir = self.mktemp()
         create_node_dir(basedir, "testing")
         config_data = "[node]\n"
         if tub_port:
@@ -92,34 +132,30 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
         if tub_location is not None:
             config_data += "tub.location = {}\n".format(tub_location)
 
-        if local_addresses:
+        if local_addresses is not None:
             self.patch(iputil, 'get_local_addresses_sync',
                        lambda: local_addresses)
 
         tub = testing_tub(config_data)
-        tub.setServiceParent(self.parent)
 
         class Foo(object):
             pass
 
         furl = tub.registerReference(Foo())
         for address in expected_addresses:
-            self.failUnlessIn(address, furl)
+            self.assertIn(address, furl)
 
     def test_location1(self):
-        return self._test_location(basedir="test_node/test_location1",
-                                   expected_addresses=["192.0.2.0:1234"],
+        return self._test_location(expected_addresses=["192.0.2.0:1234"],
                                    tub_location="192.0.2.0:1234")
 
     def test_location2(self):
-        return self._test_location(basedir="test_node/test_location2",
-                                   expected_addresses=["192.0.2.0:1234", "example.org:8091"],
+        return self._test_location(expected_addresses=["192.0.2.0:1234", "example.org:8091"],
                                    tub_location="192.0.2.0:1234,example.org:8091")
 
     def test_location_not_set(self):
         """Checks the autogenerated furl when tub.location is not set."""
         return self._test_location(
-            basedir="test_node/test_location3",
             expected_addresses=[
                 "127.0.0.1:{}".format(self._available_port),
                 "192.0.2.0:{}".format(self._available_port),
@@ -131,7 +167,6 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
     def test_location_auto_and_explicit(self):
         """Checks the autogenerated furl when tub.location contains 'AUTO'."""
         return self._test_location(
-            basedir="test_node/test_location4",
             expected_addresses=[
                 "127.0.0.1:{}".format(self._available_port),
                 "192.0.2.0:{}".format(self._available_port),
@@ -145,13 +180,13 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
     def test_tahoe_cfg_utf8(self):
         basedir = "test_node/test_tahoe_cfg_utf8"
         fileutil.make_dirs(basedir)
-        f = open(os.path.join(basedir, 'tahoe.cfg'), 'wt')
+        f = open(os.path.join(basedir, 'tahoe.cfg'), 'wb')
         f.write(u"\uFEFF[node]\n".encode('utf-8'))
         f.write(u"nickname = \u2621\n".encode('utf-8'))
         f.close()
 
         config = read_config(basedir, "")
-        self.failUnlessEqual(config.get_config("node", "nickname").decode('utf-8'),
+        self.failUnlessEqual(config.get_config("node", "nickname"),
                              u"\u2621")
 
     def test_tahoe_cfg_hash_in_name(self):
@@ -165,6 +200,37 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
 
         config = read_config(basedir, "")
         self.failUnless(config.nickname == nickname)
+
+    def test_hash_in_furl(self):
+        """
+        Hashes in furl options are not allowed, resulting in exception.
+        """
+        basedir = self.mktemp()
+        fileutil.make_dirs(basedir)
+        with open(os.path.join(basedir, 'tahoe.cfg'), 'wt') as f:
+            f.write("[node]\n")
+            f.write("log_gatherer.furl = lalal#onohash\n")
+
+        config = read_config(basedir, "")
+        with self.assertRaises(UnescapedHashError):
+            config.get_config("node", "log_gatherer.furl")
+
+    def test_missing_config_item(self):
+        """
+        If a config item is missing:
+
+        1. Given a default, return default.
+        2. Otherwise, raise MissingConfigEntry.
+        """
+        basedir = self.mktemp()
+        fileutil.make_dirs(basedir)
+        with open(os.path.join(basedir, 'tahoe.cfg'), 'wt') as f:
+            f.write("[node]\n")
+        config = read_config(basedir, "")
+
+        self.assertEquals(config.get_config("node", "log_gatherer.furl", "def"), "def")
+        with self.assertRaises(MissingConfigEntry):
+            config.get_config("node", "log_gatherer.furl")
 
     def test_config_required(self):
         """
@@ -194,10 +260,35 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
         config = read_config(basedir, "portnum")
         self.assertEqual(
             config.items("node"),
-            [(b"nickname", b"foo"),
-             (b"timeout.disconnect", b"12"),
+            [("nickname", "foo"),
+             ("timeout.disconnect", "12"),
             ],
         )
+        self.assertEqual(
+            config.items("node", [("unnecessary", "default")]),
+            [("nickname", "foo"),
+             ("timeout.disconnect", "12"),
+            ],
+        )
+
+
+    def test_config_items_missing_section(self):
+        """
+        If a default is given for a missing section, the default is used.
+
+        Lacking both default and section, an error is raised.
+        """
+        basedir = self.mktemp()
+        create_node_dir(basedir, "testing")
+
+        with open(os.path.join(basedir, 'tahoe.cfg'), 'wt') as f:
+            f.write("")
+
+        config = read_config(basedir, "portnum")
+        with self.assertRaises(configparser.NoSectionError):
+            config.items("nosuch")
+        default = [("hello", "world")]
+        self.assertEqual(config.items("nosuch", default), default)
 
     @skipIf(
         "win32" in sys.platform.lower() or "cygwin" in sys.platform.lower(),
@@ -378,7 +469,7 @@ class TestMissingPorts(unittest.TestCase):
         with get_addr, alloc_port:
             tubport, tublocation = _tub_portlocation(config)
         self.assertEqual(tubport, "tcp:777")
-        self.assertEqual(tublocation, "tcp:LOCAL:777")
+        self.assertEqual(tublocation, b"tcp:LOCAL:777")
 
     def test_parsing_defaults(self):
         """
@@ -400,7 +491,7 @@ class TestMissingPorts(unittest.TestCase):
         with get_addr, alloc_port:
             tubport, tublocation = _tub_portlocation(config)
         self.assertEqual(tubport, "tcp:999")
-        self.assertEqual(tublocation, "tcp:LOCAL:999")
+        self.assertEqual(tublocation, b"tcp:LOCAL:999")
 
     def test_parsing_location_complex(self):
         """
@@ -423,7 +514,7 @@ class TestMissingPorts(unittest.TestCase):
         with get_addr, alloc_port:
             tubport, tublocation = _tub_portlocation(config)
         self.assertEqual(tubport, "tcp:999")
-        self.assertEqual(tublocation, "tcp:HOST:888,tcp:LOCAL:999")
+        self.assertEqual(tublocation, b"tcp:HOST:888,tcp:LOCAL:999")
 
     def test_parsing_all_disabled(self):
         """
@@ -526,7 +617,6 @@ introducer.furl = empty
 enabled = false
 [i2p]
 enabled = false
-[node]
 """
 
 NOLISTEN = """
@@ -552,7 +642,7 @@ enabled = true
 
 class FakeTub(object):
     def __init__(self):
-        self.tubID = base64.b32encode("foo")
+        self.tubID = base64.b32encode(b"foo")
         self.listening_ports = []
     def setOption(self, name, value): pass
     def removeAllConnectionHintHandlers(self): pass
@@ -572,6 +662,7 @@ class Listeners(unittest.TestCase):
         create_node_dir(basedir, "testing")
         with open(os.path.join(basedir, "tahoe.cfg"), "w") as f:
             f.write(BASE_CONFIG)
+            f.write("[node]\n")
             f.write("tub.port = tcp:0\n")
             f.write("tub.location = AUTO\n")
 
@@ -590,16 +681,28 @@ class Listeners(unittest.TestCase):
             str(ctx.exception),
         )
 
-    def test_multiple_ports(self):
+    # Randomly allocate a couple distinct port numbers to try out.  The test
+    # never actually binds these port numbers so we don't care if they're "in
+    # use" on the system or not.  We just want a couple distinct values we can
+    # check expected results against.
+    @given(ports=sets(elements=port_numbers(), min_size=2, max_size=2))
+    def test_multiple_ports(self, ports):
+        """
+        When there are multiple listen addresses suggested by the ``tub.port`` and
+        ``tub.location`` configuration, the node's *main* port listens on all
+        of them.
+        """
         basedir = self.mktemp()
-        create_node_dir(basedir, "testing")
-        port1 = iputil.allocate_tcp_port()
-        port2 = iputil.allocate_tcp_port()
+        config_fname = os.path.join(basedir, "tahoe.cfg")
+        os.mkdir(basedir)
+        os.mkdir(os.path.join(basedir, "private"))
+        port1, port2 = iter(ports)
         port = ("tcp:%d:interface=127.0.0.1,tcp:%d:interface=127.0.0.1" %
                 (port1, port2))
         location = "tcp:localhost:%d,tcp:localhost:%d" % (port1, port2)
-        with open(os.path.join(basedir, "tahoe.cfg"), "w") as f:
+        with open(config_fname, "w") as f:
             f.write(BASE_CONFIG)
+            f.write("[node]\n")
             f.write("tub.port = %s\n" % port)
             f.write("tub.location = %s\n" % location)
 
@@ -623,6 +726,7 @@ class Listeners(unittest.TestCase):
         os.mkdir(os.path.join(basedir, "private"))
         with open(config_fname, "w") as f:
             f.write(BASE_CONFIG)
+            f.write("[node]\n")
             f.write("tub.port = listen:i2p,listen:tor\n")
             f.write("tub.location = tcp:example.org:1234\n")
         config = client.read_config(basedir, "client.port")
@@ -748,3 +852,35 @@ class Configuration(unittest.TestCase):
             "invalid section",
             str(ctx.exception),
         )
+
+
+
+class FakeProvider(object):
+    """Emulate Tor and I2P providers."""
+
+    def get_tor_handler(self):
+        return "TORHANDLER!"
+
+    def get_i2p_handler(self):
+        return "I2PHANDLER!"
+
+
+class CreateConnectionHandlers(unittest.TestCase):
+    """
+    Tests for create_connection_handlers().
+    """
+
+    def test_tcp_disabled(self):
+        """
+        If tcp is set to disabled, no TCP handler is set.
+        """
+        config = config_from_string("", "", dedent("""
+        [connections]
+        tcp = disabled
+        """))
+        reactor = object()  # it's not actually used?!
+        provider = FakeProvider()
+        default_handlers, _ = create_connection_handlers(
+            reactor, config, provider, provider
+        )
+        self.assertIs(default_handlers["tcp"], None)

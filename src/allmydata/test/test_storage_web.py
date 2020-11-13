@@ -11,7 +11,7 @@ from __future__ import unicode_literals
 
 from future.utils import PY2
 if PY2:
-    # Omitted list sinc it broke a test on Python 2. Shouldn't require further
+    # Omitted list since it broke a test on Python 2. Shouldn't require further
     # work, when we switch to Python 3 we'll be dropping this, anyway.
     from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, object, range, str, max, min  # noqa: F401
 
@@ -26,18 +26,6 @@ from twisted.internet import defer
 from twisted.application import service
 from twisted.web.template import flattenString
 
-# We need to use `nevow.inevow.IRequest` for now for compatibility
-# with the code in web/common.py.  Once nevow bits are gone from
-# web/common.py, we can use `twisted.web.iweb.IRequest` here.
-if PY2:
-    from nevow.inevow import IRequest
-else:
-    from twisted.web.iweb import IRequest
-
-from twisted.web.server import Request
-from twisted.web.test.requesthelper import DummyChannel
-from zope.interface import implementer
-
 from foolscap.api import fireEventually
 from allmydata.util import fileutil, hashutil, base32, pollmixin
 from allmydata.storage.common import storage_index_to_dir, \
@@ -50,7 +38,11 @@ from allmydata.web.storage import (
     StorageStatusElement,
     remove_prefix
 )
-from .common_py3 import FakeCanary
+from .common_util import FakeCanary
+
+from .common_web import (
+    render,
+)
 
 def remove_tags(s):
     s = re.sub(br'<[^>]*>', b' ', s)
@@ -75,20 +67,10 @@ def renderDeferred(ss):
     return flattenString(None, elem)
 
 def renderJSON(resource):
-    """Render a JSON from the given resource."""
-
-    @implementer(IRequest)
-    class JSONRequest(Request):
-        """
-        A Request with t=json argument added to it.  This is useful to
-        invoke a Resouce.render_JSON() method.
-        """
-        def __init__(self):
-            Request.__init__(self, DummyChannel())
-            self.args = {"t": ["json"]}
-            self.fields = {}
-
-    return resource.render(JSONRequest())
+    """
+    Render a JSON from the given resource.
+    """
+    return render(resource, {"t": ["json"]})
 
 class MyBucketCountingCrawler(BucketCountingCrawler):
     def finished_prefix(self, cycle, prefix):

@@ -271,11 +271,13 @@ def write_atomically(target, contents, mode="b"):
     move_into_place(target+".tmp", target)
 
 def write(path, data, mode="wb"):
+    if "b" in mode and isinstance(data, str):
+        data = data.encode("utf-8")
     with open(path, mode) as f:
         f.write(data)
 
-def read(path):
-    with open(path, "rb") as rf:
+def read(path, mode="rb"):
+    with open(path, mode) as rf:
         return rf.read()
 
 def put_file(path, inf):

@@ -2,7 +2,11 @@
 Tools aimed at the interaction between tests and Eliot.
 """
 
-from past.builtins import unicode
+# Python 2 compatibility
+# Can't use `builtins.str` because it's not JSON encodable:
+# `exceptions.TypeError: <class 'future.types.newstr.newstr'> is not JSON-encodeable`
+from past.builtins import unicode as str
+from future.utils import PY3
 
 __all__ = [
     "RUN_TEST",
@@ -29,7 +33,7 @@ from twisted.internet.defer import (
 
 _NAME = Field.for_types(
     u"name",
-    [unicode],
+    [str],
     u"The name of the test.",
 )
 
@@ -103,7 +107,7 @@ def eliot_logged_test(f):
 
         # Begin an action that should comprise all messages from the decorated
         # test method.
-        with RUN_TEST(name=self.id().decode("utf-8")).context() as action:
+        with RUN_TEST(name=self.id()).context() as action:
             # When the test method Deferred fires, the RUN_TEST action is
             # done.  However, we won't have re-published the MemoryLogger
             # messages into the global/default logger when this Deferred
@@ -161,6 +165,9 @@ class EliotLoggedRunTest(object):
 
     @eliot_logged_test
     def run(self, result=None):
+        # Workaround for https://github.com/itamarst/eliot/issues/456
+        if PY3:
+            self.case.eliot_logger._validate_message = lambda *args, **kwargs: None
         return self._run_tests_with_factory(
             self.case,
             self.handlers,

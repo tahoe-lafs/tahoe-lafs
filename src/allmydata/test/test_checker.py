@@ -1,3 +1,16 @@
+"""
+Ported to Python 3.
+"""
+
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+
 
 import json
 import os.path, shutil
@@ -7,11 +20,13 @@ from bs4 import BeautifulSoup
 from twisted.trial import unittest
 from twisted.internet import defer
 
-from nevow.inevow import IRequest
 from zope.interface import implementer
-from twisted.web.server import Request
-from twisted.web.test.requesthelper import DummyChannel
-from twisted.web.template import flattenString
+from twisted.web.resource import (
+    Resource,
+)
+from twisted.web.template import (
+    renderElement,
+)
 
 from allmydata import check_results, uri
 from allmydata import uri as tahoe_uri
@@ -32,6 +47,9 @@ from allmydata.mutable.publish import MutableData
 from .common import (
     EMPTY_CLIENT_CONFIG,
 )
+from .common_web import (
+    render,
+)
 
 from .web.common import (
     assert_soup_has_favicon,
@@ -41,24 +59,6 @@ from .web.common import (
 class FakeClient(object):
     def get_storage_broker(self):
         return self.storage_broker
-
-@implementer(IRequest)
-class TestRequest(Request, object):
-    """
-    A minimal Request class to use in tests.
-
-    XXX: We have to have this class because `common.get_arg()` expects
-    a `nevow.inevow.IRequest`, which `twisted.web.server.Request`
-    isn't.  The request needs to have `args`, `fields`, `prepath`, and
-    `postpath` properties so that `allmydata.web.common.get_arg()`
-    won't complain.
-    """
-    def __init__(self, args=None, fields=None):
-        super(TestRequest, self).__init__(DummyChannel())
-        self.args = args or {}
-        self.fields = fields or {}
-        self.prepath = [b""]
-        self.postpath = [b""]
 
 
 @implementer(IServer)
@@ -102,7 +102,7 @@ class FakeCheckResults(object):
 
     def get_corrupt_shares(self):
         # returns a list of (IServer, storage_index, sharenum)
-        return [(FakeServer(), "<fake-si>", 0)]
+        return [(FakeServer(), b"<fake-si>", 0)]
 
 
 @implementer(ICheckAndRepairResults)
@@ -131,6 +131,15 @@ class FakeCheckAndRepairResults(object):
         return self._repair_success
 
 
+class ElementResource(Resource, object):
+    def __init__(self, element):
+        Resource.__init__(self)
+        self.element = element
+
+    def render(self, request):
+        return renderElement(request, self.element)
+
+
 class WebResultsRendering(unittest.TestCase):
 
     @staticmethod
@@ -141,18 +150,18 @@ class WebResultsRendering(unittest.TestCase):
         sb = StorageFarmBroker(True, None, EMPTY_CLIENT_CONFIG)
         # s.get_name() (the "short description") will be "v0-00000000".
         # s.get_longname() will include the -long suffix.
-        servers = [("v0-00000000-long", "\x00"*20, "peer-0"),
-                   ("v0-ffffffff-long", "\xff"*20, "peer-f"),
-                   ("v0-11111111-long", "\x11"*20, "peer-11")]
+        servers = [(b"v0-00000000-long", b"\x00"*20, "peer-0"),
+                   (b"v0-ffffffff-long", b"\xff"*20, "peer-f"),
+                   (b"v0-11111111-long", b"\x11"*20, "peer-11")]
         for (key_s, binary_tubid, nickname) in servers:
             server_id = key_s
             tubid_b32 = base32.b2a(binary_tubid)
-            furl = "pb://%s@nowhere/fake" % tubid_b32
+            furl = b"pb://%s@nowhere/fake" % tubid_b32
             ann = { "version": 0,
                     "service-name": "storage",
                     "anonymous-storage-FURL": furl,
                     "permutation-seed-base32": "",
-                    "nickname": unicode(nickname),
+                    "nickname": str(nickname),
                     "app-versions": {}, # need #466 and v2 introducer
                     "my-version": "ver",
                     "oldest-supported": "oldest",
@@ -164,21 +173,22 @@ class WebResultsRendering(unittest.TestCase):
         return c
 
     def render_json(self, resource):
-        return resource.render(TestRequest(args={"output": ["json"]}))
+        return self.successResultOf(render(resource, {"output": ["json"]}))
 
     def render_element(self, element, args=None):
-        d = flattenString(TestRequest(args), element)
-        return unittest.TestCase().successResultOf(d)
+        if args is None:
+            args = {}
+        return self.successResultOf(render(ElementResource(element), args))
 
     def test_literal(self):
         lcr = web_check_results.LiteralCheckResultsRendererElement()
 
         html = self.render_element(lcr)
-        self.failUnlessIn("Literal files are always healthy", html)
+        self.failUnlessIn(b"Literal files are always healthy", html)
 
         html = self.render_element(lcr, args={"return_to": ["FOOURL"]})
-        self.failUnlessIn("Literal files are always healthy", html)
-        self.failUnlessIn('<a href="FOOURL">Return to file.</a>', html)
+        self.failUnlessIn(b"Literal files are always healthy", html)
+        self.failUnlessIn(b'<a href="FOOURL">Return to file.</a>', html)
 
         c = self.create_fake_client()
         lcr = web_check_results.LiteralCheckResultsRenderer(c)
@@ -192,11 +202,11 @@ class WebResultsRendering(unittest.TestCase):
     def test_check(self):
         c = self.create_fake_client()
         sb = c.storage_broker
-        serverid_1 = "\x00"*20
-        serverid_f = "\xff"*20
+        serverid_1 = b"\x00"*20
+        serverid_f = b"\xff"*20
         server_1 = sb.get_stub_server(serverid_1)
         server_f = sb.get_stub_server(serverid_f)
-        u = uri.CHKFileURI("\x00"*16, "\x00"*32, 3, 10, 1234)
+        u = uri.CHKFileURI(b"\x00"*16, b"\x00"*32, 3, 10, 1234)
         data = { "count_happiness": 8,
                  "count_shares_needed": 3,
                  "count_shares_expected": 9,
@@ -260,7 +270,7 @@ class WebResultsRendering(unittest.TestCase):
         self.failUnlessIn("Not Recoverable! : rather dead", s)
 
         html = self.render_element(w, args={"return_to": ["FOOURL"]})
-        self.failUnlessIn('<a href="FOOURL">Return to file/directory.</a>',
+        self.failUnlessIn(b'<a href="FOOURL">Return to file/directory.</a>',
                           html)
 
         w = web_check_results.CheckResultsRenderer(c, cr)
@@ -301,9 +311,9 @@ class WebResultsRendering(unittest.TestCase):
     def test_check_and_repair(self):
         c = self.create_fake_client()
         sb = c.storage_broker
-        serverid_1 = "\x00"*20
-        serverid_f = "\xff"*20
-        u = uri.CHKFileURI("\x00"*16, "\x00"*32, 3, 10, 1234)
+        serverid_1 = b"\x00"*20
+        serverid_f = b"\xff"*20
+        u = uri.CHKFileURI(b"\x00"*16, b"\x00"*32, 3, 10, 1234)
 
         data = { "count_happiness": 5,
                  "count_shares_needed": 3,
@@ -419,21 +429,21 @@ class WebResultsRendering(unittest.TestCase):
 
 
     def test_deep_check_renderer(self):
-        status = check_results.DeepCheckResults("fake-root-si")
+        status = check_results.DeepCheckResults(b"fake-root-si")
         status.add_check(
-            FakeCheckResults("<unhealthy/unrecoverable>", False, False),
+            FakeCheckResults(b"<unhealthy/unrecoverable>", False, False),
             (u"fake", u"unhealthy", u"unrecoverable")
         )
         status.add_check(
-            FakeCheckResults("<healthy/recoverable>", True, True),
+            FakeCheckResults(b"<healthy/recoverable>", True, True),
             (u"fake", u"healthy", u"recoverable")
         )
         status.add_check(
-            FakeCheckResults("<healthy/unrecoverable>", True, False),
+            FakeCheckResults(b"<healthy/unrecoverable>", True, False),
             (u"fake", u"healthy", u"unrecoverable")
         )
         status.add_check(
-            FakeCheckResults("<unhealthy/unrecoverable>", False, True),
+            FakeCheckResults(b"<unhealthy/unrecoverable>", False, True),
             (u"fake", u"unhealthy", u"recoverable")
         )
 
@@ -512,18 +522,18 @@ class WebResultsRendering(unittest.TestCase):
         )
 
     def test_deep_check_and_repair_renderer(self):
-        status = check_results.DeepCheckAndRepairResults("")
+        status = check_results.DeepCheckAndRepairResults(b"")
 
         status.add_check_and_repair(
-            FakeCheckAndRepairResults("attempted/success", True, True),
+            FakeCheckAndRepairResults(b"attempted/success", True, True),
             (u"attempted", u"success")
         )
         status.add_check_and_repair(
-            FakeCheckAndRepairResults("attempted/failure", True, False),
+            FakeCheckAndRepairResults(b"attempted/failure", True, False),
             (u"attempted", u"failure")
         )
         status.add_check_and_repair(
-            FakeCheckAndRepairResults("unattempted/failure", False, False),
+            FakeCheckAndRepairResults(b"unattempted/failure", False, False),
             (u"unattempted", u"failure")
         )
 
@@ -662,7 +672,7 @@ class BalancingAct(GridTestMixin, unittest.TestCase):
             "This little printing function is only meant for < 26 servers"
         shares_chart = {}
         names = dict(zip([ss.my_nodeid
-                          for _,ss in self.g.servers_by_number.iteritems()],
+                          for _,ss in self.g.servers_by_number.items()],
                          letters))
         for shnum, serverid, _ in self.find_uri_shares(uri):
             shares_chart.setdefault(shnum, []).append(names[serverid])
@@ -676,8 +686,8 @@ class BalancingAct(GridTestMixin, unittest.TestCase):
         c0.encoding_params['n'] = 4
         c0.encoding_params['k'] = 3
 
-        DATA = "data" * 100
-        d = c0.upload(Data(DATA, convergence=""))
+        DATA = b"data" * 100
+        d = c0.upload(Data(DATA, convergence=b""))
         def _stash_immutable(ur):
             self.imm = c0.create_node_from_uri(ur.get_uri())
             self.uri = self.imm.get_uri()
@@ -742,13 +752,13 @@ class AddLease(GridTestMixin, unittest.TestCase):
         c0 = self.g.clients[0]
         c0.encoding_params['happy'] = 1
         self.uris = {}
-        DATA = "data" * 100
-        d = c0.upload(Data(DATA, convergence=""))
+        DATA = b"data" * 100
+        d = c0.upload(Data(DATA, convergence=b""))
         def _stash_immutable(ur):
             self.imm = c0.create_node_from_uri(ur.get_uri())
         d.addCallback(_stash_immutable)
         d.addCallback(lambda ign:
-            c0.create_mutable_file(MutableData("contents")))
+            c0.create_mutable_file(MutableData(b"contents")))
         def _stash_mutable(node):
             self.mut = node
         d.addCallback(_stash_mutable)
@@ -834,8 +844,8 @@ class TooParallel(GridTestMixin, unittest.TestCase):
                                         "max_segment_size": 5,
                                       }
             self.uris = {}
-            DATA = "data" * 100 # 400/5 = 80 blocks
-            return self.c0.upload(Data(DATA, convergence=""))
+            DATA = b"data" * 100 # 400/5 = 80 blocks
+            return self.c0.upload(Data(DATA, convergence=b""))
         d.addCallback(_start)
         def _do_check(ur):
             n = self.c0.create_node_from_uri(ur.get_uri())

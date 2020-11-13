@@ -1,24 +1,49 @@
+from six import ensure_str
 
-import treq
+__all__ = [
+    "do_http",
+    "render",
+]
+
 from twisted.internet.defer import (
-    maybeDeferred,
     inlineCallbacks,
     returnValue,
 )
-from twisted.web.error import Error
+from twisted.web.error import (
+    Error,
+)
+from twisted.python.reflect import (
+    fullyQualifiedName,
+)
+from twisted.internet.defer import (
+    succeed,
+)
+from twisted.web.test.requesthelper import (
+    DummyChannel,
+)
+from twisted.web.error import (
+    UnsupportedMethod,
+)
+from twisted.web.http import (
+    NOT_ALLOWED,
+)
+from twisted.web.server import (
+    NOT_DONE_YET,
+)
 
-from nevow.context import WebContext
-from nevow.testutil import FakeRequest
-from nevow.appserver import (
-    processingFailed,
-    DefaultExceptionHandler,
+import treq
+
+from ..webish import (
+    TahoeLAFSRequest,
 )
-from nevow.inevow import (
-    ICanHandleException,
-    IRequest,
-    IResource as INevowResource,
-    IData,
-)
+
+
+class VerboseError(Error):
+    """Include the HTTP body response too."""
+
+    def __str__(self):
+        return Error.__str__(self) + " " + ensure_str(self.response)
+
 
 @inlineCallbacks
 def do_http(method, url, **kwargs):
@@ -27,14 +52,14 @@ def do_http(method, url, **kwargs):
     # TODO: replace this with response.fail_for_status when
     # https://github.com/twisted/treq/pull/159 has landed
     if 400 <= response.code < 600:
-        raise Error(response.code, response=body)
+        raise VerboseError(response.code, response=body)
     returnValue(body)
 
 
 def render(resource, query_args):
     """
-    Render (in the manner of the Nevow appserver) a Nevow ``Page`` or a
-    Twisted ``Resource`` against a request with the given query arguments .
+    Render (in the manner of the Twisted Web Site) a Twisted ``Resource``
+    against a request with the given query arguments .
 
     :param resource: The page or resource to render.
 
@@ -44,19 +69,36 @@ def render(resource, query_args):
     :return Deferred: A Deferred that fires with the rendered response body as
         ``bytes``.
     """
-    ctx = WebContext(tag=resource)
-    req = FakeRequest(args=query_args)
-    ctx.remember(DefaultExceptionHandler(), ICanHandleException)
-    ctx.remember(req, IRequest)
-    ctx.remember(None, IData)
+    channel = DummyChannel()
+    request = TahoeLAFSRequest(channel)
+    request.method = b"GET"
+    request.args = query_args
+    request.prepath = [b""]
+    request.postpath = []
+    try:
+        result = resource.render(request)
+    except UnsupportedMethod:
+        request.setResponseCode(NOT_ALLOWED)
+        result = b""
 
-    def maybe_concat(res):
-        if isinstance(res, bytes):
-            return req.v + res
-        return req.v
-
-    resource = INevowResource(resource)
-    d = maybeDeferred(resource.renderHTTP, ctx)
-    d.addErrback(processingFailed, req, ctx)
-    d.addCallback(maybe_concat)
-    return d
+    if isinstance(result, bytes):
+        request.write(result)
+        done = succeed(None)
+    elif result == NOT_DONE_YET:
+        if request.finished:
+            done = succeed(None)
+        else:
+            done = request.notifyFinish()
+    else:
+        raise ValueError(
+            "{!r} returned {!r}, required bytes or NOT_DONE_YET.".format(
+                fullyQualifiedName(resource.render),
+                result,
+            ),
+        )
+    def get_body(ignored):
+        complete_response = channel.transport.written.getvalue()
+        header, body = complete_response.split(b"\r\n\r\n", 1)
+        return body
+    done.addCallback(get_body)
+    return done

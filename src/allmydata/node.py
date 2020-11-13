@@ -1,18 +1,29 @@
 """
 This module contains classes and functions to implement and manage
 a node for Tahoe-LAFS.
+
+Ported to Python 3.
 """
-from past.builtins import unicode
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+from six import ensure_str, ensure_text
 
 import datetime
 import os.path
 import re
 import types
 import errno
-from six.moves import configparser
 import tempfile
-from io import BytesIO
 from base64 import b32decode, b32encode
+
+# On Python 2 this will be the backported package.
+import configparser
 
 from twisted.python import log as twlog
 from twisted.application import service
@@ -69,8 +80,8 @@ def _common_valid_config():
 
 # Add our application versions to the data that Foolscap's LogPublisher
 # reports.
-for thing, things_version in get_package_versions().items():
-    app_versions.add_version(thing, str(things_version))
+for thing, things_version in list(get_package_versions().items()):
+    app_versions.add_version(thing, things_version)
 
 # group 1 will be addr (dotted quad string), group 3 if any will be portnum (string)
 ADDR_RE = re.compile("^([1-9][0-9]*\.[1-9][0-9]*\.[1-9][0-9]*\.[1-9][0-9]*)(:([1-9][0-9]*))?$")
@@ -95,8 +106,8 @@ def formatTimeTahoeStyle(self, when):
     """
     d = datetime.datetime.utcfromtimestamp(when)
     if d.microsecond:
-        return d.isoformat(" ")[:-3]+"Z"
-    return d.isoformat(" ") + ".000Z"
+        return d.isoformat(ensure_str(" "))[:-3]+"Z"
+    return d.isoformat(ensure_str(" ")) + ".000Z"
 
 PRIV_README = """
 This directory contains files which contain private data for the Tahoe node,
@@ -150,6 +161,7 @@ def create_node_dir(basedir, readme_text):
     privdir = os.path.join(basedir, "private")
     if not os.path.exists(privdir):
         fileutil.make_dirs(privdir, 0o700)
+        readme_text = ensure_text(readme_text)
         with open(os.path.join(privdir, 'README'), 'w') as f:
             f.write(readme_text)
 
@@ -170,7 +182,7 @@ def read_config(basedir, portnumfile, generated_files=[], _valid_config=None):
 
     :returns: :class:`allmydata.node._Config` instance
     """
-    basedir = abspath_expanduser_unicode(unicode(basedir))
+    basedir = abspath_expanduser_unicode(ensure_text(basedir))
     if _valid_config is None:
         _valid_config = _common_valid_config()
 
@@ -182,12 +194,13 @@ def read_config(basedir, portnumfile, generated_files=[], _valid_config=None):
 
     # (try to) read the main config file
     config_fname = os.path.join(basedir, "tahoe.cfg")
-    parser = configparser.SafeConfigParser()
     try:
         parser = configutil.get_config(config_fname)
     except EnvironmentError as e:
         if e.errno != errno.ENOENT:
             raise
+        # The file is missing, just create empty ConfigParser.
+        parser = configutil.get_config_from_string(u"")
 
     configutil.validate_config(config_fname, parser, _valid_config)
 
@@ -204,9 +217,12 @@ def config_from_string(basedir, portnumfile, config_str, _valid_config=None):
     if _valid_config is None:
         _valid_config = _common_valid_config()
 
+    if isinstance(config_str, bytes):
+        config_str = config_str.decode("utf-8")
+
     # load configuration from in-memory string
-    parser = configparser.SafeConfigParser()
-    parser.readfp(BytesIO(config_str))
+    parser = configutil.get_config_from_string(config_str)
+
     fname = "<in-memory>"
     configutil.validate_config(fname, parser, _valid_config)
 
@@ -277,7 +293,7 @@ class _Config(object):
             is a ConfigParser instance
         """
         self.portnum_fname = portnum_fname
-        self._basedir = abspath_expanduser_unicode(unicode(basedir))
+        self._basedir = abspath_expanduser_unicode(ensure_text(basedir))
         self._config_fname = config_fname
         self.config = configparser
 
@@ -285,12 +301,8 @@ class _Config(object):
             write_new_tahoecfg = self._default_write_new_tahoecfg
         self._write_config = write_new_tahoecfg
 
-        nickname_utf8 = self.get_config("node", "nickname", "<unspecified>")
-        if isinstance(nickname_utf8, bytes):  # Python 2
-            self.nickname = nickname_utf8.decode("utf-8")
-        else:
-            self.nickname = nickname_utf8
-        assert type(self.nickname) is unicode
+        self.nickname = self.get_config("node", "nickname", u"<unspecified>")
+        assert isinstance(self.nickname, str)
 
     def _default_write_new_tahoecfg(self, config):
         """
@@ -344,7 +356,7 @@ class _Config(object):
                 return self.config.getboolean(section, option)
 
             item = self.config.get(section, option)
-            if option.endswith(".furl") and self._contains_unescaped_hash(item):
+            if option.endswith(".furl") and '#' in item:
                 raise UnescapedHashError(section, option, item)
 
             return item
@@ -402,14 +414,16 @@ class _Config(object):
         """
         privname = os.path.join(self._basedir, "private", name)
         try:
-            value = fileutil.read(privname)
+            value = fileutil.read(privname, mode="r")
         except EnvironmentError as e:
             if e.errno != errno.ENOENT:
                 raise  # we only care about "file doesn't exist"
             if default is _None:
                 raise MissingConfigEntry("The required configuration file %s is missing."
                                          % (quote_output(privname),))
-            if isinstance(default, (bytes, unicode)):
+            if isinstance(default, bytes):
+                default = str(default, "utf-8")
+            if isinstance(default, str):
                 value = default
             else:
                 value = default()
@@ -421,19 +435,21 @@ class _Config(object):
         config file that resides within the subdirectory named 'private'), and
         return it.
         """
+        if isinstance(value, str):
+            value = value.encode("utf-8")
         privname = os.path.join(self._basedir, "private", name)
         with open(privname, "wb") as f:
             f.write(value)
 
     def get_private_config(self, name, default=_None):
-        """Read the (string) contents of a private config file (which is a
+        """Read the (native string) contents of a private config file (a
         config file that resides within the subdirectory named 'private'),
         and return it. Return a default, or raise an error if one was not
         given.
         """
         privname = os.path.join(self._basedir, "private", name)
         try:
-            return fileutil.read(privname).strip()
+            return fileutil.read(privname, mode="r").strip()
         except EnvironmentError as e:
             if e.errno != errno.ENOENT:
                 raise  # we only care about "file doesn't exist"
@@ -460,17 +476,6 @@ class _Config(object):
         return abspath_expanduser_unicode(
             os.path.join(self._basedir, *args)
         )
-
-    @staticmethod
-    def _contains_unescaped_hash(item):
-        characters = iter(item)
-        for c in characters:
-            if c == '\\':
-                characters.next()
-            elif c == '#':
-                return True
-
-        return False
 
 
 def create_tub_options(config):
@@ -574,12 +579,12 @@ def create_tub(tub_options, default_connection_handlers, foolscap_connection_han
         the new Tub via `Tub.setOption`
     """
     tub = Tub(**kwargs)
-    for (name, value) in tub_options.items():
+    for (name, value) in list(tub_options.items()):
         tub.setOption(name, value)
     handlers = default_connection_handlers.copy()
     handlers.update(handler_overrides)
     tub.removeAllConnectionHintHandlers()
-    for hint_type, handler_name in handlers.items():
+    for hint_type, handler_name in list(handlers.items()):
         handler = foolscap_connection_handlers.get(handler_name)
         if handler:
             tub.addConnectionHintHandler(hint_type, handler)
@@ -591,9 +596,12 @@ def _convert_tub_port(s):
     :returns: a proper Twisted endpoint string like (`tcp:X`) is `s`
         is a bare number, or returns `s` as-is
     """
-    if re.search(r'^\d+$', s):
-        return "tcp:{}".format(int(s))
-    return s
+    us = s
+    if isinstance(s, bytes):
+        us = s.decode("utf-8")
+    if re.search(r'^\d+$', us):
+        return "tcp:{}".format(int(us))
+    return us
 
 
 def _tub_portlocation(config):
@@ -681,6 +689,10 @@ def _tub_portlocation(config):
             new_locations.append(loc)
     location = ",".join(new_locations)
 
+    # Lacking this, Python 2 blows up in Foolscap when it is confused by a
+    # Unicode FURL.
+    location = location.encode("utf-8")
+
     return tubport, location
 
 
@@ -728,6 +740,9 @@ def create_main_tub(config, tub_options,
                 port_or_endpoint = tor_provider.get_listener()
             else:
                 port_or_endpoint = port
+            # Foolscap requires native strings:
+            if isinstance(port_or_endpoint, (bytes, str)):
+                port_or_endpoint = ensure_str(port_or_endpoint)
             tub.listenOn(port_or_endpoint)
         tub.setLocation(location)
         log.msg("Tub location set to %s" % (location,))
@@ -784,7 +799,7 @@ class Node(service.MultiService):
         if self.tub is not None:
             self.nodeid = b32decode(self.tub.tubID.upper())  # binary format
             self.short_nodeid = b32encode(self.nodeid).lower()[:8]  # for printing
-            self.config.write_config_file("my_nodeid", b32encode(self.nodeid).lower() + "\n")
+            self.config.write_config_file("my_nodeid", b32encode(self.nodeid).lower() + b"\n", mode="wb")
             self.tub.setServiceParent(self)
         else:
             self.nodeid = self.short_nodeid = None
@@ -868,9 +883,9 @@ class Node(service.MultiService):
         for o in twlog.theLogPublisher.observers:
             # o might be a FileLogObserver's .emit method
             if type(o) is type(self.setup_logging): # bound method
-                ob = o.im_self
+                ob = o.__self__
                 if isinstance(ob, twlog.FileLogObserver):
-                    newmeth = types.UnboundMethodType(formatTimeTahoeStyle, ob, ob.__class__)
+                    newmeth = types.MethodType(formatTimeTahoeStyle, ob)
                     ob.formatTime = newmeth
         # TODO: twisted >2.5.0 offers maxRotatedFiles=50
 
@@ -881,12 +896,13 @@ class Node(service.MultiService):
         lgfurl = self.config.get_config("node", "log_gatherer.furl", "")
         if lgfurl:
             # this is in addition to the contents of log-gatherer-furlfile
+            lgfurl = lgfurl.encode("utf-8")
             self.log_tub.setOption("log-gatherer-furl", lgfurl)
         self.log_tub.setOption("log-gatherer-furlfile",
                                self.config.get_config_path("log_gatherer.furl"))
 
         incident_dir = self.config.get_config_path("logs", "incidents")
-        foolscap.logging.log.setLogDir(incident_dir.encode(get_filesystem_encoding()))
+        foolscap.logging.log.setLogDir(incident_dir)
         twlog.msg("Foolscap logging initialized")
         twlog.msg("Note to developers: twistd.log does not receive very much.")
         twlog.msg("Use 'flogtool tail -c NODEDIR/private/logport.furl' instead")

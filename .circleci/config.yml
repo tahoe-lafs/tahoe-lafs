@@ -14,44 +14,73 @@ version: 2.1
 workflows:
   ci:
     jobs:
-      # Platforms
-      - "debian-9"
+      # Start with jobs testing various platforms.
+
+      # Every job that pulls a Docker image from Docker Hub needs to provide
+      # credentials for that pull operation to avoid being subjected to
+      # unauthenticated pull limits shared across all of CircleCI.  Use this
+      # first job to define a yaml anchor that can be used to supply a
+      # CircleCI job context which makes Docker Hub credentials available in
+      # the environment.
+      #
+      # Contexts are managed in the CircleCI web interface:
+      #
+      #  https://app.circleci.com/settings/organization/github/tahoe-lafs/contexts
+      - "debian-9": &DOCKERHUB_CONTEXT
+          context: "dockerhub-auth"
+
       - "debian-8":
+          <<: *DOCKERHUB_CONTEXT
           requires:
             - "debian-9"
 
-      - "ubuntu-20-04"
+      - "ubuntu-20-04":
+          <<: *DOCKERHUB_CONTEXT
       - "ubuntu-18-04":
+          <<: *DOCKERHUB_CONTEXT
           requires:
             - "ubuntu-20-04"
       - "ubuntu-16-04":
+          <<: *DOCKERHUB_CONTEXT
           requires:
             - "ubuntu-20-04"
 
-      - "fedora-29"
+      - "fedora-29":
+          <<: *DOCKERHUB_CONTEXT
       - "fedora-28":
+          <<: *DOCKERHUB_CONTEXT
           requires:
             - "fedora-29"
 
-      - "centos-8"
+      - "centos-8":
+          <<: *DOCKERHUB_CONTEXT
 
-      - "nixos-19-09"
+      - "nixos-19-09":
+          <<: *DOCKERHUB_CONTEXT
 
       # Test against PyPy 2.7
-      - "pypy27-buster"
+      - "pypy27-buster":
+          <<: *DOCKERHUB_CONTEXT
 
       # Just one Python 3.6 configuration while the port is in-progress.
-      - "python36"
+      - "python36":
+          <<: *DOCKERHUB_CONTEXT
 
       # Other assorted tasks and configurations
-      - "lint"
-      - "pyinstaller"
-      - "deprecations"
-      - "c-locale"
+      - "lint":
+          <<: *DOCKERHUB_CONTEXT
+      - "pyinstaller":
+          <<: *DOCKERHUB_CONTEXT
+      - "deprecations":
+          <<: *DOCKERHUB_CONTEXT
+      - "c-locale":
+          <<: *DOCKERHUB_CONTEXT
       # Any locale other than C or UTF-8.
-      - "another-locale"
+      - "another-locale":
+          <<: *DOCKERHUB_CONTEXT
 
       - "integration":
+          <<: *DOCKERHUB_CONTEXT
           requires:
             # If the unit test suite doesn't pass, don't bother running the
             # integration tests.
@@ -59,7 +88,8 @@ workflows:
 
       # Generate the underlying data for a visualization to aid with Python 3
       # porting.
-      - "build-porting-depgraph"
+      - "build-porting-depgraph":
+          <<: *DOCKERHUB_CONTEXT
 
   images:
     # Build the Docker images used by the ci jobs.  This makes the ci jobs
@@ -74,22 +104,55 @@ workflows:
                 - "master"
 
     jobs:
-      - "build-image-debian-8"
-      - "build-image-debian-9"
-      - "build-image-ubuntu-16-04"
-      - "build-image-ubuntu-18-04"
-      - "build-image-ubuntu-20-04"
-      - "build-image-fedora-28"
-      - "build-image-fedora-29"
-      - "build-image-centos-8"
-      - "build-image-pypy27-buster"
-      - "build-image-python36-ubuntu"
+      - "build-image-debian-8":
+          <<: *DOCKERHUB_CONTEXT
+      - "build-image-debian-9":
+          <<: *DOCKERHUB_CONTEXT
+      - "build-image-ubuntu-16-04":
+          <<: *DOCKERHUB_CONTEXT
+      - "build-image-ubuntu-18-04":
+          <<: *DOCKERHUB_CONTEXT
+      - "build-image-ubuntu-20-04":
+          <<: *DOCKERHUB_CONTEXT
+      - "build-image-fedora-28":
+          <<: *DOCKERHUB_CONTEXT
+      - "build-image-fedora-29":
+          <<: *DOCKERHUB_CONTEXT
+      - "build-image-centos-8":
+          <<: *DOCKERHUB_CONTEXT
+      - "build-image-pypy27-buster":
+          <<: *DOCKERHUB_CONTEXT
+      - "build-image-python36-ubuntu":
+          <<: *DOCKERHUB_CONTEXT
 
 
 jobs:
+  dockerhub-auth-template:
+    # This isn't a real job.  It doesn't get scheduled as part of any
+    # workflow.  Instead, it's just a place we can hang a yaml anchor to
+    # finish the Docker Hub authentication configuration.  Workflow jobs using
+    # the DOCKERHUB_CONTEXT anchor will have access to the environment
+    # variables used here.  These variables will allow the Docker Hub image
+    # pull to be authenticated and hopefully avoid hitting and rate limits.
+    docker: &DOCKERHUB_AUTH
+      - image: "null"
+        auth:
+          username: $DOCKERHUB_USERNAME
+          password: $DOCKERHUB_PASSWORD
+
+    steps:
+      - run:
+          name: "CircleCI YAML schema conformity"
+          command: |
+            # This isn't a real command.  We have to have something in this
+            # space, though, or the CircleCI yaml schema validator gets angry.
+            # Since this job is never scheduled this step is never run so the
+            # actual value here is irrelevant.
+
   lint:
     docker:
-      - image: "circleci/python:2"
+      - <<: *DOCKERHUB_AUTH
+        image: "circleci/python:2"
 
     steps:
       - "checkout"
@@ -106,7 +169,8 @@ jobs:
 
   pyinstaller:
     docker:
-      - image: "circleci/python:2"
+      - <<: *DOCKERHUB_AUTH
+        image: "circleci/python:2"
 
     steps:
       - "checkout"
@@ -131,7 +195,8 @@ jobs:
 
   debian-9: &DEBIAN
     docker:
-      - image: "tahoelafsci/debian:9-py2.7"
+      - <<: *DOCKERHUB_AUTH
+        image: "tahoelafsci/debian:9-py2.7"
         user: "nobody"
 
     environment: &UTF_8_ENVIRONMENT
@@ -154,6 +219,8 @@ jobs:
       # we maintain.
       WHEELHOUSE_PATH: &WHEELHOUSE_PATH "/tmp/wheelhouse"
       PIP_FIND_LINKS: "file:///tmp/wheelhouse"
+      # Upload the coverage report.
+      UPLOAD_COVERAGE: "yes"
 
     # pip cannot install packages if the working directory is not readable.
     # We want to run a lot of steps as nobody instead of as root.
@@ -202,26 +269,32 @@ jobs:
       - run: &SUBMIT_COVERAGE
           name: "Submit coverage results"
           command: |
-            /tmp/venv/bin/codecov
+            if [ -n "${UPLOAD_COVERAGE}" ]; then
+              /tmp/venv/bin/codecov
+            fi
 
 
   debian-8:
     <<: *DEBIAN
     docker:
-      - image: "tahoelafsci/debian:8-py2.7"
+      - <<: *DOCKERHUB_AUTH
+        image: "tahoelafsci/debian:8-py2.7"
         user: "nobody"
 
 
   pypy27-buster:
     <<: *DEBIAN
     docker:
-      - image: "tahoelafsci/pypy:buster-py2"
+      - <<: *DOCKERHUB_AUTH
+        image: "tahoelafsci/pypy:buster-py2"
         user: "nobody"
 
     environment:
       <<: *UTF_8_ENVIRONMENT
       # We don't do coverage since it makes PyPy far too slow:
       TAHOE_LAFS_TOX_ENVIRONMENT: "pypy27"
+      # Since we didn't collect it, don't upload it.
+      UPLOAD_COVERAGE: ""
 
 
   c-locale:
@@ -250,6 +323,8 @@ jobs:
       TAHOE_LAFS_TOX_ENVIRONMENT: "deprecations,upcoming-deprecations"
       # Put the logs somewhere we can report them.
       TAHOE_LAFS_WARNINGS_LOG: "/tmp/artifacts/deprecation-warnings.log"
+      # The deprecations tox environments don't do coverage measurement.
+      UPLOAD_COVERAGE: ""
 
 
   integration:
@@ -272,21 +347,24 @@ jobs:
   ubuntu-16-04:
     <<: *DEBIAN
     docker:
-      - image: "tahoelafsci/ubuntu:16.04-py2.7"
+      - <<: *DOCKERHUB_AUTH
+        image: "tahoelafsci/ubuntu:16.04-py2.7"
         user: "nobody"
 
 
   ubuntu-18-04: &UBUNTU_18_04
     <<: *DEBIAN
     docker:
-      - image: "tahoelafsci/ubuntu:18.04-py2.7"
+      - <<: *DOCKERHUB_AUTH
+        image: "tahoelafsci/ubuntu:18.04-py2.7"
         user: "nobody"
 
 
   python36:
     <<: *UBUNTU_18_04
     docker:
-      - image: "tahoelafsci/ubuntu:18.04-py3"
+      - <<: *DOCKERHUB_AUTH
+        image: "tahoelafsci/ubuntu:18.04-py3"
         user: "nobody"
 
     environment:
@@ -301,13 +379,15 @@ jobs:
   ubuntu-20-04:
     <<: *DEBIAN
     docker:
-      - image: "tahoelafsci/ubuntu:20.04"
+      - <<: *DOCKERHUB_AUTH
+        image: "tahoelafsci/ubuntu:20.04"
         user: "nobody"
 
 
   centos-8: &RHEL_DERIV
     docker:
-      - image: "tahoelafsci/centos:8-py2"
+      - <<: *DOCKERHUB_AUTH
+        image: "tahoelafsci/centos:8-py2"
         user: "nobody"
 
     environment: *UTF_8_ENVIRONMENT
@@ -329,21 +409,24 @@ jobs:
   fedora-28:
     <<: *RHEL_DERIV
     docker:
-      - image: "tahoelafsci/fedora:28-py"
+      - <<: *DOCKERHUB_AUTH
+        image: "tahoelafsci/fedora:28-py"
         user: "nobody"
 
 
   fedora-29:
     <<: *RHEL_DERIV
     docker:
-      - image: "tahoelafsci/fedora:29-py"
+      - <<: *DOCKERHUB_AUTH
+        image: "tahoelafsci/fedora:29-py"
         user: "nobody"
 
 
   nixos-19-09:
     docker:
       # Run in a highly Nix-capable environment.
-      - image: "nixorg/nix:circleci"
+      - <<: *DOCKERHUB_AUTH
+        image: "nixorg/nix:circleci"
 
     environment:
       NIX_PATH: "nixpkgs=https://github.com/NixOS/nixpkgs-channels/archive/nixos-19.09-small.tar.gz"
@@ -400,7 +483,8 @@ jobs:
     #
     # https://circleci.com/blog/how-to-build-a-docker-image-on-circleci-2-0/
     docker:
-      - image: "docker:17.05.0-ce-git"
+      - <<: *DOCKERHUB_AUTH
+        image: "docker:17.05.0-ce-git"
 
     environment:
       DISTRO: "tahoelafsci/<DISTRO>:foo-py2"
@@ -411,46 +495,9 @@ jobs:
       - "checkout"
       - "setup_remote_docker"
       - run:
-          name: "Get openssl"
-          command: |
-            apk add --no-cache openssl
-      - run:
-          name: "Get Dockerhub secrets"
-          command: |
-            # If you create an encryption key like this:
-            #
-            #   openssl enc -aes-256-cbc -k secret -P -md sha256
-
-            # From the output that looks like:
-            #
-            #  salt=...
-            #  key=...
-            #  iv =...
-            #
-            # extract just the value for ``key``.
-
-            # then you can re-generate ``secret-env-cipher`` locally using the
-            # command:
-            #
-            #   openssl aes-256-cbc -e -md sha256 -in secret-env-plain -out .circleci/secret-env-cipher -pass env:KEY
-            #
-            # Make sure the key is set as the KEY environment variable in the
-            # CircleCI web interface.  You can do this by visiting
-            # <https://circleci.com/gh/tahoe-lafs/tahoe-lafs/edit#env-vars>
-            # after logging in to CircleCI with an account in the tahoe-lafs
-            # CircleCI team.
-            #
-            # Then you can recover the environment plaintext (for example, to
-            # change and re-encrypt it) like just like CircleCI recovers it
-            # here:
-            #
-            openssl aes-256-cbc -d -md sha256 -in .circleci/secret-env-cipher -pass env:KEY >> ~/.env
-      - run:
           name: "Log in to Dockerhub"
           command: |
-            . ~/.env
-            # TAHOELAFSCI_PASSWORD come from the secret env.
-            docker login -u tahoelafsci -p ${TAHOELAFSCI_PASSWORD}
+            docker login -u ${DOCKERHUB_USERNAME} -p ${DOCKERHUB_PASSWORD}
       - run:
           name: "Build image"
           command: |

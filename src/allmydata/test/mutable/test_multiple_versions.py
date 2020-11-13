@@ -1,3 +1,15 @@
+"""
+Ported to Python 3.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+
 from twisted.trial import unittest
 from allmydata.monitor import Monitor
 from allmydata.mutable.common import MODE_CHECK, MODE_READ
@@ -36,7 +48,7 @@ class MultipleVersions(unittest.TestCase, PublishMixin, CheckerMixin):
             self.failUnlessEqual(len(smap.unrecoverable_versions()), 1)
             newer = smap.unrecoverable_newer_versions()
             self.failUnlessEqual(len(newer), 1)
-            verinfo, health = newer.items()[0]
+            verinfo, health = list(newer.items())[0]
             self.failUnlessEqual(verinfo[0], 4)
             self.failUnlessEqual(health, (1,3))
             self.failIf(smap.needs_merge())
@@ -70,10 +82,10 @@ class MultipleVersions(unittest.TestCase, PublishMixin, CheckerMixin):
         self._set_versions(target)
 
         def _modify(oldversion, servermap, first_time):
-            return oldversion + " modified"
+            return oldversion + b" modified"
         d = self._fn.modify(_modify)
         d.addCallback(lambda res: self._fn.download_best_version())
-        expected = self.CONTENTS[2] + " modified"
+        expected = self.CONTENTS[2] + b" modified"
         d.addCallback(lambda res: self.failUnlessEqual(res, expected))
         # and the servermap should indicate that the outlier was replaced too
         d.addCallback(lambda res: self._fn.get_servermap(MODE_CHECK))

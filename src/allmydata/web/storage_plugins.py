@@ -29,7 +29,8 @@ class StoragePlugins(Resource, object):
         """
         resources = self._client.get_client_storage_plugin_web_resources()
         try:
-            result = resources[segment]
+            # Technically client could be using some other encoding?
+            result = resources[segment.decode("utf-8")]
         except KeyError:
             result = NoResource()
         self.putChild(segment, result)

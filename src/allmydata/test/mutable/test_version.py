@@ -1,9 +1,21 @@
+"""
+Ported to Python 3.
+"""
 from __future__ import print_function
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 import os
 from six.moves import cStringIO as StringIO
+
 from twisted.internet import defer
 from twisted.trial import unittest
+
 from allmydata import uri
 from allmydata.interfaces import SDMF_VERSION, MDMF_VERSION
 from allmydata.util import base32, consumer, mathutil
@@ -25,8 +37,8 @@ class Version(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin, \
         self.set_up_grid()
         self.c = self.g.clients[0]
         self.nm = self.c.nodemaker
-        self.data = "test data" * 100000 # about 900 KiB; MDMF
-        self.small_data = "test data" * 10 # 90 B; SDMF
+        self.data = b"test data" * 100000 # about 900 KiB; MDMF
+        self.small_data = b"test data" * 10 # 90 B; SDMF
 
 
     def do_upload_mdmf(self, data=None):
@@ -55,7 +67,7 @@ class Version(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin, \
         return d
 
     def do_upload_empty_sdmf(self):
-        d = self.nm.create_mutable_file(MutableData(""))
+        d = self.nm.create_mutable_file(MutableData(b""))
         def _then(n):
             assert isinstance(n, MutableFileNode)
             self.sdmf_zero_length_node = n
@@ -75,7 +87,7 @@ class Version(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin, \
             fso = debug.FindSharesOptions()
             storage_index = base32.b2a(n.get_storage_index())
             fso.si_s = storage_index
-            fso.nodedirs = [os.path.dirname(abspath_expanduser_unicode(unicode(storedir)))
+            fso.nodedirs = [os.path.dirname(abspath_expanduser_unicode(str(storedir)))
                             for (i,ss,storedir)
                             in self.iterate_servers()]
             fso.stdout = StringIO()
@@ -100,9 +112,8 @@ class Version(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin, \
             self.failUnless("  total_shares: 10" in lines, output)
             self.failUnless("  segsize: 131073" in lines, output)
             self.failUnless("  datalen: %d" % len(self.data) in lines, output)
-            vcap = n.get_verify_cap().to_string()
+            vcap = str(n.get_verify_cap().to_string(), "utf-8")
             self.failUnless("  verify-cap: %s" % vcap in lines, output)
-
             cso = debug.CatalogSharesOptions()
             cso.nodedirs = fso.nodedirs
             cso.stdout = StringIO()
@@ -114,7 +125,7 @@ class Version(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin, \
             self.failUnless(oneshare.startswith("MDMF"), oneshare)
             fields = oneshare.split()
             self.failUnlessEqual(fields[0], "MDMF")
-            self.failUnlessEqual(fields[1], storage_index)
+            self.failUnlessEqual(fields[1].encode("ascii"), storage_index)
             self.failUnlessEqual(fields[2], "3/10")
             self.failUnlessEqual(fields[3], "%d" % len(self.data))
             self.failUnless(fields[4].startswith("#1:"), fields[3])
@@ -137,8 +148,8 @@ class Version(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin, \
         # Now update. The sequence number in both cases should be 1 in
         # both cases.
         def _do_update(ignored):
-            new_data = MutableData("foo bar baz" * 100000)
-            new_small_data = MutableData("foo bar baz" * 10)
+            new_data = MutableData(b"foo bar baz" * 100000)
+            new_small_data = MutableData(b"foo bar baz" * 10)
             d1 = self.mdmf_node.overwrite(new_data)
             d2 = self.sdmf_node.overwrite(new_small_data)
             dl = gatherResults([d1, d2])
@@ -214,38 +225,38 @@ class Version(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin, \
 
 
     def test_toplevel_overwrite(self):
-        new_data = MutableData("foo bar baz" * 100000)
-        new_small_data = MutableData("foo bar baz" * 10)
+        new_data = MutableData(b"foo bar baz" * 100000)
+        new_small_data = MutableData(b"foo bar baz" * 10)
         d = self.do_upload()
         d.addCallback(lambda ign: self.mdmf_node.overwrite(new_data))
         d.addCallback(lambda ignored:
             self.mdmf_node.download_best_version())
         d.addCallback(lambda data:
-            self.failUnlessEqual(data, "foo bar baz" * 100000))
+            self.failUnlessEqual(data, b"foo bar baz" * 100000))
         d.addCallback(lambda ignored:
             self.sdmf_node.overwrite(new_small_data))
         d.addCallback(lambda ignored:
             self.sdmf_node.download_best_version())
         d.addCallback(lambda data:
-            self.failUnlessEqual(data, "foo bar baz" * 10))
+            self.failUnlessEqual(data, b"foo bar baz" * 10))
         return d
 
 
     def test_toplevel_modify(self):
         d = self.do_upload()
         def modifier(old_contents, servermap, first_time):
-            return old_contents + "modified"
+            return old_contents + b"modified"
         d.addCallback(lambda ign: self.mdmf_node.modify(modifier))
         d.addCallback(lambda ignored:
             self.mdmf_node.download_best_version())
         d.addCallback(lambda data:
-            self.failUnlessIn("modified", data))
+            self.failUnlessIn(b"modified", data))
         d.addCallback(lambda ignored:
             self.sdmf_node.modify(modifier))
         d.addCallback(lambda ignored:
             self.sdmf_node.download_best_version())
         d.addCallback(lambda data:
-            self.failUnlessIn("modified", data))
+            self.failUnlessIn(b"modified", data))
         return d
 
 
@@ -255,18 +266,18 @@ class Version(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin, \
         # test to see that the best recoverable version is that.
         d = self.do_upload()
         def modifier(old_contents, servermap, first_time):
-            return old_contents + "modified"
+            return old_contents + b"modified"
         d.addCallback(lambda ign: self.mdmf_node.modify(modifier))
         d.addCallback(lambda ignored:
             self.mdmf_node.download_best_version())
         d.addCallback(lambda data:
-            self.failUnlessIn("modified", data))
+            self.failUnlessIn(b"modified", data))
         d.addCallback(lambda ignored:
             self.sdmf_node.modify(modifier))
         d.addCallback(lambda ignored:
             self.sdmf_node.download_best_version())
         d.addCallback(lambda data:
-            self.failUnlessIn("modified", data))
+            self.failUnlessIn(b"modified", data))
         return d
 
 
@@ -330,10 +341,10 @@ class Version(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin, \
         def _read_data(version):
             c = consumer.MemoryConsumer()
             d2 = defer.succeed(None)
-            for i in xrange(0, len(expected), step):
+            for i in range(0, len(expected), step):
                 d2.addCallback(lambda ignored, i=i: version.read(c, i, step))
             d2.addCallback(lambda ignored:
-                self.failUnlessEqual(expected, "".join(c.chunks)))
+                self.failUnlessEqual(expected, b"".join(c.chunks)))
             return d2
         d.addCallback(_read_data)
         return d
@@ -345,7 +356,7 @@ class Version(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin, \
             expected_range = expected[offset:]
         else:
             expected_range = expected[offset:offset+length]
-        d.addCallback(lambda ignored: "".join(c.chunks))
+        d.addCallback(lambda ignored: b"".join(c.chunks))
         def _check(results):
             if results != expected_range:
                 print("read([%d]+%s) got %d bytes, not %d" % \
@@ -358,7 +369,7 @@ class Version(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin, \
         return d
 
     def test_partial_read_mdmf_0(self):
-        data = ""
+        data = b""
         d = self.do_upload_mdmf(data=data)
         modes = [("all1",    0,0),
                  ("all2",    0,None),
@@ -381,7 +392,7 @@ class Version(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin, \
         return d
 
     def test_partial_read_sdmf_0(self):
-        data = ""
+        data = b""
         modes = [("all1",    0,0),
                  ("all2",    0,None),
                  ]
@@ -390,7 +401,7 @@ class Version(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin, \
         return d
 
     def test_partial_read_sdmf_2(self):
-        data = "hi"
+        data = b"hi"
         modes = [("one_byte",                  0, 1),
                  ("last_byte",                 1, 1),
                  ("last_byte2",                1, None),
@@ -415,7 +426,7 @@ class Version(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin, \
         return d
 
     def test_partial_read_sdmf_100(self):
-        data = "test data "*10
+        data = b"test data "*10
         modes = [("start_at_middle",           50, 50),
                  ("start_at_middle2",          50, None),
                  ("zero_length_at_start",      0, 0),
@@ -436,12 +447,12 @@ class Version(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin, \
             d2 = defer.succeed(None)
             d2.addCallback(lambda ignored: version.read(c))
             d2.addCallback(lambda ignored:
-                self.failUnlessEqual(expected, "".join(c.chunks)))
+                self.failUnlessEqual(expected, b"".join(c.chunks)))
 
             d2.addCallback(lambda ignored: version.read(c2, offset=0,
                                                         size=len(expected)))
             d2.addCallback(lambda ignored:
-                self.failUnlessEqual(expected, "".join(c2.chunks)))
+                self.failUnlessEqual(expected, b"".join(c2.chunks)))
             return d2
         d.addCallback(_read_data)
         d.addCallback(lambda ignored: node.download_best_version())
@@ -460,5 +471,5 @@ class Version(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin, \
 
     def test_read_and_download_sdmf_zero_length(self):
         d = self.do_upload_empty_sdmf()
-        d.addCallback(self._test_read_and_download, "")
+        d.addCallback(self._test_read_and_download, b"")
         return d

@@ -1,7 +1,7 @@
 """
 Read/write config files.
 
-Configuration is returned as native strings.
+Configuration is returned as Unicode strings.
 
 Ported to Python 3.
 """
@@ -12,17 +12,11 @@ from __future__ import unicode_literals
 
 from future.utils import PY2
 if PY2:
-    # We don't do open(), because we want files to read/write native strs when
-    # we do "r" or "w".
-    from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+    from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
-if PY2:
-    # In theory on Python 2 configparser also works, but then code gets the
-    # wrong exceptions and they don't get handled. So just use native parser
-    # for now.
-    from ConfigParser import SafeConfigParser
-else:
-    from configparser import SafeConfigParser
+# On Python 2 we use the backport package; that means we always get unicode
+# out.
+from configparser import ConfigParser
 
 import attr
 
@@ -36,19 +30,27 @@ class UnknownConfigError(Exception):
 
 
 def get_config(tahoe_cfg):
-    """Load the config, returning a SafeConfigParser.
+    """Load the config, returning a ConfigParser.
 
-    Configuration is returned as native strings.
+    Configuration is returned as Unicode strings.
     """
-    config = SafeConfigParser()
-    with open(tahoe_cfg, "r") as f:
-        # On Python 2, where we read in bytes, skip any initial Byte Order
-        # Mark. Since this is an ordinary file, we don't need to handle
-        # incomplete reads, and can assume seekability.
-        if PY2 and f.read(3) != b'\xEF\xBB\xBF':
-            f.seek(0)
-        config.readfp(f)
-    return config
+    # Byte Order Mark is an optional garbage code point you sometimes get at
+    # the start of UTF-8 encoded files. Especially on Windows. Skip it by using
+    # utf-8-sig. https://en.wikipedia.org/wiki/Byte_order_mark
+    with open(tahoe_cfg, "r", encoding="utf-8-sig") as f:
+        cfg_string = f.read()
+    return get_config_from_string(cfg_string)
+
+
+def get_config_from_string(tahoe_cfg_string):
+    """Load the config from a string, return the ConfigParser.
+
+    Configuration is returned as Unicode strings.
+    """
+    parser = ConfigParser(strict=False)
+    parser.read_string(tahoe_cfg_string)
+    return parser
+
 
 def set_config(config, section, option, value):
     if not config.has_section(section):

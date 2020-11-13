@@ -20,19 +20,25 @@ from __future__ import unicode_literals
 # Tubs, so it is not useful for tests that involve a Helper or the
 # control.furl .
 
-from future.utils import PY2, PY3
+from future.utils import PY2
 if PY2:
     from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 from past.builtins import unicode
 
 import os
+from base64 import b32encode
+from functools import (
+    partial,
+)
 from zope.interface import implementer
 from twisted.application import service
 from twisted.internet import defer
 from twisted.python.failure import Failure
 from twisted.web.error import Error
 from foolscap.api import Referenceable, fireEventually, RemoteException
-from base64 import b32encode
+from foolscap.ipb import (
+    IRemoteReference,
+)
 import treq
 
 from allmydata.util.assertutil import _assert
@@ -59,14 +65,29 @@ class IntentionalError(Exception):
 class Marker(object):
     pass
 
+fireNow = partial(defer.succeed, None)
+
+@implementer(IRemoteReference)
 class LocalWrapper(object):
-    def __init__(self, original):
+    """
+    A ``LocalWrapper`` presents the remote reference interface to a local
+    object which implements a ``RemoteInterface``.
+    """
+    def __init__(self, original, fireEventually=fireEventually):
+        """
+        :param Callable[[], Deferred[None]] fireEventually: Get a Deferred
+            that will fire at some point.  This is used to control when
+            ``callRemote`` calls the remote method.  The default value allows
+            the reactor to iterate before the call happens.  Use ``fireNow``
+            to call the remote method synchronously.
+        """
         self.original = original
         self.broken = False
         self.hung_until = None
         self.post_call_notifier = None
         self.disconnectors = {}
         self.counter_by_methname = {}
+        self._fireEventually = fireEventually
 
     def _clear_counters(self):
         self.counter_by_methname = {}
@@ -82,7 +103,7 @@ class LocalWrapper(object):
         # selected return values.
         def wrap(a):
             if isinstance(a, Referenceable):
-                return LocalWrapper(a)
+                return self._wrap(a)
             else:
                 return a
         args = tuple([wrap(a) for a in args])
@@ -110,7 +131,7 @@ class LocalWrapper(object):
                 return d2
             return _really_call()
 
-        d = fireEventually()
+        d = self._fireEventually()
         d.addCallback(lambda res: _call())
         def _wrap_exception(f):
             return Failure(RemoteException(f))
@@ -124,10 +145,10 @@ class LocalWrapper(object):
             if methname == "allocate_buckets":
                 (alreadygot, allocated) = res
                 for shnum in allocated:
-                    allocated[shnum] = LocalWrapper(allocated[shnum])
+                    allocated[shnum] = self._wrap(allocated[shnum])
             if methname == "get_buckets":
                 for shnum in res:
-                    res[shnum] = LocalWrapper(res[shnum])
+                    res[shnum] = self._wrap(res[shnum])
             return res
         d.addCallback(_return_membrane)
         if self.post_call_notifier:
@@ -140,6 +161,10 @@ class LocalWrapper(object):
         return m
     def dontNotifyOnDisconnect(self, marker):
         del self.disconnectors[marker]
+
+    def _wrap(self, value):
+        return LocalWrapper(value, self._fireEventually)
+
 
 def wrap_storage_server(original):
     # Much of the upload/download code uses rref.version (which normally
@@ -272,10 +297,6 @@ class _NoNetworkClient(_Client):
     def init_stub_client(self):
         pass
     #._servers will be set by the NoNetworkGrid which creates us
-
-    if PY3:
-        def init_web(self, *args, **kwargs):
-            print("Web service is temporarily disabled until nevow is gone.")
 
 
 class SimpleStats(object):
@@ -483,12 +504,10 @@ class GridTestMixin(object):
 
     def _record_webports_and_baseurls(self):
         self.g._check_clients()
-        if PY2:
-            # Temporarily disabled on Python 3 until Nevow is gone:
-            self.client_webports = [c.getServiceNamed("webish").getPortnum()
-                                    for c in self.g.clients]
-            self.client_baseurls = [c.getServiceNamed("webish").getURL()
-                                    for c in self.g.clients]
+        self.client_webports = [c.getServiceNamed("webish").getPortnum()
+                                for c in self.g.clients]
+        self.client_baseurls = [c.getServiceNamed("webish").getURL()
+                                for c in self.g.clients]
 
     def get_client_config(self, i=0):
         self.g._check_clients()

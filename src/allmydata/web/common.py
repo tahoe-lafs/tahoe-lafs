@@ -1,17 +1,55 @@
+from past.builtins import unicode
 
 import time
 import json
 from functools import wraps
 
+from hyperlink import (
+    DecodedURL,
+)
+
+from eliot import (
+    Message,
+    start_action,
+)
+from eliot.twisted import (
+    DeferredContext,
+)
+
 from twisted.web import (
     http,
     resource,
-    server,
     template,
 )
+from twisted.web.iweb import (
+    IRequest,
+)
+from twisted.web.template import (
+    tags,
+)
+from twisted.web.server import (
+    NOT_DONE_YET,
+)
+from twisted.web.util import (
+    DeferredResource,
+    FailureElement,
+    redirectTo,
+)
+from twisted.python.reflect import (
+    fullyQualifiedName,
+)
 from twisted.python import log
-from nevow import appserver
-from nevow.inevow import IRequest
+from twisted.python.failure import (
+    Failure,
+)
+from twisted.internet.defer import (
+    CancelledError,
+    maybeDeferred,
+)
+from twisted.web.resource import (
+    IResource,
+)
+
 from allmydata import blacklist
 from allmydata.interfaces import (
     EmptyPathnameComponentError,
@@ -27,7 +65,6 @@ from allmydata.interfaces import (
     SDMF_VERSION,
 )
 from allmydata.mutable.common import UnrecoverableFileError
-from allmydata.util.hashutil import timing_safe_compare
 from allmydata.util.time_format import (
     format_delta,
     format_time,
@@ -117,8 +154,22 @@ def parse_offset_arg(offset):
     return offset
 
 
-def get_root(ctx_or_req):
-    req = IRequest(ctx_or_req)
+def get_root(req):
+    """
+    Get a relative path with parent directory segments that refers to the root
+    location known to the given request.  This seems a lot like the constant
+    absolute path **/** but it will behave differently if the Tahoe-LAFS HTTP
+    server is reverse-proxied and mounted somewhere other than at the root.
+
+    :param twisted.web.iweb.IRequest req: The request to consider.
+
+    :return: A string like ``../../..`` with the correct number of segments to
+        reach the root.
+    """
+    if not IRequest.providedBy(req):
+        raise TypeError(
+            "get_root requires IRequest provider, got {!r}".format(req),
+        )
     depth = len(req.prepath) + len(req.postpath)
     link = "/".join([".."] * depth)
     return link
@@ -319,58 +370,13 @@ def humanize_failure(f):
     return humanize_exception(f.value)
 
 
-class MyExceptionHandler(appserver.DefaultExceptionHandler, object):
-    def simple(self, ctx, text, code=http.BAD_REQUEST):
-        req = IRequest(ctx)
-        req.setResponseCode(code)
-        #req.responseHeaders.setRawHeaders("content-encoding", [])
-        #req.responseHeaders.setRawHeaders("content-disposition", [])
-        req.setHeader("content-type", "text/plain;charset=utf-8")
-        if isinstance(text, unicode):
-            text = text.encode("utf-8")
-        req.setHeader("content-length", b"%d" % len(text))
-        req.write(text)
-        # TODO: consider putting the requested URL here
-        req.finishRequest(False)
-
-    def renderHTTP_exception(self, ctx, f):
-        try:
-            text, code = humanize_failure(f)
-        except:
-            log.msg("exception in humanize_failure")
-            log.msg("argument was %s" % (f,))
-            log.err()
-            text, code = str(f), None
-        if code is not None:
-            return self.simple(ctx, text, code)
-        if f.check(server.UnsupportedMethod):
-            # twisted.web.server.Request.render() has support for transforming
-            # this into an appropriate 501 NOT_IMPLEMENTED or 405 NOT_ALLOWED
-            # return code, but nevow does not.
-            req = IRequest(ctx)
-            method = req.method
-            return self.simple(ctx,
-                               "I don't know how to treat a %s request." % method,
-                               http.NOT_IMPLEMENTED)
-        req = IRequest(ctx)
-        accept = req.getHeader("accept")
-        if not accept:
-            accept = "*/*"
-        if "*/*" in accept or "text/*" in accept or "text/html" in accept:
-            super = appserver.DefaultExceptionHandler
-            return super.renderHTTP_exception(self, ctx, f)
-        # use plain text
-        traceback = f.getTraceback()
-        return self.simple(ctx, traceback, http.INTERNAL_SERVER_ERROR)
-
-
 class NeedOperationHandleError(WebError):
     pass
 
 
 class SlotsSequenceElement(template.Element):
     """
-    ``SlotsSequenceElement` is a minimal port of nevow's sequence renderer for
+    ``SlotsSequenceElement` is a minimal port of Nevow's sequence renderer for
     twisted.web.template.
 
     Tags passed in to be templated will have two renderers available: ``item``
@@ -413,84 +419,254 @@ class SlotsSequenceElement(template.Element):
             return tag
 
 
-class TokenOnlyWebApi(resource.Resource, object):
-    """
-    I provide a rend.Page implementation that only accepts POST calls,
-    and only if they have a 'token=' arg with the correct
-    authentication token (see
-    :meth:`allmydata.client.Client.get_auth_token`). Callers must also
-    provide the "t=" argument to indicate the return-value (the only
-    valid value for this is "json")
-
-    Subclasses should override 'post_json' which should process the
-    API call and return a string which encodes a valid JSON
-    object. This will only be called if the correct token is present
-    and valid (during renderHTTP processing).
-    """
-
-    def __init__(self, client):
-        self.client = client
-
-    def post_json(self, req):
-        return NotImplemented
-
-    def render(self, req):
-        if req.method != 'POST':
-            raise server.UnsupportedMethod(('POST',))
-        if req.args.get('token', False):
-            raise WebError("Do not pass 'token' as URL argument", http.BAD_REQUEST)
-        # not using get_arg() here because we *don't* want the token
-        # argument to work if you passed it as a GET-style argument
-        token = None
-        if req.fields and 'token' in req.fields:
-            token = req.fields['token'].value.strip()
-        if not token:
-            raise WebError("Missing token", http.UNAUTHORIZED)
-        if not timing_safe_compare(token, self.client.get_auth_token()):
-            raise WebError("Invalid token", http.UNAUTHORIZED)
-
-        t = get_arg(req, "t", "").strip()
-        if not t:
-            raise WebError("Must provide 't=' argument")
-        if t == u'json':
-            try:
-                return self.post_json(req)
-            except WebError as e:
-                req.setResponseCode(e.code)
-                return json.dumps({"error": e.text})
-            except Exception as e:
-                message, code = humanize_exception(e)
-                req.setResponseCode(500 if code is None else code)
-                return json.dumps({"error": message})
-        else:
-            raise WebError("'%s' invalid type for 't' arg" % (t,), http.BAD_REQUEST)
-
-
-def exception_to_child(f):
+def exception_to_child(getChild):
     """
     Decorate ``getChild`` method with exception handling behavior to render an
     error page reflecting the exception.
     """
-    @wraps(f)
+    @wraps(getChild)
     def g(self, name, req):
-        try:
-            return f(self, name, req)
-        except Exception as e:
-            description, status = humanize_exception(e)
-            return resource.ErrorPage(status, "Error", description)
+        # Bind the method to the instance so it has a better
+        # fullyQualifiedName later on.  This is not necessary on Python 3.
+        bound_getChild = getChild.__get__(self, type(self))
+
+        action = start_action(
+            action_type=u"allmydata:web:common-getChild",
+            uri=req.uri,
+            method=req.method,
+            name=name,
+            handler=fullyQualifiedName(bound_getChild),
+        )
+        with action.context():
+            result = DeferredContext(maybeDeferred(bound_getChild, name, req))
+            result.addCallbacks(
+                _getChild_done,
+                _getChild_failed,
+                callbackArgs=(self,),
+            )
+            result = result.addActionFinish()
+        return DeferredResource(result)
     return g
 
 
-def render_exception(f):
+def _getChild_done(child, parent):
+    Message.log(
+        message_type=u"allmydata:web:common-getChild:result",
+        result=fullyQualifiedName(type(child)),
+    )
+    if child is None:
+        return resource.NoResource()
+    return child
+
+
+def _getChild_failed(reason):
+    text, code = humanize_failure(reason)
+    return resource.ErrorPage(code, "Error", text)
+
+
+def render_exception(render):
     """
     Decorate a ``render_*`` method with exception handling behavior to render
     an error page reflecting the exception.
     """
-    @wraps(f)
+    @wraps(render)
     def g(self, request):
-        try:
-            return f(self, request)
-        except Exception as e:
-            description, status = humanize_exception(e)
-            return resource.ErrorPage(status, "Error", description).render(request)
+        # Bind the method to the instance so it has a better
+        # fullyQualifiedName later on.  This is not necessary on Python 3.
+        bound_render = render.__get__(self, type(self))
+
+        action = start_action(
+            action_type=u"allmydata:web:common-render",
+            uri=request.uri,
+            method=request.method,
+            handler=fullyQualifiedName(bound_render),
+        )
+        if getattr(request, "dont_apply_extra_processing", False):
+            with action:
+                return bound_render(request)
+
+        with action.context():
+            result = DeferredContext(maybeDeferred(bound_render, request))
+            # Apply `_finish` all of our result handling logic to whatever it
+            # returned.
+            result.addBoth(_finish, bound_render, request)
+            d = result.addActionFinish()
+
+        # If the connection is lost then there's no point running our _finish
+        # logic because it has nowhere to send anything.  There may also be no
+        # point in finishing whatever operation was being performed because
+        # the client cannot be informed of its result.  Also, Twisted Web
+        # raises exceptions from some Request methods if they're used after
+        # the connection is lost.
+        request.notifyFinish().addErrback(
+            lambda ignored: d.cancel(),
+        )
+        return NOT_DONE_YET
+
     return g
+
+
+def _finish(result, render, request):
+    """
+    Try to finish rendering the response to a request.
+
+    This implements extra convenience functionality not provided by Twisted
+    Web.  Various resources in Tahoe-LAFS made use of this functionality when
+    it was provided by Nevow.  Rather than making that application code do the
+    more tedious thing itself, we duplicate the functionality here.
+
+    :param result: Something returned by a render method which we can turn
+        into a response.
+
+    :param render: The original render method which produced the result.
+
+    :param request: The request being responded to.
+
+    :return: ``None``
+    """
+    if isinstance(result, Failure):
+        if result.check(CancelledError):
+            return
+        Message.log(
+            message_type=u"allmydata:web:common-render:failure",
+            message=result.getErrorMessage(),
+        )
+        _finish(
+            _renderHTTP_exception(request, result),
+            render,
+            request,
+        )
+    elif IResource.providedBy(result):
+        # If result is also using @render_exception then we don't want to
+        # double-apply the logic.  This leads to an attempt to double-finish
+        # the request.  If it isn't using @render_exception then you should
+        # fix it so it is.
+        Message.log(
+            message_type=u"allmydata:web:common-render:resource",
+            resource=fullyQualifiedName(type(result)),
+        )
+        result.render(request)
+    elif isinstance(result, unicode):
+        Message.log(
+            message_type=u"allmydata:web:common-render:unicode",
+        )
+        request.write(result.encode("utf-8"))
+        request.finish()
+    elif isinstance(result, bytes):
+        Message.log(
+            message_type=u"allmydata:web:common-render:bytes",
+        )
+        request.write(result)
+        request.finish()
+    elif isinstance(result, DecodedURL):
+        Message.log(
+            message_type=u"allmydata:web:common-render:DecodedURL",
+        )
+        _finish(redirectTo(str(result), request), render, request)
+    elif result is None:
+        Message.log(
+            message_type=u"allmydata:web:common-render:None",
+        )
+        request.finish()
+    elif result == NOT_DONE_YET:
+        Message.log(
+            message_type=u"allmydata:web:common-render:NOT_DONE_YET",
+        )
+        pass
+    else:
+        Message.log(
+            message_type=u"allmydata:web:common-render:unknown",
+        )
+        log.err("Request for {!r} handled by {!r} returned unusable {!r}".format(
+            request.uri,
+            fullyQualifiedName(render),
+            result,
+        ))
+        request.setResponseCode(http.INTERNAL_SERVER_ERROR)
+        _finish(b"Internal Server Error", render, request)
+
+
+def _renderHTTP_exception(request, failure):
+    try:
+        text, code = humanize_failure(failure)
+    except:
+        log.msg("exception in humanize_failure")
+        log.msg("argument was %s" % (failure,))
+        log.err()
+        text = str(failure)
+        code = None
+
+    if code is not None:
+        return _renderHTTP_exception_simple(request, text, code)
+
+    accept = request.getHeader("accept")
+    if not accept:
+        accept = "*/*"
+    if "*/*" in accept or "text/*" in accept or "text/html" in accept:
+        request.setResponseCode(http.INTERNAL_SERVER_ERROR)
+        return template.renderElement(
+            request,
+            tags.html(
+                tags.head(
+                    tags.title(u"Exception"),
+                ),
+                tags.body(
+                    FailureElement(failure),
+                ),
+            ),
+        )
+
+    # use plain text
+    traceback = failure.getTraceback()
+    return _renderHTTP_exception_simple(
+        request,
+        traceback,
+        http.INTERNAL_SERVER_ERROR,
+    )
+
+
+def _renderHTTP_exception_simple(request, text, code):
+    request.setResponseCode(code)
+    request.setHeader("content-type", "text/plain;charset=utf-8")
+    if isinstance(text, unicode):
+        text = text.encode("utf-8")
+    request.setHeader("content-length", b"%d" % len(text))
+    return text
+
+
+def handle_when_done(req, d):
+    when_done = get_arg(req, "when_done", None)
+    if when_done:
+        d.addCallback(lambda res: DecodedURL.from_text(when_done.decode("utf-8")))
+    return d
+
+
+def url_for_string(req, url_string):
+    """
+    Construct a universal URL using the given URL string.
+
+    :param IRequest req: The request being served.  If ``redir_to`` is not
+        absolute then this is used to determine the net location of this
+        server and the resulting URL is made to point at it.
+
+    :param bytes url_string: A byte string giving a universal or absolute URL.
+
+    :return DecodedURL: An absolute URL based on this server's net location
+        and the given URL string.
+    """
+    url = DecodedURL.from_text(url_string.decode("utf-8"))
+    if url.host == b"":
+        root = req.URLPath()
+        netloc = root.netloc.split(b":", 1)
+        if len(netloc) == 1:
+            host = netloc
+            port = None
+        else:
+            host = netloc[0]
+            port = int(netloc[1])
+        url = url.replace(
+            scheme=root.scheme.decode("ascii"),
+            host=host.decode("ascii"),
+            port=port,
+        )
+    return url

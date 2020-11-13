@@ -1,5 +1,7 @@
 from __future__ import print_function
 
+from past.builtins import unicode
+
 import sys, time, copy
 from zope.interface import implementer
 from itertools import count
@@ -156,6 +158,7 @@ class ServerMap(object):
         corrupted or badly signed) so that a repair operation can do the
         test-and-set using it as a reference.
         """
+        assert isinstance(checkstring, bytes)
         key = (server, shnum) # record checkstring
         self._bad_shares[key] = checkstring
         self._known_shares.pop(key, None)
@@ -800,9 +803,11 @@ class ServermapUpdater(object):
 
 
     def notify_server_corruption(self, server, shnum, reason):
+        if isinstance(reason, unicode):
+            reason = reason.encode("utf-8")
         ss = server.get_storage_server()
         ss.advise_corrupt_share(
-            "mutable",
+            b"mutable",
             self._storage_index,
             shnum,
             reason,

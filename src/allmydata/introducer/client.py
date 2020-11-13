@@ -1,3 +1,5 @@
+from past.builtins import unicode
+
 import time
 from zope.interface import implementer
 from twisted.application import service
@@ -178,7 +180,7 @@ class IntroducerClient(service.Service, Referenceable):
             self._subscriptions.add(service_name)
             self._debug_outstanding += 1
             d = self._publisher.callRemote("subscribe_v2",
-                                           self, service_name,
+                                           self, service_name.encode("utf-8"),
                                            self._my_subscriber_info)
             d.addBoth(self._debug_retired)
             d.addErrback(log.err, facility="tahoe.introducer.client",

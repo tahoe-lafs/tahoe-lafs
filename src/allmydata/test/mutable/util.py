@@ -1,4 +1,18 @@
-from six.moves import cStringIO as StringIO
+"""
+Ported to Python 3.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2, bchr
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+
+from past.builtins import long
+
+from io import BytesIO
 import attr
 from twisted.internet import defer, reactor
 from foolscap.api import eventually, fireEventually
@@ -75,8 +89,8 @@ class FakeStorage(object):
         if peerid not in self._peers:
             self._peers[peerid] = {}
         shares = self._peers[peerid]
-        f = StringIO()
-        f.write(shares.get(shnum, ""))
+        f = BytesIO()
+        f.write(shares.get(shnum, b""))
         f.seek(offset)
         f.write(data)
         shares[shnum] = f.getvalue()
@@ -127,9 +141,9 @@ class FakeStorageServer(object):
                                         tw_vectors, read_vector):
         # always-pass: parrot the test vectors back to them.
         readv = {}
-        for shnum, (testv, writev, new_length) in tw_vectors.items():
+        for shnum, (testv, writev, new_length) in list(tw_vectors.items()):
             for (offset, length, op, specimen) in testv:
-                assert op in ("le", "eq", "ge")
+                assert op in (b"le", b"eq", b"ge")
             # TODO: this isn't right, the read is controlled by read_vector,
             # not by testv
             readv[shnum] = [ specimen
@@ -144,14 +158,14 @@ class FakeStorageServer(object):
 
 def flip_bit(original, byte_offset):
     return (original[:byte_offset] +
-            chr(ord(original[byte_offset]) ^ 0x01) +
+            bchr(ord(original[byte_offset:byte_offset+1]) ^ 0x01) +
             original[byte_offset+1:])
 
 def add_two(original, byte_offset):
     # It isn't enough to simply flip the bit for the version number,
     # because 1 is a valid version number. So we add two instead.
     return (original[:byte_offset] +
-            chr(ord(original[byte_offset]) ^ 0x02) +
+            bchr(ord(original[byte_offset:byte_offset+1]) ^ 0x02) +
             original[byte_offset+1:])
 
 def corrupt(res, s, offset, shnums_to_corrupt=None, offset_offset=0):
@@ -222,10 +236,10 @@ def make_peer(s, i):
 
     :rtype: ``Peer``
     """
-    peerid = base32.b2a(tagged_hash("peerid", "%d" % i)[:20])
+    peerid = base32.b2a(tagged_hash(b"peerid", b"%d" % i)[:20])
     fss = FakeStorageServer(peerid, s)
     ann = {
-        "anonymous-storage-FURL": "pb://%s@nowhere/fake" % (peerid,),
+        "anonymous-storage-FURL": b"pb://%s@nowhere/fake" % (peerid,),
         "permutation-seed-base32": peerid,
     }
     return Peer(peerid=peerid, storage_server=fss, announcement=ann)
@@ -297,7 +311,7 @@ def make_nodemaker_with_storage_broker(storage_broker, keysize):
 
     :param StorageFarmBroker peers: The storage broker to use.
     """
-    sh = client.SecretHolder("lease secret", "convergence secret")
+    sh = client.SecretHolder(b"lease secret", b"convergence secret")
     keygen = client.KeyGenerator()
     if keysize:
         keygen.set_default_keysize(keysize)
@@ -311,7 +325,7 @@ class PublishMixin(object):
     def publish_one(self):
         # publish a file and create shares, which can then be manipulated
         # later.
-        self.CONTENTS = "New contents go here" * 1000
+        self.CONTENTS = b"New contents go here" * 1000
         self.uploadable = MutableData(self.CONTENTS)
         self._storage = FakeStorage()
         self._nodemaker = make_nodemaker(self._storage)
@@ -328,7 +342,7 @@ class PublishMixin(object):
         # an MDMF file.
         # self.CONTENTS should have more than one segment.
         if data is None:
-            data = "This is an MDMF file" * 100000
+            data = b"This is an MDMF file" * 100000
         self.CONTENTS = data
         self.uploadable = MutableData(self.CONTENTS)
         self._storage = FakeStorage()
@@ -346,7 +360,7 @@ class PublishMixin(object):
         # like publish_one, except that the result is guaranteed to be
         # an SDMF file
         if data is None:
-            data = "This is an SDMF file" * 1000
+            data = b"This is an SDMF file" * 1000
         self.CONTENTS = data
         self.uploadable = MutableData(self.CONTENTS)
         self._storage = FakeStorage()
@@ -361,11 +375,11 @@ class PublishMixin(object):
 
 
     def publish_multiple(self, version=0):
-        self.CONTENTS = ["Contents 0",
-                         "Contents 1",
-                         "Contents 2",
-                         "Contents 3a",
-                         "Contents 3b"]
+        self.CONTENTS = [b"Contents 0",
+                         b"Contents 1",
+                         b"Contents 2",
+                         b"Contents 3a",
+                         b"Contents 3b"]
         self.uploadables = [MutableData(d) for d in self.CONTENTS]
         self._copied_shares = {}
         self._storage = FakeStorage()

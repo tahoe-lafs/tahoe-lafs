@@ -189,7 +189,7 @@ class FileHandler(resource.Resource, object):
         return filenode.FileNodeDownloadHandler(self.client, node)
 
     @render_exception
-    def render_GET(self, ctx):
+    def render_GET(self, req):
         raise WebError("/file must be followed by a file-cap and a name",
                        http.NOT_FOUND)
 

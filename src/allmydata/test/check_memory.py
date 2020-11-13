@@ -1,18 +1,25 @@
 from __future__ import print_function
 
 import os, shutil, sys, urllib, time, stat, urlparse
+
+# Python 2 compatibility
+from future.utils import PY2
+if PY2:
+    from future.builtins import str  # noqa: F401
 from six.moves import cStringIO as StringIO
+
 from twisted.internet import defer, reactor, protocol, error
 from twisted.application import service, internet
 from twisted.web import client as tw_client
+from twisted.python import log, procutils
+from foolscap.api import Tub, fireEventually, flushEventualQueue
+
 from allmydata import client, introducer
 from allmydata.immutable import upload
 from allmydata.scripts import create_node
 from allmydata.util import fileutil, pollmixin
 from allmydata.util.fileutil import abspath_expanduser_unicode
 from allmydata.util.encodingutil import get_filesystem_encoding
-from foolscap.api import Tub, fireEventually, flushEventualQueue
-from twisted.python import log, procutils
 
 class StallableHTTPGetterDiscarder(tw_client.HTTPPageGetter, object):
     full_speed_ahead = False
@@ -69,7 +76,7 @@ class SystemFramework(pollmixin.PollMixin):
     numnodes = 7
 
     def __init__(self, basedir, mode):
-        self.basedir = basedir = abspath_expanduser_unicode(unicode(basedir))
+        self.basedir = basedir = abspath_expanduser_unicode(str(basedir))
         if not (basedir + os.path.sep).startswith(abspath_expanduser_unicode(u".") + os.path.sep):
             raise AssertionError("safety issue: basedir must be a subdir")
         self.testdir = testdir = os.path.join(basedir, "test")

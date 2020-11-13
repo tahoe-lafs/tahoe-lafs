@@ -1,9 +1,22 @@
+import os, json, urllib
+
+# Python 2 compatibility
+# Can't use `builtins.str` because something deep in Twisted callbacks ends up repr'ing
+# a `future.types.newstr.newstr` as a *Python 3* byte string representation under
+# *Python 2*:
+#   File "/home/rpatterson/src/work/sfu/tahoe-lafs/.tox/py27/lib/python2.7/site-packages/allmydata/util/netstring.py", line 43, in split_netstring
+#    assert data[position] == b","[0], position
+# exceptions.AssertionError: 15
+# ...
+# (Pdb) pp data
+# '334:12:b\'mutable-good\',90:URI:SSK-RO:...
+from past.builtins import unicode as str
 from future.utils import native_str
 
-import os, json, urllib
 from twisted.trial import unittest
 from twisted.internet import defer
 from twisted.internet.defer import inlineCallbacks, returnValue
+
 from allmydata.immutable import upload
 from allmydata.mutable.common import UnrecoverableFileError
 from allmydata.mutable.publish import MutableData
@@ -917,13 +930,13 @@ class DeepCheckWebBad(DeepCheckBase, unittest.TestCase):
         if nodetype == "mutable":
             mutable_uploadable = MutableData("mutable file contents")
             d = self.g.clients[0].create_mutable_file(mutable_uploadable)
-            d.addCallback(lambda n: self.root.set_node(unicode(name), n))
+            d.addCallback(lambda n: self.root.set_node(str(name), n))
         elif nodetype == "large":
             large = upload.Data("Lots of data\n" * 1000 + name + "\n", None)
-            d = self.root.add_file(unicode(name), large)
+            d = self.root.add_file(str(name), large)
         elif nodetype == "small":
             small = upload.Data("Small enough for a LIT", None)
-            d = self.root.add_file(unicode(name), small)
+            d = self.root.add_file(str(name), small)
 
         d.addCallback(self._stash_node, name)
 
