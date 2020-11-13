@@ -33,13 +33,13 @@ NURLs
 
 The authentication and authorization properties of fURLs are a good fit for Tahoe-LAFS' requirements.
 These are not inherently tied to the Foolscap protocol itself.
-In particular they are beneficial to :doc:`http-storage-node-protocol` which uses HTTP instead of Foolscap.
+In particular they are beneficial to :doc:`../proposed/http-storage-node-protocol` which uses HTTP instead of Foolscap.
 It is conceivable they will also be used with WebSockets at some point as well.
 
 Continuing to refer to these URLs as fURLs when they are being used for other protocols may cause confusion.
 Therefore,
-this document coins the name *NURL* for these URLs.
-This can be considered to expand to "New URLs" or "Authe*N*ticating URLs" or "Authorizi*N*g URLs" as the reader prefers.
+this document coins the name **NURL** for these URLs.
+This can be considered to expand to "**N**\ ew URLs" or "Authe\ **N**\ ticating URLs" or "Authorizi\ **N**\ g URLs" as the reader prefers.
 
 Syntax
 ------
@@ -109,3 +109,4 @@ This provides stronger authentication assurances for future uses but it is not r
 
 .. _`continues to be eroded`: https://en.wikipedia.org/wiki/SHA-1#Cryptanalysis_and_validation
 .. _`explored by the web community`: https://www.imperialviolet.org/2011/05/04/pinning.html
+.. _Foolscap: https://github.com/warner/foolscap
