@@ -14,4 +14,6 @@ index only lists the files that are in .rst format.
    :maxdepth: 2
 
    leasedb
+   http-introducer
+   http-introducer-internals
    http-storage-node-protocol
