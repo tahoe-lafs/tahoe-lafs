@@ -78,10 +78,7 @@ Version 0
 A Foolscap fURL is considered the canonical definition of a version 0 NURL.
 Notably,
 the hash component is defined as the base32-encoded SHA1 hash of the DER form of an x509v3 certificate.
-A version 0 NURL is identified in two ways:
-
-* Primarily, by the absence of the ``v=1`` fragment.
-* Secondarily, by the length of the hash string which is always 32 bytes.
+A version 0 NURL is identified by the absence of the ``v=1`` fragment.
 
 Version 1
 ---------
