@@ -23,7 +23,7 @@ By configuring your client with one small static connection hint,
 the "HTTP Introducer" system enables the client to find more information and future updates to that information.
 
 Before attempting this configuration,
-you should have an HTTP-style *introducer fURL* from the operator of an HTTP Introducer-enabled Tahoe-LAFS storage grid.
+you should have an *introducer NURL* from the operator of an HTTP Introducer-enabled Tahoe-LAFS storage grid.
 
 The HTTP Introducer is configured in two parts.
 First,

@@ -13,7 +13,7 @@ Overview
 The HTTP Introducer is very similar to the Foolscap-based introducer it replaces.
 The primary difference is that it replaces the Foolscap-based protocol with a WebSocket-based protocol.
 In every other way,
-the HTTP Introducer is intended to replicate the behavior of the Foolscap-based introducer.
+the HTTP Introducer is intended to replicate the behavior (including security properties) of the Foolscap-based introducer.
 
 http-introducer
 ---------------
@@ -30,7 +30,7 @@ The command-line interface is configured with a JSON document.
 The JSON document follows this form::
 
   { "version": 1
-  , "listen-endpoints": [ <strings> ]
+  , "listen-endpoints": [ <string> ]
   , "network-location": [ <string> ]
   , "certificate": <string>
   , "private-key": <string>
@@ -38,24 +38,13 @@ The JSON document follows this form::
   }
 
 The *version* property must be **1**.
-The values for the *listen-endpoints*, *certicate*, and *private-key* properties are those given to the ``create`` command.
-The *swissnum* property is string that is randomly generated at ``create``-time.
+The values for the *listen-endpoints*, *certificate*, and *private-key* properties are those given to the ``create`` command.
+The *swissnum* property is a string that is randomly generated at ``create``-time.
 
-Introducer fURL
+Introducer NURL
 ---------------
 
-.. TODO: What actual scheme will we use instead of "xxx"?
-.. TODO: Link to the discussion of security properties of this scheme in the GBS doc
-.. TODO: Update that doc to link to any Tor docs about the security properties of their systems
-
-The *introducer fURL* is derived from *certificate* and *swissnum*.
-It has the form ``xxx://<spki-hash>@<network-location>[,...]/<swissnum>``
-``<spki-hash>`` is the SPKI hash of the certificate.
-``<network-location>`` is one of the ``network-location`` property elements.
-Several locations may be present and separated by ``,``.
-``<swissnum>`` is the *swissnum* property value.
-
-The result is an unguessable self-authenticating URL which can be used to establish a confidential channel to the HTTP Introducer.
+The HTTP Introducer uses the same :ref:`NURL <../specification/url>` as the Foolscap-based Introducer it is intended to replace.
 
 Protocol
 --------
@@ -146,12 +135,12 @@ This would sensibly reflect the fact that two properties remain the same:
 
 It is common to think of a URL scheme as identifying a protocol
 (https, wss, xmpp, etc).
-However this only reflects the fact that the vast majority of resources are accessible via only one protocol and so that protocol and the resource itself become conflated.
+However this only reflects the fact that the vast majority of resources seem to be accessible via only one protocol and so that protocol and the resource itself become conflated.
 There *are* URL schemes which are protocol agnostic
 (mailto, im, pres, etc).
 The "https" example is also something of a trick.
 The resource identified by an "https"-scheme URL may be reachable via any one (or more!) of several different HTTP-family protocols
-(0.9, 1.0, 1.1, 2.0, and likely soon 3.0).
+(0.9, 1.0, 1.1, SPDY, 2.0, and likely soon 3.0).
 
 In implementation terms the complication introduced by using "pb" is that the client is not given a signal as to which protocol to use to attempt to interact with the resource.
 This could be addressed in one of at least two ways:
@@ -160,6 +149,9 @@ This could be addressed in one of at least two ways:
    The result of this could also be remembered to avoid the need for such concurrent efforts on all future connection attempts.
 2. Use one of the protocol negotiation features of TLS (eg ALPN).
    This is exactly the mechanism used to negotiate the version of the HTTP protocol.
+   A substantial challenge here is that it intertwines ALPN with certificate negotiation and this may be difficult to navigate with some or all TLS implementations.
+   This *could* be mitigated by replacing the SPKI hash with the tubid.
+   This would cause the certificate validation logic to be the same regardless of whether Foolscap or this new protocol is negotiated.
 
 pb+http
 ```````
