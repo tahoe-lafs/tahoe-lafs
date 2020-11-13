@@ -36,7 +36,7 @@ you should have an *introducer NURL* from the operator of an HTTP Introducer-ena
 
 The HTTP Introducer is configured in two parts.
 First,
-the *introducer fURL* is written to a new file.
+the *introducer NURL* is written to a new file.
 This configuration should be treated as a secret.
 The node's ``private`` directory is a good location to consider for this file.
 For example,
