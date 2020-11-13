@@ -46,7 +46,7 @@ Syntax
 
 The EBNF for a NURL is as follows::
 
-  nurl         = scheme, hash, "@", net-loc-list, "/", swiss-number
+  nurl         = scheme, hash, "@", net-loc-list, "/", swiss-number, [ version1 ]
 
   scheme       = "pb://"
 
@@ -57,6 +57,8 @@ The EBNF for a NURL is as follows::
   hostname     = domain | IPv4address | IPv6address
 
   swiss-number = segment
+
+  version1     = "#v=1"
 
 See https://tools.ietf.org/html/rfc3986#section-3.3 for the definition of ``segment``.
 See https://tools.ietf.org/html/rfc2396#appendix-A for the definition of ``unreserved``.
@@ -76,7 +78,10 @@ Version 0
 A Foolscap fURL is considered the canonical definition of a version 0 NURL.
 Notably,
 the hash component is defined as the base32-encoded SHA1 hash of the DER form of an x509v3 certificate.
-A version 0 NURL is identified by the length of the hash string which is always 32 bytes.
+A version 0 NURL is identified in two ways:
+
+* Primarily, by the absence of the ``v=1`` fragment.
+* Secondarily, by the length of the hash string which is always 32 bytes.
 
 Version 1
 ---------
@@ -96,7 +101,9 @@ The hash component of a version 1 NURL differs in three ways from the prior vers
 3. The hash is encoded using urlsafe-base64 (without padding) instead of base32.
    This provides a more compact representation and minimizes the usability impacts of switching from a 160 bit hash to a 224 bit hash.
 
-A version 1 NURL is identified by the length of the hash string which is always 38 bytes.
+A version 1 NURL is identified by the presence of the ``v=1`` fragment.
+Though the length of the hash string (38 bytes) could also be used to differentiate it from a version 0 NURL,
+there is no guarantee that this will be effective in differentiating it from future versions so this approach should not be used.
 
 It is possible for a client to unilaterally upgrade a version 0 NURL to a version 1 NURL.
 After establishing and authenticating a connection the client will have received a copy of the server's certificate.
