@@ -25,6 +25,15 @@ the "HTTP Introducer" system enables the client to find more information and fut
 Before attempting this configuration,
 you should have an *introducer NURL* from the operator of an HTTP Introducer-enabled Tahoe-LAFS storage grid.
 
+.. note:: Upgrading From Foolscap-based Introducer
+
+	  If you already have a client configured with a a Foolscap-based introducer
+	  (the introducer which preceded the HTTP Introducer)
+	  then you can use that introducer's fURL as the new *introducer NURL* in the following steps.
+	  You can find this value in ``tahoe.cfg`` as the value for ``introducer.furl`` in the ``[client]`` section.
+	  Your client will continue to use Foolscap to communicate with this introducer until it is upgraded to HTTP Introducer.
+	  In this case, you should delete the ``introducer.furl`` line from your configuration file.
+
 The HTTP Introducer is configured in two parts.
 First,
 the *introducer fURL* is written to a new file.
