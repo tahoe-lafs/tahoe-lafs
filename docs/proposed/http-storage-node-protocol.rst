@@ -7,9 +7,10 @@ The target audience for this document is Tahoe-LAFS developers.
 After reading this document,
 one should expect to understand how Tahoe-LAFS clients interact over the network with Tahoe-LAFS storage nodes.
 
-The primary goal of the introduction of this protocol is to simplify the task of implementing a Tahoe-LAFS storage server.
-Specifically, it should be possible to implement a Tahoe-LAFS storage server without a Foolscap implementation
-(substituting a simpler GBS server implementation).
+The primary goal of the introduction of this protocol is to simplify the task of implementing a Tahoe-LAFS storage service.
+Specifically, it should be possible to implement a Tahoe-LAFS storage service without a Foolscap implementation
+(substituting a simpler GBS-based service implementation).
+A related goal is to make it feasible to have a browser-based implementation of the protocol.
 The Tahoe-LAFS client will also need to change but it is not expected that it will be noticably simplified by this change
 (though this may be the first step towards simplifying it).
 
@@ -25,7 +26,7 @@ Summary
 The storage node protocol should offer at minimum the security properties offered by the Foolscap-based protocol.
 The Foolscap-based protocol offers:
 
-* **Peer authentication** by way of checked x509 certificates
+* **Peer authentication** by way of `checked x509 certificates <https://github.com/warner/foolscap/blob/845bea550447991b194ef884713a7b3be4b4a6c2/doc/using-foolscap.rst#making-your-tub-remotely-accessible>`_
 * **Message authentication** by way of TLS
 * **Message confidentiality** by way of TLS
 
@@ -77,36 +78,57 @@ Solutions
 An HTTP-based protocol, dubbed "Great Black Swamp" (or "GBS"), is described below.
 This protocol aims to satisfy the above requirements at a lower level of complexity than the current Foolscap-based protocol.
 
+Identification and Location
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+A GBS service is accessed using a NURL as documented in :doc:`url-authentication`.
+
+In Foolscap the **certificate hash** is known as the **tub id**.
+It is the base32-encoded SHA1 digest of the certificate.
+This effectively pins a Foolscap URL to exactly one certificate.
+In GBS this is the certificate's urlsafe-base64 encoded SPKI SHA256 hash
+(:doc:`url-authentication`).
+
+
+
+Security
+~~~~~~~~
+
 Communication with the storage node will take place using TLS.
 The TLS version and configuration will be dictated by an ongoing understanding of best practices.
 The storage node will present an x509 certificate during the TLS handshake.
-Storage clients will require that the certificate have a valid signature.
-The Subject Public Key Information (SPKI) hash of the certificate will constitute the storage node's identity.
-The **tub id** portion of the storage node fURL will be replaced with the SPKI hash.
+Storage clients will use the certificate to authenticate the storage node.
+Authentication is considered successful if the following properties hold:
 
-When connecting to a storage node,
-the client will take the following steps to gain confidence it has reached the intended peer:
+* The certificate is well-formed.
+* The current time is within the certificate's validity period [#]_.
+* The SPKI hash of the certificate matches the expected value [#]_.
 
-* It will perform the usual cryptographic verification of the certificate presented by the storage server.
-  That is,
-  it will check that the certificate itself is well-formed,
-  that it is currently valid [#]_,
-  and that the signature it carries is valid.
-* It will compare the SPKI hash of the certificate to the expected value.
-  The specifics of the comparison are the same as for the comparison specified by `RFC 7469`_ with "sha256" [#]_.
+The expected SPKI hash is taken from the storage node fURL.
 
 To further clarify, consider this example.
 Alice operates a storage node.
 Alice generates a key pair and secures it properly.
 Alice generates a self-signed storage node certificate with the key pair.
-Alice's storage node announces (to an introducer) a fURL containing (among other information) the SPKI hash.
-Imagine the SPKI hash is ``i5xb...``.
-This results in a fURL of ``pb://i5xb...@example.com:443/g3m5...#v=2`` [#]_.
+Alice's storage node announces (to an introducer) a fURL containing (among other information) the urlsafe-base64 encoded SPKI SHA256 hash.
+Imagine the urlsafe-base64 encoding of the SPKI SHA256 hash is ``i5xb...``.
+This results in a GBS URL of ``pb://i5xb...@example.com:443/g3m5...`` [#]_.
 Bob creates a client node pointed at the same introducer.
 Bob's client node receives the announcement from Alice's storage node
 (indirected through the introducer).
 
-Bob's client node recognizes the fURL as referring to an HTTP-dialect server due to the ``v=2`` fragment.
+Bob's client node extracts the network location information from the GBS URL.
+Bob's client node makes a TLS connection to the network location.
+Bob's client node uses TLS ALPN to request the "h2" protocol.
+If the server agrees to the "h2" protocol then a GBS connection has been established.
+If the server does not agree to any protocol via ALPN then a Foolscap connection has been established.
+In the former case,
+communication proceeds using the GBS protocol
+In the latter case,
+Bob's client node can fall back to Foolscap if it is capable of doing so.
+
+
+Bob's client node recognizes the fURL as referring to an HTTP-dialect service due to the ``v=2`` fragment.
 Bob's client node can now perform a TLS handshake with a server at the address in the fURL location hints
 (``example.com:443`` in this example).
 Following the above described validation procedures,
@@ -117,6 +139,8 @@ If and only if the validation procedure is successful does Bob's client node con
 Additionally,
 by continuing to interact using TLS,
 Bob's client and Alice's storage node are assured of both **message authentication** and **message confidentiality**.
+
+.. _url-security-properties:
 
 .. note::
 
@@ -143,15 +167,15 @@ The GBS announcement will be introduced in a way that *updated client* software 
 Its introduction will also be made in such a way that *non-updated client* software disregards the new information
 (of which it cannot make any use).
 
-Storage nodes will begin to operate a new GBS server.
+Storage nodes will begin to operate a new GBS-based service.
 They may re-use their existing x509 certificate or generate a new one.
 Generation of a new certificate allows for certain non-optimal conditions to be addressed:
 
 * The ``commonName`` of ``newpb_thingy`` may be changed to a more descriptive value.
 * A ``notValidAfter`` field with a timestamp in the past may be updated.
 
-Storage nodes will announce a new fURL for this new HTTP-based server.
-This fURL will be announced alongside their existing Foolscap-based server's fURL.
+Storage nodes will announce a new fURL for this new GBS-based service.
+This fURL will be announced alongside their existing Foolscap-based service's fURL.
 Such an announcement will resemble this::
 
   {
@@ -166,7 +190,7 @@ The transition process will proceed in three stages:
 #. The final stage represents the desired condition in which all clients and servers speak only GBS.
 
 During the first stage only one client/server interaction is possible:
-the storage server announces only Foolscap and speaks only Foolscap.
+the storage service announces only Foolscap and speaks only Foolscap.
 During the final stage there is only one supported interaction:
 the client and server are both updated and speak GBS to each other.
 
@@ -176,30 +200,30 @@ During the intermediate stage there are four supported interactions:
    The interaction is just as it would be during the first stage.
 #. The client is updated and the server is non-updated.
    The client will see the Foolscap announcement and the lack of a GBS announcement.
-   It will speak to the server using Foolscap.
+   It will speak to the service using Foolscap.
 #. The client is non-updated and the server is updated.
    The client will see the Foolscap announcement.
-   It will speak Foolscap to the storage server.
+   It will speak Foolscap to the storage service.
 #. Both the client and server are updated.
    The client will see the GBS announcement and disregard the Foolscap announcement.
-   It will speak GBS to the server.
+   It will speak GBS to the service.
 
 There is one further complication:
-the client maintains a cache of storage server information
+the client maintains a cache of storage service information
 (to avoid continuing to rely on the introducer after it has been introduced).
 The follow sequence of events is likely:
 
 1. The client connects to an introducer.
-#. It receives an announcement for a non-updated storage server (Foolscap only).
+#. It receives an announcement for a non-updated storage service (Foolscap only).
 #. It caches this announcement.
 #. At some point, the storage server is updated.
-#. The client uses the information in its cache to open a Foolscap connection to the storage server.
+#. The client uses the information in its cache to open a Foolscap connection to the storage service.
 
 Ideally,
-the client would not rely on an update from the introducer to give it the GBS fURL for the updated storage server.
+the client would not rely on an update from the introducer to give it the GBS fURL for the updated storage service.
 Therefore,
-when an updated client connects to a storage server using Foolscap,
-it should request the server's version information.
+when an updated client connects to a storage service using Foolscap,
+it should request the service's version information.
 If this information indicates that GBS is supported then the client should cache this GBS information.
 On subsequent connection attempts,
 it should make use of this GBS information.
