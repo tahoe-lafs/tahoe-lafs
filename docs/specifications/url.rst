@@ -46,19 +46,23 @@ Syntax
 
 The EBNF for a NURL is as follows::
 
+  nurl         = scheme, hash, "@", net-loc-list, "/", swiss-number
+
   scheme       = "pb://"
 
-  hostname     = domain-name | ipv4-address | ipv6-address
-  net-loc      = hostname, [ ":" port ]
+  hash         = unreserved
+
   net-loc-list = net-loc, [ { ",", net-loc } ]
+  net-loc      = hostname, [ ":" port ]
+  hostname     = domain | IPv4address | IPv6address
 
   swiss-number = segment
 
-  nurl         = scheme, hash, "@", net-loc-list, "/", swiss-number
-
-See https://tools.ietf.org/html/rfc4648#section-5 for the definition of ``urlsafe-base64-string``
-(RFC 4648 provides an ad hoc definition rather than EBNF).
 See https://tools.ietf.org/html/rfc3986#section-3.3 for the definition of ``segment``.
+See https://tools.ietf.org/html/rfc2396#appendix-A for the definition of ``unreserved``.
+See https://tools.ietf.org/html/draft-main-ipaddr-text-rep-02#section-3.1 for the definition of ``IPv4address``.
+See https://tools.ietf.org/html/draft-main-ipaddr-text-rep-02#section-3.2 for the definition of ``IPv6address``.
+See https://tools.ietf.org/html/rfc1035#section-2.3.1 for the definition of ``domain``.
 
 Versions
 --------
