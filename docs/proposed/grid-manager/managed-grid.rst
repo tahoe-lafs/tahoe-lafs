@@ -1,7 +1,3 @@
-(This document is "in-progress", with feedback and input from two
-devchats with Brain Warner and exarkun as well as other input,
-discussion and edits from exarkun. It is NOT done). Search for
-"DECIDE" for open questions.
 
 
 Managed Grid
@@ -65,7 +61,16 @@ use ``--config -`` (the last character is a dash) and write a valid
 JSON configuration to stdin.
 
 All commands require the ``--config`` option and they all behave
-similarly for "data from stdin" versus "data from disk".
+similarly for "data from stdin" versus "data from disk". A directory
+(and not a file) is used on disk because in that mode, each
+certificate issued is also stored alongside the configuration
+document; in "stdin / stdout" mode, an issued certificate is only
+ever available on stdout.
+
+The configuration is a JSON document. It is subject to change as Grid
+Manager evolves. It contains a version number in the
+`grid_manager_config_version` key which should increment whenever the
+document schema changes.
 
 
 tahoe grid-manager create
