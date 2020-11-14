@@ -21,10 +21,13 @@ import types
 import errno
 import tempfile
 from base64 import b32decode, b32encode
+from errno import ENOENT, EPERM
+from warnings import warn
 
 # On Python 2 this will be the backported package.
 import configparser
 
+from twisted.python.filepath import FilePath
 from twisted.python import log as twlog
 from twisted.application import service
 from twisted.python.failure import Failure
@@ -37,6 +40,9 @@ from allmydata.util.assertutil import _assert
 from allmydata.util.fileutil import abspath_expanduser_unicode
 from allmydata.util.encodingutil import get_filesystem_encoding, quote_output
 from allmydata.util import configutil
+from allmydata.util.yamlutil import (
+    safe_load,
+)
 
 def _common_valid_config():
     return configutil.ValidConfiguration({
@@ -427,6 +433,65 @@ class _Config(object):
         return abspath_expanduser_unicode(
             os.path.join(self._basedir, *args)
         )
+
+    def get_introducer_configuration(self):
+        """
+        Get configuration for introducers.
+
+        :return {unicode: unicode}: A mapping from introducer petname to the
+            introducer's fURL.
+        """
+        introducers_yaml_filename = self.get_private_path("introducers.yaml")
+        introducers_filepath = FilePath(introducers_yaml_filename)
+
+        try:
+            with introducers_filepath.open() as f:
+                introducers_yaml = safe_load(f)
+                if introducers_yaml is None:
+                    raise EnvironmentError(
+                        EPERM,
+                        "Can't read '{}'".format(introducers_yaml_filename),
+                        introducers_yaml_filename,
+                    )
+                introducers = {
+                    petname: config["furl"]
+                    for petname, config
+                    in introducers_yaml.get("introducers", {}).items()
+                }
+                log.msg(
+                    "found {} introducers in private/introducers.yaml".format(
+                        len(introducers),
+                    )
+                )
+        except EnvironmentError as e:
+            if e.errno != ENOENT:
+                raise
+            introducers = {}
+
+        if "default" in introducers.keys():
+            raise ValueError(
+                "'default' introducer furl cannot be specified in introducers.yaml;"
+                " please fix impossible configuration."
+            )
+
+        # read furl from tahoe.cfg
+        tahoe_cfg_introducer_furl = self.get_config("client", "introducer.furl", None)
+        if tahoe_cfg_introducer_furl == "None":
+            raise ValueError(
+                "tahoe.cfg has invalid 'introducer.furl = None':"
+                " to disable it, use 'introducer.furl ='"
+                " or omit the key entirely"
+            )
+        if tahoe_cfg_introducer_furl:
+            warn(
+                "tahoe.cfg [client]introducer.furl is deprecated; "
+                "use private/introducers.yaml instead.",
+                category=DeprecationWarning,
+                stacklevel=-1,
+            )
+            introducers['default'] = tahoe_cfg_introducer_furl
+
+        return introducers
 
 
 def create_tub_options(config):
