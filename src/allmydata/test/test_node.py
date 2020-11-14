@@ -605,8 +605,6 @@ class TestMissingPorts(unittest.TestCase):
 
 
 BASE_CONFIG = """
-[client]
-introducer.furl = empty
 [tor]
 enabled = false
 [i2p]
