@@ -1,6 +1,5 @@
 from __future__ import print_function
 
-import sys
 import json
 
 from twisted.python import usage
@@ -13,7 +12,6 @@ from allmydata.grid_manager import (
 from allmydata.scripts.cli import _default_nodedir
 from allmydata.scripts.common import BaseOptions
 from allmydata.util.encodingutil import argv_to_abspath
-from allmydata.util import fileutil
 
 
 
@@ -123,7 +121,6 @@ def add_grid_manager_cert(options):
         nd = _default_nodedir
 
     config = read_config(nd, "portnum")
-    config_path = join(nd, "tahoe.cfg")
     cert_fname = "{}.cert".format(options['name'])
     cert_path = FilePath(config.get_config_path(cert_fname))
     cert_bytes = json.dumps(options.certificate_data, indent=4) + '\n'

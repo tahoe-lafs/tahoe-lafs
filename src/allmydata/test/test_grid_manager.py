@@ -6,7 +6,6 @@ from twisted.python.filepath import (
 )
 
 from allmydata.client import (
-    create_storage_farm_broker,
     _load_grid_manager_certificates,
 )
 from allmydata.node import (
