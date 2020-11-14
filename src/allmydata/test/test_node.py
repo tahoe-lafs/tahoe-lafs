@@ -432,10 +432,17 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
         self.failUnless(ns.called)
 
     def test_set_config_new_section(self):
+        """
+        set_config() can create a new config section
+        """
         basedir = "test_node/test_set_config_new_section"
         config = config_from_string(basedir, "", "")
         config.set_config("foo", "bar", "value1")
         config.set_config("foo", "bar", "value2")
+        self.assertEqual(
+            config.get_config("foo", "bar"),
+            "value2"
+        )
 
 
 class TestMissingPorts(unittest.TestCase):
