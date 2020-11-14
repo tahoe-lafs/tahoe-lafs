@@ -92,9 +92,6 @@ _client_config = configutil.ValidConfiguration(
         ),
         "grid_managers": None,  # means "any options valid"
         "grid_manager_certificates": None,
-        "drop_upload": (  # deprecated already?
-            "enabled",
-        ),
         "ftpd": (
             "accounts.file",
             "accounts.url",
@@ -560,14 +557,6 @@ def create_storage_farm_broker(config, default_connection_handlers, foolscap_con
             **kwargs
         )
 
-    # grid manager setup
-
-    grid_manager_keys = []
-    for name, gm_key in config.enumerate_section('grid_managers').items():
-        grid_manager_keys.append(
-            ed25519.verifying_key_from_string(gm_key.encode("ascii"))
-        )
-
     # we don't actually use this keypair for anything (yet) as far
     # as I can see.
     # my_pubkey = keyutil.parse_pubkey(
@@ -581,7 +570,6 @@ def create_storage_farm_broker(config, default_connection_handlers, foolscap_con
         tub_maker=tub_creator,
         node_config=config,
         storage_client_config=storage_client_config,
-        grid_manager_keys=grid_manager_keys,  # XXX maybe roll into above storage_client_config?
     )
     for ic in introducer_clients:
         sb.use_introducer(ic)

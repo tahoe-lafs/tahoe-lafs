@@ -74,6 +74,9 @@ from allmydata.interfaces import (
 from allmydata.grid_manager import (
     create_grid_manager_verifier,
 )
+from allmydata.crypto import (
+    ed25519,
+)
 from allmydata.util import log, base32, connection_status
 from allmydata.util.assertutil import precondition
 from allmydata.util.observer import ObserverList
@@ -111,9 +114,15 @@ class StorageClientConfig(object):
     :ivar dict[unicode, dict[unicode, unicode]] storage_plugins: A mapping from
         names of ``IFoolscapStoragePlugin`` configured in *tahoe.cfg* to the
         respective configuration.
+
+    :ivar list[ed25519.VerifyKey] grid_manager_keys: with no keys in
+        this list, we'll upload to any storage server. Otherwise, we will
+        only upload to a storage-server that has a valid certificate
+        signed by at least one of these keys.
     """
     preferred_peers = attr.ib(default=())
     storage_plugins = attr.ib(default=attr.Factory(dict))
+    grid_manager_keys = attr.ib(default=attr.Factory(list))
 
     @classmethod
     def from_node_config(cls, config):
@@ -145,9 +154,17 @@ class StorageClientConfig(object):
                 plugin_config = []
             storage_plugins[plugin_name] = dict(plugin_config)
 
+        grid_manager_keys = []
+        for name, gm_key in config.enumerate_section('grid_managers').items():
+            grid_manager_keys.append(
+                ed25519.verifying_key_from_string(gm_key.encode("ascii"))
+            )
+
+
         return cls(
             preferred_peers,
             storage_plugins,
+            grid_manager_keys,
         )
 
 
@@ -173,13 +190,11 @@ class StorageFarmBroker(service.MultiService):
             tub_maker,
             node_config,
             storage_client_config=None,
-            grid_manager_keys=None,
     ):
         service.MultiService.__init__(self)
         assert permute_peers # False not implemented yet
         self.permute_peers = permute_peers
         self._tub_maker = tub_maker
-        self._grid_manager_keys = grid_manager_keys if grid_manager_keys else list()
 
         self.node_config = node_config
 
@@ -268,7 +283,7 @@ class StorageFarmBroker(service.MultiService):
         assert isinstance(server_id, bytes)
         handler_overrides = server.get("connections", {})
         gm_verifier = create_grid_manager_verifier(
-            self._grid_manager_keys,
+            self.storage_client_config.grid_manager_keys,
             server["ann"].get("grid-manager-certificates", []),
         )
 
