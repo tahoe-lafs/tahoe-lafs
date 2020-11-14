@@ -55,8 +55,8 @@ class GridManagerUtilities(SyncTestCase):
         )
         config = config_from_string("/foo", "portnum", config_data, client_valid_config())
         self.assertEqual(
-            1,
-            len(config.enumerate_section("grid_managers"))
+            {"fluffy": "pub-v0-vqimc4s5eflwajttsofisp5st566dbq36xnpp4siz57ufdavpvlq"},
+            config.enumerate_section("grid_managers")
         )
         certs = _load_grid_manager_certificates(config)
         self.assertEqual([fake_cert], certs)
