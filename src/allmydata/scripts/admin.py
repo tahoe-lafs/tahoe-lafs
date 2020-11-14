@@ -2,10 +2,10 @@ from __future__ import print_function
 
 import sys
 import json
-from os.path import exists, join
 
 from twisted.python import usage
-#from allmydata.node import read_config
+from twisted.python.filepath import FilePath
+
 from allmydata.client import read_config
 from allmydata.grid_manager import (
     parse_grid_manager_certificate,
@@ -14,6 +14,7 @@ from allmydata.scripts.cli import _default_nodedir
 from allmydata.scripts.common import BaseOptions
 from allmydata.util.encodingutil import argv_to_abspath
 from allmydata.util import fileutil
+
 
 
 class GenerateKeypairOptions(BaseOptions):
@@ -80,7 +81,7 @@ class AddGridManagerCertOptions(BaseOptions):
             )
         if self['filename'] == '-':
             print("reading certificate from stdin", file=self.parent.parent.stderr)
-            data = sys.stdin.read()
+            data = self.parent.parent.stdin.read()
             if len(data) == 0:
                 raise usage.UsageError(
                     "Reading certificate from stdin failed"
@@ -124,11 +125,11 @@ def add_grid_manager_cert(options):
     config = read_config(nd, "portnum")
     config_path = join(nd, "tahoe.cfg")
     cert_fname = "{}.cert".format(options['name'])
-    cert_path = config.get_config_path(cert_fname)
+    cert_path = FilePath(config.get_config_path(cert_fname))
     cert_bytes = json.dumps(options.certificate_data, indent=4) + '\n'
     cert_name = options['name']
 
-    if exists(cert_path):
+    if cert_path.exists():
         msg = "Already have certificate for '{}' (at {})".format(
             options['name'],
             cert_path,
@@ -140,11 +141,8 @@ def add_grid_manager_cert(options):
     config.set_config("grid_manager_certificates", cert_name, cert_fname)
 
     # write all the data out
-
-    fileutil.write(cert_path, cert_bytes)
-    with open(config_path, "w") as f:
-        # XXX probably want a _Config.write_tahoe_cfg() or something?
-        config.config.write(f)
+    with cert_path.open("wb") as f:
+        f.wrwite(cert_bytes)
 
     cert_count = len(config.enumerate_section("grid_manager_certificates"))
     print("There are now {} certificates".format(cert_count), file=options.parent.parent.stderr)
