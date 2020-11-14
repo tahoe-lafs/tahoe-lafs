@@ -27,6 +27,8 @@ class GridManagerCommandLine(SyncTestCase):
             result = self.runner.invoke(grid_manager, ["--config", "foo", "create"])
             self.assertEqual(["foo"], os.listdir("."))
             self.assertEqual(["config.json"], os.listdir("./foo"))
+            result = self.runner.invoke(grid_manager, ["--config", "foo", "public-identity"])
+            self.assertTrue(result.output.startswith("pub-v0-"))
 
     def test_create_stdout(self):
         """
@@ -54,3 +56,24 @@ class GridManagerCommandLine(SyncTestCase):
             self.assertEqual({"certificate", "signature"}, set(sigcert.keys()))
             cert = json.loads(sigcert['certificate'])
             self.assertEqual(cert["public_key"], pubkey)
+
+    def test_add_list_remove(self):
+        """
+        Add a storage server, list it, remove it.
+        """
+        pubkey = "pub-v0-cbq6hcf3pxcz6ouoafrbktmkixkeuywpcpbcomzd3lqbkq4nmfga"
+        with self.runner.isolated_filesystem():
+            self.runner.invoke(grid_manager, ["--config", "foo", "create"])
+            self.runner.invoke(grid_manager, ["--config", "foo", "add", "storage0", pubkey])
+
+            result = self.runner.invoke(grid_manager, ["--config", "foo", "list"])
+            names = [
+                line.split(':')[0]
+                for line in result.output.strip().split('\n')
+            ]
+            self.assertEqual(names, ["storage0"])
+
+            self.runner.invoke(grid_manager, ["--config", "foo", "remove", "storage0"])
+
+            result = self.runner.invoke(grid_manager, ["--config", "foo", "list"])
+            self.assertEqual(result.output.strip(), "")
