@@ -267,6 +267,11 @@ class UseNode(object):
     config=format_config_items(self.plugin_config),
 )
 
+        write_introducer(
+            self.basedir.asBytesMode().path,
+            "default",
+            self.introducer_furl,
+        )
         self.config = config_from_string(
             self.basedir.asTextMode().path,
             "tub.port",
@@ -275,11 +280,9 @@ class UseNode(object):
 {node_config}
 
 [client]
-introducer.furl = {furl}
 storage.plugins = {storage_plugin}
 {plugin_config_section}
 """.format(
-    furl=self.introducer_furl,
     storage_plugin=self.storage_plugin,
     node_config=format_config_items(self.node_config),
     plugin_config_section=plugin_config_section,
