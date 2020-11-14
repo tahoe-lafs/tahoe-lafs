@@ -243,7 +243,7 @@ class UseNode(object):
     plugin_config = attr.ib()
     storage_plugin = attr.ib()
     basedir = attr.ib()
-    introducer_furl = attr.ib()
+    introducer_furl = attr.ib(validator=attr.validators.instance_of(bytes))
     node_config = attr.ib(default=attr.Factory(dict))
 
     config = attr.ib(default=None)
