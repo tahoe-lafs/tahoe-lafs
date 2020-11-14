@@ -52,18 +52,6 @@ class MultiIntroTests(unittest.TestCase):
         # assertions
         self.failUnlessEqual(ic_count, 3)
 
-    @defer.inlineCallbacks
-    def test_introducer_count_commented(self):
-        """ Ensure that the Client creates same number of introducer clients
-        as found in "basedir/private/introducers" config file when there is one
-        commented."""
-        self.yaml_path.setContent(INTRODUCERS_CFG_FURLS_COMMENTED)
-        # get a client and count of introducer_clients
-        myclient = yield create_client(self.basedir)
-        ic_count = len(myclient.introducer_clients)
-
-        # assertions
-        self.failUnlessEqual(ic_count, 2)
 
     @defer.inlineCallbacks
     def test_read_introducer_furl_from_tahoecfg(self):
