@@ -463,8 +463,8 @@ class _Config(object):
                     for petname, config
                     in introducers_yaml.get("introducers", {}).items()
                 }
-                assert all(isinstance(unicode, k) for k in introducers.keys())
-                assert all(isinstance(unicode, v) for v in introducers.values())
+                assert all(isinstance(str, k) for k in introducers.keys())
+                assert all(isinstance(str, v) for v in introducers.values())
                 log.msg(
                     "found {} introducers in private/introducers.yaml".format(
                         len(introducers),
