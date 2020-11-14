@@ -465,17 +465,16 @@ def create_introducer_clients(config, main_tub, _introducer_factory=None):
 
     introducers = config.get_introducer_configuration()
 
-    for petname, introducer_furl in introducers.items():
-        introducer_cache_filepath = FilePath(config.get_private_path("introducer_{}_cache.yaml".format(petname)))
+    for petname, (furl, cache_path) in introducers.items():
         ic = _introducer_factory(
             main_tub,
-            introducer_furl.encode("ascii"),
+            furl.encode("ascii"),
             config.nickname,
             str(allmydata.__full_version__),
             str(_Client.OLDEST_SUPPORTED_VERSION),
             list(node.get_app_versions()),
             partial(_sequencer, config),
-            introducer_cache_filepath,
+            cache_path,
         )
         introducer_clients.append(ic)
     return introducer_clients

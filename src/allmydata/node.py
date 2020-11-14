@@ -438,11 +438,16 @@ class _Config(object):
         """
         Get configuration for introducers.
 
-        :return {unicode: unicode}: A mapping from introducer petname to the
-            introducer's fURL.
+        :return {unicode: (unicode, FilePath)}: A mapping from introducer
+            petname to a tuple of the introducer's fURL and local cache path.
         """
         introducers_yaml_filename = self.get_private_path("introducers.yaml")
         introducers_filepath = FilePath(introducers_yaml_filename)
+
+        def get_cache_filepath(petname):
+            return FilePath(
+                self.get_private_path("introducer_{}_cache.yaml".format(petname)),
+            )
 
         try:
             with introducers_filepath.open() as f:
@@ -491,7 +496,11 @@ class _Config(object):
             )
             introducers['default'] = tahoe_cfg_introducer_furl
 
-        return introducers
+        return {
+            petname: (furl, get_cache_filepath(petname))
+            for (petname, furl)
+            in introducers.items()
+        }
 
 
 def create_tub_options(config):
