@@ -41,9 +41,7 @@ if PY2:
 
 import re
 import time
-import json
 import hashlib
-from datetime import datetime
 
 # On Python 2 this will be the backport.
 from configparser import NoSectionError

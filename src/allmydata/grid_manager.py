@@ -65,7 +65,7 @@ def load_grid_manager(config_path, config_location):
             config_file = config_path.child("config.json").open("r")
         except IOError:
             raise ValueError(
-                "'{}' is not a Grid Manager config-directory".format(config)
+                "'{}' is not a Grid Manager config-directory".format(config_path)
             )
     with config_file:
         config = json.load(config_file)
