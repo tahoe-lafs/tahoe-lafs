@@ -91,7 +91,7 @@ def test_helper_status(storage_nodes):
     successfully GET the /helper_status page
     """
 
-    url = util.node_url(storage_nodes[0].node_dir, "helper_status")
+    url = util.node_url(storage_nodes[0].process.node_dir, "helper_status")
     resp = requests.get(url)
     assert resp.status_code >= 200 and resp.status_code < 300
     dom = BeautifulSoup(resp.content, "html5lib")
@@ -412,7 +412,7 @@ def test_storage_info(storage_nodes):
     storage0 = storage_nodes[0]
 
     requests.get(
-        util.node_url(storage0.node_dir, u"storage"),
+        util.node_url(storage0.process.node_dir, u"storage"),
     )
 
 
@@ -423,7 +423,7 @@ def test_storage_info_json(storage_nodes):
     storage0 = storage_nodes[0]
 
     resp = requests.get(
-        util.node_url(storage0.node_dir, u"storage"),
+        util.node_url(storage0.process.node_dir, u"storage"),
         params={u"t": u"json"},
     )
     data = json.loads(resp.content)
@@ -435,12 +435,12 @@ def test_introducer_info(introducer):
     retrieve and confirm /introducer URI for the introducer
     """
     resp = requests.get(
-        util.node_url(introducer.node_dir, u""),
+        util.node_url(introducer.process.node_dir, u""),
     )
     assert "Introducer" in resp.content
 
     resp = requests.get(
-        util.node_url(introducer.node_dir, u""),
+        util.node_url(introducer.process.node_dir, u""),
         params={u"t": u"json"},
     )
     data = json.loads(resp.content)
