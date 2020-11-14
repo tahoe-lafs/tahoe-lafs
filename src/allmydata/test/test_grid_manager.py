@@ -38,6 +38,10 @@ class GridManagerUtilities(SyncTestCase):
     """
 
     def test_client_grid_manager(self):
+        """
+        A client refuses to upload to a storage-server with an invalid
+        certificate when using Grid Manager.
+        """
         config_data = (
             "[grid_managers]\n"
             "fluffy = pub-v0-vqimc4s5eflwajttsofisp5st566dbq36xnpp4siz57ufdavpvlq\n"
