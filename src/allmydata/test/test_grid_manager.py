@@ -83,6 +83,9 @@ class GridManagerUtilities(SyncTestCase):
         self.assertFalse(nss.upload_permitted())
 
     def test_load_certificates(self):
+        """
+        Grid Manager certificates are deserialized from config properly
+        """
         cert_path = self.mktemp()
         fake_cert = {
             "certificate": "{\"expires\":1601687822,\"public_key\":\"pub-v0-cbq6hcf3pxcz6ouoafrbktmkixkeuywpcpbcomzd3lqbkq4nmfga\",\"version\":1}",
