@@ -464,7 +464,7 @@ class _Config(object):
                     in introducers_yaml.get("introducers", {}).items()
                 }
                 assert all(isinstance(k, str) for k in introducers.keys())
-                assert all(isinstance(v, str) for v in introducers.values())
+                assert all(isinstance(v, str) for v in introducers.values()), introducers.values()
                 log.msg(
                     "found {} introducers in private/introducers.yaml".format(
                         len(introducers),
