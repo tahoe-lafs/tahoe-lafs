@@ -26,8 +26,8 @@ workflows:
       # Contexts are managed in the CircleCI web interface:
       #
       #  https://app.circleci.com/settings/organization/github/tahoe-lafs/contexts
-      # - "debian-9": &DOCKERHUB_CONTEXT
-      #     context: "dockerhub-auth"
+      - "debian-9": &DOCKERHUB_CONTEXT
+          context: "dockerhub-auth"
 
       # - "debian-8":
       #     <<: *DOCKERHUB_CONTEXT
