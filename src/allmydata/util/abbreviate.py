@@ -40,7 +40,7 @@ def abbreviate_time(s):
         if s >= 0.0:
             postfix = ' ago'
         else:
-            postfix = ' from now'
+            postfix = ' in the future'
             s = -s
     def _plural(count, unit):
         count = int(count)

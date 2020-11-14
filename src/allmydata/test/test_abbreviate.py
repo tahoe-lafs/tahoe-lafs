@@ -33,7 +33,7 @@ class Abbreviate(unittest.TestCase):
     def test_abbrev_time_future_5_minutes(self):
         diff = timedelta(minutes=-5)
         s = abbreviate.abbreviate_time(diff)
-        self.assertEqual('5 minutes from now', s)
+        self.assertEqual('5 minutes in the future', s)
 
     def test_abbrev_time_hours(self):
         diff = timedelta(hours=4)
