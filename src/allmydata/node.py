@@ -298,19 +298,20 @@ class _Config(object):
         self.config = configparser
 
         if write_new_tahoecfg is None:
-            write_new_tahoecfg = self._default_write_new_tahoecfg
+
+            def write_new_tahoecfg(config):
+                """
+                Write to the default place, <basedir>/tahoe.cfg
+                """
+                fn = os.path.join(self._basedir, "tahoe.cfg")
+                with open(fn, "w") as f:
+                    config.write(f)
+
         self._write_config = write_new_tahoecfg
 
         self.nickname = self.get_config("node", "nickname", u"<unspecified>")
         assert isinstance(self.nickname, str)
 
-    def _default_write_new_tahoecfg(self, config):
-        """
-        Write to the default place, <basedir>/tahoe.cfg
-        """
-        fn = os.path.join(self._basedir, "tahoe.cfg")
-        with open(fn, "w") as f:
-            config.write(f)
 
     def validate(self, valid_config_sections):
         configutil.validate_config(self._config_fname, self.config, valid_config_sections)
