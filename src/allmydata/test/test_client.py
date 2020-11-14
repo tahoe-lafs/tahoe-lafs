@@ -66,6 +66,7 @@ from .common import (
     UseTestPlugins,
     MemoryIntroducerClient,
     get_published_announcements,
+    write_introducer,
 )
 from .matchers import (
     MatchesSameElements,
@@ -652,22 +653,6 @@ def flush_but_dont_ignore(res):
         return res
     d.addCallback(_done)
     return d
-
-
-def write_introducer(basedir, petname, furl):
-    """
-    Overwrite the node's ``introducers.yaml`` with a file containing the given
-    introducer information.
-    """
-    FilePath(basedir).child(b"private").child(b"introducers.yaml").setContent(
-        safe_dump({
-            "introducers": {
-                petname: {
-                    "furl": furl,
-                },
-            },
-        }),
-    )
 
 
 class AnonymousStorage(SyncTestCase):
