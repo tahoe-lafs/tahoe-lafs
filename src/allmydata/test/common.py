@@ -116,7 +116,7 @@ def write_introducer(basedir, petname, furl):
                     "furl": furl,
                 },
             },
-        }),
+        }).encode("ascii"),
     )
 
 
