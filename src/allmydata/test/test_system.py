@@ -47,6 +47,9 @@ from .web.common import (
 from allmydata.test.test_runner import RunBinTahoeMixin
 from . import common_util as testutil
 from .common_util import run_cli
+from .common import (
+    write_introducer,
+)
 
 LARGE_DATA = """
 This is some data to publish to the remote grid.., which needs to be large
@@ -806,8 +809,6 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
 
         except1 = set(range(self.numclients)) - {1}
         feature_matrix = {
-            # client 1 uses private/introducers.yaml, not tahoe.cfg
-            ("client", "introducer.furl"): except1,
             ("client", "nickname"): except1,
 
             # client 1 has to auto-assign an address.
@@ -833,7 +834,6 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
         setnode = partial(setconf, config, which, "node")
         sethelper = partial(setconf, config, which, "helper")
 
-        setclient("introducer.furl", self.introducer_furl)
         setnode("nickname", u"client %d \N{BLACK SMILING FACE}" % (which,))
 
         if self.stats_gatherer_furl:
@@ -850,13 +850,11 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
 
         sethelper("enabled", "True")
 
-        if which == 1:
-            # clients[1] uses private/introducers.yaml, not tahoe.cfg
-            iyaml = ("introducers:\n"
-                     " petname2:\n"
-                     "  furl: %s\n") % self.introducer_furl
-            iyaml_fn = os.path.join(basedir, "private", "introducers.yaml")
-            fileutil.write(iyaml_fn, iyaml)
+        iyaml = ("introducers:\n"
+                 " petname2:\n"
+                 "  furl: %s\n") % self.introducer_furl
+        iyaml_fn = os.path.join(basedir, "private", "introducers.yaml")
+        fileutil.write(iyaml_fn, iyaml)
 
         return _render_config(config)
 
@@ -909,10 +907,15 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
         if not os.path.isdir(basedir):
             fileutil.make_dirs(basedir)
         config = "[client]\n"
-        config += "introducer.furl = %s\n" % self.introducer_furl
         if helper_furl:
             config += "helper.furl = %s\n" % helper_furl
         fileutil.write(os.path.join(basedir, 'tahoe.cfg'), config)
+        os.makedirs(basedir + b"/private")
+        write_introducer(
+            basedir,
+            "default",
+            self.introducer_furl,
+        )
 
         c = yield client.create_client(basedir)
         self.clients.append(c)
