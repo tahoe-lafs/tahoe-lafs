@@ -113,7 +113,7 @@ def write_introducer(basedir, petname, furl):
         safe_dump({
             "introducers": {
                 petname: {
-                    "furl": furl,
+                    "furl": furl.decode("ascii"),
                 },
             },
         }).encode("ascii"),
