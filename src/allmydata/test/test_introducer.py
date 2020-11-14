@@ -40,7 +40,8 @@ from allmydata.util.iputil import (
     listenOnUnused,
 )
 import allmydata.test.common_util as testutil
-from allmydata.test.common import (
+from .common import (
+    write_introducer,
     SyncTestCase,
     AsyncTestCase,
     AsyncBrokenTestCase,
@@ -788,8 +789,13 @@ class Announcements(AsyncTestCase):
 
     @defer.inlineCallbacks
     def test_client_cache(self):
+        """
+        Announcements received by an introducer client are written to that
+        introducer client's cache file.
+        """
         basedir = "introducer/ClientSeqnums/test_client_cache_1"
-        fileutil.make_dirs(basedir)
+        fileutil.make_dirs(basedir + b"/private")
+        write_introducer(basedir, "default", "nope")
         cache_filepath = FilePath(os.path.join(basedir, "private",
                                                "introducer_default_cache.yaml"))
 
@@ -798,8 +804,6 @@ class Announcements(AsyncTestCase):
         # until the introducer connection is established). To avoid getting
         # confused by this, disable storage.
         with open(os.path.join(basedir, "tahoe.cfg"), "w") as f:
-            f.write("[client]\n")
-            f.write("introducer.furl = nope\n")
             f.write("[storage]\n")
             f.write("enabled = false\n")
 
@@ -880,14 +884,13 @@ class ClientSeqnums(AsyncBrokenTestCase):
     @defer.inlineCallbacks
     def test_client(self):
         basedir = "introducer/ClientSeqnums/test_client"
-        fileutil.make_dirs(basedir)
+        fileutil.make_dirs(basedir + b"/private")
+        write_introducer(basedir, "default", "nope")
         # if storage is enabled, the Client will publish its storage server
         # during startup (although the announcement will wait in a queue
         # until the introducer connection is established). To avoid getting
         # confused by this, disable storage.
         f = open(os.path.join(basedir, "tahoe.cfg"), "w")
-        f.write("[client]\n")
-        f.write("introducer.furl = nope\n")
         f.write("[storage]\n")
         f.write("enabled = false\n")
         f.close()

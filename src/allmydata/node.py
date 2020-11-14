@@ -473,12 +473,6 @@ class _Config(object):
                 raise
             introducers = {}
 
-        if "default" in introducers.keys():
-            raise ValueError(
-                "'default' introducer furl cannot be specified in introducers.yaml;"
-                " please fix impossible configuration."
-            )
-
         # read furl from tahoe.cfg
         tahoe_cfg_introducer_furl = self.get_config("client", "introducer.furl", None)
         if tahoe_cfg_introducer_furl == "None":
@@ -494,6 +488,11 @@ class _Config(object):
                 category=DeprecationWarning,
                 stacklevel=-1,
             )
+            if "default" in introducers:
+                raise ValueError(
+                    "'default' introducer furl cannot be specified in tahoe.cfg and introducers.yaml;"
+                    " please fix impossible configuration."
+                )
             introducers['default'] = tahoe_cfg_introducer_furl
 
         return {
