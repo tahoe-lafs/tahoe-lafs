@@ -75,13 +75,7 @@ from .matchers import (
 
 SOME_FURL = b"pb://abcde@nowhere/fake"
 
-BASECONFIG = ("[client]\n"
-              "introducer.furl = \n"
-              )
-
-BASECONFIG_I = ("[client]\n"
-              "introducer.furl = %s\n"
-              )
+BASECONFIG = "[client]\n"
 
 class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
     def test_loadable(self):
@@ -660,6 +654,22 @@ def flush_but_dont_ignore(res):
     return d
 
 
+def write_introducer(basedir, petname, furl):
+    """
+    Overwrite the node's ``introducers.yaml`` with a file containing the given
+    introducer information.
+    """
+    FilePath(basedir).child(b"private").child(b"introducers.yaml").setContent(
+        safe_dump({
+            "introducers": {
+                petname: {
+                    "furl": furl,
+                },
+            },
+        }),
+    )
+
+
 class AnonymousStorage(SyncTestCase):
     """
     Tests for behaviors of the client object with respect to the anonymous
@@ -672,10 +682,11 @@ class AnonymousStorage(SyncTestCase):
         """
         basedir = self.id()
         os.makedirs(basedir + b"/private")
+        write_introducer(basedir, "someintroducer", SOME_FURL)
         config = client.config_from_string(
             basedir,
             "tub.port",
-            BASECONFIG_I % (SOME_FURL,) + (
+            BASECONFIG + (
                 "[storage]\n"
                 "enabled = true\n"
                 "anonymous = true\n"
@@ -703,10 +714,11 @@ class AnonymousStorage(SyncTestCase):
         """
         basedir = self.id()
         os.makedirs(basedir + b"/private")
+        write_introducer(basedir, "someintroducer", SOME_FURL)
         config = client.config_from_string(
             basedir,
             "tub.port",
-            BASECONFIG_I % (SOME_FURL,) + (
+            BASECONFIG + (
                 "[storage]\n"
                 "enabled = true\n"
                 "anonymous = false\n"
@@ -743,7 +755,7 @@ class AnonymousStorage(SyncTestCase):
         enabled_config = client.config_from_string(
             basedir,
             "tub.port",
-            BASECONFIG_I % (SOME_FURL,) + (
+            BASECONFIG + (
                 "[storage]\n"
                 "enabled = true\n"
                 "anonymous = true\n"
@@ -767,7 +779,7 @@ class AnonymousStorage(SyncTestCase):
         disabled_config = client.config_from_string(
             basedir,
             "tub.port",
-            BASECONFIG_I % (SOME_FURL,) + (
+            BASECONFIG + (
                 "[storage]\n"
                 "enabled = true\n"
                 "anonymous = false\n"
@@ -953,19 +965,25 @@ class Run(unittest.TestCase, testutil.StallMixin):
 
     @defer.inlineCallbacks
     def test_loadable(self):
+        """
+        A configuration consisting only of an introducer can be turned into a
+        client node.
+        """
         basedir = "test_client.Run.test_loadable"
-        os.mkdir(basedir)
+        os.makedirs(basedir + b"/private")
         dummy = "pb://wl74cyahejagspqgy4x5ukrvfnevlknt@127.0.0.1:58889/bogus"
-        fileutil.write(os.path.join(basedir, "tahoe.cfg"), BASECONFIG_I % dummy)
+        write_introducer(basedir, "someintroducer", dummy)
+        fileutil.write(os.path.join(basedir, "tahoe.cfg"), BASECONFIG)
         fileutil.write(os.path.join(basedir, client._Client.EXIT_TRIGGER_FILE), "")
         yield client.create_client(basedir)
 
     @defer.inlineCallbacks
     def test_reloadable(self):
         basedir = "test_client.Run.test_reloadable"
-        os.mkdir(basedir)
+        os.makedirs(basedir + b"/private")
         dummy = "pb://wl74cyahejagspqgy4x5ukrvfnevlknt@127.0.0.1:58889/bogus"
-        fileutil.write(os.path.join(basedir, "tahoe.cfg"), BASECONFIG_I % dummy)
+        write_introducer(basedir, "someintroducer", dummy)
+        fileutil.write(os.path.join(basedir, "tahoe.cfg"), BASECONFIG)
         c1 = yield client.create_client(basedir)
         c1.setServiceParent(self.sparent)
 
@@ -1129,19 +1147,22 @@ class StorageAnnouncementTests(SyncTestCase):
         super(StorageAnnouncementTests, self).setUp()
         self.basedir = self.useFixture(TempDir()).path
         create_node_dir(self.basedir, u"")
+        # Write an introducer configuration or we can't observer
+        # announcements.
+        write_introducer(self.basedir, "someintroducer", SOME_FURL)
 
 
     def get_config(self, storage_enabled, more_storage="", more_sections=""):
         return """
+[client]
+# Empty
+
 [node]
 tub.location = tcp:192.0.2.0:1234
 
 [storage]
 enabled = {storage_enabled}
 {more_storage}
-
-[client]
-introducer.furl = pb://abcde@nowhere/fake
 
 {more_sections}
 """.format(
