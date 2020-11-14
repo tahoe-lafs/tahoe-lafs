@@ -29,67 +29,67 @@ workflows:
       - "debian-9": &DOCKERHUB_CONTEXT
           context: "dockerhub-auth"
 
-      # - "debian-8":
-      #     <<: *DOCKERHUB_CONTEXT
-      #     requires:
-      #       - "debian-9"
+      - "debian-8":
+          <<: *DOCKERHUB_CONTEXT
+          requires:
+            - "debian-9"
 
-      # - "ubuntu-20-04":
-      #     <<: *DOCKERHUB_CONTEXT
-      # - "ubuntu-18-04":
-      #     <<: *DOCKERHUB_CONTEXT
-      #     requires:
-      #       - "ubuntu-20-04"
-      # - "ubuntu-16-04":
-      #     <<: *DOCKERHUB_CONTEXT
-      #     requires:
-      #       - "ubuntu-20-04"
+      - "ubuntu-20-04":
+          <<: *DOCKERHUB_CONTEXT
+      - "ubuntu-18-04":
+          <<: *DOCKERHUB_CONTEXT
+          requires:
+            - "ubuntu-20-04"
+      - "ubuntu-16-04":
+          <<: *DOCKERHUB_CONTEXT
+          requires:
+            - "ubuntu-20-04"
 
-      # - "fedora-29":
-      #     <<: *DOCKERHUB_CONTEXT
-      # - "fedora-28":
-      #     <<: *DOCKERHUB_CONTEXT
-      #     requires:
-      #       - "fedora-29"
+      - "fedora-29":
+          <<: *DOCKERHUB_CONTEXT
+      - "fedora-28":
+          <<: *DOCKERHUB_CONTEXT
+          requires:
+            - "fedora-29"
 
-      # - "centos-8":
-      #     <<: *DOCKERHUB_CONTEXT
+      - "centos-8":
+          <<: *DOCKERHUB_CONTEXT
 
-      # - "nixos-19-09":
-      #     <<: *DOCKERHUB_CONTEXT
+      - "nixos-19-09":
+          <<: *DOCKERHUB_CONTEXT
 
-      # # Test against PyPy 2.7
-      # - "pypy27-buster":
-      #     <<: *DOCKERHUB_CONTEXT
+      # Test against PyPy 2.7
+      - "pypy27-buster":
+          <<: *DOCKERHUB_CONTEXT
 
       # Just one Python 3.6 configuration while the port is in-progress.
       - "python36":
           <<: *DOCKERHUB_CONTEXT
 
       # Other assorted tasks and configurations
-      # - "lint":
-      #     <<: *DOCKERHUB_CONTEXT
-      # - "pyinstaller":
-      #     <<: *DOCKERHUB_CONTEXT
-      # - "deprecations":
-      #     <<: *DOCKERHUB_CONTEXT
-      # - "c-locale":
-      #     <<: *DOCKERHUB_CONTEXT
-      # # Any locale other than C or UTF-8.
-      # - "another-locale":
-      #     <<: *DOCKERHUB_CONTEXT
+      - "lint":
+          <<: *DOCKERHUB_CONTEXT
+      - "pyinstaller":
+          <<: *DOCKERHUB_CONTEXT
+      - "deprecations":
+          <<: *DOCKERHUB_CONTEXT
+      - "c-locale":
+          <<: *DOCKERHUB_CONTEXT
+      # Any locale other than C or UTF-8.
+      - "another-locale":
+          <<: *DOCKERHUB_CONTEXT
 
-      # - "integration":
-      #     <<: *DOCKERHUB_CONTEXT
-      #     requires:
-      #       # If the unit test suite doesn't pass, don't bother running the
-      #       # integration tests.
-      #       - "debian-9"
+      - "integration":
+          <<: *DOCKERHUB_CONTEXT
+          requires:
+            # If the unit test suite doesn't pass, don't bother running the
+            # integration tests.
+            - "debian-9"
 
-      # # Generate the underlying data for a visualization to aid with Python 3
-      # # porting.
-      # - "build-porting-depgraph":
-      #     <<: *DOCKERHUB_CONTEXT
+      # Generate the underlying data for a visualization to aid with Python 3
+      # porting.
+      - "build-porting-depgraph":
+          <<: *DOCKERHUB_CONTEXT
 
   images:
     # Build the Docker images used by the ci jobs.  This makes the ci jobs
