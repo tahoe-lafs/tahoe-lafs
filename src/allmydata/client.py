@@ -565,7 +565,7 @@ def create_storage_farm_broker(config, default_connection_handlers, foolscap_con
     grid_manager_keys = []
     for name, gm_key in config.enumerate_section('grid_managers').items():
         grid_manager_keys.append(
-            ed25519.verifying_key_from_string(gm_key)
+            ed25519.verifying_key_from_string(gm_key.encode("ascii"))
         )
 
     # we don't actually use this keypair for anything (yet) as far

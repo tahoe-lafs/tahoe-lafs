@@ -7,6 +7,7 @@ from twisted.python.filepath import (
 
 from allmydata.client import (
     create_storage_farm_broker,
+    _load_grid_manager_certificates,
 )
 from allmydata.node import (
     config_from_string,
@@ -70,7 +71,7 @@ class GridManagerUtilities(SyncTestCase):
             }
         }
         sfb.set_static_servers(static_servers)
-        nss = sfb._make_storage_server(u"server0", {"ann": announcement})
+        nss = sfb._make_storage_server(b"server0", {"ann": announcement})
 
         # we have some grid-manager keys defined so the server should
         # only upload if there's a valid certificate -- but the only
@@ -79,11 +80,12 @@ class GridManagerUtilities(SyncTestCase):
 
     def test_load_certificates(self):
         cert_path = self.mktemp()
+        fake_cert = {
+            "certificate": "{\"expires\":1601687822,\"public_key\":\"pub-v0-cbq6hcf3pxcz6ouoafrbktmkixkeuywpcpbcomzd3lqbkq4nmfga\",\"version\":1}",
+            "signature": "fvjd3uvvupf2v6tnvkwjd473u3m3inyqkwiclhp7balmchkmn3px5pei3qyfjnhymq4cjcwvbpqmcwwnwswdtrfkpnlaxuih2zbdmda"
+        }
         with open(cert_path, "w") as f:
-            f.write(json.dumps({
-                "certificate": "{\"expires\":1601687822,\"public_key\":\"pub-v0-cbq6hcf3pxcz6ouoafrbktmkixkeuywpcpbcomzd3lqbkq4nmfga\",\"version\":1}",
-                "signature": "fvjd3uvvupf2v6tnvkwjd473u3m3inyqkwiclhp7balmchkmn3px5pei3qyfjnhymq4cjcwvbpqmcwwnwswdtrfkpnlaxuih2zbdmda"
-            }))
+            f.write(json.dumps(fake_cert))
         config_data = (
             "[grid_managers]\n"
             "fluffy = pub-v0-vqimc4s5eflwajttsofisp5st566dbq36xnpp4siz57ufdavpvlq\n"
@@ -95,6 +97,8 @@ class GridManagerUtilities(SyncTestCase):
             1,
             len(config.enumerate_section("grid_managers"))
         )
+        certs = _load_grid_manager_certificates(config)
+        self.assertEqual([fake_cert], certs)
 
 
 class GridManagerVerifier(SyncTestCase):
