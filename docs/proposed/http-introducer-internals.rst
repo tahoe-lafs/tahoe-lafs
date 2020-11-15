@@ -54,8 +54,25 @@ It uses the configured certificate and private key for the necessary TLS negotia
 On top of TLS,
 it runs a WebSocket server with one endpoint.
 
-The server does not require the client to present a certificate.
-The client requires the server to present a certificate with an SPKI hash matching that in the *introducer fURL*.
+The client validates the server according to the general rules for NURLs.
+The server validates the client only to the extent that the client must already know the swissnum to access the endpoint.
+
+The WebSocket URL to access is derived from the introducer NURL.
+The scheme is changed from "pb" to "wss".
+The netloc is changed to the ``net-loc`` where the connection attempt succeeded.
+The certificate hash and "@" are dropped.
+The path remains the same.
+The fragment is dropped.
+
+For example if *example.invalid.:123* accepts the connection then the NURL::
+
+  pb://aaaaaaaa@example.invalid.:123,example2.invalid.:234/bbbbbbb#v=1
+
+becomes::
+
+  wss://example.invalid.:123/bbbbbbb
+
+This is exactly the endpoint where the introduction protocol is used to exchange announcements.
 
 .. TODO: Add docs about the WebSocket protocol negotiation that happens for the pub/sub protocol
 .. TODO: Add discussion of connection management, esp reconnection on lost connection.
