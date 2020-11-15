@@ -66,7 +66,7 @@ Publish
 To publish an announcement a client sends a JSON message that represents the announcement.
 A storage announcement is a small JSON document that looks something like this::
 
-   {"v0-p46y...":
+   {"pub-v0-p46y...":
      { "ann":
        { anonymous-storage-FURL": "pb://sokl...@192.168.69.247:44801/eqpw..."
        , "nickname": "storage001"
