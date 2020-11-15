@@ -114,7 +114,7 @@ Failure Modes
 
 HTTP Introducer imposes the following requirements:
 
-* It most be possible to establish a network connection from storage servers and client nodes to HTTP introducer.
+* It must be possible to establish a network connection from storage servers and client nodes to HTTP introducer.
   * If these connections cannot be established then announcements cannot be published or delivered to subscribers.
 * Storage servers must retain the *introducer fURL*.
   If they lose it they can no longer publish announcements.
