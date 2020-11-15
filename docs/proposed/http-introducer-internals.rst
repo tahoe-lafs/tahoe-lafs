@@ -52,21 +52,18 @@ Protocol
 The long-running process operates a TLS server on its configured endpoint.
 It uses the configured certificate and private key for the necessary TLS negotiation.
 On top of TLS,
-it runs a WebSocket server with two endpoints.
+it runs a WebSocket server with one endpoint.
 
 The server does not require the client to present a certificate.
 The client requires the server to present a certificate with an SPKI hash matching that in the *introducer fURL*.
 
 .. TODO: Add docs about the WebSocket protocol negotiation that happens for the pub/sub protocol
-.. TODO: Collapse the two simplex endpoints into one duplex endpoint.
-   If client sends server a message, it's publishing an announcement.
-   If server sends client a message, it's delivering an announcement someone published.
 .. TODO: Add discussion of connection management, esp reconnection on lost connection.
 
-/<swissnum>/publish
-~~~~~~~~~~~~~~~~~~~
+Publish
+~~~~~~~
 
-This endpoint accepts JSON messages that contain storage announcements.
+To publish an announcement a client sends a JSON message that represents the announcement.
 A storage announcement is a small JSON document that looks something like this::
 
    {"v0-p46y...":
@@ -86,13 +83,14 @@ these details may vary in structure.
 A storage announcement is created by a storage server trying to expose a storage service.
 The storage server can send one of these messages at any time to initially announce itself or update a previous announcement.
 
-/<swissnum>/subscribe
-~~~~~~~~~~~~~~~~~~~~~
+Subscribe
+~~~~~~~~~
 
-This endpoint produces JSON messages that contain storage announcements.
+To subscribe to announcements a client only needs to read messages sent by the server.
 On initial connection every storage announcement that has been received by the server is produced.
 Subsequently,
 whenever a storage announcement is published it is delivered to all subscribers.
+The JSON documents delivered to a subscriber are exactly the same as the JSON documents published to the server.
 
 Failure Modes
 -------------
