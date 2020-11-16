@@ -79,11 +79,13 @@ class GridManagerCommandLine(SyncTestCase):
         with self.runner.isolated_filesystem():
             self.runner.invoke(grid_manager, ["--config", "foo", "create"])
             self.runner.invoke(grid_manager, ["--config", "foo", "add", "storage0", pubkey])
+            self.runner.invoke(grid_manager, ["--config", "foo", "sign", "storage0", "1"])
 
             result = self.runner.invoke(grid_manager, ["--config", "foo", "list"])
             names = [
                 line.split(':')[0]
                 for line in result.output.strip().split('\n')
+                if not line.startswith("  ")  # "cert" lines start with whitespace
             ]
             self.assertEqual(names, ["storage0"])
 
@@ -93,7 +95,6 @@ class GridManagerCommandLine(SyncTestCase):
             self.assertEqual(result.output.strip(), "")
 
 
-# note: CLITestMixin can't function without also GridTestMixin ... :/
 class TahoeAddGridManagerCert(AsyncTestCase):
     """
     Test `tahoe admin add-grid-manager-cert` subcommand
