@@ -2,12 +2,26 @@
 import os
 import json
 
-from ..common import SyncTestCase
+from ..common import (
+    SyncTestCase,
+    AsyncTestCase,
+)
 from allmydata.cli.grid_manager import (
     grid_manager,
 )
 
 import click.testing
+
+# these imports support the tests for `tahoe *` subcommands
+from ..common_util import (
+    run_cli,
+)
+from twisted.internet.defer import (
+    inlineCallbacks,
+)
+from twisted.python.filepath import (
+    FilePath,
+)
 
 
 class GridManagerCommandLine(SyncTestCase):
@@ -77,3 +91,77 @@ class GridManagerCommandLine(SyncTestCase):
 
             result = self.runner.invoke(grid_manager, ["--config", "foo", "list"])
             self.assertEqual(result.output.strip(), "")
+
+
+# note: CLITestMixin can't function without also GridTestMixin ... :/
+class TahoeAddGridManagerCert(AsyncTestCase):
+    """
+    Test `tahoe admin add-grid-manager-cert` subcommand
+    """
+
+    @inlineCallbacks
+    def test_help(self):
+        """
+        some kind of help is printed
+        """
+        code, out, err = yield run_cli("admin", "add-grid-manager-cert")
+        self.assertEqual(err, "")
+        self.assertNotEqual(0, code)
+
+    @inlineCallbacks
+    def test_no_name(self):
+        """
+        error to miss --name option
+        """
+        code, out, err = yield run_cli(
+            "admin", "add-grid-manager-cert", "--filename", "-",
+            stdin="the cert",
+        )
+        self.assertIn(
+            "Must provide --name",
+            out
+        )
+
+    @inlineCallbacks
+    def test_no_filename(self):
+        """
+        error to miss --name option
+        """
+        code, out, err = yield run_cli(
+            "admin", "add-grid-manager-cert", "--name", "foo",
+            stdin="the cert",
+        )
+        self.assertIn(
+            "Must provide --filename",
+            out
+        )
+
+    @inlineCallbacks
+    def test_add_one(self):
+        """
+        we can add a certificate
+        """
+        nodedir = self.mktemp()
+        fake_cert = """{"certificate": "", "signature": ""}"""
+
+        code, out, err = yield run_cli(
+            "--node-directory", nodedir,
+            "admin", "add-grid-manager-cert", "-f", "-", "--name", "foo",
+            stdin=fake_cert,
+            ignore_stderr=True,
+        )
+        nodepath = FilePath(nodedir)
+        with nodepath.child("tahoe.cfg").open("r") as f:
+            config_data = f.read()
+
+        self.assertIn("tahoe.cfg", nodepath.listdir())
+        self.assertIn(
+            "foo = foo.cert",
+            config_data,
+        )
+        self.assertIn("foo.cert", nodepath.listdir())
+        with nodepath.child("foo.cert").open("r") as f:
+            self.assertEqual(
+                json.load(f),
+                json.loads(fake_cert)
+            )

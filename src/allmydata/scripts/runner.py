@@ -115,8 +115,11 @@ def parse_options(argv, config=None):
     config.parseOptions(argv) # may raise usage.error
     return config
 
-def parse_or_exit_with_explanation(argv, stdout=sys.stdout):
+def parse_or_exit_with_explanation(argv, stdout=sys.stdout, stderr=sys.stderr, stdin=sys.stdin):
     config = Options()
+    config.stdout = stdout
+    config.stdin = stdin
+    config.stderr = stderr
     try:
         parse_options(argv, config=config)
     except usage.error as e:
@@ -141,6 +144,7 @@ def dispatch(config,
     so.stdout = stdout
     so.stderr = stderr
     so.stdin = stdin
+    config.stdin = stdin
 
     if command in create_dispatch:
         f = create_dispatch[command]

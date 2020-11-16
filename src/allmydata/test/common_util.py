@@ -40,14 +40,17 @@ def run_cli(verb, *args, **kwargs):
                  "arguments to do_cli must be strs -- convert using unicode_to_argv", args=args)
     nodeargs = kwargs.get("nodeargs", [])
     argv = nodeargs + [verb] + list(args)
-    stdin = kwargs.get("stdin", "")
+    stdin = StringIO(kwargs.get("stdin", ""))
     stdout = StringIO()
     stderr = StringIO()
     d = defer.succeed(argv)
-    d.addCallback(runner.parse_or_exit_with_explanation, stdout=stdout)
-    d.addCallback(runner.dispatch,
-                  stdin=StringIO(stdin),
-                  stdout=stdout, stderr=stderr)
+    d.addCallback(runner.parse_or_exit_with_explanation, stdout=stdout, stderr=stderr, stdin=stdin)
+    d.addCallback(
+        runner.dispatch,
+        stdin=stdin,
+        stdout=stdout,
+        stderr=stderr,
+    )
     def _done(rc):
         return 0, stdout.getvalue(), stderr.getvalue()
     def _err(f):
