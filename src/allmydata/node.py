@@ -28,6 +28,7 @@ import configparser
 from twisted.python import log as twlog
 from twisted.application import service
 from twisted.python.failure import Failure
+from twisted.python.compat import nativeString
 from foolscap.api import Tub, app_versions
 import foolscap.logging.log
 from allmydata.version_checks import get_package_versions, get_package_versions_string
@@ -828,7 +829,7 @@ class Node(service.MultiService):
         tempdir = self.config.get_config_path(tempdir_config)
         if not os.path.exists(tempdir):
             fileutil.make_dirs(tempdir)
-        tempfile.tempdir = tempdir
+        tempfile.tempdir = nativeString(tempdir)
         # this should cause twisted.web.http (which uses
         # tempfile.TemporaryFile) to put large request bodies in the given
         # directory. Without this, the default temp dir is usually /tmp/,
