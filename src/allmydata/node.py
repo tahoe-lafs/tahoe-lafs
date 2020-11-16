@@ -480,8 +480,7 @@ class _Config(object):
         if tahoe_cfg_introducer_furl == "None":
             raise ValueError(
                 "tahoe.cfg has invalid 'introducer.furl = None':"
-                " to disable it, use 'introducer.furl ='"
-                " or omit the key entirely"
+                " to disable it omit the key entirely"
             )
         if tahoe_cfg_introducer_furl:
             warn(
