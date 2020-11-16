@@ -475,7 +475,7 @@ class _Config(object):
                 raise
             introducers = {}
 
-        # read furl from tahoe.cfg
+        # supported the deprecated [client]introducer.furl item in tahoe.cfg
         tahoe_cfg_introducer_furl = self.get_config("client", "introducer.furl", None)
         if tahoe_cfg_introducer_furl == "None":
             raise ValueError(
