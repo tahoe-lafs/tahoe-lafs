@@ -47,7 +47,7 @@ from .web.common import (
 from allmydata.test.test_runner import RunBinTahoeMixin
 from . import common_util as testutil
 from .common_util import run_cli
-from .common import (
+from ..scripts.common import (
     write_introducer,
 )
 

@@ -4,15 +4,19 @@ import os, sys, urllib, textwrap
 import codecs
 from os.path import join
 
+from yaml import (
+    safe_dump,
+)
+
 # Python 2 compatibility
 from future.utils import PY2
 if PY2:
     from future.builtins import str  # noqa: F401
 
-# On Python 2 this will be the backported package:
-from configparser import NoSectionError
-
 from twisted.python import usage
+from twisted.python.filepath import FilePath
+
+
 
 from allmydata.util.assertutil import precondition
 from allmydata.util.encodingutil import unicode_to_url, quote_output, \
@@ -113,6 +117,22 @@ class NoDefaultBasedirOptions(BasedirOptions):
 
 
 DEFAULT_ALIAS = u"tahoe"
+
+
+def write_introducer(basedir, petname, furl):
+    """
+    Overwrite the node's ``introducers.yaml`` with a file containing the given
+    introducer information.
+    """
+    FilePath(basedir).child(b"private").child(b"introducers.yaml").setContent(
+        safe_dump({
+            "introducers": {
+                petname: {
+                    "furl": furl.decode("ascii"),
+                },
+            },
+        }).encode("ascii"),
+    )
 
 
 def get_introducer_furl(nodedir, config):

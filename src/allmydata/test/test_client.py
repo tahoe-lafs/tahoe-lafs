@@ -58,6 +58,9 @@ from allmydata.util import (
 from allmydata.util.fileutil import abspath_expanduser_unicode
 from allmydata.interfaces import IFilesystemNode, IFileNode, \
      IImmutableFileNode, IMutableFileNode, IDirectoryNode
+from allmydata.scripts.common import (
+    write_introducer,
+)
 from foolscap.api import flushEventualQueue
 import allmydata.test.common_util as testutil
 from .common import (
@@ -66,7 +69,6 @@ from .common import (
     UseTestPlugins,
     MemoryIntroducerClient,
     get_published_announcements,
-    write_introducer,
 )
 from .matchers import (
     MatchesSameElements,

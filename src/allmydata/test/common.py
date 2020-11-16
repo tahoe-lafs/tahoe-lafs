@@ -32,10 +32,6 @@ import attr
 
 import treq
 
-from yaml import (
-    safe_dump,
-)
-
 from zope.interface import implementer
 
 from testtools import (
@@ -85,6 +81,9 @@ from allmydata.client import (
     config_from_string,
     create_client_from_config,
 )
+from allmydata.scripts.common import (
+    write_introducer,
+    )
 
 from ..crypto import (
     ed25519,
@@ -102,22 +101,6 @@ EMPTY_CLIENT_CONFIG = config_from_string(
     "tub.port",
     ""
 )
-
-
-def write_introducer(basedir, petname, furl):
-    """
-    Overwrite the node's ``introducers.yaml`` with a file containing the given
-    introducer information.
-    """
-    FilePath(basedir).child(b"private").child(b"introducers.yaml").setContent(
-        safe_dump({
-            "introducers": {
-                petname: {
-                    "furl": furl.decode("ascii"),
-                },
-            },
-        }).encode("ascii"),
-    )
 
 
 @attr.s

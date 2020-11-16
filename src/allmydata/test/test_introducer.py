@@ -39,9 +39,11 @@ from allmydata.util import pollmixin, idlib, fileutil, yamlutil
 from allmydata.util.iputil import (
     listenOnUnused,
 )
+from allmydata.scripts.common import (
+    write_introducer,
+)
 import allmydata.test.common_util as testutil
 from .common import (
-    write_introducer,
     SyncTestCase,
     AsyncTestCase,
     AsyncBrokenTestCase,
