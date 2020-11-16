@@ -94,6 +94,7 @@ a new private key and self-signed certificate is generated and used.
 
 This is the HTTP Introducer's state and is required by future commands.
 It is the operator's responsibility to persist this state.
+Remember that this state should be kept secret.
 
 The next step is to start the long-running HTTP Introducer process.
 As long as this is running,
