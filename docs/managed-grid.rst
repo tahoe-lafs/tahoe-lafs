@@ -212,7 +212,8 @@ Enrolling a Client: CLI
 tahoe add-grid-manager (PROPOSED)
 `````````````````````````````````
 
-(Note: this command hasn't actually been written yet).
+(Note: this command hasn't actually been written yet, see
+https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3507).
 
 This takes two arguments: ``name`` and ``public-identity``.
 
@@ -341,8 +342,9 @@ require 3 storage servers to be reachable (``--happy=3``), all their
 uploads should now fail (so ``tahoe put`` will fail) because they
 won't use storage2 and thus can't "achieve happiness".
 
-You can check Alice's "Welcome" page (where the list of connected servers
-is) at http://localhost:6301/ and should be able to see details about
-the "work-grid" Grid Manager that you added. When any Grid Managers
-are enabled, each storage-server line will show whether it has a valid
+(PROPOSED https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3506) You can
+check Alice's "Welcome" page (where the list of connected servers is)
+at http://localhost:6301/ and should be able to see details about the
+"work-grid" Grid Manager that you added. When any Grid Managers are
+enabled, each storage-server line will show whether it has a valid
 certificate or not (and how much longer it's valid until).
