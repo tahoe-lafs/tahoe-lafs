@@ -88,7 +88,8 @@ class MultiIntroTests(unittest.TestCase):
     @defer.inlineCallbacks
     def test_reject_default_in_yaml(self):
         """
-        If an introducer is configured in tahoe.cfg then a "default" introducer in
+        If an introducer is configured in tahoe.cfg with the deprecated
+        [client]introducer.furl then a "default" introducer in
         introducers.yaml is rejected.
         """
         connections = {
