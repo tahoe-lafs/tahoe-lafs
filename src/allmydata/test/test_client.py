@@ -786,8 +786,8 @@ class IntroducerClients(unittest.TestCase):
 
     def test_invalid_introducer_furl(self):
         """
-        An introducer.furl of 'None' is invalid and causes
-        create_introducer_clients to fail.
+        An introducer.furl of 'None' in the deprecated [client]introducer.furl
+        field is invalid and causes `create_introducer_clients` to fail.
         """
         cfg = (
             "[client]\n"
