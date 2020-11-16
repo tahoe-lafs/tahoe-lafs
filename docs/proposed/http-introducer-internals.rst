@@ -133,77 +133,50 @@ HTTP Introducer imposes the following requirements:
   It can also use it to (fraudulently) prove to a client that it is the real introducer.
   This would allow it generate arbitrary announcements for clients or deny service.
 
+Discussion
+----------
 
-Open Questions
---------------
+Protocol Negotiation
+~~~~~~~~~~~~~~~~~~~~
 
-URL Scheme
-~~~~~~~~~~
+HTTP Introducer uses the same URL scheme as the Foolscap Introducer.
+How does a client know what protocol to speak to the introducer?
 
-What URL scheme does the HTTP Introducer URL use?
-Foolscap URLs use *pb*
-(deriving from Foolscap's origin as the successor of Twisted **P**\ erspective **B**\ roker).
+Both introducers actually use TLS between their application-level protocol and TCP.
+This presents one option for negotiating a protocol to speak: TLS ALPN.
 
-PB
-```
+There are three possible client types:
 
-HTTP Introducer could continue to use *pb*.
-This would sensibly reflect the fact that two properties remain the same:
+* Foolscap-only introducer client
+* Foolscap and HTTP introducer client
+* HTTP-only introducer client
 
-* The URL has the same self-certifying capability nature as the Foolscap URL is supersedes.
-  "tubid" has been replaced with the SPKI hash which serves a parallel purpose.
-  "swissnum" remains an unguessable string which imbues the URL with the capability nature.
-* It refers to the same underlying service.
-  Only the protocol is changing.
+And likewise three possible server types:
 
-It is common to think of a URL scheme as identifying a protocol
-(https, wss, xmpp, etc).
-However this only reflects the fact that the vast majority of resources seem to be accessible via only one protocol and so that protocol and the resource itself become conflated.
-There *are* URL schemes which are protocol agnostic
-(mailto, im, pres, etc).
-The "https" example is also something of a trick.
-The resource identified by an "https"-scheme URL may be reachable via any one (or more!) of several different HTTP-family protocols
-(0.9, 1.0, 1.1, SPDY, 2.0, and likely soon 3.0).
+* Foolscap-only introducer server
+* Foolscap and HTTP introducer server
+* HTTP-only introducer server
 
-In implementation terms the complication introduced by using "pb" is that the client is not given a signal as to which protocol to use to attempt to interact with the resource.
-This could be addressed in one of at least two ways:
+A Foolscap-only introducer client includes no ALPN section in its TLS handshake.
+A combined Foolscap and HTTP introducer client places the protocols "http/1.1" and "pb" in its TLS ALPN section.
+An HTTP-only introducer client places only the protocol "http/1.1" in its TLS ALPN section.
 
-1. Try all protocols the client supports concurrently and allow the attempts with the incorrect protocol to fail gracefully.
-   The result of this could also be remembered to avoid the need for such concurrent efforts on all future connection attempts.
-2. Use one of the protocol negotiation features of TLS (eg ALPN).
-   This is exactly the mechanism used to negotiate the version of the HTTP protocol.
-   A substantial challenge here is that it intertwines ALPN with certificate negotiation and this may be difficult to navigate with some or all TLS implementations.
-   This *could* be mitigated by replacing the SPKI hash with the tubid.
-   This would cause the certificate validation logic to be the same regardless of whether Foolscap or this new protocol is negotiated.
+A Foolscap-only introducer server ignores the TLS ALPN information.
+It returns no protocol selection and always speaks Foolscap.
 
-pb+http
-```````
+A Foolscap and HTTP introducer server will try to negotiate the HTTP protocol.
+It will return "http/1.1" and speak the HTTP protocol whenever the client offers this.
+Otherwise it will return "pb" and speak Foolscap.
 
-HTTP Introducer could continue to use *pb* but with a hint about its divergence from the default/historical wire protocol.
-This is similar to the "git+https" scheme.
-An advantage of this scheme is that it makes the protocol explicit and removes the need for further negotiation.
-A disadvantage is that since it forces the new HTTP protocol it requires two different URLs if there is to be a period where both protocols are offered.
-The two URLs must each be transmitted to to clients somehow.
-Clients must persist both of them.
-etc.
+An HTTP-only introducer server will try to negotiate the HTTP protocol.
+It will return "http/1.1" and speak the HTTP protocol whenever the client offers this.
+Otherwise it will return `a fatal TLS alert`_ and end the session.
 
-This also lends itself well to future protocol transitions.
-For example,
-we might have *pb+wss* or *pb+X* for some yet-to-be-invented *X*.
+This allows provides a transition path from the Foolscap-only world to an HTTP-only world.
+Existing clients and servers can be upgraded independently to dual-protocol versions.
+New HTTP-only clients can be introduced during this period as long as they are used with HTTP-capable servers.
+New HTTP-only servers can also be developed for use by HTTP-capable clients.
+After operators and users have had ample time to perform these upgrades the Foolscap capabilities can be removed from client and server.
+As operators and users continue to upgrade Foolscap support will dwindle and eventually disappear from the ecosystem.
 
-
-x-ocap
-``````
-
-Or some other nice-looking brand new string.
-
-This option has the least obvious semantics.
-In inventing an entirely new scheme,
-we have to invent all of its behavior.
-
-This could be like the *pb* option but with a new name and no baggage from Foolscap.
-As soon as we decide to make another protocol change then we're back in the same place as we are now.
-The only difference is that the "HTTP Introducer" protocol would play the part Foolscap now plays.
-
-For the purposes of migrating from Foolscap it has the same drawback as *pb+http*:
-there are two URLs clients must be made aware of.
+.. _`a fatal TLS alert`: https://tools.ietf.org/html/rfc7301#section-3.2
