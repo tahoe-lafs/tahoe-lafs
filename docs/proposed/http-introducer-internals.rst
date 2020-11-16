@@ -120,11 +120,19 @@ HTTP Introducer imposes the following requirements:
   If they lose it they can no longer publish announcements.
 * Clients must retain the *introducer fURL*.
   If they lose it they can no longer subscribe to announcements.
+* All participants *may* be required to keep the *introducer fURL* secret.
+  The client is not discerning about choosing between storage announcements.
+  Anyone who holds the *introducer fURL* may send an announcement to all clients using that introducer.
+  Any client receiving such an announcement may use it.
 * An administrator must retain the HTTP Introducer state.
-  It must be kept secret or another agent will be able to pose as the introducer
-  (however all they can do is deny service).
-  It must not be lost or the introducer will be unable to operate.
+  If it is lost the introducer will be unable to operate.
   In this case new configuration must be distributed to all storage servers and client nodes.
+* An administrator must keep the HTTP Introducer state secret.
+  It must be kept secret or another agent will be able to pose as the introducer.
+  The other agent can use this state to send announcements to the real introducer.
+  It can also use it to (fraudulently) prove to a client that it is the real introducer.
+  This would allow it generate arbitrary announcements for clients or deny service.
+
 
 Open Questions
 --------------
