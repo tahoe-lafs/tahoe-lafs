@@ -9,6 +9,10 @@ import pytest_twisted
 
 import util
 
+from allmydata.test.common import (
+    write_introducer,
+)
+
 # see "conftest.py" for the fixtures (e.g. "tor_network")
 
 # XXX: Integration tests that involve Tor do not run reliably on
@@ -89,6 +93,9 @@ def _create_anonymous_node(reactor, name, control_port, request, temp_dir, flog_
         )
         yield proto.done
 
+
+    # Which services should this client connect to?
+    write_introducer(node_dir, "default", introducer_furl)
     with open(join(node_dir, 'tahoe.cfg'), 'w') as f:
         f.write('''
 [node]
@@ -105,15 +112,12 @@ onion = true
 onion.private_key_file = private/tor_onion.privkey
 
 [client]
-# Which services should this client connect to?
-introducer.furl = %(furl)s
 shares.needed = 1
 shares.happy = 1
 shares.total = 2
 
 ''' % {
     'name': name,
-    'furl': introducer_furl,
     'web_port': web_port,
     'log_furl': flog_gatherer,
     'control_port': control_port,
