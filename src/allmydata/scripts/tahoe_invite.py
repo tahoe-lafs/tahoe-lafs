@@ -1,14 +1,12 @@
 from __future__ import print_function
 
 import json
-from os.path import join
 
 from twisted.python import usage
 from twisted.internet import defer, reactor
 
 from wormhole import wormhole
 
-from allmydata.util import configutil
 from allmydata.util.encodingutil import argv_to_abspath
 from allmydata.scripts.common import get_default_nodedir, get_introducer_furl
 from allmydata.node import read_config

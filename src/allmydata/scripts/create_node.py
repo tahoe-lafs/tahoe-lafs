@@ -3,9 +3,6 @@ from __future__ import print_function
 import os
 import json
 
-from twisted.python.filepath import (
-    FilePath,
-)
 from twisted.internet import reactor, defer
 from twisted.python.usage import UsageError
 
