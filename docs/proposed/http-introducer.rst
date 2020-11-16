@@ -17,6 +17,8 @@ either as a user of a Tahoe-LAFS client node or as the operator of a Tahoe-LAFS 
 Use As A Client
 ---------------
 
+TODO: No configuration changes are required anymore.  Gut this section.
+
 You want your Tahoe-LAFS client to be able to find storage servers to access.
 This means your client needs both current and future connection information for those storage servers.
 By configuring your client with one small static connection hint,
