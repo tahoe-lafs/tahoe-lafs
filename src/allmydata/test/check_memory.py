@@ -21,6 +21,10 @@ from allmydata.util import fileutil, pollmixin
 from allmydata.util.fileutil import abspath_expanduser_unicode
 from allmydata.util.encodingutil import get_filesystem_encoding
 
+from allmydata.scripts.common import (
+    write_introducer,
+)
+
 class StallableHTTPGetterDiscarder(tw_client.HTTPPageGetter, object):
     full_speed_ahead = False
     _bytes_so_far = 0
@@ -183,13 +187,13 @@ class SystemFramework(pollmixin.PollMixin):
         self.nodes = []
         for i in range(self.numnodes):
             nodedir = os.path.join(self.testdir, "node%d" % i)
-            os.mkdir(nodedir)
+            os.makedirs(nodedir + b"/private")
+            write_introducer(nodedir, "default", self.introducer_url)
             f = open(os.path.join(nodedir, "tahoe.cfg"), "w")
             f.write("[client]\n"
-                    "introducer.furl = %s\n"
                     "shares.happy = 1\n"
                     "[storage]\n"
-                    % (self.introducer_furl,))
+            )
             # the only tests for which we want the internal nodes to actually
             # retain shares are the ones where somebody's going to download
             # them.
@@ -235,16 +239,16 @@ this file are ignored.
         quiet = StringIO()
         create_node.create_node({'basedir': clientdir}, out=quiet)
         log.msg("DONE MAKING CLIENT")
+        write_introducer(clientdir, "default", self.introducer_furl)
         # now replace tahoe.cfg
         # set webport=0 and then ask the node what port it picked.
         f = open(os.path.join(clientdir, "tahoe.cfg"), "w")
         f.write("[node]\n"
                 "web.port = tcp:0:interface=127.0.0.1\n"
                 "[client]\n"
-                "introducer.furl = %s\n"
                 "shares.happy = 1\n"
                 "[storage]\n"
-                % (self.introducer_furl,))
+        )
 
         if self.mode in ("upload-self", "receive"):
             # accept and store shares, to trigger the memory consumption bugs
