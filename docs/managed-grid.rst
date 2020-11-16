@@ -212,7 +212,7 @@ Enrolling a Client: CLI
 tahoe add-grid-manager (PROPOSED)
 `````````````````````````````````
 
-DECIDE: this command hasn't actually been written yet.
+(Note: this command hasn't actually been written yet).
 
 This takes two arguments: ``name`` and ``public-identity``.
 
@@ -335,15 +335,6 @@ Put the key printed out above into Alice's ``tahoe.cfg`` in section
     [grid_managers]
     example_name = pub-v0-vqimc4s5eflwajttsofisp5st566dbq36xnpp4siz57ufdavpvlq
 
-
-DECIDE:
- - should the grid-manager be identified by a certificate? exarkun
-   points out: --name seems like the hint of the beginning of a
-   use-case for certificates rather than bare public keys?).
- - (note the "--name" thing came from a former version of this
-   proposal that used CLI commands to add the public-keys -- but the
-   point remains, if there's to be metadata associated with "grid
-   managers" maybe they should be certificates..)
 
 Now, re-start the "alice" client. Since we made Alice's parameters
 require 3 storage servers to be reachable (``--happy=3``), all their
