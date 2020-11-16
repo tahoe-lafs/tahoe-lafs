@@ -140,19 +140,19 @@ def get_introducer_furl(nodedir, config):
     :return: the introducer FURL for the given node (no matter if it's
         a client-type node or an introducer itself)
     """
+    for petname, (furl, cache) in config.get_introducer_configuration().items():
+        return furl
+
+    # We have no configured introducers.  Maybe this is running *on* the
+    # introducer?  Let's guess, sure why not.
     try:
-        introducer_furl = config.get('client', 'introducer.furl')
-    except NoSectionError:
-        # we're not a client; maybe this is running *on* the introducer?
-        try:
-            with open(join(nodedir, "private", "introducer.furl"), "r") as f:
-                introducer_furl = f.read().strip()
-        except IOError:
-            raise Exception(
-                "Can't find introducer FURL in tahoe.cfg nor "
-                "{}/private/introducer.furl".format(nodedir)
-            )
-    return introducer_furl
+        with open(join(nodedir, "private", "introducer.furl"), "r") as f:
+            return f.read().strip()
+    except IOError:
+        raise Exception(
+            "Can't find introducer FURL in tahoe.cfg nor "
+            "{}/private/introducer.furl".format(nodedir)
+        )
 
 
 def get_aliases(nodedir):
