@@ -120,14 +120,14 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
 
         def write_config(s):
             config = ("[client]\n"
-                      "introducer.furl = %s\n" % s)
+                      "helper.furl = %s\n" % s)
             fileutil.write(os.path.join(basedir, "tahoe.cfg"), config)
 
         for s in should_fail:
             write_config(s)
             with self.assertRaises(UnescapedHashError) as ctx:
                 yield client.create_client(basedir)
-            self.assertIn("[client]introducer.furl", str(ctx.exception))
+            self.assertIn("[client]helper.furl", str(ctx.exception))
 
     def test_unreadable_config(self):
         if sys.platform == "win32":
