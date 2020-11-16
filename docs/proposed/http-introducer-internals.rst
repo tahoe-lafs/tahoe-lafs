@@ -152,7 +152,7 @@ This would sensibly reflect the fact that two properties remain the same:
 
 * The URL has the same self-certifying capability nature as the Foolscap URL is supersedes.
   "tubid" has been replaced with the SPKI hash which serves a parallel purpose.
-  "swissnum" remains an unguessable string which imues the URL with the capability nature.
+  "swissnum" remains an unguessable string which imbues the URL with the capability nature.
 * It refers to the same underlying service.
   Only the protocol is changing.
 
