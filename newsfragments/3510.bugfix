@@ -1,0 +1,1 @@
+Fix a logging regression on Python 2 involving unicode strings.
