@@ -73,8 +73,8 @@ Manager evolves. It contains a version number in the
 document schema changes.
 
 
-tahoe grid-manager create
-`````````````````````````
+grid-manager create
+```````````````````
 
 Create a new grid-manager.
 
@@ -84,8 +84,8 @@ directory specified by the ``--config`` option. It is an error if the
 directory already exists.
 
 
-tahoe grid-manager public-identity
-``````````````````````````````````
+grid-manager public-identity
+````````````````````````````
 
 Print out a grid-manager's public key. This key is derived from the
 private-key of the grid-manager, so a valid grid-manager config must
@@ -95,8 +95,8 @@ This public key is what is put in clients' configuration to actually
 validate and use grid-manager certificates.
 
 
-tahoe grid-manager add
-``````````````````````
+grid-manager add
+````````````````
 
 Takes two args: ``name pubkey``. The ``name`` is an arbitrary local
 identifier for the new storage node (also sometimes called "a petname"
@@ -105,7 +105,7 @@ file in the storage-server's node directory (minus any
 whitespace). For example, if ``~/storage0`` contains a storage-node,
 you might do something like this:
 
-   tahoe grid-manager --config ./gm0 add storage0 $(cat ~/storage0/node.pubkey)
+   grid-manager --config ./gm0 add storage0 $(cat ~/storage0/node.pubkey)
 
 This adds a new storage-server to a Grid Manager's
 configuration. (Since it mutates the configuration, if you used
@@ -114,15 +114,15 @@ usefulness of the ``name`` is solely for reference within this Grid
 Manager.
 
 
-tahoe grid-manager list
-```````````````````````
+grid-manager list
+`````````````````
 
 Lists all storage-servers that have previously been added using
-``tahoe grid-manager add``.
+``grid-manager add``.
 
 
-tahoe grid-manager sign
-```````````````````````
+grid-manager sign
+`````````````````
 
 Takes one arg: ``name``, the nickname used previously in a ``tahoe
 grid-manager add`` command.
@@ -190,7 +190,7 @@ turn on grid-management with ``grid_management = true``. You then must
 also provide a ``[grid_management_certificates]`` section in the
 config-file which lists ``name = path/to/certificate`` pairs.
 
-These certificate files are issued by the ``tahoe grid-manager sign``
+These certificate files are issued by the ``grid-manager sign``
 command; these should be **securely transmitted** to the storage
 server. Relative paths are based from the node directory. Example::
 
@@ -223,7 +223,7 @@ client with zero Grid Managers will accept any announcement from an
 Introducer.
 
 The ``public-identity`` argument is the encoded public key of the Grid
-Manager (that is, the output of ``tahoe grid-manager
+Manager (that is, the output of ``grid-manager
 public-identity``). The client will have to be re-started once this
 change is made.
 
@@ -262,7 +262,7 @@ own shell/terminal window or via something like ``systemd``
 We'll store our Grid Manager configuration on disk, in
 ``./gm0``. To initialize this directory::
 
-    tahoe grid-manager --config ./gm0 create
+    grid-manager --config ./gm0 create
 
 (If you already have a grid, you can :ref:`skip ahead <skip_ahead>`.)
 
@@ -284,13 +284,13 @@ Next, we attach a couple of storage nodes::
 
 We can now tell the Grid Manager about our new storage servers::
 
-    tahoe grid-manager --config ./gm0 add storage0 $(cat storage0/node.pubkey)
-    tahoe grid-manager --config ./gm0 add storage1 $(cat storage1/node.pubkey)
+    grid-manager --config ./gm0 add storage0 $(cat storage0/node.pubkey)
+    grid-manager --config ./gm0 add storage1 $(cat storage1/node.pubkey)
 
 To produce a new certificate for each node, we do this::
 
-    tahoe grid-manager --config ./gm0 sign storage0 > ./storage0/gridmanager.cert
-    tahoe grid-manager --config ./gm0 sign storage1 > ./storage1/gridmanager.cert
+    grid-manager --config ./gm0 sign storage0 > ./storage0/gridmanager.cert
+    grid-manager --config ./gm0 sign storage1 > ./storage1/gridmanager.cert
 
 Now, we want our storage servers to actually announce these
 certificates into the grid. We do this by adding some configuration
@@ -328,7 +328,7 @@ grid-manager has given certificates to (``storage0`` and
 ``storage1``). We need the grid-manager's public key to put in Alice's
 configuration::
 
-    tahoe grid-manager --config ./gm0 public-identity
+    grid-manager --config ./gm0 public-identity
 
 Put the key printed out above into Alice's ``tahoe.cfg`` in section
 ``client``::
