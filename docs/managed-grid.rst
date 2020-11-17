@@ -215,29 +215,6 @@ connect to (and subsequently, the Introducer will give the certificate
 out to clients).
 
 
-Enrolling a Client: CLI
------------------------
-
-
-tahoe add-grid-manager (PROPOSED)
-`````````````````````````````````
-
-(Note: this command hasn't actually been written yet, see
-https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3507).
-
-This takes two arguments: ``name`` and ``public-identity``.
-
-The ``name`` argument is a nickname to call this Grid Manager. A
-client may have any number of grid-managers, so each one has a name. A
-client with zero Grid Managers will accept any announcement from an
-Introducer.
-
-The ``public-identity`` argument is the encoded public key of the Grid
-Manager (that is, the output of ``grid-manager
-public-identity``). The client will have to be re-started once this
-change is made.
-
-
 Enrolling a Client: Config
 --------------------------
 
@@ -254,6 +231,8 @@ Manager. Example::
     [grid_managers]
     example_grid = pub-v0-vqimc4s5eflwajttsofisp5st566dbq36xnpp4siz57ufdavpvlq
 
+See also https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3507 which
+proposes a command to edit the config.
 
 
 Example Setup of a New Managed Grid
@@ -352,9 +331,6 @@ require 3 storage servers to be reachable (``--happy=3``), all their
 uploads should now fail (so ``tahoe put`` will fail) because they
 won't use storage2 and thus can't "achieve happiness".
 
-(PROPOSED https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3506) You can
-check Alice's "Welcome" page (where the list of connected servers is)
-at http://localhost:6301/ and should be able to see details about the
-"work-grid" Grid Manager that you added. When any Grid Managers are
-enabled, each storage-server line will show whether it has a valid
-certificate or not (and how much longer it's valid until).
+A proposal to expose more information about Grid Manager and
+certifcate status in the Welcome page is discussed in
+https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3506
