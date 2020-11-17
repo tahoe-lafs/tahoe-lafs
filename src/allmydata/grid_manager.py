@@ -47,16 +47,16 @@ def create_grid_manager():
     )
 
 
-def load_grid_manager(config_path, config_location):
+def load_grid_manager(config_path):
     """
     Load a Grid Manager from existing configuration.
 
     :param FilePath config_path: the configuration location (or None for
         stdin)
 
-    :param str config_location: a string describing the config's location
-
     :returns: a GridManager instance
+
+    :raises: ValueError if the confguration is invalid
     """
     if config_path is None:
         config_file = sys.stdin
@@ -79,9 +79,7 @@ def load_grid_manager(config_path, config_location):
         )
     if 'private_key' not in config:
         raise ValueError(
-            "Grid Manager config from '{}' requires a 'private_key'".format(
-                config_location,
-            )
+            "'private_key' required in config"
         )
 
     private_key_bytes = config['private_key'].encode('ascii')

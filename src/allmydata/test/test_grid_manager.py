@@ -139,7 +139,7 @@ class GridManagerVerifier(SyncTestCase):
         fp = FilePath(tempdir)
 
         save_grid_manager(fp, self.gm)
-        gm2 = load_grid_manager(fp, tempdir)
+        gm2 = load_grid_manager(fp)
         self.assertEqual(
             self.gm.public_identity(),
             gm2.public_identity(),
@@ -168,7 +168,7 @@ class GridManagerVerifier(SyncTestCase):
             json.dump(bad_config, f)
 
         with self.assertRaises(ValueError) as ctx:
-            load_grid_manager(fp, tempdir)
+            load_grid_manager(fp)
         self.assertIn(
             "unknown version",
             str(ctx.exception),
@@ -188,9 +188,9 @@ class GridManagerVerifier(SyncTestCase):
             json.dump(bad_config, f)
 
         with self.assertRaises(ValueError) as ctx:
-            load_grid_manager(fp, tempdir)
+            load_grid_manager(fp)
         self.assertIn(
-            "requires a 'private_key'",
+            "'private_key' required",
             str(ctx.exception),
         )
 
@@ -209,7 +209,7 @@ class GridManagerVerifier(SyncTestCase):
             json.dump(bad_config, f)
 
         with self.assertRaises(ValueError) as ctx:
-            load_grid_manager(fp, tempdir)
+            load_grid_manager(fp)
         self.assertIn(
             "Invalid Grid Manager private_key",
             str(ctx.exception),
@@ -234,7 +234,7 @@ class GridManagerVerifier(SyncTestCase):
             json.dump(bad_config, f)
 
         with self.assertRaises(ValueError) as ctx:
-            load_grid_manager(fp, tempdir)
+            load_grid_manager(fp)
         self.assertIn(
             "No 'public_key' for storage server",
             str(ctx.exception),

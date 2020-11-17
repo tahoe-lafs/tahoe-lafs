@@ -54,7 +54,12 @@ def grid_manager(ctx, config):
         def grid_manager(self):
             if self._grid_manager is None:
                 config_path = _config_path_from_option(config)
-                self._grid_manager = load_grid_manager(config_path, config)
+                try:
+                    self._grid_manager = load_grid_manager(config_path)
+                except ValueError as e:
+                    raise click.ClickException(
+                        "Error loading Grid Manager from '{}': {}".format(config, e)
+                    )
             return self._grid_manager
 
     ctx.obj = Config()
