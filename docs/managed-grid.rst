@@ -3,6 +3,15 @@
 Managed Grid
 ============
 
+This document explains the "Grid Manager" concept and the
+`grid-manager` command. Someone operating a grid may choose to use a
+Grid Manager. Operators of storage-servers and clients will then be
+given additional configuration in this case.
+
+
+Overview and Motivation
+-----------------------
+
 In a grid using an Introducer, a client will use any storage-server
 the Introducer announces (and the Introducer will announce any
 storage-server that connects to it). This means that anyone with the
