@@ -94,7 +94,7 @@ def load_grid_manager(config_path, config_location):
 
     storage_servers = dict()
     for name, srv_config in config.get(u'storage_servers', {}).items():
-        if not 'public_key' in srv_config:
+        if 'public_key' not in srv_config:
             raise ValueError(
                 "No 'public_key' for storage server '{}'".format(name)
             )
@@ -130,7 +130,7 @@ class _GridManager(object):
             srv = self._storage_servers[name]
         except KeyError:
             raise KeyError(
-                u"No storage server named '{}'".format(name)
+                "No storage server named '{}'".format(name)
             )
         expiration = datetime.utcnow() + timedelta(seconds=expiry_seconds)
         epoch_offset = (expiration - datetime(1970, 1, 1)).total_seconds()
