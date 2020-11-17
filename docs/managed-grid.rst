@@ -133,8 +133,8 @@ Lists all storage-servers that have previously been added using
 grid-manager sign
 `````````````````
 
-Takes one arg: ``name``, the nickname used previously in a ``tahoe
-grid-manager add`` command.
+Takes one arg: ``name``, the nickname used previously in a
+``grid-manager add`` command.
 
 Note that this mutates the state of the grid-manager if it is on disk,
 by adding this certificate to our collection of issued
@@ -200,8 +200,9 @@ also provide a ``[grid_management_certificates]`` section in the
 config-file which lists ``name = path/to/certificate`` pairs.
 
 These certificate files are issued by the ``grid-manager sign``
-command; these should be **securely transmitted** to the storage
-server. Relative paths are based from the node directory. Example::
+command; these should be transmitted to the storage server operator
+who includes them in the config for the storage sever. Relative paths
+are based from the node directory. Example::
 
     [storage]
     grid_management = true
