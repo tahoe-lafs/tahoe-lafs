@@ -19,7 +19,6 @@ import os.path
 import re
 import types
 import errno
-import tempfile
 from base64 import b32decode, b32encode
 
 # On Python 2 this will be the backported package.
@@ -33,7 +32,6 @@ import foolscap.logging.log
 from allmydata.version_checks import get_package_versions, get_package_versions_string
 from allmydata.util import log
 from allmydata.util import fileutil, iputil
-from allmydata.util.assertutil import _assert
 from allmydata.util.fileutil import abspath_expanduser_unicode
 from allmydata.util.encodingutil import get_filesystem_encoding, quote_output
 from allmydata.util import configutil
