@@ -128,13 +128,15 @@ enabled = false
         self.failUnlessEqual(config.get("node", "descriptor"), descriptor)
 
     def test_config_validation_success(self):
-        fname = self.create_tahoe_cfg('[node]\nvalid = foo\n')
-
-        config = configutil.get_config(fname)
+        """
+        ``configutil.validate_config`` returns ``None`` when the configuration it
+        is given has nothing more than the static sections and items defined
+        by the validator.
+        """
         # should succeed, no exceptions
         configutil.validate_config(
-            fname,
-            config,
+            "<test_config_validation_success>",
+            to_configparser({"node": {"valid": "foo"}}),
             self.static_valid_config,
         )
 
@@ -144,24 +146,20 @@ enabled = false
         validation but are matched by the dynamic validation is considered
         valid.
         """
-        fname = self.create_tahoe_cfg('[node]\nvalid = foo\n')
-
-        config = configutil.get_config(fname)
         # should succeed, no exceptions
         configutil.validate_config(
-            fname,
-            config,
+            "<test_config_dynamic_validation_success>",
+            to_configparser({"node": {"valid": "foo"}}),
             self.dynamic_valid_config,
         )
 
     def test_config_validation_invalid_item(self):
-        fname = self.create_tahoe_cfg('[node]\nvalid = foo\ninvalid = foo\n')
-
-        config = configutil.get_config(fname)
+        config = to_configparser({"node": {"valid": "foo", "invalid": "foo"}})
         e = self.assertRaises(
             configutil.UnknownConfigError,
             configutil.validate_config,
-            fname, config,
+            "<test_config_validation_invalid_item>",
+            config,
             self.static_valid_config,
         )
         self.assertIn("section [node] contains unknown option 'invalid'", str(e))
@@ -171,13 +169,12 @@ enabled = false
         A configuration with a section that is matched by neither the static nor
         dynamic validators is rejected.
         """
-        fname = self.create_tahoe_cfg('[node]\nvalid = foo\n[invalid]\n')
-
-        config = configutil.get_config(fname)
+        config = to_configparser({"node": {"valid": "foo"}, "invalid": {}})
         e = self.assertRaises(
             configutil.UnknownConfigError,
             configutil.validate_config,
-            fname, config,
+            "<test_config_validation_invalid_section>",
+            config,
             self.static_valid_config,
         )
         self.assertIn("contains unknown section [invalid]", str(e))
@@ -187,13 +184,12 @@ enabled = false
         A configuration with a section that is matched by neither the static nor
         dynamic validators is rejected.
         """
-        fname = self.create_tahoe_cfg('[node]\nvalid = foo\n[invalid]\n')
-
-        config = configutil.get_config(fname)
+        config = to_configparser({"node": {"valid": "foo"}, "invalid": {}})
         e = self.assertRaises(
             configutil.UnknownConfigError,
             configutil.validate_config,
-            fname, config,
+            "<test_config_dynamic_validation_invalid_section>",
+            config,
             self.dynamic_valid_config,
         )
         self.assertIn("contains unknown section [invalid]", str(e))
@@ -203,13 +199,12 @@ enabled = false
         A configuration with a section, item pair that is matched by neither the
         static nor dynamic validators is rejected.
         """
-        fname = self.create_tahoe_cfg('[node]\nvalid = foo\ninvalid = foo\n')
-
-        config = configutil.get_config(fname)
+        config = to_configparser({"node": {"valid": "foo", "invalid": "foo"}})
         e = self.assertRaises(
             configutil.UnknownConfigError,
             configutil.validate_config,
-            fname, config,
+            "<test_config_dynamic_validation_invalid_item>",
+            config,
             self.dynamic_valid_config,
         )
         self.assertIn("section [node] contains unknown option 'invalid'", str(e))
