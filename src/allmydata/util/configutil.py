@@ -173,6 +173,23 @@ class ValidConfiguration(object):
         )
 
 
+def copy_config(old):
+    """
+    Return a brand new ``ConfigParser`` containing the same values as
+    the given object.
+
+    :param ConfigParser old: The configuration to copy.
+
+    :return ConfigParser: The new object containing the same configuration.
+    """
+    new = ConfigParser()
+    for section_name in old.sections():
+        new.add_section(section_name)
+        for k, v in old.items(section_name):
+            new.set(section_name, k, v.replace("%", "%%"))
+    return new
+
+
 def _either(f, g):
     """
     :return: A function which returns True if either f or g returns True.

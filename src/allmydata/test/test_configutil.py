@@ -280,3 +280,16 @@ enabled = false
             ),
             None,
         )
+
+    @given(arbitrary_config_dicts())
+    def test_copy_config(self, cfgdict):
+        """
+        ``copy_config`` creates a new ``ConfigParser`` object containing the same
+        values as its input.
+        """
+        cfg = to_configparser(cfgdict)
+        copied = configutil.copy_config(cfg)
+        # Should be equal
+        self.assertEqual(cfg, copied)
+        # But not because they're the same object.
+        self.assertIsNot(cfg, copied)
