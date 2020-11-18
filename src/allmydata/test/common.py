@@ -1151,8 +1151,9 @@ class _TestCaseMixin(object):
       test (including setUp and tearDown messages).
     * trial-compatible mktemp method
     * unittest2-compatible assertRaises helper
-    * Automatic cleanup of tempfile.tempdir mutation (pervasive through the
-      Tahoe-LAFS test suite).
+    * Automatic cleanup of tempfile.tempdir mutation (once pervasive through
+      the Tahoe-LAFS test suite, perhaps gone now but someone should verify
+      this).
     """
     def setUp(self):
         # Restore the original temporary directory.  Node ``init_tempdir``
