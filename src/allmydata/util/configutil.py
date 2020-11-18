@@ -20,6 +20,10 @@ from configparser import ConfigParser
 
 import attr
 
+from twisted.python.runtime import (
+    platform,
+)
+
 
 class UnknownConfigError(Exception):
     """
@@ -73,6 +77,10 @@ def write_config(tahoe_cfg, config):
     # with ConfigParser.write.
     with open(tmp.path, "wt") as fp:
         config.write(fp)
+    # Windows doesn't have atomic overwrite semantics for moveTo.  Thus we end
+    # up slightly less than atomic.
+    if platform.isWindows():
+        tahoe_cfg.remove()
     tmp.moveTo(tahoe_cfg)
 
 def validate_config(fname, cfg, valid_config):
