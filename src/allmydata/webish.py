@@ -150,7 +150,7 @@ def _logFormatter(logDateTime, request):
     )
 
 
-class TahoeLAFSSite(Site):
+class TahoeLAFSSite(Site, object):
     """
     The HTTP protocol factory used by Tahoe-LAFS.
 
