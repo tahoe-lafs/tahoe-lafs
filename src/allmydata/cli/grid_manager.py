@@ -152,23 +152,16 @@ def list(ctx):
     """
     List all storage-servers known to a Grid Manager
     """
-    fp = _config_path_from_option(ctx.parent.params["config"])
     for name in sorted(ctx.obj.grid_manager.storage_servers.keys()):
         blank_name = " " * len(name)
-        click.echo("{}: {}".format(name, ctx.obj.grid_manager.storage_servers[name].public_key()))
-        if fp:
-            cert_count = 0
-            while fp.child('{}.cert.{}'.format(name, cert_count)).exists():
-                container = json.load(fp.child('{}.cert.{}'.format(name, cert_count)).open('r'))
-                cert_data = json.loads(container['certificate'])
-                expires = datetime.utcfromtimestamp(cert_data['expires'])
-                delta = datetime.utcnow() - expires
-                click.echo("{}  cert {}: ".format(blank_name, cert_count), nl=False)
-                if delta.total_seconds() < 0:
-                    click.echo("valid until {} ({})".format(expires, abbreviate_time(delta)))
-                else:
-                    click.echo("expired {} ({})".format(expires, abbreviate_time(delta)))
-                cert_count += 1
+        click.echo("{}: {}".format(name, ctx.obj.grid_manager.storage_servers[name].public_key_string()))
+        for cert in ctx.obj.grid_manager.storage_servers[name].certificates:
+            delta = datetime.utcnow() - cert.expires
+            click.echo("{}  cert {}: ".format(blank_name, cert.index), nl=False)
+            if delta.total_seconds() < 0:
+                click.echo("valid until {} ({})".format(cert.expires, abbreviate_time(delta)))
+            else:
+                click.echo("expired {} ({})".format(cert.expires, abbreviate_time(delta)))
 
 
 @grid_manager.command()
@@ -196,15 +189,20 @@ def sign(ctx, name, expiry_days):
     click.echo(certificate_data)
     if fp is not None:
         next_serial = 0
-        while fp.child("{}.cert.{}".format(name, next_serial)).exists():
+        f = None
+        while f is None:
+            try:
+                f = fp.child("{}.cert.{}".format(name, next_serial)).create()
+            except Exception:
+                f = None
             next_serial += 1
-        with fp.child('{}.cert.{}'.format(name, next_serial)).open('w') as f:
+        with f:
             f.write(certificate_data)
 
 
 def _config_path_from_option(config):
     """
-    :param string config: a path or -
+    :param str config: a path or -
     :returns: a FilePath instance or None
     """
     if config == "-":

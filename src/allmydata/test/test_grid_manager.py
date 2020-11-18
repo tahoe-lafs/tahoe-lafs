@@ -151,7 +151,7 @@ class GridManagerVerifier(SyncTestCase):
         for name, ss0 in self.gm.storage_servers.items():
             ss1 = gm2.storage_servers[name]
             self.assertEqual(ss0.name, ss1.name)
-            self.assertEqual(ss0.public_key(), ss1.public_key())
+            self.assertEqual(ss0.public_key_string(), ss1.public_key_string())
         self.assertEqual(self.gm.marshal(), gm2.marshal())
 
     def test_invalid_no_version(self):

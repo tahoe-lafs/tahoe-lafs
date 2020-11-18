@@ -1,3 +1,4 @@
+
 import sys
 import json
 from datetime import (
@@ -13,27 +14,44 @@ from allmydata.util import (
     base32,
 )
 
+import attr
 
+
+@attr.s
 class _GridManagerStorageServer(object):
     """
     A Grid Manager's notion of a storage server
     """
 
-    def __init__(self, name, public_key, certificates):
-        self.name = name
-        self._public_key = public_key
-        self._certificates = [] if certificates is None else certificates
+    name = attr.ib()
+    public_key = attr.ib(validator=attr.validators.instance_of(ed25519.Ed25519PublicKey))
+    certificates = attr.ib(
+        default=attr.Factory(list),
+        validator=attr.validators.instance_of(list),
+    )
 
     def add_certificate(self, certificate):
-        self._certificates.append(certificate)
+        self.certificates.append(certificate)
 
-    def public_key(self):
-        return ed25519.string_from_verifying_key(self._public_key)
+    def public_key_string(self):
+        return ed25519.string_from_verifying_key(self.public_key)
 
     def marshal(self):
         return {
-            u"public_key": self.public_key(),
+            u"public_key": self.public_key_string(),
         }
+
+
+@attr.s
+class _GridManagerCertificate(object):
+    """
+    Represents a single certificate for a single storage-server
+    """
+
+    filename = attr.ib()
+    index = attr.ib(validator=attr.validators.instance_of(int))
+    expires = attr.ib(validator=attr.validators.instance_of(datetime))
+    public_key = attr.ib(validator=attr.validators.instance_of(ed25519.Ed25519PublicKey))
 
 
 def create_grid_manager():
@@ -47,6 +65,52 @@ def create_grid_manager():
     )
 
 
+def _load_certificates_for(config_path, name, gm_key=None):
+    """
+    Load any existing certificates for the given storage-server.
+
+    :param FilePath config_path: the configuration location (or None for
+        stdin)
+
+    :param str name: the name of an existing storage-server
+
+    :param ed25519.VerifyingKey gm_key: an optional Grid Manager
+        public key. If provided, certificates will be verified against it.
+
+    :returns: list containing any known certificates (may be empty)
+
+    :raises: ed25519.BadSignature if any certificate signature fails to verify
+    """
+    if config_path is None:
+        return []
+    cert_index = 0
+    cert_path = config_path.child('{}.cert.{}'.format(name, cert_index))
+    certificates = []
+    while cert_path.exists():
+        container = json.load(cert_path.open('r'))
+        if gm_key is not None:
+            validate_grid_manager_certificate(gm_key, container)
+        cert_data = json.loads(container['certificate'])
+        if cert_data['version'] != 1:
+            raise ValueError(
+                "Unknown certificate version '{}' in '{}'".format(
+                    cert_data['version'],
+                    cert_path.path,
+                )
+            )
+        certificates.append(
+            _GridManagerCertificate(
+                filename=cert_path.path,
+                index=cert_index,
+                expires=datetime.utcfromtimestamp(cert_data['expires']),
+                public_key=ed25519.verifying_key_from_string(cert_data['public_key'].encode('ascii')),
+            )
+        )
+        cert_index += 1
+        cert_path = config_path.child('{}.cert.{}'.format(name, cert_index))
+    return certificates
+
+
 def load_grid_manager(config_path):
     """
     Load a Grid Manager from existing configuration.
@@ -56,17 +120,15 @@ def load_grid_manager(config_path):
 
     :returns: a GridManager instance
 
-    :raises: ValueError if the confguration is invalid
+    :raises: ValueError if the confguration is invalid or IOError if
+        expected files can't be opened.
     """
     if config_path is None:
         config_file = sys.stdin
     else:
-        try:
-            config_file = config_path.child("config.json").open("r")
-        except IOError:
-            raise ValueError(
-                "'{}' is not a Grid Manager config-directory".format(config_path)
-            )
+        # this might raise IOError or similar but caller must handle it
+        config_file = config_path.child("config.json").open("r")
+
     with config_file:
         config = json.load(config_file)
 
@@ -99,7 +161,7 @@ def load_grid_manager(config_path):
         storage_servers[name] = _GridManagerStorageServer(
             name,
             ed25519.verifying_key_from_string(srv_config['public_key'].encode('ascii')),
-            None,
+            _load_certificates_for(config_path, name, public_key),
         )
 
     return _GridManager(private_key_bytes, storage_servers)
@@ -134,7 +196,7 @@ class _GridManager(object):
         epoch_offset = (expiration - datetime(1970, 1, 1)).total_seconds()
         cert_info = {
             "expires": epoch_offset,
-            "public_key": srv.public_key(),
+            "public_key": srv.public_key_string(),
             "version": 1,
         }
         cert_data = json.dumps(cert_info, separators=(',',':'), sort_keys=True).encode('utf8')
@@ -161,7 +223,7 @@ class _GridManager(object):
             raise KeyError(
                 "Already have a storage server called '{}'".format(name)
             )
-        ss = _GridManagerStorageServer(name, public_key, None)
+        ss = _GridManagerStorageServer(name, public_key, [])
         self._storage_servers[name] = ss
         return ss
 
