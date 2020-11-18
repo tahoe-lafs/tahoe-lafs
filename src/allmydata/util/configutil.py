@@ -115,9 +115,33 @@ class ValidConfiguration(object):
         an item name as bytes and returns True if that section, item pair is
         valid, False otherwise.
     """
-    _static_valid_sections = attr.ib()
+    _static_valid_sections = attr.ib(
+        validator=attr.validators.instance_of(dict)
+    )
     _is_valid_section = attr.ib(default=lambda section_name: False)
     _is_valid_item = attr.ib(default=lambda section_name, item_name: False)
+
+    @classmethod
+    def everything(cls):
+        """
+        Create a validator which considers everything valid.
+        """
+        return cls(
+            {},
+            lambda section_name: True,
+            lambda section_name, item_name: True,
+        )
+
+    @classmethod
+    def nothing(cls):
+        """
+        Create a validator which considers nothing valid.
+        """
+        return cls(
+            {},
+            lambda section_name: False,
+            lambda section_name, item_name: False,
+        )
 
     def is_valid_section(self, section_name):
         """
