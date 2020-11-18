@@ -17,6 +17,9 @@ import os.path
 from configparser import (
     ConfigParser,
 )
+from functools import (
+    partial,
+)
 
 from hypothesis import (
     given,
@@ -24,6 +27,7 @@ from hypothesis import (
 from hypothesis.strategies import (
     dictionaries,
     text,
+    characters,
 )
 
 from twisted.python.filepath import (
@@ -37,6 +41,7 @@ from allmydata.util import configutil
 def arbitrary_config_dicts(
         min_sections=0,
         max_sections=3,
+        max_section_name_size=8,
         max_items_per_section=3,
         max_item_length=8,
         max_value_length=8,
@@ -45,10 +50,23 @@ def arbitrary_config_dicts(
     Build ``dict[str, dict[str, str]]`` instances populated with arbitrary
     configurations.
     """
+    identifier_text = partial(
+        text,
+        # Don't allow most control characters or spaces
+        alphabet=characters(
+            blacklist_categories=('Cc', 'Cs', 'Zs'),
+        ),
+    )
     return dictionaries(
-        text(),
+        identifier_text(
+            min_size=1,
+            max_size=max_section_name_size,
+        ),
         dictionaries(
-            text(max_size=max_item_length),
+            identifier_text(
+                min_size=1,
+                max_size=max_item_length,
+            ),
             text(max_size=max_value_length),
             max_size=max_items_per_section,
         ),
