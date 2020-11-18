@@ -59,8 +59,21 @@ def set_config(config, section, option, value):
     assert config.get(section, option) == value
 
 def write_config(tahoe_cfg, config):
-    with open(tahoe_cfg, "w") as f:
-        config.write(f)
+    """
+    Write a configuration to a file.
+
+    :param FilePath tahoe_cfg: The path to which to write the config.
+
+    :param ConfigParser config: The configuration to write.
+
+    :return: ``None``
+    """
+    tmp = tahoe_cfg.temporarySibling()
+    # FilePath.open can only open files in binary mode which does not work
+    # with ConfigParser.write.
+    with open(tmp.path, "wt") as fp:
+        config.write(fp)
+    tmp.moveTo(tahoe_cfg)
 
 def validate_config(fname, cfg, valid_config):
     """
