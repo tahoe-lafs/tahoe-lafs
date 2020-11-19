@@ -1,4 +1,5 @@
 from past.builtins import unicode, long
+from six import ensure_text
 
 import time
 from zope.interface import implementer
@@ -114,9 +115,11 @@ class IntroducerClient(service.Service, Referenceable):
         announcements = []
         for _, value in self._inbound_announcements.items():
             ann, key_s, time_stamp = value
+            # On Python 2, bytes are stored as Unicode. To minimize changes, Python
+            # 3 for now ensures the same is true.
             server_params = {
                 "ann" : ann,
-                "key_s" : key_s,
+                "key_s" : ensure_text(key_s),
                 }
             announcements.append(server_params)
         announcement_cache_yaml = yamlutil.safe_dump(announcements)

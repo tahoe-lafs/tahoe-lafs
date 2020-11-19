@@ -817,7 +817,7 @@ class Announcements(AsyncTestCase):
         # check the cache for the announcement
         announcements = self._load_cache(cache_filepath)
         self.failUnlessEqual(len(announcements), 1)
-        self.failUnlessEqual(announcements[0]['key_s'], public_key_str)
+        self.failUnlessEqual(ensure_binary(announcements[0]['key_s']), public_key_str)
         ann = announcements[0]["ann"]
         self.failUnlessEqual(ensure_binary(ann["anonymous-storage-FURL"]), furl1)
         self.failUnlessEqual(ann["seqnum"], 1)
@@ -830,7 +830,7 @@ class Announcements(AsyncTestCase):
         yield flushEventualQueue()
         announcements = self._load_cache(cache_filepath)
         self.failUnlessEqual(len(announcements), 1)
-        self.failUnlessEqual(announcements[0]['key_s'], public_key_str)
+        self.failUnlessEqual(ensure_binary(announcements[0]['key_s']), public_key_str)
         ann = announcements[0]["ann"]
         self.failUnlessEqual(ensure_binary(ann["anonymous-storage-FURL"]), furl2)
         self.failUnlessEqual(ann["seqnum"], 2)
@@ -847,7 +847,7 @@ class Announcements(AsyncTestCase):
         announcements = self._load_cache(cache_filepath)
         self.failUnlessEqual(len(announcements), 2)
         self.failUnlessEqual(set([public_key_str, public_key_str2]),
-                             set([a["key_s"] for a in announcements]))
+                             set([ensure_binary(a["key_s"]) for a in announcements]))
         self.failUnlessEqual(set([furl2, furl3]),
                              set([ensure_binary(a["ann"]["anonymous-storage-FURL"])
                                   for a in announcements]))
