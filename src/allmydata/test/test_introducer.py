@@ -1,3 +1,4 @@
+from six import ensure_binary, ensure_text
 
 import os, re, itertools
 from base64 import b32decode
@@ -200,9 +201,9 @@ class Client(AsyncTestCase):
         def _received(key_s, ann):
             announcements.append( (key_s, ann) )
         ic1.subscribe_to("storage", _received)
-        furl1 = "pb://62ubehyunnyhzs7r6vdonnm2hpi52w6y@127.0.0.1:36106/gydnp"
-        furl1a = "pb://62ubehyunnyhzs7r6vdonnm2hpi52w6y@127.0.0.1:7777/gydnp"
-        furl2 = "pb://ttwwooyunnyhzs7r6vdonnm2hpi52w6y@127.0.0.1:36106/ttwwoo"
+        furl1 = b"pb://62ubehyunnyhzs7r6vdonnm2hpi52w6y@127.0.0.1:36106/gydnp"
+        furl1a = b"pb://62ubehyunnyhzs7r6vdonnm2hpi52w6y@127.0.0.1:7777/gydnp"
+        furl2 = b"pb://ttwwooyunnyhzs7r6vdonnm2hpi52w6y@127.0.0.1:36106/ttwwoo"
 
         private_key, public_key = ed25519.create_signing_keypair()
         public_key_str = ed25519.string_from_verifying_key(public_key)
@@ -300,7 +301,7 @@ class Server(AsyncTestCase):
                                "introducer.furl", u"my_nickname",
                                "ver23", "oldest_version", {}, realseq,
                                FilePath(self.mktemp()))
-        furl1 = "pb://62ubehyunnyhzs7r6vdonnm2hpi52w6y@127.0.0.1:36106/gydnp"
+        furl1 = b"pb://62ubehyunnyhzs7r6vdonnm2hpi52w6y@127.0.0.1:36106/gydnp"
 
         private_key, _ = ed25519.create_signing_keypair()
 
@@ -398,7 +399,7 @@ class Queue(SystemTestMixin, AsyncTestCase):
         c = IntroducerClient(tub2, ifurl,
                              u"nickname", "version", "oldest", {}, fakeseq,
                              FilePath(self.mktemp()))
-        furl1 = "pb://onug64tu@127.0.0.1:123/short" # base32("short")
+        furl1 = b"pb://onug64tu@127.0.0.1:123/short" # base32("short")
         private_key, _ = ed25519.create_signing_keypair()
 
         d = introducer.disownServiceParent()
@@ -741,7 +742,7 @@ class ClientInfo(AsyncTestCase):
         client_v2 = IntroducerClient(tub, introducer_furl, NICKNAME % u"v2",
                                      "my_version", "oldest", app_versions,
                                      fakeseq, FilePath(self.mktemp()))
-        #furl1 = "pb://62ubehyunnyhzs7r6vdonnm2hpi52w6y@127.0.0.1:0/swissnum"
+        #furl1 = b"pb://62ubehyunnyhzs7r6vdonnm2hpi52w6y@127.0.0.1:0/swissnum"
         #ann_s = make_ann_t(client_v2, furl1, None, 10)
         #introducer.remote_publish_v2(ann_s, Referenceable())
         subscriber = FakeRemoteReference()
@@ -764,7 +765,7 @@ class Announcements(AsyncTestCase):
         client_v2 = IntroducerClient(tub, introducer_furl, u"nick-v2",
                                      "my_version", "oldest", app_versions,
                                      fakeseq, FilePath(self.mktemp()))
-        furl1 = "pb://62ubehyunnyhzs7r6vdonnm2hpi52w6y@127.0.0.1:0/swissnum"
+        furl1 = b"pb://62ubehyunnyhzs7r6vdonnm2hpi52w6y@127.0.0.1:0/swissnum"
 
         private_key, public_key = ed25519.create_signing_keypair()
         public_key_str = remove_prefix(ed25519.string_from_verifying_key(public_key), "pub-")
@@ -806,8 +807,8 @@ class Announcements(AsyncTestCase):
         c = yield create_client(basedir)
         ic = c.introducer_clients[0]
         private_key, public_key = ed25519.create_signing_keypair()
-        public_key_str = remove_prefix(ed25519.string_from_verifying_key(public_key), "pub-")
-        furl1 = "pb://onug64tu@127.0.0.1:123/short" # base32("short")
+        public_key_str = remove_prefix(ed25519.string_from_verifying_key(public_key), b"pub-")
+        furl1 = b"pb://onug64tu@127.0.0.1:123/short" # base32("short")
         ann_t = make_ann_t(ic, furl1, private_key, 1)
 
         ic.got_announcements([ann_t])
@@ -818,12 +819,12 @@ class Announcements(AsyncTestCase):
         self.failUnlessEqual(len(announcements), 1)
         self.failUnlessEqual(announcements[0]['key_s'], public_key_str)
         ann = announcements[0]["ann"]
-        self.failUnlessEqual(ann["anonymous-storage-FURL"], furl1)
+        self.failUnlessEqual(ensure_binary(ann["anonymous-storage-FURL"]), furl1)
         self.failUnlessEqual(ann["seqnum"], 1)
 
         # a new announcement that replaces the first should replace the
         # cached entry, not duplicate it
-        furl2 = furl1 + "er"
+        furl2 = furl1 + b"er"
         ann_t2 = make_ann_t(ic, furl2, private_key, 2)
         ic.got_announcements([ann_t2])
         yield flushEventualQueue()
@@ -831,14 +832,14 @@ class Announcements(AsyncTestCase):
         self.failUnlessEqual(len(announcements), 1)
         self.failUnlessEqual(announcements[0]['key_s'], public_key_str)
         ann = announcements[0]["ann"]
-        self.failUnlessEqual(ann["anonymous-storage-FURL"], furl2)
+        self.failUnlessEqual(ensure_binary(ann["anonymous-storage-FURL"]), furl2)
         self.failUnlessEqual(ann["seqnum"], 2)
 
         # but a third announcement with a different key should add to the
         # cache
         private_key2, public_key2 = ed25519.create_signing_keypair()
-        public_key_str2 = remove_prefix(ed25519.string_from_verifying_key(public_key2), "pub-")
-        furl3 = "pb://onug64tu@127.0.0.1:456/short"
+        public_key_str2 = remove_prefix(ed25519.string_from_verifying_key(public_key2), b"pub-")
+        furl3 = b"pb://onug64tu@127.0.0.1:456/short"
         ann_t3 = make_ann_t(ic, furl3, private_key2, 1)
         ic.got_announcements([ann_t3])
         yield flushEventualQueue()
@@ -848,7 +849,7 @@ class Announcements(AsyncTestCase):
         self.failUnlessEqual(set([public_key_str, public_key_str2]),
                              set([a["key_s"] for a in announcements]))
         self.failUnlessEqual(set([furl2, furl3]),
-                             set([a["ann"]["anonymous-storage-FURL"]
+                             set([ensure_binary(a["ann"]["anonymous-storage-FURL"])
                                   for a in announcements]))
 
         # test loading
@@ -864,9 +865,9 @@ class Announcements(AsyncTestCase):
         yield flushEventualQueue()
 
         self.failUnless(public_key_str in announcements)
-        self.failUnlessEqual(announcements[public_key_str]["anonymous-storage-FURL"],
+        self.failUnlessEqual(ensure_binary(announcements[public_key_str]["anonymous-storage-FURL"]),
                              furl2)
-        self.failUnlessEqual(announcements[public_key_str2]["anonymous-storage-FURL"],
+        self.failUnlessEqual(ensure_binary(announcements[public_key_str2]["anonymous-storage-FURL"]),
                              furl3)
 
         c2 = yield create_client(basedir)
@@ -979,7 +980,7 @@ class DecodeFurl(SyncTestCase):
     def test_decode(self):
         # make sure we have a working base64.b32decode. The one in
         # python2.4.[01] was broken.
-        furl = 'pb://t5g7egomnnktbpydbuijt6zgtmw4oqi5@127.0.0.1:51857/hfzv36i'
+        furl = b'pb://t5g7egomnnktbpydbuijt6zgtmw4oqi5@127.0.0.1:51857/hfzv36i'
         m = re.match(r'pb://(\w+)@', furl)
         assert m
         nodeid = b32decode(m.group(1).upper())
