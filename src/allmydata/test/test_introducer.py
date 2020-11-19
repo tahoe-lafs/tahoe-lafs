@@ -1,3 +1,4 @@
+from past.builtins import unicode
 from six import ensure_binary, ensure_text
 
 import os, re, itertools
@@ -908,7 +909,9 @@ class ClientSeqnums(AsyncBrokenTestCase):
         self.failUnless("sA" in outbound)
         self.failUnlessEqual(outbound["sA"]["seqnum"], 1)
         nonce1 = outbound["sA"]["nonce"]
-        self.failUnless(isinstance(nonce1, str))
+        self.failUnless(isinstance(nonce1, bytes))
+        # Make nonce unicode, to match JSON:
+        outbound["sA"]["nonce"] = unicode(nonce1, "utf-8")
         self.failUnlessEqual(json.loads(published["sA"][0]),
                              outbound["sA"])
         # [1] is the signature, [2] is the pubkey
@@ -922,8 +925,11 @@ class ClientSeqnums(AsyncBrokenTestCase):
         self.failUnless("sA" in outbound)
         self.failUnlessEqual(outbound["sA"]["seqnum"], 2)
         nonce2 = outbound["sA"]["nonce"]
-        self.failUnless(isinstance(nonce2, str))
+        self.failUnless(isinstance(nonce2, bytes))
         self.failIfEqual(nonce1, nonce2)
+        # Make nonce unicode, to match JSON:
+        outbound["sA"]["nonce"] = unicode(nonce2, "utf-8")
+        outbound["sB"]["nonce"] = unicode(outbound["sB"]["nonce"], "utf-8")
         self.failUnlessEqual(json.loads(published["sA"][0]),
                              outbound["sA"])
         self.failUnlessEqual(json.loads(published["sB"][0]),
