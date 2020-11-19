@@ -247,6 +247,12 @@ class TahoeLAFSSiteTests(SyncTestCase):
         tempdir.chmod(0o550)
         with self.assertRaises(OSError) as ctx:
             request.gotLength(request_body_size)
+            raise Exception(
+                "OSError not raised, instead tempdir.children() = {}".format(
+                    tempdir.children(),
+                ),
+            )
+
         self.assertThat(
             ctx.exception.errno,
             Equals(EACCES),
