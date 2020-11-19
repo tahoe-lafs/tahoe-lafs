@@ -244,7 +244,7 @@ class TahoeLAFSSiteTests(SyncTestCase):
         # Another approach is to make the temp directory unwriteable and
         # observe the failure when an attempt is made to create a file there.
         # This is hardly a lovely solution but at least it's kind of simple.
-        tempdir.chmod(0o550)
+        tempdir.chmod(0o400)
         with self.assertRaises(OSError) as ctx:
             request.gotLength(request_body_size)
             raise Exception(
