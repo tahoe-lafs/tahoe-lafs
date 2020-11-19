@@ -207,7 +207,7 @@ class Client(AsyncTestCase):
 
         private_key, public_key = ed25519.create_signing_keypair()
         public_key_str = ed25519.string_from_verifying_key(public_key)
-        pubkey_s = remove_prefix(public_key_str, "pub-")
+        pubkey_s = remove_prefix(public_key_str, b"pub-")
 
         # ann1: ic1, furl1
         # ann1a: ic1, furl1a (same SturdyRef, different connection hints)
@@ -227,7 +227,7 @@ class Client(AsyncTestCase):
             self.failUnlessEqual(len(announcements), 1)
             key_s,ann = announcements[0]
             self.failUnlessEqual(key_s, pubkey_s)
-            self.failUnlessEqual(ann["anonymous-storage-FURL"], furl1)
+            self.failUnlessEqual(ensure_binary(ann["anonymous-storage-FURL"]), furl1)
             self.failUnlessEqual(ann["my-version"], "ver23")
         d.addCallback(_then1)
 
@@ -261,7 +261,7 @@ class Client(AsyncTestCase):
             self.failUnlessEqual(len(announcements), 2)
             key_s,ann = announcements[-1]
             self.failUnlessEqual(key_s, pubkey_s)
-            self.failUnlessEqual(ann["anonymous-storage-FURL"], furl1)
+            self.failUnlessEqual(ensure_binary(ann["anonymous-storage-FURL"]), furl1)
             self.failUnlessEqual(ann["my-version"], "ver24")
         d.addCallback(_then3)
 
@@ -273,7 +273,7 @@ class Client(AsyncTestCase):
             self.failUnlessEqual(len(announcements), 3)
             key_s,ann = announcements[-1]
             self.failUnlessEqual(key_s, pubkey_s)
-            self.failUnlessEqual(ann["anonymous-storage-FURL"], furl1a)
+            self.failUnlessEqual(ensure_binary(ann["anonymous-storage-FURL"]), furl1a)
             self.failUnlessEqual(ann["my-version"], "ver23")
         d.addCallback(_then4)
 
@@ -289,7 +289,7 @@ class Client(AsyncTestCase):
             self.failUnlessEqual(len(announcements2), 1)
             key_s,ann = announcements2[-1]
             self.failUnlessEqual(key_s, pubkey_s)
-            self.failUnlessEqual(ann["anonymous-storage-FURL"], furl1a)
+            self.failUnlessEqual(ensure_binary(ann["anonymous-storage-FURL"]), furl1a)
             self.failUnlessEqual(ann["my-version"], "ver23")
         d.addCallback(_then5)
         return d
@@ -768,7 +768,7 @@ class Announcements(AsyncTestCase):
         furl1 = b"pb://62ubehyunnyhzs7r6vdonnm2hpi52w6y@127.0.0.1:0/swissnum"
 
         private_key, public_key = ed25519.create_signing_keypair()
-        public_key_str = remove_prefix(ed25519.string_from_verifying_key(public_key), "pub-")
+        public_key_str = remove_prefix(ed25519.string_from_verifying_key(public_key), b"pub-")
 
         ann_t0 = make_ann_t(client_v2, furl1, private_key, 10)
         canary0 = Referenceable()
@@ -781,7 +781,7 @@ class Announcements(AsyncTestCase):
         self.failUnlessEqual(a[0].nickname, u"nick-v2")
         self.failUnlessEqual(a[0].service_name, "storage")
         self.failUnlessEqual(a[0].version, "my_version")
-        self.failUnlessEqual(a[0].announcement["anonymous-storage-FURL"], furl1)
+        self.failUnlessEqual(ensure_binary(a[0].announcement["anonymous-storage-FURL"]), furl1)
 
     def _load_cache(self, cache_filepath):
         with cache_filepath.open() as f:
