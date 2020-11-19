@@ -18,7 +18,7 @@ from allmydata.util.assertutil import precondition
 class InvalidCacheError(Exception):
     pass
 
-V2 = "http://allmydata.org/tahoe/protocols/introducer/v2"
+V2 = b"http://allmydata.org/tahoe/protocols/introducer/v2"
 
 @implementer(RIIntroducerSubscriberClient_v2, IIntroducerClient)
 class IntroducerClient(service.Service, Referenceable):
@@ -28,6 +28,7 @@ class IntroducerClient(service.Service, Referenceable):
                  app_versions, sequencer, cache_filepath):
         self._tub = tub
         self.introducer_furl = introducer_furl
+        assert isinstance(introducer_furl, (bytes, type(None)))
 
         assert type(nickname) is unicode
         self._nickname = nickname
@@ -37,11 +38,11 @@ class IntroducerClient(service.Service, Referenceable):
         self._sequencer = sequencer
         self._cache_filepath = cache_filepath
 
-        self._my_subscriber_info = { "version": 0,
-                                     "nickname": self._nickname,
-                                     "app-versions": self._app_versions,
-                                     "my-version": self._my_version,
-                                     "oldest-supported": self._oldest_supported,
+        self._my_subscriber_info = { b"version": 0,
+                                     b"nickname": self._nickname,
+                                     b"app-versions": self._app_versions,
+                                     b"my-version": self._my_version,
+                                     b"oldest-supported": self._oldest_supported,
                                      }
 
         self._outbound_announcements = {} # not signed
@@ -129,9 +130,9 @@ class IntroducerClient(service.Service, Referenceable):
 
     def _got_introducer(self, publisher):
         self.log("connected to introducer, getting versions")
-        default = { "http://allmydata.org/tahoe/protocols/introducer/v1":
+        default = { b"http://allmydata.org/tahoe/protocols/introducer/v1":
                     { },
-                    "application-version": "unknown: no get_version()",
+                    b"application-version": b"unknown: no get_version()",
                     }
         d = add_version_to_remote_reference(publisher, default)
         d.addCallback(self._got_versioned_introducer)
@@ -144,6 +145,7 @@ class IntroducerClient(service.Service, Referenceable):
     def _got_versioned_introducer(self, publisher):
         self.log("got introducer version: %s" % (publisher.version,))
         # we require an introducer that speaks at least V2
+        assert all(type(V2) == type(v) for v in publisher.version)
         if V2 not in publisher.version:
             raise InsufficientVersionError("V2", publisher.version)
         self._publisher = publisher

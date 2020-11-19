@@ -102,7 +102,7 @@ class Node(testutil.SignalMixin, testutil.ReallyEqualMixin, AsyncTestCase):
         q1 = yield create_introducer(basedir)
         del q1
         # new nodes create unguessable furls in private/introducer.furl
-        ifurl = fileutil.read(private_fn)
+        ifurl = fileutil.read(private_fn, mode="r")
         self.failUnless(ifurl)
         ifurl = ifurl.strip()
         self.failIf(ifurl.endswith("/introducer"), ifurl)
@@ -122,7 +122,7 @@ class Node(testutil.SignalMixin, testutil.ReallyEqualMixin, AsyncTestCase):
         q2 = yield create_introducer(basedir)
         del q2
         self.failIf(os.path.exists(public_fn))
-        ifurl2 = fileutil.read(private_fn)
+        ifurl2 = fileutil.read(private_fn, mode="r")
         self.failUnless(ifurl2)
         self.failUnlessEqual(ifurl2.strip(), guessable)
 
@@ -422,7 +422,7 @@ class Queue(SystemTestMixin, AsyncTestCase):
         def _done(ign):
             v = introducer.get_announcements()[0]
             furl = v.announcement["anonymous-storage-FURL"]
-            self.failUnlessEqual(furl, furl1)
+            self.failUnlessEqual(ensure_binary(furl), furl1)
         d.addCallback(_done)
 
         # now let the ack get back
@@ -448,7 +448,7 @@ class SystemTest(SystemTestMixin, AsyncTestCase):
         iff = os.path.join(self.basedir, "introducer.furl")
         tub = self.central_tub
         ifurl = self.central_tub.registerReference(introducer, furlFile=iff)
-        self.introducer_furl = ifurl
+        self.introducer_furl = ifurl.encode("utf-8")
 
         # we have 5 clients who publish themselves as storage servers, and a
         # sixth which does which not. All 6 clients subscriber to hear about
@@ -489,7 +489,7 @@ class SystemTest(SystemTestMixin, AsyncTestCase):
             subscribing_clients.append(c)
             expected_announcements[i] += 1 # all expect a 'storage' announcement
 
-            node_furl = tub.registerReference(Referenceable())
+            node_furl = tub.registerReference(Referenceable()).encode("utf-8")
             private_key, public_key = ed25519.create_signing_keypair()
             public_key_str = ed25519.string_from_verifying_key(public_key)
             privkeys[i] = private_key
@@ -506,7 +506,7 @@ class SystemTest(SystemTestMixin, AsyncTestCase):
 
             if i == 2:
                 # also publish something that nobody cares about
-                boring_furl = tub.registerReference(Referenceable())
+                boring_furl = tub.registerReference(Referenceable()).encode("utf-8")
                 c.publish("boring", make_ann(boring_furl), private_key)
 
             c.setServiceParent(self.parent)
@@ -987,10 +987,10 @@ class DecodeFurl(SyncTestCase):
         # make sure we have a working base64.b32decode. The one in
         # python2.4.[01] was broken.
         furl = b'pb://t5g7egomnnktbpydbuijt6zgtmw4oqi5@127.0.0.1:51857/hfzv36i'
-        m = re.match(r'pb://(\w+)@', furl)
+        m = re.match(br'pb://(\w+)@', furl)
         assert m
         nodeid = b32decode(m.group(1).upper())
-        self.failUnlessEqual(nodeid, "\x9fM\xf2\x19\xcckU0\xbf\x03\r\x10\x99\xfb&\x9b-\xc7A\x1d")
+        self.failUnlessEqual(nodeid, b"\x9fM\xf2\x19\xcckU0\xbf\x03\r\x10\x99\xfb&\x9b-\xc7A\x1d")
 
 class Signatures(SyncTestCase):
 
@@ -1002,11 +1002,11 @@ class Signatures(SyncTestCase):
         (msg, sig, key) = ann_t
         self.failUnlessEqual(type(msg), type("".encode("utf-8"))) # bytes
         self.failUnlessEqual(json.loads(msg.decode("utf-8")), ann)
-        self.failUnless(sig.startswith("v0-"))
-        self.failUnless(key.startswith("v0-"))
+        self.failUnless(sig.startswith(b"v0-"))
+        self.failUnless(key.startswith(b"v0-"))
         (ann2,key2) = unsign_from_foolscap(ann_t)
         self.failUnlessEqual(ann2, ann)
-        self.failUnlessEqual("pub-" + key2, public_key_str)
+        self.failUnlessEqual(b"pub-" + key2, public_key_str)
 
         # not signed
         self.failUnlessRaises(UnknownKeyError,
@@ -1021,16 +1021,16 @@ class Signatures(SyncTestCase):
 
         # unrecognized signatures
         self.failUnlessRaises(UnknownKeyError,
-                              unsign_from_foolscap, (bad_msg, "v999-sig", key))
+                              unsign_from_foolscap, (bad_msg, b"v999-sig", key))
         self.failUnlessRaises(UnknownKeyError,
-                              unsign_from_foolscap, (bad_msg, sig, "v999-key"))
+                              unsign_from_foolscap, (bad_msg, sig, b"v999-key"))
 
     def test_unsigned_announcement(self):
         ed25519.verifying_key_from_string(b"pub-v0-wodst6ly4f7i7akt2nxizsmmy2rlmer6apltl56zctn67wfyu5tq")
         mock_tub = Mock()
         ic = IntroducerClient(
             mock_tub,
-            u"pb://",
+            b"pb://",
             u"fake_nick",
             "0.0.0",
             "1.2.3",
@@ -1040,7 +1040,7 @@ class Signatures(SyncTestCase):
         )
         self.assertEqual(0, ic._debug_counts["inbound_announcement"])
         ic.got_announcements([
-            ("message", "v0-aaaaaaa", "v0-wodst6ly4f7i7akt2nxizsmmy2rlmer6apltl56zctn67wfyu5tq")
+            (b"message", b"v0-aaaaaaa", b"v0-wodst6ly4f7i7akt2nxizsmmy2rlmer6apltl56zctn67wfyu5tq")
         ])
         # we should have rejected this announcement due to a bad signature
         self.assertEqual(0, ic._debug_counts["inbound_announcement"])

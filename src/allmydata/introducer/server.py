@@ -1,3 +1,4 @@
+from past.builtins import long
 
 import time, os.path, textwrap
 from zope.interface import implementer
@@ -122,7 +123,7 @@ class _IntroducerNode(node.Node):
 
         from allmydata.webish import IntroducerWebishServer
         nodeurl_path = self.config.get_config_path(u"node.url")
-        config_staticdir = self.get_config("node", "web.static", "public_html").decode('utf-8')
+        config_staticdir = self.get_config("node", "web.static", "public_html")
         staticdir = self.config.get_config_path(config_staticdir)
         ws = IntroducerWebishServer(self, webport, nodeurl_path, staticdir)
         ws.setServiceParent(self)
@@ -133,8 +134,8 @@ class IntroducerService(service.MultiService, Referenceable):
     # v1 is the original protocol, added in 1.0 (but only advertised starting
     # in 1.3), removed in 1.12. v2 is the new signed protocol, added in 1.10
     VERSION = { #"http://allmydata.org/tahoe/protocols/introducer/v1": { },
-                "http://allmydata.org/tahoe/protocols/introducer/v2": { },
-                "application-version": str(allmydata.__full_version__),
+                b"http://allmydata.org/tahoe/protocols/introducer/v2": { },
+                b"application-version": allmydata.__full_version__.encode("utf-8"),
                 }
 
     def __init__(self):
