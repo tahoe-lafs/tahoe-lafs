@@ -6,7 +6,7 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
-from future.utils import PY2
+from future.utils import PY2, native_str
 if PY2:
     from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
@@ -46,6 +46,7 @@ from allmydata.node import (
     _tub_portlocation,
     formatTimeTahoeStyle,
     UnescapedHashError,
+    get_app_versions,
 )
 from allmydata.introducer.server import create_introducer
 from allmydata import client
@@ -99,6 +100,16 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
         # try to bind the port.  We'll use a low-numbered one that's likely to
         # conflict with another service to prove it.
         self._available_port = 22
+
+    def test_application_versions(self):
+        """
+        Application versions should all have the same type, the native string.
+
+        This test is due to the Foolscap limitations, if Foolscap is fixed or
+        removed it can be deleted.
+        """
+        app_types = set(type(o) for o in get_app_versions())
+        self.assertEqual(app_types, {native_str})
 
     def _test_location(
             self,
