@@ -26,8 +26,12 @@ from testtools.matchers import (
     MatchesAll,
     Not,
     IsInstance,
+    HasLength,
 )
 
+from twisted.python.runtime import (
+    platform,
+)
 from twisted.python.filepath import (
     FilePath,
 )
@@ -244,19 +248,29 @@ class TahoeLAFSSiteTests(SyncTestCase):
         # Another approach is to make the temp directory unwriteable and
         # observe the failure when an attempt is made to create a file there.
         # This is hardly a lovely solution but at least it's kind of simple.
-        tempdir.chmod(0o400)
-        with self.assertRaises(OSError) as ctx:
+        #
+        # It would be nice if it worked consistently cross-platform but on
+        # Windows os.chmod is more or less broken.
+        if platform.isWindows():
             request.gotLength(request_body_size)
-            raise Exception(
-                "OSError not raised, instead tempdir.children() = {}".format(
-                    tempdir.children(),
-                ),
+            self.assertThat(
+                tempdir.children(),
+                HasLength(1),
             )
+        else:
+            tempdir.chmod(0o550)
+            with self.assertRaises(OSError) as ctx:
+                request.gotLength(request_body_size)
+                raise Exception(
+                    "OSError not raised, instead tempdir.children() = {}".format(
+                        tempdir.children(),
+                    ),
+                )
 
-        self.assertThat(
-            ctx.exception.errno,
-            Equals(EACCES),
-        )
+            self.assertThat(
+                ctx.exception.errno,
+                Equals(EACCES),
+            )
 
     def test_unknown_request_size(self):
         """
