@@ -37,6 +37,11 @@ a mean of 10kB and a max of 100MB, so filesize=min(int(1.0/random(.0002)),1e8)
 import os, sys, httplib, binascii
 import urllib, json, random, time, urlparse
 
+try:
+    from typing import Dict
+except ImportError:
+    pass
+
 # Python 2 compatibility
 from future.utils import PY2
 if PY2:
@@ -49,13 +54,13 @@ if sys.argv[1] == "--stats":
     DELAY = 10
     MAXSAMPLES = 6
     totals = []
-    last_stats = {}
+    last_stats = {}  # type: Dict[str, float]
     while True:
-        stats = {}
+        stats = {}  # type: Dict[str, float]
         for sf in statsfiles:
             for line in open(sf, "r").readlines():
-                name, value = line.split(":")
-                value = int(value.strip())
+                name, str_value = line.split(":")
+                value = int(str_value.strip())
                 if name not in stats:
                     stats[name] = 0
                 stats[name] += float(value)
