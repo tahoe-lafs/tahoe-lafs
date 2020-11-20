@@ -171,6 +171,10 @@ def flog_gatherer(reactor, temp_dir, flog_binary, request):
     include_result=False,
 )
 def introducer(reactor, temp_dir, flog_gatherer, request):
+    """
+    :return TahoeProcess: An object representing the running introducer child
+        process.
+    """
     config = '''
 [node]
 nickname = introducer0
