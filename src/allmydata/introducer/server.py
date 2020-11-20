@@ -1,5 +1,5 @@
 from past.builtins import long
-from six import ensure_str
+from six import ensure_str, ensure_text
 
 import time, os.path, textwrap
 from zope.interface import implementer
@@ -9,7 +9,7 @@ from twisted.python.failure import Failure
 from foolscap.api import Referenceable
 import allmydata
 from allmydata import node
-from allmydata.util import log, rrefutil
+from allmydata.util import log, rrefutil, dictutil
 from allmydata.util.i2p_provider import create as create_i2p_provider
 from allmydata.util.tor_provider import create as create_tor_provider
 from allmydata.introducer.interfaces import \
@@ -282,6 +282,9 @@ class IntroducerService(service.MultiService, Referenceable):
         self.log("introducer: subscription[%s] request at %s"
                  % (service_name, subscriber), umid="U3uzLg")
         service_name = ensure_str(service_name)
+        subscriber_info = dictutil.UnicodeKeyDict({
+            ensure_text(k): v for (k, v) in subscriber_info.items()
+        })
         return self.add_subscriber(subscriber, service_name, subscriber_info)
 
     def add_subscriber(self, subscriber, service_name, subscriber_info):
@@ -305,7 +308,8 @@ class IntroducerService(service.MultiService, Referenceable):
         subscriber.notifyOnDisconnect(_remove)
 
         # now tell them about any announcements they're interested in
-        assert {type(service_name)} == set(type(k[0]) for k in self._announcements)
+        assert {type(service_name)} >= set(type(k[0]) for k in self._announcements), (
+            service_name, self._announcements.keys())
         announcements = set( [ ann_t
                                for idx,(ann_t,canary,ann,when)
                                in self._announcements.items()

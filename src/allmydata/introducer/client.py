@@ -27,8 +27,9 @@ class IntroducerClient(service.Service, Referenceable):
                  nickname, my_version, oldest_supported,
                  app_versions, sequencer, cache_filepath):
         self._tub = tub
+        if isinstance(introducer_furl, unicode):
+            introducer_furl = introducer_furl.encode("utf-8")
         self.introducer_furl = introducer_furl
-        assert isinstance(introducer_furl, (bytes, type(None)))
 
         assert type(nickname) is unicode
         self._nickname = nickname
