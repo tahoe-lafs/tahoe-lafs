@@ -61,7 +61,11 @@ class IToken(ICredentials):
         pass
 
 
-@implementer(IToken)
+# Shoobx/mypy-zope#26
+_itoken_impl = implementer(IToken)
+
+
+@_itoken_impl
 @attr.s
 class Token(object):
     proposed_token = attr.ib(type=bytes)
