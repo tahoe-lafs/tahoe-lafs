@@ -1,4 +1,15 @@
-from past.builtins import unicode
+"""
+Ported to Python 3.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+
 from six import ensure_binary, ensure_text
 
 import os, re, itertools
@@ -171,7 +182,7 @@ def fakeseq():
 
 seqnum_counter = itertools.count(1)
 def realseq():
-    return seqnum_counter.next(), str(os.randint(1,100000))
+    return next(seqnum_counter), str(os.randint(1,100000))
 
 def make_ann(furl):
     ann = { "anonymous-storage-FURL": furl,
@@ -583,7 +594,7 @@ class SystemTest(SystemTestMixin, AsyncTestCase):
                 serverid0 = printable_serverids[0]
                 ann = anns[serverid0]
                 nick = ann["nickname"]
-                self.failUnlessEqual(type(nick), unicode)
+                self.assertIsInstance(nick, str)
                 self.failUnlessEqual(nick, NICKNAME % "0")
             for c in publishing_clients:
                 cdc = c._debug_counts
@@ -911,7 +922,7 @@ class ClientSeqnums(AsyncBrokenTestCase):
         nonce1 = outbound["sA"]["nonce"]
         self.failUnless(isinstance(nonce1, bytes))
         # Make nonce unicode, to match JSON:
-        outbound["sA"]["nonce"] = unicode(nonce1, "utf-8")
+        outbound["sA"]["nonce"] = str(nonce1, "utf-8")
         self.failUnlessEqual(json.loads(published["sA"][0]),
                              outbound["sA"])
         # [1] is the signature, [2] is the pubkey
@@ -928,8 +939,8 @@ class ClientSeqnums(AsyncBrokenTestCase):
         self.failUnless(isinstance(nonce2, bytes))
         self.failIfEqual(nonce1, nonce2)
         # Make nonce unicode, to match JSON:
-        outbound["sA"]["nonce"] = unicode(nonce2, "utf-8")
-        outbound["sB"]["nonce"] = unicode(outbound["sB"]["nonce"], "utf-8")
+        outbound["sA"]["nonce"] = str(nonce2, "utf-8")
+        outbound["sB"]["nonce"] = str(outbound["sB"]["nonce"], "utf-8")
         self.failUnlessEqual(json.loads(published["sA"][0]),
                              outbound["sA"])
         self.failUnlessEqual(json.loads(published["sB"][0]),
