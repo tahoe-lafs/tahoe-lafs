@@ -44,7 +44,7 @@ class Python3PortingEffortTests(SynchronousTestCase):
                 ),
             ),
         )
-    test_finished_porting.todo = native_str(
+    test_finished_porting.todo = native_str(  # type: ignore
         "https://tahoe-lafs.org/trac/tahoe-lafs/milestone/Support%20Python%203 should be completed",
     )
 
