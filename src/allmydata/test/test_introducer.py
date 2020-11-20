@@ -594,7 +594,7 @@ class SystemTest(SystemTestMixin, AsyncTestCase):
                 self.failUnlessEqual(cdc["outbound_message"], expected)
             # now check the web status, make sure it renders without error
             ir = introweb.IntroducerRoot(self.parent)
-            self.parent.nodeid = "NODEID"
+            self.parent.nodeid = b"NODEID"
             log.msg("_check1 done")
             return flattenString(None, ir._create_element())
         d.addCallback(_check1)
@@ -604,7 +604,7 @@ class SystemTest(SystemTestMixin, AsyncTestCase):
             self.assertIn(NICKNAME % "0", text) # a v2 client
             self.assertIn(NICKNAME % "1", text) # another v2 client
             for i in range(NUM_STORAGE):
-                self.assertIn(printable_serverids[i], text,
+                self.assertIn(ensure_text(printable_serverids[i]), text,
                                   (i,printable_serverids[i],text))
                 # make sure there isn't a double-base32ed string too
                 self.assertNotIn(idlib.nodeid_b2a(printable_serverids[i]), text,
@@ -644,7 +644,7 @@ class SystemTest(SystemTestMixin, AsyncTestCase):
             self.create_tub(self.central_portnum)
             newfurl = self.central_tub.registerReference(self.the_introducer,
                                                          furlFile=iff)
-            assert newfurl == self.introducer_furl
+            assert ensure_binary(newfurl) == self.introducer_furl
         d.addCallback(_restart_introducer_tub)
 
         d.addCallback(_wait_for_connected)
@@ -696,7 +696,7 @@ class SystemTest(SystemTestMixin, AsyncTestCase):
             self.the_introducer = introducer
             newfurl = self.central_tub.registerReference(self.the_introducer,
                                                          furlFile=iff)
-            assert newfurl == self.introducer_furl
+            assert ensure_binary(newfurl) == self.introducer_furl
         d.addCallback(_restart_introducer)
 
         d.addCallback(_wait_for_connected)
