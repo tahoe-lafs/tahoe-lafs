@@ -110,7 +110,6 @@ class MemoryIntroducerClient(object):
     nickname = attr.ib()
     my_version = attr.ib()
     oldest_supported = attr.ib()
-    app_versions = attr.ib()
     sequencer = attr.ib()
     cache_filepath = attr.ib()
 

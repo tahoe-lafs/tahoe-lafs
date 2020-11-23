@@ -512,7 +512,6 @@ def create_introducer_clients(config, main_tub, _introducer_factory=None):
             config.nickname,
             str(allmydata.__full_version__),
             str(_Client.OLDEST_SUPPORTED_VERSION),
-            list(node.get_app_versions()),
             partial(_sequencer, config),
             introducer_cache_filepath,
         )
