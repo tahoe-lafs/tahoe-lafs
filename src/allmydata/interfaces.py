@@ -749,7 +749,7 @@ class IProgress(Interface):
         "Current amount of progress (in percentage)"
     )
 
-    def set_progress(self, value):
+    def set_progress(value):
         """
         Sets the current amount of progress.
 
@@ -757,7 +757,7 @@ class IProgress(Interface):
         set_progress_total.
         """
 
-    def set_progress_total(self, value):
+    def set_progress_total(value):
         """
         Sets the total amount of expected progress
 
