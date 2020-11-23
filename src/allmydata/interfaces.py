@@ -682,7 +682,7 @@ class IURI(Interface):
         passing into init_from_string."""
 
 
-class IVerifierURI(Interface, IURI):
+class IVerifierURI(IURI):
     def init_from_string(uri):
         """Accept a string (as created by my to_string() method) and populate
         this instance with its data. I am not normally called directly,
