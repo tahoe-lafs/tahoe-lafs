@@ -23,6 +23,10 @@ from allmydata.version_checks import (
     _cross_check as cross_check,
     _extract_openssl_version as extract_openssl_version,
     _get_package_versions_and_locations as get_package_versions_and_locations,
+    _vers_and_locs_list,
+    get_package_versions,
+    get_package_versions_string,
+    _Dependency,
 )
 from allmydata.util.verlib import NormalizedVersion as V, \
                                   IrrationalVersionError, \
@@ -60,28 +64,63 @@ class CheckRequirement(unittest.TestCase):
         self.patch(pkg_resources, 'require', call_pkg_resources_require)
 
         (packages, errors) = get_package_versions_and_locations()
-        self.failUnlessIn(("foo", ("1.0", "/path", "according to pkg_resources")), packages)
+        self.assertIn(
+            _Dependency("foo", "1.0", "/path", "according to pkg_resources"),
+            packages,
+        )
         self.failIfEqual(errors, [])
         self.failUnlessEqual([e for e in errors if "was not found by pkg_resources" not in e], [])
+
+    def test_cross_check_return_type(self):
+        """
+        ``cross_check`` returns a ``list`` of ``str``.
+        """
+        self._cross_check_return_type(
+            {"distribute": ("unparseable", "path")},
+            [_Dependency("setuptools", "1.0", "path", None)],
+        )
+        self._cross_check_return_type(
+            {},
+            [_Dependency("foo", "1.0", "path", None)],
+        )
+        self._cross_check_return_type(
+            {},
+            [_Dependency("foo", "1.0", "path", None)],
+        )
+        self._cross_check_return_type(
+            {"foo": ("unparseable", "path")},
+            [_Dependency("foo", None, None, None)],
+        )
+        self._cross_check_return_type(
+            {"foo": ("1.2.3", "path")},
+            [_Dependency("foo", "unknown", None, None)],
+        )
+
+    def _cross_check_return_type(self, vers_and_locs, imported_vers_and_locs):
+        res = cross_check(vers_and_locs, imported_vers_and_locs)
+        self.assertIsInstance(res, list)
+        self.assertTrue(len(res) > 0)
+        for v in res:
+            self.assertIsInstance(v, str)
 
     def test_cross_check_unparseable_versions(self):
         # The bug in #1355 is triggered when a version string from either pkg_resources or import
         # is not parseable at all by normalized_version.
 
-        res = cross_check({"foo": ("unparseable", "")}, [("foo", ("1.0", "", None))])
+        res = cross_check({"foo": ("unparseable", "")}, [_Dependency("foo", "1.0", "", None)])
         self.failUnlessEqual(res, [])
 
-        res = cross_check({"foo": ("1.0", "")}, [("foo", ("unparseable", "", None))])
+        res = cross_check({"foo": ("1.0", "")}, [_Dependency("foo", "unparseable", "", None)])
         self.failUnlessEqual(res, [])
 
-        res = cross_check({"foo": ("unparseable", "")}, [("foo", ("unparseable", "", None))])
+        res = cross_check({"foo": ("unparseable", "")}, [_Dependency("foo", "unparseable", "", None)])
         self.failUnlessEqual(res, [])
 
     def test_cross_check(self):
         res = cross_check({}, [])
         self.failUnlessEqual(res, [])
 
-        res = cross_check({}, [("tahoe-lafs", ("1.0", "", "blah"))])
+        res = cross_check({}, [_Dependency("tahoe-lafs", "1.0", "", "blah")])
         self.failUnlessEqual(res, [])
 
         res = cross_check({"foo": ("unparseable", "")}, [])
@@ -90,48 +129,48 @@ class CheckRequirement(unittest.TestCase):
         res = cross_check({"argparse": ("unparseable", "")}, [])
         self.failUnlessEqual(res, [])
 
-        res = cross_check({}, [("foo", ("unparseable", "", None))])
+        res = cross_check({}, [_Dependency("foo", "unparseable", "", None)])
         self.failUnlessEqual(len(res), 1)
         self.assertTrue(("version 'unparseable'" in res[0]) or ("version u'unparseable'" in res[0]))
         self.failUnlessIn("was not found by pkg_resources", res[0])
 
-        res = cross_check({"distribute": ("1.0", "/somewhere")}, [("setuptools", ("2.0", "/somewhere", "distribute"))])
+        res = cross_check({"distribute": ("1.0", "/somewhere")}, [_Dependency("setuptools", "2.0", "/somewhere", "distribute")])
         self.failUnlessEqual(res, [])
 
-        res = cross_check({"distribute": ("1.0", "/somewhere")}, [("setuptools", ("2.0", "/somewhere", None))])
+        res = cross_check({"distribute": ("1.0", "/somewhere")}, [_Dependency("setuptools", "2.0", "/somewhere", None)])
         self.failUnlessEqual(len(res), 1)
         self.failUnlessIn("location mismatch", res[0])
 
-        res = cross_check({"distribute": ("1.0", "/somewhere")}, [("setuptools", ("2.0", "/somewhere_different", None))])
+        res = cross_check({"distribute": ("1.0", "/somewhere")}, [_Dependency("setuptools", "2.0", "/somewhere_different", None)])
         self.failUnlessEqual(len(res), 1)
         self.failUnlessIn("location mismatch", res[0])
 
-        res = cross_check({"zope.interface": ("1.0", "")}, [("zope.interface", ("unknown", "", None))])
+        res = cross_check({"zope.interface": ("1.0", "")}, [_Dependency("zope.interface", "unknown", "", None)])
         self.failUnlessEqual(res, [])
 
-        res = cross_check({"zope.interface": ("unknown", "")}, [("zope.interface", ("unknown", "", None))])
+        res = cross_check({"zope.interface": ("unknown", "")}, [_Dependency("zope.interface", "unknown", "", None)])
         self.failUnlessEqual(res, [])
 
-        res = cross_check({"foo": ("1.0", "")}, [("foo", ("unknown", "", None))])
+        res = cross_check({"foo": ("1.0", "")}, [_Dependency("foo", "unknown", "", None)])
         self.failUnlessEqual(len(res), 1)
         self.failUnlessIn("could not find a version number", res[0])
 
-        res = cross_check({"foo": ("unknown", "")}, [("foo", ("unknown", "", None))])
+        res = cross_check({"foo": ("unknown", "")}, [_Dependency("foo", "unknown", "", None)])
         self.failUnlessEqual(res, [])
 
         # When pkg_resources and import both find a package, there is only a warning if both
         # the version and the path fail to match.
 
-        res = cross_check({"foo": ("1.0", "/somewhere")}, [("foo", ("2.0", "/somewhere", None))])
+        res = cross_check({"foo": ("1.0", "/somewhere")}, [_Dependency("foo", "2.0", "/somewhere", None)])
         self.failUnlessEqual(res, [])
 
-        res = cross_check({"foo": ("1.0", "/somewhere")}, [("foo", ("1.0", "/somewhere_different", None))])
+        res = cross_check({"foo": ("1.0", "/somewhere")}, [_Dependency("foo", "1.0", "/somewhere_different", None)])
         self.failUnlessEqual(res, [])
 
-        res = cross_check({"foo": ("1.0-r123", "/somewhere")}, [("foo", ("1.0.post123", "/somewhere_different", None))])
+        res = cross_check({"foo": ("1.0-r123", "/somewhere")}, [_Dependency("foo", "1.0.post123", "/somewhere_different", None)])
         self.failUnlessEqual(res, [])
 
-        res = cross_check({"foo": ("1.0", "/somewhere")}, [("foo", ("2.0", "/somewhere_different", None))])
+        res = cross_check({"foo": ("1.0", "/somewhere")}, [_Dependency("foo", "2.0", "/somewhere_different", None)])
         self.failUnlessEqual(len(res), 1)
         self.assertTrue(("but version '2.0'" in res[0]) or ("but version u'2.0'" in res[0]))
 
@@ -270,6 +309,64 @@ class T(unittest.TestCase):
         sys.modules["foolscap"] = None
         vers_and_locs, errors = get_package_versions_and_locations()
 
-        foolscap_stuffs = [stuff for (pkg, stuff) in vers_and_locs if pkg == 'foolscap']
+        foolscap_stuffs = [pkg for pkg in vers_and_locs if pkg.name == 'foolscap']
         self.failUnlessEqual(len(foolscap_stuffs), 1)
         self.failUnless([e for e in errors if "\'foolscap\' could not be imported" in e])
+
+
+class VersAndLocsTests(unittest.TestCase):
+    """
+    Tests for ``_vers_and_locs_list``.
+    """
+    def test_name_types(self):
+        """
+        ``_vers_and_locs_list`` is a list of ``_Dependency`` instances with
+        ``name`` attributes which are instances of ``str``.
+        """
+        for pkg in _vers_and_locs_list:
+            self.assertIsInstance(pkg.name, type(u""))
+
+    def test_version_types(self):
+        """
+        ``_vers_and_locs_list`` is a list of ``_Dependency`` instances with
+        ``version`` attributes which are instances of ``str`` or
+        ``NoneType``..
+        """
+        for pkg in _vers_and_locs_list:
+            self.assertIsInstance(pkg.version, (type(u""), type(None)))
+
+
+class GetPackageVersionsTests(unittest.TestCase):
+    """
+    Tests for ``get_package_versions``.
+    """
+    def test_key_types(self):
+        """
+        Keys in the return value of ``get_package_versions`` are instances of
+        ``str``
+        """
+        for name, version in get_package_versions().items():
+            self.assertIsInstance(name, type(u""))
+
+    def test_value_types(self):
+        """
+        Values in the return value of ``get_package_versions`` are instances of
+        ``str`` or ``NoneType``.
+        """
+        for name, version in get_package_versions().items():
+            self.assertIsInstance(version, (type(u""), type(None)))
+
+
+class GetPackageVersionsStringTests(unittest.TestCase):
+    """
+    Tests for ``get_package_versions_string``.
+    """
+    def test_type(self):
+        """
+        The return value of ``get_package_versions_string`` is an instance of
+        ``str``.
+        """
+        self.assertIsInstance(
+            get_package_versions_string(),
+            type(u""),
+        )

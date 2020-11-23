@@ -20,6 +20,8 @@ __all__ = [
     "normalized_version",
 ]
 
+import attr
+
 import os, platform, re, sys, traceback, pkg_resources
 
 import six
@@ -58,16 +60,32 @@ class PackagingError(EnvironmentError):
     """
 
 def get_package_versions():
-    return dict([(k, v) for k, (v, l, c) in _vers_and_locs_list])
+    """
+    :return {str: str|NoneType}: A mapping from dependency name to dependency version
+        for all discernable Tahoe-LAFS' dependencies.
+    """
+    return {
+        dep.name: dep.version
+        for dep
+        in _vers_and_locs_list
+    }
 
 def get_package_versions_string(show_paths=False, debug=False):
+    """
+    :return str: A string describing the version of all Tahoe-LAFS
+        dependencies.
+    """
+    version_format = "{}: {}".format
+    comment_format = " [{}]".format
+    path_format = " ({})".format
+
     res = []
-    for p, (v, loc, comment) in _vers_and_locs_list:
-        info = str(p) + ": " + str(v)
-        if comment:
-            info = info + " [%s]" % str(comment)
+    for dep in _vers_and_locs_list:
+        info = version_format(dep.name, dep.version)
+        if dep.comment:
+            info = info + comment_format(dep.comment)
         if show_paths:
-            info = info + " (%s)" % str(loc)
+            info = info + path_format(dep.location)
         res.append(info)
 
     output = "\n".join(res) + "\n"
@@ -119,15 +137,22 @@ def _get_error_string(errors, debug=False):
     return msg
 
 def _cross_check(pkg_resources_vers_and_locs, imported_vers_and_locs_list):
-    """This function returns a list of errors due to any failed cross-checks."""
+    """
+    This function returns a list of errors due to any failed cross-checks.
+
+    :rtype: [str]
+    """
 
     from ._auto_deps import not_import_versionable
 
     errors = []
     not_pkg_resourceable = ['python', 'platform', __appname__.lower(), 'openssl']
 
-    for name, (imp_ver, imp_loc, imp_comment) in imported_vers_and_locs_list:
-        name = name.lower()
+    for dep in imported_vers_and_locs_list:
+        name = dep.name.lower()
+        imp_ver = dep.version
+        imp_loc = dep.location
+        imp_comment = dep.comment
         if name not in not_pkg_resourceable:
             if name not in pkg_resources_vers_and_locs:
                 if name == "setuptools" and "distribute" in pkg_resources_vers_and_locs:
@@ -230,13 +255,57 @@ def _get_platform():
     else:
         return platform.platform()
 
+
+def _ensure_text_optional(o):
+    """
+    Convert a value to the maybe-Future-ized native string type or pass through
+    ``None`` unchanged.
+
+    :type o: NoneType|bytes|str
+
+    :rtype: NoneType|str
+    """
+    if o is None:
+        return None
+    return six.ensure_text(o)
+
+
+@attr.s
+class _Dependency(object):
+    """
+    A direct or indirect Tahoe-LAFS dependency.
+
+    :ivar name: The name of this dependency.
+    :ivar version: If known, a string giving the version of this dependency.
+    :ivar location: If known, a string giving the path to this dependency.
+    :ivar comment: If relevant, some additional free-form information.
+    """
+    name = attr.ib(
+        converter=six.ensure_text,
+        validator=attr.validators.instance_of(str),
+    )
+    version = attr.ib(
+        converter=_ensure_text_optional,
+        validator=attr.validators.optional(attr.validators.instance_of(str)),
+    )
+    location = attr.ib(
+        converter=_ensure_text_optional,
+        validator=attr.validators.optional(attr.validators.instance_of(str)),
+    )
+    comment = attr.ib()
+
+
 def _get_package_versions_and_locations():
+    """
+    Look up information about the software available to this process.
+
+    :return: A two tuple.  The first element is a list of ``_Dependency``
+        instances.  The second element is like the value returned by
+        ``_cross_check``.
+    """
     import warnings
     from ._auto_deps import package_imports, global_deprecation_messages, deprecation_messages, \
         runtime_warning_messages, warning_imports, ignorable
-
-    def package_dir(srcfile):
-        return os.path.dirname(os.path.dirname(os.path.normcase(os.path.realpath(srcfile))))
 
     # pkg_resources.require returns the distribution that pkg_resources attempted to put
     # on sys.path, which can differ from the one that we actually import due to #1258,
@@ -263,15 +332,67 @@ def _get_package_versions_and_locations():
         for _ in runtime_warning_messages + deprecation_messages:
             warnings.filters.pop()
 
-    packages = []
-    pkg_resources_vers_and_locs = dict()
+    pkg_resources_vers_and_locs = _compute_pkg_resources_vers_and_locs(_INSTALL_REQUIRES)
 
+    packages = list(_compute_imported_packages(
+        [(__appname__, 'allmydata')] + package_imports,
+        pkg_resources_vers_and_locs,
+    ))
+
+    cross_check_errors = []
+
+    if len(pkg_resources_vers_and_locs) > 0:
+        imported_packages = set(dep.name.lower() for dep in packages)
+        extra_packages = []
+
+        for pr_name, (pr_ver, pr_loc) in pkg_resources_vers_and_locs.items():
+            if pr_name not in imported_packages and pr_name not in ignorable:
+                extra_packages.append(
+                    _Dependency(
+                        pr_name,
+                        pr_ver,
+                        pr_loc,
+                        "according to pkg_resources",
+                    ),
+                )
+
+        cross_check_errors = _cross_check(pkg_resources_vers_and_locs, packages)
+        packages += extra_packages
+
+    return packages, cross_check_errors
+
+
+def _compute_pkg_resources_vers_and_locs(requires):
+    """
+    Get the ``pkg_resources`` idea of the dependencies for all of the given
+    requirements.
+
+    If the execution context is a frozen interpreter, just return an empty
+    dictionary.
+
+    :param [str] requires: Information about the dependencies of these
+        requirements strings will be looked up and returned.
+
+    :return {str: (str, str)}: A mapping from dependency name to a two-tuple
+        of dependency version and location.
+    """
     if not hasattr(sys, 'frozen'):
-        pkg_resources_vers_and_locs = {
+        return {
             p.project_name.lower(): (str(p.version), p.location)
             for p
-            in pkg_resources.require(_INSTALL_REQUIRES)
+            in pkg_resources.require(requires)
         }
+    return {}
+
+
+def _compute_imported_packages(packages, pkg_resources_vers_and_locs):
+    """
+    Get the import system's idea of all of the given packages.
+
+    :param packages:
+    """
+    def package_dir(srcfile):
+        return os.path.dirname(os.path.dirname(os.path.normcase(os.path.realpath(srcfile))))
 
     def get_version(module):
         if hasattr(module, '__version__'):
@@ -285,7 +406,7 @@ def _get_package_versions_and_locations():
         else:
             return 'unknown'
 
-    for pkgname, modulename in [(__appname__, 'allmydata')] + package_imports:
+    for pkgname, modulename in packages:
         if modulename:
             try:
                 __import__(modulename)
@@ -293,7 +414,12 @@ def _get_package_versions_and_locations():
             except (ImportError, SyntaxError):
                 etype, emsg, etrace = sys.exc_info()
                 trace_info = (etype, str(emsg), ([None] + traceback.extract_tb(etrace))[-1])
-                packages.append( (pkgname, (None, None, trace_info)) )
+                yield _Dependency(
+                    pkgname,
+                    None,
+                    None,
+                    trace_info,
+                )
             else:
                 comment = None
                 if pkgname == __appname__:
@@ -307,28 +433,31 @@ def _get_package_versions_and_locations():
                     (pr_ver, pr_loc) = pkg_resources_vers_and_locs[pkgname]
                     if loc == os.path.normcase(os.path.realpath(pr_loc)):
                         ver = pr_ver
-                packages.append( (pkgname, (ver, loc, comment)) )
+                yield _Dependency(
+                    pkgname,
+                    ver,
+                    loc,
+                    comment,
+                )
         elif pkgname == 'python':
-            packages.append( (pkgname, (platform.python_version(), sys.executable, None)) )
+            yield _Dependency(
+                pkgname,
+                platform.python_version(),
+                sys.executable,
+                None,
+            )
         elif pkgname == 'platform':
-            packages.append( (pkgname, (_get_platform(), None, None)) )
+            yield _Dependency(
+                pkgname,
+                _get_platform(),
+                None,
+                None,
+            )
         elif pkgname == 'OpenSSL':
-            packages.append( (pkgname, _get_openssl_version()) )
-
-    cross_check_errors = []
-
-    if len(pkg_resources_vers_and_locs) > 0:
-        imported_packages = set([p.lower() for (p, _) in packages])
-        extra_packages = []
-
-        for pr_name, (pr_ver, pr_loc) in pkg_resources_vers_and_locs.items():
-            if pr_name not in imported_packages and pr_name not in ignorable:
-                extra_packages.append( (pr_name, (pr_ver, pr_loc, "according to pkg_resources")) )
-
-        cross_check_errors = _cross_check(pkg_resources_vers_and_locs, packages)
-        packages += extra_packages
-
-    return packages, cross_check_errors
+            yield _Dependency(
+                pkgname,
+                *_get_openssl_version()
+            )
 
 
 _vers_and_locs_list, _cross_check_errors = _get_package_versions_and_locations()

@@ -83,7 +83,7 @@ def _common_valid_config():
 for thing, things_version in list(get_package_versions().items()):
     app_versions.add_version(
         ensure_str(thing),
-        ensure_str(things_version) if things_version is not None else None,
+        None if things_version is None else ensure_str(things_version),
     )
 
 # group 1 will be addr (dotted quad string), group 3 if any will be portnum (string)
