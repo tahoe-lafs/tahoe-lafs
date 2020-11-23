@@ -81,7 +81,10 @@ def _common_valid_config():
 # Add our application versions to the data that Foolscap's LogPublisher
 # reports. Foolscap requires native strings.
 for thing, things_version in list(get_package_versions().items()):
-    app_versions.add_version(ensure_str(thing), ensure_str(things_version))
+    app_versions.add_version(
+        ensure_str(thing),
+        ensure_str(things_version) if things_version is not None else None,
+    )
 
 # group 1 will be addr (dotted quad string), group 3 if any will be portnum (string)
 ADDR_RE = re.compile("^([1-9][0-9]*\.[1-9][0-9]*\.[1-9][0-9]*\.[1-9][0-9]*)(:([1-9][0-9]*))?$")
