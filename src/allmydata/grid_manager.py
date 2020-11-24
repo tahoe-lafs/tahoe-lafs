@@ -269,7 +269,8 @@ def save_grid_manager(file_path, grid_manager):
     if file_path is None:
         print("{}\n".format(data))
     else:
-        fileutil.make_dirs(file_path.path, mode=0o700)
+        file_path.makedirs()
+        file_path.chmod(0o700)
         with file_path.child("config.json").open("w") as f:
             f.write("{}\n".format(data))
 

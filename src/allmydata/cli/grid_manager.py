@@ -75,13 +75,14 @@ def create(ctx):
     fp = None
     if config_location != '-':
         fp = FilePath(config_location)
-        if fp.exists():
-            raise click.ClickException(
-                "The directory '{}' already exists.".format(config_location)
-            )
 
     gm = create_grid_manager()
-    save_grid_manager(fp, gm)
+    try:
+        save_grid_manager(fp, gm)
+    except OSError as e:
+        raise click.ClickException(
+            "Can't create '{}': {}".format(config_location, e)
+        )
 
 
 @grid_manager.command()
