@@ -511,7 +511,13 @@ def make_broker(tub_maker=None):
     client configuration.
     """
     if tub_maker is None:
-        tub_maker = lambda handler_overrides: Tub()
+        # Use a pre-generated key so the tests don't spend a lot of time
+        # generating new ones.
+        data = FilePath(__file__).sibling(b"data")
+        privkey = data.child(b"node.pem")
+        tub_maker = lambda handler_overrides: Tub(
+            certData=privkey.getContent(),
+        )
     return StorageFarmBroker(True, tub_maker, EMPTY_CLIENT_CONFIG)
 
 
