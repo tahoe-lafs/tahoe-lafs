@@ -150,7 +150,7 @@ def get_storage_server_connections(reactor, node):
 
 @inline_callbacks
 @inlineCallbacks
-def test_connections(reactor, alice, storage_nodes):
+def test_introduction(reactor, alice, storage_nodes):
     """
     A client node configured with an introducer node establishes connections
     to all reachable storage servers which have also connected to that
