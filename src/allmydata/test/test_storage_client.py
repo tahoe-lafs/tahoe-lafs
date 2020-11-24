@@ -505,11 +505,13 @@ class StoragePluginWebPresence(AsyncTestCase):
         )
 
 
-def make_broker(tub_maker=lambda h: Mock()):
+def make_broker(tub_maker=None):
     """
     Create a ``StorageFarmBroker`` with the given tub maker and an empty
     client configuration.
     """
+    if tub_maker is None:
+        tub_maker = lambda handler_overrides: Tub()
     return StorageFarmBroker(True, tub_maker, EMPTY_CLIENT_CONFIG)
 
 
