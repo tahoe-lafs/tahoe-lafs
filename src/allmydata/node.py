@@ -464,6 +464,12 @@ class _Config(object):
         """
         returns an absolute path inside the 'private' directory with any
         extra args join()-ed
+
+        This exists for historical reasons. New code should ideally
+        not call this because it makes it harder for e.g. a SQL-based
+        _Config object to exist. Code that needs to call this method
+        should probably be a _Config method itself. See
+        e.g. get_grid_manager_certificates()
         """
         return os.path.join(self._basedir, "private", *args)
 
@@ -471,6 +477,12 @@ class _Config(object):
         """
         returns an absolute path inside the config directory with any
         extra args join()-ed
+
+        This exists for historical reasons. New code should ideally
+        not call this because it makes it harder for e.g. a SQL-based
+        _Config object to exist. Code that needs to call this method
+        should probably be a _Config method itself. See
+        e.g. get_grid_manager_certificates()
         """
         # note: we re-expand here (_basedir already went through this
         # expanduser function) in case the path we're being asked for
@@ -478,6 +490,35 @@ class _Config(object):
         return abspath_expanduser_unicode(
             os.path.join(self._basedir, *args)
         )
+
+    def get_grid_manager_certificates(self):
+        """
+        Load all Grid Manager certificates in the config.
+
+        :returns: A list of all certificates. An empty list is
+            returned if there are none.
+        """
+        grid_manager_certificates = []
+
+        cert_fnames = list(self.enumerate_section("grid_manager_certificates").values())
+        for fname in cert_fnames:
+            fname = self.get_config_path(fname.decode('utf8'))
+            if not os.path.exists(fname):
+                raise ValueError(
+                    "Grid Manager certificate file '{}' doesn't exist".format(
+                        fname
+                    )
+                )
+            with open(fname, 'r') as f:
+                cert = json.load(f)
+            if set(cert.keys()) != {"certificate", "signature"}:
+                raise ValueError(
+                    "Unknown key in Grid Manager certificate '{}'".format(
+                        fname
+                    )
+                )
+            grid_manager_certificates.append(cert)
+        return grid_manager_certificates
 
 
 def create_tub_options(config):

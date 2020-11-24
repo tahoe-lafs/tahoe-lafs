@@ -576,34 +576,6 @@ def create_storage_farm_broker(config, default_connection_handlers, foolscap_con
     return sb
 
 
-def _load_grid_manager_certificates(config):
-    """
-    Load all Grid Manager certificates in the config in a list. An
-    empty list is returned if there are none.
-    """
-    grid_manager_certificates = []
-
-    cert_fnames = list(config.enumerate_section("grid_manager_certificates").values())
-    for fname in cert_fnames:
-        fname = config.get_config_path(fname.decode('utf8'))
-        if not os.path.exists(fname):
-            raise ValueError(
-                "Grid Manager certificate file '{}' doesn't exist".format(
-                    fname
-                )
-            )
-        with open(fname, 'r') as f:
-            cert = json.load(f)
-        if set(cert.keys()) != {"certificate", "signature"}:
-            raise ValueError(
-                "Unknown key in Grid Manager certificate '{}'".format(
-                    fname
-                )
-            )
-        grid_manager_certificates.append(cert)
-    return grid_manager_certificates
-
-
 def _register_reference(key, config, tub, referenceable):
     """
     Register a referenceable in a tub with a stable fURL.
@@ -936,7 +908,7 @@ class _Client(node.Node, pollmixin.PollMixin):
         announcement.update(plugins_announcement)
 
         if self.config.get_config("storage", "grid_management", default=False, boolean=True):
-            grid_manager_certificates = _load_grid_manager_certificates(self.config)
+            grid_manager_certificates = self.config.get_grid_manager_certificates()
             announcement[u"grid-manager-certificates"] = grid_manager_certificates
 
         # XXX we should probably verify that the certificates are

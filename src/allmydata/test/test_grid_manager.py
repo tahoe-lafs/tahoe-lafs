@@ -7,9 +7,6 @@ from twisted.python.filepath import (
     FilePath,
 )
 
-from allmydata.client import (
-    _load_grid_manager_certificates,
-)
 from allmydata.node import (
     config_from_string,
 )
@@ -60,7 +57,7 @@ class GridManagerUtilities(SyncTestCase):
             {"fluffy": "pub-v0-vqimc4s5eflwajttsofisp5st566dbq36xnpp4siz57ufdavpvlq"},
             config.enumerate_section("grid_managers")
         )
-        certs = _load_grid_manager_certificates(config)
+        certs = config.get_grid_manager_certificates()
         self.assertEqual([fake_cert], certs)
 
 
