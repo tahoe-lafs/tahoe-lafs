@@ -1071,7 +1071,7 @@ class _Client(node.Node, pollmixin.PollMixin):
             if accountfile:
                 accountfile = self.config.get_config_path(accountfile)
             accounturl = self.config.get_config("sftpd", "accounts.url", None)
-            sftp_portstr = self.config.get_config("sftpd", "port", "8022")
+            sftp_portstr = self.config.get_config("sftpd", "port", "tcp:8022")
             pubkey_file = self.config.get_config("sftpd", "host_pubkey_file")
             privkey_file = self.config.get_config("sftpd", "host_privkey_file")
 
