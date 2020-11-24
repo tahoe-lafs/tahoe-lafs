@@ -144,7 +144,7 @@ def remove(ctx, name):
             fp.child('{}.cert.{}'.format(name, cert_count)).remove()
             cert_count += 1
 
-    save_grid_manager(fp, ctx.obj.grid_manager)
+    save_grid_manager(fp, ctx.obj.grid_manager, create=False)
 
 
 @grid_manager.command()
@@ -177,10 +177,10 @@ def sign(ctx, name, expiry_days):
     sign a new certificate
     """
     fp = _config_path_from_option(ctx.parent.params["config"])
-    expiry_seconds = int(expiry_days) * 86400
+    expiry = timedelta(days=expiry_days)
 
     try:
-        certificate = ctx.obj.grid_manager.sign(name, expiry_seconds)
+        certificate = ctx.obj.grid_manager.sign(name, expiry)
     except KeyError:
         raise click.ClickException(
             "No storage-server called '{}' exists".format(name)

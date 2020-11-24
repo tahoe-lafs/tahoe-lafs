@@ -252,7 +252,7 @@ class _GridManager(object):
         return data
 
 
-def save_grid_manager(file_path, grid_manager):
+def save_grid_manager(file_path, grid_manager, create=True):
     """
     Writes a Grid Manager configuration.
 
@@ -260,6 +260,9 @@ def save_grid_manager(file_path, grid_manager):
         (if None, stdout is used)
 
     :param grid_manager: a _GridManager instance
+
+    :param bool create: if True (the default) we are creating a new
+        grid-manager and will fail if the directory already exists.
     """
     data = json.dumps(
         grid_manager.marshal(),
@@ -269,8 +272,12 @@ def save_grid_manager(file_path, grid_manager):
     if file_path is None:
         print("{}\n".format(data))
     else:
-        file_path.makedirs()
-        file_path.chmod(0o700)
+        try:
+            file_path.makedirs()
+            file_path.chmod(0o700)
+        except OSError:
+            if create:
+                raise
         with file_path.child("config.json").open("w") as f:
             f.write("{}\n".format(data))
 
