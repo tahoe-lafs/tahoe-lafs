@@ -44,6 +44,20 @@ class GridManagerCommandLine(SyncTestCase):
             result = self.runner.invoke(grid_manager, ["--config", "foo", "public-identity"])
             self.assertTrue(result.output.startswith("pub-v0-"))
 
+    def test_create_already(self):
+        """
+        It's an error to create a new grid-manager in an existing
+        directory.
+        """
+        with self.runner.isolated_filesystem():
+            result = self.runner.invoke(grid_manager, ["--config", "foo", "create"])
+            result = self.runner.invoke(grid_manager, ["--config", "foo", "create"])
+            self.assertEqual(1, result.exit_code)
+            self.assertIn(
+                "Can't create",
+                result.stdout,
+            )
+
     def test_create_stdout(self):
         """
         Create a new grid-manager with no files
