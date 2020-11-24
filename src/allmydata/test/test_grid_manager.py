@@ -287,6 +287,7 @@ class GridManagerVerifier(SyncTestCase):
         verify = create_grid_manager_verifier(
             [self.gm._public_key],
             [cert0],
+            ed25519.string_from_verifying_key(pub0),
         )
 
         self.assertTrue(verify())

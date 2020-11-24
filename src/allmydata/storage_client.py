@@ -285,6 +285,7 @@ class StorageFarmBroker(service.MultiService):
         gm_verifier = create_grid_manager_verifier(
             self.storage_client_config.grid_manager_keys,
             server["ann"].get("grid-manager-certificates", []),
+            "pub-{}".format(server_id),  # server_id is v0-<key> not pub-v0-key .. for reasons?
         )
 
         s = NativeStorageServer(

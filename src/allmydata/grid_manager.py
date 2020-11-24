@@ -346,7 +346,7 @@ def validate_grid_manager_certificate(gm_key, alleged_cert):
     return cert
 
 
-def create_grid_manager_verifier(keys, certs, now_fn=None, bad_cert=None):
+def create_grid_manager_verifier(keys, certs, public_key, now_fn=None, bad_cert=None):
     """
     Creates a predicate for confirming some Grid Manager-issued
     certificates against Grid Manager keys. A predicate is used
@@ -357,6 +357,9 @@ def create_grid_manager_verifier(keys, certs, now_fn=None, bad_cert=None):
 
     :param list certs: 1 or more Grid Manager certificates each of
         which is a `dict` containing 'signature' and 'certificate' keys.
+
+    :param str public_key: the identifier of the server we expect
+        certificates for.
 
     :param callable now_fn: a callable which returns the current UTC
         timestamp (or datetime.utcnow if None).
@@ -416,10 +419,11 @@ def create_grid_manager_verifier(keys, certs, now_fn=None, bad_cert=None):
         # if *any* certificate is still valid then we consider the server valid
         for cert in valid_certs:
             expires = datetime.utcfromtimestamp(cert['expires'])
-            # cert_pubkey = keyutil.parse_pubkey(cert['public_key'].encode('ascii'))
-            if expires > now:
-                # not-expired
-                return True
+            cert_pubkey = ed25519.verifying_key_from_string(cert['public_key'].encode('ascii'))
+            if cert['public_key'] == public_key:
+                if expires > now:
+                    # not-expired
+                    return True
         return False
 
     return validate
