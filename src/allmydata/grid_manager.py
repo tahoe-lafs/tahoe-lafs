@@ -185,14 +185,25 @@ class _GridManager(object):
     def public_identity(self):
         return ed25519.string_from_verifying_key(self._public_key)
 
-    def sign(self, name, expiry_seconds):
+    def sign(self, name, expiry):
+        """
+        Create a new signed certificate for a particular server
+
+        :param str name: the server to create a certificate for
+
+        :param timedelta expiry: how far in the future the certificate
+            should expire.
+
+        :returns: a dict defining the certificate (it has
+            "certificate" and "signature" keys).
+        """
         try:
             srv = self._storage_servers[name]
         except KeyError:
             raise KeyError(
                 "No storage server named '{}'".format(name)
             )
-        expiration = datetime.utcnow() + timedelta(seconds=expiry_seconds)
+        expiration = datetime.utcnow() + expiry
         epoch_offset = (expiration - datetime(1970, 1, 1)).total_seconds()
         cert_info = {
             "expires": epoch_offset,

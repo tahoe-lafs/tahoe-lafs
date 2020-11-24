@@ -1,5 +1,6 @@
 from datetime import (
     datetime,
+    timedelta,
 )
 import json
 
@@ -120,6 +121,7 @@ def add(ctx, name, public_key):
     save_grid_manager(
         _config_path_from_option(ctx.parent.params["config"]),
         ctx.obj.grid_manager,
+        create=False,
     )
     return 0
 
