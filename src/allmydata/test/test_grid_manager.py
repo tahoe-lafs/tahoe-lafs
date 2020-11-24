@@ -1,4 +1,6 @@
-
+from datetime import (
+    timedelta,
+)
 import json
 
 from twisted.python.filepath import (
@@ -77,7 +79,7 @@ class GridManagerVerifier(SyncTestCase):
         """
         priv, pub = ed25519.create_signing_keypair()
         self.gm.add_storage_server("test", pub)
-        cert = self.gm.sign("test", 86400)
+        cert = self.gm.sign("test", timedelta(seconds=86400))
 
         self.assertEqual(
             set(cert.keys()),
@@ -98,7 +100,7 @@ class GridManagerVerifier(SyncTestCase):
         Try to sign a storage-server that doesn't exist
         """
         with self.assertRaises(KeyError):
-            self.gm.sign("doesn't exist", 86400)
+            self.gm.sign("doesn't exist", timedelta(seconds=86400))
 
     def test_add_cert(self):
         """
@@ -280,7 +282,7 @@ class GridManagerVerifier(SyncTestCase):
         """
         priv0, pub0 = ed25519.create_signing_keypair()
         self.gm.add_storage_server("test0", pub0)
-        cert0 = self.gm.sign("test0", 86400)
+        cert0 = self.gm.sign("test0", timedelta(seconds=86400))
 
         verify = create_grid_manager_verifier(
             [self.gm._public_key],
