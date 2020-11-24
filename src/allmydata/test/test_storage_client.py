@@ -65,6 +65,7 @@ from .common import (
     UseTestPlugins,
     UseNode,
     SameProcessStreamEndpointAssigner,
+    MemoryIntroducerClient,
 )
 from .common_web import (
     do_http,
@@ -505,19 +506,26 @@ class StoragePluginWebPresence(AsyncTestCase):
         )
 
 
+def new_tub():
+    """
+    Make a new ``Tub`` with a hard-coded private key.
+    """
+    # Use a pre-generated key so the tests don't spend a lot of time
+    # generating new ones.
+    data = FilePath(__file__).sibling(b"data")
+    privkey = data.child(b"node.pem")
+    return Tub(
+        certData=privkey.getContent(),
+    )
+
+
 def make_broker(tub_maker=None):
     """
     Create a ``StorageFarmBroker`` with the given tub maker and an empty
     client configuration.
     """
     if tub_maker is None:
-        # Use a pre-generated key so the tests don't spend a lot of time
-        # generating new ones.
-        data = FilePath(__file__).sibling(b"data")
-        privkey = data.child(b"node.pem")
-        tub_maker = lambda handler_overrides: Tub(
-            certData=privkey.getContent(),
-        )
+        tub_maker = lambda handler_overrides: new_tub()
     return StorageFarmBroker(True, tub_maker, EMPTY_CLIENT_CONFIG)
 
 
@@ -593,7 +601,21 @@ storage:
 
     @inlineCallbacks
     def test_threshold_reached(self):
-        introducer = Mock()
+        """
+        ``StorageFarmBroker.when_connected_enough`` returns a ``Deferred`` which
+        only fires after the ``StorageFarmBroker`` has established at least as
+        many connections as requested.
+        """
+        introducer = MemoryIntroducerClient(
+            new_tub(),
+            SOME_FURL,
+            b"",
+            None,
+            None,
+            None,
+            None,
+            None,
+        )
         new_tubs = []
         def make_tub(*args, **kwargs):
             return new_tubs.pop()
@@ -601,10 +623,12 @@ storage:
         done = broker.when_connected_enough(5)
         broker.use_introducer(introducer)
         # subscribes to "storage" to learn of new storage nodes
-        subscribe = introducer.mock_calls[0]
-        self.assertEqual(subscribe[0], 'subscribe_to')
-        self.assertEqual(subscribe[1][0], 'storage')
-        got_announcement = subscribe[1][1]
+        [subscribe] = introducer.subscribed_to
+        self.assertEqual(
+            subscribe.service_name,
+            "storage",
+        )
+        got_announcement = subscribe.cb
 
         data = {
             "service-name": "storage",
