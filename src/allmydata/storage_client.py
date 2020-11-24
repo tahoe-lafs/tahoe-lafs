@@ -154,6 +154,9 @@ class StorageFarmBroker(service.MultiService):
     I'm also responsible for subscribing to the IntroducerClient to find out
     about new servers as they are announced by the Introducer.
 
+    :ivar _tub_maker: A one-argument callable which accepts a dictionary of
+        "handler overrides" and returns a ``foolscap.api.Tub``.
+
     :ivar StorageClientConfig storage_client_config: Values from the node
         configuration file relating to storage behavior.
     """
