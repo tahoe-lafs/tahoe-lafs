@@ -3,14 +3,12 @@ import sys
 import json
 from datetime import (
     datetime,
-    timedelta,
 )
 
 from allmydata.crypto import (
     ed25519,
 )
 from allmydata.util import (
-    fileutil,
     base32,
 )
 
