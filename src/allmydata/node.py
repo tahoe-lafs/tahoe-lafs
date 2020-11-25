@@ -19,7 +19,6 @@ import os.path
 import re
 import types
 import errno
-import tempfile
 from base64 import b32decode, b32encode
 
 # On Python 2 this will be the backported package.
@@ -34,7 +33,6 @@ import foolscap.logging.log
 
 from allmydata.util import log
 from allmydata.util import fileutil, iputil
-from allmydata.util.assertutil import _assert
 from allmydata.util.fileutil import abspath_expanduser_unicode
 from allmydata.util.encodingutil import get_filesystem_encoding, quote_output
 from allmydata.util import configutil
@@ -733,8 +731,6 @@ class Node(service.MultiService):
         self._i2p_provider = i2p_provider
         self._tor_provider = tor_provider
 
-        self.init_tempdir()
-
         self.create_log_tub()
         self.logSource = "Node"
         self.setup_logging()
@@ -760,25 +756,6 @@ class Node(service.MultiService):
         :returns: True if the main tub is listening
         """
         return len(self.tub.getListeners()) > 0
-
-    def init_tempdir(self):
-        """
-        Initialize/create a directory for temporary files.
-        """
-        tempdir_config = self.config.get_config("node", "tempdir", "tmp")
-        if isinstance(tempdir_config, bytes):
-            tempdir_config = tempdir_config.decode('utf-8')
-        tempdir = self.config.get_config_path(tempdir_config)
-        if not os.path.exists(tempdir):
-            fileutil.make_dirs(tempdir)
-        tempfile.tempdir = tempdir
-        # this should cause twisted.web.http (which uses
-        # tempfile.TemporaryFile) to put large request bodies in the given
-        # directory. Without this, the default temp dir is usually /tmp/,
-        # which is frequently too small.
-        temp_fd, test_name = tempfile.mkstemp()
-        _assert(os.path.dirname(test_name) == tempdir, test_name, tempdir)
-        os.close(temp_fd)  # avoid leak of unneeded fd
 
     # pull this outside of Node's __init__ too, see:
     # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2948

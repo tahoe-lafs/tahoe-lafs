@@ -98,7 +98,9 @@ install_requires = [
     #   `pip install tahoe-lafs[sftp]` would not install requirements
     #   specified by Twisted[conch].  Since this would be the *whole point* of
     #   an sftp extra in Tahoe-LAFS, there is no point in having one.
-    "Twisted[tls,conch] >= 18.4.0",
+    # * Twisted 19.10 introduces Site.getContentFile which we use to get
+    #   temporary upload files placed into a per-node temporary directory.
+    "Twisted[tls,conch] >= 19.10.0",
 
     "PyYAML >= 3.11",
 

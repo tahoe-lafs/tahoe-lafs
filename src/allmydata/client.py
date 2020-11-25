@@ -33,6 +33,7 @@ from allmydata.introducer.client import IntroducerClient
 from allmydata.util import (
     hashutil, base32, pollmixin, log, idlib,
     yamlutil, configutil,
+    fileutil,
 )
 from allmydata.util.encodingutil import get_filesystem_encoding
 from allmydata.util.abbreviate import parse_abbreviated_size
@@ -1042,6 +1043,21 @@ class _Client(node.Node, pollmixin.PollMixin):
     def set_default_mutable_keysize(self, keysize):
         self._key_generator.set_default_keysize(keysize)
 
+    def _get_tempdir(self):
+        """
+        Determine the path to the directory where temporary files for this node
+        should be written.
+
+        :return bytes: The path which will exist and be a directory.
+        """
+        tempdir_config = self.config.get_config("node", "tempdir", "tmp")
+        if isinstance(tempdir_config, bytes):
+            tempdir_config = tempdir_config.decode('utf-8')
+        tempdir = self.config.get_config_path(tempdir_config)
+        if not os.path.exists(tempdir):
+            fileutil.make_dirs(tempdir)
+        return tempdir
+
     def init_web(self, webport):
         self.log("init_web(webport=%s)", args=(webport,))
 
@@ -1049,7 +1065,13 @@ class _Client(node.Node, pollmixin.PollMixin):
         nodeurl_path = self.config.get_config_path("node.url")
         staticdir_config = self.config.get_config("node", "web.static", "public_html")
         staticdir = self.config.get_config_path(staticdir_config)
-        ws = WebishServer(self, webport, nodeurl_path, staticdir)
+        ws = WebishServer(
+            self,
+            webport,
+            self._get_tempdir(),
+            nodeurl_path,
+            staticdir,
+        )
         ws.setServiceParent(self)
 
     def init_ftp_server(self):
