@@ -21,7 +21,6 @@ from twisted.web.template import (
 )
 
 import allmydata # to display import path
-from allmydata.version_checks import get_package_versions_string
 from allmydata.util import log
 from allmydata.interfaces import IFileNode
 from allmydata.web import (
@@ -566,7 +565,7 @@ class RootElement(Element):
 
     @renderer
     def version(self, req, tag):
-        return tag(get_package_versions_string())
+        return tag(allmydata.__full_version__)
 
     @renderer
     def import_path(self, req, tag):
