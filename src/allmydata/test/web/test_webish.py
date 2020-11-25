@@ -188,7 +188,7 @@ class TahoeLAFSSiteTests(SyncTestCase):
             b"/uri?uri=[CENSORED]",
         )
 
-    def _get_request(self, tempdir):
+    def _create_request(self, tempdir):
         """
         Create and return a new ``TahoeLAFSRequest`` hooked up to a
         ``TahoeLAFSSite``.
@@ -211,7 +211,7 @@ class TahoeLAFSSiteTests(SyncTestCase):
         A request body smaller than 1 MiB is kept in memory.
         """
         tempdir = FilePath(self.mktemp())
-        request = self._get_request(tempdir)
+        request = self._create_request(tempdir)
         request.gotLength(request_body_size)
         self.assertThat(
             request.content,
@@ -226,7 +226,7 @@ class TahoeLAFSSiteTests(SyncTestCase):
         """
         tempdir = FilePath(self.mktemp())
         tempdir.makedirs()
-        request = self._get_request(tempdir)
+        request = self._create_request(tempdir)
 
         # So.  Bad news.  The temporary file for the uploaded content is
         # unnamed (and this isn't even necessarily a bad thing since it is how
