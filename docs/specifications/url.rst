@@ -15,7 +15,7 @@ Foolscap connection setup takes as an input a Foolscap URL or a *fURL*.
 A fURL includes three components:
 
 * the base32-encoded SHA1 hash of the DER form of an x509v3 certificate
-* zero or more network addresses
+* zero or more network addresses [1]_
 * an object identifier
 
 A Foolscap client tries to connect to each network address in turn.
@@ -110,3 +110,11 @@ This provides stronger authentication assurances for future uses but it is not r
 .. _`continues to be eroded`: https://en.wikipedia.org/wiki/SHA-1#Cryptanalysis_and_validation
 .. _`explored by the web community`: https://www.imperialviolet.org/2011/05/04/pinning.html
 .. _Foolscap: https://github.com/warner/foolscap
+
+.. [1] ``foolscap.furl.decode_furl`` is taken as the canonical definition of the syntax of a fURL.
+       The **location hints** part of the fURL,
+       as it is referred to in Foolscap,
+       is matched by the regular expression fragment ``([^/]*)``.
+       Since this matches the empty string,
+       no network addresses are required to form a fURL.
+       The supporting code around the regular expression also takes extra steps to allow an empty string to match here.
