@@ -21,6 +21,15 @@ jobs:
 
     steps:
 
+      # Get vcpython27 on Windows + Python 2.7, to build netifaces
+      # extension.  See https://chocolatey.org/packages/vcpython27 and
+      # https://github.com/crazy-max/ghaction-chocolatey
+      - name: Install MSVC 9.0 for Python 2.7 [Windows]
+        if: matrix.os == 'windows-latest' && matrix.python-version == '2.7'
+        uses: crazy-max/ghaction-chocolatey@v1
+        with:
+          args: install vcpython27
+
       - name: Check out Tahoe-LAFS sources
         uses: actions/checkout@v2
 
@@ -68,6 +77,15 @@ jobs:
           - 2.7
 
     steps:
+
+      # Get vcpython27 for Windows + Python 2.7, to build netifaces
+      # extension.  See https://chocolatey.org/packages/vcpython27 and
+      # https://github.com/crazy-max/ghaction-chocolatey
+      - name: Install MSVC 9.0 for Python 2.7 [Windows]
+        if: matrix.os == 'windows-latest' && matrix.python-version == '2.7'
+        uses: crazy-max/ghaction-chocolatey@v1
+        with:
+          args: install vcpython27
 
       - name: Install Tor [Ubuntu]
         if: matrix.os == 'ubuntu-latest'
@@ -125,6 +143,15 @@ jobs:
           - 2.7
 
     steps:
+
+      # Get vcpython27 for Windows + Python 2.7, to build netifaces
+      # extension.  See https://chocolatey.org/packages/vcpython27 and
+      # https://github.com/crazy-max/ghaction-chocolatey
+      - name: Install MSVC 9.0 for Python 2.7 [Windows]
+        if: matrix.os == 'windows-latest' && matrix.python-version == '2.7'
+        uses: crazy-max/ghaction-chocolatey@v1
+        with:
+          args: install vcpython27
 
       - name: Check out Tahoe-LAFS sources
         uses: actions/checkout@v2
