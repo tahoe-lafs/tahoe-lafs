@@ -33,7 +33,7 @@ You can use whatever name you like for the virtualenv, but example uses
 3: Use the virtualenv's ``pip`` to install the latest release of Tahoe-LAFS
 into this virtualenv::
 
-    PS C:\Users\me> venv\Scripts\pip install --find-links=https://tahoe-lafs.org/deps/ tahoe-lafs
+    PS C:\Users\me> venv\Scripts\pip install tahoe-lafs
     Collecting tahoe-lafs
     ...
     Installing collected packages: ...
@@ -69,7 +69,7 @@ The ``pip install tahoe-lafs`` command above will install the latest release
 the following command (using pip from the virtualenv, from the root of your
 git checkout)::
 
-    $ venv\Scripts\pip install --find-links=https://tahoe-lafs.org/deps/ .
+    $ venv\Scripts\pip install .
 
 If you're planning to hack on the source code, you might want to add
 ``--editable`` so you won't have to re-install each time you make a change.
@@ -77,12 +77,7 @@ If you're planning to hack on the source code, you might want to add
 Dependencies
 ------------
 
-Tahoe-LAFS depends upon several packages that use compiled C code
-(such as zfec). This code must be built separately for each platform
-(Windows, OS-X, and different flavors of Linux).
-
-Pre-compiled "wheels" of all Tahoe's dependencies are hosted on the
-tahoe-lafs.org website in the ``deps/`` directory. The ``--find-links=``
-argument (used in the examples above) instructs ``pip`` to look at that URL
-for dependencies. This should avoid the need for anything to be compiled
-during the install.
+Tahoe-LAFS depends upon several packages that use compiled C code (such as zfec).
+This code must be built separately for each platform (Windows, OS-X, and different flavors of Linux).
+Fortunately, this is now done by upstream packages for most platforms.
+The result is that a C compiler is usually not required to install Tahoe-LAFS.
