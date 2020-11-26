@@ -373,7 +373,7 @@ class _Config(object):
 
     def set_config(self, section, option, value):
         """
-        Set a config options in a section and re-write the tahoe.cfg file
+        Set a config option in a section and re-write the tahoe.cfg file
         """
         if option.endswith(".furl") and "#" in value:
             raise UnescapedHashError(section, option, value)
