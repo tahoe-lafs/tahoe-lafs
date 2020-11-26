@@ -26,7 +26,10 @@ This serves as the process by which the client authenticates the server.
 
 The client can then exercise further Foolscap functionality using the fURL's object identifier.
 If the object identifier is an unguessable, secret string then it serves as a capability.
-This serves as the process by which the server authorizes the client.
+This unguessable identifier is sometimes called a `swiss number`_ (or swissnum).
+The client's use of the swissnum is what allows the server to authorize the client.
+
+.. _`swiss number`: http://wiki.erights.org/wiki/Swiss_number
 
 NURLs
 -----
