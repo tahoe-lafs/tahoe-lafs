@@ -150,3 +150,16 @@ Examples
        Since this matches the empty string,
        no network addresses are required to form a fURL.
        The supporting code around the regular expression also takes extra steps to allow an empty string to match here.
+
+Open Questions
+--------------
+
+1. Should we make a hard recommendation that all certificate fields are ignored?
+   The system makes no guarantees about validation of these fields.
+   Is it just an unnecessary risk to let a user see them?
+
+2. Should the version specifier be a query-arg-alike or a fragment-alike?
+   The value is only necessary on the client side which makes it similar to an HTTP URL fragment.
+   The current Tahoe-LAFS configuration parsing code has special handling of the fragment character (``#``) which makes it unusable.
+   However,
+   the configuration parsing code is easily changed.
