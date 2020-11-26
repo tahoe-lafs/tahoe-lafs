@@ -260,7 +260,12 @@ def _create_node(reactor, request, temp_dir, introducer_furl, flog_gatherer, nam
         def created(_):
             config_path = join(node_dir, 'tahoe.cfg')
             config = get_config(config_path)
-            set_config(config, 'node', 'log_gatherer.furl', flog_gatherer)
+            set_config(
+                config,
+                u'node',
+                u'log_gatherer.furl',
+                flog_gatherer.decode("utf-8"),
+            )
             write_config(FilePath(config_path), config)
         created_d.addCallback(created)
 

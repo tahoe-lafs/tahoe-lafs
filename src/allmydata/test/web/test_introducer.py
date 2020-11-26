@@ -127,7 +127,7 @@ class IntroducerWeb(unittest.TestCase):
         assert_soup_has_text(
             self,
             soup,
-            u"%s: %s" % (allmydata.__appname__, allmydata.__version__),
+            allmydata.__full_version__,
         )
         assert_soup_has_text(self, soup, u"no peers!")
         assert_soup_has_text(self, soup, u"subscribers!")
