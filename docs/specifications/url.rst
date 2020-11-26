@@ -59,7 +59,13 @@ The EBNF for a NURL is as follows::
   hash         = unreserved
 
   net-loc-list = net-loc, [ { ",", net-loc } ]
-  net-loc      = hostname, [ ":" port ]
+  net-loc      = tcp-loc | tor-loc | i2p-loc
+
+  tcp-loc      = [ "tcp:" ], hostname, [ ":" port ]
+  tor-loc      = "tor:", hostname, [ ":" port ]
+  i2p-loc      = "i2p:", i2p-addr, [ ":" port ]
+
+  i2p-addr     = { unreserved }, ".i2p"
   hostname     = domain | IPv4address | IPv6address
 
   swiss-number = segment
