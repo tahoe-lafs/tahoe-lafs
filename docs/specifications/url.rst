@@ -44,6 +44,9 @@ Therefore,
 this document coins the name **NURL** for these URLs.
 This can be considered to expand to "**N**\ ew URLs" or "Authe\ **N**\ ticating URLs" or "Authorizi\ **N**\ g URLs" as the reader prefers.
 
+The anticipated use for a **NURL** will still be to establish a TLS connection to a peer.
+The protocol run over that TLS connection could be Foolscap though it is more likely to be an HTTP-based protocol.
+
 Syntax
 ------
 
