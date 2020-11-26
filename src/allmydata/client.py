@@ -2,7 +2,6 @@ import os
 import stat
 import time
 import weakref
-import json
 from allmydata import node
 from base64 import urlsafe_b64encode
 from functools import partial

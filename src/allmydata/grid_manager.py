@@ -419,7 +419,6 @@ def create_grid_manager_verifier(keys, certs, public_key, now_fn=None, bad_cert=
         # if *any* certificate is still valid then we consider the server valid
         for cert in valid_certs:
             expires = datetime.utcfromtimestamp(cert['expires'])
-            cert_pubkey = ed25519.verifying_key_from_string(cert['public_key'].encode('ascii'))
             if cert['public_key'] == public_key:
                 if expires > now:
                     # not-expired
