@@ -72,7 +72,11 @@ class GridManagerVerifier(SyncTestCase):
 
     def test_sign_cert(self):
         """
-        Add a storage-server and sign a certificate for it
+        For a storage server previously added to a grid manager,
+        _GridManager.sign returns a dict with "certificate" and
+        "signature" properties where the value of "signature" gives
+        the ed25519 signature (using the grid manager's private key of
+        the value) of "certificate".
         """
         priv, pub = ed25519.create_signing_keypair()
         self.gm.add_storage_server("test", pub)
