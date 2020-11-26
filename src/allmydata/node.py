@@ -374,6 +374,16 @@ class _Config(object):
     def set_config(self, section, option, value):
         """
         Set a config option in a section and re-write the tahoe.cfg file
+
+        :param str section: The name of the section in which to set the
+            option.
+
+        :param str option: The name of the option to set.
+
+        :param str value: The value of the option.
+
+        :raise UnescapedHashError: If the option holds a fURL and there is a
+            ``#`` in the value.
         """
         if option.endswith(".furl") and "#" in value:
             raise UnescapedHashError(section, option, value)
