@@ -98,6 +98,11 @@ The hash component of a version 1 NURL differs in three ways from the prior vers
    This is useful to allow contact information to be updated or extension of validity period.
    Use of an SPKI hash has also been `explored by the web community`_ during its flirtation with using it for HTTPS certificate pinning
    (though this is now largely abandoned).
+
+.. note::
+   *Only* the certificate's keypair is pinned by the SPKI hash.
+   The freedom to change every other part of the certificate is coupled with the fact that all other parts of the certificate contain arbitrary information set by the private key holder.
+
 3. The hash is encoded using urlsafe-base64 (without padding) instead of base32.
    This provides a more compact representation and minimizes the usability impacts of switching from a 160 bit hash to a 224 bit hash.
 
