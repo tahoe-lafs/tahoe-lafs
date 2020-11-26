@@ -86,6 +86,12 @@ Notably,
 the hash component is defined as the base32-encoded SHA1 hash of the DER form of an x509v3 certificate.
 A version 0 NURL is identified by the absence of the ``v=1`` fragment.
 
+Examples
+~~~~~~~~
+
+* ``pb://sisi4zenj7cxncgvdog7szg3yxbrnamy@tcp:127.1:34399/xphmwz6lx24rh2nxlinni``
+* ``pb://2uxmzoqqimpdwowxr24q6w5ekmxcymby@localhost:47877/riqhpojvzwxujhna5szkn``
+
 Version 1
 ---------
 
@@ -117,6 +123,12 @@ It is possible for a client to unilaterally upgrade a version 0 NURL to a versio
 After establishing and authenticating a connection the client will have received a copy of the server's certificate.
 This is sufficient to compute the new hash and rewrite the NURL to upgrade it to version 1.
 This provides stronger authentication assurances for future uses but it is not required.
+
+Examples
+~~~~~~~~
+
+* ``pb://1WUX44xKjKdpGLohmFcBNuIRN-8rlv1Iij_7rQ@tcp:127.1:34399/jhjbc3bjbhk#v=1``
+* ``pb://azEu8vlRpnEeYm0DySQDeNY3Z2iJXHC_bsbaAw@localhost:47877/64i4aokv4ej#v=1``
 
 .. _`continues to be eroded`: https://en.wikipedia.org/wiki/SHA-1#Cryptanalysis_and_validation
 .. _`explored by the web community`: https://www.imperialviolet.org/2011/05/04/pinning.html
