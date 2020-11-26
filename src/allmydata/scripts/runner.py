@@ -7,7 +7,6 @@ import six
 from twisted.python import usage
 from twisted.internet import defer, task, threads
 
-from allmydata.version_checks import get_package_versions_string
 from allmydata.scripts.common import get_default_nodedir
 from allmydata.scripts import debug, create_node, cli, \
     stats_gatherer, admin, tahoe_daemonize, tahoe_start, \
@@ -17,6 +16,10 @@ from allmydata.util.eliotutil import (
     opt_eliot_destination,
     opt_help_eliot_destinations,
     eliot_logging_service,
+)
+
+from .. import (
+    __full_version__,
 )
 
 _default_nodedir = get_default_nodedir()
@@ -77,12 +80,10 @@ class Options(usage.Options):
     ]
 
     def opt_version(self):
-        print(get_package_versions_string(debug=True), file=self.stdout)
+        print(__full_version__, file=self.stdout)
         self.no_command_needed = True
 
-    def opt_version_and_path(self):
-        print(get_package_versions_string(show_paths=True, debug=True), file=self.stdout)
-        self.no_command_needed = True
+    opt_version_and_path = opt_version
 
     opt_eliot_destination = opt_eliot_destination
     opt_help_eliot_destinations = opt_help_eliot_destinations

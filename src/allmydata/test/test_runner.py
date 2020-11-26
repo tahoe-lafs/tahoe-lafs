@@ -12,7 +12,6 @@ from twisted.internet import reactor
 from twisted.python import usage
 from twisted.internet.defer import (
     inlineCallbacks,
-    returnValue,
     DeferredList,
 )
 from twisted.python.filepath import FilePath
@@ -20,12 +19,9 @@ from twisted.python.runtime import (
     platform,
 )
 from allmydata.util import fileutil, pollmixin
-from allmydata.util.encodingutil import unicode_to_argv, unicode_to_output, \
-    get_filesystem_encoding
+from allmydata.util.encodingutil import unicode_to_argv, unicode_to_output
 from allmydata.test import common_util
-from allmydata.version_checks import normalized_version
 import allmydata
-from allmydata import __appname__
 from .common_util import parse_cli, run_cli
 from .cli_node_api import (
     CLINodeAPI,
@@ -58,17 +54,6 @@ rootdir = get_root_from_file(srcfile)
 
 
 class RunBinTahoeMixin(object):
-
-    @inlineCallbacks
-    def find_import_location(self):
-        res = yield self.run_bintahoe(["--version-and-path"])
-        out, err, rc_or_sig = res
-        self.assertEqual(rc_or_sig, 0, res)
-        lines = out.splitlines()
-        tahoe_pieces = lines[0].split()
-        self.assertEqual(tahoe_pieces[0], "%s:" % (__appname__,), (tahoe_pieces, res))
-        returnValue(tahoe_pieces[-1].strip("()"))
-
     def run_bintahoe(self, args, stdin=None, python_options=[], env=None):
         command = sys.executable
         argv = python_options + ["-m", "allmydata.scripts.runner"] + args
@@ -86,64 +71,6 @@ class RunBinTahoeMixin(object):
 
 
 class BinTahoe(common_util.SignalMixin, unittest.TestCase, RunBinTahoeMixin):
-    @inlineCallbacks
-    def test_the_right_code(self):
-        # running "tahoe" in a subprocess should find the same code that
-        # holds this test file, else something is weird
-        test_path = os.path.dirname(os.path.dirname(os.path.normcase(os.path.realpath(srcfile))))
-        bintahoe_import_path = yield self.find_import_location()
-
-        same = (bintahoe_import_path == test_path)
-        if not same:
-            msg = ("My tests and my 'tahoe' executable are using different paths.\n"
-                   "tahoe: %r\n"
-                   "tests: %r\n"
-                   "( according to the test source filename %r)\n" %
-                   (bintahoe_import_path, test_path, srcfile))
-
-            if (not isinstance(rootdir, unicode) and
-                rootdir.decode(get_filesystem_encoding(), 'replace') != rootdir):
-                msg += ("However, this may be a false alarm because the import path\n"
-                        "is not representable in the filesystem encoding.")
-                raise unittest.SkipTest(msg)
-            else:
-                msg += "Please run the tests in a virtualenv that includes both the Tahoe-LAFS library and the 'tahoe' executable."
-                self.fail(msg)
-
-    def test_path(self):
-        d = self.run_bintahoe(["--version-and-path"])
-        def _cb(res):
-            out, err, rc_or_sig = res
-            self.failUnlessEqual(rc_or_sig, 0, str(res))
-
-            # Fail unless the __appname__ package is *this* version *and*
-            # was loaded from *this* source directory.
-
-            required_verstr = str(allmydata.__version__)
-
-            self.failIfEqual(required_verstr, "unknown",
-                             "We don't know our version, because this distribution didn't come "
-                             "with a _version.py and 'setup.py update_version' hasn't been run.")
-
-            srcdir = os.path.dirname(os.path.dirname(os.path.normcase(os.path.realpath(srcfile))))
-            info = repr((res, allmydata.__appname__, required_verstr, srcdir))
-
-            appverpath = out.split(')')[0]
-            (appverfull, path) = appverpath.split('] (')
-            (appver, comment) = appverfull.split(' [')
-            (branch, full_version) = comment.split(': ')
-            (app, ver) = appver.split(': ')
-
-            self.failUnlessEqual(app, allmydata.__appname__, info)
-            norm_ver = normalized_version(ver)
-            norm_required = normalized_version(required_verstr)
-            self.failUnlessEqual(norm_ver, norm_required, info)
-            self.failUnlessEqual(path, srcdir, info)
-            self.failUnlessEqual(branch, allmydata.branch)
-            self.failUnlessEqual(full_version, allmydata.full_version)
-        d.addCallback(_cb)
-        return d
-
     def test_unicode_arguments_and_output(self):
         tricky = u"\u2621"
         try:
@@ -165,8 +92,8 @@ class BinTahoe(common_util.SignalMixin, unittest.TestCase, RunBinTahoeMixin):
         d = self.run_bintahoe(["--version"], python_options=["-t"])
         def _cb(res):
             out, err, rc_or_sig = res
-            self.failUnlessEqual(rc_or_sig, 0, str(res))
-            self.failUnless(out.startswith(allmydata.__appname__+':'), str(res))
+            self.assertEqual(rc_or_sig, 0, str(res))
+            self.assertTrue(out.startswith(allmydata.__appname__ + '/'), str(res))
         d.addCallback(_cb)
         return d
 

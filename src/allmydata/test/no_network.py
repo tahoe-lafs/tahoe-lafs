@@ -361,7 +361,7 @@ class NoNetworkGrid(service.MultiService):
         to complete properly
         """
         if self._setup_errors:
-            raise self._setup_errors[0].value
+            self._setup_errors[0].raiseException()
 
     @defer.inlineCallbacks
     def make_client(self, i, write_config=True):
