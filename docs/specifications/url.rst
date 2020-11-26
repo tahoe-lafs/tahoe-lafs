@@ -117,6 +117,9 @@ The hash component of a version 1 NURL differs in three ways from the prior vers
 .. note::
    *Only* the certificate's keypair is pinned by the SPKI hash.
    The freedom to change every other part of the certificate is coupled with the fact that all other parts of the certificate contain arbitrary information set by the private key holder.
+   It is neither guaranteed nor expected that a certificate-issuing authority has validated this information.
+   Therefore,
+   *all* certificate fields should be considered within the context of the relationship identified by the SPKI hash.
 
 3. The hash is encoded using urlsafe-base64 (without padding) instead of base32.
    This provides a more compact representation and minimizes the usability impacts of switching from a 160 bit hash to a 224 bit hash.
