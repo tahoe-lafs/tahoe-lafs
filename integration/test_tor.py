@@ -9,6 +9,10 @@ import pytest_twisted
 
 import util
 
+from twisted.python.filepath import (
+    FilePath,
+)
+
 from allmydata.test.common import (
     write_introducer,
 )
@@ -70,12 +74,12 @@ def test_onion_service_storage(reactor, request, temp_dir, flog_gatherer, tor_ne
 
 @pytest_twisted.inlineCallbacks
 def _create_anonymous_node(reactor, name, control_port, request, temp_dir, flog_gatherer, tor_network, introducer_furl):
-    node_dir = join(temp_dir, name)
+    node_dir = FilePath(temp_dir).child(name)
     web_port = "tcp:{}:interface=localhost".format(control_port + 2000)
 
     if True:
-        print("creating", node_dir)
-        mkdir(node_dir)
+        print("creating", node_dir.path)
+        node_dir.makedirs()
         proto = util._DumpOutputProtocol(None)
         reactor.spawnProcess(
             proto,
@@ -88,7 +92,7 @@ def _create_anonymous_node(reactor, name, control_port, request, temp_dir, flog_
                 '--hide-ip',
                 '--tor-control-port', 'tcp:localhost:{}'.format(control_port),
                 '--listen', 'tor',
-                node_dir,
+                node_dir.path,
             )
         )
         yield proto.done
@@ -96,7 +100,7 @@ def _create_anonymous_node(reactor, name, control_port, request, temp_dir, flog_
 
     # Which services should this client connect to?
     write_introducer(node_dir, "default", introducer_furl)
-    with open(join(node_dir, 'tahoe.cfg'), 'w') as f:
+    with node_dir.child('tahoe.cfg').open('w') as f:
         f.write('''
 [node]
 nickname = %(name)s
@@ -125,5 +129,5 @@ shares.total = 2
 })
 
     print("running")
-    yield util._run_node(reactor, node_dir, request, None)
+    yield util._run_node(reactor, node_dir.path, request, None)
     print("okay, launched")
