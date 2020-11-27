@@ -399,8 +399,8 @@ This section controls *when* Tor and I2P are used. The ``[tor]`` and
 managed.
 
 All Tahoe nodes need to make a connection to the Introducer; the
-``private/introducers.yaml`` file (described below) configures where the
-Introducer lives. Tahoe client nodes must also make connections to storage
+``private/introducers.yaml`` file (described below) configures where one or more
+Introducers live. Tahoe client nodes must also make connections to storage
 servers: these targets are specified in announcements that come from the
 Introducer.  Both are expressed as FURLs (a Foolscap URL), which include a
 list of "connection hints". Each connection hint describes one (of perhaps
