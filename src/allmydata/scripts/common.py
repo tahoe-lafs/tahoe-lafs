@@ -124,7 +124,7 @@ def write_introducer(basedir, petname, furl):
     Overwrite the node's ``introducers.yaml`` with a file containing the given
     introducer information.
     """
-    FilePath(basedir).child(b"private").child(b"introducers.yaml").setContent(
+    basedir.child(b"private").child(b"introducers.yaml").setContent(
         safe_dump({
             "introducers": {
                 petname: {

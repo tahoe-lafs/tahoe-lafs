@@ -33,6 +33,9 @@ from allmydata.mutable.publish import MutableData
 
 from foolscap.api import DeadReferenceError, fireEventually, flushEventualQueue
 from twisted.python.failure import Failure
+from twisted.python.filepath import (
+    FilePath,
+)
 
 from .common import (
     TEST_RSA_KEY_SIZE,
@@ -903,21 +906,21 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
         # usually this node is *not* parented to our self.sparent, so we can
         # shut it down separately from the rest, to exercise the
         # connection-lost code
-        basedir = self.getdir("client%d" % client_num)
-        if not os.path.isdir(basedir):
-            fileutil.make_dirs(basedir)
+        basedir = FilePath(self.getdir("client%d" % client_num))
+        basedir.makedirs()
         config = "[client]\n"
         if helper_furl:
             config += "helper.furl = %s\n" % helper_furl
-        fileutil.write(os.path.join(basedir, 'tahoe.cfg'), config)
-        os.makedirs(basedir + b"/private")
+        basedir.child("tahoe.cfg").setContent(config)
+        private = basedir.child("private")
+        private.makedirs()
         write_introducer(
             basedir,
             "default",
             self.introducer_furl,
         )
 
-        c = yield client.create_client(basedir)
+        c = yield client.create_client(basedir.path)
         self.clients.append(c)
         c.set_default_mutable_keysize(TEST_RSA_KEY_SIZE)
         self.numclients += 1

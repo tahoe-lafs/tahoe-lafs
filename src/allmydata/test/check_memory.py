@@ -8,6 +8,9 @@ if PY2:
     from future.builtins import str  # noqa: F401
 from six.moves import cStringIO as StringIO
 
+from twisted.python.filepath import (
+    FilePath,
+)
 from twisted.internet import defer, reactor, protocol, error
 from twisted.application import service, internet
 from twisted.web import client as tw_client
@@ -184,15 +187,17 @@ class SystemFramework(pollmixin.PollMixin):
         self.introducer_furl = self.introducer.introducer_url
 
     def make_nodes(self):
+        root = FilePath(self.testdir)
         self.nodes = []
         for i in range(self.numnodes):
-            nodedir = os.path.join(self.testdir, "node%d" % i)
-            os.makedirs(nodedir + b"/private")
+            nodedir = root.child("node%d" % (i,))
+            private = nodedir.child("private")
+            private.makedirs()
             write_introducer(nodedir, "default", self.introducer_url)
-            f = open(os.path.join(nodedir, "tahoe.cfg"), "w")
-            f.write("[client]\n"
-                    "shares.happy = 1\n"
-                    "[storage]\n"
+            config = (
+                "[client]\n"
+                "shares.happy = 1\n"
+                "[storage]\n"
             )
             # the only tests for which we want the internal nodes to actually
             # retain shares are the ones where somebody's going to download
@@ -204,13 +209,13 @@ class SystemFramework(pollmixin.PollMixin):
                 # for these tests, we tell the storage servers to pretend to
                 # accept shares, but really just throw them out, since we're
                 # only testing upload and not download.
-                f.write("debug_discard = true\n")
+                config += "debug_discard = true\n"
             if self.mode in ("receive",):
                 # for this mode, the client-under-test gets all the shares,
                 # so our internal nodes can refuse requests
-                f.write("readonly = true\n")
-            f.close()
-            c = client.Client(basedir=nodedir)
+                config += "readonly = true\n"
+            nodedir.child("tahoe.cfg").setContent(config)
+            c = client.Client(basedir=nodedir.path)
             c.setServiceParent(self)
             self.nodes.append(c)
         # the peers will start running, eventually they will connect to each

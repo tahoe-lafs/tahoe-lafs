@@ -667,11 +667,11 @@ class AnonymousStorage(SyncTestCase):
         """
         If anonymous storage access is enabled then the client announces it.
         """
-        basedir = self.id()
-        os.makedirs(basedir + b"/private")
+        basedir = FilePath(self.id())
+        basedir.child("private").makedirs()
         write_introducer(basedir, "someintroducer", SOME_FURL)
         config = client.config_from_string(
-            basedir,
+            basedir.path,
             "tub.port",
             BASECONFIG + (
                 "[storage]\n"
@@ -687,7 +687,7 @@ class AnonymousStorage(SyncTestCase):
             get_published_announcements(node),
             MatchesListwise([
                 matches_storage_announcement(
-                    basedir,
+                    basedir.path,
                     anonymous=True,
                 ),
             ]),
@@ -699,11 +699,11 @@ class AnonymousStorage(SyncTestCase):
         If anonymous storage access is disabled then the client does not announce
         it nor does it write a fURL for it to beneath the node directory.
         """
-        basedir = self.id()
-        os.makedirs(basedir + b"/private")
+        basedir = FilePath(self.id())
+        basedir.child("private").makedirs()
         write_introducer(basedir, "someintroducer", SOME_FURL)
         config = client.config_from_string(
-            basedir,
+            basedir.path,
             "tub.port",
             BASECONFIG + (
                 "[storage]\n"
@@ -719,7 +719,7 @@ class AnonymousStorage(SyncTestCase):
             get_published_announcements(node),
             MatchesListwise([
                 matches_storage_announcement(
-                    basedir,
+                    basedir.path,
                     anonymous=False,
                 ),
             ]),
@@ -737,10 +737,10 @@ class AnonymousStorage(SyncTestCase):
         possible to reach the anonymous storage server via the originally
         published fURL.
         """
-        basedir = self.id()
-        os.makedirs(basedir + b"/private")
+        basedir = FilePath(self.id())
+        basedir.child("private").makedirs()
         enabled_config = client.config_from_string(
-            basedir,
+            basedir.path,
             "tub.port",
             BASECONFIG + (
                 "[storage]\n"
@@ -764,7 +764,7 @@ class AnonymousStorage(SyncTestCase):
         )
 
         disabled_config = client.config_from_string(
-            basedir,
+            basedir.path,
             "tub.port",
             BASECONFIG + (
                 "[storage]\n"
@@ -956,22 +956,24 @@ class Run(unittest.TestCase, testutil.StallMixin):
         A configuration consisting only of an introducer can be turned into a
         client node.
         """
-        basedir = "test_client.Run.test_loadable"
-        os.makedirs(basedir + b"/private")
+        basedir = FilePath("test_client.Run.test_loadable")
+        private = basedir.child("private")
+        private.makedirs()
         dummy = "pb://wl74cyahejagspqgy4x5ukrvfnevlknt@127.0.0.1:58889/bogus"
         write_introducer(basedir, "someintroducer", dummy)
-        fileutil.write(os.path.join(basedir, "tahoe.cfg"), BASECONFIG)
-        fileutil.write(os.path.join(basedir, client._Client.EXIT_TRIGGER_FILE), "")
-        yield client.create_client(basedir)
+        basedir.child("tahoe.cfg").setContent(BASECONFIG)
+        basedir.child(client._Client.EXIT_TRIGGER_FILE).touch()
+        yield client.create_client(basedir.path)
 
     @defer.inlineCallbacks
     def test_reloadable(self):
-        basedir = "test_client.Run.test_reloadable"
-        os.makedirs(basedir + b"/private")
+        basedir = FilePath("test_client.Run.test_reloadable")
+        private = basedir.child("private")
+        private.makedirs()
         dummy = "pb://wl74cyahejagspqgy4x5ukrvfnevlknt@127.0.0.1:58889/bogus"
         write_introducer(basedir, "someintroducer", dummy)
-        fileutil.write(os.path.join(basedir, "tahoe.cfg"), BASECONFIG)
-        c1 = yield client.create_client(basedir)
+        basedir.child("tahoe.cfg").setContent(BASECONFIG)
+        c1 = yield client.create_client(basedir.path)
         c1.setServiceParent(self.sparent)
 
         # delay to let the service start up completely. I'm not entirely sure
@@ -993,7 +995,7 @@ class Run(unittest.TestCase, testutil.StallMixin):
         # also change _check_exit_trigger to use it instead of a raw
         # reactor.stop, also instrument the shutdown event in an
         # attribute that we can check.)
-        c2 = yield client.create_client(basedir)
+        c2 = yield client.create_client(basedir.path)
         c2.setServiceParent(self.sparent)
         yield c2.disownServiceParent()
 
@@ -1132,8 +1134,8 @@ class StorageAnnouncementTests(SyncTestCase):
     """
     def setUp(self):
         super(StorageAnnouncementTests, self).setUp()
-        self.basedir = self.useFixture(TempDir()).path
-        create_node_dir(self.basedir, u"")
+        self.basedir = FilePath(self.useFixture(TempDir()).path)
+        create_node_dir(self.basedir.path, u"")
         # Write an introducer configuration or we can't observer
         # announcements.
         write_introducer(self.basedir, "someintroducer", SOME_FURL)
@@ -1164,7 +1166,7 @@ enabled = {storage_enabled}
         No storage announcement is published if storage is not enabled.
         """
         config = client.config_from_string(
-            self.basedir,
+            self.basedir.path,
             "tub.port",
             self.get_config(storage_enabled=False),
         )
@@ -1186,7 +1188,7 @@ enabled = {storage_enabled}
         storage is enabled.
         """
         config = client.config_from_string(
-            self.basedir,
+            self.basedir.path,
             "tub.port",
             self.get_config(storage_enabled=True),
         )
@@ -1203,7 +1205,7 @@ enabled = {storage_enabled}
                 # Match the following list (of one element) ...
                 MatchesListwise([
                     # The only element in the list ...
-                    matches_storage_announcement(self.basedir),
+                    matches_storage_announcement(self.basedir.path),
                 ]),
             )),
         )
@@ -1218,7 +1220,7 @@ enabled = {storage_enabled}
 
         value = u"thing"
         config = client.config_from_string(
-            self.basedir,
+            self.basedir.path,
             "tub.port",
             self.get_config(
                 storage_enabled=True,
@@ -1238,7 +1240,7 @@ enabled = {storage_enabled}
                 get_published_announcements,
                 MatchesListwise([
                     matches_storage_announcement(
-                        self.basedir,
+                        self.basedir.path,
                         options=[
                             matches_dummy_announcement(
                                 u"tahoe-lafs-dummy-v1",
@@ -1259,7 +1261,7 @@ enabled = {storage_enabled}
         self.useFixture(UseTestPlugins())
 
         config = client.config_from_string(
-            self.basedir,
+            self.basedir.path,
             "tub.port",
             self.get_config(
                 storage_enabled=True,
@@ -1281,7 +1283,7 @@ enabled = {storage_enabled}
                 get_published_announcements,
                 MatchesListwise([
                     matches_storage_announcement(
-                        self.basedir,
+                        self.basedir.path,
                         options=[
                             matches_dummy_announcement(
                                 u"tahoe-lafs-dummy-v1",
@@ -1307,7 +1309,7 @@ enabled = {storage_enabled}
         self.useFixture(UseTestPlugins())
 
         config = client.config_from_string(
-            self.basedir,
+            self.basedir.path,
             "tub.port",
             self.get_config(
                 storage_enabled=True,
@@ -1343,7 +1345,7 @@ enabled = {storage_enabled}
         self.useFixture(UseTestPlugins())
 
         config = client.config_from_string(
-            self.basedir,
+            self.basedir.path,
             "tub.port",
             self.get_config(
                 storage_enabled=True,
@@ -1359,7 +1361,7 @@ enabled = {storage_enabled}
                 get_published_announcements,
                 MatchesListwise([
                     matches_storage_announcement(
-                        self.basedir,
+                        self.basedir.path,
                         options=[
                             matches_dummy_announcement(
                                 u"tahoe-lafs-dummy-v1",
@@ -1381,7 +1383,7 @@ enabled = {storage_enabled}
         self.useFixture(UseTestPlugins())
 
         config = client.config_from_string(
-            self.basedir,
+            self.basedir.path,
             "tub.port",
             self.get_config(
                 storage_enabled=True,
@@ -1408,7 +1410,7 @@ enabled = {storage_enabled}
         available on the system.
         """
         config = client.config_from_string(
-            self.basedir,
+            self.basedir.path,
             "tub.port",
             self.get_config(
                 storage_enabled=True,

@@ -5,6 +5,9 @@ import json
 
 from twisted.internet import reactor, defer
 from twisted.python.usage import UsageError
+from twisted.python.filepath import (
+    FilePath,
+)
 
 from allmydata.scripts.common import (
     BasedirOptions,
@@ -308,7 +311,7 @@ def write_client_config(c, config):
     introducer = config.get("introducer", None)
     if introducer is not None:
         write_introducer(
-            config["basedir"],
+            FilePath(config["basedir"]),
             "default",
             introducer,
         )

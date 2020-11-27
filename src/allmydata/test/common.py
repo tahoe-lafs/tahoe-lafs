@@ -251,7 +251,7 @@ class UseNode(object):
 )
 
         write_introducer(
-            self.basedir.asBytesMode().path,
+            self.basedir,
             "default",
             self.introducer_furl,
         )
