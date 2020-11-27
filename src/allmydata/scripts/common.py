@@ -14,9 +14,6 @@ if PY2:
     from future.builtins import str  # noqa: F401
 
 from twisted.python import usage
-from twisted.python.filepath import FilePath
-
-
 
 from allmydata.util.assertutil import precondition
 from allmydata.util.encodingutil import unicode_to_url, quote_output, \
