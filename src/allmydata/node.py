@@ -463,11 +463,34 @@ class _Config(object):
                     for petname, config
                     in introducers_yaml.get("introducers", {}).items()
                 }
-                assert all(isinstance(k, str) for k in introducers.keys())
-                assert all(isinstance(v, str) for v in introducers.values()), introducers.values()
+                non_strs = list(
+                    k
+                    for k
+                    in introducers.keys()
+                    if not isinstance(k, str)
+                )
+                if non_strs:
+                    raise TypeError(
+                        "Introducer petnames {!r} should have been str".format(
+                            non_strs,
+                        ),
+                    )
+                non_strs = list(
+                    v
+                    for v
+                    in introducers.values()
+                    if not isinstance(v, str)
+                )
+                if non_strs:
+                    raise TypeError(
+                        "Introducer fURLs {!r} should have been str".format(
+                            non_strs,
+                        ),
+                    )
                 log.msg(
-                    "found {} introducers in private/introducers.yaml".format(
+                    "found {} introducers in {!r}".format(
                         len(introducers),
+                        introducers_yaml_filename,
                     )
                 )
         except EnvironmentError as e:
