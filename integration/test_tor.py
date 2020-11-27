@@ -1,7 +1,6 @@
 from __future__ import print_function
 
 import sys
-from os import mkdir
 from os.path import join
 
 import pytest
