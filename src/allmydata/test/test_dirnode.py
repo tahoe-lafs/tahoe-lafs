@@ -1526,7 +1526,7 @@ class Packing(testutil.ReallyEqualMixin, unittest.TestCase):
                               kids, fn.get_writekey(), deep_immutable=True)
 
 @implementer(IMutableFileNode)
-class FakeMutableFile(object):
+class FakeMutableFile(object):  # type: ignore # incomplete interface
     counter = 0
     def __init__(self, initial_contents=""):
         data = self._get_initial_contents(initial_contents)
@@ -1587,7 +1587,7 @@ class FakeNodeMaker(NodeMaker):
     def create_mutable_file(self, contents="", keysize=None, version=None):
         return defer.succeed(FakeMutableFile(contents))
 
-class FakeClient2(_Client):
+class FakeClient2(_Client):  # type: ignore # ambiguous MRO
     def __init__(self):
         self.nodemaker = FakeNodeMaker(None, None, None,
                                        None, None,
