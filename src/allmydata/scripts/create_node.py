@@ -3,6 +3,11 @@ from __future__ import print_function
 import os
 import json
 
+try:
+    from allmydata.scripts.types_ import SubCommands
+except ImportError:
+    pass
+
 from twisted.internet import reactor, defer
 from twisted.python.usage import UsageError
 from allmydata.scripts.common import BasedirOptions, NoDefaultBasedirOptions
@@ -478,10 +483,10 @@ def create_introducer(config):
 
 
 subCommands = [
-    ["create-node", None, CreateNodeOptions, "Create a node that acts as a client, server or both."],
-    ["create-client", None, CreateClientOptions, "Create a client node (with storage initially disabled)."],
-    ["create-introducer", None, CreateIntroducerOptions, "Create an introducer node."],
-]
+    ("create-node", None, CreateNodeOptions, "Create a node that acts as a client, server or both."),
+    ("create-client", None, CreateClientOptions, "Create a client node (with storage initially disabled)."),
+    ("create-introducer", None, CreateIntroducerOptions, "Create an introducer node."),
+]  # type: SubCommands
 
 dispatch = {
     "create-node": create_node,

@@ -4,6 +4,11 @@ import os, sys
 from six.moves import StringIO
 import six
 
+try:
+    from allmydata.scripts.types_ import SubCommands
+except ImportError:
+    pass
+
 from twisted.python import usage
 from twisted.internet import defer, task, threads
 
@@ -45,12 +50,12 @@ _control_node_dispatch = {
 }
 
 process_control_commands = [
-    ["run", None, tahoe_run.RunOptions, "run a node without daemonizing"],
-    ["daemonize", None, tahoe_daemonize.DaemonizeOptions, "(deprecated) run a node in the background"],
-    ["start", None, tahoe_start.StartOptions, "(deprecated) start a node in the background and confirm it started"],
-    ["stop", None, tahoe_stop.StopOptions, "(deprecated) stop a node"],
-    ["restart", None, tahoe_restart.RestartOptions, "(deprecated) restart a node"],
-]
+    ("run", None, tahoe_run.RunOptions, "run a node without daemonizing"),
+    ("daemonize", None, tahoe_daemonize.DaemonizeOptions, "(deprecated) run a node in the background"),
+    ("start", None, tahoe_start.StartOptions, "(deprecated) start a node in the background and confirm it started"),
+    ("stop", None, tahoe_stop.StopOptions, "(deprecated) stop a node"),
+    ("restart", None, tahoe_restart.RestartOptions, "(deprecated) restart a node"),
+]  # type: SubCommands
 
 
 class Options(usage.Options):

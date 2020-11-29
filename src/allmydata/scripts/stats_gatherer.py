@@ -2,6 +2,11 @@ from __future__ import print_function
 
 import os
 
+try:
+    from allmydata.scripts.types_ import SubCommands
+except ImportError:
+    pass
+
 # Python 2 compatibility
 from future.utils import PY2
 if PY2:
@@ -93,8 +98,8 @@ def create_stats_gatherer(config):
     return 0
 
 subCommands = [
-    ["create-stats-gatherer", None, CreateStatsGathererOptions, "Create a stats-gatherer service."],
-]
+    ("create-stats-gatherer", None, CreateStatsGathererOptions, "Create a stats-gatherer service."),
+]  # type: SubCommands
 
 dispatch = {
     "create-stats-gatherer": create_stats_gatherer,
