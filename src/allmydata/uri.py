@@ -22,6 +22,11 @@ from past.builtins import unicode, long
 
 import re
 
+try:
+    from typing import Type
+except ImportError:
+    pass
+
 from zope.interface import implementer
 from twisted.python.components import registerAdapter
 
@@ -707,7 +712,7 @@ class DirectoryURIVerifier(_DirectoryBaseURI):
 
     BASE_STRING=b'URI:DIR2-Verifier:'
     BASE_STRING_RE=re.compile(b'^'+BASE_STRING)
-    INNER_URI_CLASS=SSKVerifierURI
+    INNER_URI_CLASS=SSKVerifierURI  # type: Type[IVerifierURI]
 
     def __init__(self, filenode_uri=None):
         if filenode_uri:
