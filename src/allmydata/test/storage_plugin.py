@@ -48,7 +48,7 @@ class RIDummy(RemoteInterface):
 
 
 
-@implementer(IFoolscapStoragePlugin)
+@implementer(IFoolscapStoragePlugin)  # type: ignore # todo: make stubs for twisted
 @attr.s
 class DummyStorage(object):
     name = attr.ib()
