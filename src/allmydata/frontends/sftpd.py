@@ -1,6 +1,5 @@
 import six
 import heapq, traceback, array, stat, struct
-from types import NoneType
 from stat import S_IFREG, S_IFDIR
 from time import time, strftime, localtime
 
@@ -267,7 +266,7 @@ def _attrs_to_metadata(attrs):
 
 
 def _direntry_for(filenode_or_parent, childname, filenode=None):
-    precondition(isinstance(childname, (unicode, NoneType)), childname=childname)
+    precondition(isinstance(childname, (unicode, type(None))), childname=childname)
 
     if childname is None:
         filenode_or_parent = filenode
@@ -672,7 +671,7 @@ class GeneralSFTPFile(PrefixingLogMixin):
         self.log(".open(parent=%r, childname=%r, filenode=%r, metadata=%r)" %
                  (parent, childname, filenode, metadata), level=OPERATIONAL)
 
-        precondition(isinstance(childname, (unicode, NoneType)), childname=childname)
+        precondition(isinstance(childname, (unicode, type(None))), childname=childname)
         precondition(filenode is None or IFileNode.providedBy(filenode), filenode=filenode)
         precondition(not self.closed, sftpfile=self)
 
@@ -1194,7 +1193,7 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
         request = "._sync_heisenfiles(%r, %r, ignore=%r)" % (userpath, direntry, ignore)
         self.log(request, level=OPERATIONAL)
 
-        _assert(isinstance(userpath, str) and isinstance(direntry, (str, NoneType)),
+        _assert(isinstance(userpath, str) and isinstance(direntry, (str, type(None))),
                 userpath=userpath, direntry=direntry)
 
         files = []
@@ -1219,7 +1218,7 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
     def _remove_heisenfile(self, userpath, parent, childname, file_to_remove):
         if noisy: self.log("._remove_heisenfile(%r, %r, %r, %r)" % (userpath, parent, childname, file_to_remove), level=NOISY)
 
-        _assert(isinstance(userpath, str) and isinstance(childname, (unicode, NoneType)),
+        _assert(isinstance(userpath, str) and isinstance(childname, (unicode, type(None))),
                 userpath=userpath, childname=childname)
 
         direntry = _direntry_for(parent, childname)
@@ -1246,7 +1245,7 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
                            (existing_file, userpath, flags, _repr_flags(flags), parent, childname, filenode, metadata),
                            level=NOISY)
 
-        _assert((isinstance(userpath, str) and isinstance(childname, (unicode, NoneType)) and
+        _assert((isinstance(userpath, str) and isinstance(childname, (unicode, type(None))) and
                 (metadata is None or 'no-write' in metadata)),
                 userpath=userpath, childname=childname, metadata=metadata)
 
@@ -1977,7 +1976,7 @@ class Dispatcher(object):
 class SFTPServer(service.MultiService):
     def __init__(self, client, accountfile, accounturl,
                  sftp_portstr, pubkey_file, privkey_file):
-        precondition(isinstance(accountfile, (unicode, NoneType)), accountfile)
+        precondition(isinstance(accountfile, (unicode, type(None))), accountfile)
         precondition(isinstance(pubkey_file, unicode), pubkey_file)
         precondition(isinstance(privkey_file, unicode), privkey_file)
         service.MultiService.__init__(self)
