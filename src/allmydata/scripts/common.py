@@ -45,7 +45,7 @@ class BaseOptions(usage.Options):
     def opt_version(self):
         raise usage.UsageError("--version not allowed on subcommands")
 
-    description = None
+    description = None  # type: Optional[str]
     description_unwrapped = None
 
     def __str__(self):
