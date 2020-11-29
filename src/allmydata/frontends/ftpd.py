@@ -1,7 +1,5 @@
 from six import ensure_str
 
-from types import NoneType
-
 from zope.interface import implementer
 from twisted.application import service, strports
 from twisted.internet import defer
@@ -317,7 +315,7 @@ class Dispatcher(object):
 
 class FTPServer(service.MultiService):
     def __init__(self, client, accountfile, accounturl, ftp_portstr):
-        precondition(isinstance(accountfile, (unicode, NoneType)), accountfile)
+        precondition(isinstance(accountfile, (unicode, type(None))), accountfile)
         service.MultiService.__init__(self)
 
         r = Dispatcher(client)
