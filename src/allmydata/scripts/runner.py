@@ -113,7 +113,7 @@ class Options(usage.Options):
 
 create_dispatch = {}
 for module in (create_node, stats_gatherer):
-    create_dispatch.update(module.dispatch)
+    create_dispatch.update(module.dispatch)  # type: ignore
 
 def parse_options(argv, config=None):
     if not config:
