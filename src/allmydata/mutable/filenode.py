@@ -1205,3 +1205,6 @@ class MutableFileVersion(object):
                                  self._servermap,
                                  mode=mode)
         return u.update()
+
+    def get_servermap(self):
+        raise NotImplementedError
