@@ -385,6 +385,12 @@ class PeerSelector(object):
         )
         return self.happiness_mappings
 
+    def add_peers(self, peerids=None):
+        raise NotImplementedError
+
+    def confirm_share_allocation(self, peerid, shnum):
+        raise NotImplementedError
+
 
 class _QueryStatistics(object):
 
