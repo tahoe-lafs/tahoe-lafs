@@ -951,7 +951,7 @@ class MutableFileVersion(object):
         return self._servermap.size_of_version(self._version)
 
 
-    def download_to_data(self, fetch_privkey=False, progress=None):
+    def download_to_data(self, fetch_privkey=False, progress=None):  # type: ignore # fixme
         """
         I return a Deferred that fires with the contents of this
         readable object as a byte string.
