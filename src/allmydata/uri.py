@@ -535,6 +535,12 @@ class _DirectoryBaseURI(_BaseURI):
     def get_storage_index(self):
         return self._filenode_uri.get_storage_index()
 
+    def get_readonly(self):
+        raise NotImplementedError()
+
+    def is_readonly(self):
+        raise NotImplementedError()
+
 
 @implementer(IDirectoryURI)
 class DirectoryURI(_DirectoryBaseURI):
