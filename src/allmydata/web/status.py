@@ -1335,7 +1335,7 @@ class Status(MultiFormatResource):
         active = [s
                   for s in self._get_all_statuses()
                   if s.get_active()]
-        active.sort(lambda a, b: cmp(a.get_started(), b.get_started()))
+        active.sort(lambda a, b: cmp(a.get_started(), b.get_started()))  # type: ignore # py2
         active.reverse()
         return active
 
@@ -1343,7 +1343,7 @@ class Status(MultiFormatResource):
         recent = [s
                   for s in self._get_all_statuses()
                   if not s.get_active()]
-        recent.sort(lambda a, b: cmp(a.get_started(), b.get_started()))
+        recent.sort(lambda a, b: cmp(a.get_started(), b.get_started()))  # type: ignore # py2
         recent.reverse()
         return recent
 
