@@ -62,7 +62,7 @@ class FakeClient(object):
 
 
 @implementer(IServer)
-class FakeServer(object):
+class FakeServer(object):  # type: ignore # incomplete interface
 
     def get_name(self):
         return "fake name"
@@ -75,7 +75,7 @@ class FakeServer(object):
 
 
 @implementer(ICheckResults)
-class FakeCheckResults(object):
+class FakeCheckResults(object):  # type: ignore # incomplete interface
 
     def __init__(self, si=None,
                  healthy=False, recoverable=False,
@@ -106,7 +106,7 @@ class FakeCheckResults(object):
 
 
 @implementer(ICheckAndRepairResults)
-class FakeCheckAndRepairResults(object):
+class FakeCheckAndRepairResults(object):  # type: ignore # incomplete interface
 
     def __init__(self, si=None,
                  repair_attempted=False,
