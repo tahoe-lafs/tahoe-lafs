@@ -564,7 +564,7 @@ class MutableFileNode(object):
         return d
 
 
-    def upload(self, new_contents, servermap):
+    def upload(self, new_contents, servermap, progress=None):
         """
         I overwrite the contents of the best recoverable version of this
         mutable file with new_contents, using servermap instead of
