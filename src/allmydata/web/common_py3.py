@@ -4,6 +4,11 @@ Common utilities that are available from Python 3.
 Can eventually be merged back into allmydata.web.common.
 """
 
+try:
+    from typing import Optional
+except ImportError:
+    pass
+
 from twisted.web import resource, http
 
 from allmydata.util import abbreviate
@@ -47,7 +52,7 @@ class MultiFormatResource(resource.Resource, object):
     format if nothing else is given as the ``formatDefault``.
     """
     formatArgument = "t"
-    formatDefault = None
+    formatDefault = None  # type: Optional[str]
 
     def render(self, req):
         """
