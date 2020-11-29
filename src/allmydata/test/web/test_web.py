@@ -189,7 +189,7 @@ class FakeHistory(object):
     def list_all_helper_statuses(self):
         return []
 
-class FakeDisplayableServer(StubServer):
+class FakeDisplayableServer(StubServer):  # type: ignore # Cannot determine MRO
     def __init__(self, serverid, nickname, connected,
                  last_connect_time, last_loss_time, last_rx_time):
         StubServer.__init__(self, serverid)
@@ -255,7 +255,7 @@ class FakeStorageServer(service.MultiService):
     def on_status_changed(self, cb):
         cb(self)
 
-class FakeClient(_Client):
+class FakeClient(_Client):  # type: ignore # Cannot determine MRO
     def __init__(self):
         # don't upcall to Client.__init__, since we only want to initialize a
         # minimal subset
