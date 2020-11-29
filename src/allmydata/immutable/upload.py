@@ -1423,7 +1423,7 @@ class LiteralUploader(object):
         return self._status
 
 @implementer(RIEncryptedUploadable)
-class RemoteEncryptedUploadable(Referenceable):
+class RemoteEncryptedUploadable(Referenceable):  # type: ignore # warner/foolscap#78
 
     def __init__(self, encrypted_uploadable, upload_status):
         self._eu = IEncryptedUploadable(encrypted_uploadable)

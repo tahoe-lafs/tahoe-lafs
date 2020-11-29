@@ -141,7 +141,7 @@ class CHKCheckerAndUEBFetcher(object):
 
 
 @implementer(interfaces.RICHKUploadHelper)
-class CHKUploadHelper(Referenceable, upload.CHKUploader):
+class CHKUploadHelper(Referenceable, upload.CHKUploader):  # type: ignore # warner/foolscap#78
     """I am the helper-server -side counterpart to AssistedUploader. I handle
     peer selection, encoding, and share pushing. I read ciphertext from the
     remote AssistedUploader.
@@ -502,7 +502,7 @@ class LocalCiphertextReader(AskUntilSuccessMixin):
 
 
 @implementer(interfaces.RIHelper, interfaces.IStatsProducer)
-class Helper(Referenceable):
+class Helper(Referenceable):  # type: ignore # warner/foolscap#78
     """
     :ivar dict[bytes, CHKUploadHelper] _active_uploads: For any uploads which
         have been started but not finished, a mapping from storage index to the
