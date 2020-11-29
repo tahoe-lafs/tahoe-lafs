@@ -157,15 +157,15 @@ class IntroducerClient(service.Service, Referenceable):
             kwargs["facility"] = "tahoe.introducer.client"
         return log.msg(*args, **kwargs)
 
-    def subscribe_to(self, service_name, cb, *args, **kwargs):
-        self._local_subscribers.append( (service_name,cb,args,kwargs) )
+    def subscribe_to(self, service_name, callback, *args, **kwargs):
+        self._local_subscribers.append( (service_name,callback,args,kwargs) )
         self._subscribed_service_names.add(service_name)
         self._maybe_subscribe()
         for index,(ann,key_s,when) in self._inbound_announcements.items():
             precondition(isinstance(key_s, str), key_s)
             servicename = index[0]
             if servicename == service_name:
-                eventually(cb, key_s, ann, *args, **kwargs)
+                eventually(callback, key_s, ann, *args, **kwargs)
 
     def _maybe_subscribe(self):
         if not self._publisher:
@@ -198,7 +198,7 @@ class IntroducerClient(service.Service, Referenceable):
         ann_d.update(ann)
         return ann_d
 
-    def publish(self, service_name, ann, signing_key):
+    def publish(self, service_name, ann, signing_key=None):
         # we increment the seqnum every time we publish something new
         current_seqnum, current_nonce = self._sequencer()
 
