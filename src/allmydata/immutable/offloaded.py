@@ -499,6 +499,8 @@ class LocalCiphertextReader(AskUntilSuccessMixin):
         # ??. I'm not sure if it makes sense to forward the close message.
         return self.call("close")
 
+    def set_upload_status(self, upload_status):
+        raise NotImplementedError
 
 
 @implementer(interfaces.RIHelper, interfaces.IStatsProducer)
