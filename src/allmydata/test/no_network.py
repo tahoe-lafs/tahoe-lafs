@@ -67,7 +67,7 @@ class Marker(object):
 
 fireNow = partial(defer.succeed, None)
 
-@implementer(IRemoteReference)
+@implementer(IRemoteReference)  # type: ignore # todo: write stubs for foolscap
 class LocalWrapper(object):
     """
     A ``LocalWrapper`` presents the remote reference interface to a local
@@ -212,9 +212,12 @@ class NoNetworkServer(object):
         return _StorageServer(lambda: self.rref)
     def get_version(self):
         return self.rref.version
+    def start_connecting(self, trigger_cb):
+        raise NotImplementedError
+
 
 @implementer(IStorageBroker)
-class NoNetworkStorageBroker(object):
+class NoNetworkStorageBroker(object):  # type: ignore # missing many methods
     def get_servers_for_psi(self, peer_selection_index):
         def _permuted(server):
             seed = server.get_permutation_seed()
@@ -258,7 +261,7 @@ def create_no_network_client(basedir):
     return defer.succeed(client)
 
 
-class _NoNetworkClient(_Client):
+class _NoNetworkClient(_Client):  # type: ignore # Cannot determine consistent MRO order
     """
     Overrides all _Client networking functionality to do nothing.
     """
