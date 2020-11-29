@@ -19,7 +19,7 @@ from twisted.protocols import basic
 from allmydata.interfaces import IImmutableFileNode, ICheckable
 from allmydata.uri import LiteralFileURI
 
-@implementer(IImmutableFileNode, ICheckable)
+
 class _ImmutableFileNodeBase(object):
 
     def get_write_uri(self):
@@ -56,6 +56,7 @@ class _ImmutableFileNodeBase(object):
         return not self == other
 
 
+@implementer(IImmutableFileNode, ICheckable)
 class LiteralFileNode(_ImmutableFileNodeBase):
 
     def __init__(self, filecap):
