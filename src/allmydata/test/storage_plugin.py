@@ -116,7 +116,7 @@ class DummyStorageServer(object):  # type: ignore # warner/foolscap#78
 
 @implementer(IStorageServer)
 @attr.s
-class DummyStorageClient(object):
+class DummyStorageClient(object):  # type: ignore # incomplete implementation
     get_rref = attr.ib()
     configuration = attr.ib()
     announcement = attr.ib()
