@@ -46,7 +46,7 @@ class BaseOptions(usage.Options):
         raise usage.UsageError("--version not allowed on subcommands")
 
     description = None  # type: Optional[str]
-    description_unwrapped = None
+    description_unwrapped = None  # type: Optional[str]
 
     def __str__(self):
         width = int(os.environ.get('COLUMNS', '80'))
