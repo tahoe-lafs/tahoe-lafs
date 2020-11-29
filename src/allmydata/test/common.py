@@ -391,7 +391,7 @@ class DummyProducer(object):
         pass
 
 @implementer(IImmutableFileNode)
-class FakeCHKFileNode(object):
+class FakeCHKFileNode(object):  # type: ignore # incomplete implementation
     """I provide IImmutableFileNode, but all of my data is stored in a
     class-level dictionary."""
 
@@ -529,7 +529,7 @@ def create_chk_filenode(contents, all_contents):
 
 
 @implementer(IMutableFileNode, ICheckable)
-class FakeMutableFileNode(object):
+class FakeMutableFileNode(object):  # type: ignore # incomplete implementation
     """I provide IMutableFileNode, but all of my data is stored in a
     class-level dictionary."""
 
