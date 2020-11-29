@@ -106,7 +106,7 @@ class NoDefaultBasedirOptions(BasedirOptions):
 
     optParameters = [
         ["basedir", "C", None, "Specify which Tahoe base directory should be used."],
-    ]
+    ]  # type: List[Sequence[Any]]
 
     # This is overridden in order to ensure we get a "Wrong number of arguments."
     # error when more than one argument is given.
