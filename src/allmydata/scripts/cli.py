@@ -1,6 +1,12 @@
 from __future__ import print_function
 
 import os.path, re, fnmatch
+
+try:
+    from typing import List, Sequence, Any
+except ImportError:
+    pass
+
 from twisted.python import usage
 from allmydata.scripts.common import get_aliases, get_default_nodedir, \
      DEFAULT_ALIAS, BaseOptions
@@ -19,7 +25,7 @@ class FileStoreOptions(BaseOptions):
          "This overrides the URL found in the --node-directory ."],
         ["dir-cap", None, None,
          "Specify which dirnode URI should be used as the 'tahoe' alias."]
-        ]
+        ]  # type: List[Sequence[Any]]
 
     def postOptions(self):
         self["quiet"] = self.parent["quiet"]
