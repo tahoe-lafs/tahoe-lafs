@@ -107,7 +107,7 @@ class GetCounter(Resource, object):
 
 @implementer(RIDummy)
 @attr.s(frozen=True)
-class DummyStorageServer(object):
+class DummyStorageServer(object):  # type: ignore # warner/foolscap#78
     get_anonymous_storage_server = attr.ib()
 
     def remote_just_some_method(self):
