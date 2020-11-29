@@ -581,7 +581,7 @@ class StorageServer(service.MultiService, Referenceable):
         for share in six.viewvalues(shares):
             share.add_or_renew_lease(lease_info)
 
-    def slot_testv_and_readv_and_writev(
+    def slot_testv_and_readv_and_writev(  # type: ignore # fixme
             self,
             storage_index,
             secrets,
