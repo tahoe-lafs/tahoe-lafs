@@ -1,12 +1,12 @@
 from six import ensure_str
 
-import re, time
+import re, time, tempfile
 
-from functools import (
-    partial,
-)
 from cgi import (
     FieldStorage,
+)
+from io import (
+    BytesIO,
 )
 
 from twisted.application import service, strports, internet
@@ -150,17 +150,34 @@ def _logFormatter(logDateTime, request):
     )
 
 
-tahoe_lafs_site = partial(
-    Site,
-    requestFactory=TahoeLAFSRequest,
-    logFormatter=_logFormatter,
-)
+class TahoeLAFSSite(Site, object):
+    """
+    The HTTP protocol factory used by Tahoe-LAFS.
+
+    Among the behaviors provided:
+
+    * A configurable temporary directory where large request bodies can be
+      written so they don't stay in memory.
+
+    * A log formatter that writes some access logs but omits capability
+      strings to help keep them secret.
+    """
+    requestFactory = TahoeLAFSRequest
+
+    def __init__(self, tempdir, *args, **kwargs):
+        Site.__init__(self, *args, logFormatter=_logFormatter, **kwargs)
+        self._tempdir = tempdir
+
+    def getContentFile(self, length):
+        if length is None or length >= 1024 * 1024:
+            return tempfile.TemporaryFile(dir=self._tempdir)
+        return BytesIO()
 
 
 class WebishServer(service.MultiService):
     name = "webish"
 
-    def __init__(self, client, webport, nodeurl_path=None, staticdir=None,
+    def __init__(self, client, webport, tempdir, nodeurl_path=None, staticdir=None,
                  clock=None, now_fn=time.time):
         service.MultiService.__init__(self)
         # the 'data' argument to all render() methods default to the Client
@@ -170,7 +187,7 @@ class WebishServer(service.MultiService):
         # time in a deterministic manner.
 
         self.root = root.Root(client, clock, now_fn)
-        self.buildServer(webport, nodeurl_path, staticdir)
+        self.buildServer(webport, tempdir, nodeurl_path, staticdir)
 
         # If set, clock is a twisted.internet.task.Clock that the tests
         # use to test ophandle expiration.
@@ -180,9 +197,9 @@ class WebishServer(service.MultiService):
 
         self.root.putChild(b"storage-plugins", StoragePlugins(client))
 
-    def buildServer(self, webport, nodeurl_path, staticdir):
+    def buildServer(self, webport, tempdir, nodeurl_path, staticdir):
         self.webport = webport
-        self.site = tahoe_lafs_site(self.root)
+        self.site = TahoeLAFSSite(tempdir, self.root)
         self.staticdir = staticdir # so tests can check
         if staticdir:
             self.root.putChild("static", static.File(staticdir))
@@ -260,4 +277,4 @@ class IntroducerWebishServer(WebishServer):
     def __init__(self, introducer, webport, nodeurl_path=None, staticdir=None):
         service.MultiService.__init__(self)
         self.root = introweb.IntroducerRoot(introducer)
-        self.buildServer(webport, nodeurl_path, staticdir)
+        self.buildServer(webport, tempfile.tempdir, nodeurl_path, staticdir)

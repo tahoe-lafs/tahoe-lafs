@@ -56,7 +56,11 @@ PORTED_MODULES = [
     "allmydata.mutable.checker",
     "allmydata.mutable.common",
     "allmydata.mutable.filenode",
+    "allmydata.mutable.layout",
     "allmydata.mutable.publish",
+    "allmydata.mutable.repairer",
+    "allmydata.mutable.retrieve",
+    "allmydata.mutable.servermap",
     "allmydata.node",
     "allmydata.storage_client",
     "allmydata.storage.common",
@@ -156,5 +160,4 @@ PORTED_TEST_MODULES = [
     "allmydata.test.test_upload",
     "allmydata.test.test_uri",
     "allmydata.test.test_util",
-    "allmydata.test.test_version",
 ]

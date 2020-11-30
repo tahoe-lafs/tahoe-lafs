@@ -25,7 +25,7 @@ class IntroducerClient(service.Service, Referenceable):
 
     def __init__(self, tub, introducer_furl,
                  nickname, my_version, oldest_supported,
-                 app_versions, sequencer, cache_filepath):
+                 sequencer, cache_filepath):
         self._tub = tub
         if isinstance(introducer_furl, unicode):
             introducer_furl = introducer_furl.encode("utf-8")
@@ -35,13 +35,11 @@ class IntroducerClient(service.Service, Referenceable):
         self._nickname = nickname
         self._my_version = my_version
         self._oldest_supported = oldest_supported
-        self._app_versions = app_versions
         self._sequencer = sequencer
         self._cache_filepath = cache_filepath
 
         self._my_subscriber_info = { b"version": 0,
                                      b"nickname": self._nickname,
-                                     b"app-versions": self._app_versions,
                                      b"my-version": self._my_version,
                                      b"oldest-supported": self._oldest_supported,
                                      }
@@ -199,7 +197,7 @@ class IntroducerClient(service.Service, Referenceable):
                   # "seqnum" and "nonce" will be populated with new values in
                   # publish(), each time we make a change
                   "nickname": self._nickname,
-                  "app-versions": self._app_versions,
+                  "app-versions": [],
                   "my-version": self._my_version,
                   "oldest-supported": self._oldest_supported,
 

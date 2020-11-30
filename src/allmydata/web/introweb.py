@@ -6,7 +6,6 @@ from twisted.python.filepath import FilePath
 from twisted.web import static
 import allmydata
 import json
-from allmydata.version_checks import get_package_versions_string
 from allmydata.util import idlib
 from allmydata.web.common import (
     render_time,
@@ -89,7 +88,7 @@ class IntroducerRootElement(Element):
         self.introducer_service = introducer_service
         self.node_data_dict = {
             "my_nodeid": idlib.nodeid_b2a(self.introducer_node.nodeid),
-            "version": get_package_versions_string(),
+            "version": allmydata.__full_version__,
             "import_path": str(allmydata).replace("/", "/ "),  # XXX kludge for wrapping
             "rendered_at": render_time(time.time()),
         }

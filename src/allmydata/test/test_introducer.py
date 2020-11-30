@@ -168,7 +168,7 @@ class ServiceMixin(object):
 class Introducer(ServiceMixin, AsyncTestCase):
     def test_create(self):
         ic = IntroducerClient(None, "introducer.furl", u"my_nickname",
-                              "my_version", "oldest_version", {}, fakeseq,
+                              "my_version", "oldest_version", fakeseq,
                               FilePath(self.mktemp()))
         self.failUnless(isinstance(ic, IntroducerClient))
 
@@ -201,13 +201,13 @@ class Client(AsyncTestCase):
     def test_duplicate_receive_v2(self):
         ic1 = IntroducerClient(None,
                                "introducer.furl", u"my_nickname",
-                               "ver23", "oldest_version", {}, fakeseq,
+                               "ver23", "oldest_version", fakeseq,
                                FilePath(self.mktemp()))
         # we use a second client just to create a different-looking
         # announcement
         ic2 = IntroducerClient(None,
                                "introducer.furl", u"my_nickname",
-                               "ver24","oldest_version",{}, fakeseq,
+                               "ver24","oldest_version",fakeseq,
                                FilePath(self.mktemp()))
         announcements = []
         def _received(key_s, ann):
@@ -311,7 +311,7 @@ class Server(AsyncTestCase):
         i = IntroducerService()
         ic1 = IntroducerClient(None,
                                "introducer.furl", u"my_nickname",
-                               "ver23", "oldest_version", {}, realseq,
+                               "ver23", "oldest_version", realseq,
                                FilePath(self.mktemp()))
         furl1 = b"pb://62ubehyunnyhzs7r6vdonnm2hpi52w6y@127.0.0.1:36106/gydnp"
 
@@ -409,7 +409,7 @@ class Queue(SystemTestMixin, AsyncTestCase):
         tub2 = Tub()
         tub2.setServiceParent(self.parent)
         c = IntroducerClient(tub2, ifurl,
-                             u"nickname", "version", "oldest", {}, fakeseq,
+                             u"nickname", "version", "oldest", fakeseq,
                              FilePath(self.mktemp()))
         furl1 = b"pb://onug64tu@127.0.0.1:123/short" # base32("short")
         private_key, _ = ed25519.create_signing_keypair()
@@ -490,7 +490,7 @@ class SystemTest(SystemTestMixin, AsyncTestCase):
             c = IntroducerClient(tub, self.introducer_furl,
                                  NICKNAME % str(i),
                                  "version", "oldest",
-                                 {"component": "component-v1"}, fakeseq,
+                                 fakeseq,
                                  FilePath(self.mktemp()))
             received_announcements[c] = {}
             def got(key_s_or_tubid, ann, announcements):
@@ -750,9 +750,8 @@ class ClientInfo(AsyncTestCase):
     def test_client_v2(self):
         introducer = IntroducerService()
         tub = introducer_furl = None
-        app_versions = {"whizzy": "fizzy"}
         client_v2 = IntroducerClient(tub, introducer_furl, NICKNAME % u"v2",
-                                     "my_version", "oldest", app_versions,
+                                     "my_version", "oldest",
                                      fakeseq, FilePath(self.mktemp()))
         #furl1 = b"pb://62ubehyunnyhzs7r6vdonnm2hpi52w6y@127.0.0.1:0/swissnum"
         #ann_s = make_ann_t(client_v2, furl1, None, 10)
@@ -764,7 +763,6 @@ class ClientInfo(AsyncTestCase):
         self.failUnlessEqual(len(subs), 1)
         s0 = subs[0]
         self.failUnlessEqual(s0.service_name, "storage")
-        self.failUnlessEqual(s0.app_versions, app_versions)
         self.failUnlessEqual(s0.nickname, NICKNAME % u"v2")
         self.failUnlessEqual(s0.version, "my_version")
 
@@ -773,9 +771,8 @@ class Announcements(AsyncTestCase):
     def test_client_v2_signed(self):
         introducer = IntroducerService()
         tub = introducer_furl = None
-        app_versions = {"whizzy": "fizzy"}
         client_v2 = IntroducerClient(tub, introducer_furl, u"nick-v2",
-                                     "my_version", "oldest", app_versions,
+                                     "my_version", "oldest",
                                      fakeseq, FilePath(self.mktemp()))
         furl1 = b"pb://62ubehyunnyhzs7r6vdonnm2hpi52w6y@127.0.0.1:0/swissnum"
 
@@ -789,7 +786,6 @@ class Announcements(AsyncTestCase):
         self.failUnlessEqual(len(a), 1)
         self.assertThat(a[0].canary, Is(canary0))
         self.failUnlessEqual(a[0].index, ("storage", public_key_str))
-        self.failUnlessEqual(a[0].announcement["app-versions"], app_versions)
         self.failUnlessEqual(a[0].nickname, u"nick-v2")
         self.failUnlessEqual(a[0].service_name, "storage")
         self.failUnlessEqual(a[0].version, "my_version")
@@ -867,7 +863,7 @@ class Announcements(AsyncTestCase):
         # test loading
         yield flushEventualQueue()
         ic2 = IntroducerClient(None, "introducer.furl", u"my_nickname",
-                               "my_version", "oldest_version", {}, fakeseq,
+                               "my_version", "oldest_version", fakeseq,
                                ic._cache_filepath)
         announcements = {}
         def got(key_s, ann):
@@ -972,7 +968,7 @@ class NonV1Server(SystemTestMixin, AsyncTestCase):
         tub.setServiceParent(self.parent)
         listenOnUnused(tub)
         c = IntroducerClient(tub, self.introducer_furl,
-                             u"nickname-client", "version", "oldest", {},
+                             u"nickname-client", "version", "oldest",
                              fakeseq, FilePath(self.mktemp()))
         announcements = {}
         def got(key_s, ann):
@@ -1045,7 +1041,6 @@ class Signatures(SyncTestCase):
             u"fake_nick",
             "0.0.0",
             "1.2.3",
-            {},
             (0, u"i am a nonce"),
             "invalid",
         )
