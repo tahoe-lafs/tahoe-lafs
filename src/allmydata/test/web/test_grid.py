@@ -12,6 +12,7 @@ if PY2:
 from future.standard_library import import_
 urllib = import_('urllib.parse')
 
+
 import os.path, re
 import json
 from six.moves import StringIO
@@ -42,6 +43,7 @@ from .common import (
     unknown_immcap,
     unknown_rocap,
     unknown_rwcap,
+    quote_bytes,
 )
 
 DIR_HTML_TAG = b'<html lang="en">'
@@ -64,7 +66,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
     def _compute_fileurls(self, ignored):
         self.fileurls = {}
         for which in self.uris:
-            self.fileurls[which] = b"uri/" + urllib.parse.quote(self.uris[which])
+            self.fileurls[which] = b"uri/" + quote_bytes(self.uris[which])
 
     def test_filecheck(self):
         self.basedir = "web/Grid/filecheck"
@@ -334,7 +336,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
         self.fileurls = {}
 
         # the future cap format may contain slashes, which must be tolerated
-        expected_info_url = b"uri/%s?t=info" % urllib.parse.quote(unknown_rwcap,
+        expected_info_url = b"uri/%s?t=info" % quote_bytes(unknown_rwcap,
                                                            safe=b"")
 
         if immutable:
@@ -348,14 +350,15 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
 
         def _stash_root_and_create_file(n):
             self.rootnode = n
-            self.rooturl = b"uri/" + urllib.parse.quote(n.get_uri())
-            self.rourl = b"uri/" + urllib.parse.quote(n.get_readonly_uri())
+            self.rooturl = b"uri/" + quote_bytes(n.get_uri())
+            self.rourl = b"uri/" + quote_bytes(n.get_readonly_uri())
             if not immutable:
                 return self.rootnode.set_node(name, future_node)
         d.addCallback(_stash_root_and_create_file)
 
         # make sure directory listing tolerates unknown nodes
         d.addCallback(lambda ign: self.GET(self.rooturl))
+        return d
         def _check_directory_html(res, expected_type_suffix):
             name_bytes = name.encode('ascii')
             pattern = re.compile(br'<td>\?%s</td>[ \t\n\r]*'
@@ -516,7 +519,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
             self.failUnlessIn("CHK", cap.to_string())
             self.cap = cap
             self.rootnode = dn
-            self.rooturl = b"uri/" + urllib.parse.quote(dn.get_uri())
+            self.rooturl = b"uri/" + quote_bytes(dn.get_uri())
             return download_to_data(dn._node)
         d.addCallback(_created)
 
@@ -565,7 +568,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
                 if td.text != u"FILE":
                     continue
                 a = td.findNextSibling()(u"a")[0]
-                self.assertIn(urllib.parse.quote(lonely_uri), a[u"href"])
+                self.assertIn(quote_bytes(lonely_uri), a[u"href"])
                 self.assertEqual(u"lonely", a.text)
                 self.assertEqual(a[u"rel"], [u"noreferrer"])
                 self.assertEqual(u"{}".format(len("one")), td.findNextSibling().findNextSibling().text)
@@ -579,7 +582,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
                 if a.text == u"More Info"
             )
             self.assertEqual(1, len(infos))
-            self.assertTrue(infos[0].endswith(urllib.parse.quote(lonely_uri) + b"?t=info"))
+            self.assertTrue(infos[0].endswith(quote_bytes(lonely_uri) + b"?t=info"))
         d.addCallback(_check_html)
 
         # ... and in JSON.
@@ -606,7 +609,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
         d = c0.create_dirnode()
         def _stash_root_and_create_file(n):
             self.rootnode = n
-            self.fileurls["root"] = b"uri/" + urllib.parse.quote(n.get_uri())
+            self.fileurls["root"] = b"uri/" + quote_bytes(n.get_uri())
             return n.add_file(u"good", upload.Data(DATA, convergence=b""))
         d.addCallback(_stash_root_and_create_file)
         def _stash_uri(fn, which):
@@ -780,7 +783,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
         d = c0.create_dirnode()
         def _stash_root_and_create_file(n):
             self.rootnode = n
-            self.fileurls["root"] = b"uri/" + urllib.parse.quote(n.get_uri())
+            self.fileurls["root"] = b"uri/" + quote_bytes(n.get_uri())
             return n.add_file(u"good", upload.Data(DATA, convergence=b""))
         d.addCallback(_stash_root_and_create_file)
         def _stash_uri(fn, which):
@@ -989,7 +992,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
         def _stash_root_and_create_file(n):
             self.rootnode = n
             self.uris["root"] = n.get_uri()
-            self.fileurls["root"] = b"uri/" + urllib.parse.quote(n.get_uri())
+            self.fileurls["root"] = b"uri/" + quote_bytes(n.get_uri())
             return n.add_file(u"one", upload.Data(DATA, convergence=b""))
         d.addCallback(_stash_root_and_create_file)
         def _stash_uri(fn, which):
@@ -1056,31 +1059,31 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
         DATA = b"data" * 100
         d = c0.create_dirnode()
         def _stash_root(n):
-            self.fileurls["root"] = b"uri/" + urllib.parse.quote(n.get_uri())
+            self.fileurls["root"] = b"uri/" + quote_bytes(n.get_uri())
             self.fileurls["imaginary"] = self.fileurls["root"] + b"/imaginary"
             return n
         d.addCallback(_stash_root)
         d.addCallback(lambda ign: c0.upload(upload.Data(DATA, convergence=b"")))
         def _stash_bad(ur):
-            self.fileurls["1share"] = b"uri/" + urllib.parse.quote(ur.get_uri())
+            self.fileurls["1share"] = b"uri/" + quote_bytes(ur.get_uri())
             self.delete_shares_numbered(ur.get_uri(), range(1,10))
 
             u = uri.from_string(ur.get_uri())
             u.key = testutil.flip_bit(u.key, 0)
             baduri = u.to_string()
-            self.fileurls["0shares"] = b"uri/" + urllib.parse.quote(baduri)
+            self.fileurls["0shares"] = b"uri/" + quote_bytes(baduri)
         d.addCallback(_stash_bad)
         d.addCallback(lambda ign: c0.create_dirnode())
         def _mangle_dirnode_1share(n):
             u = n.get_uri()
-            url = self.fileurls["dir-1share"] = b"uri/" + urllib.parse.quote(u)
+            url = self.fileurls["dir-1share"] = b"uri/" + quote_bytes(u)
             self.fileurls["dir-1share-json"] = url + b"?t=json"
             self.delete_shares_numbered(u, range(1,10))
         d.addCallback(_mangle_dirnode_1share)
         d.addCallback(lambda ign: c0.create_dirnode())
         def _mangle_dirnode_0share(n):
             u = n.get_uri()
-            url = self.fileurls["dir-0share"] = b"uri/" + urllib.parse.quote(u)
+            url = self.fileurls["dir-0share"] = b"uri/" + quote_bytes(u)
             self.fileurls["dir-0share-json"] = url + b"?t=json"
             self.delete_shares_numbered(u, range(0,10))
         d.addCallback(_mangle_dirnode_0share)

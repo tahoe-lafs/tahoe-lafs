@@ -1,5 +1,10 @@
 
 import re
+from future.standard_library import import_
+from future.backports.urllib import parse as urllib_parse
+
+from allmydata.util.assertutil import precondition
+
 
 unknown_rwcap = u"lafs://from_the_future_rw_\u263A".encode('utf-8')
 unknown_rocap = u"ro.lafs://readonly_from_the_future_ro_\u263A".encode('utf-8')
@@ -83,3 +88,12 @@ def assert_soup_has_text(testcase, soup, text):
     testcase.assert_(
         soup.find_all(string=re.compile(re.escape(text))),
         soup)
+
+
+def quote_bytes(bs, safe=b'/'):
+    """
+    Given a bytestring, quote and return a bytestring.
+    """
+    precondition(isinstance(bs, bytes), bs)
+    # Re: quote_from_bytes ... "It always returns an ASCII string."
+    return urllib_parse.quote_from_bytes(bs, safe).encode('ascii')

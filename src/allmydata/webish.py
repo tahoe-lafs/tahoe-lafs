@@ -236,7 +236,7 @@ class WebishServer(service.MultiService):
             self._portnum = lp.getHost().port
             # what is our webport?
             assert self._scheme
-            self._url = "%s://127.0.0.1:%d/" % (self._scheme, self._portnum)
+            self._url = b"%s://127.0.0.1:%d/" % (self._scheme, self._portnum)
             self._started.callback(None)
             return lp
         def _fail(f):
@@ -250,17 +250,17 @@ class WebishServer(service.MultiService):
             # ugly but should do for now.
             classname = s.endpoint.__class__.__name__
             if classname.startswith('SSL'):
-                self._scheme = 'https'
+                self._scheme = b'https'
             else:
-                self._scheme = 'http'
+                self._scheme = b'http'
             s._waitingForPort.addCallbacks(_got_port, _fail)
         elif isinstance(s, internet.TCPServer):
             # Twisted <= 10.1
-            self._scheme = 'http'
+            self._scheme = b'http'
             _got_port(s._port)
         elif isinstance(s, internet.SSLServer):
             # Twisted <= 10.1
-            self._scheme = 'https'
+            self._scheme = b'https'
             _got_port(s._port)
         else:
             # who knows, probably some weirdo future version of Twisted
