@@ -70,7 +70,7 @@ from .matchers import (
     matches_furl,
 )
 
-SOME_FURL = b"pb://abcde@nowhere/fake"
+SOME_FURL = "pb://abcde@nowhere/fake"
 
 BASECONFIG = ("[client]\n"
               "introducer.furl = \n"

@@ -88,7 +88,7 @@ from allmydata.interfaces import (
     IStorageServer,
 )
 
-SOME_FURL = b"pb://abcde@nowhere/fake"
+SOME_FURL = "pb://abcde@nowhere/fake"
 
 class NativeStorageServerWithVersion(NativeStorageServer):
     def __init__(self, version):
@@ -605,7 +605,7 @@ storage:
         }
 
         def add_one_server(x):
-            data["anonymous-storage-FURL"] = b"pb://%s@nowhere/fake" % (base32.b2a(b"%d" % x),)
+            data["anonymous-storage-FURL"] = "pb://%s@nowhere/fake" % (base32.b2a(b"%d" % x),)
             tub = Mock()
             new_tubs.append(tub)
             got_announcement(b'v0-1234-%d' % x, data)

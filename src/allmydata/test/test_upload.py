@@ -239,7 +239,7 @@ class FakeClient(object):
             node_config=EMPTY_CLIENT_CONFIG,
         )
         for (serverid, rref) in servers:
-            ann = {"anonymous-storage-FURL": b"pb://%s@nowhere/fake" % base32.b2a(serverid),
+            ann = {"anonymous-storage-FURL": "pb://%s@nowhere/fake" % base32.b2a(serverid),
                    "permutation-seed-base32": base32.b2a(serverid) }
             self.storage_broker.test_add_rref(serverid, rref, ann)
         self.last_servers = [s[1] for s in servers]
