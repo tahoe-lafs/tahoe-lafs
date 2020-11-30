@@ -74,7 +74,6 @@ from .common import (
     SyncTestCase,
     AsyncBrokenTestCase,
     UseTestPlugins,
-    UseNode,
     MemoryIntroducerClient,
     get_published_announcements,
 )
