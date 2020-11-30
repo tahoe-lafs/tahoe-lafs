@@ -427,8 +427,8 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
         accounts.touch()
 
         data = FilePath(__file__).sibling(b"data")
-        privkey = data.child(b"openssh-rsa-2048")
-        pubkey = data.child(b"openssh-rsa-2048.pub")
+        privkey = data.child(b"openssh-rsa-2048.txt")
+        pubkey = data.child(b"openssh-rsa-2048.pub.txt")
 
         basedir = u"client.Basic.test_ftp_create"
         create_node_dir(basedir, "testing")
