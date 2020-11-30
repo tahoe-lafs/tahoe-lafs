@@ -308,8 +308,10 @@ class IntroducerService(service.MultiService, Referenceable):
         subscriber.notifyOnDisconnect(_remove)
 
         # now tell them about any announcements they're interested in
-        assert {type(service_name)} >= set(type(k[0]) for k in self._announcements), (
-            service_name, self._announcements.keys())
+        assert {type(service_name)}.issuperset(
+            set(type(k[0]) for k in self._announcements)), (
+                service_name, self._announcements.keys()
+        )
         announcements = set( [ ann_t
                                for idx,(ann_t,canary,ann,when)
                                in self._announcements.items()
