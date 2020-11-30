@@ -117,8 +117,9 @@ class IntroducerClient(service.Service, Referenceable):
         announcements = []
         for _, value in self._inbound_announcements.items():
             ann, key_s, time_stamp = value
-            # On Python 2, bytes are stored as Unicode. To minimize changes, Python
-            # 3 for now ensures the same is true.
+            # On Python 2, bytes strings are encoded into YAML Unicode strings.
+            # On Python 3, bytes are encoded as YAML bytes. To minimize
+            # changes, Python 3 for now ensures the same is true.
             server_params = {
                 "ann" : ann,
                 "key_s" : ensure_text(key_s),
