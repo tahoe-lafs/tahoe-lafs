@@ -221,7 +221,7 @@ class UseNode(object):
     """
     plugin_config = attr.ib()
     storage_plugin = attr.ib()
-    basedir = attr.ib()
+    basedir = attr.ib(validator=attr.validators.instance_of(FilePath))
     introducer_furl = attr.ib()
     node_config = attr.ib(default=attr.Factory(dict))
 
