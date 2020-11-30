@@ -1190,9 +1190,7 @@ class AsyncTestCase(_TestCaseMixin, TestCase):
     only fire if the global reactor is running.
     """
     run_tests_with = EliotLoggedRunTest.make_factory(
-        AsynchronousDeferredRunTest.make_factory(
-            timeout=60.0, suppress_twisted_logging=False,
-            store_twisted_logs=False),
+        AsynchronousDeferredRunTest.make_factory(timeout=60.0),
     )
 
 
@@ -1206,9 +1204,7 @@ class AsyncBrokenTestCase(_TestCaseMixin, TestCase):
     pass with ``AsyncTestCase``.
     """
     run_tests_with = EliotLoggedRunTest.make_factory(
-        AsynchronousDeferredRunTestForBrokenTwisted.make_factory(
-            timeout=60.0, suppress_twisted_logging=False,
-            store_twisted_logs=False),
+        AsynchronousDeferredRunTestForBrokenTwisted.make_factory(timeout=60.0),
     )
 
 
