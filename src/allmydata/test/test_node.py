@@ -29,6 +29,9 @@ from hypothesis.strategies import (
 
 from unittest import skipIf
 
+from twisted.python.filepath import (
+    FilePath,
+)
 from twisted.trial import unittest
 from twisted.internet import defer
 
@@ -52,7 +55,11 @@ from allmydata import client
 
 from allmydata.util import fileutil, iputil
 from allmydata.util.namespace import Namespace
-from allmydata.util.configutil import UnknownConfigError
+from allmydata.util.configutil import (
+    ValidConfiguration,
+    UnknownConfigError,
+)
+
 from allmydata.util.i2p_provider import create as create_i2p_provider
 from allmydata.util.tor_provider import create as create_tor_provider
 import allmydata.test.common_util as testutil
@@ -431,18 +438,77 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
         yield client.create_client(basedir)
         self.failUnless(ns.called)
 
+    def test_set_config_unescaped_furl_hash(self):
+        """
+        ``_Config.set_config`` raises ``UnescapedHashError`` if the item being set
+        is a furl and the value includes ``"#"`` and does not set the value.
+        """
+        basedir = self.mktemp()
+        new_config = config_from_string(basedir, "", "")
+        with self.assertRaises(UnescapedHashError):
+            new_config.set_config("foo", "bar.furl", "value#1")
+        with self.assertRaises(MissingConfigEntry):
+            new_config.get_config("foo", "bar.furl")
+
     def test_set_config_new_section(self):
         """
-        set_config() can create a new config section
+        ``_Config.set_config`` can be called with the name of a section that does
+        not already exist to create that section and set an item in it.
         """
-        basedir = "test_node/test_set_config_new_section"
-        config = config_from_string(basedir, "", "")
-        config.set_config("foo", "bar", "value1")
-        config.set_config("foo", "bar", "value2")
+        basedir = self.mktemp()
+        new_config = config_from_string(basedir, "", "", ValidConfiguration.everything())
+        new_config.set_config("foo", "bar", "value1")
         self.assertEqual(
-            config.get_config("foo", "bar"),
+            new_config.get_config("foo", "bar"),
+            "value1"
+        )
+
+    def test_set_config_replace(self):
+        """
+        ``_Config.set_config`` can be called with a section and item that already
+        exists to change an existing value to a new one.
+        """
+        basedir = self.mktemp()
+        new_config = config_from_string(basedir, "", "", ValidConfiguration.everything())
+        new_config.set_config("foo", "bar", "value1")
+        new_config.set_config("foo", "bar", "value2")
+        self.assertEqual(
+            new_config.get_config("foo", "bar"),
             "value2"
         )
+
+    def test_set_config_write(self):
+        """
+        ``_Config.set_config`` persists the configuration change so it can be
+        re-loaded later.
+        """
+        # Let our nonsense config through
+        valid_config = ValidConfiguration.everything()
+        basedir = FilePath(self.mktemp())
+        basedir.makedirs()
+        cfg = basedir.child(b"tahoe.cfg")
+        cfg.setContent(b"")
+        new_config = read_config(basedir.path, "", [], valid_config)
+        new_config.set_config("foo", "bar", "value1")
+        loaded_config = read_config(basedir.path, "", [], valid_config)
+        self.assertEqual(
+            loaded_config.get_config("foo", "bar"),
+            "value1",
+        )
+
+    def test_set_config_rejects_invalid_config(self):
+        """
+        ``_Config.set_config`` raises ``UnknownConfigError`` if the section or
+        item is not recognized by the validation object and does not set the
+        value.
+        """
+        # Make everything invalid.
+        valid_config = ValidConfiguration.nothing()
+        new_config = config_from_string(self.mktemp(), "", "", valid_config)
+        with self.assertRaises(UnknownConfigError):
+            new_config.set_config("foo", "bar", "baz")
+        with self.assertRaises(MissingConfigEntry):
+            new_config.get_config("foo", "bar")
 
 
 class TestMissingPorts(unittest.TestCase):

@@ -22,9 +22,14 @@ import types
 import errno
 from base64 import b32decode, b32encode
 
+import attr
+
 # On Python 2 this will be the backported package.
 import configparser
 
+from twisted.python.filepath import (
+    FilePath,
+)
 from twisted.python import log as twlog
 from twisted.application import service
 from twisted.python.failure import Failure
@@ -191,25 +196,27 @@ def read_config(basedir, portnumfile, generated_files=[], _valid_config=None):
     # canonicalize the portnum file
     portnumfile = os.path.join(basedir, portnumfile)
 
-    # (try to) read the main config file
-    config_fname = os.path.join(basedir, "tahoe.cfg")
+    config_path = FilePath(basedir).child("tahoe.cfg")
     try:
-        parser = configutil.get_config(config_fname)
+        config_str = config_path.getContent()
     except EnvironmentError as e:
         if e.errno != errno.ENOENT:
             raise
         # The file is missing, just create empty ConfigParser.
-        parser = configutil.get_config_from_string(u"")
+        config_str = u""
+    else:
+        config_str = config_str.decode("utf-8-sig")
 
-    configutil.validate_config(config_fname, parser, _valid_config)
+    return config_from_string(
+        basedir,
+        portnumfile,
+        config_str,
+        _valid_config,
+        config_path,
+    )
 
-    # make sure we have a private configuration area
-    fileutil.make_dirs(os.path.join(basedir, "private"), 0o700)
 
-    return _Config(parser, portnumfile, basedir, config_fname)
-
-
-def config_from_string(basedir, portnumfile, config_str, _valid_config=None):
+def config_from_string(basedir, portnumfile, config_str, _valid_config=None, fpath=None):
     """
     load and validate configuration from in-memory string
     """
@@ -222,14 +229,19 @@ def config_from_string(basedir, portnumfile, config_str, _valid_config=None):
     # load configuration from in-memory string
     parser = configutil.get_config_from_string(config_str)
 
-    fname = "<in-memory>"
-    configutil.validate_config(fname, parser, _valid_config)
+    configutil.validate_config(
+        "<string>" if fpath is None else fpath.path,
+        parser,
+        _valid_config,
+    )
 
-    def write_new_config(cfg):
-        """
-        We throw away any attempt to persist
-        """
-    return _Config(parser, portnumfile, basedir, fname, write_new_config)
+    return _Config(
+        parser,
+        portnumfile,
+        basedir,
+        fpath,
+        _valid_config,
+    )
 
 
 def _error_about_old_config_files(basedir, generated_files):
@@ -257,6 +269,7 @@ def _error_about_old_config_files(basedir, generated_files):
         raise e
 
 
+@attr.s
 class _Config(object):
     """
     Manages configuration of a Tahoe 'node directory'.
@@ -265,48 +278,47 @@ class _Config(object):
     class; names and funtionality have been kept the same while moving
     the code. It probably makes sense for several of these APIs to
     have better names.
+
+    :ivar ConfigParser config: The actual configuration values.
+
+    :ivar str portnum_fname: filename to use for the port-number file (a
+        relative path inside basedir).
+
+    :ivar str _basedir: path to our "node directory", inside which all
+        configuration is managed.
+
+    :ivar (FilePath|NoneType) config_path: The path actually used to create
+        the configparser (might be ``None`` if using in-memory data).
+
+    :ivar ValidConfiguration valid_config_sections: The validator for the
+        values in this configuration.
     """
+    config = attr.ib(validator=attr.validators.instance_of(configparser.ConfigParser))
+    portnum_fname = attr.ib()
+    _basedir = attr.ib(
+        converter=lambda basedir: abspath_expanduser_unicode(ensure_text(basedir)),
+    )
+    config_path = attr.ib(
+        validator=attr.validators.optional(
+            attr.validators.instance_of(FilePath),
+        ),
+    )
+    valid_config_sections = attr.ib(
+        default=configutil.ValidConfiguration.everything(),
+        validator=attr.validators.instance_of(configutil.ValidConfiguration),
+    )
 
-    def __init__(self, configparser, portnum_fname, basedir, config_fname,
-                 write_new_tahoecfg=None):
-        """
-        :param configparser: a ConfigParser instance
+    @property
+    def nickname(self):
+        nickname = self.get_config("node", "nickname", u"<unspecified>")
+        assert isinstance(nickname, str)
+        return nickname
 
-        :param portnum_fname: filename to use for the port-number file
-           (a relative path inside basedir)
-
-        :param basedir: path to our "node directory", inside which all
-           configuration is managed
-
-        :param config_fname: the pathname actually used to create the
-            configparser (might be 'fake' if using in-memory data)
-
-        :param write_new_tahoecfg: callable taking one argument which
-            is a ConfigParser instance
-        """
-        self.portnum_fname = portnum_fname
-        self._basedir = abspath_expanduser_unicode(ensure_text(basedir))
-        self._config_fname = config_fname
-        self.config = configparser
-
-        if write_new_tahoecfg is None:
-
-            def write_new_tahoecfg(config):
-                """
-                Write to the default place, <basedir>/tahoe.cfg
-                """
-                fn = os.path.join(self._basedir, "tahoe.cfg")
-                with open(fn, "w") as f:
-                    config.write(f)
-
-        self._write_config = write_new_tahoecfg
-
-        self.nickname = self.get_config("node", "nickname", u"<unspecified>")
-        assert isinstance(self.nickname, str)
-
-
-    def validate(self, valid_config_sections):
-        configutil.validate_config(self._config_fname, self.config, valid_config_sections)
+    @property
+    def _config_fname(self):
+        if self.config_path is None:
+            return "<string>"
+        return self.config_path.path
 
     def write_config_file(self, name, value, mode="w"):
         """
@@ -366,17 +378,31 @@ class _Config(object):
 
     def set_config(self, section, option, value):
         """
-        Set a config options in a section and re-write the tahoe.cfg file
+        Set a config option in a section and re-write the tahoe.cfg file
+
+        :param str section: The name of the section in which to set the
+            option.
+
+        :param str option: The name of the option to set.
+
+        :param str value: The value of the option.
+
+        :raise UnescapedHashError: If the option holds a fURL and there is a
+            ``#`` in the value.
         """
-        if option.endswith(".furl") and self._contains_unescaped_hash(value):
+        if option.endswith(".furl") and "#" in value:
             raise UnescapedHashError(section, option, value)
 
-        try:
-            self.config.add_section(section)
-        except configparser.DuplicateSectionError:
-            pass
-        self.config.set(section, option, value)
-        self._write_config(self.config)
+        copied_config = configutil.copy_config(self.config)
+        configutil.set_config(copied_config, section, option, value)
+        configutil.validate_config(
+            self._config_fname,
+            copied_config,
+            self.valid_config_sections,
+        )
+        if self.config_path is not None:
+            configutil.write_config(self.config_path, copied_config)
+        self.config = copied_config
 
     def get_config_from_file(self, name, required=False):
         """Get the (string) contents of a config file, or None if the file
