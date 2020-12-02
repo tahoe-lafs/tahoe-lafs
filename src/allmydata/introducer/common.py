@@ -1,5 +1,3 @@
-from past.builtins import unicode
-
 import re
 from allmydata.crypto.util import remove_prefix
 from allmydata.crypto import ed25519
