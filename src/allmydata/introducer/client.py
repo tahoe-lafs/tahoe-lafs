@@ -40,6 +40,7 @@ class IntroducerClient(service.Service, Referenceable):
 
         self._my_subscriber_info = { b"version": 0,
                                      b"nickname": self._nickname,
+                                     b"app-versions": [],
                                      b"my-version": self._my_version,
                                      b"oldest-supported": self._oldest_supported,
                                      }

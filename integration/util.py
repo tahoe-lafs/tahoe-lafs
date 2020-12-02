@@ -6,6 +6,9 @@ from os.path import exists, join
 from six.moves import StringIO
 from functools import partial
 
+from twisted.python.filepath import (
+    FilePath,
+)
 from twisted.internet.defer import Deferred, succeed
 from twisted.internet.protocol import ProcessProtocol
 from twisted.internet.error import ProcessExitedAlready, ProcessDone
@@ -263,7 +266,7 @@ def _create_node(reactor, request, temp_dir, introducer_furl, flog_gatherer, nam
                 u'log_gatherer.furl',
                 flog_gatherer.decode("utf-8"),
             )
-            write_config(config_path, config)
+            write_config(FilePath(config_path), config)
         created_d.addCallback(created)
 
     d = Deferred()
