@@ -6,6 +6,9 @@ import treq
 
 from bs4 import BeautifulSoup
 
+from twisted.python.filepath import (
+    FilePath,
+)
 from twisted.application import service
 from twisted.internet import defer
 from twisted.internet.defer import inlineCallbacks, returnValue
@@ -316,8 +319,16 @@ class WebMixin(TimezoneMixin):
         self.staticdir = self.mktemp()
         self.clock = Clock()
         self.fakeTime = 86460 # 1d 0h 1m 0s
-        self.ws = webish.WebishServer(self.s, "0", staticdir=self.staticdir,
-                                      clock=self.clock, now_fn=lambda:self.fakeTime)
+        tempdir = FilePath(self.mktemp())
+        tempdir.makedirs()
+        self.ws = webish.WebishServer(
+            self.s,
+            "0",
+            tempdir=tempdir.path,
+            staticdir=self.staticdir,
+            clock=self.clock,
+            now_fn=lambda:self.fakeTime,
+        )
         self.ws.setServiceParent(self.s)
         self.webish_port = self.ws.getPortnum()
         self.webish_url = self.ws.getURL()

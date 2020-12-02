@@ -19,29 +19,36 @@ import os.path
 import re
 import types
 import errno
-import tempfile
 from base64 import b32decode, b32encode
 from errno import ENOENT, EPERM
 from warnings import warn
 
+import attr
+
 # On Python 2 this will be the backported package.
 import configparser
 
-from twisted.python.filepath import FilePath
+from twisted.python.filepath import (
+    FilePath,
+)
 from twisted.python import log as twlog
 from twisted.application import service
 from twisted.python.failure import Failure
-from foolscap.api import Tub, app_versions
+from foolscap.api import Tub
+
 import foolscap.logging.log
-from allmydata.version_checks import get_package_versions, get_package_versions_string
+
 from allmydata.util import log
 from allmydata.util import fileutil, iputil
-from allmydata.util.assertutil import _assert
 from allmydata.util.fileutil import abspath_expanduser_unicode
 from allmydata.util.encodingutil import get_filesystem_encoding, quote_output
 from allmydata.util import configutil
 from allmydata.util.yamlutil import (
     safe_load,
+)
+
+from . import (
+    __full_version__,
 )
 
 def _common_valid_config():
@@ -83,11 +90,6 @@ def _common_valid_config():
             "onion.private_key_file",
         ),
     })
-
-# Add our application versions to the data that Foolscap's LogPublisher
-# reports.
-for thing, things_version in list(get_package_versions().items()):
-    app_versions.add_version(thing, things_version)
 
 # group 1 will be addr (dotted quad string), group 3 if any will be portnum (string)
 ADDR_RE = re.compile("^([1-9][0-9]*\.[1-9][0-9]*\.[1-9][0-9]*\.[1-9][0-9]*)(:([1-9][0-9]*))?$")
@@ -198,25 +200,27 @@ def read_config(basedir, portnumfile, generated_files=[], _valid_config=None):
     # canonicalize the portnum file
     portnumfile = os.path.join(basedir, portnumfile)
 
-    # (try to) read the main config file
-    config_fname = os.path.join(basedir, "tahoe.cfg")
+    config_path = FilePath(basedir).child("tahoe.cfg")
     try:
-        parser = configutil.get_config(config_fname)
+        config_str = config_path.getContent()
     except EnvironmentError as e:
         if e.errno != errno.ENOENT:
             raise
         # The file is missing, just create empty ConfigParser.
-        parser = configutil.get_config_from_string(u"")
+        config_str = u""
+    else:
+        config_str = config_str.decode("utf-8-sig")
 
-    configutil.validate_config(config_fname, parser, _valid_config)
+    return config_from_string(
+        basedir,
+        portnumfile,
+        config_str,
+        _valid_config,
+        config_path,
+    )
 
-    # make sure we have a private configuration area
-    fileutil.make_dirs(os.path.join(basedir, "private"), 0o700)
 
-    return _Config(parser, portnumfile, basedir, config_fname)
-
-
-def config_from_string(basedir, portnumfile, config_str, _valid_config=None):
+def config_from_string(basedir, portnumfile, config_str, _valid_config=None, fpath=None):
     """
     load and validate configuration from in-memory string
     """
@@ -229,16 +233,19 @@ def config_from_string(basedir, portnumfile, config_str, _valid_config=None):
     # load configuration from in-memory string
     parser = configutil.get_config_from_string(config_str)
 
-    fname = "<in-memory>"
-    configutil.validate_config(fname, parser, _valid_config)
-    return _Config(parser, portnumfile, basedir, fname)
+    configutil.validate_config(
+        "<string>" if fpath is None else fpath.path,
+        parser,
+        _valid_config,
+    )
 
-
-def get_app_versions():
-    """
-    :returns: dict of versions important to Foolscap
-    """
-    return dict(app_versions.versions)
+    return _Config(
+        parser,
+        portnumfile,
+        basedir,
+        fpath,
+        _valid_config,
+    )
 
 
 def _error_about_old_config_files(basedir, generated_files):
@@ -266,6 +273,7 @@ def _error_about_old_config_files(basedir, generated_files):
         raise e
 
 
+@attr.s
 class _Config(object):
     """
     Manages configuration of a Tahoe 'node directory'.
@@ -274,30 +282,47 @@ class _Config(object):
     class; names and funtionality have been kept the same while moving
     the code. It probably makes sense for several of these APIs to
     have better names.
+
+    :ivar ConfigParser config: The actual configuration values.
+
+    :ivar str portnum_fname: filename to use for the port-number file (a
+        relative path inside basedir).
+
+    :ivar str _basedir: path to our "node directory", inside which all
+        configuration is managed.
+
+    :ivar (FilePath|NoneType) config_path: The path actually used to create
+        the configparser (might be ``None`` if using in-memory data).
+
+    :ivar ValidConfiguration valid_config_sections: The validator for the
+        values in this configuration.
     """
+    config = attr.ib(validator=attr.validators.instance_of(configparser.ConfigParser))
+    portnum_fname = attr.ib()
+    _basedir = attr.ib(
+        converter=lambda basedir: abspath_expanduser_unicode(ensure_text(basedir)),
+    )
+    config_path = attr.ib(
+        validator=attr.validators.optional(
+            attr.validators.instance_of(FilePath),
+        ),
+    )
+    valid_config_sections = attr.ib(
+        default=configutil.ValidConfiguration.everything(),
+        validator=attr.validators.instance_of(configutil.ValidConfiguration),
+    )
 
-    def __init__(self, configparser, portnum_fname, basedir, config_fname):
-        """
-        :param configparser: a ConfigParser instance
+    @property
+    def nickname(self):
+        nickname = self.get_config("node", "nickname", u"<unspecified>")
+        assert isinstance(nickname, str)
+        return nickname
 
-        :param portnum_fname: filename to use for the port-number file
-           (a relative path inside basedir)
-
-        :param basedir: path to our "node directory", inside which all
-           configuration is managed
-
-        :param config_fname: the pathname actually used to create the
-            configparser (might be 'fake' if using in-memory data)
-        """
-        self.portnum_fname = portnum_fname
-        self._basedir = abspath_expanduser_unicode(ensure_text(basedir))
-        self._config_fname = config_fname
-        self.config = configparser
-        self.nickname = self.get_config("node", "nickname", u"<unspecified>")
-        assert isinstance(self.nickname, str)
-
-    def validate(self, valid_config_sections):
-        configutil.validate_config(self._config_fname, self.config, valid_config_sections)
+    @property
+    def _config_fname(self):
+        if self.config_path is None:
+            return "<string>"
+        return self.config_path.path
 
     def write_config_file(self, name, value, mode="w"):
         """
@@ -341,6 +366,34 @@ class _Config(object):
                     )
                 )
             return default
+
+    def set_config(self, section, option, value):
+        """
+        Set a config option in a section and re-write the tahoe.cfg file
+
+        :param str section: The name of the section in which to set the
+            option.
+
+        :param str option: The name of the option to set.
+
+        :param str value: The value of the option.
+
+        :raise UnescapedHashError: If the option holds a fURL and there is a
+            ``#`` in the value.
+        """
+        if option.endswith(".furl") and "#" in value:
+            raise UnescapedHashError(section, option, value)
+
+        copied_config = configutil.copy_config(self.config)
+        configutil.set_config(copied_config, section, option, value)
+        configutil.validate_config(
+            self._config_fname,
+            copied_config,
+            self.valid_config_sections,
+        )
+        if self.config_path is not None:
+            configutil.write_config(self.config_path, copied_config)
+        self.config = copied_config
 
     def get_config_from_file(self, name, required=False):
         """Get the (string) contents of a config file, or None if the file
@@ -837,8 +890,6 @@ class Node(service.MultiService):
         self._i2p_provider = i2p_provider
         self._tor_provider = tor_provider
 
-        self.init_tempdir()
-
         self.create_log_tub()
         self.logSource = "Node"
         self.setup_logging()
@@ -856,7 +907,7 @@ class Node(service.MultiService):
         if self.control_tub is not None:
             self.control_tub.setServiceParent(self)
 
-        self.log("Node constructed. " + get_package_versions_string())
+        self.log("Node constructed. " + __full_version__)
         iputil.increase_rlimits()
 
     def _is_tub_listening(self):
@@ -864,25 +915,6 @@ class Node(service.MultiService):
         :returns: True if the main tub is listening
         """
         return len(self.tub.getListeners()) > 0
-
-    def init_tempdir(self):
-        """
-        Initialize/create a directory for temporary files.
-        """
-        tempdir_config = self.config.get_config("node", "tempdir", "tmp")
-        if isinstance(tempdir_config, bytes):
-            tempdir_config = tempdir_config.decode('utf-8')
-        tempdir = self.config.get_config_path(tempdir_config)
-        if not os.path.exists(tempdir):
-            fileutil.make_dirs(tempdir)
-        tempfile.tempdir = tempdir
-        # this should cause twisted.web.http (which uses
-        # tempfile.TemporaryFile) to put large request bodies in the given
-        # directory. Without this, the default temp dir is usually /tmp/,
-        # which is frequently too small.
-        temp_fd, test_name = tempfile.mkstemp()
-        _assert(os.path.dirname(test_name) == tempdir, test_name, tempdir)
-        os.close(temp_fd)  # avoid leak of unneeded fd
 
     # pull this outside of Node's __init__ too, see:
     # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2948

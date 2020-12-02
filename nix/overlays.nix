@@ -15,6 +15,9 @@ self: super: {
       # Need version of pyutil that supports Python 3. The version in 19.09
       # is too old.
       pyutil = python-super.callPackage ./pyutil.nix { };
+
+      # Need a newer version of Twisted, too.
+      twisted = python-super.callPackage ./twisted.nix { };
     };
   };
 }
