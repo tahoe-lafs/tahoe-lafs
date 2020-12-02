@@ -1,3 +1,5 @@
+from past.builtins import unicode
+
 import os, stat, time, weakref
 from base64 import urlsafe_b64encode
 from functools import partial
@@ -728,10 +730,14 @@ class _Client(node.Node, pollmixin.PollMixin):
         return { 'node.uptime': time.time() - self.started_timestamp }
 
     def init_secrets(self):
-        lease_s = self.config.get_or_create_private_config("secret", _make_secret)
+        # configs are always unicode
+        def _unicode_make_secret():
+            return unicode(_make_secret(), "ascii")
+        lease_s = self.config.get_or_create_private_config(
+            "secret", _unicode_make_secret).encode("utf-8")
         lease_secret = base32.a2b(lease_s)
-        convergence_s = self.config.get_or_create_private_config('convergence',
-                                                                 _make_secret)
+        convergence_s = self.config.get_or_create_private_config(
+            'convergence', _unicode_make_secret).encode("utf-8")
         self.convergence = base32.a2b(convergence_s)
         self._secret_holder = SecretHolder(lease_secret, self.convergence)
 
@@ -740,9 +746,11 @@ class _Client(node.Node, pollmixin.PollMixin):
         # existing key
         def _make_key():
             private_key, _ = ed25519.create_signing_keypair()
-            return ed25519.string_from_signing_key(private_key) + b"\n"
+            # Config values are always unicode:
+            return unicode(ed25519.string_from_signing_key(private_key) + b"\n", "utf-8")
 
-        private_key_str = self.config.get_or_create_private_config("node.privkey", _make_key)
+        private_key_str = self.config.get_or_create_private_config(
+            "node.privkey", _make_key).encode("utf-8")
         private_key, public_key = ed25519.signing_keypair_from_string(private_key_str)
         public_key_str = ed25519.string_from_verifying_key(public_key)
         self.config.write_config_file("node.pubkey", public_key_str + b"\n", "wb")
