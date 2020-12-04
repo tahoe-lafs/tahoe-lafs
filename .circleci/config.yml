@@ -91,6 +91,9 @@ workflows:
       - "build-porting-depgraph":
           <<: *DOCKERHUB_CONTEXT
 
+      - "typechecks":
+          <<: *DOCKERHUB_CONTEXT
+
   images:
     # Build the Docker images used by the ci jobs.  This makes the ci jobs
     # faster and takes various spurious failures out of the critical path.
@@ -474,6 +477,17 @@ jobs:
           command: |
             . /tmp/venv/bin/activate
             ./misc/python3/depgraph.sh
+
+  typechecks:
+    docker:
+      - <<: *DOCKERHUB_AUTH
+        image: "jaraco/multipy-tox"
+
+    steps:
+      - "checkout"
+      - run:
+          name: "Validate Types"
+          command: tox -e typechecks
 
   build-image: &BUILD_IMAGE
     # This is a template for a job to build a Docker image that has as much of
