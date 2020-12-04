@@ -51,6 +51,8 @@ PORTED_MODULES = [
     "allmydata.immutable.offloaded",
     "allmydata.immutable.upload",
     "allmydata.interfaces",
+    "allmydata.introducer.client",
+    "allmydata.introducer.common",
     "allmydata.introducer.interfaces",
     "allmydata.monitor",
     "allmydata.mutable.checker",
