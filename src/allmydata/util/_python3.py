@@ -54,6 +54,7 @@ PORTED_MODULES = [
     "allmydata.introducer.client",
     "allmydata.introducer.common",
     "allmydata.introducer.interfaces",
+    "allmydata.introducer.server",
     "allmydata.monitor",
     "allmydata.mutable.checker",
     "allmydata.mutable.common",

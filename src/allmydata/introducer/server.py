@@ -1,3 +1,16 @@
+"""
+Ported to Python 3.
+"""
+
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 from past.builtins import long
 from six import ensure_str, ensure_text
 
@@ -157,7 +170,7 @@ class IntroducerService(service.MultiService, Referenceable):
         # 'subscriber_info' is a dict, provided directly by v2 clients. The
         # expected keys are: version, nickname, app-versions, my-version,
         # oldest-supported
-        self._subscribers = {}
+        self._subscribers = dictutil.UnicodeKeyDict({})
 
         self._debug_counts = {"inbound_message": 0,
                               "inbound_duplicate": 0,
@@ -181,7 +194,7 @@ class IntroducerService(service.MultiService, Referenceable):
     def get_announcements(self):
         """Return a list of AnnouncementDescriptor for all announcements"""
         announcements = []
-        for (index, (_, canary, ann, when)) in self._announcements.items():
+        for (index, (_, canary, ann, when)) in list(self._announcements.items()):
             ad = AnnouncementDescriptor(when, index, canary, ann)
             announcements.append(ad)
         return announcements
@@ -189,8 +202,8 @@ class IntroducerService(service.MultiService, Referenceable):
     def get_subscribers(self):
         """Return a list of SubscriberDescriptor objects for all subscribers"""
         s = []
-        for service_name, subscriptions in self._subscribers.items():
-            for rref,(subscriber_info,when) in subscriptions.items():
+        for service_name, subscriptions in list(self._subscribers.items()):
+            for rref,(subscriber_info,when) in list(subscriptions.items()):
                 # note that if the subscriber didn't do Tub.setLocation,
                 # tubid will be None. Also, subscribers do not tell us which
                 # pubkey they use; only publishers do that.
@@ -281,7 +294,7 @@ class IntroducerService(service.MultiService, Referenceable):
     def remote_subscribe_v2(self, subscriber, service_name, subscriber_info):
         self.log("introducer: subscription[%s] request at %s"
                  % (service_name, subscriber), umid="U3uzLg")
-        service_name = ensure_str(service_name)
+        service_name = ensure_text(service_name)
         subscriber_info = dictutil.UnicodeKeyDict({
             ensure_text(k): v for (k, v) in subscriber_info.items()
         })
@@ -307,11 +320,11 @@ class IntroducerService(service.MultiService, Referenceable):
             subscribers.pop(subscriber, None)
         subscriber.notifyOnDisconnect(_remove)
 
+        # Make sure types are correct:
+        for k in self._announcements:
+            assert isinstance(k[0], type(service_name))
+
         # now tell them about any announcements they're interested in
-        assert {type(service_name)}.issuperset(
-            set(type(k[0]) for k in self._announcements)), (
-                service_name, self._announcements.keys()
-        )
         announcements = set( [ ann_t
                                for idx,(ann_t,canary,ann,when)
                                in self._announcements.items()
