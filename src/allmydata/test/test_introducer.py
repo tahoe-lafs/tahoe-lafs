@@ -52,8 +52,11 @@ from allmydata.util import pollmixin, idlib, fileutil, yamlutil
 from allmydata.util.iputil import (
     listenOnUnused,
 )
+from allmydata.scripts.common import (
+    write_introducer,
+)
 import allmydata.test.common_util as testutil
-from allmydata.test.common import (
+from .common import (
     SyncTestCase,
     AsyncTestCase,
     AsyncBrokenTestCase,
@@ -797,22 +800,28 @@ class Announcements(AsyncTestCase):
 
     @defer.inlineCallbacks
     def test_client_cache(self):
-        basedir = "introducer/ClientSeqnums/test_client_cache_1"
-        fileutil.make_dirs(basedir)
-        cache_filepath = FilePath(os.path.join(basedir, "private",
-                                               "introducer_default_cache.yaml"))
+        """
+        Announcements received by an introducer client are written to that
+        introducer client's cache file.
+        """
+        basedir = FilePath("introducer/ClientSeqnums/test_client_cache_1")
+        private = basedir.child("private")
+        private.makedirs()
+        write_introducer(basedir, "default", "nope")
+        cache_filepath = basedir.descendant([
+            "private",
+            "introducer_default_cache.yaml",
+        ])
 
         # if storage is enabled, the Client will publish its storage server
         # during startup (although the announcement will wait in a queue
         # until the introducer connection is established). To avoid getting
         # confused by this, disable storage.
-        with open(os.path.join(basedir, "tahoe.cfg"), "w") as f:
-            f.write("[client]\n")
-            f.write("introducer.furl = nope\n")
+        with basedir.child("tahoe.cfg").open("w") as f:
             f.write("[storage]\n")
             f.write("enabled = false\n")
 
-        c = yield create_client(basedir)
+        c = yield create_client(basedir.path)
         ic = c.introducer_clients[0]
         private_key, public_key = ed25519.create_signing_keypair()
         public_key_str = remove_prefix(ed25519.string_from_verifying_key(public_key), b"pub-")
@@ -878,7 +887,7 @@ class Announcements(AsyncTestCase):
         self.failUnlessEqual(ensure_binary(announcements[public_key_str2]["anonymous-storage-FURL"]),
                              furl3)
 
-        c2 = yield create_client(basedir)
+        c2 = yield create_client(basedir.path)
         c2.introducer_clients[0]._load_announcements()
         yield flushEventualQueue()
         self.assertEqual(c2.storage_broker.get_all_serverids(),
@@ -888,27 +897,24 @@ class ClientSeqnums(AsyncBrokenTestCase):
 
     @defer.inlineCallbacks
     def test_client(self):
-        basedir = "introducer/ClientSeqnums/test_client"
-        fileutil.make_dirs(basedir)
+        basedir = FilePath("introducer/ClientSeqnums/test_client")
+        private = basedir.child("private")
+        private.makedirs()
+        write_introducer(basedir, "default", "nope")
         # if storage is enabled, the Client will publish its storage server
         # during startup (although the announcement will wait in a queue
         # until the introducer connection is established). To avoid getting
         # confused by this, disable storage.
-        f = open(os.path.join(basedir, "tahoe.cfg"), "w")
-        f.write("[client]\n")
-        f.write("introducer.furl = nope\n")
-        f.write("[storage]\n")
-        f.write("enabled = false\n")
-        f.close()
+        with basedir.child("tahoe.cfg").open("w") as f:
+            f.write("[storage]\n")
+            f.write("enabled = false\n")
 
-        c = yield create_client(basedir)
+        c = yield create_client(basedir.path)
         ic = c.introducer_clients[0]
         outbound = ic._outbound_announcements
         published = ic._published_announcements
         def read_seqnum():
-            f = open(os.path.join(basedir, "announcement-seqnum"))
-            seqnum = f.read().strip()
-            f.close()
+            seqnum = basedir.child("announcement-seqnum").getContent()
             return int(seqnum)
 
         ic.publish("sA", {"key": "value1"}, c._node_private_key)

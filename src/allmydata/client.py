@@ -3,7 +3,6 @@ from past.builtins import unicode
 import os, stat, time, weakref
 from base64 import urlsafe_b64encode
 from functools import partial
-from errno import ENOENT, EPERM
 
 # On Python 2 this will be the backported package:
 from configparser import NoSectionError
@@ -467,56 +466,17 @@ def create_introducer_clients(config, main_tub, _introducer_factory=None):
     # we return this list
     introducer_clients = []
 
-    introducers_yaml_filename = config.get_private_path("introducers.yaml")
-    introducers_filepath = FilePath(introducers_yaml_filename)
+    introducers = config.get_introducer_configuration()
 
-    try:
-        with introducers_filepath.open() as f:
-            introducers_yaml = yamlutil.safe_load(f)
-            if introducers_yaml is None:
-                raise EnvironmentError(
-                    EPERM,
-                    "Can't read '{}'".format(introducers_yaml_filename),
-                    introducers_yaml_filename,
-                )
-            introducers = introducers_yaml.get("introducers", {})
-            log.msg(
-                "found {} introducers in private/introducers.yaml".format(
-                    len(introducers),
-                )
-            )
-    except EnvironmentError as e:
-        if e.errno != ENOENT:
-            raise
-        introducers = {}
-
-    if "default" in introducers.keys():
-        raise ValueError(
-            "'default' introducer furl cannot be specified in introducers.yaml;"
-            " please fix impossible configuration."
-        )
-
-    # read furl from tahoe.cfg
-    tahoe_cfg_introducer_furl = config.get_config("client", "introducer.furl", None)
-    if tahoe_cfg_introducer_furl == "None":
-        raise ValueError(
-            "tahoe.cfg has invalid 'introducer.furl = None':"
-            " to disable it, use 'introducer.furl ='"
-            " or omit the key entirely"
-        )
-    if tahoe_cfg_introducer_furl:
-        introducers[u'default'] = {'furl':tahoe_cfg_introducer_furl}
-
-    for petname, introducer in introducers.items():
-        introducer_cache_filepath = FilePath(config.get_private_path("introducer_{}_cache.yaml".format(petname)))
+    for petname, (furl, cache_path) in introducers.items():
         ic = _introducer_factory(
             main_tub,
-            introducer['furl'].encode("ascii"),
+            furl.encode("ascii"),
             config.nickname,
             str(allmydata.__full_version__),
             str(_Client.OLDEST_SUPPORTED_VERSION),
             partial(_sequencer, config),
-            introducer_cache_filepath,
+            cache_path,
         )
         introducer_clients.append(ic)
     return introducer_clients
