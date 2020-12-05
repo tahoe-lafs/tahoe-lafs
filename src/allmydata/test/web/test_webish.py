@@ -5,6 +5,19 @@ Tests for ``allmydata.webish``.
 from uuid import (
     uuid4,
 )
+from errno import (
+    EACCES,
+)
+from io import (
+    BytesIO,
+)
+
+from hypothesis import (
+    given,
+)
+from hypothesis.strategies import (
+    integers,
+)
 
 from testtools.matchers import (
     AfterPreprocessing,
@@ -12,8 +25,13 @@ from testtools.matchers import (
     Equals,
     MatchesAll,
     Not,
+    IsInstance,
+    HasLength,
 )
 
+from twisted.python.runtime import (
+    platform,
+)
 from twisted.python.filepath import (
     FilePath,
 )
@@ -30,7 +48,7 @@ from ..common import (
 
 from ...webish import (
     TahoeLAFSRequest,
-    tahoe_lafs_site,
+    TahoeLAFSSite,
 )
 
 
@@ -96,7 +114,7 @@ class TahoeLAFSRequestTests(SyncTestCase):
 
 class TahoeLAFSSiteTests(SyncTestCase):
     """
-    Tests for the ``Site`` created by ``tahoe_lafs_site``.
+    Tests for ``TahoeLAFSSite``.
     """
     def _test_censoring(self, path, censored):
         """
@@ -112,7 +130,7 @@ class TahoeLAFSSiteTests(SyncTestCase):
         """
         logPath = self.mktemp()
 
-        site = tahoe_lafs_site(Resource(), logPath=logPath)
+        site = TahoeLAFSSite(self.mktemp(), Resource(), logPath=logPath)
         site.startFactory()
 
         channel = DummyChannel()
@@ -169,6 +187,106 @@ class TahoeLAFSSiteTests(SyncTestCase):
             b"/uri?uri=URI:CHK:aaa:bbb",
             b"/uri?uri=[CENSORED]",
         )
+
+    def _create_request(self, tempdir):
+        """
+        Create and return a new ``TahoeLAFSRequest`` hooked up to a
+        ``TahoeLAFSSite``.
+
+        :param bytes tempdir: The temporary directory to give to the site.
+
+        :return TahoeLAFSRequest: The new request instance.
+        """
+        site = TahoeLAFSSite(tempdir.path, Resource(), logPath=self.mktemp())
+        site.startFactory()
+
+        channel = DummyChannel()
+        channel.site = site
+        request = TahoeLAFSRequest(channel)
+        return request
+
+    @given(integers(min_value=0, max_value=1024 * 1024 - 1))
+    def test_small_content(self, request_body_size):
+        """
+        A request body smaller than 1 MiB is kept in memory.
+        """
+        tempdir = FilePath(self.mktemp())
+        request = self._create_request(tempdir)
+        request.gotLength(request_body_size)
+        self.assertThat(
+            request.content,
+            IsInstance(BytesIO),
+        )
+
+    def _large_request_test(self, request_body_size):
+        """
+        Assert that when a request with a body of of the given size is received
+        its content is written to the directory the ``TahoeLAFSSite`` is
+        configured with.
+        """
+        tempdir = FilePath(self.mktemp())
+        tempdir.makedirs()
+        request = self._create_request(tempdir)
+
+        # So.  Bad news.  The temporary file for the uploaded content is
+        # unnamed (and this isn't even necessarily a bad thing since it is how
+        # you get automatic on-process-exit cleanup behavior on POSIX).  It's
+        # not visible by inspecting the filesystem.  It has no name we can
+        # discover.  Then how do we verify it is written to the right place?
+        # The question itself is meaningless if we try to be too precise.  It
+        # *has* no filesystem location.  However, it is still stored *on* some
+        # filesystem.  We still want to make sure it is on the filesystem we
+        # specified because otherwise it might be on a filesystem that's too
+        # small or undesirable in some other way.
+        #
+        # I don't know of any way to ask a file descriptor which filesystem
+        # it's on, either, though.  It might be the case that the [f]statvfs()
+        # result could be compared somehow to infer the filesystem but
+        # ... it's not clear what the failure modes might be there, across
+        # different filesystems and runtime environments.
+        #
+        # Another approach is to make the temp directory unwriteable and
+        # observe the failure when an attempt is made to create a file there.
+        # This is hardly a lovely solution but at least it's kind of simple.
+        #
+        # It would be nice if it worked consistently cross-platform but on
+        # Windows os.chmod is more or less broken.
+        if platform.isWindows():
+            request.gotLength(request_body_size)
+            self.assertThat(
+                tempdir.children(),
+                HasLength(1),
+            )
+        else:
+            tempdir.chmod(0o550)
+            with self.assertRaises(OSError) as ctx:
+                request.gotLength(request_body_size)
+                raise Exception(
+                    "OSError not raised, instead tempdir.children() = {}".format(
+                        tempdir.children(),
+                    ),
+                )
+
+            self.assertThat(
+                ctx.exception.errno,
+                Equals(EACCES),
+            )
+
+    def test_unknown_request_size(self):
+        """
+        A request body with an unknown size is written to a file in the temporary
+        directory passed to ``TahoeLAFSSite``.
+        """
+        self._large_request_test(None)
+
+    @given(integers(min_value=1024 * 1024))
+    def test_large_request(self, request_body_size):
+        """
+        A request body of 1 MiB or more is written to a file in the temporary
+        directory passed to ``TahoeLAFSSite``.
+        """
+        self._large_request_test(request_body_size)
+
 
 def param(name, value):
     return u"; {}={}".format(name, value)

@@ -65,9 +65,9 @@ Running a Client
 To construct a client node, run “``tahoe create-client``”, which will create
 ``~/.tahoe`` to be the node's base directory. Acquire the ``introducer.furl``
 (see below if you are running your own introducer, or use the one from the
-`TestGrid page`_), and paste it after ``introducer.furl =`` in the
-``[client]`` section of ``~/.tahoe/tahoe.cfg``. Then use “``tahoe run
-~/.tahoe``”. After that, the node should be off and running. The first thing
+`TestGrid page`_), and write it to ``~/.tahoe/private/introducers.yaml``
+(see :ref:`introducer-definitions`). Then use “``tahoe run ~/.tahoe``”.
+After that, the node should be off and running. The first thing
 it will do is connect to the introducer and get itself connected to all other
 nodes on the grid.
 

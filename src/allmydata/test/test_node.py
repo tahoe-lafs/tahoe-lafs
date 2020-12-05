@@ -6,7 +6,7 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
-from future.utils import PY2, native_str
+from future.utils import PY2
 if PY2:
     from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
@@ -29,6 +29,9 @@ from hypothesis.strategies import (
 
 from unittest import skipIf
 
+from twisted.python.filepath import (
+    FilePath,
+)
 from twisted.trial import unittest
 from twisted.internet import defer
 
@@ -46,14 +49,17 @@ from allmydata.node import (
     _tub_portlocation,
     formatTimeTahoeStyle,
     UnescapedHashError,
-    get_app_versions,
 )
 from allmydata.introducer.server import create_introducer
 from allmydata import client
 
 from allmydata.util import fileutil, iputil
 from allmydata.util.namespace import Namespace
-from allmydata.util.configutil import UnknownConfigError
+from allmydata.util.configutil import (
+    ValidConfiguration,
+    UnknownConfigError,
+)
+
 from allmydata.util.i2p_provider import create as create_i2p_provider
 from allmydata.util.tor_provider import create as create_tor_provider
 import allmydata.test.common_util as testutil
@@ -100,16 +106,6 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
         # try to bind the port.  We'll use a low-numbered one that's likely to
         # conflict with another service to prove it.
         self._available_port = 22
-
-    def test_application_versions(self):
-        """
-        Application versions should all have the same type, the native string.
-
-        This test is due to the Foolscap limitations, if Foolscap is fixed or
-        removed it can be deleted.
-        """
-        app_types = set(type(o) for o in get_app_versions())
-        self.assertEqual(app_types, {native_str})
 
     def _test_location(
             self,
@@ -442,6 +438,78 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
         yield client.create_client(basedir)
         self.failUnless(ns.called)
 
+    def test_set_config_unescaped_furl_hash(self):
+        """
+        ``_Config.set_config`` raises ``UnescapedHashError`` if the item being set
+        is a furl and the value includes ``"#"`` and does not set the value.
+        """
+        basedir = self.mktemp()
+        new_config = config_from_string(basedir, "", "")
+        with self.assertRaises(UnescapedHashError):
+            new_config.set_config("foo", "bar.furl", "value#1")
+        with self.assertRaises(MissingConfigEntry):
+            new_config.get_config("foo", "bar.furl")
+
+    def test_set_config_new_section(self):
+        """
+        ``_Config.set_config`` can be called with the name of a section that does
+        not already exist to create that section and set an item in it.
+        """
+        basedir = self.mktemp()
+        new_config = config_from_string(basedir, "", "", ValidConfiguration.everything())
+        new_config.set_config("foo", "bar", "value1")
+        self.assertEqual(
+            new_config.get_config("foo", "bar"),
+            "value1"
+        )
+
+    def test_set_config_replace(self):
+        """
+        ``_Config.set_config`` can be called with a section and item that already
+        exists to change an existing value to a new one.
+        """
+        basedir = self.mktemp()
+        new_config = config_from_string(basedir, "", "", ValidConfiguration.everything())
+        new_config.set_config("foo", "bar", "value1")
+        new_config.set_config("foo", "bar", "value2")
+        self.assertEqual(
+            new_config.get_config("foo", "bar"),
+            "value2"
+        )
+
+    def test_set_config_write(self):
+        """
+        ``_Config.set_config`` persists the configuration change so it can be
+        re-loaded later.
+        """
+        # Let our nonsense config through
+        valid_config = ValidConfiguration.everything()
+        basedir = FilePath(self.mktemp())
+        basedir.makedirs()
+        cfg = basedir.child(b"tahoe.cfg")
+        cfg.setContent(b"")
+        new_config = read_config(basedir.path, "", [], valid_config)
+        new_config.set_config("foo", "bar", "value1")
+        loaded_config = read_config(basedir.path, "", [], valid_config)
+        self.assertEqual(
+            loaded_config.get_config("foo", "bar"),
+            "value1",
+        )
+
+    def test_set_config_rejects_invalid_config(self):
+        """
+        ``_Config.set_config`` raises ``UnknownConfigError`` if the section or
+        item is not recognized by the validation object and does not set the
+        value.
+        """
+        # Make everything invalid.
+        valid_config = ValidConfiguration.nothing()
+        new_config = config_from_string(self.mktemp(), "", "", valid_config)
+        with self.assertRaises(UnknownConfigError):
+            new_config.set_config("foo", "bar", "baz")
+        with self.assertRaises(MissingConfigEntry):
+            new_config.get_config("foo", "bar")
+
 
 class TestMissingPorts(unittest.TestCase):
     """
@@ -616,8 +684,6 @@ class TestMissingPorts(unittest.TestCase):
 
 
 BASE_CONFIG = """
-[client]
-introducer.furl = empty
 [tor]
 enabled = false
 [i2p]

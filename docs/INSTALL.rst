@@ -39,9 +39,7 @@ If you are on Windows, please see :doc:`windows` for platform-specific
 instructions.
 
 If you are on a Mac, you can either follow these instructions, or use the
-pre-packaged bundle described in :doc:`OS-X`. The Tahoe project hosts
-pre-compiled "wheels" for all dependencies, so use the ``--find-links=``
-option described below to avoid needing a compiler.
+pre-packaged bundle described in :doc:`OS-X`.
 
 Many Linux distributions include Tahoe-LAFS packages. Debian and Ubuntu users
 can ``apt-get install tahoe-lafs``. See `OSPackages`_ for other
@@ -54,9 +52,14 @@ Preliminaries
 =============
 
 If you don't use a pre-packaged copy of Tahoe, you can build it yourself.
-You'll need Python2.7, pip, and virtualenv. On unix-like platforms, you will
-need a C compiler, the Python development headers, and some libraries
-(libffi-dev and libssl-dev).
+You'll need Python2.7, pip, and virtualenv.
+Tahoe-LAFS depends on some libraries which require a C compiler to build.
+However, for many platforms, PyPI hosts already-built packages of libraries.
+
+If there is no already-built package for your platform,
+you will need a C compiler,
+the Python development headers,
+and some libraries (libffi-dev and libssl-dev).
 
 On a modern Debian/Ubuntu-derived distribution, this command will get you
 everything you need::
@@ -64,8 +67,7 @@ everything you need::
     apt-get install build-essential python-dev libffi-dev libssl-dev libyaml-dev python-virtualenv
 
 On OS-X, install pip and virtualenv as described below. If you want to
-compile the dependencies yourself (instead of using ``--find-links`` to take
-advantage of the pre-compiled ones we host), you'll also need to install
+compile the dependencies yourself, you'll also need to install
 Xcode and its command-line tools.
 
 **Note** that Tahoe-LAFS depends on `openssl 1.1.1c` or greater.
@@ -150,29 +152,23 @@ from PyPI with ``venv/bin/pip install tahoe-lafs``. After installation, run
  % virtualenv venv
  New python executable in ~/venv/bin/python2.7
  Installing setuptools, pip, wheel...done.
- 
+
  % venv/bin/pip install -U pip setuptools
  Downloading/unpacking pip from https://pypi.python.org/...
  ...
  Successfully installed pip setuptools
- 
+
  % venv/bin/pip install tahoe-lafs
  Collecting tahoe-lafs
  ...
  Installing collected packages: ...
  Successfully installed ...
- 
+
  % venv/bin/tahoe --version
  tahoe-lafs: 1.14.0
  foolscap: ...
- 
+
  %
-
-On OS-X, instead of ``pip install tahoe-lafs``, use this command to take
-advantage of the hosted pre-compiled wheels::
-
- venv/bin/pip install --find-links=https://tahoe-lafs.org/deps tahoe-lafs
-
 
 Install From a Source Tarball
 -----------------------------
@@ -182,13 +178,13 @@ You can also install directly from the source tarball URL::
  % virtualenv venv
  New python executable in ~/venv/bin/python2.7
  Installing setuptools, pip, wheel...done.
- 
+
  % venv/bin/pip install https://tahoe-lafs.org/downloads/tahoe-lafs-1.14.0.tar.bz2
  Collecting https://tahoe-lafs.org/downloads/tahoe-lafs-1.14.0.tar.bz2
  ...
  Installing collected packages: ...
  Successfully installed ...
- 
+
  % venv/bin/tahoe --version
  tahoe-lafs: 1.14.0
  ...
@@ -213,16 +209,16 @@ with the ``--editable`` flag. You should also use the ``[test]`` extra to get
 the additional libraries needed to run the unit tests::
 
  % git clone https://github.com/tahoe-lafs/tahoe-lafs.git
- 
+
  % cd tahoe-lafs
- 
+
  % virtualenv venv
- 
+
  % venv/bin/pip install --editable .[test]
  Obtaining file::~/tahoe-lafs
  ...
  Successfully installed ...
- 
+
  % venv/bin/tahoe --version
  tahoe-lafs: 1.14.0.post34.dev0
  ...
@@ -282,7 +278,7 @@ result in a "all tests passed" mesage::
      test_missing_signature ...                                       [OK]
   ...
  Ran 1186 tests in 423.179s
- 
+
  PASSED (skips=7, expectedFailures=3, successes=1176)
  __________________________ summary ___________________________________
    py27: commands succeeded
