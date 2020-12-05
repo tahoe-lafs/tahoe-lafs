@@ -818,8 +818,8 @@ class Announcements(AsyncTestCase):
         # until the introducer connection is established). To avoid getting
         # confused by this, disable storage.
         with basedir.child("tahoe.cfg").open("w") as f:
-            f.write("[storage]\n")
-            f.write("enabled = false\n")
+            f.write(b"[storage]\n")
+            f.write(b"enabled = false\n")
 
         c = yield create_client(basedir.path)
         ic = c.introducer_clients[0]
@@ -906,8 +906,8 @@ class ClientSeqnums(AsyncBrokenTestCase):
         # until the introducer connection is established). To avoid getting
         # confused by this, disable storage.
         with basedir.child("tahoe.cfg").open("w") as f:
-            f.write("[storage]\n")
-            f.write("enabled = false\n")
+            f.write(b"[storage]\n")
+            f.write(b"enabled = false\n")
 
         c = yield create_client(basedir.path)
         ic = c.introducer_clients[0]
