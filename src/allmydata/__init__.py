@@ -14,7 +14,7 @@ __all__ = [
 
 __version__ = "unknown"
 try:
-    from allmydata._version import __version__
+    from allmydata._version import __version__  # type: ignore
 except ImportError:
     # We're running in a tree that hasn't run update_version, and didn't
     # come with a _version.py, so we don't know what our version is.
@@ -24,7 +24,7 @@ except ImportError:
 full_version = "unknown"
 branch = "unknown"
 try:
-    from allmydata._version import full_version, branch
+    from allmydata._version import full_version, branch  # type: ignore
 except ImportError:
     # We're running in a tree that hasn't run update_version, and didn't
     # come with a _version.py, so we don't know what our full version or
