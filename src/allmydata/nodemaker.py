@@ -66,9 +66,9 @@ class NodeMaker(object):
             memokey = b"I" + bigcap
         else:
             memokey = b"M" + bigcap
-        if memokey in self._node_cache:
+        try:
             node = self._node_cache[memokey]
-        else:
+        except KeyError:
             cap = uri.from_string(bigcap, deep_immutable=deep_immutable,
                                   name=name)
             node = self._create_from_single_cap(cap)

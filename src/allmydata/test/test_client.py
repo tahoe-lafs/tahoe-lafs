@@ -12,6 +12,15 @@ from fixtures import (
     Fixture,
     TempDir,
 )
+
+from hypothesis import (
+    given,
+)
+from hypothesis.strategies import (
+    sampled_from,
+    booleans,
+)
+
 from eliot.testing import (
     capture_logging,
     assertHasAction,
@@ -39,6 +48,9 @@ from testtools.twistedsupport import (
 import allmydata
 import allmydata.util.log
 
+from allmydata.nodemaker import (
+    NodeMaker,
+)
 from allmydata.node import OldConfigError, UnescapedHashError, create_node_dir
 from allmydata.frontends.auth import NeedRootcapLookupScheme
 from allmydata import client
@@ -63,6 +75,7 @@ import allmydata.test.common_util as testutil
 from .common import (
     EMPTY_CLIENT_CONFIG,
     SyncTestCase,
+    AsyncBrokenTestCase,
     UseTestPlugins,
     MemoryIntroducerClient,
     get_published_announcements,
@@ -71,6 +84,9 @@ from .matchers import (
     MatchesSameElements,
     matches_storage_announcement,
     matches_furl,
+)
+from .strategies import (
+    write_capabilities,
 )
 
 SOME_FURL = b"pb://abcde@nowhere/fake"
@@ -994,7 +1010,98 @@ class Run(unittest.TestCase, testutil.StallMixin):
         c2.setServiceParent(self.sparent)
         yield c2.disownServiceParent()
 
-class NodeMaker(testutil.ReallyEqualMixin, unittest.TestCase):
+class NodeMakerTests(testutil.ReallyEqualMixin, AsyncBrokenTestCase):
+
+    def _make_node_maker(self, mode, writecap, deep_immutable):
+        """
+        Create a callable which can create an ``IFilesystemNode`` provider for the
+        given cap.
+
+        :param unicode mode: The read/write combination to pass to
+            ``NodeMaker.create_from_cap``.  If it contains ``u"r"`` then a
+            readcap will be passed in.  If it contains ``u"w"`` then a
+            writecap will be passed in.
+
+        :param IURI writecap: The capability for which to create a node.
+
+        :param bool deep_immutable: Whether to request a "deep immutable" node
+            which forces the result to be an immutable ``IFilesystemNode`` (I
+            think -exarkun).
+        """
+        if writecap.is_mutable():
+            # It's just not a valid combination to have a mutable alongside
+            # deep_immutable = True.  It's easier to fix deep_immutable than
+            # writecap to clear up this conflict.
+            deep_immutable = False
+
+        if "r" in mode:
+            readcap = writecap.get_readonly().to_string()
+        else:
+            readcap = None
+        if "w" in mode:
+            writecap = writecap.to_string()
+        else:
+            writecap = None
+
+        nm = NodeMaker(
+            storage_broker=None,
+            secret_holder=None,
+            history=None,
+            uploader=None,
+            terminator=None,
+            default_encoding_parameters={u"k": 1, u"n": 1},
+            mutable_file_default=None,
+            key_generator=None,
+            blacklist=None,
+        )
+        return partial(
+            nm.create_from_cap,
+            writecap,
+            readcap,
+            deep_immutable,
+        )
+
+    @given(
+        mode=sampled_from(["w", "r", "rw"]),
+        writecap=write_capabilities(),
+        deep_immutable=booleans(),
+    )
+    def test_cached_result(self, mode, writecap, deep_immutable):
+        """
+        ``NodeMaker.create_from_cap`` returns the same object when called with the
+        same arguments.
+        """
+        make_node = self._make_node_maker(mode, writecap, deep_immutable)
+        original = make_node()
+        additional = make_node()
+
+        self.assertThat(
+            original,
+            Is(additional),
+        )
+
+    @given(
+        mode=sampled_from(["w", "r", "rw"]),
+        writecap=write_capabilities(),
+        deep_immutable=booleans(),
+    )
+    def test_cache_expired(self, mode, writecap, deep_immutable):
+        """
+        After the node object returned by an earlier call to
+        ``NodeMaker.create_from_cap`` has been garbage collected, a new call
+        to ``NodeMaker.create_from_cap`` returns a node object, maybe even a
+        new one although we can't really prove it.
+        """
+        make_node = self._make_node_maker(mode, writecap, deep_immutable)
+        make_node()
+        additional = make_node()
+        self.assertThat(
+            additional,
+            AfterPreprocessing(
+                lambda node: node.get_readonly_uri(),
+                Equals(writecap.get_readonly().to_string()),
+            ),
+        )
 
     @defer.inlineCallbacks
     def test_maker(self):
