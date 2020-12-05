@@ -1,5 +1,4 @@
 import os, sys
-import mock
 from functools import (
     partial,
 )
@@ -432,19 +431,32 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
         """
         configuration for sftpd results in it being started
         """
+        root = FilePath(self.mktemp())
+        root.makedirs()
+        accounts = root.child(b"sftp-accounts")
+        accounts.touch()
+
+        data = FilePath(__file__).sibling(b"data")
+        privkey = data.child(b"openssh-rsa-2048.txt")
+        pubkey = data.child(b"openssh-rsa-2048.pub.txt")
+
         basedir = u"client.Basic.test_ftp_create"
         create_node_dir(basedir, "testing")
         with open(os.path.join(basedir, "tahoe.cfg"), "w") as f:
-            f.write(
+            f.write((
                 '[sftpd]\n'
                 'enabled = true\n'
-                'accounts.file = foo\n'
-                'host_pubkey_file = pubkey\n'
-                'host_privkey_file = privkey\n'
-            )
-        with mock.patch('allmydata.frontends.sftpd.SFTPServer') as p:
-            yield client.create_client(basedir)
-        self.assertTrue(p.called)
+                'accounts.file = {}\n'
+                'host_pubkey_file = {}\n'
+                'host_privkey_file = {}\n'
+            ).format(accounts.path, pubkey.path, privkey.path))
+
+        client_node = yield client.create_client(
+            basedir,
+        )
+        sftp = client_node.getServiceNamed("frontend:sftp")
+        self.assertIs(sftp.parent, client_node)
+
 
     @defer.inlineCallbacks
     def test_ftp_auth_keyfile(self):
