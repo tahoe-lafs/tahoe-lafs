@@ -121,11 +121,13 @@ def write_introducer(basedir, petname, furl):
     Overwrite the node's ``introducers.yaml`` with a file containing the given
     introducer information.
     """
+    if isinstance(furl, bytes):
+        furl = furl.decode("utf-8")
     basedir.child(b"private").child(b"introducers.yaml").setContent(
         safe_dump({
             "introducers": {
                 petname: {
-                    "furl": furl.decode("ascii"),
+                    "furl": furl,
                 },
             },
         }).encode("ascii"),
