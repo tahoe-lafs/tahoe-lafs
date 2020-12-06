@@ -100,10 +100,12 @@ def create_alias(options):
 def show_output(fp, template, **kwargs):
     assert isinstance(template, unicode)
 
-    # On Python 2 and Python 3 fp has an encoding attribute under real usage
-    # but the test suite passes StringIO in many places which has no such
-    # attribute.  Make allowances for this until the test suite is fixed.
-    encoding = getattr(fp, "encoding", "utf-8")
+    # On Python 3 fp has an encoding attribute under all real usage.  On
+    # Python 2, the encoding attribute is None if stdio is not a tty.  The
+    # test suite often passes StringIO which has no such attribute.  Make
+    # allowances for this until the test suite is fixed and Python 2 is no
+    # more.
+    encoding = getattr(fp, "encoding", None) or "utf-8"
     output = template.format(**{
         k: quote_output_u(v, encoding=encoding)
         for (k, v)
