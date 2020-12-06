@@ -17,7 +17,6 @@ from json import (
 )
 
 import hashlib
-from mock import Mock
 from fixtures import (
     TempDir,
 )
@@ -44,12 +43,20 @@ from hyperlink import (
     URL,
 )
 
+import attr
+
+from twisted.internet.interfaces import (
+    IStreamClientEndpoint,
+)
 from twisted.application.service import (
     Service,
 )
 
 from twisted.trial import unittest
-from twisted.internet.defer import succeed, inlineCallbacks
+from twisted.internet.defer import (
+    Deferred,
+    inlineCallbacks,
+)
 from twisted.python.filepath import (
     FilePath,
 )
@@ -57,7 +64,11 @@ from twisted.python.filepath import (
 from foolscap.api import (
     Tub,
 )
+from foolscap.ipb import (
+    IConnectionHintHandler,
+)
 
+from .no_network import LocalWrapper
 from .common import (
     EMPTY_CLIENT_CONFIG,
     SyncTestCase,
@@ -83,6 +94,9 @@ from allmydata.storage_client import (
     StorageFarmBroker,
     _FoolscapStorage,
     _NullStorage,
+)
+from ..storage.server import (
+    StorageServer,
 )
 from allmydata.interfaces import (
     IConnectionStatus,
@@ -529,6 +543,47 @@ def make_broker(tub_maker=None):
     return StorageFarmBroker(True, tub_maker, EMPTY_CLIENT_CONFIG)
 
 
+@implementer(IStreamClientEndpoint)
+@attr.s
+class SpyEndpoint(object):
+    """
+    Observe and record connection attempts.
+
+    :ivar list _append: A callable that accepts two-tuples.  For each
+        attempted connection, it will be called with ``Deferred`` that was
+        returned and the ``Factory`` that was passed in.
+    """
+    _append = attr.ib()
+
+    def connect(self, factory):
+        """
+        Record the connection attempt.
+
+        :return: A ``Deferred`` that ``SpyEndpoint`` will not fire.
+        """
+        d = Deferred()
+        self._append((d, factory))
+        return d
+
+
+@implementer(IConnectionHintHandler)
+@attr.s
+class SpyHandler(object):
+    """
+    A Foolscap connection hint handler for the "spy" hint type.  Connections
+    are handled by just observing and recording them.
+
+    :ivar list _connects: A list containing one element for each connection
+        attempted with this handler.  Each element is a two-tuple of the
+        ``Deferred`` that was returned from ``connect`` and the factory that
+        was passed to ``connect``.
+    """
+    _connects = attr.ib(default=attr.Factory(list))
+
+    def hint_to_endpoint(self, hint, reactor, update_status):
+        return (SpyEndpoint(self._connects.append), hint)
+
+
 class TestStorageFarmBroker(unittest.TestCase):
 
     def test_static_servers(self):
@@ -620,6 +675,11 @@ storage:
         def make_tub(*args, **kwargs):
             return new_tubs.pop()
         broker = make_broker(make_tub)
+        # Start the broker so that it will start Tubs attached to it so they
+        # will attempt to make connections as necessary so that we can observe
+        # those connections.
+        broker.startService()
+        self.addCleanup(broker.stopService)
         done = broker.when_connected_enough(5)
         broker.use_introducer(introducer)
         # subscribes to "storage" to learn of new storage nodes
@@ -637,15 +697,25 @@ storage:
         }
 
         def add_one_server(x):
-            data["anonymous-storage-FURL"] = b"pb://%s@nowhere/fake" % (base32.b2a(b"%d" % x),)
-            tub = Mock()
+            data["anonymous-storage-FURL"] = b"pb://%s@spy:nowhere/fake" % (base32.b2a(b"%d" % x),)
+            tub = Tub()
+            connects = []
+            spy = SpyHandler(connects)
+            tub.addConnectionHintHandler("spy", spy)
             new_tubs.append(tub)
             got_announcement(b'v0-1234-%d' % x, data)
-            self.assertEqual(tub.mock_calls[-1][0], 'connectTo')
-            got_connection = tub.mock_calls[-1][1][1]
-            rref = Mock()
-            rref.callRemote = Mock(return_value=succeed(1234))
-            got_connection(rref)
+
+            self.assertEqual(
+                1, len(connects),
+                "Expected one connection attempt, got {!r} instead".format(connects),
+            )
+
+            # Skip over all the Foolscap negotiation.  It's complex with lots
+            # of pieces and I don't want to figure out how to fake
+            # it. -exarkun
+            native = broker.servers[b"v0-1234-%d" % (x,)]
+            rref = LocalWrapper(StorageServer(self.mktemp(), b"x" * 20))
+            native._got_connection(rref)
 
         # first 4 shouldn't trigger connected_threashold
         for x in range(4):

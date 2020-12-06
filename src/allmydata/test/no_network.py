@@ -89,6 +89,9 @@ class LocalWrapper(object):
         self.counter_by_methname = {}
         self._fireEventually = fireEventually
 
+    def getLocationHints(self):
+        return []
+
     def _clear_counters(self):
         self.counter_by_methname = {}
 
