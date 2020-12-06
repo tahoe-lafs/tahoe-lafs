@@ -112,33 +112,26 @@ def _get_alias_details(nodedir):
 
 
 def list_aliases(options):
-    nodedir = options['node-directory']
-    stdout = options.stdout
-    stderr = options.stderr
-
-    data = _get_alias_details(nodedir)
-
-    max_width = max([len(quote_output(name)) for name in data.keys()] + [0])
-    fmt = "%" + str(max_width) + "s: %s"
-    rc = 0
+    data = _get_alias_details(options['node-directory'])
 
     if options['json']:
-        try:
-            # XXX why are we presuming utf-8 output?
-            print(json.dumps(data, indent=4).decode('utf-8'), file=stdout)
-        except (UnicodeEncodeError, UnicodeDecodeError):
-            print(json.dumps(data, indent=4), file=stderr)
-            rc = 1
+        output = json.dumps(data, indent=4)
     else:
-        for name, details in data.items():
-            dircap = details['readonly'] if options['readonly-uri'] else details['readwrite']
-            try:
-                print(fmt % (unicode_to_output(name), unicode_to_output(dircap.decode('utf-8'))), file=stdout)
-            except (UnicodeEncodeError, UnicodeDecodeError):
-                print(fmt % (quote_output(name), quote_output(dircap)), file=stderr)
-                rc = 1
+        def dircap(details):
+            return (
+                details['readonly']
+                if options['readonly-uri']
+                else details['readwrite']
+            ).decode("utf-8")
 
-    if rc == 1:
-        print("\nThis listing included aliases or caps that could not be converted to the terminal" \
-                        "\noutput encoding. These are shown using backslash escapes and in quotes.", file=stderr)
-    return rc
+        max_width = max([len(quote_output(name)) for name in data.keys()] + [0])
+        fmt = "%" + str(max_width) + "s: %s"
+        output = u"\n".join(list(
+            fmt % (name, dircap(details))
+            for name, details
+            in data.items()
+        ))
+
+    print(output, file=options.stdout)
+
+    return 0
