@@ -5,6 +5,10 @@ import time
 import signal
 from random import randrange
 from six.moves import StringIO
+from io import (
+    TextIOWrapper,
+    BytesIO,
+)
 
 from twisted.internet import reactor, defer
 from twisted.python import failure
@@ -35,24 +39,90 @@ def skip_if_cannot_represent_argv(u):
     except UnicodeEncodeError:
         raise unittest.SkipTest("A non-ASCII argv could not be encoded on this platform.")
 
+
+def _getvalue(io):
+    """
+    Read out the complete contents of a file-like object.
+    """
+    io.seek(0)
+    return io.read()
+
+
 def run_cli(verb, *args, **kwargs):
-    precondition(not [True for arg in args if not isinstance(arg, str)],
-                 "arguments to do_cli must be strs -- convert using unicode_to_argv", args=args)
-    nodeargs = kwargs.get("nodeargs", [])
-    argv = nodeargs + [verb] + list(args)
-    stdin = kwargs.get("stdin", "")
-    stdout = StringIO()
-    stderr = StringIO()
+    """
+    Run some CLI command using Python 2 stdout/stderr semantics.
+    """
+    nodeargs = kwargs.pop("nodeargs", [])
+    stdin = kwargs.pop("stdin", None)
+    precondition(
+        all(isinstance(arg, bytes) for arg in [verb] + (nodeargs or []) + list(args)),
+        "arguments to run_cli must be bytes -- convert using unicode_to_argv",
+        verb=verb,
+        args=args,
+        nodeargs=nodeargs,
+    )
+    encoding = "utf-8"
+    d = run_cli_ex(
+        verb=verb.decode(encoding),
+        argv=list(arg.decode(encoding) for arg in args),
+        nodeargs=list(nodearg.decode(encoding) for nodearg in nodeargs),
+        stdin=stdin,
+    )
+    def maybe_encode(result):
+        code, stdout, stderr = result
+        # Make sure we produce bytes output since that's what all the code
+        # written to use this interface expects.  If you don't like that, use
+        # run_cli_ex instead.  We use get_io_encoding here to make sure that
+        # whatever was written can actually be encoded that way, otherwise it
+        # wouldn't really be writeable under real usage.
+        if isinstance(stdout, unicode):
+            stdout = stdout.encode(encoding)
+        if isinstance(stderr, unicode):
+            stderr = stderr.encode(encoding)
+        return code, stdout, stderr
+    d.addCallback(maybe_encode)
+    return d
+
+
+def run_cli_ex(verb, argv, nodeargs=None, stdin=None, encoding=None):
+    precondition(
+        all(isinstance(arg, unicode) for arg in [verb] + (nodeargs or []) + argv),
+        "arguments to run_cli_ex must be unicode",
+        verb=verb,
+        nodeargs=nodeargs,
+        argv=argv,
+    )
+    if nodeargs is None:
+        nodeargs = []
+    argv = nodeargs + [verb] + list(argv)
+    if stdin is None:
+        stdin = ""
+    if encoding is None:
+        # The original behavior, the Python 2 behavior, is to accept either
+        # bytes or unicode and try to automatically encode or decode as
+        # necessary.  This works okay for ASCII and if LANG is set
+        # appropriately.  These aren't great constraints so we should move
+        # away from this behavior.
+        stdout = StringIO()
+        stderr = StringIO()
+    else:
+        # The new behavior, the Python 3 behavior, is to accept unicode and
+        # encode it using a specific encoding.  For older versions of Python
+        # 3, the encoding is determined from LANG (bad) but for newer Python
+        # 3, the encoding is always utf-8 (good).  Tests can pass in different
+        # encodings to exercise different behaviors.
+        stdout = TextIOWrapper(BytesIO(), encoding)
+        stderr = TextIOWrapper(BytesIO(), encoding)
     d = defer.succeed(argv)
     d.addCallback(runner.parse_or_exit_with_explanation, stdout=stdout)
     d.addCallback(runner.dispatch,
                   stdin=StringIO(stdin),
                   stdout=stdout, stderr=stderr)
     def _done(rc):
-        return 0, stdout.getvalue(), stderr.getvalue()
+        return 0, _getvalue(stdout), _getvalue(stderr)
     def _err(f):
         f.trap(SystemExit)
-        return f.value.code, stdout.getvalue(), stderr.getvalue()
+        return f.value.code, _getvalue(stdout), _getvalue(stderr)
     d.addCallbacks(_done, _err)
     return d
 

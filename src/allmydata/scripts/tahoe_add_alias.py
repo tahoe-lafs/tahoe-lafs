@@ -1,4 +1,5 @@
 from __future__ import print_function
+from __future__ import unicode_literals
 
 import os.path
 import codecs
@@ -10,7 +11,7 @@ from allmydata import uri
 from allmydata.scripts.common_http import do_http, check_http_error
 from allmydata.scripts.common import get_aliases
 from allmydata.util.fileutil import move_into_place
-from allmydata.util.encodingutil import quote_output
+from allmydata.util.encodingutil import quote_output, quote_output_u
 
 
 def add_line_to_aliasfile(aliasfile, alias, cap):
@@ -48,14 +49,13 @@ def add_alias(options):
 
     old_aliases = get_aliases(nodedir)
     if alias in old_aliases:
-        print("Alias %s already exists!" % quote_output(alias), file=stderr)
+        print("Alias %s already exists!" % quote_output_u(alias), file=stderr)
         return 1
     aliasfile = os.path.join(nodedir, "private", "aliases")
     cap = uri.from_string_dirnode(cap).to_string()
 
     add_line_to_aliasfile(aliasfile, alias, cap)
-
-    print("Alias %s added" % quote_output(alias), file=stdout)
+    show_output(stdout, "Alias {alias} added", alias=alias)
     return 0
 
 def create_alias(options):
@@ -93,9 +93,24 @@ def create_alias(options):
     # probably check for others..
 
     add_line_to_aliasfile(aliasfile, alias, new_uri)
-
-    print("Alias %s created" % (quote_output(alias),), file=stdout)
+    show_output(stdout, "Alias {alias} created", alias=alias)
     return 0
+
+
+def show_output(fp, template, **kwargs):
+    assert isinstance(template, unicode)
+
+    # On Python 2 and Python 3 fp has an encoding attribute under real usage
+    # but the test suite passes StringIO in many places which has no such
+    # attribute.  Make allowances for this until the test suite is fixed.
+    encoding = getattr(fp, "encoding", "utf-8")
+    output = template.format(**{
+        k: quote_output_u(v, encoding=encoding)
+        for (k, v)
+        in kwargs.items()
+    })
+    safe_output = output.encode(encoding, "namereplace").decode(encoding)
+    print(safe_output, file=fp)
 
 
 def _get_alias_details(nodedir):
@@ -115,7 +130,7 @@ def list_aliases(options):
     data = _get_alias_details(options['node-directory'])
 
     if options['json']:
-        output = json.dumps(data, indent=4)
+        output = json.dumps(data, indent=4).decode("utf-8")
     else:
         def dircap(details):
             return (
@@ -132,6 +147,9 @@ def list_aliases(options):
             in data.items()
         ))
 
-    print(output, file=options.stdout)
+    if output:
+        # Show whatever we computed.  Skip this if there is no output to avoid
+        # a spurious blank line.
+        print(output, file=options.stdout)
 
     return 0

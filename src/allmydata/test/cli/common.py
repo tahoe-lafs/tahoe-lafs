@@ -1,6 +1,6 @@
 from ...util.encodingutil import unicode_to_argv
 from ...scripts import runner
-from ..common_util import ReallyEqualMixin, run_cli
+from ..common_util import ReallyEqualMixin, run_cli, run_cli_ex
 
 def parse_options(basedir, command, args):
     o = runner.Options()
@@ -10,10 +10,18 @@ def parse_options(basedir, command, args):
     return o
 
 class CLITestMixin(ReallyEqualMixin):
+    def do_cli_ex(self, verb, argv, client_num=0, **kwargs):
+        # client_num is used to execute client CLI commands on a specific
+        # client.
+        client_dir = self.get_clientdir(i=client_num)
+        nodeargs = [ u"--node-directory", client_dir ]
+        return run_cli_ex(verb, argv, nodeargs=nodeargs, **kwargs)
+
+
     def do_cli(self, verb, *args, **kwargs):
         # client_num is used to execute client CLI commands on a specific
         # client.
-        client_num = kwargs.get("client_num", 0)
+        client_num = kwargs.pop("client_num", 0)
         client_dir = unicode_to_argv(self.get_clientdir(i=client_num))
-        nodeargs = [ "--node-directory", client_dir ]
-        return run_cli(verb, nodeargs=nodeargs, *args, **kwargs)
+        nodeargs = [ b"--node-directory", client_dir ]
+        return run_cli(verb, *args, nodeargs=nodeargs, **kwargs)
