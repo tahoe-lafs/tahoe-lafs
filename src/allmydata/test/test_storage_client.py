@@ -527,7 +527,7 @@ def new_tub():
     # Use a pre-generated key so the tests don't spend a lot of time
     # generating new ones.
     data = FilePath(__file__).sibling(b"data")
-    privkey = data.child(b"node.pem")
+    privkey = data.child(b"node.pem.txt")
     return Tub(
         certData=privkey.getContent(),
     )
@@ -698,7 +698,7 @@ storage:
 
         def add_one_server(x):
             data["anonymous-storage-FURL"] = b"pb://%s@spy:nowhere/fake" % (base32.b2a(b"%d" % x),)
-            tub = Tub()
+            tub = new_tub()
             connects = []
             spy = SpyHandler(connects)
             tub.addConnectionHintHandler("spy", spy)
