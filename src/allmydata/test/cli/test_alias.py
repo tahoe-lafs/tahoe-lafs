@@ -7,7 +7,6 @@ from allmydata.util.encodingutil import unicode_to_argv
 from allmydata.scripts.common import get_aliases
 from allmydata.test.no_network import GridTestMixin
 from .common import CLITestMixin
-from ..common_util import skip_if_cannot_represent_argv
 
 # see also test_create_alias
 
