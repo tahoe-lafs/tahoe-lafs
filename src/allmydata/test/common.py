@@ -81,6 +81,9 @@ from allmydata.client import (
     config_from_string,
     create_client_from_config,
 )
+from allmydata.scripts.common import (
+    write_introducer,
+    )
 
 from ..crypto import (
     ed25519,
@@ -110,7 +113,6 @@ class MemoryIntroducerClient(object):
     nickname = attr.ib()
     my_version = attr.ib()
     oldest_supported = attr.ib()
-    app_versions = attr.ib()
     sequencer = attr.ib()
     cache_filepath = attr.ib()
 
@@ -222,8 +224,8 @@ class UseNode(object):
     """
     plugin_config = attr.ib()
     storage_plugin = attr.ib()
-    basedir = attr.ib()
-    introducer_furl = attr.ib()
+    basedir = attr.ib(validator=attr.validators.instance_of(FilePath))
+    introducer_furl = attr.ib(validator=attr.validators.instance_of(bytes))
     node_config = attr.ib(default=attr.Factory(dict))
 
     config = attr.ib(default=None)
@@ -247,6 +249,11 @@ class UseNode(object):
     config=format_config_items(self.plugin_config),
 )
 
+        write_introducer(
+            self.basedir,
+            "default",
+            self.introducer_furl,
+        )
         self.config = config_from_string(
             self.basedir.asTextMode().path,
             "tub.port",
@@ -255,11 +262,9 @@ class UseNode(object):
 {node_config}
 
 [client]
-introducer.furl = {furl}
 storage.plugins = {storage_plugin}
 {plugin_config_section}
 """.format(
-    furl=self.introducer_furl,
     storage_plugin=self.storage_plugin,
     node_config=format_config_items(self.node_config),
     plugin_config_section=plugin_config_section,
@@ -1151,8 +1156,9 @@ class _TestCaseMixin(object):
       test (including setUp and tearDown messages).
     * trial-compatible mktemp method
     * unittest2-compatible assertRaises helper
-    * Automatic cleanup of tempfile.tempdir mutation (pervasive through the
-      Tahoe-LAFS test suite).
+    * Automatic cleanup of tempfile.tempdir mutation (once pervasive through
+      the Tahoe-LAFS test suite, perhaps gone now but someone should verify
+      this).
     """
     def setUp(self):
         # Restore the original temporary directory.  Node ``init_tempdir``

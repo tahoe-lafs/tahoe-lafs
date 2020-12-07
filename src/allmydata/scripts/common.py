@@ -4,13 +4,14 @@ import os, sys, urllib, textwrap
 import codecs
 from os.path import join
 
+from yaml import (
+    safe_dump,
+)
+
 # Python 2 compatibility
 from future.utils import PY2
 if PY2:
     from future.builtins import str  # noqa: F401
-
-# On Python 2 this will be the backported package:
-from configparser import NoSectionError
 
 from twisted.python import usage
 
@@ -115,24 +116,42 @@ class NoDefaultBasedirOptions(BasedirOptions):
 DEFAULT_ALIAS = u"tahoe"
 
 
+def write_introducer(basedir, petname, furl):
+    """
+    Overwrite the node's ``introducers.yaml`` with a file containing the given
+    introducer information.
+    """
+    if isinstance(furl, bytes):
+        furl = furl.decode("utf-8")
+    basedir.child(b"private").child(b"introducers.yaml").setContent(
+        safe_dump({
+            "introducers": {
+                petname: {
+                    "furl": furl,
+                },
+            },
+        }).encode("ascii"),
+    )
+
+
 def get_introducer_furl(nodedir, config):
     """
     :return: the introducer FURL for the given node (no matter if it's
         a client-type node or an introducer itself)
     """
+    for petname, (furl, cache) in config.get_introducer_configuration().items():
+        return furl
+
+    # We have no configured introducers.  Maybe this is running *on* the
+    # introducer?  Let's guess, sure why not.
     try:
-        introducer_furl = config.get('client', 'introducer.furl')
-    except NoSectionError:
-        # we're not a client; maybe this is running *on* the introducer?
-        try:
-            with open(join(nodedir, "private", "introducer.furl"), "r") as f:
-                introducer_furl = f.read().strip()
-        except IOError:
-            raise Exception(
-                "Can't find introducer FURL in tahoe.cfg nor "
-                "{}/private/introducer.furl".format(nodedir)
-            )
-    return introducer_furl
+        with open(join(nodedir, "private", "introducer.furl"), "r") as f:
+            return f.read().strip()
+    except IOError:
+        raise Exception(
+            "Can't find introducer FURL in tahoe.cfg nor "
+            "{}/private/introducer.furl".format(nodedir)
+        )
 
 
 def get_aliases(nodedir):

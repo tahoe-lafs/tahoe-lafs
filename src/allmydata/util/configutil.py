@@ -20,6 +20,10 @@ from configparser import ConfigParser
 
 import attr
 
+from twisted.python.runtime import (
+    platform,
+)
+
 
 class UnknownConfigError(Exception):
     """
@@ -59,8 +63,25 @@ def set_config(config, section, option, value):
     assert config.get(section, option) == value
 
 def write_config(tahoe_cfg, config):
-    with open(tahoe_cfg, "w") as f:
-        config.write(f)
+    """
+    Write a configuration to a file.
+
+    :param FilePath tahoe_cfg: The path to which to write the config.
+
+    :param ConfigParser config: The configuration to write.
+
+    :return: ``None``
+    """
+    tmp = tahoe_cfg.temporarySibling()
+    # FilePath.open can only open files in binary mode which does not work
+    # with ConfigParser.write.
+    with open(tmp.path, "wt") as fp:
+        config.write(fp)
+    # Windows doesn't have atomic overwrite semantics for moveTo.  Thus we end
+    # up slightly less than atomic.
+    if platform.isWindows():
+        tahoe_cfg.remove()
+    tmp.moveTo(tahoe_cfg)
 
 def validate_config(fname, cfg, valid_config):
     """
@@ -102,9 +123,33 @@ class ValidConfiguration(object):
         an item name as bytes and returns True if that section, item pair is
         valid, False otherwise.
     """
-    _static_valid_sections = attr.ib()
+    _static_valid_sections = attr.ib(
+        validator=attr.validators.instance_of(dict)
+    )
     _is_valid_section = attr.ib(default=lambda section_name: False)
     _is_valid_item = attr.ib(default=lambda section_name, item_name: False)
+
+    @classmethod
+    def everything(cls):
+        """
+        Create a validator which considers everything valid.
+        """
+        return cls(
+            {},
+            lambda section_name: True,
+            lambda section_name, item_name: True,
+        )
+
+    @classmethod
+    def nothing(cls):
+        """
+        Create a validator which considers nothing valid.
+        """
+        return cls(
+            {},
+            lambda section_name: False,
+            lambda section_name, item_name: False,
+        )
 
     def is_valid_section(self, section_name):
         """
@@ -134,6 +179,23 @@ class ValidConfiguration(object):
             _either(self._is_valid_section, valid_config._is_valid_section),
             _either(self._is_valid_item, valid_config._is_valid_item),
         )
+
+
+def copy_config(old):
+    """
+    Return a brand new ``ConfigParser`` containing the same values as
+    the given object.
+
+    :param ConfigParser old: The configuration to copy.
+
+    :return ConfigParser: The new object containing the same configuration.
+    """
+    new = ConfigParser()
+    for section_name in old.sections():
+        new.add_section(section_name)
+        for k, v in old.items(section_name):
+            new.set(section_name, k, v.replace("%", "%%"))
+    return new
 
 
 def _either(f, g):
