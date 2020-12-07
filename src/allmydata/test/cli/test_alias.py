@@ -6,7 +6,6 @@ from twisted.internet.defer import inlineCallbacks
 from allmydata.scripts.common import get_aliases
 from allmydata.test.no_network import GridTestMixin
 from .common import CLITestMixin
-from allmydata.util.encodingutil import quote_output_u
 from allmydata.util import encodingutil
 
 # see also test_create_alias
@@ -15,6 +14,21 @@ class ListAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
 
     @inlineCallbacks
     def _test_list(self, alias, encoding):
+        """
+        Assert that ``tahoe create-alias`` can be used to create an alias named
+        ``alias`` when argv is encoded using ``encoding``.
+
+        :param unicode alias: The alias to try to create.
+
+        :param str encoding: The name of an encoding to force the
+            ``create-alias`` implementation to use.  This simulates the
+            effects of setting LANG and doing other locale-foolishness without
+            actually having to mess with this process's global locale state.
+
+        :return Deferred: A Deferred that fires with success if the alias can
+            be created and that creation is reported on stdout appropriately
+            encoded or with failure if something goes wrong.
+        """
         self.basedir = self.mktemp()
         self.set_up_grid(oneshare=True)
 
@@ -27,9 +41,7 @@ class ListAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
         )
 
         self.assertEqual(
-            u"Alias {} created\n".format(
-                quote_output_u(alias, encoding=encoding),
-            ),
+            u"Alias '{}' created\n".format(alias),
             stdout,
         )
         self.assertEqual("", stderr)
