@@ -109,10 +109,10 @@ def run_cli_unicode(verb, argv, nodeargs=None, stdin=None, encoding=None):
     )
     def maybe_decode(result):
         code, stdout, stderr = result
-        if isinstance(stdout, unicode):
-            stdout = stdout.encode("utf-8")
-        if isinstance(stderr, unicode):
-            stderr = stderr.encode("utf-8")
+        if isinstance(stdout, bytes):
+            stdout = stdout.decode(encoding)
+        if isinstance(stderr, bytes):
+            stderr = stderr.decode(encoding)
         return code, stdout, stderr
     d.addCallback(maybe_decode)
     return d
