@@ -52,24 +52,38 @@ class ListAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
 
 
     def test_list_ascii(self):
-        return self._test_list(u"tahoe", encoding="ascii")
+        """
+        An alias composed of all ASCII-encodeable code points can be created when
+        the active encoding is ASCII.
+        """
+        return self._test_list(
+            u"tahoe",
+            encoding="ascii",
+        )
 
 
-    def test_list_nonascii_ascii(self):
-        return self._test_list(u"tahoe\N{SNOWMAN}", encoding="ascii")
+    def test_list_latin_1(self):
+        """
+        An alias composed of all Latin-1-encodeable code points can be created
+        when the active encoding is Latin-1.
+
+        This is very similar to ``test_list_utf_8`` but the assumption of
+        UTF-8 is nearly ubiquitous and explicitly exercising the codepaths
+        with a UTF-8-incompatible encoding helps flush out unintentional UTF-8
+        assumptions.
+        """
+        return self._test_list(
+            u"taho\N{LATIN SMALL LETTER E WITH ACUTE}",
+            encoding="latin-1",
+        )
 
 
     def test_list_utf_8(self):
-        return self._test_list(u"tahoe", encoding="utf-8")
-
-
-    def test_list_nonascii_utf_8(self):
-        return self._test_list(u"tahoe\N{SNOWMAN}", encoding="utf-8")
-
-
-    def test_list_none(self):
-        return self._test_list(u"tahoe", encoding=None)
-
-
-    def test_list_nonascii_none(self):
-        return self._test_list(u"tahoe\N{SNOWMAN}", encoding=None)
+        """
+        An alias composed of all UTF-8-encodeable code points can be created when
+        the active encoding is UTF-8.
+        """
+        return self._test_list(
+            u"tahoe\N{SNOWMAN}",
+            encoding="utf-8",
+        )
