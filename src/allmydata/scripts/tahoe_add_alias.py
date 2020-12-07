@@ -151,6 +151,15 @@ def _get_alias_details(nodedir):
     return data
 
 
+def _escape_format(t):
+    """
+    _escape_format(t).format() == t
+
+    :param unicode t: The text to escape.
+    """
+    return t.replace("{", "{{").replace("}", "}}")
+
+
 def list_aliases(options):
     """
     Show aliases that exist.
@@ -158,7 +167,7 @@ def list_aliases(options):
     data = _get_alias_details(options['node-directory'])
 
     if options['json']:
-        output = json.dumps(data, indent=4).decode("utf-8")
+        output = _escape_format(json.dumps(data, indent=4).decode("utf-8"))
     else:
         def dircap(details):
             return (
