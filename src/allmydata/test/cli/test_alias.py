@@ -6,7 +6,7 @@ from twisted.internet.defer import inlineCallbacks
 from allmydata.scripts.common import get_aliases
 from allmydata.test.no_network import GridTestMixin
 from .common import CLITestMixin
-from allmydata.util.encodingutil import quote_output
+from allmydata.util.encodingutil import quote_output_u
 
 # see also test_create_alias
 
@@ -24,8 +24,8 @@ class ListAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
         )
 
         self.assertEqual(
-            b"Alias {} created\n".format(
-                quote_output(alias, encoding=encoding),
+            u"Alias {} created\n".format(
+                quote_output_u(alias, encoding=encoding),
             ),
             stdout,
         )
