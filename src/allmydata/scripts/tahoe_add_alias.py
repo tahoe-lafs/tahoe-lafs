@@ -49,7 +49,7 @@ def add_alias(options):
 
     old_aliases = get_aliases(nodedir)
     if alias in old_aliases:
-        print("Alias %s already exists!" % quote_output_u(alias), file=stderr)
+        show_output(stderr, "Alias {alias} already exists!", alias=alias)
         return 1
     aliasfile = os.path.join(nodedir, "private", "aliases")
     cap = uri.from_string_dirnode(cap).to_string()
@@ -75,7 +75,7 @@ def create_alias(options):
 
     old_aliases = get_aliases(nodedir)
     if alias in old_aliases:
-        print("Alias %s already exists!" % quote_output(alias), file=stderr)
+        show_output(stderr, "Alias {alias} already exists!", alias=alias)
         return 1
 
     aliasfile = os.path.join(nodedir, "private", "aliases")
