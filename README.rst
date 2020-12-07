@@ -1,4 +1,6 @@
-**Free and Open decentralized data store**
+======================================
+Free and Open decentralized data store
+======================================
 
 |image0|
 
@@ -41,19 +43,18 @@ The client creates pieces (“shares”) that have a configurable amount of redu
 
 Tahoe-LAFS was first designed in 2007, following the "principle of least authority", a security best practice requiring system components to only have the privilege necessary to complete their intended function and not more.
 
-Please read more about Tahoe-LAFS architecture `here <https://tahoe-lafs.readthedocs.io/en/tahoe-lafs-1.12.1/architecture.html?highlight=usage>`__.
+Please read more about Tahoe-LAFS architecture `here <docs/architecture.rst>`__.
 
 ✅ Installation
 ---------------
 
-For more detailed instructions, read `docs/INSTALL.rst <https://github.com/tahoe-lafs/tahoe-lafs/blob/master/docs/INSTALL.rst>`__ .
+For more detailed instructions, read `docs/INSTALL.rst <docs/INSTALL.rst>`__ .
 
--  Building Tahoe-LAFS on Windows: https://github.com/tahoe-lafs/tahoe-lafs/blob/master/docs/windows.rst
+-  `Building Tahoe-LAFS on Windows <docs/windows.rst>`__
 
--  | OS-X Packaging:
-      | https://github.com/tahoe-lafs/tahoe-lafs/blob/master/docs/OS-X.rst
+-  `OS-X Packaging <docs/OS-X.rst>`__
 
-Once tahoe --version works, see `docs/running.rst <https://github.com/tahoe-lafs/tahoe-lafs/blob/master/docs/running.rst>`__ to learn how to set up your first Tahoe-LAFS node.
+Once tahoe --version works, see `docs/running.rst <docs/running.rst>`__ to learn how to set up your first Tahoe-LAFS node.
 
 🤗 Contributing
 ---------------
@@ -110,7 +111,7 @@ See `TGPPL.PDF <https://tahoe-lafs.org/~zooko/tgppl.pdf>`__ for why the TGPPL ex
 .. |image0| image:: docs/_static/media/image2.png
    :width: 3in
    :height: 0.91667in
-.. |image2| image:: docs/_static//media/image1.png
+.. |image2| image:: docs/_static/media/image1.png
    :width: 6.9252in
    :height: 2.73611in
 .. |readthedocs| image:: http://readthedocs.org/projects/tahoe-lafs/badge/?version=latest
