@@ -22,7 +22,7 @@ def print_keypair(options):
 
 class DerivePubkeyOptions(BaseOptions):
     def parseArgs(self, privkey):
-        self.privkey = privkey.encode("ascii")
+        self.privkey = privkey
 
     def getSynopsis(self):
         return "Usage: tahoe [global-options] admin derive-pubkey PRIVKEY"
