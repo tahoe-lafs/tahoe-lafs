@@ -152,6 +152,9 @@ def _get_alias_details(nodedir):
 
 
 def list_aliases(options):
+    """
+    Show aliases that exist.
+    """
     data = _get_alias_details(options['node-directory'])
 
     if options['json']:
@@ -175,6 +178,6 @@ def list_aliases(options):
     if output:
         # Show whatever we computed.  Skip this if there is no output to avoid
         # a spurious blank line.
-        print(output, file=options.stdout)
+        show_output(options.stdout, output)
 
     return 0
