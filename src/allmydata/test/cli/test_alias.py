@@ -7,6 +7,7 @@ from allmydata.scripts.common import get_aliases
 from allmydata.test.no_network import GridTestMixin
 from .common import CLITestMixin
 from allmydata.util.encodingutil import quote_output_u
+from allmydata.util import encodingutil
 
 # see also test_create_alias
 
@@ -16,6 +17,8 @@ class ListAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
     def _test_list(self, alias, encoding):
         self.basedir = self.mktemp()
         self.set_up_grid(oneshare=True)
+
+        self.patch(encodingutil, "io_encoding", encoding)
 
         rc, stdout, stderr = yield self.do_cli_unicode(
             u"create-alias",
