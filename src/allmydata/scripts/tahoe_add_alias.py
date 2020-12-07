@@ -178,7 +178,7 @@ def list_aliases(options):
 
         max_width = max([len(quote_output(name)) for name in data.keys()] + [0])
         fmt = "%" + str(max_width) + "s: %s"
-        output = u"\n".join(list(
+        output = "\n".join(list(
             fmt % (name, dircap(details))
             for name, details
             in data.items()
