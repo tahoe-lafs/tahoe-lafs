@@ -259,7 +259,7 @@ def quote_output_u(*args, **kwargs):
     result = quote_output(*args, **kwargs)
     if isinstance(result, unicode):
         return result
-    return result.decode("utf-8")
+    return result.decode(kwargs.get("encoding", None) or io_encoding)
 
 
 def quote_output(s, quotemarks=True, quote_newlines=None, encoding=None):

@@ -101,11 +101,11 @@ def run_cli_unicode(verb, argv, nodeargs=None, stdin=None, encoding=None):
         argv=argv,
     )
     d = run_cli_bytes(
-        verb.encode("utf-8"),
-        nodeargs=list(arg.encode("utf-8") for arg in nodeargs),
+        verb.encode(encoding),
+        nodeargs=list(arg.encode(encoding) for arg in nodeargs),
         stdin=stdin,
         encoding=encoding,
-        *list(arg.encode("utf-8") for arg in argv)
+        *list(arg.encode(encoding) for arg in argv)
     )
     def maybe_decode(result):
         code, stdout, stderr = result
