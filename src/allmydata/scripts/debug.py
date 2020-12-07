@@ -607,7 +607,7 @@ class FindSharesOptions(BaseOptions):
 
     def parseArgs(self, storage_index_s, *nodedirs):
         from allmydata.util.encodingutil import argv_to_abspath
-        self.si_s = storage_index_s
+        self.si_s = storage_index_s.encode("ascii")
         self.nodedirs = map(argv_to_abspath, nodedirs)
 
     description = """
