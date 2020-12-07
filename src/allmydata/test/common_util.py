@@ -48,55 +48,18 @@ def _getvalue(io):
     return io.read()
 
 
-def run_cli(verb, *args, **kwargs):
-    """
-    Run some CLI command using Python 2 stdout/stderr semantics.
-    """
+def run_cli_bytes(verb, *args, **kwargs):
     nodeargs = kwargs.pop("nodeargs", [])
-    stdin = kwargs.pop("stdin", None)
+    encoding = kwargs.pop("encoding", None)
     precondition(
-        all(isinstance(arg, bytes) for arg in [verb] + (nodeargs or []) + list(args)),
+        all(isinstance(arg, bytes) for arg in [verb] + nodeargs + list(args)),
         "arguments to run_cli must be bytes -- convert using unicode_to_argv",
         verb=verb,
         args=args,
         nodeargs=nodeargs,
     )
-    encoding = "utf-8"
-    d = run_cli_ex(
-        verb=verb.decode(encoding),
-        argv=list(arg.decode(encoding) for arg in args),
-        nodeargs=list(nodearg.decode(encoding) for nodearg in nodeargs),
-        stdin=stdin,
-    )
-    def maybe_encode(result):
-        code, stdout, stderr = result
-        # Make sure we produce bytes output since that's what all the code
-        # written to use this interface expects.  If you don't like that, use
-        # run_cli_ex instead.  We use get_io_encoding here to make sure that
-        # whatever was written can actually be encoded that way, otherwise it
-        # wouldn't really be writeable under real usage.
-        if isinstance(stdout, unicode):
-            stdout = stdout.encode(encoding)
-        if isinstance(stderr, unicode):
-            stderr = stderr.encode(encoding)
-        return code, stdout, stderr
-    d.addCallback(maybe_encode)
-    return d
-
-
-def run_cli_ex(verb, argv, nodeargs=None, stdin=None, encoding=None):
-    precondition(
-        all(isinstance(arg, unicode) for arg in [verb] + (nodeargs or []) + argv),
-        "arguments to run_cli_ex must be unicode",
-        verb=verb,
-        nodeargs=nodeargs,
-        argv=argv,
-    )
-    if nodeargs is None:
-        nodeargs = []
-    argv = nodeargs + [verb] + list(argv)
-    if stdin is None:
-        stdin = ""
+    argv = nodeargs + [verb] + list(args)
+    stdin = kwargs.get("stdin", "")
     if encoding is None:
         # The original behavior, the Python 2 behavior, is to accept either
         # bytes or unicode and try to automatically encode or decode as
@@ -125,6 +88,38 @@ def run_cli_ex(verb, argv, nodeargs=None, stdin=None, encoding=None):
         return f.value.code, _getvalue(stdout), _getvalue(stderr)
     d.addCallbacks(_done, _err)
     return d
+
+
+def run_cli_unicode(verb, argv, nodeargs=None, stdin=None, encoding=None):
+    if nodeargs is None:
+        nodeargs = []
+    precondition(
+        all(isinstance(arg, unicode) for arg in [verb] + nodeargs + argv),
+        "arguments to run_cli_unicode must be unicode",
+        verb=verb,
+        nodeargs=nodeargs,
+        argv=argv,
+    )
+    d = run_cli_bytes(
+        verb.encode("utf-8"),
+        nodeargs=list(arg.encode("utf-8") for arg in nodeargs),
+        stdin=stdin,
+        encoding=encoding,
+        *list(arg.encode("utf-8") for arg in argv)
+    )
+    def maybe_decode(result):
+        code, stdout, stderr = result
+        if isinstance(stdout, unicode):
+            stdout = stdout.encode("utf-8")
+        if isinstance(stderr, unicode):
+            stderr = stderr.encode("utf-8")
+        return code, stdout, stderr
+    d.addCallback(maybe_decode)
+    return d
+
+
+run_cli = run_cli_bytes
+
 
 def parse_cli(*argv):
     # This parses the CLI options (synchronously), and returns the Options

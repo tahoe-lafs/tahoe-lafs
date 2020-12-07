@@ -6,7 +6,7 @@ from allmydata.util import fileutil
 from allmydata.scripts.common import get_aliases
 from allmydata.scripts import cli, runner
 from ..no_network import GridTestMixin
-from allmydata.util.encodingutil import quote_output_u, get_io_encoding
+from allmydata.util.encodingutil import quote_output, get_io_encoding
 from .common import CLITestMixin
 
 class CreateAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
@@ -171,15 +171,7 @@ class CreateAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
             (rc, out, err) = args
             self.failUnlessReallyEqual(rc, 0)
             self.failUnlessReallyEqual(err, "")
-            self.assertIn(
-                u"Alias %s created" % (
-                    quote_output_u(
-                        u"\u00E9tudes",
-                        encoding=get_io_encoding(),
-                    ),
-                ),
-                out.decode(get_io_encoding()),
-            )
+            self.failUnlessIn("Alias %s created" % quote_output(u"\u00E9tudes"), out)
 
             aliases = get_aliases(self.get_clientdir())
             self.failUnless(aliases[u"\u00E9tudes"].startswith("URI:DIR2:"))

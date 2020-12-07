@@ -98,6 +98,20 @@ def create_alias(options):
 
 
 def show_output(fp, template, **kwargs):
+    """
+    Print to just about anything.
+
+    :param fp: A file-like object to which to print.  This handles the case
+        where ``fp`` declares a support encoding with the ``encoding``
+        attribute (eg sys.stdout on Python 3).  It handles the case where
+        ``fp`` declares no supported encoding via ``None`` for its
+        ``encoding`` attribute (eg sys.stdout on Python 2 when stdout is not a
+        tty).  It handles the case where ``fp`` declares an encoding that does
+        not support all of the characters in the output by forcing the
+        "namereplace" error handler.  It handles the case where there is no
+        ``encoding`` attribute at all (eg StringIO.StringIO) by writing
+        utf-8-encoded bytes.
+    """
     assert isinstance(template, unicode)
 
     # On Python 3 fp has an encoding attribute under all real usage.  On
@@ -105,13 +119,22 @@ def show_output(fp, template, **kwargs):
     # test suite often passes StringIO which has no such attribute.  Make
     # allowances for this until the test suite is fixed and Python 2 is no
     # more.
-    encoding = getattr(fp, "encoding", None) or "utf-8"
+    try:
+        encoding = fp.encoding or "utf-8"
+    except AttributeError:
+        has_encoding = False
+        encoding = "utf-8"
+    else:
+        has_encoding = True
+
     output = template.format(**{
         k: quote_output_u(v, encoding=encoding)
         for (k, v)
         in kwargs.items()
     })
-    safe_output = output.encode(encoding, "namereplace").decode(encoding)
+    safe_output = output.encode(encoding, "namereplace")
+    if has_encoding:
+        safe_output = safe_output.decode(encoding)
     print(safe_output, file=fp)
 
 
