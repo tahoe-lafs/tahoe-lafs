@@ -91,6 +91,24 @@ def run_cli_bytes(verb, *args, **kwargs):
 
 
 def run_cli_unicode(verb, argv, nodeargs=None, stdin=None, encoding=None):
+    """
+    Run a Tahoe-LAFS CLI command.
+
+    :param unicode verb: The command to run.  For example, ``u"create-node"``.
+
+    :param [unicode] argv: The arguments to pass to the command.  For example,
+        ``[u"--hostname=localhost"]``.
+
+    :param [unicode] nodeargs: Extra arguments to pass to the Tahoe executable
+        before ``verb``.
+
+    :param unicode stdin: Text to pass to the command via stdin.
+
+    :param NoneType|str encoding: The name of an encoding to use for all
+        bytes/unicode conversions necessary *and* the encoding to cause stdio
+        to declare with its ``encoding`` attribute.  ``None`` means ASCII will
+        be used and no declaration will be made at all.
+    """
     if nodeargs is None:
         nodeargs = []
     precondition(
@@ -100,19 +118,21 @@ def run_cli_unicode(verb, argv, nodeargs=None, stdin=None, encoding=None):
         nodeargs=nodeargs,
         argv=argv,
     )
+    codec = encoding or "ascii"
+    encode = lambda t: None if t is None else t.encode(codec)
     d = run_cli_bytes(
-        verb.encode(encoding),
-        nodeargs=list(arg.encode(encoding) for arg in nodeargs),
-        stdin=stdin,
+        encode(verb),
+        nodeargs=list(encode(arg) for arg in nodeargs),
+        stdin=encode(stdin),
         encoding=encoding,
-        *list(arg.encode(encoding) for arg in argv)
+        *list(encode(arg) for arg in argv)
     )
     def maybe_decode(result):
         code, stdout, stderr = result
         if isinstance(stdout, bytes):
-            stdout = stdout.decode(encoding)
+            stdout = stdout.decode(codec)
         if isinstance(stderr, bytes):
-            stderr = stderr.decode(encoding)
+            stderr = stderr.decode(codec)
         return code, stdout, stderr
     d.addCallback(maybe_decode)
     return d

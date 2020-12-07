@@ -20,10 +20,13 @@ class ListAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
 
         :param unicode alias: The alias to try to create.
 
-        :param str encoding: The name of an encoding to force the
+        :param NoneType|str encoding: The name of an encoding to force the
             ``create-alias`` implementation to use.  This simulates the
             effects of setting LANG and doing other locale-foolishness without
             actually having to mess with this process's global locale state.
+            If this is ``None`` then the encoding used will be ascii but the
+            stdio objects given to the code under test will not declare any
+            encoding (this is like Python 2 when stdio is not a tty).
 
         :return Deferred: A Deferred that fires with success if the alias can
             be created and that creation is reported on stdout appropriately
@@ -38,7 +41,7 @@ class ListAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
         # monkey-patch that value to our desired value here.  This is the code
         # that most directly takes the place of messing with LANG or the
         # locale module.
-        self.patch(encodingutil, "io_encoding", encoding)
+        self.patch(encodingutil, "io_encoding", encoding or "ascii")
 
         rc, stdout, stderr = yield self.do_cli_unicode(
             u"create-alias",
@@ -72,6 +75,17 @@ class ListAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
         data = data[alias]
         self.assertIn(u"readwrite", data)
         self.assertIn(u"readonly", data)
+
+
+    def test_list_none(self):
+        """
+        An alias composed of all ASCII-encodeable code points can be created when
+        stdio aren't clearly marked with an encoding.
+        """
+        return self._test_list(
+            u"tahoe",
+            encoding=None,
+        )
 
 
     def test_list_ascii(self):

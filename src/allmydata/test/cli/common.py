@@ -10,7 +10,24 @@ def parse_options(basedir, command, args):
     return o
 
 class CLITestMixin(ReallyEqualMixin):
+    """
+    A mixin for use with ``GridTestMixin`` to execute CLI commands against
+    nodes created by methods of that mixin.
+    """
     def do_cli_unicode(self, verb, argv, client_num=0, **kwargs):
+        """
+        Run a Tahoe-LAFS CLI command.
+
+        :param verb: See ``run_cli_unicode``.
+
+        :param argv: See ``run_cli_unicode``.
+
+        :param int client_num: The number of the ``GridTestMixin``-created
+            node against which to execute the command.
+
+        :param kwargs: Additional keyword arguments to pass to
+            ``run_cli_unicode``.
+        """
         # client_num is used to execute client CLI commands on a specific
         # client.
         client_dir = self.get_clientdir(i=client_num)
@@ -19,6 +36,10 @@ class CLITestMixin(ReallyEqualMixin):
 
 
     def do_cli(self, verb, *args, **kwargs):
+        """
+        Like ``do_cli_unicode`` but work with ``bytes`` everywhere instead of
+        ``unicode``.
+        """
         # client_num is used to execute client CLI commands on a specific
         # client.
         client_num = kwargs.pop("client_num", 0)
