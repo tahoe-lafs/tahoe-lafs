@@ -32,6 +32,12 @@ class ListAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
         self.basedir = self.mktemp()
         self.set_up_grid(oneshare=True)
 
+        # We can pass an encoding into the test utilities to invoke the code
+        # under test but we can't pass such a parameter directly to the code
+        # under test.  Instead, that code looks at io_encoding.  So,
+        # monkey-patch that value to our desired value here.  This is the code
+        # that most directly takes the place of messing with LANG or the
+        # locale module.
         self.patch(encodingutil, "io_encoding", encoding)
 
         rc, stdout, stderr = yield self.do_cli_unicode(
@@ -40,15 +46,20 @@ class ListAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
             encoding=encoding,
         )
 
-        self.assertEqual(
-            u"Alias '{}' created\n".format(alias),
-            stdout,
-        )
+        # Make sure the result of the create-alias command is as we want it to
+        # be.
+        self.assertEqual(u"Alias '{}' created\n".format(alias), stdout)
         self.assertEqual("", stderr)
+        self.assertEqual(0, rc)
+
+        # Make sure it had the intended side-effect, too - an alias created in
+        # the node filesystem state.
         aliases = get_aliases(self.get_clientdir())
         self.assertIn(alias, aliases)
         self.assertTrue(aliases[alias].startswith(u"URI:DIR2:"))
 
+        # And inspect the state via the user interface list-aliases command
+        # too.
         rc, stdout, stderr = yield self.do_cli_unicode(
             u"list-aliases",
             [u"--json"],
