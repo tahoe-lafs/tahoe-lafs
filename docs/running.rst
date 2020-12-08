@@ -97,7 +97,7 @@ and ``--location`` arguments.
 To construct an introducer, create a new base directory for it (the name
 of the directory is up to you), ``cd`` into it, and run “``tahoe
 create-introducer --hostname=example.net .``” (but using the hostname of
-your VPS). Now run the introducer using “``tahoe start .``”. After it
+your VPS). Now run the introducer using “``tahoe run .``”. After it
 starts, it will write a file named ``introducer.furl`` into the
 ``private/`` subdirectory of that base directory. This file contains the
 URL the other nodes must use in order to connect to this introducer.
