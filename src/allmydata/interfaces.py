@@ -521,7 +521,6 @@ class IStorageBroker(Interface):
           oldest_supported: the peer's oldest supported version, same
 
           rref: the RemoteReference, if connected, otherwise None
-          remote_host: the IAddress, if connected, otherwise None
 
         This method is intended for monitoring interfaces, such as a web page
         that describes connecting and connected peers.

@@ -693,7 +693,6 @@ class NativeStorageServer(service.MultiService):
     @ivar nickname: the server's self-reported nickname (unicode), same
 
     @ivar rref: the RemoteReference, if connected, otherwise None
-    @ivar remote_host: the IAddress, if connected, otherwise None
     """
 
     VERSION_DEFAULTS = UnicodeKeyDict({
@@ -719,7 +718,6 @@ class NativeStorageServer(service.MultiService):
 
         self.last_connect_time = None
         self.last_loss_time = None
-        self.remote_host = None
         self._rref = None
         self._is_connected = False
         self._reconnector = None
@@ -828,8 +826,6 @@ class NativeStorageServer(service.MultiService):
         return None
     def get_announcement(self):
         return self.announcement
-    def get_remote_host(self):
-        return self.remote_host
 
     def get_connection_status(self):
         last_received = None
@@ -877,7 +873,6 @@ class NativeStorageServer(service.MultiService):
                 level=log.NOISY, parent=lp)
 
         self.last_connect_time = time.time()
-        self.remote_host = rref.getLocationHints()
         self._rref = rref
         self._is_connected = True
         rref.notifyOnDisconnect(self._lost)
@@ -903,7 +898,6 @@ class NativeStorageServer(service.MultiService):
         # get_connected_servers() or get_servers_for_psi()) can continue to
         # use s.get_rref().callRemote() and not worry about it being None.
         self._is_connected = False
-        self.remote_host = None
 
     def stop_connecting(self):
         # used when this descriptor has been superceded by another
