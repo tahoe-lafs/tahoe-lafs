@@ -214,7 +214,7 @@ class UseNode(object):
 
     :ivar FilePath basedir: The base directory of the node.
 
-    :ivar bytes introducer_furl: The introducer furl with which to
+    :ivar str introducer_furl: The introducer furl with which to
         configure the client.
 
     :ivar dict[bytes, bytes] node_config: Configuration items for the *node*
@@ -225,7 +225,8 @@ class UseNode(object):
     plugin_config = attr.ib()
     storage_plugin = attr.ib()
     basedir = attr.ib(validator=attr.validators.instance_of(FilePath))
-    introducer_furl = attr.ib(validator=attr.validators.instance_of(bytes))
+    introducer_furl = attr.ib(validator=attr.validators.instance_of(str),
+                              converter=six.ensure_str)
     node_config = attr.ib(default=attr.Factory(dict))
 
     config = attr.ib(default=None)
