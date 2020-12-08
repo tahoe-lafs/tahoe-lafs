@@ -15,13 +15,13 @@ Table of contents
 
 -  `Installation <#installation>`__
 
--  `Contributing <#contributing>`__
-
 -  `Issues <#issues>`__
 
 -  `Documentation <#documentation>`__
 
 -  `Community <#community>`__
+
+-  `Contributing <#contributing>`__
 
 -  `FAQ <#faq>`__
 
@@ -80,7 +80,7 @@ As a community-driven open source project, Tahoe-LAFS welcomes contributions of 
 
 -  `Patch reviews <https://tahoe-lafs.org/trac/tahoe-lafs/wiki/PatchReviewProcess>`__
 
-Before authoring or reviewing a patch, please familiarize yourself with the `Coding Standard <https://tahoe-lafs.org/trac/tahoe-lafs/wiki/CodingStandards>`__ and the `Contributor Code of Conduct <https://github.com/tahoe-lafs/tahoe-lafs/blob/master/docs/CODE_OF_CONDUCT.md>`__.
+Before authoring or reviewing a patch, please familiarize yourself with the `Coding Standard <https://tahoe-lafs.org/trac/tahoe-lafs/wiki/CodingStandards>`__ and the `Contributor Code of Conduct <docs/CODE_OF_CONDUCT.md>`__.
 
 🤖 Issues
 ---------
@@ -103,7 +103,7 @@ Need more information? Please check our `FAQ page <https://www.tahoe-lafs.org/tr
 
 Copyright 2006-2020 The Tahoe-LAFS Software Foundation
 
-You may use this package under the GNU General Public License, version 2 or, at your option, any later version. You may use this package under the Transitive Grace Period Public Licence, version 1.0, or at your choice, any later version. (You may choose to use this package under the terms of either license, at your option.) See the file `COPYING.GPL <https://github.com/tahoe-lafs/tahoe-lafs/blob/master/COPYING.GPL>`__ for the terms of the GNU General Public License, version 2. See the file `COPYING.TGPPL <https://github.com/tahoe-lafs/tahoe-lafs/blob/master/COPYING.TGPPL.rst>`__ for the terms of the Transitive Grace Period Public Licence, version 1.0.
+You may use this package under the GNU General Public License, version 2 or, at your option, any later version. You may use this package under the Transitive Grace Period Public Licence, version 1.0, or at your choice, any later version. (You may choose to use this package under the terms of either license, at your option.) See the file `COPYING.GPL <COPYING.GPL>`__ for the terms of the GNU General Public License, version 2. See the file `COPYING.TGPPL <COPYING.TGPPL.rst>`__ for the terms of the Transitive Grace Period Public Licence, version 1.0.
 
 See `TGPPL.PDF <https://tahoe-lafs.org/~zooko/tgppl.pdf>`__ for why the TGPPL exists, graphically illustrated on three slides.
 
