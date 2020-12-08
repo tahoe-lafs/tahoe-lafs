@@ -56,6 +56,17 @@ For more detailed instructions, read `docs/INSTALL.rst <docs/INSTALL.rst>`__ .
 
 Once tahoe --version works, see `docs/running.rst <docs/running.rst>`__ to learn how to set up your first Tahoe-LAFS node.
 
+💬 Community
+------------
+
+Get involved with the Tahoe-LAFS community:
+
+-  Chat with Tahoe-LAFS developers at #tahoe-lafs chat on irc.freenode.net or `Slack <https://join.slack.com/t/tahoe-lafs/shared_invite/zt-jqfj12r5-ZZ5z3RvHnubKVADpP~JINQ>`__.
+
+-  Join our `weekly conference calls <https://www.tahoe-lafs.org/trac/tahoe-lafs/wiki/WeeklyMeeting>`__ with core developers and interested community members.
+
+-  Subscribe to `the tahoe-dev mailing list <https://www.tahoe-lafs.org/cgi-bin/mailman/listinfo/tahoe-dev>`__, the community forum for discussion of Tahoe-LAFS design, implementation, and usage.
+
 🤗 Contributing
 ---------------
 
@@ -81,18 +92,6 @@ Tahoe-LAFS uses the Trac instance to track `issues <https://www.tahoe-lafs.org/t
 
 You can find the full Tahoe-LAFS documentation at our `documentation site <http://tahoe-lafs.readthedocs.io/en/latest/>`__.
 
-💬 Community
-------------
-
-Get involved with the Tahoe-LAFS community:
-
--  Chat with Tahoe-LAFS developers at #tahoe-lafs chat on irc.freenode.net or `Slack <https://join.slack.com/t/tahoe-lafs/shared_invite/zt-jqfj12r5-ZZ5z3RvHnubKVADpP~JINQ>`__.
-
--  Join our `weekly conference calls <https://www.tahoe-lafs.org/trac/tahoe-lafs/wiki/WeeklyMeeting>`__ with core developers and interested community members.
-
--  Subscribe to `the tahoe-dev mailing list <https://www.tahoe-lafs.org/cgi-bin/mailman/listinfo/tahoe-dev>`__, the community forum for discussion of Tahoe-LAFS design, implementation, and usage.
-
--  Familiarize yourself with our `Contributor Code of Conduct <https://github.com/tahoe-lafs/tahoe-lafs/blob/master/docs/CODE_OF_CONDUCT.md>`__.
 
 ❓ FAQ
 ------
