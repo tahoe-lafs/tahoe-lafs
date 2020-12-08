@@ -252,15 +252,10 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
               RunBinTahoeMixin):
     """
     exercise "tahoe run" for both introducer, client node, and key-generator,
-    by spawning "tahoe run" (or "tahoe start") as a subprocess. This doesn't
-    get us line-level coverage, but it does a better job of confirming that
-    the user can actually run "./bin/tahoe run" and expect it to work. This
-    verifies that bin/tahoe sets up PYTHONPATH and the like correctly.
-
-    This doesn't work on cygwin (it hangs forever), so we skip this test
-    when we're on cygwin. It is likely that "tahoe start" itself doesn't
-    work on cygwin: twisted seems unable to provide a version of
-    spawnProcess which really works there.
+    by spawning "tahoe run" as a subprocess. This doesn't get us line-level
+    coverage, but it does a better job of confirming that the user can
+    actually run "./bin/tahoe run" and expect it to work. This verifies that
+    bin/tahoe sets up PYTHONPATH and the like correctly.
     """
 
     def workdir(self, name):

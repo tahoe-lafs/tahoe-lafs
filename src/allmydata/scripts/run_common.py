@@ -73,10 +73,10 @@ class RunOptions(BasedirOptions):
         ]
 
     def parseArgs(self, basedir=None, *twistd_args):
-        # This can't handle e.g. 'tahoe start --nodaemon', since '--nodaemon'
-        # looks like an option to the tahoe subcommand, not to twistd. So you
-        # can either use 'tahoe start' or 'tahoe start NODEDIR
-        # --TWISTD-OPTIONS'. Note that 'tahoe --node-directory=NODEDIR start
+        # This can't handle e.g. 'tahoe run --reactor=foo', since
+        # '--reactor=foo' looks like an option to the tahoe subcommand, not to
+        # twistd. So you can either use 'tahoe run' or 'tahoe run NODEDIR
+        # --TWISTD-OPTIONS'. Note that 'tahoe --node-directory=NODEDIR run
         # --TWISTD-OPTIONS' also isn't allowed, unfortunately.
 
         BasedirOptions.parseArgs(self, basedir)
