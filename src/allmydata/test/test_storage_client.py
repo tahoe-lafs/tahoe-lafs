@@ -458,7 +458,7 @@ class StoragePluginWebPresence(AsyncTestCase):
             },
             storage_plugin=self.storage_plugin,
             basedir=self.basedir,
-            introducer_furl=ensure_text(SOME_FURL),
+            introducer_furl=SOME_FURL,
         ))
         self.node = yield self.node_fixture.create_node()
         self.webish = self.node.getServiceNamed(WebishServer.name)

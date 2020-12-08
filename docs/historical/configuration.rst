@@ -20,7 +20,7 @@ Config setting                   File                                 Comment
 ``[node]log_gatherer.furl``      ``BASEDIR/log_gatherer.furl``        (one per line)
 ``[node]timeout.keepalive``      ``BASEDIR/keepalive_timeout``
 ``[node]timeout.disconnect``     ``BASEDIR/disconnect_timeout``
-``[client]introducer.furl``      ``BASEDIR/introducer.furl``
+                                 ``BASEDIR/introducer.furl``          ``BASEDIR/private/introducers.yaml``
 ``[client]helper.furl``          ``BASEDIR/helper.furl``
 ``[client]key_generator.furl``   ``BASEDIR/key_generator.furl``
 ``[client]stats_gatherer.furl``  ``BASEDIR/stats_gatherer.furl``
