@@ -101,8 +101,6 @@ your VPS). Now run the introducer using “``tahoe run .``”. After it
 starts, it will write a file named ``introducer.furl`` into the
 ``private/`` subdirectory of that base directory. This file contains the
 URL the other nodes must use in order to connect to this introducer.
-(Note that “``tahoe run .``” doesn't work for introducers, this is a
-known issue: `#937`_.)
 
 You can distribute your Introducer fURL securely to new clients by using
 the ``tahoe invite`` command. This will prepare some JSON to send to the
