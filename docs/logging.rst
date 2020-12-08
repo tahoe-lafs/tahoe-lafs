@@ -174,7 +174,7 @@ things that happened on multiple machines (such as comparing a client node
 making a request with the storage servers that respond to that request).
 
 Create the Log Gatherer with the "``flogtool create-gatherer WORKDIR``"
-command, and start it with "``tahoe start``". Then copy the contents of the
+command, and start it with "``twistd -ny gatherer.tac``". Then copy the contents of the
 ``log_gatherer.furl`` file it creates into the ``BASEDIR/tahoe.cfg`` file
 (under the key ``log_gatherer.furl`` of the section ``[node]``) of all nodes
 that should be sending it log events. (See :doc:`configuration`)
