@@ -116,25 +116,6 @@ the same way on all platforms and logs to stdout. If you want to run
 the process as a daemon, it is recommended that you use your favourite
 daemonization tool.
 
-The now-deprecated "``tahoe start [NODEDIR]``" command will launch a
-previously-created node. It will launch the node into the background
-using ``tahoe daemonize`` (and internal-only command, not for user
-use). On some platforms (including Windows) this command is unable to
-run a daemon in the background; in that case it behaves in the same
-way as "``tahoe run``". ``tahoe start`` also monitors the logs for up
-to 5 seconds looking for either a succesful startup message or for
-early failure messages and produces an appropriate exit code.  You are
-encouraged to use ``tahoe run`` along with your favourite
-daemonization tool instead of this. ``tahoe start`` is maintained for
-backwards compatibility of users already using it; new scripts should
-depend on ``tahoe run``.
-
-"``tahoe stop [NODEDIR]``" will shut down a running node. "``tahoe
-restart [NODEDIR]``" will stop and then restart a running
-node. Similar to above, you should use ``tahoe run`` instead alongside
-your favourite daemonization tool.
-
-
 File Store Manipulation
 =======================
 
