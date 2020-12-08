@@ -744,8 +744,6 @@ class SystemTest(SystemTestMixin, AsyncTestCase):
 class FakeRemoteReference(object):
     def notifyOnDisconnect(self, *args, **kwargs): pass
     def getRemoteTubID(self): return "62ubehyunnyhzs7r6vdonnm2hpi52w6y"
-    def getLocationHints(self): return ["tcp:here.example.com:1234",
-                                        "tcp:there.example.com2345"]
     def getPeer(self): return address.IPv4Address("TCP", "remote.example.com",
                                                   3456)
 
