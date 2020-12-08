@@ -85,7 +85,7 @@ Node Management
 
 "``tahoe create-node [NODEDIR]``" is the basic make-a-new-node
 command. It creates a new directory and populates it with files that
-will allow the "``tahoe start``" and related commands to use it later
+will allow the "``tahoe run``" and related commands to use it later
 on. ``tahoe create-node`` creates nodes that have client functionality
 (upload/download files), web API services (controlled by the
 '[node]web.port' configuration), and storage services (unless
