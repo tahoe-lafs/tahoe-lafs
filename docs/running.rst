@@ -81,9 +81,7 @@ does not offer its disk space to other nodes. To configure other behavior,
 use “``tahoe create-node``” or see :doc:`configuration`.
 
 The “``tahoe run``” command above will run the node in the foreground.
-On Unix, you can run it in the background instead by using the
-“``tahoe start``” command. To stop a node started in this way, use
-“``tahoe stop``”. ``tahoe --help`` gives a summary of all commands.
+``tahoe --help`` gives a summary of all commands.
 
 
 Running a Server or Introducer
