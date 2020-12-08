@@ -24,7 +24,7 @@ To set up the client node, do the following:
 
   tahoe create-client DIR
   populate DIR/introducer.furl
-  tahoe start DIR
+  tahoe start DIR  XXXX
   tahoe add-alias -d DIR testgrid `tahoe mkdir -d DIR`
   pick a 10kB-ish test file, compute its md5sum
   tahoe put -d DIR FILE testgrid:old.MD5SUM
@@ -117,7 +117,7 @@ class GridTester(object):
 
     def start_node(self):
         print("tahoe start", self.nodedir)
-        self.command(self.tahoe, "start", self.nodedir)
+        self.command(self.tahoe, "start", self.nodedir) # XXXX
         time.sleep(5)
 
     def stop_node(self):
