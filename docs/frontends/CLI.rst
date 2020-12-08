@@ -94,8 +94,7 @@ on. ``tahoe create-node`` creates nodes that have client functionality
 NODEDIR defaults to ``~/.tahoe/`` , and newly-created nodes default to
 publishing a web server on port 3456 (limited to the loopback interface, at
 127.0.0.1, to restrict access to other programs on the same host). All of the
-other "``tahoe``" subcommands use corresponding defaults (with the exception
-that "``tahoe run``" defaults to running a node in the current directory).
+other "``tahoe``" subcommands use corresponding defaults.
 
 "``tahoe create-client [NODEDIR]``" creates a node with no storage service.
 That is, it behaves like "``tahoe create-node --no-storage [NODEDIR]``".
