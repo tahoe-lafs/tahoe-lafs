@@ -1,3 +1,5 @@
+from past.builtins import long
+from six import ensure_str, ensure_text
 
 import time, os.path, textwrap
 from zope.interface import implementer
@@ -7,7 +9,7 @@ from twisted.python.failure import Failure
 from foolscap.api import Referenceable
 import allmydata
 from allmydata import node
-from allmydata.util import log, rrefutil
+from allmydata.util import log, rrefutil, dictutil
 from allmydata.util.i2p_provider import create as create_i2p_provider
 from allmydata.util.tor_provider import create as create_tor_provider
 from allmydata.introducer.interfaces import \
@@ -122,7 +124,7 @@ class _IntroducerNode(node.Node):
 
         from allmydata.webish import IntroducerWebishServer
         nodeurl_path = self.config.get_config_path(u"node.url")
-        config_staticdir = self.get_config("node", "web.static", "public_html").decode('utf-8')
+        config_staticdir = self.get_config("node", "web.static", "public_html")
         staticdir = self.config.get_config_path(config_staticdir)
         ws = IntroducerWebishServer(self, webport, nodeurl_path, staticdir)
         ws.setServiceParent(self)
@@ -133,8 +135,8 @@ class IntroducerService(service.MultiService, Referenceable):
     # v1 is the original protocol, added in 1.0 (but only advertised starting
     # in 1.3), removed in 1.12. v2 is the new signed protocol, added in 1.10
     VERSION = { #"http://allmydata.org/tahoe/protocols/introducer/v1": { },
-                "http://allmydata.org/tahoe/protocols/introducer/v2": { },
-                "application-version": str(allmydata.__full_version__),
+                b"http://allmydata.org/tahoe/protocols/introducer/v2": { },
+                b"application-version": allmydata.__full_version__.encode("utf-8"),
                 }
 
     def __init__(self):
@@ -279,6 +281,10 @@ class IntroducerService(service.MultiService, Referenceable):
     def remote_subscribe_v2(self, subscriber, service_name, subscriber_info):
         self.log("introducer: subscription[%s] request at %s"
                  % (service_name, subscriber), umid="U3uzLg")
+        service_name = ensure_str(service_name)
+        subscriber_info = dictutil.UnicodeKeyDict({
+            ensure_text(k): v for (k, v) in subscriber_info.items()
+        })
         return self.add_subscriber(subscriber, service_name, subscriber_info)
 
     def add_subscriber(self, subscriber, service_name, subscriber_info):
@@ -302,6 +308,10 @@ class IntroducerService(service.MultiService, Referenceable):
         subscriber.notifyOnDisconnect(_remove)
 
         # now tell them about any announcements they're interested in
+        assert {type(service_name)}.issuperset(
+            set(type(k[0]) for k in self._announcements)), (
+                service_name, self._announcements.keys()
+        )
         announcements = set( [ ann_t
                                for idx,(ann_t,canary,ann,when)
                                in self._announcements.items()

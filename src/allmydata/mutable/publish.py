@@ -919,7 +919,7 @@ class Publish(object):
 
     def log_goal(self, goal, message=""):
         logmsg = [message]
-        for (shnum, server) in sorted([(s,p) for (p,s) in goal]):
+        for (shnum, server) in sorted([(s,p) for (p,s) in goal], key=lambda t: (id(t[0]), id(t[1]))):
             logmsg.append("sh%d to [%s]" % (shnum, server.get_name()))
         self.log("current goal: %s" % (", ".join(logmsg)), level=log.NOISY)
         self.log("we are planning to push new seqnum=#%d" % self._new_seqnum,

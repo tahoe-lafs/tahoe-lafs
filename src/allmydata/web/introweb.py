@@ -104,7 +104,7 @@ class IntroducerRootElement(Element):
             if ad.service_name not in services:
                 services[ad.service_name] = 0
             services[ad.service_name] += 1
-        service_names = services.keys()
+        service_names = list(services.keys())
         service_names.sort()
         return u", ".join(u"{}: {}".format(service_name, services[service_name])
                           for service_name in service_names)

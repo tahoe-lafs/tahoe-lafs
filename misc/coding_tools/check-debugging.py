@@ -11,8 +11,12 @@ umids = {}
 
 for starting_point in sys.argv[1:]:
     for root, dirs, files in os.walk(starting_point):
-        for fn in [f for f in files if f.endswith(".py")]:
-            fn = os.path.join(root, fn)
+        for f in files:
+            if not f.endswith(".py"):
+                continue
+            if f == "check-debugging.py":
+                continue
+            fn = os.path.join(root, f)
             for lineno,line in enumerate(open(fn, "r").readlines()):
                 lineno = lineno+1
                 mo = re.search(r"\.setDebugging\(True\)", line)
