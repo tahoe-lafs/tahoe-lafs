@@ -1412,7 +1412,7 @@ class Packing(testutil.ReallyEqualMixin, unittest.TestCase):
         nodemaker = NodeMaker(None, None, None,
                               None, None,
                               {"k": 3, "n": 10}, None, None)
-        write_uri = "URI:SSK-RO:e3mdrzfwhoq42hy5ubcz6rp3o4:ybyibhnp3vvwuq2vaw2ckjmesgkklfs6ghxleztqidihjyofgw7q"
+        write_uri = b"URI:SSK-RO:e3mdrzfwhoq42hy5ubcz6rp3o4:ybyibhnp3vvwuq2vaw2ckjmesgkklfs6ghxleztqidihjyofgw7q"
         filenode = nodemaker.create_from_cap(write_uri)
         node = dirnode.DirectoryNode(filenode, nodemaker, None)
         children = node._unpack_contents(known_tree)
@@ -1429,8 +1429,8 @@ class Packing(testutil.ReallyEqualMixin, unittest.TestCase):
         self.failUnless(u'file3' in children)
 
         # Are the metadata for child 3 right?
-        file3_rocap = "URI:CHK:cmtcxq7hwxvfxan34yiev6ivhy:qvcekmjtoetdcw4kmi7b3rtblvgx7544crnwaqtiewemdliqsokq:3:10:5"
-        file3_rwcap = "URI:CHK:cmtcxq7hwxvfxan34yiev6ivhy:qvcekmjtoetdcw4kmi7b3rtblvgx7544crnwaqtiewemdliqsokq:3:10:5"
+        file3_rocap = b"URI:CHK:cmtcxq7hwxvfxan34yiev6ivhy:qvcekmjtoetdcw4kmi7b3rtblvgx7544crnwaqtiewemdliqsokq:3:10:5"
+        file3_rwcap = b"URI:CHK:cmtcxq7hwxvfxan34yiev6ivhy:qvcekmjtoetdcw4kmi7b3rtblvgx7544crnwaqtiewemdliqsokq:3:10:5"
         file3_metadata = {'ctime': 1246663897.4336269, 'tahoe': {'linkmotime': 1246663897.4336269, 'linkcrtime': 1246663897.4336269}, 'mtime': 1246663897.4336269}
         self.failUnlessEqual(file3_metadata, children[u'file3'][1])
         self.failUnlessReallyEqual(file3_rocap,
@@ -1439,8 +1439,8 @@ class Packing(testutil.ReallyEqualMixin, unittest.TestCase):
                                    children[u'file3'][0].get_uri())
 
         # Are the metadata for child 2 right?
-        file2_rocap = "URI:CHK:apegrpehshwugkbh3jlt5ei6hq:5oougnemcl5xgx4ijgiumtdojlipibctjkbwvyygdymdphib2fvq:3:10:4"
-        file2_rwcap = "URI:CHK:apegrpehshwugkbh3jlt5ei6hq:5oougnemcl5xgx4ijgiumtdojlipibctjkbwvyygdymdphib2fvq:3:10:4"
+        file2_rocap = b"URI:CHK:apegrpehshwugkbh3jlt5ei6hq:5oougnemcl5xgx4ijgiumtdojlipibctjkbwvyygdymdphib2fvq:3:10:4"
+        file2_rwcap = b"URI:CHK:apegrpehshwugkbh3jlt5ei6hq:5oougnemcl5xgx4ijgiumtdojlipibctjkbwvyygdymdphib2fvq:3:10:4"
         file2_metadata = {'ctime': 1246663897.430218, 'tahoe': {'linkmotime': 1246663897.430218, 'linkcrtime': 1246663897.430218}, 'mtime': 1246663897.430218}
         self.failUnlessEqual(file2_metadata, children[u'file2'][1])
         self.failUnlessReallyEqual(file2_rocap,
@@ -1449,8 +1449,8 @@ class Packing(testutil.ReallyEqualMixin, unittest.TestCase):
                                    children[u'file2'][0].get_uri())
 
         # Are the metadata for child 1 right?
-        file1_rocap = "URI:CHK:olxtimympo7f27jvhtgqlnbtn4:emzdnhk2um4seixozlkw3qx2nfijvdkx3ky7i7izl47yedl6e64a:3:10:10"
-        file1_rwcap = "URI:CHK:olxtimympo7f27jvhtgqlnbtn4:emzdnhk2um4seixozlkw3qx2nfijvdkx3ky7i7izl47yedl6e64a:3:10:10"
+        file1_rocap = b"URI:CHK:olxtimympo7f27jvhtgqlnbtn4:emzdnhk2um4seixozlkw3qx2nfijvdkx3ky7i7izl47yedl6e64a:3:10:10"
+        file1_rwcap = b"URI:CHK:olxtimympo7f27jvhtgqlnbtn4:emzdnhk2um4seixozlkw3qx2nfijvdkx3ky7i7izl47yedl6e64a:3:10:10"
         file1_metadata = {'ctime': 1246663897.4275661, 'tahoe': {'linkmotime': 1246663897.4275661, 'linkcrtime': 1246663897.4275661}, 'mtime': 1246663897.4275661}
         self.failUnlessEqual(file1_metadata, children[u'file1'][1])
         self.failUnlessReallyEqual(file1_rocap,
@@ -1492,7 +1492,7 @@ class Packing(testutil.ReallyEqualMixin, unittest.TestCase):
             name: (LiteralFileNode(uri.from_string(one_uri)), {}),
         }
         packed = dirnode.pack_children(kids, fn.get_writekey(), deep_immutable=False)
-        write_uri = "URI:SSK-RO:e3mdrzfwhoq42hy5ubcz6rp3o4:ybyibhnp3vvwuq2vaw2ckjmesgkklfs6ghxleztqidihjyofgw7q"
+        write_uri = b"URI:SSK-RO:e3mdrzfwhoq42hy5ubcz6rp3o4:ybyibhnp3vvwuq2vaw2ckjmesgkklfs6ghxleztqidihjyofgw7q"
         filenode = nm.create_from_cap(write_uri)
         dn = dirnode.DirectoryNode(filenode, nm, None)
         unkids = dn._unpack_contents(packed)
@@ -1505,11 +1505,11 @@ class Packing(testutil.ReallyEqualMixin, unittest.TestCase):
         kids = self._make_kids(nm, ["imm", "lit", "write", "read",
                                     "dirwrite", "dirread"])
         packed = dirnode.pack_children(kids, fn.get_writekey(), deep_immutable=False)
-        self.failUnlessIn("lit", packed)
+        self.failUnlessIn(b"lit", packed)
 
         kids = self._make_kids(nm, ["imm", "lit"])
         packed = dirnode.pack_children(kids, fn.get_writekey(), deep_immutable=True)
-        self.failUnlessIn("lit", packed)
+        self.failUnlessIn(b"lit", packed)
 
         kids = self._make_kids(nm, ["imm", "lit", "write"])
         self.failUnlessRaises(dirnode.MustBeDeepImmutableError,
