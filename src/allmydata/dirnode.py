@@ -9,7 +9,8 @@ from __future__ import unicode_literals
 
 from future.utils import PY2
 if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+    # Skip dict so it doesn't break things.
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, list, object, range, str, max, min  # noqa: F401
 from past.builtins import unicode
 
 import time
@@ -268,8 +269,9 @@ def _pack_normalized_children(children, writekey, deep_immutable=False):
         (child, metadata) = children[name]
         child.raise_error()
         if deep_immutable and not child.is_allowed_in_immutable_directory():
-            raise MustBeDeepImmutableError("child %s is not allowed in an immutable directory" %
-                                           quote_output(name, encoding='utf-8'), name)
+            raise MustBeDeepImmutableError(
+                "child %r is not allowed in an immutable directory" % (name,),
+                name)
         if has_aux:
             entry = children.get_aux(name)
         if not entry:

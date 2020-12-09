@@ -66,6 +66,7 @@ PORTED_MODULES = [
     "allmydata.mutable.retrieve",
     "allmydata.mutable.servermap",
     "allmydata.node",
+    "allmydata.nodemaker",
     "allmydata.storage_client",
     "allmydata.storage.common",
     "allmydata.storage.crawler",

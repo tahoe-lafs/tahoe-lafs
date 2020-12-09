@@ -14,7 +14,6 @@ if PY2:
     # Skip list() since it results in spurious test failures
     from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, object, range, str, max, min  # noqa: F401
 
-import six
 import time
 import unicodedata
 from zope.interface import implementer
@@ -45,9 +44,6 @@ import allmydata.test.common_util as testutil
 
 from hypothesis import given
 from hypothesis.strategies import text
-
-if six.PY3:
-    long = int
 
 
 @implementer(IConsumer)
