@@ -705,8 +705,15 @@ def _convert_tub_port(s):
     return us
 
 
-def _tub_portlocation(config):
+def _tub_portlocation(config, get_local_addresses_sync, allocate_tcp_port):
     """
+    Figure out the network location of the main tub for some configuration.
+
+    :param get_local_addresses_sync: A function like
+        ``iputil.get_local_addresses_sync``.
+
+    :param allocate_tcp_port: A function like ``iputil.allocate_tcp_port``.
+
     :returns: None or tuple of (port, location) for the main tub based
         on the given configuration. May raise ValueError or PrivacyError
         if there are problems with the config
@@ -746,7 +753,7 @@ def _tub_portlocation(config):
             file_tubport = fileutil.read(config.portnum_fname).strip()
             tubport = _convert_tub_port(file_tubport)
         else:
-            tubport = "tcp:%d" % iputil.allocate_tcp_port()
+            tubport = "tcp:%d" % (allocate_tcp_port(),)
             fileutil.write_atomically(config.portnum_fname, tubport + "\n",
                                       mode="")
     else:
@@ -766,7 +773,7 @@ def _tub_portlocation(config):
     if "AUTO" in split_location:
         if not reveal_ip:
             raise PrivacyError("tub.location uses AUTO")
-        local_addresses = iputil.get_local_addresses_sync()
+        local_addresses = get_local_addresses_sync()
         # tubport must be like "tcp:12345" or "tcp:12345:morestuff"
         local_portnum = int(tubport.split(":")[1])
     new_locations = []
@@ -821,7 +828,11 @@ def create_main_tub(config, tub_options,
     :param tor_provider: None, or a _Provider instance if txtorcon +
         Tor are installed.
     """
-    portlocation = _tub_portlocation(config)
+    portlocation = _tub_portlocation(
+        config,
+        iputil.get_local_addresses_sync,
+        iputil.allocate_tcp_port,
+    )
 
     certfile = config.get_private_path("node.pem")  # FIXME? "node.pem" was the CERTFILE option/thing
     tub = create_tub(tub_options, default_connection_handlers, foolscap_connection_handlers,

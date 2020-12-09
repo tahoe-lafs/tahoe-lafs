@@ -6,7 +6,7 @@ from twisted.internet.interfaces import IStreamClientEndpoint
 from foolscap.connections import tcp
 from ..node import PrivacyError, config_from_string
 from ..node import create_connection_handlers
-from ..node import create_main_tub, _tub_portlocation
+from ..node import create_main_tub
 from ..util.i2p_provider import create as create_i2p_provider
 from ..util.tor_provider import create as create_tor_provider
 
@@ -437,32 +437,4 @@ class Privacy(unittest.TestCase):
         self.assertEqual(
             str(ctx.exception),
             "tub.location uses AUTO",
-        )
-
-    def test_tub_location_tcp(self):
-        config = config_from_string(
-            "fake.port",
-            "no-basedir",
-            BASECONFIG + "[node]\nreveal-IP-address = false\ntub.location=tcp:hostname:1234\n",
-        )
-        with self.assertRaises(PrivacyError) as ctx:
-            _tub_portlocation(config)
-        self.assertEqual(
-            str(ctx.exception),
-            "tub.location includes tcp: hint",
-        )
-
-    def test_tub_location_legacy_tcp(self):
-        config = config_from_string(
-            "fake.port",
-            "no-basedir",
-            BASECONFIG + "[node]\nreveal-IP-address = false\ntub.location=hostname:1234\n",
-        )
-
-        with self.assertRaises(PrivacyError) as ctx:
-            _tub_portlocation(config)
-
-        self.assertEqual(
-            str(ctx.exception),
-            "tub.location includes tcp: hint",
         )

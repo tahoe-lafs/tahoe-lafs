@@ -39,6 +39,7 @@ import foolscap.logging.log
 
 from twisted.application import service
 from allmydata.node import (
+    PrivacyError,
     create_tub_options,
     create_main_tub,
     create_node_dir,
@@ -513,25 +514,24 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
 
 class TestMissingPorts(unittest.TestCase):
     """
-    Test certain error-cases for ports setup
+    Test certain ``_tub_portlocation`` error cases for ports setup.
     """
-
     def setUp(self):
         self.basedir = self.mktemp()
         create_node_dir(self.basedir, "testing")
 
+    def _get_addr(self):
+        return ["LOCAL"]
+
+    def _alloc_port(self):
+        return 999
+
     def test_parsing_tcp(self):
         """
-        parse explicit tub.port with explicitly-default tub.location
+        When ``tub.port`` is given and ``tub.location`` is **AUTO** the port
+        number from ``tub.port`` is used as the port number for the value
+        constructed for ``tub.location``.
         """
-        get_addr = mock.patch(
-            "allmydata.util.iputil.get_local_addresses_sync",
-            return_value=["LOCAL"],
-        )
-        alloc_port = mock.patch(
-            "allmydata.util.iputil.allocate_tcp_port",
-            return_value=999,
-        )
         config_data = (
             "[node]\n"
             "tub.port = tcp:777\n"
@@ -539,8 +539,11 @@ class TestMissingPorts(unittest.TestCase):
         )
         config = config_from_string(self.basedir, "portnum", config_data)
 
-        with get_addr, alloc_port:
-            tubport, tublocation = _tub_portlocation(config)
+        tubport, tublocation = _tub_portlocation(
+            config,
+            self._get_addr,
+            self._alloc_port,
+        )
         self.assertEqual(tubport, "tcp:777")
         self.assertEqual(tublocation, b"tcp:LOCAL:777")
 
@@ -548,21 +551,16 @@ class TestMissingPorts(unittest.TestCase):
         """
         parse empty config, check defaults
         """
-        get_addr = mock.patch(
-            "allmydata.util.iputil.get_local_addresses_sync",
-            return_value=["LOCAL"],
-        )
-        alloc_port = mock.patch(
-            "allmydata.util.iputil.allocate_tcp_port",
-            return_value=999,
-        )
         config_data = (
             "[node]\n"
         )
         config = config_from_string(self.basedir, "portnum", config_data)
 
-        with get_addr, alloc_port:
-            tubport, tublocation = _tub_portlocation(config)
+        tubport, tublocation = _tub_portlocation(
+            config,
+            self._get_addr,
+            self._alloc_port,
+        )
         self.assertEqual(tubport, "tcp:999")
         self.assertEqual(tublocation, b"tcp:LOCAL:999")
 
@@ -570,22 +568,17 @@ class TestMissingPorts(unittest.TestCase):
         """
         location with two options (including defaults)
         """
-        get_addr = mock.patch(
-            "allmydata.util.iputil.get_local_addresses_sync",
-            return_value=["LOCAL"],
-        )
-        alloc_port = mock.patch(
-            "allmydata.util.iputil.allocate_tcp_port",
-            return_value=999,
-        )
         config_data = (
             "[node]\n"
             "tub.location = tcp:HOST:888,AUTO\n"
         )
         config = config_from_string(self.basedir, "portnum", config_data)
 
-        with get_addr, alloc_port:
-            tubport, tublocation = _tub_portlocation(config)
+        tubport, tublocation = _tub_portlocation(
+            config,
+            self._get_addr,
+            self._alloc_port,
+        )
         self.assertEqual(tubport, "tcp:999")
         self.assertEqual(tublocation, b"tcp:HOST:888,tcp:LOCAL:999")
 
@@ -593,14 +586,6 @@ class TestMissingPorts(unittest.TestCase):
         """
         parse config with both port + location disabled
         """
-        get_addr = mock.patch(
-            "allmydata.util.iputil.get_local_addresses_sync",
-            return_value=["LOCAL"],
-        )
-        alloc_port = mock.patch(
-            "allmydata.util.iputil.allocate_tcp_port",
-            return_value=999,
-        )
         config_data = (
             "[node]\n"
             "tub.port = disabled\n"
@@ -608,8 +593,11 @@ class TestMissingPorts(unittest.TestCase):
         )
         config = config_from_string(self.basedir, "portnum", config_data)
 
-        with get_addr, alloc_port:
-            res = _tub_portlocation(config)
+        res = _tub_portlocation(
+            config,
+            self._get_addr,
+            self._alloc_port,
+        )
         self.assertTrue(res is None)
 
     def test_empty_tub_port(self):
@@ -623,7 +611,11 @@ class TestMissingPorts(unittest.TestCase):
         config = config_from_string(self.basedir, "portnum", config_data)
 
         with self.assertRaises(ValueError) as ctx:
-            _tub_portlocation(config)
+            _tub_portlocation(
+                config,
+                self._get_addr,
+                self._alloc_port,
+            )
         self.assertIn(
             "tub.port must not be empty",
             str(ctx.exception)
@@ -640,7 +632,11 @@ class TestMissingPorts(unittest.TestCase):
         config = config_from_string(self.basedir, "portnum", config_data)
 
         with self.assertRaises(ValueError) as ctx:
-            _tub_portlocation(config)
+            _tub_portlocation(
+                config,
+                self._get_addr,
+                self._alloc_port,
+            )
         self.assertIn(
             "tub.location must not be empty",
             str(ctx.exception)
@@ -658,7 +654,11 @@ class TestMissingPorts(unittest.TestCase):
         config = config_from_string(self.basedir, "portnum", config_data)
 
         with self.assertRaises(ValueError) as ctx:
-            _tub_portlocation(config)
+            _tub_portlocation(
+                config,
+                self._get_addr,
+                self._alloc_port,
+            )
         self.assertIn(
             "tub.port is disabled, but not tub.location",
             str(ctx.exception)
@@ -676,10 +676,50 @@ class TestMissingPorts(unittest.TestCase):
         config = config_from_string(self.basedir, "portnum", config_data)
 
         with self.assertRaises(ValueError) as ctx:
-            _tub_portlocation(config)
+            _tub_portlocation(
+                config,
+                self._get_addr,
+                self._alloc_port,
+            )
         self.assertIn(
             "tub.location is disabled, but not tub.port",
             str(ctx.exception)
+        )
+
+    def test_tub_location_tcp(self):
+        config = config_from_string(
+            "fake.port",
+            "no-basedir",
+            "[node]\nreveal-IP-address = false\ntub.location=tcp:hostname:1234\n",
+        )
+        with self.assertRaises(PrivacyError) as ctx:
+            _tub_portlocation(
+                config,
+                self._get_addr,
+                self._alloc_port,
+            )
+        self.assertEqual(
+            str(ctx.exception),
+            "tub.location includes tcp: hint",
+        )
+
+    def test_tub_location_legacy_tcp(self):
+        config = config_from_string(
+            "fake.port",
+            "no-basedir",
+            "[node]\nreveal-IP-address = false\ntub.location=hostname:1234\n",
+        )
+
+        with self.assertRaises(PrivacyError) as ctx:
+            _tub_portlocation(
+                config,
+                self._get_addr,
+                self._alloc_port,
+            )
+
+        self.assertEqual(
+            str(ctx.exception),
+            "tub.location includes tcp: hint",
         )
 
 
