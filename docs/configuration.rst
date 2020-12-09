@@ -911,11 +911,6 @@ This section describes these other files.
   This file is used to construct an introducer, and is created by the
   "``tahoe create-introducer``" command.
 
-``tahoe-stats-gatherer.tac``
-
-  This file is used to construct a statistics gatherer, and is created by the
-  "``tahoe create-stats-gatherer``" command.
-
 ``private/control.furl``
 
   This file contains a FURL that provides access to a control port on the
