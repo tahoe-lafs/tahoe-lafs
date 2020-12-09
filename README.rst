@@ -56,6 +56,17 @@ For more detailed instructions, read `docs/INSTALL.rst <docs/INSTALL.rst>`__ .
 
 Once tahoe --version works, see `docs/running.rst <docs/running.rst>`__ to learn how to set up your first Tahoe-LAFS node.
 
+
+🤖 Issues
+---------
+
+Tahoe-LAFS uses the Trac instance to track `issues <https://www.tahoe-lafs.org/trac/tahoe-lafs/wiki/ViewTickets>`__. Please email jean-paul plus tahoe-lafs at leastauthority dot com for an account.
+
+📑 Documentation
+----------------
+
+You can find the full Tahoe-LAFS documentation at our `documentation site <http://tahoe-lafs.readthedocs.io/en/latest/>`__.
+
 💬 Community
 ------------
 
@@ -81,16 +92,6 @@ As a community-driven open source project, Tahoe-LAFS welcomes contributions of 
 -  `Patch reviews <https://tahoe-lafs.org/trac/tahoe-lafs/wiki/PatchReviewProcess>`__
 
 Before authoring or reviewing a patch, please familiarize yourself with the `Coding Standard <https://tahoe-lafs.org/trac/tahoe-lafs/wiki/CodingStandards>`__ and the `Contributor Code of Conduct <docs/CODE_OF_CONDUCT.md>`__.
-
-🤖 Issues
----------
-
-Tahoe-LAFS uses the Trac instance to track `issues <https://www.tahoe-lafs.org/trac/tahoe-lafs/wiki/ViewTickets>`__. Please email jean-paul plus tahoe-lafs at leastauthority dot com for an account.
-
-📑 Documentation
-----------------
-
-You can find the full Tahoe-LAFS documentation at our `documentation site <http://tahoe-lafs.readthedocs.io/en/latest/>`__.
 
 
 ❓ FAQ
