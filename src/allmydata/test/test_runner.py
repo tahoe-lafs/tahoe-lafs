@@ -34,6 +34,7 @@ from ._twisted_9607 import (
 )
 from ..util.eliotutil import (
     inline_callbacks,
+    log_call_deferred,
 )
 
 def get_root_from_file(src):
@@ -54,6 +55,7 @@ rootdir = get_root_from_file(srcfile)
 
 
 class RunBinTahoeMixin(object):
+    @log_call_deferred(action_type="run-bin-tahoe")
     def run_bintahoe(self, args, stdin=None, python_options=[], env=None):
         command = sys.executable
         argv = python_options + ["-m", "allmydata.scripts.runner"] + args
@@ -335,7 +337,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
     @inline_callbacks
     def test_client(self):
         """
-        Test many things.
+        Test too many things.
 
         0) Verify that "tahoe create-node" takes a --webport option and writes
            the value to the configuration file.
@@ -343,9 +345,9 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
         1) Verify that "tahoe run" writes a pid file and a node url file (on POSIX).
 
         2) Verify that the storage furl file has a stable value across a
-           "tahoe run" / "tahoe stop" / "tahoe run" sequence.
+           "tahoe run" / stop / "tahoe run" sequence.
 
-        3) Verify that the pid file is removed after "tahoe stop" succeeds (on POSIX).
+        3) Verify that the pid file is removed after SIGTERM (on POSIX).
         """
         basedir = self.workdir("test_client")
         c1 = os.path.join(basedir, "c1")
@@ -447,18 +449,6 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
                 tahoe.basedir.sibling(u"bogus"),
             ).run(p),
             "does not look like a directory at all"
-        )
-
-    def test_stop_bad_directory(self):
-        """
-        If ``tahoe run`` is pointed at a directory where no node is running, it
-        reports an error and exits.
-        """
-        return self._bad_directory_test(
-            u"test_stop_bad_directory",
-            "tahoe stop",
-            lambda tahoe, p: tahoe.stop(p),
-            "does not look like a running node directory",
         )
 
     @inline_callbacks

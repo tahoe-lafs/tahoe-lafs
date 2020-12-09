@@ -20,14 +20,14 @@ from allmydata.scripts.common_http import socket_error
 import allmydata.scripts.common_http
 
 # Test that the scripts can be imported.
-from allmydata.scripts import create_node, debug, tahoe_start, tahoe_restart, \
+from allmydata.scripts import create_node, debug, \
     tahoe_add_alias, tahoe_backup, tahoe_check, tahoe_cp, tahoe_get, tahoe_ls, \
     tahoe_manifest, tahoe_mkdir, tahoe_mv, tahoe_put, tahoe_unlink, tahoe_webopen, \
-    tahoe_stop, tahoe_daemonize, tahoe_run
-_hush_pyflakes = [create_node, debug, tahoe_start, tahoe_restart, tahoe_stop,
+    tahoe_run
+_hush_pyflakes = [create_node, debug,
     tahoe_add_alias, tahoe_backup, tahoe_check, tahoe_cp, tahoe_get, tahoe_ls,
     tahoe_manifest, tahoe_mkdir, tahoe_mv, tahoe_put, tahoe_unlink, tahoe_webopen,
-    tahoe_daemonize, tahoe_run]
+    tahoe_run]
 
 from allmydata.scripts import common
 from allmydata.scripts.common import DEFAULT_ALIAS, get_aliases, get_alias, \
@@ -625,18 +625,6 @@ class Help(unittest.TestCase):
     def test_list_aliases(self):
         help = str(cli.ListAliasesOptions())
         self.failUnlessIn("[options]", help)
-
-    def test_start(self):
-        help = str(tahoe_start.StartOptions())
-        self.failUnlessIn("[options] [NODEDIR [twistd-options]]", help)
-
-    def test_stop(self):
-        help = str(tahoe_stop.StopOptions())
-        self.failUnlessIn("[options] [NODEDIR]", help)
-
-    def test_restart(self):
-        help = str(tahoe_restart.RestartOptions())
-        self.failUnlessIn("[options] [NODEDIR [twistd-options]]", help)
 
     def test_run(self):
         help = str(tahoe_run.RunOptions())
@@ -1269,79 +1257,58 @@ class Options(ReallyEqualMixin, unittest.TestCase):
         self.failUnlessIn(allmydata.__full_version__, stdout.getvalue())
         # but "tahoe SUBCOMMAND --version" should be rejected
         self.failUnlessRaises(usage.UsageError, self.parse,
-                              ["start", "--version"])
+                              ["run", "--version"])
         self.failUnlessRaises(usage.UsageError, self.parse,
-                              ["start", "--version-and-path"])
+                              ["run", "--version-and-path"])
 
     def test_quiet(self):
         # accepted as an overall option, but not on subcommands
-        o = self.parse(["--quiet", "start"])
+        o = self.parse(["--quiet", "run"])
         self.failUnless(o.parent["quiet"])
         self.failUnlessRaises(usage.UsageError, self.parse,
-                              ["start", "--quiet"])
+                              ["run", "--quiet"])
 
     def test_basedir(self):
         # accept a --node-directory option before the verb, or a --basedir
         # option after, or a basedir argument after, but none in the wrong
         # place, and not more than one of the three.
-        o = self.parse(["start"])
+        o = self.parse(["run"])
         self.failUnlessReallyEqual(o["basedir"], os.path.join(fileutil.abspath_expanduser_unicode(u"~"),
                                                               u".tahoe"))
-        o = self.parse(["start", "here"])
+        o = self.parse(["run", "here"])
         self.failUnlessReallyEqual(o["basedir"], fileutil.abspath_expanduser_unicode(u"here"))
-        o = self.parse(["start", "--basedir", "there"])
+        o = self.parse(["run", "--basedir", "there"])
         self.failUnlessReallyEqual(o["basedir"], fileutil.abspath_expanduser_unicode(u"there"))
-        o = self.parse(["--node-directory", "there", "start"])
+        o = self.parse(["--node-directory", "there", "run"])
         self.failUnlessReallyEqual(o["basedir"], fileutil.abspath_expanduser_unicode(u"there"))
 
-        o = self.parse(["start", "here", "--nodaemon"])
+        o = self.parse(["run", "here", "--nodaemon"])
         self.failUnlessReallyEqual(o["basedir"], fileutil.abspath_expanduser_unicode(u"here"))
 
         self.failUnlessRaises(usage.UsageError, self.parse,
-                              ["--basedir", "there", "start"])
+                              ["--basedir", "there", "run"])
         self.failUnlessRaises(usage.UsageError, self.parse,
-                              ["start", "--node-directory", "there"])
+                              ["run", "--node-directory", "there"])
 
-        self.failUnlessRaises(usage.UsageError, self.parse,
-                              ["--node-directory=there",
-                               "start", "--basedir=here"])
-        self.failUnlessRaises(usage.UsageError, self.parse,
-                              ["start", "--basedir=here", "anywhere"])
         self.failUnlessRaises(usage.UsageError, self.parse,
                               ["--node-directory=there",
-                               "start", "anywhere"])
+                               "run", "--basedir=here"])
+        self.failUnlessRaises(usage.UsageError, self.parse,
+                              ["run", "--basedir=here", "anywhere"])
         self.failUnlessRaises(usage.UsageError, self.parse,
                               ["--node-directory=there",
-                               "start", "--basedir=here", "anywhere"])
+                               "run", "anywhere"])
+        self.failUnlessRaises(usage.UsageError, self.parse,
+                              ["--node-directory=there",
+                               "run", "--basedir=here", "anywhere"])
 
         self.failUnlessRaises(usage.UsageError, self.parse,
-                              ["--node-directory=there", "start", "--nodaemon"])
+                              ["--node-directory=there", "run", "--nodaemon"])
         self.failUnlessRaises(usage.UsageError, self.parse,
-                              ["start", "--basedir=here", "--nodaemon"])
+                              ["run", "--basedir=here", "--nodaemon"])
 
 
-class Stop(unittest.TestCase):
-    def test_non_numeric_pid(self):
-        """
-        If the pidfile exists but does not contain a numeric value, a complaint to
-        this effect is written to stderr and the non-success result is
-        returned.
-        """
-        basedir = FilePath(self.mktemp().decode("ascii"))
-        basedir.makedirs()
-        basedir.child(u"twistd.pid").setContent(b"foo")
-
-        config = tahoe_stop.StopOptions()
-        config.stdout = StringIO()
-        config.stderr = StringIO()
-        config['basedir'] = basedir.path
-
-        result_code = tahoe_stop.stop(config)
-        self.assertEqual(2, result_code)
-        self.assertIn("invalid PID file", config.stderr.getvalue())
-
-
-class Start(unittest.TestCase):
+class Run(unittest.TestCase):
 
     @patch('allmydata.scripts.run_common.os.chdir')
     @patch('allmydata.scripts.run_common.twistd')
@@ -1355,13 +1322,13 @@ class Start(unittest.TestCase):
         basedir.child(u"twistd.pid").setContent(b"foo")
         basedir.child(u"tahoe-client.tac").setContent(b"")
 
-        config = tahoe_daemonize.DaemonizeOptions()
+        config = tahoe_run.RunOptions()
         config.stdout = StringIO()
         config.stderr = StringIO()
         config['basedir'] = basedir.path
         config.twistd_args = []
 
-        result_code = tahoe_daemonize.daemonize(config)
+        result_code = tahoe_run.run(config)
         self.assertIn("invalid PID file", config.stderr.getvalue())
         self.assertTrue(len(mock_twistd.mock_calls), 1)
         self.assertEqual(mock_twistd.mock_calls[0][0], 'runApp')
