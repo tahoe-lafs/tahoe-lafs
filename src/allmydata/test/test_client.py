@@ -88,7 +88,7 @@ from .strategies import (
     write_capabilities,
 )
 
-SOME_FURL = b"pb://abcde@nowhere/fake"
+SOME_FURL = "pb://abcde@nowhere/fake"
 
 BASECONFIG = "[client]\n"
 

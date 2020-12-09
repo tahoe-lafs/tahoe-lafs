@@ -103,7 +103,7 @@ from allmydata.interfaces import (
     IStorageServer,
 )
 
-SOME_FURL = b"pb://abcde@nowhere/fake"
+SOME_FURL = "pb://abcde@nowhere/fake"
 
 class NativeStorageServerWithVersion(NativeStorageServer):
     def __init__(self, version):
@@ -310,7 +310,7 @@ class PluginMatchedAnnouncement(SyncTestCase):
                 # notice how the announcement is for a different storage plugin
                 # than the one that is enabled.
                 u"name": u"tahoe-lafs-dummy-v2",
-                u"storage-server-FURL": SOME_FURL.decode("ascii"),
+                u"storage-server-FURL": SOME_FURL,
             }],
         }
         self.publish(server_id, ann, self.introducer_client)
@@ -338,7 +338,7 @@ class PluginMatchedAnnouncement(SyncTestCase):
             u"storage-options": [{
                 # and this announcement is for a plugin with a matching name
                 u"name": plugin_name,
-                u"storage-server-FURL": SOME_FURL.decode("ascii"),
+                u"storage-server-FURL": SOME_FURL,
             }],
         }
         self.publish(server_id, ann, self.introducer_client)
@@ -389,7 +389,7 @@ class PluginMatchedAnnouncement(SyncTestCase):
             u"storage-options": [{
                 # and this announcement is for a plugin with a matching name
                 u"name": plugin_name,
-                u"storage-server-FURL": SOME_FURL.decode("ascii"),
+                u"storage-server-FURL": SOME_FURL,
             }],
         }
         self.publish(server_id, ann, self.introducer_client)
@@ -594,7 +594,7 @@ storage:
     ann:
       anonymous-storage-FURL: {furl}
       permutation-seed-base32: aaaaaaaaaaaaaaaaaaaaaaaa
-""".format(furl=SOME_FURL.decode("utf-8"))
+""".format(furl=SOME_FURL)
         servers = yamlutil.safe_load(servers_yaml)
         permseed = base32.a2b(b"aaaaaaaaaaaaaaaaaaaaaaaa")
         broker.set_static_servers(servers["storage"])
@@ -610,7 +610,7 @@ storage:
 
         ann2 = {
             "service-name": "storage",
-            "anonymous-storage-FURL": "pb://{}@nowhere/fake2".format(base32.b2a(b"1")),
+            "anonymous-storage-FURL": "pb://{}@nowhere/fake2".format(str(base32.b2a(b"1"), "utf-8")),
             "permutation-seed-base32": "bbbbbbbbbbbbbbbbbbbbbbbb",
         }
         broker._got_announcement(key_s, ann2)
@@ -694,7 +694,7 @@ storage:
         }
 
         def add_one_server(x):
-            data["anonymous-storage-FURL"] = b"pb://%s@spy:nowhere/fake" % (base32.b2a(b"%d" % x),)
+            data["anonymous-storage-FURL"] = "pb://%s@spy:nowhere/fake" % (str(base32.b2a(b"%d" % x), "ascii"),)
             tub = new_tub()
             connects = []
             spy = SpyHandler(connects)

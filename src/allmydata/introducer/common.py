@@ -1,5 +1,3 @@
-from past.builtins import unicode
-
 import re
 from allmydata.crypto.util import remove_prefix
 from allmydata.crypto import ed25519
@@ -8,14 +6,12 @@ from allmydata.util import base32, rrefutil, jsonbytes as json
 
 def get_tubid_string_from_ann(ann):
     furl = ann.get("anonymous-storage-FURL") or ann.get("FURL")
-    if isinstance(furl, unicode):
-        furl = furl.encode("utf-8")
     return get_tubid_string(furl)
 
 def get_tubid_string(furl):
-    m = re.match(br'pb://(\w+)@', furl)
+    m = re.match(r'pb://(\w+)@', furl)
     assert m
-    return m.group(1).lower()
+    return m.group(1).lower().encode("ascii")
 
 
 def sign_to_foolscap(announcement, signing_key):

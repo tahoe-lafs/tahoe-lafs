@@ -562,6 +562,7 @@ class _FoolscapStorage(object):
 
         *nickname* is optional.
         """
+        furl = furl.encode("utf-8")
         m = re.match(br'pb://(\w+)@', furl)
         assert m, furl
         tubid_s = m.group(1).lower()
@@ -756,7 +757,7 @@ class NativeStorageServer(service.MultiService):
         else:
             return _FoolscapStorage.from_announcement(
                 self._server_id,
-                furl.encode("utf-8"),
+                furl,
                 ann,
                 storage_server,
             )
@@ -768,8 +769,6 @@ class NativeStorageServer(service.MultiService):
             # Nope
             pass
         else:
-            if isinstance(furl, str):
-                furl = furl.encode("utf-8")
             # See comment above for the _storage_from_foolscap_plugin case
             # about passing in get_rref.
             storage_server = _StorageServer(get_rref=self.get_rref)
