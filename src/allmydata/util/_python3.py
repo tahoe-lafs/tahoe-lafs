@@ -34,6 +34,7 @@ PORTED_MODULES = [
     "allmydata.crypto.error",
     "allmydata.crypto.rsa",
     "allmydata.crypto.util",
+    "allmydata.dirnode",
     "allmydata.hashtree",
     "allmydata.immutable.downloader",
     "allmydata.immutable.downloader.common",

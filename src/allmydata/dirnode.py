@@ -1,4 +1,15 @@
-"""Directory Node implementation."""
+"""Directory Node implementation.
+
+Ported to Python 3.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 from past.builtins import unicode
 
 import time
@@ -37,6 +48,8 @@ from eliot.twisted import (
 
 NAME = Field.for_types(
     u"name",
+    # Make sure this works on Python 2; with str, it gets Future str which
+    # breaks Eliot.
     [unicode],
     u"The name linking the parent to this node.",
 )
@@ -250,7 +263,7 @@ def _pack_normalized_children(children, writekey, deep_immutable=False):
     has_aux = isinstance(children, AuxValueDict)
     entries = []
     for name in sorted(children.keys()):
-        assert isinstance(name, unicode)
+        assert isinstance(name, str)
         entry = None
         (child, metadata) = children[name]
         child.raise_error()
@@ -543,7 +556,7 @@ class DirectoryNode(object):
         else:
             pathx = pathx.split("/")
         for p in pathx:
-            assert isinstance(p, unicode), p
+            assert isinstance(p, str), p
         childnamex = pathx[0]
         remaining_pathx = pathx[1:]
         if remaining_pathx:
@@ -570,7 +583,7 @@ class DirectoryNode(object):
         a = Adder(self, overwrite=overwrite,
                   create_readonly_node=self._create_readonly_node)
         for (namex, e) in entries.items():
-            assert isinstance(namex, unicode), namex
+            assert isinstance(namex, str), namex
             if len(e) == 2:
                 writecap, readcap = e
                 metadata = None
