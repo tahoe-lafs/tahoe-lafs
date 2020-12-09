@@ -47,8 +47,8 @@ def get_pid_from_pidfile(pidfile):
 
 def identify_node_type(basedir):
     """
-    :return unicode: None or one of: 'client', 'introducer',
-        'key-generator' or 'stats-gatherer'
+    :return unicode: None or one of: 'client', 'introducer', or
+        'key-generator'
     """
     tac = u''
     try:
@@ -59,7 +59,7 @@ def identify_node_type(basedir):
     except OSError:
         return None
 
-    for t in (u"client", u"introducer", u"key-generator", u"stats-gatherer"):
+    for t in (u"client", u"introducer", u"key-generator"):
         if t in tac:
             return t
     return None
@@ -135,7 +135,6 @@ class DaemonizeTheRealService(Service, HookMixin):
             node_to_instance = {
                 u"client": lambda: maybeDeferred(namedAny("allmydata.client.create_client"), self.basedir),
                 u"introducer": lambda: maybeDeferred(namedAny("allmydata.introducer.server.create_introducer"), self.basedir),
-                u"stats-gatherer": lambda: maybeDeferred(namedAny("allmydata.stats.StatsGathererService"), read_config(self.basedir, None), self.basedir, verbose=True),
                 u"key-generator": key_generator_removed,
             }
 
