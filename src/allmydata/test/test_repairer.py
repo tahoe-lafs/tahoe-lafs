@@ -1,5 +1,15 @@
 # -*- coding: utf-8 -*-
+"""
+Ported to Python 3.
+"""
 from __future__ import print_function
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 from allmydata.test import common
 from allmydata.monitor import Monitor
@@ -464,7 +474,7 @@ class Repairer(GridTestMixin, unittest.TestCase, RepairTestMixin,
         # previously-deleted share #2.
 
         d.addCallback(lambda ignored:
-                      self.delete_shares_numbered(self.uri, range(3, 10+1)))
+                      self.delete_shares_numbered(self.uri, list(range(3, 10+1))))
         d.addCallback(lambda ignored: download_to_data(self.c1_filenode))
         d.addCallback(lambda newdata:
                       self.failUnlessEqual(newdata, common.TEST_DATA))
@@ -476,7 +486,7 @@ class Repairer(GridTestMixin, unittest.TestCase, RepairTestMixin,
         self.set_up_grid(num_clients=2)
         d = self.upload_and_stash()
         d.addCallback(lambda ignored:
-                      self.delete_shares_numbered(self.uri, range(7)))
+                      self.delete_shares_numbered(self.uri, list(range(7))))
         d.addCallback(lambda ignored: self._stash_counts())
         d.addCallback(lambda ignored:
                       self.c0_filenode.check_and_repair(Monitor(),
@@ -509,7 +519,7 @@ class Repairer(GridTestMixin, unittest.TestCase, RepairTestMixin,
         # previously-deleted share #2.
 
         d.addCallback(lambda ignored:
-                      self.delete_shares_numbered(self.uri, range(3, 10+1)))
+                      self.delete_shares_numbered(self.uri, list(range(3, 10+1))))
         d.addCallback(lambda ignored: download_to_data(self.c1_filenode))
         d.addCallback(lambda newdata:
                       self.failUnlessEqual(newdata, common.TEST_DATA))
@@ -640,7 +650,7 @@ class Repairer(GridTestMixin, unittest.TestCase, RepairTestMixin,
                 # downloading and has the right contents. This can't work
                 # unless it has already repaired the previously-corrupted share.
                 def _then_delete_7_and_try_a_download(unused=None):
-                    shnums = range(10)
+                    shnums = list(range(10))
                     shnums.remove(shnum)
                     random.shuffle(shnums)
                     for sharenum in shnums[:7]:
