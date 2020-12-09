@@ -48,16 +48,16 @@ class MemAccum(object):
         self.data = data
         self.producer.resumeProducing()
 
-setup_py_uri = "URI:CHK:n7r3m6wmomelk4sep3kw5cvduq:os7ijw5c3maek7pg65e5254k2fzjflavtpejjyhshpsxuqzhcwwq:3:20:14861"
-one_uri = "URI:LIT:n5xgk" # LIT for "one"
-mut_write_uri = "URI:SSK:vfvcbdfbszyrsaxchgevhmmlii:euw4iw7bbnkrrwpzuburbhppuxhc3gwxv26f6imekhz7zyw2ojnq"
-mdmf_write_uri = "URI:MDMF:x533rhbm6kiehzl5kj3s44n5ie:4gif5rhneyd763ouo5qjrgnsoa3bg43xycy4robj2rf3tvmhdl3a"
-empty_litdir_uri = "URI:DIR2-LIT:"
-tiny_litdir_uri = "URI:DIR2-LIT:gqytunj2onug64tufqzdcosvkjetutcjkq5gw4tvm5vwszdgnz5hgyzufqydulbshj5x2lbm" # contains one child which is itself also LIT
-mut_read_uri = "URI:SSK-RO:jf6wkflosyvntwxqcdo7a54jvm:euw4iw7bbnkrrwpzuburbhppuxhc3gwxv26f6imekhz7zyw2ojnq"
-mdmf_read_uri = "URI:MDMF-RO:d4cydxselputycfzkw6qgz4zv4:4gif5rhneyd763ouo5qjrgnsoa3bg43xycy4robj2rf3tvmhdl3a"
-future_write_uri = "x-tahoe-crazy://I_am_from_the_future."
-future_read_uri = "x-tahoe-crazy-readonly://I_am_from_the_future."
+setup_py_uri = b"URI:CHK:n7r3m6wmomelk4sep3kw5cvduq:os7ijw5c3maek7pg65e5254k2fzjflavtpejjyhshpsxuqzhcwwq:3:20:14861"
+one_uri = b"URI:LIT:n5xgk" # LIT for "one"
+mut_write_uri = b"URI:SSK:vfvcbdfbszyrsaxchgevhmmlii:euw4iw7bbnkrrwpzuburbhppuxhc3gwxv26f6imekhz7zyw2ojnq"
+mdmf_write_uri = b"URI:MDMF:x533rhbm6kiehzl5kj3s44n5ie:4gif5rhneyd763ouo5qjrgnsoa3bg43xycy4robj2rf3tvmhdl3a"
+empty_litdir_uri = b"URI:DIR2-LIT:"
+tiny_litdir_uri = b"URI:DIR2-LIT:gqytunj2onug64tufqzdcosvkjetutcjkq5gw4tvm5vwszdgnz5hgyzufqydulbshj5x2lbm" # contains one child which is itself also LIT
+mut_read_uri = b"URI:SSK-RO:jf6wkflosyvntwxqcdo7a54jvm:euw4iw7bbnkrrwpzuburbhppuxhc3gwxv26f6imekhz7zyw2ojnq"
+mdmf_read_uri = b"URI:MDMF-RO:d4cydxselputycfzkw6qgz4zv4:4gif5rhneyd763ouo5qjrgnsoa3bg43xycy4robj2rf3tvmhdl3a"
+future_write_uri = b"x-tahoe-crazy://I_am_from_the_future."
+future_read_uri = b"x-tahoe-crazy-readonly://I_am_from_the_future."
 future_nonascii_write_uri = u"x-tahoe-even-more-crazy://I_am_from_the_future_rw_\u263A".encode('utf-8')
 future_nonascii_read_uri = u"x-tahoe-even-more-crazy-readonly://I_am_from_the_future_ro_\u263A".encode('utf-8')
 
@@ -423,7 +423,7 @@ class Dirnode(GridTestMixin, unittest.TestCase,
             # moved on to stdlib "json" which doesn't have it either.
             d.addCallback(self.stall, 0.1)
             d.addCallback(lambda res: n.add_file(u"timestamps",
-                                                 upload.Data("stamp me", convergence="some convergence string")))
+                                                 upload.Data(b"stamp me", convergence=b"some convergence string")))
             d.addCallback(self.stall, 0.1)
             def _stop(res):
                 self._stop_timestamp = time.time()
@@ -472,11 +472,11 @@ class Dirnode(GridTestMixin, unittest.TestCase,
                           self.failUnlessReallyEqual(set(children.keys()),
                                                      set([u"child"])))
 
-            uploadable1 = upload.Data("some data", convergence="converge")
+            uploadable1 = upload.Data(b"some data", convergence=b"converge")
             d.addCallback(lambda res: n.add_file(u"newfile", uploadable1))
             d.addCallback(lambda newnode:
                           self.failUnless(IImmutableFileNode.providedBy(newnode)))
-            uploadable2 = upload.Data("some data", convergence="stuff")
+            uploadable2 = upload.Data(b"some data", convergence=b"stuff")
             d.addCallback(lambda res:
                           self.shouldFail(ExistingChildError, "add_file-no",
                                           "child 'newfile' already exists",
@@ -491,7 +491,7 @@ class Dirnode(GridTestMixin, unittest.TestCase,
             d.addCallback(lambda metadata:
                           self.failUnlessEqual(set(metadata.keys()), set(["tahoe"])))
 
-            uploadable3 = upload.Data("some data", convergence="converge")
+            uploadable3 = upload.Data(b"some data", convergence=b"converge")
             d.addCallback(lambda res: n.add_file(u"newfile-metadata",
                                                  uploadable3,
                                                  {"key": "value"}))
@@ -507,8 +507,8 @@ class Dirnode(GridTestMixin, unittest.TestCase,
             def _created2(subdir2):
                 self.subdir2 = subdir2
                 # put something in the way, to make sure it gets overwritten
-                return subdir2.add_file(u"child", upload.Data("overwrite me",
-                                                              "converge"))
+                return subdir2.add_file(u"child", upload.Data(b"overwrite me",
+                                                              b"converge"))
             d.addCallback(_created2)
 
             d.addCallback(lambda res:
@@ -1074,7 +1074,7 @@ class Dirnode(GridTestMixin, unittest.TestCase,
         d.addCallback(_created_root)
         def _created_subdir(subdir):
             self._subdir = subdir
-            d = subdir.add_file(u"file1", upload.Data("data"*100, None))
+            d = subdir.add_file(u"file1", upload.Data(b"data"*100, None))
             d.addCallback(lambda res: subdir.set_node(u"link", self._rootnode))
             d.addCallback(lambda res: c.create_dirnode())
             d.addCallback(lambda dn:
@@ -1250,7 +1250,7 @@ class Dirnode(GridTestMixin, unittest.TestCase,
         nm = c.nodemaker
         filecap = make_chk_file_uri(1234)
         filenode = nm.create_from_cap(filecap)
-        uploadable = upload.Data("some data", convergence="some convergence string")
+        uploadable = upload.Data(b"some data", convergence=b"some convergence string")
 
         d = c.create_dirnode(version=version)
         def _created(rw_dn):
@@ -1867,7 +1867,7 @@ class Deleter(GridTestMixin, testutil.ReallyEqualMixin, unittest.TestCase):
         self.set_up_grid(oneshare=True)
         c0 = self.g.clients[0]
         d = c0.create_dirnode()
-        small = upload.Data("Small enough for a LIT", None)
+        small = upload.Data(b"Small enough for a LIT", None)
         def _created_dir(dn):
             self.root = dn
             self.root_uri = dn.get_uri()
@@ -1909,10 +1909,10 @@ class Adder(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
             # root/file1
             # root/file2
             # root/dir1
-            d = root_node.add_file(u'file1', upload.Data("Important Things",
+            d = root_node.add_file(u'file1', upload.Data(b"Important Things",
                 None))
             d.addCallback(lambda res:
-                root_node.add_file(u'file2', upload.Data("Sekrit Codes", None)))
+                root_node.add_file(u'file2', upload.Data(b"Sekrit Codes", None)))
             d.addCallback(lambda res:
                 root_node.create_subdirectory(u"dir1"))
             d.addCallback(lambda res: root_node)

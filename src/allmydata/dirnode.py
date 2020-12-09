@@ -384,8 +384,8 @@ class DirectoryNode(object):
             # ro_uri is treated in the same way for consistency.
             # rw_uri and ro_uri will be either None or a non-empty string.
 
-            rw_uri = rw_uri.rstrip(' ') or None
-            ro_uri = ro_uri.rstrip(' ') or None
+            rw_uri = rw_uri.rstrip(b' ') or None
+            ro_uri = ro_uri.rstrip(b' ') or None
 
             try:
                 child = self._create_and_validate_node(rw_uri, ro_uri, name)
