@@ -1,6 +1,6 @@
 from __future__ import print_function
 
-from past.builtins import unicode
+from past.builtins import unicode, chr as byteschr, long
 
 import os, re, sys, time, json
 from functools import partial
@@ -911,7 +911,7 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
         config = "[client]\n"
         if helper_furl:
             config += "helper.furl = %s\n" % helper_furl
-        basedir.child("tahoe.cfg").setContent(config)
+        basedir.child("tahoe.cfg").setContent(config.encode("utf-8"))
         private = basedir.child("private")
         private.makedirs()
         write_introducer(
@@ -1316,10 +1316,10 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
                 #print("STATS")
                 #from pprint import pprint
                 #pprint(stats)
-                s = stats["stats"]
-                self.failUnlessEqual(s["storage_server.accepting_immutable_shares"], 1)
-                c = stats["counters"]
-                self.failUnless("storage_server.allocate" in c)
+                s = stats[b"stats"]
+                self.failUnlessEqual(s[b"storage_server.accepting_immutable_shares"], 1)
+                c = stats[b"counters"]
+                self.failUnless(b"storage_server.allocate" in c)
             d.addCallback(_got_stats)
             return d
         d.addCallback(_grab_stats)
@@ -1605,7 +1605,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         return d
 
     def flip_bit(self, good):
-        return good[:-1] + chr(ord(good[-1]) ^ 0x01)
+        return good[:-1] + byteschr(ord(good[-1:]) ^ 0x01)
 
     def mangle_uri(self, gooduri):
         # change the key, which changes the storage index, which means we'll
