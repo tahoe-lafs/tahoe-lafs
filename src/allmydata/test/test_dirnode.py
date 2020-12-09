@@ -704,7 +704,7 @@ class Dirnode(GridTestMixin, unittest.TestCase,
                                                                        set([u"short"])))
             d2.addCallback(lambda ignored: tinylit_node.list())
             d2.addCallback(lambda children: children[u"short"][0].read(MemAccum()))
-            d2.addCallback(lambda accum: self.failUnlessReallyEqual(accum.data, "The end."))
+            d2.addCallback(lambda accum: self.failUnlessReallyEqual(accum.data, b"The end."))
             return d2
         d.addCallback(_check_kids)
 
@@ -789,7 +789,7 @@ class Dirnode(GridTestMixin, unittest.TestCase,
             rep = str(dn)
             self.failUnless("RO-IMM" in rep)
             cap = dn.get_cap()
-            self.failUnlessIn("CHK", cap.to_string())
+            self.failUnlessIn(b"CHK", cap.to_string())
             self.cap = cap
             return dn.list()
         d.addCallback(_created)
@@ -901,8 +901,8 @@ class Dirnode(GridTestMixin, unittest.TestCase,
             rep = str(dn)
             self.failUnless("RO-IMM" in rep)
             cap = dn.get_cap()
-            self.failUnlessIn("LIT", cap.to_string())
-            self.failUnlessReallyEqual(cap.to_string(), "URI:DIR2-LIT:")
+            self.failUnlessIn(b"LIT", cap.to_string())
+            self.failUnlessReallyEqual(cap.to_string(), b"URI:DIR2-LIT:")
             self.cap = cap
             return dn.list()
         d.addCallback(_created_empty)
@@ -919,9 +919,9 @@ class Dirnode(GridTestMixin, unittest.TestCase,
             rep = str(dn)
             self.failUnless("RO-IMM" in rep)
             cap = dn.get_cap()
-            self.failUnlessIn("LIT", cap.to_string())
+            self.failUnlessIn(b"LIT", cap.to_string())
             self.failUnlessReallyEqual(cap.to_string(),
-                                       "URI:DIR2-LIT:gi4tumj2n4wdcmz2kvjesosmjfkdu3rvpbtwwlbqhiwdeot3puwcy")
+                                       b"URI:DIR2-LIT:gi4tumj2n4wdcmz2kvjesosmjfkdu3rvpbtwwlbqhiwdeot3puwcy")
             self.cap = cap
             return dn.list()
         d.addCallback(_created_small)
@@ -969,14 +969,14 @@ class Dirnode(GridTestMixin, unittest.TestCase,
         # It also tests that we store child names as UTF-8 NFC, and normalize
         # them again when retrieving them.
 
-        stripped_write_uri = "lafs://from_the_future\t"
-        stripped_read_uri = "lafs://readonly_from_the_future\t"
-        spacedout_write_uri = stripped_write_uri + "  "
-        spacedout_read_uri = stripped_read_uri + "  "
+        stripped_write_uri = b"lafs://from_the_future\t"
+        stripped_read_uri = b"lafs://readonly_from_the_future\t"
+        spacedout_write_uri = stripped_write_uri + b"  "
+        spacedout_read_uri = stripped_read_uri + b"  "
 
         child = nm.create_from_cap(spacedout_write_uri, spacedout_read_uri)
         self.failUnlessReallyEqual(child.get_write_uri(), spacedout_write_uri)
-        self.failUnlessReallyEqual(child.get_readonly_uri(), "ro." + spacedout_read_uri)
+        self.failUnlessReallyEqual(child.get_readonly_uri(), b"ro." + spacedout_read_uri)
 
         child_dottedi = u"ch\u0131\u0307ld"
 
@@ -1393,7 +1393,7 @@ class Dirnode(GridTestMixin, unittest.TestCase,
 
 class MinimalFakeMutableFile(object):
     def get_writekey(self):
-        return "writekey"
+        return b"writekey"
 
 class Packing(testutil.ReallyEqualMixin, unittest.TestCase):
     # This is a base32-encoded representation of the directory tree
@@ -1535,10 +1535,10 @@ class Packing(testutil.ReallyEqualMixin, unittest.TestCase):
 @implementer(IMutableFileNode)
 class FakeMutableFile(object):
     counter = 0
-    def __init__(self, initial_contents=""):
+    def __init__(self, initial_contents=b""):
         data = self._get_initial_contents(initial_contents)
         self.data = data.read(data.get_size())
-        self.data = "".join(self.data)
+        self.data = b"".join(self.data)
 
         counter = FakeMutableFile.counter
         FakeMutableFile.counter += 1
@@ -1547,10 +1547,10 @@ class FakeMutableFile(object):
         self.uri = uri.WriteableSSKFileURI(writekey, fingerprint)
 
     def _get_initial_contents(self, contents):
-        if isinstance(contents, str):
+        if isinstance(contents, bytes):
             return contents
         if contents is None:
-            return ""
+            return b""
         assert callable(contents), "%s should be callable, not %s" % \
                (contents, type(contents))
         return contents(self)
@@ -1568,7 +1568,7 @@ class FakeMutableFile(object):
         return defer.succeed(self.data)
 
     def get_writekey(self):
-        return "writekey"
+        return b"writekey"
 
     def is_readonly(self):
         return False
@@ -1591,7 +1591,7 @@ class FakeMutableFile(object):
         return defer.succeed(None)
 
 class FakeNodeMaker(NodeMaker):
-    def create_mutable_file(self, contents="", keysize=None, version=None):
+    def create_mutable_file(self, contents=b"", keysize=None, version=None):
         return defer.succeed(FakeMutableFile(contents))
 
 class FakeClient2(_Client):

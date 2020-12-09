@@ -31,8 +31,8 @@ class UnknownNode(object):
 
     def __init__(self, given_rw_uri, given_ro_uri, deep_immutable=False,
                  name=u"<unknown name>"):
-        assert given_rw_uri is None or isinstance(given_rw_uri, str)
-        assert given_ro_uri is None or isinstance(given_ro_uri, str)
+        assert given_rw_uri is None or isinstance(given_rw_uri, bytes)
+        assert given_ro_uri is None or isinstance(given_ro_uri, bytes)
         given_rw_uri = given_rw_uri or None
         given_ro_uri = given_ro_uri or None
 

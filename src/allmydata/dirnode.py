@@ -354,7 +354,7 @@ class DirectoryNode(object):
         # pack("16ss32s", iv, AES(H(writekey+iv), plaintext_rw_uri), mac)
         assert isinstance(data, bytes), (repr(data), type(data))
         # an empty directory is serialized as an empty string
-        if data == "":
+        if data == b"":
             return AuxValueDict()
         writeable = not self.is_readonly()
         mutable = self.is_mutable()
@@ -373,7 +373,7 @@ class DirectoryNode(object):
             # Therefore we normalize names going both in and out of directories.
             name = normalize(namex_utf8.decode("utf-8"))
 
-            rw_uri = ""
+            rw_uri = b""
             if writeable:
                 rw_uri = self._decrypt_rwcapdata(rwcapdata)
 
