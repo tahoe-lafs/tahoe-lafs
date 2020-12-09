@@ -1,4 +1,11 @@
 """Tests for the dirnode module."""
+# from __future__ import absolute_import
+# from __future__ import division
+# from __future__ import print_function
+# from __future__ import unicode_literals
+
+from past.builtins import unicode, long
+
 import six
 import time
 import unicodedata
@@ -95,13 +102,13 @@ class Dirnode(GridTestMixin, unittest.TestCase,
             self.failUnless(u)
             cap_formats = []
             if mdmf:
-                cap_formats = ["URI:DIR2-MDMF:",
-                               "URI:DIR2-MDMF-RO:",
-                               "URI:DIR2-MDMF-Verifier:"]
+                cap_formats = [b"URI:DIR2-MDMF:",
+                               b"URI:DIR2-MDMF-RO:",
+                               b"URI:DIR2-MDMF-Verifier:"]
             else:
-                cap_formats = ["URI:DIR2:",
-                               "URI:DIR2-RO",
-                               "URI:DIR2-Verifier:"]
+                cap_formats = [b"URI:DIR2:",
+                               b"URI:DIR2-RO",
+                               b"URI:DIR2-Verifier:"]
             rw, ro, v = cap_formats
             self.failUnless(u.startswith(rw), u)
             u_ro = n.get_readonly_uri()
@@ -149,7 +156,7 @@ class Dirnode(GridTestMixin, unittest.TestCase,
                 self.failUnless(isinstance(subdir, dirnode.DirectoryNode))
                 self.subdir = subdir
                 new_v = subdir.get_verify_cap().to_string()
-                assert isinstance(new_v, str)
+                assert isinstance(new_v, bytes)
                 self.expected_manifest.append( ((u"subdir",), subdir.get_uri()) )
                 self.expected_verifycaps.add(new_v)
                 si = subdir.get_storage_index()
@@ -182,7 +189,7 @@ class Dirnode(GridTestMixin, unittest.TestCase,
                             "largest-directory-children": 2,
                             "largest-immutable-file": 0,
                             }
-                for k,v in expected.iteritems():
+                for k,v in expected.items():
                     self.failUnlessReallyEqual(stats[k], v,
                                                "stats[%s] was %s, not %s" %
                                                (k, stats[k], v))
@@ -272,8 +279,8 @@ class Dirnode(GridTestMixin, unittest.TestCase,
                                                 { 'tahoe': {'linkcrtime': "bogus"}}))
             d.addCallback(lambda res: n.get_metadata_for(u"c2"))
             def _has_good_linkcrtime(metadata):
-                self.failUnless(metadata.has_key('tahoe'))
-                self.failUnless(metadata['tahoe'].has_key('linkcrtime'))
+                self.failUnless('tahoe' in metadata)
+                self.failUnless('linkcrtime' in metadata['tahoe'])
                 self.failIfEqual(metadata['tahoe']['linkcrtime'], 'bogus')
             d.addCallback(_has_good_linkcrtime)
 
@@ -918,7 +925,7 @@ class Dirnode(GridTestMixin, unittest.TestCase,
             self.cap = cap
             return dn.list()
         d.addCallback(_created_small)
-        d.addCallback(lambda kids: self.failUnlessReallyEqual(kids.keys(), [u"o"]))
+        d.addCallback(lambda kids: self.failUnlessReallyEqual(list(kids.keys()), [u"o"]))
 
         # now test n.create_subdirectory(mutable=False)
         d.addCallback(lambda ign: c.create_dirnode())
@@ -928,7 +935,7 @@ class Dirnode(GridTestMixin, unittest.TestCase,
             d.addCallback(_check_kids)
             d.addCallback(lambda ign: n.list())
             d.addCallback(lambda children:
-                          self.failUnlessReallyEqual(children.keys(), [u"subdir"]))
+                          self.failUnlessReallyEqual(list(children.keys()), [u"subdir"]))
             d.addCallback(lambda ign: n.get(u"subdir"))
             d.addCallback(lambda sd: sd.list())
             d.addCallback(_check_kids)
@@ -1417,9 +1424,9 @@ class Packing(testutil.ReallyEqualMixin, unittest.TestCase):
 
     def _check_children(self, children):
         # Are all the expected child nodes there?
-        self.failUnless(children.has_key(u'file1'))
-        self.failUnless(children.has_key(u'file2'))
-        self.failUnless(children.has_key(u'file3'))
+        self.failUnless(u'file1' in children)
+        self.failUnless(u'file2' in children)
+        self.failUnless(u'file3' in children)
 
         # Are the metadata for child 3 right?
         file3_rocap = "URI:CHK:cmtcxq7hwxvfxan34yiev6ivhy:qvcekmjtoetdcw4kmi7b3rtblvgx7544crnwaqtiewemdliqsokq:3:10:5"

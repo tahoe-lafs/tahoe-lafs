@@ -468,7 +468,7 @@ class DirectoryNode(object):
         exists a child of the given name, False if not."""
         name = normalize(namex)
         d = self._read()
-        d.addCallback(lambda children: children.has_key(name))
+        d.addCallback(lambda children: name in children)
         return d
 
     def _get(self, children, name):
@@ -569,7 +569,7 @@ class DirectoryNode(object):
         # this takes URIs
         a = Adder(self, overwrite=overwrite,
                   create_readonly_node=self._create_readonly_node)
-        for (namex, e) in entries.iteritems():
+        for (namex, e) in entries.items():
             assert isinstance(namex, unicode), namex
             if len(e) == 2:
                 writecap, readcap = e
@@ -779,7 +779,7 @@ class DirectoryNode(object):
         # in the nodecache) seem to consume about 2000 bytes.
         dirkids = []
         filekids = []
-        for name, (child, metadata) in sorted(children.iteritems()):
+        for name, (child, metadata) in sorted(children.items()):
             childpath = path + [name]
             if isinstance(child, UnknownNode):
                 walker.add_node(child, childpath)
