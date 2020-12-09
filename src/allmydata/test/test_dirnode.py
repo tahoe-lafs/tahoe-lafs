@@ -1,10 +1,18 @@
-"""Tests for the dirnode module."""
-# from __future__ import absolute_import
-# from __future__ import division
-# from __future__ import print_function
-# from __future__ import unicode_literals
+"""Tests for the dirnode module.
 
-from past.builtins import unicode, long
+Ported to Python 3.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from past.builtins import long
+
+from future.utils import PY2
+if PY2:
+    # Skip list() since it results in spurious test failures
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, object, range, str, max, min  # noqa: F401
 
 import six
 import time
@@ -1468,7 +1476,7 @@ class Packing(testutil.ReallyEqualMixin, unittest.TestCase):
                 }
         kids = {}
         for name in which:
-            kids[unicode(name)] = (nm.create_from_cap(caps[name]), {})
+            kids[str(name)] = (nm.create_from_cap(caps[name]), {})
         return kids
 
     @given(text(min_size=1, max_size=20))
