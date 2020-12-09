@@ -1687,7 +1687,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
             d1.addCallback(self.log, "publish finished")
             def _stash_uri(filenode):
                 self.uri = filenode.get_uri()
-                assert isinstance(self.uri, str), (self.uri, filenode)
+                assert isinstance(self.uri, bytes), (self.uri, filenode)
             d1.addCallback(_stash_uri)
             return d1
         d.addCallback(_made_subdir1)
@@ -2174,7 +2174,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
                 filename = os.path.join(dirpath, filenames[0])
                 # peek at the magic to see if it is a chk share
                 magic = open(filename, "rb").read(4)
-                if magic == '\x00\x00\x00\x01':
+                if magic == b'\x00\x00\x00\x01':
                     break
         else:
             self.fail("unable to find any uri_extension files in %r"
