@@ -10,7 +10,6 @@ from twisted.application.service import Service
 
 from allmydata.scripts.default_nodedir import _default_nodedir
 from allmydata.util import fileutil
-from allmydata.node import read_config
 from allmydata.util.encodingutil import listdir_unicode, quote_local_unicode_path
 from allmydata.util.configutil import UnknownConfigError
 from allmydata.util.deferredutil import HookMixin
