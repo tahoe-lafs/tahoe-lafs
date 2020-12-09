@@ -800,7 +800,6 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
                     value = value.encode("utf-8")
                 config.setdefault(section, {})[feature] = value
 
-        setclient = partial(setconf, config, which, "client")
         setnode = partial(setconf, config, which, "node")
         sethelper = partial(setconf, config, which, "helper")
 
