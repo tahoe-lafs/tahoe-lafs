@@ -179,7 +179,7 @@ class Adder(object):
     def modify(self, old_contents, servermap, first_time):
         children = self.node._unpack_contents(old_contents)
         now = time.time()
-        for (namex, (child, new_metadata)) in self.entries.iteritems():
+        for (namex, (child, new_metadata)) in list(self.entries.items()):
             name = normalize(namex)
             precondition(IFilesystemNode.providedBy(child), child)
 
@@ -205,8 +205,8 @@ class Adder(object):
         return new_contents
 
 def _encrypt_rw_uri(writekey, rw_uri):
-    precondition(isinstance(rw_uri, str), rw_uri)
-    precondition(isinstance(writekey, str), writekey)
+    precondition(isinstance(rw_uri, bytes), rw_uri)
+    precondition(isinstance(writekey, bytes), writekey)
 
     salt = hashutil.mutable_rwcap_salt_hash(rw_uri)
     key = hashutil.mutable_rwcap_key_hash(salt, writekey)
@@ -221,7 +221,7 @@ def _encrypt_rw_uri(writekey, rw_uri):
 def pack_children(childrenx, writekey, deep_immutable=False):
     # initial_children must have metadata (i.e. {} instead of None)
     children = {}
-    for (namex, (node, metadata)) in childrenx.iteritems():
+    for (namex, (node, metadata)) in list(childrenx.items()):
         precondition(isinstance(metadata, dict),
                      "directory creation requires metadata to be a dict, not None", metadata)
         children[normalize(namex)] = (node, metadata)
@@ -245,7 +245,7 @@ def _pack_normalized_children(children, writekey, deep_immutable=False):
     If deep_immutable is True, I will require that all my children are deeply
     immutable, and will raise a MustBeDeepImmutableError if not.
     """
-    precondition((writekey is None) or isinstance(writekey, str), writekey)
+    precondition((writekey is None) or isinstance(writekey, bytes), writekey)
 
     has_aux = isinstance(children, AuxValueDict)
     entries = []
@@ -264,26 +264,26 @@ def _pack_normalized_children(children, writekey, deep_immutable=False):
             assert isinstance(metadata, dict)
             rw_uri = child.get_write_uri()
             if rw_uri is None:
-                rw_uri = ""
-            assert isinstance(rw_uri, str), rw_uri
+                rw_uri = b""
+            assert isinstance(rw_uri, bytes), rw_uri
 
             # should be prevented by MustBeDeepImmutableError check above
             assert not (rw_uri and deep_immutable)
 
             ro_uri = child.get_readonly_uri()
             if ro_uri is None:
-                ro_uri = ""
-            assert isinstance(ro_uri, str), ro_uri
+                ro_uri = b""
+            assert isinstance(ro_uri, bytes), ro_uri
             if writekey is not None:
                 writecap = netstring(_encrypt_rw_uri(writekey, rw_uri))
             else:
                 writecap = ZERO_LEN_NETSTR
-            entry = "".join([netstring(name.encode("utf-8")),
+            entry = b"".join([netstring(name.encode("utf-8")),
                              netstring(strip_prefix_for_ro(ro_uri, deep_immutable)),
                              writecap,
-                             netstring(json.dumps(metadata))])
+                             netstring(json.dumps(metadata).encode("utf-8"))])
         entries.append(netstring(entry))
-    return "".join(entries)
+    return b"".join(entries)
 
 @implementer(IDirectoryNode, ICheckable, IDeepCheckable)
 class DirectoryNode(object):
@@ -352,7 +352,7 @@ class DirectoryNode(object):
         # cleartext. The 'name' is UTF-8 encoded, and should be normalized to NFC.
         # The rwcapdata is formatted as:
         # pack("16ss32s", iv, AES(H(writekey+iv), plaintext_rw_uri), mac)
-        assert isinstance(data, str), (repr(data), type(data))
+        assert isinstance(data, bytes), (repr(data), type(data))
         # an empty directory is serialized as an empty string
         if data == "":
             return AuxValueDict()
@@ -555,8 +555,8 @@ class DirectoryNode(object):
         return d
 
     def set_uri(self, namex, writecap, readcap, metadata=None, overwrite=True):
-        precondition(isinstance(writecap, (str,type(None))), writecap)
-        precondition(isinstance(readcap, (str,type(None))), readcap)
+        precondition(isinstance(writecap, (bytes, type(None))), writecap)
+        precondition(isinstance(readcap, (bytes, type(None))), readcap)
 
         # We now allow packing unknown nodes, provided they are valid
         # for this type of directory.
@@ -577,8 +577,8 @@ class DirectoryNode(object):
             else:
                 assert len(e) == 3
                 writecap, readcap, metadata = e
-            precondition(isinstance(writecap, (str,type(None))), writecap)
-            precondition(isinstance(readcap, (str,type(None))), readcap)
+            precondition(isinstance(writecap, (bytes,type(None))), writecap)
+            precondition(isinstance(readcap, (bytes,type(None))), readcap)
 
             # We now allow packing unknown nodes, provided they are valid
             # for this type of directory.
