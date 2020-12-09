@@ -5,7 +5,6 @@ __all__ = [
     "on_stdout",
     "on_stdout_and_stderr",
     "on_different",
-    "wait_for_exit",
 ]
 
 import os
@@ -19,7 +18,6 @@ from eliot import (
 )
 
 from twisted.internet.error import (
-    ProcessDone,
     ProcessTerminated,
     ProcessExitedAlready,
 )
@@ -28,9 +26,6 @@ from twisted.internet.interfaces import (
 )
 from twisted.python.filepath import (
     FilePath,
-)
-from twisted.python.runtime import (
-    platform,
 )
 from twisted.internet.protocol import (
     Protocol,
@@ -180,7 +175,7 @@ class CLINodeAPI(object):
                 raise
 
     @log_call_deferred(action_type="test:cli-api:stop")
-    def stop(self, protocol):
+    def stop(self):
         return self.stop_and_wait()
 
     @log_call_deferred(action_type="test:cli-api:stop-and-wait")
@@ -210,20 +205,3 @@ class CLINodeAPI(object):
         stopping = self.stop_and_wait()
         stopping.addErrback(self._check_cleanup_reason)
         return stopping
-
-
-class _WaitForEnd(ProcessProtocol, object):
-    def __init__(self, ended):
-        self._ended = ended
-
-    def processEnded(self, reason):
-        if reason.check(ProcessDone):
-            self._ended.callback(None)
-        else:
-            self._ended.errback(reason)
-
-
-def wait_for_exit():
-    ended = Deferred()
-    protocol = _WaitForEnd(ended)
-    return protocol, ended
