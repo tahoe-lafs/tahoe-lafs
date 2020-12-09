@@ -1,5 +1,7 @@
 from __future__ import print_function
 
+from past.builtins import unicode
+
 import os, re, sys, time, json
 from functools import partial
 
@@ -54,7 +56,7 @@ from ..scripts.common import (
     write_introducer,
 )
 
-LARGE_DATA = """
+LARGE_DATA = b"""
 This is some data to publish to the remote grid.., which needs to be large
 enough to not fit inside a LIT uri.
 """
@@ -761,7 +763,7 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
             return os.path.exists(sgf)
         d.addCallback(lambda junk: self.poll(check_for_furl, timeout=30))
         def get_furl(junk):
-            self.stats_gatherer_furl = file(sgf, 'rb').read().strip()
+            self.stats_gatherer_furl = open(sgf, 'rb').read().strip()
         d.addCallback(get_furl)
         return d
 
@@ -1026,7 +1028,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
     def _test_upload_and_download(self, convergence):
         # we use 4000 bytes of data, which will result in about 400k written
         # to disk among all our simulated nodes
-        DATA = "Some data to upload\n" * 200
+        DATA = b"Some data to upload\n" * 200
         d = self.set_up_nodes()
         def _check_connections(res):
             for c in self.clients:
@@ -1151,7 +1153,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
             return connected
         d.addCallback(lambda ign: self.poll(_has_helper))
 
-        HELPER_DATA = "Data that needs help to upload" * 1000
+        HELPER_DATA = b"Data that needs help to upload" * 1000
         def _upload_with_helper(res):
             u = upload.Data(HELPER_DATA, convergence=convergence)
             d = self.extra_node.upload(u)
@@ -1185,7 +1187,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         d.addCallback(fireEventually)
 
         def _upload_resumable(res):
-            DATA = "Data that needs help to upload and gets interrupted" * 1000
+            DATA = b"Data that needs help to upload and gets interrupted" * 1000
             u1 = CountingDataUploadable(DATA, convergence=convergence)
             u2 = CountingDataUploadable(DATA, convergence=convergence)
 
@@ -1398,11 +1400,11 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
 
     def test_mutable(self):
         self.basedir = "system/SystemTest/test_mutable"
-        DATA = "initial contents go here."  # 25 bytes % 3 != 0
+        DATA = b"initial contents go here."  # 25 bytes % 3 != 0
         DATA_uploadable = MutableData(DATA)
-        NEWDATA = "new contents yay"
+        NEWDATA = b"new contents yay"
         NEWDATA_uploadable = MutableData(NEWDATA)
-        NEWERDATA = "this is getting old"
+        NEWERDATA = b"this is getting old"
         NEWERDATA_uploadable = MutableData(NEWERDATA)
 
         d = self.set_up_nodes()
