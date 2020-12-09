@@ -1,4 +1,5 @@
-from past.builtins import unicode
+from past.builtins import unicode, long
+from six import ensure_text
 
 import time
 from zope.interface import implementer
@@ -17,7 +18,7 @@ from allmydata.util.assertutil import precondition
 class InvalidCacheError(Exception):
     pass
 
-V2 = "http://allmydata.org/tahoe/protocols/introducer/v2"
+V2 = b"http://allmydata.org/tahoe/protocols/introducer/v2"
 
 @implementer(RIIntroducerSubscriberClient_v2, IIntroducerClient)
 class IntroducerClient(service.Service, Referenceable):
@@ -26,6 +27,8 @@ class IntroducerClient(service.Service, Referenceable):
                  nickname, my_version, oldest_supported,
                  sequencer, cache_filepath):
         self._tub = tub
+        if isinstance(introducer_furl, unicode):
+            introducer_furl = introducer_furl.encode("utf-8")
         self.introducer_furl = introducer_furl
 
         assert type(nickname) is unicode
@@ -35,11 +38,11 @@ class IntroducerClient(service.Service, Referenceable):
         self._sequencer = sequencer
         self._cache_filepath = cache_filepath
 
-        self._my_subscriber_info = { "version": 0,
-                                     "nickname": self._nickname,
-                                     "app-versions": [],
-                                     "my-version": self._my_version,
-                                     "oldest-supported": self._oldest_supported,
+        self._my_subscriber_info = { b"version": 0,
+                                     b"nickname": self._nickname,
+                                     b"app-versions": [],
+                                     b"my-version": self._my_version,
+                                     b"oldest-supported": self._oldest_supported,
                                      }
 
         self._outbound_announcements = {} # not signed
@@ -113,19 +116,24 @@ class IntroducerClient(service.Service, Referenceable):
         announcements = []
         for _, value in self._inbound_announcements.items():
             ann, key_s, time_stamp = value
+            # On Python 2, bytes strings are encoded into YAML Unicode strings.
+            # On Python 3, bytes are encoded as YAML bytes. To minimize
+            # changes, Python 3 for now ensures the same is true.
             server_params = {
                 "ann" : ann,
-                "key_s" : key_s,
+                "key_s" : ensure_text(key_s),
                 }
             announcements.append(server_params)
         announcement_cache_yaml = yamlutil.safe_dump(announcements)
+        if isinstance(announcement_cache_yaml, unicode):
+            announcement_cache_yaml = announcement_cache_yaml.encode("utf-8")
         self._cache_filepath.setContent(announcement_cache_yaml)
 
     def _got_introducer(self, publisher):
         self.log("connected to introducer, getting versions")
-        default = { "http://allmydata.org/tahoe/protocols/introducer/v1":
+        default = { b"http://allmydata.org/tahoe/protocols/introducer/v1":
                     { },
-                    "application-version": "unknown: no get_version()",
+                    b"application-version": b"unknown: no get_version()",
                     }
         d = add_version_to_remote_reference(publisher, default)
         d.addCallback(self._got_versioned_introducer)
@@ -138,6 +146,7 @@ class IntroducerClient(service.Service, Referenceable):
     def _got_versioned_introducer(self, publisher):
         self.log("got introducer version: %s" % (publisher.version,))
         # we require an introducer that speaks at least V2
+        assert all(type(V2) == type(v) for v in publisher.version)
         if V2 not in publisher.version:
             raise InsufficientVersionError("V2", publisher.version)
         self._publisher = publisher
@@ -162,7 +171,7 @@ class IntroducerClient(service.Service, Referenceable):
         self._subscribed_service_names.add(service_name)
         self._maybe_subscribe()
         for index,(ann,key_s,when) in self._inbound_announcements.items():
-            precondition(isinstance(key_s, str), key_s)
+            precondition(isinstance(key_s, bytes), key_s)
             servicename = index[0]
             if servicename == service_name:
                 eventually(cb, key_s, ann, *args, **kwargs)
@@ -238,7 +247,7 @@ class IntroducerClient(service.Service, Referenceable):
                 # this might raise UnknownKeyError or bad-sig error
                 ann, key_s = unsign_from_foolscap(ann_t)
                 # key is "v0-base32abc123"
-                precondition(isinstance(key_s, str), key_s)
+                precondition(isinstance(key_s, bytes), key_s)
             except BadSignature:
                 self.log("bad signature on inbound announcement: %s" % (ann_t,),
                          parent=lp, level=log.WEIRD, umid="ZAU15Q")
@@ -248,7 +257,7 @@ class IntroducerClient(service.Service, Referenceable):
             self._process_announcement(ann, key_s)
 
     def _process_announcement(self, ann, key_s):
-        precondition(isinstance(key_s, str), key_s)
+        precondition(isinstance(key_s, bytes), key_s)
         self._debug_counts["inbound_announcement"] += 1
         service_name = str(ann["service-name"])
         if service_name not in self._subscribed_service_names:
@@ -257,7 +266,7 @@ class IntroducerClient(service.Service, Referenceable):
             self._debug_counts["wrong_service"] += 1
             return
         # for ASCII values, simplejson might give us unicode *or* bytes
-        if "nickname" in ann and isinstance(ann["nickname"], str):
+        if "nickname" in ann and isinstance(ann["nickname"], bytes):
             ann["nickname"] = unicode(ann["nickname"])
         nick_s = ann.get("nickname",u"").encode("utf-8")
         lp2 = self.log(format="announcement for nickname '%(nick)s', service=%(svc)s: %(ann)s",
@@ -266,11 +275,11 @@ class IntroducerClient(service.Service, Referenceable):
         # how do we describe this node in the logs?
         desc_bits = []
         assert key_s
-        desc_bits.append("serverid=" + key_s[:20])
+        desc_bits.append(b"serverid=" + key_s[:20])
         if "anonymous-storage-FURL" in ann:
             tubid_s = get_tubid_string_from_ann(ann)
-            desc_bits.append("tubid=" + tubid_s[:8])
-        description = "/".join(desc_bits)
+            desc_bits.append(b"tubid=" + tubid_s[:8])
+        description = b"/".join(desc_bits)
 
         # the index is used to track duplicates
         index = (service_name, key_s)
@@ -320,7 +329,7 @@ class IntroducerClient(service.Service, Referenceable):
         self._deliver_announcements(key_s, ann)
 
     def _deliver_announcements(self, key_s, ann):
-        precondition(isinstance(key_s, str), key_s)
+        precondition(isinstance(key_s, bytes), key_s)
         service_name = str(ann["service-name"])
         for (service_name2,cb,args,kwargs) in self._local_subscribers:
             if service_name2 == service_name:
