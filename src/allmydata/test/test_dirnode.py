@@ -673,22 +673,22 @@ class Dirnode(GridTestMixin, unittest.TestCase,
 
             self.failUnless(fut_node.is_unknown())
             self.failUnlessReallyEqual(fut_node.get_uri(), future_write_uri)
-            self.failUnlessReallyEqual(fut_node.get_readonly_uri(), "ro." + future_read_uri)
+            self.failUnlessReallyEqual(fut_node.get_readonly_uri(), b"ro." + future_read_uri)
             self.failUnless(isinstance(fut_metadata, dict), fut_metadata)
 
             self.failUnless(futna_node.is_unknown())
             self.failUnlessReallyEqual(futna_node.get_uri(), future_nonascii_write_uri)
-            self.failUnlessReallyEqual(futna_node.get_readonly_uri(), "ro." + future_nonascii_read_uri)
+            self.failUnlessReallyEqual(futna_node.get_readonly_uri(), b"ro." + future_nonascii_read_uri)
             self.failUnless(isinstance(futna_metadata, dict), futna_metadata)
 
             self.failUnless(fro_node.is_unknown())
-            self.failUnlessReallyEqual(fro_node.get_uri(), "ro." + future_read_uri)
-            self.failUnlessReallyEqual(fut_node.get_readonly_uri(), "ro." + future_read_uri)
+            self.failUnlessReallyEqual(fro_node.get_uri(), b"ro." + future_read_uri)
+            self.failUnlessReallyEqual(fut_node.get_readonly_uri(), b"ro." + future_read_uri)
             self.failUnless(isinstance(fro_metadata, dict), fro_metadata)
 
             self.failUnless(frona_node.is_unknown())
-            self.failUnlessReallyEqual(frona_node.get_uri(), "ro." + future_nonascii_read_uri)
-            self.failUnlessReallyEqual(futna_node.get_readonly_uri(), "ro." + future_nonascii_read_uri)
+            self.failUnlessReallyEqual(frona_node.get_uri(), b"ro." + future_nonascii_read_uri)
+            self.failUnlessReallyEqual(futna_node.get_readonly_uri(), b"ro." + future_nonascii_read_uri)
             self.failUnless(isinstance(frona_metadata, dict), frona_metadata)
 
             self.failIf(emptylit_node.is_unknown())
@@ -815,13 +815,13 @@ class Dirnode(GridTestMixin, unittest.TestCase,
             self.failUnlessEqual(two_metadata["metakey"], "metavalue")
 
             self.failUnless(fut_node.is_unknown())
-            self.failUnlessReallyEqual(fut_node.get_uri(), "imm." + future_read_uri)
-            self.failUnlessReallyEqual(fut_node.get_readonly_uri(), "imm." + future_read_uri)
+            self.failUnlessReallyEqual(fut_node.get_uri(), b"imm." + future_read_uri)
+            self.failUnlessReallyEqual(fut_node.get_readonly_uri(), b"imm." + future_read_uri)
             self.failUnless(isinstance(fut_metadata, dict), fut_metadata)
 
             self.failUnless(futna_node.is_unknown())
-            self.failUnlessReallyEqual(futna_node.get_uri(), "imm." + future_nonascii_read_uri)
-            self.failUnlessReallyEqual(futna_node.get_readonly_uri(), "imm." + future_nonascii_read_uri)
+            self.failUnlessReallyEqual(futna_node.get_uri(), b"imm." + future_nonascii_read_uri)
+            self.failUnlessReallyEqual(futna_node.get_readonly_uri(), b"imm." + future_nonascii_read_uri)
             self.failUnless(isinstance(futna_metadata, dict), futna_metadata)
 
             self.failIf(emptylit_node.is_unknown())
@@ -837,7 +837,7 @@ class Dirnode(GridTestMixin, unittest.TestCase,
                                                                        set([u"short"])))
             d2.addCallback(lambda ignored: tinylit_node.list())
             d2.addCallback(lambda children: children[u"short"][0].read(MemAccum()))
-            d2.addCallback(lambda accum: self.failUnlessReallyEqual(accum.data, "The end."))
+            d2.addCallback(lambda accum: self.failUnlessReallyEqual(accum.data, b"The end."))
             return d2
 
         d.addCallback(_check_kids)
@@ -1010,7 +1010,7 @@ class Dirnode(GridTestMixin, unittest.TestCase,
                 self.failUnlessIn(name, kids_out)
                 (expected_child, ign) = kids_out[name]
                 self.failUnlessReallyEqual(rw_uri, expected_child.get_write_uri())
-                self.failUnlessReallyEqual("ro." + ro_uri, expected_child.get_readonly_uri())
+                self.failUnlessReallyEqual(b"ro." + ro_uri, expected_child.get_readonly_uri())
                 numkids += 1
 
             self.failUnlessReallyEqual(numkids, len(kids_out))
@@ -1046,7 +1046,7 @@ class Dirnode(GridTestMixin, unittest.TestCase,
             child_node, child_metadata = children[u"child"]
 
             self.failUnlessReallyEqual(child_node.get_write_uri(), stripped_write_uri)
-            self.failUnlessReallyEqual(child_node.get_readonly_uri(), "ro." + stripped_read_uri)
+            self.failUnlessReallyEqual(child_node.get_readonly_uri(), b"ro." + stripped_read_uri)
         d.addCallback(_check_kids)
 
         d.addCallback(lambda ign: nm.create_from_cap(self.cap.to_string()))
@@ -1459,12 +1459,12 @@ class Packing(testutil.ReallyEqualMixin, unittest.TestCase):
                                    children[u'file1'][0].get_uri())
 
     def _make_kids(self, nm, which):
-        caps = {"imm": "URI:CHK:n7r3m6wmomelk4sep3kw5cvduq:os7ijw5c3maek7pg65e5254k2fzjflavtpejjyhshpsxuqzhcwwq:3:20:14861",
-                "lit": "URI:LIT:n5xgk", # LIT for "one"
-                "write": "URI:SSK:vfvcbdfbszyrsaxchgevhmmlii:euw4iw7bbnkrrwpzuburbhppuxhc3gwxv26f6imekhz7zyw2ojnq",
-                "read": "URI:SSK-RO:e3mdrzfwhoq42hy5ubcz6rp3o4:ybyibhnp3vvwuq2vaw2ckjmesgkklfs6ghxleztqidihjyofgw7q",
-                "dirwrite": "URI:DIR2:n6x24zd3seu725yluj75q5boaa:mm6yoqjhl6ueh7iereldqxue4nene4wl7rqfjfybqrehdqmqskvq",
-                "dirread":  "URI:DIR2-RO:b7sr5qsifnicca7cbk3rhrhbvq:mm6yoqjhl6ueh7iereldqxue4nene4wl7rqfjfybqrehdqmqskvq",
+        caps = {"imm": b"URI:CHK:n7r3m6wmomelk4sep3kw5cvduq:os7ijw5c3maek7pg65e5254k2fzjflavtpejjyhshpsxuqzhcwwq:3:20:14861",
+                "lit": b"URI:LIT:n5xgk", # LIT for "one"
+                "write": b"URI:SSK:vfvcbdfbszyrsaxchgevhmmlii:euw4iw7bbnkrrwpzuburbhppuxhc3gwxv26f6imekhz7zyw2ojnq",
+                "read": b"URI:SSK-RO:e3mdrzfwhoq42hy5ubcz6rp3o4:ybyibhnp3vvwuq2vaw2ckjmesgkklfs6ghxleztqidihjyofgw7q",
+                "dirwrite": b"URI:DIR2:n6x24zd3seu725yluj75q5boaa:mm6yoqjhl6ueh7iereldqxue4nene4wl7rqfjfybqrehdqmqskvq",
+                "dirread":  b"URI:DIR2-RO:b7sr5qsifnicca7cbk3rhrhbvq:mm6yoqjhl6ueh7iereldqxue4nene4wl7rqfjfybqrehdqmqskvq",
                 }
         kids = {}
         for name in which:
@@ -1542,8 +1542,8 @@ class FakeMutableFile(object):
 
         counter = FakeMutableFile.counter
         FakeMutableFile.counter += 1
-        writekey = hashutil.ssk_writekey_hash(str(counter))
-        fingerprint = hashutil.ssk_pubkey_fingerprint_hash(str(counter))
+        writekey = hashutil.ssk_writekey_hash(b"%d" % counter)
+        fingerprint = hashutil.ssk_pubkey_fingerprint_hash(b"%d" % counter)
         self.uri = uri.WriteableSSKFileURI(writekey, fingerprint)
 
     def _get_initial_contents(self, contents):
@@ -1638,9 +1638,9 @@ class Dirnode2(testutil.ReallyEqualMixin, testutil.ShouldFailMixin, unittest.Tes
         # and to add an URI prefixed with "ro." or "imm." when it is given in a
         # write slot (or URL parameter).
         d.addCallback(lambda ign: self._node.set_uri(u"add-ro",
-                                                     "ro." + future_read_uri, None))
+                                                     b"ro." + future_read_uri, None))
         d.addCallback(lambda ign: self._node.set_uri(u"add-imm",
-                                                     "imm." + future_imm_uri, None))
+                                                     b"imm." + future_imm_uri, None))
 
         d.addCallback(lambda ign: self._node.list())
         def _check(children):
@@ -1649,25 +1649,25 @@ class Dirnode2(testutil.ReallyEqualMixin, testutil.ShouldFailMixin, unittest.Tes
             self.failUnless(isinstance(fn, UnknownNode), fn)
             self.failUnlessReallyEqual(fn.get_uri(), future_write_uri)
             self.failUnlessReallyEqual(fn.get_write_uri(), future_write_uri)
-            self.failUnlessReallyEqual(fn.get_readonly_uri(), "ro." + future_read_uri)
+            self.failUnlessReallyEqual(fn.get_readonly_uri(), b"ro." + future_read_uri)
 
             (fn2, metadata2) = children[u"add-pair"]
             self.failUnless(isinstance(fn2, UnknownNode), fn2)
             self.failUnlessReallyEqual(fn2.get_uri(), future_write_uri)
             self.failUnlessReallyEqual(fn2.get_write_uri(), future_write_uri)
-            self.failUnlessReallyEqual(fn2.get_readonly_uri(), "ro." + future_read_uri)
+            self.failUnlessReallyEqual(fn2.get_readonly_uri(), b"ro." + future_read_uri)
 
             (fn3, metadata3) = children[u"add-ro"]
             self.failUnless(isinstance(fn3, UnknownNode), fn3)
-            self.failUnlessReallyEqual(fn3.get_uri(), "ro." + future_read_uri)
+            self.failUnlessReallyEqual(fn3.get_uri(), b"ro." + future_read_uri)
             self.failUnlessReallyEqual(fn3.get_write_uri(), None)
-            self.failUnlessReallyEqual(fn3.get_readonly_uri(), "ro." + future_read_uri)
+            self.failUnlessReallyEqual(fn3.get_readonly_uri(), b"ro." + future_read_uri)
 
             (fn4, metadata4) = children[u"add-imm"]
             self.failUnless(isinstance(fn4, UnknownNode), fn4)
-            self.failUnlessReallyEqual(fn4.get_uri(), "imm." + future_imm_uri)
+            self.failUnlessReallyEqual(fn4.get_uri(), b"imm." + future_imm_uri)
             self.failUnlessReallyEqual(fn4.get_write_uri(), None)
-            self.failUnlessReallyEqual(fn4.get_readonly_uri(), "imm." + future_imm_uri)
+            self.failUnlessReallyEqual(fn4.get_readonly_uri(), b"imm." + future_imm_uri)
 
             # We should also be allowed to copy the "future" UnknownNode, because
             # it contains all the information that was in the original directory
@@ -1682,17 +1682,17 @@ class Dirnode2(testutil.ReallyEqualMixin, testutil.ShouldFailMixin, unittest.Tes
             self.failUnless(isinstance(fn, UnknownNode), fn)
             self.failUnlessReallyEqual(fn.get_uri(), future_write_uri)
             self.failUnlessReallyEqual(fn.get_write_uri(), future_write_uri)
-            self.failUnlessReallyEqual(fn.get_readonly_uri(), "ro." + future_read_uri)
+            self.failUnlessReallyEqual(fn.get_readonly_uri(), b"ro." + future_read_uri)
         d.addCallback(_check2)
         return d
 
     def test_unknown_strip_prefix_for_ro(self):
-        self.failUnlessReallyEqual(strip_prefix_for_ro("foo",     False), "foo")
-        self.failUnlessReallyEqual(strip_prefix_for_ro("ro.foo",  False), "foo")
-        self.failUnlessReallyEqual(strip_prefix_for_ro("imm.foo", False), "imm.foo")
-        self.failUnlessReallyEqual(strip_prefix_for_ro("foo",     True),  "foo")
-        self.failUnlessReallyEqual(strip_prefix_for_ro("ro.foo",  True),  "foo")
-        self.failUnlessReallyEqual(strip_prefix_for_ro("imm.foo", True),  "foo")
+        self.failUnlessReallyEqual(strip_prefix_for_ro(b"foo",     False), b"foo")
+        self.failUnlessReallyEqual(strip_prefix_for_ro(b"ro.foo",  False), b"foo")
+        self.failUnlessReallyEqual(strip_prefix_for_ro(b"imm.foo", False), b"imm.foo")
+        self.failUnlessReallyEqual(strip_prefix_for_ro(b"foo",     True),  b"foo")
+        self.failUnlessReallyEqual(strip_prefix_for_ro(b"ro.foo",  True),  b"foo")
+        self.failUnlessReallyEqual(strip_prefix_for_ro(b"imm.foo", True),  b"foo")
 
     def test_unknownnode(self):
         lit_uri = one_uri
@@ -1704,58 +1704,58 @@ class Dirnode2(testutil.ReallyEqualMixin, testutil.ShouldFailMixin, unittest.Tes
                        ]
         unknown_rw   = [# These are errors because we're only given a rw_uri, and we can't
                         # diminish it.
-                        ( 2, UnknownNode("foo", None)),
-                        ( 3, UnknownNode("foo", None, deep_immutable=True)),
-                        ( 4, UnknownNode("ro.foo", None, deep_immutable=True)),
-                        ( 5, UnknownNode("ro." + mut_read_uri, None, deep_immutable=True)),
-                        ( 5.1, UnknownNode("ro." + mdmf_read_uri, None, deep_immutable=True)),
-                        ( 6, UnknownNode("URI:SSK-RO:foo", None, deep_immutable=True)),
-                        ( 7, UnknownNode("URI:SSK:foo", None)),
+                        ( 2, UnknownNode(b"foo", None)),
+                        ( 3, UnknownNode(b"foo", None, deep_immutable=True)),
+                        ( 4, UnknownNode(b"ro.foo", None, deep_immutable=True)),
+                        ( 5, UnknownNode(b"ro." + mut_read_uri, None, deep_immutable=True)),
+                        ( 5.1, UnknownNode(b"ro." + mdmf_read_uri, None, deep_immutable=True)),
+                        ( 6, UnknownNode(b"URI:SSK-RO:foo", None, deep_immutable=True)),
+                        ( 7, UnknownNode(b"URI:SSK:foo", None)),
                        ]
         must_be_ro   = [# These are errors because a readonly constraint is not met.
-                        ( 8, UnknownNode("ro." + mut_write_uri, None)),
-                        ( 8.1, UnknownNode("ro." + mdmf_write_uri, None)),
-                        ( 9, UnknownNode(None, "ro." + mut_write_uri)),
-                        ( 9.1, UnknownNode(None, "ro." + mdmf_write_uri)),
+                        ( 8, UnknownNode(b"ro." + mut_write_uri, None)),
+                        ( 8.1, UnknownNode(b"ro." + mdmf_write_uri, None)),
+                        ( 9, UnknownNode(None, b"ro." + mut_write_uri)),
+                        ( 9.1, UnknownNode(None, b"ro." + mdmf_write_uri)),
                        ]
         must_be_imm  = [# These are errors because an immutable constraint is not met.
-                        (10, UnknownNode(None, "ro.URI:SSK-RO:foo", deep_immutable=True)),
-                        (11, UnknownNode(None, "imm.URI:SSK:foo")),
-                        (12, UnknownNode(None, "imm.URI:SSK-RO:foo")),
-                        (13, UnknownNode("bar", "ro.foo", deep_immutable=True)),
-                        (14, UnknownNode("bar", "imm.foo", deep_immutable=True)),
-                        (15, UnknownNode("bar", "imm." + lit_uri, deep_immutable=True)),
-                        (16, UnknownNode("imm." + mut_write_uri, None)),
-                        (16.1, UnknownNode("imm." + mdmf_write_uri, None)),
-                        (17, UnknownNode("imm." + mut_read_uri, None)),
-                        (17.1, UnknownNode("imm." + mdmf_read_uri, None)),
-                        (18, UnknownNode("bar", "imm.foo")),
+                        (10, UnknownNode(None, b"ro.URI:SSK-RO:foo", deep_immutable=True)),
+                        (11, UnknownNode(None, b"imm.URI:SSK:foo")),
+                        (12, UnknownNode(None, b"imm.URI:SSK-RO:foo")),
+                        (13, UnknownNode(b"bar", b"ro.foo", deep_immutable=True)),
+                        (14, UnknownNode(b"bar", b"imm.foo", deep_immutable=True)),
+                        (15, UnknownNode(b"bar", b"imm." + lit_uri, deep_immutable=True)),
+                        (16, UnknownNode(b"imm." + mut_write_uri, None)),
+                        (16.1, UnknownNode(b"imm." + mdmf_write_uri, None)),
+                        (17, UnknownNode(b"imm." + mut_read_uri, None)),
+                        (17.1, UnknownNode(b"imm." + mdmf_read_uri, None)),
+                        (18, UnknownNode(b"bar", b"imm.foo")),
                        ]
         bad_uri      = [# These are errors because the URI is bad once we've stripped the prefix.
-                        (19, UnknownNode("ro.URI:SSK-RO:foo", None)),
-                        (20, UnknownNode("imm.URI:CHK:foo", None, deep_immutable=True)),
-                        (21, UnknownNode(None, "URI:CHK:foo")),
-                        (22, UnknownNode(None, "URI:CHK:foo", deep_immutable=True)),
+                        (19, UnknownNode(b"ro.URI:SSK-RO:foo", None)),
+                        (20, UnknownNode(b"imm.URI:CHK:foo", None, deep_immutable=True)),
+                        (21, UnknownNode(None, b"URI:CHK:foo")),
+                        (22, UnknownNode(None, b"URI:CHK:foo", deep_immutable=True)),
                        ]
         ro_prefixed  = [# These are valid, and the readcap should end up with a ro. prefix.
-                        (23, UnknownNode(None, "foo")),
-                        (24, UnknownNode(None, "ro.foo")),
-                        (25, UnknownNode(None, "ro." + lit_uri)),
-                        (26, UnknownNode("bar", "foo")),
-                        (27, UnknownNode("bar", "ro.foo")),
-                        (28, UnknownNode("bar", "ro." + lit_uri)),
-                        (29, UnknownNode("ro.foo", None)),
-                        (30, UnknownNode("ro." + lit_uri, None)),
+                        (23, UnknownNode(None, b"foo")),
+                        (24, UnknownNode(None, b"ro.foo")),
+                        (25, UnknownNode(None, b"ro." + lit_uri)),
+                        (26, UnknownNode(b"bar", b"foo")),
+                        (27, UnknownNode(b"bar", b"ro.foo")),
+                        (28, UnknownNode(b"bar", b"ro." + lit_uri)),
+                        (29, UnknownNode(b"ro.foo", None)),
+                        (30, UnknownNode(b"ro." + lit_uri, None)),
                        ]
         imm_prefixed = [# These are valid, and the readcap should end up with an imm. prefix.
-                        (31, UnknownNode(None, "foo", deep_immutable=True)),
-                        (32, UnknownNode(None, "ro.foo", deep_immutable=True)),
-                        (33, UnknownNode(None, "imm.foo")),
-                        (34, UnknownNode(None, "imm.foo", deep_immutable=True)),
-                        (35, UnknownNode("imm." + lit_uri, None)),
-                        (36, UnknownNode("imm." + lit_uri, None, deep_immutable=True)),
-                        (37, UnknownNode(None, "imm." + lit_uri)),
-                        (38, UnknownNode(None, "imm." + lit_uri, deep_immutable=True)),
+                        (31, UnknownNode(None, b"foo", deep_immutable=True)),
+                        (32, UnknownNode(None, b"ro.foo", deep_immutable=True)),
+                        (33, UnknownNode(None, b"imm.foo")),
+                        (34, UnknownNode(None, b"imm.foo", deep_immutable=True)),
+                        (35, UnknownNode(b"imm." + lit_uri, None)),
+                        (36, UnknownNode(b"imm." + lit_uri, None, deep_immutable=True)),
+                        (37, UnknownNode(None, b"imm." + lit_uri)),
+                        (38, UnknownNode(None, b"imm." + lit_uri, deep_immutable=True)),
                        ]
         error = unknown_rw + must_be_ro + must_be_imm + bad_uri
         ok = ro_prefixed + imm_prefixed
@@ -1787,10 +1787,10 @@ class Dirnode2(testutil.ReallyEqualMixin, testutil.ShouldFailMixin, unittest.Tes
             self.failIf(n.get_readonly_uri() is None, i)
 
         for (i, n) in ro_prefixed:
-            self.failUnless(n.get_readonly_uri().startswith("ro."), i)
+            self.failUnless(n.get_readonly_uri().startswith(b"ro."), i)
 
         for (i, n) in imm_prefixed:
-            self.failUnless(n.get_readonly_uri().startswith("imm."), i)
+            self.failUnless(n.get_readonly_uri().startswith(b"imm."), i)
 
 
 
