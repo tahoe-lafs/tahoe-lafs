@@ -1021,7 +1021,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
 
     def test_upload_and_download_convergent(self):
         self.basedir = "system/SystemTest/test_upload_and_download_convergent"
-        return self._test_upload_and_download(convergence="some convergence string")
+        return self._test_upload_and_download(convergence=b"some convergence string")
 
     def _test_upload_and_download(self, convergence):
         # we use 4000 bytes of data, which will result in about 400k written
@@ -1057,7 +1057,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
             theuri = results.get_uri()
             log.msg("upload finished: uri is %s" % (theuri,))
             self.uri = theuri
-            assert isinstance(self.uri, str), self.uri
+            assert isinstance(self.uri, bytes), self.uri
             self.cap = uri.from_string(self.uri)
             self.n = self.clients[1].create_node_from_uri(self.uri)
         d.addCallback(_upload_done)
@@ -1091,17 +1091,17 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
             d.addCallback(lambda ign:
                           n.read(MemoryConsumer(), offset=1, size=4))
             def _read_portion_done(mc):
-                self.failUnlessEqual("".join(mc.chunks), DATA[1:1+4])
+                self.failUnlessEqual(b"".join(mc.chunks), DATA[1:1+4])
             d.addCallback(_read_portion_done)
             d.addCallback(lambda ign:
                           n.read(MemoryConsumer(), offset=2, size=None))
             def _read_tail_done(mc):
-                self.failUnlessEqual("".join(mc.chunks), DATA[2:])
+                self.failUnlessEqual(b"".join(mc.chunks), DATA[2:])
             d.addCallback(_read_tail_done)
             d.addCallback(lambda ign:
                           n.read(MemoryConsumer(), size=len(DATA)+1000))
             def _read_too_much(mc):
-                self.failUnlessEqual("".join(mc.chunks), DATA)
+                self.failUnlessEqual(b"".join(mc.chunks), DATA)
             d.addCallback(_read_too_much)
 
             return d
