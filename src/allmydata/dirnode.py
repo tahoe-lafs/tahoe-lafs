@@ -1,4 +1,16 @@
-"""Directory Node implementation."""
+"""Directory Node implementation.
+
+Ported to Python 3.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    # Skip dict so it doesn't break things.
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, list, object, range, str, max, min  # noqa: F401
 from past.builtins import unicode
 
 import time
@@ -37,6 +49,8 @@ from eliot.twisted import (
 
 NAME = Field.for_types(
     u"name",
+    # Make sure this works on Python 2; with str, it gets Future str which
+    # breaks Eliot.
     [unicode],
     u"The name linking the parent to this node.",
 )
@@ -250,13 +264,14 @@ def _pack_normalized_children(children, writekey, deep_immutable=False):
     has_aux = isinstance(children, AuxValueDict)
     entries = []
     for name in sorted(children.keys()):
-        assert isinstance(name, unicode)
+        assert isinstance(name, str)
         entry = None
         (child, metadata) = children[name]
         child.raise_error()
         if deep_immutable and not child.is_allowed_in_immutable_directory():
-            raise MustBeDeepImmutableError("child %s is not allowed in an immutable directory" %
-                                           quote_output(name, encoding='utf-8'), name)
+            raise MustBeDeepImmutableError(
+                "child %r is not allowed in an immutable directory" % (name,),
+                name)
         if has_aux:
             entry = children.get_aux(name)
         if not entry:
@@ -354,7 +369,7 @@ class DirectoryNode(object):
         # pack("16ss32s", iv, AES(H(writekey+iv), plaintext_rw_uri), mac)
         assert isinstance(data, bytes), (repr(data), type(data))
         # an empty directory is serialized as an empty string
-        if data == "":
+        if data == b"":
             return AuxValueDict()
         writeable = not self.is_readonly()
         mutable = self.is_mutable()
@@ -373,7 +388,7 @@ class DirectoryNode(object):
             # Therefore we normalize names going both in and out of directories.
             name = normalize(namex_utf8.decode("utf-8"))
 
-            rw_uri = ""
+            rw_uri = b""
             if writeable:
                 rw_uri = self._decrypt_rwcapdata(rwcapdata)
 
@@ -384,8 +399,8 @@ class DirectoryNode(object):
             # ro_uri is treated in the same way for consistency.
             # rw_uri and ro_uri will be either None or a non-empty string.
 
-            rw_uri = rw_uri.rstrip(' ') or None
-            ro_uri = ro_uri.rstrip(' ') or None
+            rw_uri = rw_uri.rstrip(b' ') or None
+            ro_uri = ro_uri.rstrip(b' ') or None
 
             try:
                 child = self._create_and_validate_node(rw_uri, ro_uri, name)
@@ -468,7 +483,7 @@ class DirectoryNode(object):
         exists a child of the given name, False if not."""
         name = normalize(namex)
         d = self._read()
-        d.addCallback(lambda children: children.has_key(name))
+        d.addCallback(lambda children: name in children)
         return d
 
     def _get(self, children, name):
@@ -543,7 +558,7 @@ class DirectoryNode(object):
         else:
             pathx = pathx.split("/")
         for p in pathx:
-            assert isinstance(p, unicode), p
+            assert isinstance(p, str), p
         childnamex = pathx[0]
         remaining_pathx = pathx[1:]
         if remaining_pathx:
@@ -569,8 +584,8 @@ class DirectoryNode(object):
         # this takes URIs
         a = Adder(self, overwrite=overwrite,
                   create_readonly_node=self._create_readonly_node)
-        for (namex, e) in entries.iteritems():
-            assert isinstance(namex, unicode), namex
+        for (namex, e) in entries.items():
+            assert isinstance(namex, str), namex
             if len(e) == 2:
                 writecap, readcap = e
                 metadata = None
@@ -779,7 +794,7 @@ class DirectoryNode(object):
         # in the nodecache) seem to consume about 2000 bytes.
         dirkids = []
         filekids = []
-        for name, (child, metadata) in sorted(children.iteritems()):
+        for name, (child, metadata) in sorted(children.items()):
             childpath = path + [name]
             if isinstance(child, UnknownNode):
                 walker.add_node(child, childpath)
