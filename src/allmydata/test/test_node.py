@@ -36,6 +36,7 @@ from twisted.trial import unittest
 from twisted.internet import defer
 
 import foolscap.logging.log
+from foolscap.connections.tcp import default as make_tcp_handler
 
 from twisted.application import service
 from allmydata.node import (
@@ -43,6 +44,7 @@ from allmydata.node import (
     create_tub_options,
     create_main_tub,
     create_node_dir,
+    create_default_connection_handlers,
     create_connection_handlers,
     config_from_string,
     read_config,
@@ -778,14 +780,19 @@ class Listeners(unittest.TestCase):
             f.write("tub.location = AUTO\n")
 
         config = client.read_config(basedir, "client.port")
-        i2p_provider = mock.Mock()
-        tor_provider = mock.Mock()
-        dfh, fch = create_connection_handlers(None, config, i2p_provider, tor_provider)
+        fch = {"tcp": make_tcp_handler()}
+        dfh = create_default_connection_handlers(
+            None,
+            config,
+            fch,
+        )
         tub_options = create_tub_options(config)
         t = FakeTub()
 
         with mock.patch("allmydata.node.Tub", return_value=t):
             with self.assertRaises(ValueError) as ctx:
+                i2p_provider = mock.Mock()
+                tor_provider = mock.Mock()
                 create_main_tub(config, tub_options, dfh, fch, i2p_provider, tor_provider)
         self.assertIn(
             "you must choose",
@@ -818,13 +825,18 @@ class Listeners(unittest.TestCase):
             f.write("tub.location = %s\n" % location)
 
         config = client.read_config(basedir, "client.port")
-        i2p_provider = mock.Mock()
-        tor_provider = mock.Mock()
-        dfh, fch = create_connection_handlers(None, config, i2p_provider, tor_provider)
+        fch = {"tcp": make_tcp_handler()}
+        dfh = create_default_connection_handlers(
+            None,
+            config,
+            fch,
+        )
         tub_options = create_tub_options(config)
         t = FakeTub()
 
         with mock.patch("allmydata.node.Tub", return_value=t):
+            i2p_provider = mock.Mock()
+            tor_provider = mock.Mock()
             create_main_tub(config, tub_options, dfh, fch, i2p_provider, tor_provider)
         self.assertEqual(t.listening_ports,
                          ["tcp:%d:interface=127.0.0.1" % port1,
@@ -844,11 +856,16 @@ class Listeners(unittest.TestCase):
         tub_options = create_tub_options(config)
         t = FakeTub()
 
-        i2p_provider = mock.Mock()
-        tor_provider = mock.Mock()
-        dfh, fch = create_connection_handlers(None, config, i2p_provider, tor_provider)
+        fch = {"tcp": make_tcp_handler()}
+        dfh = create_default_connection_handlers(
+            None,
+            config,
+            fch,
+        )
 
         with mock.patch("allmydata.node.Tub", return_value=t):
+            i2p_provider = mock.Mock()
+            tor_provider = mock.Mock()
             create_main_tub(config, tub_options, dfh, fch, i2p_provider, tor_provider)
 
         self.assertEqual(i2p_provider.get_listener.mock_calls, [mock.call()])
@@ -990,8 +1007,9 @@ class CreateConnectionHandlers(unittest.TestCase):
         tcp = disabled
         """))
         reactor = object()  # it's not actually used?!
-        provider = FakeProvider()
-        default_handlers, _ = create_connection_handlers(
-            reactor, config, provider, provider
+        default_handlers = create_default_connection_handlers(
+            reactor,
+            config,
+            {},
         )
         self.assertIs(default_handlers["tcp"], None)

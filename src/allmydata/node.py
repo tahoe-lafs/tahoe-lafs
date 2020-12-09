@@ -616,28 +616,20 @@ def _make_tcp_handler():
     return default()
 
 
-def create_connection_handlers(reactor, config, i2p_provider, tor_provider):
+def create_default_connection_handlers(reactor, config, handlers):
     """
-    :returns: 2-tuple of default_connection_handlers, foolscap_connection_handlers
+    :return: A dictionary giving the default connection handlers.  The keys
+        are strings like "tcp" and the values are strings like "tor" or
+        ``None``.
     """
     reveal_ip = config.get_config("node", "reveal-IP-address", True, boolean=True)
 
-    # We store handlers for everything. None means we were unable to
-    # create that handler, so hints which want it will be ignored.
-    handlers = foolscap_connection_handlers = {
-        "tcp": _make_tcp_handler(),
-        "tor": tor_provider.get_tor_handler(),
-        "i2p": i2p_provider.get_i2p_handler(),
-        }
-    log.msg(
-        format="built Foolscap connection handlers for: %(known_handlers)s",
-        known_handlers=sorted([k for k,v in handlers.items() if v]),
-        facility="tahoe.node",
-        umid="PuLh8g",
-    )
-
-    # then we remember the default mappings from tahoe.cfg
-    default_connection_handlers = {"tor": "tor", "i2p": "i2p"}
+    # Remember the default mappings from tahoe.cfg
+    default_connection_handlers = {
+        name: name
+        for name
+        in handlers
+    }
     tcp_handler_name = config.get_config("connections", "tcp", "tcp").lower()
     if tcp_handler_name == "disabled":
         default_connection_handlers["tcp"] = None
@@ -662,9 +654,34 @@ def create_connection_handlers(reactor, config, i2p_provider, tor_provider):
 
     if not reveal_ip:
         if default_connection_handlers.get("tcp") == "tcp":
-            raise PrivacyError("tcp = tcp, must be set to 'tor' or 'disabled'")
-    return default_connection_handlers, foolscap_connection_handlers
+            raise PrivacyError("tcp = tcp, must not be set to 'tcp'")
+    return default_connection_handlers
 
+
+def create_connection_handlers(reactor, config, i2p_provider, tor_provider):
+    """
+    :returns: 2-tuple of default_connection_handlers, foolscap_connection_handlers
+    """
+    # We store handlers for everything. None means we were unable to
+    # create that handler, so hints which want it will be ignored.
+    handlers = {
+        "tcp": _make_tcp_handler(),
+    }
+    handlers.update({
+        "tor": tor_provider.get_tor_handler(),
+        "i2p": i2p_provider.get_i2p_handler(),
+    })
+    log.msg(
+        format="built Foolscap connection handlers for: %(known_handlers)s",
+        known_handlers=sorted([k for k,v in handlers.items() if v]),
+        facility="tahoe.node",
+        umid="PuLh8g",
+    )
+    return create_default_connection_handlers(
+        reactor,
+        config,
+        handlers,
+    ), handlers
 
 
 def create_tub(tub_options, default_connection_handlers, foolscap_connection_handlers,
