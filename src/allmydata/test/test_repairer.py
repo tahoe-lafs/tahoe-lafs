@@ -62,7 +62,7 @@ class RepairTestMixin(object):
         c0 = self.g.clients[0]
         c1 = self.g.clients[1]
         c0.encoding_params['max_segment_size'] = 12
-        d = c0.upload(upload.Data(common.TEST_DATA, convergence=""))
+        d = c0.upload(upload.Data(common.TEST_DATA, convergence=b""))
         def _stash_uri(ur):
             self.uri = ur.get_uri()
             self.c0_filenode = c0.create_node_from_uri(ur.get_uri())
@@ -527,7 +527,7 @@ class Repairer(GridTestMixin, unittest.TestCase, RepairTestMixin,
         # distributing the shares widely enough to satisfy the default
         # happiness setting.
         def _delete_some_servers(ignored):
-            for i in xrange(7):
+            for i in range(7):
                 self.g.remove_server(self.g.servers_by_number[i].my_nodeid)
 
             assert len(self.g.servers_by_number) == 3
@@ -679,10 +679,10 @@ class Repairer(GridTestMixin, unittest.TestCase, RepairTestMixin,
         self.basedir = "repairer/Repairer/test_tiny_reads"
         self.set_up_grid()
         c0 = self.g.clients[0]
-        DATA = "a"*135
+        DATA = b"a"*135
         c0.encoding_params['k'] = 22
         c0.encoding_params['n'] = 66
-        d = c0.upload(upload.Data(DATA, convergence=""))
+        d = c0.upload(upload.Data(DATA, convergence=b""))
         def _then(ur):
             self.uri = ur.get_uri()
             self.delete_shares_numbered(self.uri, [0])
