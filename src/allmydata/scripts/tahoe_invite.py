@@ -1,16 +1,15 @@
 from __future__ import print_function
 
 import json
-from os.path import join
 
 from twisted.python import usage
 from twisted.internet import defer, reactor
 
 from wormhole import wormhole
 
-from allmydata.util import configutil
 from allmydata.util.encodingutil import argv_to_abspath
 from allmydata.scripts.common import get_default_nodedir, get_introducer_furl
+from allmydata.node import read_config
 
 
 class InviteOptions(usage.Options):
@@ -77,7 +76,7 @@ def invite(options):
         basedir = argv_to_abspath(options.parent['node-directory'])
     else:
         basedir = get_default_nodedir()
-    config = configutil.get_config(join(basedir, 'tahoe.cfg'))
+    config = read_config(basedir, u"")
     out = options.stdout
     err = options.stderr
 

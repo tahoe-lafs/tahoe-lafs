@@ -20,6 +20,8 @@ import re
 import types
 import errno
 from base64 import b32decode, b32encode
+from errno import ENOENT, EPERM
+from warnings import warn
 
 import attr
 
@@ -41,6 +43,9 @@ from allmydata.util import fileutil, iputil
 from allmydata.util.fileutil import abspath_expanduser_unicode
 from allmydata.util.encodingutil import get_filesystem_encoding, quote_output
 from allmydata.util import configutil
+from allmydata.util.yamlutil import (
+    safe_load,
+)
 
 from . import (
     __full_version__,
@@ -481,6 +486,97 @@ class _Config(object):
         return abspath_expanduser_unicode(
             os.path.join(self._basedir, *args)
         )
+
+    def get_introducer_configuration(self):
+        """
+        Get configuration for introducers.
+
+        :return {unicode: (unicode, FilePath)}: A mapping from introducer
+            petname to a tuple of the introducer's fURL and local cache path.
+        """
+        introducers_yaml_filename = self.get_private_path("introducers.yaml")
+        introducers_filepath = FilePath(introducers_yaml_filename)
+
+        def get_cache_filepath(petname):
+            return FilePath(
+                self.get_private_path("introducer_{}_cache.yaml".format(petname)),
+            )
+
+        try:
+            with introducers_filepath.open() as f:
+                introducers_yaml = safe_load(f)
+                if introducers_yaml is None:
+                    raise EnvironmentError(
+                        EPERM,
+                        "Can't read '{}'".format(introducers_yaml_filename),
+                        introducers_yaml_filename,
+                    )
+                introducers = {
+                    petname: config["furl"]
+                    for petname, config
+                    in introducers_yaml.get("introducers", {}).items()
+                }
+                non_strs = list(
+                    k
+                    for k
+                    in introducers.keys()
+                    if not isinstance(k, str)
+                )
+                if non_strs:
+                    raise TypeError(
+                        "Introducer petnames {!r} should have been str".format(
+                            non_strs,
+                        ),
+                    )
+                non_strs = list(
+                    v
+                    for v
+                    in introducers.values()
+                    if not isinstance(v, str)
+                )
+                if non_strs:
+                    raise TypeError(
+                        "Introducer fURLs {!r} should have been str".format(
+                            non_strs,
+                        ),
+                    )
+                log.msg(
+                    "found {} introducers in {!r}".format(
+                        len(introducers),
+                        introducers_yaml_filename,
+                    )
+                )
+        except EnvironmentError as e:
+            if e.errno != ENOENT:
+                raise
+            introducers = {}
+
+        # supported the deprecated [client]introducer.furl item in tahoe.cfg
+        tahoe_cfg_introducer_furl = self.get_config("client", "introducer.furl", None)
+        if tahoe_cfg_introducer_furl == "None":
+            raise ValueError(
+                "tahoe.cfg has invalid 'introducer.furl = None':"
+                " to disable it omit the key entirely"
+            )
+        if tahoe_cfg_introducer_furl:
+            warn(
+                "tahoe.cfg [client]introducer.furl is deprecated; "
+                "use private/introducers.yaml instead.",
+                category=DeprecationWarning,
+                stacklevel=-1,
+            )
+            if "default" in introducers:
+                raise ValueError(
+                    "'default' introducer furl cannot be specified in tahoe.cfg and introducers.yaml;"
+                    " please fix impossible configuration."
+                )
+            introducers['default'] = tahoe_cfg_introducer_furl
+
+        return {
+            petname: (furl, get_cache_filepath(petname))
+            for (petname, furl)
+            in introducers.items()
+        }
 
 
 def create_tub_options(config):
