@@ -1705,7 +1705,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         return res
 
     def _do_publish_private(self, res):
-        self.smalldata = "sssh, very secret stuff"
+        self.smalldata = b"sssh, very secret stuff"
         ut = upload.Data(self.smalldata, convergence=None)
         d = self.clients[0].create_dirnode()
         d.addCallback(self.log, "GOT private directory")
@@ -1792,7 +1792,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
             d1.addCallback(lambda res: self.shouldFail2(NotWriteableError, "mkdir(nope)", None, dirnode.create_subdirectory, u"nope"))
 
             d1.addCallback(self.log, "doing add_file(ro)")
-            ut = upload.Data("I will disappear, unrecorded and unobserved. The tragedy of my demise is made more poignant by its silence, but this beauty is not for you to ever know.", convergence="99i-p1x4-xd4-18yc-ywt-87uu-msu-zo -- completely and totally unguessable string (unless you read this)")
+            ut = upload.Data(b"I will disappear, unrecorded and unobserved. The tragedy of my demise is made more poignant by its silence, but this beauty is not for you to ever know.", convergence=b"99i-p1x4-xd4-18yc-ywt-87uu-msu-zo -- completely and totally unguessable string (unless you read this)")
             d1.addCallback(lambda res: self.shouldFail2(NotWriteableError, "add_file(nope)", None, dirnode.add_file, u"hope", ut))
 
             d1.addCallback(self.log, "doing get(ro)")
