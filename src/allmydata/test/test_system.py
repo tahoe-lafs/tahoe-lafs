@@ -788,7 +788,7 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
 
         self.helper_furl = helper_furl
         if self.numclients >= 4:
-            with open(os.path.join(basedirs[3], 'tahoe.cfg'), 'ab+') as f:
+            with open(os.path.join(basedirs[3], 'tahoe.cfg'), 'a+') as f:
                 f.write(
                     "[client]\n"
                     "helper.furl = {}\n".format(helper_furl)
@@ -831,8 +831,6 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
 
         def setconf(config, which, section, feature, value):
             if which in feature_matrix.get((section, feature), {which}):
-                if isinstance(value, unicode):
-                    value = value.encode("utf-8")
                 config.setdefault(section, {})[feature] = value
 
         setclient = partial(setconf, config, which, "client")
@@ -1036,7 +1034,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
                 all_peerids = c.get_storage_broker().get_all_serverids()
                 self.failUnlessEqual(len(all_peerids), self.numclients)
                 sb = c.storage_broker
-                permuted_peers = sb.get_servers_for_psi("a")
+                permuted_peers = sb.get_servers_for_psi(b"a")
                 self.failUnlessEqual(len(permuted_peers), self.numclients)
         d.addCallback(_check_connections)
 

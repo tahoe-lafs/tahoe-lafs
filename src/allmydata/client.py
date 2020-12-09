@@ -720,7 +720,7 @@ class _Client(node.Node, pollmixin.PollMixin):
     def get_long_nodeid(self):
         # this matches what IServer.get_longname() says about us elsewhere
         vk_string = ed25519.string_from_verifying_key(self._node_public_key)
-        return remove_prefix(vk_string, "pub-")
+        return remove_prefix(vk_string, b"pub-")
 
     def get_long_tubid(self):
         return idlib.nodeid_b2a(self.nodeid)

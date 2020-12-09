@@ -179,7 +179,7 @@ class Adder(object):
     def modify(self, old_contents, servermap, first_time):
         children = self.node._unpack_contents(old_contents)
         now = time.time()
-        for (namex, (child, new_metadata)) in self.entries.iteritems():
+        for (namex, (child, new_metadata)) in list(self.entries.items()):
             name = normalize(namex)
             precondition(IFilesystemNode.providedBy(child), child)
 
@@ -221,7 +221,7 @@ def _encrypt_rw_uri(writekey, rw_uri):
 def pack_children(childrenx, writekey, deep_immutable=False):
     # initial_children must have metadata (i.e. {} instead of None)
     children = {}
-    for (namex, (node, metadata)) in childrenx.iteritems():
+    for (namex, (node, metadata)) in list(childrenx.items()):
         precondition(isinstance(metadata, dict),
                      "directory creation requires metadata to be a dict, not None", metadata)
         children[normalize(namex)] = (node, metadata)
@@ -245,7 +245,7 @@ def _pack_normalized_children(children, writekey, deep_immutable=False):
     If deep_immutable is True, I will require that all my children are deeply
     immutable, and will raise a MustBeDeepImmutableError if not.
     """
-    precondition((writekey is None) or isinstance(writekey, str), writekey)
+    precondition((writekey is None) or isinstance(writekey, bytes), writekey)
 
     has_aux = isinstance(children, AuxValueDict)
     entries = []
