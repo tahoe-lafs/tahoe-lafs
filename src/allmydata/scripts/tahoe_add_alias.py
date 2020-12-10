@@ -176,10 +176,13 @@ def list_aliases(options):
                 else details['readwrite']
             ).decode("utf-8")
 
+        def format_dircap(name, details):
+            return fmt % (name, dircap(details))
+
         max_width = max([len(quote_output(name)) for name in data.keys()] + [0])
         fmt = "%" + str(max_width) + "s: %s"
         output = "\n".join(list(
-            fmt % (name, dircap(details))
+            format_dircap(name, details)
             for name, details
             in data.items()
         ))
