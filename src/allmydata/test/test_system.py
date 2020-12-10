@@ -632,7 +632,7 @@ def _render_config(config):
     """
     Convert a ``dict`` of ``dict`` of ``bytes`` to an ini-format string.
     """
-    return "\n\n".join(list(
+    return u"\n\n".join(list(
         _render_config_section(k, v)
         for (k, v)
         in config.items()
@@ -643,7 +643,7 @@ def _render_config_section(heading, values):
     Convert a ``bytes`` heading and a ``dict`` of ``bytes`` to an ini-format
     section as ``bytes``.
     """
-    return "[{}]\n{}\n".format(
+    return u"[{}]\n{}\n".format(
         heading, _render_section_values(values)
     )
 
@@ -652,8 +652,8 @@ def _render_section_values(values):
     Convert a ``dict`` of ``bytes`` to the body of an ini-format section as
     ``bytes``.
     """
-    return "\n".join(list(
-        "{} = {}".format(k, v)
+    return u"\n".join(list(
+        u"{} = {}".format(k, v)
         for (k, v)
         in sorted(values.items())
     ))
@@ -1856,7 +1856,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
                             "largest-directory-children": 3,
                             "largest-immutable-file": 112,
                             }
-                for k,v in expected.iteritems():
+                for k,v in expected.items():
                     self.failUnlessEqual(stats[k], v,
                                          "stats[%s] was %s, not %s" %
                                          (k, stats[k], v))
@@ -1939,7 +1939,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         return do_http("post", url, data=body, headers=headers)
 
     def _test_web(self, res):
-        public = "uri/" + self._root_directory_uri
+        public = "uri/" + unicode(self._root_directory_uri, "ascii")
         d = self.GET("")
         def _got_welcome(page):
             html = page.replace('\n', ' ')
@@ -1948,7 +1948,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
                             "I didn't see the right '%s' message in:\n%s" % (connected_re, page))
             # nodeids/tubids don't have any regexp-special characters
             nodeid_re = r'<th>Node ID:</th>\s*<td title="TubID: %s">%s</td>' % (
-                self.clients[0].get_long_tubid(), self.clients[0].get_long_nodeid())
+                self.clients[0].get_long_tubid(), unicode(self.clients[0].get_long_nodeid(), "ascii"))
             self.failUnless(re.search(nodeid_re, html),
                             "I didn't see the right '%s' message in:\n%s" % (nodeid_re, page))
             self.failUnless("Helper: 0 active uploads" in page)
