@@ -1629,6 +1629,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
     # the key, which should cause the download to fail the post-download
     # plaintext_hash check.
 
+    @skipIf(PY3, "Python 3 web support hasn't happened yet.")
     def test_filesystem(self):
         self.basedir = "system/SystemTest/test_filesystem"
         self.data = LARGE_DATA
