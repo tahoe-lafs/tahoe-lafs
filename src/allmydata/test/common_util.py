@@ -17,6 +17,8 @@ from allmydata.util.encodingutil import unicode_platform, get_filesystem_encodin
 from future.utils import bord, bchr, binary_type
 from past.builtins import unicode
 
+from ..util.encodingutil import unicode_to_argv
+
 
 def skip_if_cannot_represent_filename(u):
     precondition(isinstance(u, unicode))
@@ -36,6 +38,8 @@ def skip_if_cannot_represent_argv(u):
         raise unittest.SkipTest("A non-ASCII argv could not be encoded on this platform.")
 
 def run_cli(verb, *args, **kwargs):
+    args = [(unicode_to_argv(arg) if isinstance(arg, unicode) else arg)
+            for arg in args]
     precondition(not [True for arg in args if not isinstance(arg, str)],
                  "arguments to do_cli must be strs -- convert using unicode_to_argv", args=args)
     nodeargs = kwargs.get("nodeargs", [])

@@ -133,6 +133,9 @@ def a2b(cs):
     """
     @param cs the base-32 encoded data (as bytes)
     """
+    # Workaround Future newbytes issues by converting to real bytes on Python 2:
+    if hasattr(cs, "__native__"):
+        cs = cs.__native__()
     precondition(could_be_base32_encoded(cs), "cs is required to be possibly base32 encoded data.", cs=cs)
     precondition(isinstance(cs, bytes), cs)
 

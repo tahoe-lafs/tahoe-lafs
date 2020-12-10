@@ -1,8 +1,18 @@
+"""
+Ported to Python 3, partially: test_filesystem* will be done in a future round.
+"""
 from __future__ import print_function
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import unicode_literals
 
-from future.utils import PY3
+from future.utils import PY2, PY3
+if PY2:
+    # Don't import bytes since it causes issues on (so far unported) modules on Python 2.
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, dict, list, object, range, max, min, str  # noqa: F401
 
-from past.builtins import unicode, chr as byteschr, long
+from past.builtins import chr as byteschr, long
+from six import ensure_text
 
 import os, re, sys, time, json
 from functools import partial
@@ -1454,7 +1464,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
                 self.failUnless("  share_hash_chain: " in output)
                 self.failUnless("  block_hash_tree: 1 nodes\n" in output)
                 expected = ("  verify-cap: URI:SSK-Verifier:%s:" %
-                            unicode(base32.b2a(storage_index), "ascii"))
+                            str(base32.b2a(storage_index), "ascii"))
                 self.failUnless(expected in output)
             except unittest.FailTest:
                 print()
@@ -1533,7 +1543,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
                            for (client_num, storage_index, filename, shnum)
                            in shares ])
             assert len(where) == 10 # this test is designed for 3-of-10
-            for shnum, filename in where.items():
+            for shnum, filename in list(where.items()):
                 # shares 7,8,9 are left alone. read will check
                 # (share_hash_chain, block_hash_tree, share_data). New
                 # seqnum+R pairs will trigger a check of (seqnum, R, IV,
@@ -1860,7 +1870,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
                             "largest-directory-children": 3,
                             "largest-immutable-file": 112,
                             }
-                for k,v in expected.items():
+                for k,v in list(expected.items()):
                     self.failUnlessEqual(stats[k], v,
                                          "stats[%s] was %s, not %s" %
                                          (k, stats[k], v))
@@ -1909,33 +1919,33 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         return do_http("get", self.webish_url + urlpath)
 
     def POST(self, urlpath, use_helper=False, **fields):
-        sepbase = "boogabooga"
-        sep = "--" + sepbase
+        sepbase = b"boogabooga"
+        sep = b"--" + sepbase
         form = []
         form.append(sep)
-        form.append('Content-Disposition: form-data; name="_charset"')
-        form.append('')
-        form.append('UTF-8')
+        form.append(b'Content-Disposition: form-data; name="_charset"')
+        form.append(b'')
+        form.append(b'UTF-8')
         form.append(sep)
-        for name, value in fields.iteritems():
+        for name, value in fields.items():
             if isinstance(value, tuple):
                 filename, value = value
-                form.append('Content-Disposition: form-data; name="%s"; '
-                            'filename="%s"' % (name, filename.encode("utf-8")))
+                form.append(b'Content-Disposition: form-data; name="%s"; '
+                            b'filename="%s"' % (name, filename.encode("utf-8")))
             else:
-                form.append('Content-Disposition: form-data; name="%s"' % name)
-            form.append('')
-            form.append(str(value))
+                form.append(b'Content-Disposition: form-data; name="%s"' % name)
+            form.append(b'')
+            form.append(b"%s" % (value,))
             form.append(sep)
-        form[-1] += "--"
-        body = ""
+        form[-1] += b"--"
+        body = b""
         headers = {}
         if fields:
-            body = "\r\n".join(form) + "\r\n"
-            headers["content-type"] = "multipart/form-data; boundary=%s" % sepbase
+            body = b"\r\n".join(form) + b"\r\n"
+            headers["content-type"] = "multipart/form-data; boundary=%s" % str(sepbase, "ascii")
         return self.POST2(urlpath, body, headers, use_helper)
 
-    def POST2(self, urlpath, body="", headers={}, use_helper=False):
+    def POST2(self, urlpath, body=b"", headers={}, use_helper=False):
         if use_helper:
             url = self.helper_webish_url + urlpath
         else:
@@ -1943,7 +1953,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         return do_http("post", url, data=body, headers=headers)
 
     def _test_web(self, res):
-        public = "uri/" + unicode(self._root_directory_uri, "ascii")
+        public = "uri/" + str(self._root_directory_uri, "ascii")
         d = self.GET("")
         def _got_welcome(page):
             html = page.replace('\n', ' ')
@@ -1952,7 +1962,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
                             "I didn't see the right '%s' message in:\n%s" % (connected_re, page))
             # nodeids/tubids don't have any regexp-special characters
             nodeid_re = r'<th>Node ID:</th>\s*<td title="TubID: %s">%s</td>' % (
-                self.clients[0].get_long_tubid(), unicode(self.clients[0].get_long_nodeid(), "ascii"))
+                self.clients[0].get_long_tubid(), str(self.clients[0].get_long_nodeid(), "ascii"))
             self.failUnless(re.search(nodeid_re, html),
                             "I didn't see the right '%s' message in:\n%s" % (nodeid_re, page))
             self.failUnless("Helper: 0 active uploads" in page)
@@ -2013,7 +2023,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         # upload a file with PUT
         d.addCallback(self.log, "about to try PUT")
         d.addCallback(lambda res: self.PUT(public + "/subdir3/new.txt",
-                                           "new.txt contents"))
+                                           b"new.txt contents"))
         d.addCallback(lambda res: self.GET(public + "/subdir3/new.txt"))
         d.addCallback(self.failUnlessEqual, "new.txt contents")
         # and again with something large enough to use multiple segments,
@@ -2024,23 +2034,23 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
                 c.encoding_params['happy'] = 1
         d.addCallback(_new_happy_semantics)
         d.addCallback(lambda res: self.PUT(public + "/subdir3/big.txt",
-                                           "big" * 500000)) # 1.5MB
+                                           b"big" * 500000)) # 1.5MB
         d.addCallback(lambda res: self.GET(public + "/subdir3/big.txt"))
         d.addCallback(lambda res: self.failUnlessEqual(len(res), 1500000))
 
         # can we replace files in place?
         d.addCallback(lambda res: self.PUT(public + "/subdir3/new.txt",
-                                           "NEWER contents"))
+                                           b"NEWER contents"))
         d.addCallback(lambda res: self.GET(public + "/subdir3/new.txt"))
         d.addCallback(self.failUnlessEqual, "NEWER contents")
 
         # test unlinked POST
-        d.addCallback(lambda res: self.POST("uri", t="upload",
-                                            file=("new.txt", "data" * 10000)))
+        d.addCallback(lambda res: self.POST("uri", t=b"upload",
+                                            file=("new.txt", b"data" * 10000)))
         # and again using the helper, which exercises different upload-status
         # display code
-        d.addCallback(lambda res: self.POST("uri", use_helper=True, t="upload",
-                                            file=("foo.txt", "data2" * 10000)))
+        d.addCallback(lambda res: self.POST("uri", use_helper=True, t=b"upload",
+                                            file=("foo.txt", b"data2" * 10000)))
 
         # check that the status page exists
         d.addCallback(lambda res: self.GET("status"))
@@ -2164,7 +2174,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         # exercise some of the diagnostic tools in runner.py
 
         # find a share
-        for (dirpath, dirnames, filenames) in os.walk(unicode(self.basedir)):
+        for (dirpath, dirnames, filenames) in os.walk(ensure_text(self.basedir)):
             if "storage" not in dirpath:
                 continue
             if not filenames:
@@ -2211,7 +2221,6 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         # 'find-shares' tool
         sharedir, shnum = os.path.split(filename)
         storagedir, storage_index_s = os.path.split(sharedir)
-        storage_index_s = str(storage_index_s)
         nodedirs = [self.getdir("client%d" % i) for i in range(self.numclients)]
         rc,out,err = yield run_cli("debug", "find-shares", storage_index_s,
                                    *nodedirs)
