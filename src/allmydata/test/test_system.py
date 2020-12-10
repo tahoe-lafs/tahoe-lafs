@@ -1,9 +1,12 @@
 from __future__ import print_function
 
+from future.utils import PY3
+
 from past.builtins import unicode, chr as byteschr, long
 
 import os, re, sys, time, json
 from functools import partial
+from unittest import skipIf
 
 from bs4 import BeautifulSoup
 
@@ -2606,6 +2609,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
 
         return d
 
+    @skipIf(PY3, "Python 3 CLI support hasn't happened yet.")
     def test_filesystem_with_cli_in_subprocess(self):
         # We do this in a separate test so that test_filesystem doesn't skip if we can't run bin/tahoe.
 
