@@ -13,9 +13,9 @@ from allmydata.util import encodingutil
 class ListAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
 
     @inlineCallbacks
-    def _test_list(self, alias, encoding):
+    def _check_create_alias(self, alias, encoding):
         """
-        Assert that ``tahoe create-alias`` can be used to create an alias named
+        Verify that ``tahoe create-alias`` can be used to create an alias named
         ``alias`` when argv is encoded using ``encoding``.
 
         :param unicode alias: The alias to try to create.
@@ -82,7 +82,7 @@ class ListAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
         An alias composed of all ASCII-encodeable code points can be created when
         stdio aren't clearly marked with an encoding.
         """
-        return self._test_list(
+        return self._check_create_alias(
             u"tahoe",
             encoding=None,
         )
@@ -93,7 +93,7 @@ class ListAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
         An alias composed of all ASCII-encodeable code points can be created when
         the active encoding is ASCII.
         """
-        return self._test_list(
+        return self._check_create_alias(
             u"tahoe",
             encoding="ascii",
         )
@@ -109,7 +109,7 @@ class ListAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
         with a UTF-8-incompatible encoding helps flush out unintentional UTF-8
         assumptions.
         """
-        return self._test_list(
+        return self._check_create_alias(
             u"taho\N{LATIN SMALL LETTER E WITH ACUTE}",
             encoding="latin-1",
         )
@@ -120,7 +120,7 @@ class ListAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
         An alias composed of all UTF-8-encodeable code points can be created when
         the active encoding is UTF-8.
         """
-        return self._test_list(
+        return self._check_create_alias(
             u"tahoe\N{SNOWMAN}",
             encoding="utf-8",
         )
