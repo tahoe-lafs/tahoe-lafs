@@ -791,9 +791,7 @@ class Listeners(unittest.TestCase):
 
         with mock.patch("allmydata.node.Tub", return_value=t):
             with self.assertRaises(ValueError) as ctx:
-                i2p_provider = mock.Mock()
-                tor_provider = mock.Mock()
-                create_main_tub(config, tub_options, dfh, fch, i2p_provider, tor_provider)
+                create_main_tub(config, tub_options, dfh, fch, None, None)
         self.assertIn(
             "you must choose",
             str(ctx.exception),
@@ -835,9 +833,7 @@ class Listeners(unittest.TestCase):
         t = FakeTub()
 
         with mock.patch("allmydata.node.Tub", return_value=t):
-            i2p_provider = mock.Mock()
-            tor_provider = mock.Mock()
-            create_main_tub(config, tub_options, dfh, fch, i2p_provider, tor_provider)
+            create_main_tub(config, tub_options, dfh, fch, None, None)
         self.assertEqual(t.listening_ports,
                          ["tcp:%d:interface=127.0.0.1" % port1,
                           "tcp:%d:interface=127.0.0.1" % port2])
