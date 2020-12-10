@@ -617,7 +617,6 @@ class GridTestMixin(object):
         assert not isinstance(urlpath, unicode)
         url = self.client_baseurls[clientnum] + urlpath
 
-        import pdb; pdb.set_trace()
         response = yield treq.request(method, url, persistent=False,
                                       allow_redirects=followRedirect,
                                       **kwargs)

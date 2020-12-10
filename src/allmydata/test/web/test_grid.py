@@ -513,10 +513,10 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
             self.failUnless(dn.is_readonly())
             # This checks that if we somehow ended up calling dn._decrypt_rwcapdata, it would fail.
             self.failIf(hasattr(dn._node, 'get_writekey'))
-            rep = str(dn)
+            rep = repr(dn)
             self.failUnlessIn("RO-IMM", rep)
             cap = dn.get_cap()
-            self.failUnlessIn("CHK", cap.to_string())
+            self.failUnlessIn(b"CHK", cap.to_string())
             self.cap = cap
             self.rootnode = dn
             self.rooturl = b"uri/" + quote_bytes(dn.get_uri())
