@@ -535,7 +535,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
                 entry = entries[0]
                 (name_utf8, ro_uri, rwcapdata, metadata_s), subpos = split_netstring(entry, 4)
                 name = name_utf8.decode("utf-8")
-                self.failUnlessEqual(rwcapdata, "")
+                self.failUnlessEqual(rwcapdata, b"")
                 self.failUnlessIn(name, kids)
                 (expected_child, ign) = kids[name]
                 self.failUnlessReallyEqual(ro_uri, expected_child.get_readonly_uri())
@@ -559,7 +559,12 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
         d.addCallback(_check_kids)  # again with dirnode recreated from cap
 
         # Make sure the lonely child can be listed in HTML...
-        d.addCallback(lambda ign: self.GET(self.rooturl))
+        def foo(ign):
+            import pdb; pdb.set_trace()
+            return self.GET(self.rooturl) # 404?
+
+        d.addCallback(foo)
+        return d
         def _check_html(res):
             soup = BeautifulSoup(res, 'html5lib')
             self.failIfIn(b"URI:SSK", res)
