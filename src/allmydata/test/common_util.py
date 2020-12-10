@@ -49,6 +49,27 @@ def _getvalue(io):
 
 
 def run_cli_bytes(verb, *args, **kwargs):
+    """
+    Run a Tahoe-LAFS CLI command specified as bytes.
+
+    Most code should prefer ``run_cli_unicode`` which deals with all the
+    necessary encoding considerations.
+
+    :param bytes verb: The command to run.  For example, ``b"create-node"``.
+
+    :param [bytes] args: The arguments to pass to the command.  For example,
+        ``(b"--hostname=localhost",)``.
+
+    :param [bytes] nodeargs: Extra arguments to pass to the Tahoe executable
+        before ``verb``.
+
+    :param bytes stdin: Text to pass to the command via stdin.
+
+    :param NoneType|str encoding: The name of an encoding which stdout and
+        stderr will be configured to use.  ``None`` means stdout and stderr
+        will accept bytes and unicode and use the default system encoding for
+        translating between them.
+    """
     nodeargs = kwargs.pop("nodeargs", [])
     encoding = kwargs.pop("encoding", None)
     precondition(
