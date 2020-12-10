@@ -53,7 +53,9 @@ def run_cli_bytes(verb, *args, **kwargs):
     Run a Tahoe-LAFS CLI command specified as bytes.
 
     Most code should prefer ``run_cli_unicode`` which deals with all the
-    necessary encoding considerations.
+    necessary encoding considerations.  This helper still exists so that novel
+    misconfigurations can be explicitly tested (for example, receiving UTF-8
+    bytes when the system encoding claims to be ASCII).
 
     :param bytes verb: The command to run.  For example, ``b"create-node"``.
 
