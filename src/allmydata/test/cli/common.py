@@ -39,6 +39,8 @@ class CLITestMixin(ReallyEqualMixin):
         """
         Like ``do_cli_unicode`` but work with ``bytes`` everywhere instead of
         ``unicode``.
+
+        Where possible, prefer ``do_cli_unicode``.
         """
         # client_num is used to execute client CLI commands on a specific
         # client.
