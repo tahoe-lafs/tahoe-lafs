@@ -561,6 +561,9 @@ class _FoolscapStorage(object):
             }
 
         *nickname* is optional.
+
+        The furl will be a Unicode string on Python 3; on Python 2 it will be
+        either a native (bytes) string or a Unicode string.
         """
         furl = furl.encode("utf-8")
         m = re.match(br'pb://(\w+)@', furl)
