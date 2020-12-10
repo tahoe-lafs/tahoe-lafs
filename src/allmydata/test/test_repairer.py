@@ -1,5 +1,15 @@
 # -*- coding: utf-8 -*-
+"""
+Ported to Python 3.
+"""
 from __future__ import print_function
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 from allmydata.test import common
 from allmydata.monitor import Monitor
@@ -62,7 +72,7 @@ class RepairTestMixin(object):
         c0 = self.g.clients[0]
         c1 = self.g.clients[1]
         c0.encoding_params['max_segment_size'] = 12
-        d = c0.upload(upload.Data(common.TEST_DATA, convergence=""))
+        d = c0.upload(upload.Data(common.TEST_DATA, convergence=b""))
         def _stash_uri(ur):
             self.uri = ur.get_uri()
             self.c0_filenode = c0.create_node_from_uri(ur.get_uri())
@@ -464,7 +474,7 @@ class Repairer(GridTestMixin, unittest.TestCase, RepairTestMixin,
         # previously-deleted share #2.
 
         d.addCallback(lambda ignored:
-                      self.delete_shares_numbered(self.uri, range(3, 10+1)))
+                      self.delete_shares_numbered(self.uri, list(range(3, 10+1))))
         d.addCallback(lambda ignored: download_to_data(self.c1_filenode))
         d.addCallback(lambda newdata:
                       self.failUnlessEqual(newdata, common.TEST_DATA))
@@ -476,7 +486,7 @@ class Repairer(GridTestMixin, unittest.TestCase, RepairTestMixin,
         self.set_up_grid(num_clients=2)
         d = self.upload_and_stash()
         d.addCallback(lambda ignored:
-                      self.delete_shares_numbered(self.uri, range(7)))
+                      self.delete_shares_numbered(self.uri, list(range(7))))
         d.addCallback(lambda ignored: self._stash_counts())
         d.addCallback(lambda ignored:
                       self.c0_filenode.check_and_repair(Monitor(),
@@ -509,7 +519,7 @@ class Repairer(GridTestMixin, unittest.TestCase, RepairTestMixin,
         # previously-deleted share #2.
 
         d.addCallback(lambda ignored:
-                      self.delete_shares_numbered(self.uri, range(3, 10+1)))
+                      self.delete_shares_numbered(self.uri, list(range(3, 10+1))))
         d.addCallback(lambda ignored: download_to_data(self.c1_filenode))
         d.addCallback(lambda newdata:
                       self.failUnlessEqual(newdata, common.TEST_DATA))
@@ -527,7 +537,7 @@ class Repairer(GridTestMixin, unittest.TestCase, RepairTestMixin,
         # distributing the shares widely enough to satisfy the default
         # happiness setting.
         def _delete_some_servers(ignored):
-            for i in xrange(7):
+            for i in range(7):
                 self.g.remove_server(self.g.servers_by_number[i].my_nodeid)
 
             assert len(self.g.servers_by_number) == 3
@@ -640,7 +650,7 @@ class Repairer(GridTestMixin, unittest.TestCase, RepairTestMixin,
                 # downloading and has the right contents. This can't work
                 # unless it has already repaired the previously-corrupted share.
                 def _then_delete_7_and_try_a_download(unused=None):
-                    shnums = range(10)
+                    shnums = list(range(10))
                     shnums.remove(shnum)
                     random.shuffle(shnums)
                     for sharenum in shnums[:7]:
@@ -679,10 +689,10 @@ class Repairer(GridTestMixin, unittest.TestCase, RepairTestMixin,
         self.basedir = "repairer/Repairer/test_tiny_reads"
         self.set_up_grid()
         c0 = self.g.clients[0]
-        DATA = "a"*135
+        DATA = b"a"*135
         c0.encoding_params['k'] = 22
         c0.encoding_params['n'] = 66
-        d = c0.upload(upload.Data(DATA, convergence=""))
+        d = c0.upload(upload.Data(DATA, convergence=b""))
         def _then(ur):
             self.uri = ur.get_uri()
             self.delete_shares_numbered(self.uri, [0])
