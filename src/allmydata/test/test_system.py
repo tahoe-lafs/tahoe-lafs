@@ -1342,7 +1342,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
                 assert pieces[-5].startswith("client")
                 client_num = int(pieces[-5][-1])
                 storage_index_s = pieces[-1]
-                storage_index = si_a2b(storage_index_s)
+                storage_index = si_a2b(storage_index_s.encode("ascii"))
                 for sharename in filenames:
                     shnum = int(sharename)
                     filename = os.path.join(dirpath, sharename)
@@ -1375,7 +1375,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         elif which == "signature":
             signature = self.flip_bit(signature)
         elif which == "share_hash_chain":
-            nodenum = share_hash_chain.keys()[0]
+            nodenum = list(share_hash_chain.keys())[0]
             share_hash_chain[nodenum] = self.flip_bit(share_hash_chain[nodenum])
         elif which == "block_hash_tree":
             block_hash_tree[-1] = self.flip_bit(block_hash_tree[-1])
@@ -1451,7 +1451,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
                 self.failUnless("  share_hash_chain: " in output)
                 self.failUnless("  block_hash_tree: 1 nodes\n" in output)
                 expected = ("  verify-cap: URI:SSK-Verifier:%s:" %
-                            base32.b2a(storage_index))
+                            unicode(base32.b2a(storage_index), "ascii"))
                 self.failUnless(expected in output)
             except unittest.FailTest:
                 print()
@@ -1580,9 +1580,9 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         def _check_empty_file(res):
             # make sure we can create empty files, this usually screws up the
             # segsize math
-            d1 = self.clients[2].create_mutable_file(MutableData(""))
+            d1 = self.clients[2].create_mutable_file(MutableData(b""))
             d1.addCallback(lambda newnode: newnode.download_best_version())
-            d1.addCallback(lambda res: self.failUnlessEqual("", res))
+            d1.addCallback(lambda res: self.failUnlessEqual(b"", res))
             return d1
         d.addCallback(_check_empty_file)
 
