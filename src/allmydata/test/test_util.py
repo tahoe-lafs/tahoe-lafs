@@ -33,7 +33,9 @@ if six.PY3:
 
 class IDLib(unittest.TestCase):
     def test_nodeid_b2a(self):
-        self.failUnlessEqual(idlib.nodeid_b2a(b"\x00"*20), "a"*32)
+        result = idlib.nodeid_b2a(b"\x00"*20)
+        self.assertEqual(result, "a"*32)
+        self.assertIsInstance(result, str)
 
 
 class MyList(list):

@@ -94,6 +94,7 @@ PORTED_MODULES = [
     "allmydata.util.happinessutil",
     "allmydata.util.hashutil",
     "allmydata.util.humanreadable",
+    "allmydata.util.idlib",
     "allmydata.util.iputil",
     "allmydata.util.jsonbytes",
     "allmydata.util.log",
