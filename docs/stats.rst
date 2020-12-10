@@ -242,19 +242,6 @@ The currently available stats (as of release 1.6.0 or so) are described here:
         the process was started. Ticket #472 indicates that .total may
         sometimes be negative due to wraparound of the kernel's counter.
 
-**stats.load_monitor.\***
-
-    When enabled, the "load monitor" continually schedules a one-second
-    callback, and measures how late the response is. This estimates system load
-    (if the system is idle, the response should be on time). This is only
-    enabled if a stats-gatherer is configured.
-
-    avg_load
-        average "load" value (seconds late) over the last minute
-
-    max_load
-        maximum "load" value over the last minute
-
 
 Using Munin To Graph Stats Values
 =================================
