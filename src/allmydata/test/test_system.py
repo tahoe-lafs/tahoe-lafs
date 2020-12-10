@@ -2618,6 +2618,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
 
         def _run_in_subprocess(ignored, verb, *args, **kwargs):
             stdin = kwargs.get("stdin")
+            # XXX https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3548
             env = kwargs.get("env", os.environ)
             # Python warnings from the child process don't matter.
             env["PYTHONWARNINGS"] = "ignore"
