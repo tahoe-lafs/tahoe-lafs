@@ -154,6 +154,9 @@ class StorageFarmBroker(service.MultiService):
     I'm also responsible for subscribing to the IntroducerClient to find out
     about new servers as they are announced by the Introducer.
 
+    :ivar _tub_maker: A one-argument callable which accepts a dictionary of
+        "handler overrides" and returns a ``foolscap.api.Tub``.
+
     :ivar StorageClientConfig storage_client_config: Values from the node
         configuration file relating to storage behavior.
     """
@@ -558,7 +561,11 @@ class _FoolscapStorage(object):
             }
 
         *nickname* is optional.
+
+        The furl will be a Unicode string on Python 3; on Python 2 it will be
+        either a native (bytes) string or a Unicode string.
         """
+        furl = furl.encode("utf-8")
         m = re.match(br'pb://(\w+)@', furl)
         assert m, furl
         tubid_s = m.group(1).lower()
@@ -690,7 +697,6 @@ class NativeStorageServer(service.MultiService):
     @ivar nickname: the server's self-reported nickname (unicode), same
 
     @ivar rref: the RemoteReference, if connected, otherwise None
-    @ivar remote_host: the IAddress, if connected, otherwise None
     """
 
     VERSION_DEFAULTS = UnicodeKeyDict({
@@ -716,7 +722,6 @@ class NativeStorageServer(service.MultiService):
 
         self.last_connect_time = None
         self.last_loss_time = None
-        self.remote_host = None
         self._rref = None
         self._is_connected = False
         self._reconnector = None
@@ -755,7 +760,7 @@ class NativeStorageServer(service.MultiService):
         else:
             return _FoolscapStorage.from_announcement(
                 self._server_id,
-                furl.encode("utf-8"),
+                furl,
                 ann,
                 storage_server,
             )
@@ -767,8 +772,6 @@ class NativeStorageServer(service.MultiService):
             # Nope
             pass
         else:
-            if isinstance(furl, str):
-                furl = furl.encode("utf-8")
             # See comment above for the _storage_from_foolscap_plugin case
             # about passing in get_rref.
             storage_server = _StorageServer(get_rref=self.get_rref)
@@ -825,8 +828,6 @@ class NativeStorageServer(service.MultiService):
         return None
     def get_announcement(self):
         return self.announcement
-    def get_remote_host(self):
-        return self.remote_host
 
     def get_connection_status(self):
         last_received = None
@@ -874,7 +875,6 @@ class NativeStorageServer(service.MultiService):
                 level=log.NOISY, parent=lp)
 
         self.last_connect_time = time.time()
-        self.remote_host = rref.getLocationHints()
         self._rref = rref
         self._is_connected = True
         rref.notifyOnDisconnect(self._lost)
@@ -900,7 +900,6 @@ class NativeStorageServer(service.MultiService):
         # get_connected_servers() or get_servers_for_psi()) can continue to
         # use s.get_rref().callRemote() and not worry about it being None.
         self._is_connected = False
-        self.remote_host = None
 
     def stop_connecting(self):
         # used when this descriptor has been superceded by another

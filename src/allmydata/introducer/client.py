@@ -1,4 +1,16 @@
-from past.builtins import unicode, long
+"""
+Ported to Python 3.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+from past.builtins import long
+
 from six import ensure_text
 
 import time
@@ -27,11 +39,11 @@ class IntroducerClient(service.Service, Referenceable):
                  nickname, my_version, oldest_supported,
                  sequencer, cache_filepath):
         self._tub = tub
-        if isinstance(introducer_furl, unicode):
+        if isinstance(introducer_furl, str):
             introducer_furl = introducer_furl.encode("utf-8")
         self.introducer_furl = introducer_furl
 
-        assert type(nickname) is unicode
+        assert isinstance(nickname, str)
         self._nickname = nickname
         self._my_version = my_version
         self._oldest_supported = oldest_supported
@@ -114,7 +126,7 @@ class IntroducerClient(service.Service, Referenceable):
 
     def _save_announcements(self):
         announcements = []
-        for _, value in self._inbound_announcements.items():
+        for value in self._inbound_announcements.values():
             ann, key_s, time_stamp = value
             # On Python 2, bytes strings are encoded into YAML Unicode strings.
             # On Python 3, bytes are encoded as YAML bytes. To minimize
@@ -125,7 +137,7 @@ class IntroducerClient(service.Service, Referenceable):
                 }
             announcements.append(server_params)
         announcement_cache_yaml = yamlutil.safe_dump(announcements)
-        if isinstance(announcement_cache_yaml, unicode):
+        if isinstance(announcement_cache_yaml, str):
             announcement_cache_yaml = announcement_cache_yaml.encode("utf-8")
         self._cache_filepath.setContent(announcement_cache_yaml)
 
@@ -170,7 +182,7 @@ class IntroducerClient(service.Service, Referenceable):
         self._local_subscribers.append( (service_name,cb,args,kwargs) )
         self._subscribed_service_names.add(service_name)
         self._maybe_subscribe()
-        for index,(ann,key_s,when) in self._inbound_announcements.items():
+        for index,(ann,key_s,when) in list(self._inbound_announcements.items()):
             precondition(isinstance(key_s, bytes), key_s)
             servicename = index[0]
             if servicename == service_name:
@@ -215,7 +227,7 @@ class IntroducerClient(service.Service, Referenceable):
         self._outbound_announcements[service_name] = ann_d
 
         # publish all announcements with the new seqnum and nonce
-        for service_name,ann_d in self._outbound_announcements.items():
+        for service_name,ann_d in list(self._outbound_announcements.items()):
             ann_d["seqnum"] = current_seqnum
             ann_d["nonce"] = current_nonce
             ann_t = sign_to_foolscap(ann_d, signing_key)
@@ -227,7 +239,7 @@ class IntroducerClient(service.Service, Referenceable):
             self.log("want to publish, but no introducer yet", level=log.NOISY)
             return
         # this re-publishes everything. The Introducer ignores duplicates
-        for ann_t in self._published_announcements.values():
+        for ann_t in list(self._published_announcements.values()):
             self._debug_counts["outbound_message"] += 1
             self._debug_outstanding += 1
             d = self._publisher.callRemote("publish_v2", ann_t, self._canary)
@@ -267,7 +279,7 @@ class IntroducerClient(service.Service, Referenceable):
             return
         # for ASCII values, simplejson might give us unicode *or* bytes
         if "nickname" in ann and isinstance(ann["nickname"], bytes):
-            ann["nickname"] = unicode(ann["nickname"])
+            ann["nickname"] = str(ann["nickname"])
         nick_s = ann.get("nickname",u"").encode("utf-8")
         lp2 = self.log(format="announcement for nickname '%(nick)s', service=%(svc)s: %(ann)s",
                        nick=nick_s, svc=service_name, ann=ann, umid="BoKEag")
