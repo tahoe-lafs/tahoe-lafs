@@ -75,7 +75,7 @@ The item descriptions below use the following types:
 Node Types
 ==========
 
-A node can be a client/server, an introducer, or a statistics gatherer.
+A node can be a client/server or an introducer.
 
 Client/server nodes provide one or more of the following services:
 
@@ -592,11 +592,6 @@ Client Configuration
 
     If provided, the node will attempt to connect to and use the given helper
     for uploads. See :doc:`helper` for details.
-
-``stats_gatherer.furl = (FURL string, optional)``
-
-    If provided, the node will connect to the given stats gatherer and
-    provide it with operational statistics.
 
 ``shares.needed = (int, optional) aka "k", default 3``
 
