@@ -10,7 +10,11 @@ from twisted.application.service import Service
 
 from allmydata.scripts.default_nodedir import _default_nodedir
 from allmydata.util import fileutil
-from allmydata.node import read_config
+from allmydata.node import (
+    PortAssignmentRequired,
+    PrivacyError,
+    read_config,
+)
 from allmydata.util.encodingutil import listdir_unicode, quote_local_unicode_path
 from allmydata.util.configutil import UnknownConfigError
 from allmydata.util.deferredutil import HookMixin
@@ -147,6 +151,10 @@ class DaemonizeTheRealService(Service, HookMixin):
             def handle_config_error(fail):
                 if fail.check(UnknownConfigError):
                     self.stderr.write("\nConfiguration error:\n{}\n\n".format(fail.value))
+                elif fail.check(PortAssignmentRequired):
+                    self.stderr.write("\ntub.port cannot be 0: you must choose.\n\n")
+                elif fail.check(PrivacyError):
+                    self.stderr.write("\n{}\n\n".format(fail.value))
                 else:
                     self.stderr.write("\nUnknown error\n")
                     fail.printTraceback(self.stderr)
