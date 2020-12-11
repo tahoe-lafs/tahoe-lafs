@@ -12,7 +12,7 @@ if PY2:
     from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, dict, list, object, range, max, min, str  # noqa: F401
 
 from past.builtins import chr as byteschr, long
-from six import ensure_text
+from six import ensure_text, ensure_str
 
 import os, re, sys, time, json
 from functools import partial
@@ -2244,7 +2244,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         # allmydata.control (mostly used for performance tests)
         c0 = self.clients[0]
         control_furl_file = c0.config.get_private_path("control.furl")
-        control_furl = open(control_furl_file, "r").read().strip()
+        control_furl = ensure_str(open(control_furl_file, "r").read().strip())
         # it doesn't really matter which Tub we use to connect to the client,
         # so let's just use our IntroducerNode's
         d = self.introducer.tub.getReference(control_furl)
@@ -2276,7 +2276,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         # sure that works, before we add other aliases.
 
         root_file = os.path.join(client0_basedir, "private", "root_dir.cap")
-        f = open(root_file, "w")
+        f = open(root_file, "wb")
         f.write(private_uri)
         f.close()
 
@@ -2669,7 +2669,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         return d
 
     def _test_checker(self, res):
-        ut = upload.Data("too big to be literal" * 200, convergence=None)
+        ut = upload.Data(b"too big to be literal" * 200, convergence=None)
         d = self._personal_node.add_file(u"big file", ut)
 
         d.addCallback(lambda res: self._personal_node.check(Monitor()))
