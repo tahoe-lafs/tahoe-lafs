@@ -3173,3 +3173,21 @@ class IAnnounceableStorageServer(Interface):
         :type: ``IReferenceable`` provider
         """
     )
+
+
+class IAddressFamily(Interface):
+    """
+    Support for one specific address family.
+
+    This stretches the definition of address family to include things like Tor
+    and I2P.
+    """
+    def get_listener():
+        """
+        Return a string endpoint description or an ``IStreamServerEndpoint``.
+        """
+
+    def get_client_endpoint():
+        """
+        Return an ``IStreamClientEndpoint``.
+        """
