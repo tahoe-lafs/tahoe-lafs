@@ -2642,12 +2642,12 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
             out, err, rc_or_sig = res
             self.failUnlessEqual(rc_or_sig, 0, str(res))
             if check_stderr:
-                self.failUnlessEqual(err, "")
+                self.failUnlessEqual(err, b"")
 
         d.addCallback(_run_in_subprocess, "create-alias", "newalias")
         d.addCallback(_check_succeeded)
 
-        STDIN_DATA = "This is the file to upload from stdin."
+        STDIN_DATA = b"This is the file to upload from stdin."
         d.addCallback(_run_in_subprocess, "put", "-", "newalias:tahoe-file", stdin=STDIN_DATA)
         d.addCallback(_check_succeeded, check_stderr=False)
 
