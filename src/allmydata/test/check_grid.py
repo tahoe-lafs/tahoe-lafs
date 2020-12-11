@@ -23,15 +23,15 @@ down the node after the test finishes.
 To set up the client node, do the following:
 
   tahoe create-client DIR
-  populate DIR/introducer.furl
-  tahoe start DIR  XXXX
-  tahoe add-alias -d DIR testgrid `tahoe mkdir -d DIR`
-  pick a 10kB-ish test file, compute its md5sum
-  tahoe put -d DIR FILE testgrid:old.MD5SUM
-  tahoe put -d DIR FILE testgrid:recent.MD5SUM
-  tahoe put -d DIR FILE testgrid:recentdir/recent.MD5SUM
-  echo "" | tahoe put -d DIR --mutable testgrid:log
-  echo "" | tahoe put -d DIR --mutable testgrid:recentlog
+  populate DIR/private/introducers.yaml
+  $DAEMONIZE tahoe run DIR
+  tahoe -d DIR create-alias testgrid
+  # pick a 10kB-ish test file, compute its md5sum
+  tahoe -d DIR put FILE testgrid:old.MD5SUM
+  tahoe -d DIR put FILE testgrid:recent.MD5SUM
+  tahoe -d DIR put FILE testgrid:recentdir/recent.MD5SUM
+  echo "" | tahoe -d DIR put --mutable - testgrid:log
+  echo "" | tahoe -d DIR put --mutable - testgrid:recentlog
 
 This script will perform the following steps (the kind of compatibility that
 is being tested is in [brackets]):
@@ -104,25 +104,12 @@ class GridTester(object):
 
     def cli(self, cmd, *args, **kwargs):
         print("tahoe", cmd, " ".join(args))
-        stdout, stderr = self.command(self.tahoe, cmd, "-d", self.nodedir,
+        stdout, stderr = self.command(self.tahoe, "-d", self.nodedir, cmd,
                                       *args, **kwargs)
         if not kwargs.get("ignore_stderr", False) and stderr != "":
             raise CommandFailed("command '%s' had stderr: %s" % (" ".join(args),
                                                                  stderr))
         return stdout
-
-    def stop_old_node(self):
-        print("tahoe stop", self.nodedir, "(force)")
-        self.command(self.tahoe, "stop", self.nodedir, expected_rc=None)
-
-    def start_node(self):
-        print("tahoe start", self.nodedir)
-        self.command(self.tahoe, "start", self.nodedir) # XXXX
-        time.sleep(5)
-
-    def stop_node(self):
-        print("tahoe stop", self.nodedir)
-        self.command(self.tahoe, "stop", self.nodedir)
 
     def read_and_check(self, f):
         expected_md5_s = f[f.find(".")+1:]
@@ -204,19 +191,11 @@ class GridTester(object):
         fn = prefix + "." + md5sum
         return fn, data
 
-    def run(self):
-        self.stop_old_node()
-        self.start_node()
-        try:
-            self.do_test()
-        finally:
-            self.stop_node()
-
 def main():
     config = GridTesterOptions()
     config.parseOptions()
     gt = GridTester(config)
-    gt.run()
+    gt.do_test()
 
 if __name__ == "__main__":
     main()
