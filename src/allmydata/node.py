@@ -722,6 +722,10 @@ def _convert_tub_port(s):
     return us
 
 
+class PortAssignmentRequired(Exception):
+    pass
+
+
 def _tub_portlocation(config, get_local_addresses_sync, allocate_tcp_port):
     """
     Figure out the network location of the main tub for some configuration.
@@ -778,7 +782,7 @@ def _tub_portlocation(config, get_local_addresses_sync, allocate_tcp_port):
 
     for port in tubport.split(","):
         if port in ("0", "tcp:0"):
-            raise ValueError("tub.port cannot be 0: you must choose")
+            raise PortAssignmentRequired()
 
     if cfg_location is None:
         cfg_location = "AUTO"
@@ -821,6 +825,38 @@ def _tub_portlocation(config, get_local_addresses_sync, allocate_tcp_port):
     return tubport, location
 
 
+def set_tub_locations(i2p_provider, tor_provider, tub, portlocation):
+    """
+    Assign a Tub its listener locations.
+
+    :param i2p_provider: See ``allmydata.util.i2p_provider.create``.
+    :param tor_provider: See ``allmydata.util.tor_provider.create``.
+    """
+    if portlocation is None:
+        log.msg("Tub is not listening")
+    else:
+        tubport, location = portlocation
+        for port in tubport.split(","):
+            if port == "listen:i2p":
+                # the I2P provider will read its section of tahoe.cfg and
+                # return either a fully-formed Endpoint, or a descriptor
+                # that will create one, so we don't have to stuff all the
+                # options into the tub.port string (which would need a lot
+                # of escaping)
+                port_or_endpoint = i2p_provider.get_listener()
+            elif port == "listen:tor":
+                port_or_endpoint = tor_provider.get_listener()
+            else:
+                port_or_endpoint = port
+            # Foolscap requires native strings:
+            if isinstance(port_or_endpoint, (bytes, str)):
+                port_or_endpoint = ensure_str(port_or_endpoint)
+            tub.listenOn(port_or_endpoint)
+        tub.setLocation(location)
+        log.msg("Tub location set to %s" % (location,))
+        # the Tub is now ready for tub.registerReference()
+
+
 def create_main_tub(config, tub_options,
                     default_connection_handlers, foolscap_connection_handlers,
                     i2p_provider, tor_provider,
@@ -851,34 +887,17 @@ def create_main_tub(config, tub_options,
         iputil.allocate_tcp_port,
     )
 
-    certfile = config.get_private_path("node.pem")  # FIXME? "node.pem" was the CERTFILE option/thing
-    tub = create_tub(tub_options, default_connection_handlers, foolscap_connection_handlers,
-                     handler_overrides=handler_overrides, certFile=certfile)
+    # FIXME? "node.pem" was the CERTFILE option/thing
+    certfile = config.get_private_path("node.pem")
 
-    if portlocation:
-        tubport, location = portlocation
-        for port in tubport.split(","):
-            if port == "listen:i2p":
-                # the I2P provider will read its section of tahoe.cfg and
-                # return either a fully-formed Endpoint, or a descriptor
-                # that will create one, so we don't have to stuff all the
-                # options into the tub.port string (which would need a lot
-                # of escaping)
-                port_or_endpoint = i2p_provider.get_listener()
-            elif port == "listen:tor":
-                port_or_endpoint = tor_provider.get_listener()
-            else:
-                port_or_endpoint = port
-            # Foolscap requires native strings:
-            if isinstance(port_or_endpoint, (bytes, str)):
-                port_or_endpoint = ensure_str(port_or_endpoint)
-            tub.listenOn(port_or_endpoint)
-        tub.setLocation(location)
-        log.msg("Tub location set to %s" % (location,))
-        # the Tub is now ready for tub.registerReference()
-    else:
-        log.msg("Tub is not listening")
-
+    tub = create_tub(
+        tub_options,
+        default_connection_handlers,
+        foolscap_connection_handlers,
+        handler_overrides=handler_overrides,
+        certFile=certfile,
+    )
+    set_tub_locations(i2p_provider, tor_provider, tub, portlocation)
     return tub
 
 

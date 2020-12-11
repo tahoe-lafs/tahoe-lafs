@@ -40,7 +40,9 @@ from foolscap.connections.tcp import default as make_tcp_handler
 
 from twisted.application import service
 from allmydata.node import (
+    PortAssignmentRequired,
     PrivacyError,
+    set_tub_locations,
     create_tub_options,
     create_main_tub,
     create_node_dir,
@@ -528,6 +530,22 @@ class TestMissingPorts(unittest.TestCase):
     def _alloc_port(self):
         return 999
 
+    def test_listen_on_zero(self):
+        """
+        ``set_tub_locations`` raises ``PortAssignmentRequired`` called with a
+        listen address including port 0.
+        """
+        config_data = (
+            "[node]\n"
+            "tub.port = tcp:0\n"
+        )
+        config = config_from_string(self.basedir, "portnum", config_data)
+
+        # XXX The implementation has some shortcomings.  For example, how
+        # about tcp:localhost:0?
+        with self.assertRaises(PortAssignmentRequired):
+            _tub_portlocation(config, None, None)
+
     def test_parsing_tcp(self):
         """
         When ``tub.port`` is given and ``tub.location`` is **AUTO** the port
@@ -766,36 +784,6 @@ class FakeTub(object):
     def setServiceParent(self, parent): pass
 
 class Listeners(unittest.TestCase):
-
-    def test_listen_on_zero(self):
-        """
-        Trying to listen on port 0 should be an error
-        """
-        basedir = self.mktemp()
-        create_node_dir(basedir, "testing")
-        with open(os.path.join(basedir, "tahoe.cfg"), "w") as f:
-            f.write(BASE_CONFIG)
-            f.write("[node]\n")
-            f.write("tub.port = tcp:0\n")
-            f.write("tub.location = AUTO\n")
-
-        config = client.read_config(basedir, "client.port")
-        fch = {"tcp": make_tcp_handler()}
-        dfh = create_default_connection_handlers(
-            None,
-            config,
-            fch,
-        )
-        tub_options = create_tub_options(config)
-        t = FakeTub()
-
-        with mock.patch("allmydata.node.Tub", return_value=t):
-            with self.assertRaises(ValueError) as ctx:
-                create_main_tub(config, tub_options, dfh, fch, None, None)
-        self.assertIn(
-            "you must choose",
-            str(ctx.exception),
-        )
 
     # Randomly allocate a couple distinct port numbers to try out.  The test
     # never actually binds these port numbers so we don't care if they're "in
