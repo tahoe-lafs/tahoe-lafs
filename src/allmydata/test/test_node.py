@@ -15,7 +15,6 @@ import os
 import stat
 import sys
 import time
-import mock
 from textwrap import dedent
 import configparser
 
@@ -36,7 +35,6 @@ from twisted.trial import unittest
 from twisted.internet import defer
 
 import foolscap.logging.log
-from foolscap.connections.tcp import default as make_tcp_handler
 
 from twisted.application import service
 from allmydata.node import (
@@ -69,6 +67,9 @@ from allmydata.util.i2p_provider import create as create_i2p_provider
 from allmydata.util.tor_provider import create as create_tor_provider
 import allmydata.test.common_util as testutil
 
+from .common import (
+    FakeProvider,
+)
 
 def port_numbers():
     return integers(min_value=1, max_value=2 ** 16 - 1)
@@ -796,70 +797,38 @@ class Listeners(unittest.TestCase):
         ``tub.location`` configuration, the node's *main* port listens on all
         of them.
         """
-        basedir = self.mktemp()
-        config_fname = os.path.join(basedir, "tahoe.cfg")
-        os.mkdir(basedir)
-        os.mkdir(os.path.join(basedir, "private"))
         port1, port2 = iter(ports)
         port = ("tcp:%d:interface=127.0.0.1,tcp:%d:interface=127.0.0.1" %
                 (port1, port2))
         location = "tcp:localhost:%d,tcp:localhost:%d" % (port1, port2)
-        with open(config_fname, "w") as f:
-            f.write(BASE_CONFIG)
-            f.write("[node]\n")
-            f.write("tub.port = %s\n" % port)
-            f.write("tub.location = %s\n" % location)
-
-        config = client.read_config(basedir, "client.port")
-        fch = {"tcp": make_tcp_handler()}
-        dfh = create_default_connection_handlers(
-            None,
-            config,
-            fch,
-        )
-        tub_options = create_tub_options(config)
         t = FakeTub()
-
-        with mock.patch("allmydata.node.Tub", return_value=t):
-            create_main_tub(config, tub_options, dfh, fch, None, None)
+        set_tub_locations(None, None, t, (port, location))
         self.assertEqual(t.listening_ports,
                          ["tcp:%d:interface=127.0.0.1" % port1,
                           "tcp:%d:interface=127.0.0.1" % port2])
 
     def test_tor_i2p_listeners(self):
-        basedir = self.mktemp()
-        config_fname = os.path.join(basedir, "tahoe.cfg")
-        os.mkdir(basedir)
-        os.mkdir(os.path.join(basedir, "private"))
-        with open(config_fname, "w") as f:
-            f.write(BASE_CONFIG)
-            f.write("[node]\n")
-            f.write("tub.port = listen:i2p,listen:tor\n")
-            f.write("tub.location = tcp:example.org:1234\n")
-        config = client.read_config(basedir, "client.port")
-        tub_options = create_tub_options(config)
+        """
+        When configured to listen on an "i2p" or "tor" address,
+        ``set_tub_locations`` tells the Tub to listen on endpoints supplied by
+        the given Tor and I2P providers.
+        """
         t = FakeTub()
 
-        fch = {"tcp": make_tcp_handler()}
-        dfh = create_default_connection_handlers(
-            None,
-            config,
-            fch,
+        i2p_listener = object()
+        i2p_provider = FakeProvider(i2p_listener)
+        tor_listener = object()
+        tor_provider = FakeProvider(tor_listener)
+
+        set_tub_locations(
+            i2p_provider,
+            tor_provider,
+            t,
+            ("listen:i2p,listen:tor", "tcp:example.org:1234"),
         )
-
-        with mock.patch("allmydata.node.Tub", return_value=t):
-            i2p_provider = mock.Mock()
-            tor_provider = mock.Mock()
-            create_main_tub(config, tub_options, dfh, fch, i2p_provider, tor_provider)
-
-        self.assertEqual(i2p_provider.get_listener.mock_calls, [mock.call()])
-        self.assertEqual(tor_provider.get_listener.mock_calls, [mock.call()])
         self.assertEqual(
             t.listening_ports,
-            [
-                i2p_provider.get_listener(),
-                tor_provider.get_listener(),
-            ]
+            [i2p_listener, tor_listener],
         )
 
 
@@ -965,16 +934,6 @@ class Configuration(unittest.TestCase):
             str(ctx.exception),
         )
 
-
-
-class FakeProvider(object):
-    """Emulate Tor and I2P providers."""
-
-    def get_tor_handler(self):
-        return "TORHANDLER!"
-
-    def get_i2p_handler(self):
-        return "I2PHANDLER!"
 
 
 class CreateConnectionHandlers(unittest.TestCase):
