@@ -11,7 +11,7 @@ if PY2:
     from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 from past.builtins import long
 
-from six import ensure_text
+from six import ensure_text, ensure_str
 
 import time
 from zope.interface import implementer
@@ -39,8 +39,6 @@ class IntroducerClient(service.Service, Referenceable):
                  nickname, my_version, oldest_supported,
                  sequencer, cache_filepath):
         self._tub = tub
-        if isinstance(introducer_furl, str):
-            introducer_furl = introducer_furl.encode("utf-8")
         self.introducer_furl = introducer_furl
 
         assert isinstance(nickname, str)
@@ -96,7 +94,7 @@ class IntroducerClient(service.Service, Referenceable):
     def startService(self):
         service.Service.startService(self)
         self._introducer_error = None
-        rc = self._tub.connectTo(self.introducer_furl, self._got_introducer)
+        rc = self._tub.connectTo(ensure_str(self.introducer_furl), self._got_introducer)
         self._introducer_reconnector = rc
         def connect_failed(failure):
             self.log("Initial Introducer connection failed: perhaps it's down",

@@ -11,6 +11,7 @@ from future.utils import PY2, native_str
 if PY2:
     from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 from past.builtins import long, unicode
+from six import ensure_str
 
 import os, time, weakref, itertools
 from zope.interface import implementer
@@ -1825,7 +1826,7 @@ class Uploader(service.MultiService, log.PrefixingLogMixin):
     def startService(self):
         service.MultiService.startService(self)
         if self._helper_furl:
-            self.parent.tub.connectTo(self._helper_furl.encode("utf-8"),
+            self.parent.tub.connectTo(ensure_str(self._helper_furl),
                                       self._got_helper)
 
     def _got_helper(self, helper):
