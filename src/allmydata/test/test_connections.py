@@ -412,7 +412,8 @@ class Privacy(unittest.TestCase):
 
         self.assertEqual(
             str(ctx.exception),
-            "tcp = tcp, must be set to 'tor' or 'disabled'",
+            "Privacy requested with `reveal-IP-address = false` "
+            "but `tcp = tcp` conflicts with this.",
         )
 
     def test_connections_tcp_disabled(self):

@@ -654,7 +654,10 @@ def create_default_connection_handlers(reactor, config, handlers):
 
     if not reveal_ip:
         if default_connection_handlers.get("tcp") == "tcp":
-            raise PrivacyError("tcp = tcp, must not be set to 'tcp'")
+            raise PrivacyError(
+                "Privacy requested with `reveal-IP-address = false` "
+                "but `tcp = tcp` conflicts with this.",
+            )
     return default_connection_handlers
 
 
