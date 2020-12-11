@@ -1475,6 +1475,30 @@ class Packing(testutil.ReallyEqualMixin, unittest.TestCase):
             kids[str(name)] = (nm.create_from_cap(caps[name]), {})
         return kids
 
+    def test_pack_unpack_unknown(self):
+        """
+        Minimal testing for roundtripping unknown URIs.
+        """
+        nm = NodeMaker(None, None, None, None, None, {"k": 3, "n": 10}, None, None)
+        fn = MinimalFakeMutableFile()
+        # UnknownNode has massively complex rules about when it's an error.
+        # Just force it not to be an error.
+        unknown_rw = UnknownNode(b"whatevs://write", None)
+        unknown_rw.error = None
+        unknown_ro = UnknownNode(None, b"whatevs://readonly")
+        unknown_ro.error = None
+        kids = {
+            "unknown_rw": (unknown_rw, {}),
+            "unknown_ro": (unknown_ro, {})
+        }
+        packed = dirnode.pack_children(kids, fn.get_writekey(), deep_immutable=False)
+
+        write_uri = b"URI:SSK-RO:e3mdrzfwhoq42hy5ubcz6rp3o4:ybyibhnp3vvwuq2vaw2ckjmesgkklfs6ghxleztqidihjyofgw7q"
+        filenode = nm.create_from_cap(write_uri)
+        dn = dirnode.DirectoryNode(filenode, nm, None)
+        unkids = dn._unpack_contents(packed)
+        self.assertEqual(kids, unkids)
+
     @given(text(min_size=1, max_size=20))
     def test_pack_unpack_unicode_hypothesis(self, name):
         """
