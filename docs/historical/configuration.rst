@@ -48,7 +48,7 @@ addresses specified in ``advertised_ip_addresses`` were used in
 addition to any that were automatically discovered), whereas the new
 ``tahoe.cfg`` directive is not (``tub.location`` is used verbatim).
 
-The stats gatherer has been broken at least since Tahoe-LAFS 1.13.0.
+The stats gatherer has been broken at least since Tahoe-LAFS v1.13.0.
 The (broken) functionality of ``[client]stats_gatherer.furl`` (which
 was previously in ``BASEDIR/stats_gatherer.furl``), is scheduled to be
 completely removed after Tahoe-LAFS v1.15.0.  After that point, if
