@@ -1566,14 +1566,6 @@ class StatisticsElement(Element):
         self._stats = provider.get_stats()
 
     @renderer
-    def load_average(self, req, tag):
-        return tag(str(self._stats["stats"].get("load_monitor.avg_load")))
-
-    @renderer
-    def peak_load(self, req, tag):
-        return tag(str(self._stats["stats"].get("load_monitor.max_load")))
-
-    @renderer
     def uploads(self, req, tag):
         files = self._stats["counters"].get("uploader.files_uploaded", 0)
         bytes = self._stats["counters"].get("uploader.bytes_uploaded", 0)

@@ -12,7 +12,7 @@ if PY2:
     from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, dict, list, object, range, max, min, str  # noqa: F401
 
 from past.builtins import chr as byteschr, long
-from six import ensure_text, ensure_str
+from six import ensure_text, ensure_str, ensure_binary
 
 import os, re, sys, time, json
 from functools import partial
@@ -38,7 +38,6 @@ from allmydata.util import log, base32
 from allmydata.util.encodingutil import quote_output, unicode_to_argv
 from allmydata.util.fileutil import abspath_expanduser_unicode
 from allmydata.util.consumer import MemoryConsumer, download_to_data
-from allmydata.stats import StatsGathererService
 from allmydata.interfaces import IDirectoryNode, IFileNode, \
      NoSuchChildError, NoSharesError
 from allmydata.monitor import Monitor
@@ -64,10 +63,18 @@ from .web.common import (
 # TODO: move this to common or common_util
 from allmydata.test.test_runner import RunBinTahoeMixin
 from . import common_util as testutil
-from .common_util import run_cli
+from .common_util import run_cli_bytes
 from ..scripts.common import (
     write_introducer,
 )
+
+def run_cli(*args, **kwargs):
+    """
+    Backwards compatible version so we don't have to change all the tests.
+    """
+    return run_cli_bytes(*(ensure_binary(a) for a in args), **kwargs)
+
+
 
 LARGE_DATA = b"""
 This is some data to publish to the remote grid.., which needs to be large
@@ -682,9 +689,6 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
         self.sparent = service.MultiService()
         self.sparent.startService()
 
-        self.stats_gatherer = None
-        self.stats_gatherer_furl = None
-
     def tearDown(self):
         log.msg("shutting down SystemTest services")
         d = self.sparent.stopService()
@@ -728,7 +732,7 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
             return f.read().strip()
 
     @inlineCallbacks
-    def set_up_nodes(self, NUMCLIENTS=5, use_stats_gatherer=False):
+    def set_up_nodes(self, NUMCLIENTS=5):
         """
         Create an introducer and ``NUMCLIENTS`` client nodes pointed at it.  All
         of the nodes are running in this process.
@@ -741,9 +745,6 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
 
         :param int NUMCLIENTS: The number of client nodes to create.
 
-        :param bool use_stats_gatherer: If ``True`` then also create a stats
-            gatherer and configure the other nodes to use it.
-
         :return: A ``Deferred`` that fires when the nodes have connected to
             each other.
         """
@@ -752,33 +753,7 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
         self.introducer = yield self._create_introducer()
         self.add_service(self.introducer)
         self.introweb_url = self._get_introducer_web()
-
-        if use_stats_gatherer:
-            yield self._set_up_stats_gatherer()
         yield self._set_up_client_nodes()
-        if use_stats_gatherer:
-            yield self._grab_stats()
-
-    def _set_up_stats_gatherer(self):
-        statsdir = self.getdir("stats_gatherer")
-        fileutil.make_dirs(statsdir)
-
-        location_hint, port_endpoint = self.port_assigner.assign(reactor)
-        fileutil.write(os.path.join(statsdir, "location"), location_hint)
-        fileutil.write(os.path.join(statsdir, "port"), port_endpoint)
-        self.stats_gatherer_svc = StatsGathererService(statsdir)
-        self.stats_gatherer = self.stats_gatherer_svc.stats_gatherer
-        self.stats_gatherer_svc.setServiceParent(self.sparent)
-
-        d = fireEventually()
-        sgf = os.path.join(statsdir, 'stats_gatherer.furl')
-        def check_for_furl():
-            return os.path.exists(sgf)
-        d.addCallback(lambda junk: self.poll(check_for_furl, timeout=30))
-        def get_furl(junk):
-            self.stats_gatherer_furl = open(sgf, 'rb').read().strip()
-        d.addCallback(get_furl)
-        return d
 
     @inlineCallbacks
     def _set_up_client_nodes(self):
@@ -846,14 +821,10 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
             if which in feature_matrix.get((section, feature), {which}):
                 config.setdefault(section, {})[feature] = value
 
-        setclient = partial(setconf, config, which, "client")
         setnode = partial(setconf, config, which, "node")
         sethelper = partial(setconf, config, which, "helper")
 
         setnode("nickname", u"client %d \N{BLACK SMILING FACE}" % (which,))
-
-        if self.stats_gatherer_furl:
-            setclient("stats_gatherer.furl", self.stats_gatherer_furl)
 
         tub_location_hint, tub_port_endpoint = self.port_assigner.assign(reactor)
         setnode("tub.port", tub_port_endpoint)
@@ -884,10 +855,6 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
         config = self._generate_config(which, basedir)
         fileutil.write(os.path.join(basedir, 'tahoe.cfg'), config)
         return basedir
-
-    def _grab_stats(self):
-        d = self.stats_gatherer.poll()
-        return d
 
     def bounce_client(self, num):
         c = self.clients[num]
@@ -1316,25 +1283,11 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         d.addCallback(_upload_resumable)
 
         def _grab_stats(ignored):
-            # the StatsProvider doesn't normally publish a FURL:
-            # instead it passes a live reference to the StatsGatherer
-            # (if and when it connects). To exercise the remote stats
-            # interface, we manually publish client0's StatsProvider
-            # and use client1 to query it.
-            sp = self.clients[0].stats_provider
-            sp_furl = self.clients[0].tub.registerReference(sp)
-            d = self.clients[1].tub.getReference(sp_furl)
-            d.addCallback(lambda sp_rref: sp_rref.callRemote("get_stats"))
-            def _got_stats(stats):
-                #print("STATS")
-                #from pprint import pprint
-                #pprint(stats)
-                s = stats[b"stats"]
-                self.failUnlessEqual(s[b"storage_server.accepting_immutable_shares"], 1)
-                c = stats[b"counters"]
-                self.failUnless(b"storage_server.allocate" in c)
-            d.addCallback(_got_stats)
-            return d
+            stats = self.clients[0].stats_provider.get_stats()
+            s = stats["stats"]
+            self.failUnlessEqual(s["storage_server.accepting_immutable_shares"], 1)
+            c = stats["counters"]
+            self.failUnless("storage_server.allocate" in c)
         d.addCallback(_grab_stats)
 
         return d
@@ -1643,7 +1596,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
     def test_filesystem(self):
         self.basedir = "system/SystemTest/test_filesystem"
         self.data = LARGE_DATA
-        d = self.set_up_nodes(use_stats_gatherer=True)
+        d = self.set_up_nodes()
         def _new_happy_semantics(ign):
             for c in self.clients:
                 c.encoding_params['happy'] = 1
@@ -2632,6 +2585,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
 
         def _run_in_subprocess(ignored, verb, *args, **kwargs):
             stdin = kwargs.get("stdin")
+            # XXX https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3548
             env = kwargs.get("env", os.environ)
             # Python warnings from the child process don't matter.
             env["PYTHONWARNINGS"] = "ignore"
