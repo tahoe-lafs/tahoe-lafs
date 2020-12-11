@@ -49,6 +49,6 @@ addition to any that were automatically discovered), whereas the new
 ``tahoe.cfg`` directive is not (``tub.location`` is used verbatim).
 
 The stats gatherer has been broken at least since Tahoe-LAFS 1.13.0.
-The functionality of ``[client].stats_gatherer.furl`` (which was
+The functionality of ``[client]stats_gatherer.furl`` (which was
 previously in ``BASEDIR/stats_gatherer.furl``), will not be available
 after Tahoe-LAFS v1.15.0 rc0.
