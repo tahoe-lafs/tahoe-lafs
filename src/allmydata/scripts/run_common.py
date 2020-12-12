@@ -137,12 +137,12 @@ class DaemonizeTheRealService(Service, HookMixin):
             except KeyError:
                 raise ValueError("unknown nodetype %s" % self.nodetype)
 
-            def handle_config_error(fail):
-                if fail.check(UnknownConfigError):
-                    self.stderr.write("\nConfiguration error:\n{}\n\n".format(fail.value))
+            def handle_config_error(reason):
+                if reason.check(UnknownConfigError):
+                    self.stderr.write("\nConfiguration error:\n{}\n\n".format(reason.value))
                 else:
                     self.stderr.write("\nUnknown error\n")
-                    fail.printTraceback(self.stderr)
+                    reason.printTraceback(self.stderr)
                 reactor.stop()
 
             d = service_factory()
