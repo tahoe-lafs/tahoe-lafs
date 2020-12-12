@@ -46,8 +46,7 @@ def get_pid_from_pidfile(pidfile):
 
 def identify_node_type(basedir):
     """
-    :return unicode: None or one of: 'client', 'introducer', or
-        'key-generator'
+    :return unicode: None or one of: 'client' or 'introducer'.
     """
     tac = u''
     try:
@@ -58,7 +57,7 @@ def identify_node_type(basedir):
     except OSError:
         return None
 
-    for t in (u"client", u"introducer", u"key-generator"):
+    for t in (u"client", u"introducer"):
         if t in tac:
             return t
     return None

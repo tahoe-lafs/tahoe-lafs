@@ -144,8 +144,8 @@ class BinTahoe(common_util.SignalMixin, unittest.TestCase, RunBinTahoeMixin):
 
 
 class CreateNode(unittest.TestCase):
-    # exercise "tahoe create-node", create-introducer, and
-    # create-key-generator by calling the corresponding code as a subroutine.
+    # exercise "tahoe create-node" and "tahoe create-introducer" by calling
+    # the corresponding code as a subroutine.
 
     def workdir(self, name):
         basedir = os.path.join("test_runner", "CreateNode", name)
@@ -253,11 +253,11 @@ class CreateNode(unittest.TestCase):
 class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
               RunBinTahoeMixin):
     """
-    exercise "tahoe run" for both introducer, client node, and key-generator,
-    by spawning "tahoe run" as a subprocess. This doesn't get us line-level
-    coverage, but it does a better job of confirming that the user can
-    actually run "./bin/tahoe run" and expect it to work. This verifies that
-    bin/tahoe sets up PYTHONPATH and the like correctly.
+    exercise "tahoe run" for both introducer and client node, by spawning
+    "tahoe run" as a subprocess. This doesn't get us line-level coverage, but
+    it does a better job of confirming that the user can actually run
+    "./bin/tahoe run" and expect it to work. This verifies that bin/tahoe sets
+    up PYTHONPATH and the like correctly.
     """
 
     def workdir(self, name):
