@@ -1310,8 +1310,8 @@ class Options(ReallyEqualMixin, unittest.TestCase):
 
 class Run(unittest.TestCase):
 
-    @patch('allmydata.scripts.run_common.os.chdir')
-    @patch('allmydata.scripts.run_common.twistd')
+    @patch('allmydata.scripts.tahoe_run.os.chdir')
+    @patch('allmydata.scripts.tahoe_run.twistd')
     def test_non_numeric_pid(self, mock_twistd, chdir):
         """
         If the pidfile exists but does not contain a numeric value, a complaint to
