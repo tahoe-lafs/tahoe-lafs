@@ -10,6 +10,3 @@ __all__ = [
 
 class RunOptions(_RunOptions):
     subcommand_name = "run"
-
-    def postOptions(self):
-        self.twistd_args += ("--nodaemon",)

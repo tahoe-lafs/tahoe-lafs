@@ -195,13 +195,7 @@ def run(config):
     # Now prepare to turn into a twistd process. This os.chdir is the point
     # of no return.
     os.chdir(basedir)
-    twistd_args = []
-    if (nodetype in (u"client", u"introducer")
-        and "--nodaemon" not in config.twistd_args
-        and "--syslog" not in config.twistd_args
-        and "--logfile" not in config.twistd_args):
-        fileutil.make_dirs(os.path.join(basedir, u"logs"))
-        twistd_args.extend(["--logfile", os.path.join("logs", "twistd.log")])
+    twistd_args = ["--nodaemon"]
     twistd_args.extend(config.twistd_args)
     twistd_args.append("DaemonizeTahoeNode") # point at our DaemonizeTahoeNodePlugin
 
