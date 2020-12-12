@@ -126,14 +126,10 @@ class DaemonizeTheRealService(Service, HookMixin):
 
     def startService(self):
 
-        def key_generator_removed():
-            return fail(ValueError("key-generator support removed, see #2783"))
-
         def start():
             node_to_instance = {
                 u"client": lambda: maybeDeferred(namedAny("allmydata.client.create_client"), self.basedir),
                 u"introducer": lambda: maybeDeferred(namedAny("allmydata.introducer.server.create_introducer"), self.basedir),
-                u"key-generator": key_generator_removed,
             }
 
             try:
