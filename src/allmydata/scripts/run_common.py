@@ -216,5 +216,4 @@ def run(config):
     # We always pass --nodaemon so twistd.runApp does not daemonize.
     print("running node in %s" % (quoted_basedir,), file=out)
     twistd.runApp(twistd_config)
-    # we should only reach here if --nodaemon or equivalent was used
     return 0
