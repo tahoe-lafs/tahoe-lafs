@@ -1272,6 +1272,14 @@ class Options(ReallyEqualMixin, unittest.TestCase):
         # accept a --node-directory option before the verb, or a --basedir
         # option after, or a basedir argument after, but none in the wrong
         # place, and not more than one of the three.
+
+        # Here is some option twistd recognizes but we don't.  Depending on
+        # where it appears, it should be passed through to twistd.  It doesn't
+        # really matter which option it is (it doesn't even have to be a valid
+        # option).  This test does not actually run any of the twistd argument
+        # parsing.
+        some_twistd_option = "--spew"
+
         o = self.parse(["run"])
         self.failUnlessReallyEqual(o["basedir"], os.path.join(fileutil.abspath_expanduser_unicode(u"~"),
                                                               u".tahoe"))
@@ -1282,7 +1290,7 @@ class Options(ReallyEqualMixin, unittest.TestCase):
         o = self.parse(["--node-directory", "there", "run"])
         self.failUnlessReallyEqual(o["basedir"], fileutil.abspath_expanduser_unicode(u"there"))
 
-        o = self.parse(["run", "here", "--nodaemon"])
+        o = self.parse(["run", "here", some_twistd_option])
         self.failUnlessReallyEqual(o["basedir"], fileutil.abspath_expanduser_unicode(u"here"))
 
         self.failUnlessRaises(usage.UsageError, self.parse,
@@ -1303,9 +1311,9 @@ class Options(ReallyEqualMixin, unittest.TestCase):
                                "run", "--basedir=here", "anywhere"])
 
         self.failUnlessRaises(usage.UsageError, self.parse,
-                              ["--node-directory=there", "run", "--nodaemon"])
+                              ["--node-directory=there", "run", some_twistd_option])
         self.failUnlessRaises(usage.UsageError, self.parse,
-                              ["run", "--basedir=here", "--nodaemon"])
+                              ["run", "--basedir=here", some_twistd_option])
 
 
 class Run(unittest.TestCase):
