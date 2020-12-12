@@ -217,38 +217,8 @@ def run(config):
         print("found invalid PID file in %s - deleting it" % basedir, file=err)
         os.remove(pidfile)
 
-    # On Unix-like platforms:
-    #   Unless --nodaemon was provided, the twistd.runApp() below spawns off a
-    #   child process, and the parent calls os._exit(0), so there's no way for
-    #   us to get control afterwards, even with 'except SystemExit'. If
-    #   application setup fails (e.g. ImportError), runApp() will raise an
-    #   exception.
-    #
-    #   So if we wanted to do anything with the running child, we'd have two
-    #   options:
-    #
-    #    * fork first, and have our child wait for the runApp() child to get
-    #      running. (note: just fork(). This is easier than fork+exec, since we
-    #      don't have to get PATH and PYTHONPATH set up, since we're not
-    #      starting a *different* process, just cloning a new instance of the
-    #      current process)
-    #    * or have the user run a separate command some time after this one
-    #      exits.
-    #
-    #   For Tahoe, we don't need to do anything with the child, so we can just
-    #   let it exit.
-    #
-    # On Windows:
-    #   twistd does not fork; it just runs in the current process whether or not
-    #   --nodaemon is specified. (As on Unix, --nodaemon does have the side effect
-    #   of causing us to log to stdout/stderr.)
-
-    if "--nodaemon" in twistd_args or sys.platform == "win32":
-        verb = "running"
-    else:
-        verb = "starting"
-
-    print("%s node in %s" % (verb, quoted_basedir), file=out)
+    # We always pass --nodaemon so twistd.runApp does not daemonize.
+    print("running node in %s" % (quoted_basedir,), file=out)
     twistd.runApp(twistd_config)
     # we should only reach here if --nodaemon or equivalent was used
     return 0
