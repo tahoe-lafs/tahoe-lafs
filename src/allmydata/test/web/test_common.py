@@ -160,7 +160,7 @@ class RenderExceptionTests(SyncTestCase):
                 MatchesPredicate(
                     lambda value: assert_soup_has_tag_with_attributes(
                         self,
-                        BeautifulSoup(value),
+                        BeautifulSoup(value, 'html5lib'),
                         "meta",
                         {"http-equiv": "refresh",
                          "content": "0;URL={}".format(loc.encode("ascii")),
