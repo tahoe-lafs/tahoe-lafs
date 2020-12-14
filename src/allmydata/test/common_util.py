@@ -82,7 +82,6 @@ def run_cli_bytes(verb, *args, **kwargs):
         nodeargs=nodeargs,
     )
     argv = nodeargs + [verb] + list(args)
-    stdin = kwargs.get("stdin", "")
     if encoding is None:
         # The original behavior, the Python 2 behavior, is to accept either
         # bytes or unicode and try to automatically encode or decode as
@@ -91,6 +90,7 @@ def run_cli_bytes(verb, *args, **kwargs):
         # away from this behavior.
         stdout = StringIO()
         stderr = StringIO()
+        stdin = StringIO(kwargs.get("stdin", ""))
     else:
         # The new behavior, the Python 3 behavior, is to accept unicode and
         # encode it using a specific encoding.  For older versions of Python
@@ -99,6 +99,7 @@ def run_cli_bytes(verb, *args, **kwargs):
         # encodings to exercise different behaviors.
         stdout = TextIOWrapper(BytesIO(), encoding)
         stderr = TextIOWrapper(BytesIO(), encoding)
+        stdin = TextIOWrapper(BytesIO(kwargs.get("stdin", b""), encoding)
     d = defer.succeed(argv)
     d.addCallback(runner.parse_or_exit_with_explanation, stdout=stdout, stderr=stderr, stdin=stdin)
     d.addCallback(
