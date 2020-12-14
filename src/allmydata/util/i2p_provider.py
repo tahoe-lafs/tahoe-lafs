@@ -169,6 +169,13 @@ class _Provider(service.MultiService):
         return i2p_port
 
     def get_client_endpoint(self):
+        """
+        Get an ``IStreamClientEndpoint`` which will set up a connection to an I2P
+        address.
+
+        If I2P is not enabled or the dependencies are not available, return
+        ``None`` instead.
+        """
         enabled = self._get_i2p_config("enabled", True, boolean=True)
         if not enabled:
             return None

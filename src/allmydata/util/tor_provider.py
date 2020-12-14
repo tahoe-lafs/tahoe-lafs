@@ -236,6 +236,12 @@ class _Provider(service.MultiService):
         return ep
 
     def get_client_endpoint(self):
+        """
+        Get an ``IStreamClientEndpoint`` which will set up a connection using Tor.
+
+        If Tor is not enabled or the dependencies are not available, return
+        ``None`` instead.
+        """
         enabled = self._get_tor_config("enabled", True, boolean=True)
         if not enabled:
             return None
