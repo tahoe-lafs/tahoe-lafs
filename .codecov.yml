@@ -38,5 +38,5 @@ codecov:
   # This is a public repository so supposedly we don't "need" to use an upload
   # token.  However, using one makes sure that CI jobs running against forked
   # repositories have coverage uploaded to the right place in codecov so
-  # they're reports aren't incomplete.
+  # their reports aren't incomplete.
   token: "abf679b6-e2e6-4b33-b7b5-6cfbd41ee691"
