@@ -99,7 +99,7 @@ def run_cli_bytes(verb, *args, **kwargs):
         # encodings to exercise different behaviors.
         stdout = TextIOWrapper(BytesIO(), encoding)
         stderr = TextIOWrapper(BytesIO(), encoding)
-        stdin = TextIOWrapper(BytesIO(kwargs.get("stdin", b""), encoding)
+        stdin = TextIOWrapper(BytesIO(kwargs.get("stdin", b""), encoding))
     d = defer.succeed(argv)
     d.addCallback(runner.parse_or_exit_with_explanation, stdout=stdout, stderr=stderr, stdin=stdin)
     d.addCallback(
