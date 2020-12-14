@@ -3153,6 +3153,9 @@ class IAddressFamily(Interface):
     def get_listener():
         """
         Return a string endpoint description or an ``IStreamServerEndpoint``.
+
+        This would be named ``get_server_endpoint`` if not for historical
+        reasons.
         """
 
     def get_client_endpoint():
