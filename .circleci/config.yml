@@ -270,7 +270,7 @@ jobs:
           name: "Submit coverage results"
           command: |
             if [ -n "${UPLOAD_COVERAGE}" ]; then
-              /tmp/venv/bin/codecov
+              /tmp/venv/bin/codecov --slug tahoe-lafs/tahoe-lafs
             fi
 
 
