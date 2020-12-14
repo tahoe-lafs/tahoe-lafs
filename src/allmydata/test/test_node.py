@@ -708,6 +708,11 @@ class TestMissingPorts(unittest.TestCase):
         )
 
     def test_tub_location_tcp(self):
+        """
+        If ``reveal-IP-address`` is set to false and ``tub.location`` includes a
+        **tcp** hint then ``_tub_portlocation`` raises `PrivacyError`` because
+        TCP leaks IP addresses.
+        """
         config = config_from_string(
             "fake.port",
             "no-basedir",
@@ -725,6 +730,11 @@ class TestMissingPorts(unittest.TestCase):
         )
 
     def test_tub_location_legacy_tcp(self):
+        """
+        If ``reveal-IP-address`` is set to false and ``tub.location`` includes a
+        "legacy" hint with no explicit type (which means it is a **tcp** hint)
+        then the behavior is the same as for an explicit **tcp** hint.
+        """
         config = config_from_string(
             "fake.port",
             "no-basedir",
