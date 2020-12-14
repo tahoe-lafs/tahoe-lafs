@@ -9,9 +9,6 @@ from six.moves import (
 from testtools.matchers import (
     Contains,
     Equals,
-    MatchesAll,
-    IsInstance,
-    AfterPreprocessing,
 )
 
 from twisted.python.filepath import (
@@ -23,7 +20,6 @@ from twisted.internet.testing import (
 from twisted.internet.test.modulehelpers import (
     AlternateReactor,
 )
-
 
 from ...scripts.tahoe_run import (
     DaemonizeTheRealService,
