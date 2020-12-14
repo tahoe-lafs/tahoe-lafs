@@ -671,7 +671,7 @@ def create_connection_handlers(config, i2p_provider, tor_provider):
         "tcp": _make_tcp_handler(),
         "tor": tor_provider.get_tor_handler(),
         "i2p": i2p_provider.get_i2p_handler(),
-    })
+    }
     log.msg(
         format="built Foolscap connection handlers for: %(known_handlers)s",
         known_handlers=sorted([k for k,v in handlers.items() if v]),
