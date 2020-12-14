@@ -1172,6 +1172,7 @@ class FakeProvider(object):
     def get_client_endpoint(self):
         if self._handler is None:
             raise Exception("{!r} has no client endpoint.")
+        return self._handler
 
 
 class _TestCaseMixin(object):
