@@ -189,10 +189,8 @@ def _run_node(reactor, node_dir, request, magic_text):
         magic_text = "client running"
     protocol = _MagicTextProtocol(magic_text)
 
-    # on windows, "tahoe start" means: run forever in the foreground,
-    # but on linux it means daemonize. "tahoe run" is consistent
-    # between platforms.
-
+    # "tahoe run" is consistent across Linux/macOS/Windows, unlike the old
+    # "start" command.
     transport = _tahoe_runner_optional_coverage(
         protocol,
         reactor,

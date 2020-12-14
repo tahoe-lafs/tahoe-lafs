@@ -37,7 +37,7 @@ class BaseOptions(usage.Options):
         super(BaseOptions, self).__init__()
         self.command_name = os.path.basename(sys.argv[0])
 
-    # Only allow "tahoe --version", not e.g. "tahoe start --version"
+    # Only allow "tahoe --version", not e.g. "tahoe <cmd> --version"
     def opt_version(self):
         raise usage.UsageError("--version not allowed on subcommands")
 

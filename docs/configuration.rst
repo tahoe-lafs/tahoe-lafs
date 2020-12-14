@@ -365,7 +365,7 @@ set the ``tub.location`` option described below.
     also generally reduced when operating in private mode.
 
     When False, any of the following configuration problems will cause
-    ``tahoe start`` to throw a PrivacyError instead of starting the node:
+    ``tahoe run`` to throw a PrivacyError instead of starting the node:
 
     * ``[node] tub.location`` contains any ``tcp:`` hints
 
