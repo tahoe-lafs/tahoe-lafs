@@ -725,7 +725,9 @@ def _convert_tub_port(s):
 
 
 class PortAssignmentRequired(Exception):
-    pass
+    """
+    A Tub port number was configured to be 0 where this is not allowed.
+    """
 
 
 def _tub_portlocation(config, get_local_addresses_sync, allocate_tcp_port):
