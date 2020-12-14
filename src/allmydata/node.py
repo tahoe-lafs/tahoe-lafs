@@ -616,7 +616,7 @@ def _make_tcp_handler():
     return default()
 
 
-def create_default_connection_handlers(reactor, config, handlers):
+def create_default_connection_handlers(config, handlers):
     """
     :return: A dictionary giving the default connection handlers.  The keys
         are strings like "tcp" and the values are strings like "tor" or
@@ -661,7 +661,7 @@ def create_default_connection_handlers(reactor, config, handlers):
     return default_connection_handlers
 
 
-def create_connection_handlers(reactor, config, i2p_provider, tor_provider):
+def create_connection_handlers(config, i2p_provider, tor_provider):
     """
     :returns: 2-tuple of default_connection_handlers, foolscap_connection_handlers
     """
@@ -681,7 +681,6 @@ def create_connection_handlers(reactor, config, i2p_provider, tor_provider):
         umid="PuLh8g",
     )
     return create_default_connection_handlers(
-        reactor,
         config,
         handlers,
     ), handlers

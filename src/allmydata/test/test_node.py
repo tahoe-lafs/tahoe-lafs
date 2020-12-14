@@ -91,7 +91,7 @@ def testing_tub(config_data=''):
 
     i2p_provider = create_i2p_provider(reactor, config)
     tor_provider = create_tor_provider(reactor, config)
-    handlers = create_connection_handlers(reactor, config, i2p_provider, tor_provider)
+    handlers = create_connection_handlers(config, i2p_provider, tor_provider)
     default_connection_handlers, foolscap_connection_handlers = handlers
     tub_options = create_tub_options(config)
 
@@ -936,9 +936,9 @@ class Configuration(unittest.TestCase):
 
 
 
-class CreateConnectionHandlers(unittest.TestCase):
+class CreateDefaultConnectionHandlersTests(unittest.TestCase):
     """
-    Tests for create_connection_handlers().
+    Tests for create_default_connection_handlers().
     """
 
     def test_tcp_disabled(self):
@@ -949,9 +949,7 @@ class CreateConnectionHandlers(unittest.TestCase):
         [connections]
         tcp = disabled
         """))
-        reactor = object()  # it's not actually used?!
         default_handlers = create_default_connection_handlers(
-            reactor,
             config,
             {},
         )

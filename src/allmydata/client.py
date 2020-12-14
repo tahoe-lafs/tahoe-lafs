@@ -270,7 +270,7 @@ def create_client_from_config(config, _client_factory=None, _introducer_factory=
 
     i2p_provider = create_i2p_provider(reactor, config)
     tor_provider = create_tor_provider(reactor, config)
-    handlers = node.create_connection_handlers(reactor, config, i2p_provider, tor_provider)
+    handlers = node.create_connection_handlers(config, i2p_provider, tor_provider)
     default_connection_handlers, foolscap_connection_handlers = handlers
     tub_options = node.create_tub_options(config)
 
