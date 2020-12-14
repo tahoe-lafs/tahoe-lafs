@@ -182,3 +182,11 @@ class UnknownNode(object):
 
     def check_and_repair(self, monitor, verify, add_lease):
         return defer.succeed(None)
+
+    def __eq__(self, other):
+        if not isinstance(other, UnknownNode):
+            return False
+        return other.ro_uri == self.ro_uri and other.rw_uri == self.rw_uri
+
+    def __ne__(self, other):
+        return not (self == other)
