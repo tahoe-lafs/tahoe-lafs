@@ -23,7 +23,7 @@ Config setting                   File                                 Comment
                                  ``BASEDIR/introducer.furl``          ``BASEDIR/private/introducers.yaml``
 ``[client]helper.furl``          ``BASEDIR/helper.furl``
 ``[client]key_generator.furl``   ``BASEDIR/key_generator.furl``
-``[client]stats_gatherer.furl``  ``BASEDIR/stats_gatherer.furl``
+                                 ``BASEDIR/stats_gatherer.furl``      Stats gatherer has been removed.
 ``[storage]enabled``             ``BASEDIR/no_storage``               (``False`` if ``no_storage`` exists)
 ``[storage]readonly``            ``BASEDIR/readonly_storage``         (``True`` if ``readonly_storage`` exists)
 ``[storage]sizelimit``           ``BASEDIR/sizelimit``
@@ -47,3 +47,10 @@ the now (since Tahoe-LAFS v1.3.0) unsupported
 addresses specified in ``advertised_ip_addresses`` were used in
 addition to any that were automatically discovered), whereas the new
 ``tahoe.cfg`` directive is not (``tub.location`` is used verbatim).
+
+The stats gatherer has been broken at least since Tahoe-LAFS v1.13.0.
+The (broken) functionality of ``[client]stats_gatherer.furl`` (which
+was previously in ``BASEDIR/stats_gatherer.furl``), is scheduled to be
+completely removed after Tahoe-LAFS v1.15.0.  After that point, if
+your configuration contains a ``[client]stats_gatherer.furl``, your
+node will refuse to start.
