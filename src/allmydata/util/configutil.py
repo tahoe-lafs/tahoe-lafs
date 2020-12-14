@@ -66,13 +66,18 @@ def write_config(tahoe_cfg, config):
     """
     Write a configuration to a file.
 
-    :param FilePath tahoe_cfg: The path to which to write the config.
+    :param FilePath tahoe_cfg: The path to which to write the
+        config. The directories are created if they do not already exist.
 
     :param ConfigParser config: The configuration to write.
 
     :return: ``None``
     """
     tmp = tahoe_cfg.temporarySibling()
+    try:
+        tahoe_cfg.parent().makedirs()
+    except OSError:
+        pass
     # FilePath.open can only open files in binary mode which does not work
     # with ConfigParser.write.
     with open(tmp.path, "wt") as fp:
