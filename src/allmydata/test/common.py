@@ -11,6 +11,8 @@ __all__ = [
     "skipIf",
 ]
 
+from past.builtins import chr as byteschr
+
 import os, random, struct
 import six
 import tempfile
@@ -1063,7 +1065,7 @@ def _corrupt_share_data_last_byte(data, debug=False):
         sharedatasize = struct.unpack(">Q", data[0x0c+0x08:0x0c+0x0c+8])[0]
         offset = 0x0c+0x44+sharedatasize-1
 
-    newdata = data[:offset] + chr(ord(data[offset])^0xFF) + data[offset+1:]
+    newdata = data[:offset] + byteschr(ord(data[offset:offset+1])^0xFF) + data[offset+1:]
     if debug:
         log.msg("testing: flipping all bits of byte at offset %d: %r, newdata: %r" % (offset, data[offset], newdata[offset]))
     return newdata
@@ -1091,7 +1093,7 @@ def _corrupt_crypttext_hash_tree_byte_x221(data, debug=False):
     assert sharevernum in (1, 2), "This test is designed to corrupt immutable shares of v1 or v2 in specific ways."
     if debug:
         log.msg("original data: %r" % (data,))
-    return data[:0x0c+0x221] + chr(ord(data[0x0c+0x221])^0x02) + data[0x0c+0x2210+1:]
+    return data[:0x0c+0x221] + byteschr(ord(data[0x0c+0x221:0x0c+0x221+1])^0x02) + data[0x0c+0x2210+1:]
 
 def _corrupt_block_hashes(data, debug=False):
     """Scramble the file data -- the field containing the block hash tree

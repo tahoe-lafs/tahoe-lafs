@@ -142,9 +142,8 @@ class BinTahoe(common_util.SignalMixin, unittest.TestCase, RunBinTahoeMixin):
 
 
 class CreateNode(unittest.TestCase):
-    # exercise "tahoe create-node", create-introducer,
-    # create-key-generator, and create-stats-gatherer, by calling the
-    # corresponding code as a subroutine.
+    # exercise "tahoe create-node", create-introducer, and
+    # create-key-generator by calling the corresponding code as a subroutine.
 
     def workdir(self, name):
         basedir = os.path.join("test_runner", "CreateNode", name)
@@ -243,47 +242,10 @@ class CreateNode(unittest.TestCase):
     def test_introducer(self):
         self.do_create("introducer", "--hostname=127.0.0.1")
 
-    def test_stats_gatherer(self):
-        self.do_create("stats-gatherer", "--hostname=127.0.0.1")
-
     def test_subcommands(self):
         # no arguments should trigger a command listing, via UsageError
         self.failUnlessRaises(usage.UsageError, parse_cli,
                               )
-
-    @inlineCallbacks
-    def test_stats_gatherer_good_args(self):
-        rc,out,err = yield run_cli("create-stats-gatherer", "--hostname=foo",
-                                   self.mktemp())
-        self.assertEqual(rc, 0)
-        rc,out,err = yield run_cli("create-stats-gatherer",
-                                   "--location=tcp:foo:1234",
-                                   "--port=tcp:1234", self.mktemp())
-        self.assertEqual(rc, 0)
-
-
-    def test_stats_gatherer_bad_args(self):
-        def _test(args):
-            argv = args.split()
-            self.assertRaises(usage.UsageError, parse_cli, *argv)
-
-        # missing hostname/location/port
-        _test("create-stats-gatherer D")
-
-        # missing port
-        _test("create-stats-gatherer --location=foo D")
-
-        # missing location
-        _test("create-stats-gatherer --port=foo D")
-
-        # can't provide both
-        _test("create-stats-gatherer --hostname=foo --port=foo D")
-
-        # can't provide both
-        _test("create-stats-gatherer --hostname=foo --location=foo D")
-
-        # can't provide all three
-        _test("create-stats-gatherer --hostname=foo --location=foo --port=foo D")
 
 
 class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,

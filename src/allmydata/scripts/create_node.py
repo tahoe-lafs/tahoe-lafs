@@ -318,7 +318,6 @@ def write_client_config(c, config):
 
     c.write("[client]\n")
     c.write("helper.furl =\n")
-    c.write("#stats_gatherer.furl =\n")
     c.write("\n")
     c.write("# Encoding parameters this client will use for newly-uploaded files\n")
     c.write("# This can be changed at any time: the encoding is saved in\n")

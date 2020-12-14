@@ -661,7 +661,7 @@ starting copy, 2 files, 1 directories
         # This test ensures that tahoe will copy a file from the grid to
         # a local directory without a specified file name.
         # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2027
-        self.basedir = "cli/Cp/cp_verbose"
+        self.basedir = "cli/Cp/ticket_2027"
         self.set_up_grid(oneshare=True)
 
         # Write a test file, which we'll copy to the grid.
