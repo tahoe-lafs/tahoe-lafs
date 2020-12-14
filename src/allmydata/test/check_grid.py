@@ -16,9 +16,7 @@ that this script does not import anything from tahoe directly, so it doesn't
 matter what its PYTHONPATH is, as long as the bin/tahoe that it uses is
 functional.
 
-This script expects that the client node will be not running when the script
-starts, but it will forcibly shut down the node just to be sure. It will shut
-down the node after the test finishes.
+This script expects the client node to be running already.
 
 To set up the client node, do the following:
 
@@ -52,7 +50,6 @@ is being tested is in [brackets]):
 
 This script will also keep track of speeds and latencies and will write them
 in a machine-readable logfile.
-
 """
 
 import time, subprocess, md5, os.path, random
