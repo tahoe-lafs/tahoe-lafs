@@ -1,5 +1,8 @@
 from __future__ import print_function
 
+from future.utils import PY2, native_str
+from future.builtins import str as future_str
+
 import os
 import time
 import signal
@@ -50,24 +53,23 @@ def _getvalue(io):
     return io.read()
 
 
-def run_cli_bytes(verb, *args, **kwargs):
+def run_cli_native(verb, *args, **kwargs):
     """
-    Run a Tahoe-LAFS CLI command specified as bytes.
+    Run a Tahoe-LAFS CLI command specified as bytes (on Python 2) or Unicode
+    (on Python 3); basically, it accepts a native string.
 
     Most code should prefer ``run_cli_unicode`` which deals with all the
-    necessary encoding considerations.  This helper still exists so that novel
-    misconfigurations can be explicitly tested (for example, receiving UTF-8
-    bytes when the system encoding claims to be ASCII).
+    necessary encoding considerations.
 
-    :param bytes verb: The command to run.  For example, ``b"create-node"``.
+    :param native_str verb: The command to run.  For example, ``b"create-node"``.
 
-    :param [bytes] args: The arguments to pass to the command.  For example,
+    :param [native_str] args: The arguments to pass to the command.  For example,
         ``(b"--hostname=localhost",)``.
 
-    :param [bytes] nodeargs: Extra arguments to pass to the Tahoe executable
+    :param [native_str] nodeargs: Extra arguments to pass to the Tahoe executable
         before ``verb``.
 
-    :param bytes stdin: Text to pass to the command via stdin.
+    :param native_str stdin: Text to pass to the command via stdin.
 
     :param NoneType|str encoding: The name of an encoding which stdout and
         stderr will be configured to use.  ``None`` means stdout and stderr
@@ -77,8 +79,8 @@ def run_cli_bytes(verb, *args, **kwargs):
     nodeargs = kwargs.pop("nodeargs", [])
     encoding = kwargs.pop("encoding", None)
     precondition(
-        all(isinstance(arg, bytes) for arg in [verb] + nodeargs + list(args)),
-        "arguments to run_cli must be bytes -- convert using unicode_to_argv",
+        all(isinstance(arg, native_str) for arg in [verb] + nodeargs + list(args)),
+        "arguments to run_cli must be a native string -- convert using unicode_to_argv",
         verb=verb,
         args=args,
         nodeargs=nodeargs,
@@ -137,15 +139,19 @@ def run_cli_unicode(verb, argv, nodeargs=None, stdin=None, encoding=None):
     if nodeargs is None:
         nodeargs = []
     precondition(
-        all(isinstance(arg, unicode) for arg in [verb] + nodeargs + argv),
+        all(isinstance(arg, future_str) for arg in [verb] + nodeargs + argv),
         "arguments to run_cli_unicode must be unicode",
         verb=verb,
         nodeargs=nodeargs,
         argv=argv,
     )
     codec = encoding or "ascii"
-    encode = lambda t: None if t is None else t.encode(codec)
-    d = run_cli_bytes(
+    if PY2:
+        encode = lambda t: None if t is None else t.encode(codec)
+    else:
+        # On Python 3 command-line parsing expects Unicode!
+        encode = lambda t: t
+    d = run_cli_native(
         encode(verb),
         nodeargs=list(encode(arg) for arg in nodeargs),
         stdin=encode(stdin),
@@ -163,7 +169,7 @@ def run_cli_unicode(verb, argv, nodeargs=None, stdin=None, encoding=None):
     return d
 
 
-run_cli = run_cli_bytes
+run_cli = run_cli_native
 
 
 def parse_cli(*argv):

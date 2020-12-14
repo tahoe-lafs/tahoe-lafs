@@ -63,7 +63,7 @@ from .web.common import (
 # TODO: move this to common or common_util
 from allmydata.test.test_runner import RunBinTahoeMixin
 from . import common_util as testutil
-from .common_util import run_cli_bytes
+from .common_util import run_cli_unicode
 from ..scripts.common import (
     write_introducer,
 )
@@ -72,7 +72,10 @@ def run_cli(*args, **kwargs):
     """
     Backwards compatible version so we don't have to change all the tests.
     """
-    return run_cli_bytes(*(ensure_binary(a) for a in args), **kwargs)
+    nodeargs = [ensure_text(a) for a in kwargs.pop("nodeargs", [])]
+    kwargs["nodeargs"] = nodeargs
+    return run_cli_unicode(
+        ensure_text(args[0]), [ensure_text(a) for a in args[1:]], **kwargs)
 
 
 
@@ -1287,7 +1290,9 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
             s = stats["stats"]
             self.failUnlessEqual(s["storage_server.accepting_immutable_shares"], 1)
             c = stats["counters"]
-            self.failUnless("storage_server.allocate" in c)
+            # Probably this should be Unicode eventually? But we haven't ported
+            # stats code yet.
+            self.failUnless(b"storage_server.allocate" in c)
         d.addCallback(_grab_stats)
 
         return d
