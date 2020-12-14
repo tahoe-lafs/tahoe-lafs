@@ -20,9 +20,8 @@ This script expects the client node to be running already.
 
 To set up the client node, do the following:
 
-  tahoe create-client DIR
-  populate DIR/private/introducers.yaml
   $DAEMONIZE tahoe run DIR
+  tahoe create-client --introducer=INTRODUCER_FURL DIR
   tahoe -d DIR create-alias testgrid
   # pick a 10kB-ish test file, compute its md5sum
   tahoe -d DIR put FILE testgrid:old.MD5SUM
