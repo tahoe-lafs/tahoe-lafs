@@ -48,10 +48,10 @@ class VerboseError(Error):
 @inlineCallbacks
 def do_http(method, url, **kwargs):
     """
-    Run HTTP query, return Deferred of body as Unicode.
+    Run HTTP query, return Deferred of body as bytes.
     """
     response = yield treq.request(method, url, persistent=False, **kwargs)
-    body = yield treq.text_content(response, "utf-8")
+    body = yield treq.content(response)
     # TODO: replace this with response.fail_for_status when
     # https://github.com/twisted/treq/pull/159 has landed
     if 400 <= response.code < 600:

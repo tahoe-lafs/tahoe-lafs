@@ -55,7 +55,7 @@ from .common import (
     TEST_RSA_KEY_SIZE,
     SameProcessStreamEndpointAssigner,
 )
-from .common_web import do_http, Error
+from .common_web import do_http as do_http_bytes, Error
 from .web.common import (
     assert_soup_has_tag_with_attributes
 )
@@ -77,6 +77,11 @@ def run_cli(*args, **kwargs):
     return run_cli_unicode(
         ensure_text(args[0]), [ensure_text(a) for a in args[1:]], **kwargs)
 
+
+def do_http(*args, **kwargs):
+    """Wrapper for do_http() that returns Unicode."""
+    return do_http_bytes(*args, **kwargs).addCallback(
+        lambda b: str(b, "utf-8"))
 
 
 LARGE_DATA = b"""
