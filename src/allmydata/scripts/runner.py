@@ -9,7 +9,7 @@ from twisted.internet import defer, task, threads
 
 from allmydata.scripts.common import get_default_nodedir
 from allmydata.scripts import debug, create_node, cli, \
-    stats_gatherer, admin, tahoe_daemonize, tahoe_start, \
+    admin, tahoe_daemonize, tahoe_start, \
     tahoe_stop, tahoe_restart, tahoe_run, tahoe_invite
 from allmydata.util.encodingutil import quote_output, quote_local_unicode_path, get_io_encoding
 from allmydata.util.eliotutil import (
@@ -60,7 +60,6 @@ class Options(usage.Options):
     stderr = sys.stderr
 
     subCommands = (     create_node.subCommands
-                    +   stats_gatherer.subCommands
                     +   admin.subCommands
                     +   process_control_commands
                     +   debug.subCommands
@@ -107,7 +106,7 @@ class Options(usage.Options):
 
 
 create_dispatch = {}
-for module in (create_node, stats_gatherer):
+for module in (create_node,):
     create_dispatch.update(module.dispatch)
 
 def parse_options(argv, config=None):

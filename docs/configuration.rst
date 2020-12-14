@@ -75,7 +75,7 @@ The item descriptions below use the following types:
 Node Types
 ==========
 
-A node can be a client/server, an introducer, or a statistics gatherer.
+A node can be a client/server or an introducer.
 
 Client/server nodes provide one or more of the following services:
 
@@ -593,11 +593,6 @@ Client Configuration
     If provided, the node will attempt to connect to and use the given helper
     for uploads. See :doc:`helper` for details.
 
-``stats_gatherer.furl = (FURL string, optional)``
-
-    If provided, the node will connect to the given stats gatherer and
-    provide it with operational statistics.
-
 ``shares.needed = (int, optional) aka "k", default 3``
 
 ``shares.total = (int, optional) aka "N", N >= k, default 10``
@@ -910,11 +905,6 @@ This section describes these other files.
 
   This file is used to construct an introducer, and is created by the
   "``tahoe create-introducer``" command.
-
-``tahoe-stats-gatherer.tac``
-
-  This file is used to construct a statistics gatherer, and is created by the
-  "``tahoe create-stats-gatherer``" command.
 
 ``private/control.furl``
 

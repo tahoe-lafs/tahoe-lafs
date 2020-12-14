@@ -5,6 +5,10 @@ import time
 import signal
 from random import randrange
 from six.moves import StringIO
+from io import (
+    TextIOWrapper,
+    BytesIO,
+)
 
 from twisted.internet import reactor, defer
 from twisted.python import failure
@@ -35,14 +39,66 @@ def skip_if_cannot_represent_argv(u):
     except UnicodeEncodeError:
         raise unittest.SkipTest("A non-ASCII argv could not be encoded on this platform.")
 
-def run_cli(verb, *args, **kwargs):
-    precondition(not [True for arg in args if not isinstance(arg, str)],
-                 "arguments to do_cli must be strs -- convert using unicode_to_argv", args=args)
-    nodeargs = kwargs.get("nodeargs", [])
+
+def _getvalue(io):
+    """
+    Read out the complete contents of a file-like object.
+    """
+    io.seek(0)
+    return io.read()
+
+
+def run_cli_bytes(verb, *args, **kwargs):
+    """
+    Run a Tahoe-LAFS CLI command specified as bytes.
+
+    Most code should prefer ``run_cli_unicode`` which deals with all the
+    necessary encoding considerations.  This helper still exists so that novel
+    misconfigurations can be explicitly tested (for example, receiving UTF-8
+    bytes when the system encoding claims to be ASCII).
+
+    :param bytes verb: The command to run.  For example, ``b"create-node"``.
+
+    :param [bytes] args: The arguments to pass to the command.  For example,
+        ``(b"--hostname=localhost",)``.
+
+    :param [bytes] nodeargs: Extra arguments to pass to the Tahoe executable
+        before ``verb``.
+
+    :param bytes stdin: Text to pass to the command via stdin.
+
+    :param NoneType|str encoding: The name of an encoding which stdout and
+        stderr will be configured to use.  ``None`` means stdout and stderr
+        will accept bytes and unicode and use the default system encoding for
+        translating between them.
+    """
+    nodeargs = kwargs.pop("nodeargs", [])
+    encoding = kwargs.pop("encoding", None)
+    precondition(
+        all(isinstance(arg, bytes) for arg in [verb] + nodeargs + list(args)),
+        "arguments to run_cli must be bytes -- convert using unicode_to_argv",
+        verb=verb,
+        args=args,
+        nodeargs=nodeargs,
+    )
     argv = nodeargs + [verb] + list(args)
-    stdin = StringIO(kwargs.get("stdin", ""))
-    stdout = StringIO()
-    stderr = StringIO()
+    stdin = kwargs.get("stdin", "")
+    if encoding is None:
+        # The original behavior, the Python 2 behavior, is to accept either
+        # bytes or unicode and try to automatically encode or decode as
+        # necessary.  This works okay for ASCII and if LANG is set
+        # appropriately.  These aren't great constraints so we should move
+        # away from this behavior.
+        stdout = StringIO()
+        stderr = StringIO()
+    else:
+        # The new behavior, the Python 3 behavior, is to accept unicode and
+        # encode it using a specific encoding.  For older versions of Python
+        # 3, the encoding is determined from LANG (bad) but for newer Python
+        # 3, the encoding is always utf-8 (good).  Tests can pass in different
+        # encodings to exercise different behaviors.
+        stdout = TextIOWrapper(BytesIO(), encoding)
+        stderr = TextIOWrapper(BytesIO(), encoding)
     d = defer.succeed(argv)
     d.addCallback(runner.parse_or_exit_with_explanation, stdout=stdout, stderr=stderr, stdin=stdin)
     d.addCallback(
@@ -52,12 +108,64 @@ def run_cli(verb, *args, **kwargs):
         stderr=stderr,
     )
     def _done(rc):
-        return 0, stdout.getvalue(), stderr.getvalue()
+        return 0, _getvalue(stdout), _getvalue(stderr)
     def _err(f):
         f.trap(SystemExit)
-        return f.value.code, stdout.getvalue(), stderr.getvalue()
+        return f.value.code, _getvalue(stdout), _getvalue(stderr)
     d.addCallbacks(_done, _err)
     return d
+
+
+def run_cli_unicode(verb, argv, nodeargs=None, stdin=None, encoding=None):
+    """
+    Run a Tahoe-LAFS CLI command.
+
+    :param unicode verb: The command to run.  For example, ``u"create-node"``.
+
+    :param [unicode] argv: The arguments to pass to the command.  For example,
+        ``[u"--hostname=localhost"]``.
+
+    :param [unicode] nodeargs: Extra arguments to pass to the Tahoe executable
+        before ``verb``.
+
+    :param unicode stdin: Text to pass to the command via stdin.
+
+    :param NoneType|str encoding: The name of an encoding to use for all
+        bytes/unicode conversions necessary *and* the encoding to cause stdio
+        to declare with its ``encoding`` attribute.  ``None`` means ASCII will
+        be used and no declaration will be made at all.
+    """
+    if nodeargs is None:
+        nodeargs = []
+    precondition(
+        all(isinstance(arg, unicode) for arg in [verb] + nodeargs + argv),
+        "arguments to run_cli_unicode must be unicode",
+        verb=verb,
+        nodeargs=nodeargs,
+        argv=argv,
+    )
+    codec = encoding or "ascii"
+    encode = lambda t: None if t is None else t.encode(codec)
+    d = run_cli_bytes(
+        encode(verb),
+        nodeargs=list(encode(arg) for arg in nodeargs),
+        stdin=encode(stdin),
+        encoding=encoding,
+        *list(encode(arg) for arg in argv)
+    )
+    def maybe_decode(result):
+        code, stdout, stderr = result
+        if isinstance(stdout, bytes):
+            stdout = stdout.decode(codec)
+        if isinstance(stderr, bytes):
+            stderr = stderr.decode(codec)
+        return code, stdout, stderr
+    d.addCallback(maybe_decode)
+    return d
+
+
+run_cli = run_cli_bytes
+
 
 def parse_cli(*argv):
     # This parses the CLI options (synchronously), and returns the Options

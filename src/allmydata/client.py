@@ -7,7 +7,6 @@ import weakref
 
 from base64 import urlsafe_b64encode
 from functools import partial
-
 # On Python 2 this will be the backported package:
 from configparser import NoSectionError
 
@@ -89,7 +88,6 @@ _client_config = configutil.ValidConfiguration(
             "shares.happy",
             "shares.needed",
             "shares.total",
-            "stats_gatherer.furl",
             "storage.plugins",
         ),
         "grid_managers": None,  # means "any options valid"
@@ -693,11 +691,7 @@ class _Client(node.Node, pollmixin.PollMixin):
             self.init_web(webport) # strports string
 
     def init_stats_provider(self):
-        gatherer_furl = self.config.get_config("client", "stats_gatherer.furl", None)
-        if gatherer_furl:
-            # FURLs should be bytes:
-            gatherer_furl = gatherer_furl.encode("utf-8")
-        self.stats_provider = StatsProvider(self, gatherer_furl)
+        self.stats_provider = StatsProvider(self)
         self.stats_provider.setServiceParent(self)
         self.stats_provider.register_producer(self)
 
