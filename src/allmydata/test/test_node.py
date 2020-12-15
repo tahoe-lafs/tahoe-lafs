@@ -6,7 +6,7 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
-from future.utils import PY2
+from future.utils import PY2, native_str
 if PY2:
     from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
@@ -549,11 +549,24 @@ class TestMissingPorts(unittest.TestCase):
             "tub.port = tcp:0\n"
         )
         config = config_from_string(self.basedir, "portnum", config_data)
-
-        # XXX The implementation has some shortcomings.  For example, how
-        # about tcp:localhost:0?
         with self.assertRaises(PortAssignmentRequired):
             _tub_portlocation(config, None, None)
+
+    def test_listen_on_zero_with_host(self):
+        """
+        ``set_tub_locations`` raises ``PortAssignmentRequired`` called with a
+        listen address including port 0 and an interface.
+        """
+        config_data = (
+            "[node]\n"
+            "tub.port = tcp:0:interface=127.0.0.1\n"
+        )
+        config = config_from_string(self.basedir, "portnum", config_data)
+        with self.assertRaises(PortAssignmentRequired):
+            _tub_portlocation(config, None, None)
+    test_listen_on_zero_with_host.todo = native_str(
+        "https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3563"
+    )
 
     def test_parsing_tcp(self):
         """
