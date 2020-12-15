@@ -541,7 +541,7 @@ class TestMissingPorts(unittest.TestCase):
 
     def test_listen_on_zero(self):
         """
-        ``set_tub_locations`` raises ``PortAssignmentRequired`` called with a
+        ``_tub_portlocation`` raises ``PortAssignmentRequired`` called with a
         listen address including port 0 and no interface.
         """
         config_data = (
@@ -554,7 +554,7 @@ class TestMissingPorts(unittest.TestCase):
 
     def test_listen_on_zero_with_host(self):
         """
-        ``set_tub_locations`` raises ``PortAssignmentRequired`` called with a
+        ``_tub_portlocation`` raises ``PortAssignmentRequired`` called with a
         listen address including port 0 and an interface.
         """
         config_data = (
