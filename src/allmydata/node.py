@@ -827,7 +827,7 @@ def _tub_portlocation(config, get_local_addresses_sync, allocate_tcp_port):
     return tubport, location
 
 
-def set_tub_locations(i2p_provider, tor_provider, tub, tubport, location):
+def tub_listen_on(i2p_provider, tor_provider, tub, tubport, location):
     """
     Assign a Tub its listener locations.
 
@@ -898,7 +898,7 @@ def create_main_tub(config, tub_options,
         log.msg("Tub is not listening")
     else:
         tubport, location = portlocation
-        set_tub_locations(
+        tub_listen_on(
             i2p_provider,
             tor_provider,
             tub,

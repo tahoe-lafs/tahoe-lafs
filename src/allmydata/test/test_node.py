@@ -40,7 +40,7 @@ from twisted.application import service
 from allmydata.node import (
     PortAssignmentRequired,
     PrivacyError,
-    set_tub_locations,
+    tub_listen_on,
     create_tub_options,
     create_main_tub,
     create_node_dir,
@@ -833,16 +833,16 @@ class Listeners(unittest.TestCase):
                 (port1, port2))
         location = "tcp:localhost:%d,tcp:localhost:%d" % (port1, port2)
         t = FakeTub()
-        set_tub_locations(None, None, t, port, location)
+        tub_listen_on(None, None, t, port, location)
         self.assertEqual(t.listening_ports,
                          ["tcp:%d:interface=127.0.0.1" % port1,
                           "tcp:%d:interface=127.0.0.1" % port2])
 
     def test_tor_i2p_listeners(self):
         """
-        When configured to listen on an "i2p" or "tor" address,
-        ``set_tub_locations`` tells the Tub to listen on endpoints supplied by
-        the given Tor and I2P providers.
+        When configured to listen on an "i2p" or "tor" address, ``tub_listen_on``
+        tells the Tub to listen on endpoints supplied by the given Tor and I2P
+        providers.
         """
         t = FakeTub()
 
@@ -851,7 +851,7 @@ class Listeners(unittest.TestCase):
         tor_listener = object()
         tor_provider = ConstantAddresses(tor_listener)
 
-        set_tub_locations(
+        tub_listen_on(
             i2p_provider,
             tor_provider,
             t,
