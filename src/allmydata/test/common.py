@@ -1156,7 +1156,7 @@ def _corrupt_uri_extension(data, debug=False):
 
 @attr.s
 @implementer(IAddressFamily)
-class FakeProvider(object):
+class ConstantAddresses(object):
     """
     Pretend to provide support for some address family but just hand out
     canned responses.

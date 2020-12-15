@@ -68,7 +68,7 @@ from allmydata.util.tor_provider import create as create_tor_provider
 import allmydata.test.common_util as testutil
 
 from .common import (
-    FakeProvider,
+    ConstantAddresses,
 )
 
 def port_numbers():
@@ -847,9 +847,9 @@ class Listeners(unittest.TestCase):
         t = FakeTub()
 
         i2p_listener = object()
-        i2p_provider = FakeProvider(i2p_listener)
+        i2p_provider = ConstantAddresses(i2p_listener)
         tor_listener = object()
-        tor_provider = FakeProvider(tor_listener)
+        tor_provider = ConstantAddresses(tor_listener)
 
         set_tub_locations(
             i2p_provider,
