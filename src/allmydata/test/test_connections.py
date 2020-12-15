@@ -6,7 +6,7 @@ from twisted.internet.interfaces import IStreamClientEndpoint
 from foolscap.connections import tcp
 from ..node import PrivacyError, config_from_string
 from ..node import create_connection_handlers
-from ..node import create_main_tub, _tub_portlocation
+from ..node import create_main_tub
 from ..util.i2p_provider import create as create_i2p_provider
 from ..util.tor_provider import create as create_tor_provider
 
@@ -22,7 +22,7 @@ class TCP(unittest.TestCase):
             "no-basedir",
             BASECONFIG,
         )
-        _, foolscap_handlers = create_connection_handlers(None, config, mock.Mock(), mock.Mock())
+        _, foolscap_handlers = create_connection_handlers(config, mock.Mock(), mock.Mock())
         self.assertIsInstance(
             foolscap_handlers['tcp'],
             tcp.DefaultTCP,
@@ -341,7 +341,7 @@ class Connections(unittest.TestCase):
         self.config = config_from_string("fake.port", self.basedir, BASECONFIG)
 
     def test_default(self):
-        default_connection_handlers, _ = create_connection_handlers(None, self.config, mock.Mock(), mock.Mock())
+        default_connection_handlers, _ = create_connection_handlers(self.config, mock.Mock(), mock.Mock())
         self.assertEqual(default_connection_handlers["tcp"], "tcp")
         self.assertEqual(default_connection_handlers["tor"], "tor")
         self.assertEqual(default_connection_handlers["i2p"], "i2p")
@@ -352,7 +352,7 @@ class Connections(unittest.TestCase):
             "no-basedir",
             BASECONFIG + "[connections]\ntcp = tor\n",
         )
-        default_connection_handlers, _ = create_connection_handlers(None, config, mock.Mock(), mock.Mock())
+        default_connection_handlers, _ = create_connection_handlers(config, mock.Mock(), mock.Mock())
 
         self.assertEqual(default_connection_handlers["tcp"], "tor")
         self.assertEqual(default_connection_handlers["tor"], "tor")
@@ -368,7 +368,7 @@ class Connections(unittest.TestCase):
             )
             with self.assertRaises(ValueError) as ctx:
                 tor_provider = create_tor_provider(reactor, self.config)
-                default_connection_handlers, _ = create_connection_handlers(None, self.config, mock.Mock(), tor_provider)
+                default_connection_handlers, _ = create_connection_handlers(self.config, mock.Mock(), tor_provider)
         self.assertEqual(
             str(ctx.exception),
             "'tahoe.cfg [connections] tcp='"
@@ -383,7 +383,7 @@ class Connections(unittest.TestCase):
             BASECONFIG + "[connections]\ntcp = unknown\n",
         )
         with self.assertRaises(ValueError) as ctx:
-            create_connection_handlers(None, config, mock.Mock(), mock.Mock())
+            create_connection_handlers(config, mock.Mock(), mock.Mock())
         self.assertIn("'tahoe.cfg [connections] tcp='", str(ctx.exception))
         self.assertIn("uses unknown handler type 'unknown'", str(ctx.exception))
 
@@ -393,7 +393,7 @@ class Connections(unittest.TestCase):
             "no-basedir",
             BASECONFIG + "[connections]\ntcp = disabled\n",
         )
-        default_connection_handlers, _ = create_connection_handlers(None, config, mock.Mock(), mock.Mock())
+        default_connection_handlers, _ = create_connection_handlers(config, mock.Mock(), mock.Mock())
         self.assertEqual(default_connection_handlers["tcp"], None)
         self.assertEqual(default_connection_handlers["tor"], "tor")
         self.assertEqual(default_connection_handlers["i2p"], "i2p")
@@ -408,11 +408,12 @@ class Privacy(unittest.TestCase):
         )
 
         with self.assertRaises(PrivacyError) as ctx:
-            create_connection_handlers(None, config, mock.Mock(), mock.Mock())
+            create_connection_handlers(config, mock.Mock(), mock.Mock())
 
         self.assertEqual(
             str(ctx.exception),
-            "tcp = tcp, must be set to 'tor' or 'disabled'",
+            "Privacy requested with `reveal-IP-address = false` "
+            "but `tcp = tcp` conflicts with this.",
         )
 
     def test_connections_tcp_disabled(self):
@@ -422,7 +423,7 @@ class Privacy(unittest.TestCase):
             BASECONFIG + "[connections]\ntcp = disabled\n" +
             "[node]\nreveal-IP-address = false\n",
         )
-        default_connection_handlers, _ = create_connection_handlers(None, config, mock.Mock(), mock.Mock())
+        default_connection_handlers, _ = create_connection_handlers(config, mock.Mock(), mock.Mock())
         self.assertEqual(default_connection_handlers["tcp"], None)
 
     def test_tub_location_auto(self):
@@ -437,32 +438,4 @@ class Privacy(unittest.TestCase):
         self.assertEqual(
             str(ctx.exception),
             "tub.location uses AUTO",
-        )
-
-    def test_tub_location_tcp(self):
-        config = config_from_string(
-            "fake.port",
-            "no-basedir",
-            BASECONFIG + "[node]\nreveal-IP-address = false\ntub.location=tcp:hostname:1234\n",
-        )
-        with self.assertRaises(PrivacyError) as ctx:
-            _tub_portlocation(config)
-        self.assertEqual(
-            str(ctx.exception),
-            "tub.location includes tcp: hint",
-        )
-
-    def test_tub_location_legacy_tcp(self):
-        config = config_from_string(
-            "fake.port",
-            "no-basedir",
-            BASECONFIG + "[node]\nreveal-IP-address = false\ntub.location=hostname:1234\n",
-        )
-
-        with self.assertRaises(PrivacyError) as ctx:
-            _tub_portlocation(config)
-
-        self.assertEqual(
-            str(ctx.exception),
-            "tub.location includes tcp: hint",
         )

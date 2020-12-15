@@ -18,6 +18,10 @@ from allmydata.util.encodingutil import listdir_unicode, quote_local_unicode_pat
 from allmydata.util.configutil import UnknownConfigError
 from allmydata.util.deferredutil import HookMixin
 
+from allmydata.node import (
+    PortAssignmentRequired,
+    PrivacyError,
+)
 
 def get_pidfile(basedir):
     """
@@ -146,6 +150,10 @@ class DaemonizeTheRealService(Service, HookMixin):
             def handle_config_error(reason):
                 if reason.check(UnknownConfigError):
                     self.stderr.write("\nConfiguration error:\n{}\n\n".format(reason.value))
+                elif reason.check(PortAssignmentRequired):
+                    self.stderr.write("\ntub.port cannot be 0: you must choose.\n\n")
+                elif reason.check(PrivacyError):
+                    self.stderr.write("\n{}\n\n".format(reason.value))
                 else:
                     self.stderr.write("\nUnknown error\n")
                     reason.printTraceback(self.stderr)
