@@ -517,6 +517,20 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
             new_config.get_config("foo", "bar")
 
 
+def _stub_get_local_addresses_sync():
+    """
+    A function like ``allmydata.util.iputil.get_local_addresses_sync``.
+    """
+    return ["LOCAL"]
+
+
+def _stub_allocate_tcp_port():
+    """
+    A function like ``allmydata.util.iputil.allocate_tcp_port``.
+    """
+    return 999
+
+
 class TestMissingPorts(unittest.TestCase):
     """
     Test certain ``_tub_portlocation`` error cases for ports setup.
@@ -525,16 +539,10 @@ class TestMissingPorts(unittest.TestCase):
         self.basedir = self.mktemp()
         create_node_dir(self.basedir, "testing")
 
-    def _get_addr(self):
-        return ["LOCAL"]
-
-    def _alloc_port(self):
-        return 999
-
     def test_listen_on_zero(self):
         """
         ``set_tub_locations`` raises ``PortAssignmentRequired`` called with a
-        listen address including port 0.
+        listen address including port 0 and no interface.
         """
         config_data = (
             "[node]\n"
@@ -562,8 +570,8 @@ class TestMissingPorts(unittest.TestCase):
 
         tubport, tublocation = _tub_portlocation(
             config,
-            self._get_addr,
-            self._alloc_port,
+            _stub_get_local_addresses_sync,
+            _stub_allocate_tcp_port,
         )
         self.assertEqual(tubport, "tcp:777")
         self.assertEqual(tublocation, b"tcp:LOCAL:777")
@@ -579,8 +587,8 @@ class TestMissingPorts(unittest.TestCase):
 
         tubport, tublocation = _tub_portlocation(
             config,
-            self._get_addr,
-            self._alloc_port,
+            _stub_get_local_addresses_sync,
+            _stub_allocate_tcp_port,
         )
         self.assertEqual(tubport, "tcp:999")
         self.assertEqual(tublocation, b"tcp:LOCAL:999")
@@ -597,8 +605,8 @@ class TestMissingPorts(unittest.TestCase):
 
         tubport, tublocation = _tub_portlocation(
             config,
-            self._get_addr,
-            self._alloc_port,
+            _stub_get_local_addresses_sync,
+            _stub_allocate_tcp_port,
         )
         self.assertEqual(tubport, "tcp:999")
         self.assertEqual(tublocation, b"tcp:HOST:888,tcp:LOCAL:999")
@@ -616,8 +624,8 @@ class TestMissingPorts(unittest.TestCase):
 
         res = _tub_portlocation(
             config,
-            self._get_addr,
-            self._alloc_port,
+            _stub_get_local_addresses_sync,
+            _stub_allocate_tcp_port,
         )
         self.assertTrue(res is None)
 
@@ -634,8 +642,8 @@ class TestMissingPorts(unittest.TestCase):
         with self.assertRaises(ValueError) as ctx:
             _tub_portlocation(
                 config,
-                self._get_addr,
-                self._alloc_port,
+                _stub_get_local_addresses_sync,
+                _stub_allocate_tcp_port,
             )
         self.assertIn(
             "tub.port must not be empty",
@@ -655,8 +663,8 @@ class TestMissingPorts(unittest.TestCase):
         with self.assertRaises(ValueError) as ctx:
             _tub_portlocation(
                 config,
-                self._get_addr,
-                self._alloc_port,
+                _stub_get_local_addresses_sync,
+                _stub_allocate_tcp_port,
             )
         self.assertIn(
             "tub.location must not be empty",
@@ -677,8 +685,8 @@ class TestMissingPorts(unittest.TestCase):
         with self.assertRaises(ValueError) as ctx:
             _tub_portlocation(
                 config,
-                self._get_addr,
-                self._alloc_port,
+                _stub_get_local_addresses_sync,
+                _stub_allocate_tcp_port,
             )
         self.assertIn(
             "tub.port is disabled, but not tub.location",
@@ -699,8 +707,8 @@ class TestMissingPorts(unittest.TestCase):
         with self.assertRaises(ValueError) as ctx:
             _tub_portlocation(
                 config,
-                self._get_addr,
-                self._alloc_port,
+                _stub_get_local_addresses_sync,
+                _stub_allocate_tcp_port,
             )
         self.assertIn(
             "tub.location is disabled, but not tub.port",
@@ -721,8 +729,8 @@ class TestMissingPorts(unittest.TestCase):
         with self.assertRaises(PrivacyError) as ctx:
             _tub_portlocation(
                 config,
-                self._get_addr,
-                self._alloc_port,
+                _stub_get_local_addresses_sync,
+                _stub_allocate_tcp_port,
             )
         self.assertEqual(
             str(ctx.exception),
@@ -744,8 +752,8 @@ class TestMissingPorts(unittest.TestCase):
         with self.assertRaises(PrivacyError) as ctx:
             _tub_portlocation(
                 config,
-                self._get_addr,
-                self._alloc_port,
+                _stub_get_local_addresses_sync,
+                _stub_allocate_tcp_port,
             )
 
         self.assertEqual(
