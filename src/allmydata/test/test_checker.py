@@ -144,7 +144,7 @@ class WebResultsRendering(unittest.TestCase):
 
     @staticmethod
     def remove_tags(html):
-        return BeautifulSoup(html).get_text(separator=" ")
+        return BeautifulSoup(html, 'html5lib').get_text(separator=" ")
 
     def create_fake_client(self):
         sb = StorageFarmBroker(True, None, EMPTY_CLIENT_CONFIG)

@@ -2145,7 +2145,7 @@ you could do the following::
  tahoe debug dump-cap URI:CHK:n7r3m6wmomelk4sep3kw5cvduq:os7ijw5c3maek7pg65e5254k2fzjflavtpejjyhshpsxuqzhcwwq:3:20:14861
  -> storage index: whpepioyrnff7orecjolvbudeu
  echo "whpepioyrnff7orecjolvbudeu my puppy told me to" >>$NODEDIR/access.blacklist
- tahoe restart $NODEDIR
+ # ... restart the node to re-read configuration ...
  tahoe get URI:CHK:n7r3m6wmomelk4sep3kw5cvduq:os7ijw5c3maek7pg65e5254k2fzjflavtpejjyhshpsxuqzhcwwq:3:20:14861
  -> error, 403 Access Prohibited: my puppy told me to
 
