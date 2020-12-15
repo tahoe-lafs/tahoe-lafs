@@ -827,36 +827,31 @@ def _tub_portlocation(config, get_local_addresses_sync, allocate_tcp_port):
     return tubport, location
 
 
-def set_tub_locations(i2p_provider, tor_provider, tub, portlocation):
+def set_tub_locations(i2p_provider, tor_provider, tub, tubport, location):
     """
     Assign a Tub its listener locations.
 
     :param i2p_provider: See ``allmydata.util.i2p_provider.create``.
     :param tor_provider: See ``allmydata.util.tor_provider.create``.
     """
-    if portlocation is None:
-        log.msg("Tub is not listening")
-    else:
-        tubport, location = portlocation
-        for port in tubport.split(","):
-            if port == "listen:i2p":
-                # the I2P provider will read its section of tahoe.cfg and
-                # return either a fully-formed Endpoint, or a descriptor
-                # that will create one, so we don't have to stuff all the
-                # options into the tub.port string (which would need a lot
-                # of escaping)
-                port_or_endpoint = i2p_provider.get_listener()
-            elif port == "listen:tor":
-                port_or_endpoint = tor_provider.get_listener()
-            else:
-                port_or_endpoint = port
-            # Foolscap requires native strings:
-            if isinstance(port_or_endpoint, (bytes, str)):
-                port_or_endpoint = ensure_str(port_or_endpoint)
-            tub.listenOn(port_or_endpoint)
-        tub.setLocation(location)
-        log.msg("Tub location set to %s" % (location,))
-        # the Tub is now ready for tub.registerReference()
+    for port in tubport.split(","):
+        if port == "listen:i2p":
+            # the I2P provider will read its section of tahoe.cfg and
+            # return either a fully-formed Endpoint, or a descriptor
+            # that will create one, so we don't have to stuff all the
+            # options into the tub.port string (which would need a lot
+            # of escaping)
+            port_or_endpoint = i2p_provider.get_listener()
+        elif port == "listen:tor":
+            port_or_endpoint = tor_provider.get_listener()
+        else:
+            port_or_endpoint = port
+        # Foolscap requires native strings:
+        if isinstance(port_or_endpoint, (bytes, str)):
+            port_or_endpoint = ensure_str(port_or_endpoint)
+        tub.listenOn(port_or_endpoint)
+    # This last step makes the Tub is ready for tub.registerReference()
+    tub.setLocation(location)
 
 
 def create_main_tub(config, tub_options,
@@ -899,7 +894,18 @@ def create_main_tub(config, tub_options,
         handler_overrides=handler_overrides,
         certFile=certfile,
     )
-    set_tub_locations(i2p_provider, tor_provider, tub, portlocation)
+    if portlocation is None:
+        log.msg("Tub is not listening")
+    else:
+        tubport, location = portlocation
+        set_tub_locations(
+            i2p_provider,
+            tor_provider,
+            tub,
+            tubport,
+            location,
+        )
+        log.msg("Tub location set to %s" % (location,))
     return tub
 
 

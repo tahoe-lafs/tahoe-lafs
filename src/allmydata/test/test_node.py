@@ -833,7 +833,7 @@ class Listeners(unittest.TestCase):
                 (port1, port2))
         location = "tcp:localhost:%d,tcp:localhost:%d" % (port1, port2)
         t = FakeTub()
-        set_tub_locations(None, None, t, (port, location))
+        set_tub_locations(None, None, t, port, location)
         self.assertEqual(t.listening_ports,
                          ["tcp:%d:interface=127.0.0.1" % port1,
                           "tcp:%d:interface=127.0.0.1" % port2])
@@ -855,7 +855,8 @@ class Listeners(unittest.TestCase):
             i2p_provider,
             tor_provider,
             t,
-            ("listen:i2p,listen:tor", "tcp:example.org:1234"),
+            "listen:i2p,listen:tor",
+            "tcp:example.org:1234",
         )
         self.assertEqual(
             t.listening_ports,
