@@ -85,7 +85,10 @@ def write_config(tahoe_cfg, config):
     # Windows doesn't have atomic overwrite semantics for moveTo.  Thus we end
     # up slightly less than atomic.
     if platform.isWindows():
-        tahoe_cfg.remove()
+        try:
+            tahoe_cfg.remove()
+        except OSError:
+            pass
     tmp.moveTo(tahoe_cfg)
 
 def validate_config(fname, cfg, valid_config):
