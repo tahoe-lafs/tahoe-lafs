@@ -24,8 +24,6 @@ from allmydata.util.encodingutil import unicode_platform, get_filesystem_encodin
 from future.utils import bord, bchr, binary_type
 from past.builtins import unicode
 
-from ..util.encodingutil import unicode_to_argv
-
 
 def skip_if_cannot_represent_filename(u):
     precondition(isinstance(u, unicode))

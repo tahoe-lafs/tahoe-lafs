@@ -12,7 +12,7 @@ if PY2:
     from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, dict, list, object, range, max, min, str  # noqa: F401
 
 from past.builtins import chr as byteschr, long
-from six import ensure_text, ensure_str, ensure_binary
+from six import ensure_text, ensure_str
 
 import os, re, sys, time, json
 from functools import partial
