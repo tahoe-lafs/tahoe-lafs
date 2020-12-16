@@ -171,4 +171,5 @@ PORTED_TEST_MODULES = [
     "allmydata.test.test_upload",
     "allmydata.test.test_uri",
     "allmydata.test.test_util",
+    "allmydata.test.web.test_common",
 ]
