@@ -190,16 +190,28 @@ class Connections(unittest.TestCase):
         self.assertEqual(default_connection_handlers["i2p"], "i2p")
 
     def test_tor_unimportable(self):
-        with mock.patch("allmydata.util.tor_provider._import_tor",
-                        return_value=None):
-            self.config = config_from_string(
-                "fake.port",
-                "no-basedir",
-                BASECONFIG + "[connections]\ntcp = tor\n",
+        """
+        If the configuration calls for substituting Tor for TCP and
+        ``foolscap.connections.tor`` is not importable then
+        ``create_connection_handlers`` raises ``ValueError`` with a message
+        explaining this makes Tor unusable.
+        """
+        self.config = config_from_string(
+            "fake.port",
+            "no-basedir",
+            BASECONFIG + "[connections]\ntcp = tor\n",
+        )
+        tor_provider = create_tor_provider(
+            reactor,
+            self.config,
+            import_tor=lambda: None,
+        )
+        with self.assertRaises(ValueError) as ctx:
+            default_connection_handlers, _ = create_connection_handlers(
+                self.config,
+                i2p_provider=ConstantAddresses(handler=object()),
+                tor_provider=tor_provider,
             )
-            with self.assertRaises(ValueError) as ctx:
-                tor_provider = create_tor_provider(reactor, self.config)
-                default_connection_handlers, _ = create_connection_handlers(self.config, mock.Mock(), tor_provider)
         self.assertEqual(
             str(ctx.exception),
             "'tahoe.cfg [connections] tcp='"
