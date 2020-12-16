@@ -67,16 +67,6 @@ class CreateConnectionHandlersTests(SyncTestCase):
 
 class Tor(unittest.TestCase):
 
-    def test_disabled(self):
-        config = config_from_string(
-            "fake.port",
-            "no-basedir",
-            BASECONFIG + "[tor]\nenabled = false\n",
-        )
-        tor_provider = create_tor_provider(reactor, config)
-        h = tor_provider.get_tor_handler()
-        self.assertEqual(h, None)
-
     def test_unimportable(self):
         with mock.patch("allmydata.util.tor_provider._import_tor",
                         return_value=None):
