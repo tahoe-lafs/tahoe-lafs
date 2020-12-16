@@ -1,3 +1,4 @@
+from past.builtins import long, unicode
 
 import pprint
 import itertools
@@ -1297,6 +1298,7 @@ class Status(MultiFormatResource):
         except ValueError:
             raise WebError("no '-' in '{}'".format(path))
         count = int(count_s)
+        stype = unicode(stype, "ascii")
         if stype == "up":
             for s in itertools.chain(h.list_all_upload_statuses(),
                                      h.list_all_helper_statuses()):
@@ -1335,7 +1337,7 @@ class Status(MultiFormatResource):
         active = [s
                   for s in self._get_all_statuses()
                   if s.get_active()]
-        active.sort(lambda a, b: cmp(a.get_started(), b.get_started()))
+        active.sort(key=lambda a: a.get_started())
         active.reverse()
         return active
 
@@ -1343,7 +1345,7 @@ class Status(MultiFormatResource):
         recent = [s
                   for s in self._get_all_statuses()
                   if not s.get_active()]
-        recent.sort(lambda a, b: cmp(a.get_started(), b.get_started()))
+        recent.sort(key=lambda a: a.get_started())
         recent.reverse()
         return recent
 
@@ -1373,7 +1375,6 @@ class StatusElement(Element):
 
         started_s = render_time(op.get_started())
         result["started"] = started_s
-
         si_s = base32.b2a_or_none(op.get_storage_index())
         if si_s is None:
             si_s = "(None)"
