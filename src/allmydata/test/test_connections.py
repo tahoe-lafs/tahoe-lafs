@@ -1,8 +1,7 @@
-import os
 import mock
 
 from twisted.trial import unittest
-from twisted.internet import reactor, endpoints, defer
+from twisted.internet import reactor
 from twisted.internet.interfaces import IStreamClientEndpoint
 
 from foolscap.connections import tcp
@@ -165,7 +164,11 @@ class Connections(unittest.TestCase):
         self.config = config_from_string("fake.port", self.basedir, BASECONFIG)
 
     def test_default(self):
-        default_connection_handlers, _ = create_connection_handlers(self.config, mock.Mock(), mock.Mock())
+        default_connection_handlers, _ = create_connection_handlers(
+            self.config,
+            ConstantAddresses(handler=object()),
+            ConstantAddresses(handler=object()),
+        )
         self.assertEqual(default_connection_handlers["tcp"], "tcp")
         self.assertEqual(default_connection_handlers["tor"], "tor")
         self.assertEqual(default_connection_handlers["i2p"], "i2p")
@@ -176,7 +179,11 @@ class Connections(unittest.TestCase):
             "no-basedir",
             BASECONFIG + "[connections]\ntcp = tor\n",
         )
-        default_connection_handlers, _ = create_connection_handlers(config, mock.Mock(), mock.Mock())
+        default_connection_handlers, _ = create_connection_handlers(
+            config,
+            ConstantAddresses(handler=object()),
+            ConstantAddresses(handler=object()),
+        )
 
         self.assertEqual(default_connection_handlers["tcp"], "tor")
         self.assertEqual(default_connection_handlers["tor"], "tor")
@@ -207,7 +214,11 @@ class Connections(unittest.TestCase):
             BASECONFIG + "[connections]\ntcp = unknown\n",
         )
         with self.assertRaises(ValueError) as ctx:
-            create_connection_handlers(config, mock.Mock(), mock.Mock())
+            create_connection_handlers(
+                config,
+                ConstantAddresses(handler=object()),
+                ConstantAddresses(handler=object()),
+            )
         self.assertIn("'tahoe.cfg [connections] tcp='", str(ctx.exception))
         self.assertIn("uses unknown handler type 'unknown'", str(ctx.exception))
 
@@ -217,7 +228,11 @@ class Connections(unittest.TestCase):
             "no-basedir",
             BASECONFIG + "[connections]\ntcp = disabled\n",
         )
-        default_connection_handlers, _ = create_connection_handlers(config, mock.Mock(), mock.Mock())
+        default_connection_handlers, _ = create_connection_handlers(
+            config,
+            ConstantAddresses(handler=object()),
+            ConstantAddresses(handler=object()),
+        )
         self.assertEqual(default_connection_handlers["tcp"], None)
         self.assertEqual(default_connection_handlers["tor"], "tor")
         self.assertEqual(default_connection_handlers["i2p"], "i2p")
@@ -232,7 +247,11 @@ class Privacy(unittest.TestCase):
         )
 
         with self.assertRaises(PrivacyError) as ctx:
-            create_connection_handlers(config, mock.Mock(), mock.Mock())
+            create_connection_handlers(
+                config,
+                ConstantAddresses(handler=object()),
+                ConstantAddresses(handler=object()),
+            )
 
         self.assertEqual(
             str(ctx.exception),
@@ -247,7 +266,11 @@ class Privacy(unittest.TestCase):
             BASECONFIG + "[connections]\ntcp = disabled\n" +
             "[node]\nreveal-IP-address = false\n",
         )
-        default_connection_handlers, _ = create_connection_handlers(config, mock.Mock(), mock.Mock())
+        default_connection_handlers, _ = create_connection_handlers(
+            config,
+            ConstantAddresses(handler=object()),
+            ConstantAddresses(handler=object()),
+        )
         self.assertEqual(default_connection_handlers["tcp"], None)
 
     def test_tub_location_auto(self):
@@ -258,7 +281,14 @@ class Privacy(unittest.TestCase):
         )
 
         with self.assertRaises(PrivacyError) as ctx:
-            create_main_tub(config, {}, {}, {}, mock.Mock(), mock.Mock())
+            create_main_tub(
+                config,
+                tub_options={},
+                default_connection_handlers={},
+                foolscap_connection_handlers={},
+                i2p_provider=ConstantAddresses(),
+                tor_provider=ConstantAddresses(),
+            )
         self.assertEqual(
             str(ctx.exception),
             "tub.location uses AUTO",
