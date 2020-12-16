@@ -212,18 +212,6 @@ class Tor(unittest.TestCase):
 
 class I2P(unittest.TestCase):
 
-    def test_unimportable(self):
-        config = config_from_string(
-            "fake.port",
-            "no-basedir",
-            BASECONFIG,
-        )
-        with mock.patch("allmydata.util.i2p_provider._import_i2p",
-                        return_value=None):
-            i2p_provider = create_i2p_provider(reactor, config)
-            h = i2p_provider.get_i2p_handler()
-        self.assertEqual(h, None)
-
     def test_default(self):
         config = config_from_string("fake.port", "no-basedir", BASECONFIG)
         h1 = mock.Mock()
