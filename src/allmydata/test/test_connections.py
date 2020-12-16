@@ -159,23 +159,6 @@ class Tor(unittest.TestCase):
 
 class I2P(unittest.TestCase):
 
-    def test_samport(self):
-        config = config_from_string(
-            "fake.port",
-            "no-basedir",
-            BASECONFIG + "[i2p]\nsam.port = tcp:localhost:1234\n",
-        )
-        h1 = mock.Mock()
-        with mock.patch("foolscap.connections.i2p.sam_endpoint",
-                        return_value=h1) as f:
-            i2p_provider = create_i2p_provider(reactor, config)
-            h = i2p_provider.get_i2p_handler()
-
-        self.assertEqual(len(f.mock_calls), 1)
-        ep = f.mock_calls[0][1][0]
-        self.assertIsInstance(ep, endpoints.TCP4ClientEndpoint)
-        self.assertIdentical(h, h1)
-
     def test_samport_and_launch(self):
         config = config_from_string(
             "no-basedir",
