@@ -67,45 +67,6 @@ class CreateConnectionHandlersTests(SyncTestCase):
 
 class Tor(unittest.TestCase):
 
-    def _do_test_launch(self, executable):
-        # the handler is created right away
-        config = BASECONFIG+"[tor]\nlaunch = true\n"
-        if executable:
-            config += "tor.executable = %s\n" % executable
-        h1 = mock.Mock()
-        with mock.patch("foolscap.connections.tor.control_endpoint_maker",
-                        return_value=h1) as f:
-
-            config = config_from_string("fake.port", ".", config)
-            tp = create_tor_provider("reactor", config)
-            h = tp.get_tor_handler()
-
-            private_dir = config.get_config_path("private")
-            exp = mock.call(tp._make_control_endpoint,
-                            takes_status=True)
-            self.assertEqual(f.mock_calls, [exp])
-            self.assertIdentical(h, h1)
-
-        # later, when Foolscap first connects, Tor should be launched
-        reactor = "reactor"
-        tcp = object()
-        tcep = object()
-        launch_tor = mock.Mock(return_value=defer.succeed(("ep_desc", tcp)))
-        cfs = mock.Mock(return_value=tcep)
-        with mock.patch("allmydata.util.tor_provider._launch_tor", launch_tor):
-            with mock.patch("allmydata.util.tor_provider.clientFromString", cfs):
-                d = tp._make_control_endpoint(reactor,
-                                              update_status=lambda status: None)
-                cep = self.successResultOf(d)
-        launch_tor.assert_called_with(reactor, executable,
-                                      os.path.abspath(private_dir),
-                                      tp._txtorcon)
-        cfs.assert_called_with(reactor, "ep_desc")
-        self.assertIs(cep, tcep)
-
-    def test_launch_executable(self):
-        self._do_test_launch("/special/tor")
-
     def test_socksport_unix_endpoint(self):
         h1 = mock.Mock()
         with mock.patch("foolscap.connections.tor.socks_endpoint",
