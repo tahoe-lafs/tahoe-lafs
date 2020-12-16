@@ -16,7 +16,7 @@ from six import ensure_text
 import time
 from zope.interface import implementer
 from twisted.application import service
-from foolscap.api import Referenceable, eventually
+from foolscap.api import Referenceable
 from allmydata.interfaces import InsufficientVersionError
 from allmydata.introducer.interfaces import IIntroducerClient, \
      RIIntroducerSubscriberClient_v2
