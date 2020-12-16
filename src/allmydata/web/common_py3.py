@@ -97,14 +97,14 @@ class MultiFormatResource(resource.Resource, object):
 def abbreviate_time(data):
     # 1.23s, 790ms, 132us
     if data is None:
-        return ""
+        return u""
     s = float(data)
     if s >= 10:
         return abbreviate.abbreviate_time(data)
     if s >= 1.0:
-        return "%.2fs" % s
+        return u"%.2fs" % s
     if s >= 0.01:
-        return "%.0fms" % (1000*s)
+        return u"%.0fms" % (1000*s)
     if s >= 0.001:
-        return "%.1fms" % (1000*s)
-    return "%.0fus" % (1000000*s)
+        return u"%.1fms" % (1000*s)
+    return u"%.0fus" % (1000000*s)

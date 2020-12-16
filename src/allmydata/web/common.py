@@ -210,26 +210,26 @@ def compute_rate(bytes, seconds):
 def abbreviate_rate(data):
     # 21.8kBps, 554.4kBps 4.37MBps
     if data is None:
-        return ""
+        return u""
     r = float(data)
     if r > 1000000:
-        return "%1.2fMBps" % (r/1000000)
+        return u"%1.2fMBps" % (r/1000000)
     if r > 1000:
-        return "%.1fkBps" % (r/1000)
-    return "%.0fBps" % r
+        return u"%.1fkBps" % (r/1000)
+    return u"%.0fBps" % r
 
 def abbreviate_size(data):
     # 21.8kB, 554.4kB 4.37MB
     if data is None:
-        return ""
+        return u""
     r = float(data)
     if r > 1000000000:
-        return "%1.2fGB" % (r/1000000000)
+        return u"%1.2fGB" % (r/1000000000)
     if r > 1000000:
-        return "%1.2fMB" % (r/1000000)
+        return u"%1.2fMB" % (r/1000000)
     if r > 1000:
-        return "%.1fkB" % (r/1000)
-    return "%.0fB" % r
+        return u"%.1fkB" % (r/1000)
+    return u"%.0fB" % r
 
 def plural(sequence_or_length):
     if isinstance(sequence_or_length, int):
