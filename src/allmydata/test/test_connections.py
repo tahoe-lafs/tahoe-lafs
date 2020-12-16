@@ -1,31 +1,67 @@
 import os
 import mock
+
 from twisted.trial import unittest
 from twisted.internet import reactor, endpoints, defer
 from twisted.internet.interfaces import IStreamClientEndpoint
+
 from foolscap.connections import tcp
+
+from testtools.matchers import (
+    MatchesDict,
+    IsInstance,
+    Equals,
+)
+
 from ..node import PrivacyError, config_from_string
 from ..node import create_connection_handlers
 from ..node import create_main_tub
 from ..util.i2p_provider import create as create_i2p_provider
 from ..util.tor_provider import create as create_tor_provider
 
+from .common import (
+    SyncTestCase,
+    ConstantAddresses,
+)
+
 
 BASECONFIG = ""
 
 
-class TCP(unittest.TestCase):
-
-    def test_default(self):
+class CreateConnectionHandlersTests(SyncTestCase):
+    """
+    Tests for the Foolscap connection handlers return by
+    ``create_connection_handlers``.
+    """
+    def test_foolscap_handlers(self):
+        """
+        ``create_connection_handlers`` returns a Foolscap connection handlers
+        dictionary mapping ``"tcp"`` to
+        ``foolscap.connections.tcp.DefaultTCP``, ``"tor"`` to the supplied Tor
+        provider's handler, and ``"i2p"`` to the supplied I2P provider's
+        handler.
+        """
         config = config_from_string(
             "fake.port",
             "no-basedir",
             BASECONFIG,
         )
-        _, foolscap_handlers = create_connection_handlers(config, mock.Mock(), mock.Mock())
-        self.assertIsInstance(
-            foolscap_handlers['tcp'],
-            tcp.DefaultTCP,
+        tor_endpoint = object()
+        tor = ConstantAddresses(handler=tor_endpoint)
+        i2p_endpoint = object()
+        i2p = ConstantAddresses(handler=i2p_endpoint)
+        _, foolscap_handlers = create_connection_handlers(
+            config,
+            i2p,
+            tor,
+        )
+        self.assertThat(
+            foolscap_handlers,
+            MatchesDict({
+                "tcp": IsInstance(tcp.DefaultTCP),
+                "i2p": Equals(i2p_endpoint),
+                "tor": Equals(tor_endpoint),
+            }),
         )
 
 
