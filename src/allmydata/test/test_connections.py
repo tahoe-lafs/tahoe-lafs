@@ -212,16 +212,6 @@ class Tor(unittest.TestCase):
 
 class I2P(unittest.TestCase):
 
-    def test_disabled(self):
-        config = config_from_string(
-            "fake.port",
-            "no-basedir",
-            BASECONFIG + "[i2p]\nenabled = false\n",
-        )
-        i2p_provider = create_i2p_provider(None, config)
-        h = i2p_provider.get_i2p_handler()
-        self.assertEqual(h, None)
-
     def test_unimportable(self):
         config = config_from_string(
             "fake.port",
