@@ -163,7 +163,7 @@ class RenderExceptionTests(SyncTestCase):
                         BeautifulSoup(value, 'html5lib'),
                         "meta",
                         {"http-equiv": "refresh",
-                         "content": "0;URL={}".format(loc.encode("ascii")),
+                         "content": "0;URL={}".format(loc),
                         },
                     )
                     # The assertion will raise if it has a problem, otherwise

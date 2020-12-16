@@ -562,7 +562,7 @@ def _finish(result, render, request):
         Message.log(
             message_type=u"allmydata:web:common-render:DecodedURL",
         )
-        _finish(redirectTo(str(result), request), render, request)
+        _finish(redirectTo(result.to_text().encode("utf-8"), request), render, request)
     elif result is None:
         Message.log(
             message_type=u"allmydata:web:common-render:None",
