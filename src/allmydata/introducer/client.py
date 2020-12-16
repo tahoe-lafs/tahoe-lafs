@@ -345,7 +345,6 @@ class IntroducerClient(service.Service, Referenceable):
     def _deliver_announcements(self, key_s, ann):
         precondition(isinstance(key_s, bytes), key_s)
         service_name = str(ann["service-name"])
-
         obs = self._local_subscribers.get(service_name)
         if obs is not None:
             obs.notify(key_s, ann)
