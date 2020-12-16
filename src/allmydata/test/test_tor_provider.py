@@ -369,6 +369,46 @@ class Provider(unittest.TestCase):
         tor.socks_endpoint.assert_called_with(ep)
         self.assertIs(h, handler)
 
+    def test_handler_socks_unix_endpoint(self):
+        """
+        ``socks.port`` can be configured as a UNIX client endpoint.
+        """
+        tor = mock.Mock()
+        handler = object()
+        tor.socks_endpoint = mock.Mock(return_value=handler)
+        ep = object()
+        cfs = mock.Mock(return_value=ep)
+        reactor = object()
+
+        with mock_tor(tor):
+            p = tor_provider.create(reactor,
+                                    FakeConfig(**{"socks.port": "unix:path"}))
+            with mock.patch("allmydata.util.tor_provider.clientFromString", cfs):
+                h = p.get_tor_handler()
+        cfs.assert_called_with(reactor, "unix:path")
+        tor.socks_endpoint.assert_called_with(ep)
+        self.assertIs(h, handler)
+
+    def test_handler_socks_tcp_endpoint(self):
+        """
+        ``socks.port`` can be configured as a UNIX client endpoint.
+        """
+        tor = mock.Mock()
+        handler = object()
+        tor.socks_endpoint = mock.Mock(return_value=handler)
+        ep = object()
+        cfs = mock.Mock(return_value=ep)
+        reactor = object()
+
+        with mock_tor(tor):
+            p = tor_provider.create(reactor,
+                                    FakeConfig(**{"socks.port": "tcp:127.0.0.1:1234"}))
+            with mock.patch("allmydata.util.tor_provider.clientFromString", cfs):
+                h = p.get_tor_handler()
+        cfs.assert_called_with(reactor, "tcp:127.0.0.1:1234")
+        tor.socks_endpoint.assert_called_with(ep)
+        self.assertIs(h, handler)
+
     def test_handler_control_endpoint(self):
         tor = mock.Mock()
         handler = object()

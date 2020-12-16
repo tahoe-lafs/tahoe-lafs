@@ -1,8 +1,6 @@
-import mock
 
 from twisted.trial import unittest
 from twisted.internet import reactor
-from twisted.internet.interfaces import IStreamClientEndpoint
 
 from foolscap.connections import tcp
 
@@ -65,48 +63,6 @@ class CreateConnectionHandlersTests(SyncTestCase):
 
 
 class Tor(unittest.TestCase):
-
-    def test_socksport_unix_endpoint(self):
-        h1 = mock.Mock()
-        with mock.patch("foolscap.connections.tor.socks_endpoint",
-                        return_value=h1) as f:
-            config = config_from_string(
-                "fake.port",
-                "no-basedir",
-                BASECONFIG + "[tor]\nsocks.port = unix:/var/lib/fw-daemon/tor_socks.socket\n",
-            )
-            tor_provider = create_tor_provider(reactor, config)
-            h = tor_provider.get_tor_handler()
-        self.assertTrue(IStreamClientEndpoint.providedBy(f.mock_calls[0][1][0]))
-        self.assertIdentical(h, h1)
-
-    def test_socksport_endpoint(self):
-        h1 = mock.Mock()
-        with mock.patch("foolscap.connections.tor.socks_endpoint",
-                        return_value=h1) as f:
-            config = config_from_string(
-                "fake.port",
-                "no-basedir",
-                BASECONFIG + "[tor]\nsocks.port = tcp:127.0.0.1:1234\n",
-            )
-            tor_provider = create_tor_provider(reactor, config)
-            h = tor_provider.get_tor_handler()
-        self.assertTrue(IStreamClientEndpoint.providedBy(f.mock_calls[0][1][0]))
-        self.assertIdentical(h, h1)
-
-    def test_socksport_endpoint_otherhost(self):
-        h1 = mock.Mock()
-        with mock.patch("foolscap.connections.tor.socks_endpoint",
-                        return_value=h1) as f:
-            config = config_from_string(
-                "no-basedir",
-                "fake.port",
-                BASECONFIG + "[tor]\nsocks.port = tcp:otherhost:1234\n",
-            )
-            tor_provider = create_tor_provider(reactor, config)
-            h = tor_provider.get_tor_handler()
-        self.assertTrue(IStreamClientEndpoint.providedBy(f.mock_calls[0][1][0]))
-        self.assertIdentical(h, h1)
 
     def test_socksport_bad_endpoint(self):
         config = config_from_string(
