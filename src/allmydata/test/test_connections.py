@@ -189,21 +189,6 @@ class I2P(unittest.TestCase):
         self.assertEqual(f.mock_calls, [exp])
         self.assertIdentical(h, h1)
 
-    def test_launch_configdir(self):
-        config = config_from_string(
-            "fake.port",
-            "no-basedir",
-            BASECONFIG + "[i2p]\nlaunch = true\n" + "i2p.configdir = cfg\n",
-        )
-        h1 = mock.Mock()
-        with mock.patch("foolscap.connections.i2p.launch",
-                        return_value=h1) as f:
-            i2p_provider = create_i2p_provider(reactor, config)
-            h = i2p_provider.get_i2p_handler()
-            exp = mock.call(i2p_configdir="cfg", i2p_binary=None)
-        self.assertEqual(f.mock_calls, [exp])
-        self.assertIdentical(h, h1)
-
     def test_launch_configdir_and_executable(self):
         config = config_from_string(
             "no-basedir",
