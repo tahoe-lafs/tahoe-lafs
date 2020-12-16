@@ -1069,8 +1069,11 @@ class Signatures(SyncTestCase):
         # delivered to the subscriber.
         ann = {"service-name": "good-stuff", "payload": "bad stuff"}
         (msg, sig, key) = sign_to_foolscap(ann, private_key)
-        # Invalidate the signature a little
-        sig = sig.replace(b"2", b"3")
+        # Drop a base32 word from the middle of the key to invalidate the
+        # signature.
+        sig_l = list(sig)
+        sig_l[20:22] = []
+        sig = b"".join(sig_l)
         ann_t = (msg, sig, key)
         ic.got_announcements([ann_t])
 
