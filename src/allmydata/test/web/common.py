@@ -25,7 +25,8 @@ def assert_soup_has_tag_with_attributes(testcase, soup, tag_name, attrs):
     tags = soup.find_all(tag_name)
     for tag in tags:
         if all(v in tag.attrs.get(k, []) for k, v in attrs.items()):
-            return  # we found every attr in this tag; done
+            # we found every attr in this tag; done
+            return tag
     testcase.fail(
         u"No <{}> tags contain attributes: {}".format(tag_name, attrs)
     )
