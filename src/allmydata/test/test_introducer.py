@@ -15,7 +15,7 @@ from six import ensure_binary, ensure_text
 import os, re, itertools
 from base64 import b32decode
 import json
-from mock import Mock, patch
+from mock import Mock
 
 from testtools.matchers import (
     Is,
@@ -94,17 +94,10 @@ class Node(testutil.SignalMixin, testutil.ReallyEqualMixin, AsyncTestCase):
             f.write(u'---\n')
         os.chmod(yaml_fname, 0o000)
         self.addCleanup(lambda: os.chmod(yaml_fname, 0o700))
-        # just mocking the yaml failure, as "yamlutil.safe_load" only
-        # returns None on some platforms for unreadable files
 
-        with patch("allmydata.client.yamlutil") as p:
-            p.safe_load = Mock(return_value=None)
-
-            fake_tub = Mock()
-            config = read_config(basedir, "portnum")
-
-            with self.assertRaises(EnvironmentError):
-                create_introducer_clients(config, fake_tub)
+        config = read_config(basedir, "portnum")
+        with self.assertRaises(EnvironmentError):
+            create_introducer_clients(config, Tub())
 
     @defer.inlineCallbacks
     def test_furl(self):
