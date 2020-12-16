@@ -67,14 +67,6 @@ class CreateConnectionHandlersTests(SyncTestCase):
 
 class Tor(unittest.TestCase):
 
-    def test_unimportable(self):
-        with mock.patch("allmydata.util.tor_provider._import_tor",
-                        return_value=None):
-            config = config_from_string("fake.port", "no-basedir", BASECONFIG)
-            tor_provider = create_tor_provider(reactor, config)
-            h = tor_provider.get_tor_handler()
-        self.assertEqual(h, None)
-
     def test_default(self):
         h1 = mock.Mock()
         with mock.patch("foolscap.connections.tor.default_socks",
