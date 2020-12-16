@@ -349,6 +349,10 @@ class Provider(unittest.TestCase):
                 cfs2.assert_called_with(reactor, ep_desc)
 
     def test_handler_socks_endpoint(self):
+        """
+        If not configured otherwise, the Tor provider returns a Socks-based
+        handler.
+        """
         tor = mock.Mock()
         handler = object()
         tor.socks_endpoint = mock.Mock(return_value=handler)

@@ -67,17 +67,6 @@ class CreateConnectionHandlersTests(SyncTestCase):
 
 class Tor(unittest.TestCase):
 
-    def test_default(self):
-        h1 = mock.Mock()
-        with mock.patch("foolscap.connections.tor.default_socks",
-                        return_value=h1) as f:
-
-            config = config_from_string("fake.port", "no-basedir", BASECONFIG)
-            tor_provider = create_tor_provider(reactor, config)
-            h = tor_provider.get_tor_handler()
-        self.assertEqual(f.mock_calls, [mock.call()])
-        self.assertIdentical(h, h1)
-
     def _do_test_launch(self, executable):
         # the handler is created right away
         config = BASECONFIG+"[tor]\nlaunch = true\n"
