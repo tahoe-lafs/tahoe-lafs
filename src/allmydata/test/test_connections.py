@@ -141,22 +141,6 @@ class Tor(unittest.TestCase):
             str(ctx.exception)
         )
 
-    def test_controlport(self):
-        h1 = mock.Mock()
-        with mock.patch("foolscap.connections.tor.control_endpoint",
-                        return_value=h1) as f:
-            config = config_from_string(
-                "fake.port",
-                "no-basedir",
-                BASECONFIG + "[tor]\ncontrol.port = tcp:localhost:1234\n",
-            )
-            tor_provider = create_tor_provider(reactor, config)
-            h = tor_provider.get_tor_handler()
-            self.assertEqual(len(f.mock_calls), 1)
-            ep = f.mock_calls[0][1][0]
-            self.assertIsInstance(ep, endpoints.TCP4ClientEndpoint)
-            self.assertIdentical(h, h1)
-
 class I2P(unittest.TestCase):
 
     def test_samport_and_launch(self):
