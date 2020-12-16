@@ -31,6 +31,9 @@ from twisted.internet.defer import (
     maybeDeferred,
 )
 
+from ..util.jsonbytes import BytesJSONEncoder
+
+
 _NAME = Field.for_types(
     u"name",
     [str],
@@ -61,6 +64,14 @@ def eliot_logged_test(f):
     class storage(object):
         pass
 
+
+    # On Python 3, we want to use our custom JSON encoder when validating
+    # messages can be encoded to JSON:
+    if PY3:
+        capture = lambda f : capture_logging(None, encoder_=BytesJSONEncoder)(f)
+    else:
+        capture = lambda f : capture_logging(None)(f)
+
     @wraps(f)
     def run_and_republish(self, *a, **kw):
         # Unfortunately the only way to get at the global/default logger...
@@ -85,7 +96,7 @@ def eliot_logged_test(f):
             # can finish the test's action.
             storage.action.finish()
 
-        @capture_logging(None)
+        @capture
         def run(self, logger):
             # Record the MemoryLogger for later message extraction.
             storage.logger = logger
@@ -165,9 +176,6 @@ class EliotLoggedRunTest(object):
 
     @eliot_logged_test
     def run(self, result=None):
-        # Workaround for https://github.com/itamarst/eliot/issues/456
-        if PY3:
-            self.case.eliot_logger._validate_message = lambda *args, **kwargs: None
         return self._run_tests_with_factory(
             self.case,
             self.handlers,
