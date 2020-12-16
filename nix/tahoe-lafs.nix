@@ -34,10 +34,6 @@ python.pkgs.buildPythonPackage rec {
     rm src/allmydata/test/cli/test_create.py
     rm src/allmydata/test/test_client.py
     rm src/allmydata/test/test_runner.py
-
-    # Some eliot code changes behavior based on whether stdout is a tty or not
-    # and fails when it is not.
-    rm src/allmydata/test/test_eliotutil.py
   '';
 
 

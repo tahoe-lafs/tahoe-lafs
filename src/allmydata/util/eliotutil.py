@@ -1,6 +1,12 @@
 """
 Tools aimed at the interaction between Tahoe-LAFS implementation and Eliot.
+
+Ported to Python 3.
 """
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
 
 from __future__ import (
     unicode_literals,
@@ -17,6 +23,11 @@ __all__ = [
     "validateInstanceOf",
     "validateSetMembership",
 ]
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+from six import ensure_text
 
 from sys import (
     stdout,
@@ -228,7 +239,7 @@ def _stdlib_logging_to_eliot_configuration(stdlib_logger, eliot_logger=None):
 
 class _DestinationParser(object):
     def parse(self, description):
-        description = description.decode(u"ascii")
+        description = ensure_text(description)
 
         try:
             kind, args = description.split(u":", 1)
