@@ -103,9 +103,6 @@ class Tor(unittest.TestCase):
         cfs.assert_called_with(reactor, "ep_desc")
         self.assertIs(cep, tcep)
 
-    def test_launch(self):
-        self._do_test_launch(None)
-
     def test_launch_executable(self):
         self._do_test_launch("/special/tor")
 
