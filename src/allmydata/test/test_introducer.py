@@ -1071,9 +1071,9 @@ class Signatures(SyncTestCase):
         (msg, sig, key) = sign_to_foolscap(ann, private_key)
         # Drop a base32 word from the middle of the key to invalidate the
         # signature.
-        sig_l = list(sig)
-        sig_l[20:22] = []
-        sig = b"".join(sig_l)
+        sig_a = bytearray(sig)
+        sig_a[20:22] = []
+        sig = bytes(sig_a)
         ann_t = (msg, sig, key)
         ic.got_announcements([ann_t])
 
