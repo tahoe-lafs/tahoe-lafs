@@ -1,12 +1,10 @@
 import os.path
 from six.moves import cStringIO as StringIO
-import urllib, sys
+import urllib
 import re
-from mock import patch, Mock
+from mock import patch
 
 from twisted.trial import unittest
-from twisted.python.monkey import MonkeyPatcher
-from twisted.internet import task
 from twisted.python.filepath import FilePath
 from twisted.internet.testing import (
     MemoryReactor,
@@ -17,7 +15,6 @@ from twisted.internet.test.modulehelpers import (
 import allmydata
 from allmydata.crypto import ed25519
 from allmydata.util import fileutil, hashutil, base32
-from allmydata.util.namespace import Namespace
 from allmydata import uri
 from allmydata.immutable import upload
 from allmydata.dirnode import normalize
