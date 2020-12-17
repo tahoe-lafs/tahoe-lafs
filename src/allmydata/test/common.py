@@ -64,10 +64,16 @@ from twisted.internet.endpoints import AdoptedStreamServerEndpoint
 from twisted.trial.unittest import TestCase as _TrialTestCase
 
 from allmydata import uri
-from allmydata.interfaces import IMutableFileNode, IImmutableFileNode,\
-                                 NotEnoughSharesError, ICheckable, \
-                                 IMutableUploadable, SDMF_VERSION, \
-                                 MDMF_VERSION
+from allmydata.interfaces import (
+    IMutableFileNode,
+    IImmutableFileNode,
+    NotEnoughSharesError,
+    ICheckable,
+    IMutableUploadable,
+    SDMF_VERSION,
+    MDMF_VERSION,
+    IAddressFamily,
+)
 from allmydata.check_results import CheckResults, CheckAndRepairResults, \
      DeepCheckResults, DeepCheckAndRepairResults
 from allmydata.storage_client import StubServer
@@ -1145,6 +1151,28 @@ def _corrupt_uri_extension(data, debug=False):
         uriextlen = struct.unpack(">Q", data[0x0c+uriextoffset:0x0c+uriextoffset+8])[0]
 
     return corrupt_field(data, 0x0c+uriextoffset, uriextlen)
+
+
+
+@attr.s
+@implementer(IAddressFamily)
+class ConstantAddresses(object):
+    """
+    Pretend to provide support for some address family but just hand out
+    canned responses.
+    """
+    _listener = attr.ib(default=None)
+    _handler = attr.ib(default=None)
+
+    def get_listener(self):
+        if self._listener is None:
+            raise Exception("{!r} has no listener.")
+        return self._listener
+
+    def get_client_endpoint(self):
+        if self._handler is None:
+            raise Exception("{!r} has no client endpoint.")
+        return self._handler
 
 
 class _TestCaseMixin(object):
