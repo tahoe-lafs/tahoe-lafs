@@ -516,12 +516,6 @@ class CLI(CLITestMixin, unittest.TestCase):
                 raise exc
 
         stderr = StringIO()
-        ns = Namespace()
-
-        ns.sys_exit_called = False
-        def call_sys_exit(exitcode):
-            ns.sys_exit_called = True
-            self.failUnlessEqual(exitcode, 1)
 
         def fake_react(f):
             reactor = Mock()
@@ -530,8 +524,7 @@ class CLI(CLITestMixin, unittest.TestCase):
             # it's safe to drop it on the floor.
             f(reactor)
 
-        patcher = MonkeyPatcher((sys, 'exit', call_sys_exit),
-                                (task, 'react', fake_react),
+        patcher = MonkeyPatcher((task, 'react', fake_react),
                                 )
         patcher.runWithPatches(
             lambda: runner.run(
@@ -541,8 +534,9 @@ class CLI(CLITestMixin, unittest.TestCase):
             ),
         )
 
-        self.failUnless(ns.sys_exit_called)
         self.failUnlessIn(str(exc), stderr.getvalue())
+        [exit_exc] = self.flushLoggedErrors(SystemExit)
+        self.assertEqual(1, exit_exc.value.code)
 
 
 class Help(unittest.TestCase):
