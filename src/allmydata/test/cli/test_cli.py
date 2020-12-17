@@ -8,7 +8,12 @@ from twisted.trial import unittest
 from twisted.python.monkey import MonkeyPatcher
 from twisted.internet import task
 from twisted.python.filepath import FilePath
-
+from twisted.internet.testing import (
+    MemoryReactor,
+)
+from twisted.internet.test.modulehelpers import (
+    AlternateReactor,
+)
 import allmydata
 from allmydata.crypto import ed25519
 from allmydata.util import fileutil, hashutil, base32
@@ -508,6 +513,10 @@ class CLI(CLITestMixin, unittest.TestCase):
             self.failUnlessIn(normalize(file), filenames)
 
     def test_exception_catcher(self):
+        """
+        An exception that is otherwise unhandled during argument dispatch is
+        written to stderr and causes the process to exit with code 1.
+        """
         self.basedir = "cli/exception_catcher"
 
         exc = Exception("canary")
@@ -517,26 +526,21 @@ class CLI(CLITestMixin, unittest.TestCase):
 
         stderr = StringIO()
 
-        def fake_react(f):
-            reactor = Mock()
-            # normally this Deferred would be errbacked with SystemExit, but
-            # since we mocked out sys.exit, it will be fired with None. So
-            # it's safe to drop it on the floor.
-            f(reactor)
+        reactor = MemoryReactor()
 
-        patcher = MonkeyPatcher((task, 'react', fake_react),
-                                )
-        patcher.runWithPatches(
-            lambda: runner.run(
-                configFactory=BrokenOptions,
-                argv=["tahoe"],
-                stderr=stderr,
-            ),
-        )
+        with AlternateReactor(reactor):
+            with self.assertRaises(SystemExit) as ctx:
+                runner.run(
+                    configFactory=BrokenOptions,
+                    argv=["tahoe"],
+                    stderr=stderr,
+                )
+
+        self.assertTrue(reactor.hasRun)
+        self.assertFalse(reactor.running)
 
         self.failUnlessIn(str(exc), stderr.getvalue())
-        [exit_exc] = self.flushLoggedErrors(SystemExit)
-        self.assertEqual(1, exit_exc.value.code)
+        self.assertEqual(1, ctx.exception.code)
 
 
 class Help(unittest.TestCase):
