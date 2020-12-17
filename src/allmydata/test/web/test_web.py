@@ -127,7 +127,7 @@ class FakeUploader(service.Service):
 
 
 def build_one_ds():
-    ds = DownloadStatus("storage_index", 1234)
+    ds = DownloadStatus(b"storage_index", 1234)
     now = time.time()
 
     serverA = StubServer(hashutil.tagged_hash(b"foo", b"serverid_a")[:20])
