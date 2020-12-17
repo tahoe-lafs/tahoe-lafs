@@ -261,7 +261,7 @@ class FakeClient(_Client):
         # minimal subset
         service.MultiService.__init__(self)
         self.all_contents = {}
-        self.nodeid = "fake_nodeid"
+        self.nodeid = b"fake_nodeid"
         self.nickname = u"fake_nickname \u263A"
         self.introducer_furls = []
         self.introducer_clients = []
@@ -277,7 +277,7 @@ class FakeClient(_Client):
         # fake knowledge of another server
         self.storage_broker.test_add_server("other_nodeid",
             FakeDisplayableServer(
-                serverid="other_nodeid", nickname=u"other_nickname \u263B", connected = True,
+                serverid=b"other_nodeid", nickname=u"other_nickname \u263B", connected = True,
                 last_connect_time = 10, last_loss_time = 20, last_rx_time = 30))
         self.storage_broker.test_add_server("disconnected_nodeid",
             FakeDisplayableServer(
