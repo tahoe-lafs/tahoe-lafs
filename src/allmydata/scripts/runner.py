@@ -107,6 +107,25 @@ def parse_options(argv, config=None):
     return config
 
 def parse_or_exit_with_explanation_with_config(config, argv, stdout, stderr):
+    """
+    Parse Tahoe-LAFS CLI arguments and return a configuration object if they
+    are valid.
+
+    If they are invalid, write an explanation to ``stdout`` and exit.
+
+    :param twisted.python.usage.Options config: An instance of the
+        argument-parsing class to use.
+
+    :param [str] argv: The argument list to parse, including the name of the
+        program being run as ``argv[0]``.
+
+    :param stdout: The file-like object to use as stdout.
+    :param stderr: The file-like object to use as stderr.
+
+    :raise SystemExit: If there is an argument-parsing problem.
+
+    :return: ``config``, after using it to parse the argument list.
+    """
     try:
         parse_options(argv[1:], config=config)
     except usage.error as e:
