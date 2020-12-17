@@ -190,6 +190,19 @@ def _maybe_enable_eliot_logging(options, reactor):
     return options
 
 def run(configFactory=Options, argv=sys.argv, stdout=sys.stdout, stderr=sys.stderr):
+    """
+    Run a Tahoe-LAFS node.
+
+    :param configFactory: A zero-argument callable which creates the config
+        object to use to parse the argument list.
+
+    :param [str] argv: The argument list to use to configure the run.
+
+    :param stdout: The file-like object to use for stdout.
+    :param stderr: The file-like object to use for stderr.
+
+    :raise SystemExit: Always raised after the run is complete.
+    """
     # TODO(3035): Remove tox-check when error becomes a warning
     if 'TOX_ENV_NAME' not in os.environ:
         assert sys.version_info < (3,), u"Tahoe-LAFS does not run under Python 3. Please use Python 2.7.x."
@@ -250,7 +263,23 @@ def _setup_coverage(reactor, argv):
 
 
 def _run_with_reactor(reactor, config, argv, stdout, stderr):
+    """
+    Run a Tahoe-LAFS node using the given reactor.
 
+    :param reactor: The reactor to use.  This implementation largely ignores
+        this and lets the rest of the implementation pick its own reactor.
+        Oops.
+
+    :param twisted.python.usage.Options config: The config object to use to
+        parse the argument list.
+
+    :param argv: See ``run``.
+
+    :param stdout: See ``run``.
+    :param stderr: See ``run``.
+
+    :return: A ``Deferred`` that fires when the run is complete.
+    """
     _setup_coverage(reactor, argv)
 
     d = defer.maybeDeferred(
