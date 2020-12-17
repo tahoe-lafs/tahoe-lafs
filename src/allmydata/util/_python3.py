@@ -97,6 +97,7 @@ PORTED_MODULES = [
     "allmydata.util.happinessutil",
     "allmydata.util.hashutil",
     "allmydata.util.humanreadable",
+    "allmydata.util.idlib",
     "allmydata.util.iputil",
     "allmydata.util.jsonbytes",
     "allmydata.util.log",
@@ -168,6 +169,12 @@ PORTED_TEST_MODULES = [
     "allmydata.test.test_storage",
     "allmydata.test.test_storage_client",
     "allmydata.test.test_storage_web",
+
+    # Only partially ported, test_filesystem_with_cli_in_subprocess and
+    # test_filesystem methods aren't ported yet, should be done once CLI and
+    # web are ported respectively.
+    "allmydata.test.test_system",
+
     "allmydata.test.test_time_format",
     "allmydata.test.test_upload",
     "allmydata.test.test_uri",
