@@ -118,7 +118,7 @@ class ObserverList(object):
         for o in self._watchers[:]:
             try:
                 o(*args, **kwargs)
-            except:
+            except Exception:
                 self._logger.failure("While notifying {o!r}", o=o)
 
 class EventStreamObserver(object):

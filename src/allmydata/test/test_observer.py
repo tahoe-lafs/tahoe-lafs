@@ -141,3 +141,16 @@ class Observer(unittest.TestCase):
 
         self.assertEqual([None], observed)
         self.assertEqual(1, len(self.flushLoggedErrors(Exception)))
+
+    def test_observer_list_propagate_keyboardinterrupt(self):
+        """
+        ``KeyboardInterrupt`` escapes ``ObserverList.notify``.
+        """
+        def observer_one():
+            raise KeyboardInterrupt()
+
+        obs = observer.ObserverList()
+        obs.subscribe(observer_one)
+
+        with self.assertRaises(KeyboardInterrupt):
+            obs.notify()
