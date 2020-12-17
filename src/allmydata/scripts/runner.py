@@ -171,7 +171,7 @@ def _maybe_enable_eliot_logging(options, reactor):
     # Pass on the options so we can dispatch the subcommand.
     return options
 
-def run(argv=sys.argv):
+def run(argv=sys.argv, stderr=sys.stderr):
     # TODO(3035): Remove tox-check when error becomes a warning
     if 'TOX_ENV_NAME' not in os.environ:
         assert sys.version_info < (3,), u"Tahoe-LAFS does not run under Python 3. Please use Python 2.7.x."
@@ -180,7 +180,7 @@ def run(argv=sys.argv):
         from allmydata.windows.fixups import initialize
         initialize()
     # doesn't return: calls sys.exit(rc)
-    task.react(_run_with_reactor, argv)
+    task.react(_run_with_reactor, argv, stderr)
 
 
 def _setup_coverage(reactor, argv):
@@ -223,7 +223,7 @@ def _setup_coverage(reactor, argv):
     reactor.addSystemEventTrigger('after', 'shutdown', write_coverage_data)
 
 
-def _run_with_reactor(reactor, argv):
+def _run_with_reactor(reactor, argv, stderr):
 
     _setup_coverage(reactor, argv)
 
@@ -237,7 +237,7 @@ def _run_with_reactor(reactor, argv):
         # weren't using react().
         if f.check(SystemExit):
             return f # dispatch function handled it
-        f.printTraceback(file=sys.stderr)
+        f.printTraceback(file=stderr)
         sys.exit(1)
     d.addErrback(_show_exception)
     return d

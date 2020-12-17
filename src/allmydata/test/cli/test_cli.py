@@ -534,12 +534,12 @@ class CLI(CLITestMixin, unittest.TestCase):
         patcher = MonkeyPatcher((runner, 'parse_or_exit_with_explanation',
                                  call_parse_or_exit),
                                 (sys, 'exit', call_sys_exit),
-                                (sys, 'stderr', stderr),
                                 (task, 'react', fake_react),
                                 )
         patcher.runWithPatches(
             lambda: runner.run(
-                ["tahoe"],
+                argv=["tahoe"],
+                stderr=stderr,
             ),
         )
 
