@@ -42,4 +42,7 @@ codecov:
   token: "abf679b6-e2e6-4b33-b7b5-6cfbd41ee691"
 
   notify:
-    after_n_builds: 23
+    # The reference documentation suggests that this is the default setting:
+    # https://docs.codecov.io/docs/codecovyml-reference#codecovnotifywait_for_ci
+    # However observation suggests otherwise.
+    wait_for_ci: true
