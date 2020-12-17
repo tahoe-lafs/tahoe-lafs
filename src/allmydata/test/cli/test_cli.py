@@ -526,11 +526,10 @@ class CLI(CLITestMixin, unittest.TestCase):
 
         def fake_react(f, *args):
             reactor = Mock()
-            d = f(reactor)
             # normally this Deferred would be errbacked with SystemExit, but
             # since we mocked out sys.exit, it will be fired with None. So
             # it's safe to drop it on the floor.
-            del d
+            f(reactor, *args)
 
         patcher = MonkeyPatcher((runner, 'parse_or_exit_with_explanation',
                                  call_parse_or_exit),
