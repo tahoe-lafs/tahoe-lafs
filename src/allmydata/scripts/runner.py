@@ -180,7 +180,7 @@ def run(argv=sys.argv, stderr=sys.stderr):
         from allmydata.windows.fixups import initialize
         initialize()
     # doesn't return: calls sys.exit(rc)
-    task.react(_run_with_reactor, argv, stderr)
+    task.react(lambda reactor: _run_with_reactor(reactor, argv, stderr))
 
 
 def _setup_coverage(reactor, argv):
