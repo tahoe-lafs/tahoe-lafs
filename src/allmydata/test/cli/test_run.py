@@ -9,6 +9,7 @@ from six.moves import (
 from testtools.matchers import (
     Contains,
     Equals,
+    HasLength,
 )
 
 from twisted.python.filepath import (
@@ -23,6 +24,8 @@ from twisted.internet.test.modulehelpers import (
 
 from ...scripts.tahoe_run import (
     DaemonizeTheRealService,
+    RunOptions,
+    run,
 )
 
 from ...scripts.runner import (
@@ -124,4 +127,40 @@ class DaemonizeTheRealServiceTests(SyncTestCase):
             reveal-IP-address = false
             """,
             "Privacy requested",
+        )
+
+
+class RunTests(SyncTestCase):
+    """
+    Tests for ``run``.
+    """
+    def test_non_numeric_pid(self):
+        """
+        If the pidfile exists but does not contain a numeric value, a complaint to
+        this effect is written to stderr.
+        """
+        basedir = FilePath(self.mktemp().decode("ascii"))
+        basedir.makedirs()
+        basedir.child(u"twistd.pid").setContent(b"foo")
+        basedir.child(u"tahoe-client.tac").setContent(b"")
+
+        config = RunOptions()
+        config.stdout = StringIO()
+        config.stderr = StringIO()
+        config['basedir'] = basedir.path
+        config.twistd_args = []
+
+        runs = []
+        result_code = run(config, runApp=runs.append)
+        self.assertThat(
+            config.stderr.getvalue(),
+            Contains("found invalid PID file in"),
+        )
+        self.assertThat(
+            runs,
+            HasLength(1),
+        )
+        self.assertThat(
+            result_code,
+            Equals(0),
         )

@@ -182,7 +182,7 @@ class DaemonizeTahoeNodePlugin(object):
         return DaemonizeTheRealService(self.nodetype, self.basedir, so)
 
 
-def run(config):
+def run(config, runApp=twistd.runApp):
     """
     Runs a Tahoe-LAFS node in the foreground.
 
@@ -202,10 +202,7 @@ def run(config):
     if not nodetype:
         print("%s is not a recognizable node directory" % quoted_basedir, file=err)
         return 1
-    # Now prepare to turn into a twistd process. This os.chdir is the point
-    # of no return.
-    os.chdir(basedir)
-    twistd_args = ["--nodaemon"]
+    twistd_args = ["--nodaemon", "--rundir", basedir]
     twistd_args.extend(config.twistd_args)
     twistd_args.append("DaemonizeTahoeNode") # point at our DaemonizeTahoeNodePlugin
 
@@ -229,5 +226,5 @@ def run(config):
 
     # We always pass --nodaemon so twistd.runApp does not daemonize.
     print("running node in %s" % (quoted_basedir,), file=out)
-    twistd.runApp(twistd_config)
+    runApp(twistd_config)
     return 0

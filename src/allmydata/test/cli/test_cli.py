@@ -2,10 +2,8 @@ import os.path
 from six.moves import cStringIO as StringIO
 import urllib
 import re
-from mock import patch
 
 from twisted.trial import unittest
-from twisted.python.filepath import FilePath
 from twisted.internet.testing import (
     MemoryReactor,
 )
@@ -1308,30 +1306,3 @@ class Options(ReallyEqualMixin, unittest.TestCase):
                               ["--node-directory=there", "run", some_twistd_option])
         self.failUnlessRaises(usage.UsageError, self.parse,
                               ["run", "--basedir=here", some_twistd_option])
-
-
-class Run(unittest.TestCase):
-
-    @patch('allmydata.scripts.tahoe_run.os.chdir')
-    @patch('allmydata.scripts.tahoe_run.twistd')
-    def test_non_numeric_pid(self, mock_twistd, chdir):
-        """
-        If the pidfile exists but does not contain a numeric value, a complaint to
-        this effect is written to stderr.
-        """
-        basedir = FilePath(self.mktemp().decode("ascii"))
-        basedir.makedirs()
-        basedir.child(u"twistd.pid").setContent(b"foo")
-        basedir.child(u"tahoe-client.tac").setContent(b"")
-
-        config = tahoe_run.RunOptions()
-        config.stdout = StringIO()
-        config.stderr = StringIO()
-        config['basedir'] = basedir.path
-        config.twistd_args = []
-
-        result_code = tahoe_run.run(config)
-        self.assertIn("invalid PID file", config.stderr.getvalue())
-        self.assertTrue(len(mock_twistd.mock_calls), 1)
-        self.assertEqual(mock_twistd.mock_calls[0][0], 'runApp')
-        self.assertEqual(0, result_code)
