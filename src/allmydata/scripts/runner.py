@@ -109,7 +109,7 @@ def parse_options(argv, config=None):
 def parse_or_exit_with_explanation(argv, stdout=sys.stdout):
     config = Options()
     try:
-        parse_options(argv, config=config)
+        parse_options(argv[1:], config=config)
     except usage.error as e:
         c = config
         while hasattr(c, 'subOptions'):
@@ -119,7 +119,7 @@ def parse_or_exit_with_explanation(argv, stdout=sys.stdout):
             msg = e.args[0].decode(get_io_encoding())
         except Exception:
             msg = repr(e)
-        print("%s:  %s\n" % (sys.argv[0], quote_output(msg, quotemarks=False)), file=stdout)
+        print("%s:  %s\n" % (argv[0], quote_output(msg, quotemarks=False)), file=stdout)
         sys.exit(1)
     return config
 
@@ -171,7 +171,7 @@ def _maybe_enable_eliot_logging(options, reactor):
     # Pass on the options so we can dispatch the subcommand.
     return options
 
-def run():
+def run(argv=sys.argv):
     # TODO(3035): Remove tox-check when error becomes a warning
     if 'TOX_ENV_NAME' not in os.environ:
         assert sys.version_info < (3,), u"Tahoe-LAFS does not run under Python 3. Please use Python 2.7.x."
@@ -180,19 +180,19 @@ def run():
         from allmydata.windows.fixups import initialize
         initialize()
     # doesn't return: calls sys.exit(rc)
-    task.react(_run_with_reactor)
+    task.react(_run_with_reactor, argv)
 
 
-def _setup_coverage(reactor):
+def _setup_coverage(reactor, argv):
     """
     Arrange for coverage to be collected if the 'coverage' package is
     installed
     """
     # can we put this _setup_coverage call after we hit
     # argument-parsing?
-    if '--coverage' not in sys.argv:
+    if '--coverage' not in argv:
         return
-    sys.argv.remove('--coverage')
+    argv.remove('--coverage')
 
     try:
         import coverage
@@ -223,11 +223,11 @@ def _setup_coverage(reactor):
     reactor.addSystemEventTrigger('after', 'shutdown', write_coverage_data)
 
 
-def _run_with_reactor(reactor):
+def _run_with_reactor(reactor, argv):
 
-    _setup_coverage(reactor)
+    _setup_coverage(reactor, argv)
 
-    d = defer.maybeDeferred(parse_or_exit_with_explanation, sys.argv[1:])
+    d = defer.maybeDeferred(parse_or_exit_with_explanation, argv)
     d.addCallback(_maybe_enable_eliot_logging, reactor)
     d.addCallback(dispatch)
     def _show_exception(f):

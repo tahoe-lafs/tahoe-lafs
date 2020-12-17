@@ -81,7 +81,7 @@ def run_cli_bytes(verb, *args, **kwargs):
         args=args,
         nodeargs=nodeargs,
     )
-    argv = nodeargs + [verb] + list(args)
+    argv = ["tahoe"] + nodeargs + [verb] + list(args)
     stdin = kwargs.get("stdin", "")
     if encoding is None:
         # The original behavior, the Python 2 behavior, is to accept either

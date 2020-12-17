@@ -524,7 +524,7 @@ class CLI(CLITestMixin, unittest.TestCase):
             ns.sys_exit_called = True
             self.failUnlessEqual(exitcode, 1)
 
-        def fake_react(f):
+        def fake_react(f, *args):
             reactor = Mock()
             d = f(reactor)
             # normally this Deferred would be errbacked with SystemExit, but
@@ -534,12 +534,15 @@ class CLI(CLITestMixin, unittest.TestCase):
 
         patcher = MonkeyPatcher((runner, 'parse_or_exit_with_explanation',
                                  call_parse_or_exit),
-                                (sys, 'argv', ["tahoe"]),
                                 (sys, 'exit', call_sys_exit),
                                 (sys, 'stderr', stderr),
                                 (task, 'react', fake_react),
                                 )
-        patcher.runWithPatches(runner.run)
+        patcher.runWithPatches(
+            lambda: runner.run(
+                ["tahoe"],
+            ),
+        )
 
         self.failUnless(ns.parse_called)
         self.failUnless(ns.sys_exit_called)
