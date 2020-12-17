@@ -106,8 +106,7 @@ def parse_options(argv, config=None):
     config.parseOptions(argv) # may raise usage.error
     return config
 
-def parse_or_exit_with_explanation(argv, stdout=sys.stdout):
-    config = Options()
+def parse_or_exit_with_explanation_with_config(config, argv, stdout, stderr):
     try:
         parse_options(argv[1:], config=config)
     except usage.error as e:
@@ -171,7 +170,7 @@ def _maybe_enable_eliot_logging(options, reactor):
     # Pass on the options so we can dispatch the subcommand.
     return options
 
-def run(argv=sys.argv, stderr=sys.stderr):
+def run(configFactory=Options, argv=sys.argv, stdout=sys.stdout, stderr=sys.stderr):
     # TODO(3035): Remove tox-check when error becomes a warning
     if 'TOX_ENV_NAME' not in os.environ:
         assert sys.version_info < (3,), u"Tahoe-LAFS does not run under Python 3. Please use Python 2.7.x."
@@ -180,7 +179,15 @@ def run(argv=sys.argv, stderr=sys.stderr):
         from allmydata.windows.fixups import initialize
         initialize()
     # doesn't return: calls sys.exit(rc)
-    task.react(lambda reactor: _run_with_reactor(reactor, argv, stderr))
+    task.react(
+        lambda reactor: _run_with_reactor(
+            reactor,
+            configFactory(),
+            argv,
+            stdout,
+            stderr,
+        ),
+    )
 
 
 def _setup_coverage(reactor, argv):
@@ -223,13 +230,19 @@ def _setup_coverage(reactor, argv):
     reactor.addSystemEventTrigger('after', 'shutdown', write_coverage_data)
 
 
-def _run_with_reactor(reactor, argv, stderr):
+def _run_with_reactor(reactor, config, argv, stdout, stderr):
 
     _setup_coverage(reactor, argv)
 
-    d = defer.maybeDeferred(parse_or_exit_with_explanation, argv)
+    d = defer.maybeDeferred(
+        parse_or_exit_with_explanation_with_config,
+        config,
+        argv,
+        stdout,
+        stderr,
+    )
     d.addCallback(_maybe_enable_eliot_logging, reactor)
-    d.addCallback(dispatch)
+    d.addCallback(dispatch, stdout=stdout, stderr=stderr)
     def _show_exception(f):
         # when task.react() notices a non-SystemExit exception, it does
         # log.err() with the failure and then exits with rc=1. We want this

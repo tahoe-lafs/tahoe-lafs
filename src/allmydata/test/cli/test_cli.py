@@ -510,14 +510,13 @@ class CLI(CLITestMixin, unittest.TestCase):
     def test_exception_catcher(self):
         self.basedir = "cli/exception_catcher"
 
-        stderr = StringIO()
         exc = Exception("canary")
-        ns = Namespace()
+        class BrokenOptions(object):
+            def parseOptions(self, argv):
+                raise exc
 
-        ns.parse_called = False
-        def call_parse_or_exit(args):
-            ns.parse_called = True
-            raise exc
+        stderr = StringIO()
+        ns = Namespace()
 
         ns.sys_exit_called = False
         def call_sys_exit(exitcode):
@@ -531,19 +530,17 @@ class CLI(CLITestMixin, unittest.TestCase):
             # it's safe to drop it on the floor.
             f(reactor)
 
-        patcher = MonkeyPatcher((runner, 'parse_or_exit_with_explanation',
-                                 call_parse_or_exit),
-                                (sys, 'exit', call_sys_exit),
+        patcher = MonkeyPatcher((sys, 'exit', call_sys_exit),
                                 (task, 'react', fake_react),
                                 )
         patcher.runWithPatches(
             lambda: runner.run(
+                configFactory=BrokenOptions,
                 argv=["tahoe"],
                 stderr=stderr,
             ),
         )
 
-        self.failUnless(ns.parse_called)
         self.failUnless(ns.sys_exit_called)
         self.failUnlessIn(str(exc), stderr.getvalue())
 
