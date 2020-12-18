@@ -70,7 +70,13 @@ from ..scripts.common import (
 
 def run_cli(*args, **kwargs):
     """
-    Backwards compatible version so we don't have to change all the tests.
+    Run a Tahoe-LAFS CLI utility, but inline.
+
+    Version of run_cli_unicode() that takes any kind of string, and the
+    command-line args inline instead of as verb + list.
+
+    Backwards compatible version so we don't have to change all the tests that
+    expected this API.
     """
     nodeargs = [ensure_text(a) for a in kwargs.pop("nodeargs", [])]
     kwargs["nodeargs"] = nodeargs
@@ -658,7 +664,7 @@ def flush_but_dont_ignore(res):
 
 def _render_config(config):
     """
-    Convert a ``dict`` of ``dict`` of ``bytes`` to an ini-format string.
+    Convert a ``dict`` of ``dict`` of ``unicode`` to an ini-format string.
     """
     return u"\n\n".join(list(
         _render_config_section(k, v)
@@ -668,8 +674,8 @@ def _render_config(config):
 
 def _render_config_section(heading, values):
     """
-    Convert a ``bytes`` heading and a ``dict`` of ``bytes`` to an ini-format
-    section as ``bytes``.
+    Convert a ``unicode`` heading and a ``dict`` of ``unicode`` to an ini-format
+    section as ``unicode``.
     """
     return u"[{}]\n{}\n".format(
         heading, _render_section_values(values)
@@ -677,8 +683,8 @@ def _render_config_section(heading, values):
 
 def _render_section_values(values):
     """
-    Convert a ``dict`` of ``bytes`` to the body of an ini-format section as
-    ``bytes``.
+    Convert a ``dict`` of ``unicode`` to the body of an ini-format section as
+    ``unicode``.
     """
     return u"\n".join(list(
         u"{} = {}".format(k, v)
