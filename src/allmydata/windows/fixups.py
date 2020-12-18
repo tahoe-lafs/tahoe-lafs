@@ -219,7 +219,7 @@ def initialize():
     def unmangle(s):
         return re.sub(
             u'\\x7F[0-9a-fA-F]*\\;',
-            # type ignored for 'unichr'
+            # type ignored for 'unichr' (Python 2 only)
             lambda m: unichr(int(m.group(0)[1:-1], 16)),  # type: ignore
             s,
         )
