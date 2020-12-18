@@ -133,9 +133,9 @@ class PlaceHolderNodeHandler(Resource, ReplaceMeMixin):
 
     @render_exception
     def render_POST(self, req):
-        t = get_arg(req, "t", "").strip()
-        replace = boolean_of_arg(get_arg(req, "replace", "true"))
-        if t == "upload":
+        t = get_arg(req, b"t", b"").strip()
+        replace = boolean_of_arg(get_arg(req, b"replace", b"true"))
+        if t == b"upload":
             # like PUT, but get the file data from an HTML form's input field.
             # We could get here from POST /uri/mutablefilecap?t=upload,
             # or POST /uri/path/file?t=upload, or
@@ -290,11 +290,11 @@ class FileNodeHandler(Resource, ReplaceMeMixin, object):
 
     @render_exception
     def render_POST(self, req):
-        t = get_arg(req, "t", "").strip()
-        replace = boolean_of_arg(get_arg(req, "replace", "true"))
-        if t == "check":
+        t = get_arg(req, b"t", b"").strip()
+        replace = boolean_of_arg(get_arg(req, b"replace", b"true"))
+        if t == b"check":
             d = self._POST_check(req)
-        elif t == "upload":
+        elif t == b"upload":
             # like PUT, but get the file data from an HTML form's input field
             # We could get here from POST /uri/mutablefilecap?t=upload,
             # or POST /uri/path/file?t=upload, or

@@ -226,7 +226,10 @@ class Root(MultiFormatResource):
         self._client = client
         self._now_fn = now_fn
 
-        self.putChild("uri", URIHandler(client))
+        # Children need to be bytes; for now just doing these to make specific
+        # tests pass on Python 3, but eventually will do all them when this
+        # module is ported to Python 3 (if not earlier).
+        self.putChild(b"uri", URIHandler(client))
         self.putChild("cap", URIHandler(client))
 
         # Handler for everything beneath "/private", an area of the resource

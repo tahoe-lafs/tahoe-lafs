@@ -614,7 +614,6 @@ class GridTestMixin(object):
             method="GET", clientnum=0, **kwargs):
         # if return_response=True, this fires with (data, statuscode,
         # respheaders) instead of just data.
-        assert not isinstance(urlpath, unicode)
         url = self.client_baseurls[clientnum] + urlpath
 
         response = yield treq.request(method, url, persistent=False,

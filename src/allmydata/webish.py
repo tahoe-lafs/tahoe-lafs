@@ -110,6 +110,7 @@ def _get_client_ip(request):
 
 
 def _logFormatter(logDateTime, request):
+    print("REQUEST: {}".format(request.uri))
     # we build up a log string that hides most of the cap, to preserve
     # user privacy. We retain the query args so we can identify things
     # like t=json. Then we send it to the flog. We make no attempt to
@@ -128,7 +129,7 @@ def _logFormatter(logDateTime, request):
         # sure we censor these too.
         if queryargs.startswith(b"uri="):
             queryargs = b"uri=[CENSORED]"
-        queryargs = "?" + queryargs
+        queryargs = b"?" + queryargs
     if path.startswith(b"/uri/"):
         path = b"/uri/[CENSORED]"
     elif path.startswith(b"/file/"):

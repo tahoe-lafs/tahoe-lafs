@@ -4,6 +4,8 @@ Common utilities that are available from Python 3.
 Can eventually be merged back into allmydata.web.common.
 """
 
+from past.builtins import unicode
+
 from twisted.web import resource, http
 
 from allmydata.util import abbreviate
@@ -23,7 +25,13 @@ def get_arg(req, argname, default=None, multiple=False):
     empty), starting with all those in the query args.
 
     :param TahoeLAFSRequest req: The request to consider.
+
+    :return: Either bytes or tuple of bytes.
     """
+    if isinstance(argname, unicode):
+        argname = argname.encode("ascii")
+    if isinstance(default, unicode):
+        default = default.encode("ascii")
     results = []
     if argname in req.args:
         results.extend(req.args[argname])
