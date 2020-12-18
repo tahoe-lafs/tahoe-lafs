@@ -499,6 +499,7 @@ class LocalCiphertextReader(AskUntilSuccessMixin):
         # ??. I'm not sure if it makes sense to forward the close message.
         return self.call("close")
 
+    # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3561
     def set_upload_status(self, upload_status):
         raise NotImplementedError
 
