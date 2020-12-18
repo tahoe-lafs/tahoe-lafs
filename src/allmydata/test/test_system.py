@@ -70,7 +70,13 @@ from ..scripts.common import (
 
 def run_cli(*args, **kwargs):
     """
-    Backwards compatible version so we don't have to change all the tests.
+    Run a Tahoe-LAFS CLI utility, but inline.
+
+    Version of run_cli_unicode() that takes any kind of string, and the
+    command-line args inline instead of as verb + list.
+
+    Backwards compatible version so we don't have to change all the tests that
+    expected this API.
     """
     nodeargs = [ensure_text(a) for a in kwargs.pop("nodeargs", [])]
     kwargs["nodeargs"] = nodeargs
