@@ -1825,11 +1825,6 @@ class IEncoder(Interface):
     willing to receive data.
     """
 
-    def set_size(size):
-        """Specify the number of bytes that will be encoded. This must be
-        peformed before get_serialized_params() can be called.
-        """
-
     def set_encrypted_uploadable(u):
         """Provide a source of encrypted upload data. 'u' must implement
         IEncryptedUploadable.

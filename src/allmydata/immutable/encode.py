@@ -711,6 +711,3 @@ class Encoder(object):
         return self.uri_extension_data
     def get_uri_extension_hash(self):
         return self.uri_extension_hash
-
-    def set_size(self, size):
-        raise NotImplementedError()
