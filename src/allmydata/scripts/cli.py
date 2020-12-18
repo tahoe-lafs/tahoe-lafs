@@ -3,8 +3,7 @@ from __future__ import print_function
 import os.path, re, fnmatch
 
 try:
-    from typing import List, Sequence, Any
-    from allmydata.scripts.types_ import SubCommands
+    from allmydata.scripts.types_ import SubCommands, Parameters
 except ImportError:
     pass
 
@@ -26,7 +25,7 @@ class FileStoreOptions(BaseOptions):
          "This overrides the URL found in the --node-directory ."],
         ["dir-cap", None, None,
          "Specify which dirnode URI should be used as the 'tahoe' alias."]
-        ]  # type: List[Sequence[Any]]
+        ]  # type: Parameters
 
     def postOptions(self):
         self["quiet"] = self.parent["quiet"]

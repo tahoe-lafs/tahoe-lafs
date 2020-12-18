@@ -5,7 +5,8 @@ import codecs
 from os.path import join
 
 try:
-    from typing import Optional, Sequence, List, Any
+    from typing import Optional
+    from .types_ import Parameters
 except ImportError:
     pass
 
@@ -69,7 +70,7 @@ class BasedirOptions(BaseOptions):
     optParameters = [
         ["basedir", "C", None, "Specify which Tahoe base directory should be used. [default: %s]"
          % quote_local_unicode_path(_default_nodedir)],
-    ]  # type: List[Sequence[Any]]
+    ]  # type: Parameters
 
     def parseArgs(self, basedir=None):
         # This finds the node-directory option correctly even if we are in a subcommand.
@@ -106,7 +107,7 @@ class NoDefaultBasedirOptions(BasedirOptions):
 
     optParameters = [
         ["basedir", "C", None, "Specify which Tahoe base directory should be used."],
-    ]  # type: List[Sequence[Any]]
+    ]  # type: Parameters
 
     # This is overridden in order to ensure we get a "Wrong number of arguments."
     # error when more than one argument is given.

@@ -1,4 +1,4 @@
-from typing import List, Tuple, Type
+from typing import List, Tuple, Type, Sequence, Any
 from allmydata.scripts.common import BaseOptions
 
 
@@ -8,3 +8,5 @@ from allmydata.scripts.common import BaseOptions
 SubCommand = Tuple[str, None, Type[BaseOptions], str]
 
 SubCommands = List[SubCommand]
+
+Parameters = List[Sequence[Any]]
