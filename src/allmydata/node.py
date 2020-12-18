@@ -713,7 +713,6 @@ class Node(service.MultiService):
     """
     NODETYPE = "unknown NODETYPE"
     CERTFILE = "node.pem"
-    GENERATED_FILES = []  # type: ignore
 
     def __init__(self, config, main_tub, control_tub, i2p_provider, tor_provider):
         """
