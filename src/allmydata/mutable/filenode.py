@@ -1206,5 +1206,6 @@ class MutableFileVersion(object):
                                  mode=mode)
         return u.update()
 
+    # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3562
     def get_servermap(self):
         raise NotImplementedError
