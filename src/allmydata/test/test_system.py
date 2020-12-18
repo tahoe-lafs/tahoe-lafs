@@ -664,7 +664,7 @@ def flush_but_dont_ignore(res):
 
 def _render_config(config):
     """
-    Convert a ``dict`` of ``dict`` of ``bytes`` to an ini-format string.
+    Convert a ``dict`` of ``dict`` of ``unicode`` to an ini-format string.
     """
     return u"\n\n".join(list(
         _render_config_section(k, v)
@@ -674,8 +674,8 @@ def _render_config(config):
 
 def _render_config_section(heading, values):
     """
-    Convert a ``bytes`` heading and a ``dict`` of ``bytes`` to an ini-format
-    section as ``bytes``.
+    Convert a ``unicode`` heading and a ``dict`` of ``unicode`` to an ini-format
+    section as ``unicode``.
     """
     return u"[{}]\n{}\n".format(
         heading, _render_section_values(values)
@@ -683,8 +683,8 @@ def _render_config_section(heading, values):
 
 def _render_section_values(values):
     """
-    Convert a ``dict`` of ``bytes`` to the body of an ini-format section as
-    ``bytes``.
+    Convert a ``dict`` of ``unicode`` to the body of an ini-format section as
+    ``unicode``.
     """
     return u"\n".join(list(
         u"{} = {}".format(k, v)
