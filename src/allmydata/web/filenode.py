@@ -1,3 +1,4 @@
+from past.builtins import unicode
 
 import json
 
@@ -117,7 +118,7 @@ class PlaceHolderNodeHandler(Resource, ReplaceMeMixin):
 
     @render_exception
     def render_PUT(self, req):
-        t = get_arg(req, "t", "").strip()
+        t = get_arg(req, b"t", b"").strip()
         replace = parse_replace_arg(get_arg(req, "replace", "true"))
 
         assert self.parentnode and self.name
@@ -179,7 +180,7 @@ class FileNodeHandler(Resource, ReplaceMeMixin, object):
 
     @render_exception
     def render_GET(self, req):
-        t = get_arg(req, "t", "").strip()
+        t = unicode(get_arg(req, b"t", b"").strip(), "ascii")
 
         # t=info contains variable ophandles, so is not allowed an ETag.
         FIXED_OUTPUT_TYPES = ["", "json", "uri", "readonly-uri"]
@@ -237,19 +238,19 @@ class FileNodeHandler(Resource, ReplaceMeMixin, object):
 
     @render_exception
     def render_HEAD(self, req):
-        t = get_arg(req, "t", "").strip()
+        t = get_arg(req, b"t", b"").strip()
         if t:
             raise WebError("HEAD file: bad t=%s" % t)
-        filename = get_arg(req, "filename", self.name) or "unknown"
+        filename = get_arg(req, b"filename", self.name) or "unknown"
         d = self.node.get_best_readable_version()
         d.addCallback(lambda dn: FileDownloader(dn, filename))
         return d
 
     @render_exception
     def render_PUT(self, req):
-        t = get_arg(req, "t", "").strip()
-        replace = parse_replace_arg(get_arg(req, "replace", "true"))
-        offset = parse_offset_arg(get_arg(req, "offset", None))
+        t = get_arg(req, b"t", b"").strip()
+        replace = parse_replace_arg(get_arg(req, b"replace", b"true"))
+        offset = parse_offset_arg(get_arg(req, b"offset", None))
 
         if not t:
             if not replace:
