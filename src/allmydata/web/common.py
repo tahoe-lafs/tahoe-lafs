@@ -208,7 +208,15 @@ def compute_rate(bytes, seconds):
     return 1.0 * bytes / seconds
 
 def abbreviate_rate(data):
-    # 21.8kBps, 554.4kBps 4.37MBps
+    """
+    Convert number of bytes/second into human readable strings (unicode).
+
+    Uses metric measures, so 1000 not 1024, e.g. 21.8kBps, 554.4kBps, 4.37MBps.
+
+    :param data: Either ``None`` or integer.
+
+    :return: Unicode string.
+    """
     if data is None:
         return u""
     r = float(data)
@@ -219,7 +227,15 @@ def abbreviate_rate(data):
     return u"%.0fBps" % r
 
 def abbreviate_size(data):
-    # 21.8kB, 554.4kB 4.37MB
+    """
+    Convert number of bytes into human readable strings (unicode).
+
+    Uses metric measures, so 1000 not 1024, e.g. 21.8kB, 554.4kB, 4.37MB.
+
+    :param data: Either ``None`` or integer.
+
+    :return: Unicode string.
+    """
     if data is None:
         return u""
     r = float(data)

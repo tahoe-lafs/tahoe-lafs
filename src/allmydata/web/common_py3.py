@@ -95,6 +95,13 @@ class MultiFormatResource(resource.Resource, object):
 
 
 def abbreviate_time(data):
+    """
+    Convert number of seconds into human readable string.
+
+    :param data: Either ``None`` or integer or float, seconds.
+
+    :return: Unicode string.
+    """
     # 1.23s, 790ms, 132us
     if data is None:
         return u""
