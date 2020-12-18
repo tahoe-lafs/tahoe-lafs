@@ -714,7 +714,7 @@ class _Client(node.Node, pollmixin.PollMixin):
     def get_long_nodeid(self):
         # this matches what IServer.get_longname() says about us elsewhere
         vk_string = ed25519.string_from_verifying_key(self._node_public_key)
-        return remove_prefix(vk_string, "pub-")
+        return remove_prefix(vk_string, b"pub-")
 
     def get_long_tubid(self):
         return idlib.nodeid_b2a(self.nodeid)
@@ -897,10 +897,6 @@ class _Client(node.Node, pollmixin.PollMixin):
         helper_furl = self.config.get_config("client", "helper.furl", None)
         if helper_furl in ("None", ""):
             helper_furl = None
-
-        # FURLs need to be bytes:
-        if helper_furl is not None:
-            helper_furl = helper_furl.encode("utf-8")
 
         DEP = self.encoding_params
         DEP["k"] = int(self.config.get_config("client", "shares.needed", DEP["k"]))
