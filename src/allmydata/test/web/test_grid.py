@@ -1,5 +1,7 @@
 from __future__ import print_function
 
+from past.builtins import unicode
+
 import os.path, re
 from urllib.parse import quote as url_quote
 import json
@@ -48,7 +50,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
     def CHECK(self, ign, which, args, clientnum=0):
         fileurl = self.fileurls[which]
         url = fileurl + "?" + args
-        return self.GET(url, method="POST", clientnum=clientnum)
+        return self.GET(url, method="POST", clientnum=clientnum).addCallback(unicode, "utf-8")
 
     def test_filecheck(self):
         self.basedir = "web/Grid/filecheck"
@@ -1275,7 +1277,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
         d = c0.upload(upload.Data(DATA, convergence=b""))
         def _stash_uri_and_create_dir(ur):
             self.uri = ur.get_uri()
-            self.url = "uri/"+self.uri
+            self.url = b"uri/"+self.uri
             u = uri.from_string_filenode(self.uri)
             self.si = u.get_storage_index()
             childnode = c0.create_node_from_uri(self.uri, None)
@@ -1284,7 +1286,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
         def _stash_dir(node):
             self.dir_node = node
             self.dir_uri = node.get_uri()
-            self.dir_url = "uri/"+self.dir_uri
+            self.dir_url = b"uri/"+self.dir_uri
         d.addCallback(_stash_dir)
         d.addCallback(lambda ign: self.GET(self.dir_url, followRedirect=True))
         def _check_dir_html(body):
