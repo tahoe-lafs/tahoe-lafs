@@ -860,12 +860,6 @@ class IPeerSelector(Interface):
         peer selection begins.
         """
 
-    def confirm_share_allocation(peerid, shnum):
-        """
-        Confirm that an allocated peer=>share pairing has been
-        successfully established.
-        """
-
     def add_peers(peerids=set):
         """
         Update my internal state to include the peers in peerids as
