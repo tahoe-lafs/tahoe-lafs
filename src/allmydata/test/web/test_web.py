@@ -90,7 +90,7 @@ class FakeNodeMaker(NodeMaker):
         return FakeMutableFileNode(None, None,
                                    self.encoding_params, None,
                                    self.all_contents).init_from_cap(cap)
-    def create_mutable_file(self, contents="", keysize=None,
+    def create_mutable_file(self, contents=b"", keysize=None,
                             version=SDMF_VERSION):
         n = FakeMutableFileNode(None, None, self.encoding_params, None,
                                 self.all_contents)
@@ -105,7 +105,7 @@ class FakeUploader(service.Service):
         d = uploadable.get_size()
         d.addCallback(lambda size: uploadable.read(size))
         def _got_data(datav):
-            data = "".join(datav)
+            data = b"".join(datav)
             n = create_chk_filenode(data, self.all_contents)
             ur = upload.UploadResults(file_size=len(data),
                                       ciphertext_fetched=0,
@@ -127,12 +127,12 @@ class FakeUploader(service.Service):
 
 
 def build_one_ds():
-    ds = DownloadStatus("storage_index", 1234)
+    ds = DownloadStatus(b"storage_index", 1234)
     now = time.time()
 
-    serverA = StubServer(hashutil.tagged_hash("foo", "serverid_a")[:20])
-    serverB = StubServer(hashutil.tagged_hash("foo", "serverid_b")[:20])
-    storage_index = hashutil.storage_index_hash("SI")
+    serverA = StubServer(hashutil.tagged_hash(b"foo", b"serverid_a")[:20])
+    serverB = StubServer(hashutil.tagged_hash(b"foo", b"serverid_b")[:20])
+    storage_index = hashutil.storage_index_hash(b"SI")
     e0 = ds.add_segment_request(0, now)
     e0.activate(now+0.5)
     e0.deliver(now+1, 0, 100, 0.5) # when, start,len, decodetime
@@ -261,7 +261,7 @@ class FakeClient(_Client):
         # minimal subset
         service.MultiService.__init__(self)
         self.all_contents = {}
-        self.nodeid = "fake_nodeid"
+        self.nodeid = b"fake_nodeid"
         self.nickname = u"fake_nickname \u263A"
         self.introducer_furls = []
         self.introducer_clients = []
@@ -277,7 +277,7 @@ class FakeClient(_Client):
         # fake knowledge of another server
         self.storage_broker.test_add_server("other_nodeid",
             FakeDisplayableServer(
-                serverid="other_nodeid", nickname=u"other_nickname \u263B", connected = True,
+                serverid=b"other_nodeid", nickname=u"other_nickname \u263B", connected = True,
                 last_connect_time = 10, last_loss_time = 20, last_rx_time = 30))
         self.storage_broker.test_add_server("disconnected_nodeid",
             FakeDisplayableServer(
