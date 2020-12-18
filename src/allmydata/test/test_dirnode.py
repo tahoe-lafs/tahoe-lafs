@@ -1526,7 +1526,7 @@ class Packing(testutil.ReallyEqualMixin, unittest.TestCase):
                               kids, fn.get_writekey(), deep_immutable=True)
 
 @implementer(IMutableFileNode)
-class FakeMutableFile(object):  # type: ignore # incomplete interface
+class FakeMutableFile(object):  # type: ignore # incomplete implementation
     counter = 0
     def __init__(self, initial_contents=""):
         data = self._get_initial_contents(initial_contents)
