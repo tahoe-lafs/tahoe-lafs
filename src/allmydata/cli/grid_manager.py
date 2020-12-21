@@ -196,7 +196,7 @@ def sign(ctx, name, expiry_days):
         while f is None:
             try:
                 f = fp.child("{}.cert.{}".format(name, next_serial)).create()
-            except Exception:
+            except OSError:
                 f = None
             next_serial += 1
         with f:
