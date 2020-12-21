@@ -1004,12 +1004,12 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
         d.addCallback(_stash_uri, "one")
         d.addCallback(lambda ign:
                       self.rootnode.add_file(u"small",
-                                             upload.Data("literal",
+                                             upload.Data(b"literal",
                                                         convergence=b"")))
         d.addCallback(_stash_uri, "small")
 
         d.addCallback(lambda ign:
-            c0.create_mutable_file(publish.MutableData("mutable")))
+            c0.create_mutable_file(publish.MutableData(b"mutable")))
         d.addCallback(lambda fn: self.rootnode.set_node(u"mutable", fn))
         d.addCallback(_stash_uri, "mutable")
 

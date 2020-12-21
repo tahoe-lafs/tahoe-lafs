@@ -275,7 +275,7 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
 
     @render_exception
     def render_POST(self, req):
-        t = get_arg(req, b"t", b"").strip()
+        t = unicode(get_arg(req, b"t", b"").strip(), "ascii")
 
         if t == "mkdir":
             d = self._POST_mkdir(req)
@@ -1441,7 +1441,7 @@ class DeepCheckStreamer(dirnode.DeepStats):
     def write_line(self, data):
         j = json.dumps(data, ensure_ascii=True)
         assert "\n" not in j
-        self.req.write(j+"\n")
+        self.req.write(j.encode("utf-8")+b"\n")
 
     def finish(self):
         stats = dirnode.DeepStats.get_results(self)
@@ -1450,8 +1450,8 @@ class DeepCheckStreamer(dirnode.DeepStats):
              }
         j = json.dumps(d, ensure_ascii=True)
         assert "\n" not in j
-        self.req.write(j+"\n")
-        return ""
+        self.req.write(j.encode("utf-8")+b"\n")
+        return b""
 
 
 class UnknownNodeHandler(Resource, object):
