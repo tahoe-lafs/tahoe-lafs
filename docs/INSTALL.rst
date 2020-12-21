@@ -197,8 +197,8 @@ Verifying Signatures
 --------------------
 
 First download the source tarball and then any signatures. There are several
-developers who are expected to produce signatures for a release. *At least
-two signatures should be verified*.
+developers who are able to produce signatures for a release. *At least two
+signatures should be found and verified*.
 
 This statement, signed by the existing Tahoe release-signing key, attests to
 those developers authorized to sign a Tahoe release:
