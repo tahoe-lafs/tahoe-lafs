@@ -97,10 +97,10 @@ they will need to evaluate which contributors' signatures they trust.
   - install each in a fresh virtualenv
   - run `tahoe` command
 - when satisfied, sign the tarballs:
-  - gpg --pinentry=loopback --armor --sign dist/tahoe_lafs-1.15.0rc0-py2-none-any.whl
-  - gpg --pinentry=loopback --armor --sign dist/tahoe_lafs-1.15.0rc0.tar.bz2
-  - gpg --pinentry=loopback --armor --sign dist/tahoe_lafs-1.15.0rc0.tar.gz
-  - gpg --pinentry=loopback --armor --sign dist/tahoe_lafs-1.15.0rc0.zip
+  - gpg --pinentry=loopback --armor --detach-sign dist/tahoe_lafs-1.15.0rc0-py2-none-any.whl
+  - gpg --pinentry=loopback --armor --detach-sign dist/tahoe_lafs-1.15.0rc0.tar.bz2
+  - gpg --pinentry=loopback --armor --detach-sign dist/tahoe_lafs-1.15.0rc0.tar.gz
+  - gpg --pinentry=loopback --armor --detach-sign dist/tahoe_lafs-1.15.0rc0.zip
 
 
 Privileged Contributor
