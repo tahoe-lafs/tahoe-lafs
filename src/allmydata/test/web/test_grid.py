@@ -109,6 +109,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
 
         d.addCallback(self.CHECK, "good", "t=check")
         def _got_html_good(res):
+            res = unicode(res, "utf-8")
             self.failUnlessIn("Healthy", res)
             self.failIfIn("Not Healthy", res)
             soup = BeautifulSoup(res, 'html5lib')
@@ -117,6 +118,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
         d.addCallback(_got_html_good)
         d.addCallback(self.CHECK, "good", "t=check&return_to=somewhere")
         def _got_html_good_return_to(res):
+            res = unicode(res, "utf-8")
             self.failUnlessIn("Healthy", res)
             self.failIfIn("Not Healthy", res)
             self.failUnlessIn('<a href="somewhere">Return to file', res)
@@ -1101,6 +1103,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
                                            410, "Gone", "NoSharesError",
                                            self.GET, self.fileurls["0shares"]))
         def _check_zero_shares(body):
+            body = unicode(body, "utf-8")
             self.failIfIn("<html>", body)
             body = " ".join(body.strip().split())
             exp = ("NoSharesError: no shares could be found. "
@@ -1118,6 +1121,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
                                            410, "Gone", "NotEnoughSharesError",
                                            self.GET, self.fileurls["1share"]))
         def _check_one_share(body):
+            body = unicode(body, "utf-8")
             self.failIfIn("<html>", body)
             body = " ".join(body.strip().split())
             msgbase = ("NotEnoughSharesError: This indicates that some "
@@ -1142,10 +1146,11 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
                                            404, "Not Found", None,
                                            self.GET, self.fileurls["imaginary"]))
         def _missing_child(body):
+            body = unicode(body, "utf-8")
             self.failUnlessIn("No such child: imaginary", body)
         d.addCallback(_missing_child)
 
-        d.addCallback(lambda ignored: self.GET(self.fileurls["dir-0share"]))
+        d.addCallback(lambda ignored: self.GET_string(self.fileurls["dir-0share"]))
         def _check_0shares_dir_html(body):
             self.failUnlessIn(DIR_HTML_TAG, body)
             # we should see the regular page, but without the child table or
@@ -1164,7 +1169,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
             self.failUnlessIn("No upload forms: directory is unreadable", body)
         d.addCallback(_check_0shares_dir_html)
 
-        d.addCallback(lambda ignored: self.GET(self.fileurls["dir-1share"]))
+        d.addCallback(lambda ignored: self.GET_string(self.fileurls["dir-1share"]))
         def _check_1shares_dir_html(body):
             # at some point, we'll split UnrecoverableFileError into 0-shares
             # and some-shares like we did for immutable files (since there
@@ -1191,6 +1196,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
                                            self.GET,
                                            self.fileurls["dir-0share-json"]))
         def _check_unrecoverable_file(body):
+            body = unicode(body, "utf-8")
             self.failIfIn("<html>", body)
             body = " ".join(body.strip().split())
             exp = ("UnrecoverableFileError: the directory (or mutable file) "
@@ -1218,7 +1224,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
         # attach a webapi child that throws a random error, to test how it
         # gets rendered.
         w = c0.getServiceNamed("webish")
-        w.root.putChild("ERRORBOOM", ErrorBoom())
+        w.root.putChild(b"ERRORBOOM", ErrorBoom())
 
         # "Accept: */*" :        should get a text/html stack trace
         # "Accept: text/plain" : should get a text/plain stack trace
@@ -1231,6 +1237,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
                                            self.GET, "ERRORBOOM",
                                            headers={"accept": "*/*"}))
         def _internal_error_html1(body):
+            body = unicode(body, "utf-8")
             self.failUnlessIn("<html>", "expected HTML, not '%s'" % body)
         d.addCallback(_internal_error_html1)
 
@@ -1240,6 +1247,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
                                            self.GET, "ERRORBOOM",
                                            headers={"accept": "text/plain"}))
         def _internal_error_text2(body):
+            body = unicode(body, "utf-8")
             self.failIfIn("<html>", body)
             self.failUnless(body.startswith("Traceback "), body)
         d.addCallback(_internal_error_text2)
@@ -1251,6 +1259,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
                                            self.GET, "ERRORBOOM",
                                            headers={"accept": CLI_accepts}))
         def _internal_error_text3(body):
+            body = unicode(body, "utf-8")
             self.failIfIn("<html>", body)
             self.failUnless(body.startswith("Traceback "), body)
         d.addCallback(_internal_error_text3)
@@ -1260,7 +1269,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
                                            500, "Internal Server Error", None,
                                            self.GET, "ERRORBOOM"))
         def _internal_error_html4(body):
-            self.failUnlessIn("<html>", body)
+            self.failUnlessIn(b"<html>", body)
         d.addCallback(_internal_error_html4)
 
         def _flush_errors(res):

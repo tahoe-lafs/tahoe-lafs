@@ -1,7 +1,8 @@
 from __future__ import print_function
 
-from future.utils import PY2, native_str
+from future.utils import PY2, native_str, bchr, binary_type
 from future.builtins import str as future_str
+from past.builtins import unicode
 
 import os
 import time
@@ -20,9 +21,6 @@ from twisted.trial import unittest
 from ..util.assertutil import precondition
 from ..scripts import runner
 from allmydata.util.encodingutil import unicode_platform, get_filesystem_encoding, get_io_encoding
-# Imported for backwards compatibility:
-from future.utils import bord, bchr, binary_type
-from past.builtins import unicode
 
 
 def skip_if_cannot_represent_filename(u):
@@ -183,13 +181,11 @@ def insecurerandstr(n):
     return b''.join(map(bchr, map(randrange, [0]*n, [256]*n)))
 
 def flip_bit(good, which):
-    # TODO Probs need to update with bchr/bord as with flip_one_bit, below.
-    # flip the low-order bit of good[which]
     if which == -1:
-        pieces = good[:which], good[-1:], ""
+        pieces = good[:which], good[-1:], b""
     else:
         pieces = good[:which], good[which:which+1], good[which+1:]
-    return pieces[0] + chr(ord(pieces[1]) ^ 0x01) + pieces[2]
+    return pieces[0] + bchr(ord(pieces[1]) ^ 0x01) + pieces[2]
 
 def flip_one_bit(s, offset=0, size=None):
     """ flip one random bit of the string s, in a byte greater than or equal to offset and less
@@ -198,7 +194,7 @@ def flip_one_bit(s, offset=0, size=None):
     if size is None:
         size=len(s)-offset
     i = randrange(offset, offset+size)
-    result = s[:i] + bchr(bord(s[i])^(0x01<<randrange(0, 8))) + s[i+1:]
+    result = s[:i] + bchr(ord(s[i])^(0x01<<randrange(0, 8))) + s[i+1:]
     assert result != s, "Internal error -- flip_one_bit() produced the same string as its input: %s == %s" % (result, s)
     return result
 
