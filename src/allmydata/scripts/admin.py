@@ -59,6 +59,9 @@ def derive_pubkey(options):
 
 
 class AddGridManagerCertOptions(BaseOptions):
+    """
+    Options for add-grid-manager-cert
+    """
 
     optParameters = [
         ['filename', 'f', None, "Filename of the certificate ('-', a dash, for stdin)"],

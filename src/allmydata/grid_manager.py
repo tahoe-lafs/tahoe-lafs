@@ -29,12 +29,21 @@ class _GridManagerStorageServer(object):
     )
 
     def add_certificate(self, certificate):
+        """
+        Add ``certificate``
+        """
         self.certificates.append(certificate)
 
     def public_key_string(self):
+        """
+        :returns: the public key as a string
+        """
         return ed25519.string_from_verifying_key(self.public_key)
 
     def marshal(self):
+        """
+        :returns: a dict suitable for JSON representing this object
+        """
         return {
             u"public_key": self.public_key_string(),
         }
@@ -181,6 +190,9 @@ class _GridManager(object):
         return self._storage_servers
 
     def public_identity(self):
+        """
+        :returns: public key as a string
+        """
         return ed25519.string_from_verifying_key(self._public_key)
 
     def sign(self, name, expiry):
@@ -248,6 +260,9 @@ class _GridManager(object):
             )
 
     def marshal(self):
+        """
+        :returns: a dict suitable for JSON representing this object
+        """
         data = {
             u"grid_manager_config_version": self._version,
             u"private_key": self._private_key_bytes.decode('ascii'),
@@ -415,8 +430,10 @@ def create_grid_manager_verifier(keys, certs, public_key, now_fn=None, bad_cert=
                 bad_cert(key, alleged_cert)
 
     def validate():
+        """
+        :returns: True if if *any* certificate is still valid for a server
+        """
         now = now_fn()
-        # if *any* certificate is still valid then we consider the server valid
         for cert in valid_certs:
             expires = datetime.utcfromtimestamp(cert['expires'])
             if cert['public_key'] == public_key:
