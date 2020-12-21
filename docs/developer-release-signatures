@@ -1,0 +1,25 @@
+TODO: clear-sign this with the release key
+
+
+Any two of the following core Tahoe contributers may sign a
+release. They each independantly produce a signature which are made
+available beside Tahoe releases after 1.15.0
+
+This statement is signed by the previous Tahoe release key. Any future
+such statements may be signed by it OR by any two developers (for
+example, to add or remove developers from the list).
+
+meejah
+0xC2602803128069A7
+9D5A 2BD5 688E CB88 9DEB CD3F C260 2803 1280 69A7
+https://meejah.ca/meejah.asc
+
+jean-paul calderone
+0x??
+fingerprint
+[url for key]
+
+brian warner
+0xD43B4C9C73225AAF
+967E FE06 6998 7241 1A77 DF36 D43B 4C9C 7322 5AAF
+http://www.lothar.com/warner-gpg.html
