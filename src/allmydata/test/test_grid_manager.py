@@ -7,6 +7,8 @@ from twisted.python.filepath import (
     FilePath,
 )
 
+from hypothesis import given
+
 from allmydata.node import (
     config_from_string,
 )
@@ -25,6 +27,9 @@ from allmydata.grid_manager import (
     create_grid_manager,
     parse_grid_manager_certificate,
     create_grid_manager_verifier,
+)
+from allmydata.test.strategies import (
+    base32text,
 )
 
 from .common import SyncTestCase
@@ -292,3 +297,35 @@ class GridManagerVerifier(SyncTestCase):
         )
 
         self.assertTrue(verify())
+
+
+class GridManagerVerifier(SyncTestCase):
+    """
+    Invalid certificate rejection tests
+    """
+
+    def setUp(self):
+        self.gm = create_grid_manager()
+        self.priv0, self.pub0 = ed25519.create_signing_keypair()
+        self.gm.add_storage_server("test0", self.pub0)
+        self.cert0 = self.gm.sign("test0", timedelta(seconds=86400))
+        return super(GridManagerVerifier, self).setUp()
+
+    @given(
+        base32text(),
+    )
+    def test_validate_cert_invalid(self, invalid_signature):
+        """
+        An incorrect signature is rejected
+        """
+        # make signature invalid
+        self.cert0["signature"] = invalid_signature
+
+        verify = create_grid_manager_verifier(
+            [self.gm._public_key],
+            [self.cert0],
+            ed25519.string_from_verifying_key(self.pub0),
+            bad_cert = lambda key, cert: None,
+        )
+
+        self.assertFalse(verify())

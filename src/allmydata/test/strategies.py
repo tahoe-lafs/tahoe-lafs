@@ -15,6 +15,11 @@ from ..uri import (
     MDMFDirectoryURI,
 )
 
+from allmydata.util.base32 import (
+    b2a,
+)
+
+
 def write_capabilities():
     """
     Build ``IURI`` providers representing all kinds of write capabilities.
@@ -108,4 +113,14 @@ def dir2_mdmf_capabilities():
     return builds(
         MDMFDirectoryURI,
         mdmf_capabilities(),
+    )
+
+
+def base32text():
+    """
+    Build text()s that are valid base32
+    """
+    return builds(
+        b2a,
+        binary(),
     )
