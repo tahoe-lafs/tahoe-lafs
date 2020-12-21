@@ -1,5 +1,5 @@
+from past.builtins import unicode
 
-import json
 from urllib.parse import quote as url_quote
 from datetime import timedelta
 
@@ -20,7 +20,7 @@ from twisted.web.template import (
 from hyperlink import URL
 from twisted.python.filepath import FilePath
 
-from allmydata.util import base32
+from allmydata.util import base32, jsonbytes as json
 from allmydata.util.encodingutil import (
     to_bytes,
     quote_output,
@@ -217,7 +217,7 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
     @render_exception
     def render_GET(self, req):
         # This is where all of the directory-related ?t=* code goes.
-        t = get_arg(req, b"t", b"").strip()
+        t = unicode(get_arg(req, b"t", b"").strip(), "ascii")
 
         # t=info contains variable ophandles, t=rename-form contains the name
         # of the child being renamed. Neither is allowed an ETag.
@@ -1005,7 +1005,7 @@ def _directory_json_metadata(req, dirnode):
     d = dirnode.list()
     def _got(children):
         kids = {}
-        for name, (childnode, metadata) in children.iteritems():
+        for name, (childnode, metadata) in children.items():
             assert IFilesystemNode.providedBy(childnode), childnode
             rw_uri = childnode.get_write_uri()
             ro_uri = childnode.get_readonly_uri()

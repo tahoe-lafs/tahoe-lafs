@@ -52,6 +52,12 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
         url = fileurl + "?" + args
         return self.GET(url, method="POST", clientnum=clientnum).addCallback(unicode, "utf-8")
 
+    def GET_string(self, *args, **kwargs):
+        """Send an HTTP request, but convert result to Unicode string."""
+        d = GridTestMixin.GET(self, *args, **kwargs)
+        d.addCallback(unicode, "utf-8")
+        return d
+
     def test_filecheck(self):
         self.basedir = "web/Grid/filecheck"
         self.set_up_grid()
@@ -1288,9 +1294,8 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
             self.dir_uri = node.get_uri()
             self.dir_url = b"uri/"+self.dir_uri
         d.addCallback(_stash_dir)
-        d.addCallback(lambda ign: self.GET(self.dir_url, followRedirect=True))
+        d.addCallback(lambda ign: self.GET_string(self.dir_url, followRedirect=True))
         def _check_dir_html(body):
-            body = unicode(body, "utf-8")
             self.failUnlessIn(DIR_HTML_TAG, body)
             self.failUnlessIn("blacklisted.txt</a>", body)
         d.addCallback(_check_dir_html)
@@ -1308,19 +1313,19 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
             # need to restart the client
         d.addCallback(_blacklist)
         d.addCallback(lambda ign: self.shouldHTTPError("get_from_blacklisted_uri",
-                                                       403, b"Forbidden",
-                                                       b"Access Prohibited: off-limits",
+                                                       403, "Forbidden",
+                                                       "Access Prohibited: off-limits",
                                                        self.GET, self.url))
 
         # We should still be able to list the parent directory, in HTML...
-        d.addCallback(lambda ign: self.GET(self.dir_url, followRedirect=True))
+        d.addCallback(lambda ign: self.GET_string(self.dir_url, followRedirect=True))
         def _check_dir_html2(body):
             self.failUnlessIn(DIR_HTML_TAG, body)
             self.failUnlessIn("blacklisted.txt</strike>", body)
         d.addCallback(_check_dir_html2)
 
         # ... and in JSON (used by CLI).
-        d.addCallback(lambda ign: self.GET(self.dir_url+"?t=json", followRedirect=True))
+        d.addCallback(lambda ign: self.GET(self.dir_url+b"?t=json", followRedirect=True))
         def _check_dir_json(res):
             data = json.loads(res)
             self.failUnless(isinstance(data, list), data)
@@ -1359,14 +1364,14 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
         d.addCallback(_add_dir)
         def _get_dircap(dn):
             self.dir_si_b32 = base32.b2a(dn.get_storage_index())
-            self.dir_url_base = "uri/"+dn.get_write_uri()
-            self.dir_url_json1 = "uri/"+dn.get_write_uri()+"?t=json"
-            self.dir_url_json2 = "uri/"+dn.get_write_uri()+"?t=json"
-            self.dir_url_json_ro = "uri/"+dn.get_readonly_uri()+"?t=json"
-            self.child_url = "uri/"+dn.get_readonly_uri()+"/child"
+            self.dir_url_base = b"uri/"+dn.get_write_uri()
+            self.dir_url_json1 = b"uri/"+dn.get_write_uri()+b"?t=json"
+            self.dir_url_json2 = b"uri/"+dn.get_write_uri()+b"?t=json"
+            self.dir_url_json_ro = b"uri/"+dn.get_readonly_uri()+b"?t=json"
+            self.child_url = b"uri/"+dn.get_readonly_uri()+b"/child"
         d.addCallback(_get_dircap)
         d.addCallback(lambda ign: self.GET(self.dir_url_base, followRedirect=True))
-        d.addCallback(lambda body: self.failUnlessIn(DIR_HTML_TAG, body))
+        d.addCallback(lambda body: self.failUnlessIn(DIR_HTML_TAG, unicode(body, "utf-8")))
         d.addCallback(lambda ign: self.GET(self.dir_url_json1))
         d.addCallback(lambda res: json.loads(res))  # just check it decodes
         d.addCallback(lambda ign: self.GET(self.dir_url_json2))

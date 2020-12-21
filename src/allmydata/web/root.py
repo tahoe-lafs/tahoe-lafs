@@ -1,6 +1,5 @@
 import os
 import time
-import json
 import urllib
 
 from hyperlink import DecodedURL, URL
@@ -21,7 +20,7 @@ from twisted.web.template import (
 )
 
 import allmydata # to display import path
-from allmydata.util import log
+from allmydata.util import log, jsonbytes as json
 from allmydata.interfaces import IFileNode
 from allmydata.web import (
     filenode,

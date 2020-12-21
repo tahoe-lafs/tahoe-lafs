@@ -1,7 +1,5 @@
 from past.builtins import unicode, long
 
-import json
-
 from twisted.web import http, static
 from twisted.internet import defer
 from twisted.web.resource import (
@@ -42,6 +40,8 @@ from allmydata.web.check_results import (
     LiteralCheckResultsRenderer,
 )
 from allmydata.web.info import MoreInfo
+from allmydata.util import jsonbytes as json
+
 
 class ReplaceMeMixin(object):
     def replace_me_with_a_child(self, req, client, replace):
