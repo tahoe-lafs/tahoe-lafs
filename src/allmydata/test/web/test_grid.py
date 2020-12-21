@@ -81,7 +81,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
             c0.create_mutable_file(publish.MutableData(DATA+b"3")))
         d.addCallback(_stash_mutable_uri, "corrupt")
         d.addCallback(lambda ign:
-                      c0.upload(upload.Data("literal", convergence=b"")))
+                      c0.upload(upload.Data(b"literal", convergence=b"")))
         d.addCallback(_stash_uri, "small")
         d.addCallback(lambda ign: c0.create_immutable_dirnode({}))
         d.addCallback(_stash_mutable_uri, "smalldir")
@@ -618,7 +618,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
         d.addCallback(_stash_uri, "good")
         d.addCallback(lambda ign:
                       self.rootnode.add_file(u"small",
-                                             upload.Data("literal",
+                                             upload.Data(b"literal",
                                                         convergence=b"")))
         d.addCallback(_stash_uri, "small")
         d.addCallback(lambda ign:
@@ -791,7 +791,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
         d.addCallback(_stash_uri, "good")
         d.addCallback(lambda ign:
                       self.rootnode.add_file(u"small",
-                                             upload.Data("literal",
+                                             upload.Data(b"literal",
                                                         convergence=b"")))
         d.addCallback(_stash_uri, "small")
         d.addCallback(lambda ign:

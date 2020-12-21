@@ -225,7 +225,7 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
         if not self.node.is_mutable() and t in FIXED_OUTPUT_TYPES:
             si = self.node.get_storage_index()
             if si and req.setETag('DIR:%s-%s' % (base32.b2a(si), t or "")):
-                return ""
+                return b""
 
         if not t:
             # render the directory as HTML
@@ -1363,7 +1363,7 @@ class ManifestStreamer(dirnode.DeepStats):
 
         j = json.dumps(d, ensure_ascii=True)
         assert "\n" not in j
-        self.req.write(j+"\n")
+        self.req.write(j.encode("utf-8")+b"\n")
 
     def finish(self):
         stats = dirnode.DeepStats.get_results(self)
@@ -1372,8 +1372,8 @@ class ManifestStreamer(dirnode.DeepStats):
              }
         j = json.dumps(d, ensure_ascii=True)
         assert "\n" not in j
-        self.req.write(j+"\n")
-        return ""
+        self.req.write(j.encode("utf-8")+b"\n")
+        return b""
 
 @implementer(IPushProducer)
 class DeepCheckStreamer(dirnode.DeepStats):
