@@ -44,6 +44,20 @@ class GridManagerCommandLine(SyncTestCase):
             result = self.runner.invoke(grid_manager, ["--config", "foo", "public-identity"])
             self.assertTrue(result.output.startswith("pub-v0-"))
 
+    def test_load_invalid(self):
+        """
+        An invalid config is reported to the user
+        """
+        with self.runner.isolated_filesystem():
+            with open("config.json", "w") as f:
+                json.dump({"not": "valid"}, f)
+            result = self.runner.invoke(grid_manager, ["--config", ".", "public-identity"])
+            self.assertNotEqual(result.exit_code, 0)
+            self.assertIn(
+                "Error loading Grid Manager",
+                result.output,
+            )
+
     def test_create_already(self):
         """
         It's an error to create a new grid-manager in an existing
@@ -85,6 +99,22 @@ class GridManagerCommandLine(SyncTestCase):
             cert = json.loads(sigcert['certificate'])
             self.assertEqual(cert["public_key"], pubkey)
 
+    def test_add_twice(self):
+        """
+        An error is reported trying to add an existing server
+        """
+        pubkey0 = "pub-v0-cbq6hcf3pxcz6ouoafrbktmkixkeuywpcpbcomzd3lqbkq4nmfga"
+        pubkey1 = "pub-v0-5ysc55trfvfvg466v46j4zmfyltgus3y2gdejifctv7h4zkuyveq"
+        with self.runner.isolated_filesystem():
+            self.runner.invoke(grid_manager, ["--config", "foo", "create"])
+            self.runner.invoke(grid_manager, ["--config", "foo", "add", "storage0", pubkey0])
+            result = self.runner.invoke(grid_manager, ["--config", "foo", "add", "storage0", pubkey1])
+            self.assertNotEquals(result.exit_code, 0)
+            self.assertIn(
+                "A storage-server called 'storage0' already exists",
+                result.output,
+            )
+
     def test_add_list_remove(self):
         """
         Add a storage server, list it, remove it.
@@ -107,6 +137,32 @@ class GridManagerCommandLine(SyncTestCase):
 
             result = self.runner.invoke(grid_manager, ["--config", "foo", "list"])
             self.assertEqual(result.output.strip(), "")
+
+    def test_remove_missing(self):
+        """
+        Error reported when removing non-existant server
+        """
+        with self.runner.isolated_filesystem():
+            self.runner.invoke(grid_manager, ["--config", "foo", "create"])
+            result = self.runner.invoke(grid_manager, ["--config", "foo", "remove", "storage0"])
+            self.assertNotEquals(result.exit_code, 0)
+            self.assertIn(
+                "No storage-server called 'storage0' exists",
+                result.output,
+            )
+
+    def test_sign_missing(self):
+        """
+        Error reported when signing non-existant server
+        """
+        with self.runner.isolated_filesystem():
+            self.runner.invoke(grid_manager, ["--config", "foo", "create"])
+            result = self.runner.invoke(grid_manager, ["--config", "foo", "sign", "storage0", "42"])
+            self.assertNotEquals(result.exit_code, 0)
+            self.assertIn(
+                "No storage-server called 'storage0' exists",
+                result.output,
+            )
 
 
 class TahoeAddGridManagerCert(AsyncTestCase):

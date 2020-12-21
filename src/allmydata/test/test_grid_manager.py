@@ -65,6 +65,32 @@ class GridManagerUtilities(SyncTestCase):
         certs = config.get_grid_manager_certificates()
         self.assertEqual([fake_cert], certs)
 
+    def test_load_certificates_invalid_version(self):
+        """
+        An error is reported loading invalid certificate version
+        """
+        cert_path = self.mktemp()
+        fake_cert = {
+            "certificate": "{\"expires\":1601687822,\"public_key\":\"pub-v0-cbq6hcf3pxcz6ouoafrbktmkixkeuywpcpbcomzd3lqbkq4nmfga\",\"version\":22}",
+            "signature": "fvjd3uvvupf2v6tnvkwjd473u3m3inyqkwiclhp7balmchkmn3px5pei3qyfjnhymq4cjcwvbpqmcwwnwswdtrfkpnlaxuih2zbdmda"
+        }
+        with open(cert_path, "w") as f:
+            f.write(json.dumps(fake_cert))
+        config_data = (
+            "[grid_managers]\n"
+            "fluffy = pub-v0-vqimc4s5eflwajttsofisp5st566dbq36xnpp4siz57ufdavpvlq\n"
+            "[grid_manager_certificates]\n"
+            "ding = {}\n".format(cert_path)
+        )
+        config = config_from_string("/foo", "portnum", config_data, client_valid_config())
+        self.assertEqual(
+            {"fluffy": "pub-v0-vqimc4s5eflwajttsofisp5st566dbq36xnpp4siz57ufdavpvlq"},
+            config.enumerate_section("grid_managers")
+        )
+        certs = config.get_grid_manager_certificates()
+        self.assertEqual([fake_cert], certs)
+        print(certs)
+
 
 class GridManagerVerifier(SyncTestCase):
     """
@@ -179,6 +205,41 @@ class GridManagerVerifier(SyncTestCase):
             load_grid_manager(fp)
         self.assertIn(
             "unknown version",
+            str(ctx.exception),
+        )
+
+    def test_invalid_certificate_bad_version(self):
+        """
+        Invalid Grid Manager config containing a certificate with an
+        illegal version
+        """
+        tempdir = self.mktemp()
+        fp = FilePath(tempdir)
+        config = {
+            "grid_manager_config_version": 0,
+            "private_key": "priv-v0-ub7knkkmkptqbsax4tznymwzc4nk5lynskwjsiubmnhcpd7lvlqa",
+            "storage_servers": {
+                "alice": {
+                    "public_key": "pub-v0-cbq6hcf3pxcz6ouoafrbktmkixkeuywpcpbcomzd3lqbkq4nmfga"
+                }
+            }
+        }
+        bad_cert = {
+            "certificate": "{\"expires\":1601687822,\"public_key\":\"pub-v0-cbq6hcf3pxcz6ouoafrbktmkixkeuywpcpbcomzd3lqbkq4nmfga\",\"version\":0}",
+            "signature": "fvjd3uvvupf2v6tnvkwjd473u3m3inyqkwiclhp7balmchkmn3px5pei3qyfjnhymq4cjcwvbpqmcwwnwswdtrfkpnlaxuih2zbdmda"
+        }
+
+        fp.makedirs()
+        with fp.child("config.json").open("w") as f:
+            json.dump(config, f)
+        with fp.child("alice.cert.0").open("w") as f:
+            json.dump(bad_cert, f)
+
+        with self.assertRaises(ValueError) as ctx:
+            load_grid_manager(fp)
+
+        self.assertIn(
+            "Unknown certificate version",
             str(ctx.exception),
         )
 
@@ -299,7 +360,7 @@ class GridManagerVerifier(SyncTestCase):
         self.assertTrue(verify())
 
 
-class GridManagerVerifier(SyncTestCase):
+class GridManagerInvalidVerifier(SyncTestCase):
     """
     Invalid certificate rejection tests
     """
@@ -309,7 +370,7 @@ class GridManagerVerifier(SyncTestCase):
         self.priv0, self.pub0 = ed25519.create_signing_keypair()
         self.gm.add_storage_server("test0", self.pub0)
         self.cert0 = self.gm.sign("test0", timedelta(seconds=86400))
-        return super(GridManagerVerifier, self).setUp()
+        return super(GridManagerInvalidVerifier, self).setUp()
 
     @given(
         base32text(),
