@@ -457,7 +457,8 @@ class StoragePluginWebPresence(AsyncTestCase):
         self.storage_plugin = u"tahoe-lafs-dummy-v1"
 
         from twisted.internet import reactor
-        _, port_endpoint = self.port_assigner.assign(reactor)
+        _, webport_endpoint = self.port_assigner.assign(reactor)
+        tubport_location, tubport_endpoint = self.port_assigner.assign(reactor)
 
         tempdir = TempDir()
         self.useFixture(tempdir)
@@ -468,8 +469,12 @@ class StoragePluginWebPresence(AsyncTestCase):
                 "web": "1",
             },
             node_config={
-                "tub.location": "127.0.0.1:1",
-                "web.port": ensure_text(port_endpoint),
+                # We don't really need the main Tub listening but if we
+                # disable it then we also have to disable storage (because
+                # config validation policy).
+                "tub.port": tubport_endpoint,
+                "tub.location": tubport_location,
+                "web.port": ensure_text(webport_endpoint),
             },
             storage_plugin=self.storage_plugin,
             basedir=self.basedir,
