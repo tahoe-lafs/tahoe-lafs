@@ -1,4 +1,4 @@
-from past.builtins import unicode
+from past.builtins import unicode, long
 
 import json
 

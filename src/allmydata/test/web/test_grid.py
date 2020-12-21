@@ -1290,6 +1290,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
         d.addCallback(_stash_dir)
         d.addCallback(lambda ign: self.GET(self.dir_url, followRedirect=True))
         def _check_dir_html(body):
+            body = unicode(body, "utf-8")
             self.failUnlessIn(DIR_HTML_TAG, body)
             self.failUnlessIn("blacklisted.txt</a>", body)
         d.addCallback(_check_dir_html)
@@ -1301,14 +1302,14 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
             f.write(" # this is a comment\n")
             f.write(" \n")
             f.write("\n") # also exercise blank lines
-            f.write("%s %s\n" % (base32.b2a(self.si), "off-limits to you"))
+            f.write("%s off-limits to you\n" % (unicode(base32.b2a(self.si), "ascii"),))
             f.close()
             # clients should be checking the blacklist each time, so we don't
             # need to restart the client
         d.addCallback(_blacklist)
         d.addCallback(lambda ign: self.shouldHTTPError("get_from_blacklisted_uri",
-                                                       403, "Forbidden",
-                                                       "Access Prohibited: off-limits",
+                                                       403, b"Forbidden",
+                                                       b"Access Prohibited: off-limits",
                                                        self.GET, self.url))
 
         # We should still be able to list the parent directory, in HTML...
@@ -1376,8 +1377,8 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
         d.addCallback(lambda body: self.failUnlessEqual(DATA, body))
 
         def _block_dir(ign):
-            f = open(fn, "w")
-            f.write("%s %s\n" % (self.dir_si_b32, "dir-off-limits to you"))
+            f = open(fn, "wb")
+            f.write(b"%s %s\n" % (self.dir_si_b32, b"dir-off-limits to you"))
             f.close()
             self.g.clients[0].blacklist.last_mtime -= 2.0
         d.addCallback(_block_dir)

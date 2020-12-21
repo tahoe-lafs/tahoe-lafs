@@ -825,11 +825,12 @@ class WebErrorMixin(object):
                         code=None, substring=None, response_substring=None,
                         callable=None, *args, **kwargs):
         # returns a Deferred with the response body
-        assert substring is None or isinstance(substring, str)
+        assert substring is None or isinstance(substring, bytes)
+        assert substring is None or isinstance(response_substring, bytes)
         assert callable
         def _validate(f):
             if code is not None:
-                self.failUnlessEqual(f.value.status, str(code), which)
+                self.failUnlessEqual(f.value.status, b"%d" % code, which)
             if substring:
                 code_string = str(f)
                 self.failUnless(substring in code_string,
