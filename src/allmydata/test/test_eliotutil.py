@@ -57,10 +57,13 @@ from ..util.eliotutil import (
     _parse_destination_description,
     _EliotLogging,
 )
+from ..util.jsonbytes import BytesJSONEncoder
+
 from .common import (
     SyncTestCase,
     AsyncTestCase,
 )
+
 
 class EliotLoggedTestTests(AsyncTestCase):
     def test_returns_none(self):
@@ -94,7 +97,7 @@ class ParseDestinationDescriptionTests(SyncTestCase):
         reactor = object()
         self.assertThat(
             _parse_destination_description("file:-")(reactor),
-            Equals(FileDestination(stdout)),
+            Equals(FileDestination(stdout, encoder=BytesJSONEncoder)),
         )
 
 
