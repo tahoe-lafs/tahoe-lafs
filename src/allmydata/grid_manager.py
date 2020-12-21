@@ -1,3 +1,6 @@
+"""
+Functions and classes relating to the Grid Manager internal state
+"""
 
 import sys
 import json
