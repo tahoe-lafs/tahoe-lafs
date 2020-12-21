@@ -109,7 +109,6 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
 
         d.addCallback(self.CHECK, "good", "t=check")
         def _got_html_good(res):
-            res = unicode(res, "utf-8")
             self.failUnlessIn("Healthy", res)
             self.failIfIn("Not Healthy", res)
             soup = BeautifulSoup(res, 'html5lib')
@@ -118,7 +117,6 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
         d.addCallback(_got_html_good)
         d.addCallback(self.CHECK, "good", "t=check&return_to=somewhere")
         def _got_html_good_return_to(res):
-            res = unicode(res, "utf-8")
             self.failUnlessIn("Healthy", res)
             self.failIfIn("Not Healthy", res)
             self.failUnlessIn('<a href="somewhere">Return to file', res)
