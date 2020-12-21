@@ -641,10 +641,6 @@ class _FoolscapStorage(object):
             short_description = server_id[:8]
         nickname = ann.get("nickname", "")
 
-        ## XXX FIXME post-merge, need to parse out
-        ## "grid-manager-certificates" and .. do something with them
-        ## (like store them on this object)
-
         return cls(
             nickname=nickname,
             permutation_seed=permutation_seed,
