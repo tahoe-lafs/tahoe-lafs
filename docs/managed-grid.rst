@@ -202,7 +202,7 @@ config-file which lists ``name = path/to/certificate`` pairs.
 
 These certificate files are issued by the ``grid-manager sign``
 command; these should be transmitted to the storage server operator
-who includes them in the config for the storage sever. Relative paths
+who includes them in the config for the storage server. Relative paths
 are based from the node directory. Example::
 
     [storage]
