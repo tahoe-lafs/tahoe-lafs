@@ -517,14 +517,7 @@ def create_storage_farm_broker(config, default_connection_handlers, foolscap_con
             **kwargs
         )
 
-    # we don't actually use this keypair for anything (yet) as far
-    # as I can see.
-    # my_pubkey = keyutil.parse_pubkey(
-    #     self.get_config_from_file("node.pubkey")
-    # )
-
     # create the actual storage-broker
-
     sb = storage_client.StorageFarmBroker(
         permute_peers=True,
         tub_maker=tub_creator,
