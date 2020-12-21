@@ -27,6 +27,7 @@ Contents:
    CODE_OF_CONDUCT
 
    servers
+   managed-grid
    helper
    convergence-secret
    garbage-collection
