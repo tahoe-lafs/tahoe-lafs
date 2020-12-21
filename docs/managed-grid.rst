@@ -133,8 +133,9 @@ Lists all storage-servers that have previously been added using
 grid-manager sign
 `````````````````
 
-Takes one arg: ``name``, the nickname used previously in a
-``grid-manager add`` command.
+Takes two args: ``name expiry_days``. The ``name`` is a nickname used
+previously in a ``grid-manager add`` command and ``expiry_days`` is
+the number of days in the future when the certificate should expire.
 
 Note that this mutates the state of the grid-manager if it is on disk,
 by adding this certificate to our collection of issued
