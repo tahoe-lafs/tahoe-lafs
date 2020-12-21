@@ -197,9 +197,9 @@ Verifying Signatures
 --------------------
 
 First download the source tarball and then any signatures. There are several
-developers who are expected to produce signatures for a release. Thus, a
-release may have more than one signature. All signatures should be valid and
-you should confirm at least one signature.
+developers who are able to produce signatures for a release. A release may
+have multiple signatures. All should be valid and you should confirm at least
+one of them (ideally, confirm all).
 
 This statement, signed by the existing Tahoe release-signing key, attests to
 those developers authorized to sign a Tahoe release:
