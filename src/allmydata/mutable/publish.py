@@ -971,7 +971,7 @@ class Publish(object):
                 if server in self.bad_servers:
                     Message.log(
                         message_type=u"mutable:upload:bad-server",
-                        server_id=server.get_server_id(),
+                        server_id=serverid,
                     )
                     continue
                 # if we have >= 1 grid-managers, this checks that we have
@@ -979,7 +979,7 @@ class Publish(object):
                 if not server.upload_permitted():
                     Message.log(
                         message_type=u"mutable:upload:no-gm-certs",
-                        server_id=server.get_server_id(),
+                        server_id=serverid,
                     )
                     continue
 
