@@ -473,9 +473,9 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
         self.uris = {}
         self.fileurls = {}
 
-        lonely_uri = "URI:LIT:n5xgk" # LIT for "one"
-        mut_write_uri = "URI:SSK:vfvcbdfbszyrsaxchgevhmmlii:euw4iw7bbnkrrwpzuburbhppuxhc3gwxv26f6imekhz7zyw2ojnq"
-        mut_read_uri = "URI:SSK-RO:e3mdrzfwhoq42hy5ubcz6rp3o4:ybyibhnp3vvwuq2vaw2ckjmesgkklfs6ghxleztqidihjyofgw7q"
+        lonely_uri = b"URI:LIT:n5xgk" # LIT for "one"
+        mut_write_uri = b"URI:SSK:vfvcbdfbszyrsaxchgevhmmlii:euw4iw7bbnkrrwpzuburbhppuxhc3gwxv26f6imekhz7zyw2ojnq"
+        mut_read_uri = b"URI:SSK-RO:e3mdrzfwhoq42hy5ubcz6rp3o4:ybyibhnp3vvwuq2vaw2ckjmesgkklfs6ghxleztqidihjyofgw7q"
 
         # This method tests mainly dirnode, but we'd have to duplicate code in order to
         # test the dirnode and web layers separately.
@@ -518,7 +518,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
             rep = str(dn)
             self.failUnlessIn("RO-IMM", rep)
             cap = dn.get_cap()
-            self.failUnlessIn("CHK", cap.to_string())
+            self.failUnlessIn(b"CHK", cap.to_string())
             self.cap = cap
             self.rootnode = dn
             self.rooturl = "uri/" + url_quote(dn.get_uri())
@@ -537,7 +537,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
                 entry = entries[0]
                 (name_utf8, ro_uri, rwcapdata, metadata_s), subpos = split_netstring(entry, 4)
                 name = name_utf8.decode("utf-8")
-                self.failUnlessEqual(rwcapdata, "")
+                self.failUnlessEqual(rwcapdata, b"")
                 self.failUnlessIn(name, kids)
                 (expected_child, ign) = kids[name]
                 self.failUnlessReallyEqual(ro_uri, expected_child.get_readonly_uri())
@@ -564,7 +564,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
         d.addCallback(lambda ign: self.GET(self.rooturl))
         def _check_html(res):
             soup = BeautifulSoup(res, 'html5lib')
-            self.failIfIn("URI:SSK", res)
+            self.failIfIn(b"URI:SSK", res)
             found = False
             for td in soup.find_all(u"td"):
                 if td.text != u"FILE":
