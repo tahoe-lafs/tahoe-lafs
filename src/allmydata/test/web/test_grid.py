@@ -1112,7 +1112,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
                    "severe corruption. You should perform a filecheck on "
                    "this object to learn more. The full error message is: "
                    "no shares (need 3). Last failure: None")
-            self.failUnlessReallyEqual(exp, body)
+            self.assertEqual(exp, body)
         d.addCallback(_check_zero_shares)
 
 
