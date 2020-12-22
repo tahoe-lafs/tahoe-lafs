@@ -1464,7 +1464,7 @@ class UnknownNodeHandler(Resource, object):
 
     @render_exception
     def render_GET(self, req):
-        t = get_arg(req, b"t", b"").strip()
+        t = unicode(get_arg(req, "t", "").strip(), "ascii")
         if t == "info":
             return MoreInfo(self.node)
         if t == "json":

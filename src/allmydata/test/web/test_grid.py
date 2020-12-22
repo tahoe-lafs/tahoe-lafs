@@ -361,18 +361,19 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
         # make sure directory listing tolerates unknown nodes
         d.addCallback(lambda ign: self.GET(self.rooturl))
         def _check_directory_html(res, expected_type_suffix):
-            pattern = re.compile(r'<td>\?%s</td>[ \t\n\r]*'
-                                  '<td>%s</td>' % (expected_type_suffix, str(name)),
+            pattern = re.compile(br'<td>\?%s</td>[ \t\n\r]*'
+                                 b'<td>%s</td>' % (
+                                     expected_type_suffix, name.encode("ascii")),
                                  re.DOTALL)
             self.failUnless(re.search(pattern, res), res)
             # find the More Info link for name, should be relative
-            mo = re.search(r'<a href="([^"]+)">More Info</a>', res)
+            mo = re.search(br'<a href="([^"]+)">More Info</a>', res)
             info_url = mo.group(1)
-            self.failUnlessReallyEqual(info_url, "%s?t=info" % (str(name),))
+            self.failUnlessReallyEqual(info_url, b"%s?t=info" % (name.encode("ascii"),))
         if immutable:
-            d.addCallback(_check_directory_html, "-IMM")
+            d.addCallback(_check_directory_html, b"-IMM")
         else:
-            d.addCallback(_check_directory_html, "")
+            d.addCallback(_check_directory_html, b"")
 
         d.addCallback(lambda ign: self.GET(self.rooturl+"?t=json"))
         def _check_directory_json(res, expect_rw_uri):
@@ -392,7 +393,6 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
         d.addCallback(_check_directory_json, expect_rw_uri=not immutable)
 
         def _check_info(res, expect_rw_uri, expect_ro_uri):
-            self.failUnlessIn("Object Type: <span>unknown</span>", res)
             if expect_rw_uri:
                 self.failUnlessIn(unknown_rwcap, res)
             if expect_ro_uri:
@@ -402,6 +402,8 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
                     self.failUnlessIn(unknown_rocap, res)
             else:
                 self.failIfIn(unknown_rocap, res)
+            res = unicode(res, "utf-8")
+            self.failUnlessIn("Object Type: <span>unknown</span>", res)
             self.failIfIn("Raw data as", res)
             self.failIfIn("Directory writecap", res)
             self.failIfIn("Checker Operations", res)
@@ -413,7 +415,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
 
         d.addCallback(lambda ign: self.GET(expected_info_url))
         d.addCallback(_check_info, expect_rw_uri=False, expect_ro_uri=False)
-        d.addCallback(lambda ign: self.GET("%s/%s?t=info" % (self.rooturl, str(name))))
+        d.addCallback(lambda ign: self.GET("%s/%s?t=info" % (self.rooturl, name)))
         d.addCallback(_check_info, expect_rw_uri=False, expect_ro_uri=True)
 
         def _check_json(res, expect_rw_uri):
@@ -445,9 +447,9 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
         # or not future_node was immutable.
         d.addCallback(lambda ign: self.GET(self.rourl))
         if immutable:
-            d.addCallback(_check_directory_html, "-IMM")
+            d.addCallback(_check_directory_html, b"-IMM")
         else:
-            d.addCallback(_check_directory_html, "-RO")
+            d.addCallback(_check_directory_html, b"-RO")
 
         d.addCallback(lambda ign: self.GET(self.rourl+"?t=json"))
         d.addCallback(_check_directory_json, expect_rw_uri=False)
