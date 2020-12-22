@@ -2327,7 +2327,8 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
             files.append(fn)
             data = "data to be uploaded: file%d\n" % i
             datas.append(data)
-            open(fn,"wb").write(data)
+            with open(fn, "wb") as f:
+                f.write(data)
 
         def _check_stdout_against(out_and_err, filenum=None, data=None):
             (out, err) = out_and_err
@@ -2505,13 +2506,18 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         # recursive copy: setup
         dn = os.path.join(self.basedir, "dir1")
         os.makedirs(dn)
-        open(os.path.join(dn, "rfile1"), "wb").write("rfile1")
-        open(os.path.join(dn, "rfile2"), "wb").write("rfile2")
-        open(os.path.join(dn, "rfile3"), "wb").write("rfile3")
+        with open(os.path.join(dn, "rfile1"), "wb") as f:
+            f.write("rfile1")
+        with open(os.path.join(dn, "rfile2"), "wb") as f:
+            f.write("rfile2")
+        with open(os.path.join(dn, "rfile3"), "wb") as f:
+            f.write("rfile3")
         sdn2 = os.path.join(dn, "subdir2")
         os.makedirs(sdn2)
-        open(os.path.join(sdn2, "rfile4"), "wb").write("rfile4")
-        open(os.path.join(sdn2, "rfile5"), "wb").write("rfile5")
+        with open(os.path.join(sdn2, "rfile4"), "wb") as f:
+            f.write("rfile4")
+        with open(os.path.join(sdn2, "rfile5"), "wb") as f:
+            f.write("rfile5")
 
         # from disk into tahoe
         d.addCallback(run, "cp", "-r", dn, "tahoe:")
