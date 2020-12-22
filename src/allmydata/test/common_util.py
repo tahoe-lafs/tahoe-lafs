@@ -57,10 +57,10 @@ def run_cli_native(verb, *args, **kwargs):
     Most code should prefer ``run_cli_unicode`` which deals with all the
     necessary encoding considerations.
 
-    :param native_str verb: The command to run.  For example, ``b"create-node"``.
+    :param native_str verb: The command to run.  For example, ``"create-node"``.
 
     :param [native_str] args: The arguments to pass to the command.  For example,
-        ``(b"--hostname=localhost",)``.
+        ``("--hostname=localhost",)``.
 
     :param [native_str] nodeargs: Extra arguments to pass to the Tahoe executable
         before ``verb``.
