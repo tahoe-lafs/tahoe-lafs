@@ -113,4 +113,5 @@ if sys.platform == "win32":
     initialize()
 
 from eliot import to_file
-to_file(open("eliot.log", "w"))
+from allmydata.util.jsonbytes import BytesJSONEncoder
+to_file(open("eliot.log", "w"), encoder=BytesJSONEncoder)
