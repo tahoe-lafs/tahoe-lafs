@@ -110,7 +110,6 @@ def _get_client_ip(request):
 
 
 def _logFormatter(logDateTime, request):
-    print("REQUEST: {} {}".format(request.method, request.uri))
     # we build up a log string that hides most of the cap, to preserve
     # user privacy. We retain the query args so we can identify things
     # like t=json. Then we send it to the flog. We make no attempt to
