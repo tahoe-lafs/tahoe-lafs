@@ -1,6 +1,14 @@
+"""
+Ported to Python 3.
+"""
 from __future__ import print_function
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import unicode_literals
 
-from past.builtins import unicode
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 import os.path, re
 from urllib.parse import quote as url_quote
@@ -50,12 +58,12 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
     def CHECK(self, ign, which, args, clientnum=0):
         fileurl = self.fileurls[which]
         url = fileurl + "?" + args
-        return self.GET(url, method="POST", clientnum=clientnum).addCallback(unicode, "utf-8")
+        return self.GET(url, method="POST", clientnum=clientnum).addCallback(str, "utf-8")
 
     def GET_string(self, *args, **kwargs):
         """Send an HTTP request, but convert result to Unicode string."""
         d = GridTestMixin.GET(self, *args, **kwargs)
-        d.addCallback(unicode, "utf-8")
+        d.addCallback(str, "utf-8")
         return d
 
     def test_filecheck(self):
@@ -402,7 +410,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
                     self.failUnlessIn(unknown_rocap, res)
             else:
                 self.failIfIn(unknown_rocap, res)
-            res = unicode(res, "utf-8")
+            res = str(res, "utf-8")
             self.failUnlessIn("Object Type: <span>unknown</span>", res)
             self.failIfIn("Raw data as", res)
             self.failIfIn("Directory writecap", res)
@@ -712,7 +720,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
 
         d.addCallback(lambda ign:
                       self.delete_shares_numbered(self.uris["subdir"],
-                                                  range(1, 10)))
+                                                  list(range(1, 10))))
 
         # root
         # root/good
@@ -1072,7 +1080,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
         d.addCallback(lambda ign: c0.upload(upload.Data(DATA, convergence=b"")))
         def _stash_bad(ur):
             self.fileurls["1share"] = "uri/" + url_quote(ur.get_uri())
-            self.delete_shares_numbered(ur.get_uri(), range(1,10))
+            self.delete_shares_numbered(ur.get_uri(), list(range(1,10)))
 
             u = uri.from_string(ur.get_uri())
             u.key = testutil.flip_bit(u.key, 0)
@@ -1084,14 +1092,14 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
             u = n.get_uri()
             url = self.fileurls["dir-1share"] = "uri/" + url_quote(u)
             self.fileurls["dir-1share-json"] = url + "?t=json"
-            self.delete_shares_numbered(u, range(1,10))
+            self.delete_shares_numbered(u, list(range(1,10)))
         d.addCallback(_mangle_dirnode_1share)
         d.addCallback(lambda ign: c0.create_dirnode())
         def _mangle_dirnode_0share(n):
             u = n.get_uri()
             url = self.fileurls["dir-0share"] = "uri/" + url_quote(u)
             self.fileurls["dir-0share-json"] = url + "?t=json"
-            self.delete_shares_numbered(u, range(0,10))
+            self.delete_shares_numbered(u, list(range(0,10)))
         d.addCallback(_mangle_dirnode_0share)
 
         # NotEnoughSharesError should be reported sensibly, with a
@@ -1103,7 +1111,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
                                            410, "Gone", "NoSharesError",
                                            self.GET, self.fileurls["0shares"]))
         def _check_zero_shares(body):
-            body = unicode(body, "utf-8")
+            body = str(body, "utf-8")
             self.failIfIn("<html>", body)
             body = " ".join(body.strip().split())
             exp = ("NoSharesError: no shares could be found. "
@@ -1121,7 +1129,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
                                            410, "Gone", "NotEnoughSharesError",
                                            self.GET, self.fileurls["1share"]))
         def _check_one_share(body):
-            body = unicode(body, "utf-8")
+            body = str(body, "utf-8")
             self.failIfIn("<html>", body)
             body = " ".join(body.strip().split())
             msgbase = ("NotEnoughSharesError: This indicates that some "
@@ -1146,7 +1154,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
                                            404, "Not Found", None,
                                            self.GET, self.fileurls["imaginary"]))
         def _missing_child(body):
-            body = unicode(body, "utf-8")
+            body = str(body, "utf-8")
             self.failUnlessIn("No such child: imaginary", body)
         d.addCallback(_missing_child)
 
@@ -1196,7 +1204,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
                                            self.GET,
                                            self.fileurls["dir-0share-json"]))
         def _check_unrecoverable_file(body):
-            body = unicode(body, "utf-8")
+            body = str(body, "utf-8")
             self.failIfIn("<html>", body)
             body = " ".join(body.strip().split())
             exp = ("UnrecoverableFileError: the directory (or mutable file) "
@@ -1237,7 +1245,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
                                            self.GET, "ERRORBOOM",
                                            headers={"accept": "*/*"}))
         def _internal_error_html1(body):
-            body = unicode(body, "utf-8")
+            body = str(body, "utf-8")
             self.failUnlessIn("<html>", "expected HTML, not '%s'" % body)
         d.addCallback(_internal_error_html1)
 
@@ -1247,7 +1255,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
                                            self.GET, "ERRORBOOM",
                                            headers={"accept": "text/plain"}))
         def _internal_error_text2(body):
-            body = unicode(body, "utf-8")
+            body = str(body, "utf-8")
             self.failIfIn("<html>", body)
             self.failUnless(body.startswith("Traceback "), body)
         d.addCallback(_internal_error_text2)
@@ -1259,7 +1267,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
                                            self.GET, "ERRORBOOM",
                                            headers={"accept": CLI_accepts}))
         def _internal_error_text3(body):
-            body = unicode(body, "utf-8")
+            body = str(body, "utf-8")
             self.failIfIn("<html>", body)
             self.failUnless(body.startswith("Traceback "), body)
         d.addCallback(_internal_error_text3)
@@ -1316,7 +1324,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
             f.write(" # this is a comment\n")
             f.write(" \n")
             f.write("\n") # also exercise blank lines
-            f.write("%s off-limits to you\n" % (unicode(base32.b2a(self.si), "ascii"),))
+            f.write("%s off-limits to you\n" % (str(base32.b2a(self.si), "ascii"),))
             f.close()
             # clients should be checking the blacklist each time, so we don't
             # need to restart the client
@@ -1380,7 +1388,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
             self.child_url = b"uri/"+dn.get_readonly_uri()+b"/child"
         d.addCallback(_get_dircap)
         d.addCallback(lambda ign: self.GET(self.dir_url_base, followRedirect=True))
-        d.addCallback(lambda body: self.failUnlessIn(DIR_HTML_TAG, unicode(body, "utf-8")))
+        d.addCallback(lambda body: self.failUnlessIn(DIR_HTML_TAG, str(body, "utf-8")))
         d.addCallback(lambda ign: self.GET(self.dir_url_json1))
         d.addCallback(lambda res: json.loads(res))  # just check it decodes
         d.addCallback(lambda ign: self.GET(self.dir_url_json2))
