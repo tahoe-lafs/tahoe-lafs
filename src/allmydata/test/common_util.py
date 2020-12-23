@@ -194,7 +194,7 @@ def flip_one_bit(s, offset=0, size=None):
     if size is None:
         size=len(s)-offset
     i = randrange(offset, offset+size)
-    result = s[:i] + bchr(ord(s[i])^(0x01<<randrange(0, 8))) + s[i+1:]
+    result = s[:i] + bchr(ord(s[i:i+1])^(0x01<<randrange(0, 8))) + s[i+1:]
     assert result != s, "Internal error -- flip_one_bit() produced the same string as its input: %s == %s" % (result, s)
     return result
 
