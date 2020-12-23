@@ -1,5 +1,5 @@
 from past.builtins import unicode
-from six import ensure_text
+from six import ensure_text, ensure_str
 
 import time
 import json
@@ -112,7 +112,7 @@ def parse_replace_arg(replace):
     try:
         return boolean_of_arg(replace)
     except WebError:
-        raise WebError("invalid replace= argument: %r" % (replace,), http.BAD_REQUEST)
+        raise WebError("invalid replace= argument: %r" % (ensure_str(replace),), http.BAD_REQUEST)
 
 
 def get_format(req, default="CHK"):

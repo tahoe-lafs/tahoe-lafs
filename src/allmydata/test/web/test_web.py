@@ -746,7 +746,10 @@ class MultiFormatResourceTests(TrialTestCase):
             "<title>400 - Bad Format</title>", response_body,
         )
         self.assertIn(
-            "Unknown t value: 'foo'", response_body,
+            "Unknown t value:", response_body,
+        )
+        self.assertIn(
+            "'foo'", response_body,
         )
 
 
