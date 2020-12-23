@@ -29,9 +29,9 @@ def get_arg(req, argname, default=None, multiple=False):
     :return: Either bytes or tuple of bytes.
     """
     if isinstance(argname, unicode):
-        argname = argname.encode("ascii")
+        argname = argname.encode("utf-8")
     if isinstance(default, unicode):
-        default = default.encode("ascii")
+        default = default.encode("utf-8")
     results = []
     if argname in req.args:
         results.extend(req.args[argname])
