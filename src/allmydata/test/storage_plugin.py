@@ -47,8 +47,9 @@ class RIDummy(RemoteInterface):
         """
 
 
-
-@implementer(IFoolscapStoragePlugin)  # type: ignore # todo: make stubs for twisted
+# type ignored due to missing stubs for Twisted
+# https://twistedmatrix.com/trac/ticket/9717
+@implementer(IFoolscapStoragePlugin)  # type: ignore
 @attr.s
 class DummyStorage(object):
     name = attr.ib()
