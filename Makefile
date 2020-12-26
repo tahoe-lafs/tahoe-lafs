@@ -13,8 +13,6 @@ MAKEFLAGS += --warn-undefined-variables
 MAKEFLAGS += --no-builtin-rules
 
 # Local target variables
-VCS_HOOK_SAMPLES=$(wildcard .git/hooks/*.sample)
-VCS_HOOKS=$(VCS_HOOK_SAMPLES:%.sample=%)
 PYTHON=python
 export PYTHON
 PYFLAKES=flake8
@@ -30,15 +28,6 @@ TEST_SUITE=allmydata
 .PHONY: default
 default:
 	@echo "no default target"
-
-.PHONY: install-vcs-hooks
-## Install the VCS hooks to run linters on commit and all tests on push
-install-vcs-hooks: .git/hooks/pre-commit .git/hooks/pre-push
-.PHONY: uninstall-vcs-hooks
-## Remove the VCS hooks
-uninstall-vcs-hooks: .tox/create-venvs.log
-	"./$(dir $(<))py36/bin/pre-commit" uninstall || true
-	"./$(dir $(<))py36/bin/pre-commit" uninstall -t pre-push || true
 
 .PHONY: test
 ## Run all tests and code reports
@@ -215,7 +204,7 @@ clean:
 	rm -f *.pkg
 
 .PHONY: distclean
-distclean: clean uninstall-vcs-hooks
+distclean: clean
 	rm -rf src/*.egg-info
 	rm -f src/allmydata/_version.py
 	rm -f src/allmydata/_appname.py
@@ -261,6 +250,3 @@ src/allmydata/_version.py:
 
 .tox/create-venvs.log: tox.ini setup.py
 	tox --notest -p all | tee -a "$(@)"
-
-$(VCS_HOOKS): .tox/create-venvs.log .pre-commit-config.yaml
-	"./$(dir $(<))py36/bin/pre-commit" install --hook-type $(@:.git/hooks/%=%)

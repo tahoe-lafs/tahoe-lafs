@@ -1,13 +1,20 @@
 from __future__ import print_function
 
 import sys
-from os import mkdir
 from os.path import join
 
 import pytest
 import pytest_twisted
 
 import util
+
+from twisted.python.filepath import (
+    FilePath,
+)
+
+from allmydata.test.common import (
+    write_introducer,
+)
 
 # see "conftest.py" for the fixtures (e.g. "tor_network")
 
@@ -66,12 +73,12 @@ def test_onion_service_storage(reactor, request, temp_dir, flog_gatherer, tor_ne
 
 @pytest_twisted.inlineCallbacks
 def _create_anonymous_node(reactor, name, control_port, request, temp_dir, flog_gatherer, tor_network, introducer_furl):
-    node_dir = join(temp_dir, name)
+    node_dir = FilePath(temp_dir).child(name)
     web_port = "tcp:{}:interface=localhost".format(control_port + 2000)
 
     if True:
-        print("creating", node_dir)
-        mkdir(node_dir)
+        print("creating", node_dir.path)
+        node_dir.makedirs()
         proto = util._DumpOutputProtocol(None)
         reactor.spawnProcess(
             proto,
@@ -84,12 +91,15 @@ def _create_anonymous_node(reactor, name, control_port, request, temp_dir, flog_
                 '--hide-ip',
                 '--tor-control-port', 'tcp:localhost:{}'.format(control_port),
                 '--listen', 'tor',
-                node_dir,
+                node_dir.path,
             )
         )
         yield proto.done
 
-    with open(join(node_dir, 'tahoe.cfg'), 'w') as f:
+
+    # Which services should this client connect to?
+    write_introducer(node_dir, "default", introducer_furl)
+    with node_dir.child('tahoe.cfg').open('w') as f:
         f.write('''
 [node]
 nickname = %(name)s
@@ -105,15 +115,12 @@ onion = true
 onion.private_key_file = private/tor_onion.privkey
 
 [client]
-# Which services should this client connect to?
-introducer.furl = %(furl)s
 shares.needed = 1
 shares.happy = 1
 shares.total = 2
 
 ''' % {
     'name': name,
-    'furl': introducer_furl,
     'web_port': web_port,
     'log_furl': flog_gatherer,
     'control_port': control_port,
@@ -121,5 +128,5 @@ shares.total = 2
 })
 
     print("running")
-    yield util._run_node(reactor, node_dir, request, None)
+    yield util._run_node(reactor, node_dir.path, request, None)
     print("okay, launched")

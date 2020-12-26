@@ -6,6 +6,9 @@ from os.path import exists, join
 from six.moves import StringIO
 from functools import partial
 
+from twisted.python.filepath import (
+    FilePath,
+)
 from twisted.internet.defer import Deferred, succeed
 from twisted.internet.protocol import ProcessProtocol
 from twisted.internet.error import ProcessExitedAlready, ProcessDone
@@ -186,10 +189,8 @@ def _run_node(reactor, node_dir, request, magic_text):
         magic_text = "client running"
     protocol = _MagicTextProtocol(magic_text)
 
-    # on windows, "tahoe start" means: run forever in the foreground,
-    # but on linux it means daemonize. "tahoe run" is consistent
-    # between platforms.
-
+    # "tahoe run" is consistent across Linux/macOS/Windows, unlike the old
+    # "start" command.
     transport = _tahoe_runner_optional_coverage(
         protocol,
         reactor,
@@ -263,7 +264,7 @@ def _create_node(reactor, request, temp_dir, introducer_furl, flog_gatherer, nam
                 u'log_gatherer.furl',
                 flog_gatherer.decode("utf-8"),
             )
-            write_config(config_path, config)
+            write_config(FilePath(config_path), config)
         created_d.addCallback(created)
 
     d = Deferred()

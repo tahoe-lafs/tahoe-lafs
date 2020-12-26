@@ -1,6 +1,16 @@
 """
 Tests for ``allmydata.web.common``.
+
+Ported to Python 3.
 """
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 import gc
 
@@ -160,10 +170,10 @@ class RenderExceptionTests(SyncTestCase):
                 MatchesPredicate(
                     lambda value: assert_soup_has_tag_with_attributes(
                         self,
-                        BeautifulSoup(value),
+                        BeautifulSoup(value, 'html5lib'),
                         "meta",
                         {"http-equiv": "refresh",
-                         "content": "0;URL={}".format(loc.encode("ascii")),
+                         "content": "0;URL={}".format(loc),
                         },
                     )
                     # The assertion will raise if it has a problem, otherwise

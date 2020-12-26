@@ -1974,6 +1974,8 @@ class Dispatcher(object):
 
 
 class SFTPServer(service.MultiService):
+    name = "frontend:sftp"
+
     def __init__(self, client, accountfile, accounturl,
                  sftp_portstr, pubkey_file, privkey_file):
         precondition(isinstance(accountfile, (unicode, type(None))), accountfile)

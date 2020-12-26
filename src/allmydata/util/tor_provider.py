@@ -2,6 +2,10 @@
 from __future__ import absolute_import, print_function, with_statement
 import os
 
+from zope.interface import (
+    implementer,
+)
+
 from twisted.internet.defer import inlineCallbacks, returnValue
 from twisted.internet.endpoints import clientFromString, TCP4ServerEndpoint
 from twisted.internet.error import ConnectionRefusedError, ConnectError
@@ -9,7 +13,9 @@ from twisted.application import service
 
 from .observer import OneShotObserverList
 from .iputil import allocate_tcp_port
-
+from ..interfaces import (
+    IAddressFamily,
+)
 
 def create(reactor, config):
     """
@@ -209,6 +215,7 @@ def create_config(reactor, cli_config):
     returnValue((tahoe_config_tor, tor_port, tor_location))
 
 
+@implementer(IAddressFamily)
 class _Provider(service.MultiService):
     def __init__(self, config, reactor):
         service.MultiService.__init__(self)
@@ -228,7 +235,13 @@ class _Provider(service.MultiService):
         ep = TCP4ServerEndpoint(self._reactor, local_port, interface="127.0.0.1")
         return ep
 
-    def get_tor_handler(self):
+    def get_client_endpoint(self):
+        """
+        Get an ``IStreamClientEndpoint`` which will set up a connection using Tor.
+
+        If Tor is not enabled or the dependencies are not available, return
+        ``None`` instead.
+        """
         enabled = self._get_tor_config("enabled", True, boolean=True)
         if not enabled:
             return None
@@ -252,6 +265,9 @@ class _Provider(service.MultiService):
             return self._tor.control_endpoint(ep)
 
         return self._tor.default_socks()
+
+    # Backwards compatibility alias
+    get_tor_handler = get_client_endpoint
 
     @inlineCallbacks
     def _make_control_endpoint(self, reactor, update_status):

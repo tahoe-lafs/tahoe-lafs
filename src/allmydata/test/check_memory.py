@@ -8,6 +8,9 @@ if PY2:
     from future.builtins import str  # noqa: F401
 from six.moves import cStringIO as StringIO
 
+from twisted.python.filepath import (
+    FilePath,
+)
 from twisted.internet import defer, reactor, protocol, error
 from twisted.application import service, internet
 from twisted.web import client as tw_client
@@ -20,6 +23,10 @@ from allmydata.scripts import create_node
 from allmydata.util import fileutil, pollmixin
 from allmydata.util.fileutil import abspath_expanduser_unicode
 from allmydata.util.encodingutil import get_filesystem_encoding
+
+from allmydata.scripts.common import (
+    write_introducer,
+)
 
 class StallableHTTPGetterDiscarder(tw_client.HTTPPageGetter, object):
     full_speed_ahead = False
@@ -180,16 +187,18 @@ class SystemFramework(pollmixin.PollMixin):
         self.introducer_furl = self.introducer.introducer_url
 
     def make_nodes(self):
+        root = FilePath(self.testdir)
         self.nodes = []
         for i in range(self.numnodes):
-            nodedir = os.path.join(self.testdir, "node%d" % i)
-            os.mkdir(nodedir)
-            f = open(os.path.join(nodedir, "tahoe.cfg"), "w")
-            f.write("[client]\n"
-                    "introducer.furl = %s\n"
-                    "shares.happy = 1\n"
-                    "[storage]\n"
-                    % (self.introducer_furl,))
+            nodedir = root.child("node%d" % (i,))
+            private = nodedir.child("private")
+            private.makedirs()
+            write_introducer(nodedir, "default", self.introducer_url)
+            config = (
+                "[client]\n"
+                "shares.happy = 1\n"
+                "[storage]\n"
+            )
             # the only tests for which we want the internal nodes to actually
             # retain shares are the ones where somebody's going to download
             # them.
@@ -200,13 +209,13 @@ class SystemFramework(pollmixin.PollMixin):
                 # for these tests, we tell the storage servers to pretend to
                 # accept shares, but really just throw them out, since we're
                 # only testing upload and not download.
-                f.write("debug_discard = true\n")
+                config += "debug_discard = true\n"
             if self.mode in ("receive",):
                 # for this mode, the client-under-test gets all the shares,
                 # so our internal nodes can refuse requests
-                f.write("readonly = true\n")
-            f.close()
-            c = client.Client(basedir=nodedir)
+                config += "readonly = true\n"
+            nodedir.child("tahoe.cfg").setContent(config)
+            c = client.Client(basedir=nodedir.path)
             c.setServiceParent(self)
             self.nodes.append(c)
         # the peers will start running, eventually they will connect to each
@@ -235,16 +244,16 @@ this file are ignored.
         quiet = StringIO()
         create_node.create_node({'basedir': clientdir}, out=quiet)
         log.msg("DONE MAKING CLIENT")
+        write_introducer(clientdir, "default", self.introducer_furl)
         # now replace tahoe.cfg
         # set webport=0 and then ask the node what port it picked.
         f = open(os.path.join(clientdir, "tahoe.cfg"), "w")
         f.write("[node]\n"
                 "web.port = tcp:0:interface=127.0.0.1\n"
                 "[client]\n"
-                "introducer.furl = %s\n"
                 "shares.happy = 1\n"
                 "[storage]\n"
-                % (self.introducer_furl,))
+        )
 
         if self.mode in ("upload-self", "receive"):
             # accept and store shares, to trigger the memory consumption bugs

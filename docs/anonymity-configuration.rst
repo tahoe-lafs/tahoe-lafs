@@ -273,7 +273,7 @@ Then, do the following:
     [connections]
     tcp = tor
 
-* Launch the Tahoe server with ``tahoe start $NODEDIR``
+* Launch the Tahoe server with ``tahoe run $NODEDIR``
 
 The ``tub.port`` section will cause the Tahoe server to listen on PORT, but
 bind the listening socket to the loopback interface, which is not reachable
@@ -435,4 +435,3 @@ It is therefore important that your I2P router is sharing bandwidth with other
 routers, so that you can give back as you use I2P. This will never impair the
 performance of your Tahoe-LAFS node, because your I2P router will always
 prioritize your own traffic.
-

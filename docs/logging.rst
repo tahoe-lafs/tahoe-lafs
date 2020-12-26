@@ -128,10 +128,9 @@ provided in ``misc/incident-gatherer/support_classifiers.py`` . There is
 roughly one category for each ``log.WEIRD``-or-higher level event in the
 Tahoe source code.
 
-The incident gatherer is created with the "``flogtool
-create-incident-gatherer WORKDIR``" command, and started with "``tahoe
-start``". The generated "``gatherer.tac``" file should be modified to add
-classifier functions.
+The incident gatherer is created with the "``flogtool create-incident-gatherer
+WORKDIR``" command, and started with "``tahoe run``". The generated
+"``gatherer.tac``" file should be modified to add classifier functions.
 
 The incident gatherer writes incident names (which are simply the relative
 pathname of the ``incident-\*.flog.bz2`` file) into ``classified/CATEGORY``.
@@ -175,7 +174,7 @@ things that happened on multiple machines (such as comparing a client node
 making a request with the storage servers that respond to that request).
 
 Create the Log Gatherer with the "``flogtool create-gatherer WORKDIR``"
-command, and start it with "``tahoe start``". Then copy the contents of the
+command, and start it with "``twistd -ny gatherer.tac``". Then copy the contents of the
 ``log_gatherer.furl`` file it creates into the ``BASEDIR/tahoe.cfg`` file
 (under the key ``log_gatherer.furl`` of the section ``[node]``) of all nodes
 that should be sending it log events. (See :doc:`configuration`)

@@ -11,6 +11,8 @@ __all__ = [
     "skipIf",
 ]
 
+from past.builtins import chr as byteschr
+
 import os, random, struct
 import six
 import tempfile
@@ -62,10 +64,16 @@ from twisted.internet.endpoints import AdoptedStreamServerEndpoint
 from twisted.trial.unittest import TestCase as _TrialTestCase
 
 from allmydata import uri
-from allmydata.interfaces import IMutableFileNode, IImmutableFileNode,\
-                                 NotEnoughSharesError, ICheckable, \
-                                 IMutableUploadable, SDMF_VERSION, \
-                                 MDMF_VERSION
+from allmydata.interfaces import (
+    IMutableFileNode,
+    IImmutableFileNode,
+    NotEnoughSharesError,
+    ICheckable,
+    IMutableUploadable,
+    SDMF_VERSION,
+    MDMF_VERSION,
+    IAddressFamily,
+)
 from allmydata.check_results import CheckResults, CheckAndRepairResults, \
      DeepCheckResults, DeepCheckAndRepairResults
 from allmydata.storage_client import StubServer
@@ -81,6 +89,9 @@ from allmydata.client import (
     config_from_string,
     create_client_from_config,
 )
+from allmydata.scripts.common import (
+    write_introducer,
+    )
 
 from ..crypto import (
     ed25519,
@@ -211,7 +222,7 @@ class UseNode(object):
 
     :ivar FilePath basedir: The base directory of the node.
 
-    :ivar bytes introducer_furl: The introducer furl with which to
+    :ivar str introducer_furl: The introducer furl with which to
         configure the client.
 
     :ivar dict[bytes, bytes] node_config: Configuration items for the *node*
@@ -221,8 +232,9 @@ class UseNode(object):
     """
     plugin_config = attr.ib()
     storage_plugin = attr.ib()
-    basedir = attr.ib()
-    introducer_furl = attr.ib()
+    basedir = attr.ib(validator=attr.validators.instance_of(FilePath))
+    introducer_furl = attr.ib(validator=attr.validators.instance_of(str),
+                              converter=six.ensure_str)
     node_config = attr.ib(default=attr.Factory(dict))
 
     config = attr.ib(default=None)
@@ -246,6 +258,11 @@ class UseNode(object):
     config=format_config_items(self.plugin_config),
 )
 
+        write_introducer(
+            self.basedir,
+            "default",
+            self.introducer_furl,
+        )
         self.config = config_from_string(
             self.basedir.asTextMode().path,
             "tub.port",
@@ -254,11 +271,9 @@ class UseNode(object):
 {node_config}
 
 [client]
-introducer.furl = {furl}
 storage.plugins = {storage_plugin}
 {plugin_config_section}
 """.format(
-    furl=self.introducer_furl,
     storage_plugin=self.storage_plugin,
     node_config=format_config_items(self.node_config),
     plugin_config_section=plugin_config_section,
@@ -1050,7 +1065,7 @@ def _corrupt_share_data_last_byte(data, debug=False):
         sharedatasize = struct.unpack(">Q", data[0x0c+0x08:0x0c+0x0c+8])[0]
         offset = 0x0c+0x44+sharedatasize-1
 
-    newdata = data[:offset] + chr(ord(data[offset])^0xFF) + data[offset+1:]
+    newdata = data[:offset] + byteschr(ord(data[offset:offset+1])^0xFF) + data[offset+1:]
     if debug:
         log.msg("testing: flipping all bits of byte at offset %d: %r, newdata: %r" % (offset, data[offset], newdata[offset]))
     return newdata
@@ -1078,7 +1093,7 @@ def _corrupt_crypttext_hash_tree_byte_x221(data, debug=False):
     assert sharevernum in (1, 2), "This test is designed to corrupt immutable shares of v1 or v2 in specific ways."
     if debug:
         log.msg("original data: %r" % (data,))
-    return data[:0x0c+0x221] + chr(ord(data[0x0c+0x221])^0x02) + data[0x0c+0x2210+1:]
+    return data[:0x0c+0x221] + byteschr(ord(data[0x0c+0x221:0x0c+0x221+1])^0x02) + data[0x0c+0x2210+1:]
 
 def _corrupt_block_hashes(data, debug=False):
     """Scramble the file data -- the field containing the block hash tree
@@ -1136,6 +1151,28 @@ def _corrupt_uri_extension(data, debug=False):
         uriextlen = struct.unpack(">Q", data[0x0c+uriextoffset:0x0c+uriextoffset+8])[0]
 
     return corrupt_field(data, 0x0c+uriextoffset, uriextlen)
+
+
+
+@attr.s
+@implementer(IAddressFamily)
+class ConstantAddresses(object):
+    """
+    Pretend to provide support for some address family but just hand out
+    canned responses.
+    """
+    _listener = attr.ib(default=None)
+    _handler = attr.ib(default=None)
+
+    def get_listener(self):
+        if self._listener is None:
+            raise Exception("{!r} has no listener.")
+        return self._listener
+
+    def get_client_endpoint(self):
+        if self._handler is None:
+            raise Exception("{!r} has no client endpoint.")
+        return self._handler
 
 
 class _TestCaseMixin(object):

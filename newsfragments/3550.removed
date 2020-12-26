@@ -1,0 +1,1 @@
+The deprecated ``tahoe`` start, restart, stop, and daemonize sub-commands have been removed.

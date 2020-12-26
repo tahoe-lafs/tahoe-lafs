@@ -20,10 +20,17 @@ import re
 import types
 import errno
 from base64 import b32decode, b32encode
+from errno import ENOENT, EPERM
+from warnings import warn
+
+import attr
 
 # On Python 2 this will be the backported package.
 import configparser
 
+from twisted.python.filepath import (
+    FilePath,
+)
 from twisted.python import log as twlog
 from twisted.application import service
 from twisted.python.failure import Failure
@@ -36,6 +43,9 @@ from allmydata.util import fileutil, iputil
 from allmydata.util.fileutil import abspath_expanduser_unicode
 from allmydata.util.encodingutil import get_filesystem_encoding, quote_output
 from allmydata.util import configutil
+from allmydata.util.yamlutil import (
+    safe_load,
+)
 
 from . import (
     __full_version__,
@@ -190,25 +200,27 @@ def read_config(basedir, portnumfile, generated_files=[], _valid_config=None):
     # canonicalize the portnum file
     portnumfile = os.path.join(basedir, portnumfile)
 
-    # (try to) read the main config file
-    config_fname = os.path.join(basedir, "tahoe.cfg")
+    config_path = FilePath(basedir).child("tahoe.cfg")
     try:
-        parser = configutil.get_config(config_fname)
+        config_str = config_path.getContent()
     except EnvironmentError as e:
         if e.errno != errno.ENOENT:
             raise
         # The file is missing, just create empty ConfigParser.
-        parser = configutil.get_config_from_string(u"")
+        config_str = u""
+    else:
+        config_str = config_str.decode("utf-8-sig")
 
-    configutil.validate_config(config_fname, parser, _valid_config)
+    return config_from_string(
+        basedir,
+        portnumfile,
+        config_str,
+        _valid_config,
+        config_path,
+    )
 
-    # make sure we have a private configuration area
-    fileutil.make_dirs(os.path.join(basedir, "private"), 0o700)
 
-    return _Config(parser, portnumfile, basedir, config_fname)
-
-
-def config_from_string(basedir, portnumfile, config_str, _valid_config=None):
+def config_from_string(basedir, portnumfile, config_str, _valid_config=None, fpath=None):
     """
     load and validate configuration from in-memory string
     """
@@ -221,9 +233,19 @@ def config_from_string(basedir, portnumfile, config_str, _valid_config=None):
     # load configuration from in-memory string
     parser = configutil.get_config_from_string(config_str)
 
-    fname = "<in-memory>"
-    configutil.validate_config(fname, parser, _valid_config)
-    return _Config(parser, portnumfile, basedir, fname)
+    configutil.validate_config(
+        "<string>" if fpath is None else fpath.path,
+        parser,
+        _valid_config,
+    )
+
+    return _Config(
+        parser,
+        portnumfile,
+        basedir,
+        fpath,
+        _valid_config,
+    )
 
 
 def _error_about_old_config_files(basedir, generated_files):
@@ -251,6 +273,7 @@ def _error_about_old_config_files(basedir, generated_files):
         raise e
 
 
+@attr.s
 class _Config(object):
     """
     Manages configuration of a Tahoe 'node directory'.
@@ -259,30 +282,47 @@ class _Config(object):
     class; names and funtionality have been kept the same while moving
     the code. It probably makes sense for several of these APIs to
     have better names.
+
+    :ivar ConfigParser config: The actual configuration values.
+
+    :ivar str portnum_fname: filename to use for the port-number file (a
+        relative path inside basedir).
+
+    :ivar str _basedir: path to our "node directory", inside which all
+        configuration is managed.
+
+    :ivar (FilePath|NoneType) config_path: The path actually used to create
+        the configparser (might be ``None`` if using in-memory data).
+
+    :ivar ValidConfiguration valid_config_sections: The validator for the
+        values in this configuration.
     """
+    config = attr.ib(validator=attr.validators.instance_of(configparser.ConfigParser))
+    portnum_fname = attr.ib()
+    _basedir = attr.ib(
+        converter=lambda basedir: abspath_expanduser_unicode(ensure_text(basedir)),
+    )
+    config_path = attr.ib(
+        validator=attr.validators.optional(
+            attr.validators.instance_of(FilePath),
+        ),
+    )
+    valid_config_sections = attr.ib(
+        default=configutil.ValidConfiguration.everything(),
+        validator=attr.validators.instance_of(configutil.ValidConfiguration),
+    )
 
-    def __init__(self, configparser, portnum_fname, basedir, config_fname):
-        """
-        :param configparser: a ConfigParser instance
+    @property
+    def nickname(self):
+        nickname = self.get_config("node", "nickname", u"<unspecified>")
+        assert isinstance(nickname, str)
+        return nickname
 
-        :param portnum_fname: filename to use for the port-number file
-           (a relative path inside basedir)
-
-        :param basedir: path to our "node directory", inside which all
-           configuration is managed
-
-        :param config_fname: the pathname actually used to create the
-            configparser (might be 'fake' if using in-memory data)
-        """
-        self.portnum_fname = portnum_fname
-        self._basedir = abspath_expanduser_unicode(ensure_text(basedir))
-        self._config_fname = config_fname
-        self.config = configparser
-        self.nickname = self.get_config("node", "nickname", u"<unspecified>")
-        assert isinstance(self.nickname, str)
-
-    def validate(self, valid_config_sections):
-        configutil.validate_config(self._config_fname, self.config, valid_config_sections)
+    @property
+    def _config_fname(self):
+        if self.config_path is None:
+            return "<string>"
+        return self.config_path.path
 
     def write_config_file(self, name, value, mode="w"):
         """
@@ -326,6 +366,34 @@ class _Config(object):
                     )
                 )
             return default
+
+    def set_config(self, section, option, value):
+        """
+        Set a config option in a section and re-write the tahoe.cfg file
+
+        :param str section: The name of the section in which to set the
+            option.
+
+        :param str option: The name of the option to set.
+
+        :param str value: The value of the option.
+
+        :raise UnescapedHashError: If the option holds a fURL and there is a
+            ``#`` in the value.
+        """
+        if option.endswith(".furl") and "#" in value:
+            raise UnescapedHashError(section, option, value)
+
+        copied_config = configutil.copy_config(self.config)
+        configutil.set_config(copied_config, section, option, value)
+        configutil.validate_config(
+            self._config_fname,
+            copied_config,
+            self.valid_config_sections,
+        )
+        if self.config_path is not None:
+            configutil.write_config(self.config_path, copied_config)
+        self.config = copied_config
 
     def get_config_from_file(self, name, required=False):
         """Get the (string) contents of a config file, or None if the file
@@ -419,6 +487,97 @@ class _Config(object):
             os.path.join(self._basedir, *args)
         )
 
+    def get_introducer_configuration(self):
+        """
+        Get configuration for introducers.
+
+        :return {unicode: (unicode, FilePath)}: A mapping from introducer
+            petname to a tuple of the introducer's fURL and local cache path.
+        """
+        introducers_yaml_filename = self.get_private_path("introducers.yaml")
+        introducers_filepath = FilePath(introducers_yaml_filename)
+
+        def get_cache_filepath(petname):
+            return FilePath(
+                self.get_private_path("introducer_{}_cache.yaml".format(petname)),
+            )
+
+        try:
+            with introducers_filepath.open() as f:
+                introducers_yaml = safe_load(f)
+                if introducers_yaml is None:
+                    raise EnvironmentError(
+                        EPERM,
+                        "Can't read '{}'".format(introducers_yaml_filename),
+                        introducers_yaml_filename,
+                    )
+                introducers = {
+                    petname: config["furl"]
+                    for petname, config
+                    in introducers_yaml.get("introducers", {}).items()
+                }
+                non_strs = list(
+                    k
+                    for k
+                    in introducers.keys()
+                    if not isinstance(k, str)
+                )
+                if non_strs:
+                    raise TypeError(
+                        "Introducer petnames {!r} should have been str".format(
+                            non_strs,
+                        ),
+                    )
+                non_strs = list(
+                    v
+                    for v
+                    in introducers.values()
+                    if not isinstance(v, str)
+                )
+                if non_strs:
+                    raise TypeError(
+                        "Introducer fURLs {!r} should have been str".format(
+                            non_strs,
+                        ),
+                    )
+                log.msg(
+                    "found {} introducers in {!r}".format(
+                        len(introducers),
+                        introducers_yaml_filename,
+                    )
+                )
+        except EnvironmentError as e:
+            if e.errno != ENOENT:
+                raise
+            introducers = {}
+
+        # supported the deprecated [client]introducer.furl item in tahoe.cfg
+        tahoe_cfg_introducer_furl = self.get_config("client", "introducer.furl", None)
+        if tahoe_cfg_introducer_furl == "None":
+            raise ValueError(
+                "tahoe.cfg has invalid 'introducer.furl = None':"
+                " to disable it omit the key entirely"
+            )
+        if tahoe_cfg_introducer_furl:
+            warn(
+                "tahoe.cfg [client]introducer.furl is deprecated; "
+                "use private/introducers.yaml instead.",
+                category=DeprecationWarning,
+                stacklevel=-1,
+            )
+            if "default" in introducers:
+                raise ValueError(
+                    "'default' introducer furl cannot be specified in tahoe.cfg and introducers.yaml;"
+                    " please fix impossible configuration."
+                )
+            introducers['default'] = tahoe_cfg_introducer_furl
+
+        return {
+            petname: (furl, get_cache_filepath(petname))
+            for (petname, furl)
+            in introducers.items()
+        }
+
 
 def create_tub_options(config):
     """
@@ -457,28 +616,20 @@ def _make_tcp_handler():
     return default()
 
 
-def create_connection_handlers(reactor, config, i2p_provider, tor_provider):
+def create_default_connection_handlers(config, handlers):
     """
-    :returns: 2-tuple of default_connection_handlers, foolscap_connection_handlers
+    :return: A dictionary giving the default connection handlers.  The keys
+        are strings like "tcp" and the values are strings like "tor" or
+        ``None``.
     """
     reveal_ip = config.get_config("node", "reveal-IP-address", True, boolean=True)
 
-    # We store handlers for everything. None means we were unable to
-    # create that handler, so hints which want it will be ignored.
-    handlers = foolscap_connection_handlers = {
-        "tcp": _make_tcp_handler(),
-        "tor": tor_provider.get_tor_handler(),
-        "i2p": i2p_provider.get_i2p_handler(),
-        }
-    log.msg(
-        format="built Foolscap connection handlers for: %(known_handlers)s",
-        known_handlers=sorted([k for k,v in handlers.items() if v]),
-        facility="tahoe.node",
-        umid="PuLh8g",
-    )
-
-    # then we remember the default mappings from tahoe.cfg
-    default_connection_handlers = {"tor": "tor", "i2p": "i2p"}
+    # Remember the default mappings from tahoe.cfg
+    default_connection_handlers = {
+        name: name
+        for name
+        in handlers
+    }
     tcp_handler_name = config.get_config("connections", "tcp", "tcp").lower()
     if tcp_handler_name == "disabled":
         default_connection_handlers["tcp"] = None
@@ -503,9 +654,34 @@ def create_connection_handlers(reactor, config, i2p_provider, tor_provider):
 
     if not reveal_ip:
         if default_connection_handlers.get("tcp") == "tcp":
-            raise PrivacyError("tcp = tcp, must be set to 'tor' or 'disabled'")
-    return default_connection_handlers, foolscap_connection_handlers
+            raise PrivacyError(
+                "Privacy requested with `reveal-IP-address = false` "
+                "but `tcp = tcp` conflicts with this.",
+            )
+    return default_connection_handlers
 
+
+def create_connection_handlers(config, i2p_provider, tor_provider):
+    """
+    :returns: 2-tuple of default_connection_handlers, foolscap_connection_handlers
+    """
+    # We store handlers for everything. None means we were unable to
+    # create that handler, so hints which want it will be ignored.
+    handlers = {
+        "tcp": _make_tcp_handler(),
+        "tor": tor_provider.get_tor_handler(),
+        "i2p": i2p_provider.get_i2p_handler(),
+    }
+    log.msg(
+        format="built Foolscap connection handlers for: %(known_handlers)s",
+        known_handlers=sorted([k for k,v in handlers.items() if v]),
+        facility="tahoe.node",
+        umid="PuLh8g",
+    )
+    return create_default_connection_handlers(
+        config,
+        handlers,
+    ), handlers
 
 
 def create_tub(tub_options, default_connection_handlers, foolscap_connection_handlers,
@@ -546,8 +722,21 @@ def _convert_tub_port(s):
     return us
 
 
-def _tub_portlocation(config):
+class PortAssignmentRequired(Exception):
     """
+    A Tub port number was configured to be 0 where this is not allowed.
+    """
+
+
+def _tub_portlocation(config, get_local_addresses_sync, allocate_tcp_port):
+    """
+    Figure out the network location of the main tub for some configuration.
+
+    :param get_local_addresses_sync: A function like
+        ``iputil.get_local_addresses_sync``.
+
+    :param allocate_tcp_port: A function like ``iputil.allocate_tcp_port``.
+
     :returns: None or tuple of (port, location) for the main tub based
         on the given configuration. May raise ValueError or PrivacyError
         if there are problems with the config
@@ -587,7 +776,7 @@ def _tub_portlocation(config):
             file_tubport = fileutil.read(config.portnum_fname).strip()
             tubport = _convert_tub_port(file_tubport)
         else:
-            tubport = "tcp:%d" % iputil.allocate_tcp_port()
+            tubport = "tcp:%d" % (allocate_tcp_port(),)
             fileutil.write_atomically(config.portnum_fname, tubport + "\n",
                                       mode="")
     else:
@@ -595,7 +784,7 @@ def _tub_portlocation(config):
 
     for port in tubport.split(","):
         if port in ("0", "tcp:0"):
-            raise ValueError("tub.port cannot be 0: you must choose")
+            raise PortAssignmentRequired()
 
     if cfg_location is None:
         cfg_location = "AUTO"
@@ -607,7 +796,7 @@ def _tub_portlocation(config):
     if "AUTO" in split_location:
         if not reveal_ip:
             raise PrivacyError("tub.location uses AUTO")
-        local_addresses = iputil.get_local_addresses_sync()
+        local_addresses = get_local_addresses_sync()
         # tubport must be like "tcp:12345" or "tcp:12345:morestuff"
         local_portnum = int(tubport.split(":")[1])
     new_locations = []
@@ -638,6 +827,33 @@ def _tub_portlocation(config):
     return tubport, location
 
 
+def tub_listen_on(i2p_provider, tor_provider, tub, tubport, location):
+    """
+    Assign a Tub its listener locations.
+
+    :param i2p_provider: See ``allmydata.util.i2p_provider.create``.
+    :param tor_provider: See ``allmydata.util.tor_provider.create``.
+    """
+    for port in tubport.split(","):
+        if port == "listen:i2p":
+            # the I2P provider will read its section of tahoe.cfg and
+            # return either a fully-formed Endpoint, or a descriptor
+            # that will create one, so we don't have to stuff all the
+            # options into the tub.port string (which would need a lot
+            # of escaping)
+            port_or_endpoint = i2p_provider.get_listener()
+        elif port == "listen:tor":
+            port_or_endpoint = tor_provider.get_listener()
+        else:
+            port_or_endpoint = port
+        # Foolscap requires native strings:
+        if isinstance(port_or_endpoint, (bytes, str)):
+            port_or_endpoint = ensure_str(port_or_endpoint)
+        tub.listenOn(port_or_endpoint)
+    # This last step makes the Tub is ready for tub.registerReference()
+    tub.setLocation(location)
+
+
 def create_main_tub(config, tub_options,
                     default_connection_handlers, foolscap_connection_handlers,
                     i2p_provider, tor_provider,
@@ -662,36 +878,34 @@ def create_main_tub(config, tub_options,
     :param tor_provider: None, or a _Provider instance if txtorcon +
         Tor are installed.
     """
-    portlocation = _tub_portlocation(config)
+    portlocation = _tub_portlocation(
+        config,
+        iputil.get_local_addresses_sync,
+        iputil.allocate_tcp_port,
+    )
 
-    certfile = config.get_private_path("node.pem")  # FIXME? "node.pem" was the CERTFILE option/thing
-    tub = create_tub(tub_options, default_connection_handlers, foolscap_connection_handlers,
-                     handler_overrides=handler_overrides, certFile=certfile)
+    # FIXME? "node.pem" was the CERTFILE option/thing
+    certfile = config.get_private_path("node.pem")
 
-    if portlocation:
-        tubport, location = portlocation
-        for port in tubport.split(","):
-            if port == "listen:i2p":
-                # the I2P provider will read its section of tahoe.cfg and
-                # return either a fully-formed Endpoint, or a descriptor
-                # that will create one, so we don't have to stuff all the
-                # options into the tub.port string (which would need a lot
-                # of escaping)
-                port_or_endpoint = i2p_provider.get_listener()
-            elif port == "listen:tor":
-                port_or_endpoint = tor_provider.get_listener()
-            else:
-                port_or_endpoint = port
-            # Foolscap requires native strings:
-            if isinstance(port_or_endpoint, (bytes, str)):
-                port_or_endpoint = ensure_str(port_or_endpoint)
-            tub.listenOn(port_or_endpoint)
-        tub.setLocation(location)
-        log.msg("Tub location set to %s" % (location,))
-        # the Tub is now ready for tub.registerReference()
-    else:
+    tub = create_tub(
+        tub_options,
+        default_connection_handlers,
+        foolscap_connection_handlers,
+        handler_overrides=handler_overrides,
+        certFile=certfile,
+    )
+    if portlocation is None:
         log.msg("Tub is not listening")
-
+    else:
+        tubport, location = portlocation
+        tub_listen_on(
+            i2p_provider,
+            tor_provider,
+            tub,
+            tubport,
+            location,
+        )
+        log.msg("Tub location set to %s" % (location,))
     return tub
 
 

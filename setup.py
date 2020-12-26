@@ -111,7 +111,9 @@ install_requires = [
 
     # Eliot is contemplating dropping Python 2 support.  Stick to a version we
     # know works on Python 2.7.
-    "eliot ~= 1.7",
+    "eliot ~= 1.7 ; python_version < '3.0'",
+    # On Python 3, we want a new enough version to support custom JSON encoders.
+    "eliot >= 1.13.0 ; python_version > '3.0'",
 
     # Pyrsistent 0.17.0 (which we use by way of Eliot) has dropped
     # Python 2 entirely; stick to the version known to work for us.

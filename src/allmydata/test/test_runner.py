@@ -34,6 +34,7 @@ from ._twisted_9607 import (
 )
 from ..util.eliotutil import (
     inline_callbacks,
+    log_call_deferred,
 )
 
 def get_root_from_file(src):
@@ -54,6 +55,7 @@ rootdir = get_root_from_file(srcfile)
 
 
 class RunBinTahoeMixin(object):
+    @log_call_deferred(action_type="run-bin-tahoe")
     def run_bintahoe(self, args, stdin=None, python_options=[], env=None):
         command = sys.executable
         argv = python_options + ["-m", "allmydata.scripts.runner"] + args
@@ -142,9 +144,8 @@ class BinTahoe(common_util.SignalMixin, unittest.TestCase, RunBinTahoeMixin):
 
 
 class CreateNode(unittest.TestCase):
-    # exercise "tahoe create-node", create-introducer,
-    # create-key-generator, and create-stats-gatherer, by calling the
-    # corresponding code as a subroutine.
+    # exercise "tahoe create-node" and "tahoe create-introducer" by calling
+    # the corresponding code as a subroutine.
 
     def workdir(self, name):
         basedir = os.path.join("test_runner", "CreateNode", name)
@@ -243,62 +244,20 @@ class CreateNode(unittest.TestCase):
     def test_introducer(self):
         self.do_create("introducer", "--hostname=127.0.0.1")
 
-    def test_stats_gatherer(self):
-        self.do_create("stats-gatherer", "--hostname=127.0.0.1")
-
     def test_subcommands(self):
         # no arguments should trigger a command listing, via UsageError
         self.failUnlessRaises(usage.UsageError, parse_cli,
                               )
 
-    @inlineCallbacks
-    def test_stats_gatherer_good_args(self):
-        rc,out,err = yield run_cli("create-stats-gatherer", "--hostname=foo",
-                                   self.mktemp())
-        self.assertEqual(rc, 0)
-        rc,out,err = yield run_cli("create-stats-gatherer",
-                                   "--location=tcp:foo:1234",
-                                   "--port=tcp:1234", self.mktemp())
-        self.assertEqual(rc, 0)
-
-
-    def test_stats_gatherer_bad_args(self):
-        def _test(args):
-            argv = args.split()
-            self.assertRaises(usage.UsageError, parse_cli, *argv)
-
-        # missing hostname/location/port
-        _test("create-stats-gatherer D")
-
-        # missing port
-        _test("create-stats-gatherer --location=foo D")
-
-        # missing location
-        _test("create-stats-gatherer --port=foo D")
-
-        # can't provide both
-        _test("create-stats-gatherer --hostname=foo --port=foo D")
-
-        # can't provide both
-        _test("create-stats-gatherer --hostname=foo --location=foo D")
-
-        # can't provide all three
-        _test("create-stats-gatherer --hostname=foo --location=foo --port=foo D")
-
 
 class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
               RunBinTahoeMixin):
     """
-    exercise "tahoe run" for both introducer, client node, and key-generator,
-    by spawning "tahoe run" (or "tahoe start") as a subprocess. This doesn't
-    get us line-level coverage, but it does a better job of confirming that
-    the user can actually run "./bin/tahoe run" and expect it to work. This
-    verifies that bin/tahoe sets up PYTHONPATH and the like correctly.
-
-    This doesn't work on cygwin (it hangs forever), so we skip this test
-    when we're on cygwin. It is likely that "tahoe start" itself doesn't
-    work on cygwin: twisted seems unable to provide a version of
-    spawnProcess which really works there.
+    exercise "tahoe run" for both introducer and client node, by spawning
+    "tahoe run" as a subprocess. This doesn't get us line-level coverage, but
+    it does a better job of confirming that the user can actually run
+    "./bin/tahoe run" and expect it to work. This verifies that bin/tahoe sets
+    up PYTHONPATH and the like correctly.
     """
 
     def workdir(self, name):
@@ -378,7 +337,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
     @inline_callbacks
     def test_client(self):
         """
-        Test many things.
+        Test too many things.
 
         0) Verify that "tahoe create-node" takes a --webport option and writes
            the value to the configuration file.
@@ -386,9 +345,9 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
         1) Verify that "tahoe run" writes a pid file and a node url file (on POSIX).
 
         2) Verify that the storage furl file has a stable value across a
-           "tahoe run" / "tahoe stop" / "tahoe run" sequence.
+           "tahoe run" / stop / "tahoe run" sequence.
 
-        3) Verify that the pid file is removed after "tahoe stop" succeeds (on POSIX).
+        3) Verify that the pid file is removed after SIGTERM (on POSIX).
         """
         basedir = self.workdir("test_client")
         c1 = os.path.join(basedir, "c1")
@@ -490,18 +449,6 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
                 tahoe.basedir.sibling(u"bogus"),
             ).run(p),
             "does not look like a directory at all"
-        )
-
-    def test_stop_bad_directory(self):
-        """
-        If ``tahoe run`` is pointed at a directory where no node is running, it
-        reports an error and exits.
-        """
-        return self._bad_directory_test(
-            u"test_stop_bad_directory",
-            "tahoe stop",
-            lambda tahoe, p: tahoe.stop(p),
-            "does not look like a running node directory",
         )
 
     @inline_callbacks

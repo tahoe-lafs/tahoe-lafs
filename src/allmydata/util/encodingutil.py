@@ -252,6 +252,16 @@ ESCAPABLE_UNICODE = re.compile(u'([\uD800-\uDBFF][\uDC00-\uDFFF])|'  # valid sur
 
 ESCAPABLE_8BIT    = re.compile( br'[^ !#\x25-\x5B\x5D-\x5F\x61-\x7E]', re.DOTALL)
 
+def quote_output_u(*args, **kwargs):
+    """
+    Like ``quote_output`` but always return ``unicode``.
+    """
+    result = quote_output(*args, **kwargs)
+    if isinstance(result, unicode):
+        return result
+    return result.decode(kwargs.get("encoding", None) or io_encoding)
+
+
 def quote_output(s, quotemarks=True, quote_newlines=None, encoding=None):
     """
     Encode either a Unicode string or a UTF-8-encoded bytestring for representation

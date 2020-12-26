@@ -239,7 +239,7 @@ def make_peer(s, i):
     peerid = base32.b2a(tagged_hash(b"peerid", b"%d" % i)[:20])
     fss = FakeStorageServer(peerid, s)
     ann = {
-        "anonymous-storage-FURL": b"pb://%s@nowhere/fake" % (peerid,),
+        "anonymous-storage-FURL": "pb://%s@nowhere/fake" % (str(peerid, "utf-8"),),
         "permutation-seed-base32": peerid,
     }
     return Peer(peerid=peerid, storage_server=fss, announcement=ann)

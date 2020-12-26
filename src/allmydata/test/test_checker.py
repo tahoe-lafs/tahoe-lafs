@@ -144,7 +144,7 @@ class WebResultsRendering(unittest.TestCase):
 
     @staticmethod
     def remove_tags(html):
-        return BeautifulSoup(html).get_text(separator=" ")
+        return BeautifulSoup(html, 'html5lib').get_text(separator=" ")
 
     def create_fake_client(self):
         sb = StorageFarmBroker(True, None, EMPTY_CLIENT_CONFIG)
@@ -156,7 +156,7 @@ class WebResultsRendering(unittest.TestCase):
         for (key_s, binary_tubid, nickname) in servers:
             server_id = key_s
             tubid_b32 = base32.b2a(binary_tubid)
-            furl = b"pb://%s@nowhere/fake" % tubid_b32
+            furl = "pb://%s@nowhere/fake" % str(tubid_b32, "utf-8")
             ann = { "version": 0,
                     "service-name": "storage",
                     "anonymous-storage-FURL": furl,

@@ -52,13 +52,8 @@ class Config(unittest.TestCase):
             create_node.write_node_config(f, opts)
             create_node.write_client_config(f, opts)
 
-        config = configutil.get_config(fname)
         # should succeed, no exceptions
-        configutil.validate_config(
-            fname,
-            config,
-            client._valid_config(),
-        )
+        client.read_config(d, "")
 
     @defer.inlineCallbacks
     def test_client(self):

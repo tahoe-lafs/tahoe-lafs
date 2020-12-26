@@ -1,9 +1,10 @@
 repos:
-  - repo: local
+  - repo: "local"
     hooks:
-    - id: codechecks
-      name: codechecks
+    - id: "codechecks"
+      name: "codechecks"
       stages: ["push"]
+      language: "system"
+      files: ".py$"
       entry: "tox -e codechecks"
-      language: system
-      pass_filenames: false
+      pass_filenames: true
