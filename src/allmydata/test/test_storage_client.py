@@ -570,7 +570,7 @@ class SpyEndpoint(object):
         return d
 
 
-@implementer(IConnectionHintHandler)
+@implementer(IConnectionHintHandler)  # type: ignore # warner/foolscap#78
 @attr.s
 class SpyHandler(object):
     """
