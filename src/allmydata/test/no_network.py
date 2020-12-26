@@ -67,7 +67,7 @@ class Marker(object):
 
 fireNow = partial(defer.succeed, None)
 
-@implementer(IRemoteReference)  # type: ignore # todo: write stubs for foolscap
+@implementer(IRemoteReference)  # type: ignore  # warner/foolscap#79
 class LocalWrapper(object):
     """
     A ``LocalWrapper`` presents the remote reference interface to a local
