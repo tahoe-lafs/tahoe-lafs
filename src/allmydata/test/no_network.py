@@ -261,7 +261,7 @@ def create_no_network_client(basedir):
     return defer.succeed(client)
 
 
-class _NoNetworkClient(_Client):  # type: ignore # Cannot determine consistent MRO order
+class _NoNetworkClient(_Client):  # type: ignore  # tahoe-lafs/ticket/3573
     """
     Overrides all _Client networking functionality to do nothing.
     """

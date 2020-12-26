@@ -1587,7 +1587,7 @@ class FakeNodeMaker(NodeMaker):
     def create_mutable_file(self, contents="", keysize=None, version=None):
         return defer.succeed(FakeMutableFile(contents))
 
-class FakeClient2(_Client):  # type: ignore # ambiguous MRO
+class FakeClient2(_Client):  # type: ignore  # tahoe-lafs/ticket/3573
     def __init__(self):
         self.nodemaker = FakeNodeMaker(None, None, None,
                                        None, None,

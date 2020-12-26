@@ -91,11 +91,7 @@ from allmydata.interfaces import (
 SOME_FURL = b"pb://abcde@nowhere/fake"
 
 
-# type checks fail with:
-# Cannot determine consistent method resolution order (MRO) for "NativeStorageServerWithVersion"
-# even though class hierarchy is single-inheritance. Probably `implementer`
-# wrappers are affecting the MRO.
-class NativeStorageServerWithVersion(NativeStorageServer):  # type: ignore
+class NativeStorageServerWithVersion(NativeStorageServer):  # type: ignore  # tahoe-lafs/ticket/3573
     def __init__(self, version):
         # note: these instances won't work for anything other than
         # get_available_space() because we don't upcall
