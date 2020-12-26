@@ -494,6 +494,7 @@ class MDMFVerifierURI(_BaseURI):
         return self
 
 
+@implementer(IDirnodeURI)
 class _DirectoryBaseURI(_BaseURI):
     def __init__(self, filenode_uri=None):
         self._filenode_uri = filenode_uri
