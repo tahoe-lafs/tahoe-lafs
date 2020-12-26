@@ -494,7 +494,6 @@ class MDMFVerifierURI(_BaseURI):
         return self
 
 
-@implementer(IURI, IDirnodeURI)
 class _DirectoryBaseURI(_BaseURI):
     def __init__(self, filenode_uri=None):
         self._filenode_uri = filenode_uri
@@ -540,14 +539,8 @@ class _DirectoryBaseURI(_BaseURI):
     def get_storage_index(self):
         return self._filenode_uri.get_storage_index()
 
-    def get_readonly(self):
-        raise NotImplementedError()
 
-    def is_readonly(self):
-        raise NotImplementedError()
-
-
-@implementer(IDirectoryURI)
+@implementer(IURI, IDirectoryURI)
 class DirectoryURI(_DirectoryBaseURI):
 
     BASE_STRING=b'URI:DIR2:'
@@ -566,7 +559,7 @@ class DirectoryURI(_DirectoryBaseURI):
         return ReadonlyDirectoryURI(self._filenode_uri.get_readonly())
 
 
-@implementer(IReadonlyDirectoryURI)
+@implementer(IURI, IReadonlyDirectoryURI)
 class ReadonlyDirectoryURI(_DirectoryBaseURI):
 
     BASE_STRING=b'URI:DIR2-RO:'
@@ -585,6 +578,7 @@ class ReadonlyDirectoryURI(_DirectoryBaseURI):
         return self
 
 
+@implementer(IURI, IDirnodeURI)
 class _ImmutableDirectoryBaseURI(_DirectoryBaseURI):
     def __init__(self, filenode_uri=None):
         if filenode_uri:
@@ -622,7 +616,7 @@ class LiteralDirectoryURI(_ImmutableDirectoryBaseURI):
         return None
 
 
-@implementer(IDirectoryURI)
+@implementer(IURI, IDirectoryURI)
 class MDMFDirectoryURI(_DirectoryBaseURI):
 
     BASE_STRING=b'URI:DIR2-MDMF:'
@@ -644,7 +638,7 @@ class MDMFDirectoryURI(_DirectoryBaseURI):
         return MDMFDirectoryURIVerifier(self._filenode_uri.get_verify_cap())
 
 
-@implementer(IReadonlyDirectoryURI)
+@implementer(IURI, IReadonlyDirectoryURI)
 class ReadonlyMDMFDirectoryURI(_DirectoryBaseURI):
 
     BASE_STRING=b'URI:DIR2-MDMF-RO:'
@@ -682,7 +676,7 @@ def wrap_dirnode_cap(filecap):
     raise AssertionError("cannot interpret as a directory cap: %s" % filecap.__class__)
 
 
-@implementer(IVerifierURI)
+@implementer(IURI, IVerifierURI)
 class MDMFDirectoryURIVerifier(_DirectoryBaseURI):
 
     BASE_STRING=b'URI:DIR2-MDMF-Verifier:'
@@ -707,7 +701,7 @@ class MDMFDirectoryURIVerifier(_DirectoryBaseURI):
         return self
 
 
-@implementer(IVerifierURI)
+@implementer(IURI, IVerifierURI)
 class DirectoryURIVerifier(_DirectoryBaseURI):
 
     BASE_STRING=b'URI:DIR2-Verifier:'
