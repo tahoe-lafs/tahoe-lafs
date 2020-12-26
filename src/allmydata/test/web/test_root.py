@@ -1,8 +1,7 @@
 import time
 
-from urllib import (
-    quote,
-)
+
+from six.moves.urllib.parse import quote
 
 from bs4 import (
     BeautifulSoup,
