@@ -270,6 +270,7 @@ jobs:
           name: "Submit coverage results"
           command: |
             if [ -n "${UPLOAD_COVERAGE}" ]; then
+              /tmp/venv/bin/pip install coveralls
               /tmp/venv/bin/python -m coveralls
             fi
           env:
