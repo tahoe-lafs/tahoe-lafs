@@ -1,6 +1,16 @@
 """
 Tests for ``allmydata.webish``.
+
+Ported to Python 3.
 """
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 from uuid import (
     uuid4,
@@ -96,7 +106,7 @@ class TahoeLAFSRequestTests(SyncTestCase):
         ])
         self._fields_test(
             b"POST",
-            {b"content-type": b"multipart/form-data; boundary={}".format(boundary)},
+            {b"content-type": b"multipart/form-data; boundary=" + bytes(boundary, 'ascii')},
             form_data.encode("ascii"),
             AfterPreprocessing(
                 lambda fs: {
@@ -105,8 +115,8 @@ class TahoeLAFSRequestTests(SyncTestCase):
                     in fs.keys()
                 },
                 Equals({
-                    b"foo": b"bar",
-                    b"baz": b"some file contents",
+                    "foo": "bar",
+                    "baz": b"some file contents",
                 }),
             ),
         )
