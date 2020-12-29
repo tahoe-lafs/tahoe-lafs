@@ -180,9 +180,9 @@ PORTED_TEST_MODULES = [
     "allmydata.test.test_upload",
     "allmydata.test.test_uri",
     "allmydata.test.test_util",
-    "allmydata.test.test_webish",
     "allmydata.test.web.test_common",
     "allmydata.test.web.test_grid",
-    "allmydata.test.web.test_util",
     "allmydata.test.web.test_status",
+    "allmydata.test.web.test_util",
+    "allmydata.test.web.test_webish",
 ]
