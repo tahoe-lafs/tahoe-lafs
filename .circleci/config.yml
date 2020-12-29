@@ -273,7 +273,7 @@ jobs:
               /tmp/venv/bin/pip install coveralls
               /tmp/venv/bin/python -m coveralls
             fi
-          env:
+          environment:
             COVERALLS_REPO_TOKEN: "QYoETxGMjCXkFstKHhdsL5dhAtU2tL5Wv"
 
 
