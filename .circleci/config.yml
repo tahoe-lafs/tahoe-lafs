@@ -270,8 +270,10 @@ jobs:
           name: "Submit coverage results"
           command: |
             if [ -n "${UPLOAD_COVERAGE}" ]; then
-              /tmp/venv/bin/codecov
+              /tmp/venv/bin/python -m coveralls
             fi
+          env:
+            COVERALLS_REPO_TOKEN: "QYoETxGMjCXkFstKHhdsL5dhAtU2tL5Wv"
 
 
   debian-8:

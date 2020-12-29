@@ -43,7 +43,7 @@ jobs:
 
       - name: Install Python packages
         run: |
-          pip install --upgrade codecov tox setuptools
+          pip install --upgrade coveralls tox setuptools
           pip list
 
       - name: Display tool versions
@@ -59,11 +59,12 @@ jobs:
           name: eliot.log
           path: eliot.log
 
-      - name: Upload coverage report
-        uses: codecov/codecov-action@v1
-        with:
-          token: abf679b6-e2e6-4b33-b7b5-6cfbd41ee691
-          file: coverage.xml
+      # See https://github.com/coverallsapp/github-action
+      - name: "Upload coverage report to coveralls.io"
+        run: |
+          coveralls
+        env:
+          COVERALLS_REPO_TOKEN: "QYoETxGMjCXkFstKHhdsL5dhAtU2tL5Wv"
 
   integration:
     runs-on: ${{ matrix.os }}
