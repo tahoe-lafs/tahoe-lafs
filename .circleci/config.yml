@@ -275,6 +275,7 @@ jobs:
             fi
           environment:
             COVERALLS_REPO_TOKEN: "JPf16rLB7T2yjgATIxFzTsEgMdN1UNq6o"
+            COVERALLS_PARALLEL: "true"
 
 
   debian-8:
