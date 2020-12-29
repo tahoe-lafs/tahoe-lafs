@@ -34,6 +34,7 @@ PORTED_MODULES = [
     "allmydata.crypto.error",
     "allmydata.crypto.rsa",
     "allmydata.crypto.util",
+    "allmydata.deep_stats",
     "allmydata.dirnode",
     "allmydata.hashtree",
     "allmydata.immutable.checker",
