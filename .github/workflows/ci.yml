@@ -64,7 +64,7 @@ jobs:
         run: |
           coveralls
         env:
-          COVERALLS_REPO_TOKEN: "QYoETxGMjCXkFstKHhdsL5dhAtU2tL5Wv"
+          COVERALLS_REPO_TOKEN: "JPf16rLB7T2yjgATIxFzTsEgMdN1UNq6o"
 
   integration:
     runs-on: ${{ matrix.os }}
