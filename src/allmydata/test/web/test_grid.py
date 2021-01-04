@@ -58,7 +58,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
     def CHECK(self, ign, which, args, clientnum=0):
         fileurl = self.fileurls[which]
         url = fileurl + "?" + args
-        return self.GET(url, method="POST", clientnum=clientnum).addCallback(str, "utf-8")
+        return self.GET_unicode(url, method="POST", clientnum=clientnum)
 
     def GET_unicode(self, *args, **kwargs):
         """Send an HTTP request, but convert result to Unicode string."""
