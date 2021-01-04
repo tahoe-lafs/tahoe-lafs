@@ -89,7 +89,25 @@ class GridManagerUtilities(SyncTestCase):
         )
         certs = config.get_grid_manager_certificates()
         self.assertEqual([fake_cert], certs)
-        print(certs)
+
+    def test_load_certificates_missing(self):
+        """
+        An error is reported for missing certificates
+        """
+        cert_path = self.mktemp()
+        config_data = (
+            "[grid_managers]\n"
+            "fluffy = pub-v0-vqimc4s5eflwajttsofisp5st566dbq36xnpp4siz57ufdavpvlq\n"
+            "[grid_manager_certificates]\n"
+            "ding = {}\n".format(cert_path)
+        )
+        config = config_from_string("/foo", "portnum", config_data, client_valid_config())
+        with self.assertRaises(ValueError) as ctx:
+            certs = config.get_grid_manager_certificates()
+        self.assertIn(
+            "Grid Manager certificate file '{}' doesn't exist".format(cert_path),
+            str(ctx.exception)
+        )
 
 
 class GridManagerVerifier(SyncTestCase):
