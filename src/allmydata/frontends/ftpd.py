@@ -1,3 +1,15 @@
+"""
+Ported to Python 3.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+
 from six import ensure_str
 
 from zope.interface import implementer
@@ -104,7 +116,7 @@ class Handler(object):
 
     def _get_parent(self, path):
         # fire with (parentnode, childname)
-        path = [unicode(p) for p in path]
+        path = [str(p) for p in path]
         if not path:
             raise NoParentError
         childname = path[-1]
@@ -183,7 +195,7 @@ class Handler(object):
 
     def _get_root(self, path):
         # return (root, remaining_path)
-        path = [unicode(p) for p in path]
+        path = [str(p) for p in path]
         if path and path[0] == "uri":
             d = defer.maybeDeferred(self.client.create_node_from_uri,
                                     str(path[1]))
@@ -262,7 +274,7 @@ class Handler(object):
         d.addCallback(_list)
         def _render(children):
             results = []
-            for (name, childnode) in children.items():
+            for (name, childnode) in list(children.items()):
                 # the interface claims that the result should have a unicode
                 # object as the name, but it fails unless you give it a
                 # bytestring
@@ -280,7 +292,7 @@ class Handler(object):
         return d
 
     def openForWriting(self, path):
-        path = [unicode(p) for p in path]
+        path = [str(p) for p in path]
         if not path:
             raise ftp.PermissionDeniedError("cannot STOR to root directory")
         childname = path[-1]
@@ -315,7 +327,7 @@ class Dispatcher(object):
 
 class FTPServer(service.MultiService):
     def __init__(self, client, accountfile, accounturl, ftp_portstr):
-        precondition(isinstance(accountfile, (unicode, type(None))), accountfile)
+        precondition(isinstance(accountfile, (str, type(None))), accountfile)
         service.MultiService.__init__(self)
 
         r = Dispatcher(client)
