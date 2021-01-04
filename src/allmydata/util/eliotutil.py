@@ -86,6 +86,9 @@ from twisted.internet.defer import (
 )
 from twisted.application.service import Service
 
+from .jsonbytes import BytesJSONEncoder
+
+
 def validateInstanceOf(t):
     """
     Return an Eliot validator that requires values to be instances of ``t``.
@@ -302,7 +305,7 @@ class _DestinationParser(object):
                     rotateLength=rotate_length,
                     maxRotatedFiles=max_rotated_files,
                 )
-        return lambda reactor: FileDestination(get_file())
+        return lambda reactor: FileDestination(get_file(), BytesJSONEncoder)
 
 
 _parse_destination_description = _DestinationParser().parse
