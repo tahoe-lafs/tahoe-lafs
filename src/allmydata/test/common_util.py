@@ -181,6 +181,7 @@ def insecurerandstr(n):
     return b''.join(map(bchr, map(randrange, [0]*n, [256]*n)))
 
 def flip_bit(good, which):
+    """Flip the low-order bit of good[which]."""
     if which == -1:
         pieces = good[:which], good[-1:], b""
     else:
