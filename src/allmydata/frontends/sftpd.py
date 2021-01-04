@@ -1785,7 +1785,7 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
         # We implement the three main OpenSSH SFTP extensions; see
         # <http://www.openbsd.org/cgi-bin/cvsweb/src/usr.bin/ssh/PROTOCOL?rev=1.15>
 
-        if extensionName == 'posix-rename@openssh.com':
+        if extensionName == b'posix-rename@openssh.com':
             def _bad(): raise SFTPError(FX_BAD_MESSAGE, "could not parse posix-rename@openssh.com request")
 
             if 4 > len(extensionData): return defer.execute(_bad)
@@ -1807,7 +1807,7 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
             d.addCallback(_succeeded)
             return d
 
-        if extensionName == 'statvfs@openssh.com' or extensionName == 'fstatvfs@openssh.com':
+        if extensionName == b'statvfs@openssh.com' or extensionName == b'fstatvfs@openssh.com':
             # f_bsize and f_frsize should be the same to avoid a bug in 'df'
             return defer.succeed(struct.pack('>11Q',
                 1024,         # uint64  f_bsize     /* file system block size */

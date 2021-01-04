@@ -42,7 +42,7 @@ class Handler(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, unittest.TestCas
 
     def shouldFailWithSFTPError(self, expected_code, which, callable, *args, **kwargs):
         assert isinstance(expected_code, int), repr(expected_code)
-        assert isinstance(which, str), repr(which)
+        assert isinstance(which, bytes), repr(which)
         s = traceback.format_stack()
         d = defer.maybeDeferred(callable, *args, **kwargs)
         def _done(res):
@@ -198,10 +198,10 @@ class Handler(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, unittest.TestCas
         d.addCallback(_check)
 
         d.addCallback(lambda ign:
-            self.shouldFailWithSFTPError(sftp.FX_NO_SUCH_FILE, "_path_from_string invalid UTF-8",
+            self.shouldFailWithSFTPError(sftp.FX_NO_SUCH_FILE, b"_path_from_string invalid UTF-8",
                                          self.handler._path_from_string, b"\xFF"))
         d.addCallback(lambda ign:
-            self.shouldFailWithSFTPError(sftp.FX_NO_SUCH_FILE, "realPath invalid UTF-8",
+            self.shouldFailWithSFTPError(sftp.FX_NO_SUCH_FILE, b"realPath invalid UTF-8",
                                          self.handler.realPath, b"\xFF"))
 
         return d
@@ -211,29 +211,29 @@ class Handler(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, unittest.TestCas
 
         d = defer.succeed(None)
         d.addCallback(lambda ign:
-            self.shouldFailWithSFTPError(sftp.FX_FAILURE, "_convert_error SFTPError",
+            self.shouldFailWithSFTPError(sftp.FX_FAILURE, b"_convert_error SFTPError",
                                          sftpd._convert_error, Failure(sftp.SFTPError(sftp.FX_FAILURE, "foo")), "request"))
         d.addCallback(lambda ign:
-            self.shouldFailWithSFTPError(sftp.FX_NO_SUCH_FILE, "_convert_error NoSuchChildError",
+            self.shouldFailWithSFTPError(sftp.FX_NO_SUCH_FILE, b"_convert_error NoSuchChildError",
                                          sftpd._convert_error, Failure(NoSuchChildError("foo")), "request"))
         d.addCallback(lambda ign:
-            self.shouldFailWithSFTPError(sftp.FX_FAILURE, "_convert_error ExistingChildError",
+            self.shouldFailWithSFTPError(sftp.FX_FAILURE, b"_convert_error ExistingChildError",
                                          sftpd._convert_error, Failure(ExistingChildError("foo")), "request"))
         d.addCallback(lambda ign:
-            self.shouldFailWithSFTPError(sftp.FX_PERMISSION_DENIED, "_convert_error NotWriteableError",
+            self.shouldFailWithSFTPError(sftp.FX_PERMISSION_DENIED, b"_convert_error NotWriteableError",
                                          sftpd._convert_error, Failure(NotWriteableError("foo")), "request"))
         d.addCallback(lambda ign:
-            self.shouldFailWithSFTPError(sftp.FX_OP_UNSUPPORTED, "_convert_error NotImplementedError",
+            self.shouldFailWithSFTPError(sftp.FX_OP_UNSUPPORTED, b"_convert_error NotImplementedError",
                                          sftpd._convert_error, Failure(NotImplementedError("foo")), "request"))
         d.addCallback(lambda ign:
-            self.shouldFailWithSFTPError(sftp.FX_EOF, "_convert_error EOFError",
+            self.shouldFailWithSFTPError(sftp.FX_EOF, b"_convert_error EOFError",
                                          sftpd._convert_error, Failure(EOFError("foo")), "request"))
         d.addCallback(lambda ign:
-            self.shouldFailWithSFTPError(sftp.FX_EOF, "_convert_error defer.FirstError",
+            self.shouldFailWithSFTPError(sftp.FX_EOF, b"_convert_error defer.FirstError",
                                          sftpd._convert_error, Failure(defer.FirstError(
                                                                  Failure(sftp.SFTPError(sftp.FX_EOF, "foo")), 0)), "request"))
         d.addCallback(lambda ign:
-            self.shouldFailWithSFTPError(sftp.FX_FAILURE, "_convert_error AssertionError",
+            self.shouldFailWithSFTPError(sftp.FX_FAILURE, b"_convert_error AssertionError",
                                          sftpd._convert_error, Failure(AssertionError("foo")), "request"))
 
         return d
@@ -1464,24 +1464,24 @@ class Handler(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, unittest.TestCas
     def test_extendedRequest(self):
         d = self._set_up("extendedRequest")
 
-        d.addCallback(lambda ign: self.handler.extendedRequest("statvfs@openssh.com", "/"))
+        d.addCallback(lambda ign: self.handler.extendedRequest(b"statvfs@openssh.com", b"/"))
         def _check(res):
-            self.failUnless(isinstance(res, str))
+            self.failUnless(isinstance(res, bytes))
             self.failUnlessEqual(len(res), 8*11)
         d.addCallback(_check)
 
         d.addCallback(lambda ign:
-            self.shouldFailWithSFTPError(sftp.FX_OP_UNSUPPORTED, "extendedRequest foo bar",
-                                         self.handler.extendedRequest, "foo", "bar"))
+            self.shouldFailWithSFTPError(sftp.FX_OP_UNSUPPORTED, b"extendedRequest foo bar",
+                                         self.handler.extendedRequest, b"foo", b"bar"))
 
         d.addCallback(lambda ign:
-            self.shouldFailWithSFTPError(sftp.FX_BAD_MESSAGE, "extendedRequest posix-rename@openssh.com invalid 1",
-                                         self.handler.extendedRequest, 'posix-rename@openssh.com', ''))
+            self.shouldFailWithSFTPError(sftp.FX_BAD_MESSAGE, b"extendedRequest posix-rename@openssh.com invalid 1",
+                                         self.handler.extendedRequest, b'posix-rename@openssh.com', b''))
         d.addCallback(lambda ign:
-            self.shouldFailWithSFTPError(sftp.FX_BAD_MESSAGE, "extendedRequest posix-rename@openssh.com invalid 2",
-                                         self.handler.extendedRequest, 'posix-rename@openssh.com', '\x00\x00\x00\x01'))
+            self.shouldFailWithSFTPError(sftp.FX_BAD_MESSAGE, b"extendedRequest posix-rename@openssh.com invalid 2",
+                                         self.handler.extendedRequest, b'posix-rename@openssh.com', b'\x00\x00\x00\x01'))
         d.addCallback(lambda ign:
-            self.shouldFailWithSFTPError(sftp.FX_BAD_MESSAGE, "extendedRequest posix-rename@openssh.com invalid 3",
-                                         self.handler.extendedRequest, 'posix-rename@openssh.com', '\x00\x00\x00\x01_\x00\x00\x00\x01'))
+            self.shouldFailWithSFTPError(sftp.FX_BAD_MESSAGE, b"extendedRequest posix-rename@openssh.com invalid 3",
+                                         self.handler.extendedRequest, b'posix-rename@openssh.com', b'\x00\x00\x00\x01_\x00\x00\x00\x01'))
 
         return d
