@@ -24,6 +24,7 @@ from future.utils import PY2
 if PY2:
     from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 from past.builtins import unicode
+from six import ensure_text
 
 import os
 from base64 import b32encode
@@ -614,8 +615,7 @@ class GridTestMixin(object):
             method="GET", clientnum=0, **kwargs):
         # if return_response=True, this fires with (data, statuscode,
         # respheaders) instead of just data.
-        assert not isinstance(urlpath, unicode)
-        url = self.client_baseurls[clientnum] + urlpath
+        url = self.client_baseurls[clientnum] + ensure_text(urlpath)
 
         response = yield treq.request(method, url, persistent=False,
                                       allow_redirects=followRedirect,

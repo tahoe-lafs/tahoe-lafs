@@ -3,7 +3,6 @@ from past.builtins import long, unicode
 import pprint
 import itertools
 import hashlib
-import json
 from twisted.internet import defer
 from twisted.python.filepath import FilePath
 from twisted.web.resource import Resource
@@ -14,7 +13,7 @@ from twisted.web.template import (
     renderElement,
     tags,
 )
-from allmydata.util import base32, idlib
+from allmydata.util import base32, idlib, jsonbytes as json
 from allmydata.web.common import (
     abbreviate_time,
     abbreviate_rate,

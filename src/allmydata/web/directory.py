@@ -1,6 +1,6 @@
+from past.builtins import unicode
 
-import json
-import urllib
+from urllib.parse import quote as url_quote
 from datetime import timedelta
 
 from zope.interface import implementer
@@ -20,7 +20,7 @@ from twisted.web.template import (
 from hyperlink import URL
 from twisted.python.filepath import FilePath
 
-from allmydata.util import base32
+from allmydata.util import base32, jsonbytes as json
 from allmydata.util.encodingutil import (
     to_bytes,
     quote_output,
@@ -109,7 +109,7 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
         # or no further children) renders "this" page.  We also need
         # to reject "/uri/URI:DIR2:..//", so we look at postpath.
         name = name.decode('utf8')
-        if not name and req.postpath != ['']:
+        if not name and req.postpath != [b'']:
             return self
 
         # Rejecting URIs that contain empty path pieces (for example:
@@ -135,7 +135,7 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
         terminal = (req.prepath + req.postpath)[-1].decode('utf8') == name
         nonterminal = not terminal  #len(req.postpath) > 0
 
-        t = get_arg(req, "t", "").strip()
+        t = get_arg(req, b"t", b"").strip()
         if isinstance(node_or_failure, Failure):
             f = node_or_failure
             f.trap(NoSuchChildError)
@@ -217,7 +217,7 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
     @render_exception
     def render_GET(self, req):
         # This is where all of the directory-related ?t=* code goes.
-        t = get_arg(req, "t", "").strip()
+        t = unicode(get_arg(req, b"t", b"").strip(), "ascii")
 
         # t=info contains variable ophandles, t=rename-form contains the name
         # of the child being renamed. Neither is allowed an ETag.
@@ -225,7 +225,7 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
         if not self.node.is_mutable() and t in FIXED_OUTPUT_TYPES:
             si = self.node.get_storage_index()
             if si and req.setETag('DIR:%s-%s' % (base32.b2a(si), t or "")):
-                return ""
+                return b""
 
         if not t:
             # render the directory as HTML
@@ -255,7 +255,7 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
 
     @render_exception
     def render_PUT(self, req):
-        t = get_arg(req, "t", "").strip()
+        t = get_arg(req, b"t", b"").strip()
         replace = parse_replace_arg(get_arg(req, "replace", "true"))
 
         if t == "mkdir":
@@ -275,7 +275,7 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
 
     @render_exception
     def render_POST(self, req):
-        t = get_arg(req, "t", "").strip()
+        t = unicode(get_arg(req, b"t", b"").strip(), "ascii")
 
         if t == "mkdir":
             d = self._POST_mkdir(req)
@@ -732,7 +732,7 @@ class DirectoryAsHTML(Element):
             return ""
         rocap = self.node.get_readonly_uri()
         root = get_root(req)
-        uri_link = "%s/uri/%s/" % (root, urllib.quote(rocap))
+        uri_link = "%s/uri/%s/" % (root, url_quote(rocap))
         return tag(tags.a("Read-Only Version", href=uri_link))
 
     @renderer
@@ -754,10 +754,10 @@ class DirectoryAsHTML(Element):
             called by the 'children' renderer)
         """
         name = name.encode("utf-8")
-        nameurl = urllib.quote(name, safe="") # encode any slashes too
+        nameurl = url_quote(name, safe="") # encode any slashes too
 
         root = get_root(req)
-        here = "{}/uri/{}/".format(root, urllib.quote(self.node.get_uri()))
+        here = "{}/uri/{}/".format(root, url_quote(self.node.get_uri()))
         if self.node.is_unknown() or self.node.is_readonly():
             unlink = "-"
             rename = "-"
@@ -814,7 +814,7 @@ class DirectoryAsHTML(Element):
 
         assert IFilesystemNode.providedBy(target), target
         target_uri = target.get_uri() or ""
-        quoted_uri = urllib.quote(target_uri, safe="") # escape slashes too
+        quoted_uri = url_quote(target_uri, safe="") # escape slashes too
 
         if IMutableFileNode.providedBy(target):
             # to prevent javascript in displayed .html files from stealing a
@@ -835,7 +835,7 @@ class DirectoryAsHTML(Element):
 
         elif IDirectoryNode.providedBy(target):
             # directory
-            uri_link = "%s/uri/%s/" % (root, urllib.quote(target_uri))
+            uri_link = "%s/uri/%s/" % (root, url_quote(target_uri))
             slots["filename"] = tags.a(name, href=uri_link)
             if not target.is_mutable():
                 dirtype = "DIR-IMM"
@@ -871,7 +871,7 @@ class DirectoryAsHTML(Element):
             slots["size"] = "-"
             # use a directory-relative info link, so we can extract both the
             # writecap and the readcap
-            info_link = "%s?t=info" % urllib.quote(name)
+            info_link = "%s?t=info" % url_quote(name)
 
         if info_link:
             slots["info"] = tags.a("More Info", href=info_link)
@@ -888,7 +888,7 @@ class DirectoryAsHTML(Element):
         # because action="." doesn't get us back to the dir page (but
         # instead /uri itself)
         root = get_root(req)
-        here = "{}/uri/{}/".format(root, urllib.quote(self.node.get_uri()))
+        here = "{}/uri/{}/".format(root, url_quote(self.node.get_uri()))
 
         if self.node.is_readonly():
             return tags.div("No upload forms: directory is read-only")
@@ -1005,7 +1005,7 @@ def _directory_json_metadata(req, dirnode):
     d = dirnode.list()
     def _got(children):
         kids = {}
-        for name, (childnode, metadata) in children.iteritems():
+        for name, (childnode, metadata) in children.items():
             assert IFilesystemNode.providedBy(childnode), childnode
             rw_uri = childnode.get_write_uri()
             ro_uri = childnode.get_readonly_uri()
@@ -1166,13 +1166,13 @@ def _cap_to_link(root, path, cap):
         if isinstance(cap_obj, (CHKFileURI, WriteableSSKFileURI, ReadonlySSKFileURI)):
             uri_link = root_url.child(
                 u"file",
-                u"{}".format(urllib.quote(cap)),
-                u"{}".format(urllib.quote(path[-1])),
+                u"{}".format(url_quote(cap)),
+                u"{}".format(url_quote(path[-1])),
             )
         else:
             uri_link = root_url.child(
                 u"uri",
-                u"{}".format(urllib.quote(cap, safe="")),
+                u"{}".format(url_quote(cap, safe="")),
             )
         return tags.a(cap, href=uri_link.to_text())
     else:
@@ -1363,7 +1363,7 @@ class ManifestStreamer(dirnode.DeepStats):
 
         j = json.dumps(d, ensure_ascii=True)
         assert "\n" not in j
-        self.req.write(j+"\n")
+        self.req.write(j.encode("utf-8")+b"\n")
 
     def finish(self):
         stats = dirnode.DeepStats.get_results(self)
@@ -1372,8 +1372,8 @@ class ManifestStreamer(dirnode.DeepStats):
              }
         j = json.dumps(d, ensure_ascii=True)
         assert "\n" not in j
-        self.req.write(j+"\n")
-        return ""
+        self.req.write(j.encode("utf-8")+b"\n")
+        return b""
 
 @implementer(IPushProducer)
 class DeepCheckStreamer(dirnode.DeepStats):
@@ -1441,7 +1441,7 @@ class DeepCheckStreamer(dirnode.DeepStats):
     def write_line(self, data):
         j = json.dumps(data, ensure_ascii=True)
         assert "\n" not in j
-        self.req.write(j+"\n")
+        self.req.write(j.encode("utf-8")+b"\n")
 
     def finish(self):
         stats = dirnode.DeepStats.get_results(self)
@@ -1450,8 +1450,8 @@ class DeepCheckStreamer(dirnode.DeepStats):
              }
         j = json.dumps(d, ensure_ascii=True)
         assert "\n" not in j
-        self.req.write(j+"\n")
-        return ""
+        self.req.write(j.encode("utf-8")+b"\n")
+        return b""
 
 
 class UnknownNodeHandler(Resource, object):
@@ -1464,7 +1464,7 @@ class UnknownNodeHandler(Resource, object):
 
     @render_exception
     def render_GET(self, req):
-        t = get_arg(req, "t", "").strip()
+        t = unicode(get_arg(req, "t", "").strip(), "ascii")
         if t == "info":
             return MoreInfo(self.node)
         if t == "json":
