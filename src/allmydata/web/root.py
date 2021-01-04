@@ -157,8 +157,9 @@ class URIHandler(resource.Resource, object):
         try:
             node = self.client.create_node_from_uri(name)
             return directory.make_handler_for(node, self.client)
-        except (TypeError, AssertionError):
-            raise
+        except (TypeError, AssertionError) as e:
+            log.msg(format="Failed to parse cap, perhaps due to bug: %(e)s",
+                    e=e, level=log.WEIRD)
             raise WebError(
                 "'{}' is not a valid file- or directory- cap".format(name)
             )
