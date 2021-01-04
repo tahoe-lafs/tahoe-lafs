@@ -113,7 +113,7 @@ def parse_or_exit_with_explanation_with_config(config, argv, stdout, stderr):
 
     If they are invalid, write an explanation to ``stdout`` and exit.
 
-    :param twisted.python.usage.Options config: An instance of the
+    :param allmydata.scripts.runner.Options config: An instance of the
         argument-parsing class to use.
 
     :param [str] argv: The argument list to parse, including the name of the
@@ -129,6 +129,17 @@ def parse_or_exit_with_explanation_with_config(config, argv, stdout, stderr):
     try:
         parse_options(argv[1:], config=config)
     except usage.error as e:
+        # `parse_options` may have the side-effect of initializing a
+        # "sub-option" of the given configuration, even if it ultimately
+        # raises an exception.  For example, `tahoe run --invalid-option` will
+        # set `config.subOptions` to an instance of
+        # `allmydata.scripts.tahoe_run.RunOptions` and then raise a
+        # `usage.error` because `RunOptions` does not recognize
+        # `--invalid-option`.  If `run` itself had a sub-options then the same
+        # thing could happen but with another layer of nesting.  We can
+        # present the user with the most precise information about their usage
+        # error possible by finding the most "sub" of the sub-options and then
+        # showing that to the user along with the usage error.
         c = config
         while hasattr(c, 'subOptions'):
             c = c.subOptions
