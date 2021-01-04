@@ -60,7 +60,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
         url = fileurl + "?" + args
         return self.GET(url, method="POST", clientnum=clientnum).addCallback(str, "utf-8")
 
-    def GET_string(self, *args, **kwargs):
+    def GET_unicode(self, *args, **kwargs):
         """Send an HTTP request, but convert result to Unicode string."""
         d = GridTestMixin.GET(self, *args, **kwargs)
         d.addCallback(str, "utf-8")
@@ -1158,7 +1158,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
             self.failUnlessIn("No such child: imaginary", body)
         d.addCallback(_missing_child)
 
-        d.addCallback(lambda ignored: self.GET_string(self.fileurls["dir-0share"]))
+        d.addCallback(lambda ignored: self.GET_unicode(self.fileurls["dir-0share"]))
         def _check_0shares_dir_html(body):
             self.failUnlessIn(DIR_HTML_TAG, body)
             # we should see the regular page, but without the child table or
@@ -1177,7 +1177,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
             self.failUnlessIn("No upload forms: directory is unreadable", body)
         d.addCallback(_check_0shares_dir_html)
 
-        d.addCallback(lambda ignored: self.GET_string(self.fileurls["dir-1share"]))
+        d.addCallback(lambda ignored: self.GET_unicode(self.fileurls["dir-1share"]))
         def _check_1shares_dir_html(body):
             # at some point, we'll split UnrecoverableFileError into 0-shares
             # and some-shares like we did for immutable files (since there
@@ -1311,7 +1311,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
             self.dir_uri = node.get_uri()
             self.dir_url = b"uri/"+self.dir_uri
         d.addCallback(_stash_dir)
-        d.addCallback(lambda ign: self.GET_string(self.dir_url, followRedirect=True))
+        d.addCallback(lambda ign: self.GET_unicode(self.dir_url, followRedirect=True))
         def _check_dir_html(body):
             self.failUnlessIn(DIR_HTML_TAG, body)
             self.failUnlessIn("blacklisted.txt</a>", body)
@@ -1335,7 +1335,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
                                                        self.GET, self.url))
 
         # We should still be able to list the parent directory, in HTML...
-        d.addCallback(lambda ign: self.GET_string(self.dir_url, followRedirect=True))
+        d.addCallback(lambda ign: self.GET_unicode(self.dir_url, followRedirect=True))
         def _check_dir_html2(body):
             self.failUnlessIn(DIR_HTML_TAG, body)
             self.failUnlessIn("blacklisted.txt</strike>", body)
