@@ -1647,7 +1647,7 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
             def _render(children):
                 parent_readonly = dirnode.is_readonly()
                 results = []
-                for filename, (child, metadata) in children.iteritems():
+                for filename, (child, metadata) in children.items():
                     # The file size may be cached or absent.
                     metadata['no-write'] = _no_write(parent_readonly, child, metadata)
                     attrs = _populate_attrs(child, metadata)

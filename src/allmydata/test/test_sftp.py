@@ -92,33 +92,33 @@ class Handler(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, unittest.TestCas
             self.readonly_uri = n.get_uri()
         d.addCallback(_created_readonly)
 
-        gross = upload.Data("0123456789" * 101, None)
+        gross = upload.Data(b"0123456789" * 101, None)
         d.addCallback(lambda ign: self.root.add_file(u"gro\u00DF", gross))
         def _created_gross(n):
             self.gross = n
             self.gross_uri = n.get_uri()
         d.addCallback(_created_gross)
 
-        small = upload.Data("0123456789", None)
+        small = upload.Data(b"0123456789", None)
         d.addCallback(lambda ign: self.root.add_file(u"small", small))
         def _created_small(n):
             self.small = n
             self.small_uri = n.get_uri()
         d.addCallback(_created_small)
 
-        small2 = upload.Data("Small enough for a LIT too", None)
+        small2 = upload.Data(b"Small enough for a LIT too", None)
         d.addCallback(lambda ign: self.root.add_file(u"small2", small2))
         def _created_small2(n):
             self.small2 = n
             self.small2_uri = n.get_uri()
         d.addCallback(_created_small2)
 
-        empty_litdir_uri = "URI:DIR2-LIT:"
+        empty_litdir_uri = b"URI:DIR2-LIT:"
 
         # contains one child which is itself also LIT:
-        tiny_litdir_uri = "URI:DIR2-LIT:gqytunj2onug64tufqzdcosvkjetutcjkq5gw4tvm5vwszdgnz5hgyzufqydulbshj5x2lbm"
+        tiny_litdir_uri = b"URI:DIR2-LIT:gqytunj2onug64tufqzdcosvkjetutcjkq5gw4tvm5vwszdgnz5hgyzufqydulbshj5x2lbm"
 
-        unknown_uri = "x-tahoe-crazy://I_am_from_the_future."
+        unknown_uri = b"x-tahoe-crazy://I_am_from_the_future."
 
         d.addCallback(lambda ign: self.root._create_and_validate_node(None, empty_litdir_uri, name=u"empty_lit_dir"))
         def _created_empty_lit_dir(n):
@@ -242,11 +242,11 @@ class Handler(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, unittest.TestCas
         d = self._set_up("not_implemented")
 
         d.addCallback(lambda ign:
-            self.shouldFailWithSFTPError(sftp.FX_OP_UNSUPPORTED, "readLink link",
-                                         self.handler.readLink, "link"))
+            self.shouldFailWithSFTPError(sftp.FX_OP_UNSUPPORTED, b"readLink link",
+                                         self.handler.readLink, b"link"))
         d.addCallback(lambda ign:
-            self.shouldFailWithSFTPError(sftp.FX_OP_UNSUPPORTED, "makeLink link file",
-                                         self.handler.makeLink, "link", "file"))
+            self.shouldFailWithSFTPError(sftp.FX_OP_UNSUPPORTED, b"makeLink link file",
+                                         self.handler.makeLink, b"link", b"file"))
 
         return d
 
@@ -276,43 +276,43 @@ class Handler(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, unittest.TestCas
         d.addCallback(lambda ign: self._set_up_tree())
 
         d.addCallback(lambda ign:
-            self.shouldFailWithSFTPError(sftp.FX_PERMISSION_DENIED, "openDirectory small",
-                                         self.handler.openDirectory, "small"))
+            self.shouldFailWithSFTPError(sftp.FX_PERMISSION_DENIED, b"openDirectory small",
+                                         self.handler.openDirectory, b"small"))
         d.addCallback(lambda ign:
-            self.shouldFailWithSFTPError(sftp.FX_PERMISSION_DENIED, "openDirectory unknown",
-                                         self.handler.openDirectory, "unknown"))
+            self.shouldFailWithSFTPError(sftp.FX_PERMISSION_DENIED, b"openDirectory unknown",
+                                         self.handler.openDirectory, b"unknown"))
         d.addCallback(lambda ign:
-            self.shouldFailWithSFTPError(sftp.FX_NO_SUCH_FILE, "openDirectory nodir",
-                                         self.handler.openDirectory, "nodir"))
+            self.shouldFailWithSFTPError(sftp.FX_NO_SUCH_FILE, b"openDirectory nodir",
+                                         self.handler.openDirectory, b"nodir"))
         d.addCallback(lambda ign:
-            self.shouldFailWithSFTPError(sftp.FX_NO_SUCH_FILE, "openDirectory nodir/nodir",
-                                         self.handler.openDirectory, "nodir/nodir"))
+            self.shouldFailWithSFTPError(sftp.FX_NO_SUCH_FILE, b"openDirectory nodir/nodir",
+                                         self.handler.openDirectory, b"nodir/nodir"))
 
         gross = u"gro\u00DF".encode("utf-8")
         expected_root = [
-            ('empty_lit_dir', r'dr-xr-xr-x .* 0 .* empty_lit_dir$',       {'permissions': S_IFDIR | 0o555}),
-            (gross,           r'-rw-rw-rw- .* 1010 .* '+gross+'$',        {'permissions': S_IFREG | 0o666, 'size': 1010}),
+            ('empty_lit_dir', br'dr-xr-xr-x .* 0 .* empty_lit_dir$',       {'permissions': S_IFDIR | 0o555}),
+            (gross,           br'-rw-rw-rw- .* 1010 .* '+gross+b'$',        {'permissions': S_IFREG | 0o666, 'size': 1010}),
             # The fall of the Berlin wall may have been on 9th or 10th November 1989 depending on the gateway's timezone.
             #('loop',          r'drwxrwxrwx .* 0 Nov (09|10)  1989 loop$', {'permissions': S_IFDIR | 0777}),
-            ('loop',          r'drwxrwxrwx .* 0 .* loop$',                {'permissions': S_IFDIR | 0o777}),
-            ('mutable',       r'-rw-rw-rw- .* 0 .* mutable$',             {'permissions': S_IFREG | 0o666}),
-            ('readonly',      r'-r--r--r-- .* 0 .* readonly$',            {'permissions': S_IFREG | 0o444}),
-            ('small',         r'-rw-rw-rw- .* 10 .* small$',              {'permissions': S_IFREG | 0o666, 'size': 10}),
-            ('small2',        r'-rw-rw-rw- .* 26 .* small2$',             {'permissions': S_IFREG | 0o666, 'size': 26}),
-            ('tiny_lit_dir',  r'dr-xr-xr-x .* 0 .* tiny_lit_dir$',        {'permissions': S_IFDIR | 0o555}),
-            ('unknown',       r'\?--------- .* 0 .* unknown$',            {'permissions': 0}),
+            ('loop',          br'drwxrwxrwx .* 0 .* loop$',                {'permissions': S_IFDIR | 0o777}),
+            ('mutable',       br'-rw-rw-rw- .* 0 .* mutable$',             {'permissions': S_IFREG | 0o666}),
+            ('readonly',      br'-r--r--r-- .* 0 .* readonly$',            {'permissions': S_IFREG | 0o444}),
+            ('small',         br'-rw-rw-rw- .* 10 .* small$',              {'permissions': S_IFREG | 0o666, 'size': 10}),
+            ('small2',        br'-rw-rw-rw- .* 26 .* small2$',             {'permissions': S_IFREG | 0o666, 'size': 26}),
+            ('tiny_lit_dir',  br'dr-xr-xr-x .* 0 .* tiny_lit_dir$',        {'permissions': S_IFDIR | 0o555}),
+            ('unknown',       br'\?--------- .* 0 .* unknown$',            {'permissions': 0}),
         ]
 
-        d.addCallback(lambda ign: self.handler.openDirectory(""))
+        d.addCallback(lambda ign: self.handler.openDirectory(b""))
         d.addCallback(lambda res: self._compareDirLists(res, expected_root))
 
-        d.addCallback(lambda ign: self.handler.openDirectory("loop"))
+        d.addCallback(lambda ign: self.handler.openDirectory(b"loop"))
         d.addCallback(lambda res: self._compareDirLists(res, expected_root))
 
-        d.addCallback(lambda ign: self.handler.openDirectory("loop/loop"))
+        d.addCallback(lambda ign: self.handler.openDirectory(b"loop/loop"))
         d.addCallback(lambda res: self._compareDirLists(res, expected_root))
 
-        d.addCallback(lambda ign: self.handler.openDirectory("empty_lit_dir"))
+        d.addCallback(lambda ign: self.handler.openDirectory(b"empty_lit_dir"))
         d.addCallback(lambda res: self._compareDirLists(res, []))
 
         # The UTC epoch may either be in Jan 1 1970 or Dec 31 1969 depending on the gateway's timezone.
@@ -320,10 +320,10 @@ class Handler(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, unittest.TestCas
             ('short', r'-r--r--r-- .* 8 (Jan 01  1970|Dec 31  1969) short$', {'permissions': S_IFREG | 0o444, 'size': 8}),
         ]
 
-        d.addCallback(lambda ign: self.handler.openDirectory("tiny_lit_dir"))
+        d.addCallback(lambda ign: self.handler.openDirectory(b"tiny_lit_dir"))
         d.addCallback(lambda res: self._compareDirLists(res, expected_tiny_lit))
 
-        d.addCallback(lambda ign: self.handler.getAttrs("small", True))
+        d.addCallback(lambda ign: self.handler.getAttrs(b"small", True))
         d.addCallback(lambda attrs: self._compareAttributes(attrs, {'permissions': S_IFREG | 0o666, 'size': 10}))
 
         d.addCallback(lambda ign: self.handler.setAttrs("small", {}))
@@ -542,7 +542,7 @@ class Handler(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, unittest.TestCas
         # The check at the end of openFile_read tested this for large files,
         # but it trashed the grid in the process, so this needs to be a
         # separate test.
-        small = upload.Data("0123456789"*10, None)
+        small = upload.Data(b"0123456789"*10, None)
         d = self._set_up("openFile_read_error")
         d.addCallback(lambda ign: self.root.add_file(u"small", small))
         d.addCallback(lambda n: self.handler.openFile("/uri/"+n.get_uri(), sftp.FXF_READ, {}))
@@ -1342,7 +1342,7 @@ class Handler(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, unittest.TestCas
         d.addCallback(lambda ign: self._set_up_tree())
 
         # making a directory at a correct path should succeed
-        d.addCallback(lambda ign: self.handler.makeDirectory("newdir", {'ext_foo': 'bar', 'ctime': 42}))
+        d.addCallback(lambda ign: self.handler.makeDirectory(b"newdir", {'ext_foo': 'bar', 'ctime': 42}))
 
         d.addCallback(lambda ign: self.root.get_child_and_metadata(u"newdir"))
         def _got(child_and_metadata):
@@ -1358,7 +1358,7 @@ class Handler(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, unittest.TestCas
         d.addCallback(_got)
 
         # making intermediate directories should also succeed
-        d.addCallback(lambda ign: self.handler.makeDirectory("newparent/newchild", {}))
+        d.addCallback(lambda ign: self.handler.makeDirectory(b"newparent/newchild", {}))
 
         d.addCallback(lambda ign: self.root.get(u"newparent"))
         def _got_newparent(newparent):
@@ -1373,18 +1373,18 @@ class Handler(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, unittest.TestCas
         d.addCallback(_got_newchild)
 
         d.addCallback(lambda ign:
-            self.shouldFailWithSFTPError(sftp.FX_NO_SUCH_FILE, "makeDirectory invalid UTF-8",
-                                         self.handler.makeDirectory, "\xFF", {}))
+            self.shouldFailWithSFTPError(sftp.FX_NO_SUCH_FILE, b"makeDirectory invalid UTF-8",
+                                         self.handler.makeDirectory, b"\xFF", {}))
 
         # should fail because there is an existing file "small"
         d.addCallback(lambda ign:
-            self.shouldFailWithSFTPError(sftp.FX_FAILURE, "makeDirectory small",
-                                         self.handler.makeDirectory, "small", {}))
+            self.shouldFailWithSFTPError(sftp.FX_FAILURE, b"makeDirectory small",
+                                         self.handler.makeDirectory, b"small", {}))
 
         # directories cannot be created read-only via SFTP
         d.addCallback(lambda ign:
-            self.shouldFailWithSFTPError(sftp.FX_PERMISSION_DENIED, "makeDirectory newdir2 permissions:0444 denied",
-                                         self.handler.makeDirectory, "newdir2",
+            self.shouldFailWithSFTPError(sftp.FX_PERMISSION_DENIED, b"makeDirectory newdir2 permissions:0444 denied",
+                                         self.handler.makeDirectory, b"newdir2",
                                          {'permissions': 0o444}))
 
         d.addCallback(lambda ign: self.failUnlessEqual(sftpd.all_heisenfiles, {}))
