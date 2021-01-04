@@ -1,6 +1,9 @@
 
 import os
 import json
+from io import (
+    BytesIO,
+)
 
 from ..common import (
     SyncTestCase,
@@ -84,6 +87,29 @@ class GridManagerCommandLine(SyncTestCase):
                 {"private_key", "grid_manager_config_version"},
                 set(config.keys()),
             )
+
+    def test_list_stdout(self):
+        """
+        Load Grid Manager without files (using 'list' subcommand, but any will do)
+        """
+        config = {
+            "storage_servers": {
+                "storage0": {
+                    "public_key": "pub-v0-cbq6hcf3pxcz6ouoafrbktmkixkeuywpcpbcomzd3lqbkq4nmfga"
+                }
+            },
+            "private_key": "priv-v0-6uinzyaxy3zvscwgsps5pxcfezhrkfb43kvnrbrhhfzyduyqnniq",
+            "grid_manager_config_version": 0
+        }
+        result = self.runner.invoke(
+            grid_manager, ["--config", "-", "list"],
+            input=BytesIO(json.dumps(config)),
+        )
+        self.assertEqual(result.exit_code, 0)
+        self.assertEqual(
+            "storage0: pub-v0-cbq6hcf3pxcz6ouoafrbktmkixkeuywpcpbcomzd3lqbkq4nmfga\n",
+            result.output,
+        )
 
     def test_add_and_sign(self):
         """
