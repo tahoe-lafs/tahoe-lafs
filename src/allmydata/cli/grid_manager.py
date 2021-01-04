@@ -194,10 +194,16 @@ def sign(ctx, name, expiry_days):
         next_serial = 0
         f = None
         while f is None:
+            fname = "{}.cert.{}".format(name, next_serial)
             try:
-                f = fp.child("{}.cert.{}".format(name, next_serial)).create()
-            except OSError:
-                f = None
+                f = fp.child(fname).create()
+            except OSError as e:
+                if e.errno == 17:  # file exists
+                    f = None
+                else:
+                    raise click.ClickException(
+                        "{}: {}".format(fname, e)
+                    )
             next_serial += 1
         with f:
             f.write(certificate_data)

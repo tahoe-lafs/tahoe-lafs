@@ -164,6 +164,23 @@ class GridManagerCommandLine(SyncTestCase):
                 result.output,
             )
 
+    def test_sign_bad_perms(self):
+        """
+        Error reported if we can't create certificate file
+        """
+        pubkey = "pub-v0-cbq6hcf3pxcz6ouoafrbktmkixkeuywpcpbcomzd3lqbkq4nmfga"
+        with self.runner.isolated_filesystem():
+            self.runner.invoke(grid_manager, ["--config", "foo", "create"])
+            self.runner.invoke(grid_manager, ["--config", "foo", "add", "storage0", pubkey])
+            # make the directory un-writable (so we can't create a new cert)
+            os.chmod("foo", 0o550)
+            result = self.runner.invoke(grid_manager, ["--config", "foo", "sign", "storage0", "42"])
+            self.assertEquals(result.exit_code, 1)
+            self.assertIn(
+                "Permission denied",
+                result.output,
+            )
+
 
 class TahoeAddGridManagerCert(AsyncTestCase):
     """
