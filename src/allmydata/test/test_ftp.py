@@ -46,7 +46,7 @@ class Handler(GridTestMixin, ReallyEqualMixin, unittest.TestCase):
 
     def _set_up_tree(self):
         # add immutable file at root
-        immutable = upload.Data("immutable file contents", None)
+        immutable = upload.Data(b"immutable file contents", None)
         d = self.root.add_file(u"immutable", immutable)
 
         # `mtime' and `linkmotime' both set
@@ -62,7 +62,7 @@ class Handler(GridTestMixin, ReallyEqualMixin, unittest.TestCase):
         d.addCallback(lambda _: self._set_metadata(u"loop", md_just_mtime))
 
         # add mutable file at root
-        mutable = publish.MutableData("mutable file contents")
+        mutable = publish.MutableData(b"mutable file contents")
         d.addCallback(lambda _: self.client.create_mutable_file(mutable))
         d.addCallback(lambda node: self.root.set_node(u"mutable", node))
 
@@ -93,11 +93,11 @@ class Handler(GridTestMixin, ReallyEqualMixin, unittest.TestCase):
         d.addCallback(lambda _: self.handler.list("", keys=keys))
 
         expected_root = [
-            ('loop',
+            (b'loop',
              [0, True, ftpd.IntishPermissions(0o600), 1, self.FALL_OF_BERLIN_WALL, 'alice', 'alice', '??']),
-            ('immutable',
+            (b'immutable',
              [23, False, ftpd.IntishPermissions(0o600), 1, self.TURN_OF_MILLENIUM, 'alice', 'alice', '??']),
-            ('mutable',
+            (b'mutable',
              # timestamp should be 0 if no timestamp metadata is present
              [0, False, ftpd.IntishPermissions(0o600), 1, 0, 'alice', 'alice', '??'])]
 

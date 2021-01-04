@@ -1,7 +1,5 @@
 from six import ensure_str
 
-from types import NoneType
-
 from zope.interface import implementer
 from twisted.application import service, strports
 from twisted.internet import defer
@@ -264,7 +262,7 @@ class Handler(object):
         d.addCallback(_list)
         def _render(children):
             results = []
-            for (name, childnode) in children.iteritems():
+            for (name, childnode) in children.items():
                 # the interface claims that the result should have a unicode
                 # object as the name, but it fails unless you give it a
                 # bytestring
@@ -317,7 +315,7 @@ class Dispatcher(object):
 
 class FTPServer(service.MultiService):
     def __init__(self, client, accountfile, accounturl, ftp_portstr):
-        precondition(isinstance(accountfile, (unicode, NoneType)), accountfile)
+        precondition(isinstance(accountfile, (unicode, type(None))), accountfile)
         service.MultiService.__init__(self)
 
         r = Dispatcher(client)
