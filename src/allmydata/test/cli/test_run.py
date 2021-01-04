@@ -6,12 +6,19 @@ from six.moves import (
     StringIO,
 )
 
+from testtools import (
+    skipIf,
+)
+
 from testtools.matchers import (
     Contains,
     Equals,
     HasLength,
 )
 
+from twisted.python.runtime import (
+    platform,
+)
 from twisted.python.filepath import (
     FilePath,
 )
@@ -134,6 +141,7 @@ class RunTests(SyncTestCase):
     """
     Tests for ``run``.
     """
+    @skipIf(platform.isWindows(), "There are no PID files on Windows.")
     def test_non_numeric_pid(self):
         """
         If the pidfile exists but does not contain a numeric value, a complaint to
