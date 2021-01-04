@@ -1,6 +1,6 @@
+from past.builtins import unicode
 import six
 import heapq, traceback, array, stat, struct
-from types import NoneType
 from stat import S_IFREG, S_IFDIR
 from time import time, strftime, localtime
 
@@ -267,7 +267,7 @@ def _attrs_to_metadata(attrs):
 
 
 def _direntry_for(filenode_or_parent, childname, filenode=None):
-    precondition(isinstance(childname, (unicode, NoneType)), childname=childname)
+    precondition(isinstance(childname, (unicode, type(None))), childname=childname)
 
     if childname is None:
         filenode_or_parent = filenode
@@ -1838,25 +1838,25 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
     def _path_from_string(self, pathstring):
         if noisy: self.log("CONVERT %r" % (pathstring,), level=NOISY)
 
-        _assert(isinstance(pathstring, str), pathstring=pathstring)
+        _assert(isinstance(pathstring, bytes), pathstring=pathstring)
 
         # The home directory is the root directory.
-        pathstring = pathstring.strip("/")
-        if pathstring == "" or pathstring == ".":
+        pathstring = pathstring.strip(b"/")
+        if pathstring == b"" or pathstring == b".":
             path_utf8 = []
         else:
-            path_utf8 = pathstring.split("/")
+            path_utf8 = pathstring.split(b"/")
 
         # <http://tools.ietf.org/html/draft-ietf-secsh-filexfer-02#section-6.2>
         # "Servers SHOULD interpret a path name component ".." as referring to
         #  the parent directory, and "." as referring to the current directory."
         path = []
         for p_utf8 in path_utf8:
-            if p_utf8 == "..":
+            if p_utf8 == b"..":
                 # ignore excess .. components at the root
                 if len(path) > 0:
                     path = path[:-1]
-            elif p_utf8 != ".":
+            elif p_utf8 != b".":
                 try:
                     p = p_utf8.decode('utf-8', 'strict')
                 except UnicodeError:
