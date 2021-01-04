@@ -6,6 +6,12 @@ from __future__ import (
 import os.path, re, sys
 from os import linesep
 
+import six
+
+from testtools import (
+    skipUnless,
+)
+
 from twisted.trial import unittest
 
 from twisted.internet import reactor
@@ -22,6 +28,10 @@ from allmydata.util import fileutil, pollmixin
 from allmydata.util.encodingutil import unicode_to_argv, unicode_to_output
 from allmydata.test import common_util
 import allmydata
+from allmydata.scripts.runner import (
+    parse_options,
+)
+
 from .common_util import parse_cli, run_cli
 from .cli_node_api import (
     CLINodeAPI,
@@ -35,6 +45,9 @@ from ._twisted_9607 import (
 from ..util.eliotutil import (
     inline_callbacks,
     log_call_deferred,
+)
+from .common import (
+    SyncTestCase,
 )
 
 def get_root_from_file(src):
@@ -70,6 +83,27 @@ class RunBinTahoeMixin(object):
             return (out, err, -signal)
         d.addErrback(fix_signal)
         return d
+
+
+class ParseOptionsTests(SyncTestCase):
+    """
+    Tests for ``parse_options``.
+    """
+    @skipUnless(six.PY2, "Only Python 2 exceptions must stringify to bytes.")
+    def test_nonascii_unknown_subcommand_python2(self):
+        """
+        When ``parse_options`` is called with an argv indicating a subcommand that
+        does not exist and which also contains non-ascii characters, the
+        exception it raises includes the subcommand encoded as UTF-8.
+        """
+        tricky = u"\u2621"
+        try:
+            parse_options([unicode_to_argv(tricky, mangle=True)])
+        except usage.error as e:
+            self.assertEqual(
+                b"Unknown command: " + tricky.encode("utf-8"),
+                str(e)
+            )
 
 
 class BinTahoe(common_util.SignalMixin, unittest.TestCase, RunBinTahoeMixin):
