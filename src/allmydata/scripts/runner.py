@@ -235,11 +235,28 @@ def run(configFactory=Options, argv=sys.argv, stdout=sys.stdout, stderr=sys.stde
 
 def _setup_coverage(reactor, argv):
     """
-    Arrange for coverage to be collected if the 'coverage' package is
-    installed
+    If coverage measurement was requested, start collecting coverage
+    measurements and arrange to record those measurements when the process is
+    done.
+
+    Coverage measurement is considered requested if ``"--coverage"`` is in
+    ``argv`` (and it will be removed from ``argv`` if it is found).  There
+    should be a ``.coveragerc`` file in the working directory if coverage
+    measurement is requested.
+
+    This is only necessary to support multi-process coverage measurement,
+    typically when the test suite is running, and with the pytest-based
+    *integration* test suite (at ``integration/`` in the root of the source
+    tree) foremost in mind.  The idea is that if you are running Tahoe-LAFS in
+    a configuration where multiple processes are involved - for example, a
+    test process and a client node process, if you only measure coverage from
+    the test process then you will fail to observe most Tahoe-LAFS code that
+    is being run.
+
+    This function arranges to have any Tahoe-LAFS process (such as that
+    client node process) collect and report coverage measurements as well.
     """
-    # can we put this _setup_coverage call after we hit
-    # argument-parsing?
+    # can we put this _setup_coverage call after we hit argument-parsing?
     if '--coverage' not in argv:
         return
     argv.remove('--coverage')
