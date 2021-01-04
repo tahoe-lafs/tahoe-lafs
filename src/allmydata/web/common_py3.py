@@ -70,6 +70,7 @@ class MultiFormatResource(resource.Resource, object):
         :return: The result of the selected renderer.
         """
         t = get_arg(req, self.formatArgument, self.formatDefault)
+        # It's either bytes or None.
         if isinstance(t, bytes):
             t = unicode(t, "ascii")
         renderer = self._get_renderer(t)
