@@ -17,23 +17,7 @@ from ..interfaces import (
     IAddressFamily,
 )
 
-def create(reactor, config):
-    """
-    Create a new _Provider service (this is an IService so must be
-    hooked up to a parent or otherwise started).
-
-    If foolscap.connections.tor or txtorcon are not installed, then
-    Provider.get_tor_handler() will return None.  If tahoe.cfg wants
-    to start an onion service too, then this `create()` method will
-    throw a nice error (and startService will throw an ugly error).
-    """
-    provider = _Provider(config, reactor)
-    provider.check_onion_config()
-    return provider
-
-
 def _import_tor():
-    # this exists to be overridden by unit tests
     try:
         from foolscap.connections import tor
         return tor
@@ -46,6 +30,25 @@ def _import_txtorcon():
         return txtorcon
     except ImportError: # pragma: no cover
         return None
+
+def create(reactor, config, import_tor=None, import_txtorcon=None):
+    """
+    Create a new _Provider service (this is an IService so must be
+    hooked up to a parent or otherwise started).
+
+    If foolscap.connections.tor or txtorcon are not installed, then
+    Provider.get_tor_handler() will return None.  If tahoe.cfg wants
+    to start an onion service too, then this `create()` method will
+    throw a nice error (and startService will throw an ugly error).
+    """
+    if import_tor is None:
+        import_tor = _import_tor
+    if import_txtorcon is None:
+        import_txtorcon = _import_txtorcon
+    provider = _Provider(config, reactor, import_tor(), import_txtorcon())
+    provider.check_onion_config()
+    return provider
+
 
 def data_directory(private_dir):
     return os.path.join(private_dir, "tor-statedir")
@@ -217,14 +220,14 @@ def create_config(reactor, cli_config):
 
 @implementer(IAddressFamily)
 class _Provider(service.MultiService):
-    def __init__(self, config, reactor):
+    def __init__(self, config, reactor, tor, txtorcon):
         service.MultiService.__init__(self)
         self._config = config
         self._tor_launched = None
         self._onion_ehs = None
         self._onion_tor_control_proto = None
-        self._tor = _import_tor()
-        self._txtorcon = _import_txtorcon()
+        self._tor = tor
+        self._txtorcon = txtorcon
         self._reactor = reactor
 
     def _get_tor_config(self, *args, **kwargs):
