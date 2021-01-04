@@ -1,5 +1,9 @@
 from __future__ import print_function
 
+from future.utils import PY2, native_str, bchr, binary_type
+from future.builtins import str as future_str
+from past.builtins import unicode
+
 import os
 import time
 import signal
@@ -17,9 +21,6 @@ from twisted.trial import unittest
 from ..util.assertutil import precondition
 from ..scripts import runner
 from allmydata.util.encodingutil import unicode_platform, get_filesystem_encoding, get_io_encoding
-# Imported for backwards compatibility:
-from future.utils import bord, bchr, binary_type
-from past.builtins import unicode
 
 
 def skip_if_cannot_represent_filename(u):
@@ -48,24 +49,23 @@ def _getvalue(io):
     return io.read()
 
 
-def run_cli_bytes(verb, *args, **kwargs):
+def run_cli_native(verb, *args, **kwargs):
     """
-    Run a Tahoe-LAFS CLI command specified as bytes.
+    Run a Tahoe-LAFS CLI command specified as bytes (on Python 2) or Unicode
+    (on Python 3); basically, it accepts a native string.
 
     Most code should prefer ``run_cli_unicode`` which deals with all the
-    necessary encoding considerations.  This helper still exists so that novel
-    misconfigurations can be explicitly tested (for example, receiving UTF-8
-    bytes when the system encoding claims to be ASCII).
+    necessary encoding considerations.
 
-    :param bytes verb: The command to run.  For example, ``b"create-node"``.
+    :param native_str verb: The command to run.  For example, ``"create-node"``.
 
-    :param [bytes] args: The arguments to pass to the command.  For example,
-        ``(b"--hostname=localhost",)``.
+    :param [native_str] args: The arguments to pass to the command.  For example,
+        ``("--hostname=localhost",)``.
 
-    :param [bytes] nodeargs: Extra arguments to pass to the Tahoe executable
+    :param [native_str] nodeargs: Extra arguments to pass to the Tahoe executable
         before ``verb``.
 
-    :param bytes stdin: Text to pass to the command via stdin.
+    :param native_str stdin: Text to pass to the command via stdin.
 
     :param NoneType|str encoding: The name of an encoding which stdout and
         stderr will be configured to use.  ``None`` means stdout and stderr
@@ -75,8 +75,8 @@ def run_cli_bytes(verb, *args, **kwargs):
     nodeargs = kwargs.pop("nodeargs", [])
     encoding = kwargs.pop("encoding", None)
     precondition(
-        all(isinstance(arg, bytes) for arg in [verb] + nodeargs + list(args)),
-        "arguments to run_cli must be bytes -- convert using unicode_to_argv",
+        all(isinstance(arg, native_str) for arg in [verb] + nodeargs + list(args)),
+        "arguments to run_cli must be a native string -- convert using unicode_to_argv",
         verb=verb,
         args=args,
         nodeargs=nodeargs,
@@ -139,15 +139,19 @@ def run_cli_unicode(verb, argv, nodeargs=None, stdin=None, encoding=None):
     if nodeargs is None:
         nodeargs = []
     precondition(
-        all(isinstance(arg, unicode) for arg in [verb] + nodeargs + argv),
+        all(isinstance(arg, future_str) for arg in [verb] + nodeargs + argv),
         "arguments to run_cli_unicode must be unicode",
         verb=verb,
         nodeargs=nodeargs,
         argv=argv,
     )
     codec = encoding or "ascii"
-    encode = lambda t: None if t is None else t.encode(codec)
-    d = run_cli_bytes(
+    if PY2:
+        encode = lambda t: None if t is None else t.encode(codec)
+    else:
+        # On Python 3 command-line parsing expects Unicode!
+        encode = lambda t: t
+    d = run_cli_native(
         encode(verb),
         nodeargs=list(encode(arg) for arg in nodeargs),
         stdin=encode(stdin),
@@ -165,7 +169,7 @@ def run_cli_unicode(verb, argv, nodeargs=None, stdin=None, encoding=None):
     return d
 
 
-run_cli = run_cli_bytes
+run_cli = run_cli_native
 
 
 def parse_cli(*argv):
@@ -181,13 +185,12 @@ def insecurerandstr(n):
     return b''.join(map(bchr, map(randrange, [0]*n, [256]*n)))
 
 def flip_bit(good, which):
-    # TODO Probs need to update with bchr/bord as with flip_one_bit, below.
-    # flip the low-order bit of good[which]
+    """Flip the low-order bit of good[which]."""
     if which == -1:
-        pieces = good[:which], good[-1:], ""
+        pieces = good[:which], good[-1:], b""
     else:
         pieces = good[:which], good[which:which+1], good[which+1:]
-    return pieces[0] + chr(ord(pieces[1]) ^ 0x01) + pieces[2]
+    return pieces[0] + bchr(ord(pieces[1]) ^ 0x01) + pieces[2]
 
 def flip_one_bit(s, offset=0, size=None):
     """ flip one random bit of the string s, in a byte greater than or equal to offset and less
@@ -196,7 +199,7 @@ def flip_one_bit(s, offset=0, size=None):
     if size is None:
         size=len(s)-offset
     i = randrange(offset, offset+size)
-    result = s[:i] + bchr(bord(s[i])^(0x01<<randrange(0, 8))) + s[i+1:]
+    result = s[:i] + bchr(ord(s[i:i+1])^(0x01<<randrange(0, 8))) + s[i+1:]
     assert result != s, "Internal error -- flip_one_bit() produced the same string as its input: %s == %s" % (result, s)
     return result
 

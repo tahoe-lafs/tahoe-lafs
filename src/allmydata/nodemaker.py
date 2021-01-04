@@ -1,3 +1,15 @@
+"""
+Ported to Python 3.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+
 import weakref
 from zope.interface import implementer
 from allmydata.util.assertutil import precondition
@@ -126,7 +138,7 @@ class NodeMaker(object):
 
     def create_new_mutable_directory(self, initial_children={}, version=None):
         # initial_children must have metadata (i.e. {} instead of None)
-        for (name, (node, metadata)) in initial_children.iteritems():
+        for (name, (node, metadata)) in initial_children.items():
             precondition(isinstance(metadata, dict),
                          "create_new_mutable_directory requires metadata to be a dict, not None", metadata)
             node.raise_error()

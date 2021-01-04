@@ -1,5 +1,7 @@
 """
-Tests for ``allmydata.test.eliotutil``.
+Tests for ``allmydata.util.eliotutil``.
+
+Ported to Python 3.
 """
 
 from __future__ import (
@@ -8,6 +10,10 @@ from __future__ import (
     absolute_import,
     division,
 )
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 from sys import stdout
 import logging
@@ -51,10 +57,13 @@ from ..util.eliotutil import (
     _parse_destination_description,
     _EliotLogging,
 )
+from ..util.jsonbytes import BytesJSONEncoder
+
 from .common import (
     SyncTestCase,
     AsyncTestCase,
 )
+
 
 class EliotLoggedTestTests(AsyncTestCase):
     def test_returns_none(self):
@@ -88,7 +97,7 @@ class ParseDestinationDescriptionTests(SyncTestCase):
         reactor = object()
         self.assertThat(
             _parse_destination_description("file:-")(reactor),
-            Equals(FileDestination(stdout)),
+            Equals(FileDestination(stdout, encoder=BytesJSONEncoder)),
         )
 
 

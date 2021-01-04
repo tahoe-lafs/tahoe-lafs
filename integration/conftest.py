@@ -201,9 +201,8 @@ log_gatherer.furl = {log_furl}
     with open(join(intro_dir, 'tahoe.cfg'), 'w') as f:
         f.write(config)
 
-    # on windows, "tahoe start" means: run forever in the foreground,
-    # but on linux it means daemonize. "tahoe run" is consistent
-    # between platforms.
+    # "tahoe run" is consistent across Linux/macOS/Windows, unlike the old
+    # "start" command.
     protocol = _MagicTextProtocol('introducer running')
     transport = _tahoe_runner_optional_coverage(
         protocol,
@@ -278,9 +277,8 @@ log_gatherer.furl = {log_furl}
     with open(join(intro_dir, 'tahoe.cfg'), 'w') as f:
         f.write(config)
 
-    # on windows, "tahoe start" means: run forever in the foreground,
-    # but on linux it means daemonize. "tahoe run" is consistent
-    # between platforms.
+    # "tahoe run" is consistent across Linux/macOS/Windows, unlike the old
+    # "start" command.
     protocol = _MagicTextProtocol('introducer running')
     transport = _tahoe_runner_optional_coverage(
         protocol,

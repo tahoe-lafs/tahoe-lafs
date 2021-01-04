@@ -9,8 +9,7 @@ from twisted.internet import defer, task, threads
 
 from allmydata.scripts.common import get_default_nodedir
 from allmydata.scripts import debug, create_node, cli, \
-    admin, tahoe_daemonize, tahoe_start, \
-    tahoe_stop, tahoe_restart, tahoe_run, tahoe_invite
+    admin, tahoe_run, tahoe_invite
 from allmydata.util.encodingutil import quote_output, quote_local_unicode_path, get_io_encoding
 from allmydata.util.eliotutil import (
     opt_eliot_destination,
@@ -37,19 +36,11 @@ if _default_nodedir:
 
 # XXX all this 'dispatch' stuff needs to be unified + fixed up
 _control_node_dispatch = {
-    "daemonize": tahoe_daemonize.daemonize,
-    "start": tahoe_start.start,
     "run": tahoe_run.run,
-    "stop": tahoe_stop.stop,
-    "restart": tahoe_restart.restart,
 }
 
 process_control_commands = [
     ["run", None, tahoe_run.RunOptions, "run a node without daemonizing"],
-    ["daemonize", None, tahoe_daemonize.DaemonizeOptions, "(deprecated) run a node in the background"],
-    ["start", None, tahoe_start.StartOptions, "(deprecated) start a node in the background and confirm it started"],
-    ["stop", None, tahoe_stop.StopOptions, "(deprecated) stop a node"],
-    ["restart", None, tahoe_restart.RestartOptions, "(deprecated) restart a node"],
 ]
 
 

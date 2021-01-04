@@ -508,6 +508,7 @@ class StorageFarmBroker(service.MultiService):
 @implementer(IDisplayableServer)
 class StubServer(object):
     def __init__(self, serverid):
+        assert isinstance(serverid, bytes)
         self.serverid = serverid # binary tubid
     def get_serverid(self):
         return self.serverid

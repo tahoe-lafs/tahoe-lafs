@@ -1,6 +1,5 @@
 import os
 import time
-import json
 import urllib
 
 from hyperlink import DecodedURL, URL
@@ -21,7 +20,7 @@ from twisted.web.template import (
 )
 
 import allmydata # to display import path
-from allmydata.util import log
+from allmydata.util import log, jsonbytes as json
 from allmydata.interfaces import IFileNode
 from allmydata.web import (
     filenode,
@@ -158,7 +157,9 @@ class URIHandler(resource.Resource, object):
         try:
             node = self.client.create_node_from_uri(name)
             return directory.make_handler_for(node, self.client)
-        except (TypeError, AssertionError):
+        except (TypeError, AssertionError) as e:
+            log.msg(format="Failed to parse cap, perhaps due to bug: %(e)s",
+                    e=e, level=log.WEIRD)
             raise WebError(
                 "'{}' is not a valid file- or directory- cap".format(name)
             )
@@ -226,7 +227,10 @@ class Root(MultiFormatResource):
         self._client = client
         self._now_fn = now_fn
 
-        self.putChild("uri", URIHandler(client))
+        # Children need to be bytes; for now just doing these to make specific
+        # tests pass on Python 3, but eventually will do all them when this
+        # module is ported to Python 3 (if not earlier).
+        self.putChild(b"uri", URIHandler(client))
         self.putChild("cap", URIHandler(client))
 
         # Handler for everything beneath "/private", an area of the resource

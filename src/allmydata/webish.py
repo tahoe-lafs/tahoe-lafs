@@ -128,7 +128,7 @@ def _logFormatter(logDateTime, request):
         # sure we censor these too.
         if queryargs.startswith(b"uri="):
             queryargs = b"uri=[CENSORED]"
-        queryargs = "?" + queryargs
+        queryargs = b"?" + queryargs
     if path.startswith(b"/uri/"):
         path = b"/uri/[CENSORED]"
     elif path.startswith(b"/file/"):

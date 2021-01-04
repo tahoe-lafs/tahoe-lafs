@@ -70,7 +70,7 @@ def renderJSON(resource):
     """
     Render a JSON from the given resource.
     """
-    return render(resource, {"t": ["json"]})
+    return render(resource, {b"t": [b"json"]})
 
 class MyBucketCountingCrawler(BucketCountingCrawler):
     def finished_prefix(self, cycle, prefix):

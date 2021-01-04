@@ -5,8 +5,7 @@ from twisted.web.template import Element, XMLFile, renderElement, renderer
 from twisted.python.filepath import FilePath
 from twisted.web import static
 import allmydata
-import json
-from allmydata.util import idlib
+from allmydata.util import idlib, jsonbytes as json
 from allmydata.web.common import (
     render_time,
     MultiFormatResource,
