@@ -63,7 +63,7 @@ jobs:
       - name: "Report Coverage to Coveralls"
         uses: "coverallsapp/github-action@v1.1.2"
         with:
-          github-token: "${{ secrets.github_token }}"
+          github-token: "${{ secrets.GITHUB_TOKEN }}"
           # Every source of coverage reports needs a unique "flag name".
           # Construct one by smashing a few variables from the matrix together
           # here.
@@ -91,7 +91,7 @@ jobs:
       - name: "Finish Coveralls Reporting"
         uses: "coverallsapp/github-action@v1.1.2"
         with:
-          github-token: "${{ secrets.github_token }}"
+          github-token: "${{ secrets.GITHUB_TOKEN }}"
           # Here's the magic that tells Coveralls we're done.
           parallel-finished: true
 
