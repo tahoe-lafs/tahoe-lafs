@@ -55,7 +55,7 @@ def eventually_errback(d):
 def _utf8(x):
     if isinstance(x, unicode):
         return x.encode('utf-8')
-    if isinstance(x, str):
+    if isinstance(x, bytes):
         return x
     return repr(x)
 
@@ -146,7 +146,7 @@ def _lsLine(name, attrs):
     # Since we now depend on Twisted v10.1, consider calling Twisted's version.
 
     mode = st_mode
-    perms = array.array('c', '-'*10)
+    perms = ["-"] * 10
     ft = stat.S_IFMT(mode)
     if   stat.S_ISDIR(ft): perms[0] = 'd'
     elif stat.S_ISREG(ft): perms[0] = '-'
@@ -165,7 +165,7 @@ def _lsLine(name, attrs):
     if mode&stat.S_IXOTH: perms[9] = 'x'
     # suid/sgid never set
 
-    l = perms.tostring()
+    l = "".join(perms)
     l += str(st_nlink).rjust(5) + ' '
     un = str(st_uid)
     l += un.ljust(9)
@@ -182,6 +182,7 @@ def _lsLine(name, attrs):
         l += strftime("%b %d  %Y ", localtime(st_mtime))
     else:
         l += strftime("%b %d %H:%M ", localtime(st_mtime))
+    l = l.encode("utf-8")
     l += name
     return l
 
@@ -275,7 +276,7 @@ def _direntry_for(filenode_or_parent, childname, filenode=None):
     if filenode_or_parent:
         rw_uri = filenode_or_parent.get_write_uri()
         if rw_uri and childname:
-            return rw_uri + "/" + childname.encode('utf-8')
+            return rw_uri + b"/" + childname.encode('utf-8')
         else:
             return rw_uri
 
@@ -509,7 +510,7 @@ class OverwriteableFileConsumer(PrefixingLogMixin):
         return d
 
     def download_done(self, res):
-        _assert(isinstance(res, (str, Failure)), res=res)
+        _assert(isinstance(res, (bytes, Failure)), res=res)
         # Only the first call to download_done counts, but we log subsequent calls
         # (multiple calls are normal).
         if self.done_status is not None:
@@ -565,7 +566,7 @@ class ShortReadOnlySFTPFile(PrefixingLogMixin):
         PrefixingLogMixin.__init__(self, facility="tahoe.sftp", prefix=userpath)
         if noisy: self.log(".__init__(%r, %r, %r)" % (userpath, filenode, metadata), level=NOISY)
 
-        precondition(isinstance(userpath, str) and IFileNode.providedBy(filenode),
+        precondition(isinstance(userpath, bytes) and IFileNode.providedBy(filenode),
                      userpath=userpath, filenode=filenode)
         self.filenode = filenode
         self.metadata = metadata
@@ -649,7 +650,7 @@ class GeneralSFTPFile(PrefixingLogMixin):
         if noisy: self.log(".__init__(%r, %r = %r, %r, <convergence censored>)" %
                            (userpath, flags, _repr_flags(flags), close_notify), level=NOISY)
 
-        precondition(isinstance(userpath, str), userpath=userpath)
+        precondition(isinstance(userpath, bytes), userpath=userpath)
         self.userpath = userpath
         self.flags = flags
         self.close_notify = close_notify
@@ -672,7 +673,7 @@ class GeneralSFTPFile(PrefixingLogMixin):
         self.log(".open(parent=%r, childname=%r, filenode=%r, metadata=%r)" %
                  (parent, childname, filenode, metadata), level=OPERATIONAL)
 
-        precondition(isinstance(childname, (unicode, NoneType)), childname=childname)
+        precondition(isinstance(childname, (unicode, type(None))), childname=childname)
         precondition(filenode is None or IFileNode.providedBy(filenode), filenode=filenode)
         precondition(not self.closed, sftpfile=self)
 
@@ -723,7 +724,7 @@ class GeneralSFTPFile(PrefixingLogMixin):
     def rename(self, new_userpath, new_parent, new_childname):
         self.log(".rename(%r, %r, %r)" % (new_userpath, new_parent, new_childname), level=OPERATIONAL)
 
-        precondition(isinstance(new_userpath, str) and isinstance(new_childname, unicode),
+        precondition(isinstance(new_userpath, bytes) and isinstance(new_childname, unicode),
                      new_userpath=new_userpath, new_childname=new_childname)
         self.userpath = new_userpath
         self.parent = new_parent
@@ -1039,7 +1040,7 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
         request = "._abandon_any_heisenfiles(%r, %r)" % (userpath, direntry)
         self.log(request, level=OPERATIONAL)
 
-        precondition(isinstance(userpath, str), userpath=userpath)
+        precondition(isinstance(userpath, bytes), userpath=userpath)
 
         # First we synchronously mark all heisenfiles matching the userpath or direntry
         # as abandoned, and remove them from the two heisenfile dicts. Then we .sync()
@@ -1088,8 +1089,8 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
                    (from_userpath, from_parent, from_childname, to_userpath, to_parent, to_childname, overwrite))
         self.log(request, level=OPERATIONAL)
 
-        precondition((isinstance(from_userpath, str) and isinstance(from_childname, unicode) and
-                      isinstance(to_userpath, str) and isinstance(to_childname, unicode)),
+        precondition((isinstance(from_userpath, bytes) and isinstance(from_childname, unicode) and
+                      isinstance(to_userpath, bytes) and isinstance(to_childname, unicode)),
                      from_userpath=from_userpath, from_childname=from_childname, to_userpath=to_userpath, to_childname=to_childname)
 
         if noisy: self.log("all_heisenfiles = %r\nself._heisenfiles = %r" % (all_heisenfiles, self._heisenfiles), level=NOISY)
@@ -1161,7 +1162,7 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
         request = "._update_attrs_for_heisenfiles(%r, %r, %r)" % (userpath, direntry, attrs)
         self.log(request, level=OPERATIONAL)
 
-        _assert(isinstance(userpath, str) and isinstance(direntry, str),
+        _assert(isinstance(userpath, bytes) and isinstance(direntry, bytes),
                 userpath=userpath, direntry=direntry)
 
         files = []
@@ -1194,7 +1195,7 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
         request = "._sync_heisenfiles(%r, %r, ignore=%r)" % (userpath, direntry, ignore)
         self.log(request, level=OPERATIONAL)
 
-        _assert(isinstance(userpath, str) and isinstance(direntry, (str, NoneType)),
+        _assert(isinstance(userpath, bytes) and isinstance(direntry, (bytes, type(None))),
                 userpath=userpath, direntry=direntry)
 
         files = []
@@ -1219,7 +1220,7 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
     def _remove_heisenfile(self, userpath, parent, childname, file_to_remove):
         if noisy: self.log("._remove_heisenfile(%r, %r, %r, %r)" % (userpath, parent, childname, file_to_remove), level=NOISY)
 
-        _assert(isinstance(userpath, str) and isinstance(childname, (unicode, NoneType)),
+        _assert(isinstance(userpath, bytes) and isinstance(childname, (bytes, type(None))),
                 userpath=userpath, childname=childname)
 
         direntry = _direntry_for(parent, childname)
@@ -1246,7 +1247,7 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
                            (existing_file, userpath, flags, _repr_flags(flags), parent, childname, filenode, metadata),
                            level=NOISY)
 
-        _assert((isinstance(userpath, str) and isinstance(childname, (unicode, NoneType)) and
+        _assert((isinstance(userpath, bytes) and isinstance(childname, (unicode, type(None))) and
                 (metadata is None or 'no-write' in metadata)),
                 userpath=userpath, childname=childname, metadata=metadata)
 
@@ -1979,7 +1980,7 @@ class SFTPServer(service.MultiService):
 
     def __init__(self, client, accountfile, accounturl,
                  sftp_portstr, pubkey_file, privkey_file):
-        precondition(isinstance(accountfile, (unicode, NoneType)), accountfile)
+        precondition(isinstance(accountfile, (unicode, type(None))), accountfile)
         precondition(isinstance(pubkey_file, unicode), pubkey_file)
         precondition(isinstance(privkey_file, unicode), privkey_file)
         service.MultiService.__init__(self)

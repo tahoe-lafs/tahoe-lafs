@@ -290,17 +290,17 @@ class Handler(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, unittest.TestCas
 
         gross = u"gro\u00DF".encode("utf-8")
         expected_root = [
-            ('empty_lit_dir', br'dr-xr-xr-x .* 0 .* empty_lit_dir$',       {'permissions': S_IFDIR | 0o555}),
+            (b'empty_lit_dir', br'dr-xr-xr-x .* 0 .* empty_lit_dir$',       {'permissions': S_IFDIR | 0o555}),
             (gross,           br'-rw-rw-rw- .* 1010 .* '+gross+b'$',        {'permissions': S_IFREG | 0o666, 'size': 1010}),
             # The fall of the Berlin wall may have been on 9th or 10th November 1989 depending on the gateway's timezone.
             #('loop',          r'drwxrwxrwx .* 0 Nov (09|10)  1989 loop$', {'permissions': S_IFDIR | 0777}),
-            ('loop',          br'drwxrwxrwx .* 0 .* loop$',                {'permissions': S_IFDIR | 0o777}),
-            ('mutable',       br'-rw-rw-rw- .* 0 .* mutable$',             {'permissions': S_IFREG | 0o666}),
-            ('readonly',      br'-r--r--r-- .* 0 .* readonly$',            {'permissions': S_IFREG | 0o444}),
-            ('small',         br'-rw-rw-rw- .* 10 .* small$',              {'permissions': S_IFREG | 0o666, 'size': 10}),
-            ('small2',        br'-rw-rw-rw- .* 26 .* small2$',             {'permissions': S_IFREG | 0o666, 'size': 26}),
-            ('tiny_lit_dir',  br'dr-xr-xr-x .* 0 .* tiny_lit_dir$',        {'permissions': S_IFDIR | 0o555}),
-            ('unknown',       br'\?--------- .* 0 .* unknown$',            {'permissions': 0}),
+            (b'loop',          br'drwxrwxrwx .* 0 .* loop$',                {'permissions': S_IFDIR | 0o777}),
+            (b'mutable',       br'-rw-rw-rw- .* 0 .* mutable$',             {'permissions': S_IFREG | 0o666}),
+            (b'readonly',      br'-r--r--r-- .* 0 .* readonly$',            {'permissions': S_IFREG | 0o444}),
+            (b'small',         br'-rw-rw-rw- .* 10 .* small$',              {'permissions': S_IFREG | 0o666, 'size': 10}),
+            (b'small2',        br'-rw-rw-rw- .* 26 .* small2$',             {'permissions': S_IFREG | 0o666, 'size': 26}),
+            (b'tiny_lit_dir',  br'dr-xr-xr-x .* 0 .* tiny_lit_dir$',        {'permissions': S_IFDIR | 0o555}),
+            (b'unknown',       br'\?--------- .* 0 .* unknown$',            {'permissions': 0}),
         ]
 
         d.addCallback(lambda ign: self.handler.openDirectory(b""))
@@ -317,7 +317,7 @@ class Handler(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, unittest.TestCas
 
         # The UTC epoch may either be in Jan 1 1970 or Dec 31 1969 depending on the gateway's timezone.
         expected_tiny_lit = [
-            ('short', r'-r--r--r-- .* 8 (Jan 01  1970|Dec 31  1969) short$', {'permissions': S_IFREG | 0o444, 'size': 8}),
+            (b'short', br'-r--r--r-- .* 8 (Jan 01  1970|Dec 31  1969) short$', {'permissions': S_IFREG | 0o444, 'size': 8}),
         ]
 
         d.addCallback(lambda ign: self.handler.openDirectory(b"tiny_lit_dir"))
@@ -326,15 +326,15 @@ class Handler(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, unittest.TestCas
         d.addCallback(lambda ign: self.handler.getAttrs(b"small", True))
         d.addCallback(lambda attrs: self._compareAttributes(attrs, {'permissions': S_IFREG | 0o666, 'size': 10}))
 
-        d.addCallback(lambda ign: self.handler.setAttrs("small", {}))
+        d.addCallback(lambda ign: self.handler.setAttrs(b"small", {}))
         d.addCallback(lambda res: self.failUnlessReallyEqual(res, None))
 
-        d.addCallback(lambda ign: self.handler.getAttrs("small", True))
+        d.addCallback(lambda ign: self.handler.getAttrs(b"small", True))
         d.addCallback(lambda attrs: self._compareAttributes(attrs, {'permissions': S_IFREG | 0o666, 'size': 10}))
 
         d.addCallback(lambda ign:
-            self.shouldFailWithSFTPError(sftp.FX_OP_UNSUPPORTED, "setAttrs size",
-                                         self.handler.setAttrs, "small", {'size': 0}))
+            self.shouldFailWithSFTPError(sftp.FX_OP_UNSUPPORTED, b"setAttrs size",
+                                         self.handler.setAttrs, b"small", {'size': 0}))
 
         d.addCallback(lambda ign: self.failUnlessEqual(sftpd.all_heisenfiles, {}))
         d.addCallback(lambda ign: self.failUnlessEqual(self.handler._heisenfiles, {}))
