@@ -89,10 +89,10 @@ class TahoeLAFSRequest(Request, object):
             }
 
             if 'content-length' not in headers:
-                # Python 3's cgi module would really, really like us to set
-                # Content-Length. This seems likely to shoot performance in
-                # the foot.
-                headers['content-length'] = len(self.content.getvalue())
+                # Python 3's cgi module would really, really like us to set Content-Length.
+                self.content.seek(0, 2)
+                headers['content-length'] = str(self.content.tell())
+                self.content.seek(0)
 
             self.fields = FieldStorage(self.content, headers, environ={'REQUEST_METHOD': 'POST'})
             self.content.seek(0)
