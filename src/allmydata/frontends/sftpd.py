@@ -336,7 +336,7 @@ class OverwriteableFileConsumer(PrefixingLogMixin):
             self.download_size = size
 
         if self.downloaded >= self.download_size:
-            self.download_done("size changed")
+            self.download_done(b"size changed")
 
     def registerProducer(self, p, streaming):
         if noisy: self.log(".registerProducer(%r, streaming=%r)" % (p, streaming), level=NOISY)
@@ -419,7 +419,7 @@ class OverwriteableFileConsumer(PrefixingLogMixin):
             eventually_callback(d)("reached")
 
         if milestone >= self.download_size:
-            self.download_done("reached download size")
+            self.download_done(b"reached download size")
 
     def overwrite(self, offset, data):
         if noisy: self.log(".overwrite(%r, <data of length %r>)" % (offset, len(data)), level=NOISY)
@@ -542,7 +542,7 @@ class OverwriteableFileConsumer(PrefixingLogMixin):
                 self.f.close()
             except Exception as e:
                 self.log("suppressed %r from close of temporary file %r" % (e, self.f), level=WEIRD)
-        self.download_done("closed")
+        self.download_done(b"closed")
         return self.done_status
 
     def unregisterProducer(self):
@@ -690,7 +690,7 @@ class GeneralSFTPFile(PrefixingLogMixin):
         if (self.flags & FXF_TRUNC) or not filenode:
             # We're either truncating or creating the file, so we don't need the old contents.
             self.consumer = OverwriteableFileConsumer(0, tempfile_maker)
-            self.consumer.download_done("download not needed")
+            self.consumer.download_done(b"download not needed")
         else:
             self.async_.addCallback(lambda ignored: filenode.get_best_readable_version())
 
@@ -704,7 +704,7 @@ class GeneralSFTPFile(PrefixingLogMixin):
                 d = version.read(self.consumer, 0, None)
                 def _finished(res):
                     if not isinstance(res, Failure):
-                        res = "download finished"
+                        res = b"download finished"
                     self.consumer.download_done(res)
                 d.addBoth(_finished)
                 # It is correct to drop d here.

@@ -345,85 +345,85 @@ class Handler(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, unittest.TestCas
         d.addCallback(lambda ign: self._set_up_tree())
 
         d.addCallback(lambda ign:
-            self.shouldFailWithSFTPError(sftp.FX_BAD_MESSAGE, "openFile small 0 bad",
-                                         self.handler.openFile, "small", 0, {}))
+            self.shouldFailWithSFTPError(sftp.FX_BAD_MESSAGE, b"openFile small 0 bad",
+                                         self.handler.openFile, b"small", 0, {}))
 
         # attempting to open a non-existent file should fail
         d.addCallback(lambda ign:
-            self.shouldFailWithSFTPError(sftp.FX_NO_SUCH_FILE, "openFile nofile READ nosuch",
-                                         self.handler.openFile, "nofile", sftp.FXF_READ, {}))
+            self.shouldFailWithSFTPError(sftp.FX_NO_SUCH_FILE, b"openFile nofile READ nosuch",
+                                         self.handler.openFile, b"nofile", sftp.FXF_READ, {}))
         d.addCallback(lambda ign:
-            self.shouldFailWithSFTPError(sftp.FX_NO_SUCH_FILE, "openFile nodir/file READ nosuch",
-                                         self.handler.openFile, "nodir/file", sftp.FXF_READ, {}))
+            self.shouldFailWithSFTPError(sftp.FX_NO_SUCH_FILE, b"openFile nodir/file READ nosuch",
+                                         self.handler.openFile, b"nodir/file", sftp.FXF_READ, {}))
 
         d.addCallback(lambda ign:
-            self.shouldFailWithSFTPError(sftp.FX_PERMISSION_DENIED, "openFile unknown READ denied",
-                                         self.handler.openFile, "unknown", sftp.FXF_READ, {}))
+            self.shouldFailWithSFTPError(sftp.FX_PERMISSION_DENIED, b"openFile unknown READ denied",
+                                         self.handler.openFile, b"unknown", sftp.FXF_READ, {}))
         d.addCallback(lambda ign:
-            self.shouldFailWithSFTPError(sftp.FX_PERMISSION_DENIED, "openFile unknown/file READ denied",
-                                         self.handler.openFile, "unknown/file", sftp.FXF_READ, {}))
+            self.shouldFailWithSFTPError(sftp.FX_PERMISSION_DENIED, b"openFile unknown/file READ denied",
+                                         self.handler.openFile, b"unknown/file", sftp.FXF_READ, {}))
         d.addCallback(lambda ign:
-            self.shouldFailWithSFTPError(sftp.FX_PERMISSION_DENIED, "openFile tiny_lit_dir READ denied",
-                                         self.handler.openFile, "tiny_lit_dir", sftp.FXF_READ, {}))
+            self.shouldFailWithSFTPError(sftp.FX_PERMISSION_DENIED, b"openFile tiny_lit_dir READ denied",
+                                         self.handler.openFile, b"tiny_lit_dir", sftp.FXF_READ, {}))
         d.addCallback(lambda ign:
-            self.shouldFailWithSFTPError(sftp.FX_PERMISSION_DENIED, "openFile unknown uri READ denied",
-                                         self.handler.openFile, "uri/"+self.unknown_uri, sftp.FXF_READ, {}))
+            self.shouldFailWithSFTPError(sftp.FX_PERMISSION_DENIED, b"openFile unknown uri READ denied",
+                                         self.handler.openFile, b"uri/"+self.unknown_uri, sftp.FXF_READ, {}))
         d.addCallback(lambda ign:
-            self.shouldFailWithSFTPError(sftp.FX_PERMISSION_DENIED, "openFile tiny_lit_dir uri READ denied",
-                                         self.handler.openFile, "uri/"+self.tiny_lit_dir_uri, sftp.FXF_READ, {}))
+            self.shouldFailWithSFTPError(sftp.FX_PERMISSION_DENIED, b"openFile tiny_lit_dir uri READ denied",
+                                         self.handler.openFile, b"uri/"+self.tiny_lit_dir_uri, sftp.FXF_READ, {}))
         # FIXME: should be FX_NO_SUCH_FILE?
         d.addCallback(lambda ign:
-            self.shouldFailWithSFTPError(sftp.FX_PERMISSION_DENIED, "openFile noexist uri READ denied",
-                                         self.handler.openFile, "uri/URI:noexist", sftp.FXF_READ, {}))
+            self.shouldFailWithSFTPError(sftp.FX_PERMISSION_DENIED, b"openFile noexist uri READ denied",
+                                         self.handler.openFile, b"uri/URI:noexist", sftp.FXF_READ, {}))
         d.addCallback(lambda ign:
-            self.shouldFailWithSFTPError(sftp.FX_NO_SUCH_FILE, "openFile invalid UTF-8 uri READ denied",
-                                         self.handler.openFile, "uri/URI:\xFF", sftp.FXF_READ, {}))
+            self.shouldFailWithSFTPError(sftp.FX_NO_SUCH_FILE, b"openFile invalid UTF-8 uri READ denied",
+                                         self.handler.openFile, b"uri/URI:\xFF", sftp.FXF_READ, {}))
 
         # reading an existing file should succeed
-        d.addCallback(lambda ign: self.handler.openFile("small", sftp.FXF_READ, {}))
+        d.addCallback(lambda ign: self.handler.openFile(b"small", sftp.FXF_READ, {}))
         def _read_small(rf):
             d2 = rf.readChunk(0, 10)
-            d2.addCallback(lambda data: self.failUnlessReallyEqual(data, "0123456789"))
+            d2.addCallback(lambda data: self.failUnlessReallyEqual(data, b"0123456789"))
 
             d2.addCallback(lambda ign: rf.readChunk(2, 6))
-            d2.addCallback(lambda data: self.failUnlessReallyEqual(data, "234567"))
+            d2.addCallback(lambda data: self.failUnlessReallyEqual(data, b"234567"))
 
             d2.addCallback(lambda ign: rf.readChunk(1, 0))
-            d2.addCallback(lambda data: self.failUnlessReallyEqual(data, ""))
+            d2.addCallback(lambda data: self.failUnlessReallyEqual(data, b""))
 
             d2.addCallback(lambda ign: rf.readChunk(8, 4))  # read that starts before EOF is OK
-            d2.addCallback(lambda data: self.failUnlessReallyEqual(data, "89"))
+            d2.addCallback(lambda data: self.failUnlessReallyEqual(data, b"89"))
 
             d2.addCallback(lambda ign:
-                self.shouldFailWithSFTPError(sftp.FX_EOF, "readChunk starting at EOF (0-byte)",
+                self.shouldFailWithSFTPError(sftp.FX_EOF, b"readChunk starting at EOF (0-byte)",
                                              rf.readChunk, 10, 0))
             d2.addCallback(lambda ign:
-                self.shouldFailWithSFTPError(sftp.FX_EOF, "readChunk starting at EOF",
+                self.shouldFailWithSFTPError(sftp.FX_EOF, b"readChunk starting at EOF",
                                              rf.readChunk, 10, 1))
             d2.addCallback(lambda ign:
-                self.shouldFailWithSFTPError(sftp.FX_EOF, "readChunk starting after EOF",
+                self.shouldFailWithSFTPError(sftp.FX_EOF, b"readChunk starting after EOF",
                                              rf.readChunk, 11, 1))
 
             d2.addCallback(lambda ign: rf.getAttrs())
             d2.addCallback(lambda attrs: self._compareAttributes(attrs, {'permissions': S_IFREG | 0o666, 'size': 10}))
 
-            d2.addCallback(lambda ign: self.handler.getAttrs("small", followLinks=0))
+            d2.addCallback(lambda ign: self.handler.getAttrs(b"small", followLinks=0))
             d2.addCallback(lambda attrs: self._compareAttributes(attrs, {'permissions': S_IFREG | 0o666, 'size': 10}))
 
             d2.addCallback(lambda ign:
-                self.shouldFailWithSFTPError(sftp.FX_PERMISSION_DENIED, "writeChunk on read-only handle denied",
-                                             rf.writeChunk, 0, "a"))
+                self.shouldFailWithSFTPError(sftp.FX_PERMISSION_DENIED, b"writeChunk on read-only handle denied",
+                                             rf.writeChunk, 0, b"a"))
             d2.addCallback(lambda ign:
-                self.shouldFailWithSFTPError(sftp.FX_PERMISSION_DENIED, "setAttrs on read-only handle denied",
+                self.shouldFailWithSFTPError(sftp.FX_PERMISSION_DENIED, b"setAttrs on read-only handle denied",
                                              rf.setAttrs, {}))
 
             d2.addCallback(lambda ign: rf.close())
 
             d2.addCallback(lambda ign:
-                self.shouldFailWithSFTPError(sftp.FX_BAD_MESSAGE, "readChunk on closed file bad",
+                self.shouldFailWithSFTPError(sftp.FX_BAD_MESSAGE, b"readChunk on closed file bad",
                                              rf.readChunk, 0, 1))
             d2.addCallback(lambda ign:
-                self.shouldFailWithSFTPError(sftp.FX_BAD_MESSAGE, "getAttrs on closed file bad",
+                self.shouldFailWithSFTPError(sftp.FX_BAD_MESSAGE, b"getAttrs on closed file bad",
                                              rf.getAttrs))
 
             d2.addCallback(lambda ign: rf.close()) # should be no-op
@@ -435,25 +435,25 @@ class Handler(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, unittest.TestCas
         d.addCallback(lambda ign: self.handler.openFile(gross, sftp.FXF_READ, {}))
         def _read_gross(rf):
             d2 = rf.readChunk(0, 10)
-            d2.addCallback(lambda data: self.failUnlessReallyEqual(data, "0123456789"))
+            d2.addCallback(lambda data: self.failUnlessReallyEqual(data, b"0123456789"))
 
             d2.addCallback(lambda ign: rf.readChunk(2, 6))
-            d2.addCallback(lambda data: self.failUnlessReallyEqual(data, "234567"))
+            d2.addCallback(lambda data: self.failUnlessReallyEqual(data, b"234567"))
 
             d2.addCallback(lambda ign: rf.readChunk(1, 0))
-            d2.addCallback(lambda data: self.failUnlessReallyEqual(data, ""))
+            d2.addCallback(lambda data: self.failUnlessReallyEqual(data, b""))
 
             d2.addCallback(lambda ign: rf.readChunk(1008, 4))  # read that starts before EOF is OK
-            d2.addCallback(lambda data: self.failUnlessReallyEqual(data, "89"))
+            d2.addCallback(lambda data: self.failUnlessReallyEqual(data, b"89"))
 
             d2.addCallback(lambda ign:
-                self.shouldFailWithSFTPError(sftp.FX_EOF, "readChunk starting at EOF (0-byte)",
+                self.shouldFailWithSFTPError(sftp.FX_EOF, b"readChunk starting at EOF (0-byte)",
                                              rf.readChunk, 1010, 0))
             d2.addCallback(lambda ign:
-                self.shouldFailWithSFTPError(sftp.FX_EOF, "readChunk starting at EOF",
+                self.shouldFailWithSFTPError(sftp.FX_EOF, b"readChunk starting at EOF",
                                              rf.readChunk, 1010, 1))
             d2.addCallback(lambda ign:
-                self.shouldFailWithSFTPError(sftp.FX_EOF, "readChunk starting after EOF",
+                self.shouldFailWithSFTPError(sftp.FX_EOF, b"readChunk starting after EOF",
                                              rf.readChunk, 1011, 1))
 
             d2.addCallback(lambda ign: rf.getAttrs())
@@ -463,19 +463,19 @@ class Handler(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, unittest.TestCas
             d2.addCallback(lambda attrs: self._compareAttributes(attrs, {'permissions': S_IFREG | 0o666, 'size': 1010}))
 
             d2.addCallback(lambda ign:
-                self.shouldFailWithSFTPError(sftp.FX_PERMISSION_DENIED, "writeChunk on read-only handle denied",
-                                             rf.writeChunk, 0, "a"))
+                self.shouldFailWithSFTPError(sftp.FX_PERMISSION_DENIED, b"writeChunk on read-only handle denied",
+                                             rf.writeChunk, 0, b"a"))
             d2.addCallback(lambda ign:
-                self.shouldFailWithSFTPError(sftp.FX_PERMISSION_DENIED, "setAttrs on read-only handle denied",
+                self.shouldFailWithSFTPError(sftp.FX_PERMISSION_DENIED, b"setAttrs on read-only handle denied",
                                              rf.setAttrs, {}))
 
             d2.addCallback(lambda ign: rf.close())
 
             d2.addCallback(lambda ign:
-                self.shouldFailWithSFTPError(sftp.FX_BAD_MESSAGE, "readChunk on closed file",
+                self.shouldFailWithSFTPError(sftp.FX_BAD_MESSAGE, b"readChunk on closed file",
                                              rf.readChunk, 0, 1))
             d2.addCallback(lambda ign:
-                self.shouldFailWithSFTPError(sftp.FX_BAD_MESSAGE, "getAttrs on closed file",
+                self.shouldFailWithSFTPError(sftp.FX_BAD_MESSAGE, b"getAttrs on closed file",
                                              rf.getAttrs))
 
             d2.addCallback(lambda ign: rf.close()) # should be no-op
@@ -483,37 +483,37 @@ class Handler(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, unittest.TestCas
         d.addCallback(_read_gross)
 
         # reading an existing small file via uri/ should succeed
-        d.addCallback(lambda ign: self.handler.openFile("uri/"+self.small_uri, sftp.FXF_READ, {}))
+        d.addCallback(lambda ign: self.handler.openFile(b"uri/"+self.small_uri, sftp.FXF_READ, {}))
         def _read_small_uri(rf):
             d2 = rf.readChunk(0, 10)
-            d2.addCallback(lambda data: self.failUnlessReallyEqual(data, "0123456789"))
+            d2.addCallback(lambda data: self.failUnlessReallyEqual(data, b"0123456789"))
             d2.addCallback(lambda ign: rf.close())
             return d2
         d.addCallback(_read_small_uri)
 
         # repeat for a large file
-        d.addCallback(lambda ign: self.handler.openFile("uri/"+self.gross_uri, sftp.FXF_READ, {}))
+        d.addCallback(lambda ign: self.handler.openFile(b"uri/"+self.gross_uri, sftp.FXF_READ, {}))
         def _read_gross_uri(rf):
             d2 = rf.readChunk(0, 10)
-            d2.addCallback(lambda data: self.failUnlessReallyEqual(data, "0123456789"))
+            d2.addCallback(lambda data: self.failUnlessReallyEqual(data, b"0123456789"))
             d2.addCallback(lambda ign: rf.close())
             return d2
         d.addCallback(_read_gross_uri)
 
         # repeat for a mutable file
-        d.addCallback(lambda ign: self.handler.openFile("uri/"+self.mutable_uri, sftp.FXF_READ, {}))
+        d.addCallback(lambda ign: self.handler.openFile(b"uri/"+self.mutable_uri, sftp.FXF_READ, {}))
         def _read_mutable_uri(rf):
             d2 = rf.readChunk(0, 100)
-            d2.addCallback(lambda data: self.failUnlessReallyEqual(data, "mutable file contents"))
+            d2.addCallback(lambda data: self.failUnlessReallyEqual(data, b"mutable file contents"))
             d2.addCallback(lambda ign: rf.close())
             return d2
         d.addCallback(_read_mutable_uri)
 
         # repeat for a file within a directory referenced by URI
-        d.addCallback(lambda ign: self.handler.openFile("uri/"+self.tiny_lit_dir_uri+"/short", sftp.FXF_READ, {}))
+        d.addCallback(lambda ign: self.handler.openFile(b"uri/"+self.tiny_lit_dir_uri+b"/short", sftp.FXF_READ, {}))
         def _read_short(rf):
             d2 = rf.readChunk(0, 100)
-            d2.addCallback(lambda data: self.failUnlessReallyEqual(data, "The end."))
+            d2.addCallback(lambda data: self.failUnlessReallyEqual(data, b"The end."))
             d2.addCallback(lambda ign: rf.close())
             return d2
         d.addCallback(_read_short)
@@ -521,12 +521,12 @@ class Handler(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, unittest.TestCas
         # check that failed downloads cause failed reads. Note that this
         # trashes the grid (by deleting all shares), so this must be at the
         # end of the test function.
-        d.addCallback(lambda ign: self.handler.openFile("uri/"+self.gross_uri, sftp.FXF_READ, {}))
+        d.addCallback(lambda ign: self.handler.openFile(b"uri/"+self.gross_uri, sftp.FXF_READ, {}))
         def _read_broken(rf):
             d2 = defer.succeed(None)
             d2.addCallback(lambda ign: self.g.nuke_from_orbit())
             d2.addCallback(lambda ign:
-                self.shouldFailWithSFTPError(sftp.FX_FAILURE, "read broken",
+                self.shouldFailWithSFTPError(sftp.FX_FAILURE, b"read broken",
                                              rf.readChunk, 0, 100))
             # close shouldn't fail
             d2.addCallback(lambda ign: rf.close())
