@@ -157,7 +157,7 @@ For the actual release, the tarball and signature files need to be
 uploaded to PyPI as well.
 
 - how to do this?
-- (original guide says only "twine upload dist/*")
+- (original guide says only `twine upload dist/*`)
 - the following developers have access to do this:
 
   - warner
