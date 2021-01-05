@@ -34,10 +34,10 @@ class Blacklist(object):
         try:
             if self.last_mtime is None or current_mtime > self.last_mtime:
                 self.entries.clear()
-                with open(self.blacklist_fn, "r") as f:
+                with open(self.blacklist_fn, "rb") as f:
                     for line in f:
                         line = line.strip()
-                        if not line or line.startswith("#"):
+                        if not line or line.startswith(b"#"):
                             continue
                         si_s, reason = line.split(None, 1)
                         si = base32.a2b(si_s) # must be valid base32

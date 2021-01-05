@@ -1,4 +1,5 @@
 from past.builtins import unicode
+from six import ensure_text, ensure_str
 
 import time
 import json
@@ -99,17 +100,19 @@ def get_filenode_metadata(filenode):
 
 def boolean_of_arg(arg):
     # TODO: ""
+    arg = ensure_text(arg)
     if arg.lower() not in ("true", "t", "1", "false", "f", "0", "on", "off"):
         raise WebError("invalid boolean argument: %r" % (arg,), http.BAD_REQUEST)
     return arg.lower() in ("true", "t", "1", "on")
 
 def parse_replace_arg(replace):
+    replace = ensure_text(replace)
     if replace.lower() == "only-files":
         return replace
     try:
         return boolean_of_arg(replace)
     except WebError:
-        raise WebError("invalid replace= argument: %r" % (replace,), http.BAD_REQUEST)
+        raise WebError("invalid replace= argument: %r" % (ensure_str(replace),), http.BAD_REQUEST)
 
 
 def get_format(req, default="CHK"):
@@ -118,11 +121,11 @@ def get_format(req, default="CHK"):
         if boolean_of_arg(get_arg(req, "mutable", "false")):
             return "SDMF"
         return default
-    if arg.upper() == "CHK":
+    if arg.upper() == b"CHK":
         return "CHK"
-    elif arg.upper() == "SDMF":
+    elif arg.upper() == b"SDMF":
         return "SDMF"
-    elif arg.upper() == "MDMF":
+    elif arg.upper() == b"MDMF":
         return "MDMF"
     else:
         raise WebError("Unknown format: %s, I know CHK, SDMF, MDMF" % arg,

@@ -1,5 +1,4 @@
-
-import json
+from past.builtins import unicode, long
 
 from twisted.web import http, static
 from twisted.internet import defer
@@ -41,6 +40,8 @@ from allmydata.web.check_results import (
     LiteralCheckResultsRenderer,
 )
 from allmydata.web.info import MoreInfo
+from allmydata.util import jsonbytes as json
+
 
 class ReplaceMeMixin(object):
     def replace_me_with_a_child(self, req, client, replace):
@@ -117,7 +118,7 @@ class PlaceHolderNodeHandler(Resource, ReplaceMeMixin):
 
     @render_exception
     def render_PUT(self, req):
-        t = get_arg(req, "t", "").strip()
+        t = get_arg(req, b"t", b"").strip()
         replace = parse_replace_arg(get_arg(req, "replace", "true"))
 
         assert self.parentnode and self.name
@@ -133,9 +134,9 @@ class PlaceHolderNodeHandler(Resource, ReplaceMeMixin):
 
     @render_exception
     def render_POST(self, req):
-        t = get_arg(req, "t", "").strip()
-        replace = boolean_of_arg(get_arg(req, "replace", "true"))
-        if t == "upload":
+        t = get_arg(req, b"t", b"").strip()
+        replace = boolean_of_arg(get_arg(req, b"replace", b"true"))
+        if t == b"upload":
             # like PUT, but get the file data from an HTML form's input field.
             # We could get here from POST /uri/mutablefilecap?t=upload,
             # or POST /uri/path/file?t=upload, or
@@ -179,7 +180,7 @@ class FileNodeHandler(Resource, ReplaceMeMixin, object):
 
     @render_exception
     def render_GET(self, req):
-        t = get_arg(req, "t", "").strip()
+        t = unicode(get_arg(req, b"t", b"").strip(), "ascii")
 
         # t=info contains variable ophandles, so is not allowed an ETag.
         FIXED_OUTPUT_TYPES = ["", "json", "uri", "readonly-uri"]
@@ -237,19 +238,19 @@ class FileNodeHandler(Resource, ReplaceMeMixin, object):
 
     @render_exception
     def render_HEAD(self, req):
-        t = get_arg(req, "t", "").strip()
+        t = get_arg(req, b"t", b"").strip()
         if t:
             raise WebError("HEAD file: bad t=%s" % t)
-        filename = get_arg(req, "filename", self.name) or "unknown"
+        filename = get_arg(req, b"filename", self.name) or "unknown"
         d = self.node.get_best_readable_version()
         d.addCallback(lambda dn: FileDownloader(dn, filename))
         return d
 
     @render_exception
     def render_PUT(self, req):
-        t = get_arg(req, "t", "").strip()
-        replace = parse_replace_arg(get_arg(req, "replace", "true"))
-        offset = parse_offset_arg(get_arg(req, "offset", None))
+        t = get_arg(req, b"t", b"").strip()
+        replace = parse_replace_arg(get_arg(req, b"replace", b"true"))
+        offset = parse_offset_arg(get_arg(req, b"offset", None))
 
         if not t:
             if not replace:
@@ -290,11 +291,11 @@ class FileNodeHandler(Resource, ReplaceMeMixin, object):
 
     @render_exception
     def render_POST(self, req):
-        t = get_arg(req, "t", "").strip()
-        replace = boolean_of_arg(get_arg(req, "replace", "true"))
-        if t == "check":
+        t = get_arg(req, b"t", b"").strip()
+        replace = boolean_of_arg(get_arg(req, b"replace", b"true"))
+        if t == b"check":
             d = self._POST_check(req)
-        elif t == "upload":
+        elif t == b"upload":
             # like PUT, but get the file data from an HTML form's input field
             # We could get here from POST /uri/mutablefilecap?t=upload,
             # or POST /uri/path/file?t=upload, or
