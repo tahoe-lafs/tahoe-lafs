@@ -25,6 +25,7 @@ Contents:
    known_issues
    contributing
    CODE_OF_CONDUCT
+   release-checklist
 
    servers
    helper
