@@ -328,7 +328,7 @@ class OverwriteableFileConsumer(PrefixingLogMixin):
         if size < self.current_size or size < self.downloaded:
             self.f.truncate(size)
         if size > self.current_size:
-            self.overwrite(self.current_size, "\x00" * (size - self.current_size))
+            self.overwrite(self.current_size, b"\x00" * (size - self.current_size))
         self.current_size = size
 
         # make the invariant self.download_size <= self.current_size be true again
@@ -436,7 +436,7 @@ class OverwriteableFileConsumer(PrefixingLogMixin):
             # the gap between the current EOF and the offset.
 
             self.f.seek(self.current_size)
-            self.f.write("\x00" * (offset - self.current_size))
+            self.f.write(b"\x00" * (offset - self.current_size))
             start = self.current_size
         else:
             self.f.seek(offset)
@@ -1220,7 +1220,7 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
     def _remove_heisenfile(self, userpath, parent, childname, file_to_remove):
         if noisy: self.log("._remove_heisenfile(%r, %r, %r, %r)" % (userpath, parent, childname, file_to_remove), level=NOISY)
 
-        _assert(isinstance(userpath, bytes) and isinstance(childname, (bytes, type(None))),
+        _assert(isinstance(userpath, bytes) and isinstance(childname, (unicode, type(None))),
                 userpath=userpath, childname=childname)
 
         direntry = _direntry_for(parent, childname)
@@ -1411,7 +1411,7 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
                         # 'overwrite=False' ensures failure if the link already exists.
                         # FIXME: should use a single call to set_uri and return (child, metadata) (#1035)
 
-                        zero_length_lit = "URI:LIT:"
+                        zero_length_lit = b"URI:LIT:"
                         if noisy: self.log("%r.set_uri(%r, None, readcap=%r, overwrite=False)" %
                                            (parent, zero_length_lit, childname), level=NOISY)
                         d3.addCallback(lambda ign: parent.set_uri(childname, None, readcap=zero_length_lit,

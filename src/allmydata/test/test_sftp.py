@@ -635,40 +635,40 @@ class Handler(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, unittest.TestCas
                                          sftp.FXF_WRITE | sftp.FXF_CREAT | sftp.FXF_EXCL, {}))
         d.addCallback(lambda ign:
             self.shouldFailWithSFTPError(sftp.FX_FAILURE, "openFile tiny_lit_dir/short WRITE|CREAT|EXCL failure",
-                                         self.handler.openFile, "tiny_lit_dir/short",
+                                         self.handler.openFile, b"tiny_lit_dir/short",
                                          sftp.FXF_WRITE | sftp.FXF_CREAT | sftp.FXF_EXCL, {}))
 
         # cannot write to an immutable file if we don't have its parent (with or without CREAT, TRUNC, or EXCL)
         d.addCallback(lambda ign:
             self.shouldFailWithSFTPError(sftp.FX_PERMISSION_DENIED, "openFile small uri WRITE denied",
-                                         self.handler.openFile, "uri/"+self.small_uri, sftp.FXF_WRITE, {}))
+                                         self.handler.openFile, b"uri/"+self.small_uri, sftp.FXF_WRITE, {}))
         d.addCallback(lambda ign:
             self.shouldFailWithSFTPError(sftp.FX_PERMISSION_DENIED, "openFile small uri WRITE|CREAT denied",
-                                         self.handler.openFile, "uri/"+self.small_uri,
+                                         self.handler.openFile, b"uri/"+self.small_uri,
                                          sftp.FXF_WRITE | sftp.FXF_CREAT, {}))
         d.addCallback(lambda ign:
             self.shouldFailWithSFTPError(sftp.FX_PERMISSION_DENIED, "openFile small uri WRITE|CREAT|TRUNC denied",
-                                         self.handler.openFile, "uri/"+self.small_uri,
+                                         self.handler.openFile, b"uri/"+self.small_uri,
                                          sftp.FXF_WRITE | sftp.FXF_CREAT | sftp.FXF_TRUNC, {}))
         d.addCallback(lambda ign:
             self.shouldFailWithSFTPError(sftp.FX_PERMISSION_DENIED, "openFile small uri WRITE|CREAT|EXCL denied",
-                                         self.handler.openFile, "uri/"+self.small_uri,
+                                         self.handler.openFile, b"uri/"+self.small_uri,
                                          sftp.FXF_WRITE | sftp.FXF_CREAT | sftp.FXF_EXCL, {}))
 
         # test creating a new file with truncation and extension
         d.addCallback(lambda ign:
-                      self.handler.openFile("newfile", sftp.FXF_WRITE | sftp.FXF_CREAT | sftp.FXF_TRUNC, {}))
+                      self.handler.openFile(b"newfile", sftp.FXF_WRITE | sftp.FXF_CREAT | sftp.FXF_TRUNC, {}))
         def _write(wf):
-            d2 = wf.writeChunk(0, "0123456789")
+            d2 = wf.writeChunk(0, b"0123456789")
             d2.addCallback(lambda res: self.failUnlessReallyEqual(res, None))
 
-            d2.addCallback(lambda ign: wf.writeChunk(8, "0123"))
-            d2.addCallback(lambda ign: wf.writeChunk(13, "abc"))
+            d2.addCallback(lambda ign: wf.writeChunk(8, b"0123"))
+            d2.addCallback(lambda ign: wf.writeChunk(13, b"abc"))
 
             d2.addCallback(lambda ign: wf.getAttrs())
             d2.addCallback(lambda attrs: self._compareAttributes(attrs, {'permissions': S_IFREG | 0o666, 'size': 16}))
 
-            d2.addCallback(lambda ign: self.handler.getAttrs("newfile", followLinks=0))
+            d2.addCallback(lambda ign: self.handler.getAttrs(b"newfile", followLinks=0))
             d2.addCallback(lambda attrs: self._compareAttributes(attrs, {'permissions': S_IFREG | 0o666, 'size': 16}))
 
             d2.addCallback(lambda ign: wf.setAttrs({}))
@@ -688,7 +688,7 @@ class Handler(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, unittest.TestCas
             d2.addCallback(lambda ign: wf.setAttrs({'size': 17}))
             d2.addCallback(lambda ign: wf.getAttrs())
             d2.addCallback(lambda attrs: self.failUnlessReallyEqual(attrs['size'], 17))
-            d2.addCallback(lambda ign: self.handler.getAttrs("newfile", followLinks=0))
+            d2.addCallback(lambda ign: self.handler.getAttrs(b"newfile", followLinks=0))
             d2.addCallback(lambda attrs: self.failUnlessReallyEqual(attrs['size'], 17))
 
             d2.addCallback(lambda ign:
@@ -699,7 +699,7 @@ class Handler(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, unittest.TestCas
 
             d2.addCallback(lambda ign:
                 self.shouldFailWithSFTPError(sftp.FX_BAD_MESSAGE, "writeChunk on closed file bad",
-                                             wf.writeChunk, 0, "a"))
+                                             wf.writeChunk, 0, b"a"))
             d2.addCallback(lambda ign:
                 self.shouldFailWithSFTPError(sftp.FX_BAD_MESSAGE, "setAttrs on closed file bad",
                                              wf.setAttrs, {'size': 0}))
@@ -709,77 +709,77 @@ class Handler(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, unittest.TestCas
         d.addCallback(_write)
         d.addCallback(lambda ign: self.root.get(u"newfile"))
         d.addCallback(lambda node: download_to_data(node))
-        d.addCallback(lambda data: self.failUnlessReallyEqual(data, "012345670123\x00a\x00\x00\x00"))
+        d.addCallback(lambda data: self.failUnlessReallyEqual(data, b"012345670123\x00a\x00\x00\x00"))
 
         # test APPEND flag, and also replacing an existing file ("newfile" created by the previous test)
         d.addCallback(lambda ign:
-                      self.handler.openFile("newfile", sftp.FXF_WRITE | sftp.FXF_CREAT |
+                      self.handler.openFile(b"newfile", sftp.FXF_WRITE | sftp.FXF_CREAT |
                                                        sftp.FXF_TRUNC | sftp.FXF_APPEND, {}))
         def _write_append(wf):
-            d2 = wf.writeChunk(0, "0123456789")
-            d2.addCallback(lambda ign: wf.writeChunk(8, "0123"))
+            d2 = wf.writeChunk(0, b"0123456789")
+            d2.addCallback(lambda ign: wf.writeChunk(8, b"0123"))
 
             d2.addCallback(lambda ign: wf.setAttrs({'size': 17}))
             d2.addCallback(lambda ign: wf.getAttrs())
             d2.addCallback(lambda attrs: self.failUnlessReallyEqual(attrs['size'], 17))
 
-            d2.addCallback(lambda ign: wf.writeChunk(0, "z"))
+            d2.addCallback(lambda ign: wf.writeChunk(0, b"z"))
             d2.addCallback(lambda ign: wf.close())
             return d2
         d.addCallback(_write_append)
         d.addCallback(lambda ign: self.root.get(u"newfile"))
         d.addCallback(lambda node: download_to_data(node))
-        d.addCallback(lambda data: self.failUnlessReallyEqual(data, "01234567890123\x00\x00\x00z"))
+        d.addCallback(lambda data: self.failUnlessReallyEqual(data, b"01234567890123\x00\x00\x00z"))
 
         # test WRITE | TRUNC without CREAT, when the file already exists
         # This is invalid according to section 6.3 of the SFTP spec, but required for interoperability,
         # since POSIX does allow O_WRONLY | O_TRUNC.
         d.addCallback(lambda ign:
-                      self.handler.openFile("newfile", sftp.FXF_WRITE | sftp.FXF_TRUNC, {}))
+                      self.handler.openFile(b"newfile", sftp.FXF_WRITE | sftp.FXF_TRUNC, {}))
         def _write_trunc(wf):
-            d2 = wf.writeChunk(0, "01234")
+            d2 = wf.writeChunk(0, b"01234")
             d2.addCallback(lambda ign: wf.close())
             return d2
         d.addCallback(_write_trunc)
         d.addCallback(lambda ign: self.root.get(u"newfile"))
         d.addCallback(lambda node: download_to_data(node))
-        d.addCallback(lambda data: self.failUnlessReallyEqual(data, "01234"))
+        d.addCallback(lambda data: self.failUnlessReallyEqual(data, b"01234"))
 
         # test WRITE | TRUNC with permissions: 0
         d.addCallback(lambda ign:
-                      self.handler.openFile("newfile", sftp.FXF_WRITE | sftp.FXF_TRUNC, {'permissions': 0}))
+                      self.handler.openFile(b"newfile", sftp.FXF_WRITE | sftp.FXF_TRUNC, {'permissions': 0}))
         d.addCallback(_write_trunc)
         d.addCallback(lambda ign: self.root.get(u"newfile"))
         d.addCallback(lambda node: download_to_data(node))
-        d.addCallback(lambda data: self.failUnlessReallyEqual(data, "01234"))
+        d.addCallback(lambda data: self.failUnlessReallyEqual(data, b"01234"))
         d.addCallback(lambda ign: self.root.get_metadata_for(u"newfile"))
         d.addCallback(lambda metadata: self.failIf(metadata.get('no-write', False), metadata))
 
         # test EXCL flag
         d.addCallback(lambda ign:
-                      self.handler.openFile("excl", sftp.FXF_WRITE | sftp.FXF_CREAT |
+                      self.handler.openFile(b"excl", sftp.FXF_WRITE | sftp.FXF_CREAT |
                                                     sftp.FXF_TRUNC | sftp.FXF_EXCL, {}))
         def _write_excl(wf):
             d2 = self.root.get(u"excl")
             d2.addCallback(lambda node: download_to_data(node))
-            d2.addCallback(lambda data: self.failUnlessReallyEqual(data, ""))
+            d2.addCallback(lambda data: self.failUnlessReallyEqual(data, b""))
 
-            d2.addCallback(lambda ign: wf.writeChunk(0, "0123456789"))
+            d2.addCallback(lambda ign: wf.writeChunk(0, b"0123456789"))
             d2.addCallback(lambda ign: wf.close())
             return d2
         d.addCallback(_write_excl)
         d.addCallback(lambda ign: self.root.get(u"excl"))
         d.addCallback(lambda node: download_to_data(node))
-        d.addCallback(lambda data: self.failUnlessReallyEqual(data, "0123456789"))
+        d.addCallback(lambda data: self.failUnlessReallyEqual(data, b"0123456789"))
 
         # test that writing a zero-length file with EXCL only updates the directory once
         d.addCallback(lambda ign:
-                      self.handler.openFile("zerolength", sftp.FXF_WRITE | sftp.FXF_CREAT |
+                      self.handler.openFile(b"zerolength", sftp.FXF_WRITE | sftp.FXF_CREAT |
                                                           sftp.FXF_EXCL, {}))
         def _write_excl_zerolength(wf):
             d2 = self.root.get(u"zerolength")
             d2.addCallback(lambda node: download_to_data(node))
-            d2.addCallback(lambda data: self.failUnlessReallyEqual(data, ""))
+            d2.addCallback(lambda data: self.failUnlessReallyEqual(data, b""))
 
             # FIXME: no API to get the best version number exists (fix as part of #993)
             """
@@ -796,84 +796,84 @@ class Handler(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, unittest.TestCas
         d.addCallback(_write_excl_zerolength)
         d.addCallback(lambda ign: self.root.get(u"zerolength"))
         d.addCallback(lambda node: download_to_data(node))
-        d.addCallback(lambda data: self.failUnlessReallyEqual(data, ""))
+        d.addCallback(lambda data: self.failUnlessReallyEqual(data, b""))
 
         # test WRITE | CREAT | EXCL | APPEND
         d.addCallback(lambda ign:
-                      self.handler.openFile("exclappend", sftp.FXF_WRITE | sftp.FXF_CREAT |
+                      self.handler.openFile(b"exclappend", sftp.FXF_WRITE | sftp.FXF_CREAT |
                                                           sftp.FXF_EXCL | sftp.FXF_APPEND, {}))
         def _write_excl_append(wf):
             d2 = self.root.get(u"exclappend")
             d2.addCallback(lambda node: download_to_data(node))
-            d2.addCallback(lambda data: self.failUnlessReallyEqual(data, ""))
+            d2.addCallback(lambda data: self.failUnlessReallyEqual(data, b""))
 
-            d2.addCallback(lambda ign: wf.writeChunk(10, "0123456789"))
-            d2.addCallback(lambda ign: wf.writeChunk(5, "01234"))
+            d2.addCallback(lambda ign: wf.writeChunk(10, b"0123456789"))
+            d2.addCallback(lambda ign: wf.writeChunk(5, b"01234"))
             d2.addCallback(lambda ign: wf.close())
             return d2
         d.addCallback(_write_excl_append)
         d.addCallback(lambda ign: self.root.get(u"exclappend"))
         d.addCallback(lambda node: download_to_data(node))
-        d.addCallback(lambda data: self.failUnlessReallyEqual(data, "012345678901234"))
+        d.addCallback(lambda data: self.failUnlessReallyEqual(data, b"012345678901234"))
 
         # test WRITE | CREAT | APPEND when the file does not already exist
         d.addCallback(lambda ign:
-                      self.handler.openFile("creatappend", sftp.FXF_WRITE | sftp.FXF_CREAT |
+                      self.handler.openFile(b"creatappend", sftp.FXF_WRITE | sftp.FXF_CREAT |
                                                            sftp.FXF_APPEND, {}))
         def _write_creat_append_new(wf):
-            d2 = wf.writeChunk(10, "0123456789")
-            d2.addCallback(lambda ign: wf.writeChunk(5, "01234"))
+            d2 = wf.writeChunk(10, b"0123456789")
+            d2.addCallback(lambda ign: wf.writeChunk(5, b"01234"))
             d2.addCallback(lambda ign: wf.close())
             return d2
         d.addCallback(_write_creat_append_new)
         d.addCallback(lambda ign: self.root.get(u"creatappend"))
         d.addCallback(lambda node: download_to_data(node))
-        d.addCallback(lambda data: self.failUnlessReallyEqual(data, "012345678901234"))
+        d.addCallback(lambda data: self.failUnlessReallyEqual(data, b"012345678901234"))
 
         # ... and when it does exist
         d.addCallback(lambda ign:
-                      self.handler.openFile("creatappend", sftp.FXF_WRITE | sftp.FXF_CREAT |
+                      self.handler.openFile(b"creatappend", sftp.FXF_WRITE | sftp.FXF_CREAT |
                                                            sftp.FXF_APPEND, {}))
         def _write_creat_append_existing(wf):
-            d2 = wf.writeChunk(5, "01234")
+            d2 = wf.writeChunk(5, b"01234")
             d2.addCallback(lambda ign: wf.close())
             return d2
         d.addCallback(_write_creat_append_existing)
         d.addCallback(lambda ign: self.root.get(u"creatappend"))
         d.addCallback(lambda node: download_to_data(node))
-        d.addCallback(lambda data: self.failUnlessReallyEqual(data, "01234567890123401234"))
+        d.addCallback(lambda data: self.failUnlessReallyEqual(data, b"01234567890123401234"))
 
         # test WRITE | CREAT without TRUNC, when the file does not already exist
         d.addCallback(lambda ign:
-                      self.handler.openFile("newfile2", sftp.FXF_WRITE | sftp.FXF_CREAT, {}))
+                      self.handler.openFile(b"newfile2", sftp.FXF_WRITE | sftp.FXF_CREAT, {}))
         def _write_creat_new(wf):
-            d2 =  wf.writeChunk(0, "0123456789")
+            d2 =  wf.writeChunk(0, b"0123456789")
             d2.addCallback(lambda ign: wf.close())
             return d2
         d.addCallback(_write_creat_new)
         d.addCallback(lambda ign: self.root.get(u"newfile2"))
         d.addCallback(lambda node: download_to_data(node))
-        d.addCallback(lambda data: self.failUnlessReallyEqual(data, "0123456789"))
+        d.addCallback(lambda data: self.failUnlessReallyEqual(data, b"0123456789"))
 
         # ... and when it does exist
         d.addCallback(lambda ign:
-                      self.handler.openFile("newfile2", sftp.FXF_WRITE | sftp.FXF_CREAT, {}))
+                      self.handler.openFile(b"newfile2", sftp.FXF_WRITE | sftp.FXF_CREAT, {}))
         def _write_creat_existing(wf):
-            d2 =  wf.writeChunk(0, "abcde")
+            d2 =  wf.writeChunk(0, b"abcde")
             d2.addCallback(lambda ign: wf.close())
             return d2
         d.addCallback(_write_creat_existing)
         d.addCallback(lambda ign: self.root.get(u"newfile2"))
         d.addCallback(lambda node: download_to_data(node))
-        d.addCallback(lambda data: self.failUnlessReallyEqual(data, "abcde56789"))
+        d.addCallback(lambda data: self.failUnlessReallyEqual(data, b"abcde56789"))
 
         d.addCallback(lambda ign: self.root.set_node(u"mutable2", self.mutable))
 
         # test writing to a mutable file
         d.addCallback(lambda ign:
-                      self.handler.openFile("mutable", sftp.FXF_WRITE, {}))
+                      self.handler.openFile(b"mutable", sftp.FXF_WRITE, {}))
         def _write_mutable(wf):
-            d2 = wf.writeChunk(8, "new!")
+            d2 = wf.writeChunk(8, b"new!")
             d2.addCallback(lambda ign: wf.close())
             return d2
         d.addCallback(_write_mutable)
@@ -884,30 +884,30 @@ class Handler(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, unittest.TestCas
             self.failUnlessReallyEqual(node.get_uri(), self.mutable_uri)
             return node.download_best_version()
         d.addCallback(_check_same_file)
-        d.addCallback(lambda data: self.failUnlessReallyEqual(data, "mutable new! contents"))
+        d.addCallback(lambda data: self.failUnlessReallyEqual(data, b"mutable new! contents"))
 
         # ... and with permissions, which should be ignored
         d.addCallback(lambda ign:
-                      self.handler.openFile("mutable", sftp.FXF_WRITE, {'permissions': 0}))
+                      self.handler.openFile(b"mutable", sftp.FXF_WRITE, {'permissions': 0}))
         d.addCallback(_write_mutable)
         d.addCallback(lambda ign: self.root.get(u"mutable"))
         d.addCallback(_check_same_file)
-        d.addCallback(lambda data: self.failUnlessReallyEqual(data, "mutable new! contents"))
+        d.addCallback(lambda data: self.failUnlessReallyEqual(data, b"mutable new! contents"))
 
         # ... and with a setAttrs call that diminishes the parent link to read-only, first by path
         d.addCallback(lambda ign:
-                      self.handler.openFile("mutable", sftp.FXF_WRITE, {}))
+                      self.handler.openFile(b"mutable", sftp.FXF_WRITE, {}))
         def _write_mutable_setattr(wf):
-            d2 = wf.writeChunk(8, "read-only link from parent")
+            d2 = wf.writeChunk(8, b"read-only link from parent")
 
-            d2.addCallback(lambda ign: self.handler.setAttrs("mutable", {'permissions': 0o444}))
+            d2.addCallback(lambda ign: self.handler.setAttrs(b"mutable", {'permissions': 0o444}))
 
             d2.addCallback(lambda ign: self.root.get(u"mutable"))
             d2.addCallback(lambda node: self.failUnless(node.is_readonly()))
 
             d2.addCallback(lambda ign: wf.getAttrs())
             d2.addCallback(lambda attrs: self.failUnlessReallyEqual(attrs['permissions'], S_IFREG | 0o666))
-            d2.addCallback(lambda ign: self.handler.getAttrs("mutable", followLinks=0))
+            d2.addCallback(lambda ign: self.handler.getAttrs(b"mutable", followLinks=0))
             d2.addCallback(lambda attrs: self.failUnlessReallyEqual(attrs['permissions'], S_IFREG | 0o444))
 
             d2.addCallback(lambda ign: wf.close())
@@ -921,13 +921,13 @@ class Handler(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, unittest.TestCas
             self.failUnlessReallyEqual(node.get_storage_index(), self.mutable.get_storage_index())
             return node.download_best_version()
         d.addCallback(_check_readonly_file)
-        d.addCallback(lambda data: self.failUnlessReallyEqual(data, "mutable read-only link from parent"))
+        d.addCallback(lambda data: self.failUnlessReallyEqual(data, b"mutable read-only link from parent"))
 
         # ... and then by handle
         d.addCallback(lambda ign:
-                      self.handler.openFile("mutable2", sftp.FXF_WRITE, {}))
+                      self.handler.openFile(b"mutable2", sftp.FXF_WRITE, {}))
         def _write_mutable2_setattr(wf):
-            d2 = wf.writeChunk(7, "2")
+            d2 = wf.writeChunk(7, b"2")
 
             d2.addCallback(lambda ign: wf.setAttrs({'permissions': 0o444, 'size': 8}))
 
@@ -937,7 +937,7 @@ class Handler(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, unittest.TestCas
 
             d2.addCallback(lambda ign: wf.getAttrs())
             d2.addCallback(lambda attrs: self.failUnlessReallyEqual(attrs['permissions'], S_IFREG | 0o444))
-            d2.addCallback(lambda ign: self.handler.getAttrs("mutable2", followLinks=0))
+            d2.addCallback(lambda ign: self.handler.getAttrs(b"mutable2", followLinks=0))
             d2.addCallback(lambda attrs: self.failUnlessReallyEqual(attrs['permissions'], S_IFREG | 0o666))
 
             d2.addCallback(lambda ign: wf.close())
@@ -945,55 +945,55 @@ class Handler(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, unittest.TestCas
         d.addCallback(_write_mutable2_setattr)
         d.addCallback(lambda ign: self.root.get(u"mutable2"))
         d.addCallback(_check_readonly_file)  # from above
-        d.addCallback(lambda data: self.failUnlessReallyEqual(data, "mutable2"))
+        d.addCallback(lambda data: self.failUnlessReallyEqual(data, b"mutable2"))
 
         # test READ | WRITE without CREAT or TRUNC
         d.addCallback(lambda ign:
-                      self.handler.openFile("small", sftp.FXF_READ | sftp.FXF_WRITE, {}))
+                      self.handler.openFile(b"small", sftp.FXF_READ | sftp.FXF_WRITE, {}))
         def _read_write(rwf):
-            d2 = rwf.writeChunk(8, "0123")
+            d2 = rwf.writeChunk(8, b"0123")
             # test immediate read starting after the old end-of-file
             d2.addCallback(lambda ign: rwf.readChunk(11, 1))
-            d2.addCallback(lambda data: self.failUnlessReallyEqual(data, "3"))
+            d2.addCallback(lambda data: self.failUnlessReallyEqual(data, b"3"))
             d2.addCallback(lambda ign: rwf.readChunk(0, 100))
-            d2.addCallback(lambda data: self.failUnlessReallyEqual(data, "012345670123"))
+            d2.addCallback(lambda data: self.failUnlessReallyEqual(data, b"012345670123"))
             d2.addCallback(lambda ign: rwf.close())
             return d2
         d.addCallback(_read_write)
         d.addCallback(lambda ign: self.root.get(u"small"))
         d.addCallback(lambda node: download_to_data(node))
-        d.addCallback(lambda data: self.failUnlessReallyEqual(data, "012345670123"))
+        d.addCallback(lambda data: self.failUnlessReallyEqual(data, b"012345670123"))
 
         # test WRITE and rename while still open
         d.addCallback(lambda ign:
-                      self.handler.openFile("small", sftp.FXF_WRITE, {}))
+                      self.handler.openFile(b"small", sftp.FXF_WRITE, {}))
         def _write_rename(wf):
-            d2 = wf.writeChunk(0, "abcd")
-            d2.addCallback(lambda ign: self.handler.renameFile("small", "renamed"))
-            d2.addCallback(lambda ign: wf.writeChunk(4, "efgh"))
+            d2 = wf.writeChunk(0, b"abcd")
+            d2.addCallback(lambda ign: self.handler.renameFile(b"small", b"renamed"))
+            d2.addCallback(lambda ign: wf.writeChunk(4, b"efgh"))
             d2.addCallback(lambda ign: wf.close())
             return d2
         d.addCallback(_write_rename)
         d.addCallback(lambda ign: self.root.get(u"renamed"))
         d.addCallback(lambda node: download_to_data(node))
-        d.addCallback(lambda data: self.failUnlessReallyEqual(data, "abcdefgh0123"))
+        d.addCallback(lambda data: self.failUnlessReallyEqual(data, b"abcdefgh0123"))
         d.addCallback(lambda ign:
                       self.shouldFail(NoSuchChildError, "rename small while open", "small",
                                       self.root.get, u"small"))
 
         # test WRITE | CREAT | EXCL and rename while still open
         d.addCallback(lambda ign:
-                      self.handler.openFile("newexcl", sftp.FXF_WRITE | sftp.FXF_CREAT | sftp.FXF_EXCL, {}))
+                      self.handler.openFile(b"newexcl", sftp.FXF_WRITE | sftp.FXF_CREAT | sftp.FXF_EXCL, {}))
         def _write_creat_excl_rename(wf):
-            d2 = wf.writeChunk(0, "abcd")
-            d2.addCallback(lambda ign: self.handler.renameFile("newexcl", "renamedexcl"))
-            d2.addCallback(lambda ign: wf.writeChunk(4, "efgh"))
+            d2 = wf.writeChunk(0, b"abcd")
+            d2.addCallback(lambda ign: self.handler.renameFile(b"newexcl", b"renamedexcl"))
+            d2.addCallback(lambda ign: wf.writeChunk(4, b"efgh"))
             d2.addCallback(lambda ign: wf.close())
             return d2
         d.addCallback(_write_creat_excl_rename)
         d.addCallback(lambda ign: self.root.get(u"renamedexcl"))
         d.addCallback(lambda node: download_to_data(node))
-        d.addCallback(lambda data: self.failUnlessReallyEqual(data, "abcdefgh"))
+        d.addCallback(lambda data: self.failUnlessReallyEqual(data, b"abcdefgh"))
         d.addCallback(lambda ign:
                       self.shouldFail(NoSuchChildError, "rename newexcl while open", "newexcl",
                                       self.root.get, u"newexcl"))
@@ -1002,21 +1002,21 @@ class Handler(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, unittest.TestCas
         def _open_and_rename_race(ign):
             slow_open = defer.Deferred()
             reactor.callLater(1, slow_open.callback, None)
-            d2 = self.handler.openFile("new", sftp.FXF_WRITE | sftp.FXF_CREAT, {}, delay=slow_open)
+            d2 = self.handler.openFile(b"new", sftp.FXF_WRITE | sftp.FXF_CREAT, {}, delay=slow_open)
 
             # deliberate race between openFile and renameFile
-            d3 = self.handler.renameFile("new", "new2")
+            d3 = self.handler.renameFile(b"new", b"new2")
             d3.addErrback(lambda err: self.fail("renameFile failed: %r" % (err,)))
             return d2
         d.addCallback(_open_and_rename_race)
         def _write_rename_race(wf):
-            d2 = wf.writeChunk(0, "abcd")
+            d2 = wf.writeChunk(0, b"abcd")
             d2.addCallback(lambda ign: wf.close())
             return d2
         d.addCallback(_write_rename_race)
         d.addCallback(lambda ign: self.root.get(u"new2"))
         d.addCallback(lambda node: download_to_data(node))
-        d.addCallback(lambda data: self.failUnlessReallyEqual(data, "abcd"))
+        d.addCallback(lambda data: self.failUnlessReallyEqual(data, b"abcd"))
         d.addCallback(lambda ign:
                       self.shouldFail(NoSuchChildError, "rename new while open", "new",
                                       self.root.get, u"new"))
@@ -1027,7 +1027,7 @@ class Handler(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, unittest.TestCas
         gross = u"gro\u00DF".encode("utf-8")
         d.addCallback(lambda ign: self.handler.openFile(gross, sftp.FXF_READ | sftp.FXF_WRITE, {}))
         def _read_write_broken(rwf):
-            d2 = rwf.writeChunk(0, "abcdefghij")
+            d2 = rwf.writeChunk(0, b"abcdefghij")
             d2.addCallback(lambda ign: self.g.nuke_from_orbit())
 
             # reading should fail (reliably if we read past the written chunk)
