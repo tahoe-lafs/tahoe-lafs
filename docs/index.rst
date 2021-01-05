@@ -23,7 +23,7 @@ Contents:
    frontends/download-status
 
    known_issues
-   ../.github/CONTRIBUTING
+   contributing
    CODE_OF_CONDUCT
 
    servers
