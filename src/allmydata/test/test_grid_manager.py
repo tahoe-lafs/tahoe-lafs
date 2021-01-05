@@ -154,18 +154,20 @@ class GridManagerVerifier(SyncTestCase):
         """
         priv, pub = ed25519.create_signing_keypair()
         self.gm.add_storage_server("test", pub)
-        cert = self.gm.sign("test", timedelta(seconds=86400))
+        cert0 = self.gm.sign("test", timedelta(seconds=86400))
+        cert1 = self.gm.sign("test", timedelta(seconds=86400))
+        self.assertNotEqual(cert0, cert1)
 
         self.assertEqual(
-            set(cert.keys()),
+            set(cert0.keys()),
             {"certificate", "signature"},
         )
         gm_key = ed25519.verifying_key_from_string(self.gm.public_identity())
         self.assertEqual(
             ed25519.verify_signature(
                 gm_key,
-                base32.a2b(cert["signature"]),
-                cert["certificate"],
+                base32.a2b(cert0["signature"]),
+                cert0["certificate"],
             ),
             None
         )

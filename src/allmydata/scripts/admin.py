@@ -115,8 +115,6 @@ def add_grid_manager_cert(options):
     """
     Add a new Grid Manager certificate to our config
     """
-    if options.certificate_data is None:
-        return 1
     # XXX is there really not already a function for this?
     if options.parent.parent['node-directory']:
         nd = argv_to_abspath(options.parent.parent['node-directory'])
@@ -132,7 +130,7 @@ def add_grid_manager_cert(options):
     if cert_path.exists():
         msg = "Already have certificate for '{}' (at {})".format(
             options['name'],
-            cert_path,
+            cert_path.path,
         )
         print(msg, file=options.parent.parent.stderr)
         return 1
