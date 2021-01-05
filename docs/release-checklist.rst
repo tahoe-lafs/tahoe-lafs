@@ -40,23 +40,31 @@ Create Branch and Apply Updates
 - Create a branch for release-candidates (e.g. `XXXX.release-1.15.0.rc0`)
 - run `tox -e news` to produce a new NEWS.txt file (this does a commit)
 - create the news for the release
+
   - newsfragments/<ticket number>.minor
   - commit it
+
 - manually fix NEWS.txt
+
   - proper title for latest release ("Release 1.15.0" instead of "Release ...post1432")
   - double-check date (maybe release will be in the future)
   - spot-check the release notes (these come from the newsfragments
     files though so don't do heavy editing)
   - commit these changes
+
 - update "relnotes.txt"
+
   - update all mentions of 1.14.0 -> 1.15.0
   - update "previous release" statement and date
   - summarize major changes
   - commit it
+
 - update "CREDITS"
+
   - are there any new contributors in this release?
   - one way: git log release-1.14.0.. | grep Author | sort | uniq
   - commit it
+
 - update "docs/known_issues.rst" if appropriate
 - update "docs/INSTALL.rst" references to the new release
 - Push the branch to github
@@ -82,21 +90,32 @@ they will need to evaluate which contributors' signatures they trust.
 
 - (all steps above are completed)
 - sign the release
+
   - git tag -s -u 0xE34E62D06D0E69CFCA4179FFBDE0D31D68666A7A -m "release Tahoe-LAFS-1.15.0rc0" tahoe-lafs-1.15.0rc0
   - (replace the key-id above with your own)
+
 - build all code locally
   - these should all pass:
+
     - tox -e py27,codechecks,docs,integration
+
   - these can fail (ideally they should not of course):
+
     - tox -e deprecations,upcoming-deprecations
+
 - build tarballs
+
   - tox -e tarballs
   - confirm it at least exists:
   - ls dist/ | grep 1.15.0rc0
+
 - inspect and test the tarballs
+
   - install each in a fresh virtualenv
   - run `tahoe` command
+
 - when satisfied, sign the tarballs:
+
   - gpg --pinentry=loopback --armor --sign dist/tahoe_lafs-1.15.0rc0-py2-none-any.whl
   - gpg --pinentry=loopback --armor --sign dist/tahoe_lafs-1.15.0rc0.tar.bz2
   - gpg --pinentry=loopback --armor --sign dist/tahoe_lafs-1.15.0rc0.tar.gz
@@ -129,6 +148,7 @@ need to be uploaded to https://tahoe-lafs.org in `~source/downloads`
   https://tahoe-lafs.org/downloads/ on the Web.
 - scp dist/*1.15.0* username@tahoe-lafs.org:/home/source/downloads
 - the following developers have access to do this:
+
   - exarkun
   - meejah
   - warner
@@ -139,6 +159,7 @@ uploaded to PyPI as well.
 - how to do this?
 - (original guide says only "twine upload dist/*")
 - the following developers have access to do this:
+
   - warner
   - exarkun (partial?)
   - meejah (partial?)
