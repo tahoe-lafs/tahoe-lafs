@@ -332,7 +332,7 @@ def parse_grid_manager_certificate(gm_data):
     if set(js.keys()) != required_keys:
             raise ValueError(
                 "Grid Manager certificate must contain: {}".format(
-                    ", ".join("'{}'".format(k) for k in js.keys()),
+                    ", ".join("'{}'".format(k) for k in required_keys),
                 )
             )
     return js

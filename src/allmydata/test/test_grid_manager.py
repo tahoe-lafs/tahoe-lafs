@@ -90,6 +90,31 @@ class GridManagerUtilities(SyncTestCase):
         certs = config.get_grid_manager_certificates()
         self.assertEqual([fake_cert], certs)
 
+    def test_load_certificates_unknown_key(self):
+        """
+        An error is reported loading certificates with invalid keys in them
+        """
+        cert_path = self.mktemp()
+        fake_cert = {
+            "certificate": "{\"expires\":1601687822,\"public_key\":\"pub-v0-cbq6hcf3pxcz6ouoafrbktmkixkeuywpcpbcomzd3lqbkq4nmfga\",\"version\":22}",
+            "signature": "fvjd3uvvupf2v6tnvkwjd473u3m3inyqkwiclhp7balmchkmn3px5pei3qyfjnhymq4cjcwvbpqmcwwnwswdtrfkpnlaxuih2zbdmda",
+            "something-else": "not valid in a v0 certificate"
+        }
+        with open(cert_path, "w") as f:
+            f.write(json.dumps(fake_cert))
+        config_data = (
+            "[grid_manager_certificates]\n"
+            "ding = {}\n".format(cert_path)
+        )
+        config = config_from_string("/foo", "portnum", config_data, client_valid_config())
+        with self.assertRaises(ValueError) as ctx:
+            certs = config.get_grid_manager_certificates()
+
+        self.assertIn(
+            "Unknown key in Grid Manager certificate",
+            str(ctx.exception)
+        )
+
     def test_load_certificates_missing(self):
         """
         An error is reported for missing certificates
