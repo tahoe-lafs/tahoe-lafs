@@ -59,11 +59,41 @@ jobs:
           name: eliot.log
           path: eliot.log
 
-      - name: Upload coverage report
-        uses: codecov/codecov-action@v1
+      # Upload this job's coverage data to Coveralls.
+      - name: "Report Coverage to Coveralls"
+        uses: "coverallsapp/github-action@v1.1.2"
         with:
-          token: abf679b6-e2e6-4b33-b7b5-6cfbd41ee691
-          file: coverage.xml
+          github-token: "${{ secrets.github_token }}"
+          # Every source of coverage reports needs a unique "flag name".
+          # Construct one by smashing a few variables from the matrix together
+          # here.
+          flag-name: "run-${{ matrix.os }}-${{ matrix.python-version }}"
+          # Mark the data as just one piece of many because we have more than
+          # one instance of this job (Windows, macOS) which collects and
+          # reports coverage.  This is necessary to cause Coveralls to merge
+          # multiple coverage results into a single report.
+          parallel: true
+
+  # Tell Coveralls that we're done reporting coverage data.  Since we're using
+  # the "parallel" mode where more than one coverage data file is merged into
+  # a single report, we have to tell Coveralls when we've uploaded all of the
+  # data files.  This does it.  We make sure it runs last by making it depend
+  # on *all* of the coverage-collecting jobs.
+  finish-coverage-report:
+    # There happens to just be one coverage-collecting job at the moment.  If
+    # the coverage reports are broken and someone added more
+    # coverage-collecting jobs to this workflow but didn't update this, that's
+    # why.
+    needs:
+      - "coverage"
+    runs-on: "ubuntu-latest"
+    steps:
+      - name: "Finish Coveralls Reporting"
+        uses: "coverallsapp/github-action@v1.1.2"
+        with:
+          github-token: "${{ secrets.github_token }}"
+          # Here's the magic that tells Coveralls we're done.
+          parallel-finished: true
 
   integration:
     runs-on: ${{ matrix.os }}
