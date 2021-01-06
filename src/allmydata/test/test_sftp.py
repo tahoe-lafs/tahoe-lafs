@@ -1256,7 +1256,7 @@ class Handler(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, unittest.TestCas
             extData = (struct.pack('>L', len(fromPathstring)) + fromPathstring +
                        struct.pack('>L', len(toPathstring))   + toPathstring)
 
-            d2 = self.handler.extendedRequest('posix-rename@openssh.com', extData)
+            d2 = self.handler.extendedRequest(b'posix-rename@openssh.com', extData)
             def _check(res):
                 res.trap(sftp.SFTPError)
                 if res.value.code == sftp.FX_OK:
@@ -1276,44 +1276,44 @@ class Handler(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, unittest.TestCas
         # POSIX-renaming a non-existent file should fail
         d.addCallback(lambda ign:
             self.shouldFailWithSFTPError(sftp.FX_NO_SUCH_FILE, "renameFile_posix nofile newfile",
-                                         _renameFile, "nofile", "newfile"))
+                                         _renameFile, b"nofile", b"newfile"))
         d.addCallback(lambda ign:
             self.shouldFailWithSFTPError(sftp.FX_NO_SUCH_FILE, "renameFile_posix '' newfile",
-                                         _renameFile, "", "newfile"))
+                                         _renameFile, b"", b"newfile"))
 
         # POSIX-renaming a file to a non-existent path should fail
         d.addCallback(lambda ign:
             self.shouldFailWithSFTPError(sftp.FX_NO_SUCH_FILE, "renameFile_posix small nodir/small",
-                                         _renameFile, "small", "nodir/small"))
+                                         _renameFile, b"small", b"nodir/small"))
 
         # POSIX-renaming a file to an invalid UTF-8 name should fail
         d.addCallback(lambda ign:
             self.shouldFailWithSFTPError(sftp.FX_NO_SUCH_FILE, "renameFile_posix small invalid",
-                                         _renameFile, "small", "\xFF"))
+                                         _renameFile, b"small", b"\xFF"))
 
         # POSIX-renaming a file to or from an URI should fail
         d.addCallback(lambda ign:
             self.shouldFailWithSFTPError(sftp.FX_NO_SUCH_FILE, "renameFile_posix small from uri",
-                                         _renameFile, "uri/"+self.small_uri, "new"))
+                                         _renameFile, b"uri/"+self.small_uri, b"new"))
         d.addCallback(lambda ign:
             self.shouldFailWithSFTPError(sftp.FX_NO_SUCH_FILE, "renameFile_posix small to uri",
-                                         _renameFile, "small", "uri/fake_uri"))
+                                         _renameFile, b"small", b"uri/fake_uri"))
 
         # POSIX-renaming a file onto an existing file, directory or unknown should succeed
-        d.addCallback(lambda ign: _renameFile("small", "small2"))
+        d.addCallback(lambda ign: _renameFile(b"small", b"small2"))
         d.addCallback(lambda ign: self.root.get(u"small2"))
         d.addCallback(lambda node: self.failUnlessReallyEqual(node.get_uri(), self.small_uri))
 
-        d.addCallback(lambda ign: _renameFile("small2", "loop2"))
+        d.addCallback(lambda ign: _renameFile(b"small2", b"loop2"))
         d.addCallback(lambda ign: self.root.get(u"loop2"))
         d.addCallback(lambda node: self.failUnlessReallyEqual(node.get_uri(), self.small_uri))
 
-        d.addCallback(lambda ign: _renameFile("loop2", "unknown2"))
+        d.addCallback(lambda ign: _renameFile(b"loop2", b"unknown2"))
         d.addCallback(lambda ign: self.root.get(u"unknown2"))
         d.addCallback(lambda node: self.failUnlessReallyEqual(node.get_uri(), self.small_uri))
 
         # POSIX-renaming a file to a correct new path should succeed
-        d.addCallback(lambda ign: _renameFile("unknown2", "new_small"))
+        d.addCallback(lambda ign: _renameFile(b"unknown2", b"new_small"))
         d.addCallback(lambda ign: self.root.get(u"new_small"))
         d.addCallback(lambda node: self.failUnlessReallyEqual(node.get_uri(), self.small_uri))
 
@@ -1324,12 +1324,12 @@ class Handler(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, unittest.TestCas
         d.addCallback(lambda node: self.failUnlessReallyEqual(node.get_uri(), self.gross_uri))
 
         # POSIX-renaming a directory to a correct path should succeed
-        d.addCallback(lambda ign: _renameFile("tiny_lit_dir", "new_tiny_lit_dir"))
+        d.addCallback(lambda ign: _renameFile(b"tiny_lit_dir", b"new_tiny_lit_dir"))
         d.addCallback(lambda ign: self.root.get(u"new_tiny_lit_dir"))
         d.addCallback(lambda node: self.failUnlessReallyEqual(node.get_uri(), self.tiny_lit_dir_uri))
 
         # POSIX-renaming an unknown to a correct path should succeed
-        d.addCallback(lambda ign: _renameFile("unknown", "new_unknown"))
+        d.addCallback(lambda ign: _renameFile(b"unknown", b"new_unknown"))
         d.addCallback(lambda ign: self.root.get(u"new_unknown"))
         d.addCallback(lambda node: self.failUnlessReallyEqual(node.get_uri(), self.unknown_uri))
 
