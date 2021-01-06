@@ -1,4 +1,12 @@
-from past.builtins import unicode
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+
 import six
 import heapq, traceback, array, stat, struct
 from stat import S_IFREG, S_IFDIR
@@ -53,7 +61,7 @@ def eventually_errback(d):
 
 
 def _utf8(x):
-    if isinstance(x, unicode):
+    if isinstance(x, str):
         return x.encode('utf-8')
     if isinstance(x, bytes):
         return x
@@ -64,7 +72,7 @@ def _to_sftp_time(t):
     """SFTP times are unsigned 32-bit integers representing UTC seconds
     (ignoring leap seconds) since the Unix epoch, January 1 1970 00:00 UTC.
     A Tahoe time is the corresponding float."""
-    return long(t) & long(0xFFFFFFFF)
+    return int(t) & int(0xFFFFFFFF)
 
 
 def _convert_error(res, request):
@@ -73,7 +81,7 @@ def _convert_error(res, request):
 
     if not isinstance(res, Failure):
         logged_res = res
-        if isinstance(res, str): logged_res = "<data of length %r>" % (len(res),)
+        if isinstance(res, (bytes, str)): logged_res = "<data of length %r>" % (len(res),)
         logmsg("SUCCESS %r %r" % (request, logged_res,), level=OPERATIONAL)
         return res
 
@@ -224,7 +232,7 @@ def _populate_attrs(childnode, metadata, size=None):
         if childnode and size is None:
             size = childnode.get_size()
         if size is not None:
-            _assert(isinstance(size, (int, long)) and not isinstance(size, bool), size=size)
+            _assert(isinstance(size, int) and not isinstance(size, bool), size=size)
             attrs['size'] = size
         perms = S_IFREG | 0o666
 
@@ -256,7 +264,7 @@ def _attrs_to_metadata(attrs):
 
     for key in attrs:
         if key == "mtime" or key == "ctime" or key == "createtime":
-            metadata[key] = long(attrs[key])
+            metadata[key] = int(attrs[key])
         elif key.startswith("ext_"):
             metadata[key] = str(attrs[key])
 
@@ -268,7 +276,7 @@ def _attrs_to_metadata(attrs):
 
 
 def _direntry_for(filenode_or_parent, childname, filenode=None):
-    precondition(isinstance(childname, (unicode, type(None))), childname=childname)
+    precondition(isinstance(childname, (str, type(None))), childname=childname)
 
     if childname is None:
         filenode_or_parent = filenode
@@ -673,7 +681,7 @@ class GeneralSFTPFile(PrefixingLogMixin):
         self.log(".open(parent=%r, childname=%r, filenode=%r, metadata=%r)" %
                  (parent, childname, filenode, metadata), level=OPERATIONAL)
 
-        precondition(isinstance(childname, (unicode, type(None))), childname=childname)
+        precondition(isinstance(childname, (str, type(None))), childname=childname)
         precondition(filenode is None or IFileNode.providedBy(filenode), filenode=filenode)
         precondition(not self.closed, sftpfile=self)
 
@@ -724,7 +732,7 @@ class GeneralSFTPFile(PrefixingLogMixin):
     def rename(self, new_userpath, new_parent, new_childname):
         self.log(".rename(%r, %r, %r)" % (new_userpath, new_parent, new_childname), level=OPERATIONAL)
 
-        precondition(isinstance(new_userpath, bytes) and isinstance(new_childname, unicode),
+        precondition(isinstance(new_userpath, bytes) and isinstance(new_childname, str),
                      new_userpath=new_userpath, new_childname=new_childname)
         self.userpath = new_userpath
         self.parent = new_parent
@@ -926,7 +934,7 @@ class GeneralSFTPFile(PrefixingLogMixin):
             return defer.execute(_closed)
 
         size = attrs.get("size", None)
-        if size is not None and (not isinstance(size, (int, long)) or size < 0):
+        if size is not None and (not isinstance(size, int) or size < 0):
             def _bad(): raise SFTPError(FX_BAD_MESSAGE, "new size is not a valid nonnegative integer")
             return defer.execute(_bad)
 
@@ -1013,7 +1021,7 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
     def logout(self):
         self.log(".logout()", level=OPERATIONAL)
 
-        for files in self._heisenfiles.itervalues():
+        for files in self._heisenfiles.values():
             for f in files:
                 f.abandon()
 
@@ -1089,8 +1097,8 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
                    (from_userpath, from_parent, from_childname, to_userpath, to_parent, to_childname, overwrite))
         self.log(request, level=OPERATIONAL)
 
-        precondition((isinstance(from_userpath, bytes) and isinstance(from_childname, unicode) and
-                      isinstance(to_userpath, bytes) and isinstance(to_childname, unicode)),
+        precondition((isinstance(from_userpath, bytes) and isinstance(from_childname, str) and
+                      isinstance(to_userpath, bytes) and isinstance(to_childname, str)),
                      from_userpath=from_userpath, from_childname=from_childname, to_userpath=to_userpath, to_childname=to_childname)
 
         if noisy: self.log("all_heisenfiles = %r\nself._heisenfiles = %r" % (all_heisenfiles, self._heisenfiles), level=NOISY)
@@ -1128,7 +1136,7 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
                            (from_direntry, to_direntry, len(all_heisenfiles), len(self._heisenfiles), request), level=NOISY)
 
         if not overwrite and (to_userpath in self._heisenfiles or to_direntry in all_heisenfiles):
-            def _existing(): raise SFTPError(FX_PERMISSION_DENIED, "cannot rename to existing path " + unicode(to_userpath, "utf-8"))
+            def _existing(): raise SFTPError(FX_PERMISSION_DENIED, "cannot rename to existing path " + str(to_userpath, "utf-8"))
             if noisy: self.log("existing", level=NOISY)
             return defer.execute(_existing)
 
@@ -1220,7 +1228,7 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
     def _remove_heisenfile(self, userpath, parent, childname, file_to_remove):
         if noisy: self.log("._remove_heisenfile(%r, %r, %r, %r)" % (userpath, parent, childname, file_to_remove), level=NOISY)
 
-        _assert(isinstance(userpath, bytes) and isinstance(childname, (unicode, type(None))),
+        _assert(isinstance(userpath, bytes) and isinstance(childname, (str, type(None))),
                 userpath=userpath, childname=childname)
 
         direntry = _direntry_for(parent, childname)
@@ -1247,7 +1255,7 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
                            (existing_file, userpath, flags, _repr_flags(flags), parent, childname, filenode, metadata),
                            level=NOISY)
 
-        _assert((isinstance(userpath, bytes) and isinstance(childname, (unicode, type(None))) and
+        _assert((isinstance(userpath, bytes) and isinstance(childname, (str, type(None))) and
                 (metadata is None or 'no-write' in metadata)),
                 userpath=userpath, childname=childname, metadata=metadata)
 
@@ -1513,7 +1521,7 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
                 d2.addCallback(lambda ign: to_parent.get(to_childname))
                 def _expect_fail(res):
                     if not isinstance(res, Failure):
-                        raise SFTPError(FX_PERMISSION_DENIED, "cannot rename to existing path " + unicode(to_userpath, "utf-8"))
+                        raise SFTPError(FX_PERMISSION_DENIED, "cannot rename to existing path " + str(to_userpath, "utf-8"))
 
                     # It is OK if we fail for errors other than NoSuchChildError, since that probably
                     # indicates some problem accessing the destination directory.
@@ -1538,7 +1546,7 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
                     if not isinstance(err, Failure) or (renamed and err.check(NoSuchChildError)):
                         return None
                     if not overwrite and err.check(ExistingChildError):
-                        raise SFTPError(FX_PERMISSION_DENIED, "cannot rename to existing path " + unicode(to_userpath, "utf-8"))
+                        raise SFTPError(FX_PERMISSION_DENIED, "cannot rename to existing path " + str(to_userpath, "utf-8"))
 
                     return err
                 d3.addBoth(_check)
@@ -1648,7 +1656,7 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
             def _render(children):
                 parent_readonly = dirnode.is_readonly()
                 results = []
-                for filename, (child, metadata) in children.items():
+                for filename, (child, metadata) in list(children.items()):
                     # The file size may be cached or absent.
                     metadata['no-write'] = _no_write(parent_readonly, child, metadata)
                     attrs = _populate_attrs(child, metadata)
@@ -1980,9 +1988,9 @@ class SFTPServer(service.MultiService):
 
     def __init__(self, client, accountfile, accounturl,
                  sftp_portstr, pubkey_file, privkey_file):
-        precondition(isinstance(accountfile, (unicode, type(None))), accountfile)
-        precondition(isinstance(pubkey_file, unicode), pubkey_file)
-        precondition(isinstance(privkey_file, unicode), privkey_file)
+        precondition(isinstance(accountfile, (str, type(None))), accountfile)
+        precondition(isinstance(pubkey_file, str), pubkey_file)
+        precondition(isinstance(privkey_file, str), privkey_file)
         service.MultiService.__init__(self)
 
         r = Dispatcher(client)
