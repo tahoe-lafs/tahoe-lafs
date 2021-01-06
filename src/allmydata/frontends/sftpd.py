@@ -1128,7 +1128,7 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
                            (from_direntry, to_direntry, len(all_heisenfiles), len(self._heisenfiles), request), level=NOISY)
 
         if not overwrite and (to_userpath in self._heisenfiles or to_direntry in all_heisenfiles):
-            def _existing(): raise SFTPError(FX_PERMISSION_DENIED, "cannot rename to existing path " + to_userpath)
+            def _existing(): raise SFTPError(FX_PERMISSION_DENIED, "cannot rename to existing path " + unicode(to_userpath, "utf-8"))
             if noisy: self.log("existing", level=NOISY)
             return defer.execute(_existing)
 
@@ -1513,7 +1513,7 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
                 d2.addCallback(lambda ign: to_parent.get(to_childname))
                 def _expect_fail(res):
                     if not isinstance(res, Failure):
-                        raise SFTPError(FX_PERMISSION_DENIED, "cannot rename to existing path " + to_userpath)
+                        raise SFTPError(FX_PERMISSION_DENIED, "cannot rename to existing path " + unicode(to_userpath, "utf-8"))
 
                     # It is OK if we fail for errors other than NoSuchChildError, since that probably
                     # indicates some problem accessing the destination directory.
@@ -1538,7 +1538,7 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
                     if not isinstance(err, Failure) or (renamed and err.check(NoSuchChildError)):
                         return None
                     if not overwrite and err.check(ExistingChildError):
-                        raise SFTPError(FX_PERMISSION_DENIED, "cannot rename to existing path " + to_userpath)
+                        raise SFTPError(FX_PERMISSION_DENIED, "cannot rename to existing path " + unicode(to_userpath, "utf-8"))
 
                     return err
                 d3.addBoth(_check)

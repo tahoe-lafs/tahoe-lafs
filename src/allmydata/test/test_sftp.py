@@ -1176,58 +1176,58 @@ class Handler(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, unittest.TestCas
         # renaming a non-existent file should fail
         d.addCallback(lambda ign:
             self.shouldFailWithSFTPError(sftp.FX_NO_SUCH_FILE, "renameFile nofile newfile",
-                                         self.handler.renameFile, "nofile", "newfile"))
+                                         self.handler.renameFile, b"nofile", b"newfile"))
         d.addCallback(lambda ign:
             self.shouldFailWithSFTPError(sftp.FX_NO_SUCH_FILE, "renameFile '' newfile",
-                                         self.handler.renameFile, "", "newfile"))
+                                         self.handler.renameFile, b"", b"newfile"))
 
         # renaming a file to a non-existent path should fail
         d.addCallback(lambda ign:
             self.shouldFailWithSFTPError(sftp.FX_NO_SUCH_FILE, "renameFile small nodir/small",
-                                         self.handler.renameFile, "small", "nodir/small"))
+                                         self.handler.renameFile, b"small", b"nodir/small"))
 
         # renaming a file to an invalid UTF-8 name should fail
         d.addCallback(lambda ign:
             self.shouldFailWithSFTPError(sftp.FX_NO_SUCH_FILE, "renameFile small invalid",
-                                         self.handler.renameFile, "small", "\xFF"))
+                                         self.handler.renameFile, b"small", b"\xFF"))
 
         # renaming a file to or from an URI should fail
         d.addCallback(lambda ign:
             self.shouldFailWithSFTPError(sftp.FX_NO_SUCH_FILE, "renameFile small from uri",
-                                         self.handler.renameFile, "uri/"+self.small_uri, "new"))
+                                         self.handler.renameFile, b"uri/"+self.small_uri, b"new"))
         d.addCallback(lambda ign:
             self.shouldFailWithSFTPError(sftp.FX_NO_SUCH_FILE, "renameFile small to uri",
-                                         self.handler.renameFile, "small", "uri/fake_uri"))
+                                         self.handler.renameFile, b"small", b"uri/fake_uri"))
 
         # renaming a file onto an existing file, directory or unknown should fail
         # The SFTP spec isn't clear about what error should be returned, but sshfs depends on
         # it being FX_PERMISSION_DENIED.
         d.addCallback(lambda ign:
             self.shouldFailWithSFTPError(sftp.FX_PERMISSION_DENIED, "renameFile small small2",
-                                         self.handler.renameFile, "small", "small2"))
+                                         self.handler.renameFile, b"small", b"small2"))
         d.addCallback(lambda ign:
             self.shouldFailWithSFTPError(sftp.FX_PERMISSION_DENIED, "renameFile small tiny_lit_dir",
-                                         self.handler.renameFile, "small", "tiny_lit_dir"))
+                                         self.handler.renameFile, b"small", b"tiny_lit_dir"))
         d.addCallback(lambda ign:
             self.shouldFailWithSFTPError(sftp.FX_PERMISSION_DENIED, "renameFile small unknown",
-                                         self.handler.renameFile, "small", "unknown"))
+                                         self.handler.renameFile, b"small", b"unknown"))
 
         # renaming a file onto a heisenfile should fail, even if the open hasn't completed
         def _rename_onto_heisenfile_race(wf):
             slow_open = defer.Deferred()
             reactor.callLater(1, slow_open.callback, None)
 
-            d2 = self.handler.openFile("heisenfile", sftp.FXF_WRITE | sftp.FXF_CREAT, {}, delay=slow_open)
+            d2 = self.handler.openFile(b"heisenfile", sftp.FXF_WRITE | sftp.FXF_CREAT, {}, delay=slow_open)
 
             # deliberate race between openFile and renameFile
             d3 = self.shouldFailWithSFTPError(sftp.FX_PERMISSION_DENIED, "renameFile small heisenfile",
-                                              self.handler.renameFile, "small", "heisenfile")
+                                              self.handler.renameFile, b"small", b"heisenfile")
             d2.addCallback(lambda wf: wf.close())
             return deferredutil.gatherResults([d2, d3])
         d.addCallback(_rename_onto_heisenfile_race)
 
         # renaming a file to a correct path should succeed
-        d.addCallback(lambda ign: self.handler.renameFile("small", "new_small"))
+        d.addCallback(lambda ign: self.handler.renameFile(b"small", b"new_small"))
         d.addCallback(lambda ign: self.root.get(u"new_small"))
         d.addCallback(lambda node: self.failUnlessReallyEqual(node.get_uri(), self.small_uri))
 
@@ -1238,12 +1238,12 @@ class Handler(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, unittest.TestCas
         d.addCallback(lambda node: self.failUnlessReallyEqual(node.get_uri(), self.gross_uri))
 
         # renaming a directory to a correct path should succeed
-        d.addCallback(lambda ign: self.handler.renameFile("tiny_lit_dir", "new_tiny_lit_dir"))
+        d.addCallback(lambda ign: self.handler.renameFile(b"tiny_lit_dir", b"new_tiny_lit_dir"))
         d.addCallback(lambda ign: self.root.get(u"new_tiny_lit_dir"))
         d.addCallback(lambda node: self.failUnlessReallyEqual(node.get_uri(), self.tiny_lit_dir_uri))
 
         # renaming an unknown to a correct path should succeed
-        d.addCallback(lambda ign: self.handler.renameFile("unknown", "new_unknown"))
+        d.addCallback(lambda ign: self.handler.renameFile(b"unknown", b"new_unknown"))
         d.addCallback(lambda ign: self.root.get(u"new_unknown"))
         d.addCallback(lambda node: self.failUnlessReallyEqual(node.get_uri(), self.unknown_uri))
 
