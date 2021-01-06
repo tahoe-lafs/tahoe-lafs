@@ -125,9 +125,6 @@ See `TGPPL.PDF <https://tahoe-lafs.org/~zooko/tgppl.pdf>`__ for why the TGPPL ex
 .. |circleci| image:: https://circleci.com/gh/tahoe-lafs/tahoe-lafs.svg?style=svg
     :target: https://circleci.com/gh/tahoe-lafs/tahoe-lafs
 
-.. |codecov| image:: https://codecov.io/github/tahoe-lafs/tahoe-lafs/coverage.svg?branch=master
-    :alt: test coverage percentage
-    :target: https://codecov.io/github/tahoe-lafs/tahoe-lafs?branch=master
 
 .. |Contributor Covenant| image:: https://img.shields.io/badge/Contributor%20Covenant-v2.0%20adopted-ff69b4.svg
     :alt: code of conduct
