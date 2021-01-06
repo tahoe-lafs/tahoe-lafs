@@ -63,7 +63,7 @@ jobs:
       - name: "Report Coverage to Coveralls"
         run: |
           pip install coveralls
-          python -m coveralls debug
+          python -m coveralls
         env:
           # Some magic value required for some magic reason.
           GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
