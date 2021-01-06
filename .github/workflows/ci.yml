@@ -93,6 +93,9 @@ jobs:
       - "coverage"
     runs-on: "ubuntu-latest"
     steps:
+      - name: "Check out Tahoe-LAFS sources"
+        uses: "actions/checkout@v2"
+
       - name: "Finish Coveralls Reporting"
         run: |
           # coveralls-python does have a `--finish` option but it doesn't seem
