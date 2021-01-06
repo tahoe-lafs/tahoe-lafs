@@ -92,15 +92,80 @@ jobs:
     needs:
       - "coverage"
     runs-on: "ubuntu-latest"
-    # Get a Python 3 environment because only the Python 3 release of
-    # coveralls-python has the `--finish` flag...
-    container: "python:3-slim"
+    # Get a runtime environment with curl so we can use it to send the HTTP
+    # request.
+    container: "curlimages/curl:7.74.0"
     steps:
       - name: "Finish Coveralls Reporting"
         run: |
-          # Also install wheel otherwise `docopt` may fail to build
-          pip install wheel coveralls
-          python -m coveralls debug --finish
+          # coveralls-python does have a `--finish` option but it doesn't seem
+          # to work, at least for us.
+          # https://github.com/coveralls-clients/coveralls-python/issues/248
+          #
+          # But all it does is this simple POST so we can just send it
+          # ourselves.  The only hard part is guessing what the POST
+          # parameters mean.
+          #
+          # Since the build is done I'm going to guess that "done" is a fine
+          # value for status.
+          #
+          # That leaves "build_num".  The coveralls documentation gives some
+          # hints about it.  It suggests using $CIRCLE_WORKFLOW_ID if your job
+          # is on CircleCI.  CircleCI documentation says this about
+          # CIRCLE_WORKFLOW_ID:
+          #
+          #    A unique identifier for the workflow instance of the current
+          #    job. This identifier is the same for every job in a given
+          #    workflow instance.
+          #
+          # (from https://circleci.com/docs/2.0/env-vars/)
+          #
+          # A CircleCI workflow is roughly "the group of jobs run for a
+          # particular commit".  There are exceptions to this but maybe we can
+          # ignore them.
+          #
+          # The only over hints we get from Coveralls about "build_num" are:
+          #
+          # * An example value of `1234`
+          #
+          # * Another example value of `$BUILD_NUMBER` where BUILD_NUMBER is
+          #   not defined anywhere.
+          #
+          # Starting from the CircleCI workflow example, then, and looking at
+          # the environment variables GitHub Actions offers
+          # (https://docs.github.com/en/free-pro-team@latest/actions/reference/environment-variables#default-environment-variables) there are two of interest:
+          #
+          # * GITHUB_RUN_ID - A unique number for each run within a
+          #   repository. This number does not change if you re-run the
+          #   workflow run.
+          #
+          # * GITHUB_RUN_NUMBER - A unique number for each run of a particular
+          #   workflow in a repository. This number begins at 1 for the
+          #   workflow's first run, and increments with each new run. This
+          #   number does not change if you re-run the workflow run.
+          #
+          # These seem to offer approximately the same value and only differ
+          # on whether they will be unique for the project as a whole or just
+          # for this particular workflow ("ci", as defined by this file).
+          #
+          # Unfortunately neither of them changes if a workflow is re-run.
+          # This differs from the behavior of CircleCI's CIRCLE_WORKFLOW_ID
+          # where a new value is assigned if a workflow is re-run.
+          #
+          # The consequence of this would seem to be that multiple runs of a
+          # GitHub Actions workflow will have their coverage reported to the
+          # same job.  And since we eventually "finish" a job, later runs
+          # would be discarded (I suppose).
+          #
+          # There doesn't seem to be a way to do any better, though.
+          #
+          # However, we have the further constraint that our build_num must
+          # agree with whatever python-coveralls has selected.  An inspection
+          # of the python-coveralls source reveals (perhaps unsurprisingly)
+          # its authors have selected GITHUB_RUN_ID.
+          #
+          # Thus, we select the same.
+          curl -k https://coveralls.io/webhook?repo_token=$COVERALLS_REPO_TOKEN -d "payload[build_num]=GITHUB_RUN_ID&payload[status]=done"
         env:
           # Some magic value required for some magic reason.
           GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
