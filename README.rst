@@ -6,7 +6,7 @@ Free and Open decentralized data store
 
 `Tahoe-LAFS <https://www.tahoe-lafs.org>`__ (Tahoe Least-Authority File Store) is the first free software / open-source storage technology that distributes your data across multiple servers. Even if some servers fail or are taken over by an attacker, the entire file store continues to function correctly, preserving your privacy and security.
 
-|Contributor Covenant|  |readthedocs|  |travis|  |circleci|  |codecov|
+|Contributor Covenant|  |readthedocs|  |travis|  |circleci|
 
 
 Table of contents
