@@ -96,10 +96,6 @@ jobs:
       - name: "Check out Tahoe-LAFS sources"
         uses: "actions/checkout@v2"
 
-      - name: "Fetch all history for all tags and branches"
-        run: |
-          git fetch --prune --unshallow
-
       - name: "Finish Coveralls Reporting"
         run: |
           # coveralls-python does have a `--finish` option but it doesn't seem
@@ -175,8 +171,11 @@ jobs:
           #
           # GITHUB_REF is a string like the rev being parsed above.  We
           # extract the PR number from it.
+          #
+          # actions/checkout@v2 makes HEAD the same as refs/remotes/pull/<PR
+          # NUM>/merge so we can just rev-parse that.
           PR=$(echo $GITHUB_REF | cut -d / -f 4)
-          REV=$(git rev-parse $GITHUB_REF)
+          REV=$(git rev-parse HEAD)
           BUILD_NUM=$REV-PR-$PR
           REPO_NAME=$GITHUB_REPOSITORY
           curl \
