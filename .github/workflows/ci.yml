@@ -160,8 +160,8 @@ jobs:
           # There doesn't seem to be a way to do any better, though.
           #
           # However, we have the further constraint that our build_num must
-          # agree with whatever python-coveralls has selected.  An inspection
-          # of the python-coveralls source reveals (perhaps unsurprisingly)
+          # agree with whatever coveralls-python has selected.  An inspection
+          # of the coveralls-python source reveals (perhaps unsurprisingly)
           # its authors have selected GITHUB_RUN_ID.
           #
           # Thus, we select the same.
