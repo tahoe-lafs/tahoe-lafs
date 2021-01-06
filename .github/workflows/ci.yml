@@ -100,7 +100,7 @@ jobs:
         run: |
           # Also install wheel otherwise `docopt` may fail to build
           pip install wheel coveralls
-          python -m coveralls --finish
+          python -m coveralls debug --finish
         env:
           # Some magic value required for some magic reason.
           GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
