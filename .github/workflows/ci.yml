@@ -92,9 +92,6 @@ jobs:
     needs:
       - "coverage"
     runs-on: "ubuntu-latest"
-    # Get a runtime environment with curl so we can use it to send the HTTP
-    # request.
-    container: "curlimages/curl:7.74.0"
     steps:
       - name: "Finish Coveralls Reporting"
         run: |
@@ -161,11 +158,25 @@ jobs:
           #
           # However, we have the further constraint that our build_num must
           # agree with whatever coveralls-python has selected.  An inspection
-          # of the coveralls-python source reveals (perhaps unsurprisingly)
-          # its authors have selected GITHUB_RUN_ID.
+          # of the coveralls-python source suggests that GITHUB_RUN_ID is
+          # used.  However, observation of the coveralls.io web interface
+          # suggests the value instead is something more like:
+          #
+          #    $(git rev-parse refs/remotes/pull/<PR NUM>/merge)-PR-<PR NUM>
           #
           # Thus, we select the same.
-          curl -k https://coveralls.io/webhook?repo_token=$COVERALLS_REPO_TOKEN -d "payload[build_num]=$GITHUB_RUN_ID&payload[status]=done"
+          #
+          # GITHUB_REF is a string like the rev being parsed above.  We
+          # extract the PR number from it.
+          PR=$(echo $GITHUB_REF | cut -d / -f 4)
+          REV=$(git rev-parse $GITHUB_REF)
+          BUILD_NUM=$REV-PR-$PR
+          REPO_NAME=$GITHUB_REPOSITORY
+          curl \
+            -k \
+            https://coveralls.io/webhook?repo_token=$COVERALLS_REPO_TOKEN \
+            -d \
+            "payload[build_num]=$BUILD_NUM&payload[status]=done&payload[repo_name]=$REPO_NAME"
         env:
           # Some magic value required for some magic reason.
           GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
