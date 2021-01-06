@@ -1051,57 +1051,57 @@ class Handler(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, unittest.TestCas
 
         d.addCallback(lambda ign:
             self.shouldFailWithSFTPError(sftp.FX_NO_SUCH_FILE, "removeFile nofile",
-                                         self.handler.removeFile, "nofile"))
+                                         self.handler.removeFile, b"nofile"))
         d.addCallback(lambda ign:
             self.shouldFailWithSFTPError(sftp.FX_NO_SUCH_FILE, "removeFile nofile",
-                                         self.handler.removeFile, "nofile"))
+                                         self.handler.removeFile, b"nofile"))
         d.addCallback(lambda ign:
             self.shouldFailWithSFTPError(sftp.FX_NO_SUCH_FILE, "removeFile nodir/file",
-                                         self.handler.removeFile, "nodir/file"))
+                                         self.handler.removeFile, b"nodir/file"))
         d.addCallback(lambda ign:
             self.shouldFailWithSFTPError(sftp.FX_NO_SUCH_FILE, "removefile ''",
-                                         self.handler.removeFile, ""))
+                                         self.handler.removeFile, b""))
 
         # removing a directory should fail
         d.addCallback(lambda ign:
             self.shouldFailWithSFTPError(sftp.FX_PERMISSION_DENIED, "removeFile tiny_lit_dir",
-                                         self.handler.removeFile, "tiny_lit_dir"))
+                                         self.handler.removeFile, b"tiny_lit_dir"))
 
         # removing a file should succeed
         d.addCallback(lambda ign: self.root.get(u"gro\u00DF"))
         d.addCallback(lambda ign: self.handler.removeFile(u"gro\u00DF".encode('utf-8')))
         d.addCallback(lambda ign:
-                      self.shouldFail(NoSuchChildError, "removeFile gross", "gro\\xdf",
+                      self.shouldFail(NoSuchChildError, "removeFile gross", "gro",
                                       self.root.get, u"gro\u00DF"))
 
         # removing an unknown should succeed
         d.addCallback(lambda ign: self.root.get(u"unknown"))
-        d.addCallback(lambda ign: self.handler.removeFile("unknown"))
+        d.addCallback(lambda ign: self.handler.removeFile(b"unknown"))
         d.addCallback(lambda ign:
                       self.shouldFail(NoSuchChildError, "removeFile unknown", "unknown",
                                       self.root.get, u"unknown"))
 
         # removing a link to an open file should not prevent it from being read
-        d.addCallback(lambda ign: self.handler.openFile("small", sftp.FXF_READ, {}))
+        d.addCallback(lambda ign: self.handler.openFile(b"small", sftp.FXF_READ, {}))
         def _remove_and_read_small(rf):
-            d2 = self.handler.removeFile("small")
+            d2 = self.handler.removeFile(b"small")
             d2.addCallback(lambda ign:
                            self.shouldFail(NoSuchChildError, "removeFile small", "small",
                                            self.root.get, u"small"))
             d2.addCallback(lambda ign: rf.readChunk(0, 10))
-            d2.addCallback(lambda data: self.failUnlessReallyEqual(data, "0123456789"))
+            d2.addCallback(lambda data: self.failUnlessReallyEqual(data, b"0123456789"))
             d2.addCallback(lambda ign: rf.close())
             return d2
         d.addCallback(_remove_and_read_small)
 
         # removing a link to a created file should prevent it from being created
-        d.addCallback(lambda ign: self.handler.openFile("tempfile", sftp.FXF_READ | sftp.FXF_WRITE |
+        d.addCallback(lambda ign: self.handler.openFile(b"tempfile", sftp.FXF_READ | sftp.FXF_WRITE |
                                                                     sftp.FXF_CREAT, {}))
         def _write_remove(rwf):
-            d2 = rwf.writeChunk(0, "0123456789")
-            d2.addCallback(lambda ign: self.handler.removeFile("tempfile"))
+            d2 = rwf.writeChunk(0, b"0123456789")
+            d2.addCallback(lambda ign: self.handler.removeFile(b"tempfile"))
             d2.addCallback(lambda ign: rwf.readChunk(0, 10))
-            d2.addCallback(lambda data: self.failUnlessReallyEqual(data, "0123456789"))
+            d2.addCallback(lambda data: self.failUnlessReallyEqual(data, b"0123456789"))
             d2.addCallback(lambda ign: rwf.close())
             return d2
         d.addCallback(_write_remove)
@@ -1110,14 +1110,14 @@ class Handler(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, unittest.TestCas
                                       self.root.get, u"tempfile"))
 
         # ... even if the link is renamed while open
-        d.addCallback(lambda ign: self.handler.openFile("tempfile2", sftp.FXF_READ | sftp.FXF_WRITE |
+        d.addCallback(lambda ign: self.handler.openFile(b"tempfile2", sftp.FXF_READ | sftp.FXF_WRITE |
                                                                      sftp.FXF_CREAT, {}))
         def _write_rename_remove(rwf):
-            d2 = rwf.writeChunk(0, "0123456789")
-            d2.addCallback(lambda ign: self.handler.renameFile("tempfile2", "tempfile3"))
-            d2.addCallback(lambda ign: self.handler.removeFile("tempfile3"))
+            d2 = rwf.writeChunk(0, b"0123456789")
+            d2.addCallback(lambda ign: self.handler.renameFile(b"tempfile2", b"tempfile3"))
+            d2.addCallback(lambda ign: self.handler.removeFile(b"tempfile3"))
             d2.addCallback(lambda ign: rwf.readChunk(0, 10))
-            d2.addCallback(lambda data: self.failUnlessReallyEqual(data, "0123456789"))
+            d2.addCallback(lambda data: self.failUnlessReallyEqual(data, b"0123456789"))
             d2.addCallback(lambda ign: rwf.close())
             return d2
         d.addCallback(_write_rename_remove)
@@ -1138,13 +1138,13 @@ class Handler(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, unittest.TestCas
 
         d.addCallback(lambda ign:
             self.shouldFailWithSFTPError(sftp.FX_NO_SUCH_FILE, "removeDirectory nodir",
-                                         self.handler.removeDirectory, "nodir"))
+                                         self.handler.removeDirectory, b"nodir"))
         d.addCallback(lambda ign:
             self.shouldFailWithSFTPError(sftp.FX_NO_SUCH_FILE, "removeDirectory nodir/nodir",
-                                         self.handler.removeDirectory, "nodir/nodir"))
+                                         self.handler.removeDirectory, b"nodir/nodir"))
         d.addCallback(lambda ign:
             self.shouldFailWithSFTPError(sftp.FX_NO_SUCH_FILE, "removeDirectory ''",
-                                         self.handler.removeDirectory, ""))
+                                         self.handler.removeDirectory, b""))
 
         # removing a file should fail
         d.addCallback(lambda ign:
@@ -1153,14 +1153,14 @@ class Handler(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, unittest.TestCas
 
         # removing a directory should succeed
         d.addCallback(lambda ign: self.root.get(u"tiny_lit_dir"))
-        d.addCallback(lambda ign: self.handler.removeDirectory("tiny_lit_dir"))
+        d.addCallback(lambda ign: self.handler.removeDirectory(b"tiny_lit_dir"))
         d.addCallback(lambda ign:
                       self.shouldFail(NoSuchChildError, "removeDirectory tiny_lit_dir", "tiny_lit_dir",
                                       self.root.get, u"tiny_lit_dir"))
 
         # removing an unknown should succeed
         d.addCallback(lambda ign: self.root.get(u"unknown"))
-        d.addCallback(lambda ign: self.handler.removeDirectory("unknown"))
+        d.addCallback(lambda ign: self.handler.removeDirectory(b"unknown"))
         d.addCallback(lambda err:
                       self.shouldFail(NoSuchChildError, "removeDirectory unknown", "unknown",
                                       self.root.get, u"unknown"))
