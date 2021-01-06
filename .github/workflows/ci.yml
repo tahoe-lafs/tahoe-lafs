@@ -168,16 +168,19 @@ jobs:
           #    $(git rev-parse refs/pull/<PR NUM>/merge)-PR-<PR NUM>
           #
           # Thus, we select the same.
-          #
-          # GITHUB_REF is a string like the rev being parsed above.  We
-          # extract the PR number from it.
-          #
-          # actions/checkout@v2 makes HEAD the same as refs/pull/<PR
-          # NUM>/merge so we can just rev-parse that.
-          PR=$(echo $GITHUB_REF | cut -d / -f 3)
+
+          # refs/pull/<PR NUM>/merge was justed checked out by so we can just
+          # rev-parse HEAD to find the revision.
           REV=$(git rev-parse HEAD)
+
+          # We can get the PR number from the "context".
+          # https://github.community/t/github-ref-is-inconsistent/17728/3
+          # https://docs.github.com/en/free-pro-team@latest/articles/events-that-trigger-workflows
+          PR=${{ github.event.number }}
+
           BUILD_NUM=$REV-PR-$PR
           REPO_NAME=$GITHUB_REPOSITORY
+
           curl \
             -k \
             https://coveralls.io/webhook?repo_token=$COVERALLS_REPO_TOKEN \
