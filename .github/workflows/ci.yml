@@ -165,7 +165,7 @@ jobs:
           # its authors have selected GITHUB_RUN_ID.
           #
           # Thus, we select the same.
-          curl -k https://coveralls.io/webhook?repo_token=$COVERALLS_REPO_TOKEN -d "payload[build_num]=GITHUB_RUN_ID&payload[status]=done"
+          curl -k https://coveralls.io/webhook?repo_token=$COVERALLS_REPO_TOKEN -d "payload[build_num]=$GITHUB_RUN_ID&payload[status]=done"
         env:
           # Some magic value required for some magic reason.
           GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
