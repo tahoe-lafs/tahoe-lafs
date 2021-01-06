@@ -96,6 +96,10 @@ jobs:
       - name: "Check out Tahoe-LAFS sources"
         uses: "actions/checkout@v2"
 
+      - name: "Fetch all history for all tags and branches"
+        run: |
+          git fetch --prune --unshallow
+
       - name: "Finish Coveralls Reporting"
         run: |
           # coveralls-python does have a `--finish` option but it doesn't seem
