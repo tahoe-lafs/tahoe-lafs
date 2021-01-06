@@ -165,16 +165,16 @@ jobs:
           # used.  However, observation of the coveralls.io web interface
           # suggests the value instead is something more like:
           #
-          #    $(git rev-parse refs/remotes/pull/<PR NUM>/merge)-PR-<PR NUM>
+          #    $(git rev-parse refs/pull/<PR NUM>/merge)-PR-<PR NUM>
           #
           # Thus, we select the same.
           #
           # GITHUB_REF is a string like the rev being parsed above.  We
           # extract the PR number from it.
           #
-          # actions/checkout@v2 makes HEAD the same as refs/remotes/pull/<PR
+          # actions/checkout@v2 makes HEAD the same as refs/pull/<PR
           # NUM>/merge so we can just rev-parse that.
-          PR=$(echo $GITHUB_REF | cut -d / -f 4)
+          PR=$(echo $GITHUB_REF | cut -d / -f 3)
           REV=$(git rev-parse HEAD)
           BUILD_NUM=$REV-PR-$PR
           REPO_NAME=$GITHUB_REPOSITORY
