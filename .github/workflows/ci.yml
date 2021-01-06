@@ -92,10 +92,14 @@ jobs:
     needs:
       - "coverage"
     runs-on: "ubuntu-latest"
+    # Get a Python 3 environment because only the Python 3 release of
+    # coveralls-python has the `--finish` flag...
+    container: "python:3-slim"
     steps:
       - name: "Finish Coveralls Reporting"
         run: |
-          pip install coveralls
+          # Also install wheel otherwise `docopt` may fail to build
+          pip install wheel coveralls
           python -m coveralls --finish
         env:
           # Some magic value required for some magic reason.
