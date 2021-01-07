@@ -190,11 +190,16 @@ jobs:
           # If this is a pull request, `github.event` is a `pull_request`
           # structure which has `number` right in it.
           #
-          # If this is a push, `github.event` is a `push` instead and ... XXX ???
+          # If this is a push, `github.event` is a `push` instead but we only
+          # need the revision to construct the build_num.
 
           PR=${{ github.event.number }}
 
-          BUILD_NUM=$REV-PR-$PR
+          if [ "${PR}" = "" ]; then
+              BUILD_NUM=$REV
+          else
+              BUILD_NUM=$REV-PR-$PR
+          fi
           REPO_NAME=$GITHUB_REPOSITORY
 
           curl \
