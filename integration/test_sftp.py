@@ -23,14 +23,11 @@ from paramiko.ssh_exception import AuthenticationException
 import pytest
 
 
-def connect_sftp(alice, username="alice", password="password"):
+def connect_sftp(connect_args={"username": "alice", "password": "password"}):
     """Create an SFTP client."""
     client = SSHClient()
     client.set_missing_host_key_policy(AutoAddPolicy)
-    client.connect(
-        "localhost", username=username, password=password, port=8022,
-        look_for_keys=False
-    )
+    client.connect("localhost", port=8022, look_for_keys=False, **connect_args)
     sftp = SFTPClient.from_transport(client.get_transport())
 
     def rmdir(path, delete_root=True):
@@ -49,16 +46,30 @@ def connect_sftp(alice, username="alice", password="password"):
     return sftp
 
 
-def test_bad_account_password(alice):
-    """Can't login with unknown username or wrong password."""
+def test_bad_account_password_ssh_key(alice):
+    """
+    Can't login with unknown username, wrong password, or wrong SSH pub key.
+    """
     for u, p in [("alice", "wrong"), ("someuser", "password")]:
         with pytest.raises(AuthenticationException):
-            connect_sftp(alice, u, p)
+            connect_sftp(connect_args={
+                "username": u, "password": p,
+            })
+    # TODO bad pubkey
+
+
+def test_ssh_key_auth(alice):
+    """It's possible to login authenticating with SSH public key."""
+    key_filename = join(alice.node_dir, "private", "ssh_client_rsa_key")
+    sftp = connect_sftp(connect_args={
+        "username": "alice2", "key_filename": key_filename
+    })
+    assert sftp.listdir() == []
 
 
 def test_read_write_files(alice):
     """It's possible to upload and download files."""
-    sftp = connect_sftp(alice)
+    sftp = connect_sftp()
     f = sftp.file("myfile", "wb")
     f.write(b"abc")
     f.write(b"def")
@@ -75,7 +86,7 @@ def test_directories(alice):
     It's possible to create, list directories, and create and remove files in
     them.
     """
-    sftp = connect_sftp(alice)
+    sftp = connect_sftp()
     assert sftp.listdir() == []
 
     sftp.mkdir("childdir")
@@ -101,3 +112,19 @@ def test_directories(alice):
 
     sftp.rmdir("childdir")
     assert sftp.listdir() == []
+
+
+def test_rename(alice):
+    """Directories and files can be renamed."""
+    sftp = connect_sftp()
+    sftp.mkdir("dir")
+
+    filepath = join("dir", "file")
+    with sftp.file(filepath, "wb") as f:
+        f.write(b"abc")
+
+    sftp.rename(filepath, join("dir", "file2"))
+    sftp.rename("dir", "dir2")
+
+    with sftp.file(join("dir2", "file2"), "rb") as f:
+        assert f.read() == b"abc"

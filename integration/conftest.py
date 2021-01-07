@@ -8,7 +8,6 @@ from os.path import join, exists
 from tempfile import mkdtemp, mktemp
 from functools import partial
 from json import loads
-from subprocess import check_call
 
 from foolscap.furl import (
     decode_furl,
@@ -41,6 +40,7 @@ from util import (
     TahoeProcess,
     cli,
     _run_node,
+    generate_ssh_key
 )
 
 
@@ -343,12 +343,6 @@ def storage_nodes(reactor, temp_dir, introducer, introducer_furl, flog_gatherer,
     return nodes
 
 
-def generate_ssh_key(path):
-    """Create a new SSH private/public key pair."""
-    check_call(["ckeygen", "--type", "rsa", "--no-passphrase", "--bits", "512",
-                "--file", path])
-
-
 @pytest.fixture(scope='session')
 @log_call(action_type=u"integration:alice", include_args=[], include_result=False)
 def alice(reactor, temp_dir, introducer_furl, flog_gatherer, storage_nodes, request):
@@ -366,7 +360,7 @@ def alice(reactor, temp_dir, introducer_furl, flog_gatherer, storage_nodes, requ
     rwcap = loads(cli(process, "list-aliases", "--json"))["test"]["readwrite"]
 
     # 2. Enable SFTP on the node:
-    ssh_key_path = join(process.node_dir, "private", "ssh_host_rsa_key")
+    host_ssh_key_path = join(process.node_dir, "private", "ssh_host_rsa_key")
     accounts_path = join(process.node_dir, "private", "accounts")
     with open(join(process.node_dir, "tahoe.cfg"), "a") as f:
         f.write("""\
@@ -376,15 +370,23 @@ port = tcp:8022:interface=127.0.0.1
 host_pubkey_file = {ssh_key_path}.pub
 host_privkey_file = {ssh_key_path}
 accounts.file = {accounts_path}
-""".format(ssh_key_path=ssh_key_path, accounts_path=accounts_path))
-    generate_ssh_key(ssh_key_path)
+""".format(ssh_key_path=host_ssh_key_path, accounts_path=accounts_path))
+    generate_ssh_key(host_ssh_key_path)
 
-    # 3. Add a SFTP access file with username, password, and rwcap.
+    # 3. Add a SFTP access file with username/password and SSH key auth.
+
+    # The client SSH key path is typically going to be somewhere else (~/.ssh,
+    # typically), but for convenience sake for testing we'll put it inside node.
+    client_ssh_key_path = join(process.node_dir, "private", "ssh_client_rsa_key")
+    generate_ssh_key(client_ssh_key_path)
+    # Pub key format is "ssh-rsa <thekey> <username>". We want the key.
+    ssh_public_key = open(client_ssh_key_path + ".pub").read().strip().split()[1]
     with open(accounts_path, "w") as f:
         f.write("""\
-alice password {}
-""".format(rwcap))
-    # TODO add sftp access with public key
+alice password {rwcap}
+
+alice2 ssh-rsa {ssh_public_key} {rwcap}
+""".format(rwcap=rwcap, ssh_public_key=ssh_public_key))
 
     # 4. Restart the node with new SFTP config.
     process.kill()

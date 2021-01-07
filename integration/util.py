@@ -5,7 +5,7 @@ from os import mkdir, environ
 from os.path import exists, join
 from six.moves import StringIO
 from functools import partial
-from subprocess import check_output
+from subprocess import check_output, check_call
 
 from twisted.python.filepath import (
     FilePath,
@@ -506,3 +506,9 @@ def await_client_ready(tahoe, timeout=10, liveness=60*2):
             tahoe,
         )
     )
+
+
+def generate_ssh_key(path):
+    """Create a new SSH private/public key pair."""
+    check_call(["ckeygen", "--type", "rsa", "--no-passphrase", "--bits", "512",
+                "--file", path])
