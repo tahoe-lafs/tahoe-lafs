@@ -8,6 +8,7 @@ from os.path import join, exists
 from tempfile import mkdtemp, mktemp
 from functools import partial
 from json import loads
+from subprocess import check_call
 
 from foolscap.furl import (
     decode_furl,
@@ -342,6 +343,12 @@ def storage_nodes(reactor, temp_dir, introducer, introducer_furl, flog_gatherer,
     return nodes
 
 
+def generate_ssh_key(path):
+    """Create a new SSH private/public key pair."""
+    check_call(["ckeygen", "--type", "rsa", "--no-passphrase", "--bits", "512",
+                "--file", path])
+
+
 @pytest.fixture(scope='session')
 @log_call(action_type=u"integration:alice", include_args=[], include_result=False)
 def alice(reactor, temp_dir, introducer_furl, flog_gatherer, storage_nodes, request):
@@ -353,14 +360,36 @@ def alice(reactor, temp_dir, introducer_furl, flog_gatherer, storage_nodes, requ
         )
     )
     await_client_ready(process)
+
+    # 1. Create a new RW directory cap:
     cli(process, "create-alias", "test")
     rwcap = loads(cli(process, "list-aliases", "--json"))["test"]["readwrite"]
-    # TODO at this point we need to:
-    # 1. configure sftpd
-    # 2. add an sftp access file with username, password, and rwcap
-    # 3. eventually, add sftp access with public key
+
+    # 2. Enable SFTP on the node:
+    ssh_key_path = join(process.node_dir, "private", "ssh_host_rsa_key")
+    accounts_path = join(process.node_dir, "private", "accounts")
+    with open(join(process.node_dir, "tahoe.cfg"), "a") as f:
+        f.write("""\
+[sftpd]
+enabled = true
+port = tcp:8022:interface=127.0.0.1
+host_pubkey_file = {ssh_key_path}.pub
+host_privkey_file = {ssh_key_path}
+accounts.file = {accounts_path}
+""".format(ssh_key_path=ssh_key_path, accounts_path=accounts_path))
+    generate_ssh_key(ssh_key_path)
+
+    # 3. Add a SFTP access file with username, password, and rwcap.
+    with open(accounts_path, "w") as f:
+        f.write("""\
+alice password {}
+""".format(rwcap))
+    # TODO add sftp access with public key
+
+    # 4. Restart the node with new SFTP config.
     process.kill()
     pytest_twisted.blockon(_run_node(reactor, process.node_dir, request, None))
+
     await_client_ready(process)
     return process
 
