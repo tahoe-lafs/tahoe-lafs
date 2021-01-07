@@ -2012,5 +2012,5 @@ class SFTPServer(service.MultiService):
         f = SSHFactory()
         f.portal = p
 
-        s = strports.service(sftp_portstr, f)
+        s = strports.service(six.ensure_str(sftp_portstr), f)
         s.setServiceParent(self)
