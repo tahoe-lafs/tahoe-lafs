@@ -51,7 +51,6 @@ from allmydata.nodemaker import (
     NodeMaker,
 )
 from allmydata.node import OldConfigError, UnescapedHashError, create_node_dir
-from allmydata.frontends.auth import NeedRootcapLookupScheme
 from allmydata import client
 from allmydata.storage_client import (
     StorageClientConfig,
