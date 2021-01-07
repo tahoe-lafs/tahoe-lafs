@@ -7,6 +7,7 @@ from os import mkdir, listdir, environ
 from os.path import join, exists
 from tempfile import mkdtemp, mktemp
 from functools import partial
+from json import loads
 
 from foolscap.furl import (
     decode_furl,
@@ -37,6 +38,8 @@ from util import (
     _tahoe_runner_optional_coverage,
     await_client_ready,
     TahoeProcess,
+    cli,
+    _run_node,
 )
 
 
@@ -349,6 +352,15 @@ def alice(reactor, temp_dir, introducer_furl, flog_gatherer, storage_nodes, requ
             storage=False,
         )
     )
+    await_client_ready(process)
+    cli(process, "create-alias", "test")
+    rwcap = loads(cli(process, "list-aliases", "--json"))["test"]["readwrite"]
+    # TODO at this point we need to:
+    # 1. configure sftpd
+    # 2. add an sftp access file with username, password, and rwcap
+    # 3. eventually, add sftp access with public key
+    process.kill()
+    pytest_twisted.blockon(_run_node(reactor, process.node_dir, request, None))
     await_client_ready(process)
     return process
 
