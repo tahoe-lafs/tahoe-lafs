@@ -162,20 +162,36 @@ jobs:
           # However, we have the further constraint that our build_num must
           # agree with whatever coveralls-python has selected.  An inspection
           # of the coveralls-python source suggests that GITHUB_RUN_ID is
-          # used.  However, observation of the coveralls.io web interface
-          # suggests the value instead is something more like:
+          # used:
           #
-          #    $(git rev-parse refs/pull/<PR NUM>/merge)-PR-<PR NUM>
+          #  * https://github.com/coveralls-clients/coveralls-python/blob/a9b36299ce9ba3bb6858700781881029d82e545d/coveralls/api.py#L105-L109
+          #  * https://github.com/coveralls-clients/coveralls-python/blob/a9b36299ce9ba3bb6858700781881029d82e545d/coveralls/api.py#L54-L59
           #
-          # Thus, we select the same.
+          # However, observation of the coveralls.io web interface, logs from
+          # the coveralls command in action, and experimentation suggests the
+          # value instead is something more like:
+          #
+          #    <GIT COMMIT HASH>-PR-<PR NUM>
+          #
+          # For PRs it is the merge commit (`refs/pull/<PR>/merge`).  For
+          # branches, the tip.
 
-          # refs/pull/<PR NUM>/merge was justed checked out by so we can just
-          # rev-parse HEAD to find the revision.
+          # For pull requests, refs/pull/<PR NUM>/merge was just checked out
+          # by so HEAD will refer to the right revision.  For branches, HEAD
+          # is also the tip of the branch.
           REV=$(git rev-parse HEAD)
 
           # We can get the PR number from the "context".
-          # https://github.community/t/github-ref-is-inconsistent/17728/3
-          # https://docs.github.com/en/free-pro-team@latest/articles/events-that-trigger-workflows
+          #
+          # https://docs.github.com/en/free-pro-team@latest/developers/webhooks-and-events/webhook-events-and-payloads#pull_request
+          #
+          # (via <https://github.community/t/github-ref-is-inconsistent/17728/3>).
+          #
+          # If this is a pull request, `github.event` is a `pull_request`
+          # structure which has `number` right in it.
+          #
+          # If this is a push, `github.event` is a `push` instead and ... XXX ???
+
           PR=${{ github.event.number }}
 
           BUILD_NUM=$REV-PR-$PR
