@@ -65,6 +65,8 @@ def run_tahoe(node, argv):
     """
     env = environ.copy()
     env["LANG"] = "en_US.UTF-8"
+    from pprint import pprint
+    pprint(env)
     proc = Popen(
         list(
             ensure_str(elem)
