@@ -119,9 +119,8 @@ def show_output(fp, template, **kwargs):
     # test suite often passes StringIO which has no such attribute.  Make
     # allowances for this until the test suite is fixed and Python 2 is no
     # more.
-    try:
-        encoding = fp.encoding or "utf-8"
-    except AttributeError:
+    encoding = getattr(fp, "encoding", None)
+    if encoding is None:
         has_encoding = False
         encoding = "utf-8"
     else:
