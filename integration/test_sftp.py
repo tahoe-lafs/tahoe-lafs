@@ -19,6 +19,7 @@ from paramiko import SSHClient
 from paramiko.client import AutoAddPolicy
 from paramiko.sftp_client import SFTPClient
 from paramiko.ssh_exception import AuthenticationException
+from paramiko.rsakey import RSAKey
 
 import pytest
 
@@ -27,7 +28,8 @@ def connect_sftp(connect_args={"username": "alice", "password": "password"}):
     """Create an SFTP client."""
     client = SSHClient()
     client.set_missing_host_key_policy(AutoAddPolicy)
-    client.connect("localhost", port=8022, look_for_keys=False, **connect_args)
+    client.connect("localhost", port=8022, look_for_keys=False,
+                   allow_agent=False, **connect_args)
     sftp = SFTPClient.from_transport(client.get_transport())
 
     def rmdir(path, delete_root=True):
@@ -60,9 +62,9 @@ def test_bad_account_password_ssh_key(alice):
 
 def test_ssh_key_auth(alice):
     """It's possible to login authenticating with SSH public key."""
-    key_filename = join(alice.node_dir, "private", "ssh_client_rsa_key")
+    key = RSAKey(filename=join(alice.node_dir, "private", "ssh_client_rsa_key"))
     sftp = connect_sftp(connect_args={
-        "username": "alice2", "key_filename": key_filename
+        "username": "alice2", "pkey": key
     })
     assert sftp.listdir() == []
 

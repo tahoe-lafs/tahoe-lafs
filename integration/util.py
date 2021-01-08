@@ -510,5 +510,5 @@ def await_client_ready(tahoe, timeout=10, liveness=60*2):
 
 def generate_ssh_key(path):
     """Create a new SSH private/public key pair."""
-    check_call(["ckeygen", "--type", "rsa", "--no-passphrase", "--bits", "512",
-                "--file", path])
+    check_call(["ckeygen", "--type", "rsa", "--no-passphrase", "--bits", "2048",
+                "--file", path, "--private-key-subtype", "v1"])
