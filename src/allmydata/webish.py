@@ -1,3 +1,15 @@
+"""
+Ported to Python 3.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+
 from six import ensure_str
 
 import re, time, tempfile
@@ -65,18 +77,24 @@ class TahoeLAFSRequest(Request, object):
             self.path, argstring = x
             self.args = parse_qs(argstring, 1)
 
-        if self.method == 'POST':
+        if self.method == b'POST':
             # We use FieldStorage here because it performs better than
             # cgi.parse_multipart(self.content, pdict) which is what
             # twisted.web.http.Request uses.
-            self.fields = FieldStorage(
-                self.content,
-                {
-                    name.lower(): value[-1]
-                    for (name, value)
-                    in self.requestHeaders.getAllRawHeaders()
-                },
-                environ={'REQUEST_METHOD': 'POST'})
+
+            headers = {
+                ensure_str(name.lower()): ensure_str(value[-1])
+                for (name, value)
+                in self.requestHeaders.getAllRawHeaders()
+            }
+
+            if 'content-length' not in headers:
+                # Python 3's cgi module would really, really like us to set Content-Length.
+                self.content.seek(0, 2)
+                headers['content-length'] = str(self.content.tell())
+                self.content.seek(0)
+
+            self.fields = FieldStorage(self.content, headers, environ={'REQUEST_METHOD': 'POST'})
             self.content.seek(0)
 
         self._tahoeLAFSSecurityPolicy()
