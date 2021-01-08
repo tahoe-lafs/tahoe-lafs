@@ -6,6 +6,7 @@ from twisted.internet import defer
 from twisted.cred import error, checkers, credentials
 from twisted.conch import error as conch_error
 from twisted.conch.ssh import keys
+from twisted.conch.checkers import SSHPublicKeyChecker, InMemorySSHKeyDB
 
 from allmydata.util import base32
 from allmydata.util.fileutil import abspath_expanduser_unicode
@@ -29,7 +30,7 @@ class AccountFileChecker(object):
     def __init__(self, client, accountfile):
         self.client = client
         self.passwords = {}
-        self.pubkeys = {}
+        pubkeys = {}
         self.rootcaps = {}
         with open(abspath_expanduser_unicode(accountfile), "r") as f:
             for line in f:
@@ -40,12 +41,14 @@ class AccountFileChecker(object):
                 if passwd.startswith("ssh-"):
                     bits = rest.split()
                     keystring = " ".join([passwd] + bits[:-1])
+                    key = keys.Key.fromString(keystring)
                     rootcap = bits[-1]
-                    self.pubkeys[name] = keystring
+                    pubkeys[name] = [key]
                 else:
                     self.passwords[name] = passwd
                     rootcap = rest
                 self.rootcaps[name] = rootcap
+        self._pubkeychecker = SSHPublicKeyChecker(InMemorySSHKeyDB(pubkeys))
 
     def _avatarId(self, username):
         return FTPAvatarID(username, self.rootcaps[username])
@@ -57,11 +60,9 @@ class AccountFileChecker(object):
 
     def requestAvatarId(self, creds):
         if credentials.ISSHPrivateKey.providedBy(creds):
-            # Re-using twisted.conch.checkers.SSHPublicKeyChecker here, rather
-            # than re-implementing all of the ISSHPrivateKey checking logic,
-            # would be better.  That would require Twisted 14.1.0 or newer,
-            # though.
-            return self._checkKey(creds)
+            d = defer.maybeDeferred(self._pubkeychecker.requestAvatarId, creds)
+            d.addCallback(self._avatarId)
+            return d
         elif credentials.IUsernameHashedPassword.providedBy(creds):
             return self._checkPassword(creds)
         elif credentials.IUsernamePassword.providedBy(creds):
@@ -86,28 +87,6 @@ class AccountFileChecker(object):
         d.addCallback(self._cbPasswordMatch, str(creds.username))
         return d
 
-    def _checkKey(self, creds):
-        """
-        Determine whether some key-based credentials correctly authenticates a
-        user.
-
-        Returns a Deferred that fires with the username if so or with an
-        UnauthorizedLogin failure otherwise.
-        """
-
-        # Is the public key indicated by the given credentials allowed to
-        # authenticate the username in those credentials?
-        if creds.blob == self.pubkeys.get(creds.username):
-            if creds.signature is None:
-                return defer.fail(conch_error.ValidPublicKey())
-
-            # Is the signature in the given credentials the correct
-            # signature for the data in those credentials?
-            key = keys.Key.fromString(creds.blob)
-            if key.verify(creds.signature, creds.sigData):
-                return defer.succeed(self._avatarId(creds.username))
-
-        return defer.fail(error.UnauthorizedLogin())
 
 @implementer(checkers.ICredentialsChecker)
 class AccountURLChecker(object):
