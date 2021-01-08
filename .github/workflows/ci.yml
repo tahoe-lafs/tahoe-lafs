@@ -76,7 +76,9 @@ jobs:
           # Mark the data as just one piece of many because we have more than
           # one instance of this job (Windows, macOS) which collects and
           # reports coverage.  This is necessary to cause Coveralls to merge
-          # multiple coverage results into a single report.
+          # multiple coverage results into a single report.  Note the merge
+          # only happens when we "finish" a particular build, as identified by
+          # its "build_num" (aka "service_number").
           COVERALLS_PARALLEL: true
 
   # Tell Coveralls that we're done reporting coverage data.  Since we're using
