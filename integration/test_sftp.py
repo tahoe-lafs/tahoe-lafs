@@ -23,6 +23,8 @@ from paramiko.rsakey import RSAKey
 
 import pytest
 
+from .util import generate_ssh_key
+
 
 def connect_sftp(connect_args={"username": "alice", "password": "password"}):
     """Create an SFTP client."""
@@ -48,16 +50,33 @@ def connect_sftp(connect_args={"username": "alice", "password": "password"}):
     return sftp
 
 
-def test_bad_account_password_ssh_key(alice):
+def test_bad_account_password_ssh_key(alice, tmpdir):
     """
     Can't login with unknown username, wrong password, or wrong SSH pub key.
     """
+    # Wrong password, wrong username:
     for u, p in [("alice", "wrong"), ("someuser", "password")]:
         with pytest.raises(AuthenticationException):
             connect_sftp(connect_args={
                 "username": u, "password": p,
             })
-    # TODO bad pubkey
+
+    another_key = join(str(tmpdir), "ssh_key")
+    generate_ssh_key(another_key)
+    good_key = RSAKey(filename=join(alice.node_dir, "private", "ssh_client_rsa_key"))
+    bad_key = RSAKey(filename=another_key)
+
+    # Wrong key:
+    with pytest.raises(AuthenticationException):
+        connect_sftp(connect_args={
+            "username": "alice2", "pkey": bad_key,
+        })
+
+    # Wrong username:
+    with pytest.raises(AuthenticationException):
+        connect_sftp(connect_args={
+            "username": "someoneelse", "pkey": good_key,
+        })
 
 
 def test_ssh_key_auth(alice):
