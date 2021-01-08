@@ -64,7 +64,7 @@ def run_tahoe(node, argv):
     :return ProcessResult: The outcome of running the process.
     """
     env = environ.copy()
-    env["LANG"] = "en_US.UTF-8"
+    env[ensure_str("LANG")] = ensure_str("en_US.UTF-8")
     from pprint import pprint
     pprint(env)
     proc = Popen(
