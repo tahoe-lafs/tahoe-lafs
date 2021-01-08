@@ -20,6 +20,14 @@ from future.utils import PY2
 if PY2:
     from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
+from six import (
+    ensure_str,
+)
+
+from os import (
+    environ,
+)
+
 from json import (
     loads,
 )
@@ -55,10 +63,17 @@ def run_tahoe(node, argv):
 
     :return ProcessResult: The outcome of running the process.
     """
+    env = environ.copy()
+    env["LANG"] = "en_US.UTF-8"
     proc = Popen(
-        ["tahoe", "-d", node.node_dir] + argv,
+        list(
+            ensure_str(elem)
+            for elem
+            in ["tahoe", "-d", node.node_dir] + argv
+        ),
         stdout=PIPE,
         stderr=PIPE,
+        env=env,
     )
     stdout = proc.stdout.read().decode("utf-8")
     stderr = proc.stderr.read().decode("utf-8")
