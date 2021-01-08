@@ -4,7 +4,6 @@ from zope.interface import implementer
 from twisted.web.client import getPage
 from twisted.internet import defer
 from twisted.cred import error, checkers, credentials
-from twisted.conch import error as conch_error
 from twisted.conch.ssh import keys
 from twisted.conch.checkers import SSHPublicKeyChecker, InMemorySSHKeyDB
 
