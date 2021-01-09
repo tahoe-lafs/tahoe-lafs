@@ -89,11 +89,16 @@ def test_alias_create_list(alice):
     ``tahoe list-aliases``.
     """
     alias = u"hello-\N{SNOWMAN}"
-    result = run_tahoe(alice, ["create-alias", alias])
-    assert (result.returncode, result.stderr) == (0, "")
-    assert result.stdout == "Alias '{}' created\n".format(alias)
+    create_result = run_tahoe(alice, ["create-alias", alias])
+    print("Create result: {}".format(create_result))
 
-    result = run_tahoe(alice, ["list-aliases", "--json"])
-    assert (result.returncode, result.stderr) == (0, "")
-    aliases = loads(result.stdout)
-    assert alias in aliases
+    list_result = run_tahoe(alice, ["list-aliases", "--json"])
+    print("List result: {}".format(list_result))
+
+    assert create_result.returncode == 0
+    assert create_result.stdout == "Alias '{}' created\n".format(alias)
+    assert create_result.stderr == ""
+
+    assert list_result.returncode == 0
+    assert alias in loads(list_result.stdout)
+    assert list_result.stderr == ""
