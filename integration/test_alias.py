@@ -75,6 +75,9 @@ def run_tahoe(node, argv):
     pprint(env)
     proc = Popen(
         list(
+            # Make sure argv is represented as native strings.  On Python 2
+            # this encodes unicode using UTF-8.  Since the strings are already
+            # unicode, on Python 3 this is a no-op.
             ensure_str(elem)
             for elem
             in ["tahoe", "-d", node.node_dir] + argv
