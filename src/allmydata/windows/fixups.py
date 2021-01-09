@@ -11,19 +11,19 @@ def initialize():
 
     import codecs, re
     from ctypes import WINFUNCTYPE, WinError, windll, POINTER, byref, c_int, get_last_error
-    from ctypes.wintypes import BOOL, HANDLE, DWORD, UINT, LPWSTR, LPCWSTR, LPVOID
+    from ctypes.wintypes import BOOL, HANDLE, DWORD, LPWSTR, LPCWSTR, LPVOID
 
     from allmydata.util import log
     from allmydata.util.encodingutil import canonical_encoding
 
     # <https://msdn.microsoft.com/en-us/library/ms680621%28VS.85%29.aspx>
-    SetErrorMode = WINFUNCTYPE(
-        UINT,  UINT,
-        use_last_error=True
-    )(("SetErrorMode", windll.kernel32))
-
-    SEM_FAILCRITICALERRORS = 0x0001
-    SEM_NOOPENFILEERRORBOX = 0x8000
+    from win32api import (
+        SetErrorMode,
+    )
+    from win32con import (
+        SEM_FAILCRITICALERRORS,
+        SEM_NOOPENFILEERRORBOX,
+    )
 
     SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOOPENFILEERRORBOX)
 
