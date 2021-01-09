@@ -212,7 +212,7 @@ def initialize():
     )(("CommandLineToArgvW", windll.shell32))
 
     command_line = GetCommandLineW()
-    print("Command line: {!r}".format(command_line)
+    print("Command line: {!r}".format(command_line))
     argc = c_int(0)
     argv_unicode = CommandLineToArgvW(command_line, byref(argc))
     if argv_unicode is None:
