@@ -9,6 +9,10 @@ def initialize():
         return True
     done = True
 
+    print("sys.stdin.encoding: {!r}".format(sys.stdin.encoding))
+    print("sys.stdout.encoding: {!r}".format(sys.stdout.encoding))
+    print("sys.stderr.encoding: {!r}".format(sys.stderr.encoding))
+
     import codecs, re
     from ctypes import WINFUNCTYPE, WinError, windll, POINTER, byref, c_int, get_last_error
     from ctypes.wintypes import BOOL, HANDLE, DWORD, UINT, LPWSTR, LPCWSTR, LPVOID
@@ -207,8 +211,10 @@ def initialize():
         use_last_error=True
     )(("CommandLineToArgvW", windll.shell32))
 
+    command_line = GetCommandLineW()
+    print("Command line: {!r}".format(command_line)
     argc = c_int(0)
-    argv_unicode = CommandLineToArgvW(GetCommandLineW(), byref(argc))
+    argv_unicode = CommandLineToArgvW(command_line, byref(argc))
     if argv_unicode is None:
         raise WinError(get_last_error())
 
