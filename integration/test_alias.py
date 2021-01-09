@@ -86,6 +86,9 @@ def run_tahoe(node, argv):
         stderr=PIPE,
         env=env,
     )
+    # It is more reasonable to expect LANG to control the stdout/stderr
+    # encoding.  So decode the received output as UTF-8 so tests can handle
+    # the data as text more easily.
     stdout = proc.stdout.read().decode("utf-8")
     stderr = proc.stderr.read().decode("utf-8")
     returncode = proc.wait()
