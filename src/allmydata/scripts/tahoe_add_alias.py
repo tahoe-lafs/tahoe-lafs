@@ -134,6 +134,15 @@ def show_output(fp, template, **kwargs):
     safe_output = output.encode(encoding, "namereplace")
     if has_encoding:
         safe_output = safe_output.decode(encoding)
+
+    print("show_output")
+    print("===========")
+    print("fp.encoding:", getattr(fp, "encoding", "<missing>"))
+    print("has_encoding:", has_encoding)
+    print("encoding:", encoding)
+    print("output:", repr(output))
+    print("safe_output:", repr(safe_output))
+
     print(safe_output, file=fp)
 
 
