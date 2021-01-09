@@ -63,6 +63,17 @@ def run_tahoe(node, argv):
 
     :return ProcessResult: The outcome of running the process.
     """
+
+    from win32console import GetConsoleCP
+    import sys
+    print(
+        "Parent encodings: {} {} {}".format(
+            sys.getdefaultencoding(),
+            sys.getfilesystemencoding(),
+            GetConsoleCP(),
+        ),
+    )
+
     env = environ.copy()
     # Make sure the child process agrees with our choice of encoding.  Of
     # course, under real usage, LANG could be set to anything.  But whatever
