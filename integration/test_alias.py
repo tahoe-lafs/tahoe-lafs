@@ -64,6 +64,12 @@ def run_tahoe(node, argv):
     :return ProcessResult: The outcome of running the process.
     """
     env = environ.copy()
+    # Make sure the child process agrees with our choice of encoding.  Of
+    # course, under real usage, LANG could be set to anything.  But whatever
+    # it is set to, whoever is invoking it is responsible for making sure
+    # arguments are encoded compatibly.  Not that LANG is really meant to
+    # indicate argv encoding... So we might want to throw this out and
+    # *always* decode argv as UTF-8 to provide a more predictable experience.
     env[ensure_str("LANG")] = ensure_str("en_US.UTF-8")
     from pprint import pprint
     pprint(env)
