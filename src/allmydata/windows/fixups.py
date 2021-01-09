@@ -199,7 +199,7 @@ def initialize():
 
     # This works around <http://bugs.python.org/issue2128>.
 
-    # <https://msdn.microsoft.com/en-us/library/windows/desktop/ms683156%28v=vs.85%29.aspx>
+    # <https://docs.microsoft.com/en-us/windows/win32/api/processenv/nf-processenv-getcommandlinew>
     GetCommandLineW = WINFUNCTYPE(
         LPWSTR,
         use_last_error=True
