@@ -9,9 +9,17 @@ def initialize():
         return True
     done = True
 
-    print("sys.stdin.encoding: {!r}".format(sys.stdin.encoding))
-    print("sys.stdout.encoding: {!r}".format(sys.stdout.encoding))
-    print("sys.stderr.encoding: {!r}".format(sys.stderr.encoding))
+    # print("sys.stdin.encoding: {!r}".format(sys.stdin.encoding))
+    # print("sys.stdout.encoding: {!r}".format(sys.stdout.encoding))
+    # print("sys.stderr.encoding: {!r}".format(sys.stderr.encoding))
+    # On GitHub Actions windows job:
+    #   sys.stdin.encoding: 'cp65001'
+    #   sys.stdout.encoding: None
+    #   sys.stderr.encoding: None
+    #
+    # stdin encoding seems like it may be a result of setting LANG in the
+    # parent because for processes not run by integration/test_alias.py where
+    # LANG isn't explicitly set all three encodings are None.
 
     import codecs, re
     from ctypes import WINFUNCTYPE, WinError, windll, POINTER, byref, c_int, get_last_error
@@ -205,12 +213,16 @@ def initialize():
         use_last_error=True
     )(("GetCommandLineW", windll.kernel32))
 
-    GetConsoleCP = WINFUNCTYPE(
-        UINT,
-        use_last_error=True
-    )(("GetConsoleCP", windll.kernel32))
+    # GetConsoleCP = WINFUNCTYPE(
+    #     UINT,
+    #     use_last_error=True
+    # )(("GetConsoleCP", windll.kernel32))
 
-    print("ConsoleCP: {}".format(GetConsoleCP()))
+    # print("ConsoleCP: {}".format(GetConsoleCP()))
+    # On GitHub Actions windows job when LANG is en_US.UTF-8:
+    #   ConsoleCP: 65001 (ie "broken utf-"8)
+    # when LANG is unset:
+    #   ConsoleCP: 437   (ie "dos latin us")
 
     # <https://msdn.microsoft.com/en-us/library/windows/desktop/bb776391%28v=vs.85%29.aspx>
     CommandLineToArgvW = WINFUNCTYPE(
@@ -219,14 +231,17 @@ def initialize():
     )(("CommandLineToArgvW", windll.shell32))
 
     command_line = GetCommandLineW()
-    print("Command line: {!r}".format(command_line))
+    # print("Command line: {!r}".format(command_line))
 
     # At least in one configuration, the UTF-8 bytes that were used to
     # represent the unicode argv values were decoded as cp1252, mangling them.
     # Now we reverse that mangling and then decode them properly.
     command_line = command_line.encode("cp1252").decode("utf-8")
 
-    print("Fixed command line: {!r}".format(command_line))
+    # Random notes:
+    # * https://stackoverflow.com/questions/49476326/displaying-unicode-in-powershell
+
+    # print("Fixed command line: {!r}".format(command_line))
 
     argc = c_int(0)
     argv_unicode = CommandLineToArgvW(command_line, byref(argc))
@@ -249,7 +264,7 @@ def initialize():
                   % (sys.argv[0], [argv_unicode[i] for i in xrange(0, argc.value)]))
         raise
 
-    print("argv fixup: {!r} -> {!r}".format(argv_unicode, argv))
+    # print("argv fixup: {!r} -> {!r}".format(argv_unicode, argv))
 
     # Take only the suffix with the same number of arguments as sys.argv.
     # This accounts for anything that can cause initial arguments to be stripped,

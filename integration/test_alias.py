@@ -64,15 +64,17 @@ def run_tahoe(node, argv):
     :return ProcessResult: The outcome of running the process.
     """
 
-    from win32console import GetConsoleCP
-    import sys
-    print(
-        "Parent encodings: {} {} {}".format(
-            sys.getdefaultencoding(),
-            sys.getfilesystemencoding(),
-            GetConsoleCP(),
-        ),
-    )
+    # from win32console import GetConsoleCP
+    # import sys
+    # print(
+    #     "Parent encodings: {} {} {}".format(
+    #         sys.getdefaultencoding(),
+    #         sys.getfilesystemencoding(),
+    #         GetConsoleCP(),
+    #     ),
+    # )
+    # On GitHub Actions windows job:
+    #     Parent encodings: ascii mbcs 65001
 
     env = environ.copy()
     # Make sure the child process agrees with our choice of encoding.  Of
