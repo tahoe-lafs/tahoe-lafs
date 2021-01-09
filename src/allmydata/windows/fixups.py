@@ -212,6 +212,8 @@ def initialize():
     if argv_unicode is None:
         raise WinError(get_last_error())
 
+    argv_unicode = list(argv_unicode[i] for i in range(argc.value))
+
     # Because of <http://bugs.python.org/issue8775> (and similar limitations in
     # twisted), the 'bin/tahoe' script cannot invoke us with the actual Unicode arguments.
     # Instead it "mangles" or escapes them using \x7F as an escape character, which we
@@ -220,11 +222,13 @@ def initialize():
         return re.sub(u'\\x7F[0-9a-fA-F]*\\;', lambda m: unichr(int(m.group(0)[1:-1], 16)), s)
 
     try:
-        argv = [unmangle(argv_unicode[i]).encode('utf-8') for i in xrange(0, argc.value)]
+        argv = [unmangle(argv_u).encode('utf-8') for argv_u in argv_unicode]
     except Exception as e:
         _complain("%s:  could not unmangle Unicode arguments.\n%r"
                   % (sys.argv[0], [argv_unicode[i] for i in xrange(0, argc.value)]))
         raise
+
+    print("argv fixup: {!r} -> {!r}".format(argv_unicode, argv))
 
     # Take only the suffix with the same number of arguments as sys.argv.
     # This accounts for anything that can cause initial arguments to be stripped,
