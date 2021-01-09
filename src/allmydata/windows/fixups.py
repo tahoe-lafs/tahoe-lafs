@@ -205,6 +205,13 @@ def initialize():
         use_last_error=True
     )(("GetCommandLineW", windll.kernel32))
 
+    GetConsoleCP = WINFUNCTYPE(
+        UINT,
+        use_last_error=True
+    )(("GetConsoleCP", windll.kernel32))
+
+    print("ConsoleCP: {}".format(GetConsoleCP()))
+
     # <https://msdn.microsoft.com/en-us/library/windows/desktop/bb776391%28v=vs.85%29.aspx>
     CommandLineToArgvW = WINFUNCTYPE(
         POINTER(LPWSTR),  LPCWSTR, POINTER(c_int),
