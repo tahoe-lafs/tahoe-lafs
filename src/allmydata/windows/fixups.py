@@ -220,6 +220,14 @@ def initialize():
 
     command_line = GetCommandLineW()
     print("Command line: {!r}".format(command_line))
+
+    # At least in one configuration, the UTF-8 bytes that were used to
+    # represent the unicode argv values were decoded as cp1252, mangling them.
+    # Now we reverse that mangling and then decode them properly.
+    command_line = command_line.encode("cp1252").decode("utf-8")
+
+    print("Fixed command line: {!r}".format(command_line))
+
     argc = c_int(0)
     argv_unicode = CommandLineToArgvW(command_line, byref(argc))
     if argv_unicode is None:
