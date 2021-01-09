@@ -26,6 +26,7 @@ from six import (
 
 from os import (
     environ,
+    linesep,
 )
 
 from json import (
@@ -121,7 +122,7 @@ def test_alias_create_list(alice):
     print("List result: {}".format(list_result))
 
     assert create_result.returncode == 0
-    assert create_result.stdout == "Alias '{}' created\n".format(alias)
+    assert create_result.stdout == "Alias '{}' created{}".format(alias, linesep)
     assert create_result.stderr == ""
 
     assert list_result.returncode == 0
