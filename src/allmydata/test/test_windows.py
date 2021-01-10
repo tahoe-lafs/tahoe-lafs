@@ -105,10 +105,10 @@ class GetArgvTests(SyncTestCase):
             )
         check_call([
             executable,
-            save_argv,
+            save_argv.path,
         ] + argv)
 
-        with open(saved_argv_path, "rt") as f:
+        with open(saved_argv_path.path, "rt") as f:
             saved_argv = load(f)
 
         self.assertThat(
