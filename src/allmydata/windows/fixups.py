@@ -13,30 +13,12 @@ def get_argv():
         shape.
     """
     # <https://msdn.microsoft.com/en-us/library/windows/desktop/ms683156%28v=vs.85%29.aspx>
-    from win32ui import (
+    from win32api import (
         GetCommandLine,
+        CommandLineToArgv,
     )
+    return CommandLineToArgv(GetCommandLine())
 
-    from ctypes import WINFUNCTYPE, WinError, windll, POINTER, byref, c_int, get_last_error
-    from ctypes.wintypes import LPWSTR, LPCWSTR
-
-    # <https://msdn.microsoft.com/en-us/library/windows/desktop/bb776391%28v=vs.85%29.aspx>
-    CommandLineToArgvW = WINFUNCTYPE(
-        POINTER(LPWSTR),  LPCWSTR, POINTER(c_int),
-        use_last_error=True
-    )(("CommandLineToArgvW", windll.shell32))
-
-    argc = c_int(0)
-    argv_unicode = CommandLineToArgvW(GetCommandLine(), byref(argc))
-    if argv_unicode is None:
-        raise WinError(get_last_error())
-
-    # Convert it to a normal Python list
-    return list(
-        argv_unicode[i]
-        for i
-        in range(argc.value)
-    )
 
 
 def initialize():
