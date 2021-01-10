@@ -26,7 +26,9 @@ from sys import (
 from json import (
     load,
 )
-
+from textwrap import (
+    dedent,
+)
 from twisted.python.filepath import (
     FilePath,
 )
@@ -95,13 +97,13 @@ class GetArgvTests(SyncTestCase):
         save_argv = FilePath(self.mktemp())
         saved_argv_path = FilePath(self.mktemp())
         with open(save_argv.path, "wt") as f:
-            f.write(
+            f.write(dedent(
                 """
                 import sys
                 import json
                 with open({!r}, "wt") as f:
                     f.write(json.dumps(sys.argv))
-                """.format(saved_argv_path.path),
+                """.format(saved_argv_path.path)),
             )
         check_call([
             executable,
