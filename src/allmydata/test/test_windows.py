@@ -80,10 +80,10 @@ class GetArgvTests(SyncTestCase):
         argv = get_argv()
         self.assertThat(
             argv,
-            MatchesAll([
+            MatchesAll(
                 IsInstance(list),
                 AllMatch(IsInstance(str)),
-            ]),
+            ),
         )
 
     @given(lists(text(max_size=4), max_size=4))
