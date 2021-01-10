@@ -2,6 +2,43 @@ from __future__ import print_function
 
 done = False
 
+def get_argv():
+    """
+    :return [unicode]: The argument list this process was invoked with, as
+        unicode.
+
+        Python 2 does not do a good job exposing this information in
+        ``sys.argv`` on Windows so this code re-retrieves the underlying
+        information using Windows API calls and massages it into the right
+        shape.
+    """
+    # <https://msdn.microsoft.com/en-us/library/windows/desktop/ms683156%28v=vs.85%29.aspx>
+    from win32ui import (
+        GetCommandLine,
+    )
+
+    from ctypes import WINFUNCTYPE, WinError, windll, POINTER, byref, c_int, get_last_error
+    from ctypes.wintypes import LPWSTR, LPCWSTR
+
+    # <https://msdn.microsoft.com/en-us/library/windows/desktop/bb776391%28v=vs.85%29.aspx>
+    CommandLineToArgvW = WINFUNCTYPE(
+        POINTER(LPWSTR),  LPCWSTR, POINTER(c_int),
+        use_last_error=True
+    )(("CommandLineToArgvW", windll.shell32))
+
+    argc = c_int(0)
+    argv_unicode = CommandLineToArgvW(GetCommandLine(), byref(argc))
+    if argv_unicode is None:
+        raise WinError(get_last_error())
+
+    # Convert it to a normal Python list
+    return list(
+        argv_unicode[i]
+        for i
+        in range(argc.value)
+    )
+
+
 def initialize():
     global done
     import sys
@@ -10,8 +47,8 @@ def initialize():
     done = True
 
     import codecs, re
-    from ctypes import WINFUNCTYPE, WinError, windll, POINTER, byref, c_int, get_last_error
-    from ctypes.wintypes import BOOL, HANDLE, DWORD, LPWSTR, LPCWSTR, LPVOID
+    from ctypes import WINFUNCTYPE, WinError, windll, POINTER, byref, get_last_error
+    from ctypes.wintypes import BOOL, HANDLE, DWORD, LPWSTR, LPVOID
 
     from allmydata.util import log
     from allmydata.util.encodingutil import canonical_encoding
@@ -195,23 +232,6 @@ def initialize():
 
     # This works around <http://bugs.python.org/issue2128>.
 
-    # <https://msdn.microsoft.com/en-us/library/windows/desktop/ms683156%28v=vs.85%29.aspx>
-    GetCommandLineW = WINFUNCTYPE(
-        LPWSTR,
-        use_last_error=True
-    )(("GetCommandLineW", windll.kernel32))
-
-    # <https://msdn.microsoft.com/en-us/library/windows/desktop/bb776391%28v=vs.85%29.aspx>
-    CommandLineToArgvW = WINFUNCTYPE(
-        POINTER(LPWSTR),  LPCWSTR, POINTER(c_int),
-        use_last_error=True
-    )(("CommandLineToArgvW", windll.shell32))
-
-    argc = c_int(0)
-    argv_unicode = CommandLineToArgvW(GetCommandLineW(), byref(argc))
-    if argv_unicode is None:
-        raise WinError(get_last_error())
-
     # Because of <http://bugs.python.org/issue8775> (and similar limitations in
     # twisted), the 'bin/tahoe' script cannot invoke us with the actual Unicode arguments.
     # Instead it "mangles" or escapes them using \x7F as an escape character, which we
@@ -219,11 +239,12 @@ def initialize():
     def unmangle(s):
         return re.sub(u'\\x7F[0-9a-fA-F]*\\;', lambda m: unichr(int(m.group(0)[1:-1], 16)), s)
 
+    argv_unicode = get_argv()
     try:
-        argv = [unmangle(argv_unicode[i]).encode('utf-8') for i in xrange(0, argc.value)]
+        argv = [unmangle(argv_u).encode('utf-8') for argv_u in argv_unicode]
     except Exception as e:
         _complain("%s:  could not unmangle Unicode arguments.\n%r"
-                  % (sys.argv[0], [argv_unicode[i] for i in xrange(0, argc.value)]))
+                  % (sys.argv[0], argv_unicode))
         raise
 
     # Take only the suffix with the same number of arguments as sys.argv.
