@@ -66,7 +66,7 @@ from ..windows.fixups import (
     get_argv,
 )
 
-@skipUnless(platform.isWindows())
+@skipUnless(platform.isWindows(), "get_argv is Windows-only")
 class GetArgvTests(SyncTestCase):
     """
     Tests for ``get_argv``.
