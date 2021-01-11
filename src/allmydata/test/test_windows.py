@@ -187,7 +187,7 @@ class UnicodeOutputTests(SyncTestCase):
             """
             from future.utils import PY2
             if PY2:
-                from future.builtins chr
+                from future.builtins import chr
 
             from allmydata.windows.fixups import initialize
             initialize()
