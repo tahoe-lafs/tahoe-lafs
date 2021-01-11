@@ -35,7 +35,7 @@ from allmydata.immutable.literal import LiteralFileNode
 from allmydata.immutable.filenode import ImmutableFileNode
 from allmydata.util import idlib, mathutil, pollmixin, fileutil
 from allmydata.util import log, base32
-from allmydata.util.encodingutil import quote_output, unicode_to_argv
+from allmydata.util.encodingutil import quote_output
 from allmydata.util.fileutil import abspath_expanduser_unicode
 from allmydata.util.consumer import MemoryConsumer, download_to_data
 from allmydata.interfaces import IDirectoryNode, IFileNode, \
@@ -2185,7 +2185,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         log.msg("test_system.SystemTest._test_runner using %r" % filename)
 
         rc,output,err = yield run_cli("debug", "dump-share", "--offsets",
-                                      unicode_to_argv(filename))
+                                      ensure_str(filename))
         self.failUnlessEqual(rc, 0)
 
         # we only upload a single file, so we can assert some things about

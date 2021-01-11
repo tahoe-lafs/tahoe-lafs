@@ -1,4 +1,5 @@
-from ...util.encodingutil import unicode_to_argv
+from six import ensure_str
+
 from ...scripts import runner
 from ..common_util import ReallyEqualMixin, run_cli, run_cli_unicode
 
@@ -45,6 +46,6 @@ class CLITestMixin(ReallyEqualMixin):
         # client_num is used to execute client CLI commands on a specific
         # client.
         client_num = kwargs.pop("client_num", 0)
-        client_dir = unicode_to_argv(self.get_clientdir(i=client_num))
+        client_dir = ensure_str(self.get_clientdir(i=client_num))
         nodeargs = [ b"--node-directory", client_dir ]
         return run_cli(verb, *args, nodeargs=nodeargs, **kwargs)

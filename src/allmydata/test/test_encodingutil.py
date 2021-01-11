@@ -81,12 +81,12 @@ from allmydata.test.common_util import (
     ReallyEqualMixin, skip_if_cannot_represent_filename,
 )
 from allmydata.util import encodingutil, fileutil
-from allmydata.util.encodingutil import argv_to_unicode, unicode_to_url, \
+from allmydata.util.encodingutil import unicode_to_url, \
     unicode_to_output, quote_output, quote_path, quote_local_unicode_path, \
     quote_filepath, unicode_platform, listdir_unicode, FilenameEncodingError, \
     get_io_encoding, get_filesystem_encoding, to_bytes, from_utf8_or_none, _reload, \
-    to_filepath, extend_filepath, unicode_from_filepath, unicode_segments_from, \
-    unicode_to_argv
+    to_filepath, extend_filepath, unicode_from_filepath, unicode_segments_from
+
 from twisted.python import usage
 
 
@@ -137,12 +137,6 @@ class EncodingUtilErrors(ReallyEqualMixin, unittest.TestCase):
         preferredencoding = None
         _reload()
         self.assertEqual(get_io_encoding(), 'utf-8')
-
-    def test_argv_to_unicode(self):
-        encodingutil.io_encoding = 'utf-8'
-        self.failUnlessRaises(usage.UsageError,
-                              argv_to_unicode,
-                              lumiere_nfc.encode('latin1'))
 
     @skipIf(PY3, "Python 2 only.")
     def test_unicode_to_output(self):
@@ -213,19 +207,6 @@ class EncodingUtil(ReallyEqualMixin):
         sys.platform = self.original_platform
         _reload()
 
-    def test_argv_to_unicode(self):
-        if 'argv' not in dir(self):
-            return
-
-        mock_stdout = MockStdout()
-        mock_stdout.encoding = self.io_encoding
-        self.patch(sys, 'stdout', mock_stdout)
-
-        argu = lumiere_nfc
-        argv = self.argv
-        _reload()
-        self.failUnlessReallyEqual(argv_to_unicode(argv), argu)
-
     def test_unicode_to_url(self):
         self.failUnless(unicode_to_url(lumiere_nfc), b"lumi\xc3\xa8re")
 
@@ -244,16 +225,6 @@ class EncodingUtil(ReallyEqualMixin):
     @skipIf(PY2, "Python 3 only.")
     def test_unicode_to_output_py3(self):
         self.failUnlessReallyEqual(unicode_to_output(lumiere_nfc), lumiere_nfc)
-
-    @skipIf(PY3, "Python 2 only.")
-    def test_unicode_to_argv_py2(self):
-        """unicode_to_argv() converts to bytes on Python 2."""
-        self.assertEqual(unicode_to_argv("abc"), u"abc".encode(self.io_encoding))
-
-    @skipIf(PY2, "Python 3 only.")
-    def test_unicode_to_argv_py3(self):
-        """unicode_to_argv() is noop on Python 3."""
-        self.assertEqual(unicode_to_argv("abc"), "abc")
 
     @skipIf(PY3, "Python 3 only.")
     def test_unicode_platform_py2(self):

@@ -4,7 +4,7 @@ import os.path, re, fnmatch
 from twisted.python import usage
 from allmydata.scripts.common import get_aliases, get_default_nodedir, \
      DEFAULT_ALIAS, BaseOptions
-from allmydata.util.encodingutil import argv_to_unicode, argv_to_abspath, quote_local_unicode_path
+from allmydata.util.encodingutil import argv_to_abspath, quote_local_unicode_path
 from .tahoe_status import TahoeStatusCommand
 
 NODEURL_RE=re.compile("http(s?)://([^:]*)(:([1-9][0-9]*))?")
@@ -55,7 +55,7 @@ class MakeDirectoryOptions(FileStoreOptions):
         ]
 
     def parseArgs(self, where=""):
-        self.where = argv_to_unicode(where)
+        self.where = unicode(where, "utf-8")
 
         if self['format']:
             if self['format'].upper() not in ("SDMF", "MDMF"):
@@ -66,7 +66,7 @@ class MakeDirectoryOptions(FileStoreOptions):
 
 class AddAliasOptions(FileStoreOptions):
     def parseArgs(self, alias, cap):
-        self.alias = argv_to_unicode(alias)
+        self.alias = unicode(alias, "utf-8")
         if self.alias.endswith(u':'):
             self.alias = self.alias[:-1]
         self.cap = cap
@@ -76,7 +76,7 @@ class AddAliasOptions(FileStoreOptions):
 
 class CreateAliasOptions(FileStoreOptions):
     def parseArgs(self, alias):
-        self.alias = argv_to_unicode(alias)
+        self.alias = unicode(alias, "utf-8")
         if self.alias.endswith(u':'):
             self.alias = self.alias[:-1]
 
@@ -100,7 +100,7 @@ class ListOptions(FileStoreOptions):
         ("json", None, "Show the raw JSON output."),
         ]
     def parseArgs(self, where=""):
-        self.where = argv_to_unicode(where)
+        self.where = unicode(where, "utf-8")
 
     synopsis = "[options] [PATH]"
 
@@ -142,7 +142,7 @@ class GetOptions(FileStoreOptions):
         if arg2 == "-":
             arg2 = None
 
-        self.from_file = argv_to_unicode(arg1)
+        self.from_file = unicode(arg1, "utf-8")
         self.to_file   = None if arg2 is None else argv_to_abspath(arg2)
 
     synopsis = "[options] REMOTE_FILE LOCAL_FILE"
@@ -175,7 +175,7 @@ class PutOptions(FileStoreOptions):
             arg1 = None
 
         self.from_file = None if arg1 is None else argv_to_abspath(arg1)
-        self.to_file   = None if arg2 is None else argv_to_unicode(arg2)
+        self.to_file   = None if arg2 is None else unicode(arg2, "utf-8")
 
         if self['format']:
             if self['format'].upper() not in ("SDMF", "MDMF", "CHK"):
@@ -218,8 +218,8 @@ class CpOptions(FileStoreOptions):
     def parseArgs(self, *args):
         if len(args) < 2:
             raise usage.UsageError("cp requires at least two arguments")
-        self.sources = map(argv_to_unicode, args[:-1])
-        self.destination = argv_to_unicode(args[-1])
+        self.sources = list(unicode(a, "utf-8") for a in args[:-1])
+        self.destination = unicode(args[-1], "utf-8")
 
     synopsis = "[options] FROM.. TO"
 
@@ -255,15 +255,15 @@ class CpOptions(FileStoreOptions):
 
 class UnlinkOptions(FileStoreOptions):
     def parseArgs(self, where):
-        self.where = argv_to_unicode(where)
+        self.where = unicode(where, "utf-8")
 
     synopsis = "[options] REMOTE_FILE"
     description = "Remove a named file from its parent directory."
 
 class MvOptions(FileStoreOptions):
     def parseArgs(self, frompath, topath):
-        self.from_file = argv_to_unicode(frompath)
-        self.to_file = argv_to_unicode(topath)
+        self.from_file = unicode(frompath, "utf-8")
+        self.to_file = unicode(topath, "utf-8")
 
     synopsis = "[options] FROM TO"
 
@@ -281,8 +281,8 @@ class MvOptions(FileStoreOptions):
 
 class LnOptions(FileStoreOptions):
     def parseArgs(self, frompath, topath):
-        self.from_file = argv_to_unicode(frompath)
-        self.to_file = argv_to_unicode(topath)
+        self.from_file = unicode(frompath, "utf-8")
+        self.to_file = unicode(topath, "utf-8")
 
     synopsis = "[options] FROM_LINK TO_LINK"
 
@@ -328,14 +328,14 @@ class BackupOptions(FileStoreOptions):
 
     def parseArgs(self, localdir, topath):
         self.from_dir = argv_to_abspath(localdir)
-        self.to_dir = argv_to_unicode(topath)
+        self.to_dir = unicode(topath, "utf-8")
 
     synopsis = "[options] FROM ALIAS:TO"
 
     def opt_exclude(self, pattern):
         """Ignore files matching a glob pattern. You may give multiple
         '--exclude' options."""
-        g = argv_to_unicode(pattern).strip()
+        g = unicode(pattern, "utf-8").strip()
         if g:
             exclude = self['exclude']
             exclude.add(g)
@@ -385,7 +385,7 @@ class WebopenOptions(FileStoreOptions):
         ("info", "i", "Open the t=info page for the file"),
         ]
     def parseArgs(self, where=''):
-        self.where = argv_to_unicode(where)
+        self.where = unicode(where, "utf-8")
 
     synopsis = "[options] [ALIAS:PATH]"
 
@@ -402,7 +402,7 @@ class ManifestOptions(FileStoreOptions):
         ("raw", "r", "Display raw JSON data instead of parsed."),
         ]
     def parseArgs(self, where=''):
-        self.where = argv_to_unicode(where)
+        self.where = unicode(where, "utf-8")
 
     synopsis = "[options] [ALIAS:PATH]"
     description = """
@@ -414,7 +414,7 @@ class StatsOptions(FileStoreOptions):
         ("raw", "r", "Display raw JSON data instead of parsed"),
         ]
     def parseArgs(self, where=''):
-        self.where = argv_to_unicode(where)
+        self.where = unicode(where, "utf-8")
 
     synopsis = "[options] [ALIAS:PATH]"
     description = """
@@ -429,7 +429,7 @@ class CheckOptions(FileStoreOptions):
         ("add-lease", None, "Add/renew lease on all shares."),
         ]
     def parseArgs(self, *locations):
-        self.locations = map(argv_to_unicode, locations)
+        self.locations = list(unicode(a, "utf-8") for a in locations)
 
     synopsis = "[options] [ALIAS:PATH]"
     description = """
@@ -446,7 +446,7 @@ class DeepCheckOptions(FileStoreOptions):
         ("verbose", "v", "Be noisy about what is happening."),
         ]
     def parseArgs(self, *locations):
-        self.locations = map(argv_to_unicode, locations)
+        self.locations = list(unicode(a, "utf-8") for a in locations)
 
     synopsis = "[options] [ALIAS:PATH]"
     description = """

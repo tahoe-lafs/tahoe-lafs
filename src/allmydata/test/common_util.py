@@ -76,7 +76,7 @@ def run_cli_native(verb, *args, **kwargs):
     encoding = kwargs.pop("encoding", None)
     precondition(
         all(isinstance(arg, native_str) for arg in [verb] + nodeargs + list(args)),
-        "arguments to run_cli must be a native string -- convert using unicode_to_argv",
+        "arguments to run_cli must be a native string -- convert using UTF-8",
         verb=verb,
         args=args,
         nodeargs=nodeargs,

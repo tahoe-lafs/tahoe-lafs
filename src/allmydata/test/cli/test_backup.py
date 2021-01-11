@@ -1,4 +1,5 @@
 import os.path
+from six import ensure_str
 from six.moves import cStringIO as StringIO
 from datetime import timedelta
 import re
@@ -9,7 +10,7 @@ from twisted.python.monkey import MonkeyPatcher
 import __builtin__
 from allmydata.util import fileutil
 from allmydata.util.fileutil import abspath_expanduser_unicode
-from allmydata.util.encodingutil import get_io_encoding, unicode_to_argv
+from allmydata.util.encodingutil import get_io_encoding
 from allmydata.util.namespace import Namespace
 from allmydata.scripts import cli, backupdb
 from ..common_util import StallMixin
@@ -413,7 +414,7 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
             return StringIO()
 
         patcher = MonkeyPatcher((__builtin__, 'file', call_file))
-        patcher.runWithPatches(parse_options, basedir, "backup", ['--exclude-from', unicode_to_argv(exclude_file), 'from', 'to'])
+        patcher.runWithPatches(parse_options, basedir, "backup", ['--exclude-from', ensure_str(exclude_file), 'from', 'to'])
         self.failUnless(ns.called)
 
     def test_ignore_symlinks(self):

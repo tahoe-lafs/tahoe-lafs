@@ -107,52 +107,16 @@ def get_io_encoding():
     """
     return io_encoding
 
-def argv_to_unicode(s):
-    """
-    Decode given argv element to unicode. If this fails, raise a UsageError.
-    """
-    if isinstance(s, unicode):
-        return s
-
-    precondition(isinstance(s, bytes), s)
-
-    try:
-        return unicode(s, io_encoding)
-    except UnicodeDecodeError:
-        raise usage.UsageError("Argument %s cannot be decoded as %s." %
-                               (quote_output(s), io_encoding))
-
 def argv_to_abspath(s, **kwargs):
     """
     Convenience function to decode an argv element to an absolute path, with ~ expanded.
     If this fails, raise a UsageError.
     """
-    decoded = argv_to_unicode(s)
+    decoded = unicode(s, "utf-8")
     if decoded.startswith(u'-'):
         raise usage.UsageError("Path argument %s cannot start with '-'.\nUse %s if you intended to refer to a file."
                                % (quote_output(s), quote_output(os.path.join('.', s))))
     return abspath_expanduser_unicode(decoded, **kwargs)
-
-def unicode_to_argv(s, mangle=False):
-    """
-    Encode the given Unicode argument as a bytestring.
-    If the argument is to be passed to a different process, then the 'mangle' argument
-    should be true; on Windows, this uses a mangled encoding that will be reversed by
-    code in runner.py.
-
-    On Python 3, just return the string unchanged, since argv is unicode.
-    """
-    precondition(isinstance(s, unicode), s)
-    if PY3:
-        warnings.warn("This will be unnecessary once Python 2 is dropped.",
-                      DeprecationWarning)
-        return s
-
-    if mangle and sys.platform == "win32":
-        # This must be the same as 'mangle' in bin/tahoe-script.template.
-        return bytes(re.sub(u'[^\\x20-\\x7F]', lambda m: u'\x7F%x;' % (ord(m.group(0)),), s), io_encoding)
-    else:
-        return s.encode(io_encoding)
 
 def unicode_to_url(s):
     """

@@ -16,7 +16,7 @@ from allmydata.scripts.common import (
 )
 from allmydata.scripts.default_nodedir import _default_nodedir
 from allmydata.util.assertutil import precondition
-from allmydata.util.encodingutil import listdir_unicode, argv_to_unicode, quote_local_unicode_path, get_io_encoding
+from allmydata.util.encodingutil import listdir_unicode, quote_local_unicode_path, get_io_encoding
 from allmydata.util import fileutil, i2p_provider, iputil, tor_provider
 
 from wormhole import wormhole
@@ -238,7 +238,7 @@ def write_node_config(c, config):
         c.write("\n")
 
     c.write("[node]\n")
-    nickname = argv_to_unicode(config.get("nickname") or "")
+    nickname = unicode(config.get("nickname") or "", "utf-8")
     c.write("nickname = %s\n" % (nickname.encode('utf-8'),))
     if config["hide-ip"]:
         c.write("reveal-IP-address = false\n")
@@ -246,7 +246,7 @@ def write_node_config(c, config):
         c.write("reveal-IP-address = true\n")
 
     # TODO: validate webport
-    webport = argv_to_unicode(config.get("webport") or "none")
+    webport = unicode(config.get("webport") or "none", "utf-8")
     if webport.lower() == "none":
         webport = ""
     c.write("web.port = %s\n" % (webport.encode('utf-8'),))
