@@ -73,6 +73,11 @@ from ..windows.fixups import (
     get_argv,
 )
 
+slow_settings = settings(
+    suppress_health_check=[HealthCheck.too_slow],
+    deadline=None,
+)
+
 @skipUnless(platform.isWindows(), "get_argv is Windows-only")
 class GetArgvTests(SyncTestCase):
     """
@@ -93,12 +98,9 @@ class GetArgvTests(SyncTestCase):
             ),
         )
 
-    @settings(
-        # This test runs a child process.  This is unavoidably slow and
-        # variable.  Disable the two time-based Hypothesis health checks.
-        suppress_health_check=[HealthCheck.too_slow],
-        deadline=None,
-    )
+    # This test runs a child process.  This is unavoidably slow and variable.
+    # Disable the two time-based Hypothesis health checks.
+    @slow_settings
     @given(
         lists(
             text(
@@ -172,6 +174,7 @@ class UnicodeOutputTests(SyncTestCase):
     """
     Tests for writing unicode to stdout and stderr.
     """
+    @slow_settings
     @given(characters(), characters())
     def test_write_non_ascii(self, stdout_char, stderr_char):
         """
