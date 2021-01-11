@@ -30,6 +30,7 @@ from textwrap import (
     dedent,
 )
 from subprocess import (
+    PIPE,
     Popen,
 )
 
@@ -143,9 +144,6 @@ class GetArgvTests(SyncTestCase):
         # non-ASCII in its command line.
         from ._win_subprocess import (
             Popen
-        )
-        from subprocess import (
-            PIPE,
         )
         argv = [executable.decode("utf-8"), save_argv_path.path] + argv
         p = Popen(argv, stdin=PIPE, stdout=PIPE, stderr=PIPE)
