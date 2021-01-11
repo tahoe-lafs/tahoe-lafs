@@ -67,12 +67,12 @@ Here's how it works:
 A "storage grid" is made up of a number of storage servers.  A storage server
 has direct attached storage (typically one or more hard disks).  A "gateway"
 communicates with storage nodes, and uses them to provide access to the
-grid over protocols such as HTTP(S), SFTP or FTP.
+grid over protocols such as HTTP(S) and SFTP.
 
 Note that you can find "client" used to refer to gateway nodes (which act as
 a client to storage servers), and also to processes or programs connecting to
 a gateway node and performing operations on the grid -- for example, a CLI
-command, Web browser, SFTP client, or FTP client.
+command, Web browser, or SFTP client.
 
 Users do not rely on storage servers to provide *confidentiality* nor
 *integrity* for their data -- instead all of the data is encrypted and
