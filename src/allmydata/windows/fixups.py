@@ -161,29 +161,13 @@ def initialize():
     except Exception as e:
         _complain("exception %r while fixing up sys.stdout and sys.stderr" % (e,))
 
-    # This works around <http://bugs.python.org/issue2128>.
-
-    # Because of <http://bugs.python.org/issue8775> (and similar limitations in
-    # twisted), the 'bin/tahoe' script cannot invoke us with the actual Unicode arguments.
-    # Instead it "mangles" or escapes them using \x7F as an escape character, which we
-    # unescape here.
-    def unmangle(s):
-        return re.sub(u'\\x7F[0-9a-fA-F]*\\;', lambda m: unichr(int(m.group(0)[1:-1], 16)), s)
-
-    argv_unicode = get_argv()
-    try:
-        argv = [unmangle(argv_u).encode('utf-8') for argv_u in argv_unicode]
-    except Exception as e:
-        _complain("%s:  could not unmangle Unicode arguments.\n%r"
-                  % (sys.argv[0], argv_unicode))
-        raise
+    argv = list(arg.encode("utf-8") for arg in get_argv())
 
     # Take only the suffix with the same number of arguments as sys.argv.
     # This accounts for anything that can cause initial arguments to be stripped,
     # for example, the Python interpreter or any options passed to it, or runner
     # scripts such as 'coverage run'. It works even if there are no such arguments,
     # as in the case of a frozen executable created by bb-freeze or similar.
-
     sys.argv = argv[-len(sys.argv):]
 
 
