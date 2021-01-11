@@ -5,7 +5,7 @@ from os import mkdir, environ
 from os.path import exists, join
 from six.moves import StringIO
 from functools import partial
-from subprocess import check_output, check_call
+from subprocess import check_output
 
 from twisted.python.filepath import (
     FilePath,
