@@ -114,15 +114,15 @@ if platform.isWindows():
     # better job.  However, only use it on Windows because it doesn't work
     # anywhere else.
     from ._win_subprocess import (
-        PIPE,
         Popen,
     )
 else:
     from subprocess import (
-        PIPE,
         Popen,
     )
-
+from subprocess import (
+    PIPE,
+)
 
 TEST_RSA_KEY_SIZE = 522
 
