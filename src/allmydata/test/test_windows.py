@@ -56,10 +56,6 @@ from hypothesis.strategies import (
     text,
 )
 
-from subprocess import (
-    check_call,
-)
-
 from .common import (
     SyncTestCase,
 )
@@ -97,6 +93,10 @@ class GetArgvTests(SyncTestCase):
         save_argv = FilePath(self.mktemp())
         saved_argv_path = FilePath(self.mktemp())
         with open(save_argv.path, "wt") as f:
+            # A simple program to save argv to a file.  Using the file saves
+            # us having to figure out how to reliably get non-ASCII back over
+            # stdio which may pose an independent set of challenges.  At least
+            # file I/O is relatively simple and well-understood.
             f.write(dedent(
                 """
                 import sys
@@ -105,11 +105,16 @@ class GetArgvTests(SyncTestCase):
                     f.write(json.dumps(sys.argv))
                 """.format(saved_argv_path.path)),
             )
-        check_call([
-            executable,
-            save_argv.path,
-        ] + argv)
-
+        # Python 2.7 doesn't have good options for launching a process with
+        # non-ASCII in its command line.
+        from ._win_subprocess import (
+            Popen
+        )
+        returncode = Popen([executable, save_argv] + argv).wait()
+        self.assertThat(
+            0,
+            Equals(returncode),
+        )
         with open(saved_argv_path.path, "rt") as f:
             saved_argv = load(f)
 
