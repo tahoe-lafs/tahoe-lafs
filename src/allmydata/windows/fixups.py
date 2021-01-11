@@ -199,6 +199,20 @@ class UnicodeOutput(object):
     console.
     """
     def __init__(self, hConsole, stream, fileno, name, _complain):
+        """
+        :param hConsole: ``None`` or a handle on the console to which to write
+            unicode.  Mutually exclusive with ``stream``.
+
+        :param stream: ``None`` or a file-like object to which to write bytes.
+
+        :param fileno: A result to hand back from method of the same name.
+
+        :param name: A human-friendly identifier for this output object.
+
+        :param _complain: A one-argument callable which accepts bytes to be
+            written when there's a problem.  Care should be taken to not make
+            this do a write on this object.
+        """
         self._hConsole = hConsole
         self._stream = stream
         self._fileno = fileno
