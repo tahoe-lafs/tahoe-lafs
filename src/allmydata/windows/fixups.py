@@ -146,17 +146,16 @@ def initialize():
         real_stdout = (old_stdout_fileno == STDOUT_FILENO)
         real_stderr = (old_stderr_fileno == STDERR_FILENO)
 
-        print("real stdout: {}".format(real_stdout))
-        print("real stderr: {}".format(real_stderr))
-
         if real_stdout:
             hStdout = GetStdHandle(STD_OUTPUT_HANDLE)
             if not_a_console(hStdout):
+                print("stdout not a console")
                 real_stdout = False
 
         if real_stderr:
             hStderr = GetStdHandle(STD_ERROR_HANDLE)
             if not_a_console(hStderr):
+                print("stdout not a console")
                 real_stderr = False
 
         if real_stdout or real_stderr:
