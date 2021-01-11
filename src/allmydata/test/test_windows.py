@@ -101,10 +101,12 @@ class GetArgvTests(SyncTestCase):
             # file I/O is relatively simple and well-understood.
             f.write(dedent(
                 """
-                import sys
+                from allmydata.windows.fixups import (
+                    get_argv,
+                )
                 import json
                 with open({!r}, "wt") as f:
-                    f.write(json.dumps(sys.argv))
+                    f.write(json.dumps(get_argv()))
                 """.format(saved_argv_path.path)),
             )
         # Python 2.7 doesn't have good options for launching a process with
