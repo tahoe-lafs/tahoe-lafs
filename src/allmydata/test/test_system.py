@@ -51,6 +51,10 @@ from twisted.python.filepath import (
     FilePath,
 )
 
+from ._twisted_9607 import (
+    getProcessOutputAndValue,
+)
+
 from .common import (
     TEST_RSA_KEY_SIZE,
     SameProcessStreamEndpointAssigner,
@@ -61,12 +65,28 @@ from .web.common import (
 )
 
 # TODO: move this to common or common_util
-from allmydata.test.test_runner import RunBinTahoeMixin
 from . import common_util as testutil
 from .common_util import run_cli_unicode
 from ..scripts.common import (
     write_introducer,
 )
+
+class RunBinTahoeMixin(object):
+    def run_bintahoe(self, args, stdin=None, python_options=[], env=None):
+        command = sys.executable
+        argv = python_options + ["-m", "allmydata.scripts.runner"] + args
+
+        if env is None:
+            env = os.environ
+
+        d = getProcessOutputAndValue(command, argv, env, stdinBytes=stdin)
+        def fix_signal(result):
+            # Mirror subprocess.Popen.returncode structure
+            (out, err, signal) = result
+            return (out, err, -signal)
+        d.addErrback(fix_signal)
+        return d
+
 
 def run_cli(*args, **kwargs):
     """
