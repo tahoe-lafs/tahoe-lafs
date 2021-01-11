@@ -23,7 +23,11 @@ from win32con import (
 
 from win32file import (
     INVALID_HANDLE_VALUE,
+    FILE_TYPE_CHAR,
 )
+
+# This one not exposed by pywin32 as far as I can tell.
+FILE_TYPE_REMOTE = 0x8000
 
 # <https://msdn.microsoft.com/en-us/library/windows/desktop/ms687401%28v=vs.85%29.aspx>
 # BOOL WINAPI WriteConsoleW(HANDLE hOutput, LPWSTR lpBuffer, DWORD nChars,
@@ -121,8 +125,6 @@ def initialize():
             use_last_error=True
         )(("GetFileType", windll.kernel32))
 
-        FILE_TYPE_CHAR   = 0x0002
-        FILE_TYPE_REMOTE = 0x8000
 
         GetConsoleMode = WINFUNCTYPE(
             BOOL,  HANDLE, POINTER(DWORD),
