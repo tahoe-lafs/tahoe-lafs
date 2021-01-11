@@ -29,6 +29,10 @@ from json import (
 from textwrap import (
     dedent,
 )
+from subprocess import (
+    Popen,
+)
+
 from twisted.python.filepath import (
     FilePath,
 )
@@ -56,6 +60,7 @@ from hypothesis import (
 
 from hypothesis.strategies import (
     lists,
+    tuples,
     text,
     characters,
 )
@@ -163,4 +168,55 @@ class GetArgvTests(SyncTestCase):
         self.assertThat(
             saved_argv,
             Equals(argv),
+        )
+
+
+class UnicodeOutputTests(SyncTestCase):
+    """
+    Tests for writing unicode to stdout and stderr.
+    """
+    @given(tuples(characters(), characters()))
+    def test_write_non_ascii(self, stdout_char, stderr_char):
+        """
+        Non-ASCII unicode characters can be written to stdout and stderr with
+        automatic UTF-8 encoding.
+        """
+        working_path = FilePath(self.mktemp())
+        script = working_path.child("script.py")
+        script.setContent(dedent(
+            """
+            from future.utils import PY2
+            if PY2:
+                from future.builtins chr
+
+            from allmydata.windows.fixups import initialize
+            initialize()
+
+            # XXX A shortcoming of the monkey-patch approach is that you'd
+            # better not iport stdout or stderr before you call initialize.
+            from sys import argv, stdout, stderr
+
+            stdout.write(chr(int(argv[1])))
+            stdout.close()
+            stderr.write(chr(int(argv[2])))
+            stderr.close()
+            """
+        ))
+        p = Popen([
+            executable,
+            script.path,
+            str(ord(stdout_char)),
+            str(ord(stderr_char)),
+        ])
+        stdout = p.stdout.read()
+        stderr = p.stderr.read()
+        returncode = p.wait()
+
+        self.assertThat(
+            (stdout, stderr, returncode),
+            Equals((
+                stdout_char,
+                stderr_char,
+                0,
+            )),
         )
