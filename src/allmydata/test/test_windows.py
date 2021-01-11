@@ -84,14 +84,16 @@ class GetArgvTests(SyncTestCase):
             ),
         )
 
-    @given(lists(text(max_size=4), max_size=4))
+    @given(lists(text(min_size=1, max_size=4), min_size=1, max_size=4))
     def test_argv_values(self, argv):
         """
         ``get_argv`` returns a list representing the result of tokenizing the
         "command line" argument string provided to Windows processes.
         """
-        save_argv_path = FilePath(self.mktemp())
-        saved_argv_path = FilePath(self.mktemp())
+        working_path = self.mktemp()
+        working_path.makedirs()
+        save_argv_path = working_path.child("script.py")
+        saved_argv_path = working_path.child("data.json")
         with open(save_argv_path.path, "wt") as f:
             # A simple program to save argv to a file.  Using the file saves
             # us having to figure out how to reliably get non-ASCII back over
