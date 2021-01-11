@@ -21,6 +21,10 @@ from win32con import (
     SEM_NOOPENFILEERRORBOX,
 )
 
+from win32file import (
+    INVALID_HANDLE_VALUE,
+)
+
 # <https://msdn.microsoft.com/en-us/library/windows/desktop/ms687401%28v=vs.85%29.aspx>
 # BOOL WINAPI WriteConsoleW(HANDLE hOutput, LPWSTR lpBuffer, DWORD nChars,
 #                           LPDWORD lpCharsWritten, LPVOID lpReserved);
@@ -124,8 +128,6 @@ def initialize():
             BOOL,  HANDLE, POINTER(DWORD),
             use_last_error=True
         )(("GetConsoleMode", windll.kernel32))
-
-        INVALID_HANDLE_VALUE = DWORD(-1).value
 
         def not_a_console(handle):
             if handle == INVALID_HANDLE_VALUE or handle is None:
