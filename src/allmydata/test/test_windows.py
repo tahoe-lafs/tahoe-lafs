@@ -60,7 +60,6 @@ from hypothesis import (
 
 from hypothesis.strategies import (
     lists,
-    tuples,
     text,
     characters,
 )
@@ -175,7 +174,7 @@ class UnicodeOutputTests(SyncTestCase):
     """
     Tests for writing unicode to stdout and stderr.
     """
-    @given(tuples(characters(), characters()))
+    @given(characters(), characters())
     def test_write_non_ascii(self, stdout_char, stderr_char):
         """
         Non-ASCII unicode characters can be written to stdout and stderr with
