@@ -57,6 +57,7 @@ from hypothesis import (
 from hypothesis.strategies import (
     lists,
     text,
+    characters,
 )
 
 from .common import (
@@ -93,7 +94,23 @@ class GetArgvTests(SyncTestCase):
         suppress_health_check=[HealthCheck.too_slow],
         deadline=None,
     )
-    @given(lists(text(min_size=1, max_size=4), min_size=1, max_size=4))
+    @given(
+        lists(
+            text(
+                alphabet=characters(
+                    blacklist_categories=('Cs',),
+                    # Windows CommandLine is a null-terminated string,
+                    # analogous to POSIX exec* arguments.  So exclude nul from
+                    # our generated arguments.
+                    blacklist_characters=('\x00',),
+                ),
+                min_size=1,
+                max_size=4,
+            ),
+            min_size=1,
+            max_size=4,
+        ),
+    )
     def test_argv_values(self, argv):
         """
         ``get_argv`` returns a list representing the result of tokenizing the
