@@ -172,6 +172,7 @@ class GetArgvTests(SyncTestCase):
         )
 
 
+@skipUnless(platform.isWindows(), "intended for Windows-only codepaths")
 class UnicodeOutputTests(SyncTestCase):
     """
     Tests for writing unicode to stdout and stderr.
