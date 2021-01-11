@@ -117,7 +117,7 @@ class GetArgvTests(SyncTestCase):
         from subprocess import (
             PIPE,
         )
-        argv = [executable, save_argv_path.path] + argv
+        argv = [executable.decode("utf-8"), save_argv_path.path] + argv
         returncode = Popen(argv, stdin=PIPE, stdout=PIPE, stderr=PIPE).wait()
         self.assertThat(
             returncode,
