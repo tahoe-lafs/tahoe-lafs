@@ -1,5 +1,4 @@
 from __future__ import print_function
-import __builtin__
 
 import os.path, re, fnmatch
 from twisted.python import usage
@@ -219,7 +218,7 @@ class CpOptions(FileStoreOptions):
     def parseArgs(self, *args):
         if len(args) < 2:
             raise usage.UsageError("cp requires at least two arguments")
-        self.sources = __builtin__.list(unicode(a, "utf-8") for a in args[:-1])
+        self.sources = list(unicode(a, "utf-8") for a in args[:-1])
         self.destination = unicode(args[-1], "utf-8")
 
     synopsis = "[options] FROM.. TO"
@@ -430,7 +429,7 @@ class CheckOptions(FileStoreOptions):
         ("add-lease", None, "Add/renew lease on all shares."),
         ]
     def parseArgs(self, *locations):
-        self.locations = __builtin__.list(unicode(a, "utf-8") for a in locations)
+        self.locations = list(unicode(a, "utf-8") for a in locations)
 
     synopsis = "[options] [ALIAS:PATH]"
     description = """
@@ -447,7 +446,7 @@ class DeepCheckOptions(FileStoreOptions):
         ("verbose", "v", "Be noisy about what is happening."),
         ]
     def parseArgs(self, *locations):
-        self.locations = __builtin__.list(unicode(a, "utf-8") for a in locations)
+        self.locations = list(unicode(a, "utf-8") for a in locations)
 
     synopsis = "[options] [ALIAS:PATH]"
     description = """
@@ -496,7 +495,7 @@ def list_aliases(options):
     rc = tahoe_add_alias.list_aliases(options)
     return rc
 
-def list(options):
+def list_(options):
     from allmydata.scripts import tahoe_ls
     rc = tahoe_ls.list(options)
     return rc
@@ -582,7 +581,7 @@ dispatch = {
     "add-alias": add_alias,
     "create-alias": create_alias,
     "list-aliases": list_aliases,
-    "ls": list,
+    "ls": list_,
     "get": get,
     "put": put,
     "cp": cp,
