@@ -48,6 +48,8 @@ from testtools.matchers import (
 )
 
 from hypothesis import (
+    HealthCheck,
+    settings,
     given,
     note,
 )
@@ -85,6 +87,12 @@ class GetArgvTests(SyncTestCase):
             ),
         )
 
+    @settings(
+        # This test runs a child process.  This is unavoidably slow and
+        # variable.  Disable the two time-based Hypothesis health checks.
+        suppress_health_check=[HealthCheck.too_slow],
+        deadline=None,
+    )
     @given(lists(text(min_size=1, max_size=4), min_size=1, max_size=4))
     def test_argv_values(self, argv):
         """
