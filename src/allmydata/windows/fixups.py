@@ -132,7 +132,7 @@ def initialize():
         )(("GetConsoleMode", windll.kernel32))
 
         def not_a_console(handle):
-            if handle == INVALID_HANDLE_VALUE or handle is None:
+            if handle == INVALID_HANDLE_VALUE:
                 return True
             return ((GetFileType(handle) & ~FILE_TYPE_REMOTE) != FILE_TYPE_CHAR
                     or GetConsoleMode(handle, byref(DWORD())) == 0)
