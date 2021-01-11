@@ -69,10 +69,6 @@ from .common import (
     SyncTestCase,
 )
 
-from ..windows.fixups import (
-    get_argv,
-)
-
 slow_settings = settings(
     suppress_health_check=[HealthCheck.too_slow],
     deadline=None,
@@ -87,9 +83,15 @@ class GetArgvTests(SyncTestCase):
         """
         ``get_argv`` returns a list of unicode strings
         """
+        # Hide the ``allmydata.windows.fixups.get_argv`` import here so it
+        # doesn't cause failures on non-Windows platforms.
+        from ..windows.fixups import (
+            get_argv,
+        )
+        argv = get_argv()
+
         # We don't know what this process's command line was so we just make
         # structural assertions here.
-        argv = get_argv()
         self.assertThat(
             argv,
             MatchesAll(
