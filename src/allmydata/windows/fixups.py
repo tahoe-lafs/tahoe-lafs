@@ -43,6 +43,9 @@ CommandLineToArgvW = WINFUNCTYPE(
 )(("CommandLineToArgvW", windll.shell32))
 
 
+STDOUT_FILENO = 1
+STDERR_FILENO = 2
+
 def get_argv():
     """
     :return [unicode]: The argument list this process was invoked with, as
@@ -137,8 +140,6 @@ def initialize():
         if hasattr(sys.stderr, 'fileno'):
             old_stderr_fileno = sys.stderr.fileno()
 
-        STDOUT_FILENO = 1
-        STDERR_FILENO = 2
         real_stdout = (old_stdout_fileno == STDOUT_FILENO)
         real_stderr = (old_stderr_fileno == STDERR_FILENO)
 
