@@ -110,7 +110,10 @@ class GetArgvTests(SyncTestCase):
         from ._win_subprocess import (
             Popen
         )
-        returncode = Popen([executable, save_argv_path.path] + argv).wait()
+        from subprocess import (
+            PIPE,
+        )
+        returncode = Popen([executable, save_argv_path.path] + argv, stdin=PIPE, stdout=PIPE, stderr=PIPE).wait()
         self.assertThat(
             0,
             Equals(returncode),
