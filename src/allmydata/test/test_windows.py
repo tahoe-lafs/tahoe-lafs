@@ -181,6 +181,7 @@ class UnicodeOutputTests(SyncTestCase):
         automatic UTF-8 encoding.
         """
         working_path = FilePath(self.mktemp())
+        working_path.makedirs()
         script = working_path.child("script.py")
         script.setContent(dedent(
             """
