@@ -9,6 +9,10 @@ __all__ = [
     "flush_logged_errors",
     "skip",
     "skipIf",
+
+    # Selected based on platform and re-exported for convenience.
+    "Popen",
+    "PIPE",
 ]
 
 from past.builtins import chr as byteschr, unicode
@@ -48,6 +52,9 @@ from testtools.twistedsupport import (
     flush_logged_errors,
 )
 
+from twisted.python.runtime import (
+    platform,
+)
 from twisted.application import service
 from twisted.plugin import IPlugin
 from twisted.internet import defer
@@ -100,6 +107,21 @@ from .eliotutil import (
     EliotLoggedRunTest,
 )
 from .common_util import ShouldFailMixin  # noqa: F401
+
+if platform.isWindows():
+    # Python 2.7 doesn't have good options for launching a process with
+    # non-ASCII in its command line.  So use this alternative that does a
+    # better job.  However, only use it on Windows because it doesn't work
+    # anywhere else.
+    from ._win_subprocess import (
+        PIPE,
+        Popen,
+    )
+else:
+    from subprocess import (
+        PIPE,
+        Popen,
+    )
 
 
 TEST_RSA_KEY_SIZE = 522

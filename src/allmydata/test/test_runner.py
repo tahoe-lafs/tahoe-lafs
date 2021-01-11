@@ -5,10 +5,6 @@ from __future__ import (
 
 import os.path, re, sys
 from os import linesep
-from subprocess import (
-    PIPE,
-    Popen,
-)
 
 from eliot import (
     log_call,
@@ -29,7 +25,14 @@ from twisted.python.runtime import (
 from allmydata.util import fileutil, pollmixin
 from allmydata.test import common_util
 import allmydata
-from .common_util import parse_cli, run_cli
+from .common import (
+    PIPE,
+    Popen,
+)
+from .common_util import (
+    parse_cli,
+    run_cli,
+)
 from .cli_node_api import (
     CLINodeAPI,
     Expect,
