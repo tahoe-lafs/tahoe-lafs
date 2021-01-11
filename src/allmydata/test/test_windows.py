@@ -90,7 +90,7 @@ class GetArgvTests(SyncTestCase):
         ``get_argv`` returns a list representing the result of tokenizing the
         "command line" argument string provided to Windows processes.
         """
-        working_path = self.mktemp()
+        working_path = FilePath(self.mktemp())
         working_path.makedirs()
         save_argv_path = working_path.child("script.py")
         saved_argv_path = working_path.child("data.json")
