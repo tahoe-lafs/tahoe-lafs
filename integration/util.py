@@ -16,6 +16,8 @@ from twisted.internet.error import ProcessExitedAlready, ProcessDone
 
 import requests
 
+from paramiko.rsakey import RSAKey
+
 from allmydata.util.configutil import (
     get_config,
     set_config,
@@ -510,5 +512,7 @@ def await_client_ready(tahoe, timeout=10, liveness=60*2):
 
 def generate_ssh_key(path):
     """Create a new SSH private/public key pair."""
-    check_call(["ckeygen", "--type", "rsa", "--no-passphrase", "--bits", "2048",
-                "--file", path, "--private-key-subtype", "v1"])
+    key = RSAKey.generate(2048)
+    key.write_private_key_file(path)
+    with open(path + ".pub", "wb") as f:
+        f.write(b"%s %s" % (key.get_name(), key.get_base64()))
