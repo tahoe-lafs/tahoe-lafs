@@ -149,13 +149,11 @@ def initialize():
         if real_stdout:
             hStdout = GetStdHandle(STD_OUTPUT_HANDLE)
             if not_a_console(hStdout):
-                print("stdout not a console")
                 real_stdout = False
 
         if real_stderr:
             hStderr = GetStdHandle(STD_ERROR_HANDLE)
             if not_a_console(hStderr):
-                print("stdout not a console")
                 real_stderr = False
 
         if real_stdout:
