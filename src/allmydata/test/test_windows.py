@@ -207,7 +207,7 @@ class UnicodeOutputTests(SyncTestCase):
             script.path,
             str(ord(stdout_char)),
             str(ord(stderr_char)),
-        ])
+        ], stdout=PIPE, stderr=PIPE)
         stdout = p.stdout.read()
         stderr = p.stderr.read()
         returncode = p.wait()
