@@ -49,6 +49,7 @@ from testtools.matchers import (
 
 from hypothesis import (
     given,
+    note,
 )
 
 from hypothesis.strategies import (
@@ -118,7 +119,15 @@ class GetArgvTests(SyncTestCase):
             PIPE,
         )
         argv = [executable.decode("utf-8"), save_argv_path.path] + argv
-        returncode = Popen(argv, stdin=PIPE, stdout=PIPE, stderr=PIPE).wait()
+        p = Popen(argv, stdin=PIPE, stdout=PIPE, stderr=PIPE)
+        p.stdin.close()
+        stdout = p.stdout.read()
+        stderr = p.stderr.read()
+        returncode = p.wait()
+
+        note("stdout: {!r}".format(stdout))
+        note("stderr: {!r}".format(stderr))
+
         self.assertThat(
             returncode,
             Equals(0),

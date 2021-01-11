@@ -26,8 +26,12 @@ def get_argv():
         use_last_error=True
     )(("CommandLineToArgvW", windll.shell32))
 
+    import sys
+
+    command_line = GetCommandLine()
+    print("GetCommandLine() -> {!r}".format(command_line), file=sys.stderr)
     argc = c_int(0)
-    argv_unicode = CommandLineToArgvW(GetCommandLine(), byref(argc))
+    argv_unicode = CommandLineToArgvW(command_line, byref(argc))
     if argv_unicode is None:
         raise WinError(get_last_error())
 
