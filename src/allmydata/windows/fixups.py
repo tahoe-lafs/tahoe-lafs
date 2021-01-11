@@ -30,9 +30,6 @@ from win32file import (
     GetFileType,
 )
 
-# This one not exposed by pywin32 as far as I can tell.
-FILE_TYPE_REMOTE = 0x8000
-
 # <https://msdn.microsoft.com/en-us/library/windows/desktop/ms687401%28v=vs.85%29.aspx>
 # BOOL WINAPI WriteConsoleW(HANDLE hOutput, LPWSTR lpBuffer, DWORD nChars,
 #                           LPDWORD lpCharsWritten, LPVOID lpReserved);
@@ -126,11 +123,15 @@ def initialize():
             use_last_error=True
         )(("GetConsoleMode", windll.kernel32))
 
-        def not_a_console(handle):
+        def a_console(handle):
             if handle == INVALID_HANDLE_VALUE:
-                return True
-            return ((GetFileType(handle) & ~FILE_TYPE_REMOTE) != FILE_TYPE_CHAR
-                    or GetConsoleMode(handle, byref(DWORD())) == 0)
+                return False
+            return (
+                # It's a character file (eg a printer or a console)
+                GetFileType(handle) == FILE_TYPE_CHAR and
+                # Checking the console mode doesn't fail (thus it's a console)
+                GetConsoleMode(handle, byref(DWORD())) != 0
+            )
 
         old_stdout_fileno = None
         old_stderr_fileno = None
@@ -144,12 +145,12 @@ def initialize():
 
         if real_stdout:
             hStdout = GetStdHandle(STD_OUTPUT_HANDLE)
-            if not_a_console(hStdout):
+            if not a_console(hStdout):
                 real_stdout = False
 
         if real_stderr:
             hStderr = GetStdHandle(STD_ERROR_HANDLE)
-            if not_a_console(hStderr):
+            if not a_console(hStderr):
                 real_stderr = False
 
         if real_stdout:
