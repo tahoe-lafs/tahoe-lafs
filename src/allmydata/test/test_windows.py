@@ -90,9 +90,9 @@ class GetArgvTests(SyncTestCase):
         ``get_argv`` returns a list representing the result of tokenizing the
         "command line" argument string provided to Windows processes.
         """
-        save_argv = FilePath(self.mktemp())
+        save_argv_path = FilePath(self.mktemp())
         saved_argv_path = FilePath(self.mktemp())
-        with open(save_argv.path, "wt") as f:
+        with open(save_argv_path.path, "wt") as f:
             # A simple program to save argv to a file.  Using the file saves
             # us having to figure out how to reliably get non-ASCII back over
             # stdio which may pose an independent set of challenges.  At least
@@ -110,7 +110,7 @@ class GetArgvTests(SyncTestCase):
         from ._win_subprocess import (
             Popen
         )
-        returncode = Popen([executable, save_argv] + argv).wait()
+        returncode = Popen([executable, save_argv_path.path] + argv).wait()
         self.assertThat(
             0,
             Equals(returncode),
