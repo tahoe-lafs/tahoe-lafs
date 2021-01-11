@@ -1,6 +1,7 @@
 from __future__ import print_function
 
-done = False
+import codecs, re
+from functools import partial
 
 from ctypes import WINFUNCTYPE, windll, POINTER, c_int, WinError, byref, get_last_error
 from ctypes.wintypes import BOOL, HANDLE, DWORD, LPWSTR, LPCWSTR, LPVOID
@@ -30,10 +31,22 @@ from win32file import (
     GetFileType,
 )
 
+from allmydata.util import (
+    log,
+)
+
+# Keep track of whether `initialize` has run so we don't do any of the
+# initialization more than once.
+_done = False
+
+#
+# pywin32 for Python 2.7 does not bind any of these *W variants so we do it
+# ourselves.
+#
+
 # <https://msdn.microsoft.com/en-us/library/windows/desktop/ms687401%28v=vs.85%29.aspx>
 # BOOL WINAPI WriteConsoleW(HANDLE hOutput, LPWSTR lpBuffer, DWORD nChars,
 #                           LPDWORD lpCharsWritten, LPVOID lpReserved);
-
 WriteConsoleW = WINFUNCTYPE(
     BOOL,  HANDLE, LPWSTR, DWORD, POINTER(DWORD), LPVOID,
     use_last_error=True
@@ -50,6 +63,13 @@ CommandLineToArgvW = WINFUNCTYPE(
     POINTER(LPWSTR),  LPCWSTR, POINTER(c_int),
     use_last_error=True
 )(("CommandLineToArgvW", windll.shell32))
+
+# <https://msdn.microsoft.com/en-us/library/ms683167(VS.85).aspx>
+# BOOL WINAPI GetConsoleMode(HANDLE hConsole, LPDWORD lpMode);
+GetConsoleMode = WINFUNCTYPE(
+    BOOL,  HANDLE, POINTER(DWORD),
+    use_last_error=True
+)(("GetConsoleMode", windll.kernel32))
 
 
 STDOUT_FILENO = 1
@@ -80,16 +100,11 @@ def get_argv():
 
 
 def initialize():
-    global done
+    global _done
     import sys
-    if sys.platform != "win32" or done:
+    if sys.platform != "win32" or _done:
         return True
-    done = True
-
-    import codecs, re
-    from functools import partial
-
-    from allmydata.util import log
+    _done = True
 
     SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOOPENFILEERRORBOX)
 
@@ -114,25 +129,6 @@ def initialize():
     # and TZOmegaTZIOY
     # <http://stackoverflow.com/questions/878972/windows-cmd-encoding-change-causes-python-crash/1432462#1432462>.
     try:
-        #
-        # <https://msdn.microsoft.com/en-us/library/ms683167(VS.85).aspx>
-        # BOOL WINAPI GetConsoleMode(HANDLE hConsole, LPDWORD lpMode);
-
-        GetConsoleMode = WINFUNCTYPE(
-            BOOL,  HANDLE, POINTER(DWORD),
-            use_last_error=True
-        )(("GetConsoleMode", windll.kernel32))
-
-        def a_console(handle):
-            if handle == INVALID_HANDLE_VALUE:
-                return False
-            return (
-                # It's a character file (eg a printer or a console)
-                GetFileType(handle) == FILE_TYPE_CHAR and
-                # Checking the console mode doesn't fail (thus it's a console)
-                GetConsoleMode(handle, byref(DWORD())) != 0
-            )
-
         old_stdout_fileno = None
         old_stderr_fileno = None
         if hasattr(sys.stdout, 'fileno'):
@@ -191,6 +187,20 @@ def initialize():
     sys.argv = argv[-len(sys.argv):]
     if sys.argv[0].endswith('.pyscript'):
         sys.argv[0] = sys.argv[0][:-9]
+
+
+def a_console(handle):
+    """
+    :return: ``True`` if ``handle`` refers to a console, ``False`` otherwise.
+    """
+    if handle == INVALID_HANDLE_VALUE:
+        return False
+    return (
+        # It's a character file (eg a printer or a console)
+        GetFileType(handle) == FILE_TYPE_CHAR and
+        # Checking the console mode doesn't fail (thus it's a console)
+        GetConsoleMode(handle, byref(DWORD())) != 0
+    )
 
 
 class UnicodeOutput(object):
