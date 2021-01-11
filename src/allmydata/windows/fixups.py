@@ -193,6 +193,11 @@ def initialize():
 
 
 class UnicodeOutput(object):
+    """
+    ``UnicodeOutput`` is a file-like object that encodes unicode to UTF-8 and
+    writes it to another file or writes unicode natively to the Windows
+    console.
+    """
     def __init__(self, hConsole, stream, fileno, name, _complain):
         self._hConsole = hConsole
         self._stream = stream
