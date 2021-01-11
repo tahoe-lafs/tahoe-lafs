@@ -5,6 +5,7 @@ from os import mkdir, environ
 from os.path import exists, join
 from six.moves import StringIO
 from functools import partial
+from subprocess import check_output, check_call
 
 from twisted.python.filepath import (
     FilePath,
@@ -14,6 +15,8 @@ from twisted.internet.protocol import ProcessProtocol
 from twisted.internet.error import ProcessExitedAlready, ProcessDone
 
 import requests
+
+from paramiko.rsakey import RSAKey
 
 from allmydata.util.configutil import (
     get_config,
@@ -175,6 +178,10 @@ class TahoeProcess(object):
             u"portnum",
         )
 
+    def kill(self):
+        """Kill the process, block until it's done."""
+        _cleanup_tahoe_process(self.transport, self.transport.exited)
+
     def __str__(self):
         return "<TahoeProcess in '{}'>".format(self._node_dir)
 
@@ -249,7 +256,7 @@ def _create_node(reactor, request, temp_dir, introducer_furl, flog_gatherer, nam
             '--helper',
         ]
         if not storage:
-            args.append('--no-storage')
+           args.append('--no-storage')
         args.append(node_dir)
 
         _tahoe_runner_optional_coverage(done_proto, reactor, request, args)
@@ -390,17 +397,13 @@ def await_file_vanishes(path, timeout=10):
     raise FileShouldVanishException(path, timeout)
 
 
-def cli(request, reactor, node_dir, *argv):
+def cli(node, *argv):
     """
-    Run a tahoe CLI subcommand for a given node, optionally running
-    under coverage if '--coverage' was supplied.
+    Run a tahoe CLI subcommand for a given node in a blocking manner, returning
+    the output.
     """
-    proto = _CollectOutputProtocol()
-    _tahoe_runner_optional_coverage(
-        proto, reactor, request,
-        ['--node-directory', node_dir] + list(argv),
-    )
-    return proto.done
+    arguments = ["tahoe", '--node-directory', node.node_dir]
+    return check_output(arguments + list(argv))
 
 
 def node_url(node_dir, uri_fragment):
@@ -505,3 +508,11 @@ def await_client_ready(tahoe, timeout=10, liveness=60*2):
             tahoe,
         )
     )
+
+
+def generate_ssh_key(path):
+    """Create a new SSH private/public key pair."""
+    key = RSAKey.generate(2048)
+    key.write_private_key_file(path)
+    with open(path + ".pub", "wb") as f:
+        f.write(b"%s %s" % (key.get_name(), key.get_base64()))

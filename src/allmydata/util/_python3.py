@@ -27,6 +27,7 @@ PORTED_MODULES = [
     "allmydata.__main__",
     "allmydata._auto_deps",
     "allmydata._monkeypatch",
+    "allmydata.blacklist",
     "allmydata.codec",
     "allmydata.crypto",
     "allmydata.crypto.aes",
@@ -36,7 +37,6 @@ PORTED_MODULES = [
     "allmydata.crypto.util",
     "allmydata.deep_stats",
     "allmydata.dirnode",
-    "allmydata.frontends.ftpd",
     "allmydata.frontends.sftpd",
     "allmydata.hashtree",
     "allmydata.immutable.checker",
@@ -114,6 +114,7 @@ PORTED_MODULES = [
     "allmydata.util.spans",
     "allmydata.util.statistics",
     "allmydata.util.time_format",
+    "allmydata.webish",
 ]
 
 PORTED_TEST_MODULES = [
@@ -150,7 +151,6 @@ PORTED_TEST_MODULES = [
     "allmydata.test.test_encode",
     "allmydata.test.test_encodingutil",
     "allmydata.test.test_filenode",
-    "allmydata.test.test_ftp",
     "allmydata.test.test_happiness",
     "allmydata.test.test_hashtree",
     "allmydata.test.test_hashutil",
@@ -188,6 +188,7 @@ PORTED_TEST_MODULES = [
     "allmydata.test.test_util",
     "allmydata.test.web.test_common",
     "allmydata.test.web.test_grid",
-    "allmydata.test.web.test_util",
     "allmydata.test.web.test_status",
+    "allmydata.test.web.test_util",
+    "allmydata.test.web.test_webish",
 ]
