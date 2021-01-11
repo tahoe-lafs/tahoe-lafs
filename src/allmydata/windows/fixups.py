@@ -12,13 +12,15 @@ def get_argv():
         information using Windows API calls and massages it into the right
         shape.
     """
-    # <https://msdn.microsoft.com/en-us/library/windows/desktop/ms683156%28v=vs.85%29.aspx>
-    from win32ui import (
-        GetCommandLine,
-    )
 
     from ctypes import WINFUNCTYPE, WinError, windll, POINTER, byref, c_int, get_last_error
     from ctypes.wintypes import LPWSTR, LPCWSTR
+
+    # <https://msdn.microsoft.com/en-us/library/windows/desktop/ms683156%28v=vs.85%29.aspx>
+    GetCommandLineW = WINFUNCTYPE(
+        LPWSTR,
+        use_last_error=True
+    )(("GetCommandLineW", windll.kernel32))
 
     # <https://msdn.microsoft.com/en-us/library/windows/desktop/bb776391%28v=vs.85%29.aspx>
     CommandLineToArgvW = WINFUNCTYPE(
@@ -28,8 +30,8 @@ def get_argv():
 
     import sys
 
-    command_line = GetCommandLine()
-    print("GetCommandLine() -> {!r}".format(command_line), file=sys.stderr)
+    command_line = GetCommandLineW()
+    print("GetCommandLineW() -> {!r}".format(command_line), file=sys.stderr)
     argc = c_int(0)
     argv_unicode = CommandLineToArgvW(command_line, byref(argc))
     if argv_unicode is None:
