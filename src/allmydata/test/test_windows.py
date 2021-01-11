@@ -209,8 +209,8 @@ class UnicodeOutputTests(SyncTestCase):
             str(ord(stdout_char)),
             str(ord(stderr_char)),
         ], stdout=PIPE, stderr=PIPE)
-        stdout = p.stdout.read()
-        stderr = p.stderr.read()
+        stdout = p.stdout.read().decode("utf-8")
+        stderr = p.stderr.read().decode("utf-8")
         returncode = p.wait()
 
         self.assertThat(
