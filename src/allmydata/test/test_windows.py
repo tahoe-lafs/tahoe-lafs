@@ -72,6 +72,13 @@ from .common import (
 slow_settings = settings(
     suppress_health_check=[HealthCheck.too_slow],
     deadline=None,
+
+    # Reduce the number of examples required to consider the test a success.
+    # The default is 100.  Launching a process is expensive so we'll try to do
+    # it as few times as we can get away with.  To maintain good coverage,
+    # we'll try to pass as much data to each process as we can so we're still
+    # covering a good portion of the space.
+    max_examples=10,
 )
 
 @skipUnless(platform.isWindows(), "get_argv is Windows-only")
@@ -113,11 +120,11 @@ class GetArgvTests(SyncTestCase):
                     # our generated arguments.
                     blacklist_characters=('\x00',),
                 ),
-                min_size=1,
-                max_size=4,
+                min_size=10,
+                max_size=20,
             ),
-            min_size=1,
-            max_size=4,
+            min_size=10,
+            max_size=20,
         ),
     )
     def test_argv_values(self, argv):
