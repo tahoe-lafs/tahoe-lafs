@@ -128,5 +128,5 @@ class GetArgvTests(SyncTestCase):
 
         self.assertThat(
             saved_argv,
-            Equals(argv),
+            Equals([u"expected"] + argv),
         )
