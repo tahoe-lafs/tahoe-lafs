@@ -7,7 +7,14 @@ from ctypes.wintypes import BOOL, HANDLE, DWORD, LPWSTR, LPCWSTR, LPVOID
 
 # <https://msdn.microsoft.com/en-us/library/ms680621%28VS.85%29.aspx>
 from win32api import (
+    STD_OUTPUT_HANDLE,
+    STD_ERROR_HANDLE,
     SetErrorMode,
+
+    # <https://msdn.microsoft.com/en-us/library/ms683231(VS.85).aspx>
+    # HANDLE WINAPI GetStdHandle(DWORD nStdHandle);
+    # returns INVALID_HANDLE_VALUE, NULL, or a valid handle
+    GetStdHandle,
 )
 from win32con import (
     SEM_FAILCRITICALERRORS,
@@ -95,23 +102,12 @@ def initialize():
     # and TZOmegaTZIOY
     # <http://stackoverflow.com/questions/878972/windows-cmd-encoding-change-causes-python-crash/1432462#1432462>.
     try:
-        # <https://msdn.microsoft.com/en-us/library/ms683231(VS.85).aspx>
-        # HANDLE WINAPI GetStdHandle(DWORD nStdHandle);
-        # returns INVALID_HANDLE_VALUE, NULL, or a valid handle
         #
         # <https://msdn.microsoft.com/en-us/library/aa364960(VS.85).aspx>
         # DWORD WINAPI GetFileType(DWORD hFile);
         #
         # <https://msdn.microsoft.com/en-us/library/ms683167(VS.85).aspx>
         # BOOL WINAPI GetConsoleMode(HANDLE hConsole, LPDWORD lpMode);
-
-        GetStdHandle = WINFUNCTYPE(
-            HANDLE,  DWORD,
-            use_last_error=True
-        )(("GetStdHandle", windll.kernel32))
-
-        STD_OUTPUT_HANDLE = DWORD(-11)
-        STD_ERROR_HANDLE  = DWORD(-12)
 
         GetFileType = WINFUNCTYPE(
             DWORD,  DWORD,
