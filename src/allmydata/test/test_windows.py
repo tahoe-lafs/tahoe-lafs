@@ -206,7 +206,7 @@ class UnicodeOutputTests(SyncTestCase):
             initialize()
 
             # XXX A shortcoming of the monkey-patch approach is that you'd
-            # better not iport stdout or stderr before you call initialize.
+            # better not import stdout or stderr before you call initialize.
             from sys import argv, stdout, stderr
 
             stdout.write(chr(int(argv[1])))
