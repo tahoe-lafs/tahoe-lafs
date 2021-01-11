@@ -16,6 +16,8 @@ from testtools.matchers import (
 BLACKLIST = {
     "allmydata.test.check_load",
     "allmydata.windows.registry",
+    "allmydata.windows.fixups",
+    "allmydata.windows._win_subprocess",
 }
 
 
