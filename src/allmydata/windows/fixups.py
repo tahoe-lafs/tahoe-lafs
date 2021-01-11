@@ -24,6 +24,10 @@ from win32con import (
 from win32file import (
     INVALID_HANDLE_VALUE,
     FILE_TYPE_CHAR,
+
+    # <https://msdn.microsoft.com/en-us/library/aa364960(VS.85).aspx>
+    # DWORD WINAPI GetFileType(DWORD hFile);
+    GetFileType,
 )
 
 # This one not exposed by pywin32 as far as I can tell.
@@ -114,17 +118,8 @@ def initialize():
     # <http://stackoverflow.com/questions/878972/windows-cmd-encoding-change-causes-python-crash/1432462#1432462>.
     try:
         #
-        # <https://msdn.microsoft.com/en-us/library/aa364960(VS.85).aspx>
-        # DWORD WINAPI GetFileType(DWORD hFile);
-        #
         # <https://msdn.microsoft.com/en-us/library/ms683167(VS.85).aspx>
         # BOOL WINAPI GetConsoleMode(HANDLE hConsole, LPDWORD lpMode);
-
-        GetFileType = WINFUNCTYPE(
-            DWORD,  DWORD,
-            use_last_error=True
-        )(("GetFileType", windll.kernel32))
-
 
         GetConsoleMode = WINFUNCTYPE(
             BOOL,  HANDLE, POINTER(DWORD),
