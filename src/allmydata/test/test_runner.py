@@ -61,7 +61,7 @@ rootdir = get_root_from_file(srcfile)
 
 
 @log_call(action_type="run-bin-tahoe")
-def run_bintahoe(extra_argv):
+def run_bintahoe(extra_argv, python_options=None):
     """
     Run the main Tahoe entrypoint in a child process with the given additional
     arguments.
@@ -71,7 +71,11 @@ def run_bintahoe(extra_argv):
     :return: A three-tuple of stdout (unicode), stderr (unicode), and the
         child process "returncode" (int).
     """
-    argv = [sys.executable, u"-m", u"allmydata.scripts.runner"] + extra_argv
+    argv = [sys.executable]
+    if python_options is not None:
+        argv.extend(python_options)
+    argv.extend([u"-m", u"allmydata.scripts.runner"])
+    argv.extend(extra_argv)
     p = Popen(argv, stdout=PIPE, stderr=PIPE)
     out = p.stdout.read().decode("utf-8")
     err = p.stderr.read().decode("utf-8")
@@ -88,6 +92,21 @@ class BinTahoe(common_util.SignalMixin, unittest.TestCase):
         out, err, returncode = run_bintahoe([tricky])
         self.assertEqual(returncode, 1)
         self.assertIn(u"Unknown command: " + tricky, out)
+
+    def test_with_python_options(self):
+        """
+        Additional options for the Python interpreter don't prevent the runner
+        script from receiving the arguments meant for it.
+        """
+        # This seems like a redundant test for someone else's functionality
+        # but on Windows we parse the whole command line string ourselves so
+        # we have to have our own implementation of skipping these options.
+
+        # -t is a harmless option that warns about tabs so we can add it
+        # -without impacting other behavior noticably.
+        out, err, returncode = run_bintahoe(["--version"], python_options=["-t"])
+        self.assertEqual(returncode, 0)
+        self.assertTrue(out.startswith(allmydata.__appname__ + '/'))
 
     def test_help_eliot_destinations(self):
         out, err, returncode = run_bintahoe([u"--help-eliot-destinations"])
