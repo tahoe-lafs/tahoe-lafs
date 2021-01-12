@@ -133,6 +133,9 @@ def unicode_to_argv(s, mangle=False):
     Windows, this returns the input unmodified.
     """
     precondition(isinstance(s, unicode), s)
+    if PY3:
+        warnings.warn("This will be unnecessary once Python 2 is dropped.",
+                      DeprecationWarning)
     if sys.platform == "win32":
         return s
     return ensure_str(s)
