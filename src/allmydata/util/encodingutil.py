@@ -129,10 +129,12 @@ def unicode_to_argv(s, mangle=False):
     """
     Make the given unicode string suitable for use in an argv list.
 
-    On Python 2, this encodes using UTF-8.  On Python 3, this returns the
-    input unmodified.
+    On Python 2 on POSIX, this encodes using UTF-8.  On Python 3 and on
+    Windows, this returns the input unmodified.
     """
     precondition(isinstance(s, unicode), s)
+    if sys.platform == "win32":
+        return s
     return ensure_str(s)
 
 
