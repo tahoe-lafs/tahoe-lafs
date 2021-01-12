@@ -1,6 +1,6 @@
 from __future__ import print_function
 
-import codecs, re
+import codecs
 from functools import partial
 
 from ctypes import WINFUNCTYPE, windll, POINTER, c_int, WinError, byref, get_last_error
