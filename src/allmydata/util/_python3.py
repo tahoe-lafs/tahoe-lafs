@@ -187,6 +187,7 @@ PORTED_TEST_MODULES = [
     "allmydata.test.test_util",
     "allmydata.test.web.test_common",
     "allmydata.test.web.test_grid",
+    "allmydata.test.web.test_introducer",
     "allmydata.test.web.test_logs",
     "allmydata.test.web.test_status",
     "allmydata.test.web.test_util",
