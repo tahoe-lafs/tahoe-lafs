@@ -85,8 +85,8 @@ from allmydata.util.encodingutil import unicode_to_url, \
     unicode_to_output, quote_output, quote_path, quote_local_unicode_path, \
     quote_filepath, unicode_platform, listdir_unicode, FilenameEncodingError, \
     get_filesystem_encoding, to_bytes, from_utf8_or_none, _reload, \
-    to_filepath, extend_filepath, unicode_from_filepath, unicode_segments_from
-
+    to_filepath, extend_filepath, unicode_from_filepath, unicode_segments_from, \
+    unicode_to_argv
 
 class MockStdout(object):
     pass
@@ -156,6 +156,20 @@ class EncodingUtil(ReallyEqualMixin):
     @skipIf(PY2, "Python 3 only.")
     def test_unicode_to_output_py3(self):
         self.failUnlessReallyEqual(unicode_to_output(lumiere_nfc), lumiere_nfc)
+
+    def test_unicode_to_argv(self):
+        """
+        unicode_to_argv() returns its unicode argument on Windows and Python 2 and
+        converts to bytes using UTF-8 elsewhere.
+        """
+        result = unicode_to_argv(lumiere_nfc)
+        if PY3 or self.platform == "win32":
+            expected_value = lumiere_nfc
+        else:
+            expected_value = lumiere_nfc.encode(self.io_encoding)
+
+        self.assertIsInstance(result, type(expected_value))
+        self.assertEqual(result, expected_value)
 
     @skipIf(PY3, "Python 3 only.")
     def test_unicode_platform_py2(self):
