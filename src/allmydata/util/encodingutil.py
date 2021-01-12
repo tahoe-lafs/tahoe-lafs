@@ -98,10 +98,13 @@ def get_io_encoding():
 
 def argv_to_unicode(s):
     """
-    Perform the inverse of ``unicode_to_argv``.
+    Decode given argv element to unicode. If this fails, raise a UsageError.
+
+    This is the inverse of ``unicode_to_argv``.
     """
     if isinstance(s, unicode):
         return s
+
     precondition(isinstance(s, bytes), s)
 
     try:
