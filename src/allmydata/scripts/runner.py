@@ -107,8 +107,6 @@ def parse_options(argv, config=None):
     return config
 
 def parse_or_exit_with_explanation(argv, stdout=sys.stdout):
-    with open("argv-debug.txt", "wt") as f:
-        print(repr(argv), file=f)
     config = Options()
     try:
         parse_options(argv, config=config)
