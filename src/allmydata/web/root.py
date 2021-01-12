@@ -1,3 +1,5 @@
+from past.builtins import unicode
+
 import os
 import time
 import urllib
@@ -227,26 +229,25 @@ class Root(MultiFormatResource):
         self._client = client
         self._now_fn = now_fn
 
-        # Children need to be bytes; for now just doing these to make specific
-        # tests pass on Python 3, but eventually will do all them when this
-        # module is ported to Python 3 (if not earlier).
         self.putChild(b"uri", URIHandler(client))
-        self.putChild("cap", URIHandler(client))
+        self.putChild(b"cap", URIHandler(client))
 
         # Handler for everything beneath "/private", an area of the resource
         # hierarchy which is only accessible with the private per-node API
         # auth token.
-        self.putChild("private", create_private_tree(client.get_auth_token))
+        self.putChild(b"private", create_private_tree(client.get_auth_token))
 
-        self.putChild("file", FileHandler(client))
-        self.putChild("named", FileHandler(client))
-        self.putChild("status", status.Status(client.get_history()))
-        self.putChild("statistics", status.Statistics(client.stats_provider))
+        self.putChild(b"file", FileHandler(client))
+        self.putChild(b"named", FileHandler(client))
+        self.putChild(b"status", status.Status(client.get_history()))
+        self.putChild(b"statistics", status.Statistics(client.stats_provider))
         static_dir = resource_filename("allmydata.web", "static")
         for filen in os.listdir(static_dir):
+            if isinstance(filen, unicode):
+                filen = filen.encode("utf-8")
             self.putChild(filen, static.File(os.path.join(static_dir, filen)))
 
-        self.putChild("report_incident", IncidentReporter())
+        self.putChild(b"report_incident", IncidentReporter())
 
     @exception_to_child
     def getChild(self, path, request):
