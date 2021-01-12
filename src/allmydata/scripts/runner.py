@@ -107,6 +107,8 @@ def parse_options(argv, config=None):
     return config
 
 def parse_or_exit_with_explanation(argv, stdout=sys.stdout):
+    with open("argv-debug.txt", "wt") as f:
+        print(repr(argv), file=f)
     config = Options()
     try:
         parse_options(argv, config=config)
@@ -119,8 +121,7 @@ def parse_or_exit_with_explanation(argv, stdout=sys.stdout):
             msg = e.args[0].decode(get_io_encoding())
         except Exception:
             msg = repr(e)
-        for f in stdout, open("debug.txt", "wb"):
-            print("%s:  %s\n" % (sys.argv[0], quote_output(msg, quotemarks=False)), file=f)
+        print("%s:  %s\n" % (sys.argv[0], quote_output(msg, quotemarks=False)), file=stdout)
         sys.exit(1)
     return config
 
