@@ -46,21 +46,21 @@ class Put(GridTestMixin, CLITestMixin, unittest.TestCase):
         self.basedir = "cli/Put/unlinked_immutable_from_file"
         self.set_up_grid(oneshare=True)
 
-        rel_fn = os.path.join(self.basedir, "DATAFILE")
-        abs_fn = unicode_to_argv(abspath_expanduser_unicode(unicode(rel_fn)))
+        rel_fn = unicode(os.path.join(self.basedir, "DATAFILE"))
+        abs_fn = abspath_expanduser_unicode(rel_fn)
         # we make the file small enough to fit in a LIT file, for speed
         fileutil.write(rel_fn, "short file")
-        d = self.do_cli("put", rel_fn)
+        d = self.do_cli_unicode(u"put", [rel_fn])
         def _uploaded(args):
             (rc, out, err) = args
             readcap = out
             self.failUnless(readcap.startswith("URI:LIT:"), readcap)
             self.readcap = readcap
         d.addCallback(_uploaded)
-        d.addCallback(lambda res: self.do_cli("put", "./" + rel_fn))
+        d.addCallback(lambda res: self.do_cli_unicode(u"put", [u"./" + rel_fn]))
         d.addCallback(lambda rc_stdout_stderr:
                       self.failUnlessReallyEqual(rc_stdout_stderr[1], self.readcap))
-        d.addCallback(lambda res: self.do_cli("put", abs_fn))
+        d.addCallback(lambda res: self.do_cli_unicode(u"put", [abs_fn]))
         d.addCallback(lambda rc_stdout_stderr:
                       self.failUnlessReallyEqual(rc_stdout_stderr[1], self.readcap))
         # we just have to assume that ~ is handled properly
