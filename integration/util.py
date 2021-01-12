@@ -28,6 +28,12 @@ from allmydata import client
 import pytest_twisted
 
 
+def block_with_timeout(deferred, reactor, timeout=10):
+    """Block until Deferred has result, but timeout instead of waiting forever."""
+    deferred.addTimeout(timeout, reactor)
+    return pytest_twisted.blockon(deferred)
+
+
 class _ProcessExitedProtocol(ProcessProtocol):
     """
     Internal helper that .callback()s on self.done when the process
@@ -126,11 +132,12 @@ def _cleanup_tahoe_process(tahoe_transport, exited):
 
     :return: After the process has exited.
     """
+    from twisted.internet import reactor
     try:
         print("signaling {} with TERM".format(tahoe_transport.pid))
         tahoe_transport.signalProcess('TERM')
         print("signaled, blocking on exit")
-        pytest_twisted.blockon(exited)
+        block_with_timeout(exited, reactor)
         print("exited, goodbye")
     except ProcessExitedAlready:
         pass
