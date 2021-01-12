@@ -84,10 +84,8 @@ from allmydata.util import encodingutil, fileutil
 from allmydata.util.encodingutil import unicode_to_url, \
     unicode_to_output, quote_output, quote_path, quote_local_unicode_path, \
     quote_filepath, unicode_platform, listdir_unicode, FilenameEncodingError, \
-    get_io_encoding, get_filesystem_encoding, to_bytes, from_utf8_or_none, _reload, \
+    get_filesystem_encoding, to_bytes, from_utf8_or_none, _reload, \
     to_filepath, extend_filepath, unicode_from_filepath, unicode_segments_from
-
-from twisted.python import usage
 
 
 class MockStdout(object):
@@ -371,13 +369,6 @@ class QuoteOutput(ReallyEqualMixin, unittest.TestCase):
         check(u"\n",       u"\"\\x0a\"", quote_newlines=True)
 
     def test_quote_output_default(self):
-        self.patch(encodingutil, 'io_encoding', 'ascii')
-        self.test_quote_output_ascii(None)
-
-        self.patch(encodingutil, 'io_encoding', 'latin1')
-        self.test_quote_output_latin1(None)
-
-        self.patch(encodingutil, 'io_encoding', 'utf-8')
         self.test_quote_output_utf8(None)
 
 
