@@ -96,9 +96,13 @@ class MockStdout(object):
 class EncodingUtilNonUnicodePlatform(unittest.TestCase):
     @skipIf(PY3, "Python 3 is always Unicode, regardless of OS.")
     def setUp(self):
-        # Mock sys.platform because unicode_platform() uses it
-        self.patch(sys, "platform", "linux")
+        # Make sure everything goes back to the way it was at the end of the
+        # test.
         self.addCleanup(_reload)
+
+        # Mock sys.platform because unicode_platform() uses it.  Cleanups run
+        # in reverse order so we do this second so it gets undone first.
+        self.patch(sys, "platform", "linux")
 
     def test_listdir_unicode(self):
         # What happens if latin1-encoded filenames are encountered on an UTF-8
@@ -131,8 +135,8 @@ class EncodingUtilNonUnicodePlatform(unittest.TestCase):
 
 class EncodingUtil(ReallyEqualMixin):
     def setUp(self):
-        self.patch(sys, "platform", self.platform)
         self.addCleanup(_reload)
+        self.patch(sys, "platform", self.platform)
 
     def test_unicode_to_url(self):
         self.failUnless(unicode_to_url(lumiere_nfc), b"lumi\xc3\xa8re")
