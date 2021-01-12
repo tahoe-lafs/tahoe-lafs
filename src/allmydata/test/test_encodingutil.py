@@ -472,14 +472,6 @@ class UbuntuKarmicUTF8(EncodingUtil, unittest.TestCase):
     io_encoding = 'UTF-8'
     dirlist = [b'test_file', b'\xc3\x84rtonwall.mp3', b'Blah blah.txt']
 
-class UbuntuKarmicLatin1(EncodingUtil, unittest.TestCase):
-    uname = 'Linux korn 2.6.31-14-generic #48-Ubuntu SMP Fri Oct 16 14:05:01 UTC 2009 x86_64'
-    argv = b'lumi\xe8re'
-    platform = 'linux2'
-    filesystem_encoding = 'ISO-8859-1'
-    io_encoding = 'ISO-8859-1'
-    dirlist = [b'test_file', b'Blah blah.txt', b'\xc4rtonwall.mp3']
-
 class Windows(EncodingUtil, unittest.TestCase):
     uname = 'Windows XP 5.1.2600 x86 x86 Family 15 Model 75 Step ping 2, AuthenticAMD'
     argv = b'lumi\xc3\xa8re'
