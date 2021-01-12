@@ -60,9 +60,9 @@ def check_encoding(encoding):
 # On POSIX, we are moving towards a UTF-8-everything and ignore the locale.
 io_encoding = "utf-8"
 
+filesystem_encoding = None
 is_unicode_platform = False
 use_unicode_filepath = False
-filesystem_encoding = None
 
 def _reload():
     global filesystem_encoding, is_unicode_platform, use_unicode_filepath
