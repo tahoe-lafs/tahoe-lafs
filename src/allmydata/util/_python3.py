@@ -113,6 +113,7 @@ PORTED_MODULES = [
     "allmydata.util.spans",
     "allmydata.util.statistics",
     "allmydata.util.time_format",
+    "allmydata.web.logs",
     "allmydata.webish",
 ]
 

@@ -1,11 +1,12 @@
+"""
+Ported to Python 3.
+"""
 from __future__ import (
     print_function,
     unicode_literals,
     absolute_import,
     division,
 )
-
-from future.builtins import str
 
 import json
 
