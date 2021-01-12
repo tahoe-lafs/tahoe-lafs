@@ -119,7 +119,7 @@ def parse_or_exit_with_explanation(argv, stdout=sys.stdout):
             msg = e.args[0].decode(get_io_encoding())
         except Exception:
             msg = repr(e)
-        for f in stdout, open("debug.txt", "wt"):
+        for f in stdout, open("debug.txt", "wb"):
             print("%s:  %s\n" % (sys.argv[0], quote_output(msg, quotemarks=False)), file=f)
         sys.exit(1)
     return config
