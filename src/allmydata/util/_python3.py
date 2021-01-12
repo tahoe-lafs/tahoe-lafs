@@ -27,6 +27,7 @@ PORTED_MODULES = [
     "allmydata.__main__",
     "allmydata._auto_deps",
     "allmydata._monkeypatch",
+    "allmydata.blacklist",
     "allmydata.codec",
     "allmydata.crypto",
     "allmydata.crypto.aes",
@@ -113,6 +114,7 @@ PORTED_MODULES = [
     "allmydata.util.spans",
     "allmydata.util.statistics",
     "allmydata.util.time_format",
+    "allmydata.webish",
 ]
 
 PORTED_TEST_MODULES = [
@@ -185,6 +187,7 @@ PORTED_TEST_MODULES = [
     "allmydata.test.test_util",
     "allmydata.test.web.test_common",
     "allmydata.test.web.test_grid",
-    "allmydata.test.web.test_util",
     "allmydata.test.web.test_status",
+    "allmydata.test.web.test_util",
+    "allmydata.test.web.test_webish",
 ]

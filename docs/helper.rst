@@ -122,7 +122,7 @@ Who should consider using a Helper?
 * clients who experience problems with TCP connection fairness: if other
   programs or machines in the same home are getting less than their fair
   share of upload bandwidth. If the connection is being shared fairly, then
-  a Tahoe upload that is happening at the same time as a single FTP upload
+  a Tahoe upload that is happening at the same time as a single SFTP upload
   should get half the bandwidth.
 * clients who have been given the helper.furl by someone who is running a
   Helper and is willing to let them use it
