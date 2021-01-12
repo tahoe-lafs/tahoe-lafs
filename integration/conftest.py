@@ -536,7 +536,13 @@ def tor_network(reactor, temp_dir, chutney, request):
             path=join(chutney_dir),
             env=env,
         )
-        pytest_twisted.blockon(proto.done)
+        try:
+            pytest_twisted.blockon(proto.done)
+        except ProcessTerminated:
+            # If this doesn't exit cleanly, that's fine, that shouldn't fail
+            # the test suite.
+            pass
+
     request.addfinalizer(cleanup)
 
     return chut
