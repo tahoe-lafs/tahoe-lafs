@@ -44,41 +44,19 @@ def canonical_encoding(encoding):
 
     return encoding
 
-def check_encoding(encoding):
-    # sometimes Python returns an encoding name that it doesn't support for conversion
-    # fail early if this happens
-    try:
-        u"test".encode(encoding)
-    except (LookupError, AttributeError):
-        raise AssertionError("The character encoding '%s' is not supported for conversion." % (encoding,))
 
-filesystem_encoding = None
-io_encoding = None
+# On Windows we install UTF-8 stream wrappers for sys.stdout and
+# sys.stderr, and reencode the arguments as UTF-8 (see scripts/runner.py).
+#
+# On POSIX, we are moving towards a UTF-8-everything and ignore the locale.
+io_encoding = "utf-8"
+
 is_unicode_platform = False
 use_unicode_filepath = False
+filesystem_encoding = "mbcs" if sys.platform == "win32" else "utf-8"
 
 def _reload():
-    global filesystem_encoding, io_encoding, is_unicode_platform, use_unicode_filepath
-
-    filesystem_encoding = canonical_encoding(sys.getfilesystemencoding())
-    check_encoding(filesystem_encoding)
-
-    if sys.platform == 'win32':
-        # On Windows we install UTF-8 stream wrappers for sys.stdout and
-        # sys.stderr, and reencode the arguments as UTF-8 (see scripts/runner.py).
-        io_encoding = 'utf-8'
-    else:
-        ioenc = None
-        if hasattr(sys.stdout, 'encoding'):
-            ioenc = sys.stdout.encoding
-        if ioenc is None:
-            try:
-                ioenc = locale.getpreferredencoding()
-            except Exception:
-                pass  # work around <http://bugs.python.org/issue1443504>
-        io_encoding = canonical_encoding(ioenc)
-
-    check_encoding(io_encoding)
+    global is_unicode_platform, use_unicode_filepath, filesystem_encoding
 
     is_unicode_platform = PY3 or sys.platform in ["win32", "darwin"]
 
