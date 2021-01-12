@@ -76,6 +76,11 @@ def run_bintahoe(extra_argv, python_options=None):
         argv.extend(python_options)
     argv.extend([u"-m", u"allmydata.scripts.runner"])
     argv.extend(extra_argv)
+    if not platform.isWindows():
+        # On POSIX Popen (via execvp) will encode argv using the "filesystem"
+        # encoding.  Depending on LANG this may make our unicode arguments
+        # unencodable.  Do our own UTF-8 encoding here instead.
+        argv = list(arg.encode("utf-8") for arg in argv)
     p = Popen(argv, stdout=PIPE, stderr=PIPE)
     out = p.stdout.read().decode("utf-8")
     err = p.stderr.read().decode("utf-8")
