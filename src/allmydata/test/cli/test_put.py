@@ -7,7 +7,7 @@ from allmydata.scripts.common import get_aliases
 from allmydata.scripts import cli
 from ..no_network import GridTestMixin
 from ..common_util import skip_if_cannot_represent_filename
-from allmydata.util.encodingutil import get_io_encoding, unicode_to_argv
+from allmydata.util.encodingutil import get_io_encoding
 from allmydata.util.fileutil import abspath_expanduser_unicode
 from .common import CLITestMixin
 
