@@ -1,5 +1,4 @@
 import os.path
-
 from twisted.trial import unittest
 from twisted.python import usage
 
