@@ -32,16 +32,6 @@ from allmydata.util.fileutil import abspath_expanduser_unicode
 NoneType = type(None)
 
 
-def check_encoding(encoding):
-    # sometimes Python returns an encoding name that it doesn't support for conversion
-    # fail early if this happens
-    try:
-        u"test".encode(encoding)
-    except (LookupError, AttributeError):
-        raise AssertionError(
-            "The character encoding '%s' is not supported for conversion." % (encoding,),
-        )
-
 def canonical_encoding(encoding):
     if encoding is None:
         log.msg("Warning: falling back to UTF-8 encoding.", level=log.WEIRD)
@@ -54,6 +44,15 @@ def canonical_encoding(encoding):
 
     return encoding
 
+def check_encoding(encoding):
+    # sometimes Python returns an encoding name that it doesn't support for conversion
+    # fail early if this happens
+    try:
+        u"test".encode(encoding)
+    except (LookupError, AttributeError):
+        raise AssertionError(
+            "The character encoding '%s' is not supported for conversion." % (encoding,),
+        )
 
 # On Windows we install UTF-8 stream wrappers for sys.stdout and
 # sys.stderr, and reencode the arguments as UTF-8 (see scripts/runner.py).
