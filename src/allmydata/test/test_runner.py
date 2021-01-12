@@ -23,6 +23,7 @@ from twisted.python.runtime import (
     platform,
 )
 from allmydata.util import fileutil, pollmixin
+from allmydata.util.encodingutil import unicode_to_argv, get_filesystem_encoding
 from allmydata.test import common_util
 import allmydata
 from .common import (
@@ -71,16 +72,12 @@ def run_bintahoe(extra_argv, python_options=None):
     :return: A three-tuple of stdout (unicode), stderr (unicode), and the
         child process "returncode" (int).
     """
-    argv = [sys.executable]
+    argv = [sys.executable.decode(get_filesystem_encoding())]
     if python_options is not None:
         argv.extend(python_options)
     argv.extend([u"-m", u"allmydata.scripts.runner"])
     argv.extend(extra_argv)
-    if not platform.isWindows():
-        # On POSIX Popen (via execvp) will encode argv using the "filesystem"
-        # encoding.  Depending on LANG this may make our unicode arguments
-        # unencodable.  Do our own UTF-8 encoding here instead.
-        argv = list(arg.encode("utf-8") for arg in argv)
+    argv = list(unicode_to_argv(arg) for arg in argv)
     p = Popen(argv, stdout=PIPE, stderr=PIPE)
     out = p.stdout.read().decode("utf-8")
     err = p.stderr.read().decode("utf-8")
@@ -109,7 +106,7 @@ class BinTahoe(common_util.SignalMixin, unittest.TestCase):
 
         # -t is a harmless option that warns about tabs so we can add it
         # -without impacting other behavior noticably.
-        out, err, returncode = run_bintahoe(["--version"], python_options=["-t"])
+        out, err, returncode = run_bintahoe([u"--version"], python_options=[u"-t"])
         self.assertEqual(returncode, 0)
         self.assertTrue(out.startswith(allmydata.__appname__ + '/'))
 

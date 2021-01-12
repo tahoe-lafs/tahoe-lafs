@@ -18,6 +18,7 @@ if PY2:
     from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, max, min  # noqa: F401
 
 from past.builtins import unicode
+from six import ensure_str
 
 import sys, os, re
 import unicodedata
@@ -105,6 +106,32 @@ def argv_to_abspath(s, **kwargs):
         raise usage.UsageError("Path argument %s cannot start with '-'.\nUse %s if you intended to refer to a file."
                                % (quote_output(s), quote_output(os.path.join('.', s))))
     return abspath_expanduser_unicode(decoded, **kwargs)
+
+
+def unicode_to_argv(s, mangle=False):
+    """
+    Make the given unicode string suitable for use in an argv list.
+
+    On Python 2, this encodes using UTF-8.  On Python 3, this returns the
+    input unmodified.
+    """
+    precondition(isinstance(s, unicode), s)
+    return ensure_str(s)
+
+
+def argv_to_unicode(s):
+    """
+    Perform the inverse of ``unicode_to_argv``.
+    """
+    if isinstance(s, unicode):
+        return s
+    precondition(isinstance(s, bytes), s)
+
+    try:
+        return unicode(s, io_encoding)
+    except UnicodeDecodeError:
+        raise usage.UsageError("Argument %s cannot be decoded as %s." %
+                               (quote_output(s), io_encoding))
 
 def unicode_to_url(s):
     """
