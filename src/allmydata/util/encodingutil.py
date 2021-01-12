@@ -32,6 +32,16 @@ from allmydata.util.fileutil import abspath_expanduser_unicode
 NoneType = type(None)
 
 
+def check_encoding(encoding):
+    # sometimes Python returns an encoding name that it doesn't support for conversion
+    # fail early if this happens
+    try:
+        u"test".encode(encoding)
+    except (LookupError, AttributeError):
+        raise AssertionError(
+            "The character encoding '%s' is not supported for conversion." % (encoding,),
+        )
+
 def canonical_encoding(encoding):
     if encoding is None:
         log.msg("Warning: falling back to UTF-8 encoding.", level=log.WEIRD)
@@ -53,11 +63,12 @@ io_encoding = "utf-8"
 
 is_unicode_platform = False
 use_unicode_filepath = False
-filesystem_encoding = "mbcs" if sys.platform == "win32" else "utf-8"
+filesystem_encoding = None
 
 def _reload():
-    global is_unicode_platform, use_unicode_filepath, filesystem_encoding
+    global filesystem_encoding, is_unicode_platform, use_unicode_filepath
 
+    filesystem_encoding = canonical_encoding(sys.getfilesystemencoding())
     is_unicode_platform = PY3 or sys.platform in ["win32", "darwin"]
 
     # Despite the Unicode-mode FilePath support added to Twisted in
