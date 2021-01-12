@@ -1,6 +1,6 @@
 import time
 
-from urllib import (
+from urllib.parse import (
     quote,
 )
 
@@ -77,7 +77,7 @@ class RenderSlashUri(unittest.TestCase):
         )
         self.assertEqual(
             response_body,
-            "Invalid capability",
+            b"Invalid capability",
         )
 
 
@@ -92,7 +92,7 @@ class RenderServiceRow(unittest.TestCase):
         ann = {"anonymous-storage-FURL": "pb://w2hqnbaa25yw4qgcvghl5psa3srpfgw3@tcp:127.0.0.1:51309/vucto2z4fxment3vfxbqecblbf6zyp6x",
                "permutation-seed-base32": "w2hqnbaa25yw4qgcvghl5psa3srpfgw3",
                }
-        srv = NativeStorageServer("server_id", ann, None, {}, EMPTY_CLIENT_CONFIG)
+        srv = NativeStorageServer(b"server_id", ann, None, {}, EMPTY_CLIENT_CONFIG)
         srv.get_connection_status = lambda: ConnectionStatus(False, "summary", {}, 0, 0)
 
         class FakeClient(_Client):
@@ -103,7 +103,7 @@ class RenderServiceRow(unittest.TestCase):
                     tub_maker=None,
                     node_config=EMPTY_CLIENT_CONFIG,
                 )
-                self.storage_broker.test_add_server("test-srv", srv)
+                self.storage_broker.test_add_server(b"test-srv", srv)
 
         root = RootElement(FakeClient(), time.time)
         req = DummyRequest(b"")

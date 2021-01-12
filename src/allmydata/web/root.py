@@ -2,7 +2,7 @@ from past.builtins import unicode
 
 import os
 import time
-import urllib
+from urllib.parse import quote as urlquote
 
 from hyperlink import DecodedURL, URL
 from pkg_resources import resource_filename
@@ -83,7 +83,7 @@ class URIHandler(resource.Resource, object):
         # it seems Nevow was creating absolute URLs including
         # host/port whereas req.uri is absolute (but lacks host/port)
         redir_uri = URL.from_text(req.prePathURL().decode('utf8'))
-        redir_uri = redir_uri.child(urllib.quote(uri_arg).decode('utf8'))
+        redir_uri = redir_uri.child(urlquote(uri_arg))
         # add back all the query args that AREN'T "?uri="
         for k, values in req.args.items():
             if k != b"uri":
