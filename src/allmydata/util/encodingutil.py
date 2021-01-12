@@ -19,7 +19,7 @@ if PY2:
 
 from past.builtins import unicode
 
-import sys, os, re, locale
+import sys, os, re
 import unicodedata
 import warnings
 
