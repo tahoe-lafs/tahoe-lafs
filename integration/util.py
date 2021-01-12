@@ -186,7 +186,7 @@ class TahoeProcess(object):
         return "<TahoeProcess in '{}'>".format(self._node_dir)
 
 
-def _run_node(reactor, node_dir, request, magic_text):
+def _run_node(reactor, node_dir, request, magic_text, finalize=True):
     """
     Run a tahoe process from its node_dir.
 
@@ -210,7 +210,8 @@ def _run_node(reactor, node_dir, request, magic_text):
     )
     transport.exited = protocol.exited
 
-    request.addfinalizer(partial(_cleanup_tahoe_process, transport, protocol.exited))
+    if finalize:
+        request.addfinalizer(partial(_cleanup_tahoe_process, transport, protocol.exited))
 
     # XXX abusing the Deferred; should use .when_magic_seen() pattern
 
@@ -229,7 +230,8 @@ def _create_node(reactor, request, temp_dir, introducer_furl, flog_gatherer, nam
                  magic_text=None,
                  needed=2,
                  happy=3,
-                 total=4):
+                 total=4,
+                 finalize=True):
     """
     Helper to create a single node, run it and return the instance
     spawnProcess returned (ITransport)
@@ -277,7 +279,7 @@ def _create_node(reactor, request, temp_dir, introducer_furl, flog_gatherer, nam
     d = Deferred()
     d.callback(None)
     d.addCallback(lambda _: created_d)
-    d.addCallback(lambda _: _run_node(reactor, node_dir, request, magic_text))
+    d.addCallback(lambda _: _run_node(reactor, node_dir, request, magic_text, finalize=finalize))
     return d
 
 

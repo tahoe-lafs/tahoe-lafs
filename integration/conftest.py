@@ -351,6 +351,9 @@ def alice(reactor, temp_dir, introducer_furl, flog_gatherer, storage_nodes, requ
             reactor, request, temp_dir, introducer_furl, flog_gatherer, "alice",
             web_port="tcp:9980:interface=localhost",
             storage=False,
+            # We're going to kill this ourselves, so no need for finalizer to
+            # do it:
+            finalize=False,
         )
     )
     await_client_ready(process)
