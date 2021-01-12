@@ -73,6 +73,9 @@ from ..scripts.common import (
 
 class RunBinTahoeMixin(object):
     def run_bintahoe(self, args, stdin=None, python_options=[], env=None):
+        # test_runner.run_bintahoe has better unicode support but doesn't
+        # support env yet and is also synchronous.  If we could get rid of
+        # this in favor of that, though, it would probably be an improvement.
         command = sys.executable
         argv = python_options + ["-m", "allmydata.scripts.runner"] + args
 
