@@ -96,6 +96,20 @@ def get_io_encoding():
     """
     return io_encoding
 
+def argv_to_unicode(s):
+    """
+    Perform the inverse of ``unicode_to_argv``.
+    """
+    if isinstance(s, unicode):
+        return s
+    precondition(isinstance(s, bytes), s)
+
+    try:
+        return unicode(s, io_encoding)
+    except UnicodeDecodeError:
+        raise usage.UsageError("Argument %s cannot be decoded as %s." %
+                               (quote_output(s), io_encoding))
+
 def argv_to_abspath(s, **kwargs):
     """
     Convenience function to decode an argv element to an absolute path, with ~ expanded.
@@ -118,20 +132,6 @@ def unicode_to_argv(s, mangle=False):
     precondition(isinstance(s, unicode), s)
     return ensure_str(s)
 
-
-def argv_to_unicode(s):
-    """
-    Perform the inverse of ``unicode_to_argv``.
-    """
-    if isinstance(s, unicode):
-        return s
-    precondition(isinstance(s, bytes), s)
-
-    try:
-        return unicode(s, io_encoding)
-    except UnicodeDecodeError:
-        raise usage.UsageError("Argument %s cannot be decoded as %s." %
-                               (quote_output(s), io_encoding))
 
 def unicode_to_url(s):
     """
