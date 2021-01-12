@@ -105,7 +105,7 @@ class BinTahoe(common_util.SignalMixin, unittest.TestCase):
         # we have to have our own implementation of skipping these options.
 
         # -t is a harmless option that warns about tabs so we can add it
-        # -without impacting other behavior noticably.
+        # without impacting other behavior noticably.
         out, err, returncode = run_bintahoe([u"--version"], python_options=[u"-t"])
         self.assertEqual(returncode, 0)
         self.assertTrue(out.startswith(allmydata.__appname__ + '/'))
