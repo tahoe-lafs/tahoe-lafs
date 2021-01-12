@@ -70,7 +70,7 @@ if __name__ == "__main__":
     sys.exit(0)
 
 
-import os, sys, locale
+import os, sys
 from unittest import skipIf
 
 from twisted.trial import unittest
@@ -92,69 +92,6 @@ from twisted.python import usage
 
 class MockStdout(object):
     pass
-
-class EncodingUtilErrors(ReallyEqualMixin, unittest.TestCase):
-    def test_get_io_encoding(self):
-        mock_stdout = MockStdout()
-        self.patch(sys, 'stdout', mock_stdout)
-
-        mock_stdout.encoding = 'UTF-8'
-        _reload()
-        self.failUnlessReallyEqual(get_io_encoding(), 'utf-8')
-
-        mock_stdout.encoding = 'cp65001'
-        _reload()
-        self.assertEqual(get_io_encoding(), 'utf-8')
-
-        mock_stdout.encoding = 'koi8-r'
-        expected = sys.platform == "win32" and 'utf-8' or 'koi8-r'
-        _reload()
-        self.failUnlessReallyEqual(get_io_encoding(), expected)
-
-        mock_stdout.encoding = 'nonexistent_encoding'
-        if sys.platform == "win32":
-            _reload()
-            self.failUnlessReallyEqual(get_io_encoding(), 'utf-8')
-        else:
-            self.failUnlessRaises(AssertionError, _reload)
-
-    def test_get_io_encoding_not_from_stdout(self):
-        preferredencoding = 'koi8-r'
-        def call_locale_getpreferredencoding():
-            return preferredencoding
-        self.patch(locale, 'getpreferredencoding', call_locale_getpreferredencoding)
-        mock_stdout = MockStdout()
-        self.patch(sys, 'stdout', mock_stdout)
-
-        expected = sys.platform == "win32" and 'utf-8' or 'koi8-r'
-        _reload()
-        self.failUnlessReallyEqual(get_io_encoding(), expected)
-
-        mock_stdout.encoding = None
-        _reload()
-        self.failUnlessReallyEqual(get_io_encoding(), expected)
-
-        preferredencoding = None
-        _reload()
-        self.assertEqual(get_io_encoding(), 'utf-8')
-
-    @skipIf(PY3, "Python 2 only.")
-    def test_unicode_to_output(self):
-        encodingutil.io_encoding = 'koi8-r'
-        self.failUnlessRaises(UnicodeEncodeError, unicode_to_output, lumiere_nfc)
-
-    def test_no_unicode_normalization(self):
-        # Pretend to run on a Unicode platform.
-        # listdir_unicode normalized to NFC in 1.7beta, but now doesn't.
-
-        def call_os_listdir(path):
-            return [Artonwall_nfd]
-        self.patch(os, 'listdir', call_os_listdir)
-        self.patch(sys, 'platform', 'darwin')
-
-        _reload()
-        self.failUnlessReallyEqual(listdir_unicode(u'/dummy'), [Artonwall_nfd])
-
 
 # The following tests apply only to platforms that don't store filenames as
 # Unicode entities on the filesystem.
