@@ -492,20 +492,6 @@ class MacOSXLeopard(EncodingUtil, unittest.TestCase):
     io_encoding = 'UTF-8'
     dirlist = [u'A\u0308rtonwall.mp3', u'Blah blah.txt', u'test_file']
 
-class MacOSXLeopard7bit(EncodingUtil, unittest.TestCase):
-    uname = 'Darwin g5.local 9.8.0 Darwin Kernel Version 9.8.0: Wed Jul 15 16:57:01 PDT 2009; root:xnu-1228.15.4~1/RELEASE_PPC Power Macintosh powerpc'
-    platform = 'darwin'
-    filesystem_encoding = 'utf-8'
-    io_encoding = 'US-ASCII'
-    dirlist = [u'A\u0308rtonwall.mp3', u'Blah blah.txt', u'test_file']
-
-class OpenBSD(EncodingUtil, unittest.TestCase):
-    uname = 'OpenBSD 4.1 GENERIC#187 i386 Intel(R) Celeron(R) CPU 2.80GHz ("GenuineIntel" 686-class)'
-    platform = 'openbsd4'
-    filesystem_encoding = '646'
-    io_encoding = '646'
-    # Oops, I cannot write filenames containing non-ascii characters
-
 
 class TestToFromStr(ReallyEqualMixin, unittest.TestCase):
     def test_to_bytes(self):
