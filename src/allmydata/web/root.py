@@ -243,9 +243,10 @@ class Root(MultiFormatResource):
         self.putChild(b"statistics", status.Statistics(client.stats_provider))
         static_dir = resource_filename("allmydata.web", "static")
         for filen in os.listdir(static_dir):
+            child_path = filen
             if isinstance(filen, unicode):
-                filen = filen.encode("utf-8")
-            self.putChild(filen, static.File(os.path.join(static_dir, filen)))
+                child_path = filen.encode("utf-8")
+            self.putChild(child_path, static.File(os.path.join(static_dir, filen)))
 
         self.putChild(b"report_incident", IncidentReporter())
 
