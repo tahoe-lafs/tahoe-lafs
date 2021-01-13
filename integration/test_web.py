@@ -21,6 +21,8 @@ import requests
 import html5lib
 from bs4 import BeautifulSoup
 
+import pytest
+
 
 def test_index(alice):
     """
@@ -175,6 +177,7 @@ def test_deep_stats(alice):
         time.sleep(.5)
 
 
+@pytest.mark.timeout(60)
 def test_status(alice):
     """
     confirm we get something sensible from /status and the various sub-types
