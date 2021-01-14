@@ -1,5 +1,4 @@
 from future.utils import PY3
-from past.builtins import unicode
 
 import os
 import time
