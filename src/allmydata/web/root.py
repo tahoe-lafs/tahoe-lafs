@@ -1,3 +1,4 @@
+from future.utils import PY3
 from past.builtins import unicode
 
 import os
@@ -244,7 +245,7 @@ class Root(MultiFormatResource):
         static_dir = resource_filename("allmydata.web", "static")
         for filen in os.listdir(static_dir):
             child_path = filen
-            if isinstance(filen, unicode):
+            if PY3:
                 child_path = filen.encode("utf-8")
             self.putChild(child_path, static.File(os.path.join(static_dir, filen)))
 
