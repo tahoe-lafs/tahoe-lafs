@@ -47,8 +47,9 @@ class RIDummy(RemoteInterface):
         """
 
 
-
-@implementer(IFoolscapStoragePlugin)
+# type ignored due to missing stubs for Twisted
+# https://twistedmatrix.com/trac/ticket/9717
+@implementer(IFoolscapStoragePlugin)  # type: ignore
 @attr.s
 class DummyStorage(object):
     name = attr.ib()
@@ -107,7 +108,7 @@ class GetCounter(Resource, object):
 
 @implementer(RIDummy)
 @attr.s(frozen=True)
-class DummyStorageServer(object):
+class DummyStorageServer(object):  # type: ignore # warner/foolscap#78
     get_anonymous_storage_server = attr.ib()
 
     def remote_just_some_method(self):
@@ -116,7 +117,7 @@ class DummyStorageServer(object):
 
 @implementer(IStorageServer)
 @attr.s
-class DummyStorageClient(object):
+class DummyStorageClient(object):  # type: ignore # incomplete implementation
     get_rref = attr.ib()
     configuration = attr.ib()
     announcement = attr.ib()

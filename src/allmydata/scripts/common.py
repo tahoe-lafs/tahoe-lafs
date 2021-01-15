@@ -4,6 +4,12 @@ import os, sys, urllib, textwrap
 import codecs
 from os.path import join
 
+try:
+    from typing import Optional
+    from .types_ import Parameters
+except ImportError:
+    pass
+
 from yaml import (
     safe_dump,
 )
@@ -41,8 +47,8 @@ class BaseOptions(usage.Options):
     def opt_version(self):
         raise usage.UsageError("--version not allowed on subcommands")
 
-    description = None
-    description_unwrapped = None
+    description = None  # type: Optional[str]
+    description_unwrapped = None  # type: Optional[str]
 
     def __str__(self):
         width = int(os.environ.get('COLUMNS', '80'))
@@ -65,7 +71,7 @@ class BasedirOptions(BaseOptions):
     optParameters = [
         ["basedir", "C", None, "Specify which Tahoe base directory should be used. [default: %s]"
          % quote_local_unicode_path(_default_nodedir)],
-    ]
+    ]  # type: Parameters
 
     def parseArgs(self, basedir=None):
         # This finds the node-directory option correctly even if we are in a subcommand.
@@ -102,7 +108,7 @@ class NoDefaultBasedirOptions(BasedirOptions):
 
     optParameters = [
         ["basedir", "C", None, "Specify which Tahoe base directory should be used."],
-    ]
+    ]  # type: Parameters
 
     # This is overridden in order to ensure we get a "Wrong number of arguments."
     # error when more than one argument is given.
