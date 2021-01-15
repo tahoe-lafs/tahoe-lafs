@@ -63,12 +63,8 @@ install_requires = [
     #   version of cryptography will *really* be installed.
     "cryptography >= 2.6",
 
-    # * We need Twisted 10.1.0 for the FTP frontend in order for
-    #   Twisted's FTP server to support asynchronous close.
     # * The SFTP frontend depends on Twisted 11.0.0 to fix the SSH server
     #   rekeying bug <https://twistedmatrix.com/trac/ticket/4395>
-    # * The FTP frontend depends on Twisted >= 11.1.0 for
-    #   filepath.Permissions
     # * The SFTP frontend and manhole depend on the conch extra. However, we
     #   can't explicitly declare that without an undesirable dependency on gmpy,
     #   as explained in ticket #2740.
@@ -385,10 +381,7 @@ setup(name="tahoe-lafs", # also set in __init__.py
               # this version from time to time, but we will do it
               # intentionally.
               "pyflakes == 2.2.0",
-              # coverage 5.0 breaks the integration tests in some opaque way.
-              # This probably needs to be addressed in a more permanent way
-              # eventually...
-              "coverage ~= 4.5",
+              "coverage ~= 5.0",
               "mock",
               "tox",
               "pytest",

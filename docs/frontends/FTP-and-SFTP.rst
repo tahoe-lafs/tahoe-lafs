@@ -1,22 +1,21 @@
 ﻿.. -*- coding: utf-8-with-signature -*-
 
-=================================
-Tahoe-LAFS SFTP and FTP Frontends
-=================================
+========================
+Tahoe-LAFS SFTP Frontend
+========================
 
-1.  `SFTP/FTP Background`_
+1.  `SFTP Background`_
 2.  `Tahoe-LAFS Support`_
 3.  `Creating an Account File`_
 4.  `Running An Account Server (accounts.url)`_
 5.  `Configuring SFTP Access`_
-6.  `Configuring FTP Access`_
-7.  `Dependencies`_
-8.  `Immutable and Mutable Files`_
-9.  `Known Issues`_
+6.  `Dependencies`_
+7.  `Immutable and Mutable Files`_
+8.  `Known Issues`_
 
 
-SFTP/FTP Background
-===================
+SFTP Background
+===============
 
 FTP is the venerable internet file-transfer protocol, first developed in
 1971. The FTP server usually listens on port 21. A separate connection is
@@ -33,20 +32,18 @@ Both FTP and SFTP were developed assuming a UNIX-like server, with accounts
 and passwords, octal file modes (user/group/other, read/write/execute), and
 ctime/mtime timestamps.
 
-We recommend SFTP over FTP, because the protocol is better, and the server
-implementation in Tahoe-LAFS is more complete. See `Known Issues`_, below,
-for details.
+Previous versions of Tahoe-LAFS supported FTP, but now only the superior SFTP
+frontend is supported. See `Known Issues`_, below, for details on the
+limitations of SFTP.
 
 Tahoe-LAFS Support
 ==================
 
 All Tahoe-LAFS client nodes can run a frontend SFTP server, allowing regular
 SFTP clients (like ``/usr/bin/sftp``, the ``sshfs`` FUSE plugin, and many
-others) to access the file store. They can also run an FTP server, so FTP
-clients (like ``/usr/bin/ftp``, ``ncftp``, and others) can too. These
-frontends sit at the same level as the web-API interface.
+others) to access the file store.
 
-Since Tahoe-LAFS does not use user accounts or passwords, the SFTP/FTP
+Since Tahoe-LAFS does not use user accounts or passwords, the SFTP
 servers must be configured with a way to first authenticate a user (confirm
 that a prospective client has a legitimate claim to whatever authorities we
 might grant a particular user), and second to decide what directory cap
@@ -173,39 +170,6 @@ clients and with the sshfs filesystem, see wiki:SftpFrontend_
 
 .. _wiki:SftpFrontend: https://tahoe-lafs.org/trac/tahoe-lafs/wiki/SftpFrontend
 
-Configuring FTP Access
-======================
-
-To enable the FTP server with an accounts file, add the following lines to
-the BASEDIR/tahoe.cfg file::
-
- [ftpd]
- enabled = true
- port = tcp:8021:interface=127.0.0.1
- accounts.file = private/accounts
-
-The FTP server will listen on the given port number and on the loopback
-interface only. The "accounts.file" pathname will be interpreted relative to
-the node's BASEDIR.
-
-To enable the FTP server with an account server instead, provide the URL of
-that server in an "accounts.url" directive::
-
- [ftpd]
- enabled = true
- port = tcp:8021:interface=127.0.0.1
- accounts.url = https://example.com/login
-
-You can provide both accounts.file and accounts.url, although it probably
-isn't very useful except for testing.
-
-FTP provides no security, and so your password or caps could be eavesdropped
-if you connect to the FTP server remotely. The examples above include
-":interface=127.0.0.1" in the "port" option, which causes the server to only
-accept connections from localhost.
-
-Public key authentication is not supported for FTP.
-
 Dependencies
 ============
 
@@ -216,7 +180,7 @@ separately: debian puts it in the "python-twisted-conch" package.
 Immutable and Mutable Files
 ===========================
 
-All files created via SFTP (and FTP) are immutable files. However, files can
+All files created via SFTP are immutable files. However, files can
 only be created in writeable directories, which allows the directory entry to
 be relinked to a different file. Normally, when the path of an immutable file
 is opened for writing by SFTP, the directory entry is relinked to another
@@ -256,18 +220,3 @@ See also wiki:SftpFrontend_.
 
 .. _ticket #1059: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1059
 .. _ticket #1089: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1089
-
-Known Issues in the FTP Frontend
---------------------------------
-
-Mutable files are not supported by the FTP frontend (`ticket #680`_).
-
-Non-ASCII filenames are not supported by FTP (`ticket #682`_).
-
-The FTP frontend sometimes fails to report errors, for example if an upload
-fails because it does meet the "servers of happiness" threshold (`ticket
-#1081`_).
-
-.. _ticket #680: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/680
-.. _ticket #682: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/682
-.. _ticket #1081: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1081

@@ -1,11 +1,16 @@
+"""
+Ported to Python 3.
+"""
+from __future__ import absolute_import
+from __future__ import division
 from __future__ import print_function
+from __future__ import unicode_literals
 
-import time
-
-# Python 2 compatibility
 from future.utils import PY2
 if PY2:
-    from future.builtins import str  # noqa: F401
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+
+import time
 
 from twisted.application import service
 from twisted.application.internet import TimerService

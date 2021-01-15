@@ -4,6 +4,8 @@ Common utilities that are available from Python 3.
 Can eventually be merged back into allmydata.web.common.
 """
 
+from past.builtins import unicode
+
 try:
     from typing import Optional
 except ImportError:
@@ -28,7 +30,13 @@ def get_arg(req, argname, default=None, multiple=False):
     empty), starting with all those in the query args.
 
     :param TahoeLAFSRequest req: The request to consider.
+
+    :return: Either bytes or tuple of bytes.
     """
+    if isinstance(argname, unicode):
+        argname = argname.encode("utf-8")
+    if isinstance(default, unicode):
+        default = default.encode("utf-8")
     results = []
     if argname in req.args:
         results.extend(req.args[argname])
@@ -67,6 +75,9 @@ class MultiFormatResource(resource.Resource, object):
         :return: The result of the selected renderer.
         """
         t = get_arg(req, self.formatArgument, self.formatDefault)
+        # It's either bytes or None.
+        if isinstance(t, bytes):
+            t = unicode(t, "ascii")
         renderer = self._get_renderer(t)
         return renderer(req)
 

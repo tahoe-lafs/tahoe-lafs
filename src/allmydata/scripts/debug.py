@@ -5,6 +5,8 @@ try:
 except ImportError:
     pass
 
+from future.utils import bchr
+
 # do not import any allmydata modules at this level. Do that from inside
 # individual functions instead.
 import struct, time, os, sys
@@ -910,7 +912,7 @@ def corrupt_share(options):
         f = open(fn, "rb+")
         f.seek(offset)
         d = f.read(1)
-        d = chr(ord(d) ^ 0x01)
+        d = bchr(ord(d) ^ 0x01)
         f.seek(offset)
         f.write(d)
         f.close()
@@ -925,7 +927,7 @@ def corrupt_share(options):
         f.seek(m.DATA_OFFSET)
         data = f.read(2000)
         # make sure this slot contains an SMDF share
-        assert data[0] == b"\x00", "non-SDMF mutable shares not supported"
+        assert data[0:1] == b"\x00", "non-SDMF mutable shares not supported"
         f.close()
 
         (version, ig_seqnum, ig_roothash, ig_IV, ig_k, ig_N, ig_segsize,
