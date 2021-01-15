@@ -481,13 +481,14 @@ jobs:
   typechecks:
     docker:
       - <<: *DOCKERHUB_AUTH
-        image: "jaraco/multipy-tox"
+        image: "tahoelafsci/ubuntu:18.04-py3"
 
     steps:
       - "checkout"
       - run:
           name: "Validate Types"
-          command: tox -e typechecks
+          command: |
+            /tmp/venv/bin/tox -e typechecks
 
   build-image: &BUILD_IMAGE
     # This is a template for a job to build a Docker image that has as much of
