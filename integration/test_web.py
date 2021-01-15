@@ -133,6 +133,7 @@ def test_deep_stats(alice):
             u"file": FILE_CONTENTS,
         },
     )
+    resp.raise_for_status()
 
     # confirm the file is in the directory
     resp = requests.get(
