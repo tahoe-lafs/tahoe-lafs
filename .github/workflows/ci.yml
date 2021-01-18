@@ -44,6 +44,7 @@ jobs:
       - name: Get pip cache directory
         id: pip-cache
         run: |
+          pip --version
           echo "::set-output name=dir::$(pip cache dir)"
 
       - name: Use pip cache
