@@ -41,6 +41,11 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
+      # We need "pip cache dir", which became a thing in pip v20.1+.
+      # At the time of writing this, GitHub Actions offers pip v20.3.3
+      # for both ubuntu-latest and windows-latest, and pip v20.3.1 for
+      # macos-latest.  Those are sufficiently recent pip versions that
+      # have "cache dir" sub-command.
       - name: Get pip cache directory
         id: pip-cache
         run: |
