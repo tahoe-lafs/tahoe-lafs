@@ -41,11 +41,6 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Install Python packages
-        run: |
-          pip install --upgrade codecov tox setuptools pip
-          pip list
-
       - name: Get pip cache directory
         id: pip-cache
         run: |
@@ -58,6 +53,11 @@ jobs:
           key: ${{ runner.os }}-pip-${{ hashFiles('**/setup.py') }}
           restore-keys: |
             ${{ runner.os }}-pip-
+
+      - name: Install Python packages
+        run: |
+          pip install --upgrade codecov tox setuptools pip
+          pip list
 
       - name: Display tool versions
         run: python misc/build_helpers/show-tool-versions.py
@@ -125,11 +125,6 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Install Python packages
-        run: |
-          pip install --upgrade tox pip
-          pip list
-
       - name: Get pip cache directory
         id: pip-cache
         run: |
@@ -142,6 +137,11 @@ jobs:
           key: ${{ runner.os }}-pip-${{ hashFiles('**/setup.py') }}
           restore-keys: |
             ${{ runner.os }}-pip-
+
+      - name: Install Python packages
+        run: |
+          pip install --upgrade tox pip
+          pip list
 
       - name: Display tool versions
         run: python misc/build_helpers/show-tool-versions.py
@@ -190,11 +190,6 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Install Python packages
-        run: |
-          pip install --upgrade tox pip
-          pip list
-
       - name: Get pip cache directory
         id: pip-cache
         run: |
@@ -207,6 +202,11 @@ jobs:
           key: ${{ runner.os }}-pip-${{ hashFiles('**/setup.py') }}
           restore-keys: |
             ${{ runner.os }}-pip-
+
+      - name: Install Python packages
+        run: |
+          pip install --upgrade tox pip
+          pip list
 
       - name: Display tool versions
         run: python misc/build_helpers/show-tool-versions.py
