@@ -46,6 +46,19 @@ jobs:
           pip install --upgrade codecov tox setuptools pip
           pip list
 
+      - name: Get pip cache directory
+        id: pip-cache
+        run: |
+          echo "::set-output name=dir::$(pip cache dir)"
+
+      - name: pip cache
+        uses: actions/cache@v2
+        with:
+          path: ${{ steps.pip-cache.outputs.dir }}
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/setup.py') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
       - name: Display tool versions
         run: python misc/build_helpers/show-tool-versions.py
 
@@ -117,6 +130,19 @@ jobs:
           pip install --upgrade tox pip
           pip list
 
+      - name: Get pip cache directory
+        id: pip-cache
+        run: |
+          echo "::set-output name=dir::$(pip cache dir)"
+
+      - name: pip cache
+        uses: actions/cache@v2
+        with:
+          path: ${{ steps.pip-cache.outputs.dir }}
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/setup.py') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
       - name: Display tool versions
         run: python misc/build_helpers/show-tool-versions.py
 
@@ -168,6 +194,19 @@ jobs:
         run: |
           pip install --upgrade tox pip
           pip list
+
+      - name: Get pip cache directory
+        id: pip-cache
+        run: |
+          echo "::set-output name=dir::$(pip cache dir)"
+
+      - name: pip cache
+        uses: actions/cache@v2
+        with:
+          path: ${{ steps.pip-cache.outputs.dir }}
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/setup.py') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
 
       - name: Display tool versions
         run: python misc/build_helpers/show-tool-versions.py
