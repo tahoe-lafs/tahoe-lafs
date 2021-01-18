@@ -30,11 +30,12 @@ jobs:
         with:
           args: install vcpython27
 
+      # See https://github.com/actions/checkout. A fetch-depth of 0
+      # fetches all tags and branches.
       - name: Check out Tahoe-LAFS sources
         uses: actions/checkout@v2
-
-      - name: Fetch all history for all tags and branches
-        run: git fetch --prune --unshallow
+        with:
+          fetch-depth: 0
 
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v1
@@ -121,9 +122,8 @@ jobs:
 
       - name: Check out Tahoe-LAFS sources
         uses: actions/checkout@v2
-
-      - name: Fetch all history for all tags and branches
-        run: git fetch --prune --unshallow
+        with:
+          fetch-depth: 0
 
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v1
@@ -186,9 +186,8 @@ jobs:
 
       - name: Check out Tahoe-LAFS sources
         uses: actions/checkout@v2
-
-      - name: Fetch all history for all tags and branches
-        run: git fetch --prune --unshallow
+        with:
+          fetch-depth: 0
 
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v1
