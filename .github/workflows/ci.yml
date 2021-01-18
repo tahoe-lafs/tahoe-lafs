@@ -61,7 +61,7 @@ jobs:
 
       - name: Install Python packages
         run: |
-          pip install --upgrade codecov tox setuptools pip
+          pip install --upgrade codecov tox setuptools
           pip list
 
       - name: Display tool versions
@@ -145,7 +145,7 @@ jobs:
 
       - name: Install Python packages
         run: |
-          pip install --upgrade tox pip
+          pip install --upgrade tox
           pip list
 
       - name: Display tool versions
@@ -210,7 +210,7 @@ jobs:
 
       - name: Install Python packages
         run: |
-          pip install --upgrade tox pip
+          pip install --upgrade tox
           pip list
 
       - name: Display tool versions
