@@ -51,7 +51,7 @@ jobs:
         run: |
           echo "::set-output name=dir::$(pip cache dir)"
 
-      - name: pip cache
+      - name: Use pip cache
         uses: actions/cache@v2
         with:
           path: ${{ steps.pip-cache.outputs.dir }}
@@ -135,7 +135,7 @@ jobs:
         run: |
           echo "::set-output name=dir::$(pip cache dir)"
 
-      - name: pip cache
+      - name: Use pip cache
         uses: actions/cache@v2
         with:
           path: ${{ steps.pip-cache.outputs.dir }}
@@ -200,7 +200,7 @@ jobs:
         run: |
           echo "::set-output name=dir::$(pip cache dir)"
 
-      - name: pip cache
+      - name: Use pip cache
         uses: actions/cache@v2
         with:
           path: ${{ steps.pip-cache.outputs.dir }}
