@@ -11,7 +11,7 @@ from twisted.web import (
     resource,
     static,
 )
-from twisted.web.util import redirectTo
+from twisted.web.util import redirectTo, Redirect
 from twisted.python.filepath import FilePath
 from twisted.web.template import (
     Element,
@@ -155,7 +155,7 @@ class URIHandler(resource.Resource, object):
             u = u.replace(
                 path=(s for s in u.path if s),  # remove empty segments
             )
-            return redirectTo(u.to_uri().to_text().encode('utf8'), req)
+            return Redirect(u.to_uri().to_text().encode('utf8'))
         try:
             node = self.client.create_node_from_uri(name)
             return directory.make_handler_for(node, self.client)
