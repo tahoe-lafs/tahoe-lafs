@@ -127,7 +127,6 @@ def test_deep_stats(alice):
         dircap_uri,
         data={
             u"t": u"upload",
-            u"when_done": u".",
         },
         files={
             u"file": FILE_CONTENTS,
