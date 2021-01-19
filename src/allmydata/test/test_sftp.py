@@ -9,18 +9,15 @@ from twisted.python.failure import Failure
 from twisted.internet.error import ProcessDone, ProcessTerminated
 from allmydata.util import deferredutil
 
-conch_interfaces = None
-sftp = None
-sftpd = None
-
 try:
     from twisted.conch import interfaces as conch_interfaces
     from twisted.conch.ssh import filetransfer as sftp
     from allmydata.frontends import sftpd
 except ImportError as e:
+    conch_interfaces = sftp = sftpd = None  # type: ignore
     conch_unavailable_reason = e
 else:
-    conch_unavailable_reason = None
+    conch_unavailable_reason = None  # type: ignore
 
 from allmydata.interfaces import IDirectoryNode, ExistingChildError, NoSuchChildError
 from allmydata.mutable.common import NotWriteableError

@@ -202,7 +202,7 @@ class ShareFile(object):
 
 
 @implementer(RIBucketWriter)
-class BucketWriter(Referenceable):
+class BucketWriter(Referenceable):  # type: ignore # warner/foolscap#78
 
     def __init__(self, ss, incominghome, finalhome, max_size, lease_info, canary):
         self.ss = ss
@@ -301,7 +301,7 @@ class BucketWriter(Referenceable):
 
 
 @implementer(RIBucketReader)
-class BucketReader(Referenceable):
+class BucketReader(Referenceable):  # type: ignore # warner/foolscap#78
 
     def __init__(self, ss, sharefname, storage_index=None, shnum=None):
         self.ss = ss
