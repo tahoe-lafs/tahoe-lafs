@@ -147,7 +147,7 @@ class URIHandler(resource.Resource, object):
         and creates and appropriate handler (depending on the kind of
         capability it was passed).
         """
-        # this is in case a URI like "/uri/?cap=<valid capability>" is
+        # this is in case a URI like "/uri/?uri=<valid capability>" is
         # passed -- we re-direct to the non-trailing-slash version so
         # that there is just one valid URI for "uri" resource.
         if not name:

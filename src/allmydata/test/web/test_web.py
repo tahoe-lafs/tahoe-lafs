@@ -4758,8 +4758,8 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         yield self.assertHTTPError(op_url, 404, "unknown/expired handle '134'")
 
     @inlineCallbacks
-    def test_upload_file_in_directory(self):
-        """Create a directory, then upload a file into it.
+    def test_uri_redirect(self):
+        """URI redirects don't cause failure.
 
         Unit test reproducer for https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3590
         """
@@ -4767,26 +4767,20 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             return treq.request(method, self.webish_url + path, persistent=False,
                                 **kwargs)
 
-        response = yield req("POST", "/uri?format=sdmf&t=mkdir&redirect_to_result=true",
-                             browser_like_redirects=True)
+        response = yield req("POST", "/uri?format=sdmf&t=mkdir&redirect_to_result=true")
 
         uri = urllib.unquote(response.request.absoluteURI)
         assert 'URI:DIR2:' in uri
         dircap = uri[uri.find("URI:DIR2:"):].rstrip('/')
-        dircap_uri = "/uri/{}".format(urllib.quote(dircap))
+        dircap_uri = "/uri/?uri={}&t=json".format(urllib.quote(dircap))
 
-        # POST a file into this directory
-        FILE_CONTENTS = u"a file in a directory"
-
-        body, headers = self.build_form(t="upload", when_done=".", name="file",
-                                        file=FILE_CONTENTS)
         response = yield req(
-            "POST",
+            "GET",
             dircap_uri,
-            data=body,
-            headers=headers,
-            browser_like_redirects=True
         )
+        self.assertEqual(
+            response.request.absoluteURI,
+            self.webish_url + "/uri/{}?t=json".format(urllib.quote(dircap)))
         if response.code >= 400:
             raise Error(response.code, response=response.content())
 
