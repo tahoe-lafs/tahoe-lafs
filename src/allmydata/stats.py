@@ -23,7 +23,7 @@ from allmydata.interfaces import IStatsProducer
 @implementer(IStatsProducer)
 class CPUUsageMonitor(service.MultiService):
     HISTORY_LENGTH = 15
-    POLL_INTERVAL = 60
+    POLL_INTERVAL = 60  # type: float
 
     def __init__(self):
         service.MultiService.__init__(self)

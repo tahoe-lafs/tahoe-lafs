@@ -73,7 +73,7 @@ class IIntroducerClient(Interface):
     publish their services to the rest of the world, and I help them learn
     about services available on other nodes."""
 
-    def publish(service_name, ann, signing_key=None):
+    def publish(service_name, ann, signing_key):
         """Publish the given announcement dictionary (which must be
         JSON-serializable), plus some additional keys, to the world.
 
@@ -83,8 +83,7 @@ class IIntroducerClient(Interface):
         the signing_key, if present, otherwise it is derived from the
         'anonymous-storage-FURL' key.
 
-        If signing_key= is set to an instance of SigningKey, it will be
-        used to sign the announcement."""
+        signing_key (a SigningKey) will be used to sign the announcement."""
 
     def subscribe_to(service_name, callback, *args, **kwargs):
         """Call this if you will eventually want to use services with the

@@ -19,6 +19,12 @@ from functools import (
 )
 import attr
 
+try:
+    from typing import List
+    from allmydata.introducer.client import IntroducerClient
+except ImportError:
+    pass
+
 from twisted.internet import defer
 from twisted.trial import unittest
 from twisted.application import service
@@ -125,7 +131,7 @@ class FakeCHKCheckerAndUEBFetcher(object):
         ))
 
 class FakeClient(service.MultiService):
-    introducer_clients = []
+    introducer_clients = []  # type: List[IntroducerClient]
     DEFAULT_ENCODING_PARAMETERS = {"k":25,
                                    "happy": 75,
                                    "n": 100,
