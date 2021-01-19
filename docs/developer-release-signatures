@@ -1,12 +1,12 @@
 
-January 8, 2021
+January 20, 2021
 
 Any of the following core Tahoe contributers may sign a release. Each
-release should be signed by at least two developers. They each
-independently produce a signature which are made available beside
-Tahoe releases after 1.15.0
+release MUST be signed by at least one developer but MAY have
+additional signatures. Each developer independently produces a
+signature which is made available beside Tahoe releases after 1.15.0
 
-This statement is signed by the previous Tahoe release key. Any future
+This statement is signed by the existing Tahoe release key. Any future
 such statements may be signed by it OR by any two developers (for
 example, to add or remove developers from the list).
 
@@ -20,7 +20,7 @@ jean-paul calderone (exarkun)
 96B9 C5DA B2EA 9EB6 7941 9DB7 E27B 085E DEAA 4B1B
 https://twistedmatrix.com/~exarkun/E27B085EDEAA4B1B.asc
 
-brian warner
-0xD43B4C9C73225AAF
-967E FE06 6998 7241 1A77 DF36 D43B 4C9C 7322 5AAF
+brian warner (lothar)
+0x863333C265497810
+5810 F125 7F8C F753 7753  895A 8633 33C2 6549 7810
 https://www.lothar.com/warner-gpg.html
