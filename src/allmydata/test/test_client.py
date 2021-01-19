@@ -1558,6 +1558,8 @@ enabled = {storage_enabled}
         }
         with self.basedir.child("zero.cert").open("w") as f:
             json.dump(fake_cert, f)
+        with self.basedir.child("gm0.cert").open("w") as f:
+            json.dump(fake_cert, f)
 
         config = client.config_from_string(
             self.basedir.path,
@@ -1566,6 +1568,8 @@ enabled = {storage_enabled}
                 storage_enabled=True,
                 more_storage="grid_management = True",
                 more_sections=(
+                    "[grid_managers]\n"
+                    "gm0 = pub-v0-ibpbsexcjfbv3ni7gwlclgn6mldaqnqd5mrtan2fnq2b27xnovca\n"
                     "[grid_manager_certificates]\n"
                     "foo = zero.cert\n"
                 )
