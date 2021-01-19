@@ -14,6 +14,9 @@ if PY2:
 
 import os, shutil
 from io import BytesIO
+from base64 import (
+    b64encode,
+)
 
 from twisted.trial import unittest
 from twisted.python.failure import Failure
@@ -875,6 +878,34 @@ def is_happy_enough(servertoshnums, h, k):
             if len(shnums) < k:
                 return False
     return True
+
+
+class FileHandleTests(unittest.TestCase):
+    """
+    Tests for ``FileHandle``.
+    """
+    def test_get_encryption_key_convergent(self):
+        """
+        When ``FileHandle`` is initialized with a convergence secret,
+        ``FileHandle.get_encryption_key`` returns a deterministic result that
+        is a function of that secret.
+        """
+        secret = b"\x42" * 16
+        handle = upload.FileHandle(BytesIO(b"hello world"), secret)
+        handle.set_default_encoding_parameters({
+            "k": 3,
+            "happy": 5,
+            "n": 10,
+            # Remember this is the *max* segment size.  In reality, the data
+            # size is much smaller so the actual segment size incorporated
+            # into the encryption key is also smaller.
+            "max_segment_size": 128 * 1024,
+        })
+
+        self.assertEqual(
+            b64encode(self.successResultOf(handle.get_encryption_key())),
+            b"oBcuR/wKdCgCV2GKKXqiNg==",
+        )
 
 
 class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
