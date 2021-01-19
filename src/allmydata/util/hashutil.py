@@ -176,10 +176,37 @@ def convergence_hash(k, n, segsize, data, convergence):
     return h.digest()
 
 
-def convergence_hasher(k, n, segsize, convergence):
+def _convergence_hasher_tag(k, n, segsize, convergence):
+    """
+    Create the convergence hashing tag.
+
+    :param int k: Required shares.
+    :param int n: Total shares.
+    :param int segsize: Maximum segment size.
+    :param bytes convergence: The convergence secret.
+
+    :return bytes: The bytestring to use as a tag in the convergence hash.
+    """
     assert isinstance(convergence, bytes)
+    if k > n:
+        raise ValueError(
+            "k > n not allowed; k = {}, n = {}".format(k, n),
+        )
+    if k < 1 or n < 1:
+        raise ValueError(
+            "k, n < 1 not allowed; k = {}, n = {}".format(k, n),
+        )
+    if k > 256 or n > 256:
+        raise ValueError(
+            "k, n > 256 not allowed; k = {}, n = {}".format(k, n),
+        )
     param_tag = netstring(b"%d,%d,%d" % (k, n, segsize))
     tag = CONVERGENT_ENCRYPTION_TAG + netstring(convergence) + param_tag
+    return tag
+
+
+def convergence_hasher(k, n, segsize, convergence):
+    tag = _convergence_hasher_tag(k, n, segsize, convergence)
     return tagged_hasher(tag, KEYLEN)
 
 
