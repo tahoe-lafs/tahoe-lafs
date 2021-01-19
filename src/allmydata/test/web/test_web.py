@@ -4757,6 +4757,39 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         op_url = self.webish_url + "/operations/134?t=status&output=JSON"
         yield self.assertHTTPError(op_url, 404, "unknown/expired handle '134'")
 
+    @inlineCallbacks
+    def test_upload_file_in_directory(self):
+        """Create a directory, then upload a file into it.
+
+        Unit test reproducer for https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3590
+        """
+        def req(method, path, **kwargs):
+            return treq.request(method, self.webish_url + path, persistent=False,
+                                **kwargs)
+
+        response = yield req("POST", "/uri?format=sdmf&t=mkdir&redirect_to_result=true",
+                             browser_like_redirects=True)
+
+        uri = urllib.unquote(response.request.absoluteURI)
+        assert 'URI:DIR2:' in uri
+        dircap = uri[uri.find("URI:DIR2:"):].rstrip('/')
+        dircap_uri = "/uri/{}".format(urllib.quote(dircap))
+
+        # POST a file into this directory
+        FILE_CONTENTS = u"a file in a directory"
+
+        body, headers = self.build_form(t="upload", when_done=".", name="file",
+                                        file=FILE_CONTENTS)
+        response = yield req(
+            "POST",
+            dircap_uri,
+            data=body,
+            headers=headers,
+            browser_like_redirects=True
+        )
+        if response.code >= 400:
+            raise Error(response.code, response=response.content())
+
     def test_incident(self):
         d = self.POST("/report_incident", details="eek")
         def _done(res):
