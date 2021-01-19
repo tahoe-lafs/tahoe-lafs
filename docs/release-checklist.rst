@@ -118,6 +118,12 @@ Did anyone contribute a hack since the last release? If so, then
 https://tahoe-lafs.org/hacktahoelafs/ needs to be updated.
 
 
+Sign Git Tag
+````````````
+
+- git tag -s -u 0xE34E62D06D0E69CFCA4179FFBDE0D31D68666A7A -m "release Tahoe-LAFS-X.Y.Z" tahoe-lafs-X.Y.Z
+
+
 Upload Artifacts
 ````````````````
 
