@@ -14,6 +14,17 @@ if PY2:
 
 import os, shutil
 from io import BytesIO
+from base64 import (
+    b64encode,
+)
+
+from hypothesis import (
+    given,
+)
+from hypothesis.strategies import (
+    just,
+    integers,
+)
 
 from twisted.trial import unittest
 from twisted.python.failure import Failure
@@ -2028,6 +2039,64 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         f.write("\n")
         f.close()
         return None
+
+
+class EncryptAnUploadableTests(unittest.TestCase):
+    """
+    Tests for ``EncryptAnUploadable``.
+    """
+    def test_same_length(self):
+        """
+        ``EncryptAnUploadable.read_encrypted`` returns ciphertext of the same
+        length as the underlying plaintext.
+        """
+        plaintext = b"hello world"
+        uploadable = upload.FileHandle(BytesIO(plaintext), None)
+        uploadable.set_default_encoding_parameters({
+            # These values shouldn't matter.
+            "k": 3,
+            "happy": 5,
+            "n": 10,
+            "max_segment_size": 128 * 1024,
+        })
+        encrypter = upload.EncryptAnUploadable(uploadable)
+        ciphertext = b"".join(self.successResultOf(encrypter.read_encrypted(1024, False)))
+        self.assertEqual(len(ciphertext), len(plaintext))
+
+    @given(just(b"hello world"), integers(min_value=0, max_value=len(b"hello world")))
+    def test_known_result(self, plaintext, split_at):
+        """
+        ``EncryptAnUploadable.read_encrypted`` returns a known-correct ciphertext
+        string for certain inputs.  The ciphertext is independent of the read
+        sizes.
+        """
+        convergence = b"\x42" * 16
+        uploadable = upload.FileHandle(BytesIO(plaintext), convergence)
+        uploadable.set_default_encoding_parameters({
+            # The convergence key is a function of k, n, and max_segment_size
+            # (among other things).  The value for happy doesn't matter
+            # though.
+            "k": 3,
+            "happy": 5,
+            "n": 10,
+            "max_segment_size": 128 * 1024,
+        })
+        encrypter = upload.EncryptAnUploadable(uploadable)
+        def read(n):
+            return b"".join(self.successResultOf(encrypter.read_encrypted(n, False)))
+
+        # Read the string in one or two pieces to make sure underlying state
+        # is maintained properly.
+        first = read(split_at)
+        second = read(len(plaintext) - split_at)
+        third = read(1)
+        ciphertext = first + second + third
+
+        self.assertEqual(
+            b"Jd2LHCRXozwrEJc=",
+            b64encode(ciphertext),
+        )
+
 
 # TODO:
 #  upload with exactly 75 servers (shares_of_happiness)
