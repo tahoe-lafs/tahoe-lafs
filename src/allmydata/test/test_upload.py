@@ -2097,6 +2097,33 @@ class EncryptAnUploadableTests(unittest.TestCase):
             b64encode(ciphertext),
         )
 
+    def test_large_read(self):
+        """
+        ``EncryptAnUploadable.read_encrypted`` succeeds even when the requested
+        data length is much larger than the chunk size.
+        """
+        convergence = b"\x42" * 16
+        # 4kB of plaintext
+        plaintext = b"\xde\xad\xbe\xef" * 1024
+        uploadable = upload.FileHandle(BytesIO(plaintext), convergence)
+        uploadable.set_default_encoding_parameters({
+            "k": 3,
+            "happy": 5,
+            "n": 10,
+            "max_segment_size": 128 * 1024,
+        })
+        # Make the chunk size very small so we don't have to operate on a huge
+        # amount of data to exercise the relevant codepath.
+        encrypter = upload.EncryptAnUploadable(uploadable, chunk_size=1)
+        d = encrypter.read_encrypted(len(plaintext), False)
+        ciphertext = self.successResultOf(d)
+        self.assertEqual(
+            list(map(len, ciphertext)),
+            # Chunk size was specified as 1 above so we will get the whole
+            # plaintext in one byte chunks.
+            [1] * len(plaintext),
+        )
+
 
 # TODO:
 #  upload with exactly 75 servers (shares_of_happiness)
