@@ -4767,11 +4767,9 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             return treq.request(method, self.webish_url + path, persistent=False,
                                 **kwargs)
 
-        response = yield req("POST", "/uri?format=sdmf&t=mkdir&redirect_to_result=true")
-
-        uri = urllib.unquote(response.request.absoluteURI)
-        assert 'URI:DIR2:' in uri
-        dircap = uri[uri.find("URI:DIR2:"):].rstrip('/')
+        response = yield req("POST", "/uri?format=sdmf&t=mkdir")
+        dircap = yield response.content()
+        assert dircap.startswith('URI:DIR2:')
         dircap_uri = "/uri/?uri={}&t=json".format(urllib.quote(dircap))
 
         response = yield req(
