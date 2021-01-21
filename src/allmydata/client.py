@@ -92,12 +92,6 @@ _client_config = configutil.ValidConfiguration(
         ),
         "grid_managers": None,  # means "any options valid"
         "grid_manager_certificates": None,
-        "ftpd": (
-            "accounts.file",
-            "accounts.url",
-            "enabled",
-            "port",
-        ),
         "storage": (
             "debug_discard",
             "enabled",
@@ -664,7 +658,6 @@ class _Client(node.Node, pollmixin.PollMixin):
                 raise ValueError("config error: helper is enabled, but tub "
                                  "is not listening ('tub.port=' is empty)")
             self.init_helper()
-        self.init_ftp_server()
         self.init_sftp_server()
 
         # If the node sees an exit_trigger file, it will poll every second to see
@@ -1051,18 +1044,6 @@ class _Client(node.Node, pollmixin.PollMixin):
             staticdir,
         )
         ws.setServiceParent(self)
-
-    def init_ftp_server(self):
-        if self.config.get_config("ftpd", "enabled", False, boolean=True):
-            accountfile = self.config.get_config("ftpd", "accounts.file", None)
-            if accountfile:
-                accountfile = self.config.get_config_path(accountfile)
-            accounturl = self.config.get_config("ftpd", "accounts.url", None)
-            ftp_portstr = self.config.get_config("ftpd", "port", "8021")
-
-            from allmydata.frontends import ftpd
-            s = ftpd.FTPServer(self, accountfile, accounturl, ftp_portstr)
-            s.setServiceParent(self)
 
     def init_sftp_server(self):
         if self.config.get_config("sftpd", "enabled", False, boolean=True):

@@ -1,6 +1,12 @@
 from __future__ import print_function
 
+
 import json
+
+try:
+    from allmydata.scripts.types_ import SubCommands
+except ImportError:
+    pass
 
 from twisted.python import usage
 from twisted.python.filepath import FilePath
@@ -188,8 +194,8 @@ def do_admin(options):
 
 
 subCommands = [
-    ["admin", None, AdminCommand, "admin subcommands: use 'tahoe admin' for a list"],
-]
+    ("admin", None, AdminCommand, "admin subcommands: use 'tahoe admin' for a list"),
+    ]  # type: SubCommands
 
 dispatch = {
     "admin": do_admin,

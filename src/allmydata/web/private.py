@@ -61,7 +61,16 @@ class IToken(ICredentials):
         pass
 
 
-@implementer(IToken)
+# Workaround for Shoobx/mypy-zope#26, where without suitable
+# stubs for twisted classes (ICredentials), IToken does not
+# appear to be an Interface. The proper fix appears to be to
+# create stubs for twisted
+# (https://twistedmatrix.com/trac/ticket/9717). For now,
+# bypassing the inline decorator syntax works around the issue.
+_itoken_impl = implementer(IToken)
+
+
+@_itoken_impl
 @attr.s
 class Token(object):
     proposed_token = attr.ib(type=bytes)

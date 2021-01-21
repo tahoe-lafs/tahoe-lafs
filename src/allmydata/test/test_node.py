@@ -578,7 +578,7 @@ class TestMissingPorts(unittest.TestCase):
         config = config_from_string(self.basedir, "portnum", config_data)
         with self.assertRaises(PortAssignmentRequired):
             _tub_portlocation(config, None, None)
-    test_listen_on_zero_with_host.todo = native_str(
+    test_listen_on_zero_with_host.todo = native_str(  # type: ignore
         "https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3563"
     )
 

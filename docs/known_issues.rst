@@ -23,7 +23,7 @@ Known Issues in Tahoe-LAFS v1.10.3, released 30-Mar-2016
   *  `Disclosure of file through embedded hyperlinks or JavaScript in that file`_
   *  `Command-line arguments are leaked to other local users`_
   *  `Capabilities may be leaked to web browser phishing filter / "safe browsing" servers`_
-  *  `Known issues in the FTP and SFTP frontends`_
+  *  `Known issues in the SFTP frontend`_
   *  `Traffic analysis based on sizes of files/directories, storage indices, and timing`_
   *  `Privacy leak via Google Chart API link in map-update timing web page`_
 
@@ -213,8 +213,8 @@ To disable the filter in Chrome:
 
 ----
 
-Known issues in the FTP and SFTP frontends
-------------------------------------------
+Known issues in the SFTP frontend
+---------------------------------
 
 These are documented in :doc:`frontends/FTP-and-SFTP` and on `the
 SftpFrontend page`_ on the wiki.

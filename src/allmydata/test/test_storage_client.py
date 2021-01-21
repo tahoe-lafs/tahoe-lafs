@@ -105,7 +105,8 @@ from allmydata.interfaces import (
 
 SOME_FURL = "pb://abcde@nowhere/fake"
 
-class NativeStorageServerWithVersion(NativeStorageServer):
+
+class NativeStorageServerWithVersion(NativeStorageServer):  # type: ignore  # tahoe-lafs/ticket/3573
     def __init__(self, version):
         # note: these instances won't work for anything other than
         # get_available_space() because we don't upcall
@@ -569,7 +570,7 @@ class SpyEndpoint(object):
         return d
 
 
-@implementer(IConnectionHintHandler)
+@implementer(IConnectionHintHandler)  # type: ignore # warner/foolscap#78
 @attr.s
 class SpyHandler(object):
     """

@@ -311,7 +311,7 @@ def precondition_abspath(path):
 
 _getfullpathname = None
 try:
-    from nt import _getfullpathname
+    from nt import _getfullpathname  # type: ignore
 except ImportError:
     pass
 

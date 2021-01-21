@@ -26,10 +26,10 @@ class IntroducerRoot(MultiFormatResource):
         self.introducer_node = introducer_node
         self.introducer_service = introducer_node.getServiceNamed("introducer")
         # necessary as a root Resource
-        self.putChild("", self)
+        self.putChild(b"", self)
         static_dir = resource_filename("allmydata.web", "static")
         for filen in os.listdir(static_dir):
-            self.putChild(filen, static.File(os.path.join(static_dir, filen)))
+            self.putChild(filen.encode("utf-8"), static.File(os.path.join(static_dir, filen)))
 
     def _create_element(self):
         """
@@ -66,7 +66,7 @@ class IntroducerRoot(MultiFormatResource):
             announcement_summary[service_name] += 1
         res[u"announcement_summary"] = announcement_summary
 
-        return json.dumps(res, indent=1) + b"\n"
+        return (json.dumps(res, indent=1) + "\n").encode("utf-8")
 
 
 class IntroducerRootElement(Element):
