@@ -125,6 +125,22 @@ class GridManagerCommandLine(SyncTestCase):
             cert = json.loads(sigcert['certificate'])
             self.assertEqual(cert["public_key"], pubkey)
 
+    def test_add_and_sign_second_cert(self):
+        """
+        Add a new storage-server and sign two certificates.
+        """
+        pubkey = "pub-v0-cbq6hcf3pxcz6ouoafrbktmkixkeuywpcpbcomzd3lqbkq4nmfga"
+        with self.runner.isolated_filesystem():
+            self.runner.invoke(grid_manager, ["--config", "foo", "create"])
+            self.runner.invoke(grid_manager, ["--config", "foo", "add", "storage0", pubkey])
+            result = self.runner.invoke(grid_manager, ["--config", "foo", "sign", "storage0", "10"])
+            result = self.runner.invoke(grid_manager, ["--config", "foo", "sign", "storage0", "10"])
+            # we should now have two certificates stored
+            self.assertEqual(
+                set(FilePath("foo").listdir()),
+                {'storage0.cert.1', 'storage0.cert.0', 'config.json'},
+            )
+
     def test_add_twice(self):
         """
         An error is reported trying to add an existing server
