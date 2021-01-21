@@ -13,10 +13,12 @@ from twisted.python.filepath import (
 from twisted.internet.defer import Deferred, succeed
 from twisted.internet.protocol import ProcessProtocol
 from twisted.internet.error import ProcessExitedAlready, ProcessDone
+from twisted.internet.threads import deferToThread
 
 import requests
 
 from paramiko.rsakey import RSAKey
+from boltons.funcutils import wraps
 
 from allmydata.util.configutil import (
     get_config,
@@ -525,3 +527,21 @@ def generate_ssh_key(path):
     key.write_private_key_file(path)
     with open(path + ".pub", "wb") as f:
         f.write(b"%s %s" % (key.get_name(), key.get_base64()))
+
+
+def run_in_thread(f):
+    """Decorator for integration tests that runs code in a thread.
+
+    Because we're using pytest_twisted, tests are expected to return a Deferred
+    so reactor can run.  If the reactor doesn't run, reads from nodes' stdout
+    and stderr don't happen.  eventually the buffers fill up, and the nodes
+    block when they try to flush logs.
+
+    We can switch to Twisted APIs (treq instead of requests etc.), but
+    sometimes it's easier or expedient to just have a block test.  So this runs
+    the test in a thread in a way that still lets the reactor run.
+    """
+    @wraps(f)
+    def test(*args, **kwargs):
+        return deferToThread(lambda: f(*args, **kwargs))
+    return test

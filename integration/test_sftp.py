@@ -23,7 +23,7 @@ from paramiko.rsakey import RSAKey
 
 import pytest
 
-from .util import generate_ssh_key
+from .util import generate_ssh_key, run_in_thread
 
 
 def connect_sftp(connect_args={"username": "alice", "password": "password"}):
@@ -50,6 +50,7 @@ def connect_sftp(connect_args={"username": "alice", "password": "password"}):
     return sftp
 
 
+@run_in_thread
 def test_bad_account_password_ssh_key(alice, tmpdir):
     """
     Can't login with unknown username, wrong password, or wrong SSH pub key.
@@ -79,6 +80,7 @@ def test_bad_account_password_ssh_key(alice, tmpdir):
         })
 
 
+@run_in_thread
 def test_ssh_key_auth(alice):
     """It's possible to login authenticating with SSH public key."""
     key = RSAKey(filename=join(alice.node_dir, "private", "ssh_client_rsa_key"))
@@ -88,6 +90,7 @@ def test_ssh_key_auth(alice):
     assert sftp.listdir() == []
 
 
+@run_in_thread
 def test_read_write_files(alice):
     """It's possible to upload and download files."""
     sftp = connect_sftp()
@@ -102,6 +105,7 @@ def test_read_write_files(alice):
     f.close()
 
 
+@run_in_thread
 def test_directories(alice):
     """
     It's possible to create, list directories, and create and remove files in
@@ -135,6 +139,7 @@ def test_directories(alice):
     assert sftp.listdir() == []
 
 
+@run_in_thread
 def test_rename(alice):
     """Directories and files can be renamed."""
     sftp = connect_sftp()

@@ -178,6 +178,7 @@ def test_deep_stats(alice):
 
 
 @pytest.mark.timeout(60)
+@util.run_in_thread
 def test_status(alice):
     """
     confirm we get something sensible from /status and the various sub-types
