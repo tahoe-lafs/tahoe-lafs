@@ -275,13 +275,13 @@ class FakeClient(_Client):  # type: ignore  # tahoe-lafs/ticket/3573
             node_config=EMPTY_CLIENT_CONFIG,
         )
         # fake knowledge of another server
-        self.storage_broker.test_add_server("other_nodeid",
+        self.storage_broker.test_add_server(b"other_nodeid",
             FakeDisplayableServer(
                 serverid=b"other_nodeid", nickname=u"other_nickname \u263B", connected = True,
                 last_connect_time = 10, last_loss_time = 20, last_rx_time = 30))
-        self.storage_broker.test_add_server("disconnected_nodeid",
+        self.storage_broker.test_add_server(b"disconnected_nodeid",
             FakeDisplayableServer(
-                serverid="disconnected_nodeid", nickname=u"disconnected_nickname \u263B", connected = False,
+                serverid=b"disconnected_nodeid", nickname=u"disconnected_nickname \u263B", connected = False,
                 last_connect_time = None, last_loss_time = 25, last_rx_time = 35))
         self.introducer_client = None
         self.history = FakeHistory()
@@ -665,6 +665,8 @@ class MultiFormatResourceTests(TrialTestCase):
     Tests for ``MultiFormatResource``.
     """
     def render(self, resource, **queryargs):
+        # Query arguments in real twisted.web requests have byte keys.
+        queryargs = {k.encode("utf-8"): v for (k, v) in queryargs.items()}
         return self.successResultOf(render(resource, queryargs))
 
     def resource(self):
@@ -675,13 +677,13 @@ class MultiFormatResourceTests(TrialTestCase):
         class Content(MultiFormatResource):
 
             def render_HTML(self, req):
-                return "html"
+                return b"html"
 
             def render_A(self, req):
-                return "a"
+                return b"a"
 
             def render_B(self, req):
-                return "b"
+                return b"b"
 
         return Content()
 
@@ -693,7 +695,7 @@ class MultiFormatResourceTests(TrialTestCase):
         """
         resource = self.resource()
         resource.formatArgument = "foo"
-        self.assertEqual("a", self.render(resource, foo=["a"]))
+        self.assertEqual(b"a", self.render(resource, foo=[b"a"]))
 
 
     def test_default_format_argument(self):
@@ -702,7 +704,7 @@ class MultiFormatResourceTests(TrialTestCase):
         then the ``t`` argument is used.
         """
         resource = self.resource()
-        self.assertEqual("a", self.render(resource, t=["a"]))
+        self.assertEqual(b"a", self.render(resource, t=[b"a"]))
 
 
     def test_no_format(self):
@@ -711,7 +713,7 @@ class MultiFormatResourceTests(TrialTestCase):
         been defined, the base rendering behavior is used (``render_HTML``).
         """
         resource = self.resource()
-        self.assertEqual("html", self.render(resource))
+        self.assertEqual(b"html", self.render(resource))
 
 
     def test_default_format(self):
@@ -722,7 +724,7 @@ class MultiFormatResourceTests(TrialTestCase):
         """
         resource = self.resource()
         resource.formatDefault = "b"
-        self.assertEqual("b", self.render(resource))
+        self.assertEqual(b"b", self.render(resource))
 
 
     def test_explicit_none_format_renderer(self):
@@ -732,7 +734,7 @@ class MultiFormatResourceTests(TrialTestCase):
         """
         resource = self.resource()
         resource.render_FOO = None
-        self.assertEqual("html", self.render(resource, t=["foo"]))
+        self.assertEqual(b"html", self.render(resource, t=[b"foo"]))
 
 
     def test_unknown_format(self):
@@ -741,15 +743,15 @@ class MultiFormatResourceTests(TrialTestCase):
         returned.
         """
         resource = self.resource()
-        response_body = self.render(resource, t=["foo"])
+        response_body = self.render(resource, t=[b"foo"])
         self.assertIn(
-            "<title>400 - Bad Format</title>", response_body,
+            b"<title>400 - Bad Format</title>", response_body,
         )
         self.assertIn(
-            "Unknown t value:", response_body,
+            b"Unknown t value:", response_body,
         )
         self.assertIn(
-            "'foo'", response_body,
+            b"'foo'", response_body,
         )
 
 
