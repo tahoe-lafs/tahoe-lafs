@@ -649,7 +649,7 @@ class WebMixin(TimezoneMixin):
     def should404(self, res, which):
         if isinstance(res, failure.Failure):
             res.trap(error.Error)
-            self.failUnlessReallyEqual(res.value.status, "404")
+            self.failUnlessReallyEqual(res.value.status, b"404")
         else:
             self.fail("%s was supposed to Error(404), not get '%s'" %
                       (which, res))
@@ -657,7 +657,7 @@ class WebMixin(TimezoneMixin):
     def should302(self, res, which):
         if isinstance(res, failure.Failure):
             res.trap(error.Error)
-            self.failUnlessReallyEqual(res.value.status, "302")
+            self.failUnlessReallyEqual(res.value.status, b"302")
         else:
             self.fail("%s was supposed to Error(302), not get '%s'" %
                       (which, res))
@@ -1933,7 +1933,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
     def test_CSS_FILE(self):
         d = self.GET("/tahoe.css", followRedirect=True)
         def _check(res):
-            CSS_STYLE=re.compile('toolbar\s{.+text-align:\scenter.+toolbar-item.+display:\sinline',re.DOTALL)
+            CSS_STYLE=re.compile(b'toolbar\s{.+text-align:\scenter.+toolbar-item.+display:\sinline',re.DOTALL)
             self.failUnless(CSS_STYLE.search(res), res)
         d.addCallback(_check)
         return d
@@ -1976,7 +1976,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         self._check_upload_and_mkdir_forms(soup)
         toolbars = soup.find_all(u"li", {u"class": u"toolbar-item"})
         self.assertTrue(any(li.text == u"Return to Welcome page" for li in toolbars))
-        self.failUnlessIn("quux", data)
+        self.failUnlessIn(b"quux", data)
 
     @inlineCallbacks
     def test_GET_DIRECTORY_html_filenode_encoding(self):
@@ -4774,7 +4774,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
 
         response = yield req("POST", "/uri?format=sdmf&t=mkdir")
         dircap = yield response.content()
-        assert dircap.startswith('URI:DIR2:')
+        assert dircap.startswith(b'URI:DIR2:')
         dircap_uri = "/uri/?uri={}&t=json".format(urlquote(dircap))
 
         response = yield req(
