@@ -135,8 +135,8 @@ class AddCertificateCommand(SyncTestCase):
 
         self.assertEqual(rc, 0)
         self.assertEqual(
-            ["zero.cert", "tahoe.cfg"],
-            self.node_path.listdir()
+            {"zero.cert", "tahoe.cfg"},
+            set(self.node_path.listdir())
         )
         self.assertIn(
             "There are now 1 certificates",
