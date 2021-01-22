@@ -1,8 +1,11 @@
 from __future__ import print_function
 
-import os.path, re, urllib, time
+from past.builtins import unicode
+
+import os.path, re, time
 import json
 import treq
+from urllib.parse import quote as urlquote, unquote as urlunquote
 
 from bs4 import BeautifulSoup
 
@@ -115,8 +118,8 @@ class FakeUploader(service.Service):
                                       servermap={},
                                       timings={},
                                       uri_extension_data={},
-                                      uri_extension_hash="fake",
-                                      verifycapstr="fakevcap")
+                                      uri_extension_hash=b"fake",
+                                      verifycapstr=b"fakevcap")
             ur.set_uri(n.get_uri())
             return ur
         d.addCallback(_got_data)
@@ -297,12 +300,12 @@ class FakeClient(_Client):  # type: ignore  # tahoe-lafs/ticket/3573
         self.addService(FakeStorageServer(self.nodeid, self.nickname))
 
     def get_long_nodeid(self):
-        return "v0-nodeid"
+        return b"v0-nodeid"
     def get_long_tubid(self):
-        return "tubid"
+        return u"tubid"
 
     def get_auth_token(self):
-        return 'a fake debug auth token'
+        return b'a fake debug auth token'
 
     def startService(self):
         return service.MultiService.startService(self)
@@ -340,7 +343,7 @@ class WebMixin(TimezoneMixin):
         def _then(res):
             self.public_root = res[0][1]
             assert interfaces.IDirectoryNode.providedBy(self.public_root), res
-            self.public_url = "/uri/" + self.public_root.get_uri()
+            self.public_url = "/uri/" + unicode(self.public_root.get_uri(), "ascii")
             self.private_root = res[1][1]
 
             foo = res[2][1]
@@ -365,7 +368,7 @@ class WebMixin(TimezoneMixin):
 
             # mdmf
             self.QUUX_CONTENTS, n, self._quux_txt_uri, self._quux_txt_readonly_uri = self.makefile_mutable(0, mdmf=True)
-            assert self._quux_txt_uri.startswith("URI:MDMF")
+            assert self._quux_txt_uri.startswith(b"URI:MDMF")
             foo.set_uri(u"quux.txt", self._quux_txt_uri, self._quux_txt_readonly_uri)
 
             foo.set_uri(u"empty", res[3][1].get_uri(),
@@ -382,7 +385,7 @@ class WebMixin(TimezoneMixin):
             # filenode to test for html encoding issues
             self._htmlname_unicode = u"<&weirdly'named\"file>>>_<iframe />.txt"
             self._htmlname_raw = self._htmlname_unicode.encode('utf-8')
-            self._htmlname_urlencoded = urllib.quote(self._htmlname_raw, '')
+            self._htmlname_urlencoded = urlquote(self._htmlname_raw, '')
             self.HTMLNAME_CONTENTS, n, self._htmlname_txt_uri = self.makefile(0)
             foo.set_uri(self._htmlname_unicode, self._htmlname_txt_uri, self._htmlname_txt_uri)
 
@@ -416,7 +419,7 @@ class WebMixin(TimezoneMixin):
             # public/foo/sub/baz.txt
             # public/reedownlee/
             # public/reedownlee/nor
-            self.NEWFILE_CONTENTS = "newfile contents\n"
+            self.NEWFILE_CONTENTS = b"newfile contents\n"
 
             return foo.get_metadata_for(u"bar.txt")
         d.addCallback(_then)
@@ -429,12 +432,12 @@ class WebMixin(TimezoneMixin):
         return self.s.all_contents
 
     def makefile(self, number):
-        contents = "contents of file %s\n" % number
+        contents = b"contents of file %d\n" % number
         n = create_chk_filenode(contents, self.get_all_contents())
         return contents, n, n.get_uri()
 
     def makefile_mutable(self, number, mdmf=False):
-        contents = "contents of mutable file %s\n" % number
+        contents = b"contents of mutable file %d\n" % number
         n = create_mutable_filenode(contents, mdmf, self.s.all_contents)
         return contents, n, n.get_uri(), n.get_readonly_uri()
 
@@ -1384,8 +1387,8 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         return d
 
     def test_GET_FILEURL_named(self):
-        base = "/file/%s" % urllib.quote(self._bar_txt_uri)
-        base2 = "/named/%s" % urllib.quote(self._bar_txt_uri)
+        base = "/file/%s" % urlquote(self._bar_txt_uri)
+        base2 = "/named/%s" % urlquote(self._bar_txt_uri)
         d = self.GET(base + "/@@name=/blah.txt")
         d.addCallback(self.failUnlessIsBarDotTxt)
         d.addCallback(lambda res: self.GET(base + "/blah.txt"))
@@ -1398,14 +1401,14 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d.addCallback(lambda res: self.GET(save_url))
         d.addCallback(self.failUnlessIsBarDotTxt) # TODO: check headers
         u_filename = u"n\u00e9wer.txt" # n e-acute w e r . t x t
-        u_fn_e = urllib.quote(u_filename.encode("utf-8"))
+        u_fn_e = urlquote(u_filename.encode("utf-8"))
         u_url = base + "?save=true&filename=" + u_fn_e
         d.addCallback(lambda res: self.GET(u_url))
         d.addCallback(self.failUnlessIsBarDotTxt) # TODO: check headers
         return d
 
     def test_PUT_FILEURL_named_bad(self):
-        base = "/file/%s" % urllib.quote(self._bar_txt_uri)
+        base = "/file/%s" % urlquote(self._bar_txt_uri)
         d = self.shouldFail2(error.Error, "test_PUT_FILEURL_named_bad",
                              "400 Bad Request",
                              "/file can only be used with GET or HEAD",
@@ -1414,7 +1417,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
 
 
     def test_GET_DIRURL_named_bad(self):
-        base = "/file/%s" % urllib.quote(self._foo_uri)
+        base = "/file/%s" % urlquote(self._foo_uri)
         d = self.shouldFail2(error.Error, "test_PUT_DIRURL_named_bad",
                              "400 Bad Request",
                              "is not a file-cap",
@@ -1431,7 +1434,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
     def test_GET_unhandled_URI_named(self):
         contents, n, newuri = self.makefile(12)
         verifier_cap = n.get_verify_cap().to_string()
-        base = "/file/%s" % urllib.quote(verifier_cap)
+        base = "/file/%s" % urlquote(verifier_cap)
         # client.create_node_from_uri() can't handle verify-caps
         d = self.shouldFail2(error.Error, "GET_unhandled_URI_named",
                              "400 Bad Request", "is not a file-cap",
@@ -1441,7 +1444,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
     def test_GET_unhandled_URI(self):
         contents, n, newuri = self.makefile(12)
         verifier_cap = n.get_verify_cap().to_string()
-        base = "/uri/%s" % urllib.quote(verifier_cap)
+        base = "/uri/%s" % urlquote(verifier_cap)
         # client.create_node_from_uri() can't handle verify-caps
         d = self.shouldFail2(error.Error, "test_GET_unhandled_URI",
                              "400 Bad Request",
@@ -1450,31 +1453,31 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         return d
 
     def test_GET_FILE_URI(self):
-        base = "/uri/%s" % urllib.quote(self._bar_txt_uri)
+        base = "/uri/%s" % urlquote(self._bar_txt_uri)
         d = self.GET(base)
         d.addCallback(self.failUnlessIsBarDotTxt)
         return d
 
     def test_GET_FILE_URI_mdmf(self):
-        base = "/uri/%s" % urllib.quote(self._quux_txt_uri)
+        base = "/uri/%s" % urlquote(self._quux_txt_uri)
         d = self.GET(base)
         d.addCallback(self.failUnlessIsQuuxDotTxt)
         return d
 
     def test_GET_FILE_URI_mdmf_extensions(self):
-        base = "/uri/%s" % urllib.quote("%s:RANDOMSTUFF" % self._quux_txt_uri)
+        base = "/uri/%s" % urlquote("%s:RANDOMSTUFF" % self._quux_txt_uri)
         d = self.GET(base)
         d.addCallback(self.failUnlessIsQuuxDotTxt)
         return d
 
     def test_GET_FILE_URI_mdmf_readonly(self):
-        base = "/uri/%s" % urllib.quote(self._quux_txt_readonly_uri)
+        base = "/uri/%s" % urlquote(self._quux_txt_readonly_uri)
         d = self.GET(base)
         d.addCallback(self.failUnlessIsQuuxDotTxt)
         return d
 
     def test_GET_FILE_URI_badchild(self):
-        base = "/uri/%s/boguschild" % urllib.quote(self._bar_txt_uri)
+        base = "/uri/%s/boguschild" % urlquote(self._bar_txt_uri)
         errmsg = "Files have no children named 'boguschild'"
         d = self.shouldFail2(error.Error, "test_GET_FILE_URI_badchild",
                              "400 Bad Request", errmsg,
@@ -1482,7 +1485,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         return d
 
     def test_PUT_FILE_URI_badchild(self):
-        base = "/uri/%s/boguschild" % urllib.quote(self._bar_txt_uri)
+        base = "/uri/%s/boguschild" % urlquote(self._bar_txt_uri)
         errmsg = "Cannot create directory 'boguschild', because its parent is a file, not a directory"
         d = self.shouldFail2(error.Error, "test_GET_FILE_URI_badchild",
                              "409 Conflict", errmsg,
@@ -1490,7 +1493,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         return d
 
     def test_PUT_FILE_URI_mdmf(self):
-        base = "/uri/%s" % urllib.quote(self._quux_txt_uri)
+        base = "/uri/%s" % urlquote(self._quux_txt_uri)
         self._quux_new_contents = "new_contents"
         d = self.GET(base)
         d.addCallback(lambda res:
@@ -1504,7 +1507,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         return d
 
     def test_PUT_FILE_URI_mdmf_extensions(self):
-        base = "/uri/%s" % urllib.quote("%s:EXTENSIONSTUFF" % self._quux_txt_uri)
+        base = "/uri/%s" % urlquote("%s:EXTENSIONSTUFF" % self._quux_txt_uri)
         self._quux_new_contents = "new_contents"
         d = self.GET(base)
         d.addCallback(lambda res: self.failUnlessIsQuuxDotTxt(res))
@@ -1555,7 +1558,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             return d
 
         def _get_etag(uri, t=''):
-            targetbase = "/uri/%s?t=%s" % (urllib.quote(uri.strip()), t)
+            targetbase = "/uri/%s?t=%s" % (urlquote(uri.strip()), t)
             d = self.GET(targetbase, return_response=True, followRedirect=True)
             def _just_the_etag(result):
                 data, response, headers = result
@@ -1900,7 +1903,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         return d
 
     def test_GET_FILEURL_json_mdmf(self):
-        d = self.GET("/uri/%s?t=json" % urllib.quote(self._quux_txt_uri))
+        d = self.GET("/uri/%s?t=json" % urlquote(self._quux_txt_uri))
         d.addCallback(self.failUnlessIsQuuxJSON)
         return d
 
@@ -2011,7 +2014,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         )
 
         # the FILE reference points to a URI, but it should end in bar.txt
-        bar_url = "{}/file/{}/@@named=/bar.txt".format(root, urllib.quote(self._bar_txt_uri))
+        bar_url = "{}/file/{}/@@named=/bar.txt".format(root, urlquote(self._bar_txt_uri))
         self.assertTrue(
             any(
                 a.text == u"bar.txt"
@@ -2024,7 +2027,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
                 for td in soup.find_all(u"td", {u"align": u"right"})
             )
         )
-        foo_url = urllib.quote("{}/uri/{}/".format(root, self._foo_uri))
+        foo_url = urlquote("{}/uri/{}/".format(root, self._foo_uri))
         forms = soup.find_all(u"form", {u"action": foo_url})
         found = []
         for form in forms:
@@ -2038,7 +2041,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             {u"unlink", u"rename/relink"}
         )
 
-        sub_url = "{}/uri/{}/".format(root, urllib.quote(self._sub_uri))
+        sub_url = "{}/uri/{}/".format(root, urlquote(self._sub_uri))
         self.assertTrue(
             any(
                 td.findNextSibling()(u"a")[0][u"href"] == sub_url
@@ -2775,11 +2778,11 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d.addCallback(_check)
         def _check2(data):
             self.failUnlessReallyEqual(data, self.NEWFILE_CONTENTS)
-            return self.GET("/uri/%s" % urllib.quote(self.filecap))
+            return self.GET("/uri/%s" % urlquote(self.filecap))
         d.addCallback(_check2)
         def _check3(data):
             self.failUnlessReallyEqual(data, self.NEWFILE_CONTENTS)
-            return self.GET("/file/%s" % urllib.quote(self.filecap))
+            return self.GET("/file/%s" % urlquote(self.filecap))
         d.addCallback(_check3)
         def _check4(data):
             self.failUnlessReallyEqual(data, self.NEWFILE_CONTENTS)
@@ -2980,7 +2983,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
 
         # make sure we can get to it from /uri/URI
         d.addCallback(lambda res:
-                      self.GET("/uri/%s" % urllib.quote(self._mutable_uri)))
+                      self.GET("/uri/%s" % urlquote(self._mutable_uri)))
         d.addCallback(lambda res:
                       self.failUnlessReallyEqual(res, NEW2_CONTENTS))
 
@@ -3190,24 +3193,24 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         self.failUnlessIn(redir_url, res)
 
     def test_POST_FILEURL_mdmf_check(self):
-        quux_url = "/uri/%s" % urllib.quote(self._quux_txt_uri)
+        quux_url = "/uri/%s" % urlquote(self._quux_txt_uri)
         d = self.POST(quux_url, t="check")
         def _check(res):
             self.failUnlessIn("Healthy", res)
         d.addCallback(_check)
-        quux_extension_url = "/uri/%s" % urllib.quote("%s:3:131073" % self._quux_txt_uri)
+        quux_extension_url = "/uri/%s" % urlquote("%s:3:131073" % self._quux_txt_uri)
         d.addCallback(lambda ignored:
                       self.POST(quux_extension_url, t="check"))
         d.addCallback(_check)
         return d
 
     def test_POST_FILEURL_mdmf_check_and_repair(self):
-        quux_url = "/uri/%s" % urllib.quote(self._quux_txt_uri)
+        quux_url = "/uri/%s" % urlquote(self._quux_txt_uri)
         d = self.POST(quux_url, t="check", repair="true")
         def _check(res):
             self.failUnlessIn("Healthy", res)
         d.addCallback(_check)
-        quux_extension_url = "/uri/%s" % urllib.quote("%s:3:131073" % self._quux_txt_uri)
+        quux_extension_url = "/uri/%s" % urlquote("%s:3:131073" % self._quux_txt_uri)
         d.addCallback(lambda ignored:
                       self.POST(quux_extension_url, t="check", repair="true"))
         d.addCallback(_check)
@@ -3506,7 +3509,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         url = self.webish_url + "/uri?t=mkdir&redirect_to_result=true"
         target = yield self.shouldRedirectTo(url, None, method="post",
                                              code=http.SEE_OTHER)
-        target = urllib.unquote(target)
+        target = urlunquote(target)
         self.failUnless(target.startswith("uri/URI:DIR2:"), target)
 
     @inlineCallbacks
@@ -3516,7 +3519,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
                                              method="post",
                                              data=body, headers=headers,
                                              code=http.SEE_OTHER)
-        target = urllib.unquote(target)
+        target = urlunquote(target)
         self.failUnless(target.startswith("uri/URI:DIR2:"), target)
 
     def _make_readonly(self, u):
@@ -3697,7 +3700,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         target = yield self.shouldRedirectTo(url, None,
                                              method="post",
                                              code=http.SEE_OTHER)
-        target = urllib.unquote(target)
+        target = urlunquote(target)
         self.failUnless(target.startswith("uri/URI:DIR2:"), target)
 
     def test_POST_mkdir_replace(self): # return value?
@@ -4270,7 +4273,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         relbase = "/uri?uri=%s" % self._bar_txt_uri
         base = self.webish_url + relbase
         # this is supposed to give us a redirect to /uri/$URI, plus arguments
-        targetbase = self.webish_url + "/uri/%s" % urllib.quote(self._bar_txt_uri)
+        targetbase = self.webish_url + "/uri/%s" % urlquote(self._bar_txt_uri)
         yield self.shouldRedirectTo(base, targetbase)
         yield self.shouldRedirectTo(base+"&filename=bar.txt",
                                     targetbase+"?filename=bar.txt")
@@ -4524,7 +4527,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d.addCallback(_check1)
         def _check2(data):
             self.failUnlessReallyEqual(data, file_contents)
-            return self.GET("/uri/%s" % urllib.quote(self.filecap))
+            return self.GET("/uri/%s" % urlquote(self.filecap))
         d.addCallback(_check2)
         def _check3(res):
             self.failUnlessReallyEqual(res, file_contents)
@@ -4772,7 +4775,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         response = yield req("POST", "/uri?format=sdmf&t=mkdir")
         dircap = yield response.content()
         assert dircap.startswith('URI:DIR2:')
-        dircap_uri = "/uri/?uri={}&t=json".format(urllib.quote(dircap))
+        dircap_uri = "/uri/?uri={}&t=json".format(urlquote(dircap))
 
         response = yield req(
             "GET",
@@ -4780,7 +4783,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         )
         self.assertEqual(
             response.request.absoluteURI,
-            self.webish_url + "/uri/{}?t=json".format(urllib.quote(dircap)))
+            self.webish_url + "/uri/{}?t=json".format(urlquote(dircap)))
         if response.code >= 400:
             raise Error(response.code, response=response.content())
 
