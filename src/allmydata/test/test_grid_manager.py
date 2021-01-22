@@ -129,8 +129,15 @@ class GridManagerUtilities(SyncTestCase):
         config = config_from_string("/foo", "portnum", config_data, client_valid_config())
         with self.assertRaises(ValueError) as ctx:
             certs = config.get_grid_manager_certificates()
+        # we don't reliably know how Windows or MacOS will represent
+        # the path in the exception, so we don't check for the *exact*
+        # message with full-path here..
         self.assertIn(
-            "Grid Manager certificate file '{}' doesn't exist".format(cert_path),
+            "Grid Manager certificate file",
+            str(ctx.exception)
+        )
+        self.assertIn(
+            " doesn't exist",
             str(ctx.exception)
         )
 
