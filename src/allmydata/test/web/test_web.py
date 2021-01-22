@@ -503,7 +503,7 @@ class WebMixin(TimezoneMixin):
                               u"blockingfile", u"empty", u"n\u00fc.txt", u"quux.txt", u"sub"])
         kids = dict( [(unicode(name),value)
                       for (name,value)
-                      in data[1]["children"].iteritems()] )
+                      in data[1]["children"].items()] )
         self.failUnlessEqual(kids[u"sub"][0], "dirnode")
         self.failUnlessIn("metadata", kids[u"sub"][1])
         self.failUnlessIn("tahoe", kids[u"sub"][1]["metadata"])
@@ -576,7 +576,7 @@ class WebMixin(TimezoneMixin):
         form.append('')
         form.append('UTF-8')
         form.append(sep)
-        for name, value in fields.iteritems():
+        for name, value in fields.items():
             if isinstance(value, tuple):
                 filename, value = value
                 form.append('Content-Disposition: form-data; name="%s"; '
@@ -2027,7 +2027,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
                 for td in soup.find_all(u"td", {u"align": u"right"})
             )
         )
-        foo_url = urlquote("{}/uri/{}/".format(root, self._foo_uri))
+        foo_url = urlquote("{}/uri/{}/".format(root, unicode(self._foo_uri, "ascii")))
         forms = soup.find_all(u"form", {u"action": foo_url})
         found = []
         for form in forms:
@@ -2076,7 +2076,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         # look at an empty directory
         data = yield self.GET(self.public_url + "/foo/empty")
         soup = BeautifulSoup(data, 'html5lib')
-        self.failUnlessIn("directory is empty", data)
+        self.failUnlessIn(b"directory is empty", data)
         mkdir_inputs = soup.find_all(u"input", {u"type": u"hidden", u"name": u"t", u"value": u"mkdir"})
         self.assertEqual(1, len(mkdir_inputs))
         self.assertEqual(
@@ -2103,7 +2103,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
     @inlineCallbacks
     def test_GET_DIRURL_badtype(self):
         url = self.webish_url + self.public_url + "/foo?t=bogus"
-        yield self.assertHTTPError(url, 400, "bad t=bogus")
+        yield self.assertHTTPError(url, 400, b"bad t=bogus")
 
     def test_GET_DIRURL_json(self):
         d = self.GET(self.public_url + "/foo?t=json")
@@ -2251,7 +2251,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
                         "largest-immutable-file": 19,
                         "api-version": 1,
                         }
-            for k,v in expected.iteritems():
+            for k,v in expected.items():
                 self.failUnlessReallyEqual(stats[k], v,
                                            "stats[%s] was %s, not %s" %
                                            (k, stats[k], v))
@@ -2948,7 +2948,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             self.failUnlessEqual(parsed[0], "dirnode")
             children = dict( [(unicode(name),value)
                               for (name,value)
-                              in parsed[1]["children"].iteritems()] )
+                              in parsed[1]["children"].items()] )
             self.failUnlessIn(u"new.txt", children)
             new_json = children[u"new.txt"]
             self.failUnlessEqual(new_json[0], "filenode")
