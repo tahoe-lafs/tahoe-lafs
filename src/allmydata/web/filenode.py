@@ -475,8 +475,8 @@ class FileDownloader(Resource, object):
                     size = contentsize
 
         req.setHeader("content-length", b"%d" % contentsize)
-        if req.method == "HEAD":
-            return ""
+        if req.method == b"HEAD":
+            return b""
 
         d = self.filenode.read(req, first, size)
 

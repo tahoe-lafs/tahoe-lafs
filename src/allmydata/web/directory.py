@@ -135,7 +135,7 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
         terminal = (req.prepath + req.postpath)[-1].decode('utf8') == name
         nonterminal = not terminal  #len(req.postpath) > 0
 
-        t = get_arg(req, b"t", b"").strip()
+        t = unicode(get_arg(req, b"t", b"").strip(), "ascii")
         if isinstance(node_or_failure, Failure):
             f = node_or_failure
             f.trap(NoSuchChildError)
@@ -150,10 +150,10 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
             else:
                 # terminal node
                 terminal_requests = (
-                    ("POST", "mkdir"),
-                    ("PUT", "mkdir"),
-                    ("POST", "mkdir-with-children"),
-                    ("POST", "mkdir-immutable")
+                    (b"POST", "mkdir"),
+                    (b"PUT", "mkdir"),
+                    (b"POST", "mkdir-with-children"),
+                    (b"POST", "mkdir-immutable")
                 )
                 if (req.method, t) in terminal_requests:
                     # final directory
@@ -182,8 +182,8 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
                     )
                     return d
                 leaf_requests = (
-                    ("PUT",""),
-                    ("PUT","uri"),
+                    (b"PUT",""),
+                    (b"PUT","uri"),
                 )
                 if (req.method, t) in leaf_requests:
                     # we were trying to find the leaf filenode (to put a new
@@ -255,7 +255,7 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
 
     @render_exception
     def render_PUT(self, req):
-        t = get_arg(req, b"t", b"").strip()
+        t = unicode(get_arg(req, b"t", b"").strip(), "ascii")
         replace = parse_replace_arg(get_arg(req, "replace", "true"))
 
         if t == "mkdir":

@@ -636,7 +636,7 @@ class WebMixin(TimezoneMixin):
                                        getattr(res.value, "response", ""),
                                        which))
                 if response_substring:
-                    self.failUnlessIn(response_substring, res.value.response,
+                    self.failUnlessIn(response_substring, unicode(res.value.response, "utf-8"),
                                       "'%s' not in '%s' for test '%s'" % \
                                       (response_substring, res.value.response,
                                        which))
@@ -2054,8 +2054,8 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
     def test_GET_DIRURL_readonly(self):
         # look at a readonly directory
         data = yield self.GET(self.public_url + "/reedownlee", followRedirect=True)
-        self.failUnlessIn("(read-only)", data)
-        self.failIfIn("Upload a file", data)
+        self.failUnlessIn(b"(read-only)", data)
+        self.failIfIn(b"Upload a file", data)
 
     @inlineCallbacks
     def test_GET_DIRURL_readonly_dir(self):
@@ -2090,7 +2090,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         tiny_litdir_uri = "URI:DIR2-LIT:gqytunj2onug64tufqzdcosvkjetutcjkq5gw4tvm5vwszdgnz5hgyzufqydulbshj5x2lbm" # contains one child which is itself also LIT
         data = yield self.GET("/uri/" + tiny_litdir_uri, followRedirect=True)
         soup = BeautifulSoup(data, 'html5lib')
-        self.failUnlessIn('(immutable)', data)
+        self.failUnlessIn(b'(immutable)', data)
         file_links = list(
             td.findNextSibling()(u"a")[0]
             for td in soup.find_all(u"td")

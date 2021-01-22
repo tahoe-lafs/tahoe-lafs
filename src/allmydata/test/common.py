@@ -859,6 +859,8 @@ class WebErrorMixin(object):
         body = yield response.content()
         self.assertEquals(response.code, code)
         if response_substring is not None:
+            if isinstance(response_substring, unicode):
+                response_substring = response_substring.encode("utf-8")
             self.assertIn(response_substring, body)
         returnValue(body)
 

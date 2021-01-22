@@ -106,7 +106,7 @@ class OphandleTable(resource.Resource, service.Service):
         (monitor, renderer, when_added) = self.handles[ophandle]
 
         t = get_arg(req, "t", "status")
-        if t == "cancel" and req.method == "POST":
+        if t == "cancel" and req.method == b"POST":
             monitor.cancel()
             # return the status anyways, but release the handle
             self._release_ophandle(ophandle)

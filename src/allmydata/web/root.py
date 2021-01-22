@@ -177,7 +177,7 @@ class FileHandler(resource.Resource, object):
 
     @exception_to_child
     def getChild(self, name, req):
-        if req.method not in ("GET", "HEAD"):
+        if req.method not in (b"GET", b"HEAD"):
             raise WebError("/file can only be used with GET or HEAD")
         # 'name' must be a file URI
         try:
@@ -200,7 +200,7 @@ class IncidentReporter(MultiFormatResource):
 
     @render_exception
     def render(self, req):
-        if req.method != "POST":
+        if req.method != b"POST":
             raise WebError("/report_incident can only be used with POST")
 
         log.msg(format="User reports incident through web page: %(details)s",

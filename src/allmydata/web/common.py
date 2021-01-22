@@ -283,8 +283,8 @@ def render_time_attr(t):
 # actual exception). The latter is growing increasingly annoying.
 
 def should_create_intermediate_directories(req):
-    t = get_arg(req, "t", "").strip()
-    return bool(req.method in ("PUT", "POST") and
+    t = unicode(get_arg(req, "t", "").strip(), "ascii")
+    return bool(req.method in (b"PUT", b"POST") and
                 t not in ("delete", "rename", "rename-form", "check"))
 
 def humanize_exception(exc):
