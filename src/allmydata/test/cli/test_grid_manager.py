@@ -4,6 +4,9 @@ import json
 from io import (
     BytesIO,
 )
+from unittest import (
+    skipIf,
+)
 
 from ..common import (
     SyncTestCase,
@@ -24,6 +27,9 @@ from twisted.internet.defer import (
 )
 from twisted.python.filepath import (
     FilePath,
+)
+from twisted.python.runtime import (
+    platform,
 )
 
 
@@ -206,6 +212,7 @@ class GridManagerCommandLine(SyncTestCase):
                 result.output,
             )
 
+    @skipIf(not platform.isLinux(), "I only know how permissions work on linux")
     def test_sign_bad_perms(self):
         """
         Error reported if we can't create certificate file
