@@ -681,7 +681,7 @@ class IURI(Interface):
         passing into init_from_string."""
 
 
-class IVerifierURI(Interface, IURI):
+class IVerifierURI(IURI):
     def init_from_string(uri):
         """Accept a string (as created by my to_string() method) and populate
         this instance with its data. I am not normally called directly,
@@ -748,7 +748,7 @@ class IProgress(Interface):
         "Current amount of progress (in percentage)"
     )
 
-    def set_progress(self, value):
+    def set_progress(value):
         """
         Sets the current amount of progress.
 
@@ -756,7 +756,7 @@ class IProgress(Interface):
         set_progress_total.
         """
 
-    def set_progress_total(self, value):
+    def set_progress_total(value):
         """
         Sets the total amount of expected progress
 
@@ -857,12 +857,6 @@ class IPeerSelector(Interface):
         Update my internal state to reflect the fact that peer peerid
         holds share shnum. Called for shares that are detected before
         peer selection begins.
-        """
-
-    def confirm_share_allocation(peerid, shnum):
-        """
-        Confirm that an allocated peer=>share pairing has been
-        successfully established.
         """
 
     def add_peers(peerids=set):
@@ -1823,11 +1817,6 @@ class IEncoder(Interface):
     given a dict of RemoteReferences to storage buckets that are ready and
     willing to receive data.
     """
-
-    def set_size(size):
-        """Specify the number of bytes that will be encoded. This must be
-        peformed before get_serialized_params() can be called.
-        """
 
     def set_encrypted_uploadable(u):
         """Provide a source of encrypted upload data. 'u' must implement
