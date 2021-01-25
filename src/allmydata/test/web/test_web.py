@@ -1883,7 +1883,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         # file is SDMF or MDMF
         d = self.PUT("/uri?format=mdmf",
                      self.NEWFILE_CONTENTS * 300000)
-        d.addCallback(lambda filecap: self.GET("/uri/%s?t=json" % filecap))
+        d.addCallback(lambda filecap: self.GET("/uri/%s?t=json" % unicode(filecap, "ascii")))
         def _got_json(raw, version):
             data = json.loads(raw)
             assert "filenode" == data[0]
@@ -1898,12 +1898,12 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d.addCallback(lambda ignored:
             self.PUT("/uri?format=sdmf",
                       self.NEWFILE_CONTENTS * 300000))
-        d.addCallback(lambda filecap: self.GET("/uri/%s?t=json" % filecap))
+        d.addCallback(lambda filecap: self.GET("/uri/%s?t=json" % unicode(filecap, "ascii")))
         d.addCallback(_got_json, "SDMF")
         return d
 
     def test_GET_FILEURL_json_mdmf(self):
-        d = self.GET("/uri/%s?t=json" % urlquote(self._quux_txt_uri))
+        d = self.GET("/uri/%s?t=json" % urlquote(unicode(self._quux_txt_uri, "ascii")))
         d.addCallback(self.failUnlessIsQuuxJSON)
         return d
 

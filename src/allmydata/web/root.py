@@ -1,4 +1,5 @@
 from future.utils import PY3
+from past.builtins import unicode
 
 import os
 import time
@@ -97,7 +98,7 @@ class URIHandler(resource.Resource, object):
         either "PUT /uri" to create an unlinked file, or
         "PUT /uri?t=mkdir" to create an unlinked directory
         """
-        t = get_arg(req, "t", "").strip()
+        t = unicode(get_arg(req, "t", "").strip(), "utf-8")
         if t == "":
             file_format = get_format(req, "CHK")
             mutable_type = get_mutable_type(file_format)
