@@ -1644,35 +1644,35 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         return d
 
     def test_GET_FILEURL_info_mdmf(self):
-        d = self.GET("/uri/%s?t=info" % self._quux_txt_uri)
+        d = self.GET("/uri/%s?t=info" % unicode(self._quux_txt_uri, "ascii"))
         def _got(res):
-            self.failUnlessIn("mutable file (mdmf)", res)
+            self.failUnlessIn(b"mutable file (mdmf)", res)
             self.failUnlessIn(self._quux_txt_uri, res)
             self.failUnlessIn(self._quux_txt_readonly_uri, res)
         d.addCallback(_got)
         return d
 
     def test_GET_FILEURL_info_mdmf_readonly(self):
-        d = self.GET("/uri/%s?t=info" % self._quux_txt_readonly_uri)
+        d = self.GET("/uri/%s?t=info" % unicode(self._quux_txt_readonly_uri, "ascii"))
         def _got(res):
-            self.failUnlessIn("mutable file (mdmf)", res)
+            self.failUnlessIn(b"mutable file (mdmf)", res)
             self.failIfIn(self._quux_txt_uri, res)
             self.failUnlessIn(self._quux_txt_readonly_uri, res)
         d.addCallback(_got)
         return d
 
     def test_GET_FILEURL_info_sdmf(self):
-        d = self.GET("/uri/%s?t=info" % self._baz_txt_uri)
+        d = self.GET("/uri/%s?t=info" % unicode(self._baz_txt_uri, "ascii"))
         def _got(res):
-            self.failUnlessIn("mutable file (sdmf)", res)
+            self.failUnlessIn(b"mutable file (sdmf)", res)
             self.failUnlessIn(self._baz_txt_uri, res)
         d.addCallback(_got)
         return d
 
     def test_GET_FILEURL_info_mdmf_extensions(self):
-        d = self.GET("/uri/%s:STUFF?t=info" % self._quux_txt_uri)
+        d = self.GET("/uri/%s:STUFF?t=info" % unicode(self._quux_txt_uri, "ascii"))
         def _got(res):
-            self.failUnlessIn("mutable file (mdmf)", res)
+            self.failUnlessIn(b"mutable file (mdmf)", res)
             self.failUnlessIn(self._quux_txt_uri, res)
             self.failUnlessIn(self._quux_txt_readonly_uri, res)
         d.addCallback(_got)
