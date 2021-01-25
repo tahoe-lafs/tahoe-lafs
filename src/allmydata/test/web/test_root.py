@@ -1,7 +1,20 @@
+"""
+Ported to Python 3.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+
 import time
 
-
-from six.moves.urllib.parse import quote
+from urllib.parse import (
+    quote,
+)
 
 from bs4 import (
     BeautifulSoup,
@@ -76,7 +89,7 @@ class RenderSlashUri(unittest.TestCase):
         )
         self.assertEqual(
             response_body,
-            "Invalid capability",
+            b"Invalid capability",
         )
 
 
@@ -91,7 +104,7 @@ class RenderServiceRow(unittest.TestCase):
         ann = {"anonymous-storage-FURL": "pb://w2hqnbaa25yw4qgcvghl5psa3srpfgw3@tcp:127.0.0.1:51309/vucto2z4fxment3vfxbqecblbf6zyp6x",
                "permutation-seed-base32": "w2hqnbaa25yw4qgcvghl5psa3srpfgw3",
                }
-        srv = NativeStorageServer("server_id", ann, None, {}, EMPTY_CLIENT_CONFIG)
+        srv = NativeStorageServer(b"server_id", ann, None, {}, EMPTY_CLIENT_CONFIG)
         srv.get_connection_status = lambda: ConnectionStatus(False, "summary", {}, 0, 0)
 
         class FakeClient(_Client):
@@ -102,7 +115,7 @@ class RenderServiceRow(unittest.TestCase):
                     tub_maker=None,
                     node_config=EMPTY_CLIENT_CONFIG,
                 )
-                self.storage_broker.test_add_server("test-srv", srv)
+                self.storage_broker.test_add_server(b"test-srv", srv)
 
         root = RootElement(FakeClient(), time.time)
         req = DummyRequest(b"")
