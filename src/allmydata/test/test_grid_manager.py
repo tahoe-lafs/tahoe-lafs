@@ -108,7 +108,7 @@ class GridManagerUtilities(SyncTestCase):
         )
         config = config_from_string("/foo", "portnum", config_data, client_valid_config())
         with self.assertRaises(ValueError) as ctx:
-            certs = config.get_grid_manager_certificates()
+            config.get_grid_manager_certificates()
 
         self.assertIn(
             "Unknown key in Grid Manager certificate",
@@ -128,7 +128,7 @@ class GridManagerUtilities(SyncTestCase):
         )
         config = config_from_string("/foo", "portnum", config_data, client_valid_config())
         with self.assertRaises(ValueError) as ctx:
-            certs = config.get_grid_manager_certificates()
+            config.get_grid_manager_certificates()
         # we don't reliably know how Windows or MacOS will represent
         # the path in the exception, so we don't check for the *exact*
         # message with full-path here..

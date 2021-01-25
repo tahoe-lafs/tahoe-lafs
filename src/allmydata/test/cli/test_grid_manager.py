@@ -139,8 +139,8 @@ class GridManagerCommandLine(SyncTestCase):
         with self.runner.isolated_filesystem():
             self.runner.invoke(grid_manager, ["--config", "foo", "create"])
             self.runner.invoke(grid_manager, ["--config", "foo", "add", "storage0", pubkey])
-            result = self.runner.invoke(grid_manager, ["--config", "foo", "sign", "storage0", "10"])
-            result = self.runner.invoke(grid_manager, ["--config", "foo", "sign", "storage0", "10"])
+            self.runner.invoke(grid_manager, ["--config", "foo", "sign", "storage0", "10"])
+            self.runner.invoke(grid_manager, ["--config", "foo", "sign", "storage0", "10"])
             # we should now have two certificates stored
             self.assertEqual(
                 set(FilePath("foo").listdir()),

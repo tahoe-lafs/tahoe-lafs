@@ -1,7 +1,6 @@
 import json
 from io import (
     BytesIO,
-    StringIO,
 )
 
 from twisted.python.usage import (
@@ -12,8 +11,6 @@ from twisted.python.filepath import (
 )
 
 from allmydata.scripts.admin import (
-    AdminCommand,
-    AddGridManagerCertOptions,
     add_grid_manager_cert,
 )
 from allmydata.scripts.runner import (
@@ -69,7 +66,7 @@ class AddCertificateOptions(SyncTestCase):
             json.dump(fake_cert, f)
 
         # certificate should be loaded
-        o = self.tahoe.parseOptions(
+        self.tahoe.parseOptions(
             [
                 "admin", "add-grid-manager-cert",
                 "--name", "random-name",
