@@ -19,9 +19,6 @@ except ImportError:
     pass
 
 import os, time, weakref, itertools
-from functools import (
-    partial,
-)
 
 import attr
 
@@ -1076,8 +1073,18 @@ class EncryptAnUploadable(object):
         d.addCallback(lambda ignored: self._get_encryptor())
 
         accum = _Accum(length)
-        action = partial(self._read_encrypted, accum, hash_only)
-        condition = lambda: accum.remaining == 0
+
+        def action():
+            """
+            Read some bytes into the accumulator.
+            """
+            return self._read_encrypted(accum, hash_only)
+
+        def condition():
+            """
+            Check to see if the accumulator has all the data.
+            """
+            return accum.remaining == 0
 
         d.addCallback(lambda ignored: until(action, condition))
         d.addCallback(lambda ignored: accum.ciphertext)
