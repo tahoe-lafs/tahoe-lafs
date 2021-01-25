@@ -949,6 +949,10 @@ class EncryptAnUploadable(object):
     CHUNKSIZE = 50*1024
 
     def __init__(self, original, log_parent=None, progress=None, chunk_size=None):
+        """
+        :param chunk_size: The number of bytes to read from the uploadable at a
+            time, or None for some default.
+        """
         precondition(original.default_params_set,
                      "set_default_encoding_parameters not called on %r before wrapping with EncryptAnUploadable" % (original,))
         self.original = IUploadable(original)
