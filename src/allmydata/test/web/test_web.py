@@ -481,9 +481,9 @@ class WebMixin(TimezoneMixin):
             self.failIfIn("rw_uri", metadata)
         else:
             self.failUnlessIn("rw_uri", metadata)
-            self.failUnlessEqual(metadata['rw_uri'], self._quux_txt_uri)
+            self.failUnlessEqual(metadata['rw_uri'], unicode(self._quux_txt_uri, "ascii"))
         self.failUnlessIn("ro_uri", metadata)
-        self.failUnlessEqual(metadata['ro_uri'], self._quux_txt_readonly_uri)
+        self.failUnlessEqual(metadata['ro_uri'], unicode(self._quux_txt_readonly_uri, "ascii"))
         self.failUnlessReallyEqual(metadata['size'], len(self.QUUX_CONTENTS))
 
     def failUnlessIsFooJSON(self, res):
