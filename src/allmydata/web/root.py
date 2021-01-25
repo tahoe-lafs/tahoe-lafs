@@ -121,7 +121,7 @@ class URIHandler(resource.Resource, object):
         unlinked file or "POST /uri?t=mkdir" to create a
         new directory
         """
-        t = get_arg(req, "t", "").strip()
+        t = unicode(get_arg(req, "t", "").strip(), "ascii")
         if t in ("", "upload"):
             file_format = get_format(req)
             mutable_type = get_mutable_type(file_format)

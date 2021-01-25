@@ -439,7 +439,7 @@ class FileDownloader(Resource, object):
             # bytes we were given in the URL. See the comment in
             # FileNodeHandler.render_GET for the sad details.
             req.setHeader("content-disposition",
-                          'attachment; filename="%s"' % self.filename)
+                          b'attachment; filename="%s"' % self.filename)
 
         filesize = self.filenode.get_size()
         assert isinstance(filesize, (int,long)), filesize

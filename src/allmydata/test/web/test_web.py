@@ -3,7 +3,6 @@ from __future__ import print_function
 from past.builtins import unicode
 
 import os.path, re, time
-import json
 import treq
 from urllib.parse import quote as urlquote, unquote as urlunquote
 
@@ -26,7 +25,7 @@ from allmydata.immutable.downloader.status import DownloadStatus
 from allmydata.dirnode import DirectoryNode
 from allmydata.nodemaker import NodeMaker
 from allmydata.web.common import MultiFormatResource
-from allmydata.util import fileutil, base32, hashutil
+from allmydata.util import fileutil, base32, hashutil, jsonbytes as json
 from allmydata.util.consumer import download_to_data
 from allmydata.util.encodingutil import to_bytes
 from ...util.connection_status import ConnectionStatus
@@ -1465,19 +1464,19 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         return d
 
     def test_GET_FILE_URI_mdmf_extensions(self):
-        base = "/uri/%s" % urlquote("%s:RANDOMSTUFF" % self._quux_txt_uri)
+        base = "/uri/%s" % urlquote("%s:RANDOMSTUFF" % unicode(self._quux_txt_uri, "ascii"))
         d = self.GET(base)
         d.addCallback(self.failUnlessIsQuuxDotTxt)
         return d
 
     def test_GET_FILE_URI_mdmf_readonly(self):
-        base = "/uri/%s" % urlquote(self._quux_txt_readonly_uri)
+        base = "/uri/%s" % urlquote(unicode(self._quux_txt_readonly_uri, "ascii"))
         d = self.GET(base)
         d.addCallback(self.failUnlessIsQuuxDotTxt)
         return d
 
     def test_GET_FILE_URI_badchild(self):
-        base = "/uri/%s/boguschild" % urlquote(self._bar_txt_uri)
+        base = "/uri/%s/boguschild" % urlquote(unicode(self._bar_txt_uri, "ascii"))
         errmsg = "Files have no children named 'boguschild'"
         d = self.shouldFail2(error.Error, "test_GET_FILE_URI_badchild",
                              "400 Bad Request", errmsg,
@@ -1485,7 +1484,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         return d
 
     def test_PUT_FILE_URI_badchild(self):
-        base = "/uri/%s/boguschild" % urlquote(self._bar_txt_uri)
+        base = "/uri/%s/boguschild" % urlquote(unicode(self._bar_txt_uri, "ascii"))
         errmsg = "Cannot create directory 'boguschild', because its parent is a file, not a directory"
         d = self.shouldFail2(error.Error, "test_GET_FILE_URI_badchild",
                              "409 Conflict", errmsg,
@@ -1493,7 +1492,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         return d
 
     def test_PUT_FILE_URI_mdmf(self):
-        base = "/uri/%s" % urlquote(self._quux_txt_uri)
+        base = "/uri/%s" % urlquote(unicode(self._quux_txt_uri, "ascii"))
         self._quux_new_contents = "new_contents"
         d = self.GET(base)
         d.addCallback(lambda res:
@@ -1507,8 +1506,8 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         return d
 
     def test_PUT_FILE_URI_mdmf_extensions(self):
-        base = "/uri/%s" % urlquote("%s:EXTENSIONSTUFF" % self._quux_txt_uri)
-        self._quux_new_contents = "new_contents"
+        base = "/uri/%s" % urlquote("%s:EXTENSIONSTUFF" % unicode(self._quux_txt_uri, "ascii"))
+        self._quux_new_contents = b"new_contents"
         d = self.GET(base)
         d.addCallback(lambda res: self.failUnlessIsQuuxDotTxt(res))
         d.addCallback(lambda ignored: self.PUT(base, self._quux_new_contents))
@@ -1519,7 +1518,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
 
     def test_PUT_FILE_URI_mdmf_readonly(self):
         # We're not allowed to PUT things to a readonly cap.
-        base = "/uri/%s" % self._quux_txt_readonly_uri
+        base = "/uri/%s" % unicode(self._quux_txt_readonly_uri, "ascii")
         d = self.GET(base)
         d.addCallback(lambda res:
             self.failUnlessIsQuuxDotTxt(res))
@@ -1532,7 +1531,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
 
     def test_PUT_FILE_URI_sdmf_readonly(self):
         # We're not allowed to put things to a readonly cap.
-        base = "/uri/%s" % self._baz_txt_readonly_uri
+        base = "/uri/%s" % unicode(self._baz_txt_readonly_uri, "ascii")
         d = self.GET(base)
         d.addCallback(lambda res:
             self.failUnlessIsBazDotTxt(res))
@@ -1583,7 +1582,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
 
         # use the ETag on GET
         def _check_match(ign):
-            uri = "/uri/%s" % self._bar_txt_uri
+            uri = "/uri/%s" % unicode(self._bar_txt_uri, "ascii")
             d = self.GET(uri, return_response=True)
             # extract the ETag
             d.addCallback(lambda data_code_headers:
@@ -4265,12 +4264,12 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         self.assertIn(response.code, codes)
         location = response.headers.getRawHeaders(b"location")[0]
         if target_location is not None:
-            self.assertEquals(location, target_location)
+            self.assertEquals(unicode(location, "ascii"), target_location)
         returnValue(location)
 
     @inlineCallbacks
     def test_GET_URI_form(self):
-        relbase = "/uri?uri=%s" % self._bar_txt_uri
+        relbase = "/uri?uri=%s" % unicode(self._bar_txt_uri, "ascii")
         base = self.webish_url + relbase
         # this is supposed to give us a redirect to /uri/$URI, plus arguments
         targetbase = self.webish_url + "/uri/%s" % urlquote(self._bar_txt_uri)
@@ -4284,7 +4283,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         data = yield self.GET(relbase, followRedirect=True)
         self.failUnlessIsBarDotTxt(data)
         self.log(None, "got file by uri, about to get dir by uri")
-        data = yield self.GET("/uri?uri=%s&t=json" % self._foo_uri,
+        data = yield self.GET("/uri?uri=%s&t=json" % unicode(self._foo_uri, "ascii"),
                               followRedirect=True)
         self.failUnlessIsFooJSON(data)
         self.log(None, "got dir by uri")
@@ -4318,7 +4317,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         return res
 
     def test_GET_URI_URL(self):
-        base = "/uri/%s" % self._bar_txt_uri
+        base = "/uri/%s" % unicode(self._bar_txt_uri, "ascii")
         d = self.GET(base)
         d.addCallback(self.failUnlessIsBarDotTxt)
         d.addCallback(lambda res: self.GET(base+"?filename=bar.txt"))
@@ -4328,14 +4327,14 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         return d
 
     def test_GET_URI_URL_dir(self):
-        base = "/uri/%s?t=json" % self._foo_uri
+        base = "/uri/%s?t=json" % unicode(self._foo_uri, "ascii")
         d = self.GET(base)
         d.addCallback(self.failUnlessIsFooJSON)
         return d
 
     @inlineCallbacks
     def test_GET_URI_URL_missing(self):
-        base = "/uri/%s" % self._bad_file_uri
+        base = "/uri/%s" % unicode(self._bad_file_uri, "ascii")
         url = self.webish_url + base
         yield self.assertHTTPError(url, http.GONE, "NotEnoughSharesError")
         # TODO: how can we exercise both sides of WebDownloadTarget.fail
