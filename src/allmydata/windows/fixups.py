@@ -168,7 +168,12 @@ def initialize():
     # Instead it "mangles" or escapes them using \x7F as an escape character, which we
     # unescape here.
     def unmangle(s):
-        return re.sub(u'\\x7F[0-9a-fA-F]*\\;', lambda m: unichr(int(m.group(0)[1:-1], 16)), s)
+        return re.sub(
+            u'\\x7F[0-9a-fA-F]*\\;',
+            # type ignored for 'unichr' (Python 2 only)
+            lambda m: unichr(int(m.group(0)[1:-1], 16)),  # type: ignore
+            s,
+        )
 
     argv_unicode = get_argv()
     try:

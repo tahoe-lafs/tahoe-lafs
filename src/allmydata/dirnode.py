@@ -568,7 +568,7 @@ class DirectoryNode(object):
         d = self.get_child_and_metadata(childnamex)
         return d
 
-    def set_uri(self, namex, writecap, readcap, metadata=None, overwrite=True):
+    def set_uri(self, namex, writecap, readcap=None, metadata=None, overwrite=True):
         precondition(isinstance(writecap, (bytes, type(None))), writecap)
         precondition(isinstance(readcap, (bytes, type(None))), readcap)
 
