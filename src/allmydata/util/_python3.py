@@ -114,6 +114,7 @@ PORTED_MODULES = [
     "allmydata.util.spans",
     "allmydata.util.statistics",
     "allmydata.util.time_format",
+    "allmydata.web.logs",
     "allmydata.webish",
 ]
 
@@ -187,6 +188,10 @@ PORTED_TEST_MODULES = [
     "allmydata.test.test_util",
     "allmydata.test.web.test_common",
     "allmydata.test.web.test_grid",
+    "allmydata.test.web.test_introducer",
+    "allmydata.test.web.test_logs",
+    "allmydata.test.web.test_private",
+    "allmydata.test.web.test_root",
     "allmydata.test.web.test_status",
     "allmydata.test.web.test_util",
     "allmydata.test.web.test_webish",

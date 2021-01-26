@@ -2032,10 +2032,11 @@ potential for surprises when the file store structure is changed.
 
 Tahoe-LAFS provides a mutable file store, but the ways that the store can
 change are limited. The only things that can change are:
- * the mapping from child names to child objects inside mutable directories
-   (by adding a new child, removing an existing child, or changing an
-   existing child to point to a different object)
- * the contents of mutable files
+
+* the mapping from child names to child objects inside mutable directories
+  (by adding a new child, removing an existing child, or changing an
+  existing child to point to a different object)
+* the contents of mutable files
 
 Obviously if you query for information about the file store and then act
 to change it (such as by getting a listing of the contents of a mutable
