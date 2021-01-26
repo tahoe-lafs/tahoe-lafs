@@ -81,7 +81,6 @@ Client/server nodes provide one or more of the following services:
 
 * web-API service
 * SFTP service
-* FTP service
 * helper service
 * storage service.
 
@@ -365,7 +364,7 @@ set the ``tub.location`` option described below.
     also generally reduced when operating in private mode.
 
     When False, any of the following configuration problems will cause
-    ``tahoe start`` to throw a PrivacyError instead of starting the node:
+    ``tahoe run`` to throw a PrivacyError instead of starting the node:
 
     * ``[node] tub.location`` contains any ``tcp:`` hints
 
@@ -708,12 +707,12 @@ CLI
     file store, uploading/downloading files, and creating/running Tahoe
     nodes. See :doc:`frontends/CLI` for details.
 
-SFTP, FTP
+SFTP
 
-    Tahoe can also run both SFTP and FTP servers, and map a username/password
+    Tahoe can also run SFTP servers, and map a username/password
     pair to a top-level Tahoe directory. See :doc:`frontends/FTP-and-SFTP`
-    for instructions on configuring these services, and the ``[sftpd]`` and
-    ``[ftpd]`` sections of ``tahoe.cfg``.
+    for instructions on configuring this service, and the ``[sftpd]``
+    section of ``tahoe.cfg``.
 
 
 Storage Server Configuration

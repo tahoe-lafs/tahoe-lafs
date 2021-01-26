@@ -1,4 +1,5 @@
 from past.builtins import unicode
+from six import ensure_text, ensure_str
 
 import time
 import json
@@ -99,17 +100,19 @@ def get_filenode_metadata(filenode):
 
 def boolean_of_arg(arg):
     # TODO: ""
+    arg = ensure_text(arg)
     if arg.lower() not in ("true", "t", "1", "false", "f", "0", "on", "off"):
         raise WebError("invalid boolean argument: %r" % (arg,), http.BAD_REQUEST)
     return arg.lower() in ("true", "t", "1", "on")
 
 def parse_replace_arg(replace):
+    replace = ensure_text(replace)
     if replace.lower() == "only-files":
         return replace
     try:
         return boolean_of_arg(replace)
     except WebError:
-        raise WebError("invalid replace= argument: %r" % (replace,), http.BAD_REQUEST)
+        raise WebError("invalid replace= argument: %r" % (ensure_str(replace),), http.BAD_REQUEST)
 
 
 def get_format(req, default="CHK"):
@@ -118,11 +121,11 @@ def get_format(req, default="CHK"):
         if boolean_of_arg(get_arg(req, "mutable", "false")):
             return "SDMF"
         return default
-    if arg.upper() == "CHK":
+    if arg.upper() == b"CHK":
         return "CHK"
-    elif arg.upper() == "SDMF":
+    elif arg.upper() == b"SDMF":
         return "SDMF"
-    elif arg.upper() == "MDMF":
+    elif arg.upper() == b"MDMF":
         return "MDMF"
     else:
         raise WebError("Unknown format: %s, I know CHK, SDMF, MDMF" % arg,
@@ -208,28 +211,44 @@ def compute_rate(bytes, seconds):
     return 1.0 * bytes / seconds
 
 def abbreviate_rate(data):
-    # 21.8kBps, 554.4kBps 4.37MBps
+    """
+    Convert number of bytes/second into human readable strings (unicode).
+
+    Uses metric measures, so 1000 not 1024, e.g. 21.8kBps, 554.4kBps, 4.37MBps.
+
+    :param data: Either ``None`` or integer.
+
+    :return: Unicode string.
+    """
     if data is None:
-        return ""
+        return u""
     r = float(data)
     if r > 1000000:
-        return "%1.2fMBps" % (r/1000000)
+        return u"%1.2fMBps" % (r/1000000)
     if r > 1000:
-        return "%.1fkBps" % (r/1000)
-    return "%.0fBps" % r
+        return u"%.1fkBps" % (r/1000)
+    return u"%.0fBps" % r
 
 def abbreviate_size(data):
-    # 21.8kB, 554.4kB 4.37MB
+    """
+    Convert number of bytes into human readable strings (unicode).
+
+    Uses metric measures, so 1000 not 1024, e.g. 21.8kB, 554.4kB, 4.37MB.
+
+    :param data: Either ``None`` or integer.
+
+    :return: Unicode string.
+    """
     if data is None:
-        return ""
+        return u""
     r = float(data)
     if r > 1000000000:
-        return "%1.2fGB" % (r/1000000000)
+        return u"%1.2fGB" % (r/1000000000)
     if r > 1000000:
-        return "%1.2fMB" % (r/1000000)
+        return u"%1.2fMB" % (r/1000000)
     if r > 1000:
-        return "%.1fkB" % (r/1000)
-    return "%.0fB" % r
+        return u"%.1fkB" % (r/1000)
+    return u"%.0fB" % r
 
 def plural(sequence_or_length):
     if isinstance(sequence_or_length, int):
@@ -562,7 +581,7 @@ def _finish(result, render, request):
         Message.log(
             message_type=u"allmydata:web:common-render:DecodedURL",
         )
-        _finish(redirectTo(str(result), request), render, request)
+        _finish(redirectTo(result.to_text().encode("utf-8"), request), render, request)
     elif result is None:
         Message.log(
             message_type=u"allmydata:web:common-render:None",

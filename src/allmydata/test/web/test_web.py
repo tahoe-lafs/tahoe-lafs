@@ -90,7 +90,7 @@ class FakeNodeMaker(NodeMaker):
         return FakeMutableFileNode(None, None,
                                    self.encoding_params, None,
                                    self.all_contents).init_from_cap(cap)
-    def create_mutable_file(self, contents="", keysize=None,
+    def create_mutable_file(self, contents=b"", keysize=None,
                             version=SDMF_VERSION):
         n = FakeMutableFileNode(None, None, self.encoding_params, None,
                                 self.all_contents)
@@ -105,7 +105,7 @@ class FakeUploader(service.Service):
         d = uploadable.get_size()
         d.addCallback(lambda size: uploadable.read(size))
         def _got_data(datav):
-            data = "".join(datav)
+            data = b"".join(datav)
             n = create_chk_filenode(data, self.all_contents)
             ur = upload.UploadResults(file_size=len(data),
                                       ciphertext_fetched=0,
@@ -127,12 +127,12 @@ class FakeUploader(service.Service):
 
 
 def build_one_ds():
-    ds = DownloadStatus("storage_index", 1234)
+    ds = DownloadStatus(b"storage_index", 1234)
     now = time.time()
 
-    serverA = StubServer(hashutil.tagged_hash("foo", "serverid_a")[:20])
-    serverB = StubServer(hashutil.tagged_hash("foo", "serverid_b")[:20])
-    storage_index = hashutil.storage_index_hash("SI")
+    serverA = StubServer(hashutil.tagged_hash(b"foo", b"serverid_a")[:20])
+    serverB = StubServer(hashutil.tagged_hash(b"foo", b"serverid_b")[:20])
+    storage_index = hashutil.storage_index_hash(b"SI")
     e0 = ds.add_segment_request(0, now)
     e0.activate(now+0.5)
     e0.deliver(now+1, 0, 100, 0.5) # when, start,len, decodetime
@@ -189,7 +189,7 @@ class FakeHistory(object):
     def list_all_helper_statuses(self):
         return []
 
-class FakeDisplayableServer(StubServer):
+class FakeDisplayableServer(StubServer):  # type: ignore  # tahoe-lafs/ticket/3573
     def __init__(self, serverid, nickname, connected,
                  last_connect_time, last_loss_time, last_rx_time):
         StubServer.__init__(self, serverid)
@@ -255,13 +255,13 @@ class FakeStorageServer(service.MultiService):
     def on_status_changed(self, cb):
         cb(self)
 
-class FakeClient(_Client):
+class FakeClient(_Client):  # type: ignore  # tahoe-lafs/ticket/3573
     def __init__(self):
         # don't upcall to Client.__init__, since we only want to initialize a
         # minimal subset
         service.MultiService.__init__(self)
         self.all_contents = {}
-        self.nodeid = "fake_nodeid"
+        self.nodeid = b"fake_nodeid"
         self.nickname = u"fake_nickname \u263A"
         self.introducer_furls = []
         self.introducer_clients = []
@@ -277,7 +277,7 @@ class FakeClient(_Client):
         # fake knowledge of another server
         self.storage_broker.test_add_server("other_nodeid",
             FakeDisplayableServer(
-                serverid="other_nodeid", nickname=u"other_nickname \u263B", connected = True,
+                serverid=b"other_nodeid", nickname=u"other_nickname \u263B", connected = True,
                 last_connect_time = 10, last_loss_time = 20, last_rx_time = 30))
         self.storage_broker.test_add_server("disconnected_nodeid",
             FakeDisplayableServer(
@@ -746,7 +746,10 @@ class MultiFormatResourceTests(TrialTestCase):
             "<title>400 - Bad Format</title>", response_body,
         )
         self.assertIn(
-            "Unknown t value: 'foo'", response_body,
+            "Unknown t value:", response_body,
+        )
+        self.assertIn(
+            "'foo'", response_body,
         )
 
 
@@ -4753,6 +4756,31 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         yield self.clock.advance(24*60*60)
         op_url = self.webish_url + "/operations/134?t=status&output=JSON"
         yield self.assertHTTPError(op_url, 404, "unknown/expired handle '134'")
+
+    @inlineCallbacks
+    def test_uri_redirect(self):
+        """URI redirects don't cause failure.
+
+        Unit test reproducer for https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3590
+        """
+        def req(method, path, **kwargs):
+            return treq.request(method, self.webish_url + path, persistent=False,
+                                **kwargs)
+
+        response = yield req("POST", "/uri?format=sdmf&t=mkdir")
+        dircap = yield response.content()
+        assert dircap.startswith('URI:DIR2:')
+        dircap_uri = "/uri/?uri={}&t=json".format(urllib.quote(dircap))
+
+        response = yield req(
+            "GET",
+            dircap_uri,
+        )
+        self.assertEqual(
+            response.request.absoluteURI,
+            self.webish_url + "/uri/{}?t=json".format(urllib.quote(dircap)))
+        if response.code >= 400:
+            raise Error(response.code, response=response.content())
 
     def test_incident(self):
         d = self.POST("/report_incident", details="eek")

@@ -15,6 +15,12 @@ from past.builtins import long
 from six import ensure_text
 
 import time, os.path, textwrap
+
+try:
+    from typing import Any, Dict, Union
+except ImportError:
+    pass
+
 from zope.interface import implementer
 from twisted.application import service
 from twisted.internet import defer
@@ -70,7 +76,7 @@ def create_introducer(basedir=u"."):
         i2p_provider = create_i2p_provider(reactor, config)
         tor_provider = create_tor_provider(reactor, config)
 
-        default_connection_handlers, foolscap_connection_handlers = create_connection_handlers(reactor, config, i2p_provider, tor_provider)
+        default_connection_handlers, foolscap_connection_handlers = create_connection_handlers(config, i2p_provider, tor_provider)
         tub_options = create_tub_options(config)
 
         # we don't remember these because the Introducer doesn't make
@@ -147,10 +153,12 @@ class IntroducerService(service.MultiService, Referenceable):
     name = "introducer"
     # v1 is the original protocol, added in 1.0 (but only advertised starting
     # in 1.3), removed in 1.12. v2 is the new signed protocol, added in 1.10
-    VERSION = { #"http://allmydata.org/tahoe/protocols/introducer/v1": { },
+    # TODO: reconcile bytes/str for keys
+    VERSION = {
+                #"http://allmydata.org/tahoe/protocols/introducer/v1": { },
                 b"http://allmydata.org/tahoe/protocols/introducer/v2": { },
                 b"application-version": allmydata.__full_version__.encode("utf-8"),
-                }
+                }  # type: Dict[Union[bytes, str], Any]
 
     def __init__(self):
         service.MultiService.__init__(self)

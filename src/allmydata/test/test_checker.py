@@ -62,7 +62,7 @@ class FakeClient(object):
 
 
 @implementer(IServer)
-class FakeServer(object):
+class FakeServer(object):  # type: ignore # incomplete implementation
 
     def get_name(self):
         return "fake name"
@@ -75,7 +75,7 @@ class FakeServer(object):
 
 
 @implementer(ICheckResults)
-class FakeCheckResults(object):
+class FakeCheckResults(object):  # type: ignore # incomplete implementation
 
     def __init__(self, si=None,
                  healthy=False, recoverable=False,
@@ -106,7 +106,7 @@ class FakeCheckResults(object):
 
 
 @implementer(ICheckAndRepairResults)
-class FakeCheckAndRepairResults(object):
+class FakeCheckAndRepairResults(object):  # type: ignore # incomplete implementation
 
     def __init__(self, si=None,
                  repair_attempted=False,
@@ -144,7 +144,7 @@ class WebResultsRendering(unittest.TestCase):
 
     @staticmethod
     def remove_tags(html):
-        return BeautifulSoup(html).get_text(separator=" ")
+        return BeautifulSoup(html, 'html5lib').get_text(separator=" ")
 
     def create_fake_client(self):
         sb = StorageFarmBroker(True, None, EMPTY_CLIENT_CONFIG)
@@ -173,7 +173,7 @@ class WebResultsRendering(unittest.TestCase):
         return c
 
     def render_json(self, resource):
-        return self.successResultOf(render(resource, {"output": ["json"]}))
+        return self.successResultOf(render(resource, {b"output": [b"json"]}))
 
     def render_element(self, element, args=None):
         if args is None:
@@ -186,7 +186,7 @@ class WebResultsRendering(unittest.TestCase):
         html = self.render_element(lcr)
         self.failUnlessIn(b"Literal files are always healthy", html)
 
-        html = self.render_element(lcr, args={"return_to": ["FOOURL"]})
+        html = self.render_element(lcr, args={b"return_to": [b"FOOURL"]})
         self.failUnlessIn(b"Literal files are always healthy", html)
         self.failUnlessIn(b'<a href="FOOURL">Return to file.</a>', html)
 
@@ -269,7 +269,7 @@ class WebResultsRendering(unittest.TestCase):
         self.failUnlessIn("File Check Results for SI=2k6avp", s) # abbreviated
         self.failUnlessIn("Not Recoverable! : rather dead", s)
 
-        html = self.render_element(w, args={"return_to": ["FOOURL"]})
+        html = self.render_element(w, args={b"return_to": [b"FOOURL"]})
         self.failUnlessIn(b'<a href="FOOURL">Return to file/directory.</a>',
                           html)
 

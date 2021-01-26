@@ -101,3 +101,56 @@ class Observer(unittest.TestCase):
         d.addCallback(_step2)
         d.addCallback(_check2)
         return d
+
+    def test_observer_list_reentrant(self):
+        """
+        ``ObserverList`` is reentrant.
+        """
+        observed = []
+
+        def observer_one():
+            obs.unsubscribe(observer_one)
+
+        def observer_two():
+            observed.append(None)
+
+        obs = observer.ObserverList()
+        obs.subscribe(observer_one)
+        obs.subscribe(observer_two)
+        obs.notify()
+
+        self.assertEqual([None], observed)
+
+    def test_observer_list_observer_errors(self):
+        """
+        An error in an earlier observer does not prevent notification from being
+        delivered to a later observer.
+        """
+        observed = []
+
+        def observer_one():
+            raise Exception("Some problem here")
+
+        def observer_two():
+            observed.append(None)
+
+        obs = observer.ObserverList()
+        obs.subscribe(observer_one)
+        obs.subscribe(observer_two)
+        obs.notify()
+
+        self.assertEqual([None], observed)
+        self.assertEqual(1, len(self.flushLoggedErrors(Exception)))
+
+    def test_observer_list_propagate_keyboardinterrupt(self):
+        """
+        ``KeyboardInterrupt`` escapes ``ObserverList.notify``.
+        """
+        def observer_one():
+            raise KeyboardInterrupt()
+
+        obs = observer.ObserverList()
+        obs.subscribe(observer_one)
+
+        with self.assertRaises(KeyboardInterrupt):
+            obs.notify()

@@ -15,7 +15,12 @@ from six import ensure_binary, ensure_text
 import os, re, itertools
 from base64 import b32decode
 import json
-from mock import Mock, patch
+from operator import (
+    setitem,
+)
+from functools import (
+    partial,
+)
 
 from testtools.matchers import (
     Is,
@@ -84,7 +89,8 @@ class Node(testutil.SignalMixin, testutil.ReallyEqualMixin, AsyncTestCase):
 
     def test_introducer_clients_unloadable(self):
         """
-        Error if introducers.yaml exists but we can't read it
+        ``create_introducer_clients`` raises ``EnvironmentError`` if
+        ``introducers.yaml`` exists but we can't read it.
         """
         basedir = u"introducer.IntroducerNode.test_introducer_clients_unloadable"
         os.mkdir(basedir)
@@ -94,17 +100,10 @@ class Node(testutil.SignalMixin, testutil.ReallyEqualMixin, AsyncTestCase):
             f.write(u'---\n')
         os.chmod(yaml_fname, 0o000)
         self.addCleanup(lambda: os.chmod(yaml_fname, 0o700))
-        # just mocking the yaml failure, as "yamlutil.safe_load" only
-        # returns None on some platforms for unreadable files
 
-        with patch("allmydata.client.yamlutil") as p:
-            p.safe_load = Mock(return_value=None)
-
-            fake_tub = Mock()
-            config = read_config(basedir, "portnum")
-
-            with self.assertRaises(EnvironmentError):
-                create_introducer_clients(config, fake_tub)
+        config = read_config(basedir, "portnum")
+        with self.assertRaises(EnvironmentError):
+            create_introducer_clients(config, Tub())
 
     @defer.inlineCallbacks
     def test_furl(self):
@@ -1037,23 +1036,53 @@ class Signatures(SyncTestCase):
                               unsign_from_foolscap, (bad_msg, sig, b"v999-key"))
 
     def test_unsigned_announcement(self):
-        ed25519.verifying_key_from_string(b"pub-v0-wodst6ly4f7i7akt2nxizsmmy2rlmer6apltl56zctn67wfyu5tq")
-        mock_tub = Mock()
+        """
+        An incorrectly signed announcement is not delivered to subscribers.
+        """
+        private_key, public_key = ed25519.create_signing_keypair()
+        public_key_str = ed25519.string_from_verifying_key(public_key)
+
         ic = IntroducerClient(
-            mock_tub,
+            Tub(),
             "pb://",
             u"fake_nick",
             "0.0.0",
             "1.2.3",
             (0, u"i am a nonce"),
-            "invalid",
+            FilePath(self.mktemp()),
         )
-        self.assertEqual(0, ic._debug_counts["inbound_announcement"])
-        ic.got_announcements([
-            (b"message", b"v0-aaaaaaa", b"v0-wodst6ly4f7i7akt2nxizsmmy2rlmer6apltl56zctn67wfyu5tq")
-        ])
-        # we should have rejected this announcement due to a bad signature
-        self.assertEqual(0, ic._debug_counts["inbound_announcement"])
+        received = {}
+        ic.subscribe_to("good-stuff", partial(setitem, received))
+
+        # Deliver a good message to prove our test code is valid.
+        ann = {"service-name": "good-stuff", "payload": "hello"}
+        ann_t = sign_to_foolscap(ann, private_key)
+        ic.got_announcements([ann_t])
+
+        self.assertEqual(
+            {public_key_str[len("pub-"):]: ann},
+            received,
+        )
+        received.clear()
+
+        # Now deliver one without a valid signature and observe that it isn't
+        # delivered to the subscriber.
+        ann = {"service-name": "good-stuff", "payload": "bad stuff"}
+        (msg, sig, key) = sign_to_foolscap(ann, private_key)
+        # Drop a base32 word from the middle of the key to invalidate the
+        # signature.
+        sig_a = bytearray(sig)
+        sig_a[20:22] = []
+        sig = bytes(sig_a)
+        ann_t = (msg, sig, key)
+        ic.got_announcements([ann_t])
+
+        # The received announcements dict should remain empty because we
+        # should not receive the announcement with the invalid signature.
+        self.assertEqual(
+            {},
+            received,
+        )
 
 
 # add tests of StorageFarmBroker: if it receives duplicate announcements, it

@@ -1,6 +1,6 @@
 from future.utils import PY2
 
-import time, json
+import time
 from twisted.python.filepath import FilePath
 from twisted.web.template import (
     Element,
@@ -14,7 +14,7 @@ from allmydata.web.common_py3 import (
     MultiFormatResource
 )
 from allmydata.util.abbreviate import abbreviate_space
-from allmydata.util import time_format, idlib
+from allmydata.util import time_format, idlib, jsonbytes as json
 
 
 def remove_prefix(s, prefix):

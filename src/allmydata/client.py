@@ -86,12 +86,6 @@ _client_config = configutil.ValidConfiguration(
             "shares.total",
             "storage.plugins",
         ),
-        "ftpd": (
-            "accounts.file",
-            "accounts.url",
-            "enabled",
-            "port",
-        ),
         "storage": (
             "debug_discard",
             "enabled",
@@ -270,7 +264,7 @@ def create_client_from_config(config, _client_factory=None, _introducer_factory=
 
     i2p_provider = create_i2p_provider(reactor, config)
     tor_provider = create_tor_provider(reactor, config)
-    handlers = node.create_connection_handlers(reactor, config, i2p_provider, tor_provider)
+    handlers = node.create_connection_handlers(config, i2p_provider, tor_provider)
     default_connection_handlers, foolscap_connection_handlers = handlers
     tub_options = node.create_tub_options(config)
 
@@ -656,7 +650,6 @@ class _Client(node.Node, pollmixin.PollMixin):
                 raise ValueError("config error: helper is enabled, but tub "
                                  "is not listening ('tub.port=' is empty)")
             self.init_helper()
-        self.init_ftp_server()
         self.init_sftp_server()
 
         # If the node sees an exit_trigger file, it will poll every second to see
@@ -714,7 +707,7 @@ class _Client(node.Node, pollmixin.PollMixin):
     def get_long_nodeid(self):
         # this matches what IServer.get_longname() says about us elsewhere
         vk_string = ed25519.string_from_verifying_key(self._node_public_key)
-        return remove_prefix(vk_string, "pub-")
+        return remove_prefix(vk_string, b"pub-")
 
     def get_long_tubid(self):
         return idlib.nodeid_b2a(self.nodeid)
@@ -898,10 +891,6 @@ class _Client(node.Node, pollmixin.PollMixin):
         if helper_furl in ("None", ""):
             helper_furl = None
 
-        # FURLs need to be bytes:
-        if helper_furl is not None:
-            helper_furl = helper_furl.encode("utf-8")
-
         DEP = self.encoding_params
         DEP["k"] = int(self.config.get_config("client", "shares.needed", DEP["k"]))
         DEP["n"] = int(self.config.get_config("client", "shares.total", DEP["n"]))
@@ -1035,18 +1024,6 @@ class _Client(node.Node, pollmixin.PollMixin):
             staticdir,
         )
         ws.setServiceParent(self)
-
-    def init_ftp_server(self):
-        if self.config.get_config("ftpd", "enabled", False, boolean=True):
-            accountfile = self.config.get_config("ftpd", "accounts.file", None)
-            if accountfile:
-                accountfile = self.config.get_config_path(accountfile)
-            accounturl = self.config.get_config("ftpd", "accounts.url", None)
-            ftp_portstr = self.config.get_config("ftpd", "port", "8021")
-
-            from allmydata.frontends import ftpd
-            s = ftpd.FTPServer(self, accountfile, accounturl, ftp_portstr)
-            s.setServiceParent(self)
 
     def init_sftp_server(self):
         if self.config.get_config("sftpd", "enabled", False, boolean=True):

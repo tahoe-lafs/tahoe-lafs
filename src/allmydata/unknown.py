@@ -1,3 +1,13 @@
+"""Ported to Python 3.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 from zope.interface import implementer
 from twisted.internet import defer
@@ -31,8 +41,8 @@ class UnknownNode(object):
 
     def __init__(self, given_rw_uri, given_ro_uri, deep_immutable=False,
                  name=u"<unknown name>"):
-        assert given_rw_uri is None or isinstance(given_rw_uri, str)
-        assert given_ro_uri is None or isinstance(given_ro_uri, str)
+        assert given_rw_uri is None or isinstance(given_rw_uri, bytes)
+        assert given_ro_uri is None or isinstance(given_ro_uri, bytes)
         given_rw_uri = given_rw_uri or None
         given_ro_uri = given_ro_uri or None
 
@@ -182,3 +192,11 @@ class UnknownNode(object):
 
     def check_and_repair(self, monitor, verify, add_lease):
         return defer.succeed(None)
+
+    def __eq__(self, other):
+        if not isinstance(other, UnknownNode):
+            return False
+        return other.ro_uri == self.ro_uri and other.rw_uri == self.rw_uri
+
+    def __ne__(self, other):
+        return not (self == other)

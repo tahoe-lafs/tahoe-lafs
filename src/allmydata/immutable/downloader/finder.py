@@ -9,6 +9,7 @@ from __future__ import unicode_literals
 from future.utils import PY2
 if PY2:
     from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+from six import ensure_str
 
 import time
 now = time.time
@@ -98,7 +99,7 @@ class ShareFinder(object):
 
     # internal methods
     def loop(self):
-        pending_s = ",".join([rt.server.get_name()
+        pending_s = ",".join([ensure_str(rt.server.get_name())
                               for rt in self.pending_requests]) # sort?
         self.log(format="ShareFinder loop: running=%(running)s"
                  " hungry=%(hungry)s, pending=%(pending)s",

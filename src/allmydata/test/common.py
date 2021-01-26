@@ -11,7 +11,7 @@ __all__ = [
     "skipIf",
 ]
 
-from past.builtins import chr as byteschr
+from past.builtins import chr as byteschr, unicode
 
 import os, random, struct
 import six
@@ -64,10 +64,16 @@ from twisted.internet.endpoints import AdoptedStreamServerEndpoint
 from twisted.trial.unittest import TestCase as _TrialTestCase
 
 from allmydata import uri
-from allmydata.interfaces import IMutableFileNode, IImmutableFileNode,\
-                                 NotEnoughSharesError, ICheckable, \
-                                 IMutableUploadable, SDMF_VERSION, \
-                                 MDMF_VERSION
+from allmydata.interfaces import (
+    IMutableFileNode,
+    IImmutableFileNode,
+    NotEnoughSharesError,
+    ICheckable,
+    IMutableUploadable,
+    SDMF_VERSION,
+    MDMF_VERSION,
+    IAddressFamily,
+)
 from allmydata.check_results import CheckResults, CheckAndRepairResults, \
      DeepCheckResults, DeepCheckAndRepairResults
 from allmydata.storage_client import StubServer
@@ -400,7 +406,7 @@ class DummyProducer(object):
         pass
 
 @implementer(IImmutableFileNode)
-class FakeCHKFileNode(object):
+class FakeCHKFileNode(object):  # type: ignore # incomplete implementation
     """I provide IImmutableFileNode, but all of my data is stored in a
     class-level dictionary."""
 
@@ -538,7 +544,7 @@ def create_chk_filenode(contents, all_contents):
 
 
 @implementer(IMutableFileNode, ICheckable)
-class FakeMutableFileNode(object):
+class FakeMutableFileNode(object):  # type: ignore # incomplete implementation
     """I provide IMutableFileNode, but all of my data is stored in a
     class-level dictionary."""
 
@@ -819,13 +825,18 @@ class WebErrorMixin(object):
                         code=None, substring=None, response_substring=None,
                         callable=None, *args, **kwargs):
         # returns a Deferred with the response body
-        assert substring is None or isinstance(substring, str)
+        if isinstance(substring, bytes):
+            substring = unicode(substring, "ascii")
+        if isinstance(response_substring, unicode):
+            response_substring = response_substring.encode("ascii")
+        assert substring is None or isinstance(substring, unicode)
+        assert response_substring is None or isinstance(response_substring, bytes)
         assert callable
         def _validate(f):
             if code is not None:
-                self.failUnlessEqual(f.value.status, str(code), which)
+                self.failUnlessEqual(f.value.status, b"%d" % code, which)
             if substring:
-                code_string = str(f)
+                code_string = unicode(f)
                 self.failUnless(substring in code_string,
                                 "%s: substring '%s' not in '%s'"
                                 % (which, substring, code_string))
@@ -1145,6 +1156,28 @@ def _corrupt_uri_extension(data, debug=False):
         uriextlen = struct.unpack(">Q", data[0x0c+uriextoffset:0x0c+uriextoffset+8])[0]
 
     return corrupt_field(data, 0x0c+uriextoffset, uriextlen)
+
+
+
+@attr.s
+@implementer(IAddressFamily)
+class ConstantAddresses(object):
+    """
+    Pretend to provide support for some address family but just hand out
+    canned responses.
+    """
+    _listener = attr.ib(default=None)
+    _handler = attr.ib(default=None)
+
+    def get_listener(self):
+        if self._listener is None:
+            raise Exception("{!r} has no listener.")
+        return self._listener
+
+    def get_client_endpoint(self):
+        if self._handler is None:
+            raise Exception("{!r} has no client endpoint.")
+        return self._handler
 
 
 class _TestCaseMixin(object):
