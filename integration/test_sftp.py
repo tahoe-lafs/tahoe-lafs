@@ -1,6 +1,13 @@
 """
 It's possible to create/rename/delete files and directories in Tahoe-LAFS using
 SFTP.
+
+These tests use Paramiko, rather than Twisted's Conch, because:
+
+    1. It's a different implementation, so we're not testing Conch against
+       itself.
+
+    2. Its API is much simpler to use.
 """
 
 from __future__ import unicode_literals
