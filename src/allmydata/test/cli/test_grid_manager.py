@@ -8,9 +8,8 @@ from unittest import (
     skipIf,
 )
 
-from ..common import (
-    SyncTestCase,
-    AsyncTestCase,
+from twisted.trial.unittest import (
+    TestCase,
 )
 from allmydata.cli.grid_manager import (
     grid_manager,
@@ -33,7 +32,7 @@ from twisted.python.runtime import (
 )
 
 
-class GridManagerCommandLine(SyncTestCase):
+class GridManagerCommandLine(TestCase):
     """
     Test the mechanics of the `grid-manager` command
     """
@@ -231,7 +230,7 @@ class GridManagerCommandLine(SyncTestCase):
             )
 
 
-class TahoeAddGridManagerCert(AsyncTestCase):
+class TahoeAddGridManagerCert(TestCase):
     """
     Test `tahoe admin add-grid-manager-cert` subcommand
     """
