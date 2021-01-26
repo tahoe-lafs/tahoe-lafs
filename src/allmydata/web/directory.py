@@ -224,7 +224,7 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
         FIXED_OUTPUT_TYPES =  ["", "json", "uri", "readonly-uri"]
         if not self.node.is_mutable() and t in FIXED_OUTPUT_TYPES:
             si = self.node.get_storage_index()
-            if si and req.setETag('DIR:%s-%s' % (base32.b2a(si), t or "")):
+            if si and req.setETag(b'DIR:%s-%s' % (base32.b2a(si), t.encode("ascii") or b"")):
                 return b""
 
         if not t:

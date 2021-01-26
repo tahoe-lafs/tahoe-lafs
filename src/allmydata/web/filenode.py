@@ -188,8 +188,8 @@ class FileNodeHandler(Resource, ReplaceMeMixin, object):
             # if the client already has the ETag then we can
             # short-circuit the whole process.
             si = self.node.get_storage_index()
-            if si and req.setETag('%s-%s' % (base32.b2a(si), t or "")):
-                return ""
+            if si and req.setETag(b'%s-%s' % (base32.b2a(si), t.encode("ascii") or b"")):
+                return b""
 
         if not t:
             # just get the contents

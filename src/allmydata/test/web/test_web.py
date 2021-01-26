@@ -268,9 +268,9 @@ class FakeClient(_Client):  # type: ignore  # tahoe-lafs/ticket/3573
         self.introducer_furls = []
         self.introducer_clients = []
         self.stats_provider = FakeStatsProvider()
-        self._secret_holder = SecretHolder("lease secret", "convergence secret")
+        self._secret_holder = SecretHolder(b"lease secret", b"convergence secret")
         self.helper = None
-        self.convergence = "some random string"
+        self.convergence = b"some random string"
         self.storage_broker = StorageFarmBroker(
             permute_peers=True,
             tub_maker=None,
@@ -1562,7 +1562,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             def _just_the_etag(result):
                 data, response, headers = result
                 etag = headers.getRawHeaders('etag')[0]
-                if uri.startswith('URI:DIR'):
+                if uri.startswith(b'URI:DIR'):
                     self.failUnless(etag.startswith('DIR:'), etag)
                 return etag
             return d.addCallback(_just_the_etag)
@@ -1570,7 +1570,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         # Check that etags work with immutable directories
         (newkids, caps) = self._create_immutable_children()
         d = self.POST2(self.public_url + "/foo/newdir?t=mkdir-immutable",
-                      json.dumps(newkids))
+                       json.dumps(newkids).encode("ascii"))
         def _stash_immdir_uri(uri):
             self._immdir_uri = uri
             return uri
@@ -1598,13 +1598,13 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d.addCallback(_check_match)
 
         def _no_etag(uri, t):
-            target = "/uri/%s?t=%s" % (uri, t)
+            target = "/uri/%s?t=%s" % (unicode(uri, "ascii"), t)
             d = self.GET(target, return_response=True, followRedirect=True)
             d.addCallback(lambda data_code_headers:
                           self.failIf(data_code_headers[2].hasHeader("etag"), target))
             return d
         def _yes_etag(uri, t):
-            target = "/uri/%s?t=%s" % (uri, t)
+            target = "/uri/%s?t=%s" % (unicode(uri, "ascii"), t)
             d = self.GET(target, return_response=True, followRedirect=True)
             d.addCallback(lambda data_code_headers:
                           self.failUnless(data_code_headers[2].hasHeader("etag"), target))

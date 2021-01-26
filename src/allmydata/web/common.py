@@ -186,7 +186,7 @@ def convert_children_json(nodemaker, children_json):
     children = {}
     if children_json:
         data = json.loads(children_json)
-        for (namex, (ctype, propdict)) in data.iteritems():
+        for (namex, (ctype, propdict)) in data.items():
             namex = unicode(namex)
             writecap = to_bytes(propdict.get("rw_uri"))
             readcap = to_bytes(propdict.get("ro_uri"))
