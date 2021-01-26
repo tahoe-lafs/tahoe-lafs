@@ -432,7 +432,7 @@ class FakeCHKFileNode(object):  # type: ignore # incomplete implementation
         return self.storage_index
 
     def check(self, monitor, verify=False, add_lease=False):
-        s = StubServer("\x00"*20)
+        s = StubServer(b"\x00"*20)
         r = CheckResults(self.my_uri, self.storage_index,
                          healthy=True, recoverable=True,
                          count_happiness=10,

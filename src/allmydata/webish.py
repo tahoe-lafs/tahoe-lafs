@@ -211,7 +211,7 @@ class WebishServer(service.MultiService):
         # use to test ophandle expiration.
         self._operations = OphandleTable(clock)
         self._operations.setServiceParent(self)
-        self.root.putChild("operations", self._operations)
+        self.root.putChild(b"operations", self._operations)
 
         self.root.putChild(b"storage-plugins", StoragePlugins(client))
 
@@ -220,7 +220,7 @@ class WebishServer(service.MultiService):
         self.site = TahoeLAFSSite(tempdir, self.root)
         self.staticdir = staticdir # so tests can check
         if staticdir:
-            self.root.putChild("static", static.File(staticdir))
+            self.root.putChild(b"static", static.File(staticdir))
         if re.search(r'^\d', webport):
             webport = "tcp:"+webport # twisted warns about bare "0" or "3456"
         # strports must be native strings.

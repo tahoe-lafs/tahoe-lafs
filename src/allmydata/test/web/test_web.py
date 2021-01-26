@@ -3178,7 +3178,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
     def test_POST_DIRURL_check_and_repair(self):
         foo_url = self.public_url + "/foo"
         res = yield self.POST(foo_url, t="check", repair="true")
-        self.failUnlessIn("Healthy :", res)
+        self.failUnlessIn(b"Healthy :", res)
 
         redir_url = "http://allmydata.org/TARGET"
         body, headers = self.build_form(t="check", repair="true",
@@ -3187,6 +3187,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
                                     method="post", data=body, headers=headers,
                                     code=http.FOUND)
         res = yield self.POST(foo_url, t="check", return_to=redir_url)
+        res = unicode(res, "utf-8")
         self.failUnlessIn("Healthy :", res)
         self.failUnlessIn("Return to file/directory", res)
         self.failUnlessIn(redir_url, res)
@@ -3195,9 +3196,9 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         quux_url = "/uri/%s" % urlquote(self._quux_txt_uri)
         d = self.POST(quux_url, t="check")
         def _check(res):
-            self.failUnlessIn("Healthy", res)
+            self.failUnlessIn(b"Healthy", res)
         d.addCallback(_check)
-        quux_extension_url = "/uri/%s" % urlquote("%s:3:131073" % self._quux_txt_uri)
+        quux_extension_url = "/uri/%s" % urlquote("%s:3:131073" % unicode(self._quux_txt_uri, "utf-8"))
         d.addCallback(lambda ignored:
                       self.POST(quux_extension_url, t="check"))
         d.addCallback(_check)
@@ -3264,15 +3265,15 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         self.failUnlessReallyEqual(data["count-objects-healthy"], 11)
 
         res = yield self.get_operation_results(None, "123", "html")
-        self.failUnlessIn("Objects Checked: <span>11</span>", res)
-        self.failUnlessIn("Objects Healthy: <span>11</span>", res)
+        self.failUnlessIn(b"Objects Checked: <span>11</span>", res)
+        self.failUnlessIn(b"Objects Healthy: <span>11</span>", res)
         soup = BeautifulSoup(res, 'html5lib')
         assert_soup_has_favicon(self, soup)
 
         res = yield self.GET("/operations/123/")
         # should be the same as without the slash
-        self.failUnlessIn("Objects Checked: <span>11</span>", res)
-        self.failUnlessIn("Objects Healthy: <span>11</span>", res)
+        self.failUnlessIn(b"Objects Checked: <span>11</span>", res)
+        self.failUnlessIn(b"Objects Healthy: <span>11</span>", res)
         soup = BeautifulSoup(res, 'html5lib')
         assert_soup_has_favicon(self, soup)
 
@@ -3282,9 +3283,9 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
 
         foo_si = self._foo_node.get_storage_index()
         foo_si_s = base32.b2a(foo_si)
-        res = yield self.GET("/operations/123/%s?output=JSON" % foo_si_s)
+        res = yield self.GET("/operations/123/%s?output=JSON" % unicode(foo_si_s, "ascii"))
         data = json.loads(res)
-        self.failUnlessEqual(data["storage-index"], foo_si_s)
+        self.failUnlessEqual(data["storage-index"], unicode(foo_si_s, "ascii"))
         self.failUnless(data["results"]["healthy"])
 
     def test_POST_DIRURL_deepcheck_and_repair(self):
@@ -4261,6 +4262,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
                  http.FOUND,
                  http.TEMPORARY_REDIRECT,
                  ] if code is None else [code]
+        body = yield response.content()
         self.assertIn(response.code, codes)
         location = response.headers.getRawHeaders(b"location")[0]
         if target_location is not None:
