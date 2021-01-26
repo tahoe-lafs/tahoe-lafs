@@ -267,7 +267,7 @@ def _create_node(reactor, request, temp_dir, introducer_furl, flog_gatherer, nam
             '--helper',
         ]
         if not storage:
-           args.append('--no-storage')
+            args.append('--no-storage')
         args.append(node_dir)
 
         _tahoe_runner_optional_coverage(done_proto, reactor, request, args)
