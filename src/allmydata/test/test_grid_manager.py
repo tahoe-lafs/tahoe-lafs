@@ -162,7 +162,7 @@ class GridManagerVerifier(SyncTestCase):
         priv, pub = ed25519.create_signing_keypair()
         self.gm.add_storage_server("test", pub)
         cert0 = self.gm.sign("test", timedelta(seconds=86400))
-        cert1 = self.gm.sign("test", timedelta(seconds=86400))
+        cert1 = self.gm.sign("test", timedelta(seconds=3600))
         self.assertNotEqual(cert0, cert1)
 
         self.assertEqual(
