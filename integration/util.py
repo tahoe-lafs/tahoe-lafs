@@ -30,7 +30,7 @@ from allmydata import client
 import pytest_twisted
 
 
-def block_with_timeout(deferred, reactor, timeout=10):
+def block_with_timeout(deferred, reactor, timeout=120):
     """Block until Deferred has result, but timeout instead of waiting forever."""
     deferred.addTimeout(timeout, reactor)
     return pytest_twisted.blockon(deferred)
