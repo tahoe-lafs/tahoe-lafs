@@ -212,7 +212,7 @@ class FakeDisplayableServer(StubServer):  # type: ignore  # tahoe-lafs/ticket/35
             "application-version": "1.0"
         }
     def get_permutation_seed(self):
-        return ""
+        return b""
     def get_announcement(self):
         return self.announcement
     def get_nickname(self):
@@ -579,15 +579,14 @@ class WebMixin(TimezoneMixin):
             if isinstance(value, tuple):
                 filename, value = value
                 form.append('Content-Disposition: form-data; name="%s"; '
-                            'filename="%s"' % (name, filename.encode("utf-8")))
+                            'filename="%s"' % (name, filename))
             else:
                 form.append('Content-Disposition: form-data; name="%s"' % name)
             form.append('')
-            if isinstance(value, unicode):
-                value = value.encode("utf-8")
-            else:
-                value = str(value)
-            assert isinstance(value, str)
+            if isinstance(value, bytes):
+                value = unicode(value, "utf-8")
+            if not isinstance(value, unicode):
+                value = unicode(value)
             form.append(value)
             form.append(sep)
         form[-1] += "--"
@@ -596,7 +595,7 @@ class WebMixin(TimezoneMixin):
         if fields:
             body = "\r\n".join(form) + "\r\n"
             headers["content-type"] = "multipart/form-data; boundary=%s" % sepbase
-        return (body, headers)
+        return (body.encode("utf-8"), headers)
 
     def POST(self, urlpath, **fields):
         body, headers = self.build_form(**fields)
@@ -3156,7 +3155,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
     def test_POST_DIRURL_check(self):
         foo_url = self.public_url + "/foo"
         res = yield self.POST(foo_url, t="check")
-        self.failUnlessIn("Healthy :", res)
+        self.failUnlessIn(b"Healthy :", res)
 
         redir_url = "http://allmydata.org/TARGET"
         body, headers = self.build_form(t="check", when_done=redir_url)
@@ -3165,6 +3164,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
                                     code=http.FOUND)
 
         res = yield self.POST(foo_url, t="check", return_to=redir_url)
+        res = unicode(res, "utf-8")
         self.failUnlessIn("Healthy :", res)
         self.failUnlessIn("Return to file/directory", res)
         self.failUnlessIn(redir_url, res)

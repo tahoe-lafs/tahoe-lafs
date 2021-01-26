@@ -40,8 +40,12 @@ def get_arg(req, argname, default=None, multiple=False):
     results = []
     if argname in req.args:
         results.extend(req.args[argname])
-    if req.fields and argname in req.fields:
-        results.append(req.fields[argname].value)
+    argname_unicode = unicode(argname, "utf-8")
+    if req.fields and argname_unicode in req.fields:
+        value = req.fields[argname_unicode].value
+        if isinstance(value, unicode):
+            value = value.encode("utf-8")
+        results.append(value)
     if multiple:
         return tuple(results)
     if results:
