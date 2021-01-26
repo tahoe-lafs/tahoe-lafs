@@ -493,10 +493,10 @@ class JSONBytes(unittest.TestCase):
     def test_encode_bytes(self):
         """BytesJSONEncoder can encode bytes."""
         data = {
-            b"hello": [1, b"cd"],
+            b"hello": [1, b"cd", {b"abc": 123}],
         }
         expected = {
-            u"hello": [1, u"cd"],
+            u"hello": [1, u"cd", {u"abc": 123}],
         }
         # Bytes get passed through as if they were UTF-8 Unicode:
         encoded = jsonbytes.dumps(data)
