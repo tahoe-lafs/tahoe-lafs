@@ -101,15 +101,14 @@ def test_ssh_key_auth(alice):
 def test_read_write_files(alice):
     """It's possible to upload and download files."""
     sftp = connect_sftp()
-    f = sftp.file("myfile", "wb")
-    f.write(b"abc")
-    f.write(b"def")
-    f.close()
-    f = sftp.file("myfile", "rb")
-    assert f.read(4) == b"abcd"
-    assert f.read(2) == b"ef"
-    assert f.read(1) == b""
-    f.close()
+    with sftp.file("myfile", "wb") as f:
+        f.write(b"abc")
+        f.write(b"def")
+
+    with sftp.file("myfile", "rb") as f:
+        assert f.read(4) == b"abcd"
+        assert f.read(2) == b"ef"
+        assert f.read(1) == b""
 
 
 @run_in_thread
