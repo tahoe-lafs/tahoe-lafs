@@ -532,14 +532,21 @@ def generate_ssh_key(path):
 def run_in_thread(f):
     """Decorator for integration tests that runs code in a thread.
 
-    Because we're using pytest_twisted, tests are expected to return a Deferred
-    so reactor can run.  If the reactor doesn't run, reads from nodes' stdout
-    and stderr don't happen.  eventually the buffers fill up, and the nodes
-    block when they try to flush logs.
+    Because we're using pytest_twisted, tests that rely on the reactor are
+    expected to return a Deferred and use async APIs so the reactor can run.
+
+    In the case of the integration test suite, it launches nodes in the
+    background using Twisted APIs.  The nodes stdout and stderr is read via
+    Twisted code.  If the reactor doesn't run, reads don't happen, and
+    eventually the buffers fill up, and the nodes block when they try to flush
+    logs.
 
     We can switch to Twisted APIs (treq instead of requests etc.), but
-    sometimes it's easier or expedient to just have a block test.  So this runs
-    the test in a thread in a way that still lets the reactor run.
+    sometimes it's easier or expedient to just have a blocking test.  So this
+    decorator allows you to run the test in a thread, and the reactor can keep
+    running in the main thread.
+
+    See https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3597 for tracking bug.
     """
     @wraps(f)
     def test(*args, **kwargs):
