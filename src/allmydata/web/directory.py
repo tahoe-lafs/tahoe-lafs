@@ -1290,7 +1290,7 @@ class DeepSizeResults(MultiFormatResource):
                      + stats.get("size-mutable-files", 0)
                      + stats.get("size-directories", 0))
             output += "size: %d\n" % total
-        return output
+        return output.encode("utf-8")
     render_TEXT = render_HTML
 
     def render_JSON(self, req):

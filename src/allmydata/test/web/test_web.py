@@ -634,7 +634,10 @@ class WebMixin(TimezoneMixin):
                                        getattr(res.value, "response", ""),
                                        which))
                 if response_substring:
-                    self.failUnlessIn(response_substring, unicode(res.value.response, "utf-8"),
+                    response = res.value.response
+                    if isinstance(response, bytes):
+                        response = unicode(response, "utf-8")
+                    self.failUnlessIn(response_substring, response,
                                       "'%s' not in '%s' for test '%s'" % \
                                       (response_substring, res.value.response,
                                        which))
@@ -2209,11 +2212,14 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         def _got_json(data):
             self.failUnlessReallyEqual(data["finished"], True)
             size = data["size"]
-            self.failUnless(size > 1000)
+            # Match calculation of text value size below:
+            self.failUnless(
+                size.get("size-directories", 0) + size.get("size-mutable-files", 0) +
+                size.get("size-immutable-files", 0) > 1000)
         d.addCallback(_got_json)
         d.addCallback(self.get_operation_results, "126", "text")
         def _got_text(res):
-            mo = re.search(r'^size: (\d+)$', res, re.M)
+            mo = re.search(br'^size: (\d+)$', res, re.M)
             self.failUnless(mo, res)
             size = int(mo.group(1))
             # with directories, the size varies.
@@ -3311,6 +3317,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d.addCallback(_check_json)
         d.addCallback(self.get_operation_results, "124", "html")
         def _check_html(res):
+            res = unicode(res, "utf-8")
             self.failUnlessIn("Objects Checked: <span>11</span>", res)
 
             self.failUnlessIn("Objects Healthy (before repair): <span>11</span>", res)
