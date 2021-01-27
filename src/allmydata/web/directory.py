@@ -364,7 +364,7 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
         return d
 
     def _POST_upload(self, req):
-        charset = get_arg(req, "_charset", "utf-8")
+        charset = unicode(get_arg(req, "_charset", b"utf-8"))
         contents = req.fields["file"]
         assert contents.filename is None or isinstance(contents.filename, str)
         name = get_arg(req, "name")
@@ -413,7 +413,7 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
         name = get_arg(req, "name")
         if not name:
             raise WebError("set-uri requires a name")
-        charset = get_arg(req, "_charset", "utf-8")
+        charset = unicode(get_arg(req, "_charset", b"utf-8"), "ascii")
         name = name.decode(charset)
         replace = parse_replace_arg(get_arg(req, "replace", "true"))
 
@@ -453,7 +453,7 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
         return self._POST_relink(req)
 
     def _POST_relink(self, req):
-        charset = get_arg(req, "_charset", "utf-8")
+        charset = unicode(get_arg(req, "_charset", b"utf-8"), "ascii")
         replace = parse_replace_arg(get_arg(req, "replace", "true"))
 
         from_name = get_arg(req, "from_name")
