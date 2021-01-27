@@ -1,6 +1,7 @@
 from __future__ import print_function
 
 from past.builtins import unicode
+from six import ensure_binary
 
 import os.path, re, time
 import treq
@@ -603,6 +604,8 @@ class WebMixin(TimezoneMixin):
 
     def POST2(self, urlpath, body="", headers={}, followRedirect=False):
         url = self.webish_url + urlpath
+        if isinstance(body, unicode):
+            body = body.encode("utf-8")
         return do_http("POST", url, allow_redirects=followRedirect,
                        headers=headers, data=body)
 
@@ -1572,7 +1575,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         # Check that etags work with immutable directories
         (newkids, caps) = self._create_immutable_children()
         d = self.POST2(self.public_url + "/foo/newdir?t=mkdir-immutable",
-                       json.dumps(newkids).encode("ascii"))
+                       json.dumps(newkids))
         def _stash_immdir_uri(uri):
             self._immdir_uri = uri
             return uri
@@ -2440,8 +2443,8 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         (newkids, caps) = self._create_initial_children()
         url = (self.webish_url + self.public_url +
                "/foo/newdir?t=mkdir-with-children&format=foo")
-        yield self.assertHTTPError(url, 400, "Unknown format: foo",
-                                   method="post", data=json.dumps(newkids))
+        yield self.assertHTTPError(url, 400, "Unknown format:",
+                                   method="post", data=json.dumps(newkids).encode("utf-8"))
 
     def test_POST_NEWDIRURL_immutable(self):
         (newkids, caps) = self._create_immutable_children()
@@ -2653,8 +2656,8 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         def _check(child):
             self.failUnless(child.is_unknown() or child.is_readonly())
             self.failUnlessReallyEqual(child.get_write_uri(), None)
-            self.failUnlessReallyEqual(child.get_uri(), expected_uri.strip())
-            self.failUnlessReallyEqual(child.get_readonly_uri(), expected_uri.strip())
+            self.failUnlessReallyEqual(child.get_uri(), ensure_binary(expected_uri.strip()))
+            self.failUnlessReallyEqual(child.get_readonly_uri(), ensure_binary(expected_uri.strip()))
         d.addCallback(_check)
         return d
 
@@ -2663,8 +2666,8 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d = node.get_child_at_path(name)
         def _check(child):
             self.failUnless(child.is_unknown() or not child.is_readonly())
-            self.failUnlessReallyEqual(child.get_uri(), got_uri.strip())
-            self.failUnlessReallyEqual(child.get_write_uri(), got_uri.strip())
+            self.failUnlessReallyEqual(child.get_uri(), ensure_binary(got_uri.strip()))
+            self.failUnlessReallyEqual(child.get_write_uri(), ensure_binary(got_uri.strip()))
             expected_ro_uri = self._make_readonly(got_uri)
             if expected_ro_uri:
                 self.failUnlessReallyEqual(child.get_readonly_uri(), expected_ro_uri.strip())

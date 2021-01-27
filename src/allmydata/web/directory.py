@@ -436,8 +436,8 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
             # a slightly confusing error message if someone does a POST
             # without a name= field. For our own HTML this isn't a big
             # deal, because we create the 'unlink' POST buttons ourselves.
-            name = ''
-        charset = get_arg(req, "_charset", "utf-8")
+            name = b''
+        charset = unicode(get_arg(req, "_charset", b"utf-8"), "ascii")
         name = name.decode(charset)
         d = self.node.delete(name)
         d.addCallback(lambda res: "thing unlinked")
