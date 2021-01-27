@@ -1144,8 +1144,8 @@ def _slashify_path(path):
     in it
     """
     if not path:
-        return ""
-    return "/".join([p.encode("utf-8") for p in path])
+        return b""
+    return b"/".join([p.encode("utf-8") for p in path])
 
 
 def _cap_to_link(root, path, cap):
@@ -1234,10 +1234,10 @@ class ManifestResults(MultiFormatResource, ReloadMixin):
         req.setHeader("content-type", "text/plain")
         lines = []
         is_finished = self.monitor.is_finished()
-        lines.append("finished: " + {True: "yes", False: "no"}[is_finished])
+        lines.append(b"finished: " + {True: b"yes", False: b"no"}[is_finished])
         for path, cap in self.monitor.get_status()["manifest"]:
-            lines.append(_slashify_path(path) + " " + cap)
-        return "\n".join(lines) + "\n"
+            lines.append(_slashify_path(path) + b" " + cap)
+        return b"\n".join(lines) + b"\n"
 
     def render_JSON(self, req):
         req.setHeader("content-type", "text/plain")
@@ -1315,7 +1315,7 @@ class DeepStatsResults(Resource, object):
         req.setHeader("content-type", "text/plain")
         s = self.monitor.get_status().copy()
         s["finished"] = self.monitor.is_finished()
-        return json.dumps(s, indent=1)
+        return json.dumps(s, indent=1).encode("utf-8")
 
 
 @implementer(IPushProducer)

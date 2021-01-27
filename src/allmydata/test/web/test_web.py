@@ -2163,7 +2163,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             soup = BeautifulSoup(manifest, 'html5lib')
             assert_soup_has_text(self, soup, "Manifest of SI=")
             assert_soup_has_text(self, soup, "sub")
-            assert_soup_has_text(self, soup, self._sub_uri)
+            assert_soup_has_text(self, soup, unicode(self._sub_uri, "ascii"))
             assert_soup_has_text(self, soup, "sub/baz.txt")
             assert_soup_has_favicon(self, soup)
         d.addCallback(_got_html)
@@ -2176,8 +2176,8 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d.addCallback(_got_html)
         d.addCallback(getman, "text")
         def _got_text(manifest):
-            self.failUnlessIn("\nsub " + self._sub_uri + "\n", manifest)
-            self.failUnlessIn("\nsub/baz.txt URI:CHK:", manifest)
+            self.failUnlessIn(b"\nsub " + self._sub_uri + b"\n", manifest)
+            self.failUnlessIn(b"\nsub/baz.txt URI:CHK:", manifest)
         d.addCallback(_got_text)
         d.addCallback(getman, "JSON")
         def _got_json(res):
@@ -2267,8 +2267,8 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
     def test_POST_DIRURL_stream_manifest(self):
         d = self.POST(self.public_url + "/foo?t=stream-manifest")
         def _check(res):
-            self.failUnless(res.endswith("\n"))
-            units = [json.loads(t) for t in res[:-1].split("\n")]
+            self.failUnless(res.endswith(b"\n"))
+            units = [json.loads(t) for t in res[:-1].split(b"\n")]
             self.failUnlessReallyEqual(len(units), 10)
             self.failUnlessEqual(units[-1]["type"], "stats")
             first = units[0]
