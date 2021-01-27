@@ -2363,7 +2363,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
     def test_POST_NEWDIRURL_bad_format(self):
         url = (self.webish_url + self.public_url +
                "/foo/newdir?t=mkdir&format=foo")
-        yield self.assertHTTPError(url, 400, "Unknown format: foo",
+        yield self.assertHTTPError(url, 400, "Unknown format:",
                                    method="post", data="")
 
     def test_POST_NEWDIRURL_emptyname(self):
@@ -3121,7 +3121,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
     def test_POST_FILEURL_check(self):
         bar_url = self.public_url + "/foo/bar.txt"
         res = yield self.POST(bar_url, t="check")
-        self.failUnlessIn("Healthy :", res)
+        self.failUnlessIn(b"Healthy :", res)
 
         redir_url = "http://allmydata.org/TARGET"
         body, headers = self.build_form(t="check", when_done=redir_url)
@@ -3130,6 +3130,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
                                     code=http.FOUND)
 
         res = yield self.POST(bar_url, t="check", return_to=redir_url)
+        res = unicode(res, "utf-8")
         self.failUnlessIn("Healthy :", res)
         self.failUnlessIn("Return to file", res)
         self.failUnlessIn(redir_url, res)
@@ -3143,7 +3144,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
     def test_POST_FILEURL_check_and_repair(self):
         bar_url = self.public_url + "/foo/bar.txt"
         res = yield self.POST(bar_url, t="check", repair="true")
-        self.failUnlessIn("Healthy :", res)
+        self.failUnlessIn(b"Healthy :", res)
 
         redir_url = "http://allmydata.org/TARGET"
         body, headers = self.build_form(t="check", repair="true",
@@ -3153,6 +3154,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
                                     code=http.FOUND)
 
         res = yield self.POST(bar_url, t="check", return_to=redir_url)
+        res = unicode(res, "utf-8")
         self.failUnlessIn("Healthy :", res)
         self.failUnlessIn("Return to file", res)
         self.failUnlessIn(redir_url, res)
@@ -3214,9 +3216,9 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         quux_url = "/uri/%s" % urlquote(self._quux_txt_uri)
         d = self.POST(quux_url, t="check", repair="true")
         def _check(res):
-            self.failUnlessIn("Healthy", res)
+            self.failUnlessIn(b"Healthy", res)
         d.addCallback(_check)
-        quux_extension_url = "/uri/%s" % urlquote("%s:3:131073" % self._quux_txt_uri)
+        quux_extension_url = "/uri/%s" % urlquote("%s:3:131073" % unicode(self._quux_txt_uri, "ascii"))
         d.addCallback(lambda ignored:
                       self.POST(quux_extension_url, t="check", repair="true"))
         d.addCallback(_check)

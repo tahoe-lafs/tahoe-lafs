@@ -309,7 +309,7 @@ class FileNodeHandler(Resource, ReplaceMeMixin, object):
                 assert self.parentnode and self.name
                 d = self.replace_me_with_a_formpost(req, self.client, replace)
         else:
-            raise WebError("POST to file: bad t=%s" % t)
+            raise WebError("POST to file: bad t=%s" % unicode(t, "ascii"))
 
         return handle_when_done(req, d)
 
