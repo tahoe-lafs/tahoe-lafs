@@ -1,3 +1,11 @@
+"""
+TODO: When porting to Python 3, the filename handling logic seems wrong.  On
+Python 3 filename will _already_ be correctly decoded.  So only decode if it's
+bytes.
+
+Also there's a lot of code duplication I think.
+"""
+
 from past.builtins import unicode
 
 from urllib.parse import quote as url_quote
@@ -364,7 +372,7 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
         return d
 
     def _POST_upload(self, req):
-        charset = unicode(get_arg(req, "_charset", b"utf-8"))
+        charset = unicode(get_arg(req, "_charset", b"utf-8"), "utf-8")
         contents = req.fields["file"]
         assert contents.filename is None or isinstance(contents.filename, str)
         name = get_arg(req, "name")
@@ -374,8 +382,8 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
         if not name:
             # this prohibts empty, missing, and all-whitespace filenames
             raise WebError("upload requires a name")
-        assert isinstance(name, str)
-        name = name.decode(charset)
+        if isinstance(name, bytes):
+            name = name.decode(charset)
         if "/" in name:
             raise WebError("name= may not contain a slash", http.BAD_REQUEST)
         assert isinstance(name, unicode)
@@ -624,14 +632,14 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
             # TODO test handling of bad JSON
             raise
         cs = {}
-        for name, (file_or_dir, mddict) in children.iteritems():
+        for name, (file_or_dir, mddict) in children.items():
             name = unicode(name) # json returns str *or* unicode
             writecap = mddict.get('rw_uri')
             if writecap is not None:
-                writecap = str(writecap)
+                writecap = writecap.encode("utf-8")
             readcap = mddict.get('ro_uri')
             if readcap is not None:
-                readcap = str(readcap)
+                readcap = readcap.encode("utf-8")
             cs[name] = (writecap, readcap, mddict.get('metadata'))
         d = self.node.set_children(cs, replace)
         d.addCallback(lambda res: "Okay so I did it.")

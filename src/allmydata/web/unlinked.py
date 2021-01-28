@@ -1,3 +1,4 @@
+from past.builtins import unicode
 
 from urllib.parse import quote as urlquote
 
@@ -118,8 +119,8 @@ class UploadResultsElement(status.UploadResultsRendererMixin):
     def download_link(self, req, tag):
         d = self.upload_results()
         d.addCallback(lambda res:
-                      tags.a("/uri/" + res.get_uri(),
-                             href="/uri/" + urlquote(res.get_uri())))
+                      tags.a("/uri/" + unicode(res.get_uri(), "utf-8"),
+                             href="/uri/" + urlquote(unicode(res.get_uri(), "utf-8"))))
         return d
 
 

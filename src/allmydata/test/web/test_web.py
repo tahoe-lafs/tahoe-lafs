@@ -2817,7 +2817,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
                 else:
                     # for immutable, it returns an "upload results page", and
                     # the filecap is buried inside
-                    line = [l for l in results.split("\n") if "URI: " in l][0]
+                    line = [l for l in results.split(b"\n") if b"URI: " in l][0]
                     mo = re.search(r'<span>([^<]+)</span>', line)
                     filecap = mo.group(1)
                 self.failUnless(filecap.startswith(uri_prefix),
@@ -2868,10 +2868,10 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             return d
 
         d = defer.succeed(None)
-        d.addCallback(_check_upload, "chk", "URI:CHK")
-        d.addCallback(_check_upload, "sdmf", "URI:SSK", self._foo_node)
-        d.addCallback(_check_upload, "mdmf", "URI:MDMF")
-        d.addCallback(_check_upload, "MDMF", "URI:MDMF")
+        d.addCallback(_check_upload, "chk", b"URI:CHK")
+        d.addCallback(_check_upload, "sdmf", b"URI:SSK", self._foo_node)
+        d.addCallback(_check_upload, "mdmf", b"URI:MDMF")
+        d.addCallback(_check_upload, "MDMF", b"URI:MDMF")
         return d
 
     @inlineCallbacks
@@ -3776,7 +3776,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         contents10, n10, newuri10 = self.makefile(10)
         contents11, n11, newuri11 = self.makefile(11)
 
-        reqbody = """{
+        reqbody = b"""{
                      "atomic_added_1": [ "filenode", { "rw_uri": "%s",
                                                 "size": 0,
                                                 "metadata": {
