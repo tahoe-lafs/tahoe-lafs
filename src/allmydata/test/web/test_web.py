@@ -2818,11 +2818,11 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
                     # for immutable, it returns an "upload results page", and
                     # the filecap is buried inside
                     line = [l for l in results.split(b"\n") if b"URI: " in l][0]
-                    mo = re.search(r'<span>([^<]+)</span>', line)
+                    mo = re.search(br'<span>([^<]+)</span>', line)
                     filecap = mo.group(1)
                 self.failUnless(filecap.startswith(uri_prefix),
                                 (uri_prefix, filecap))
-                return self.GET("/uri/%s?t=json" % filecap)
+                return self.GET("/uri/%s?t=json" % unicode(filecap, "utf-8"))
             d.addCallback(_got_results)
             def _got_json(raw):
                 data = json.loads(raw)
@@ -2832,10 +2832,10 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             d.addCallback(_got_json)
             return d
         d = defer.succeed(None)
-        d.addCallback(_check_upload_unlinked, "chk", "URI:CHK")
-        d.addCallback(_check_upload_unlinked, "CHK", "URI:CHK")
-        d.addCallback(_check_upload_unlinked, "sdmf", "URI:SSK")
-        d.addCallback(_check_upload_unlinked, "mdmf", "URI:MDMF")
+        d.addCallback(_check_upload_unlinked, "chk", b"URI:CHK")
+        d.addCallback(_check_upload_unlinked, "CHK", b"URI:CHK")
+        d.addCallback(_check_upload_unlinked, "sdmf", b"URI:SSK")
+        d.addCallback(_check_upload_unlinked, "mdmf", b"URI:MDMF")
         return d
 
     @inlineCallbacks
@@ -2900,7 +2900,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d.addCallback(_got)
 
         # now upload it again and make sure that the URI doesn't change
-        NEWER_CONTENTS = self.NEWFILE_CONTENTS + "newer\n"
+        NEWER_CONTENTS = self.NEWFILE_CONTENTS + b"newer\n"
         d.addCallback(lambda res:
                       self.POST(self.public_url + "/foo", t="upload",
                                 mutable="true",
@@ -2918,7 +2918,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d.addCallback(_got2)
 
         # upload a second time, using PUT instead of POST
-        NEW2_CONTENTS = NEWER_CONTENTS + "overwrite with PUT\n"
+        NEW2_CONTENTS = NEWER_CONTENTS + b"overwrite with PUT\n"
         d.addCallback(lambda res:
                       self.PUT(self.public_url + "/foo/new.txt", NEW2_CONTENTS))
         d.addCallback(self.failUnlessURIMatchesRWChild, fn, u"new.txt")
@@ -2934,7 +2934,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
                                followRedirect=True))
         def _check_page(res):
             # TODO: assert more about the contents
-            self.failUnlessIn("SSK", res)
+            self.failUnlessIn(b"SSK", res)
             return res
         d.addCallback(_check_page)
 
@@ -3012,7 +3012,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             self.POST(self.public_url + "/foo", t="upload",
                       mutable="true",
                       file=("new.txt",
-                            "b" * (self.s.MUTABLE_SIZELIMIT+1))))
+                            b"b" * (self.s.MUTABLE_SIZELIMIT+1))))
         d.addErrback(self.dump_error)
         return d
 
@@ -3024,7 +3024,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         # mutable files.
         d = self.POST(self.public_url + "/foo",
                       t="upload", mutable="true",
-                      file=("new.txt", "b" * (self.s.MUTABLE_SIZELIMIT + 1)))
+                      file=("new.txt", b"b" * (self.s.MUTABLE_SIZELIMIT + 1)))
         return d
 
     def dump_error(self, f):
