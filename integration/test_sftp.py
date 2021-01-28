@@ -1,6 +1,13 @@
 """
 It's possible to create/rename/delete files and directories in Tahoe-LAFS using
 SFTP.
+
+These tests use Paramiko, rather than Twisted's Conch, because:
+
+    1. It's a different implementation, so we're not testing Conch against
+       itself.
+
+    2. Its API is much simpler to use.
 """
 
 from __future__ import unicode_literals
@@ -23,7 +30,7 @@ from paramiko.rsakey import RSAKey
 
 import pytest
 
-from .util import generate_ssh_key
+from .util import generate_ssh_key, run_in_thread
 
 
 def connect_sftp(connect_args={"username": "alice", "password": "password"}):
@@ -50,6 +57,7 @@ def connect_sftp(connect_args={"username": "alice", "password": "password"}):
     return sftp
 
 
+@run_in_thread
 def test_bad_account_password_ssh_key(alice, tmpdir):
     """
     Can't login with unknown username, wrong password, or wrong SSH pub key.
@@ -79,6 +87,7 @@ def test_bad_account_password_ssh_key(alice, tmpdir):
         })
 
 
+@run_in_thread
 def test_ssh_key_auth(alice):
     """It's possible to login authenticating with SSH public key."""
     key = RSAKey(filename=join(alice.node_dir, "private", "ssh_client_rsa_key"))
@@ -88,20 +97,21 @@ def test_ssh_key_auth(alice):
     assert sftp.listdir() == []
 
 
+@run_in_thread
 def test_read_write_files(alice):
     """It's possible to upload and download files."""
     sftp = connect_sftp()
-    f = sftp.file("myfile", "wb")
-    f.write(b"abc")
-    f.write(b"def")
-    f.close()
-    f = sftp.file("myfile", "rb")
-    assert f.read(4) == b"abcd"
-    assert f.read(2) == b"ef"
-    assert f.read(1) == b""
-    f.close()
+    with sftp.file("myfile", "wb") as f:
+        f.write(b"abc")
+        f.write(b"def")
+
+    with sftp.file("myfile", "rb") as f:
+        assert f.read(4) == b"abcd"
+        assert f.read(2) == b"ef"
+        assert f.read(1) == b""
 
 
+@run_in_thread
 def test_directories(alice):
     """
     It's possible to create, list directories, and create and remove files in
@@ -135,6 +145,7 @@ def test_directories(alice):
     assert sftp.listdir() == []
 
 
+@run_in_thread
 def test_rename(alice):
     """Directories and files can be renamed."""
     sftp = connect_sftp()

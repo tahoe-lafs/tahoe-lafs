@@ -1,1 +1,1 @@
-SFTP public key auth likely works better, and SFTP in general was broken in the prerelease.
+SFTP public key auth likely works more consistently, and SFTP in general was previously broken.

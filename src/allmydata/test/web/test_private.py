@@ -1,5 +1,7 @@
 """
 Tests for ``allmydata.web.private``.
+
+Ported to Python 3.
 """
 
 from __future__ import (
@@ -8,6 +10,10 @@ from __future__ import (
     absolute_import,
     division,
 )
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 from testtools.matchers import (
     Equals,
@@ -56,6 +62,7 @@ class PrivacyTests(SyncTestCase):
         return super(PrivacyTests, self).setUp()
 
     def _authorization(self, scheme, value):
+        value = str(value, "utf-8")
         return Headers({
             u"authorization": [u"{} {}".format(scheme, value)],
         })
@@ -90,7 +97,7 @@ class PrivacyTests(SyncTestCase):
         self.assertThat(
             self.client.head(
                 b"http:///foo/bar",
-                headers=self._authorization(SCHEME, u"foo bar"),
+                headers=self._authorization(str(SCHEME, "utf-8"), b"foo bar"),
             ),
             succeeded(has_response_code(Equals(UNAUTHORIZED))),
         )
@@ -103,7 +110,7 @@ class PrivacyTests(SyncTestCase):
         self.assertThat(
             self.client.head(
                 b"http:///foo/bar",
-                headers=self._authorization(SCHEME, self.token),
+                headers=self._authorization(str(SCHEME, "utf-8"), self.token),
             ),
             # It's a made up URL so we don't get a 200, either, but a 404.
             succeeded(has_response_code(Equals(NOT_FOUND))),

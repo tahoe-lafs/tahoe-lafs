@@ -1,3 +1,6 @@
+"""
+Ported to Python 3.
+"""
 from __future__ import (
     print_function,
     unicode_literals,
@@ -49,7 +52,11 @@ class TokenAuthenticatedWebSocketServerProtocol(WebSocketServerProtocol):
         """
         # probably want a try/except around here? what do we do if
         # transmission fails or anything else bad happens?
-        self.sendMessage(json.dumps(message))
+        encoded = json.dumps(message)
+        if isinstance(encoded, str):
+            # On Python 3 dumps() returns Unicode...
+            encoded = encoded.encode("utf-8")
+        self.sendMessage(encoded)
 
     def onOpen(self):
         """

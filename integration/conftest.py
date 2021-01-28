@@ -40,7 +40,8 @@ from util import (
     TahoeProcess,
     cli,
     _run_node,
-    generate_ssh_key
+    generate_ssh_key,
+    block_with_timeout,
 )
 
 
@@ -156,7 +157,7 @@ def flog_gatherer(reactor, temp_dir, flog_binary, request):
         )
         print("Waiting for flogtool to complete")
         try:
-            pytest_twisted.blockon(flog_protocol.done)
+            block_with_timeout(flog_protocol.done, reactor)
         except ProcessTerminated as e:
             print("flogtool exited unexpectedly: {}".format(str(e)))
         print("Flogtool completed")
@@ -297,7 +298,7 @@ log_gatherer.furl = {log_furl}
     def cleanup():
         try:
             transport.signalProcess('TERM')
-            pytest_twisted.blockon(protocol.exited)
+            block_with_timeout(protocol.exited, reactor)
         except ProcessExitedAlready:
             pass
     request.addfinalizer(cleanup)
@@ -351,6 +352,9 @@ def alice(reactor, temp_dir, introducer_furl, flog_gatherer, storage_nodes, requ
             reactor, request, temp_dir, introducer_furl, flog_gatherer, "alice",
             web_port="tcp:9980:interface=localhost",
             storage=False,
+            # We're going to kill this ourselves, so no need for finalizer to
+            # do it:
+            finalize=False,
         )
     )
     await_client_ready(process)
@@ -533,7 +537,13 @@ def tor_network(reactor, temp_dir, chutney, request):
             path=join(chutney_dir),
             env=env,
         )
-        pytest_twisted.blockon(proto.done)
+        try:
+            block_with_timeout(proto.done, reactor)
+        except ProcessTerminated:
+            # If this doesn't exit cleanly, that's fine, that shouldn't fail
+            # the test suite.
+            pass
+
     request.addfinalizer(cleanup)
 
     return chut

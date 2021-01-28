@@ -2,6 +2,11 @@ from __future__ import print_function
 
 import json
 
+try:
+    from allmydata.scripts.types_ import SubCommands
+except ImportError:
+    pass
+
 from twisted.python import usage
 from twisted.internet import defer, reactor
 
@@ -103,7 +108,7 @@ def invite(options):
 subCommands = [
     ("invite", None, InviteOptions,
      "Invite a new node to this grid"),
-]
+]  # type: SubCommands
 
 dispatch = {
     "invite": invite,

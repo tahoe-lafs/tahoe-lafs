@@ -19,7 +19,7 @@ import os, time, struct
 try:
     import cPickle as pickle
 except ImportError:
-    import pickle
+    import pickle  # type: ignore
 from twisted.internet import reactor
 from twisted.application import service
 from allmydata.storage.common import si_b2a
