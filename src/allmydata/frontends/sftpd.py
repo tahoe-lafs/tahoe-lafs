@@ -1,3 +1,6 @@
+"""
+Ported to Python 3.
+"""
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -1266,8 +1269,7 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
                            (existing_file, userpath, flags, _repr_flags(flags), parent, childname, filenode, metadata),
                            level=NOISY)
 
-        _assert((isinstance(userpath, bytes) and isinstance(childname, (str, type(None))) and
-                (metadata is None or 'no-write' in metadata)),
+        _assert((isinstance(userpath, bytes) and isinstance(childname, (str, type(None))                (metadata is None or 'no-write' in metadata)),
                 userpath=userpath, childname=childname, metadata=metadata)
 
         writing = (flags & (FXF_WRITE | FXF_CREAT)) != 0
