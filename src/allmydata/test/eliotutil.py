@@ -134,7 +134,7 @@ class EliotLoggedRunTest(object):
 
 
 def with_logging(
-        test_id,      # type: unicode
+        test_id,      # type: str
         test_method,  # type: Callable
 ):
     """
