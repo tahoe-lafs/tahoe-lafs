@@ -11,7 +11,7 @@ if PY2:
     from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 import six
-import heapq, traceback, array, stat, struct
+import heapq, traceback, stat, struct
 from stat import S_IFREG, S_IFDIR
 from time import time, strftime, localtime
 
@@ -433,10 +433,10 @@ class OverwriteableFileConsumer(PrefixingLogMixin):
                 milestone = end
 
         while len(self.milestones) > 0:
-            (next, d) = self.milestones[0]
-            if next > milestone:
+            (next_, d) = self.milestones[0]
+            if next_ > milestone:
                 return
-            if noisy: self.log("MILESTONE %r %r" % (next, d), level=NOISY)
+            if noisy: self.log("MILESTONE %r %r" % (next_, d), level=NOISY)
             heapq.heappop(self.milestones)
             eventually_callback(d)(b"reached")
 
@@ -549,8 +549,8 @@ class OverwriteableFileConsumer(PrefixingLogMixin):
         eventually_callback(self.done)(None)
 
         while len(self.milestones) > 0:
-            (next, d) = self.milestones[0]
-            if noisy: self.log("MILESTONE FINISH %r %r %r" % (next, d, res), level=NOISY)
+            (next_, d) = self.milestones[0]
+            if noisy: self.log("MILESTONE FINISH %r %r %r" % (next_, d, res), level=NOISY)
             heapq.heappop(self.milestones)
             # The callback means that the milestone has been reached if
             # it is ever going to be. Note that the file may have been
@@ -691,7 +691,7 @@ class GeneralSFTPFile(PrefixingLogMixin):
         # not be set before then.
         self.consumer = None
 
-    def open(self, parent=None, childname=None, filenode=None, metadata=None):
+    def open(self, parent=None, childname=None, filenode=None, metadata=None):  # noqa: F811
         self.log(".open(parent=%r, childname=%r, filenode=%r, metadata=%r)" %
                  (parent, childname, filenode, metadata), level=OPERATIONAL)
 
