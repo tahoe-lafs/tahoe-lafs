@@ -1,3 +1,5 @@
+# Python 3 only
+
 from typing import List, Tuple, Type, Sequence, Any
 from allmydata.scripts.common import BaseOptions
 
