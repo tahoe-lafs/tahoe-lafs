@@ -1,4 +1,11 @@
 from __future__ import print_function
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 import os
 import json
@@ -301,13 +308,13 @@ def write_node_config(c, config):
 
     if tor_config:
         c.write("[tor]\n")
-        for key, value in tor_config.items():
+        for key, value in list(tor_config.items()):
             c.write("%s = %s\n" % (key, value))
         c.write("\n")
 
     if i2p_config:
         c.write("[i2p]\n")
-        for key, value in i2p_config.items():
+        for key, value in list(i2p_config.items()):
             c.write("%s = %s\n" % (key, value))
         c.write("\n")
 
@@ -370,7 +377,7 @@ def _get_config_via_wormhole(config):
         relay_url=relay_url,
         reactor=reactor,
     )
-    code = unicode(config['join'])
+    code = str(config['join'])
     wh.set_code(code)
     yield wh.get_welcome()
     print("Connected to wormhole server", file=out)
@@ -402,7 +409,7 @@ def create_node(config):
     err = config.stderr
     basedir = config['basedir']
     # This should always be called with an absolute Unicode basedir.
-    precondition(isinstance(basedir, unicode), basedir)
+    precondition(isinstance(basedir, str), basedir)
 
     if os.path.exists(basedir):
         if listdir_unicode(basedir):
@@ -437,7 +444,7 @@ def create_node(config):
             v = remote_config.get(k, None)
             if v is not None:
                 # we're faking usually argv-supplied options :/
-                if isinstance(v, unicode):
+                if isinstance(v, str):
                     v = v.encode(get_io_encoding())
                 config[k] = v
                 if k not in sensitive_keys:
@@ -475,7 +482,7 @@ def create_introducer(config):
     err = config.stderr
     basedir = config['basedir']
     # This should always be called with an absolute Unicode basedir.
-    precondition(isinstance(basedir, unicode), basedir)
+    precondition(isinstance(basedir, str), basedir)
 
     if os.path.exists(basedir):
         if listdir_unicode(basedir):
