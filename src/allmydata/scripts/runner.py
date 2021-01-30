@@ -1,5 +1,6 @@
 from __future__ import print_function
 
+import warnings
 import os, sys
 from six.moves import StringIO
 import six
@@ -177,9 +178,8 @@ def _maybe_enable_eliot_logging(options, reactor):
     return options
 
 def run():
-    # TODO(3035): Remove tox-check when error becomes a warning
-    if 'TOX_ENV_NAME' not in os.environ:
-        assert sys.version_info < (3,), u"Tahoe-LAFS does not run under Python 3. Please use Python 2.7.x."
+    if not six.PY2:
+        warnings.warn("Support for Python 3 is experimental. Use at your own risk.")
 
     if sys.platform == "win32":
         from allmydata.windows.fixups import initialize
