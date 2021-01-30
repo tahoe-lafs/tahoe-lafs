@@ -72,6 +72,7 @@ PORTED_MODULES = [
     "allmydata.mutable.servermap",
     "allmydata.node",
     "allmydata.nodemaker",
+    "allmydata.scripts.create_node",
     "allmydata.scripts.runner",
     "allmydata.scripts.types_",
     "allmydata.stats",
