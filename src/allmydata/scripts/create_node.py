@@ -9,6 +9,7 @@ from future.utils import PY2
 if PY2:
     from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
+import io
 import os
 import json
 
@@ -234,7 +235,7 @@ class CreateIntroducerOptions(NoDefaultBasedirOptions):
 @defer.inlineCallbacks
 def write_node_config(c, config):
     # this is shared between clients and introducers
-    c.write("# -*- mode: conf; coding: utf-8 -*-\n")
+    c.write("# -*- mode: conf; coding: {c.encoding} -*-\n".format(c=c))
     c.write("\n")
     c.write("# This file controls the configuration of the Tahoe node that\n")
     c.write("# lives in this directory. It is only read at node startup.\n")
@@ -253,7 +254,7 @@ def write_node_config(c, config):
 
     c.write("[node]\n")
     nickname = argv_to_unicode(config.get("nickname") or "")
-    c.write("nickname = %s\n" % (nickname.encode('utf-8'),))
+    c.write("nickname = %s\n" % (nickname,))
     if config["hide-ip"]:
         c.write("reveal-IP-address = false\n")
     else:
@@ -263,7 +264,7 @@ def write_node_config(c, config):
     webport = argv_to_unicode(config.get("webport") or "none")
     if webport.lower() == "none":
         webport = ""
-    c.write("web.port = %s\n" % (webport.encode('utf-8'),))
+    c.write("web.port = %s\n" % (webport,))
     c.write("web.static = public_html\n")
 
     listeners = config['listen'].split(",")
@@ -288,15 +289,14 @@ def write_node_config(c, config):
             tub_locations.append(i2p_location)
         if "tcp" in listeners:
             if config["port"]: # --port/--location are a pair
-                tub_ports.append(config["port"].encode('utf-8'))
-                tub_locations.append(config["location"].encode('utf-8'))
+                tub_ports.append(config["port"])
+                tub_locations.append(config["location"])
             else:
                 assert "hostname" in config
                 hostname = config["hostname"]
                 new_port = iputil.allocate_tcp_port()
                 tub_ports.append("tcp:%s" % new_port)
-                tub_locations.append("tcp:%s:%s" % (hostname.encode('utf-8'),
-                                                    new_port))
+                tub_locations.append("tcp:%s:%s" % (hostname, new_port))
         c.write("tub.port = %s\n" % ",".join(tub_ports))
         c.write("tub.location = %s\n" % ",".join(tub_locations))
     c.write("\n")
@@ -456,7 +456,8 @@ def create_node(config):
                     print("  {}: [sensitive data; see tahoe.cfg]".format(k), file=out)
 
     fileutil.make_dirs(os.path.join(basedir, "private"), 0o700)
-    with open(os.path.join(basedir, "tahoe.cfg"), "w") as c:
+    cfg_name = os.path.join(basedir, "tahoe.cfg")
+    with io.open(cfg_name, "w", encoding='utf-8') as c:
         yield write_node_config(c, config)
         write_client_config(c, config)
 
@@ -498,7 +499,8 @@ def create_introducer(config):
     write_tac(basedir, "introducer")
 
     fileutil.make_dirs(os.path.join(basedir, "private"), 0o700)
-    with open(os.path.join(basedir, "tahoe.cfg"), "w") as c:
+    cfg_name = os.path.join(basedir, "tahoe.cfg")
+    with io.open(cfg_name, "w", encoding='utf-8') as c:
         yield write_node_config(c, config)
 
     print("Introducer created in %s" % quote_local_unicode_path(basedir), file=out)
