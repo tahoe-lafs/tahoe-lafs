@@ -2,9 +2,11 @@
 
 from __future__ import print_function
 
-import os, sys, urllib, textwrap
+import os, sys, textwrap
 import codecs
 from os.path import join
+
+from six.moves import urllib  # import urllib.parse
 
 try:
     from typing import Optional
@@ -284,4 +286,4 @@ def escape_path(path):
     """
     # this always returns bytes, specifically US-ASCII, valid URL characters
     segments = path.split("/")
-    return "/".join([urllib.quote(unicode_to_url(s)) for s in segments])
+    return "/".join([urllib.parse.quote(unicode_to_url(s)) for s in segments])
