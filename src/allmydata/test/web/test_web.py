@@ -2688,6 +2688,8 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         return d
 
     def failUnlessCHKURIHasContents(self, got_uri, contents):
+        if isinstance(got_uri, unicode):
+            got_uri = got_uri.encode("utf-8")
         self.failUnless(self.get_all_contents()[got_uri] == contents)
 
     def test_POST_upload(self):
@@ -2737,6 +2739,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d = self.POST("/uri", t="upload",
                       file=("new.txt", self.NEWFILE_CONTENTS))
         def _check_upload_results(page):
+            page = unicode(page, "utf-8")
             # this should be a page which describes the results of the upload
             # that just finished.
             self.failUnlessIn("Upload Results:", page)
@@ -2778,7 +2781,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
                       file=("new.txt", self.NEWFILE_CONTENTS))
         def _check(filecap):
             filecap = filecap.strip()
-            self.failUnless(filecap.startswith("URI:SSK:"), filecap)
+            self.failUnless(filecap.startswith(b"URI:SSK:"), filecap)
             self.filecap = filecap
             u = uri.WriteableSSKFileURI.init_from_string(filecap)
             self.failUnlessIn(u.get_storage_index(), self.get_all_contents())
