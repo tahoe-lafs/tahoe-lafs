@@ -568,35 +568,37 @@ class WebMixin(TimezoneMixin):
         return do_http("delete", url)
 
     def build_form(self, **fields):
-        sepbase = "boogabooga"
-        sep = "--" + sepbase
+        sepbase = b"boogabooga"
+        sep = b"--" + sepbase
         form = []
         form.append(sep)
-        form.append('Content-Disposition: form-data; name="_charset"')
-        form.append('')
-        form.append('UTF-8')
+        form.append(b'Content-Disposition: form-data; name="_charset"')
+        form.append(b'')
+        form.append(b'UTF-8')
         form.append(sep)
         for name, value in fields.items():
+            if isinstance(name, unicode):
+                name = name.encode("utf-8")
             if isinstance(value, tuple):
                 filename, value = value
-                form.append('Content-Disposition: form-data; name="%s"; '
-                            'filename="%s"' % (name, filename))
+                if isinstance(filename, unicode):
+                    filename = filename.encode("utf-8")
+                form.append(b'Content-Disposition: form-data; name="%s"; '
+                            b'filename="%s"' % (name, filename))
             else:
-                form.append('Content-Disposition: form-data; name="%s"' % name)
-            form.append('')
-            if isinstance(value, bytes):
-                value = unicode(value, "utf-8")
-            if not isinstance(value, unicode):
-                value = unicode(value)
+                form.append(b'Content-Disposition: form-data; name="%s"' % name)
+            form.append(b'')
+            if isinstance(value, unicode):
+                value = value.encode("utf-8")
             form.append(value)
             form.append(sep)
-        form[-1] += "--"
-        body = ""
+        form[-1] += b"--"
+        body = b""
         headers = {}
         if fields:
-            body = "\r\n".join(form) + "\r\n"
-            headers["content-type"] = "multipart/form-data; boundary=%s" % sepbase
-        return (body.encode("utf-8"), headers)
+            body = b"\r\n".join(form) + b"\r\n"
+            headers["content-type"] = "multipart/form-data; boundary=%s" % unicode(sepbase, "utf-8")
+        return (body, headers)
 
     def POST(self, urlpath, **fields):
         body, headers = self.build_form(**fields)
