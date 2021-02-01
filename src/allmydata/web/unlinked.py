@@ -66,8 +66,8 @@ def POSTUnlinkedCHK(req, client):
         # if when_done= is provided, return a redirect instead of our
         # usual upload-results page
         def _done(upload_results, redir_to):
-            if "%(uri)s" in redir_to:
-                redir_to = redir_to.replace("%(uri)s", urlquote(upload_results.get_uri()))
+            if b"%(uri)s" in redir_to:
+                redir_to = redir_to.replace(b"%(uri)s", urlquote(upload_results.get_uri()).encode("utf-8"))
             return url_for_string(req, redir_to)
         d.addCallback(_done, when_done)
     else:

@@ -674,7 +674,7 @@ def url_for_string(req, url_string):
         and the given URL string.
     """
     url = DecodedURL.from_text(url_string.decode("utf-8"))
-    if url.host == b"":
+    if not url.host:
         root = req.URLPath()
         netloc = root.netloc.split(b":", 1)
         if len(netloc) == 1:
