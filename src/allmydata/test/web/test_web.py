@@ -3094,13 +3094,14 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
                                               self.NEWFILE_CONTENTS)
 
     def test_POST_upload_named(self):
+        NEWFILE_CONTENTS = self.NEWFILE_CONTENTS + b"\xFF\x00\xFF"
         fn = self._foo_node
         d = self.POST(self.public_url + "/foo", t="upload",
-                      name="new.txt", file=self.NEWFILE_CONTENTS)
+                      name="new.txt", file=NEWFILE_CONTENTS)
         d.addCallback(self.failUnlessURIMatchesROChild, fn, u"new.txt")
         d.addCallback(lambda res:
                       self.failUnlessChildContentsAre(fn, u"new.txt",
-                                                      self.NEWFILE_CONTENTS))
+                                                      NEWFILE_CONTENTS))
         return d
 
     def test_POST_upload_named_badfilename(self):
