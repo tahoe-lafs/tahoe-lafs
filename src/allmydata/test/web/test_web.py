@@ -1500,7 +1500,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
 
     def test_PUT_FILE_URI_mdmf(self):
         base = "/uri/%s" % urlquote(unicode(self._quux_txt_uri, "ascii"))
-        self._quux_new_contents = "new_contents"
+        self._quux_new_contents = b"new_contents"
         d = self.GET(base)
         d.addCallback(lambda res:
             self.failUnlessIsQuuxDotTxt(res))
@@ -1533,7 +1533,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d.addCallback(lambda ignored:
             self.shouldFail2(error.Error, "test_PUT_FILE_URI_mdmf_readonly",
                              "400 Bad Request", "read-only cap",
-                             self.PUT, base, "new data"))
+                             self.PUT, base, b"new data"))
         return d
 
     def test_PUT_FILE_URI_sdmf_readonly(self):
@@ -1545,7 +1545,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d.addCallback(lambda ignored:
             self.shouldFail2(error.Error, "test_PUT_FILE_URI_sdmf_readonly",
                              "400 Bad Request", "read-only cap",
-                             self.PUT, base, "new_data"))
+                             self.PUT, base, b"new_data"))
         return d
 
     def test_GET_etags(self):
@@ -1732,11 +1732,11 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d = self.PUT("/uri?format=mdmf",
                      contents)
         def _got_filecap(filecap):
-            self.failUnless(filecap.startswith("URI:MDMF"))
+            self.failUnless(filecap.startswith(b"URI:MDMF"))
             return filecap
         d.addCallback(_got_filecap)
         d.addCallback(lambda filecap: self.GET("/uri/%s?t=json" % filecap))
-        d.addCallback(lambda json: self.failUnlessIn("MDMF", json))
+        d.addCallback(lambda json: self.failUnlessIn(b"MDMF", json))
         return d
 
     def test_PUT_NEWFILEURL_unlinked_sdmf(self):
@@ -1789,7 +1789,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         # It is okay to upload large mutable files, so we should be able
         # to do that.
         d = self.PUT(self.public_url + "/foo/new.txt?mutable=true",
-                     "b" * (self.s.MUTABLE_SIZELIMIT + 1))
+                     b"b" * (self.s.MUTABLE_SIZELIMIT + 1))
         return d
 
     def test_PUT_NEWFILEURL_replace(self):
@@ -1804,9 +1804,9 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
 
     def test_PUT_NEWFILEURL_bad_t(self):
         d = self.shouldFail2(error.Error, "PUT_bad_t", "400 Bad Request",
-                             "PUT to a file: bad t=bogus",
+                             "PUT to a file: bad t=",
                              self.PUT, self.public_url + "/foo/bar.txt?t=bogus",
-                             "contents")
+                             b"contents")
         return d
 
     def test_PUT_NEWFILEURL_no_replace(self):
@@ -2806,7 +2806,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         # able to upload mutable files that are as large as we want them
         # to be.
         d = self.POST("/uri", t="upload", mutable="true",
-                      file=("new.txt", "b" * (self.s.MUTABLE_SIZELIMIT + 1)))
+                      file=("new.txt", b"b" * (self.s.MUTABLE_SIZELIMIT + 1)))
         return d
 
 
