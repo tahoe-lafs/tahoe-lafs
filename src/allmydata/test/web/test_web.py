@@ -1735,7 +1735,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             self.failUnless(filecap.startswith(b"URI:MDMF"))
             return filecap
         d.addCallback(_got_filecap)
-        d.addCallback(lambda filecap: self.GET("/uri/%s?t=json" % filecap))
+        d.addCallback(lambda filecap: self.GET("/uri/%s?t=json" % unicode(filecap, "utf-8")))
         d.addCallback(lambda json: self.failUnlessIn(b"MDMF", json))
         return d
 
@@ -1743,8 +1743,8 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         contents = self.NEWFILE_CONTENTS * 300000
         d = self.PUT("/uri?format=sdmf",
                      contents)
-        d.addCallback(lambda filecap: self.GET("/uri/%s?t=json" % filecap))
-        d.addCallback(lambda json: self.failUnlessIn("SDMF", json))
+        d.addCallback(lambda filecap: self.GET("/uri/%s?t=json" % unicode(filecap, "utf-8")))
+        d.addCallback(lambda json: self.failUnlessIn(b"SDMF", json))
         return d
 
     @inlineCallbacks
@@ -4495,14 +4495,14 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         return d
 
     def test_PUT_NEWFILE_URI(self):
-        file_contents = "New file contents here\n"
+        file_contents = b"New file contents here\n"
         d = self.PUT("/uri", file_contents)
         def _check(uri):
-            assert isinstance(uri, str), uri
+            assert isinstance(uri, bytes), uri
             self.failUnlessIn(uri, self.get_all_contents())
             self.failUnlessReallyEqual(self.get_all_contents()[uri],
                                        file_contents)
-            return self.GET("/uri/%s" % uri)
+            return self.GET("/uri/%s" % unicode(uri, "utf-8"))
         d.addCallback(_check)
         def _check2(res):
             self.failUnlessReallyEqual(res, file_contents)
@@ -4510,14 +4510,14 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         return d
 
     def test_PUT_NEWFILE_URI_not_mutable(self):
-        file_contents = "New file contents here\n"
+        file_contents = b"New file contents here\n"
         d = self.PUT("/uri?mutable=false", file_contents)
         def _check(uri):
-            assert isinstance(uri, str), uri
+            assert isinstance(uri, bytes), uri
             self.failUnlessIn(uri, self.get_all_contents())
             self.failUnlessReallyEqual(self.get_all_contents()[uri],
                                        file_contents)
-            return self.GET("/uri/%s" % uri)
+            return self.GET("/uri/%s" % unicode(uri, "utf-8"))
         d.addCallback(_check)
         def _check2(res):
             self.failUnlessReallyEqual(res, file_contents)
@@ -4525,7 +4525,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         return d
 
     def test_PUT_NEWFILE_URI_only_PUT(self):
-        d = self.PUT("/uri?t=bogus", "")
+        d = self.PUT("/uri?t=bogus", b"")
         d.addBoth(self.shouldFail, error.Error,
                   "PUT_NEWFILE_URI_only_PUT",
                   "400 Bad Request",
@@ -4533,11 +4533,11 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         return d
 
     def test_PUT_NEWFILE_URI_mutable(self):
-        file_contents = "New file contents here\n"
+        file_contents = b"New file contents here\n"
         d = self.PUT("/uri?mutable=true", file_contents)
         def _check1(filecap):
             filecap = filecap.strip()
-            self.failUnless(filecap.startswith("URI:SSK:"), filecap)
+            self.failUnless(filecap.startswith(b"URI:SSK:"), filecap)
             self.filecap = filecap
             u = uri.WriteableSSKFileURI.init_from_string(filecap)
             self.failUnlessIn(u.get_storage_index(), self.get_all_contents())
@@ -4546,7 +4546,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d.addCallback(_check1)
         def _check2(data):
             self.failUnlessReallyEqual(data, file_contents)
-            return self.GET("/uri/%s" % urlquote(self.filecap))
+            return self.GET("/uri/%s" % urlquote(unicode(self.filecap, "utf-8")))
         d.addCallback(_check2)
         def _check3(res):
             self.failUnlessReallyEqual(res, file_contents)
@@ -4559,7 +4559,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             n = self.s.create_node_from_uri(uri.strip())
             d2 = self.failUnlessNodeKeysAre(n, [])
             d2.addCallback(lambda res:
-                           self.GET("/uri/%s?t=json" % uri))
+                           self.GET("/uri/%s?t=json" % unicode(uri, "utf-8")))
             return d2
         d.addCallback(_check)
         d.addCallback(self.failUnlessIsEmptyJSON)
@@ -4586,7 +4586,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
     def test_PUT_mkdir_bad_format(self):
         url = self.webish_url + "/uri?t=mkdir&format=foo"
         yield self.assertHTTPError(url, 400, "Unknown format:",
-                                   method="put", data="")
+                                   method="put", data=b"")
 
     def test_POST_check(self):
         d = self.POST(self.public_url + "/foo", t="check", name="bar.txt")
@@ -4602,20 +4602,20 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
 
 
     def test_PUT_update_at_offset(self):
-        file_contents = "test file" * 100000 # about 900 KiB
+        file_contents = b"test file" * 100000 # about 900 KiB
         d = self.PUT("/uri?mutable=true", file_contents)
         def _then(filecap):
             self.filecap = filecap
             new_data = file_contents[:100]
-            new = "replaced and so on"
+            new = b"replaced and so on"
             new_data += new
             new_data += file_contents[len(new_data):]
             assert len(new_data) == len(file_contents)
             self.new_data = new_data
         d.addCallback(_then)
         d.addCallback(lambda ignored:
-            self.PUT("/uri/%s?replace=True&offset=100" % self.filecap,
-                     "replaced and so on"))
+            self.PUT("/uri/%s?replace=True&offset=100" % unicode(self.filecap, "utf-8"),
+                     b"replaced and so on"))
         def _get_data(filecap):
             n = self.s.create_node_from_uri(filecap)
             return n.download_best_version()
@@ -4624,35 +4624,35 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             self.failUnlessEqual(results, self.new_data))
         # Now try appending things to the file
         d.addCallback(lambda ignored:
-            self.PUT("/uri/%s?offset=%d" % (self.filecap, len(self.new_data)),
-                     "puppies" * 100))
+            self.PUT("/uri/%s?offset=%d" % (unicode(self.filecap, "utf-8"), len(self.new_data)),
+                     b"puppies" * 100))
         d.addCallback(_get_data)
         d.addCallback(lambda results:
-            self.failUnlessEqual(results, self.new_data + ("puppies" * 100)))
+            self.failUnlessEqual(results, self.new_data + (b"puppies" * 100)))
         # and try replacing the beginning of the file
         d.addCallback(lambda ignored:
-            self.PUT("/uri/%s?offset=0" % self.filecap, "begin"))
+            self.PUT("/uri/%s?offset=0" % unicode(self.filecap, "utf-8"), b"begin"))
         d.addCallback(_get_data)
         d.addCallback(lambda results:
-            self.failUnlessEqual(results, "begin"+self.new_data[len("begin"):]+("puppies"*100)))
+            self.failUnlessEqual(results, b"begin"+self.new_data[len(b"begin"):]+(b"puppies"*100)))
         return d
 
     @inlineCallbacks
     def test_PUT_update_at_invalid_offset(self):
-        file_contents = "test file" * 100000 # about 900 KiB
+        file_contents = b"test file" * 100000 # about 900 KiB
         filecap = yield self.PUT("/uri?mutable=true", file_contents)
         # Negative offsets should cause an error.
-        url = self.webish_url + "/uri/%s?offset=-1" % filecap
+        url = self.webish_url + "/uri/%s?offset=-1" % unicode(filecap, "utf-8")
         yield self.assertHTTPError(url, 400, "Invalid offset",
-                                   method="put", data="foo")
+                                   method="put", data=b"foo")
 
     @inlineCallbacks
     def test_PUT_update_at_offset_immutable(self):
-        file_contents = "Test file" * 100000
+        file_contents = b"Test file" * 100000
         filecap = yield self.PUT("/uri", file_contents)
-        url = self.webish_url + "/uri/%s?offset=50" % filecap
+        url = self.webish_url + "/uri/%s?offset=50" % unicode(filecap, "utf-8")
         yield self.assertHTTPError(url, 400, "immutable",
-                                   method="put", data="foo")
+                                   method="put", data=b"foo")
 
     @inlineCallbacks
     def test_bad_method(self):

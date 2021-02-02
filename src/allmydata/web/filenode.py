@@ -127,7 +127,7 @@ class PlaceHolderNodeHandler(Resource, ReplaceMeMixin):
                            http.NOT_IMPLEMENTED)
         if not t:
             return self.replace_me_with_a_child(req, self.client, replace)
-        if t == "uri":
+        if t == b"uri":
             return self.replace_me_with_a_childcap(req, self.client, replace)
 
         raise WebError("PUT to a file: bad t=%s" % t)
@@ -281,7 +281,7 @@ class FileNodeHandler(Resource, ReplaceMeMixin, object):
                 assert self.parentnode and self.name
                 return self.replace_me_with_a_child(req, self.client, replace)
 
-        if t == "uri":
+        if t == b"uri":
             if not replace:
                 raise ExistingChildError()
             assert self.parentnode and self.name
