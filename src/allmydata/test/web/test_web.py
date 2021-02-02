@@ -4290,7 +4290,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
                  http.FOUND,
                  http.TEMPORARY_REDIRECT,
                  ] if code is None else [code]
-        body = yield response.content()
+        yield response.content()
         self.assertIn(response.code, codes)
         location = response.headers.getRawHeaders(b"location")[0]
         if target_location is not None:
