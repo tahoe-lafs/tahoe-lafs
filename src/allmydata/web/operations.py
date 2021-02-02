@@ -102,7 +102,7 @@ class OphandleTable(resource.Resource, service.Service):
     def getChild(self, name, req):
         ophandle = name
         if ophandle not in self.handles:
-            raise WebError("unknown/expired handle '%s'" % escape(ophandle),
+            raise WebError("unknown/expired handle '%s'" % escape(unicode(ophandle, "utf-8")),
                            NOT_FOUND)
         (monitor, renderer, when_added) = self.handles[ophandle]
 

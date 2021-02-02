@@ -832,7 +832,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
                      u'nickname': u'disconnected_nickname \u263b',
                      u'version': u'1.0',
                     },
-                ]),
+                ], key=lambda o: sorted(o.items())),
             }
             self.assertEqual(expected, decoded)
         d.addCallback(_check)
@@ -855,7 +855,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d.addCallback(_set_introducer_not_connected_unguessable)
         def _check_introducer_not_connected_unguessable(res):
             soup = BeautifulSoup(res, 'html5lib')
-            self.failIfIn('pb://someIntroducer/secret', res)
+            self.failIfIn(b'pb://someIntroducer/secret', res)
             assert_soup_has_tag_with_attributes(
                 self, soup, u"img",
                 {u"alt": u"Disconnected", u"src": u"img/connected-no.png"}
@@ -879,7 +879,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
                 u"summary",
                 { u"class": u"connection-status", u"title": u"(no other hints)" }
             )
-            self.failIfIn('pb://someIntroducer/secret', res)
+            self.failIfIn(b'pb://someIntroducer/secret', res)
             assert_soup_has_tag_with_attributes(
                 self, soup, u"img",
                 { u"alt": u"Connected", u"src": u"img/connected-yes.png" }
@@ -943,7 +943,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
                 u"pb://someHelper/[censored]",
                 { u"class": u"furl" }
             )
-            self.failIfIn('pb://someHelper/secret', res)
+            self.failIfIn(b'pb://someHelper/secret', res)
             assert_soup_has_tag_with_attributes(
                 self, soup, u"img",
                 { u"src": u"img/connected-no.png", u"alt": u"Disconnected" }
@@ -963,7 +963,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
                 u"pb://someHelper/[censored]",
                 { u"class": u"furl" }
             )
-            self.failIfIn('pb://someHelper/secret', res)
+            self.failIfIn(b'pb://someHelper/secret', res)
             assert_soup_has_tag_with_attributes(
                 self, soup, u"img",
                 { u"src": u"img/connected-yes.png", "alt": u"Connected" }
@@ -991,6 +991,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         ret_num = h.list_all_retrieve_statuses()[0].get_counter()
         d = self.GET("/status", followRedirect=True)
         def _check(res):
+            res = unicode(res, "utf-8")
             self.failUnlessIn('Recent and Active Operations', res)
             self.failUnlessIn('"/status/down-%d"' % dl_num, res)
             self.failUnlessIn('"/status/up-%d"' % ul_num, res)
@@ -1009,7 +1010,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
 
         d.addCallback(lambda res: self.GET("/status/down-%d" % dl_num))
         def _check_dl(res):
-            self.failUnlessIn("File Download Status", res)
+            self.failUnlessIn(b"File Download Status", res)
         d.addCallback(_check_dl)
         d.addCallback(lambda res: self.GET("/status/down-%d/event_json" % dl_num))
         def _check_dl_json(res):
@@ -1020,12 +1021,12 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             self.failUnlessEqual(data["segment"][0]["segment_length"], 100)
             self.failUnlessEqual(data["segment"][2]["segment_number"], 2)
             self.failUnlessEqual(data["segment"][2]["finish_time"], None)
-            phwr_id = base32.b2a(hashutil.tagged_hash("foo", "serverid_a")[:20])
-            cmpu_id = base32.b2a(hashutil.tagged_hash("foo", "serverid_b")[:20])
+            phwr_id = unicode(base32.b2a(hashutil.tagged_hash(b"foo", b"serverid_a")[:20]), "ascii")
+            cmpu_id = unicode(base32.b2a(hashutil.tagged_hash(b"foo", b"serverid_b")[:20]), "ascii")
             # serverids[] keys are strings, since that's what JSON does, but
             # we'd really like them to be ints
             self.failUnlessEqual(data["serverids"]["0"], "phwrsjte")
-            self.failUnless(data["serverids"].has_key("1"),
+            self.failUnless("1" in data["serverids"],
                             str(data["serverids"]))
             self.failUnlessEqual(data["serverids"]["1"], "cmpuvkjm",
                                  str(data["serverids"]))
@@ -1038,19 +1039,19 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d.addCallback(_check_dl_json)
         d.addCallback(lambda res: self.GET("/status/up-%d" % ul_num))
         def _check_ul(res):
-            self.failUnlessIn("File Upload Status", res)
+            self.failUnlessIn(b"File Upload Status", res)
         d.addCallback(_check_ul)
         d.addCallback(lambda res: self.GET("/status/mapupdate-%d" % mu_num))
         def _check_mapupdate(res):
-            self.failUnlessIn("Mutable File Servermap Update Status", res)
+            self.failUnlessIn(b"Mutable File Servermap Update Status", res)
         d.addCallback(_check_mapupdate)
         d.addCallback(lambda res: self.GET("/status/publish-%d" % pub_num))
         def _check_publish(res):
-            self.failUnlessIn("Mutable File Publish Status", res)
+            self.failUnlessIn(b"Mutable File Publish Status", res)
         d.addCallback(_check_publish)
         d.addCallback(lambda res: self.GET("/status/retrieve-%d" % ret_num))
         def _check_retrieve(res):
-            self.failUnlessIn("Mutable File Retrieve Status", res)
+            self.failUnlessIn(b"Mutable File Retrieve Status", res)
         d.addCallback(_check_retrieve)
 
         return d
@@ -3700,6 +3701,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
     def test_welcome_page_mkdir_button(self):
         # Fetch the welcome page.
         res = yield self.GET("/")
+        res = unicode(res, "utf-8")
         MKDIR_BUTTON_RE = re.compile(
             '<form(?: action="([^"]*)"| method="post"| enctype="multipart/form-data"){3}>.*'
             '<input (?:type="hidden" |name="t" |value="([^"]*?)" ){3}/>[ ]*'
@@ -3718,7 +3720,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         target = yield self.shouldRedirectTo(url, None,
                                              method="post",
                                              code=http.SEE_OTHER)
-        target = urlunquote(target)
+        target = urlunquote(unicode(target, "utf-8"))
         self.failUnless(target.startswith("uri/URI:DIR2:"), target)
 
     def test_POST_mkdir_replace(self): # return value?
@@ -4682,7 +4684,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         res = yield self.GET("/operations/128?t=status&output=JSON")
         data = json.loads(res)
         self.failUnless("finished" in data, res)
-        monitor = self.ws.getServiceNamed("operations").handles["128"][0]
+        monitor = self.ws.getServiceNamed("operations").handles[b"128"][0]
 
         res = yield self.POST("/operations/128?t=cancel&output=JSON")
         data = json.loads(res)
@@ -4801,7 +4803,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             dircap_uri,
         )
         self.assertEqual(
-            response.request.absoluteURI,
+            unicode(response.request.absoluteURI, "utf-8"),
             self.webish_url + "/uri/{}?t=json".format(urlquote(dircap)))
         if response.code >= 400:
             raise Error(response.code, response=response.content())
@@ -4809,8 +4811,8 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
     def test_incident(self):
         d = self.POST("/report_incident", details="eek")
         def _done(res):
-            self.failIfIn("<html>", res)
-            self.failUnlessIn("An incident report has been saved", res)
+            self.failIfIn(b"<html>", res)
+            self.failUnlessIn(b"An incident report has been saved", res)
         d.addCallback(_done)
         return d
 
@@ -4818,12 +4820,12 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         webdir = os.path.join(self.staticdir, "subdir")
         fileutil.make_dirs(webdir)
         f = open(os.path.join(webdir, "hello.txt"), "wb")
-        f.write("hello")
+        f.write(b"hello")
         f.close()
 
         d = self.GET("/static/subdir/hello.txt")
         def _check(res):
-            self.failUnlessReallyEqual(res, "hello")
+            self.failUnlessReallyEqual(res, b"hello")
         d.addCallback(_check)
         return d
 

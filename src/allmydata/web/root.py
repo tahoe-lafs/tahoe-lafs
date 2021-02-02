@@ -256,11 +256,11 @@ class Root(MultiFormatResource):
         if not path:
             # Render "/" path.
             return self
-        if path == "helper_status":
+        if path == b"helper_status":
             # the Helper isn't attached until after the Tub starts, so this child
             # needs to created on each request
             return status.HelperStatus(self._client.helper)
-        if path == "storage":
+        if path == b"storage":
             # Storage isn't initialized until after the web hierarchy is
             # constructed so this child needs to be created later than
             # `__init__`.
@@ -294,7 +294,7 @@ class Root(MultiFormatResource):
             self._describe_server(server)
             for server
             in broker.get_known_servers()
-        ))
+        ), key=lambda o: sorted(o.items()))
 
 
     def _describe_server(self, server):
