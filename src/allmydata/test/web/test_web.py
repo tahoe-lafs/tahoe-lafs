@@ -1,6 +1,14 @@
+"""
+Ported to Python 3.
+"""
 from __future__ import print_function
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import unicode_literals
 
-from past.builtins import unicode
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 from six import ensure_binary
 
 import os.path, re, time
@@ -343,7 +351,7 @@ class WebMixin(TimezoneMixin):
         def _then(res):
             self.public_root = res[0][1]
             assert interfaces.IDirectoryNode.providedBy(self.public_root), res
-            self.public_url = "/uri/" + unicode(self.public_root.get_uri(), "ascii")
+            self.public_url = "/uri/" + str(self.public_root.get_uri(), "ascii")
             self.private_root = res[1][1]
 
             foo = res[2][1]
@@ -481,9 +489,9 @@ class WebMixin(TimezoneMixin):
             self.failIfIn("rw_uri", metadata)
         else:
             self.failUnlessIn("rw_uri", metadata)
-            self.failUnlessEqual(metadata['rw_uri'], unicode(self._quux_txt_uri, "ascii"))
+            self.failUnlessEqual(metadata['rw_uri'], str(self._quux_txt_uri, "ascii"))
         self.failUnlessIn("ro_uri", metadata)
-        self.failUnlessEqual(metadata['ro_uri'], unicode(self._quux_txt_readonly_uri, "ascii"))
+        self.failUnlessEqual(metadata['ro_uri'], str(self._quux_txt_readonly_uri, "ascii"))
         self.failUnlessReallyEqual(metadata['size'], len(self.QUUX_CONTENTS))
 
     def failUnlessIsFooJSON(self, res):
@@ -497,13 +505,13 @@ class WebMixin(TimezoneMixin):
         self.failUnlessReallyEqual(to_bytes(data[1]["ro_uri"]), self._foo_readonly_uri)
         self.failUnlessReallyEqual(to_bytes(data[1]["verify_uri"]), self._foo_verifycap)
 
-        kidnames = sorted([unicode(n) for n in data[1]["children"]])
+        kidnames = sorted([str(n) for n in data[1]["children"]])
         self.failUnlessEqual(kidnames,
                              [self._htmlname_unicode, u"bar.txt", u"baz.txt",
                               u"blockingfile", u"empty", u"n\u00fc.txt", u"quux.txt", u"sub"])
-        kids = dict( [(unicode(name),value)
+        kids = dict( [(str(name),value)
                       for (name,value)
-                      in data[1]["children"].items()] )
+                      in list(data[1]["children"].items())] )
         self.failUnlessEqual(kids[u"sub"][0], "dirnode")
         self.failUnlessIn("metadata", kids[u"sub"][1])
         self.failUnlessIn("tahoe", kids[u"sub"][1]["metadata"])
@@ -576,19 +584,19 @@ class WebMixin(TimezoneMixin):
         form.append(b'')
         form.append(b'UTF-8')
         form.append(sep)
-        for name, value in fields.items():
-            if isinstance(name, unicode):
+        for name, value in list(fields.items()):
+            if isinstance(name, str):
                 name = name.encode("utf-8")
             if isinstance(value, tuple):
                 filename, value = value
-                if isinstance(filename, unicode):
+                if isinstance(filename, str):
                     filename = filename.encode("utf-8")
                 form.append(b'Content-Disposition: form-data; name="%s"; '
                             b'filename="%s"' % (name, filename))
             else:
                 form.append(b'Content-Disposition: form-data; name="%s"' % name)
             form.append(b'')
-            if isinstance(value, unicode):
+            if isinstance(value, str):
                 value = value.encode("utf-8")
             form.append(value)
             form.append(sep)
@@ -597,7 +605,7 @@ class WebMixin(TimezoneMixin):
         headers = {}
         if fields:
             body = b"\r\n".join(form) + b"\r\n"
-            headers["content-type"] = "multipart/form-data; boundary=%s" % unicode(sepbase, "utf-8")
+            headers["content-type"] = "multipart/form-data; boundary=%s" % str(sepbase, "utf-8")
         return (body, headers)
 
     def POST(self, urlpath, **fields):
@@ -606,7 +614,7 @@ class WebMixin(TimezoneMixin):
 
     def POST2(self, urlpath, body="", headers={}, followRedirect=False):
         url = self.webish_url + urlpath
-        if isinstance(body, unicode):
+        if isinstance(body, str):
             body = body.encode("utf-8")
         return do_http("POST", url, allow_redirects=followRedirect,
                        headers=headers, data=body)
@@ -641,7 +649,7 @@ class WebMixin(TimezoneMixin):
                 if response_substring:
                     response = res.value.response
                     if isinstance(response, bytes):
-                        response = unicode(response, "utf-8")
+                        response = str(response, "utf-8")
                     self.failUnlessIn(response_substring, response,
                                       "'%s' not in '%s' for test '%s'" % \
                                       (response_substring, res.value.response,
@@ -675,7 +683,7 @@ class MultiFormatResourceTests(TrialTestCase):
     """
     def render(self, resource, **queryargs):
         # Query arguments in real twisted.web requests have byte keys.
-        queryargs = {k.encode("utf-8"): v for (k, v) in queryargs.items()}
+        queryargs = {k.encode("utf-8"): v for (k, v) in list(queryargs.items())}
         return self.successResultOf(render(resource, queryargs))
 
     def resource(self):
@@ -991,7 +999,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         ret_num = h.list_all_retrieve_statuses()[0].get_counter()
         d = self.GET("/status", followRedirect=True)
         def _check(res):
-            res = unicode(res, "utf-8")
+            res = str(res, "utf-8")
             self.failUnlessIn('Recent and Active Operations', res)
             self.failUnlessIn('"/status/down-%d"' % dl_num, res)
             self.failUnlessIn('"/status/up-%d"' % ul_num, res)
@@ -1021,8 +1029,8 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             self.failUnlessEqual(data["segment"][0]["segment_length"], 100)
             self.failUnlessEqual(data["segment"][2]["segment_number"], 2)
             self.failUnlessEqual(data["segment"][2]["finish_time"], None)
-            phwr_id = unicode(base32.b2a(hashutil.tagged_hash(b"foo", b"serverid_a")[:20]), "ascii")
-            cmpu_id = unicode(base32.b2a(hashutil.tagged_hash(b"foo", b"serverid_b")[:20]), "ascii")
+            phwr_id = str(base32.b2a(hashutil.tagged_hash(b"foo", b"serverid_a")[:20]), "ascii")
+            cmpu_id = str(base32.b2a(hashutil.tagged_hash(b"foo", b"serverid_b")[:20]), "ascii")
             # serverids[] keys are strings, since that's what JSON does, but
             # we'd really like them to be ints
             self.failUnlessEqual(data["serverids"]["0"], "phwrsjte")
@@ -1472,19 +1480,19 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         return d
 
     def test_GET_FILE_URI_mdmf_extensions(self):
-        base = "/uri/%s" % urlquote("%s:RANDOMSTUFF" % unicode(self._quux_txt_uri, "ascii"))
+        base = "/uri/%s" % urlquote("%s:RANDOMSTUFF" % str(self._quux_txt_uri, "ascii"))
         d = self.GET(base)
         d.addCallback(self.failUnlessIsQuuxDotTxt)
         return d
 
     def test_GET_FILE_URI_mdmf_readonly(self):
-        base = "/uri/%s" % urlquote(unicode(self._quux_txt_readonly_uri, "ascii"))
+        base = "/uri/%s" % urlquote(str(self._quux_txt_readonly_uri, "ascii"))
         d = self.GET(base)
         d.addCallback(self.failUnlessIsQuuxDotTxt)
         return d
 
     def test_GET_FILE_URI_badchild(self):
-        base = "/uri/%s/boguschild" % urlquote(unicode(self._bar_txt_uri, "ascii"))
+        base = "/uri/%s/boguschild" % urlquote(str(self._bar_txt_uri, "ascii"))
         errmsg = "Files have no children named 'boguschild'"
         d = self.shouldFail2(error.Error, "test_GET_FILE_URI_badchild",
                              "400 Bad Request", errmsg,
@@ -1492,7 +1500,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         return d
 
     def test_PUT_FILE_URI_badchild(self):
-        base = "/uri/%s/boguschild" % urlquote(unicode(self._bar_txt_uri, "ascii"))
+        base = "/uri/%s/boguschild" % urlquote(str(self._bar_txt_uri, "ascii"))
         errmsg = "Cannot create directory 'boguschild', because its parent is a file, not a directory"
         d = self.shouldFail2(error.Error, "test_GET_FILE_URI_badchild",
                              "409 Conflict", errmsg,
@@ -1500,7 +1508,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         return d
 
     def test_PUT_FILE_URI_mdmf(self):
-        base = "/uri/%s" % urlquote(unicode(self._quux_txt_uri, "ascii"))
+        base = "/uri/%s" % urlquote(str(self._quux_txt_uri, "ascii"))
         self._quux_new_contents = b"new_contents"
         d = self.GET(base)
         d.addCallback(lambda res:
@@ -1514,7 +1522,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         return d
 
     def test_PUT_FILE_URI_mdmf_extensions(self):
-        base = "/uri/%s" % urlquote("%s:EXTENSIONSTUFF" % unicode(self._quux_txt_uri, "ascii"))
+        base = "/uri/%s" % urlquote("%s:EXTENSIONSTUFF" % str(self._quux_txt_uri, "ascii"))
         self._quux_new_contents = b"new_contents"
         d = self.GET(base)
         d.addCallback(lambda res: self.failUnlessIsQuuxDotTxt(res))
@@ -1526,7 +1534,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
 
     def test_PUT_FILE_URI_mdmf_readonly(self):
         # We're not allowed to PUT things to a readonly cap.
-        base = "/uri/%s" % unicode(self._quux_txt_readonly_uri, "ascii")
+        base = "/uri/%s" % str(self._quux_txt_readonly_uri, "ascii")
         d = self.GET(base)
         d.addCallback(lambda res:
             self.failUnlessIsQuuxDotTxt(res))
@@ -1539,7 +1547,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
 
     def test_PUT_FILE_URI_sdmf_readonly(self):
         # We're not allowed to put things to a readonly cap.
-        base = "/uri/%s" % unicode(self._baz_txt_readonly_uri, "ascii")
+        base = "/uri/%s" % str(self._baz_txt_readonly_uri, "ascii")
         d = self.GET(base)
         d.addCallback(lambda res:
             self.failUnlessIsBazDotTxt(res))
@@ -1590,7 +1598,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
 
         # use the ETag on GET
         def _check_match(ign):
-            uri = "/uri/%s" % unicode(self._bar_txt_uri, "ascii")
+            uri = "/uri/%s" % str(self._bar_txt_uri, "ascii")
             d = self.GET(uri, return_response=True)
             # extract the ETag
             d.addCallback(lambda data_code_headers:
@@ -1606,13 +1614,13 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d.addCallback(_check_match)
 
         def _no_etag(uri, t):
-            target = "/uri/%s?t=%s" % (unicode(uri, "ascii"), t)
+            target = "/uri/%s?t=%s" % (str(uri, "ascii"), t)
             d = self.GET(target, return_response=True, followRedirect=True)
             d.addCallback(lambda data_code_headers:
                           self.failIf(data_code_headers[2].hasHeader("etag"), target))
             return d
         def _yes_etag(uri, t):
-            target = "/uri/%s?t=%s" % (unicode(uri, "ascii"), t)
+            target = "/uri/%s?t=%s" % (str(uri, "ascii"), t)
             d = self.GET(target, return_response=True, followRedirect=True)
             d.addCallback(lambda data_code_headers:
                           self.failUnless(data_code_headers[2].hasHeader("etag"), target))
@@ -1651,7 +1659,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         return d
 
     def test_GET_FILEURL_info_mdmf(self):
-        d = self.GET("/uri/%s?t=info" % unicode(self._quux_txt_uri, "ascii"))
+        d = self.GET("/uri/%s?t=info" % str(self._quux_txt_uri, "ascii"))
         def _got(res):
             self.failUnlessIn(b"mutable file (mdmf)", res)
             self.failUnlessIn(self._quux_txt_uri, res)
@@ -1660,7 +1668,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         return d
 
     def test_GET_FILEURL_info_mdmf_readonly(self):
-        d = self.GET("/uri/%s?t=info" % unicode(self._quux_txt_readonly_uri, "ascii"))
+        d = self.GET("/uri/%s?t=info" % str(self._quux_txt_readonly_uri, "ascii"))
         def _got(res):
             self.failUnlessIn(b"mutable file (mdmf)", res)
             self.failIfIn(self._quux_txt_uri, res)
@@ -1669,7 +1677,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         return d
 
     def test_GET_FILEURL_info_sdmf(self):
-        d = self.GET("/uri/%s?t=info" % unicode(self._baz_txt_uri, "ascii"))
+        d = self.GET("/uri/%s?t=info" % str(self._baz_txt_uri, "ascii"))
         def _got(res):
             self.failUnlessIn(b"mutable file (sdmf)", res)
             self.failUnlessIn(self._baz_txt_uri, res)
@@ -1677,7 +1685,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         return d
 
     def test_GET_FILEURL_info_mdmf_extensions(self):
-        d = self.GET("/uri/%s:STUFF?t=info" % unicode(self._quux_txt_uri, "ascii"))
+        d = self.GET("/uri/%s:STUFF?t=info" % str(self._quux_txt_uri, "ascii"))
         def _got(res):
             self.failUnlessIn(b"mutable file (mdmf)", res)
             self.failUnlessIn(self._quux_txt_uri, res)
@@ -1736,7 +1744,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             self.failUnless(filecap.startswith(b"URI:MDMF"))
             return filecap
         d.addCallback(_got_filecap)
-        d.addCallback(lambda filecap: self.GET("/uri/%s?t=json" % unicode(filecap, "utf-8")))
+        d.addCallback(lambda filecap: self.GET("/uri/%s?t=json" % str(filecap, "utf-8")))
         d.addCallback(lambda json: self.failUnlessIn(b"MDMF", json))
         return d
 
@@ -1744,7 +1752,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         contents = self.NEWFILE_CONTENTS * 300000
         d = self.PUT("/uri?format=sdmf",
                      contents)
-        d.addCallback(lambda filecap: self.GET("/uri/%s?t=json" % unicode(filecap, "utf-8")))
+        d.addCallback(lambda filecap: self.GET("/uri/%s?t=json" % str(filecap, "utf-8")))
         d.addCallback(lambda json: self.failUnlessIn(b"SDMF", json))
         return d
 
@@ -1890,7 +1898,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         # file is SDMF or MDMF
         d = self.PUT("/uri?format=mdmf",
                      self.NEWFILE_CONTENTS * 300000)
-        d.addCallback(lambda filecap: self.GET("/uri/%s?t=json" % unicode(filecap, "ascii")))
+        d.addCallback(lambda filecap: self.GET("/uri/%s?t=json" % str(filecap, "ascii")))
         def _got_json(raw, version):
             data = json.loads(raw)
             assert "filenode" == data[0]
@@ -1905,12 +1913,12 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d.addCallback(lambda ignored:
             self.PUT("/uri?format=sdmf",
                       self.NEWFILE_CONTENTS * 300000))
-        d.addCallback(lambda filecap: self.GET("/uri/%s?t=json" % unicode(filecap, "ascii")))
+        d.addCallback(lambda filecap: self.GET("/uri/%s?t=json" % str(filecap, "ascii")))
         d.addCallback(_got_json, "SDMF")
         return d
 
     def test_GET_FILEURL_json_mdmf(self):
-        d = self.GET("/uri/%s?t=json" % urlquote(unicode(self._quux_txt_uri, "ascii")))
+        d = self.GET("/uri/%s?t=json" % urlquote(str(self._quux_txt_uri, "ascii")))
         d.addCallback(self.failUnlessIsQuuxJSON)
         return d
 
@@ -2034,7 +2042,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
                 for td in soup.find_all(u"td", {u"align": u"right"})
             )
         )
-        foo_url = urlquote("{}/uri/{}/".format(root, unicode(self._foo_uri, "ascii")))
+        foo_url = urlquote("{}/uri/{}/".format(root, str(self._foo_uri, "ascii")))
         forms = soup.find_all(u"form", {u"action": foo_url})
         found = []
         for form in forms:
@@ -2169,7 +2177,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             soup = BeautifulSoup(manifest, 'html5lib')
             assert_soup_has_text(self, soup, "Manifest of SI=")
             assert_soup_has_text(self, soup, "sub")
-            assert_soup_has_text(self, soup, unicode(self._sub_uri, "ascii"))
+            assert_soup_has_text(self, soup, str(self._sub_uri, "ascii"))
             assert_soup_has_text(self, soup, "sub/baz.txt")
             assert_soup_has_favicon(self, soup)
         d.addCallback(_got_html)
@@ -2261,7 +2269,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
                         "largest-immutable-file": 19,
                         "api-version": 1,
                         }
-            for k,v in expected.items():
+            for k,v in list(expected.items()):
                 self.failUnlessReallyEqual(stats[k], v,
                                            "stats[%s] was %s, not %s" %
                                            (k, stats[k], v))
@@ -2393,7 +2401,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
                        json.dumps(newkids))
         def _check(uri):
             n = self.s.create_node_from_uri(uri.strip())
-            d2 = self.failUnlessNodeKeysAre(n, newkids.keys())
+            d2 = self.failUnlessNodeKeysAre(n, list(newkids.keys()))
             self.failUnlessEqual(n._node.get_version(), version)
             d2.addCallback(lambda ign:
                            self.failUnlessROChildURIIs(n, u"child-imm",
@@ -2427,7 +2435,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d.addCallback(lambda res:
                       self.failUnlessNodeHasChild(self._foo_node, u"newdir"))
         d.addCallback(lambda res: self._foo_node.get(u"newdir"))
-        d.addCallback(self.failUnlessNodeKeysAre, newkids.keys())
+        d.addCallback(self.failUnlessNodeKeysAre, list(newkids.keys()))
         d.addCallback(lambda res: self._foo_node.get(u"newdir"))
         d.addCallback(self.failUnlessROChildURIIs, u"child-imm", caps['filecap1'])
         return d
@@ -2455,7 +2463,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
                        json.dumps(newkids))
         def _check(uri):
             n = self.s.create_node_from_uri(uri.strip())
-            d2 = self.failUnlessNodeKeysAre(n, newkids.keys())
+            d2 = self.failUnlessNodeKeysAre(n, list(newkids.keys()))
             d2.addCallback(lambda ign:
                            self.failUnlessROChildURIIs(n, u"child-imm",
                                                        caps['filecap1']))
@@ -2476,7 +2484,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d.addCallback(lambda res:
                       self.failUnlessNodeHasChild(self._foo_node, u"newdir"))
         d.addCallback(lambda res: self._foo_node.get(u"newdir"))
-        d.addCallback(self.failUnlessNodeKeysAre, newkids.keys())
+        d.addCallback(self.failUnlessNodeKeysAre, list(newkids.keys()))
         d.addCallback(lambda res: self._foo_node.get(u"newdir"))
         d.addCallback(self.failUnlessROChildURIIs, u"child-imm", caps['filecap1'])
         d.addCallback(lambda res: self._foo_node.get(u"newdir"))
@@ -2601,21 +2609,21 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
 
     def failUnlessNodeKeysAre(self, node, expected_keys):
         for k in expected_keys:
-            assert isinstance(k, unicode)
+            assert isinstance(k, str)
         d = node.list()
         def _check(children):
             self.failUnlessReallyEqual(sorted(children.keys()), sorted(expected_keys))
         d.addCallback(_check)
         return d
     def failUnlessNodeHasChild(self, node, name):
-        assert isinstance(name, unicode)
+        assert isinstance(name, str)
         d = node.list()
         def _check(children):
             self.failUnlessIn(name, children)
         d.addCallback(_check)
         return d
     def failIfNodeHasChild(self, node, name):
-        assert isinstance(name, unicode)
+        assert isinstance(name, str)
         d = node.list()
         def _check(children):
             self.failIfIn(name, children)
@@ -2623,7 +2631,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         return d
 
     def failUnlessChildContentsAre(self, node, name, expected_contents):
-        assert isinstance(name, unicode)
+        assert isinstance(name, str)
         d = node.get_child_at_path(name)
         d.addCallback(lambda node: download_to_data(node))
         def _check(contents):
@@ -2632,7 +2640,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         return d
 
     def failUnlessMutableChildContentsAre(self, node, name, expected_contents):
-        assert isinstance(name, unicode)
+        assert isinstance(name, str)
         d = node.get_child_at_path(name)
         d.addCallback(lambda node: node.download_best_version())
         def _check(contents):
@@ -2641,7 +2649,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         return d
 
     def failUnlessRWChildURIIs(self, node, name, expected_uri):
-        assert isinstance(name, unicode)
+        assert isinstance(name, str)
         d = node.get_child_at_path(name)
         def _check(child):
             self.failUnless(child.is_unknown() or not child.is_readonly())
@@ -2654,7 +2662,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         return d
 
     def failUnlessROChildURIIs(self, node, name, expected_uri):
-        assert isinstance(name, unicode)
+        assert isinstance(name, str)
         d = node.get_child_at_path(name)
         def _check(child):
             self.failUnless(child.is_unknown() or child.is_readonly())
@@ -2665,7 +2673,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         return d
 
     def failUnlessURIMatchesRWChild(self, got_uri, node, name):
-        assert isinstance(name, unicode)
+        assert isinstance(name, str)
         d = node.get_child_at_path(name)
         def _check(child):
             self.failUnless(child.is_unknown() or not child.is_readonly())
@@ -2678,7 +2686,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         return d
 
     def failUnlessURIMatchesROChild(self, got_uri, node, name):
-        assert isinstance(name, unicode)
+        assert isinstance(name, str)
         d = node.get_child_at_path(name)
         def _check(child):
             self.failUnless(child.is_unknown() or child.is_readonly())
@@ -2689,7 +2697,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         return d
 
     def failUnlessCHKURIHasContents(self, got_uri, contents):
-        if isinstance(got_uri, unicode):
+        if isinstance(got_uri, str):
             got_uri = got_uri.encode("utf-8")
         self.failUnless(self.get_all_contents()[got_uri] == contents)
 
@@ -2740,7 +2748,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d = self.POST("/uri", t="upload",
                       file=("new.txt", self.NEWFILE_CONTENTS))
         def _check_upload_results(page):
-            page = unicode(page, "utf-8")
+            page = str(page, "utf-8")
             # this should be a page which describes the results of the upload
             # that just finished.
             self.failUnlessIn("Upload Results:", page)
@@ -2828,7 +2836,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
                     filecap = mo.group(1)
                 self.failUnless(filecap.startswith(uri_prefix),
                                 (uri_prefix, filecap))
-                return self.GET("/uri/%s?t=json" % unicode(filecap, "utf-8"))
+                return self.GET("/uri/%s?t=json" % str(filecap, "utf-8"))
             d.addCallback(_got_results)
             def _got_json(raw):
                 data = json.loads(raw)
@@ -2860,7 +2868,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
                           file=(filename, self.NEWFILE_CONTENTS * 300000))
             def _got_filecap(filecap):
                 if fn is not None:
-                    filenameu = unicode(filename)
+                    filenameu = str(filename)
                     self.failUnlessURIMatchesRWChild(filecap, fn, filenameu)
                 self.failUnless(filecap.startswith(uri_prefix))
                 return self.GET(self.public_url + "/foo/%s?t=json" % filename)
@@ -2959,9 +2967,9 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         def _check_page_json(res):
             parsed = json.loads(res)
             self.failUnlessEqual(parsed[0], "dirnode")
-            children = dict( [(unicode(name),value)
+            children = dict( [(str(name),value)
                               for (name,value)
-                              in parsed[1]["children"].items()] )
+                              in list(parsed[1]["children"].items())] )
             self.failUnlessIn(u"new.txt", children)
             new_json = children[u"new.txt"]
             self.failUnlessEqual(new_json[0], "filenode")
@@ -3140,7 +3148,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
                                     code=http.FOUND)
 
         res = yield self.POST(bar_url, t="check", return_to=redir_url)
-        res = unicode(res, "utf-8")
+        res = str(res, "utf-8")
         self.failUnlessIn("Healthy :", res)
         self.failUnlessIn("Return to file", res)
         self.failUnlessIn(redir_url, res)
@@ -3164,7 +3172,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
                                     code=http.FOUND)
 
         res = yield self.POST(bar_url, t="check", return_to=redir_url)
-        res = unicode(res, "utf-8")
+        res = str(res, "utf-8")
         self.failUnlessIn("Healthy :", res)
         self.failUnlessIn("Return to file", res)
         self.failUnlessIn(redir_url, res)
@@ -3182,7 +3190,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
                                     code=http.FOUND)
 
         res = yield self.POST(foo_url, t="check", return_to=redir_url)
-        res = unicode(res, "utf-8")
+        res = str(res, "utf-8")
         self.failUnlessIn("Healthy :", res)
         self.failUnlessIn("Return to file/directory", res)
         self.failUnlessIn(redir_url, res)
@@ -3205,7 +3213,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
                                     method="post", data=body, headers=headers,
                                     code=http.FOUND)
         res = yield self.POST(foo_url, t="check", return_to=redir_url)
-        res = unicode(res, "utf-8")
+        res = str(res, "utf-8")
         self.failUnlessIn("Healthy :", res)
         self.failUnlessIn("Return to file/directory", res)
         self.failUnlessIn(redir_url, res)
@@ -3216,7 +3224,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         def _check(res):
             self.failUnlessIn(b"Healthy", res)
         d.addCallback(_check)
-        quux_extension_url = "/uri/%s" % urlquote("%s:3:131073" % unicode(self._quux_txt_uri, "utf-8"))
+        quux_extension_url = "/uri/%s" % urlquote("%s:3:131073" % str(self._quux_txt_uri, "utf-8"))
         d.addCallback(lambda ignored:
                       self.POST(quux_extension_url, t="check"))
         d.addCallback(_check)
@@ -3228,7 +3236,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         def _check(res):
             self.failUnlessIn(b"Healthy", res)
         d.addCallback(_check)
-        quux_extension_url = "/uri/%s" % urlquote("%s:3:131073" % unicode(self._quux_txt_uri, "ascii"))
+        quux_extension_url = "/uri/%s" % urlquote("%s:3:131073" % str(self._quux_txt_uri, "ascii"))
         d.addCallback(lambda ignored:
                       self.POST(quux_extension_url, t="check", repair="true"))
         d.addCallback(_check)
@@ -3301,9 +3309,9 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
 
         foo_si = self._foo_node.get_storage_index()
         foo_si_s = base32.b2a(foo_si)
-        res = yield self.GET("/operations/123/%s?output=JSON" % unicode(foo_si_s, "ascii"))
+        res = yield self.GET("/operations/123/%s?output=JSON" % str(foo_si_s, "ascii"))
         data = json.loads(res)
-        self.failUnlessEqual(data["storage-index"], unicode(foo_si_s, "ascii"))
+        self.failUnlessEqual(data["storage-index"], str(foo_si_s, "ascii"))
         self.failUnless(data["results"]["healthy"])
 
     def test_POST_DIRURL_deepcheck_and_repair(self):
@@ -3329,7 +3337,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d.addCallback(_check_json)
         d.addCallback(self.get_operation_results, "124", "html")
         def _check_html(res):
-            res = unicode(res, "utf-8")
+            res = str(res, "utf-8")
             self.failUnlessIn("Objects Checked: <span>11</span>", res)
 
             self.failUnlessIn("Objects Healthy (before repair): <span>11</span>", res)
@@ -3391,7 +3399,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d.addCallback(lambda res:
                       self.failUnlessNodeHasChild(self._foo_node, u"newdir"))
         d.addCallback(lambda res: self._foo_node.get(u"newdir"))
-        d.addCallback(self.failUnlessNodeKeysAre, newkids.keys())
+        d.addCallback(self.failUnlessNodeKeysAre, list(newkids.keys()))
         d.addCallback(lambda res: self._foo_node.get(u"newdir"))
         d.addCallback(self.failUnlessROChildURIIs, u"child-imm", caps['filecap1'])
         return d
@@ -3443,7 +3451,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d.addCallback(lambda res:
                       self.failUnlessNodeHasChild(self._foo_node, u"newdir"))
         d.addCallback(lambda res: self._foo_node.get(u"newdir"))
-        d.addCallback(self.failUnlessNodeKeysAre, newkids.keys())
+        d.addCallback(self.failUnlessNodeKeysAre, list(newkids.keys()))
         d.addCallback(lambda res: self._foo_node.get(u"newdir"))
         d.addCallback(self.failUnlessROChildURIIs, u"child-imm", caps['filecap1'])
         d.addCallback(lambda res: self._foo_node.get(u"newdir"))
@@ -3528,7 +3536,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         url = self.webish_url + "/uri?t=mkdir&redirect_to_result=true"
         target = yield self.shouldRedirectTo(url, None, method="post",
                                              code=http.SEE_OTHER)
-        target = urlunquote(unicode(target, "ascii"))
+        target = urlunquote(str(target, "ascii"))
         self.failUnless(target.startswith("uri/URI:DIR2:"), target)
 
     @inlineCallbacks
@@ -3538,7 +3546,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
                                              method="post",
                                              data=body, headers=headers,
                                              code=http.SEE_OTHER)
-        target = urlunquote(unicode(target, "ascii"))
+        target = urlunquote(str(target, "ascii"))
         self.failUnless(target.startswith("uri/URI:DIR2:"), target)
 
     def _make_readonly(self, u):
@@ -3615,7 +3623,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         def _after_mkdir(res):
             self.failUnless(res.startswith(b"URI:DIR"), res)
             n = self.s.create_node_from_uri(res)
-            d2 = self.failUnlessNodeKeysAre(n, newkids.keys())
+            d2 = self.failUnlessNodeKeysAre(n, list(newkids.keys()))
             d2.addCallback(lambda ign:
                            self.failUnlessROChildURIIs(n, u"child-imm",
                                                        caps['filecap1']))
@@ -3666,7 +3674,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         def _after_mkdir(res):
             self.failUnless(res.startswith(b"URI:DIR"), res)
             n = self.s.create_node_from_uri(res)
-            d2 = self.failUnlessNodeKeysAre(n, newkids.keys())
+            d2 = self.failUnlessNodeKeysAre(n, list(newkids.keys()))
             d2.addCallback(lambda ign:
                            self.failUnlessROChildURIIs(n, u"child-imm",
                                                           caps['filecap1']))
@@ -3701,7 +3709,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
     def test_welcome_page_mkdir_button(self):
         # Fetch the welcome page.
         res = yield self.GET("/")
-        res = unicode(res, "utf-8")
+        res = str(res, "utf-8")
         MKDIR_BUTTON_RE = re.compile(
             '<form(?: action="([^"]*)"| method="post"| enctype="multipart/form-data"){3}>.*'
             '<input (?:type="hidden" |name="t" |value="([^"]*?)" ){3}/>[ ]*'
@@ -3720,7 +3728,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         target = yield self.shouldRedirectTo(url, None,
                                              method="post",
                                              code=http.SEE_OTHER)
-        target = urlunquote(unicode(target, "utf-8"))
+        target = urlunquote(str(target, "utf-8"))
         self.failUnless(target.startswith("uri/URI:DIR2:"), target)
 
     def test_POST_mkdir_replace(self): # return value?
@@ -4041,7 +4049,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
     def test_POST_relink_file(self):
         d = self.POST(self.public_url + "/foo", t="relink",
                       from_name="bar.txt",
-                      to_dir=unicode(self.public_root.get_uri(), "utf-8") + "/foo/sub")
+                      to_dir=str(self.public_root.get_uri(), "utf-8") + "/foo/sub")
         d.addCallback(lambda res:
                       self.failIfNodeHasChild(self._foo_node, u"bar.txt"))
         d.addCallback(lambda res:
@@ -4055,7 +4063,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
     def test_POST_relink_file_new_name(self):
         d = self.POST(self.public_url + "/foo", t="relink",
                       from_name="bar.txt",
-                      to_name="wibble.txt", to_dir=unicode(self.public_root.get_uri(), "utf-8") + "/foo/sub")
+                      to_name="wibble.txt", to_dir=str(self.public_root.get_uri(), "utf-8") + "/foo/sub")
         d.addCallback(lambda res:
                       self.failIfNodeHasChild(self._foo_node, u"bar.txt"))
         d.addCallback(lambda res:
@@ -4071,7 +4079,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
     def test_POST_relink_file_replace(self):
         d = self.POST(self.public_url + "/foo", t="relink",
                       from_name="bar.txt",
-                      to_name="baz.txt", to_dir=unicode(self.public_root.get_uri(), "utf-8") + "/foo/sub")
+                      to_name="baz.txt", to_dir=str(self.public_root.get_uri(), "utf-8") + "/foo/sub")
         d.addCallback(lambda res:
                       self.failIfNodeHasChild(self._foo_node, u"bar.txt"))
         d.addCallback(lambda res: self.GET(self.public_url + "/foo/sub/baz.txt"))
@@ -4086,7 +4094,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
                              "There was already a child by that name, and you asked me to not replace it",
                              self.POST, self.public_url + "/foo", t="relink",
                              replace="false", from_name="bar.txt",
-                             to_name="baz.txt", to_dir=unicode(self.public_root.get_uri(), "utf-8") + "/foo/sub")
+                             to_name="baz.txt", to_dir=str(self.public_root.get_uri(), "utf-8") + "/foo/sub")
         d.addCallback(lambda res: self.GET(self.public_url + "/foo/bar.txt"))
         d.addCallback(self.failUnlessIsBarDotTxt)
         d.addCallback(lambda res: self.GET(self.public_url + "/foo/bar.txt?t=json"))
@@ -4098,7 +4106,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
     def test_POST_relink_file_no_replace_explicitly_same_link(self):
         d = self.POST(self.public_url + "/foo", t="relink",
                       replace="false", from_name="bar.txt",
-                      to_name="bar.txt", to_dir=unicode(self.public_root.get_uri(), "utf-8") + "/foo")
+                      to_name="bar.txt", to_dir=str(self.public_root.get_uri(), "utf-8") + "/foo")
         d.addCallback(lambda res: self.failUnlessNodeHasChild(self._foo_node, u"bar.txt"))
         d.addCallback(lambda res: self.GET(self.public_url + "/foo/bar.txt"))
         d.addCallback(self.failUnlessIsBarDotTxt)
@@ -4109,7 +4117,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
     def test_POST_relink_file_replace_only_files(self):
         d = self.POST(self.public_url + "/foo", t="relink",
                       replace="only-files", from_name="bar.txt",
-                      to_name="baz.txt", to_dir=unicode(self.public_root.get_uri(), "utf-8") + "/foo/sub")
+                      to_name="baz.txt", to_dir=str(self.public_root.get_uri(), "utf-8") + "/foo/sub")
         d.addCallback(lambda res:
                       self.failIfNodeHasChild(self._foo_node, u"bar.txt"))
         d.addCallback(lambda res: self.GET(self.public_url + "/foo/sub/baz.txt"))
@@ -4124,7 +4132,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
                              "There was already a child by that name, and you asked me to not replace it.",
                              self.POST, self.public_url + "/foo", t="relink",
                              replace="only-files", from_name="bar.txt",
-                             to_name="sub", to_dir=unicode(self.public_root.get_uri(), "utf-8") + "/foo")
+                             to_name="sub", to_dir=str(self.public_root.get_uri(), "utf-8") + "/foo")
         d.addCallback(lambda res: self.GET(self.public_url + "/foo/bar.txt"))
         d.addCallback(self.failUnlessIsBarDotTxt)
         d.addCallback(lambda res: self.GET(self.public_url + "/foo/bar.txt?t=json"))
@@ -4137,7 +4145,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
                              "to_name= may not contain a slash",
                              self.POST, self.public_url + "/foo", t="relink",
                              from_name="bar.txt",
-                             to_name="slash/fail.txt", to_dir=unicode(self.public_root.get_uri(), "utf-8") + "/foo/sub")
+                             to_name="slash/fail.txt", to_dir=str(self.public_root.get_uri(), "utf-8") + "/foo/sub")
         d.addCallback(lambda res:
                       self.failUnlessNodeHasChild(self._foo_node, u"bar.txt"))
         d.addCallback(lambda res:
@@ -4151,13 +4159,13 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
                                        t="relink",
                                        from_name="nope/bar.txt",
                                        to_name="fail.txt",
-                                       to_dir=unicode(self.public_root.get_uri(), "utf-8") + "/foo/sub"))
+                                       to_dir=str(self.public_root.get_uri(), "utf-8") + "/foo/sub"))
         return d
 
     def test_POST_relink_file_explicitly_same_link(self):
         d = self.POST(self.public_url + "/foo", t="relink",
                       from_name="bar.txt",
-                      to_name="bar.txt", to_dir=unicode(self.public_root.get_uri(), "utf-8") + "/foo")
+                      to_name="bar.txt", to_dir=str(self.public_root.get_uri(), "utf-8") + "/foo")
         d.addCallback(lambda res: self.failUnlessNodeHasChild(self._foo_node, u"bar.txt"))
         d.addCallback(lambda res: self.GET(self.public_url + "/foo/bar.txt"))
         d.addCallback(self.failUnlessIsBarDotTxt)
@@ -4178,7 +4186,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
     def test_POST_relink_file_same_dir(self):
         d = self.POST(self.public_url + "/foo", t="relink",
                       from_name="bar.txt",
-                      to_name="baz.txt", to_dir=unicode(self.public_root.get_uri(), "utf-8") + "/foo")
+                      to_name="baz.txt", to_dir=str(self.public_root.get_uri(), "utf-8") + "/foo")
         d.addCallback(lambda res: self.failIfNodeHasChild(self._foo_node, u"bar.txt"))
         d.addCallback(lambda res: self.failUnlessNodeHasChild(self._sub_node, u"baz.txt"))
         d.addCallback(lambda res: self.GET(self.public_url + "/foo/baz.txt"))
@@ -4193,13 +4201,13 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
                              self.POST,
                              self.public_url + "/foo", t="relink",
                              replace="boogabooga", from_name="bar.txt",
-                             to_dir=unicode(self.public_root.get_uri(), "utf-8") + "/foo/sub")
+                             to_dir=str(self.public_root.get_uri(), "utf-8") + "/foo/sub")
         return d
 
     def test_POST_relink_file_multi_level(self):
         d = self.POST2(self.public_url + "/foo/sub/level2?t=mkdir", "")
         d.addCallback(lambda res: self.POST(self.public_url + "/foo", t="relink",
-                      from_name="bar.txt", to_dir=unicode(self.public_root.get_uri(), "utf-8") + "/foo/sub/level2"))
+                      from_name="bar.txt", to_dir=str(self.public_root.get_uri(), "utf-8") + "/foo/sub/level2"))
         d.addCallback(lambda res: self.failIfNodeHasChild(self._foo_node, u"bar.txt"))
         d.addCallback(lambda res: self.failIfNodeHasChild(self._sub_node, u"bar.txt"))
         d.addCallback(lambda res: self.GET(self.public_url + "/foo/sub/level2/bar.txt"))
@@ -4224,7 +4232,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
                             "404 Not Found", "No such child: nopechucktesta",
                             self.POST, self.public_url + "/foo", t="relink",
                             from_name="bar.txt",
-                            to_dir=unicode(self.public_root.get_uri(), "utf-8") + "/nopechucktesta")
+                            to_dir=str(self.public_root.get_uri(), "utf-8") + "/nopechucktesta")
         return d
 
     def test_POST_relink_file_into_file(self):
@@ -4232,7 +4240,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
                              "400 Bad Request", "to_dir is not a directory",
                              self.POST, self.public_url + "/foo", t="relink",
                              from_name="bar.txt",
-                             to_dir=unicode(self.public_root.get_uri(), "utf-8") + "/foo/baz.txt")
+                             to_dir=str(self.public_root.get_uri(), "utf-8") + "/foo/baz.txt")
         d.addCallback(lambda res: self.GET(self.public_url + "/foo/baz.txt"))
         d.addCallback(self.failUnlessIsBazDotTxt)
         d.addCallback(lambda res: self.GET(self.public_url + "/foo/bar.txt"))
@@ -4256,10 +4264,10 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
     def test_POST_relink_dir(self):
         d = self.POST(self.public_url + "/foo", t="relink",
                       from_name="bar.txt",
-                      to_dir=unicode(self.public_root.get_uri(), "ascii") + "/foo/empty")
+                      to_dir=str(self.public_root.get_uri(), "ascii") + "/foo/empty")
         d.addCallback(lambda res: self.POST(self.public_url + "/foo",
                       t="relink", from_name="empty",
-                      to_dir=unicode(self.public_root.get_uri(), "ascii") + "/foo/sub"))
+                      to_dir=str(self.public_root.get_uri(), "ascii") + "/foo/sub"))
         d.addCallback(lambda res:
                       self.failIfNodeHasChild(self._foo_node, u"empty"))
         d.addCallback(lambda res:
@@ -4286,12 +4294,12 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         self.assertIn(response.code, codes)
         location = response.headers.getRawHeaders(b"location")[0]
         if target_location is not None:
-            self.assertEquals(unicode(location, "ascii"), target_location)
+            self.assertEquals(str(location, "ascii"), target_location)
         returnValue(location)
 
     @inlineCallbacks
     def test_GET_URI_form(self):
-        relbase = "/uri?uri=%s" % unicode(self._bar_txt_uri, "ascii")
+        relbase = "/uri?uri=%s" % str(self._bar_txt_uri, "ascii")
         base = self.webish_url + relbase
         # this is supposed to give us a redirect to /uri/$URI, plus arguments
         targetbase = self.webish_url + "/uri/%s" % urlquote(self._bar_txt_uri)
@@ -4305,7 +4313,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         data = yield self.GET(relbase, followRedirect=True)
         self.failUnlessIsBarDotTxt(data)
         self.log(None, "got file by uri, about to get dir by uri")
-        data = yield self.GET("/uri?uri=%s&t=json" % unicode(self._foo_uri, "ascii"),
+        data = yield self.GET("/uri?uri=%s&t=json" % str(self._foo_uri, "ascii"),
                               followRedirect=True)
         self.failUnlessIsFooJSON(data)
         self.log(None, "got dir by uri")
@@ -4339,7 +4347,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         return res
 
     def test_GET_URI_URL(self):
-        base = "/uri/%s" % unicode(self._bar_txt_uri, "ascii")
+        base = "/uri/%s" % str(self._bar_txt_uri, "ascii")
         d = self.GET(base)
         d.addCallback(self.failUnlessIsBarDotTxt)
         d.addCallback(lambda res: self.GET(base+"?filename=bar.txt"))
@@ -4349,14 +4357,14 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         return d
 
     def test_GET_URI_URL_dir(self):
-        base = "/uri/%s?t=json" % unicode(self._foo_uri, "ascii")
+        base = "/uri/%s?t=json" % str(self._foo_uri, "ascii")
         d = self.GET(base)
         d.addCallback(self.failUnlessIsFooJSON)
         return d
 
     @inlineCallbacks
     def test_GET_URI_URL_missing(self):
-        base = "/uri/%s" % unicode(self._bad_file_uri, "ascii")
+        base = "/uri/%s" % str(self._bad_file_uri, "ascii")
         url = self.webish_url + base
         yield self.assertHTTPError(url, http.GONE, "NotEnoughSharesError")
         # TODO: how can we exercise both sides of WebDownloadTarget.fail
@@ -4504,7 +4512,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             self.failUnlessIn(uri, self.get_all_contents())
             self.failUnlessReallyEqual(self.get_all_contents()[uri],
                                        file_contents)
-            return self.GET("/uri/%s" % unicode(uri, "utf-8"))
+            return self.GET("/uri/%s" % str(uri, "utf-8"))
         d.addCallback(_check)
         def _check2(res):
             self.failUnlessReallyEqual(res, file_contents)
@@ -4519,7 +4527,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             self.failUnlessIn(uri, self.get_all_contents())
             self.failUnlessReallyEqual(self.get_all_contents()[uri],
                                        file_contents)
-            return self.GET("/uri/%s" % unicode(uri, "utf-8"))
+            return self.GET("/uri/%s" % str(uri, "utf-8"))
         d.addCallback(_check)
         def _check2(res):
             self.failUnlessReallyEqual(res, file_contents)
@@ -4548,7 +4556,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d.addCallback(_check1)
         def _check2(data):
             self.failUnlessReallyEqual(data, file_contents)
-            return self.GET("/uri/%s" % urlquote(unicode(self.filecap, "utf-8")))
+            return self.GET("/uri/%s" % urlquote(str(self.filecap, "utf-8")))
         d.addCallback(_check2)
         def _check3(res):
             self.failUnlessReallyEqual(res, file_contents)
@@ -4561,7 +4569,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             n = self.s.create_node_from_uri(uri.strip())
             d2 = self.failUnlessNodeKeysAre(n, [])
             d2.addCallback(lambda res:
-                           self.GET("/uri/%s?t=json" % unicode(uri, "utf-8")))
+                           self.GET("/uri/%s?t=json" % str(uri, "utf-8")))
             return d2
         d.addCallback(_check)
         d.addCallback(self.failUnlessIsEmptyJSON)
@@ -4616,7 +4624,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             self.new_data = new_data
         d.addCallback(_then)
         d.addCallback(lambda ignored:
-            self.PUT("/uri/%s?replace=True&offset=100" % unicode(self.filecap, "utf-8"),
+            self.PUT("/uri/%s?replace=True&offset=100" % str(self.filecap, "utf-8"),
                      b"replaced and so on"))
         def _get_data(filecap):
             n = self.s.create_node_from_uri(filecap)
@@ -4626,14 +4634,14 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             self.failUnlessEqual(results, self.new_data))
         # Now try appending things to the file
         d.addCallback(lambda ignored:
-            self.PUT("/uri/%s?offset=%d" % (unicode(self.filecap, "utf-8"), len(self.new_data)),
+            self.PUT("/uri/%s?offset=%d" % (str(self.filecap, "utf-8"), len(self.new_data)),
                      b"puppies" * 100))
         d.addCallback(_get_data)
         d.addCallback(lambda results:
             self.failUnlessEqual(results, self.new_data + (b"puppies" * 100)))
         # and try replacing the beginning of the file
         d.addCallback(lambda ignored:
-            self.PUT("/uri/%s?offset=0" % unicode(self.filecap, "utf-8"), b"begin"))
+            self.PUT("/uri/%s?offset=0" % str(self.filecap, "utf-8"), b"begin"))
         d.addCallback(_get_data)
         d.addCallback(lambda results:
             self.failUnlessEqual(results, b"begin"+self.new_data[len(b"begin"):]+(b"puppies"*100)))
@@ -4644,7 +4652,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         file_contents = b"test file" * 100000 # about 900 KiB
         filecap = yield self.PUT("/uri?mutable=true", file_contents)
         # Negative offsets should cause an error.
-        url = self.webish_url + "/uri/%s?offset=-1" % unicode(filecap, "utf-8")
+        url = self.webish_url + "/uri/%s?offset=-1" % str(filecap, "utf-8")
         yield self.assertHTTPError(url, 400, "Invalid offset",
                                    method="put", data=b"foo")
 
@@ -4652,7 +4660,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
     def test_PUT_update_at_offset_immutable(self):
         file_contents = b"Test file" * 100000
         filecap = yield self.PUT("/uri", file_contents)
-        url = self.webish_url + "/uri/%s?offset=50" % unicode(filecap, "utf-8")
+        url = self.webish_url + "/uri/%s?offset=50" % str(filecap, "utf-8")
         yield self.assertHTTPError(url, 400, "immutable",
                                    method="put", data=b"foo")
 
@@ -4803,7 +4811,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             dircap_uri,
         )
         self.assertEqual(
-            unicode(response.request.absoluteURI, "utf-8"),
+            str(response.request.absoluteURI, "utf-8"),
             self.webish_url + "/uri/{}?t=json".format(urlquote(dircap)))
         if response.code >= 400:
             raise Error(response.code, response=response.content())

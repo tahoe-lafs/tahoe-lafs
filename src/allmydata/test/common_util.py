@@ -203,6 +203,11 @@ def flip_one_bit(s, offset=0, size=None):
 class ReallyEqualMixin(object):
     def failUnlessReallyEqual(self, a, b, msg=None):
         self.assertEqual(a, b, msg)
+        # Make sure unicode strings are a consistent type:
+        if a.__class__ == future_str:
+            a = unicode(a)
+        if b.__class__ == future_str:
+            b = unicode(b)
         self.assertEqual(type(a), type(b), "a :: %r (%s), b :: %r (%s), %r" % (a, type(a), b, type(b), msg))
 
 
