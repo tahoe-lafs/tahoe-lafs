@@ -1,10 +1,10 @@
 { fetchFromGitHub, lib
-, nettools, python
-, twisted, foolscap, nevow, zfec
+, python
+, twisted, foolscap, zfec
 , setuptools, setuptoolsTrial, pyasn1, zope_interface
 , service-identity, pyyaml, magic-wormhole, treq, appdirs
-, beautifulsoup4, eliot, autobahn, cryptography
-, html5lib, pyutil, distro
+, beautifulsoup4, eliot, autobahn, cryptography, netifaces
+, html5lib, pyutil, distro, configparser
 }:
 python.pkgs.buildPythonPackage rec {
   version = "1.14.0.dev";
@@ -23,34 +23,21 @@ python.pkgs.buildPythonPackage rec {
     # This list is over-zealous because it's more work to disable individual
     # tests with in a module.
 
-    # test_system is a lot of integration-style tests that do a lot of real
-    # networking between many processes.  They sometimes fail spuriously.
-    rm src/allmydata/test/test_system.py
-
     # Many of these tests don't properly skip when i2p or tor dependencies are
     # not supplied (and we are not supplying them).
     rm src/allmydata/test/test_i2p_provider.py
     rm src/allmydata/test/test_connections.py
     rm src/allmydata/test/cli/test_create.py
     rm src/allmydata/test/test_client.py
-    rm src/allmydata/test/test_runner.py
-
-    # Some eliot code changes behavior based on whether stdout is a tty or not
-    # and fails when it is not.
-    rm src/allmydata/test/test_eliotutil.py
   '';
 
 
-  propagatedNativeBuildInputs = [
-    nettools
-  ];
-
   propagatedBuildInputs = with python.pkgs; [
-    twisted foolscap nevow zfec appdirs
+    twisted foolscap zfec appdirs
     setuptoolsTrial pyasn1 zope_interface
     service-identity pyyaml magic-wormhole treq
-    eliot autobahn cryptography setuptools
-    future pyutil distro
+    eliot autobahn cryptography netifaces setuptools
+    future pyutil distro configparser
   ];
 
   checkInputs = with python.pkgs; [

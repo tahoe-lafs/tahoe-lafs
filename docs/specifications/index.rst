@@ -8,6 +8,7 @@ the data formats used by Tahoe.
    :maxdepth: 2
 
    outline
+   url
    uri
    file-encoding
    URI-extension

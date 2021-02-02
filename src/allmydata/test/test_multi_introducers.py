@@ -24,9 +24,6 @@ class MultiIntroTests(unittest.TestCase):
         config = {'hide-ip':False, 'listen': 'tcp',
                   'port': None, 'location': None, 'hostname': 'example.net'}
         write_node_config(c, config)
-        fake_furl = "furl1"
-        c.write("[client]\n")
-        c.write("introducer.furl = %s\n" % fake_furl)
         c.write("[storage]\n")
         c.write("enabled = false\n")
         c.close()
@@ -36,8 +33,10 @@ class MultiIntroTests(unittest.TestCase):
 
     @defer.inlineCallbacks
     def test_introducer_count(self):
-        """ Ensure that the Client creates same number of introducer clients
-        as found in "basedir/private/introducers" config file. """
+        """
+        If there are two introducers configured in ``introducers.yaml`` then
+        ``Client`` creates two introducer clients.
+        """
         connections = {
             'introducers': {
                 u'intro1':{ 'furl': 'furl1' },
@@ -50,25 +49,13 @@ class MultiIntroTests(unittest.TestCase):
         ic_count = len(myclient.introducer_clients)
 
         # assertions
-        self.failUnlessEqual(ic_count, 3)
-
-    @defer.inlineCallbacks
-    def test_introducer_count_commented(self):
-        """ Ensure that the Client creates same number of introducer clients
-        as found in "basedir/private/introducers" config file when there is one
-        commented."""
-        self.yaml_path.setContent(INTRODUCERS_CFG_FURLS_COMMENTED)
-        # get a client and count of introducer_clients
-        myclient = yield create_client(self.basedir)
-        ic_count = len(myclient.introducer_clients)
-
-        # assertions
-        self.failUnlessEqual(ic_count, 2)
+        self.failUnlessEqual(ic_count, len(connections["introducers"]))
 
     @defer.inlineCallbacks
     def test_read_introducer_furl_from_tahoecfg(self):
-        """ Ensure that the Client reads the introducer.furl config item from
-        the tahoe.cfg file. """
+        """
+        The deprecated [client]introducer.furl item is still read and respected.
+        """
         # create a custom tahoe.cfg
         c = open(os.path.join(self.basedir, "tahoe.cfg"), "w")
         config = {'hide-ip':False, 'listen': 'tcp',
@@ -87,20 +74,42 @@ class MultiIntroTests(unittest.TestCase):
 
         # assertions
         self.failUnlessEqual(fake_furl, tahoe_cfg_furl)
+        self.assertEqual(
+            list(
+                warning["message"]
+                for warning
+                in self.flushWarnings()
+                if warning["category"] is DeprecationWarning
+            ),
+            ["tahoe.cfg [client]introducer.furl is deprecated; "
+             "use private/introducers.yaml instead."],
+        )
 
     @defer.inlineCallbacks
     def test_reject_default_in_yaml(self):
-        connections = {'introducers': {
-            u'default': { 'furl': 'furl1' },
-            }}
+        """
+        If an introducer is configured in tahoe.cfg with the deprecated
+        [client]introducer.furl then a "default" introducer in
+        introducers.yaml is rejected.
+        """
+        connections = {
+            'introducers': {
+                u'default': { 'furl': 'furl1' },
+            },
+        }
         self.yaml_path.setContent(yamlutil.safe_dump(connections))
+        FilePath(self.basedir).child("tahoe.cfg").setContent(
+            "[client]\n"
+            "introducer.furl = furl1\n"
+        )
+
         with self.assertRaises(ValueError) as ctx:
             yield create_client(self.basedir)
 
         self.assertEquals(
             str(ctx.exception),
-            "'default' introducer furl cannot be specified in introducers.yaml; please "
-            "fix impossible configuration.",
+            "'default' introducer furl cannot be specified in tahoe.cfg and introducers.yaml; "
+            "please fix impossible configuration.",
         )
 
 SIMPLE_YAML = """
@@ -126,8 +135,6 @@ class NoDefault(unittest.TestCase):
         config = {'hide-ip':False, 'listen': 'tcp',
                   'port': None, 'location': None, 'hostname': 'example.net'}
         write_node_config(c, config)
-        c.write("[client]\n")
-        c.write("# introducer.furl =\n") # omit default
         c.write("[storage]\n")
         c.write("enabled = false\n")
         c.close()

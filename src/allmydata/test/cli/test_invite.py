@@ -8,7 +8,9 @@ from twisted.internet import defer
 from ..common_util import run_cli
 from ..no_network import GridTestMixin
 from .common import CLITestMixin
-
+from ...client import (
+    read_config,
+)
 
 class _FakeWormhole(object):
 
@@ -81,9 +83,19 @@ class Join(GridTestMixin, CLITestMixin, unittest.TestCase):
             )
 
             self.assertEqual(0, rc)
+
+            config = read_config(node_dir, u"")
+            self.assertIn(
+                "pb://foo",
+                set(
+                    furl
+                    for (furl, cache)
+                    in config.get_introducer_configuration().values()
+                ),
+            )
+
             with open(join(node_dir, 'tahoe.cfg'), 'r') as f:
                 config = f.read()
-            self.assertIn("pb://foo", config)
             self.assertIn(u"somethinghopefullyunique", config)
 
     @defer.inlineCallbacks

@@ -1,5 +1,26 @@
+"""
+Ported to Python 3.
+"""
+
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+from past.builtins import long
+from six import ensure_text
 
 import time, os.path, textwrap
+
+try:
+    from typing import Any, Dict, Union
+except ImportError:
+    pass
+
 from zope.interface import implementer
 from twisted.application import service
 from twisted.internet import defer
@@ -7,7 +28,7 @@ from twisted.python.failure import Failure
 from foolscap.api import Referenceable
 import allmydata
 from allmydata import node
-from allmydata.util import log, rrefutil
+from allmydata.util import log, rrefutil, dictutil
 from allmydata.util.i2p_provider import create as create_i2p_provider
 from allmydata.util.tor_provider import create as create_tor_provider
 from allmydata.introducer.interfaces import \
@@ -55,7 +76,7 @@ def create_introducer(basedir=u"."):
         i2p_provider = create_i2p_provider(reactor, config)
         tor_provider = create_tor_provider(reactor, config)
 
-        default_connection_handlers, foolscap_connection_handlers = create_connection_handlers(reactor, config, i2p_provider, tor_provider)
+        default_connection_handlers, foolscap_connection_handlers = create_connection_handlers(config, i2p_provider, tor_provider)
         tub_options = create_tub_options(config)
 
         # we don't remember these because the Introducer doesn't make
@@ -122,7 +143,7 @@ class _IntroducerNode(node.Node):
 
         from allmydata.webish import IntroducerWebishServer
         nodeurl_path = self.config.get_config_path(u"node.url")
-        config_staticdir = self.get_config("node", "web.static", "public_html").decode('utf-8')
+        config_staticdir = self.get_config("node", "web.static", "public_html")
         staticdir = self.config.get_config_path(config_staticdir)
         ws = IntroducerWebishServer(self, webport, nodeurl_path, staticdir)
         ws.setServiceParent(self)
@@ -132,10 +153,12 @@ class IntroducerService(service.MultiService, Referenceable):
     name = "introducer"
     # v1 is the original protocol, added in 1.0 (but only advertised starting
     # in 1.3), removed in 1.12. v2 is the new signed protocol, added in 1.10
-    VERSION = { #"http://allmydata.org/tahoe/protocols/introducer/v1": { },
-                "http://allmydata.org/tahoe/protocols/introducer/v2": { },
-                "application-version": str(allmydata.__full_version__),
-                }
+    # TODO: reconcile bytes/str for keys
+    VERSION = {
+                #"http://allmydata.org/tahoe/protocols/introducer/v1": { },
+                b"http://allmydata.org/tahoe/protocols/introducer/v2": { },
+                b"application-version": allmydata.__full_version__.encode("utf-8"),
+                }  # type: Dict[Union[bytes, str], Any]
 
     def __init__(self):
         service.MultiService.__init__(self)
@@ -155,7 +178,7 @@ class IntroducerService(service.MultiService, Referenceable):
         # 'subscriber_info' is a dict, provided directly by v2 clients. The
         # expected keys are: version, nickname, app-versions, my-version,
         # oldest-supported
-        self._subscribers = {}
+        self._subscribers = dictutil.UnicodeKeyDict({})
 
         self._debug_counts = {"inbound_message": 0,
                               "inbound_duplicate": 0,
@@ -179,7 +202,7 @@ class IntroducerService(service.MultiService, Referenceable):
     def get_announcements(self):
         """Return a list of AnnouncementDescriptor for all announcements"""
         announcements = []
-        for (index, (_, canary, ann, when)) in self._announcements.items():
+        for (index, (_, canary, ann, when)) in list(self._announcements.items()):
             ad = AnnouncementDescriptor(when, index, canary, ann)
             announcements.append(ad)
         return announcements
@@ -187,8 +210,8 @@ class IntroducerService(service.MultiService, Referenceable):
     def get_subscribers(self):
         """Return a list of SubscriberDescriptor objects for all subscribers"""
         s = []
-        for service_name, subscriptions in self._subscribers.items():
-            for rref,(subscriber_info,when) in subscriptions.items():
+        for service_name, subscriptions in list(self._subscribers.items()):
+            for rref,(subscriber_info,when) in list(subscriptions.items()):
                 # note that if the subscriber didn't do Tub.setLocation,
                 # tubid will be None. Also, subscribers do not tell us which
                 # pubkey they use; only publishers do that.
@@ -279,6 +302,10 @@ class IntroducerService(service.MultiService, Referenceable):
     def remote_subscribe_v2(self, subscriber, service_name, subscriber_info):
         self.log("introducer: subscription[%s] request at %s"
                  % (service_name, subscriber), umid="U3uzLg")
+        service_name = ensure_text(service_name)
+        subscriber_info = dictutil.UnicodeKeyDict({
+            ensure_text(k): v for (k, v) in subscriber_info.items()
+        })
         return self.add_subscriber(subscriber, service_name, subscriber_info)
 
     def add_subscriber(self, subscriber, service_name, subscriber_info):
@@ -300,6 +327,10 @@ class IntroducerService(service.MultiService, Referenceable):
                      umid="vYGcJg")
             subscribers.pop(subscriber, None)
         subscriber.notifyOnDisconnect(_remove)
+
+        # Make sure types are correct:
+        for k in self._announcements:
+            assert isinstance(k[0], type(service_name))
 
         # now tell them about any announcements they're interested in
         announcements = set( [ ann_t

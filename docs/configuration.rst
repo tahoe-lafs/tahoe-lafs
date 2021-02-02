@@ -75,13 +75,12 @@ The item descriptions below use the following types:
 Node Types
 ==========
 
-A node can be a client/server, an introducer, or a statistics gatherer.
+A node can be a client/server or an introducer.
 
 Client/server nodes provide one or more of the following services:
 
 * web-API service
 * SFTP service
-* FTP service
 * helper service
 * storage service.
 
@@ -365,7 +364,7 @@ set the ``tub.location`` option described below.
     also generally reduced when operating in private mode.
 
     When False, any of the following configuration problems will cause
-    ``tahoe start`` to throw a PrivacyError instead of starting the node:
+    ``tahoe run`` to throw a PrivacyError instead of starting the node:
 
     * ``[node] tub.location`` contains any ``tcp:`` hints
 
@@ -398,13 +397,13 @@ This section controls *when* Tor and I2P are used. The ``[tor]`` and
 ``[i2p]`` sections (described later) control *how* Tor/I2P connections are
 managed.
 
-All Tahoe nodes need to make a connection to the Introducer; the ``[client]
-introducer.furl`` setting (described below) indicates where the Introducer
-lives. Tahoe client nodes must also make connections to storage servers:
-these targets are specified in announcements that come from the Introducer.
-Both are expressed as FURLs (a Foolscap URL), which include a list of
-"connection hints". Each connection hint describes one (of perhaps many)
-network endpoints where the service might live.
+All Tahoe nodes need to make a connection to the Introducer; the
+``private/introducers.yaml`` file (described below) configures where one or more
+Introducers live. Tahoe client nodes must also make connections to storage
+servers: these targets are specified in announcements that come from the
+Introducer.  Both are expressed as FURLs (a Foolscap URL), which include a
+list of "connection hints". Each connection hint describes one (of perhaps
+many) network endpoints where the service might live.
 
 Connection hints include a type, and look like:
 
@@ -580,6 +579,8 @@ Client Configuration
 
 ``introducer.furl = (FURL string, mandatory)``
 
+    DEPRECATED.  See :ref:`introducer-definitions`.
+
     This FURL tells the client how to connect to the introducer. Each
     Tahoe-LAFS grid is defined by an introducer. The introducer's FURL is
     created by the introducer node and written into its private base
@@ -590,11 +591,6 @@ Client Configuration
 
     If provided, the node will attempt to connect to and use the given helper
     for uploads. See :doc:`helper` for details.
-
-``stats_gatherer.furl = (FURL string, optional)``
-
-    If provided, the node will connect to the given stats gatherer and
-    provide it with operational statistics.
 
 ``shares.needed = (int, optional) aka "k", default 3``
 
@@ -711,12 +707,12 @@ CLI
     file store, uploading/downloading files, and creating/running Tahoe
     nodes. See :doc:`frontends/CLI` for details.
 
-SFTP, FTP
+SFTP
 
-    Tahoe can also run both SFTP and FTP servers, and map a username/password
+    Tahoe can also run SFTP servers, and map a username/password
     pair to a top-level Tahoe directory. See :doc:`frontends/FTP-and-SFTP`
-    for instructions on configuring these services, and the ``[sftpd]`` and
-    ``[ftpd]`` sections of ``tahoe.cfg``.
+    for instructions on configuring this service, and the ``[sftpd]``
+    section of ``tahoe.cfg``.
 
 
 Storage Server Configuration
@@ -909,11 +905,6 @@ This section describes these other files.
   This file is used to construct an introducer, and is created by the
   "``tahoe create-introducer``" command.
 
-``tahoe-stats-gatherer.tac``
-
-  This file is used to construct a statistics gatherer, and is created by the
-  "``tahoe create-stats-gatherer``" command.
-
 ``private/control.furl``
 
   This file contains a FURL that provides access to a control port on the
@@ -965,29 +956,28 @@ This section describes these other files.
   with as many people as possible, put the empty string (so that
   ``private/convergence`` is a zero-length file).
 
-Additional Introducer Definitions
-=================================
+.. _introducer-definitions:
 
-The ``private/introducers.yaml`` file defines additional Introducers. The
-first introducer is defined in ``tahoe.cfg``, in ``[client]
-introducer.furl``. To use two or more Introducers, choose a locally-unique
-"petname" for each one, then define their FURLs in
-``private/introducers.yaml`` like this::
+Introducer Definitions
+======================
+
+The ``private/introducers.yaml`` file defines Introducers.
+Choose a locally-unique "petname" for each one then define their FURLs in ``private/introducers.yaml`` like this::
 
   introducers:
     petname2:
-      furl: FURL2
+      furl: "FURL2"
     petname3:
-      furl: FURL3
+      furl: "FURL3"
 
 Servers will announce themselves to all configured introducers. Clients will
 merge the announcements they receive from all introducers. Nothing will
 re-broadcast an announcement (i.e. telling introducer 2 about something you
 heard from introducer 1).
 
-If you omit the introducer definitions from both ``tahoe.cfg`` and
-``introducers.yaml``, the node will not use an Introducer at all. Such
-"introducerless" clients must be configured with static servers (described
+If you omit the introducer definitions from ``introducers.yaml``,
+the node will not use an Introducer at all.
+Such "introducerless" clients must be configured with static servers (described
 below), or they will not be able to upload and download files.
 
 Static Server Definitions
@@ -1152,7 +1142,6 @@ a legal one.
   timeout.disconnect = 1800
 
   [client]
-  introducer.furl = pb://ok45ssoklj4y7eok5c3xkmj@tcp:tahoe.example:44801/ii3uumo
   helper.furl = pb://ggti5ssoklj4y7eok5c3xkmj@tcp:helper.tahoe.example:7054/kk8lhr
 
   [storage]
@@ -1163,6 +1152,11 @@ a legal one.
   [helper]
   enabled = True
 
+To be introduced to storage servers, here is a sample ``private/introducers.yaml`` which can be used in conjunction::
+
+  introducers:
+    examplegrid:
+      furl: "pb://ok45ssoklj4y7eok5c3xkmj@tcp:tahoe.example:44801/ii3uumo"
 
 Old Configuration Files
 =======================

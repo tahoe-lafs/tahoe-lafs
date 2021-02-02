@@ -152,7 +152,6 @@ class CiphertextFileNode(object):
             for server in servers:
                 sm.add(shnum, server)
                 servers_responding.add(server)
-        servers_responding = sorted(servers_responding)
 
         good_hosts = len(reduce(set.union, sm.values(), set()))
         is_healthy = bool(len(sm) >= verifycap.total_shares)

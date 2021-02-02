@@ -6,6 +6,7 @@ Tools aimed at the interaction between tests and Eliot.
 # Can't use `builtins.str` because it's not JSON encodable:
 # `exceptions.TypeError: <class 'future.types.newstr.newstr'> is not JSON-encodeable`
 from past.builtins import unicode as str
+from future.utils import PY3
 
 __all__ = [
     "RUN_TEST",
@@ -29,6 +30,9 @@ from eliot.testing import capture_logging
 from twisted.internet.defer import (
     maybeDeferred,
 )
+
+from ..util.jsonbytes import BytesJSONEncoder
+
 
 _NAME = Field.for_types(
     u"name",
@@ -60,6 +64,14 @@ def eliot_logged_test(f):
     class storage(object):
         pass
 
+
+    # On Python 3, we want to use our custom JSON encoder when validating
+    # messages can be encoded to JSON:
+    if PY3:
+        capture = lambda f : capture_logging(None, encoder_=BytesJSONEncoder)(f)
+    else:
+        capture = lambda f : capture_logging(None)(f)
+
     @wraps(f)
     def run_and_republish(self, *a, **kw):
         # Unfortunately the only way to get at the global/default logger...
@@ -84,7 +96,7 @@ def eliot_logged_test(f):
             # can finish the test's action.
             storage.action.finish()
 
-        @capture_logging(None)
+        @capture
         def run(self, logger):
             # Record the MemoryLogger for later message extraction.
             storage.logger = logger

@@ -1,8 +1,26 @@
+"""
+Ported to Python 3.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+
+from six import ensure_binary, ensure_text
 
 import os, re, itertools
 from base64 import b32decode
 import json
-from mock import Mock, patch
+from operator import (
+    setitem,
+)
+from functools import (
+    partial,
+)
 
 from testtools.matchers import (
     Is,
@@ -39,8 +57,11 @@ from allmydata.util import pollmixin, idlib, fileutil, yamlutil
 from allmydata.util.iputil import (
     listenOnUnused,
 )
+from allmydata.scripts.common import (
+    write_introducer,
+)
 import allmydata.test.common_util as testutil
-from allmydata.test.common import (
+from .common import (
     SyncTestCase,
     AsyncTestCase,
     AsyncBrokenTestCase,
@@ -68,7 +89,8 @@ class Node(testutil.SignalMixin, testutil.ReallyEqualMixin, AsyncTestCase):
 
     def test_introducer_clients_unloadable(self):
         """
-        Error if introducers.yaml exists but we can't read it
+        ``create_introducer_clients`` raises ``EnvironmentError`` if
+        ``introducers.yaml`` exists but we can't read it.
         """
         basedir = u"introducer.IntroducerNode.test_introducer_clients_unloadable"
         os.mkdir(basedir)
@@ -78,17 +100,10 @@ class Node(testutil.SignalMixin, testutil.ReallyEqualMixin, AsyncTestCase):
             f.write(u'---\n')
         os.chmod(yaml_fname, 0o000)
         self.addCleanup(lambda: os.chmod(yaml_fname, 0o700))
-        # just mocking the yaml failure, as "yamlutil.safe_load" only
-        # returns None on some platforms for unreadable files
 
-        with patch("allmydata.client.yamlutil") as p:
-            p.safe_load = Mock(return_value=None)
-
-            fake_tub = Mock()
-            config = read_config(basedir, "portnum")
-
-            with self.assertRaises(EnvironmentError):
-                create_introducer_clients(config, fake_tub)
+        config = read_config(basedir, "portnum")
+        with self.assertRaises(EnvironmentError):
+            create_introducer_clients(config, Tub())
 
     @defer.inlineCallbacks
     def test_furl(self):
@@ -100,7 +115,7 @@ class Node(testutil.SignalMixin, testutil.ReallyEqualMixin, AsyncTestCase):
         q1 = yield create_introducer(basedir)
         del q1
         # new nodes create unguessable furls in private/introducer.furl
-        ifurl = fileutil.read(private_fn)
+        ifurl = fileutil.read(private_fn, mode="r")
         self.failUnless(ifurl)
         ifurl = ifurl.strip()
         self.failIf(ifurl.endswith("/introducer"), ifurl)
@@ -120,7 +135,7 @@ class Node(testutil.SignalMixin, testutil.ReallyEqualMixin, AsyncTestCase):
         q2 = yield create_introducer(basedir)
         del q2
         self.failIf(os.path.exists(public_fn))
-        ifurl2 = fileutil.read(private_fn)
+        ifurl2 = fileutil.read(private_fn, mode="r")
         self.failUnless(ifurl2)
         self.failUnlessEqual(ifurl2.strip(), guessable)
 
@@ -155,7 +170,7 @@ class ServiceMixin(object):
 class Introducer(ServiceMixin, AsyncTestCase):
     def test_create(self):
         ic = IntroducerClient(None, "introducer.furl", u"my_nickname",
-                              "my_version", "oldest_version", {}, fakeseq,
+                              "my_version", "oldest_version", fakeseq,
                               FilePath(self.mktemp()))
         self.failUnless(isinstance(ic, IntroducerClient))
 
@@ -169,7 +184,7 @@ def fakeseq():
 
 seqnum_counter = itertools.count(1)
 def realseq():
-    return seqnum_counter.next(), str(os.randint(1,100000))
+    return next(seqnum_counter), str(os.randint(1,100000))
 
 def make_ann(furl):
     ann = { "anonymous-storage-FURL": furl,
@@ -188,13 +203,13 @@ class Client(AsyncTestCase):
     def test_duplicate_receive_v2(self):
         ic1 = IntroducerClient(None,
                                "introducer.furl", u"my_nickname",
-                               "ver23", "oldest_version", {}, fakeseq,
+                               "ver23", "oldest_version", fakeseq,
                                FilePath(self.mktemp()))
         # we use a second client just to create a different-looking
         # announcement
         ic2 = IntroducerClient(None,
                                "introducer.furl", u"my_nickname",
-                               "ver24","oldest_version",{}, fakeseq,
+                               "ver24","oldest_version",fakeseq,
                                FilePath(self.mktemp()))
         announcements = []
         def _received(key_s, ann):
@@ -206,7 +221,7 @@ class Client(AsyncTestCase):
 
         private_key, public_key = ed25519.create_signing_keypair()
         public_key_str = ed25519.string_from_verifying_key(public_key)
-        pubkey_s = remove_prefix(public_key_str, "pub-")
+        pubkey_s = remove_prefix(public_key_str, b"pub-")
 
         # ann1: ic1, furl1
         # ann1a: ic1, furl1a (same SturdyRef, different connection hints)
@@ -298,7 +313,7 @@ class Server(AsyncTestCase):
         i = IntroducerService()
         ic1 = IntroducerClient(None,
                                "introducer.furl", u"my_nickname",
-                               "ver23", "oldest_version", {}, realseq,
+                               "ver23", "oldest_version", realseq,
                                FilePath(self.mktemp()))
         furl1 = "pb://62ubehyunnyhzs7r6vdonnm2hpi52w6y@127.0.0.1:36106/gydnp"
 
@@ -396,7 +411,7 @@ class Queue(SystemTestMixin, AsyncTestCase):
         tub2 = Tub()
         tub2.setServiceParent(self.parent)
         c = IntroducerClient(tub2, ifurl,
-                             u"nickname", "version", "oldest", {}, fakeseq,
+                             u"nickname", "version", "oldest", fakeseq,
                              FilePath(self.mktemp()))
         furl1 = "pb://onug64tu@127.0.0.1:123/short" # base32("short")
         private_key, _ = ed25519.create_signing_keypair()
@@ -477,7 +492,7 @@ class SystemTest(SystemTestMixin, AsyncTestCase):
             c = IntroducerClient(tub, self.introducer_furl,
                                  NICKNAME % str(i),
                                  "version", "oldest",
-                                 {"component": "component-v1"}, fakeseq,
+                                 fakeseq,
                                  FilePath(self.mktemp()))
             received_announcements[c] = {}
             def got(key_s_or_tubid, ann, announcements):
@@ -581,7 +596,7 @@ class SystemTest(SystemTestMixin, AsyncTestCase):
                 serverid0 = printable_serverids[0]
                 ann = anns[serverid0]
                 nick = ann["nickname"]
-                self.failUnlessEqual(type(nick), unicode)
+                self.assertIsInstance(nick, str)
                 self.failUnlessEqual(nick, NICKNAME % "0")
             for c in publishing_clients:
                 cdc = c._debug_counts
@@ -592,7 +607,7 @@ class SystemTest(SystemTestMixin, AsyncTestCase):
                 self.failUnlessEqual(cdc["outbound_message"], expected)
             # now check the web status, make sure it renders without error
             ir = introweb.IntroducerRoot(self.parent)
-            self.parent.nodeid = "NODEID"
+            self.parent.nodeid = b"NODEID"
             log.msg("_check1 done")
             return flattenString(None, ir._create_element())
         d.addCallback(_check1)
@@ -602,7 +617,7 @@ class SystemTest(SystemTestMixin, AsyncTestCase):
             self.assertIn(NICKNAME % "0", text) # a v2 client
             self.assertIn(NICKNAME % "1", text) # another v2 client
             for i in range(NUM_STORAGE):
-                self.assertIn(printable_serverids[i], text,
+                self.assertIn(ensure_text(printable_serverids[i]), text,
                                   (i,printable_serverids[i],text))
                 # make sure there isn't a double-base32ed string too
                 self.assertNotIn(idlib.nodeid_b2a(printable_serverids[i]), text,
@@ -728,8 +743,6 @@ class SystemTest(SystemTestMixin, AsyncTestCase):
 class FakeRemoteReference(object):
     def notifyOnDisconnect(self, *args, **kwargs): pass
     def getRemoteTubID(self): return "62ubehyunnyhzs7r6vdonnm2hpi52w6y"
-    def getLocationHints(self): return ["tcp:here.example.com:1234",
-                                        "tcp:there.example.com2345"]
     def getPeer(self): return address.IPv4Address("TCP", "remote.example.com",
                                                   3456)
 
@@ -737,9 +750,8 @@ class ClientInfo(AsyncTestCase):
     def test_client_v2(self):
         introducer = IntroducerService()
         tub = introducer_furl = None
-        app_versions = {"whizzy": "fizzy"}
         client_v2 = IntroducerClient(tub, introducer_furl, NICKNAME % u"v2",
-                                     "my_version", "oldest", app_versions,
+                                     "my_version", "oldest",
                                      fakeseq, FilePath(self.mktemp()))
         #furl1 = "pb://62ubehyunnyhzs7r6vdonnm2hpi52w6y@127.0.0.1:0/swissnum"
         #ann_s = make_ann_t(client_v2, furl1, None, 10)
@@ -751,7 +763,6 @@ class ClientInfo(AsyncTestCase):
         self.failUnlessEqual(len(subs), 1)
         s0 = subs[0]
         self.failUnlessEqual(s0.service_name, "storage")
-        self.failUnlessEqual(s0.app_versions, app_versions)
         self.failUnlessEqual(s0.nickname, NICKNAME % u"v2")
         self.failUnlessEqual(s0.version, "my_version")
 
@@ -760,14 +771,13 @@ class Announcements(AsyncTestCase):
     def test_client_v2_signed(self):
         introducer = IntroducerService()
         tub = introducer_furl = None
-        app_versions = {"whizzy": "fizzy"}
         client_v2 = IntroducerClient(tub, introducer_furl, u"nick-v2",
-                                     "my_version", "oldest", app_versions,
+                                     "my_version", "oldest",
                                      fakeseq, FilePath(self.mktemp()))
         furl1 = "pb://62ubehyunnyhzs7r6vdonnm2hpi52w6y@127.0.0.1:0/swissnum"
 
         private_key, public_key = ed25519.create_signing_keypair()
-        public_key_str = remove_prefix(ed25519.string_from_verifying_key(public_key), "pub-")
+        public_key_str = remove_prefix(ed25519.string_from_verifying_key(public_key), b"pub-")
 
         ann_t0 = make_ann_t(client_v2, furl1, private_key, 10)
         canary0 = Referenceable()
@@ -776,7 +786,6 @@ class Announcements(AsyncTestCase):
         self.failUnlessEqual(len(a), 1)
         self.assertThat(a[0].canary, Is(canary0))
         self.failUnlessEqual(a[0].index, ("storage", public_key_str))
-        self.failUnlessEqual(a[0].announcement["app-versions"], app_versions)
         self.failUnlessEqual(a[0].nickname, u"nick-v2")
         self.failUnlessEqual(a[0].service_name, "storage")
         self.failUnlessEqual(a[0].version, "my_version")
@@ -788,25 +797,31 @@ class Announcements(AsyncTestCase):
 
     @defer.inlineCallbacks
     def test_client_cache(self):
-        basedir = "introducer/ClientSeqnums/test_client_cache_1"
-        fileutil.make_dirs(basedir)
-        cache_filepath = FilePath(os.path.join(basedir, "private",
-                                               "introducer_default_cache.yaml"))
+        """
+        Announcements received by an introducer client are written to that
+        introducer client's cache file.
+        """
+        basedir = FilePath("introducer/ClientSeqnums/test_client_cache_1")
+        private = basedir.child("private")
+        private.makedirs()
+        write_introducer(basedir, "default", "nope")
+        cache_filepath = basedir.descendant([
+            "private",
+            "introducer_default_cache.yaml",
+        ])
 
         # if storage is enabled, the Client will publish its storage server
         # during startup (although the announcement will wait in a queue
         # until the introducer connection is established). To avoid getting
         # confused by this, disable storage.
-        with open(os.path.join(basedir, "tahoe.cfg"), "w") as f:
-            f.write("[client]\n")
-            f.write("introducer.furl = nope\n")
-            f.write("[storage]\n")
-            f.write("enabled = false\n")
+        with basedir.child("tahoe.cfg").open("w") as f:
+            f.write(b"[storage]\n")
+            f.write(b"enabled = false\n")
 
-        c = yield create_client(basedir)
+        c = yield create_client(basedir.path)
         ic = c.introducer_clients[0]
         private_key, public_key = ed25519.create_signing_keypair()
-        public_key_str = remove_prefix(ed25519.string_from_verifying_key(public_key), "pub-")
+        public_key_str = remove_prefix(ed25519.string_from_verifying_key(public_key), b"pub-")
         furl1 = "pb://onug64tu@127.0.0.1:123/short" # base32("short")
         ann_t = make_ann_t(ic, furl1, private_key, 1)
 
@@ -816,7 +831,7 @@ class Announcements(AsyncTestCase):
         # check the cache for the announcement
         announcements = self._load_cache(cache_filepath)
         self.failUnlessEqual(len(announcements), 1)
-        self.failUnlessEqual(announcements[0]['key_s'], public_key_str)
+        self.failUnlessEqual(ensure_binary(announcements[0]['key_s']), public_key_str)
         ann = announcements[0]["ann"]
         self.failUnlessEqual(ann["anonymous-storage-FURL"], furl1)
         self.failUnlessEqual(ann["seqnum"], 1)
@@ -829,7 +844,7 @@ class Announcements(AsyncTestCase):
         yield flushEventualQueue()
         announcements = self._load_cache(cache_filepath)
         self.failUnlessEqual(len(announcements), 1)
-        self.failUnlessEqual(announcements[0]['key_s'], public_key_str)
+        self.failUnlessEqual(ensure_binary(announcements[0]['key_s']), public_key_str)
         ann = announcements[0]["ann"]
         self.failUnlessEqual(ann["anonymous-storage-FURL"], furl2)
         self.failUnlessEqual(ann["seqnum"], 2)
@@ -837,7 +852,7 @@ class Announcements(AsyncTestCase):
         # but a third announcement with a different key should add to the
         # cache
         private_key2, public_key2 = ed25519.create_signing_keypair()
-        public_key_str2 = remove_prefix(ed25519.string_from_verifying_key(public_key2), "pub-")
+        public_key_str2 = remove_prefix(ed25519.string_from_verifying_key(public_key2), b"pub-")
         furl3 = "pb://onug64tu@127.0.0.1:456/short"
         ann_t3 = make_ann_t(ic, furl3, private_key2, 1)
         ic.got_announcements([ann_t3])
@@ -846,7 +861,7 @@ class Announcements(AsyncTestCase):
         announcements = self._load_cache(cache_filepath)
         self.failUnlessEqual(len(announcements), 2)
         self.failUnlessEqual(set([public_key_str, public_key_str2]),
-                             set([a["key_s"] for a in announcements]))
+                             set([ensure_binary(a["key_s"]) for a in announcements]))
         self.failUnlessEqual(set([furl2, furl3]),
                              set([a["ann"]["anonymous-storage-FURL"]
                                   for a in announcements]))
@@ -854,7 +869,7 @@ class Announcements(AsyncTestCase):
         # test loading
         yield flushEventualQueue()
         ic2 = IntroducerClient(None, "introducer.furl", u"my_nickname",
-                               "my_version", "oldest_version", {}, fakeseq,
+                               "my_version", "oldest_version", fakeseq,
                                ic._cache_filepath)
         announcements = {}
         def got(key_s, ann):
@@ -869,7 +884,7 @@ class Announcements(AsyncTestCase):
         self.failUnlessEqual(announcements[public_key_str2]["anonymous-storage-FURL"],
                              furl3)
 
-        c2 = yield create_client(basedir)
+        c2 = yield create_client(basedir.path)
         c2.introducer_clients[0]._load_announcements()
         yield flushEventualQueue()
         self.assertEqual(c2.storage_broker.get_all_serverids(),
@@ -879,27 +894,24 @@ class ClientSeqnums(AsyncBrokenTestCase):
 
     @defer.inlineCallbacks
     def test_client(self):
-        basedir = "introducer/ClientSeqnums/test_client"
-        fileutil.make_dirs(basedir)
+        basedir = FilePath("introducer/ClientSeqnums/test_client")
+        private = basedir.child("private")
+        private.makedirs()
+        write_introducer(basedir, "default", "nope")
         # if storage is enabled, the Client will publish its storage server
         # during startup (although the announcement will wait in a queue
         # until the introducer connection is established). To avoid getting
         # confused by this, disable storage.
-        f = open(os.path.join(basedir, "tahoe.cfg"), "w")
-        f.write("[client]\n")
-        f.write("introducer.furl = nope\n")
-        f.write("[storage]\n")
-        f.write("enabled = false\n")
-        f.close()
+        with basedir.child("tahoe.cfg").open("w") as f:
+            f.write(b"[storage]\n")
+            f.write(b"enabled = false\n")
 
-        c = yield create_client(basedir)
+        c = yield create_client(basedir.path)
         ic = c.introducer_clients[0]
         outbound = ic._outbound_announcements
         published = ic._published_announcements
         def read_seqnum():
-            f = open(os.path.join(basedir, "announcement-seqnum"))
-            seqnum = f.read().strip()
-            f.close()
+            seqnum = basedir.child("announcement-seqnum").getContent()
             return int(seqnum)
 
         ic.publish("sA", {"key": "value1"}, c._node_private_key)
@@ -907,7 +919,9 @@ class ClientSeqnums(AsyncBrokenTestCase):
         self.failUnless("sA" in outbound)
         self.failUnlessEqual(outbound["sA"]["seqnum"], 1)
         nonce1 = outbound["sA"]["nonce"]
-        self.failUnless(isinstance(nonce1, str))
+        self.failUnless(isinstance(nonce1, bytes))
+        # Make nonce unicode, to match JSON:
+        outbound["sA"]["nonce"] = str(nonce1, "utf-8")
         self.failUnlessEqual(json.loads(published["sA"][0]),
                              outbound["sA"])
         # [1] is the signature, [2] is the pubkey
@@ -921,8 +935,11 @@ class ClientSeqnums(AsyncBrokenTestCase):
         self.failUnless("sA" in outbound)
         self.failUnlessEqual(outbound["sA"]["seqnum"], 2)
         nonce2 = outbound["sA"]["nonce"]
-        self.failUnless(isinstance(nonce2, str))
+        self.failUnless(isinstance(nonce2, bytes))
         self.failIfEqual(nonce1, nonce2)
+        # Make nonce unicode, to match JSON:
+        outbound["sA"]["nonce"] = str(nonce2, "utf-8")
+        outbound["sB"]["nonce"] = str(outbound["sB"]["nonce"], "utf-8")
         self.failUnlessEqual(json.loads(published["sA"][0]),
                              outbound["sA"])
         self.failUnlessEqual(json.loads(published["sB"][0]),
@@ -954,7 +971,7 @@ class NonV1Server(SystemTestMixin, AsyncTestCase):
         tub.setServiceParent(self.parent)
         listenOnUnused(tub)
         c = IntroducerClient(tub, self.introducer_furl,
-                             u"nickname-client", "version", "oldest", {},
+                             u"nickname-client", "version", "oldest",
                              fakeseq, FilePath(self.mktemp()))
         announcements = {}
         def got(key_s, ann):
@@ -982,8 +999,8 @@ class DecodeFurl(SyncTestCase):
         furl = 'pb://t5g7egomnnktbpydbuijt6zgtmw4oqi5@127.0.0.1:51857/hfzv36i'
         m = re.match(r'pb://(\w+)@', furl)
         assert m
-        nodeid = b32decode(m.group(1).upper())
-        self.failUnlessEqual(nodeid, "\x9fM\xf2\x19\xcckU0\xbf\x03\r\x10\x99\xfb&\x9b-\xc7A\x1d")
+        nodeid = b32decode(m.group(1).upper().encode("ascii"))
+        self.failUnlessEqual(nodeid, b"\x9fM\xf2\x19\xcckU0\xbf\x03\r\x10\x99\xfb&\x9b-\xc7A\x1d")
 
 class Signatures(SyncTestCase):
 
@@ -995,11 +1012,11 @@ class Signatures(SyncTestCase):
         (msg, sig, key) = ann_t
         self.failUnlessEqual(type(msg), type("".encode("utf-8"))) # bytes
         self.failUnlessEqual(json.loads(msg.decode("utf-8")), ann)
-        self.failUnless(sig.startswith("v0-"))
-        self.failUnless(key.startswith("v0-"))
+        self.failUnless(sig.startswith(b"v0-"))
+        self.failUnless(key.startswith(b"v0-"))
         (ann2,key2) = unsign_from_foolscap(ann_t)
         self.failUnlessEqual(ann2, ann)
-        self.failUnlessEqual("pub-" + key2, public_key_str)
+        self.failUnlessEqual(b"pub-" + key2, public_key_str)
 
         # not signed
         self.failUnlessRaises(UnknownKeyError,
@@ -1014,29 +1031,58 @@ class Signatures(SyncTestCase):
 
         # unrecognized signatures
         self.failUnlessRaises(UnknownKeyError,
-                              unsign_from_foolscap, (bad_msg, "v999-sig", key))
+                              unsign_from_foolscap, (bad_msg, b"v999-sig", key))
         self.failUnlessRaises(UnknownKeyError,
-                              unsign_from_foolscap, (bad_msg, sig, "v999-key"))
+                              unsign_from_foolscap, (bad_msg, sig, b"v999-key"))
 
     def test_unsigned_announcement(self):
-        ed25519.verifying_key_from_string(b"pub-v0-wodst6ly4f7i7akt2nxizsmmy2rlmer6apltl56zctn67wfyu5tq")
-        mock_tub = Mock()
+        """
+        An incorrectly signed announcement is not delivered to subscribers.
+        """
+        private_key, public_key = ed25519.create_signing_keypair()
+        public_key_str = ed25519.string_from_verifying_key(public_key)
+
         ic = IntroducerClient(
-            mock_tub,
-            u"pb://",
+            Tub(),
+            "pb://",
             u"fake_nick",
             "0.0.0",
             "1.2.3",
-            {},
             (0, u"i am a nonce"),
-            "invalid",
+            FilePath(self.mktemp()),
         )
-        self.assertEqual(0, ic._debug_counts["inbound_announcement"])
-        ic.got_announcements([
-            ("message", "v0-aaaaaaa", "v0-wodst6ly4f7i7akt2nxizsmmy2rlmer6apltl56zctn67wfyu5tq")
-        ])
-        # we should have rejected this announcement due to a bad signature
-        self.assertEqual(0, ic._debug_counts["inbound_announcement"])
+        received = {}
+        ic.subscribe_to("good-stuff", partial(setitem, received))
+
+        # Deliver a good message to prove our test code is valid.
+        ann = {"service-name": "good-stuff", "payload": "hello"}
+        ann_t = sign_to_foolscap(ann, private_key)
+        ic.got_announcements([ann_t])
+
+        self.assertEqual(
+            {public_key_str[len("pub-"):]: ann},
+            received,
+        )
+        received.clear()
+
+        # Now deliver one without a valid signature and observe that it isn't
+        # delivered to the subscriber.
+        ann = {"service-name": "good-stuff", "payload": "bad stuff"}
+        (msg, sig, key) = sign_to_foolscap(ann, private_key)
+        # Drop a base32 word from the middle of the key to invalidate the
+        # signature.
+        sig_a = bytearray(sig)
+        sig_a[20:22] = []
+        sig = bytes(sig_a)
+        ann_t = (msg, sig, key)
+        ic.got_announcements([ann_t])
+
+        # The received announcements dict should remain empty because we
+        # should not receive the announcement with the invalid signature.
+        self.assertEqual(
+            {},
+            received,
+        )
 
 
 # add tests of StorageFarmBroker: if it receives duplicate announcements, it

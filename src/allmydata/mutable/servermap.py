@@ -1,4 +1,16 @@
+"""
+Ported to Python 3.
+"""
 from __future__ import print_function
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    # Doesn't import str to prevent API leakage on Python 2
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, max, min  # noqa: F401
+from past.builtins import unicode
 
 import sys, time, copy
 from zope.interface import implementer
@@ -156,6 +168,7 @@ class ServerMap(object):
         corrupted or badly signed) so that a repair operation can do the
         test-and-set using it as a reference.
         """
+        assert isinstance(checkstring, bytes)
         key = (server, shnum) # record checkstring
         self._bad_shares[key] = checkstring
         self._known_shares.pop(key, None)
@@ -185,7 +198,7 @@ class ServerMap(object):
     def dump(self, out=sys.stdout):
         print("servermap:", file=out)
 
-        for ( (server, shnum), (verinfo, timestamp) ) in self._known_shares.items():
+        for ( (server, shnum), (verinfo, timestamp) ) in list(self._known_shares.items()):
             (seqnum, root_hash, IV, segsize, datalength, k, N, prefix,
              offsets_tuple) = verinfo
             print("[%s]: sh#%d seq%d-%s %d-of-%d len%d" %
@@ -223,7 +236,7 @@ class ServerMap(object):
         """Return a dict that maps versionid to sets of (shnum, server,
         timestamp) tuples."""
         versionmap = DictOfSets()
-        for ( (server, shnum), (verinfo, timestamp) ) in self._known_shares.items():
+        for ( (server, shnum), (verinfo, timestamp) ) in list(self._known_shares.items()):
             versionmap.add(verinfo, (shnum, server, timestamp))
         return versionmap
 
@@ -242,7 +255,7 @@ class ServerMap(object):
         (num_distinct_shares, k, N) tuples."""
         versionmap = self.make_versionmap()
         all_shares = {}
-        for verinfo, shares in versionmap.items():
+        for verinfo, shares in list(versionmap.items()):
             s = set()
             for (shnum, server, timestamp) in shares:
                 s.add(shnum)
@@ -268,7 +281,7 @@ class ServerMap(object):
         """Return a string describing which versions we know about."""
         versionmap = self.make_versionmap()
         bits = []
-        for (verinfo, shares) in versionmap.items():
+        for (verinfo, shares) in list(versionmap.items()):
             vstr = self.summarize_version(verinfo)
             shnums = set([shnum for (shnum, server, timestamp) in shares])
             bits.append("%d*%s" % (len(shnums), vstr))
@@ -279,7 +292,7 @@ class ServerMap(object):
         recoverable."""
         versionmap = self.make_versionmap()
         recoverable_versions = set()
-        for (verinfo, shares) in versionmap.items():
+        for (verinfo, shares) in list(versionmap.items()):
             (seqnum, root_hash, IV, segsize, datalength, k, N, prefix,
              offsets_tuple) = verinfo
             shnums = set([shnum for (shnum, server, timestamp) in shares])
@@ -295,7 +308,7 @@ class ServerMap(object):
         versionmap = self.make_versionmap()
 
         unrecoverable_versions = set()
-        for (verinfo, shares) in versionmap.items():
+        for (verinfo, shares) in list(versionmap.items()):
             (seqnum, root_hash, IV, segsize, datalength, k, N, prefix,
              offsets_tuple) = verinfo
             shnums = set([shnum for (shnum, server, timestamp) in shares])
@@ -329,7 +342,7 @@ class ServerMap(object):
         healths = {} # maps verinfo to (found,k)
         unrecoverable = set()
         highest_recoverable_seqnum = -1
-        for (verinfo, shares) in versionmap.items():
+        for (verinfo, shares) in list(versionmap.items()):
             (seqnum, root_hash, IV, segsize, datalength, k, N, prefix,
              offsets_tuple) = verinfo
             shnums = set([shnum for (shnum, server, timestamp) in shares])
@@ -664,7 +677,7 @@ class ServermapUpdater(object):
 
         ds = []
 
-        for shnum,datav in datavs.items():
+        for shnum,datav in list(datavs.items()):
             data = datav[0]
             reader = MDMFSlotReadProxy(ss,
                                        storage_index,
@@ -800,9 +813,11 @@ class ServermapUpdater(object):
 
 
     def notify_server_corruption(self, server, shnum, reason):
+        if isinstance(reason, unicode):
+            reason = reason.encode("utf-8")
         ss = server.get_storage_server()
         ss.advise_corrupt_share(
-            "mutable",
+            b"mutable",
             self._storage_index,
             shnum,
             reason,

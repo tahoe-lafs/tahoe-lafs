@@ -1,3 +1,15 @@
+"""
+Ported to Python 3.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+
 from twisted.trial import unittest
 from allmydata.interfaces import SDMF_VERSION
 from allmydata.monitor import Monitor
@@ -10,7 +22,7 @@ from .util import FakeStorage, make_nodemaker
 
 class MultipleEncodings(unittest.TestCase):
     def setUp(self):
-        self.CONTENTS = "New contents go here"
+        self.CONTENTS = b"New contents go here"
         self.uploadable = MutableData(self.CONTENTS)
         self._storage = FakeStorage()
         self._nodemaker = make_nodemaker(self._storage, num_peers=20)
@@ -63,9 +75,9 @@ class MultipleEncodings(unittest.TestCase):
         # then mix up the shares, to make sure that download survives seeing
         # a variety of encodings. This is actually kind of tricky to set up.
 
-        contents1 = "Contents for encoding 1 (3-of-10) go here"*1000
-        contents2 = "Contents for encoding 2 (4-of-9) go here"*1000
-        contents3 = "Contents for encoding 3 (4-of-7) go here"*1000
+        contents1 = b"Contents for encoding 1 (3-of-10) go here"*1000
+        contents2 = b"Contents for encoding 2 (4-of-9) go here"*1000
+        contents3 = b"Contents for encoding 3 (4-of-7) go here"*1000
 
         # we make a retrieval object that doesn't know what encoding
         # parameters to use

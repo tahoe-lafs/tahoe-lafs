@@ -21,7 +21,7 @@ jobs:
 
     steps:
 
-      # Get vcpython27 on Windows + Python 2.7, to build zfec
+      # Get vcpython27 on Windows + Python 2.7, to build netifaces
       # extension.  See https://chocolatey.org/packages/vcpython27 and
       # https://github.com/crazy-max/ghaction-chocolatey
       - name: Install MSVC 9.0 for Python 2.7 [Windows]
@@ -30,16 +30,36 @@ jobs:
         with:
           args: install vcpython27
 
+      # See https://github.com/actions/checkout. A fetch-depth of 0
+      # fetches all tags and branches.
       - name: Check out Tahoe-LAFS sources
         uses: actions/checkout@v2
-
-      - name: Fetch all history for all tags and branches
-        run: git fetch --prune --unshallow
+        with:
+          fetch-depth: 0
 
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v1
         with:
           python-version: ${{ matrix.python-version }}
+
+      # To use pip caching with GitHub Actions in an OS-independent
+      # manner, we need `pip cache dir` command, which became
+      # available since pip v20.1+.  At the time of writing this,
+      # GitHub Actions offers pip v20.3.3 for both ubuntu-latest and
+      # windows-latest, and pip v20.3.1 for macos-latest.
+      - name: Get pip cache directory
+        id: pip-cache
+        run: |
+          echo "::set-output name=dir::$(pip cache dir)"
+
+      # See https://github.com/actions/cache
+      - name: Use pip cache
+        uses: actions/cache@v2
+        with:
+          path: ${{ steps.pip-cache.outputs.dir }}
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/setup.py') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
 
       - name: Install Python packages
         run: |
@@ -78,6 +98,15 @@ jobs:
 
     steps:
 
+      # Get vcpython27 for Windows + Python 2.7, to build netifaces
+      # extension.  See https://chocolatey.org/packages/vcpython27 and
+      # https://github.com/crazy-max/ghaction-chocolatey
+      - name: Install MSVC 9.0 for Python 2.7 [Windows]
+        if: matrix.os == 'windows-latest' && matrix.python-version == '2.7'
+        uses: crazy-max/ghaction-chocolatey@v1
+        with:
+          args: install vcpython27
+
       - name: Install Tor [Ubuntu]
         if: matrix.os == 'ubuntu-latest'
         run: sudo apt install tor
@@ -92,22 +121,28 @@ jobs:
         with:
           args: install tor
 
-      - name: Install MSVC 9.0 for Python 2.7 [Windows]
-        if: matrix.os == 'windows-latest' && matrix.python-version == '2.7'
-        uses: crazy-max/ghaction-chocolatey@v1
-        with:
-          args: install vcpython27
-
       - name: Check out Tahoe-LAFS sources
         uses: actions/checkout@v2
-
-      - name: Fetch all history for all tags and branches
-        run: git fetch --prune --unshallow
+        with:
+          fetch-depth: 0
 
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v1
         with:
           python-version: ${{ matrix.python-version }}
+
+      - name: Get pip cache directory
+        id: pip-cache
+        run: |
+          echo "::set-output name=dir::$(pip cache dir)"
+
+      - name: Use pip cache
+        uses: actions/cache@v2
+        with:
+          path: ${{ steps.pip-cache.outputs.dir }}
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/setup.py') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
 
       - name: Install Python packages
         run: |
@@ -141,7 +176,7 @@ jobs:
 
     steps:
 
-      # Get vcpython27 on Windows + Python 2.7, to build zfec
+      # Get vcpython27 for Windows + Python 2.7, to build netifaces
       # extension.  See https://chocolatey.org/packages/vcpython27 and
       # https://github.com/crazy-max/ghaction-chocolatey
       - name: Install MSVC 9.0 for Python 2.7 [Windows]
@@ -152,14 +187,26 @@ jobs:
 
       - name: Check out Tahoe-LAFS sources
         uses: actions/checkout@v2
-
-      - name: Fetch all history for all tags and branches
-        run: git fetch --prune --unshallow
+        with:
+          fetch-depth: 0
 
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v1
         with:
           python-version: ${{ matrix.python-version }}
+
+      - name: Get pip cache directory
+        id: pip-cache
+        run: |
+          echo "::set-output name=dir::$(pip cache dir)"
+
+      - name: Use pip cache
+        uses: actions/cache@v2
+        with:
+          path: ${{ steps.pip-cache.outputs.dir }}
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/setup.py') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
 
       - name: Install Python packages
         run: |

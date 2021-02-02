@@ -1,7 +1,8 @@
+from future.utils import PY3
+
 import os
 import time
-import json
-import urllib
+from urllib.parse import quote as urlquote
 
 from hyperlink import DecodedURL, URL
 from pkg_resources import resource_filename
@@ -10,7 +11,7 @@ from twisted.web import (
     resource,
     static,
 )
-from twisted.web.util import redirectTo
+from twisted.web.util import redirectTo, Redirect
 from twisted.python.filepath import FilePath
 from twisted.web.template import (
     Element,
@@ -21,8 +22,7 @@ from twisted.web.template import (
 )
 
 import allmydata # to display import path
-from allmydata.version_checks import get_package_versions_string
-from allmydata.util import log
+from allmydata.util import log, jsonbytes as json
 from allmydata.interfaces import IFileNode
 from allmydata.web import (
     filenode,
@@ -83,7 +83,7 @@ class URIHandler(resource.Resource, object):
         # it seems Nevow was creating absolute URLs including
         # host/port whereas req.uri is absolute (but lacks host/port)
         redir_uri = URL.from_text(req.prePathURL().decode('utf8'))
-        redir_uri = redir_uri.child(urllib.quote(uri_arg).decode('utf8'))
+        redir_uri = redir_uri.child(urlquote(uri_arg))
         # add back all the query args that AREN'T "?uri="
         for k, values in req.args.items():
             if k != b"uri":
@@ -147,7 +147,7 @@ class URIHandler(resource.Resource, object):
         and creates and appropriate handler (depending on the kind of
         capability it was passed).
         """
-        # this is in case a URI like "/uri/?cap=<valid capability>" is
+        # this is in case a URI like "/uri/?uri=<valid capability>" is
         # passed -- we re-direct to the non-trailing-slash version so
         # that there is just one valid URI for "uri" resource.
         if not name:
@@ -155,11 +155,13 @@ class URIHandler(resource.Resource, object):
             u = u.replace(
                 path=(s for s in u.path if s),  # remove empty segments
             )
-            return redirectTo(u.to_uri().to_text().encode('utf8'), req)
+            return Redirect(u.to_uri().to_text().encode('utf8'))
         try:
             node = self.client.create_node_from_uri(name)
             return directory.make_handler_for(node, self.client)
-        except (TypeError, AssertionError):
+        except (TypeError, AssertionError) as e:
+            log.msg(format="Failed to parse cap, perhaps due to bug: %(e)s",
+                    e=e, level=log.WEIRD)
             raise WebError(
                 "'{}' is not a valid file- or directory- cap".format(name)
             )
@@ -189,7 +191,7 @@ class FileHandler(resource.Resource, object):
         return filenode.FileNodeDownloadHandler(self.client, node)
 
     @render_exception
-    def render_GET(self, ctx):
+    def render_GET(self, req):
         raise WebError("/file must be followed by a file-cap and a name",
                        http.NOT_FOUND)
 
@@ -227,23 +229,26 @@ class Root(MultiFormatResource):
         self._client = client
         self._now_fn = now_fn
 
-        self.putChild("uri", URIHandler(client))
-        self.putChild("cap", URIHandler(client))
+        self.putChild(b"uri", URIHandler(client))
+        self.putChild(b"cap", URIHandler(client))
 
         # Handler for everything beneath "/private", an area of the resource
         # hierarchy which is only accessible with the private per-node API
         # auth token.
-        self.putChild("private", create_private_tree(client.get_auth_token))
+        self.putChild(b"private", create_private_tree(client.get_auth_token))
 
-        self.putChild("file", FileHandler(client))
-        self.putChild("named", FileHandler(client))
-        self.putChild("status", status.Status(client.get_history()))
-        self.putChild("statistics", status.Statistics(client.stats_provider))
+        self.putChild(b"file", FileHandler(client))
+        self.putChild(b"named", FileHandler(client))
+        self.putChild(b"status", status.Status(client.get_history()))
+        self.putChild(b"statistics", status.Statistics(client.stats_provider))
         static_dir = resource_filename("allmydata.web", "static")
         for filen in os.listdir(static_dir):
-            self.putChild(filen, static.File(os.path.join(static_dir, filen)))
+            child_path = filen
+            if PY3:
+                child_path = filen.encode("utf-8")
+            self.putChild(child_path, static.File(os.path.join(static_dir, filen)))
 
-        self.putChild("report_incident", IncidentReporter())
+        self.putChild(b"report_incident", IncidentReporter())
 
     @exception_to_child
     def getChild(self, path, request):
@@ -566,7 +571,7 @@ class RootElement(Element):
 
     @renderer
     def version(self, req, tag):
-        return tag(get_package_versions_string())
+        return tag(allmydata.__full_version__)
 
     @renderer
     def import_path(self, req, tag):

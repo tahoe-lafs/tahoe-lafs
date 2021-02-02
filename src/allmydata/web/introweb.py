@@ -5,9 +5,7 @@ from twisted.web.template import Element, XMLFile, renderElement, renderer
 from twisted.python.filepath import FilePath
 from twisted.web import static
 import allmydata
-import json
-from allmydata.version_checks import get_package_versions_string
-from allmydata.util import idlib
+from allmydata.util import idlib, jsonbytes as json
 from allmydata.web.common import (
     render_time,
     MultiFormatResource,
@@ -28,10 +26,10 @@ class IntroducerRoot(MultiFormatResource):
         self.introducer_node = introducer_node
         self.introducer_service = introducer_node.getServiceNamed("introducer")
         # necessary as a root Resource
-        self.putChild("", self)
+        self.putChild(b"", self)
         static_dir = resource_filename("allmydata.web", "static")
         for filen in os.listdir(static_dir):
-            self.putChild(filen, static.File(os.path.join(static_dir, filen)))
+            self.putChild(filen.encode("utf-8"), static.File(os.path.join(static_dir, filen)))
 
     def _create_element(self):
         """
@@ -68,7 +66,7 @@ class IntroducerRoot(MultiFormatResource):
             announcement_summary[service_name] += 1
         res[u"announcement_summary"] = announcement_summary
 
-        return json.dumps(res, indent=1) + b"\n"
+        return (json.dumps(res, indent=1) + "\n").encode("utf-8")
 
 
 class IntroducerRootElement(Element):
@@ -89,7 +87,7 @@ class IntroducerRootElement(Element):
         self.introducer_service = introducer_service
         self.node_data_dict = {
             "my_nodeid": idlib.nodeid_b2a(self.introducer_node.nodeid),
-            "version": get_package_versions_string(),
+            "version": allmydata.__full_version__,
             "import_path": str(allmydata).replace("/", "/ "),  # XXX kludge for wrapping
             "rendered_at": render_time(time.time()),
         }
@@ -105,7 +103,7 @@ class IntroducerRootElement(Element):
             if ad.service_name not in services:
                 services[ad.service_name] = 0
             services[ad.service_name] += 1
-        service_names = services.keys()
+        service_names = list(services.keys())
         service_names.sort()
         return u", ".join(u"{}: {}".format(service_name, services[service_name])
                           for service_name in service_names)

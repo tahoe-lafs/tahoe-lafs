@@ -3,22 +3,18 @@
 # Import this first to suppress deprecation warnings.
 import allmydata
 
-# nevow requires all these for its voodoo module import time adaptor registrations
-from nevow import accessors, appserver, static, rend, url, util, query, i18n, flat
-from nevow import guard, stan, testutil, context
-from nevow.flat import flatmdom, flatstan, twist
-from formless import webform, processors, annotate, iformless
 from decimal import Decimal
 from xml.dom import minidom
 
 import allmydata.web
 
-# junk to appease pyflakes's outrage
-[
-    accessors, appserver, static, rend, url, util, query, i18n, flat, guard, stan, testutil,
-    context, flatmdom, flatstan, twist, webform, processors, annotate, iformless, Decimal,
-    minidom, allmydata,
-]
+# We import these things to give PyInstaller's dependency resolver some hints
+# about what it needs to include.  We don't use them otherwise _here_ but
+# other parts of the codebase do.  pyflakes points out that they are unused
+# unless we use them.  So ... use them.
+Decimal
+minidom
+allmydata
 
 from allmydata.scripts import runner
 

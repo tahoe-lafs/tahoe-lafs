@@ -1,3 +1,15 @@
+"""
+Ported to Python 3.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    # Omit dict so Python 3 changes don't leak into API callers on Python 2.
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, list, object, range, str, max, min  # noqa: F401
 from past.utils import old_div
 
 import struct
@@ -1744,7 +1756,7 @@ class MDMFSlotReadProxy(object):
 
 
     def _read(self, readvs, force_remote=False):
-        unsatisfiable = list(filter(lambda x: x[0] + x[1] > len(self._data), readvs))
+        unsatisfiable = [x for x in readvs if x[0] + x[1] > len(self._data)]
         # TODO: It's entirely possible to tweak this so that it just
         # fulfills the requests that it can, and not demand that all
         # requests are satisfiable before running it.

@@ -7,11 +7,15 @@ from os import mkdir, listdir, environ
 from os.path import join, exists
 from tempfile import mkdtemp, mktemp
 from functools import partial
+from json import loads
+
+from foolscap.furl import (
+    decode_furl,
+)
 
 from eliot import (
     to_file,
     log_call,
-    start_action,
 )
 
 from twisted.python.procutils import which
@@ -30,11 +34,14 @@ from util import (
     _DumpOutputProtocol,
     _ProcessExitedProtocol,
     _create_node,
-    _run_node,
     _cleanup_tahoe_process,
     _tahoe_runner_optional_coverage,
     await_client_ready,
     TahoeProcess,
+    cli,
+    _run_node,
+    generate_ssh_key,
+    block_with_timeout,
 )
 
 
@@ -150,7 +157,7 @@ def flog_gatherer(reactor, temp_dir, flog_binary, request):
         )
         print("Waiting for flogtool to complete")
         try:
-            pytest_twisted.blockon(flog_protocol.done)
+            block_with_timeout(flog_protocol.done, reactor)
         except ProcessTerminated as e:
             print("flogtool exited unexpectedly: {}".format(str(e)))
         print("Flogtool completed")
@@ -199,9 +206,8 @@ log_gatherer.furl = {log_furl}
     with open(join(intro_dir, 'tahoe.cfg'), 'w') as f:
         f.write(config)
 
-    # on windows, "tahoe start" means: run forever in the foreground,
-    # but on linux it means daemonize. "tahoe run" is consistent
-    # between platforms.
+    # "tahoe run" is consistent across Linux/macOS/Windows, unlike the old
+    # "start" command.
     protocol = _MagicTextProtocol('introducer running')
     transport = _tahoe_runner_optional_coverage(
         protocol,
@@ -226,6 +232,16 @@ def introducer_furl(introducer, temp_dir):
         print("Don't see {} yet".format(furl_fname))
         sleep(.1)
     furl = open(furl_fname, 'r').read()
+    tubID, location_hints, name = decode_furl(furl)
+    if not location_hints:
+        # If there are no location hints then nothing can ever possibly
+        # connect to it and the only thing that can happen next is something
+        # will hang or time out.  So just give up right now.
+        raise ValueError(
+            "Introducer ({!r}) fURL has no location hints!".format(
+                introducer_furl,
+            ),
+        )
     return furl
 
 
@@ -266,9 +282,8 @@ log_gatherer.furl = {log_furl}
     with open(join(intro_dir, 'tahoe.cfg'), 'w') as f:
         f.write(config)
 
-    # on windows, "tahoe start" means: run forever in the foreground,
-    # but on linux it means daemonize. "tahoe run" is consistent
-    # between platforms.
+    # "tahoe run" is consistent across Linux/macOS/Windows, unlike the old
+    # "start" command.
     protocol = _MagicTextProtocol('introducer running')
     transport = _tahoe_runner_optional_coverage(
         protocol,
@@ -283,7 +298,7 @@ log_gatherer.furl = {log_furl}
     def cleanup():
         try:
             transport.signalProcess('TERM')
-            pytest_twisted.blockon(protocol.exited)
+            block_with_timeout(protocol.exited, reactor)
         except ProcessExitedAlready:
             pass
     request.addfinalizer(cleanup)
@@ -337,8 +352,50 @@ def alice(reactor, temp_dir, introducer_furl, flog_gatherer, storage_nodes, requ
             reactor, request, temp_dir, introducer_furl, flog_gatherer, "alice",
             web_port="tcp:9980:interface=localhost",
             storage=False,
+            # We're going to kill this ourselves, so no need for finalizer to
+            # do it:
+            finalize=False,
         )
     )
+    await_client_ready(process)
+
+    # 1. Create a new RW directory cap:
+    cli(process, "create-alias", "test")
+    rwcap = loads(cli(process, "list-aliases", "--json"))["test"]["readwrite"]
+
+    # 2. Enable SFTP on the node:
+    host_ssh_key_path = join(process.node_dir, "private", "ssh_host_rsa_key")
+    accounts_path = join(process.node_dir, "private", "accounts")
+    with open(join(process.node_dir, "tahoe.cfg"), "a") as f:
+        f.write("""\
+[sftpd]
+enabled = true
+port = tcp:8022:interface=127.0.0.1
+host_pubkey_file = {ssh_key_path}.pub
+host_privkey_file = {ssh_key_path}
+accounts.file = {accounts_path}
+""".format(ssh_key_path=host_ssh_key_path, accounts_path=accounts_path))
+    generate_ssh_key(host_ssh_key_path)
+
+    # 3. Add a SFTP access file with username/password and SSH key auth.
+
+    # The client SSH key path is typically going to be somewhere else (~/.ssh,
+    # typically), but for convenience sake for testing we'll put it inside node.
+    client_ssh_key_path = join(process.node_dir, "private", "ssh_client_rsa_key")
+    generate_ssh_key(client_ssh_key_path)
+    # Pub key format is "ssh-rsa <thekey> <username>". We want the key.
+    ssh_public_key = open(client_ssh_key_path + ".pub").read().strip().split()[1]
+    with open(accounts_path, "w") as f:
+        f.write("""\
+alice password {rwcap}
+
+alice2 ssh-rsa {ssh_public_key} {rwcap}
+""".format(rwcap=rwcap, ssh_public_key=ssh_public_key))
+
+    # 4. Restart the node with new SFTP config.
+    process.kill()
+    pytest_twisted.blockon(_run_node(reactor, process.node_dir, request, None))
+
     await_client_ready(process)
     return process
 
@@ -480,7 +537,13 @@ def tor_network(reactor, temp_dir, chutney, request):
             path=join(chutney_dir),
             env=env,
         )
-        pytest_twisted.blockon(proto.done)
+        try:
+            block_with_timeout(proto.done, reactor)
+        except ProcessTerminated:
+            # If this doesn't exit cleanly, that's fine, that shouldn't fail
+            # the test suite.
+            pass
+
     request.addfinalizer(cleanup)
 
     return chut

@@ -5,7 +5,6 @@ __all__ = [
     "on_stdout",
     "on_stdout_and_stderr",
     "on_different",
-    "wait_for_exit",
 ]
 
 import os
@@ -14,8 +13,11 @@ from errno import ENOENT
 
 import attr
 
+from eliot import (
+    log_call,
+)
+
 from twisted.internet.error import (
-    ProcessDone,
     ProcessTerminated,
     ProcessExitedAlready,
 )
@@ -24,9 +26,6 @@ from twisted.internet.interfaces import (
 )
 from twisted.python.filepath import (
     FilePath,
-)
-from twisted.python.runtime import (
-    platform,
 )
 from twisted.internet.protocol import (
     Protocol,
@@ -42,11 +41,9 @@ from twisted.internet.task import (
 from ..client import (
     _Client,
 )
-from ..scripts.tahoe_stop import (
-    COULD_NOT_STOP,
-)
 from ..util.eliotutil import (
     inline_callbacks,
+    log_call_deferred,
 )
 
 class Expect(Protocol, object):
@@ -156,6 +153,7 @@ class CLINodeAPI(object):
             env=os.environ,
         )
 
+    @log_call(action_type="test:cli-api:run", include_args=["extra_tahoe_args"])
     def run(self, protocol, extra_tahoe_args=()):
         """
         Start the node running.
@@ -176,28 +174,21 @@ class CLINodeAPI(object):
             if ENOENT != e.errno:
                 raise
 
-    def stop(self, protocol):
-        self._execute(
-            protocol,
-            [u"stop", self.basedir.asTextMode().path],
-        )
+    @log_call_deferred(action_type="test:cli-api:stop")
+    def stop(self):
+        return self.stop_and_wait()
 
+    @log_call_deferred(action_type="test:cli-api:stop-and-wait")
     @inline_callbacks
     def stop_and_wait(self):
-        if platform.isWindows():
-            # On Windows there is no PID file and no "tahoe stop".
-            if self.process is not None:
-                while True:
-                    try:
-                        self.process.signalProcess("TERM")
-                    except ProcessExitedAlready:
-                        break
-                    else:
-                        yield deferLater(self.reactor, 0.1, lambda: None)
-        else:
-            protocol, ended = wait_for_exit()
-            self.stop(protocol)
-            yield ended
+        if self.process is not None:
+            while True:
+                try:
+                    self.process.signalProcess("TERM")
+                except ProcessExitedAlready:
+                    break
+                else:
+                    yield deferLater(self.reactor, 0.1, lambda: None)
 
     def active(self):
         # By writing this file, we get two minutes before the client will
@@ -208,28 +199,9 @@ class CLINodeAPI(object):
     def _check_cleanup_reason(self, reason):
         # Let it fail because the process has already exited.
         reason.trap(ProcessTerminated)
-        if reason.value.exitCode != COULD_NOT_STOP:
-            return reason
         return None
 
     def cleanup(self):
         stopping = self.stop_and_wait()
         stopping.addErrback(self._check_cleanup_reason)
         return stopping
-
-
-class _WaitForEnd(ProcessProtocol, object):
-    def __init__(self, ended):
-        self._ended = ended
-
-    def processEnded(self, reason):
-        if reason.check(ProcessDone):
-            self._ended.callback(None)
-        else:
-            self._ended.errback(reason)
-
-
-def wait_for_exit():
-    ended = Deferred()
-    protocol = _WaitForEnd(ended)
-    return protocol, ended

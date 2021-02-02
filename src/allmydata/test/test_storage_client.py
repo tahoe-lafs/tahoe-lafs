@@ -1,9 +1,22 @@
-import hashlib
-from mock import Mock
+"""
+Ported from Python 3.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+
+from six import ensure_text
+
 from json import (
-    dumps,
     loads,
 )
+
+import hashlib
 from fixtures import (
     TempDir,
 )
@@ -30,12 +43,20 @@ from hyperlink import (
     URL,
 )
 
+import attr
+
+from twisted.internet.interfaces import (
+    IStreamClientEndpoint,
+)
 from twisted.application.service import (
     Service,
 )
 
 from twisted.trial import unittest
-from twisted.internet.defer import succeed, inlineCallbacks
+from twisted.internet.defer import (
+    Deferred,
+    inlineCallbacks,
+)
 from twisted.python.filepath import (
     FilePath,
 )
@@ -43,7 +64,11 @@ from twisted.python.filepath import (
 from foolscap.api import (
     Tub,
 )
+from foolscap.ipb import (
+    IConnectionHintHandler,
+)
 
+from .no_network import LocalWrapper
 from .common import (
     EMPTY_CLIENT_CONFIG,
     SyncTestCase,
@@ -51,6 +76,7 @@ from .common import (
     UseTestPlugins,
     UseNode,
     SameProcessStreamEndpointAssigner,
+    MemoryIntroducerClient,
 )
 from .common_web import (
     do_http,
@@ -69,14 +95,18 @@ from allmydata.storage_client import (
     _FoolscapStorage,
     _NullStorage,
 )
+from ..storage.server import (
+    StorageServer,
+)
 from allmydata.interfaces import (
     IConnectionStatus,
     IStorageServer,
 )
 
-SOME_FURL = b"pb://abcde@nowhere/fake"
+SOME_FURL = "pb://abcde@nowhere/fake"
 
-class NativeStorageServerWithVersion(NativeStorageServer):
+
+class NativeStorageServerWithVersion(NativeStorageServer):  # type: ignore  # tahoe-lafs/ticket/3573
     def __init__(self, version):
         # note: these instances won't work for anything other than
         # get_available_space() because we don't upcall
@@ -107,7 +137,7 @@ class TestNativeStorageServer(unittest.TestCase):
         ann = {"anonymous-storage-FURL": "pb://w2hqnbaa25yw4qgcvghl5psa3srpfgw3@tcp:127.0.0.1:51309/vucto2z4fxment3vfxbqecblbf6zyp6x",
                "permutation-seed-base32": "w2hqnbaa25yw4qgcvghl5psa3srpfgw3",
                }
-        nss = NativeStorageServer("server_id", ann, None, {}, EMPTY_CLIENT_CONFIG)
+        nss = NativeStorageServer(b"server_id", ann, None, {}, EMPTY_CLIENT_CONFIG)
         self.assertEqual(nss.get_nickname(), "")
 
 
@@ -123,7 +153,7 @@ class GetConnectionStatus(unittest.TestCase):
         """
         # Pretty hard to recognize anything from an empty announcement.
         ann = {}
-        nss = NativeStorageServer("server_id", ann, Tub, {}, EMPTY_CLIENT_CONFIG)
+        nss = NativeStorageServer(b"server_id", ann, Tub, {}, EMPTY_CLIENT_CONFIG)
         nss.start_connecting(lambda: None)
         connection_status = nss.get_connection_status()
         self.assertTrue(IConnectionStatus.providedBy(connection_status))
@@ -271,7 +301,7 @@ class PluginMatchedAnnouncement(SyncTestCase):
         """
         yield self.make_node(
             introducer_furl=SOME_FURL,
-            storage_plugin=b"tahoe-lafs-dummy-v1",
+            storage_plugin="tahoe-lafs-dummy-v1",
             plugin_config=None,
         )
         server_id = b"v0-abcdef"
@@ -281,7 +311,7 @@ class PluginMatchedAnnouncement(SyncTestCase):
                 # notice how the announcement is for a different storage plugin
                 # than the one that is enabled.
                 u"name": u"tahoe-lafs-dummy-v2",
-                u"storage-server-FURL": SOME_FURL.decode("ascii"),
+                u"storage-server-FURL": SOME_FURL,
             }],
         }
         self.publish(server_id, ann, self.introducer_client)
@@ -295,9 +325,9 @@ class PluginMatchedAnnouncement(SyncTestCase):
         configuration is matched and the plugin's storage client is used.
         """
         plugin_config = {
-            b"abc": b"xyz",
+            "abc": "xyz",
         }
-        plugin_name = b"tahoe-lafs-dummy-v1"
+        plugin_name = "tahoe-lafs-dummy-v1"
         yield self.make_node(
             introducer_furl=SOME_FURL,
             storage_plugin=plugin_name,
@@ -309,7 +339,7 @@ class PluginMatchedAnnouncement(SyncTestCase):
             u"storage-options": [{
                 # and this announcement is for a plugin with a matching name
                 u"name": plugin_name,
-                u"storage-server-FURL": SOME_FURL.decode("ascii"),
+                u"storage-server-FURL": SOME_FURL,
             }],
         }
         self.publish(server_id, ann, self.introducer_client)
@@ -348,7 +378,7 @@ class PluginMatchedAnnouncement(SyncTestCase):
         An announcement that could be matched by a plugin that is enabled with no
         configuration is matched and the plugin's storage client is used.
         """
-        plugin_name = b"tahoe-lafs-dummy-v1"
+        plugin_name = "tahoe-lafs-dummy-v1"
         yield self.make_node(
             introducer_furl=SOME_FURL,
             storage_plugin=plugin_name,
@@ -360,7 +390,7 @@ class PluginMatchedAnnouncement(SyncTestCase):
             u"storage-options": [{
                 # and this announcement is for a plugin with a matching name
                 u"name": plugin_name,
-                u"storage-server-FURL": SOME_FURL.decode("ascii"),
+                u"storage-server-FURL": SOME_FURL,
             }],
         }
         self.publish(server_id, ann, self.introducer_client)
@@ -403,7 +433,7 @@ class FoolscapStorageServers(unittest.TestCase):
             verifyObject(
                 IFoolscapStorageServer,
                 _FoolscapStorage.from_announcement(
-                    u"server-id",
+                    b"server-id",
                     SOME_FURL,
                     {u"permutation-seed-base32": base32.b2a(b"permutationseed")},
                     NotStorageServer(),
@@ -425,10 +455,11 @@ class StoragePluginWebPresence(AsyncTestCase):
         self.port_assigner = SameProcessStreamEndpointAssigner()
         self.port_assigner.setUp()
         self.addCleanup(self.port_assigner.tearDown)
-        self.storage_plugin = b"tahoe-lafs-dummy-v1"
+        self.storage_plugin = u"tahoe-lafs-dummy-v1"
 
         from twisted.internet import reactor
-        _, port_endpoint = self.port_assigner.assign(reactor)
+        _, webport_endpoint = self.port_assigner.assign(reactor)
+        tubport_location, tubport_endpoint = self.port_assigner.assign(reactor)
 
         tempdir = TempDir()
         self.useFixture(tempdir)
@@ -436,11 +467,15 @@ class StoragePluginWebPresence(AsyncTestCase):
         self.basedir.child(u"private").makedirs()
         self.node_fixture = self.useFixture(UseNode(
             plugin_config={
-                b"web": b"1",
+                "web": "1",
             },
             node_config={
-                b"tub.location": b"127.0.0.1:1",
-                b"web.port": port_endpoint,
+                # We don't really need the main Tub listening but if we
+                # disable it then we also have to disable storage (because
+                # config validation policy).
+                "tub.port": tubport_endpoint,
+                "tub.location": tubport_location,
+                "web.port": ensure_text(webport_endpoint),
             },
             storage_plugin=self.storage_plugin,
             basedir=self.basedir,
@@ -461,8 +496,8 @@ class StoragePluginWebPresence(AsyncTestCase):
             port=self.port,
             plugin_name=self.storage_plugin,
         ).encode("utf-8")
-        result = yield do_http(b"get", url)
-        self.assertThat(result, Equals(dumps({b"web": b"1"})))
+        result = yield do_http("get", url)
+        self.assertThat(loads(result), Equals({"web": "1"}))
 
     @inlineCallbacks
     def test_plugin_resource_persistent_across_requests(self):
@@ -476,13 +511,13 @@ class StoragePluginWebPresence(AsyncTestCase):
             port=self.port,
             path=(
                 u"storage-plugins",
-                self.storage_plugin.decode("utf-8"),
+                self.storage_plugin,
                 u"counter",
             ),
         ).to_text().encode("utf-8")
         values = {
-            loads((yield do_http(b"get", url)))[u"value"],
-            loads((yield do_http(b"get", url)))[u"value"],
+            loads((yield do_http("get", url)))[u"value"],
+            loads((yield do_http("get", url)))[u"value"],
         }
         self.assertThat(
             values,
@@ -491,12 +526,66 @@ class StoragePluginWebPresence(AsyncTestCase):
         )
 
 
-def make_broker(tub_maker=lambda h: Mock()):
+_aCertPEM = Tub().myCertificate.dumpPEM()
+def new_tub():
+    """
+    Make a new ``Tub`` with a hard-coded private key.
+    """
+    # Use a private key / certificate generated by Tub how it wants.  But just
+    # re-use the same one every time so we don't waste a lot of time
+    # generating them over and over in the tests.
+    return Tub(certData=_aCertPEM)
+
+
+def make_broker(tub_maker=None):
     """
     Create a ``StorageFarmBroker`` with the given tub maker and an empty
     client configuration.
     """
+    if tub_maker is None:
+        tub_maker = lambda handler_overrides: new_tub()
     return StorageFarmBroker(True, tub_maker, EMPTY_CLIENT_CONFIG)
+
+
+@implementer(IStreamClientEndpoint)
+@attr.s
+class SpyEndpoint(object):
+    """
+    Observe and record connection attempts.
+
+    :ivar list _append: A callable that accepts two-tuples.  For each
+        attempted connection, it will be called with ``Deferred`` that was
+        returned and the ``Factory`` that was passed in.
+    """
+    _append = attr.ib()
+
+    def connect(self, factory):
+        """
+        Record the connection attempt.
+
+        :return: A ``Deferred`` that ``SpyEndpoint`` will not fire.
+        """
+        d = Deferred()
+        self._append((d, factory))
+        return d
+
+
+@implementer(IConnectionHintHandler)  # type: ignore # warner/foolscap#78
+@attr.s
+class SpyHandler(object):
+    """
+    A Foolscap connection hint handler for the "spy" hint type.  Connections
+    are handled by just observing and recording them.
+
+    :ivar list _connects: A list containing one element for each connection
+        attempted with this handler.  Each element is a two-tuple of the
+        ``Deferred`` that was returned from ``connect`` and the factory that
+        was passed to ``connect``.
+    """
+    _connects = attr.ib(default=attr.Factory(list))
+
+    def hint_to_endpoint(self, hint, reactor, update_status):
+        return (SpyEndpoint(self._connects.append), hint)
 
 
 class TestStorageFarmBroker(unittest.TestCase):
@@ -504,8 +593,8 @@ class TestStorageFarmBroker(unittest.TestCase):
     def test_static_servers(self):
         broker = make_broker()
 
-        key_s = 'v0-1234-1'
-        servers_yaml = b"""\
+        key_s = b'v0-1234-1'
+        servers_yaml = """\
 storage:
   v0-1234-1:
     ann:
@@ -513,7 +602,7 @@ storage:
       permutation-seed-base32: aaaaaaaaaaaaaaaaaaaaaaaa
 """.format(furl=SOME_FURL)
         servers = yamlutil.safe_load(servers_yaml)
-        permseed = base32.a2b("aaaaaaaaaaaaaaaaaaaaaaaa")
+        permseed = base32.a2b(b"aaaaaaaaaaaaaaaaaaaaaaaa")
         broker.set_static_servers(servers["storage"])
         self.failUnlessEqual(len(broker._static_server_ids), 1)
         s = broker.servers[key_s]
@@ -527,7 +616,7 @@ storage:
 
         ann2 = {
             "service-name": "storage",
-            "anonymous-storage-FURL": "pb://{}@nowhere/fake2".format(base32.b2a(str(1))),
+            "anonymous-storage-FURL": "pb://{}@nowhere/fake2".format(str(base32.b2a(b"1"), "utf-8")),
             "permutation-seed-base32": "bbbbbbbbbbbbbbbbbbbbbbbb",
         }
         broker._got_announcement(key_s, ann2)
@@ -537,8 +626,8 @@ storage:
 
     def test_static_permutation_seed_pubkey(self):
         broker = make_broker()
-        server_id = "v0-4uazse3xb6uu5qpkb7tel2bm6bpea4jhuigdhqcuvvse7hugtsia"
-        k = "4uazse3xb6uu5qpkb7tel2bm6bpea4jhuigdhqcuvvse7hugtsia"
+        server_id = b"v0-4uazse3xb6uu5qpkb7tel2bm6bpea4jhuigdhqcuvvse7hugtsia"
+        k = b"4uazse3xb6uu5qpkb7tel2bm6bpea4jhuigdhqcuvvse7hugtsia"
         ann = {
             "anonymous-storage-FURL": SOME_FURL,
         }
@@ -548,8 +637,8 @@ storage:
 
     def test_static_permutation_seed_explicit(self):
         broker = make_broker()
-        server_id = "v0-4uazse3xb6uu5qpkb7tel2bm6bpea4jhuigdhqcuvvse7hugtsia"
-        k = "w5gl5igiexhwmftwzhai5jy2jixn7yx7"
+        server_id = b"v0-4uazse3xb6uu5qpkb7tel2bm6bpea4jhuigdhqcuvvse7hugtsia"
+        k = b"w5gl5igiexhwmftwzhai5jy2jixn7yx7"
         ann = {
             "anonymous-storage-FURL": SOME_FURL,
             "permutation-seed-base32": k,
@@ -560,7 +649,7 @@ storage:
 
     def test_static_permutation_seed_hashed(self):
         broker = make_broker()
-        server_id = "unparseable"
+        server_id = b"unparseable"
         ann = {
             "anonymous-storage-FURL": SOME_FURL,
         }
@@ -571,18 +660,38 @@ storage:
 
     @inlineCallbacks
     def test_threshold_reached(self):
-        introducer = Mock()
+        """
+        ``StorageFarmBroker.when_connected_enough`` returns a ``Deferred`` which
+        only fires after the ``StorageFarmBroker`` has established at least as
+        many connections as requested.
+        """
+        introducer = MemoryIntroducerClient(
+            new_tub(),
+            SOME_FURL,
+            b"",
+            None,
+            None,
+            None,
+            None,
+        )
         new_tubs = []
         def make_tub(*args, **kwargs):
             return new_tubs.pop()
         broker = make_broker(make_tub)
+        # Start the broker so that it will start Tubs attached to it so they
+        # will attempt to make connections as necessary so that we can observe
+        # those connections.
+        broker.startService()
+        self.addCleanup(broker.stopService)
         done = broker.when_connected_enough(5)
         broker.use_introducer(introducer)
         # subscribes to "storage" to learn of new storage nodes
-        subscribe = introducer.mock_calls[0]
-        self.assertEqual(subscribe[0], 'subscribe_to')
-        self.assertEqual(subscribe[1][0], 'storage')
-        got_announcement = subscribe[1][1]
+        [subscribe] = introducer.subscribed_to
+        self.assertEqual(
+            subscribe.service_name,
+            "storage",
+        )
+        got_announcement = subscribe.cb
 
         data = {
             "service-name": "storage",
@@ -591,15 +700,25 @@ storage:
         }
 
         def add_one_server(x):
-            data["anonymous-storage-FURL"] = "pb://{}@nowhere/fake".format(base32.b2a(str(x)))
-            tub = Mock()
+            data["anonymous-storage-FURL"] = "pb://%s@spy:nowhere/fake" % (str(base32.b2a(b"%d" % x), "ascii"),)
+            tub = new_tub()
+            connects = []
+            spy = SpyHandler(connects)
+            tub.addConnectionHintHandler("spy", spy)
             new_tubs.append(tub)
-            got_announcement('v0-1234-{}'.format(x), data)
-            self.assertEqual(tub.mock_calls[-1][0], 'connectTo')
-            got_connection = tub.mock_calls[-1][1][1]
-            rref = Mock()
-            rref.callRemote = Mock(return_value=succeed(1234))
-            got_connection(rref)
+            got_announcement(b'v0-1234-%d' % x, data)
+
+            self.assertEqual(
+                1, len(connects),
+                "Expected one connection attempt, got {!r} instead".format(connects),
+            )
+
+            # Skip over all the Foolscap negotiation.  It's complex with lots
+            # of pieces and I don't want to figure out how to fake
+            # it. -exarkun
+            native = broker.servers[b"v0-1234-%d" % (x,)]
+            rref = LocalWrapper(StorageServer(self.mktemp(), b"x" * 20))
+            native._got_connection(rref)
 
         # first 4 shouldn't trigger connected_threashold
         for x in range(4):

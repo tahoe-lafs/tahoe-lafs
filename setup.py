@@ -38,8 +38,7 @@ install_requires = [
     "zfec >= 1.1.0",
 
     # zope.interface >= 3.6.0 is required for Twisted >= 12.1.0.
-    # zope.interface 3.6.3 and 3.6.4 are incompatible with Nevow (#1435).
-    "zope.interface >= 3.6.0, != 3.6.3, != 3.6.4",
+    "zope.interface >= 3.6.0",
 
     # * foolscap < 0.5.1 had a performance bug which spent O(N**2) CPU for
     #   transferring large mutable files of size N.
@@ -64,13 +63,8 @@ install_requires = [
     #   version of cryptography will *really* be installed.
     "cryptography >= 2.6",
 
-    # * We need Twisted 10.1.0 for the FTP frontend in order for
-    #   Twisted's FTP server to support asynchronous close.
     # * The SFTP frontend depends on Twisted 11.0.0 to fix the SSH server
     #   rekeying bug <https://twistedmatrix.com/trac/ticket/4395>
-    # * The FTP frontend depends on Twisted >= 11.1.0 for
-    #   filepath.Permissions
-    # * Nevow 0.11.1 depends on Twisted >= 13.0.0.
     # * The SFTP frontend and manhole depend on the conch extra. However, we
     #   can't explicitly declare that without an undesirable dependency on gmpy,
     #   as explained in ticket #2740.
@@ -100,10 +94,9 @@ install_requires = [
     #   `pip install tahoe-lafs[sftp]` would not install requirements
     #   specified by Twisted[conch].  Since this would be the *whole point* of
     #   an sftp extra in Tahoe-LAFS, there is no point in having one.
-    "Twisted[tls,conch] >= 18.4.0",
-
-    # We need Nevow >= 0.11.1 which can be installed using pip.
-    "Nevow >= 0.11.1",
+    # * Twisted 19.10 introduces Site.getContentFile which we use to get
+    #   temporary upload files placed into a per-node temporary directory.
+    "Twisted[tls,conch] >= 19.10.0",
 
     "PyYAML >= 3.11",
 
@@ -114,7 +107,9 @@ install_requires = [
 
     # Eliot is contemplating dropping Python 2 support.  Stick to a version we
     # know works on Python 2.7.
-    "eliot ~= 1.7",
+    "eliot ~= 1.7 ; python_version < '3.0'",
+    # On Python 3, we want a new enough version to support custom JSON encoders.
+    "eliot >= 1.13.0 ; python_version > '3.0'",
 
     # Pyrsistent 0.17.0 (which we use by way of Eliot) has dropped
     # Python 2 entirely; stick to the version known to work for us.
@@ -131,11 +126,17 @@ install_requires = [
     # Support for Python 3 transition
     "future >= 0.18.2",
 
+    # Discover local network configuration
+    "netifaces",
+
     # Utility code:
     "pyutil >= 3.3.0",
 
     # Linux distribution detection:
     "distro >= 1.4.0",
+
+    # Backported configparser for Python 2:
+    "configparser ; python_version < '3.0'",
 ]
 
 setup_requires = [
@@ -380,10 +381,7 @@ setup(name="tahoe-lafs", # also set in __init__.py
               # this version from time to time, but we will do it
               # intentionally.
               "pyflakes == 2.2.0",
-              # coverage 5.0 breaks the integration tests in some opaque way.
-              # This probably needs to be addressed in a more permanent way
-              # eventually...
-              "coverage ~= 4.5",
+              "coverage ~= 5.0",
               "mock",
               "tox",
               "pytest",
@@ -397,6 +395,8 @@ setup(name="tahoe-lafs", # also set in __init__.py
               "html5lib",
               "junitxml",
               "tenacity",
+              "paramiko",
+              "pytest-timeout",
           ] + tor_requires + i2p_requires,
           "tor": tor_requires,
           "i2p": i2p_requires,

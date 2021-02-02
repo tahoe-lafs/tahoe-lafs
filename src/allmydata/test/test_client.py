@@ -1,5 +1,4 @@
 import os, sys
-import mock
 from functools import (
     partial,
 )
@@ -12,6 +11,15 @@ from fixtures import (
     Fixture,
     TempDir,
 )
+
+from hypothesis import (
+    given,
+)
+from hypothesis.strategies import (
+    sampled_from,
+    booleans,
+)
+
 from eliot.testing import (
     capture_logging,
     assertHasAction,
@@ -39,11 +47,10 @@ from testtools.twistedsupport import (
 import allmydata
 import allmydata.util.log
 
-from allmydata.node import OldConfigError, UnescapedHashError, _Config, create_node_dir
-from allmydata.frontends.auth import NeedRootcapLookupScheme
-from allmydata.version_checks import (
-    get_package_versions_string,
+from allmydata.nodemaker import (
+    NodeMaker,
 )
+from allmydata.node import OldConfigError, UnescapedHashError, create_node_dir
 from allmydata import client
 from allmydata.storage_client import (
     StorageClientConfig,
@@ -58,11 +65,15 @@ from allmydata.util import (
 from allmydata.util.fileutil import abspath_expanduser_unicode
 from allmydata.interfaces import IFilesystemNode, IFileNode, \
      IImmutableFileNode, IMutableFileNode, IDirectoryNode
+from allmydata.scripts.common import (
+    write_introducer,
+)
 from foolscap.api import flushEventualQueue
 import allmydata.test.common_util as testutil
 from .common import (
     EMPTY_CLIENT_CONFIG,
     SyncTestCase,
+    AsyncBrokenTestCase,
     UseTestPlugins,
     MemoryIntroducerClient,
     get_published_announcements,
@@ -72,16 +83,13 @@ from .matchers import (
     matches_storage_announcement,
     matches_furl,
 )
+from .strategies import (
+    write_capabilities,
+)
 
-SOME_FURL = b"pb://abcde@nowhere/fake"
+SOME_FURL = "pb://abcde@nowhere/fake"
 
-BASECONFIG = ("[client]\n"
-              "introducer.furl = \n"
-              )
-
-BASECONFIG_I = ("[client]\n"
-              "introducer.furl = %s\n"
-              )
+BASECONFIG = "[client]\n"
 
 class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
     def test_loadable(self):
@@ -112,31 +120,25 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
     @defer.inlineCallbacks
     def test_comment(self):
         """
-        An unescaped comment character (#) in a furl results in an
+        A comment character (#) in a furl results in an
         UnescapedHashError Failure.
         """
-        should_fail = [r"test#test", r"#testtest", r"test\\#test"]
-        should_not_fail = [r"test\#test", r"test\\\#test", r"testtest"]
+        should_fail = [r"test#test", r"#testtest", r"test\\#test", r"test\#test",
+                       r"test\\\#test"]
 
         basedir = "test_client.Basic.test_comment"
         os.mkdir(basedir)
 
         def write_config(s):
             config = ("[client]\n"
-                      "introducer.furl = %s\n" % s)
+                      "helper.furl = %s\n" % s)
             fileutil.write(os.path.join(basedir, "tahoe.cfg"), config)
 
         for s in should_fail:
-            self.failUnless(_Config._contains_unescaped_hash(s))
             write_config(s)
             with self.assertRaises(UnescapedHashError) as ctx:
                 yield client.create_client(basedir)
-            self.assertIn("[client]introducer.furl", str(ctx.exception))
-
-        for s in should_not_fail:
-            self.failIf(_Config._contains_unescaped_hash(s))
-            write_config(s)
-            yield client.create_client(basedir)
+            self.assertIn("[client]helper.furl", str(ctx.exception))
 
     def test_unreadable_config(self):
         if sys.platform == "win32":
@@ -421,75 +423,8 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
         expected = fileutil.abspath_expanduser_unicode(u"relative", abs_basedir)
         self.failUnlessReallyEqual(w.staticdir, expected)
 
-    # TODO: also test config options for SFTP.
-
-    @defer.inlineCallbacks
-    def test_ftp_create(self):
-        """
-        configuration for sftpd results in it being started
-        """
-        basedir = u"client.Basic.test_ftp_create"
-        create_node_dir(basedir, "testing")
-        with open(os.path.join(basedir, "tahoe.cfg"), "w") as f:
-            f.write(
-                '[sftpd]\n'
-                'enabled = true\n'
-                'accounts.file = foo\n'
-                'host_pubkey_file = pubkey\n'
-                'host_privkey_file = privkey\n'
-            )
-        with mock.patch('allmydata.frontends.sftpd.SFTPServer') as p:
-            yield client.create_client(basedir)
-        self.assertTrue(p.called)
-
-    @defer.inlineCallbacks
-    def test_ftp_auth_keyfile(self):
-        """
-        ftpd accounts.file is parsed properly
-        """
-        basedir = u"client.Basic.test_ftp_auth_keyfile"
-        os.mkdir(basedir)
-        fileutil.write(os.path.join(basedir, "tahoe.cfg"),
-                       (BASECONFIG +
-                        "[ftpd]\n"
-                        "enabled = true\n"
-                        "port = tcp:0:interface=127.0.0.1\n"
-                        "accounts.file = private/accounts\n"))
-        os.mkdir(os.path.join(basedir, "private"))
-        fileutil.write(os.path.join(basedir, "private", "accounts"), "\n")
-        c = yield client.create_client(basedir) # just make sure it can be instantiated
-        del c
-
-    @defer.inlineCallbacks
-    def test_ftp_auth_url(self):
-        """
-        ftpd accounts.url is parsed properly
-        """
-        basedir = u"client.Basic.test_ftp_auth_url"
-        os.mkdir(basedir)
-        fileutil.write(os.path.join(basedir, "tahoe.cfg"),
-                       (BASECONFIG +
-                        "[ftpd]\n"
-                        "enabled = true\n"
-                        "port = tcp:0:interface=127.0.0.1\n"
-                        "accounts.url = http://0.0.0.0/\n"))
-        c = yield client.create_client(basedir) # just make sure it can be instantiated
-        del c
-
-    @defer.inlineCallbacks
-    def test_ftp_auth_no_accountfile_or_url(self):
-        """
-        ftpd requires some way to look up accounts
-        """
-        basedir = u"client.Basic.test_ftp_auth_no_accountfile_or_url"
-        os.mkdir(basedir)
-        fileutil.write(os.path.join(basedir, "tahoe.cfg"),
-                       (BASECONFIG +
-                        "[ftpd]\n"
-                        "enabled = true\n"
-                        "port = tcp:0:interface=127.0.0.1\n"))
-        with self.assertRaises(NeedRootcapLookupScheme):
-            yield client.create_client(basedir)
+    # TODO: also test config options for SFTP. See Git history for deleted FTP
+    # tests that could be used as basis for these tests.
 
     @defer.inlineCallbacks
     def _storage_dir_test(self, basedir, storage_path, expected_path):
@@ -627,8 +562,6 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
         self.failIfEqual(str(allmydata.__version__), "unknown")
         self.failUnless("." in str(allmydata.__full_version__),
                         "non-numeric version in '%s'" % allmydata.__version__)
-        all_versions = get_package_versions_string()
-        self.failUnless(allmydata.__appname__ in all_versions)
         # also test stats
         stats = c.get_stats()
         self.failUnless("node.uptime" in stats)
@@ -676,12 +609,13 @@ class AnonymousStorage(SyncTestCase):
         """
         If anonymous storage access is enabled then the client announces it.
         """
-        basedir = self.id()
-        os.makedirs(basedir + b"/private")
+        basedir = FilePath(self.id())
+        basedir.child("private").makedirs()
+        write_introducer(basedir, "someintroducer", SOME_FURL)
         config = client.config_from_string(
-            basedir,
+            basedir.path,
             "tub.port",
-            BASECONFIG_I % (SOME_FURL,) + (
+            BASECONFIG + (
                 "[storage]\n"
                 "enabled = true\n"
                 "anonymous = true\n"
@@ -695,7 +629,7 @@ class AnonymousStorage(SyncTestCase):
             get_published_announcements(node),
             MatchesListwise([
                 matches_storage_announcement(
-                    basedir,
+                    basedir.path,
                     anonymous=True,
                 ),
             ]),
@@ -707,12 +641,13 @@ class AnonymousStorage(SyncTestCase):
         If anonymous storage access is disabled then the client does not announce
         it nor does it write a fURL for it to beneath the node directory.
         """
-        basedir = self.id()
-        os.makedirs(basedir + b"/private")
+        basedir = FilePath(self.id())
+        basedir.child("private").makedirs()
+        write_introducer(basedir, "someintroducer", SOME_FURL)
         config = client.config_from_string(
-            basedir,
+            basedir.path,
             "tub.port",
-            BASECONFIG_I % (SOME_FURL,) + (
+            BASECONFIG + (
                 "[storage]\n"
                 "enabled = true\n"
                 "anonymous = false\n"
@@ -726,7 +661,7 @@ class AnonymousStorage(SyncTestCase):
             get_published_announcements(node),
             MatchesListwise([
                 matches_storage_announcement(
-                    basedir,
+                    basedir.path,
                     anonymous=False,
                 ),
             ]),
@@ -744,12 +679,12 @@ class AnonymousStorage(SyncTestCase):
         possible to reach the anonymous storage server via the originally
         published fURL.
         """
-        basedir = self.id()
-        os.makedirs(basedir + b"/private")
+        basedir = FilePath(self.id())
+        basedir.child("private").makedirs()
         enabled_config = client.config_from_string(
-            basedir,
+            basedir.path,
             "tub.port",
-            BASECONFIG_I % (SOME_FURL,) + (
+            BASECONFIG + (
                 "[storage]\n"
                 "enabled = true\n"
                 "anonymous = true\n"
@@ -771,9 +706,9 @@ class AnonymousStorage(SyncTestCase):
         )
 
         disabled_config = client.config_from_string(
-            basedir,
+            basedir.path,
             "tub.port",
-            BASECONFIG_I % (SOME_FURL,) + (
+            BASECONFIG + (
                 "[storage]\n"
                 "enabled = true\n"
                 "anonymous = false\n"
@@ -793,8 +728,8 @@ class IntroducerClients(unittest.TestCase):
 
     def test_invalid_introducer_furl(self):
         """
-        An introducer.furl of 'None' is invalid and causes
-        create_introducer_clients to fail.
+        An introducer.furl of 'None' in the deprecated [client]introducer.furl
+        field is invalid and causes `create_introducer_clients` to fail.
         """
         cfg = (
             "[client]\n"
@@ -959,20 +894,28 @@ class Run(unittest.TestCase, testutil.StallMixin):
 
     @defer.inlineCallbacks
     def test_loadable(self):
-        basedir = "test_client.Run.test_loadable"
-        os.mkdir(basedir)
+        """
+        A configuration consisting only of an introducer can be turned into a
+        client node.
+        """
+        basedir = FilePath("test_client.Run.test_loadable")
+        private = basedir.child("private")
+        private.makedirs()
         dummy = "pb://wl74cyahejagspqgy4x5ukrvfnevlknt@127.0.0.1:58889/bogus"
-        fileutil.write(os.path.join(basedir, "tahoe.cfg"), BASECONFIG_I % dummy)
-        fileutil.write(os.path.join(basedir, client._Client.EXIT_TRIGGER_FILE), "")
-        yield client.create_client(basedir)
+        write_introducer(basedir, "someintroducer", dummy)
+        basedir.child("tahoe.cfg").setContent(BASECONFIG)
+        basedir.child(client._Client.EXIT_TRIGGER_FILE).touch()
+        yield client.create_client(basedir.path)
 
     @defer.inlineCallbacks
     def test_reloadable(self):
-        basedir = "test_client.Run.test_reloadable"
-        os.mkdir(basedir)
+        basedir = FilePath("test_client.Run.test_reloadable")
+        private = basedir.child("private")
+        private.makedirs()
         dummy = "pb://wl74cyahejagspqgy4x5ukrvfnevlknt@127.0.0.1:58889/bogus"
-        fileutil.write(os.path.join(basedir, "tahoe.cfg"), BASECONFIG_I % dummy)
-        c1 = yield client.create_client(basedir)
+        write_introducer(basedir, "someintroducer", dummy)
+        basedir.child("tahoe.cfg").setContent(BASECONFIG)
+        c1 = yield client.create_client(basedir.path)
         c1.setServiceParent(self.sparent)
 
         # delay to let the service start up completely. I'm not entirely sure
@@ -994,11 +937,102 @@ class Run(unittest.TestCase, testutil.StallMixin):
         # also change _check_exit_trigger to use it instead of a raw
         # reactor.stop, also instrument the shutdown event in an
         # attribute that we can check.)
-        c2 = yield client.create_client(basedir)
+        c2 = yield client.create_client(basedir.path)
         c2.setServiceParent(self.sparent)
         yield c2.disownServiceParent()
 
-class NodeMaker(testutil.ReallyEqualMixin, unittest.TestCase):
+class NodeMakerTests(testutil.ReallyEqualMixin, AsyncBrokenTestCase):
+
+    def _make_node_maker(self, mode, writecap, deep_immutable):
+        """
+        Create a callable which can create an ``IFilesystemNode`` provider for the
+        given cap.
+
+        :param unicode mode: The read/write combination to pass to
+            ``NodeMaker.create_from_cap``.  If it contains ``u"r"`` then a
+            readcap will be passed in.  If it contains ``u"w"`` then a
+            writecap will be passed in.
+
+        :param IURI writecap: The capability for which to create a node.
+
+        :param bool deep_immutable: Whether to request a "deep immutable" node
+            which forces the result to be an immutable ``IFilesystemNode`` (I
+            think -exarkun).
+        """
+        if writecap.is_mutable():
+            # It's just not a valid combination to have a mutable alongside
+            # deep_immutable = True.  It's easier to fix deep_immutable than
+            # writecap to clear up this conflict.
+            deep_immutable = False
+
+        if "r" in mode:
+            readcap = writecap.get_readonly().to_string()
+        else:
+            readcap = None
+        if "w" in mode:
+            writecap = writecap.to_string()
+        else:
+            writecap = None
+
+        nm = NodeMaker(
+            storage_broker=None,
+            secret_holder=None,
+            history=None,
+            uploader=None,
+            terminator=None,
+            default_encoding_parameters={u"k": 1, u"n": 1},
+            mutable_file_default=None,
+            key_generator=None,
+            blacklist=None,
+        )
+        return partial(
+            nm.create_from_cap,
+            writecap,
+            readcap,
+            deep_immutable,
+        )
+
+    @given(
+        mode=sampled_from(["w", "r", "rw"]),
+        writecap=write_capabilities(),
+        deep_immutable=booleans(),
+    )
+    def test_cached_result(self, mode, writecap, deep_immutable):
+        """
+        ``NodeMaker.create_from_cap`` returns the same object when called with the
+        same arguments.
+        """
+        make_node = self._make_node_maker(mode, writecap, deep_immutable)
+        original = make_node()
+        additional = make_node()
+
+        self.assertThat(
+            original,
+            Is(additional),
+        )
+
+    @given(
+        mode=sampled_from(["w", "r", "rw"]),
+        writecap=write_capabilities(),
+        deep_immutable=booleans(),
+    )
+    def test_cache_expired(self, mode, writecap, deep_immutable):
+        """
+        After the node object returned by an earlier call to
+        ``NodeMaker.create_from_cap`` has been garbage collected, a new call
+        to ``NodeMaker.create_from_cap`` returns a node object, maybe even a
+        new one although we can't really prove it.
+        """
+        make_node = self._make_node_maker(mode, writecap, deep_immutable)
+        make_node()
+        additional = make_node()
+        self.assertThat(
+            additional,
+            AfterPreprocessing(
+                lambda node: node.get_readonly_uri(),
+                Equals(writecap.get_readonly().to_string()),
+            ),
+        )
 
     @defer.inlineCallbacks
     def test_maker(self):
@@ -1133,21 +1167,24 @@ class StorageAnnouncementTests(SyncTestCase):
     """
     def setUp(self):
         super(StorageAnnouncementTests, self).setUp()
-        self.basedir = self.useFixture(TempDir()).path
-        create_node_dir(self.basedir, u"")
+        self.basedir = FilePath(self.useFixture(TempDir()).path)
+        create_node_dir(self.basedir.path, u"")
+        # Write an introducer configuration or we can't observer
+        # announcements.
+        write_introducer(self.basedir, "someintroducer", SOME_FURL)
 
 
     def get_config(self, storage_enabled, more_storage="", more_sections=""):
         return """
+[client]
+# Empty
+
 [node]
 tub.location = tcp:192.0.2.0:1234
 
 [storage]
 enabled = {storage_enabled}
 {more_storage}
-
-[client]
-introducer.furl = pb://abcde@nowhere/fake
 
 {more_sections}
 """.format(
@@ -1162,7 +1199,7 @@ introducer.furl = pb://abcde@nowhere/fake
         No storage announcement is published if storage is not enabled.
         """
         config = client.config_from_string(
-            self.basedir,
+            self.basedir.path,
             "tub.port",
             self.get_config(storage_enabled=False),
         )
@@ -1184,7 +1221,7 @@ introducer.furl = pb://abcde@nowhere/fake
         storage is enabled.
         """
         config = client.config_from_string(
-            self.basedir,
+            self.basedir.path,
             "tub.port",
             self.get_config(storage_enabled=True),
         )
@@ -1201,7 +1238,7 @@ introducer.furl = pb://abcde@nowhere/fake
                 # Match the following list (of one element) ...
                 MatchesListwise([
                     # The only element in the list ...
-                    matches_storage_announcement(self.basedir),
+                    matches_storage_announcement(self.basedir.path),
                 ]),
             )),
         )
@@ -1216,7 +1253,7 @@ introducer.furl = pb://abcde@nowhere/fake
 
         value = u"thing"
         config = client.config_from_string(
-            self.basedir,
+            self.basedir.path,
             "tub.port",
             self.get_config(
                 storage_enabled=True,
@@ -1236,7 +1273,7 @@ introducer.furl = pb://abcde@nowhere/fake
                 get_published_announcements,
                 MatchesListwise([
                     matches_storage_announcement(
-                        self.basedir,
+                        self.basedir.path,
                         options=[
                             matches_dummy_announcement(
                                 u"tahoe-lafs-dummy-v1",
@@ -1257,7 +1294,7 @@ introducer.furl = pb://abcde@nowhere/fake
         self.useFixture(UseTestPlugins())
 
         config = client.config_from_string(
-            self.basedir,
+            self.basedir.path,
             "tub.port",
             self.get_config(
                 storage_enabled=True,
@@ -1279,7 +1316,7 @@ introducer.furl = pb://abcde@nowhere/fake
                 get_published_announcements,
                 MatchesListwise([
                     matches_storage_announcement(
-                        self.basedir,
+                        self.basedir.path,
                         options=[
                             matches_dummy_announcement(
                                 u"tahoe-lafs-dummy-v1",
@@ -1305,7 +1342,7 @@ introducer.furl = pb://abcde@nowhere/fake
         self.useFixture(UseTestPlugins())
 
         config = client.config_from_string(
-            self.basedir,
+            self.basedir.path,
             "tub.port",
             self.get_config(
                 storage_enabled=True,
@@ -1341,7 +1378,7 @@ introducer.furl = pb://abcde@nowhere/fake
         self.useFixture(UseTestPlugins())
 
         config = client.config_from_string(
-            self.basedir,
+            self.basedir.path,
             "tub.port",
             self.get_config(
                 storage_enabled=True,
@@ -1357,7 +1394,7 @@ introducer.furl = pb://abcde@nowhere/fake
                 get_published_announcements,
                 MatchesListwise([
                     matches_storage_announcement(
-                        self.basedir,
+                        self.basedir.path,
                         options=[
                             matches_dummy_announcement(
                                 u"tahoe-lafs-dummy-v1",
@@ -1379,7 +1416,7 @@ introducer.furl = pb://abcde@nowhere/fake
         self.useFixture(UseTestPlugins())
 
         config = client.config_from_string(
-            self.basedir,
+            self.basedir.path,
             "tub.port",
             self.get_config(
                 storage_enabled=True,
@@ -1406,7 +1443,7 @@ introducer.furl = pb://abcde@nowhere/fake
         available on the system.
         """
         config = client.config_from_string(
-            self.basedir,
+            self.basedir.path,
             "tub.port",
             self.get_config(
                 storage_enabled=True,

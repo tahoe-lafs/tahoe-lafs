@@ -1,3 +1,4 @@
+from past.builtins import unicode
 
 from zope.interface import implementer
 from allmydata.interfaces import ICheckResults, ICheckAndRepairResults, \
@@ -56,7 +57,11 @@ class CheckResults(object):
         self._list_incompatible_shares = list_incompatible_shares
         self._count_incompatible_shares = count_incompatible_shares
 
-        assert isinstance(summary, str) # should be a single string
+        # On Python 2, we can mix bytes and Unicode. On Python 3, we want
+        # unicode.
+        if isinstance(summary, bytes):
+            summary = unicode(summary, "utf-8")
+        assert isinstance(summary, unicode)  # should be a single string
         self._summary = summary
         assert not isinstance(report, str) # should be list of strings
         self._report = report

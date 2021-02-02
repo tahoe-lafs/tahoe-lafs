@@ -1,5 +1,6 @@
+from future.utils import PY2
 
-import time, json
+import time
 from twisted.python.filepath import FilePath
 from twisted.web.template import (
     Element,
@@ -13,7 +14,7 @@ from allmydata.web.common_py3 import (
     MultiFormatResource
 )
 from allmydata.util.abbreviate import abbreviate_space
-from allmydata.util import time_format, idlib
+from allmydata.util import time_format, idlib, jsonbytes as json
 
 
 def remove_prefix(s, prefix):
@@ -317,4 +318,7 @@ class StorageStatus(MultiFormatResource):
              "lease-checker": self._storage.lease_checker.get_state(),
              "lease-checker-progress": self._storage.lease_checker.get_progress(),
              }
-        return json.dumps(d, indent=1) + "\n"
+        result = json.dumps(d, indent=1) + "\n"
+        if PY2:
+            result = result.decode("utf-8")
+        return result.encode("utf-8")

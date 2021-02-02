@@ -1,4 +1,14 @@
+"""
+Ported to Python 3.
+"""
 from __future__ import print_function
+from __future__ import division
+from __future__ import absolute_import
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 import re
 from twisted.trial import unittest
@@ -23,10 +33,10 @@ class Update(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
         self.c = self.g.clients[0]
         self.nm = self.c.nodemaker
         # self.data should be at least three segments long.
-        td = "testdata "
-        self.data = td*(int(3*SEGSIZE/len(td))+10) # currently about 400kB
+        td = b"testdata "
+        self.data = td*(int(3*SEGSIZE//len(td))+10) # currently about 400kB
         assert len(self.data) > 3*SEGSIZE
-        self.small_data = "test data" * 10 # 90 B; SDMF
+        self.small_data = b"test data" * 10 # 90 B; SDMF
 
 
     def do_upload_sdmf(self):
@@ -68,42 +78,42 @@ class Update(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
     def test_append(self):
         # We should be able to append data to a mutable file and get
         # what we expect.
-        return self._test_replace(len(self.data), "appended")
+        return self._test_replace(len(self.data), b"appended")
 
     def test_replace_middle(self):
         # We should be able to replace data in the middle of a mutable
         # file and get what we expect back.
-        return self._test_replace(100, "replaced")
+        return self._test_replace(100, b"replaced")
 
     def test_replace_beginning(self):
         # We should be able to replace data at the beginning of the file
         # without truncating the file
-        return self._test_replace(0, "beginning")
+        return self._test_replace(0, b"beginning")
 
     def test_replace_segstart1(self):
-        return self._test_replace(128*1024+1, "NNNN")
+        return self._test_replace(128*1024+1, b"NNNN")
 
     def test_replace_zero_length_beginning(self):
-        return self._test_replace(0, "")
+        return self._test_replace(0, b"")
 
     def test_replace_zero_length_middle(self):
-        return self._test_replace(50, "")
+        return self._test_replace(50, b"")
 
     def test_replace_zero_length_segstart1(self):
-        return self._test_replace(128*1024+1, "")
+        return self._test_replace(128*1024+1, b"")
 
     def test_replace_and_extend(self):
         # We should be able to replace data in the middle of a mutable
         # file and extend that mutable file and get what we expect.
-        return self._test_replace(100, "modified " * 100000)
+        return self._test_replace(100, b"modified " * 100000)
 
 
     def _check_differences(self, got, expected):
         # displaying arbitrary file corruption is tricky for a
         # 1MB file of repeating data,, so look for likely places
         # with problems and display them separately
-        gotmods = [mo.span() for mo in re.finditer('([A-Z]+)', got)]
-        expmods = [mo.span() for mo in re.finditer('([A-Z]+)', expected)]
+        gotmods = [mo.span() for mo in re.finditer(b'([A-Z]+)', got)]
+        expmods = [mo.span() for mo in re.finditer(b'([A-Z]+)', expected)]
         gotspans = ["%d:%d=%s" % (start,end,got[start:end])
                     for (start,end) in gotmods]
         expspans = ["%d:%d=%s" % (start,end,expected[start:end])
@@ -131,14 +141,15 @@ class Update(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
 
     def test_replace_locations(self):
         # exercise fencepost conditions
-        suspects = range(SEGSIZE-3, SEGSIZE+1)+range(2*SEGSIZE-3, 2*SEGSIZE+1)
+        suspects = list(range(SEGSIZE-3, SEGSIZE+1)) + list(
+            range(2*SEGSIZE-3, 2*SEGSIZE+1))
         letters = iter("ABCDEFGHIJKLMNOPQRSTUVWXYZ")
         d0 = self.do_upload_mdmf()
         def _run(ign):
             expected = self.data
             d = defer.succeed(None)
             for offset in suspects:
-                new_data = letters.next()*2 # "AA", then "BB", etc
+                new_data = next(letters).encode("ascii") * 2 # "AA", then "BB", etc
                 expected = expected[:offset]+new_data+expected[offset+2:]
                 d.addCallback(lambda ign:
                               self.mdmf_node.get_best_mutable_version())
@@ -164,7 +175,7 @@ class Update(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
         # long -- this is 7 segments in the default segment size. So we
         # need to add 2 segments worth of data to push it over a
         # power-of-two boundary.
-        segment = "a" * DEFAULT_MAX_SEGMENT_SIZE
+        segment = b"a" * DEFAULT_MAX_SEGMENT_SIZE
         new_data = self.data + (segment * 2)
         d0 = self.do_upload_mdmf()
         def _run(ign):
@@ -181,12 +192,12 @@ class Update(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
 
     def test_update_sdmf(self):
         # Running update on a single-segment file should still work.
-        new_data = self.small_data + "appended"
+        new_data = self.small_data + b"appended"
         d0 = self.do_upload_sdmf()
         def _run(ign):
             d = defer.succeed(None)
             d.addCallback(lambda ign: self.sdmf_node.get_best_mutable_version())
-            d.addCallback(lambda mv: mv.update(MutableData("appended"),
+            d.addCallback(lambda mv: mv.update(MutableData(b"appended"),
                                                len(self.small_data)))
             d.addCallback(lambda ign: self.sdmf_node.download_best_version())
             d.addCallback(lambda results:
@@ -199,14 +210,14 @@ class Update(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
         # The wrapper should know how to handle the tail segment
         # appropriately.
         replace_offset = len(self.data) - 100
-        new_data = self.data[:replace_offset] + "replaced"
-        rest_offset = replace_offset + len("replaced")
+        new_data = self.data[:replace_offset] + b"replaced"
+        rest_offset = replace_offset + len(b"replaced")
         new_data += self.data[rest_offset:]
         d0 = self.do_upload_mdmf()
         def _run(ign):
             d = defer.succeed(None)
             d.addCallback(lambda ign: self.mdmf_node.get_best_mutable_version())
-            d.addCallback(lambda mv: mv.update(MutableData("replaced"),
+            d.addCallback(lambda mv: mv.update(MutableData(b"replaced"),
                                                replace_offset))
             d.addCallback(lambda ign: self.mdmf_node.download_best_version())
             d.addCallback(lambda results:
@@ -218,16 +229,16 @@ class Update(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
     def test_multiple_segment_replace(self):
         replace_offset = 2 * DEFAULT_MAX_SEGMENT_SIZE
         new_data = self.data[:replace_offset]
-        new_segment = "a" * DEFAULT_MAX_SEGMENT_SIZE
+        new_segment = b"a" * DEFAULT_MAX_SEGMENT_SIZE
         new_data += 2 * new_segment
-        new_data += "replaced"
+        new_data += b"replaced"
         rest_offset = len(new_data)
         new_data += self.data[rest_offset:]
         d0 = self.do_upload_mdmf()
         def _run(ign):
             d = defer.succeed(None)
             d.addCallback(lambda ign: self.mdmf_node.get_best_mutable_version())
-            d.addCallback(lambda mv: mv.update(MutableData((2 * new_segment) + "replaced"),
+            d.addCallback(lambda mv: mv.update(MutableData((2 * new_segment) + b"replaced"),
                                                replace_offset))
             d.addCallback(lambda ignored: self.mdmf_node.download_best_version())
             d.addCallback(lambda results:

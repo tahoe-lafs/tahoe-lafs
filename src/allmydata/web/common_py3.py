@@ -4,15 +4,14 @@ Common utilities that are available from Python 3.
 Can eventually be merged back into allmydata.web.common.
 """
 
-from future.utils import PY2
+from past.builtins import unicode
 
-if PY2:
-    from nevow.inevow import IRequest as INevowRequest
-else:
-    INevowRequest = None
+try:
+    from typing import Optional
+except ImportError:
+    pass
 
 from twisted.web import resource, http
-from twisted.web.iweb import IRequest
 
 from allmydata.util import abbreviate
 
@@ -23,24 +22,26 @@ class WebError(Exception):
         self.code = code
 
 
-def get_arg(ctx_or_req, argname, default=None, multiple=False):
+def get_arg(req, argname, default=None, multiple=False):
     """Extract an argument from either the query args (req.args) or the form
     body fields (req.fields). If multiple=False, this returns a single value
     (or the default, which defaults to None), and the query args take
     precedence. If multiple=True, this returns a tuple of arguments (possibly
     empty), starting with all those in the query args.
+
+    :param TahoeLAFSRequest req: The request to consider.
+
+    :return: Either bytes or tuple of bytes.
     """
+    if isinstance(argname, unicode):
+        argname = argname.encode("utf-8")
+    if isinstance(default, unicode):
+        default = default.encode("utf-8")
     results = []
-    if PY2:
-        req = INevowRequest(ctx_or_req)
-        if argname in req.args:
-            results.extend(req.args[argname])
-        if req.fields and argname in req.fields:
-            results.append(req.fields[argname].value)
-    else:
-        req = IRequest(ctx_or_req)
-        if argname in req.args:
-            results.extend(req.args[argname])
+    if argname in req.args:
+        results.extend(req.args[argname])
+    if req.fields and argname in req.fields:
+        results.append(req.fields[argname].value)
     if multiple:
         return tuple(results)
     if results:
@@ -59,7 +60,7 @@ class MultiFormatResource(resource.Resource, object):
     format if nothing else is given as the ``formatDefault``.
     """
     formatArgument = "t"
-    formatDefault = None
+    formatDefault = None  # type: Optional[str]
 
     def render(self, req):
         """
@@ -74,6 +75,9 @@ class MultiFormatResource(resource.Resource, object):
         :return: The result of the selected renderer.
         """
         t = get_arg(req, self.formatArgument, self.formatDefault)
+        # It's either bytes or None.
+        if isinstance(t, bytes):
+            t = unicode(t, "ascii")
         renderer = self._get_renderer(t)
         return renderer(req)
 
@@ -107,16 +111,23 @@ class MultiFormatResource(resource.Resource, object):
 
 
 def abbreviate_time(data):
+    """
+    Convert number of seconds into human readable string.
+
+    :param data: Either ``None`` or integer or float, seconds.
+
+    :return: Unicode string.
+    """
     # 1.23s, 790ms, 132us
     if data is None:
-        return ""
+        return u""
     s = float(data)
     if s >= 10:
         return abbreviate.abbreviate_time(data)
     if s >= 1.0:
-        return "%.2fs" % s
+        return u"%.2fs" % s
     if s >= 0.01:
-        return "%.0fms" % (1000*s)
+        return u"%.0fms" % (1000*s)
     if s >= 0.001:
-        return "%.1fms" % (1000*s)
-    return "%.0fus" % (1000000*s)
+        return u"%.1fms" % (1000*s)
+    return u"%.0fus" % (1000000*s)

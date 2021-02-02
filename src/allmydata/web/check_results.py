@@ -1,6 +1,6 @@
+from future.builtins import str
 
 import time
-import json
 
 from twisted.web import (
     http,
@@ -31,6 +31,7 @@ from allmydata.interfaces import (
 from allmydata.util import (
     base32,
     dictutil,
+    jsonbytes as json,  # Supporting dumping bytes
 )
 
 
@@ -200,7 +201,7 @@ class ResultsBase(object):
         return tags.ul(r)
 
     def _html(self, s):
-        if isinstance(s, (str, unicode)):
+        if isinstance(s, (bytes, str)):
             return html.escape(s)
         assert isinstance(s, (list, tuple))
         return [html.escape(w) for w in s]
@@ -522,7 +523,7 @@ class DeepCheckResultsRendererElement(Element, ResultsBase, ReloadMixin):
                 summary = cr.get_summary()
                 if summary:
                     summary_text = ": " + summary
-                summary_text += " [SI: %s]" % cr.get_storage_index_string()
+                summary_text += " [SI: %s]" % cr.get_storage_index_string().decode("ascii")
                 problems.append({
                     # Not sure self._join_pathstring(path) is the
                     # right thing to use here.

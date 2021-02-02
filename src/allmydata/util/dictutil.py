@@ -14,6 +14,7 @@ if PY2:
     # subclassing dict, so we'd end up exposing Python 3 dict APIs to lots of
     # code that doesn't support it.
     from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, list, object, range, str, max, min  # noqa: F401
+from six import ensure_str
 
 
 class DictOfSets(dict):
@@ -76,3 +77,54 @@ class AuxValueDict(dict):
         have an auxvalue."""
         super(AuxValueDict, self).__setitem__(key, value)
         self.auxilliary[key] = auxilliary
+
+
+class _TypedKeyDict(dict):
+    """Dictionary that enforces key type.
+
+    Doesn't override everything, but probably good enough to catch most
+    problems.
+
+    Subclass and override KEY_TYPE.
+    """
+
+    KEY_TYPE = object
+
+    def __init__(self, *args, **kwargs):
+        dict.__init__(self, *args, **kwargs)
+        for key in self:
+            if not isinstance(key, self.KEY_TYPE):
+                raise TypeError("{} must be of type {}".format(
+                    repr(key), self.KEY_TYPE))
+
+
+def _make_enforcing_override(K, method_name):
+    def f(self, key, *args, **kwargs):
+        if not isinstance(key, self.KEY_TYPE):
+            raise TypeError("{} must be of type {}".format(
+                repr(key), self.KEY_TYPE))
+        return getattr(dict, method_name)(self, key, *args, **kwargs)
+    f.__name__ = ensure_str(method_name)
+    setattr(K, method_name, f)
+
+for _method_name in ["__setitem__", "__getitem__", "setdefault", "get",
+                     "__delitem__"]:
+    _make_enforcing_override(_TypedKeyDict, _method_name)
+del _method_name
+
+
+if PY2:
+    # No need for enforcement, can use either bytes or unicode as keys and it's
+    # fine.
+    BytesKeyDict = UnicodeKeyDict = dict
+else:
+    class BytesKeyDict(_TypedKeyDict):
+        """Keys should be bytes."""
+
+        KEY_TYPE = bytes
+
+
+    class UnicodeKeyDict(_TypedKeyDict):
+        """Keys should be unicode strings."""
+
+        KEY_TYPE = str

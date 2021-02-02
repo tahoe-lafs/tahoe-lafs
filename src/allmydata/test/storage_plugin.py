@@ -3,11 +3,8 @@ A storage server plugin the test suite can use to validate the
 functionality.
 """
 
-from future.utils import native_str
-
-from json import (
-    dumps,
-)
+from future.utils import native_str, native_str_to_bytes
+from six import ensure_str
 
 import attr
 
@@ -35,6 +32,9 @@ from allmydata.interfaces import (
 from allmydata.client import (
     AnnounceableStorageServer,
 )
+from allmydata.util.jsonbytes import (
+    dumps,
+)
 
 
 class RIDummy(RemoteInterface):
@@ -47,8 +47,9 @@ class RIDummy(RemoteInterface):
         """
 
 
-
-@implementer(IFoolscapStoragePlugin)
+# type ignored due to missing stubs for Twisted
+# https://twistedmatrix.com/trac/ticket/9717
+@implementer(IFoolscapStoragePlugin)  # type: ignore
 @attr.s
 class DummyStorage(object):
     name = attr.ib()
@@ -84,8 +85,8 @@ class DummyStorage(object):
         """
         items = configuration.items(self._client_section_name, [])
         resource = Data(
-            dumps(dict(items)),
-            b"text/json",
+            native_str_to_bytes(dumps(dict(items))),
+            ensure_str("text/json"),
         )
         # Give it some dynamic stuff too.
         resource.putChild(b"counter", GetCounter())
@@ -102,12 +103,12 @@ class GetCounter(Resource, object):
     value = 0
     def render_GET(self, request):
         self.value += 1
-        return dumps({"value": self.value})
+        return native_str_to_bytes(dumps({"value": self.value}))
 
 
 @implementer(RIDummy)
 @attr.s(frozen=True)
-class DummyStorageServer(object):
+class DummyStorageServer(object):  # type: ignore # warner/foolscap#78
     get_anonymous_storage_server = attr.ib()
 
     def remote_just_some_method(self):
@@ -116,7 +117,7 @@ class DummyStorageServer(object):
 
 @implementer(IStorageServer)
 @attr.s
-class DummyStorageClient(object):
+class DummyStorageClient(object):  # type: ignore # incomplete implementation
     get_rref = attr.ib()
     configuration = attr.ib()
     announcement = attr.ib()

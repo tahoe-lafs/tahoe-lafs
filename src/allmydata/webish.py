@@ -1,47 +1,75 @@
-import re, time
+"""
+Ported to Python 3.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+
+from six import ensure_str
+
+import re, time, tempfile
+
+from cgi import (
+    FieldStorage,
+)
+from io import (
+    BytesIO,
+)
+
 from twisted.application import service, strports, internet
-from twisted.web import http, static
+from twisted.web import static
+from twisted.web.http import (
+    parse_qs,
+)
+from twisted.web.server import (
+    Request,
+    Site,
+)
 from twisted.internet import defer
 from twisted.internet.address import (
     IPv4Address,
     IPv6Address,
 )
-from nevow import appserver, inevow
 from allmydata.util import log, fileutil
 
 from allmydata.web import introweb, root
-from allmydata.web.common import MyExceptionHandler
 from allmydata.web.operations import OphandleTable
 
 from .web.storage_plugins import (
     StoragePlugins,
 )
 
-# we must override twisted.web.http.Request.requestReceived with a version
-# that doesn't use cgi.parse_multipart() . Since we actually use Nevow, we
-# override the nevow-specific subclass, nevow.appserver.NevowRequest . This
-# is an exact copy of twisted.web.http.Request (from SVN HEAD on 10-Aug-2007)
-# that modifies the way form arguments are parsed. Note that this sort of
-# surgery may induce a dependency upon a particular version of twisted.web
+class TahoeLAFSRequest(Request, object):
+    """
+    ``TahoeLAFSRequest`` adds several features to a Twisted Web ``Request``
+    that are useful for Tahoe-LAFS.
 
-parse_qs = http.parse_qs
-class MyRequest(appserver.NevowRequest, object):
+    :ivar NoneType|FieldStorage fields: For POST requests, a structured
+        representation of the contents of the request body.  For anything
+        else, ``None``.
+    """
     fields = None
-    _tahoe_request_had_error = None
 
     def requestReceived(self, command, path, version):
-        """Called by channel when all data has been received.
-
-        This method is not intended for users.
         """
-        self.content.seek(0,0)
+        Called by channel when all data has been received.
+
+        Override the base implementation to apply certain site-wide policies
+        and to provide less memory-intensive multipart/form-post handling for
+        large file uploads.
+        """
+        self.content.seek(0)
         self.args = {}
         self.stack = []
-        self.setHeader("Referrer-Policy", "no-referrer")
 
         self.method, self.uri = command, path
         self.clientproto = version
-        x = self.uri.split('?', 1)
+        x = self.uri.split(b'?', 1)
 
         if len(x) == 1:
             self.path = self.uri
@@ -49,93 +77,42 @@ class MyRequest(appserver.NevowRequest, object):
             self.path, argstring = x
             self.args = parse_qs(argstring, 1)
 
-        # Adding security headers. These will be sent for *all* HTTP requests.
-        # See https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Frame-Options
-        self.responseHeaders.setRawHeaders("X-Frame-Options", ["DENY"])
+        if self.method == b'POST':
+            # We use FieldStorage here because it performs better than
+            # cgi.parse_multipart(self.content, pdict) which is what
+            # twisted.web.http.Request uses.
 
-        # Argument processing.
+            headers = {
+                ensure_str(name.lower()): ensure_str(value[-1])
+                for (name, value)
+                in self.requestHeaders.getAllRawHeaders()
+            }
 
-##      The original twisted.web.http.Request.requestReceived code parsed the
-##      content and added the form fields it found there to self.args . It
-##      did this with cgi.parse_multipart, which holds the arguments in RAM
-##      and is thus unsuitable for large file uploads. The Nevow subclass
-##      (nevow.appserver.NevowRequest) uses cgi.FieldStorage instead (putting
-##      the results in self.fields), which is much more memory-efficient.
-##      Since we know we're using Nevow, we can anticipate these arguments
-##      appearing in self.fields instead of self.args, and thus skip the
-##      parse-content-into-self.args step.
+            if 'content-length' not in headers:
+                # Python 3's cgi module would really, really like us to set Content-Length.
+                self.content.seek(0, 2)
+                headers['content-length'] = str(self.content.tell())
+                self.content.seek(0)
 
-##      args = self.args
-##      ctype = self.getHeader('content-type')
-##      if self.method == "POST" and ctype:
-##          mfd = 'multipart/form-data'
-##          key, pdict = cgi.parse_header(ctype)
-##          if key == 'application/x-www-form-urlencoded':
-##              args.update(parse_qs(self.content.read(), 1))
-##          elif key == mfd:
-##              try:
-##                  args.update(cgi.parse_multipart(self.content, pdict))
-##              except KeyError, e:
-##                  if e.args[0] == 'content-disposition':
-##                      # Parse_multipart can't cope with missing
-##                      # content-dispostion headers in multipart/form-data
-##                      # parts, so we catch the exception and tell the client
-##                      # it was a bad request.
-##                      self.channel.transport.write(
-##                              "HTTP/1.1 400 Bad Request\r\n\r\n")
-##                      self.channel.transport.loseConnection()
-##                      return
-##                  raise
+            self.fields = FieldStorage(self.content, headers, environ={'REQUEST_METHOD': 'POST'})
+            self.content.seek(0)
+
+        self._tahoeLAFSSecurityPolicy()
+
         self.processing_started_timestamp = time.time()
         self.process()
 
-    def _logger(self):
-        # we build up a log string that hides most of the cap, to preserve
-        # user privacy. We retain the query args so we can identify things
-        # like t=json. Then we send it to the flog. We make no attempt to
-        # match apache formatting. TODO: when we move to DSA dirnodes and
-        # shorter caps, consider exposing a few characters of the cap, or
-        # maybe a few characters of its hash.
-        x = self.uri.split("?", 1)
-        if len(x) == 1:
-            # no query args
-            path = self.uri
-            queryargs = ""
-        else:
-            path, queryargs = x
-            # there is a form handler which redirects POST /uri?uri=FOO into
-            # GET /uri/FOO so folks can paste in non-HTTP-prefixed uris. Make
-            # sure we censor these too.
-            if queryargs.startswith("uri="):
-                queryargs = "[uri=CENSORED]"
-            queryargs = "?" + queryargs
-        if path.startswith("/uri"):
-            path = "/uri/[CENSORED].."
-        elif path.startswith("/file"):
-            path = "/file/[CENSORED].."
-        elif path.startswith("/named"):
-            path = "/named/[CENSORED].."
-
-        uri = path + queryargs
-
-        error = ""
-        if self._tahoe_request_had_error:
-            error = " [ERROR]"
-
-        log.msg(
-            format=(
-                "web: %(clientip)s %(method)s %(uri)s %(code)s "
-                "%(length)s%(error)s"
-            ),
-            clientip=_get_client_ip(self),
-            method=self.method,
-            uri=uri,
-            code=self.code,
-            length=(self.sentLength or "-"),
-            error=error,
-            facility="tahoe.webish",
-            level=log.OPERATIONAL,
-        )
+    def _tahoeLAFSSecurityPolicy(self):
+        """
+        Set response properties related to Tahoe-LAFS-imposed security policy.
+        This will ensure that all HTTP requests received by the Tahoe-LAFS
+        HTTP server have this policy imposed, regardless of other
+        implementation details.
+        """
+        # See https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Frame-Options
+        self.responseHeaders.setRawHeaders("X-Frame-Options", ["DENY"])
+        # See https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Referrer-Policy
+        self.setHeader("Referrer-Policy", "no-referrer")
 
 
 def _get_client_ip(request):
@@ -150,10 +127,75 @@ def _get_client_ip(request):
         return None
 
 
+def _logFormatter(logDateTime, request):
+    # we build up a log string that hides most of the cap, to preserve
+    # user privacy. We retain the query args so we can identify things
+    # like t=json. Then we send it to the flog. We make no attempt to
+    # match apache formatting. TODO: when we move to DSA dirnodes and
+    # shorter caps, consider exposing a few characters of the cap, or
+    # maybe a few characters of its hash.
+    x = request.uri.split(b"?", 1)
+    if len(x) == 1:
+        # no query args
+        path = request.uri
+        queryargs = b""
+    else:
+        path, queryargs = x
+        # there is a form handler which redirects POST /uri?uri=FOO into
+        # GET /uri/FOO so folks can paste in non-HTTP-prefixed uris. Make
+        # sure we censor these too.
+        if queryargs.startswith(b"uri="):
+            queryargs = b"uri=[CENSORED]"
+        queryargs = b"?" + queryargs
+    if path.startswith(b"/uri/"):
+        path = b"/uri/[CENSORED]"
+    elif path.startswith(b"/file/"):
+        path = b"/file/[CENSORED]"
+    elif path.startswith(b"/named/"):
+        path = b"/named/[CENSORED]"
+
+    uri = path + queryargs
+
+    template = "web: %(clientip)s %(method)s %(uri)s %(code)s %(length)s"
+    return template % dict(
+        clientip=_get_client_ip(request),
+        method=request.method,
+        uri=uri,
+        code=request.code,
+        length=(request.sentLength or "-"),
+        facility="tahoe.webish",
+        level=log.OPERATIONAL,
+    )
+
+
+class TahoeLAFSSite(Site, object):
+    """
+    The HTTP protocol factory used by Tahoe-LAFS.
+
+    Among the behaviors provided:
+
+    * A configurable temporary directory where large request bodies can be
+      written so they don't stay in memory.
+
+    * A log formatter that writes some access logs but omits capability
+      strings to help keep them secret.
+    """
+    requestFactory = TahoeLAFSRequest
+
+    def __init__(self, tempdir, *args, **kwargs):
+        Site.__init__(self, *args, logFormatter=_logFormatter, **kwargs)
+        self._tempdir = tempdir
+
+    def getContentFile(self, length):
+        if length is None or length >= 1024 * 1024:
+            return tempfile.TemporaryFile(dir=self._tempdir)
+        return BytesIO()
+
+
 class WebishServer(service.MultiService):
     name = "webish"
 
-    def __init__(self, client, webport, nodeurl_path=None, staticdir=None,
+    def __init__(self, client, webport, tempdir, nodeurl_path=None, staticdir=None,
                  clock=None, now_fn=time.time):
         service.MultiService.__init__(self)
         # the 'data' argument to all render() methods default to the Client
@@ -163,7 +205,7 @@ class WebishServer(service.MultiService):
         # time in a deterministic manner.
 
         self.root = root.Root(client, clock, now_fn)
-        self.buildServer(webport, nodeurl_path, staticdir)
+        self.buildServer(webport, tempdir, nodeurl_path, staticdir)
 
         # If set, clock is a twisted.internet.task.Clock that the tests
         # use to test ophandle expiration.
@@ -173,17 +215,17 @@ class WebishServer(service.MultiService):
 
         self.root.putChild(b"storage-plugins", StoragePlugins(client))
 
-    def buildServer(self, webport, nodeurl_path, staticdir):
+    def buildServer(self, webport, tempdir, nodeurl_path, staticdir):
         self.webport = webport
-        self.site = site = appserver.NevowSite(self.root)
-        self.site.requestFactory = MyRequest
-        self.site.remember(MyExceptionHandler(), inevow.ICanHandleException)
+        self.site = TahoeLAFSSite(tempdir, self.root)
         self.staticdir = staticdir # so tests can check
         if staticdir:
             self.root.putChild("static", static.File(staticdir))
         if re.search(r'^\d', webport):
             webport = "tcp:"+webport # twisted warns about bare "0" or "3456"
-        s = strports.service(webport, site)
+        # strports must be native strings.
+        webport = ensure_str(webport)
+        s = strports.service(webport, self.site)
         s.setServiceParent(self)
 
         self._scheme = None
@@ -253,4 +295,4 @@ class IntroducerWebishServer(WebishServer):
     def __init__(self, introducer, webport, nodeurl_path=None, staticdir=None):
         service.MultiService.__init__(self)
         self.root = introweb.IntroducerRoot(introducer)
-        self.buildServer(webport, nodeurl_path, staticdir)
+        self.buildServer(webport, tempfile.tempdir, nodeurl_path, staticdir)

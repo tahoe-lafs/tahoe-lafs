@@ -1,5 +1,12 @@
 from __future__ import print_function
 
+try:
+    from allmydata.scripts.types_ import SubCommands
+except ImportError:
+    pass
+
+from future.utils import bchr
+
 # do not import any allmydata modules at this level. Do that from inside
 # individual functions instead.
 import struct, time, os, sys
@@ -180,10 +187,10 @@ def dump_mutable_share(options):
     share_type = "unknown"
     f.seek(m.DATA_OFFSET)
     version = f.read(1)
-    if version == "\x00":
+    if version == b"\x00":
         # this slot contains an SMDF share
         share_type = "SDMF"
-    elif version == "\x01":
+    elif version == b"\x01":
         share_type = "MDMF"
     f.close()
 
@@ -714,10 +721,10 @@ def describe_share(abs_sharefile, si_s, shnum_s, now, out):
         share_type = "unknown"
         f.seek(m.DATA_OFFSET)
         version = f.read(1)
-        if version == "\x00":
+        if version == b"\x00":
             # this slot contains an SMDF share
             share_type = "SDMF"
-        elif version == "\x01":
+        elif version == b"\x01":
             share_type = "MDMF"
 
         if share_type == "SDMF":
@@ -905,7 +912,7 @@ def corrupt_share(options):
         f = open(fn, "rb+")
         f.seek(offset)
         d = f.read(1)
-        d = chr(ord(d) ^ 0x01)
+        d = bchr(ord(d) ^ 0x01)
         f.seek(offset)
         f.write(d)
         f.close()
@@ -920,7 +927,7 @@ def corrupt_share(options):
         f.seek(m.DATA_OFFSET)
         data = f.read(2000)
         # make sure this slot contains an SMDF share
-        assert data[0] == "\x00", "non-SDMF mutable shares not supported"
+        assert data[0:1] == b"\x00", "non-SDMF mutable shares not supported"
         f.close()
 
         (version, ig_seqnum, ig_roothash, ig_IV, ig_k, ig_N, ig_segsize,
@@ -1051,8 +1058,8 @@ def do_debug(options):
 
 
 subCommands = [
-    ["debug", None, DebugCommand, "debug subcommands: use 'tahoe debug' for a list."],
-    ]
+    ("debug", None, DebugCommand, "debug subcommands: use 'tahoe debug' for a list."),
+    ]  # type: SubCommands
 
 dispatch = {
     "debug": do_debug,

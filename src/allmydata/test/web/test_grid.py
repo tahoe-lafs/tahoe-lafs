@@ -1,6 +1,17 @@
+"""
+Ported to Python 3.
+"""
 from __future__ import print_function
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import unicode_literals
 
-import os.path, re, urllib
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+
+import os.path, re
+from urllib.parse import quote as url_quote
 import json
 from six.moves import StringIO
 
@@ -18,6 +29,10 @@ from allmydata.storage.shares import get_share_file
 from allmydata.scripts.debug import CorruptShareOptions, corrupt_share
 from allmydata.immutable import upload
 from allmydata.mutable import publish
+
+from ...web.common import (
+    render_exception,
+)
 from .. import common_util as testutil
 from ..common import WebErrorMixin, ShouldFailMixin
 from ..no_network import GridTestMixin
@@ -33,7 +48,8 @@ DIR_HTML_TAG = '<html lang="en">'
 class CompletelyUnhandledError(Exception):
     pass
 
-class ErrorBoom(object, resource.Resource):
+class ErrorBoom(resource.Resource, object):
+    @render_exception
     def render(self, req):
         raise CompletelyUnhandledError("whoops")
 
@@ -42,32 +58,38 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
     def CHECK(self, ign, which, args, clientnum=0):
         fileurl = self.fileurls[which]
         url = fileurl + "?" + args
-        return self.GET(url, method="POST", clientnum=clientnum)
+        return self.GET_unicode(url, method="POST", clientnum=clientnum)
+
+    def GET_unicode(self, *args, **kwargs):
+        """Send an HTTP request, but convert result to Unicode string."""
+        d = GridTestMixin.GET(self, *args, **kwargs)
+        d.addCallback(str, "utf-8")
+        return d
 
     def test_filecheck(self):
         self.basedir = "web/Grid/filecheck"
         self.set_up_grid()
         c0 = self.g.clients[0]
         self.uris = {}
-        DATA = "data" * 100
-        d = c0.upload(upload.Data(DATA, convergence=""))
+        DATA = b"data" * 100
+        d = c0.upload(upload.Data(DATA, convergence=b""))
         def _stash_uri(ur, which):
             self.uris[which] = ur.get_uri()
         d.addCallback(_stash_uri, "good")
         d.addCallback(lambda ign:
-                      c0.upload(upload.Data(DATA+"1", convergence="")))
+                      c0.upload(upload.Data(DATA+b"1", convergence=b"")))
         d.addCallback(_stash_uri, "sick")
         d.addCallback(lambda ign:
-                      c0.upload(upload.Data(DATA+"2", convergence="")))
+                      c0.upload(upload.Data(DATA+b"2", convergence=b"")))
         d.addCallback(_stash_uri, "dead")
         def _stash_mutable_uri(n, which):
             self.uris[which] = n.get_uri()
-            assert isinstance(self.uris[which], str)
+            assert isinstance(self.uris[which], bytes)
         d.addCallback(lambda ign:
-            c0.create_mutable_file(publish.MutableData(DATA+"3")))
+            c0.create_mutable_file(publish.MutableData(DATA+b"3")))
         d.addCallback(_stash_mutable_uri, "corrupt")
         d.addCallback(lambda ign:
-                      c0.upload(upload.Data("literal", convergence="")))
+                      c0.upload(upload.Data(b"literal", convergence=b"")))
         d.addCallback(_stash_uri, "small")
         d.addCallback(lambda ign: c0.create_immutable_dirnode({}))
         d.addCallback(_stash_mutable_uri, "smalldir")
@@ -75,7 +97,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
         def _compute_fileurls(ignored):
             self.fileurls = {}
             for which in self.uris:
-                self.fileurls[which] = "uri/" + urllib.quote(self.uris[which])
+                self.fileurls[which] = "uri/" + url_quote(self.uris[which])
         d.addCallback(_compute_fileurls)
 
         def _clobber_shares(ignored):
@@ -198,28 +220,28 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
         self.set_up_grid()
         c0 = self.g.clients[0]
         self.uris = {}
-        DATA = "data" * 100
-        d = c0.upload(upload.Data(DATA, convergence=""))
+        DATA = b"data" * 100
+        d = c0.upload(upload.Data(DATA, convergence=b""))
         def _stash_uri(ur, which):
             self.uris[which] = ur.get_uri()
         d.addCallback(_stash_uri, "good")
         d.addCallback(lambda ign:
-                      c0.upload(upload.Data(DATA+"1", convergence="")))
+                      c0.upload(upload.Data(DATA+b"1", convergence=b"")))
         d.addCallback(_stash_uri, "sick")
         d.addCallback(lambda ign:
-                      c0.upload(upload.Data(DATA+"2", convergence="")))
+                      c0.upload(upload.Data(DATA+b"2", convergence=b"")))
         d.addCallback(_stash_uri, "dead")
         def _stash_mutable_uri(n, which):
             self.uris[which] = n.get_uri()
-            assert isinstance(self.uris[which], str)
+            assert isinstance(self.uris[which], bytes)
         d.addCallback(lambda ign:
-            c0.create_mutable_file(publish.MutableData(DATA+"3")))
+            c0.create_mutable_file(publish.MutableData(DATA+b"3")))
         d.addCallback(_stash_mutable_uri, "corrupt")
 
         def _compute_fileurls(ignored):
             self.fileurls = {}
             for which in self.uris:
-                self.fileurls[which] = "uri/" + urllib.quote(self.uris[which])
+                self.fileurls[which] = "uri/" + url_quote(self.uris[which])
         d.addCallback(_compute_fileurls)
 
         def _clobber_shares(ignored):
@@ -281,8 +303,8 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
         self.set_up_grid()
         c0 = self.g.clients[0]
         self.uris = {}
-        DATA = "data" * 100
-        d = c0.upload(upload.Data(DATA+"1", convergence=""))
+        DATA = b"data" * 100
+        d = c0.upload(upload.Data(DATA+b"1", convergence=b""))
         def _stash_uri(ur, which):
             self.uris[which] = ur.get_uri()
         d.addCallback(_stash_uri, "sick")
@@ -290,7 +312,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
         def _compute_fileurls(ignored):
             self.fileurls = {}
             for which in self.uris:
-                self.fileurls[which] = "uri/" + urllib.quote(self.uris[which])
+                self.fileurls[which] = "uri/" + url_quote(self.uris[which])
         d.addCallback(_compute_fileurls)
 
         def _clobber_shares(ignored):
@@ -324,7 +346,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
         self.fileurls = {}
 
         # the future cap format may contain slashes, which must be tolerated
-        expected_info_url = "uri/%s?t=info" % urllib.quote(unknown_rwcap,
+        expected_info_url = "uri/%s?t=info" % url_quote(unknown_rwcap,
                                                            safe="")
 
         if immutable:
@@ -338,8 +360,8 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
 
         def _stash_root_and_create_file(n):
             self.rootnode = n
-            self.rooturl = "uri/" + urllib.quote(n.get_uri())
-            self.rourl = "uri/" + urllib.quote(n.get_readonly_uri())
+            self.rooturl = "uri/" + url_quote(n.get_uri())
+            self.rourl = "uri/" + url_quote(n.get_readonly_uri())
             if not immutable:
                 return self.rootnode.set_node(name, future_node)
         d.addCallback(_stash_root_and_create_file)
@@ -347,18 +369,19 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
         # make sure directory listing tolerates unknown nodes
         d.addCallback(lambda ign: self.GET(self.rooturl))
         def _check_directory_html(res, expected_type_suffix):
-            pattern = re.compile(r'<td>\?%s</td>[ \t\n\r]*'
-                                  '<td>%s</td>' % (expected_type_suffix, str(name)),
+            pattern = re.compile(br'<td>\?%s</td>[ \t\n\r]*'
+                                 b'<td>%s</td>' % (
+                                     expected_type_suffix, name.encode("ascii")),
                                  re.DOTALL)
             self.failUnless(re.search(pattern, res), res)
             # find the More Info link for name, should be relative
-            mo = re.search(r'<a href="([^"]+)">More Info</a>', res)
+            mo = re.search(br'<a href="([^"]+)">More Info</a>', res)
             info_url = mo.group(1)
-            self.failUnlessReallyEqual(info_url, "%s?t=info" % (str(name),))
+            self.failUnlessReallyEqual(info_url, b"%s?t=info" % (name.encode("ascii"),))
         if immutable:
-            d.addCallback(_check_directory_html, "-IMM")
+            d.addCallback(_check_directory_html, b"-IMM")
         else:
-            d.addCallback(_check_directory_html, "")
+            d.addCallback(_check_directory_html, b"")
 
         d.addCallback(lambda ign: self.GET(self.rooturl+"?t=json"))
         def _check_directory_json(res, expect_rw_uri):
@@ -378,7 +401,6 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
         d.addCallback(_check_directory_json, expect_rw_uri=not immutable)
 
         def _check_info(res, expect_rw_uri, expect_ro_uri):
-            self.failUnlessIn("Object Type: <span>unknown</span>", res)
             if expect_rw_uri:
                 self.failUnlessIn(unknown_rwcap, res)
             if expect_ro_uri:
@@ -388,6 +410,8 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
                     self.failUnlessIn(unknown_rocap, res)
             else:
                 self.failIfIn(unknown_rocap, res)
+            res = str(res, "utf-8")
+            self.failUnlessIn("Object Type: <span>unknown</span>", res)
             self.failIfIn("Raw data as", res)
             self.failIfIn("Directory writecap", res)
             self.failIfIn("Checker Operations", res)
@@ -399,7 +423,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
 
         d.addCallback(lambda ign: self.GET(expected_info_url))
         d.addCallback(_check_info, expect_rw_uri=False, expect_ro_uri=False)
-        d.addCallback(lambda ign: self.GET("%s/%s?t=info" % (self.rooturl, str(name))))
+        d.addCallback(lambda ign: self.GET("%s/%s?t=info" % (self.rooturl, name)))
         d.addCallback(_check_info, expect_rw_uri=False, expect_ro_uri=True)
 
         def _check_json(res, expect_rw_uri):
@@ -431,9 +455,9 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
         # or not future_node was immutable.
         d.addCallback(lambda ign: self.GET(self.rourl))
         if immutable:
-            d.addCallback(_check_directory_html, "-IMM")
+            d.addCallback(_check_directory_html, b"-IMM")
         else:
-            d.addCallback(_check_directory_html, "-RO")
+            d.addCallback(_check_directory_html, b"-RO")
 
         d.addCallback(lambda ign: self.GET(self.rourl+"?t=json"))
         d.addCallback(_check_directory_json, expect_rw_uri=False)
@@ -457,9 +481,9 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
         self.uris = {}
         self.fileurls = {}
 
-        lonely_uri = "URI:LIT:n5xgk" # LIT for "one"
-        mut_write_uri = "URI:SSK:vfvcbdfbszyrsaxchgevhmmlii:euw4iw7bbnkrrwpzuburbhppuxhc3gwxv26f6imekhz7zyw2ojnq"
-        mut_read_uri = "URI:SSK-RO:e3mdrzfwhoq42hy5ubcz6rp3o4:ybyibhnp3vvwuq2vaw2ckjmesgkklfs6ghxleztqidihjyofgw7q"
+        lonely_uri = b"URI:LIT:n5xgk" # LIT for "one"
+        mut_write_uri = b"URI:SSK:vfvcbdfbszyrsaxchgevhmmlii:euw4iw7bbnkrrwpzuburbhppuxhc3gwxv26f6imekhz7zyw2ojnq"
+        mut_read_uri = b"URI:SSK-RO:e3mdrzfwhoq42hy5ubcz6rp3o4:ybyibhnp3vvwuq2vaw2ckjmesgkklfs6ghxleztqidihjyofgw7q"
 
         # This method tests mainly dirnode, but we'd have to duplicate code in order to
         # test the dirnode and web layers separately.
@@ -502,10 +526,10 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
             rep = str(dn)
             self.failUnlessIn("RO-IMM", rep)
             cap = dn.get_cap()
-            self.failUnlessIn("CHK", cap.to_string())
+            self.failUnlessIn(b"CHK", cap.to_string())
             self.cap = cap
             self.rootnode = dn
-            self.rooturl = "uri/" + urllib.quote(dn.get_uri())
+            self.rooturl = "uri/" + url_quote(dn.get_uri())
             return download_to_data(dn._node)
         d.addCallback(_created)
 
@@ -521,7 +545,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
                 entry = entries[0]
                 (name_utf8, ro_uri, rwcapdata, metadata_s), subpos = split_netstring(entry, 4)
                 name = name_utf8.decode("utf-8")
-                self.failUnlessEqual(rwcapdata, "")
+                self.failUnlessEqual(rwcapdata, b"")
                 self.failUnlessIn(name, kids)
                 (expected_child, ign) = kids[name]
                 self.failUnlessReallyEqual(ro_uri, expected_child.get_readonly_uri())
@@ -548,13 +572,13 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
         d.addCallback(lambda ign: self.GET(self.rooturl))
         def _check_html(res):
             soup = BeautifulSoup(res, 'html5lib')
-            self.failIfIn("URI:SSK", res)
+            self.failIfIn(b"URI:SSK", res)
             found = False
             for td in soup.find_all(u"td"):
                 if td.text != u"FILE":
                     continue
                 a = td.findNextSibling()(u"a")[0]
-                self.assertIn(urllib.quote(lonely_uri), a[u"href"])
+                self.assertIn(url_quote(lonely_uri), a[u"href"])
                 self.assertEqual(u"lonely", a.text)
                 self.assertEqual(a[u"rel"], [u"noreferrer"])
                 self.assertEqual(u"{}".format(len("one")), td.findNextSibling().findNextSibling().text)
@@ -568,7 +592,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
                 if a.text == u"More Info"
             )
             self.assertEqual(1, len(infos))
-            self.assertTrue(infos[0].endswith(urllib.quote(lonely_uri) + "?t=info"))
+            self.assertTrue(infos[0].endswith(url_quote(lonely_uri) + "?t=info"))
         d.addCallback(_check_html)
 
         # ... and in JSON.
@@ -591,12 +615,12 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
         c0 = self.g.clients[0]
         self.uris = {}
         self.fileurls = {}
-        DATA = "data" * 100
+        DATA = b"data" * 100
         d = c0.create_dirnode()
         def _stash_root_and_create_file(n):
             self.rootnode = n
-            self.fileurls["root"] = "uri/" + urllib.quote(n.get_uri())
-            return n.add_file(u"good", upload.Data(DATA, convergence=""))
+            self.fileurls["root"] = "uri/" + url_quote(n.get_uri())
+            return n.add_file(u"good", upload.Data(DATA, convergence=b""))
         d.addCallback(_stash_root_and_create_file)
         def _stash_uri(fn, which):
             self.uris[which] = fn.get_uri()
@@ -604,13 +628,13 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
         d.addCallback(_stash_uri, "good")
         d.addCallback(lambda ign:
                       self.rootnode.add_file(u"small",
-                                             upload.Data("literal",
-                                                        convergence="")))
+                                             upload.Data(b"literal",
+                                                        convergence=b"")))
         d.addCallback(_stash_uri, "small")
         d.addCallback(lambda ign:
                       self.rootnode.add_file(u"sick",
-                                             upload.Data(DATA+"1",
-                                                        convergence="")))
+                                             upload.Data(DATA+b"1",
+                                                        convergence=b"")))
         d.addCallback(_stash_uri, "sick")
 
         # this tests that deep-check and stream-manifest will ignore
@@ -690,13 +714,13 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
         d.addCallback(_stash_uri, "subdir")
         d.addCallback(lambda subdir_node:
                       subdir_node.add_file(u"grandchild",
-                                           upload.Data(DATA+"2",
-                                                       convergence="")))
+                                           upload.Data(DATA+b"2",
+                                                       convergence=b"")))
         d.addCallback(_stash_uri, "grandchild")
 
         d.addCallback(lambda ign:
                       self.delete_shares_numbered(self.uris["subdir"],
-                                                  range(1, 10)))
+                                                  list(range(1, 10))))
 
         # root
         # root/good
@@ -765,30 +789,30 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
         c0 = self.g.clients[0]
         self.uris = {}
         self.fileurls = {}
-        DATA = "data" * 100
+        DATA = b"data" * 100
         d = c0.create_dirnode()
         def _stash_root_and_create_file(n):
             self.rootnode = n
-            self.fileurls["root"] = "uri/" + urllib.quote(n.get_uri())
-            return n.add_file(u"good", upload.Data(DATA, convergence=""))
+            self.fileurls["root"] = "uri/" + url_quote(n.get_uri())
+            return n.add_file(u"good", upload.Data(DATA, convergence=b""))
         d.addCallback(_stash_root_and_create_file)
         def _stash_uri(fn, which):
             self.uris[which] = fn.get_uri()
         d.addCallback(_stash_uri, "good")
         d.addCallback(lambda ign:
                       self.rootnode.add_file(u"small",
-                                             upload.Data("literal",
-                                                        convergence="")))
+                                             upload.Data(b"literal",
+                                                        convergence=b"")))
         d.addCallback(_stash_uri, "small")
         d.addCallback(lambda ign:
                       self.rootnode.add_file(u"sick",
-                                             upload.Data(DATA+"1",
-                                                        convergence="")))
+                                             upload.Data(DATA+b"1",
+                                                        convergence=b"")))
         d.addCallback(_stash_uri, "sick")
         #d.addCallback(lambda ign:
         #              self.rootnode.add_file(u"dead",
-        #                                     upload.Data(DATA+"2",
-        #                                                convergence="")))
+        #                                     upload.Data(DATA+b"2",
+        #                                                convergence=b"")))
         #d.addCallback(_stash_uri, "dead")
 
         #d.addCallback(lambda ign: c0.create_mutable_file("mutable"))
@@ -883,25 +907,25 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
         self.set_up_grid(num_clients=2, oneshare=True)
         c0 = self.g.clients[0]
         self.uris = {}
-        DATA = "data" * 100
-        d = c0.upload(upload.Data(DATA, convergence=""))
+        DATA = b"data" * 100
+        d = c0.upload(upload.Data(DATA, convergence=b""))
         def _stash_uri(ur, which):
             self.uris[which] = ur.get_uri()
         d.addCallback(_stash_uri, "one")
         d.addCallback(lambda ign:
-                      c0.upload(upload.Data(DATA+"1", convergence="")))
+                      c0.upload(upload.Data(DATA+b"1", convergence=b"")))
         d.addCallback(_stash_uri, "two")
         def _stash_mutable_uri(n, which):
             self.uris[which] = n.get_uri()
-            assert isinstance(self.uris[which], str)
+            assert isinstance(self.uris[which], bytes)
         d.addCallback(lambda ign:
-            c0.create_mutable_file(publish.MutableData(DATA+"2")))
+            c0.create_mutable_file(publish.MutableData(DATA+b"2")))
         d.addCallback(_stash_mutable_uri, "mutable")
 
         def _compute_fileurls(ignored):
             self.fileurls = {}
             for which in self.uris:
-                self.fileurls[which] = "uri/" + urllib.quote(self.uris[which])
+                self.fileurls[which] = "uri/" + url_quote(self.uris[which])
         d.addCallback(_compute_fileurls)
 
         d.addCallback(self._count_leases, "one")
@@ -977,25 +1001,25 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
         c0 = self.g.clients[0]
         self.uris = {}
         self.fileurls = {}
-        DATA = "data" * 100
+        DATA = b"data" * 100
         d = c0.create_dirnode()
         def _stash_root_and_create_file(n):
             self.rootnode = n
             self.uris["root"] = n.get_uri()
-            self.fileurls["root"] = "uri/" + urllib.quote(n.get_uri())
-            return n.add_file(u"one", upload.Data(DATA, convergence=""))
+            self.fileurls["root"] = "uri/" + url_quote(n.get_uri())
+            return n.add_file(u"one", upload.Data(DATA, convergence=b""))
         d.addCallback(_stash_root_and_create_file)
         def _stash_uri(fn, which):
             self.uris[which] = fn.get_uri()
         d.addCallback(_stash_uri, "one")
         d.addCallback(lambda ign:
                       self.rootnode.add_file(u"small",
-                                             upload.Data("literal",
-                                                        convergence="")))
+                                             upload.Data(b"literal",
+                                                        convergence=b"")))
         d.addCallback(_stash_uri, "small")
 
         d.addCallback(lambda ign:
-            c0.create_mutable_file(publish.MutableData("mutable")))
+            c0.create_mutable_file(publish.MutableData(b"mutable")))
         d.addCallback(lambda fn: self.rootnode.set_node(u"mutable", fn))
         d.addCallback(_stash_uri, "mutable")
 
@@ -1046,36 +1070,36 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
         c0 = self.g.clients[0]
         c0.encoding_params['happy'] = 2
         self.fileurls = {}
-        DATA = "data" * 100
+        DATA = b"data" * 100
         d = c0.create_dirnode()
         def _stash_root(n):
-            self.fileurls["root"] = "uri/" + urllib.quote(n.get_uri())
+            self.fileurls["root"] = "uri/" + url_quote(n.get_uri())
             self.fileurls["imaginary"] = self.fileurls["root"] + "/imaginary"
             return n
         d.addCallback(_stash_root)
-        d.addCallback(lambda ign: c0.upload(upload.Data(DATA, convergence="")))
+        d.addCallback(lambda ign: c0.upload(upload.Data(DATA, convergence=b"")))
         def _stash_bad(ur):
-            self.fileurls["1share"] = "uri/" + urllib.quote(ur.get_uri())
-            self.delete_shares_numbered(ur.get_uri(), range(1,10))
+            self.fileurls["1share"] = "uri/" + url_quote(ur.get_uri())
+            self.delete_shares_numbered(ur.get_uri(), list(range(1,10)))
 
             u = uri.from_string(ur.get_uri())
             u.key = testutil.flip_bit(u.key, 0)
             baduri = u.to_string()
-            self.fileurls["0shares"] = "uri/" + urllib.quote(baduri)
+            self.fileurls["0shares"] = "uri/" + url_quote(baduri)
         d.addCallback(_stash_bad)
         d.addCallback(lambda ign: c0.create_dirnode())
         def _mangle_dirnode_1share(n):
             u = n.get_uri()
-            url = self.fileurls["dir-1share"] = "uri/" + urllib.quote(u)
+            url = self.fileurls["dir-1share"] = "uri/" + url_quote(u)
             self.fileurls["dir-1share-json"] = url + "?t=json"
-            self.delete_shares_numbered(u, range(1,10))
+            self.delete_shares_numbered(u, list(range(1,10)))
         d.addCallback(_mangle_dirnode_1share)
         d.addCallback(lambda ign: c0.create_dirnode())
         def _mangle_dirnode_0share(n):
             u = n.get_uri()
-            url = self.fileurls["dir-0share"] = "uri/" + urllib.quote(u)
+            url = self.fileurls["dir-0share"] = "uri/" + url_quote(u)
             self.fileurls["dir-0share-json"] = url + "?t=json"
-            self.delete_shares_numbered(u, range(0,10))
+            self.delete_shares_numbered(u, list(range(0,10)))
         d.addCallback(_mangle_dirnode_0share)
 
         # NotEnoughSharesError should be reported sensibly, with a
@@ -1087,6 +1111,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
                                            410, "Gone", "NoSharesError",
                                            self.GET, self.fileurls["0shares"]))
         def _check_zero_shares(body):
+            body = str(body, "utf-8")
             self.failIfIn("<html>", body)
             body = " ".join(body.strip().split())
             exp = ("NoSharesError: no shares could be found. "
@@ -1095,7 +1120,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
                    "severe corruption. You should perform a filecheck on "
                    "this object to learn more. The full error message is: "
                    "no shares (need 3). Last failure: None")
-            self.failUnlessReallyEqual(exp, body)
+            self.assertEqual(exp, body)
         d.addCallback(_check_zero_shares)
 
 
@@ -1104,6 +1129,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
                                            410, "Gone", "NotEnoughSharesError",
                                            self.GET, self.fileurls["1share"]))
         def _check_one_share(body):
+            body = str(body, "utf-8")
             self.failIfIn("<html>", body)
             body = " ".join(body.strip().split())
             msgbase = ("NotEnoughSharesError: This indicates that some "
@@ -1128,10 +1154,11 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
                                            404, "Not Found", None,
                                            self.GET, self.fileurls["imaginary"]))
         def _missing_child(body):
+            body = str(body, "utf-8")
             self.failUnlessIn("No such child: imaginary", body)
         d.addCallback(_missing_child)
 
-        d.addCallback(lambda ignored: self.GET(self.fileurls["dir-0share"]))
+        d.addCallback(lambda ignored: self.GET_unicode(self.fileurls["dir-0share"]))
         def _check_0shares_dir_html(body):
             self.failUnlessIn(DIR_HTML_TAG, body)
             # we should see the regular page, but without the child table or
@@ -1150,7 +1177,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
             self.failUnlessIn("No upload forms: directory is unreadable", body)
         d.addCallback(_check_0shares_dir_html)
 
-        d.addCallback(lambda ignored: self.GET(self.fileurls["dir-1share"]))
+        d.addCallback(lambda ignored: self.GET_unicode(self.fileurls["dir-1share"]))
         def _check_1shares_dir_html(body):
             # at some point, we'll split UnrecoverableFileError into 0-shares
             # and some-shares like we did for immutable files (since there
@@ -1177,6 +1204,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
                                            self.GET,
                                            self.fileurls["dir-0share-json"]))
         def _check_unrecoverable_file(body):
+            body = str(body, "utf-8")
             self.failIfIn("<html>", body)
             body = " ".join(body.strip().split())
             exp = ("UnrecoverableFileError: the directory (or mutable file) "
@@ -1204,7 +1232,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
         # attach a webapi child that throws a random error, to test how it
         # gets rendered.
         w = c0.getServiceNamed("webish")
-        w.root.putChild("ERRORBOOM", ErrorBoom())
+        w.root.putChild(b"ERRORBOOM", ErrorBoom())
 
         # "Accept: */*" :        should get a text/html stack trace
         # "Accept: text/plain" : should get a text/plain stack trace
@@ -1217,6 +1245,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
                                            self.GET, "ERRORBOOM",
                                            headers={"accept": "*/*"}))
         def _internal_error_html1(body):
+            body = str(body, "utf-8")
             self.failUnlessIn("<html>", "expected HTML, not '%s'" % body)
         d.addCallback(_internal_error_html1)
 
@@ -1226,6 +1255,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
                                            self.GET, "ERRORBOOM",
                                            headers={"accept": "text/plain"}))
         def _internal_error_text2(body):
+            body = str(body, "utf-8")
             self.failIfIn("<html>", body)
             self.failUnless(body.startswith("Traceback "), body)
         d.addCallback(_internal_error_text2)
@@ -1237,6 +1267,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
                                            self.GET, "ERRORBOOM",
                                            headers={"accept": CLI_accepts}))
         def _internal_error_text3(body):
+            body = str(body, "utf-8")
             self.failIfIn("<html>", body)
             self.failUnless(body.startswith("Traceback "), body)
         d.addCallback(_internal_error_text3)
@@ -1246,7 +1277,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
                                            500, "Internal Server Error", None,
                                            self.GET, "ERRORBOOM"))
         def _internal_error_html4(body):
-            self.failUnlessIn("<html>", body)
+            self.failUnlessIn(b"<html>", body)
         d.addCallback(_internal_error_html4)
 
         def _flush_errors(res):
@@ -1264,12 +1295,12 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
         c0 = self.g.clients[0]
         fn = c0.config.get_config_path("access.blacklist")
         self.uris = {}
-        DATA = "off-limits " * 50
+        DATA = b"off-limits " * 50
 
-        d = c0.upload(upload.Data(DATA, convergence=""))
+        d = c0.upload(upload.Data(DATA, convergence=b""))
         def _stash_uri_and_create_dir(ur):
             self.uri = ur.get_uri()
-            self.url = "uri/"+self.uri
+            self.url = b"uri/"+self.uri
             u = uri.from_string_filenode(self.uri)
             self.si = u.get_storage_index()
             childnode = c0.create_node_from_uri(self.uri, None)
@@ -1278,9 +1309,9 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
         def _stash_dir(node):
             self.dir_node = node
             self.dir_uri = node.get_uri()
-            self.dir_url = "uri/"+self.dir_uri
+            self.dir_url = b"uri/"+self.dir_uri
         d.addCallback(_stash_dir)
-        d.addCallback(lambda ign: self.GET(self.dir_url, followRedirect=True))
+        d.addCallback(lambda ign: self.GET_unicode(self.dir_url, followRedirect=True))
         def _check_dir_html(body):
             self.failUnlessIn(DIR_HTML_TAG, body)
             self.failUnlessIn("blacklisted.txt</a>", body)
@@ -1293,7 +1324,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
             f.write(" # this is a comment\n")
             f.write(" \n")
             f.write("\n") # also exercise blank lines
-            f.write("%s %s\n" % (base32.b2a(self.si), "off-limits to you"))
+            f.write("%s off-limits to you\n" % (str(base32.b2a(self.si), "ascii"),))
             f.close()
             # clients should be checking the blacklist each time, so we don't
             # need to restart the client
@@ -1304,14 +1335,14 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
                                                        self.GET, self.url))
 
         # We should still be able to list the parent directory, in HTML...
-        d.addCallback(lambda ign: self.GET(self.dir_url, followRedirect=True))
+        d.addCallback(lambda ign: self.GET_unicode(self.dir_url, followRedirect=True))
         def _check_dir_html2(body):
             self.failUnlessIn(DIR_HTML_TAG, body)
             self.failUnlessIn("blacklisted.txt</strike>", body)
         d.addCallback(_check_dir_html2)
 
         # ... and in JSON (used by CLI).
-        d.addCallback(lambda ign: self.GET(self.dir_url+"?t=json", followRedirect=True))
+        d.addCallback(lambda ign: self.GET(self.dir_url+b"?t=json", followRedirect=True))
         def _check_dir_json(res):
             data = json.loads(res)
             self.failUnless(isinstance(data, list), data)
@@ -1350,14 +1381,14 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
         d.addCallback(_add_dir)
         def _get_dircap(dn):
             self.dir_si_b32 = base32.b2a(dn.get_storage_index())
-            self.dir_url_base = "uri/"+dn.get_write_uri()
-            self.dir_url_json1 = "uri/"+dn.get_write_uri()+"?t=json"
-            self.dir_url_json2 = "uri/"+dn.get_write_uri()+"?t=json"
-            self.dir_url_json_ro = "uri/"+dn.get_readonly_uri()+"?t=json"
-            self.child_url = "uri/"+dn.get_readonly_uri()+"/child"
+            self.dir_url_base = b"uri/"+dn.get_write_uri()
+            self.dir_url_json1 = b"uri/"+dn.get_write_uri()+b"?t=json"
+            self.dir_url_json2 = b"uri/"+dn.get_write_uri()+b"?t=json"
+            self.dir_url_json_ro = b"uri/"+dn.get_readonly_uri()+b"?t=json"
+            self.child_url = b"uri/"+dn.get_readonly_uri()+b"/child"
         d.addCallback(_get_dircap)
         d.addCallback(lambda ign: self.GET(self.dir_url_base, followRedirect=True))
-        d.addCallback(lambda body: self.failUnlessIn(DIR_HTML_TAG, body))
+        d.addCallback(lambda body: self.failUnlessIn(DIR_HTML_TAG, str(body, "utf-8")))
         d.addCallback(lambda ign: self.GET(self.dir_url_json1))
         d.addCallback(lambda res: json.loads(res))  # just check it decodes
         d.addCallback(lambda ign: self.GET(self.dir_url_json2))
@@ -1368,8 +1399,8 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
         d.addCallback(lambda body: self.failUnlessEqual(DATA, body))
 
         def _block_dir(ign):
-            f = open(fn, "w")
-            f.write("%s %s\n" % (self.dir_si_b32, "dir-off-limits to you"))
+            f = open(fn, "wb")
+            f.write(b"%s %s\n" % (self.dir_si_b32, b"dir-off-limits to you"))
             f.close()
             self.g.clients[0].blacklist.last_mtime -= 2.0
         d.addCallback(_block_dir)

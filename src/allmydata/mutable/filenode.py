@@ -1,3 +1,15 @@
+"""
+Ported to Python 3.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+
 import random
 
 from zope.interface import implementer
@@ -147,9 +159,9 @@ class MutableFileNode(object):
 
     def _get_initial_contents(self, contents):
         if contents is None:
-            return MutableData("")
+            return MutableData(b"")
 
-        if isinstance(contents, str):
+        if isinstance(contents, bytes):
             return MutableData(contents)
 
         if IMutableUploadable.providedBy(contents):
@@ -552,7 +564,7 @@ class MutableFileNode(object):
         return d
 
 
-    def upload(self, new_contents, servermap):
+    def upload(self, new_contents, servermap, progress=None):
         """
         I overwrite the contents of the best recoverable version of this
         mutable file with new_contents, using servermap instead of
@@ -884,9 +896,9 @@ class MutableFileVersion(object):
         d = self._try_to_download_data()
         def _apply(old_contents):
             new_contents = modifier(old_contents, self._servermap, first_time)
-            precondition((isinstance(new_contents, str) or
+            precondition((isinstance(new_contents, bytes) or
                           new_contents is None),
-                         "Modifier function must return a string "
+                         "Modifier function must return bytes "
                          "or None")
 
             if new_contents is None or new_contents == old_contents:
@@ -939,7 +951,7 @@ class MutableFileVersion(object):
         return self._servermap.size_of_version(self._version)
 
 
-    def download_to_data(self, fetch_privkey=False, progress=None):
+    def download_to_data(self, fetch_privkey=False, progress=None):  # type: ignore # fixme
         """
         I return a Deferred that fires with the contents of this
         readable object as a byte string.
@@ -960,7 +972,7 @@ class MutableFileVersion(object):
         c = consumer.MemoryConsumer()
         # modify will almost certainly write, so we need the privkey.
         d = self._read(c, fetch_privkey=True)
-        d.addCallback(lambda mc: "".join(mc.chunks))
+        d.addCallback(lambda mc: b"".join(mc.chunks))
         return d
 
 
@@ -1076,7 +1088,7 @@ class MutableFileVersion(object):
             start = offset
             rest = offset + data.get_size()
             new = old[:start]
-            new += "".join(data.read(data.get_size()))
+            new += b"".join(data.read(data.get_size()))
             new += old[rest:]
             return new
         return self._modify(m, None)
@@ -1141,7 +1153,7 @@ class MutableFileVersion(object):
         start_segments = {} # shnum -> start segment
         end_segments = {} # shnum -> end segment
         blockhashes = {} # shnum -> blockhash tree
-        for (shnum, original_data) in update_data.iteritems():
+        for (shnum, original_data) in list(update_data.items()):
             data = [d[1] for d in original_data if d[0] == self._version]
             # data is [(blockhashes,start,end)..]
 
@@ -1193,3 +1205,7 @@ class MutableFileVersion(object):
                                  self._servermap,
                                  mode=mode)
         return u.update()
+
+    # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3562
+    def get_servermap(self):
+        raise NotImplementedError

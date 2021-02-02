@@ -11,6 +11,7 @@ from __future__ import unicode_literals
 from future.utils import PY2
 if PY2:
     from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+from six import ensure_str
 
 from pyutil import nummedobj
 
@@ -55,6 +56,7 @@ class LogMixin(object):
             pmsgid = self._parentmsgid
             if pmsgid is None:
                 pmsgid = self._grandparentmsgid
+        kwargs = {ensure_str(k): v for (k, v) in kwargs.items()}
         msgid = log.msg(msg, facility=facility, parent=pmsgid, *args, **kwargs)
         if self._parentmsgid is None:
             self._parentmsgid = msgid

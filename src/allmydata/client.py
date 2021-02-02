@@ -1,11 +1,10 @@
+from past.builtins import unicode
+
 import os, stat, time, weakref
 from base64 import urlsafe_b64encode
 from functools import partial
-from errno import ENOENT, EPERM
-try:
-    from ConfigParser import NoSectionError
-except ImportError:
-    from configparser import NoSectionError
+# On Python 2 this will be the backported package:
+from configparser import NoSectionError
 
 from foolscap.furl import (
     decode_furl,
@@ -34,9 +33,9 @@ from allmydata.introducer.client import IntroducerClient
 from allmydata.util import (
     hashutil, base32, pollmixin, log, idlib,
     yamlutil, configutil,
+    fileutil,
 )
-from allmydata.util.encodingutil import (get_filesystem_encoding,
-                                         from_utf8_or_none)
+from allmydata.util.encodingutil import get_filesystem_encoding
 from allmydata.util.abbreviate import parse_abbreviated_size
 from allmydata.util.time_format import parse_duration, parse_date
 from allmydata.util.i2p_provider import create as create_i2p_provider
@@ -85,14 +84,7 @@ _client_config = configutil.ValidConfiguration(
             "shares.happy",
             "shares.needed",
             "shares.total",
-            "stats_gatherer.furl",
             "storage.plugins",
-        ),
-        "ftpd": (
-            "accounts.file",
-            "accounts.url",
-            "enabled",
-            "port",
         ),
         "storage": (
             "debug_discard",
@@ -133,7 +125,7 @@ def _valid_config():
     return cfg.update(_client_config)
 
 # this is put into README in new node-directories
-CLIENT_README = """
+CLIENT_README = u"""
 This directory contains files which contain private data for the Tahoe node,
 such as private keys.  On Unix-like systems, the permissions on this directory
 are set to disallow users other than its owner from reading the contents of
@@ -272,7 +264,7 @@ def create_client_from_config(config, _client_factory=None, _introducer_factory=
 
     i2p_provider = create_i2p_provider(reactor, config)
     tor_provider = create_tor_provider(reactor, config)
-    handlers = node.create_connection_handlers(reactor, config, i2p_provider, tor_provider)
+    handlers = node.create_connection_handlers(config, i2p_provider, tor_provider)
     default_connection_handlers, foolscap_connection_handlers = handlers
     tub_options = node.create_tub_options(config)
 
@@ -466,57 +458,17 @@ def create_introducer_clients(config, main_tub, _introducer_factory=None):
     # we return this list
     introducer_clients = []
 
-    introducers_yaml_filename = config.get_private_path("introducers.yaml")
-    introducers_filepath = FilePath(introducers_yaml_filename)
+    introducers = config.get_introducer_configuration()
 
-    try:
-        with introducers_filepath.open() as f:
-            introducers_yaml = yamlutil.safe_load(f)
-            if introducers_yaml is None:
-                raise EnvironmentError(
-                    EPERM,
-                    "Can't read '{}'".format(introducers_yaml_filename),
-                    introducers_yaml_filename,
-                )
-            introducers = introducers_yaml.get("introducers", {})
-            log.msg(
-                "found {} introducers in private/introducers.yaml".format(
-                    len(introducers),
-                )
-            )
-    except EnvironmentError as e:
-        if e.errno != ENOENT:
-            raise
-        introducers = {}
-
-    if "default" in introducers.keys():
-        raise ValueError(
-            "'default' introducer furl cannot be specified in introducers.yaml;"
-            " please fix impossible configuration."
-        )
-
-    # read furl from tahoe.cfg
-    tahoe_cfg_introducer_furl = config.get_config("client", "introducer.furl", None)
-    if tahoe_cfg_introducer_furl == "None":
-        raise ValueError(
-            "tahoe.cfg has invalid 'introducer.furl = None':"
-            " to disable it, use 'introducer.furl ='"
-            " or omit the key entirely"
-        )
-    if tahoe_cfg_introducer_furl:
-        introducers[u'default'] = {'furl':tahoe_cfg_introducer_furl}
-
-    for petname, introducer in introducers.items():
-        introducer_cache_filepath = FilePath(config.get_private_path("introducer_{}_cache.yaml".format(petname)))
+    for petname, (furl, cache_path) in introducers.items():
         ic = _introducer_factory(
             main_tub,
-            introducer['furl'].encode("ascii"),
+            furl.encode("ascii"),
             config.nickname,
             str(allmydata.__full_version__),
             str(_Client.OLDEST_SUPPORTED_VERSION),
-            node.get_app_versions(),
             partial(_sequencer, config),
-            introducer_cache_filepath,
+            cache_path,
         )
         introducer_clients.append(ic)
     return introducer_clients
@@ -628,7 +580,7 @@ def storage_enabled(config):
 
     :return bool: ``True`` if storage is enabled, ``False`` otherwise.
     """
-    return config.get_config(b"storage", b"enabled", True, boolean=True)
+    return config.get_config("storage", "enabled", True, boolean=True)
 
 
 def anonymous_storage_enabled(config):
@@ -642,7 +594,7 @@ def anonymous_storage_enabled(config):
     """
     return (
         storage_enabled(config) and
-        config.get_config(b"storage", b"anonymous", True, boolean=True)
+        config.get_config("storage", "anonymous", True, boolean=True)
     )
 
 
@@ -698,7 +650,6 @@ class _Client(node.Node, pollmixin.PollMixin):
                 raise ValueError("config error: helper is enabled, but tub "
                                  "is not listening ('tub.port=' is empty)")
             self.init_helper()
-        self.init_ftp_server()
         self.init_sftp_server()
 
         # If the node sees an exit_trigger file, it will poll every second to see
@@ -718,8 +669,7 @@ class _Client(node.Node, pollmixin.PollMixin):
             self.init_web(webport) # strports string
 
     def init_stats_provider(self):
-        gatherer_furl = self.config.get_config("client", "stats_gatherer.furl", None)
-        self.stats_provider = StatsProvider(self, gatherer_furl)
+        self.stats_provider = StatsProvider(self)
         self.stats_provider.setServiceParent(self)
         self.stats_provider.register_producer(self)
 
@@ -727,10 +677,14 @@ class _Client(node.Node, pollmixin.PollMixin):
         return { 'node.uptime': time.time() - self.started_timestamp }
 
     def init_secrets(self):
-        lease_s = self.config.get_or_create_private_config("secret", _make_secret)
+        # configs are always unicode
+        def _unicode_make_secret():
+            return unicode(_make_secret(), "ascii")
+        lease_s = self.config.get_or_create_private_config(
+            "secret", _unicode_make_secret).encode("utf-8")
         lease_secret = base32.a2b(lease_s)
-        convergence_s = self.config.get_or_create_private_config('convergence',
-                                                                 _make_secret)
+        convergence_s = self.config.get_or_create_private_config(
+            'convergence', _unicode_make_secret).encode("utf-8")
         self.convergence = base32.a2b(convergence_s)
         self._secret_holder = SecretHolder(lease_secret, self.convergence)
 
@@ -739,9 +693,11 @@ class _Client(node.Node, pollmixin.PollMixin):
         # existing key
         def _make_key():
             private_key, _ = ed25519.create_signing_keypair()
-            return ed25519.string_from_signing_key(private_key) + b"\n"
+            # Config values are always unicode:
+            return unicode(ed25519.string_from_signing_key(private_key) + b"\n", "utf-8")
 
-        private_key_str = self.config.get_or_create_private_config("node.privkey", _make_key)
+        private_key_str = self.config.get_or_create_private_config(
+            "node.privkey", _make_key).encode("utf-8")
         private_key, public_key = ed25519.signing_keypair_from_string(private_key_str)
         public_key_str = ed25519.string_from_verifying_key(public_key)
         self.config.write_config_file("node.pubkey", public_key_str + b"\n", "wb")
@@ -751,7 +707,7 @@ class _Client(node.Node, pollmixin.PollMixin):
     def get_long_nodeid(self):
         # this matches what IServer.get_longname() says about us elsewhere
         vk_string = ed25519.string_from_verifying_key(self._node_public_key)
-        return remove_prefix(vk_string, "pub-")
+        return remove_prefix(vk_string, b"pub-")
 
     def get_long_tubid(self):
         return idlib.nodeid_b2a(self.nodeid)
@@ -781,7 +737,7 @@ class _Client(node.Node, pollmixin.PollMixin):
                 vk_string = ed25519.string_from_verifying_key(self._node_public_key)
                 vk_bytes = remove_prefix(vk_string, ed25519.PUBLIC_KEY_PREFIX)
                 seed = base32.b2a(vk_bytes)
-            self.config.write_config_file("permutation-seed", seed+"\n")
+            self.config.write_config_file("permutation-seed", seed+b"\n", mode="wb")
         return seed.strip()
 
     def get_anonymous_storage_server(self):
@@ -806,7 +762,7 @@ class _Client(node.Node, pollmixin.PollMixin):
 
         config_storedir = self.get_config(
             "storage", "storage_dir", self.STOREDIR,
-        ).decode('utf-8')
+        )
         storedir = self.config.get_config_path(config_storedir)
 
         data = self.config.get_config("storage", "reserved_space", None)
@@ -1021,7 +977,7 @@ class _Client(node.Node, pollmixin.PollMixin):
         c = ControlServer()
         c.setServiceParent(self)
         control_url = self.control_tub.registerReference(c)
-        self.config.write_private_config("control.furl", control_url + b"\n")
+        self.config.write_private_config("control.furl", control_url + "\n")
 
     def init_helper(self):
         self.helper = Helper(self.config.get_config_path("helper"),
@@ -1038,39 +994,46 @@ class _Client(node.Node, pollmixin.PollMixin):
     def set_default_mutable_keysize(self, keysize):
         self._key_generator.set_default_keysize(keysize)
 
+    def _get_tempdir(self):
+        """
+        Determine the path to the directory where temporary files for this node
+        should be written.
+
+        :return bytes: The path which will exist and be a directory.
+        """
+        tempdir_config = self.config.get_config("node", "tempdir", "tmp")
+        if isinstance(tempdir_config, bytes):
+            tempdir_config = tempdir_config.decode('utf-8')
+        tempdir = self.config.get_config_path(tempdir_config)
+        if not os.path.exists(tempdir):
+            fileutil.make_dirs(tempdir)
+        return tempdir
+
     def init_web(self, webport):
         self.log("init_web(webport=%s)", args=(webport,))
 
         from allmydata.webish import WebishServer
         nodeurl_path = self.config.get_config_path("node.url")
-        staticdir_config = self.config.get_config("node", "web.static", "public_html").decode("utf-8")
+        staticdir_config = self.config.get_config("node", "web.static", "public_html")
         staticdir = self.config.get_config_path(staticdir_config)
-        ws = WebishServer(self, webport, nodeurl_path, staticdir)
+        ws = WebishServer(
+            self,
+            webport,
+            self._get_tempdir(),
+            nodeurl_path,
+            staticdir,
+        )
         ws.setServiceParent(self)
-
-    def init_ftp_server(self):
-        if self.config.get_config("ftpd", "enabled", False, boolean=True):
-            accountfile = from_utf8_or_none(
-                self.config.get_config("ftpd", "accounts.file", None))
-            if accountfile:
-                accountfile = self.config.get_config_path(accountfile)
-            accounturl = self.config.get_config("ftpd", "accounts.url", None)
-            ftp_portstr = self.config.get_config("ftpd", "port", "8021")
-
-            from allmydata.frontends import ftpd
-            s = ftpd.FTPServer(self, accountfile, accounturl, ftp_portstr)
-            s.setServiceParent(self)
 
     def init_sftp_server(self):
         if self.config.get_config("sftpd", "enabled", False, boolean=True):
-            accountfile = from_utf8_or_none(
-                self.config.get_config("sftpd", "accounts.file", None))
+            accountfile = self.config.get_config("sftpd", "accounts.file", None)
             if accountfile:
                 accountfile = self.config.get_config_path(accountfile)
             accounturl = self.config.get_config("sftpd", "accounts.url", None)
-            sftp_portstr = self.config.get_config("sftpd", "port", "8022")
-            pubkey_file = from_utf8_or_none(self.config.get_config("sftpd", "host_pubkey_file"))
-            privkey_file = from_utf8_or_none(self.config.get_config("sftpd", "host_privkey_file"))
+            sftp_portstr = self.config.get_config("sftpd", "port", "tcp:8022")
+            pubkey_file = self.config.get_config("sftpd", "host_pubkey_file")
+            privkey_file = self.config.get_config("sftpd", "host_privkey_file")
 
             from allmydata.frontends import sftpd
             s = sftpd.SFTPServer(self, accountfile, accounturl,

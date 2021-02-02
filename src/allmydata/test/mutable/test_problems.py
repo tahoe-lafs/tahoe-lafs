@@ -1,4 +1,14 @@
+"""
+Ported to Python 3.
+"""
 from __future__ import print_function
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 import os, base64
 from twisted.trial import unittest
@@ -56,7 +66,7 @@ class Problems(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
         self.basedir = "mutable/Problems/test_publish_surprise_%s" % version
         self.set_up_grid()
         nm = self.g.clients[0].nodemaker
-        d = nm.create_mutable_file(MutableData("contents 1"),
+        d = nm.create_mutable_file(MutableData(b"contents 1"),
                                     version=version)
         def _created(n):
             d = defer.succeed(None)
@@ -67,7 +77,7 @@ class Problems(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
             d.addCallback(_got_smap1)
             # then modify the file, leaving the old map untouched
             d.addCallback(lambda res: log.msg("starting winning write"))
-            d.addCallback(lambda res: n.overwrite(MutableData("contents 2")))
+            d.addCallback(lambda res: n.overwrite(MutableData(b"contents 2")))
             # now attempt to modify the file with the old servermap. This
             # will look just like an uncoordinated write, in which every
             # single share got updated between our mapupdate and our publish
@@ -76,7 +86,7 @@ class Problems(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
                           self.shouldFail(UncoordinatedWriteError,
                                           "test_publish_surprise", None,
                                           n.upload,
-                                          MutableData("contents 2a"), self.old_map))
+                                          MutableData(b"contents 2a"), self.old_map))
             return d
         d.addCallback(_created)
         return d
@@ -91,7 +101,7 @@ class Problems(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
         self.basedir = "mutable/Problems/test_retrieve_surprise"
         self.set_up_grid()
         nm = self.g.clients[0].nodemaker
-        d = nm.create_mutable_file(MutableData("contents 1"*4000))
+        d = nm.create_mutable_file(MutableData(b"contents 1"*4000))
         def _created(n):
             d = defer.succeed(None)
             d.addCallback(lambda res: n.get_servermap(MODE_READ))
@@ -101,7 +111,7 @@ class Problems(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
             d.addCallback(_got_smap1)
             # then modify the file, leaving the old map untouched
             d.addCallback(lambda res: log.msg("starting winning write"))
-            d.addCallback(lambda res: n.overwrite(MutableData("contents 2")))
+            d.addCallback(lambda res: n.overwrite(MutableData(b"contents 2")))
             # now attempt to retrieve the old version with the old servermap.
             # This will look like someone has changed the file since we
             # updated the servermap.
@@ -128,7 +138,7 @@ class Problems(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
         self.basedir = "mutable/Problems/test_unexpected_shares"
         self.set_up_grid()
         nm = self.g.clients[0].nodemaker
-        d = nm.create_mutable_file(MutableData("contents 1"))
+        d = nm.create_mutable_file(MutableData(b"contents 1"))
         def _created(n):
             d = defer.succeed(None)
             d.addCallback(lambda res: n.get_servermap(MODE_WRITE))
@@ -140,7 +150,7 @@ class Problems(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
                 self.g.remove_server(peer0)
                 # then modify the file, leaving the old map untouched
                 log.msg("starting winning write")
-                return n.overwrite(MutableData("contents 2"))
+                return n.overwrite(MutableData(b"contents 2"))
             d.addCallback(_got_smap1)
             # now attempt to modify the file with the old servermap. This
             # will look just like an uncoordinated write, in which every
@@ -150,7 +160,7 @@ class Problems(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
                           self.shouldFail(UncoordinatedWriteError,
                                           "test_surprise", None,
                                           n.upload,
-                                          MutableData("contents 2a"), self.old_map))
+                                          MutableData(b"contents 2a"), self.old_map))
             return d
         d.addCallback(_created)
         return d
@@ -159,7 +169,7 @@ class Problems(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
         self.basedir = "mutable/Problems/test_multiply_placed_shares"
         self.set_up_grid()
         nm = self.g.clients[0].nodemaker
-        d = nm.create_mutable_file(MutableData("contents 1"))
+        d = nm.create_mutable_file(MutableData(b"contents 1"))
         # remove one of the servers and reupload the file.
         def _created(n):
             self._node = n
@@ -226,19 +236,19 @@ class Problems(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
         d.addCallback(_break_peer0)
         # now "create" the file, using the pre-established key, and let the
         # initial publish finally happen
-        d.addCallback(lambda res: nm.create_mutable_file(MutableData("contents 1")))
+        d.addCallback(lambda res: nm.create_mutable_file(MutableData(b"contents 1")))
         # that ought to work
         def _got_node(n):
             d = n.download_best_version()
-            d.addCallback(lambda res: self.failUnlessEqual(res, "contents 1"))
+            d.addCallback(lambda res: self.failUnlessEqual(res, b"contents 1"))
             # now break the second peer
             def _break_peer1(res):
                 self.g.break_server(self.server1.get_serverid())
             d.addCallback(_break_peer1)
-            d.addCallback(lambda res: n.overwrite(MutableData("contents 2")))
+            d.addCallback(lambda res: n.overwrite(MutableData(b"contents 2")))
             # that ought to work too
             d.addCallback(lambda res: n.download_best_version())
-            d.addCallback(lambda res: self.failUnlessEqual(res, "contents 2"))
+            d.addCallback(lambda res: self.failUnlessEqual(res, b"contents 2"))
             def _explain_error(f):
                 print(f)
                 if f.check(NotEnoughServersError):
@@ -267,18 +277,18 @@ class Problems(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
         peerids = [s.get_serverid() for s in sb.get_connected_servers()]
         self.g.break_server(peerids[0])
 
-        d = nm.create_mutable_file(MutableData("contents 1"))
+        d = nm.create_mutable_file(MutableData(b"contents 1"))
         def _created(n):
             d = n.download_best_version()
-            d.addCallback(lambda res: self.failUnlessEqual(res, "contents 1"))
+            d.addCallback(lambda res: self.failUnlessEqual(res, b"contents 1"))
             # now break one of the remaining servers
             def _break_second_server(res):
                 self.g.break_server(peerids[1])
             d.addCallback(_break_second_server)
-            d.addCallback(lambda res: n.overwrite(MutableData("contents 2")))
+            d.addCallback(lambda res: n.overwrite(MutableData(b"contents 2")))
             # that ought to work too
             d.addCallback(lambda res: n.download_best_version())
-            d.addCallback(lambda res: self.failUnlessEqual(res, "contents 2"))
+            d.addCallback(lambda res: self.failUnlessEqual(res, b"contents 2"))
             return d
         d.addCallback(_created)
         return d
@@ -294,7 +304,7 @@ class Problems(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
         d = self.shouldFail(NotEnoughServersError,
                             "test_publish_all_servers_bad",
                             "ran out of good servers",
-                            nm.create_mutable_file, MutableData("contents"))
+                            nm.create_mutable_file, MutableData(b"contents"))
         return d
 
     def test_publish_no_servers(self):
@@ -306,7 +316,7 @@ class Problems(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
         d = self.shouldFail(NotEnoughServersError,
                             "test_publish_no_servers",
                             "Ran out of non-bad servers",
-                            nm.create_mutable_file, MutableData("contents"))
+                            nm.create_mutable_file, MutableData(b"contents"))
         return d
 
 
@@ -322,7 +332,7 @@ class Problems(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
 
         # we need some contents that are large enough to push the privkey out
         # of the early part of the file
-        LARGE = "These are Larger contents" * 2000 # about 50KB
+        LARGE = b"These are Larger contents" * 2000 # about 50KB
         LARGE_uploadable = MutableData(LARGE)
         d = nm.create_mutable_file(LARGE_uploadable)
         def _created(n):
@@ -359,7 +369,7 @@ class Problems(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
         self.basedir = "mutable/Problems/test_privkey_query_missing"
         self.set_up_grid(num_servers=20)
         nm = self.g.clients[0].nodemaker
-        LARGE = "These are Larger contents" * 2000 # about 50KiB
+        LARGE = b"These are Larger contents" * 2000 # about 50KiB
         LARGE_uploadable = MutableData(LARGE)
         nm._node_cache = DevNullDictionary() # disable the nodecache
 
@@ -385,7 +395,7 @@ class Problems(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
         self.basedir = "mutable/Problems/test_block_and_hash_query_error"
         self.set_up_grid(num_servers=20)
         nm = self.g.clients[0].nodemaker
-        CONTENTS = "contents" * 2000
+        CONTENTS = b"contents" * 2000
         CONTENTS_uploadable = MutableData(CONTENTS)
         d = nm.create_mutable_file(CONTENTS_uploadable)
         def _created(node):
@@ -451,9 +461,9 @@ class Problems(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
         return d
 
 
-TEST_1654_CAP = "URI:SSK:6jthysgozssjnagqlcxjq7recm:yxawei54fmf2ijkrvs2shs6iey4kpdp6joi7brj2vrva6sp5nf3a"
+TEST_1654_CAP = b"URI:SSK:6jthysgozssjnagqlcxjq7recm:yxawei54fmf2ijkrvs2shs6iey4kpdp6joi7brj2vrva6sp5nf3a"
 
-TEST_1654_SH0 = """\
+TEST_1654_SH0 = b"""\
 VGFob2UgbXV0YWJsZSBjb250YWluZXIgdjEKdQlEA46m9s5j6lnzsOHytBTs2JOo
 AkWe8058hyrDa8igfBSqZMKO3aDOrFuRVt0ySYZ6oihFqPJRAAAAAAAAB8YAAAAA
 AAAJmgAAAAFPNgDkK8brSCzKz6n8HFqzbnAlALvnaB0Qpa1Bjo9jiZdmeMyneHR+
@@ -507,7 +517,7 @@ TStXB+q0MndBXw5ADp/Jac1DVaSWruVAdjemQ+si1olk8xH+uTMXU7PgV9WkpIiy
 bQHi/oRGA1aHSn84SIt+HpAfRoVdr4N90bYWmYQNqfKoyWCbEr+dge/GSD1nddAJ
 72mXGlqyLyWYuAAAAAA="""
 
-TEST_1654_SH1 = """\
+TEST_1654_SH1 = b"""\
 VGFob2UgbXV0YWJsZSBjb250YWluZXIgdjEKdQlEA45R4Y4kuV458rSTGDVTqdzz
 9Fig3NQ3LermyD+0XLeqbC7KNgvv6cNzMZ9psQQ3FseYsIR1AAAAAAAAB8YAAAAA
 AAAJmgAAAAFPNgDkd/Y9Z+cuKctZk9gjwF8thT+fkmNCsulILsJw5StGHAA1f7uL

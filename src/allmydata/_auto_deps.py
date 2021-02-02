@@ -1,3 +1,16 @@
+"""
+Ported to Python 3.
+"""
+
+from __future__ import unicode_literals
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+
 # Note: please minimize imports in this file. In particular, do not import
 # any module from Tahoe-LAFS or its dependencies, and do not import any
 # modules at all at global level. That includes setuptools and pkg_resources.
@@ -11,7 +24,6 @@ package_imports = [
     ('foolscap',         'foolscap'),
     ('zfec',             'zfec'),
     ('Twisted',          'twisted'),
-    ('Nevow',            'nevow'),
     ('zope.interface',   'zope.interface'),
     ('python',           None),
     ('platform',         None),
@@ -72,7 +84,6 @@ runtime_warning_messages = [
 ]
 
 warning_imports = [
-    'nevow',
     'twisted.persisted.sob',
     'twisted.python.filepath',
 ]

@@ -1,18 +1,29 @@
+"""
+Ported to Python 3.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+
 import re
-import json
 from allmydata.crypto.util import remove_prefix
 from allmydata.crypto import ed25519
-from allmydata.util import base32, rrefutil
+from allmydata.util import base32, rrefutil, jsonbytes as json
 
 
 def get_tubid_string_from_ann(ann):
-    return get_tubid_string(str(ann.get("anonymous-storage-FURL")
-                                or ann.get("FURL")))
+    furl = ann.get("anonymous-storage-FURL") or ann.get("FURL")
+    return get_tubid_string(furl)
 
 def get_tubid_string(furl):
     m = re.match(r'pb://(\w+)@', furl)
     assert m
-    return m.group(1).lower()
+    return m.group(1).lower().encode("ascii")
 
 
 def sign_to_foolscap(announcement, signing_key):

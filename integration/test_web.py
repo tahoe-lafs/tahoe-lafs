@@ -9,20 +9,15 @@ WebAPI *should* do in every situation. It's not clear the latter
 exists anywhere, however.
 """
 
-import sys
 import time
-import shutil
 import json
 import urllib2
-from os import mkdir, unlink, utime
-from os.path import join, exists, getmtime
 
 import allmydata.uri
 
 import util
 
 import requests
-import pytest_twisted
 import html5lib
 from bs4 import BeautifulSoup
 
@@ -132,12 +127,12 @@ def test_deep_stats(alice):
         dircap_uri,
         data={
             u"t": u"upload",
-            u"when_done": u".",
         },
         files={
             u"file": FILE_CONTENTS,
         },
     )
+    resp.raise_for_status()
 
     # confirm the file is in the directory
     resp = requests.get(
@@ -180,6 +175,7 @@ def test_deep_stats(alice):
         time.sleep(.5)
 
 
+@util.run_in_thread
 def test_status(alice):
     """
     confirm we get something sensible from /status and the various sub-types
@@ -265,7 +261,8 @@ def test_directory_deep_check(alice):
         dircap_url,
         params={u"t": u"json"},
     )
-    dir_meta = json.loads(resp.content)
+    # Just verify it is valid JSON.
+    json.loads(resp.content)
 
     # upload a file of pangrams into the directory
     FILE_CONTENTS = u"Sphinx of black quartz, judge my vow.\n" * (2048*10)

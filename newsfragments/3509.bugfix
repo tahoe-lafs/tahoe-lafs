@@ -1,0 +1,1 @@
+Fix regression that broke flogtool results on Python 2.

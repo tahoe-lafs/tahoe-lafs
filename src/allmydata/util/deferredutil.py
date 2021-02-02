@@ -15,7 +15,18 @@ if PY2:
 
 import time
 
+try:
+    from typing import (
+        Callable,
+        Any,
+    )
+except ImportError:
+    pass
+
 from foolscap.api import eventually
+from eliot.twisted import (
+    inline_callbacks,
+)
 from twisted.internet import defer, reactor, error
 from twisted.python.failure import Failure
 
@@ -201,3 +212,22 @@ class WaitForDelayedCallsMixin(PollMixin):
         d.addErrback(log.err, "error while waiting for delayed calls")
         d.addBoth(lambda ign: res)
         return d
+
+@inline_callbacks
+def until(
+        action,     # type: Callable[[], defer.Deferred[Any]]
+        condition,  # type: Callable[[], bool]
+):
+    # type: (...) -> defer.Deferred[None]
+    """
+    Run a Deferred-returning function until a condition is true.
+
+    :param action: The action to run.
+    :param condition: The predicate signaling stop.
+
+    :return: A Deferred that fires after the condition signals stop.
+    """
+    while True:
+        yield action()
+        if condition():
+            break

@@ -1,3 +1,16 @@
+"""
+Ported to Python 3.
+"""
+
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+
 from twisted.trial import unittest
 from twisted.internet import defer
 from allmydata.monitor import Monitor
@@ -36,7 +49,7 @@ class Servermap(unittest.TestCase, PublishMixin):
         self.failUnlessEqual(sm.recoverable_versions(), set([best]))
         self.failUnlessEqual(len(sm.shares_available()), 1)
         self.failUnlessEqual(sm.shares_available()[best], (num_shares, 3, 10))
-        shnum, servers = sm.make_sharemap().items()[0]
+        shnum, servers = list(sm.make_sharemap().items())[0]
         server = list(servers)[0]
         self.failUnlessEqual(sm.version_on_server(server, shnum), best)
         self.failUnlessEqual(sm.version_on_server(server, 666), None)
@@ -83,7 +96,7 @@ class Servermap(unittest.TestCase, PublishMixin):
 
         # create a new file, which is large enough to knock the privkey out
         # of the early part of the file
-        LARGE = "These are Larger contents" * 200 # about 5KB
+        LARGE = b"These are Larger contents" * 200 # about 5KB
         LARGE_uploadable = MutableData(LARGE)
         d.addCallback(lambda res: self._nodemaker.create_mutable_file(LARGE_uploadable))
         def _created(large_fn):
@@ -112,7 +125,7 @@ class Servermap(unittest.TestCase, PublishMixin):
             for (shnum, server, timestamp) in shares:
                 if shnum < 5:
                     self._corrupted.add( (server, shnum) )
-                    sm.mark_bad_share(server, shnum, "")
+                    sm.mark_bad_share(server, shnum, b"")
             return self.update_servermap(sm, MODE_WRITE)
         d.addCallback(_made_map)
         def _check_map(sm):
@@ -160,7 +173,7 @@ class Servermap(unittest.TestCase, PublishMixin):
         best = sm.best_recoverable_version()
         self.failUnlessEqual(best, None)
         self.failUnlessEqual(len(sm.shares_available()), 1)
-        self.failUnlessEqual(sm.shares_available().values()[0], (2,3,10) )
+        self.failUnlessEqual(list(sm.shares_available().values())[0], (2,3,10) )
         return sm
 
     def test_not_quite_enough_shares(self):
@@ -218,7 +231,7 @@ class Servermap(unittest.TestCase, PublishMixin):
             # 10 shares
             self.failUnlessEqual(len(sm.update_data), 10)
             # one version
-            for data in sm.update_data.itervalues():
+            for data in sm.update_data.values():
                 self.failUnlessEqual(len(data), 1)
         d.addCallback(_check_servermap)
         return d

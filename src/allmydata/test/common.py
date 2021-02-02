@@ -11,6 +11,8 @@ __all__ = [
     "skipIf",
 ]
 
+from past.builtins import chr as byteschr, unicode
+
 import os, random, struct
 import six
 import tempfile
@@ -62,10 +64,16 @@ from twisted.internet.endpoints import AdoptedStreamServerEndpoint
 from twisted.trial.unittest import TestCase as _TrialTestCase
 
 from allmydata import uri
-from allmydata.interfaces import IMutableFileNode, IImmutableFileNode,\
-                                 NotEnoughSharesError, ICheckable, \
-                                 IMutableUploadable, SDMF_VERSION, \
-                                 MDMF_VERSION
+from allmydata.interfaces import (
+    IMutableFileNode,
+    IImmutableFileNode,
+    NotEnoughSharesError,
+    ICheckable,
+    IMutableUploadable,
+    SDMF_VERSION,
+    MDMF_VERSION,
+    IAddressFamily,
+)
 from allmydata.check_results import CheckResults, CheckAndRepairResults, \
      DeepCheckResults, DeepCheckAndRepairResults
 from allmydata.storage_client import StubServer
@@ -81,6 +89,9 @@ from allmydata.client import (
     config_from_string,
     create_client_from_config,
 )
+from allmydata.scripts.common import (
+    write_introducer,
+    )
 
 from ..crypto import (
     ed25519,
@@ -110,7 +121,6 @@ class MemoryIntroducerClient(object):
     nickname = attr.ib()
     my_version = attr.ib()
     oldest_supported = attr.ib()
-    app_versions = attr.ib()
     sequencer = attr.ib()
     cache_filepath = attr.ib()
 
@@ -212,7 +222,7 @@ class UseNode(object):
 
     :ivar FilePath basedir: The base directory of the node.
 
-    :ivar bytes introducer_furl: The introducer furl with which to
+    :ivar str introducer_furl: The introducer furl with which to
         configure the client.
 
     :ivar dict[bytes, bytes] node_config: Configuration items for the *node*
@@ -222,24 +232,25 @@ class UseNode(object):
     """
     plugin_config = attr.ib()
     storage_plugin = attr.ib()
-    basedir = attr.ib()
-    introducer_furl = attr.ib()
+    basedir = attr.ib(validator=attr.validators.instance_of(FilePath))
+    introducer_furl = attr.ib(validator=attr.validators.instance_of(str),
+                              converter=six.ensure_str)
     node_config = attr.ib(default=attr.Factory(dict))
 
     config = attr.ib(default=None)
 
     def setUp(self):
         def format_config_items(config):
-            return b"\n".join(
-                b" = ".join((key, value))
+            return "\n".join(
+                " = ".join((key, value))
                 for (key, value)
                 in config.items()
             )
 
         if self.plugin_config is None:
-            plugin_config_section = b""
+            plugin_config_section = ""
         else:
-            plugin_config_section = b"""
+            plugin_config_section = """
 [storageclient.plugins.{storage_plugin}]
 {config}
 """.format(
@@ -247,6 +258,11 @@ class UseNode(object):
     config=format_config_items(self.plugin_config),
 )
 
+        write_introducer(
+            self.basedir,
+            "default",
+            self.introducer_furl,
+        )
         self.config = config_from_string(
             self.basedir.asTextMode().path,
             "tub.port",
@@ -255,11 +271,9 @@ class UseNode(object):
 {node_config}
 
 [client]
-introducer.furl = {furl}
 storage.plugins = {storage_plugin}
 {plugin_config_section}
 """.format(
-    furl=self.introducer_furl,
     storage_plugin=self.storage_plugin,
     node_config=format_config_items(self.node_config),
     plugin_config_section=plugin_config_section,
@@ -392,7 +406,7 @@ class DummyProducer(object):
         pass
 
 @implementer(IImmutableFileNode)
-class FakeCHKFileNode(object):
+class FakeCHKFileNode(object):  # type: ignore # incomplete implementation
     """I provide IImmutableFileNode, but all of my data is stored in a
     class-level dictionary."""
 
@@ -530,7 +544,7 @@ def create_chk_filenode(contents, all_contents):
 
 
 @implementer(IMutableFileNode, ICheckable)
-class FakeMutableFileNode(object):
+class FakeMutableFileNode(object):  # type: ignore # incomplete implementation
     """I provide IMutableFileNode, but all of my data is stored in a
     class-level dictionary."""
 
@@ -811,13 +825,18 @@ class WebErrorMixin(object):
                         code=None, substring=None, response_substring=None,
                         callable=None, *args, **kwargs):
         # returns a Deferred with the response body
-        assert substring is None or isinstance(substring, str)
+        if isinstance(substring, bytes):
+            substring = unicode(substring, "ascii")
+        if isinstance(response_substring, unicode):
+            response_substring = response_substring.encode("ascii")
+        assert substring is None or isinstance(substring, unicode)
+        assert response_substring is None or isinstance(response_substring, bytes)
         assert callable
         def _validate(f):
             if code is not None:
-                self.failUnlessEqual(f.value.status, str(code), which)
+                self.failUnlessEqual(f.value.status, b"%d" % code, which)
             if substring:
-                code_string = str(f)
+                code_string = unicode(f)
                 self.failUnless(substring in code_string,
                                 "%s: substring '%s' not in '%s'"
                                 % (which, substring, code_string))
@@ -1051,7 +1070,7 @@ def _corrupt_share_data_last_byte(data, debug=False):
         sharedatasize = struct.unpack(">Q", data[0x0c+0x08:0x0c+0x0c+8])[0]
         offset = 0x0c+0x44+sharedatasize-1
 
-    newdata = data[:offset] + chr(ord(data[offset])^0xFF) + data[offset+1:]
+    newdata = data[:offset] + byteschr(ord(data[offset:offset+1])^0xFF) + data[offset+1:]
     if debug:
         log.msg("testing: flipping all bits of byte at offset %d: %r, newdata: %r" % (offset, data[offset], newdata[offset]))
     return newdata
@@ -1079,7 +1098,7 @@ def _corrupt_crypttext_hash_tree_byte_x221(data, debug=False):
     assert sharevernum in (1, 2), "This test is designed to corrupt immutable shares of v1 or v2 in specific ways."
     if debug:
         log.msg("original data: %r" % (data,))
-    return data[:0x0c+0x221] + chr(ord(data[0x0c+0x221])^0x02) + data[0x0c+0x2210+1:]
+    return data[:0x0c+0x221] + byteschr(ord(data[0x0c+0x221:0x0c+0x221+1])^0x02) + data[0x0c+0x2210+1:]
 
 def _corrupt_block_hashes(data, debug=False):
     """Scramble the file data -- the field containing the block hash tree
@@ -1139,6 +1158,28 @@ def _corrupt_uri_extension(data, debug=False):
     return corrupt_field(data, 0x0c+uriextoffset, uriextlen)
 
 
+
+@attr.s
+@implementer(IAddressFamily)
+class ConstantAddresses(object):
+    """
+    Pretend to provide support for some address family but just hand out
+    canned responses.
+    """
+    _listener = attr.ib(default=None)
+    _handler = attr.ib(default=None)
+
+    def get_listener(self):
+        if self._listener is None:
+            raise Exception("{!r} has no listener.")
+        return self._listener
+
+    def get_client_endpoint(self):
+        if self._handler is None:
+            raise Exception("{!r} has no client endpoint.")
+        return self._handler
+
+
 class _TestCaseMixin(object):
     """
     A mixin for ``TestCase`` which collects helpful behaviors for subclasses.
@@ -1151,8 +1192,9 @@ class _TestCaseMixin(object):
       test (including setUp and tearDown messages).
     * trial-compatible mktemp method
     * unittest2-compatible assertRaises helper
-    * Automatic cleanup of tempfile.tempdir mutation (pervasive through the
-      Tahoe-LAFS test suite).
+    * Automatic cleanup of tempfile.tempdir mutation (once pervasive through
+      the Tahoe-LAFS test suite, perhaps gone now but someone should verify
+      this).
     """
     def setUp(self):
         # Restore the original temporary directory.  Node ``init_tempdir``

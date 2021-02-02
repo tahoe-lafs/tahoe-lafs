@@ -14,3 +14,14 @@ branch = True
 [report]
 show_missing = True
 skip_covered = True
+
+[paths]
+source =
+# It looks like this in the checkout
+    src/
+# It looks like this in the Windows build environment
+    D:/a/tahoe-lafs/tahoe-lafs/.tox/py*-coverage/Lib/site-packages/
+# Although sometimes it looks like this instead.  Also it looks like this on macOS.
+    .tox/py*-coverage/lib/python*/site-packages/
+# On some Linux CI jobs it looks like this
+    /tmp/tahoe-lafs.tox/py*-coverage/lib/python*/site-packages/

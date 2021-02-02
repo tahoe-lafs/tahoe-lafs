@@ -1,8 +1,24 @@
-from mock import Mock
+"""
+Ported to Python 3.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 import time
 
-from bs4 import BeautifulSoup
+from urllib.parse import (
+    quote,
+)
+
+from bs4 import (
+    BeautifulSoup,
+)
 
 from twisted.trial import unittest
 from twisted.web.template import Tag
@@ -18,13 +34,12 @@ from ...util.connection_status import ConnectionStatus
 from allmydata.web.root import URIHandler
 from allmydata.client import _Client
 
-from hypothesis import given
-from hypothesis.strategies import text
-
 from .common import (
-    assert_soup_has_tag_with_content,
+    assert_soup_has_tag_with_attributes,
 )
-
+from ..common_web import (
+    render,
+)
 from ..common import (
     EMPTY_CLIENT_CONFIG,
 )
@@ -36,65 +51,45 @@ class RenderSlashUri(unittest.TestCase):
     """
 
     def setUp(self):
-        self.request = DummyRequest(b"/uri")
-        self.request.fields = {}
-
-        def prepathURL():
-            return b"http://127.0.0.1.99999/" + b"/".join(self.request.prepath)
-
-        self.request.prePathURL = prepathURL
-        self.client = Mock()
+        self.client = object()
         self.res = URIHandler(self.client)
 
-    def test_valid(self):
+    def test_valid_query_redirect(self):
         """
-        A valid capbility does not result in error
+        A syntactically valid capability given in the ``uri`` query argument
+        results in a redirect.
         """
-        self.request.args[b"uri"] = [(
+        cap = (
             b"URI:CHK:nt2xxmrccp7sursd6yh2thhcky:"
             b"mukesarwdjxiyqsjinbfiiro6q7kgmmekocxfjcngh23oxwyxtzq:2:5:5874882"
-        )]
-        self.res.render_GET(self.request)
+        )
+        query_args = {b"uri": [cap]}
+        response_body = self.successResultOf(
+            render(self.res, query_args),
+        )
+        soup = BeautifulSoup(response_body, 'html5lib')
+        tag = assert_soup_has_tag_with_attributes(
+            self,
+            soup,
+            u"meta",
+            {u"http-equiv": "refresh"},
+        )
+        self.assertIn(
+            quote(cap, safe=""),
+            tag.attrs.get(u"content"),
+        )
 
     def test_invalid(self):
         """
-        A (trivially) invalid capbility is an error
+        A syntactically invalid capbility results in an error.
         """
-        self.request.args[b"uri"] = [b"not a capability"]
-        response_body = self.res.render_GET(self.request)
-
-        soup = BeautifulSoup(response_body, 'html5lib')
-
-        assert_soup_has_tag_with_content(
-            self, soup, "title", "400 - Error",
+        query_args = {b"uri": [b"not a capability"]}
+        response_body = self.successResultOf(
+            render(self.res, query_args),
         )
-        assert_soup_has_tag_with_content(
-            self, soup, "h1", "Error",
-        )
-        assert_soup_has_tag_with_content(
-            self, soup, "p", "Invalid capability",
-        )
-
-    @given(
-        text()
-    )
-    def test_hypothesis_error_caps(self, cap):
-        """
-        Let hypothesis try a bunch of invalid capabilities
-        """
-        self.request.args[b"uri"] = [cap.encode('utf8')]
-        response_body = self.res.render_GET(self.request)
-
-        soup = BeautifulSoup(response_body, 'html5lib')
-
-        assert_soup_has_tag_with_content(
-            self, soup, "title", "400 - Error",
-        )
-        assert_soup_has_tag_with_content(
-            self, soup, "h1", "Error",
-        )
-        assert_soup_has_tag_with_content(
-            self, soup, "p", "Invalid capability",
+        self.assertEqual(
+            response_body,
+            b"Invalid capability",
         )
 
 
@@ -109,7 +104,7 @@ class RenderServiceRow(unittest.TestCase):
         ann = {"anonymous-storage-FURL": "pb://w2hqnbaa25yw4qgcvghl5psa3srpfgw3@tcp:127.0.0.1:51309/vucto2z4fxment3vfxbqecblbf6zyp6x",
                "permutation-seed-base32": "w2hqnbaa25yw4qgcvghl5psa3srpfgw3",
                }
-        srv = NativeStorageServer("server_id", ann, None, {}, EMPTY_CLIENT_CONFIG)
+        srv = NativeStorageServer(b"server_id", ann, None, {}, EMPTY_CLIENT_CONFIG)
         srv.get_connection_status = lambda: ConnectionStatus(False, "summary", {}, 0, 0)
 
         class FakeClient(_Client):
@@ -120,7 +115,7 @@ class RenderServiceRow(unittest.TestCase):
                     tub_maker=None,
                     node_config=EMPTY_CLIENT_CONFIG,
                 )
-                self.storage_broker.test_add_server("test-srv", srv)
+                self.storage_broker.test_add_server(b"test-srv", srv)
 
         root = RootElement(FakeClient(), time.time)
         req = DummyRequest(b"")

@@ -3,13 +3,27 @@ from __future__ import print_function
 import os
 import json
 
+try:
+    from allmydata.scripts.types_ import SubCommands
+except ImportError:
+    pass
+
 from twisted.internet import reactor, defer
 from twisted.python.usage import UsageError
-from allmydata.scripts.common import BasedirOptions, NoDefaultBasedirOptions
+from twisted.python.filepath import (
+    FilePath,
+)
+
+from allmydata.scripts.common import (
+    BasedirOptions,
+    NoDefaultBasedirOptions,
+    write_introducer,
+)
 from allmydata.scripts.default_nodedir import _default_nodedir
 from allmydata.util.assertutil import precondition
 from allmydata.util.encodingutil import listdir_unicode, argv_to_unicode, quote_local_unicode_path, get_io_encoding
 from allmydata.util import fileutil, i2p_provider, iputil, tor_provider
+
 from wormhole import wormhole
 
 
@@ -299,14 +313,16 @@ def write_node_config(c, config):
 
 
 def write_client_config(c, config):
-    # note, config can be a plain dict, it seems -- see
-    # test_configutil.py in test_create_client_config
+    introducer = config.get("introducer", None)
+    if introducer is not None:
+        write_introducer(
+            FilePath(config["basedir"]),
+            "default",
+            introducer,
+        )
+
     c.write("[client]\n")
-    c.write("# Which services should this client connect to?\n")
-    introducer = config.get("introducer", None) or ""
-    c.write("introducer.furl = %s\n" % introducer)
     c.write("helper.furl =\n")
-    c.write("#stats_gatherer.furl =\n")
     c.write("\n")
     c.write("# Encoding parameters this client will use for newly-uploaded files\n")
     c.write("# This can be changed at any time: the encoding is saved in\n")
@@ -437,8 +453,11 @@ def create_node(config):
 
     print("Node created in %s" % quote_local_unicode_path(basedir), file=out)
     tahoe_cfg = quote_local_unicode_path(os.path.join(basedir, "tahoe.cfg"))
+    introducers_yaml = quote_local_unicode_path(
+        os.path.join(basedir, "private", "introducers.yaml"),
+    )
     if not config.get("introducer", ""):
-        print(" Please set [client]introducer.furl= in %s!" % tahoe_cfg, file=out)
+        print(" Please add introducers to %s!" % (introducers_yaml,), file=out)
         print(" The node cannot connect to a grid without it.", file=out)
     if not config.get("nickname", ""):
         print(" Please set [node]nickname= in %s" % tahoe_cfg, file=out)
@@ -478,10 +497,10 @@ def create_introducer(config):
 
 
 subCommands = [
-    ["create-node", None, CreateNodeOptions, "Create a node that acts as a client, server or both."],
-    ["create-client", None, CreateClientOptions, "Create a client node (with storage initially disabled)."],
-    ["create-introducer", None, CreateIntroducerOptions, "Create an introducer node."],
-]
+    ("create-node", None, CreateNodeOptions, "Create a node that acts as a client, server or both."),
+    ("create-client", None, CreateClientOptions, "Create a client node (with storage initially disabled)."),
+    ("create-introducer", None, CreateIntroducerOptions, "Create an introducer node."),
+]  # type: SubCommands
 
 dispatch = {
     "create-node": create_node,

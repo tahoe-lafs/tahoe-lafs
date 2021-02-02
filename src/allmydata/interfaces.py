@@ -521,7 +521,6 @@ class IStorageBroker(Interface):
           oldest_supported: the peer's oldest supported version, same
 
           rref: the RemoteReference, if connected, otherwise None
-          remote_host: the IAddress, if connected, otherwise None
 
         This method is intended for monitoring interfaces, such as a web page
         that describes connecting and connected peers.
@@ -682,7 +681,7 @@ class IURI(Interface):
         passing into init_from_string."""
 
 
-class IVerifierURI(Interface, IURI):
+class IVerifierURI(IURI):
     def init_from_string(uri):
         """Accept a string (as created by my to_string() method) and populate
         this instance with its data. I am not normally called directly,
@@ -749,7 +748,7 @@ class IProgress(Interface):
         "Current amount of progress (in percentage)"
     )
 
-    def set_progress(self, value):
+    def set_progress(value):
         """
         Sets the current amount of progress.
 
@@ -757,7 +756,7 @@ class IProgress(Interface):
         set_progress_total.
         """
 
-    def set_progress_total(self, value):
+    def set_progress_total(value):
         """
         Sets the total amount of expected progress
 
@@ -858,12 +857,6 @@ class IPeerSelector(Interface):
         Update my internal state to reflect the fact that peer peerid
         holds share shnum. Called for shares that are detected before
         peer selection begins.
-        """
-
-    def confirm_share_allocation(peerid, shnum):
-        """
-        Confirm that an allocated peer=>share pairing has been
-        successfully established.
         """
 
     def add_peers(peerids=set):
@@ -1824,11 +1817,6 @@ class IEncoder(Interface):
     given a dict of RemoteReferences to storage buckets that are ready and
     willing to receive data.
     """
-
-    def set_size(size):
-        """Specify the number of bytes that will be encoded. This must be
-        peformed before get_serialized_params() can be called.
-        """
 
     def set_encrypted_uploadable(u):
         """Provide a source of encrypted upload data. 'u' must implement
@@ -2932,38 +2920,6 @@ class RIHelper(RemoteInterface):
         return (UploadResults, ChoiceOf(RICHKUploadHelper, None))
 
 
-class RIStatsProvider(RemoteInterface):
-    __remote_name__ = native_str("RIStatsProvider.tahoe.allmydata.com")
-    """
-    Provides access to statistics and monitoring information.
-    """
-
-    def get_stats():
-        """
-        returns a dictionary containing 'counters' and 'stats', each a
-        dictionary with string counter/stat name keys, and numeric or None values.
-        counters are monotonically increasing measures of work done, and
-        stats are instantaneous measures (potentially time averaged
-        internally)
-        """
-        return DictOf(bytes, DictOf(bytes, ChoiceOf(float, int, long, None)))
-
-
-class RIStatsGatherer(RemoteInterface):
-    __remote_name__ = native_str("RIStatsGatherer.tahoe.allmydata.com")
-    """
-    Provides a monitoring service for centralised collection of stats
-    """
-
-    def provide(provider=RIStatsProvider, nickname=bytes):
-        """
-        @param provider: a stats collector instance that should be polled
-                         periodically by the gatherer to collect stats.
-        @param nickname: a name useful to identify the provided client
-        """
-        return None
-
-
 class IStatsProducer(Interface):
     def get_stats():
         """
@@ -3174,3 +3130,24 @@ class IAnnounceableStorageServer(Interface):
         :type: ``IReferenceable`` provider
         """
     )
+
+
+class IAddressFamily(Interface):
+    """
+    Support for one specific address family.
+
+    This stretches the definition of address family to include things like Tor
+    and I2P.
+    """
+    def get_listener():
+        """
+        Return a string endpoint description or an ``IStreamServerEndpoint``.
+
+        This would be named ``get_server_endpoint`` if not for historical
+        reasons.
+        """
+
+    def get_client_endpoint():
+        """
+        Return an ``IStreamClientEndpoint``.
+        """
