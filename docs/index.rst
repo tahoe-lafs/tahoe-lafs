@@ -23,8 +23,9 @@ Contents:
    frontends/download-status
 
    known_issues
-   ../.github/CONTRIBUTING
+   contributing
    CODE_OF_CONDUCT
+   release-checklist
 
    servers
    managed-grid
