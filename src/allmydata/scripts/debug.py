@@ -645,7 +645,7 @@ def find_shares(options):
     from allmydata.util.encodingutil import listdir_unicode, quote_local_unicode_path
 
     out = options.stdout
-    sharedir = storage_index_to_dir(si_a2b(options.si_s))
+    sharedir = storage_index_to_dir(si_a2b(options.si_s.encode("utf-8")))
     for d in options.nodedirs:
         d = os.path.join(d, "storage", "shares", sharedir)
         if os.path.exists(d):

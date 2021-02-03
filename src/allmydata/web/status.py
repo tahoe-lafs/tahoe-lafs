@@ -1,6 +1,5 @@
 from past.builtins import long, unicode
 
-import pprint
 import itertools
 import hashlib
 from twisted.internet import defer
@@ -61,7 +60,7 @@ class UploadResultsRendererMixin(Element):
                 return "None"
             ul = tags.ul()
             for shnum, servers in sorted(sharemap.items()):
-                server_names = ', '.join([s.get_name() for s in servers])
+                server_names = ', '.join([unicode(s.get_name(), "utf-8") for s in servers])
                 ul(tags.li("%d -> placed on [%s]" % (shnum, server_names)))
             return ul
         d.addCallback(_render)
@@ -75,7 +74,7 @@ class UploadResultsRendererMixin(Element):
             if servermap is None:
                 return "None"
             ul = tags.ul()
-            for server, shnums in sorted(servermap.items()):
+            for server, shnums in sorted(servermap.items(), key=id):
                 shares_s = ",".join(["#%d" % shnum for shnum in shnums])
                 ul(tags.li("[%s] got share%s: %s" % (server.get_name(),
                                                      plural(shnums), shares_s)))
@@ -1595,5 +1594,5 @@ class StatisticsElement(Element):
 
     @renderer
     def raw(self, req, tag):
-        raw = pprint.pformat(self._stats)
+        raw = json.dumps(self._stats, sort_keys=True, indent=4)
         return tag(raw)
