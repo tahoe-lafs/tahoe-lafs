@@ -491,12 +491,16 @@ class JSONBytes(unittest.TestCase):
     """Tests for BytesJSONEncoder."""
 
     def test_encode_bytes(self):
-        """BytesJSONEncoder can encode bytes."""
+        """BytesJSONEncoder can encode bytes.
+
+        Bytes are presumed to be UTF-8 encoded.
+        """
+        snowman = u"def\N{SNOWMAN}\uFF00"
         data = {
-            b"hello": [1, b"cd", {b"abc": 123}],
+            b"hello": [1, b"cd", {b"abc": [123, snowman.encode("utf-8")]}],
         }
         expected = {
-            u"hello": [1, u"cd", {u"abc": 123}],
+            u"hello": [1, u"cd", {u"abc": [123, snowman]}],
         }
         # Bytes get passed through as if they were UTF-8 Unicode:
         encoded = jsonbytes.dumps(data)
