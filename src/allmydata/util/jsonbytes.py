@@ -17,7 +17,7 @@ import json
 
 
 def _bytes_to_unicode(obj):
-    """Convert keys of dicts from bytes to unicode, recursively."""
+    """Convert any bytes objects to unicode, recursively."""
     if isinstance(obj, bytes):
         return obj.decode("utf-8")
     if isinstance(obj, dict):
