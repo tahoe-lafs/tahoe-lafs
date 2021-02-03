@@ -9,7 +9,7 @@ from twisted.web.template import (
     renderer,
     renderElement
 )
-from allmydata.web.common_py3 import (
+from allmydata.web.common import (
     abbreviate_time,
     MultiFormatResource
 )
