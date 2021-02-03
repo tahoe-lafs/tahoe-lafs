@@ -60,12 +60,13 @@ else:
         enables setting the filename not via the MIME filename, but via a
         separate field called "name".
 
-        Thus we need to do this ridiculous workaround.
+        Thus we need to do this ridiculous workaround.  Mypy doesn't like it
+        either, thus the ``# type: ignore`` below.
 
         Source for idea:
         https://mail.python.org/pipermail/python-dev/2017-February/147402.html
         """
-        @property
+        @property  # type: ignore
         def filename(self):
             if self.name == "file" and not self._mime_filename:
                 # We use the file field to upload files, see directory.py's
