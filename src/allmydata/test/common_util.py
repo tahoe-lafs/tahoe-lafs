@@ -203,7 +203,10 @@ def flip_one_bit(s, offset=0, size=None):
 class ReallyEqualMixin(object):
     def failUnlessReallyEqual(self, a, b, msg=None):
         self.assertEqual(a, b, msg)
-        # Make sure unicode strings are a consistent type:
+        # Make sure unicode strings are a consistent type. Specifically there's
+        # Future newstr (backported Unicode type) vs. Python 2 native unicode
+        # type. They're equal, and _logically_ the same type, but have
+        # different types in practice.
         if a.__class__ == future_str:
             a = unicode(a)
         if b.__class__ == future_str:
