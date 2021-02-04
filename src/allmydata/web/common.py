@@ -1,8 +1,20 @@
-from past.builtins import unicode
-from six import ensure_text, ensure_str
+"""
+Ported to Python 3.
+"""
+from __future__ import division
+from __future__ import absolute_import
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, max, min  # noqa: F401
+    from past.builtins import unicode as str  # prevent leaking newbytes/newstr into code that can't handle it
+
+from six import ensure_str
 
 try:
-    from typing import Optional, Union
+    from typing import Optional, Union, Tuple, Any
 except ImportError:
     pass
 
@@ -165,7 +177,7 @@ def parse_offset_arg(offset):  # type: (bytes) -> Union[int,None]
     return offset
 
 
-def get_root(req):  # type: (IRequest) -> unicode
+def get_root(req):  # type: (IRequest) -> str
     """
     Get a relative path with parent directory segments that refers to the root
     location known to the given request.  This seems a lot like the constant
@@ -194,8 +206,8 @@ def convert_children_json(nodemaker, children_json):
     children = {}
     if children_json:
         data = json.loads(children_json)
-        for (namex, (ctype, propdict)) in data.items():
-            namex = unicode(namex)
+        for (namex, (ctype, propdict)) in list(data.items()):
+            namex = str(namex)
             writecap = to_bytes(propdict.get("rw_uri"))
             readcap = to_bytes(propdict.get("ro_uri"))
             metadata = propdict.get("metadata", {})
@@ -216,7 +228,8 @@ def compute_rate(bytes, seconds):
     assert bytes > -1
     assert seconds > 0
 
-    return 1.0 * bytes / seconds
+    return bytes / seconds
+
 
 def abbreviate_rate(data):
     """
@@ -236,6 +249,7 @@ def abbreviate_rate(data):
     if r > 1000:
         return u"%.1fkBps" % (r/1000)
     return u"%.0fBps" % r
+
 
 def abbreviate_size(data):
     """
@@ -273,7 +287,7 @@ def text_plain(text, req):
     return text
 
 def spaces_to_nbsp(text):
-    return unicode(text).replace(u' ', u'\u00A0')
+    return str(text).replace(u' ', u'\u00A0')
 
 def render_time_delta(time_1, time_2):
     return spaces_to_nbsp(format_delta(time_1, time_2))
@@ -291,7 +305,7 @@ def render_time_attr(t):
 # actual exception). The latter is growing increasingly annoying.
 
 def should_create_intermediate_directories(req):
-    t = unicode(get_arg(req, "t", "").strip(), "ascii")
+    t = str(get_arg(req, "t", "").strip(), "ascii")
     return bool(req.method in (b"PUT", b"POST") and
                 t not in ("delete", "rename", "rename-form", "check"))
 
@@ -573,7 +587,7 @@ def _finish(result, render, request):
             resource=fullyQualifiedName(type(result)),
         )
         result.render(request)
-    elif isinstance(result, unicode):
+    elif isinstance(result, str):
         Message.log(
             message_type=u"allmydata:web:common-render:unicode",
         )
@@ -655,7 +669,7 @@ def _renderHTTP_exception(request, failure):
 def _renderHTTP_exception_simple(request, text, code):
     request.setResponseCode(code)
     request.setHeader("content-type", "text/plain;charset=utf-8")
-    if isinstance(text, unicode):
+    if isinstance(text, str):
         text = text.encode("utf-8")
     request.setHeader("content-length", b"%d" % len(text))
     return text
@@ -699,7 +713,7 @@ def url_for_string(req, url_string):
     return url
 
 
-def get_arg(req, argname, default=None, multiple=False):  # type (IRequest, Union[bytes,unicode], Any, bool) -> Union[bytes,Tuple[bytes]]
+def get_arg(req, argname, default=None, multiple=False):  # type: (IRequest, Union[bytes,str], Any, bool) -> Union[bytes,Tuple[bytes],Any]
     """Extract an argument from either the query args (req.args) or the form
     body fields (req.fields). If multiple=False, this returns a single value
     (or the default, which defaults to None), and the query args take
@@ -710,17 +724,17 @@ def get_arg(req, argname, default=None, multiple=False):  # type (IRequest, Unio
 
     :return: Either bytes or tuple of bytes.
     """
-    if isinstance(argname, unicode):
+    if isinstance(argname, str):
         argname = argname.encode("utf-8")
-    if isinstance(default, unicode):
+    if isinstance(default, str):
         default = default.encode("utf-8")
     results = []
     if argname in req.args:
         results.extend(req.args[argname])
-    argname_unicode = unicode(argname, "utf-8")
+    argname_unicode = str(argname, "utf-8")
     if req.fields and argname_unicode in req.fields:
         value = req.fields[argname_unicode].value
-        if isinstance(value, unicode):
+        if isinstance(value, str):
             value = value.encode("utf-8")
         results.append(value)
     if multiple:
@@ -758,13 +772,13 @@ class MultiFormatResource(resource.Resource, object):
         t = get_arg(req, self.formatArgument, self.formatDefault)
         # It's either bytes or None.
         if isinstance(t, bytes):
-            t = unicode(t, "ascii")
+            t = str(t, "ascii")
         renderer = self._get_renderer(t)
         result = renderer(req)
         # On Python 3, json.dumps() returns Unicode for example, but
         # twisted.web expects bytes. Instead of updating every single render
         # method, just handle Unicode one time here.
-        if isinstance(result, unicode):
+        if isinstance(result, str):
             result = result.encode("utf-8")
         return result
 
