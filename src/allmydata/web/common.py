@@ -2,7 +2,7 @@ from past.builtins import unicode
 from six import ensure_text, ensure_str
 
 try:
-    from typing import Optional
+    from typing import Optional, Union
 except ImportError:
     pass
 
@@ -56,6 +56,7 @@ from twisted.web.resource import (
     IResource,
 )
 
+from allmydata.dirnode import ONLY_FILES, _OnlyFiles
 from allmydata import blacklist
 from allmydata.interfaces import (
     EmptyPathnameComponentError,
@@ -105,17 +106,17 @@ def get_filenode_metadata(filenode):
         metadata['size'] = size
     return metadata
 
-def boolean_of_arg(arg):
-    # TODO: ""
-    arg = ensure_text(arg)
-    if arg.lower() not in ("true", "t", "1", "false", "f", "0", "on", "off"):
+def boolean_of_arg(arg):  # type: (bytes) -> bool
+    assert isinstance(arg, bytes)
+    if arg.lower() not in (b"true", b"t", b"1", b"false", b"f", b"0", b"on", b"off"):
         raise WebError("invalid boolean argument: %r" % (arg,), http.BAD_REQUEST)
-    return arg.lower() in ("true", "t", "1", "on")
+    return arg.lower() in (b"true", b"t", b"1", b"on")
 
-def parse_replace_arg(replace):
-    replace = ensure_text(replace)
-    if replace.lower() == "only-files":
-        return replace
+
+def parse_replace_arg(replace):  # type: (bytes) -> Union[bool,_OnlyFiles]
+    assert isinstance(replace, bytes)
+    if replace.lower() == b"only-files":
+        return ONLY_FILES
     try:
         return boolean_of_arg(replace)
     except WebError:
