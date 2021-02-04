@@ -153,19 +153,19 @@ def get_mutable_type(file_format): # accepts result of get_format()
         return None
 
 
-def parse_offset_arg(offset):
+def parse_offset_arg(offset):  # type: (bytes) -> Union[int,None]
     # XXX: This will raise a ValueError when invoked on something that
     # is not an integer. Is that okay? Or do we want a better error
     # message? Since this call is going to be used by programmers and
     # their tools rather than users (through the wui), it is not
     # inconsistent to return that, I guess.
     if offset is not None:
-        offset = int(offset)
+        return int(offset)
 
     return offset
 
 
-def get_root(req):
+def get_root(req):  # type: (IRequest) -> unicode
     """
     Get a relative path with parent directory segments that refers to the root
     location known to the given request.  This seems a lot like the constant
@@ -699,7 +699,7 @@ def url_for_string(req, url_string):
     return url
 
 
-def get_arg(req, argname, default=None, multiple=False):
+def get_arg(req, argname, default=None, multiple=False):  # type (IRequest, Union[bytes,unicode], Any, bool) -> Union[bytes,Tuple[bytes]]
     """Extract an argument from either the query args (req.args) or the form
     body fields (req.fields). If multiple=False, this returns a single value
     (or the default, which defaults to None), and the query args take
