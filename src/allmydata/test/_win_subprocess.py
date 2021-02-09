@@ -34,6 +34,10 @@
 
 ## issue: https://bugs.python.org/issue19264
 
+# See allmydata/windows/fixups.py
+import sys
+assert sys.platform == "win32"
+
 import os
 import ctypes
 import subprocess
