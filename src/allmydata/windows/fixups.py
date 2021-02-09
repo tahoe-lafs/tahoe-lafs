@@ -6,9 +6,12 @@ from __future__ import print_function
 # explains to it that this module is Windows-only.  This prevents errors about
 # ctypes.windll and such which only exist when running on Windows.
 #
+# Beware of the limitations of the Mypy AST analyzer.  The check needs to take
+# exactly this form or it may not be recognized.
+#
 # https://mypy.readthedocs.io/en/stable/common_issues.html?highlight=platform#python-version-and-system-platform-checks
-from sys import platform
-assert platform == "win32"
+import sys
+assert sys.platform == "win32"
 
 import codecs, re
 from functools import partial
