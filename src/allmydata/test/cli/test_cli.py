@@ -1203,30 +1203,30 @@ class Options(ReallyEqualMixin, unittest.TestCase):
         o = parse2([])
         self.failUnlessEqual(o['node-url'], "http://localhost:8080/")
         self.failUnlessEqual(o.aliases[DEFAULT_ALIAS], private_uri)
-        self.failUnlessEqual(o.where, u"")
+        self.failUnlessEqual(o.where, [])
 
         o = parse2(["--node-url", "http://example.org:8111/"])
         self.failUnlessEqual(o['node-url'], "http://example.org:8111/")
         self.failUnlessEqual(o.aliases[DEFAULT_ALIAS], private_uri)
-        self.failUnlessEqual(o.where, u"")
+        self.failUnlessEqual(o.where, [])
 
         # -u for --node-url used to clash with -u for --uri (tickets #1949 and #2137).
         o = parse2(["-u", "http://example.org:8111/"])
         self.failUnlessEqual(o['node-url'], "http://example.org:8111/")
         self.failUnlessEqual(o.aliases[DEFAULT_ALIAS], private_uri)
-        self.failUnlessEqual(o.where, u"")
+        self.failUnlessEqual(o.where, [])
         self.failIf(o["uri"])
 
         o = parse2(["-u", "http://example.org:8111/", "--uri"])
         self.failUnlessEqual(o['node-url'], "http://example.org:8111/")
         self.failUnlessEqual(o.aliases[DEFAULT_ALIAS], private_uri)
-        self.failUnlessEqual(o.where, u"")
+        self.failUnlessEqual(o.where, [])
         self.failUnless(o["uri"])
 
         o = parse2(["--dir-cap", "root"])
         self.failUnlessEqual(o['node-url'], "http://localhost:8080/")
         self.failUnlessEqual(o.aliases[DEFAULT_ALIAS], "root")
-        self.failUnlessEqual(o.where, u"")
+        self.failUnlessEqual(o.where, [])
 
         other_filenode_uri = uri.WriteableSSKFileURI(writekey="\x11"*16,
                                                      fingerprint="\x11"*32)
@@ -1234,12 +1234,12 @@ class Options(ReallyEqualMixin, unittest.TestCase):
         o = parse2(["--dir-cap", other_uri])
         self.failUnlessEqual(o['node-url'], "http://localhost:8080/")
         self.failUnlessEqual(o.aliases[DEFAULT_ALIAS], other_uri)
-        self.failUnlessEqual(o.where, u"")
+        self.failUnlessEqual(o.where, [])
 
         o = parse2(["--dir-cap", other_uri, "subdir"])
         self.failUnlessEqual(o['node-url'], "http://localhost:8080/")
         self.failUnlessEqual(o.aliases[DEFAULT_ALIAS], other_uri)
-        self.failUnlessEqual(o.where, u"subdir")
+        self.failUnlessEqual(o.where, [u"subdir"])
 
         self.failUnlessRaises(usage.UsageError, parse2,
                               ["--node-url", "NOT-A-URL"])

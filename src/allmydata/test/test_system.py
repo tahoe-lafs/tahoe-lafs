@@ -2316,7 +2316,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
             # TODO: check that rc==2
             (out, err) = out_and_err
             self.failUnlessEqual(out, "")
-            self.failUnlessEqual(err, "No such file or directory\n")
+            self.failUnlessEqual(err, "bogus: No such file or directory\n")
         d.addCallback(run, "ls", "bogus")
         d.addCallback(_check_missing_dir)
 
