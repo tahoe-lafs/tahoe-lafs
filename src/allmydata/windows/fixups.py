@@ -1,5 +1,15 @@
 from __future__ import print_function
 
+# This code isn't loadable or sensible except on Windows.  Importers all know
+# this and are careful.  Normally I would just let an import error from ctypes
+# explain any mistakes but Mypy also needs some help here.  This assert
+# explains to it that this module is Windows-only.  This prevents errors about
+# ctypes.windll and such which only exist when running on Windows.
+#
+# https://mypy.readthedocs.io/en/stable/common_issues.html?highlight=platform#python-version-and-system-platform-checks
+from sys import platform
+assert platform == "win32"
+
 import codecs, re
 from functools import partial
 
