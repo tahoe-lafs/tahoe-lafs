@@ -275,10 +275,15 @@ class UnicodeOutput(object):
     def write(self, text):
         try:
             if self._hConsole is None:
+                # There is no Windows console available.  That means we are
+                # responsible for encoding the unicode to a byte string to
+                # write it to a Python file object.
                 if isinstance(text, unicode):
                     text = text.encode('utf-8')
                 self._stream.write(text)
             else:
+                # There is a Windows console available.  That means Windows is
+                # responsible for dealing with the unicode itself.
                 if not isinstance(text, unicode):
                     text = str(text).decode('utf-8')
                 remaining = len(text)
