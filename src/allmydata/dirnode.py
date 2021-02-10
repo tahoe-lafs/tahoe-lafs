@@ -74,6 +74,13 @@ ADD_FILE = ActionType(
     u"Add a new file as a child of a directory.",
 )
 
+
+class _OnlyFiles(object):
+    """Marker for replacement option of only replacing files."""
+
+ONLY_FILES = _OnlyFiles()
+
+
 def update_metadata(metadata, new_metadata, now):
     """Updates 'metadata' in-place with the information in 'new_metadata'.
 
@@ -179,7 +186,7 @@ class Adder(object):
         if entries is None:
             entries = {}
         precondition(isinstance(entries, dict), entries)
-        precondition(overwrite in (True, False, "only-files"), overwrite)
+        precondition(overwrite in (True, False, ONLY_FILES), overwrite)
         # keys of 'entries' may not be normalized.
         self.entries = entries
         self.overwrite = overwrite
@@ -205,7 +212,7 @@ class Adder(object):
                 if not self.overwrite:
                     raise ExistingChildError("child %s already exists" % quote_output(name, encoding='utf-8'))
 
-                if self.overwrite == "only-files" and IDirectoryNode.providedBy(children[name][0]):
+                if self.overwrite == ONLY_FILES and IDirectoryNode.providedBy(children[name][0]):
                     raise ExistingChildError("child %s already exists as a directory" % quote_output(name, encoding='utf-8'))
                 metadata = children[name][1].copy()
 
@@ -701,7 +708,7 @@ class DirectoryNode(object):
         'new_child_namex' and 'current_child_namex' need not be normalized.
 
         The overwrite parameter may be True (overwrite any existing child),
-        False (error if the new child link already exists), or "only-files"
+        False (error if the new child link already exists), or ONLY_FILES
         (error if the new child link exists and points to a directory).
         """
         if self.is_readonly() or new_parent.is_readonly():
