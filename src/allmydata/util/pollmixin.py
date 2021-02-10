@@ -14,6 +14,12 @@ if PY2:
     from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 import time
+
+try:
+    from typing import List
+except ImportError:
+    pass
+
 from twisted.internet import task
 
 class TimeoutError(Exception):
@@ -23,7 +29,7 @@ class PollComplete(Exception):
     pass
 
 class PollMixin(object):
-    _poll_should_ignore_these_errors = []
+    _poll_should_ignore_these_errors = []  # type: List[Exception]
 
     def poll(self, check_f, pollinterval=0.01, timeout=1000):
         # Return a Deferred, then call check_f periodically until it returns

@@ -37,6 +37,7 @@ PORTED_MODULES = [
     "allmydata.crypto.util",
     "allmydata.deep_stats",
     "allmydata.dirnode",
+    "allmydata.frontends.sftpd",
     "allmydata.hashtree",
     "allmydata.immutable.checker",
     "allmydata.immutable.downloader",
@@ -83,6 +84,7 @@ PORTED_MODULES = [
     "allmydata.storage.shares",
     "allmydata.test.no_network",
     "allmydata.test.mutable.util",
+    "allmydata.unknown",
     "allmydata.uri",
     "allmydata.util._python3",
     "allmydata.util.abbreviate",
@@ -113,6 +115,8 @@ PORTED_MODULES = [
     "allmydata.util.spans",
     "allmydata.util.statistics",
     "allmydata.util.time_format",
+    "allmydata.web.logs",
+    "allmydata.webish",
 ]
 
 PORTED_TEST_MODULES = [
@@ -167,6 +171,7 @@ PORTED_TEST_MODULES = [
     "allmydata.test.test_pipeline",
     "allmydata.test.test_python3",
     "allmydata.test.test_repairer",
+    "allmydata.test.test_sftp",
     "allmydata.test.test_spans",
     "allmydata.test.test_statistics",
     "allmydata.test.test_stats",
@@ -185,6 +190,11 @@ PORTED_TEST_MODULES = [
     "allmydata.test.test_util",
     "allmydata.test.web.test_common",
     "allmydata.test.web.test_grid",
-    "allmydata.test.web.test_util",
+    "allmydata.test.web.test_introducer",
+    "allmydata.test.web.test_logs",
+    "allmydata.test.web.test_private",
+    "allmydata.test.web.test_root",
     "allmydata.test.web.test_status",
+    "allmydata.test.web.test_util",
+    "allmydata.test.web.test_webish",
 ]

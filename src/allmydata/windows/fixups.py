@@ -1,5 +1,18 @@
 from __future__ import print_function
 
+# This code isn't loadable or sensible except on Windows.  Importers all know
+# this and are careful.  Normally I would just let an import error from ctypes
+# explain any mistakes but Mypy also needs some help here.  This assert
+# explains to it that this module is Windows-only.  This prevents errors about
+# ctypes.windll and such which only exist when running on Windows.
+#
+# Beware of the limitations of the Mypy AST analyzer.  The check needs to take
+# exactly this form or it may not be recognized.
+#
+# https://mypy.readthedocs.io/en/stable/common_issues.html?highlight=platform#python-version-and-system-platform-checks
+import sys
+assert sys.platform == "win32"
+
 import codecs
 from functools import partial
 
@@ -242,10 +255,15 @@ class UnicodeOutput(object):
     def write(self, text):
         try:
             if self._hConsole is None:
+                # There is no Windows console available.  That means we are
+                # responsible for encoding the unicode to a byte string to
+                # write it to a Python file object.
                 if isinstance(text, unicode):
                     text = text.encode('utf-8')
                 self._stream.write(text)
             else:
+                # There is a Windows console available.  That means Windows is
+                # responsible for dealing with the unicode itself.
                 if not isinstance(text, unicode):
                     text = str(text).decode('utf-8')
                 remaining = len(text)

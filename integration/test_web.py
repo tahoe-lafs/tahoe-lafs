@@ -127,12 +127,12 @@ def test_deep_stats(alice):
         dircap_uri,
         data={
             u"t": u"upload",
-            u"when_done": u".",
         },
         files={
             u"file": FILE_CONTENTS,
         },
     )
+    resp.raise_for_status()
 
     # confirm the file is in the directory
     resp = requests.get(
@@ -175,6 +175,7 @@ def test_deep_stats(alice):
         time.sleep(.5)
 
 
+@util.run_in_thread
 def test_status(alice):
     """
     confirm we get something sensible from /status and the various sub-types

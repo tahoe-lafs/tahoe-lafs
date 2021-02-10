@@ -1,5 +1,10 @@
 from __future__ import print_function
 
+try:
+    from allmydata.scripts.types_ import SubCommands
+except ImportError:
+    pass
+
 from future.utils import bchr
 
 # do not import any allmydata modules at this level. Do that from inside
@@ -1053,8 +1058,8 @@ def do_debug(options):
 
 
 subCommands = [
-    ["debug", None, DebugCommand, "debug subcommands: use 'tahoe debug' for a list."],
-    ]
+    ("debug", None, DebugCommand, "debug subcommands: use 'tahoe debug' for a list."),
+    ]  # type: SubCommands
 
 dispatch = {
     "debug": do_debug,

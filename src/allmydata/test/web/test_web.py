@@ -189,7 +189,7 @@ class FakeHistory(object):
     def list_all_helper_statuses(self):
         return []
 
-class FakeDisplayableServer(StubServer):
+class FakeDisplayableServer(StubServer):  # type: ignore  # tahoe-lafs/ticket/3573
     def __init__(self, serverid, nickname, connected,
                  last_connect_time, last_loss_time, last_rx_time):
         StubServer.__init__(self, serverid)
@@ -255,7 +255,7 @@ class FakeStorageServer(service.MultiService):
     def on_status_changed(self, cb):
         cb(self)
 
-class FakeClient(_Client):
+class FakeClient(_Client):  # type: ignore  # tahoe-lafs/ticket/3573
     def __init__(self):
         # don't upcall to Client.__init__, since we only want to initialize a
         # minimal subset
@@ -4756,6 +4756,31 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         yield self.clock.advance(24*60*60)
         op_url = self.webish_url + "/operations/134?t=status&output=JSON"
         yield self.assertHTTPError(op_url, 404, "unknown/expired handle '134'")
+
+    @inlineCallbacks
+    def test_uri_redirect(self):
+        """URI redirects don't cause failure.
+
+        Unit test reproducer for https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3590
+        """
+        def req(method, path, **kwargs):
+            return treq.request(method, self.webish_url + path, persistent=False,
+                                **kwargs)
+
+        response = yield req("POST", "/uri?format=sdmf&t=mkdir")
+        dircap = yield response.content()
+        assert dircap.startswith('URI:DIR2:')
+        dircap_uri = "/uri/?uri={}&t=json".format(urllib.quote(dircap))
+
+        response = yield req(
+            "GET",
+            dircap_uri,
+        )
+        self.assertEqual(
+            response.request.absoluteURI,
+            self.webish_url + "/uri/{}?t=json".format(urllib.quote(dircap)))
+        if response.code >= 400:
+            raise Error(response.code, response=response.content())
 
     def test_incident(self):
         d = self.POST("/report_incident", details="eek")

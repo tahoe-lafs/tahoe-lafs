@@ -178,9 +178,9 @@ class IntroducerClient(service.Service, Referenceable):
             kwargs["facility"] = "tahoe.introducer.client"
         return log.msg(*args, **kwargs)
 
-    def subscribe_to(self, service_name, cb, *args, **kwargs):
+    def subscribe_to(self, service_name, callback, *args, **kwargs):
         obs = self._local_subscribers.setdefault(service_name, ObserverList())
-        obs.subscribe(lambda key_s, ann: cb(key_s, ann, *args, **kwargs))
+        obs.subscribe(lambda key_s, ann: callback(key_s, ann, *args, **kwargs))
         self._maybe_subscribe()
         for index,(ann,key_s,when) in list(self._inbound_announcements.items()):
             precondition(isinstance(key_s, bytes), key_s)
