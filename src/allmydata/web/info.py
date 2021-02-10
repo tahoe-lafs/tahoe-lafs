@@ -1,5 +1,6 @@
 
-import os, urllib
+import os
+from urllib.parse import quote as urlquote
 
 from twisted.python.filepath import FilePath
 from twisted.web.template import tags as T, Element, renderElement, XMLFile, renderer
@@ -180,7 +181,7 @@ class MoreInfoElement(Element):
         else:
             return ""
         root = self.get_root(req)
-        quoted_uri = urllib.quote(node.get_uri())
+        quoted_uri = urlquote(node.get_uri())
         text_plain_url = "%s/file/%s/@@named=/raw.txt" % (root, quoted_uri)
         return T.li("Raw data as ", T.a("text/plain", href=text_plain_url))
 
@@ -196,7 +197,7 @@ class MoreInfoElement(Element):
     @renderer
     def check_form(self, req, tag):
         node = self.original
-        quoted_uri = urllib.quote(node.get_uri())
+        quoted_uri = urlquote(node.get_uri())
         target = self.get_root(req) + "/uri/" + quoted_uri
         if IDirectoryNode.providedBy(node):
             target += "/"
@@ -236,8 +237,8 @@ class MoreInfoElement(Element):
     def overwrite_form(self, req, tag):
         node = self.original
         root = self.get_root(req)
-        action = "%s/uri/%s" % (root, urllib.quote(node.get_uri()))
-        done_url = "%s/uri/%s?t=info" % (root, urllib.quote(node.get_uri()))
+        action = "%s/uri/%s" % (root, urlquote(node.get_uri()))
+        done_url = "%s/uri/%s?t=info" % (root, urlquote(node.get_uri()))
         overwrite = T.form(action=action, method="post",
                            enctype="multipart/form-data")(
             T.fieldset(

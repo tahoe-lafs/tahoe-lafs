@@ -46,7 +46,7 @@ class ProvisioningTool(rend.Page):
         req = inevow.IRequest(ctx)
 
         def getarg(name, astype=int):
-            if req.method != "POST":
+            if req.method != b"POST":
                 return None
             if name in req.fields:
                 return astype(req.fields[name].value)
