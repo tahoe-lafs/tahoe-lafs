@@ -69,6 +69,7 @@ def _reload():
     global filesystem_encoding, is_unicode_platform, use_unicode_filepath
 
     filesystem_encoding = canonical_encoding(sys.getfilesystemencoding())
+    check_encoding(filesystem_encoding)
     is_unicode_platform = PY3 or sys.platform in ["win32", "darwin"]
 
     # Despite the Unicode-mode FilePath support added to Twisted in
