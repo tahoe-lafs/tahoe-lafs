@@ -323,7 +323,7 @@ class DirectoryNode(object):
         return "<%s %s-%s %s>" % (self.__class__.__name__,
                                   self.is_readonly() and "RO" or "RW",
                                   self.is_mutable() and "MUT" or "IMM",
-                                  hasattr(self, '_uri') and self._uri.abbrev())
+                                  hasattr(self, '_uri') and str(self._uri.abbrev(), "utf-8"))
 
     def get_size(self):
         """Return the size of our backing mutable file, in bytes, if we've
