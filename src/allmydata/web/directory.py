@@ -1194,7 +1194,7 @@ class ManifestElement(ReloadableMonitorElement):
         si = self.monitor.origin_si
         if not si:
             return "<LIT>"
-        return base32.b2a(si)[:6]
+        return unicode(base32.b2a(si)[:6], "utf-8")
 
     @renderer
     def title(self, req, tag):

@@ -148,7 +148,7 @@ def get_format(req, default="CHK"):
     elif arg.upper() == b"MDMF":
         return "MDMF"
     else:
-        raise WebError("Unknown format: %s, I know CHK, SDMF, MDMF" % arg,
+        raise WebError("Unknown format: %s, I know CHK, SDMF, MDMF" % str(arg, "ascii"),
                        http.BAD_REQUEST)
 
 def get_mutable_type(file_format): # accepts result of get_format()
