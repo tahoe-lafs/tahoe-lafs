@@ -133,9 +133,9 @@ class HashUtilTests(unittest.TestCase):
         convergence secret.
         """
         self.assertEqual(
-            "allmydata_immutable_content_to_key_with_added_secret_v1+"
-            "16:\x42\x42\x42\x42\x42\x42\x42\x42\x42\x42\x42\x42\x42\x42\x42\x42,"
-            "9:3,10,1024,",
+            b"allmydata_immutable_content_to_key_with_added_secret_v1+"
+            b"16:\x42\x42\x42\x42\x42\x42\x42\x42\x42\x42\x42\x42\x42\x42\x42\x42,"
+            b"9:3,10,1024,",
             hashutil._convergence_hasher_tag(
                 k=3,
                 n=10,
