@@ -25,6 +25,7 @@ else:
     def backwardscompat_bytes(b):
         return b
     maketrans = bytes.maketrans
+    from typing import Optional
 
 import base64
 
@@ -71,7 +72,7 @@ BASE32STR_3bytes = backwardscompat_bytes(BASE32CHAR+b'{4}'+BASE32CHAR_4bits)
 BASE32STR_4bytes = backwardscompat_bytes(BASE32CHAR+b'{6}'+BASE32CHAR_2bits)
 BASE32STR_anybytes = backwardscompat_bytes(bytes(b'((?:%s{8})*') % (BASE32CHAR,) + bytes(b"(?:|%s|%s|%s|%s))") % (BASE32STR_1byte, BASE32STR_2bytes, BASE32STR_3bytes, BASE32STR_4bytes))
 
-def b2a(os):
+def b2a(os):  # type: (bytes) -> bytes
     """
     @param os the data to be encoded (as bytes)
 
@@ -79,7 +80,7 @@ def b2a(os):
     """
     return base64.b32encode(os).rstrip(b"=").lower()
 
-def b2a_or_none(os):
+def b2a_or_none(os):  # type: (Optional[bytes]) -> Optional[bytes]
     if os is not None:
         return b2a(os)
 
@@ -129,7 +130,7 @@ def could_be_base32_encoded(s, s8=s8, tr=bytes.translate, identitytranstable=ide
     s = bytes(s)  # On Python 2, make sure we're using modern bytes
     return s8[len(s)%8][s[-1]] and not tr(s, identitytranstable, chars)
 
-def a2b(cs):
+def a2b(cs):  # type: (bytes) -> bytes
     """
     @param cs the base-32 encoded data (as bytes)
     """
