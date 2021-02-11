@@ -628,7 +628,7 @@ class WebMixin(TimezoneMixin):
             if response_substring:
                 self.failUnlessIn(response_substring, res.value.response, which)
         else:
-            self.fail("%s was supposed to raise %s, not get '%s'" %
+            self.fail("%r was supposed to raise %s, not get %r" %
                       (which, expected_failure, res))
 
     def shouldFail2(self, expected_failure, which, substring,
@@ -642,7 +642,7 @@ class WebMixin(TimezoneMixin):
                 res.trap(expected_failure)
                 if substring:
                     self.failUnlessIn(substring, str(res),
-                                      "'%s' not in '%s' (response is '%s') for test '%s'" % \
+                                      "%r not in %r (response is %r) for test %r" % \
                                       (substring, str(res),
                                        getattr(res.value, "response", ""),
                                        which))
@@ -651,11 +651,11 @@ class WebMixin(TimezoneMixin):
                     if isinstance(response, bytes):
                         response = str(response, "utf-8")
                     self.failUnlessIn(response_substring, response,
-                                      "'%s' not in '%s' for test '%s'" % \
+                                      "%r not in %r for test %r" % \
                                       (response_substring, res.value.response,
                                        which))
             else:
-                self.fail("%s was supposed to raise %s, not get '%s'" %
+                self.fail("%r was supposed to raise %s, not get %r" %
                           (which, expected_failure, res))
         d.addBoth(done)
         return d
