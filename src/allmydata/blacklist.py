@@ -1,3 +1,14 @@
+"""
+Ported to Python 3.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+        from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 import os
 
@@ -34,10 +45,10 @@ class Blacklist(object):
         try:
             if self.last_mtime is None or current_mtime > self.last_mtime:
                 self.entries.clear()
-                with open(self.blacklist_fn, "r") as f:
+                with open(self.blacklist_fn, "rb") as f:
                     for line in f:
                         line = line.strip()
-                        if not line or line.startswith("#"):
+                        if not line or line.startswith(b"#"):
                             continue
                         si_s, reason = line.split(None, 1)
                         si = base32.a2b(si_s) # must be valid base32

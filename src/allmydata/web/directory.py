@@ -1,6 +1,14 @@
+"""
+TODO: When porting to Python 3, the filename handling logic seems wrong.  On
+Python 3 filename will _already_ be correctly decoded.  So only decode if it's
+bytes.
 
-import json
-import urllib
+Also there's a lot of code duplication I think.
+"""
+
+from past.builtins import unicode
+
+from urllib.parse import quote as url_quote
 from datetime import timedelta
 
 from zope.interface import implementer
@@ -20,7 +28,7 @@ from twisted.web.template import (
 from hyperlink import URL
 from twisted.python.filepath import FilePath
 
-from allmydata.util import base32
+from allmydata.util import base32, jsonbytes as json
 from allmydata.util.encodingutil import (
     to_bytes,
     quote_output,
@@ -109,7 +117,7 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
         # or no further children) renders "this" page.  We also need
         # to reject "/uri/URI:DIR2:..//", so we look at postpath.
         name = name.decode('utf8')
-        if not name and req.postpath != ['']:
+        if not name and req.postpath != [b'']:
             return self
 
         # Rejecting URIs that contain empty path pieces (for example:
@@ -135,7 +143,7 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
         terminal = (req.prepath + req.postpath)[-1].decode('utf8') == name
         nonterminal = not terminal  #len(req.postpath) > 0
 
-        t = get_arg(req, "t", "").strip()
+        t = unicode(get_arg(req, b"t", b"").strip(), "ascii")
         if isinstance(node_or_failure, Failure):
             f = node_or_failure
             f.trap(NoSuchChildError)
@@ -150,10 +158,10 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
             else:
                 # terminal node
                 terminal_requests = (
-                    ("POST", "mkdir"),
-                    ("PUT", "mkdir"),
-                    ("POST", "mkdir-with-children"),
-                    ("POST", "mkdir-immutable")
+                    (b"POST", "mkdir"),
+                    (b"PUT", "mkdir"),
+                    (b"POST", "mkdir-with-children"),
+                    (b"POST", "mkdir-immutable")
                 )
                 if (req.method, t) in terminal_requests:
                     # final directory
@@ -182,8 +190,8 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
                     )
                     return d
                 leaf_requests = (
-                    ("PUT",""),
-                    ("PUT","uri"),
+                    (b"PUT",""),
+                    (b"PUT","uri"),
                 )
                 if (req.method, t) in leaf_requests:
                     # we were trying to find the leaf filenode (to put a new
@@ -217,15 +225,15 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
     @render_exception
     def render_GET(self, req):
         # This is where all of the directory-related ?t=* code goes.
-        t = get_arg(req, "t", "").strip()
+        t = unicode(get_arg(req, b"t", b"").strip(), "ascii")
 
         # t=info contains variable ophandles, t=rename-form contains the name
         # of the child being renamed. Neither is allowed an ETag.
         FIXED_OUTPUT_TYPES =  ["", "json", "uri", "readonly-uri"]
         if not self.node.is_mutable() and t in FIXED_OUTPUT_TYPES:
             si = self.node.get_storage_index()
-            if si and req.setETag('DIR:%s-%s' % (base32.b2a(si), t or "")):
-                return ""
+            if si and req.setETag(b'DIR:%s-%s' % (base32.b2a(si), t.encode("ascii") or b"")):
+                return b""
 
         if not t:
             # render the directory as HTML
@@ -255,7 +263,7 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
 
     @render_exception
     def render_PUT(self, req):
-        t = get_arg(req, "t", "").strip()
+        t = unicode(get_arg(req, b"t", b"").strip(), "ascii")
         replace = parse_replace_arg(get_arg(req, "replace", "true"))
 
         if t == "mkdir":
@@ -275,7 +283,7 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
 
     @render_exception
     def render_POST(self, req):
-        t = get_arg(req, "t", "").strip()
+        t = unicode(get_arg(req, b"t", b"").strip(), "ascii")
 
         if t == "mkdir":
             d = self._POST_mkdir(req)
@@ -364,7 +372,7 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
         return d
 
     def _POST_upload(self, req):
-        charset = get_arg(req, "_charset", "utf-8")
+        charset = unicode(get_arg(req, "_charset", b"utf-8"), "utf-8")
         contents = req.fields["file"]
         assert contents.filename is None or isinstance(contents.filename, str)
         name = get_arg(req, "name")
@@ -374,8 +382,8 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
         if not name:
             # this prohibts empty, missing, and all-whitespace filenames
             raise WebError("upload requires a name")
-        assert isinstance(name, str)
-        name = name.decode(charset)
+        if isinstance(name, bytes):
+            name = name.decode(charset)
         if "/" in name:
             raise WebError("name= may not contain a slash", http.BAD_REQUEST)
         assert isinstance(name, unicode)
@@ -413,7 +421,7 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
         name = get_arg(req, "name")
         if not name:
             raise WebError("set-uri requires a name")
-        charset = get_arg(req, "_charset", "utf-8")
+        charset = unicode(get_arg(req, "_charset", b"utf-8"), "ascii")
         name = name.decode(charset)
         replace = parse_replace_arg(get_arg(req, "replace", "true"))
 
@@ -436,8 +444,8 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
             # a slightly confusing error message if someone does a POST
             # without a name= field. For our own HTML this isn't a big
             # deal, because we create the 'unlink' POST buttons ourselves.
-            name = ''
-        charset = get_arg(req, "_charset", "utf-8")
+            name = b''
+        charset = unicode(get_arg(req, "_charset", b"utf-8"), "ascii")
         name = name.decode(charset)
         d = self.node.delete(name)
         d.addCallback(lambda res: "thing unlinked")
@@ -453,7 +461,7 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
         return self._POST_relink(req)
 
     def _POST_relink(self, req):
-        charset = get_arg(req, "_charset", "utf-8")
+        charset = unicode(get_arg(req, "_charset", b"utf-8"), "ascii")
         replace = parse_replace_arg(get_arg(req, "replace", "true"))
 
         from_name = get_arg(req, "from_name")
@@ -624,14 +632,14 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
             # TODO test handling of bad JSON
             raise
         cs = {}
-        for name, (file_or_dir, mddict) in children.iteritems():
+        for name, (file_or_dir, mddict) in children.items():
             name = unicode(name) # json returns str *or* unicode
             writecap = mddict.get('rw_uri')
             if writecap is not None:
-                writecap = str(writecap)
+                writecap = writecap.encode("utf-8")
             readcap = mddict.get('ro_uri')
             if readcap is not None:
-                readcap = str(readcap)
+                readcap = readcap.encode("utf-8")
             cs[name] = (writecap, readcap, mddict.get('metadata'))
         d = self.node.set_children(cs, replace)
         d.addCallback(lambda res: "Okay so I did it.")
@@ -732,7 +740,7 @@ class DirectoryAsHTML(Element):
             return ""
         rocap = self.node.get_readonly_uri()
         root = get_root(req)
-        uri_link = "%s/uri/%s/" % (root, urllib.quote(rocap))
+        uri_link = "%s/uri/%s/" % (root, url_quote(rocap))
         return tag(tags.a("Read-Only Version", href=uri_link))
 
     @renderer
@@ -754,10 +762,10 @@ class DirectoryAsHTML(Element):
             called by the 'children' renderer)
         """
         name = name.encode("utf-8")
-        nameurl = urllib.quote(name, safe="") # encode any slashes too
+        nameurl = url_quote(name, safe="") # encode any slashes too
 
         root = get_root(req)
-        here = "{}/uri/{}/".format(root, urllib.quote(self.node.get_uri()))
+        here = "{}/uri/{}/".format(root, url_quote(self.node.get_uri()))
         if self.node.is_unknown() or self.node.is_readonly():
             unlink = "-"
             rename = "-"
@@ -814,7 +822,7 @@ class DirectoryAsHTML(Element):
 
         assert IFilesystemNode.providedBy(target), target
         target_uri = target.get_uri() or ""
-        quoted_uri = urllib.quote(target_uri, safe="") # escape slashes too
+        quoted_uri = url_quote(target_uri, safe="") # escape slashes too
 
         if IMutableFileNode.providedBy(target):
             # to prevent javascript in displayed .html files from stealing a
@@ -835,7 +843,7 @@ class DirectoryAsHTML(Element):
 
         elif IDirectoryNode.providedBy(target):
             # directory
-            uri_link = "%s/uri/%s/" % (root, urllib.quote(target_uri))
+            uri_link = "%s/uri/%s/" % (root, url_quote(target_uri))
             slots["filename"] = tags.a(name, href=uri_link)
             if not target.is_mutable():
                 dirtype = "DIR-IMM"
@@ -871,7 +879,7 @@ class DirectoryAsHTML(Element):
             slots["size"] = "-"
             # use a directory-relative info link, so we can extract both the
             # writecap and the readcap
-            info_link = "%s?t=info" % urllib.quote(name)
+            info_link = "%s?t=info" % url_quote(name)
 
         if info_link:
             slots["info"] = tags.a("More Info", href=info_link)
@@ -888,7 +896,7 @@ class DirectoryAsHTML(Element):
         # because action="." doesn't get us back to the dir page (but
         # instead /uri itself)
         root = get_root(req)
-        here = "{}/uri/{}/".format(root, urllib.quote(self.node.get_uri()))
+        here = "{}/uri/{}/".format(root, url_quote(self.node.get_uri()))
 
         if self.node.is_readonly():
             return tags.div("No upload forms: directory is read-only")
@@ -1005,7 +1013,7 @@ def _directory_json_metadata(req, dirnode):
     d = dirnode.list()
     def _got(children):
         kids = {}
-        for name, (childnode, metadata) in children.iteritems():
+        for name, (childnode, metadata) in children.items():
             assert IFilesystemNode.providedBy(childnode), childnode
             rw_uri = childnode.get_write_uri()
             ro_uri = childnode.get_readonly_uri()
@@ -1144,8 +1152,8 @@ def _slashify_path(path):
     in it
     """
     if not path:
-        return ""
-    return "/".join([p.encode("utf-8") for p in path])
+        return b""
+    return b"/".join([p.encode("utf-8") for p in path])
 
 
 def _cap_to_link(root, path, cap):
@@ -1166,13 +1174,13 @@ def _cap_to_link(root, path, cap):
         if isinstance(cap_obj, (CHKFileURI, WriteableSSKFileURI, ReadonlySSKFileURI)):
             uri_link = root_url.child(
                 u"file",
-                u"{}".format(urllib.quote(cap)),
-                u"{}".format(urllib.quote(path[-1])),
+                u"{}".format(url_quote(cap)),
+                u"{}".format(url_quote(path[-1])),
             )
         else:
             uri_link = root_url.child(
                 u"uri",
-                u"{}".format(urllib.quote(cap, safe="")),
+                u"{}".format(url_quote(cap, safe="")),
             )
         return tags.a(cap, href=uri_link.to_text())
     else:
@@ -1234,10 +1242,10 @@ class ManifestResults(MultiFormatResource, ReloadMixin):
         req.setHeader("content-type", "text/plain")
         lines = []
         is_finished = self.monitor.is_finished()
-        lines.append("finished: " + {True: "yes", False: "no"}[is_finished])
+        lines.append(b"finished: " + {True: b"yes", False: b"no"}[is_finished])
         for path, cap in self.monitor.get_status()["manifest"]:
-            lines.append(_slashify_path(path) + " " + cap)
-        return "\n".join(lines) + "\n"
+            lines.append(_slashify_path(path) + b" " + cap)
+        return b"\n".join(lines) + b"\n"
 
     def render_JSON(self, req):
         req.setHeader("content-type", "text/plain")
@@ -1290,7 +1298,7 @@ class DeepSizeResults(MultiFormatResource):
                      + stats.get("size-mutable-files", 0)
                      + stats.get("size-directories", 0))
             output += "size: %d\n" % total
-        return output
+        return output.encode("utf-8")
     render_TEXT = render_HTML
 
     def render_JSON(self, req):
@@ -1315,7 +1323,7 @@ class DeepStatsResults(Resource, object):
         req.setHeader("content-type", "text/plain")
         s = self.monitor.get_status().copy()
         s["finished"] = self.monitor.is_finished()
-        return json.dumps(s, indent=1)
+        return json.dumps(s, indent=1).encode("utf-8")
 
 
 @implementer(IPushProducer)
@@ -1363,7 +1371,7 @@ class ManifestStreamer(dirnode.DeepStats):
 
         j = json.dumps(d, ensure_ascii=True)
         assert "\n" not in j
-        self.req.write(j+"\n")
+        self.req.write(j.encode("utf-8")+b"\n")
 
     def finish(self):
         stats = dirnode.DeepStats.get_results(self)
@@ -1372,8 +1380,8 @@ class ManifestStreamer(dirnode.DeepStats):
              }
         j = json.dumps(d, ensure_ascii=True)
         assert "\n" not in j
-        self.req.write(j+"\n")
-        return ""
+        self.req.write(j.encode("utf-8")+b"\n")
+        return b""
 
 @implementer(IPushProducer)
 class DeepCheckStreamer(dirnode.DeepStats):
@@ -1441,7 +1449,7 @@ class DeepCheckStreamer(dirnode.DeepStats):
     def write_line(self, data):
         j = json.dumps(data, ensure_ascii=True)
         assert "\n" not in j
-        self.req.write(j+"\n")
+        self.req.write(j.encode("utf-8")+b"\n")
 
     def finish(self):
         stats = dirnode.DeepStats.get_results(self)
@@ -1450,8 +1458,8 @@ class DeepCheckStreamer(dirnode.DeepStats):
              }
         j = json.dumps(d, ensure_ascii=True)
         assert "\n" not in j
-        self.req.write(j+"\n")
-        return ""
+        self.req.write(j.encode("utf-8")+b"\n")
+        return b""
 
 
 class UnknownNodeHandler(Resource, object):
@@ -1464,7 +1472,7 @@ class UnknownNodeHandler(Resource, object):
 
     @render_exception
     def render_GET(self, req):
-        t = get_arg(req, "t", "").strip()
+        t = unicode(get_arg(req, "t", "").strip(), "ascii")
         if t == "info":
             return MoreInfo(self.node)
         if t == "json":

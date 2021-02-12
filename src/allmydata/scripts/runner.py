@@ -4,6 +4,11 @@ import os, sys
 from six.moves import StringIO
 import six
 
+try:
+    from allmydata.scripts.types_ import SubCommands
+except ImportError:
+    pass
+
 from twisted.python import usage
 from twisted.internet import defer, task, threads
 
@@ -40,8 +45,8 @@ _control_node_dispatch = {
 }
 
 process_control_commands = [
-    ["run", None, tahoe_run.RunOptions, "run a node without daemonizing"],
-]
+    ("run", None, tahoe_run.RunOptions, "run a node without daemonizing"),
+]  # type: SubCommands
 
 
 class Options(usage.Options):
@@ -98,7 +103,7 @@ class Options(usage.Options):
 
 create_dispatch = {}
 for module in (create_node,):
-    create_dispatch.update(module.dispatch)
+    create_dispatch.update(module.dispatch)  # type: ignore
 
 def parse_options(argv, config=None):
     if not config:

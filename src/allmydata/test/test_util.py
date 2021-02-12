@@ -33,7 +33,9 @@ if six.PY3:
 
 class IDLib(unittest.TestCase):
     def test_nodeid_b2a(self):
-        self.failUnlessEqual(idlib.nodeid_b2a(b"\x00"*20), "a"*32)
+        result = idlib.nodeid_b2a(b"\x00"*20)
+        self.assertEqual(result, "a"*32)
+        self.assertIsInstance(result, str)
 
 
 class MyList(list):
@@ -489,12 +491,16 @@ class JSONBytes(unittest.TestCase):
     """Tests for BytesJSONEncoder."""
 
     def test_encode_bytes(self):
-        """BytesJSONEncoder can encode bytes."""
+        """BytesJSONEncoder can encode bytes.
+
+        Bytes are presumed to be UTF-8 encoded.
+        """
+        snowman = u"def\N{SNOWMAN}\uFF00"
         data = {
-            b"hello": [1, b"cd"],
+            b"hello": [1, b"cd", {b"abc": [123, snowman.encode("utf-8")]}],
         }
         expected = {
-            u"hello": [1, u"cd"],
+            u"hello": [1, u"cd", {u"abc": [123, snowman]}],
         }
         # Bytes get passed through as if they were UTF-8 Unicode:
         encoded = jsonbytes.dumps(data)

@@ -29,7 +29,7 @@ workflows:
       - "debian-9": &DOCKERHUB_CONTEXT
           context: "dockerhub-auth"
 
-      - "debian-8":
+      - "debian-10":
           <<: *DOCKERHUB_CONTEXT
           requires:
             - "debian-9"
@@ -86,9 +86,7 @@ workflows:
             # integration tests.
             - "debian-9"
 
-      # Generate the underlying data for a visualization to aid with Python 3
-      # porting.
-      - "build-porting-depgraph":
+      - "typechecks":
           <<: *DOCKERHUB_CONTEXT
 
   images:
@@ -104,7 +102,7 @@ workflows:
                 - "master"
 
     jobs:
-      - "build-image-debian-8":
+      - "build-image-debian-10":
           <<: *DOCKERHUB_CONTEXT
       - "build-image-debian-9":
           <<: *DOCKERHUB_CONTEXT
@@ -210,7 +208,7 @@ jobs:
       # filenames and argv).
       LANG: "en_US.UTF-8"
       # Select a tox environment to run for this job.
-      TAHOE_LAFS_TOX_ENVIRONMENT: "py27-coverage"
+      TAHOE_LAFS_TOX_ENVIRONMENT: "py27"
       # Additional arguments to pass to tox.
       TAHOE_LAFS_TOX_ARGS: ""
       # The path in which test artifacts will be placed.
@@ -220,7 +218,7 @@ jobs:
       WHEELHOUSE_PATH: &WHEELHOUSE_PATH "/tmp/wheelhouse"
       PIP_FIND_LINKS: "file:///tmp/wheelhouse"
       # Upload the coverage report.
-      UPLOAD_COVERAGE: "yes"
+      UPLOAD_COVERAGE: ""
 
     # pip cannot install packages if the working directory is not readable.
     # We want to run a lot of steps as nobody instead of as root.
@@ -274,11 +272,11 @@ jobs:
             fi
 
 
-  debian-8:
+  debian-10:
     <<: *DEBIAN
     docker:
       - <<: *DOCKERHUB_AUTH
-        image: "tahoelafsci/debian:8-py2.7"
+        image: "tahoelafsci/debian:10-py2.7"
         user: "nobody"
 
 
@@ -373,7 +371,7 @@ jobs:
       # this reporter on Python 3.  So drop that and just specify the
       # reporter.
       TAHOE_LAFS_TRIAL_ARGS: "--reporter=subunitv2-file"
-      TAHOE_LAFS_TOX_ENVIRONMENT: "py36-coverage"
+      TAHOE_LAFS_TOX_ENVIRONMENT: "py36"
 
 
   ubuntu-20-04:
@@ -448,32 +446,17 @@ jobs:
             # them in parallel.
             nix-build --cores 3 --max-jobs 2 nix/
 
-  # Generate up-to-date data for the dependency graph visualizer.
-  build-porting-depgraph:
-    # Get a system in which we can easily install Tahoe-LAFS and all its
-    # dependencies.  The dependency graph analyzer works by executing the code.
-    # It's Python, what do you expect?
-    <<: *DEBIAN
+  typechecks:
+    docker:
+      - <<: *DOCKERHUB_AUTH
+        image: "tahoelafsci/ubuntu:18.04-py3"
 
     steps:
       - "checkout"
-
-      - add_ssh_keys:
-          fingerprints:
-            # Jean-Paul Calderone <exarkun@twistedmatrix.com> (CircleCI depgraph key)
-            # This lets us push to tahoe-lafs/tahoe-depgraph in the next step.
-            - "86:38:18:a7:c0:97:42:43:18:46:55:d6:21:b0:5f:d4"
-
       - run:
-          name: "Setup Python Environment"
+          name: "Validate Types"
           command: |
-            /tmp/venv/bin/pip install -e /tmp/project
-
-      - run:
-          name: "Generate dependency graph data"
-          command: |
-            . /tmp/venv/bin/activate
-            ./misc/python3/depgraph.sh
+            /tmp/venv/bin/tox -e typechecks
 
   build-image: &BUILD_IMAGE
     # This is a template for a job to build a Docker image that has as much of
@@ -514,12 +497,12 @@ jobs:
             docker push tahoelafsci/${DISTRO}:${TAG}-py${PYTHON_VERSION}
 
 
-  build-image-debian-8:
+  build-image-debian-10:
     <<: *BUILD_IMAGE
 
     environment:
       DISTRO: "debian"
-      TAG: "8"
+      TAG: "10"
       PYTHON_VERSION: "2.7"
 
 

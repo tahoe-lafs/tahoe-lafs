@@ -1,7 +1,22 @@
+"""
+Ported to Python 3, partially: test_filesystem* will be done in a future round.
+"""
 from __future__ import print_function
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import unicode_literals
+
+from future.utils import PY2, PY3
+if PY2:
+    # Don't import bytes since it causes issues on (so far unported) modules on Python 2.
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, dict, list, object, range, max, min, str  # noqa: F401
+
+from past.builtins import chr as byteschr, long
+from six import ensure_text, ensure_str
 
 import os, re, sys, time, json
 from functools import partial
+from unittest import skipIf
 
 from bs4 import BeautifulSoup
 
@@ -36,24 +51,69 @@ from twisted.python.filepath import (
     FilePath,
 )
 
+from ._twisted_9607 import (
+    getProcessOutputAndValue,
+)
+
 from .common import (
     TEST_RSA_KEY_SIZE,
     SameProcessStreamEndpointAssigner,
 )
-from .common_web import do_http, Error
+from .common_web import do_http as do_http_bytes, Error
 from .web.common import (
     assert_soup_has_tag_with_attributes
 )
 
 # TODO: move this to common or common_util
-from allmydata.test.test_runner import RunBinTahoeMixin
 from . import common_util as testutil
-from .common_util import run_cli
+from .common_util import run_cli_unicode
 from ..scripts.common import (
     write_introducer,
 )
 
-LARGE_DATA = """
+class RunBinTahoeMixin(object):
+    def run_bintahoe(self, args, stdin=None, python_options=[], env=None):
+        # test_runner.run_bintahoe has better unicode support but doesn't
+        # support env yet and is also synchronous.  If we could get rid of
+        # this in favor of that, though, it would probably be an improvement.
+        command = sys.executable
+        argv = python_options + ["-m", "allmydata.scripts.runner"] + args
+
+        if env is None:
+            env = os.environ
+
+        d = getProcessOutputAndValue(command, argv, env, stdinBytes=stdin)
+        def fix_signal(result):
+            # Mirror subprocess.Popen.returncode structure
+            (out, err, signal) = result
+            return (out, err, -signal)
+        d.addErrback(fix_signal)
+        return d
+
+
+def run_cli(*args, **kwargs):
+    """
+    Run a Tahoe-LAFS CLI utility, but inline.
+
+    Version of run_cli_unicode() that takes any kind of string, and the
+    command-line args inline instead of as verb + list.
+
+    Backwards compatible version so we don't have to change all the tests that
+    expected this API.
+    """
+    nodeargs = [ensure_text(a) for a in kwargs.pop("nodeargs", [])]
+    kwargs["nodeargs"] = nodeargs
+    return run_cli_unicode(
+        ensure_text(args[0]), [ensure_text(a) for a in args[1:]], **kwargs)
+
+
+def do_http(*args, **kwargs):
+    """Wrapper for do_http() that returns Unicode."""
+    return do_http_bytes(*args, **kwargs).addCallback(
+        lambda b: str(b, "utf-8"))
+
+
+LARGE_DATA = b"""
 This is some data to publish to the remote grid.., which needs to be large
 enough to not fit inside a LIT uri.
 """
@@ -627,9 +687,9 @@ def flush_but_dont_ignore(res):
 
 def _render_config(config):
     """
-    Convert a ``dict`` of ``dict`` of ``bytes`` to an ini-format string.
+    Convert a ``dict`` of ``dict`` of ``unicode`` to an ini-format string.
     """
-    return "\n\n".join(list(
+    return u"\n\n".join(list(
         _render_config_section(k, v)
         for (k, v)
         in config.items()
@@ -637,20 +697,20 @@ def _render_config(config):
 
 def _render_config_section(heading, values):
     """
-    Convert a ``bytes`` heading and a ``dict`` of ``bytes`` to an ini-format
-    section as ``bytes``.
+    Convert a ``unicode`` heading and a ``dict`` of ``unicode`` to an ini-format
+    section as ``unicode``.
     """
-    return "[{}]\n{}\n".format(
+    return u"[{}]\n{}\n".format(
         heading, _render_section_values(values)
     )
 
 def _render_section_values(values):
     """
-    Convert a ``dict`` of ``bytes`` to the body of an ini-format section as
-    ``bytes``.
+    Convert a ``dict`` of ``unicode`` to the body of an ini-format section as
+    ``unicode``.
     """
-    return "\n".join(list(
-        "{} = {}".format(k, v)
+    return u"\n".join(list(
+        u"{} = {}".format(k, v)
         for (k, v)
         in sorted(values.items())
     ))
@@ -753,7 +813,7 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
 
         self.helper_furl = helper_furl
         if self.numclients >= 4:
-            with open(os.path.join(basedirs[3], 'tahoe.cfg'), 'ab+') as f:
+            with open(os.path.join(basedirs[3], 'tahoe.cfg'), 'a+') as f:
                 f.write(
                     "[client]\n"
                     "helper.furl = {}\n".format(helper_furl)
@@ -796,8 +856,6 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
 
         def setconf(config, which, section, feature, value):
             if which in feature_matrix.get((section, feature), {which}):
-                if isinstance(value, unicode):
-                    value = value.encode("utf-8")
                 config.setdefault(section, {})[feature] = value
 
         setnode = partial(setconf, config, which, "node")
@@ -870,7 +928,7 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
         config = "[client]\n"
         if helper_furl:
             config += "helper.furl = %s\n" % helper_furl
-        basedir.child("tahoe.cfg").setContent(config)
+        basedir.child("tahoe.cfg").setContent(config.encode("utf-8"))
         private = basedir.child("private")
         private.makedirs()
         write_introducer(
@@ -980,12 +1038,12 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
 
     def test_upload_and_download_convergent(self):
         self.basedir = "system/SystemTest/test_upload_and_download_convergent"
-        return self._test_upload_and_download(convergence="some convergence string")
+        return self._test_upload_and_download(convergence=b"some convergence string")
 
     def _test_upload_and_download(self, convergence):
         # we use 4000 bytes of data, which will result in about 400k written
         # to disk among all our simulated nodes
-        DATA = "Some data to upload\n" * 200
+        DATA = b"Some data to upload\n" * 200
         d = self.set_up_nodes()
         def _check_connections(res):
             for c in self.clients:
@@ -993,7 +1051,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
                 all_peerids = c.get_storage_broker().get_all_serverids()
                 self.failUnlessEqual(len(all_peerids), self.numclients)
                 sb = c.storage_broker
-                permuted_peers = sb.get_servers_for_psi("a")
+                permuted_peers = sb.get_servers_for_psi(b"a")
                 self.failUnlessEqual(len(permuted_peers), self.numclients)
         d.addCallback(_check_connections)
 
@@ -1016,7 +1074,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
             theuri = results.get_uri()
             log.msg("upload finished: uri is %s" % (theuri,))
             self.uri = theuri
-            assert isinstance(self.uri, str), self.uri
+            assert isinstance(self.uri, bytes), self.uri
             self.cap = uri.from_string(self.uri)
             self.n = self.clients[1].create_node_from_uri(self.uri)
         d.addCallback(_upload_done)
@@ -1050,17 +1108,17 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
             d.addCallback(lambda ign:
                           n.read(MemoryConsumer(), offset=1, size=4))
             def _read_portion_done(mc):
-                self.failUnlessEqual("".join(mc.chunks), DATA[1:1+4])
+                self.failUnlessEqual(b"".join(mc.chunks), DATA[1:1+4])
             d.addCallback(_read_portion_done)
             d.addCallback(lambda ign:
                           n.read(MemoryConsumer(), offset=2, size=None))
             def _read_tail_done(mc):
-                self.failUnlessEqual("".join(mc.chunks), DATA[2:])
+                self.failUnlessEqual(b"".join(mc.chunks), DATA[2:])
             d.addCallback(_read_tail_done)
             d.addCallback(lambda ign:
                           n.read(MemoryConsumer(), size=len(DATA)+1000))
             def _read_too_much(mc):
-                self.failUnlessEqual("".join(mc.chunks), DATA)
+                self.failUnlessEqual(b"".join(mc.chunks), DATA)
             d.addCallback(_read_too_much)
 
             return d
@@ -1110,7 +1168,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
             return connected
         d.addCallback(lambda ign: self.poll(_has_helper))
 
-        HELPER_DATA = "Data that needs help to upload" * 1000
+        HELPER_DATA = b"Data that needs help to upload" * 1000
         def _upload_with_helper(res):
             u = upload.Data(HELPER_DATA, convergence=convergence)
             d = self.extra_node.upload(u)
@@ -1144,7 +1202,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         d.addCallback(fireEventually)
 
         def _upload_resumable(res):
-            DATA = "Data that needs help to upload and gets interrupted" * 1000
+            DATA = b"Data that needs help to upload and gets interrupted" * 1000
             u1 = CountingDataUploadable(DATA, convergence=convergence)
             u2 = CountingDataUploadable(DATA, convergence=convergence)
 
@@ -1266,7 +1324,9 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
             s = stats["stats"]
             self.failUnlessEqual(s["storage_server.accepting_immutable_shares"], 1)
             c = stats["counters"]
-            self.failUnless("storage_server.allocate" in c)
+            # Probably this should be Unicode eventually? But we haven't ported
+            # stats code yet.
+            self.failUnless(b"storage_server.allocate" in c)
         d.addCallback(_grab_stats)
 
         return d
@@ -1287,7 +1347,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
                 assert pieces[-5].startswith("client")
                 client_num = int(pieces[-5][-1])
                 storage_index_s = pieces[-1]
-                storage_index = si_a2b(storage_index_s)
+                storage_index = si_a2b(storage_index_s.encode("ascii"))
                 for sharename in filenames:
                     shnum = int(sharename)
                     filename = os.path.join(dirpath, sharename)
@@ -1320,7 +1380,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         elif which == "signature":
             signature = self.flip_bit(signature)
         elif which == "share_hash_chain":
-            nodenum = share_hash_chain.keys()[0]
+            nodenum = list(share_hash_chain.keys())[0]
             share_hash_chain[nodenum] = self.flip_bit(share_hash_chain[nodenum])
         elif which == "block_hash_tree":
             block_hash_tree[-1] = self.flip_bit(block_hash_tree[-1])
@@ -1343,11 +1403,11 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
 
     def test_mutable(self):
         self.basedir = "system/SystemTest/test_mutable"
-        DATA = "initial contents go here."  # 25 bytes % 3 != 0
+        DATA = b"initial contents go here."  # 25 bytes % 3 != 0
         DATA_uploadable = MutableData(DATA)
-        NEWDATA = "new contents yay"
+        NEWDATA = b"new contents yay"
         NEWDATA_uploadable = MutableData(NEWDATA)
-        NEWERDATA = "this is getting old"
+        NEWERDATA = b"this is getting old"
         NEWERDATA_uploadable = MutableData(NEWERDATA)
 
         d = self.set_up_nodes()
@@ -1396,7 +1456,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
                 self.failUnless("  share_hash_chain: " in output)
                 self.failUnless("  block_hash_tree: 1 nodes\n" in output)
                 expected = ("  verify-cap: URI:SSK-Verifier:%s:" %
-                            base32.b2a(storage_index))
+                            str(base32.b2a(storage_index), "ascii"))
                 self.failUnless(expected in output)
             except unittest.FailTest:
                 print()
@@ -1475,7 +1535,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
                            for (client_num, storage_index, filename, shnum)
                            in shares ])
             assert len(where) == 10 # this test is designed for 3-of-10
-            for shnum, filename in where.items():
+            for shnum, filename in list(where.items()):
                 # shares 7,8,9 are left alone. read will check
                 # (share_hash_chain, block_hash_tree, share_data). New
                 # seqnum+R pairs will trigger a check of (seqnum, R, IV,
@@ -1525,9 +1585,9 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         def _check_empty_file(res):
             # make sure we can create empty files, this usually screws up the
             # segsize math
-            d1 = self.clients[2].create_mutable_file(MutableData(""))
+            d1 = self.clients[2].create_mutable_file(MutableData(b""))
             d1.addCallback(lambda newnode: newnode.download_best_version())
-            d1.addCallback(lambda res: self.failUnlessEqual("", res))
+            d1.addCallback(lambda res: self.failUnlessEqual(b"", res))
             return d1
         d.addCallback(_check_empty_file)
 
@@ -1550,7 +1610,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         return d
 
     def flip_bit(self, good):
-        return good[:-1] + chr(ord(good[-1]) ^ 0x01)
+        return good[:-1] + byteschr(ord(good[-1:]) ^ 0x01)
 
     def mangle_uri(self, gooduri):
         # change the key, which changes the storage index, which means we'll
@@ -1571,6 +1631,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
     # the key, which should cause the download to fail the post-download
     # plaintext_hash check.
 
+    @skipIf(PY3, "Python 3 web support hasn't happened yet.")
     def test_filesystem(self):
         self.basedir = "system/SystemTest/test_filesystem"
         self.data = LARGE_DATA
@@ -1632,7 +1693,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
             d1.addCallback(self.log, "publish finished")
             def _stash_uri(filenode):
                 self.uri = filenode.get_uri()
-                assert isinstance(self.uri, str), (self.uri, filenode)
+                assert isinstance(self.uri, bytes), (self.uri, filenode)
             d1.addCallback(_stash_uri)
             return d1
         d.addCallback(_made_subdir1)
@@ -1650,7 +1711,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         return res
 
     def _do_publish_private(self, res):
-        self.smalldata = "sssh, very secret stuff"
+        self.smalldata = b"sssh, very secret stuff"
         ut = upload.Data(self.smalldata, convergence=None)
         d = self.clients[0].create_dirnode()
         d.addCallback(self.log, "GOT private directory")
@@ -1737,7 +1798,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
             d1.addCallback(lambda res: self.shouldFail2(NotWriteableError, "mkdir(nope)", None, dirnode.create_subdirectory, u"nope"))
 
             d1.addCallback(self.log, "doing add_file(ro)")
-            ut = upload.Data("I will disappear, unrecorded and unobserved. The tragedy of my demise is made more poignant by its silence, but this beauty is not for you to ever know.", convergence="99i-p1x4-xd4-18yc-ywt-87uu-msu-zo -- completely and totally unguessable string (unless you read this)")
+            ut = upload.Data(b"I will disappear, unrecorded and unobserved. The tragedy of my demise is made more poignant by its silence, but this beauty is not for you to ever know.", convergence=b"99i-p1x4-xd4-18yc-ywt-87uu-msu-zo -- completely and totally unguessable string (unless you read this)")
             d1.addCallback(lambda res: self.shouldFail2(NotWriteableError, "add_file(nope)", None, dirnode.add_file, u"hope", ut))
 
             d1.addCallback(self.log, "doing get(ro)")
@@ -1801,7 +1862,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
                             "largest-directory-children": 3,
                             "largest-immutable-file": 112,
                             }
-                for k,v in expected.iteritems():
+                for k,v in list(expected.items()):
                     self.failUnlessEqual(stats[k], v,
                                          "stats[%s] was %s, not %s" %
                                          (k, stats[k], v))
@@ -1850,33 +1911,33 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         return do_http("get", self.webish_url + urlpath)
 
     def POST(self, urlpath, use_helper=False, **fields):
-        sepbase = "boogabooga"
-        sep = "--" + sepbase
+        sepbase = b"boogabooga"
+        sep = b"--" + sepbase
         form = []
         form.append(sep)
-        form.append('Content-Disposition: form-data; name="_charset"')
-        form.append('')
-        form.append('UTF-8')
+        form.append(b'Content-Disposition: form-data; name="_charset"')
+        form.append(b'')
+        form.append(b'UTF-8')
         form.append(sep)
-        for name, value in fields.iteritems():
+        for name, value in fields.items():
             if isinstance(value, tuple):
                 filename, value = value
-                form.append('Content-Disposition: form-data; name="%s"; '
-                            'filename="%s"' % (name, filename.encode("utf-8")))
+                form.append(b'Content-Disposition: form-data; name="%s"; '
+                            b'filename="%s"' % (name, filename.encode("utf-8")))
             else:
-                form.append('Content-Disposition: form-data; name="%s"' % name)
-            form.append('')
-            form.append(str(value))
+                form.append(b'Content-Disposition: form-data; name="%s"' % name)
+            form.append(b'')
+            form.append(b"%s" % (value,))
             form.append(sep)
-        form[-1] += "--"
-        body = ""
+        form[-1] += b"--"
+        body = b""
         headers = {}
         if fields:
-            body = "\r\n".join(form) + "\r\n"
-            headers["content-type"] = "multipart/form-data; boundary=%s" % sepbase
+            body = b"\r\n".join(form) + b"\r\n"
+            headers["content-type"] = "multipart/form-data; boundary=%s" % str(sepbase, "ascii")
         return self.POST2(urlpath, body, headers, use_helper)
 
-    def POST2(self, urlpath, body="", headers={}, use_helper=False):
+    def POST2(self, urlpath, body=b"", headers={}, use_helper=False):
         if use_helper:
             url = self.helper_webish_url + urlpath
         else:
@@ -1884,7 +1945,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         return do_http("post", url, data=body, headers=headers)
 
     def _test_web(self, res):
-        public = "uri/" + self._root_directory_uri
+        public = "uri/" + str(self._root_directory_uri, "ascii")
         d = self.GET("")
         def _got_welcome(page):
             html = page.replace('\n', ' ')
@@ -1893,7 +1954,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
                             "I didn't see the right '%s' message in:\n%s" % (connected_re, page))
             # nodeids/tubids don't have any regexp-special characters
             nodeid_re = r'<th>Node ID:</th>\s*<td title="TubID: %s">%s</td>' % (
-                self.clients[0].get_long_tubid(), self.clients[0].get_long_nodeid())
+                self.clients[0].get_long_tubid(), str(self.clients[0].get_long_nodeid(), "ascii"))
             self.failUnless(re.search(nodeid_re, html),
                             "I didn't see the right '%s' message in:\n%s" % (nodeid_re, page))
             self.failUnless("Helper: 0 active uploads" in page)
@@ -1954,7 +2015,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         # upload a file with PUT
         d.addCallback(self.log, "about to try PUT")
         d.addCallback(lambda res: self.PUT(public + "/subdir3/new.txt",
-                                           "new.txt contents"))
+                                           b"new.txt contents"))
         d.addCallback(lambda res: self.GET(public + "/subdir3/new.txt"))
         d.addCallback(self.failUnlessEqual, "new.txt contents")
         # and again with something large enough to use multiple segments,
@@ -1965,23 +2026,23 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
                 c.encoding_params['happy'] = 1
         d.addCallback(_new_happy_semantics)
         d.addCallback(lambda res: self.PUT(public + "/subdir3/big.txt",
-                                           "big" * 500000)) # 1.5MB
+                                           b"big" * 500000)) # 1.5MB
         d.addCallback(lambda res: self.GET(public + "/subdir3/big.txt"))
         d.addCallback(lambda res: self.failUnlessEqual(len(res), 1500000))
 
         # can we replace files in place?
         d.addCallback(lambda res: self.PUT(public + "/subdir3/new.txt",
-                                           "NEWER contents"))
+                                           b"NEWER contents"))
         d.addCallback(lambda res: self.GET(public + "/subdir3/new.txt"))
         d.addCallback(self.failUnlessEqual, "NEWER contents")
 
         # test unlinked POST
-        d.addCallback(lambda res: self.POST("uri", t="upload",
-                                            file=("new.txt", "data" * 10000)))
+        d.addCallback(lambda res: self.POST("uri", t=b"upload",
+                                            file=("new.txt", b"data" * 10000)))
         # and again using the helper, which exercises different upload-status
         # display code
-        d.addCallback(lambda res: self.POST("uri", use_helper=True, t="upload",
-                                            file=("foo.txt", "data2" * 10000)))
+        d.addCallback(lambda res: self.POST("uri", use_helper=True, t=b"upload",
+                                            file=("foo.txt", b"data2" * 10000)))
 
         # check that the status page exists
         d.addCallback(lambda res: self.GET("status"))
@@ -2105,7 +2166,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         # exercise some of the diagnostic tools in runner.py
 
         # find a share
-        for (dirpath, dirnames, filenames) in os.walk(unicode(self.basedir)):
+        for (dirpath, dirnames, filenames) in os.walk(ensure_text(self.basedir)):
             if "storage" not in dirpath:
                 continue
             if not filenames:
@@ -2119,7 +2180,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
                 filename = os.path.join(dirpath, filenames[0])
                 # peek at the magic to see if it is a chk share
                 magic = open(filename, "rb").read(4)
-                if magic == '\x00\x00\x00\x01':
+                if magic == b'\x00\x00\x00\x01':
                     break
         else:
             self.fail("unable to find any uri_extension files in %r"
@@ -2152,7 +2213,6 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         # 'find-shares' tool
         sharedir, shnum = os.path.split(filename)
         storagedir, storage_index_s = os.path.split(sharedir)
-        storage_index_s = str(storage_index_s)
         nodedirs = [self.getdir("client%d" % i) for i in range(self.numclients)]
         rc,out,err = yield run_cli("debug", "find-shares", storage_index_s,
                                    *nodedirs)
@@ -2176,7 +2236,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         # allmydata.control (mostly used for performance tests)
         c0 = self.clients[0]
         control_furl_file = c0.config.get_private_path("control.furl")
-        control_furl = open(control_furl_file, "r").read().strip()
+        control_furl = ensure_str(open(control_furl_file, "r").read().strip())
         # it doesn't really matter which Tub we use to connect to the client,
         # so let's just use our IntroducerNode's
         d = self.introducer.tub.getReference(control_furl)
@@ -2208,7 +2268,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         # sure that works, before we add other aliases.
 
         root_file = os.path.join(client0_basedir, "private", "root_dir.cap")
-        f = open(root_file, "w")
+        f = open(root_file, "wb")
         f.write(private_uri)
         f.close()
 
@@ -2290,7 +2350,8 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
             files.append(fn)
             data = "data to be uploaded: file%d\n" % i
             datas.append(data)
-            open(fn,"wb").write(data)
+            with open(fn, "wb") as f:
+                f.write(data)
 
         def _check_stdout_against(out_and_err, filenum=None, data=None):
             (out, err) = out_and_err
@@ -2468,13 +2529,18 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         # recursive copy: setup
         dn = os.path.join(self.basedir, "dir1")
         os.makedirs(dn)
-        open(os.path.join(dn, "rfile1"), "wb").write("rfile1")
-        open(os.path.join(dn, "rfile2"), "wb").write("rfile2")
-        open(os.path.join(dn, "rfile3"), "wb").write("rfile3")
+        with open(os.path.join(dn, "rfile1"), "wb") as f:
+            f.write("rfile1")
+        with open(os.path.join(dn, "rfile2"), "wb") as f:
+            f.write("rfile2")
+        with open(os.path.join(dn, "rfile3"), "wb") as f:
+            f.write("rfile3")
         sdn2 = os.path.join(dn, "subdir2")
         os.makedirs(sdn2)
-        open(os.path.join(sdn2, "rfile4"), "wb").write("rfile4")
-        open(os.path.join(sdn2, "rfile5"), "wb").write("rfile5")
+        with open(os.path.join(sdn2, "rfile4"), "wb") as f:
+            f.write("rfile4")
+        with open(os.path.join(sdn2, "rfile5"), "wb") as f:
+            f.write("rfile5")
 
         # from disk into tahoe
         d.addCallback(run, "cp", "-r", dn, "tahoe:")
@@ -2551,6 +2617,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
 
         return d
 
+    @skipIf(PY3, "Python 3 CLI support hasn't happened yet.")
     def test_filesystem_with_cli_in_subprocess(self):
         # We do this in a separate test so that test_filesystem doesn't skip if we can't run bin/tahoe.
 
@@ -2574,12 +2641,12 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
             out, err, rc_or_sig = res
             self.failUnlessEqual(rc_or_sig, 0, str(res))
             if check_stderr:
-                self.failUnlessEqual(err, "")
+                self.failUnlessEqual(err, b"")
 
         d.addCallback(_run_in_subprocess, "create-alias", "newalias")
         d.addCallback(_check_succeeded)
 
-        STDIN_DATA = "This is the file to upload from stdin."
+        STDIN_DATA = b"This is the file to upload from stdin."
         d.addCallback(_run_in_subprocess, "put", "-", "newalias:tahoe-file", stdin=STDIN_DATA)
         d.addCallback(_check_succeeded, check_stderr=False)
 
@@ -2601,7 +2668,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         return d
 
     def _test_checker(self, res):
-        ut = upload.Data("too big to be literal" * 200, convergence=None)
+        ut = upload.Data(b"too big to be literal" * 200, convergence=None)
         d = self._personal_node.add_file(u"big file", ut)
 
         d.addCallback(lambda res: self._personal_node.check(Monitor()))

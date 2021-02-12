@@ -141,7 +141,7 @@ class CHKCheckerAndUEBFetcher(object):
 
 
 @implementer(interfaces.RICHKUploadHelper)
-class CHKUploadHelper(Referenceable, upload.CHKUploader):
+class CHKUploadHelper(Referenceable, upload.CHKUploader):  # type: ignore # warner/foolscap#78
     """I am the helper-server -side counterpart to AssistedUploader. I handle
     peer selection, encoding, and share pushing. I read ciphertext from the
     remote AssistedUploader.
@@ -499,10 +499,13 @@ class LocalCiphertextReader(AskUntilSuccessMixin):
         # ??. I'm not sure if it makes sense to forward the close message.
         return self.call("close")
 
+    # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3561
+    def set_upload_status(self, upload_status):
+        raise NotImplementedError
 
 
 @implementer(interfaces.RIHelper, interfaces.IStatsProducer)
-class Helper(Referenceable):
+class Helper(Referenceable):  # type: ignore # warner/foolscap#78
     """
     :ivar dict[bytes, CHKUploadHelper] _active_uploads: For any uploads which
         have been started but not finished, a mapping from storage index to the

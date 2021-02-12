@@ -1,6 +1,12 @@
 from __future__ import print_function
 
 import os.path, re, fnmatch
+
+try:
+    from allmydata.scripts.types_ import SubCommands, Parameters
+except ImportError:
+    pass
+
 from twisted.python import usage
 from allmydata.scripts.common import get_aliases, get_default_nodedir, \
      DEFAULT_ALIAS, BaseOptions
@@ -19,7 +25,7 @@ class FileStoreOptions(BaseOptions):
          "This overrides the URL found in the --node-directory ."],
         ["dir-cap", None, None,
          "Specify which dirnode URI should be used as the 'tahoe' alias."]
-        ]
+        ]  # type: Parameters
 
     def postOptions(self):
         self["quiet"] = self.parent["quiet"]
@@ -455,25 +461,25 @@ class DeepCheckOptions(FileStoreOptions):
     Optionally repair any problems found."""
 
 subCommands = [
-    ["mkdir", None, MakeDirectoryOptions, "Create a new directory."],
-    ["add-alias", None, AddAliasOptions, "Add a new alias cap."],
-    ["create-alias", None, CreateAliasOptions, "Create a new alias cap."],
-    ["list-aliases", None, ListAliasesOptions, "List all alias caps."],
-    ["ls", None, ListOptions, "List a directory."],
-    ["get", None, GetOptions, "Retrieve a file from the grid."],
-    ["put", None, PutOptions, "Upload a file into the grid."],
-    ["cp", None, CpOptions, "Copy one or more files or directories."],
-    ["unlink", None, UnlinkOptions, "Unlink a file or directory on the grid."],
-    ["mv", None, MvOptions, "Move a file within the grid."],
-    ["ln", None, LnOptions, "Make an additional link to an existing file or directory."],
-    ["backup", None, BackupOptions, "Make target dir look like local dir."],
-    ["webopen", None, WebopenOptions, "Open a web browser to a grid file or directory."],
-    ["manifest", None, ManifestOptions, "List all files/directories in a subtree."],
-    ["stats", None, StatsOptions, "Print statistics about all files/directories in a subtree."],
-    ["check", None, CheckOptions, "Check a single file or directory."],
-    ["deep-check", None, DeepCheckOptions, "Check all files/directories reachable from a starting point."],
-    ["status", None, TahoeStatusCommand, "Various status information."],
-    ]
+    ("mkdir", None, MakeDirectoryOptions, "Create a new directory."),
+    ("add-alias", None, AddAliasOptions, "Add a new alias cap."),
+    ("create-alias", None, CreateAliasOptions, "Create a new alias cap."),
+    ("list-aliases", None, ListAliasesOptions, "List all alias caps."),
+    ("ls", None, ListOptions, "List a directory."),
+    ("get", None, GetOptions, "Retrieve a file from the grid."),
+    ("put", None, PutOptions, "Upload a file into the grid."),
+    ("cp", None, CpOptions, "Copy one or more files or directories."),
+    ("unlink", None, UnlinkOptions, "Unlink a file or directory on the grid."),
+    ("mv", None, MvOptions, "Move a file within the grid."),
+    ("ln", None, LnOptions, "Make an additional link to an existing file or directory."),
+    ("backup", None, BackupOptions, "Make target dir look like local dir."),
+    ("webopen", None, WebopenOptions, "Open a web browser to a grid file or directory."),
+    ("manifest", None, ManifestOptions, "List all files/directories in a subtree."),
+    ("stats", None, StatsOptions, "Print statistics about all files/directories in a subtree."),
+    ("check", None, CheckOptions, "Check a single file or directory."),
+    ("deep-check", None, DeepCheckOptions, "Check all files/directories reachable from a starting point."),
+    ("status", None, TahoeStatusCommand, "Various status information."),
+    ]  # type: SubCommands
 
 def mkdir(options):
     from allmydata.scripts import tahoe_mkdir
@@ -495,7 +501,7 @@ def list_aliases(options):
     rc = tahoe_add_alias.list_aliases(options)
     return rc
 
-def list(options):
+def list_(options):
     from allmydata.scripts import tahoe_ls
     rc = tahoe_ls.list(options)
     return rc
@@ -581,7 +587,7 @@ dispatch = {
     "add-alias": add_alias,
     "create-alias": create_alias,
     "list-aliases": list_aliases,
-    "ls": list,
+    "ls": list_,
     "get": get,
     "put": put,
     "cp": cp,

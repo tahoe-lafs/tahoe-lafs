@@ -4,6 +4,13 @@ Common utilities that are available from Python 3.
 Can eventually be merged back into allmydata.web.common.
 """
 
+from past.builtins import unicode
+
+try:
+    from typing import Optional
+except ImportError:
+    pass
+
 from twisted.web import resource, http
 
 from allmydata.util import abbreviate
@@ -23,12 +30,22 @@ def get_arg(req, argname, default=None, multiple=False):
     empty), starting with all those in the query args.
 
     :param TahoeLAFSRequest req: The request to consider.
+
+    :return: Either bytes or tuple of bytes.
     """
+    if isinstance(argname, unicode):
+        argname = argname.encode("utf-8")
+    if isinstance(default, unicode):
+        default = default.encode("utf-8")
     results = []
     if argname in req.args:
         results.extend(req.args[argname])
-    if req.fields and argname in req.fields:
-        results.append(req.fields[argname].value)
+    argname_unicode = unicode(argname, "utf-8")
+    if req.fields and argname_unicode in req.fields:
+        value = req.fields[argname_unicode].value
+        if isinstance(value, unicode):
+            value = value.encode("utf-8")
+        results.append(value)
     if multiple:
         return tuple(results)
     if results:
@@ -47,7 +64,7 @@ class MultiFormatResource(resource.Resource, object):
     format if nothing else is given as the ``formatDefault``.
     """
     formatArgument = "t"
-    formatDefault = None
+    formatDefault = None  # type: Optional[str]
 
     def render(self, req):
         """
@@ -62,8 +79,17 @@ class MultiFormatResource(resource.Resource, object):
         :return: The result of the selected renderer.
         """
         t = get_arg(req, self.formatArgument, self.formatDefault)
+        # It's either bytes or None.
+        if isinstance(t, bytes):
+            t = unicode(t, "ascii")
         renderer = self._get_renderer(t)
-        return renderer(req)
+        result = renderer(req)
+        # On Python 3, json.dumps() returns Unicode for example, but
+        # twisted.web expects bytes. Instead of updating every single render
+        # method, just handle Unicode one time here.
+        if isinstance(result, unicode):
+            result = result.encode("utf-8")
+        return result
 
     def _get_renderer(self, fmt):
         """
@@ -95,16 +121,23 @@ class MultiFormatResource(resource.Resource, object):
 
 
 def abbreviate_time(data):
+    """
+    Convert number of seconds into human readable string.
+
+    :param data: Either ``None`` or integer or float, seconds.
+
+    :return: Unicode string.
+    """
     # 1.23s, 790ms, 132us
     if data is None:
-        return ""
+        return u""
     s = float(data)
     if s >= 10:
         return abbreviate.abbreviate_time(data)
     if s >= 1.0:
-        return "%.2fs" % s
+        return u"%.2fs" % s
     if s >= 0.01:
-        return "%.0fms" % (1000*s)
+        return u"%.0fms" % (1000*s)
     if s >= 0.001:
-        return "%.1fms" % (1000*s)
-    return "%.0fus" % (1000000*s)
+        return u"%.1fms" % (1000*s)
+    return u"%.0fus" % (1000000*s)

@@ -23,6 +23,11 @@ from base64 import b32decode, b32encode
 from errno import ENOENT, EPERM
 from warnings import warn
 
+try:
+    from typing import Union
+except ImportError:
+    pass
+
 import attr
 
 # On Python 2 this will be the backported package.
@@ -273,6 +278,11 @@ def _error_about_old_config_files(basedir, generated_files):
         raise e
 
 
+def ensure_text_and_abspath_expanduser_unicode(basedir):
+    # type: (Union[bytes, str]) -> str
+    return abspath_expanduser_unicode(ensure_text(basedir))
+
+
 @attr.s
 class _Config(object):
     """
@@ -300,8 +310,8 @@ class _Config(object):
     config = attr.ib(validator=attr.validators.instance_of(configparser.ConfigParser))
     portnum_fname = attr.ib()
     _basedir = attr.ib(
-        converter=lambda basedir: abspath_expanduser_unicode(ensure_text(basedir)),
-    )
+        converter=ensure_text_and_abspath_expanduser_unicode,
+    )  # type: str
     config_path = attr.ib(
         validator=attr.validators.optional(
             attr.validators.instance_of(FilePath),
@@ -669,8 +679,8 @@ def create_connection_handlers(config, i2p_provider, tor_provider):
     # create that handler, so hints which want it will be ignored.
     handlers = {
         "tcp": _make_tcp_handler(),
-        "tor": tor_provider.get_tor_handler(),
-        "i2p": i2p_provider.get_i2p_handler(),
+        "tor": tor_provider.get_client_endpoint(),
+        "i2p": i2p_provider.get_client_endpoint(),
     }
     log.msg(
         format="built Foolscap connection handlers for: %(known_handlers)s",
@@ -927,7 +937,6 @@ class Node(service.MultiService):
     """
     NODETYPE = "unknown NODETYPE"
     CERTFILE = "node.pem"
-    GENERATED_FILES = []
 
     def __init__(self, config, main_tub, control_tub, i2p_provider, tor_provider):
         """

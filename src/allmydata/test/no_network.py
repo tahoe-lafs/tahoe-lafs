@@ -24,6 +24,7 @@ from future.utils import PY2
 if PY2:
     from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 from past.builtins import unicode
+from six import ensure_text
 
 import os
 from base64 import b32encode
@@ -67,7 +68,7 @@ class Marker(object):
 
 fireNow = partial(defer.succeed, None)
 
-@implementer(IRemoteReference)
+@implementer(IRemoteReference)  # type: ignore  # warner/foolscap#79
 class LocalWrapper(object):
     """
     A ``LocalWrapper`` presents the remote reference interface to a local
@@ -212,9 +213,12 @@ class NoNetworkServer(object):
         return _StorageServer(lambda: self.rref)
     def get_version(self):
         return self.rref.version
+    def start_connecting(self, trigger_cb):
+        raise NotImplementedError
+
 
 @implementer(IStorageBroker)
-class NoNetworkStorageBroker(object):
+class NoNetworkStorageBroker(object):  # type: ignore # missing many methods
     def get_servers_for_psi(self, peer_selection_index):
         def _permuted(server):
             seed = server.get_permutation_seed()
@@ -258,7 +262,7 @@ def create_no_network_client(basedir):
     return defer.succeed(client)
 
 
-class _NoNetworkClient(_Client):
+class _NoNetworkClient(_Client):  # type: ignore  # tahoe-lafs/ticket/3573
     """
     Overrides all _Client networking functionality to do nothing.
     """
@@ -614,8 +618,7 @@ class GridTestMixin(object):
             method="GET", clientnum=0, **kwargs):
         # if return_response=True, this fires with (data, statuscode,
         # respheaders) instead of just data.
-        assert not isinstance(urlpath, unicode)
-        url = self.client_baseurls[clientnum] + urlpath
+        url = self.client_baseurls[clientnum] + ensure_text(urlpath)
 
         response = yield treq.request(method, url, persistent=False,
                                       allow_redirects=followRedirect,

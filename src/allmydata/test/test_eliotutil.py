@@ -18,17 +18,25 @@ if PY2:
 from sys import stdout
 import logging
 
+from unittest import (
+    skip,
+)
+
 from fixtures import (
     TempDir,
 )
 from testtools import (
     TestCase,
 )
+from testtools import (
+    TestResult,
+)
 from testtools.matchers import (
     Is,
     IsInstance,
     MatchesStructure,
     Equals,
+    HasLength,
     AfterPreprocessing,
 )
 from testtools.twistedsupport import (
@@ -38,12 +46,16 @@ from testtools.twistedsupport import (
 
 from eliot import (
     Message,
+    MessageType,
+    fields,
     FileDestination,
+    MemoryLogger,
 )
 from eliot.twisted import DeferredContext
 from eliot.testing import (
     capture_logging,
     assertHasAction,
+    swap_logger,
 )
 
 from twisted.internet.defer import (
@@ -57,10 +69,13 @@ from ..util.eliotutil import (
     _parse_destination_description,
     _EliotLogging,
 )
+from ..util.jsonbytes import BytesJSONEncoder
+
 from .common import (
     SyncTestCase,
     AsyncTestCase,
 )
+
 
 class EliotLoggedTestTests(AsyncTestCase):
     def test_returns_none(self):
@@ -94,7 +109,7 @@ class ParseDestinationDescriptionTests(SyncTestCase):
         reactor = object()
         self.assertThat(
             _parse_destination_description("file:-")(reactor),
-            Equals(FileDestination(stdout)),
+            Equals(FileDestination(stdout, encoder=BytesJSONEncoder)),
         )
 
 
@@ -169,6 +184,62 @@ class EliotLoggingTests(TestCase):
                 len, Equals(1),
             ),
         )
+
+    def test_validation_failure(self):
+        """
+        If a test emits a log message that fails validation then an error is added
+        to the result.
+        """
+        # Make sure we preserve the original global Eliot state.
+        original = swap_logger(MemoryLogger())
+        self.addCleanup(lambda: swap_logger(original))
+
+        class ValidationFailureProbe(SyncTestCase):
+            def test_bad_message(self):
+                # This message does not validate because "Hello" is not an
+                # int.
+                MSG = MessageType("test:eliotutil", fields(foo=int))
+                MSG(foo="Hello").write()
+
+        result = TestResult()
+        case = ValidationFailureProbe("test_bad_message")
+        case.run(result)
+
+        self.assertThat(
+            result.errors,
+            HasLength(1),
+        )
+
+    def test_skip_cleans_up(self):
+        """
+        After a skipped test the global Eliot logging state is restored.
+        """
+        # Save the logger that's active before we do anything so that we can
+        # restore it later.  Also install another logger so we can compare it
+        # to the active logger later.
+        expected = MemoryLogger()
+        original = swap_logger(expected)
+
+        # Restore it, whatever else happens.
+        self.addCleanup(lambda: swap_logger(original))
+
+        class SkipProbe(SyncTestCase):
+            @skip("It's a skip test.")
+            def test_skipped(self):
+                pass
+
+        case = SkipProbe("test_skipped")
+        case.run()
+
+        # Retrieve the logger that's active now that the skipped test is done
+        # so we can check it against the expected value.
+        actual = swap_logger(MemoryLogger())
+        self.assertThat(
+            actual,
+            Is(expected),
+        )
+
+
 
 class LogCallDeferredTests(TestCase):
     """

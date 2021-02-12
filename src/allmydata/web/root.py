@@ -1,7 +1,9 @@
+from future.utils import PY3
+from past.builtins import unicode
+
 import os
 import time
-import json
-import urllib
+from urllib.parse import quote as urlquote
 
 from hyperlink import DecodedURL, URL
 from pkg_resources import resource_filename
@@ -10,7 +12,7 @@ from twisted.web import (
     resource,
     static,
 )
-from twisted.web.util import redirectTo
+from twisted.web.util import redirectTo, Redirect
 from twisted.python.filepath import FilePath
 from twisted.web.template import (
     Element,
@@ -21,7 +23,7 @@ from twisted.web.template import (
 )
 
 import allmydata # to display import path
-from allmydata.util import log
+from allmydata.util import log, jsonbytes as json
 from allmydata.interfaces import IFileNode
 from allmydata.web import (
     filenode,
@@ -82,7 +84,7 @@ class URIHandler(resource.Resource, object):
         # it seems Nevow was creating absolute URLs including
         # host/port whereas req.uri is absolute (but lacks host/port)
         redir_uri = URL.from_text(req.prePathURL().decode('utf8'))
-        redir_uri = redir_uri.child(urllib.quote(uri_arg).decode('utf8'))
+        redir_uri = redir_uri.child(urlquote(uri_arg))
         # add back all the query args that AREN'T "?uri="
         for k, values in req.args.items():
             if k != b"uri":
@@ -96,7 +98,7 @@ class URIHandler(resource.Resource, object):
         either "PUT /uri" to create an unlinked file, or
         "PUT /uri?t=mkdir" to create an unlinked directory
         """
-        t = get_arg(req, "t", "").strip()
+        t = unicode(get_arg(req, "t", "").strip(), "utf-8")
         if t == "":
             file_format = get_format(req, "CHK")
             mutable_type = get_mutable_type(file_format)
@@ -119,7 +121,7 @@ class URIHandler(resource.Resource, object):
         unlinked file or "POST /uri?t=mkdir" to create a
         new directory
         """
-        t = get_arg(req, "t", "").strip()
+        t = unicode(get_arg(req, "t", "").strip(), "ascii")
         if t in ("", "upload"):
             file_format = get_format(req)
             mutable_type = get_mutable_type(file_format)
@@ -146,7 +148,7 @@ class URIHandler(resource.Resource, object):
         and creates and appropriate handler (depending on the kind of
         capability it was passed).
         """
-        # this is in case a URI like "/uri/?cap=<valid capability>" is
+        # this is in case a URI like "/uri/?uri=<valid capability>" is
         # passed -- we re-direct to the non-trailing-slash version so
         # that there is just one valid URI for "uri" resource.
         if not name:
@@ -154,11 +156,13 @@ class URIHandler(resource.Resource, object):
             u = u.replace(
                 path=(s for s in u.path if s),  # remove empty segments
             )
-            return redirectTo(u.to_uri().to_text().encode('utf8'), req)
+            return Redirect(u.to_uri().to_text().encode('utf8'))
         try:
             node = self.client.create_node_from_uri(name)
             return directory.make_handler_for(node, self.client)
-        except (TypeError, AssertionError):
+        except (TypeError, AssertionError) as e:
+            log.msg(format="Failed to parse cap, perhaps due to bug: %(e)s",
+                    e=e, level=log.WEIRD)
             raise WebError(
                 "'{}' is not a valid file- or directory- cap".format(name)
             )
@@ -174,7 +178,7 @@ class FileHandler(resource.Resource, object):
 
     @exception_to_child
     def getChild(self, name, req):
-        if req.method not in ("GET", "HEAD"):
+        if req.method not in (b"GET", b"HEAD"):
             raise WebError("/file can only be used with GET or HEAD")
         # 'name' must be a file URI
         try:
@@ -197,7 +201,7 @@ class IncidentReporter(MultiFormatResource):
 
     @render_exception
     def render(self, req):
-        if req.method != "POST":
+        if req.method != b"POST":
             raise WebError("/report_incident can only be used with POST")
 
         log.msg(format="User reports incident through web page: %(details)s",
@@ -226,34 +230,37 @@ class Root(MultiFormatResource):
         self._client = client
         self._now_fn = now_fn
 
-        self.putChild("uri", URIHandler(client))
-        self.putChild("cap", URIHandler(client))
+        self.putChild(b"uri", URIHandler(client))
+        self.putChild(b"cap", URIHandler(client))
 
         # Handler for everything beneath "/private", an area of the resource
         # hierarchy which is only accessible with the private per-node API
         # auth token.
-        self.putChild("private", create_private_tree(client.get_auth_token))
+        self.putChild(b"private", create_private_tree(client.get_auth_token))
 
-        self.putChild("file", FileHandler(client))
-        self.putChild("named", FileHandler(client))
-        self.putChild("status", status.Status(client.get_history()))
-        self.putChild("statistics", status.Statistics(client.stats_provider))
+        self.putChild(b"file", FileHandler(client))
+        self.putChild(b"named", FileHandler(client))
+        self.putChild(b"status", status.Status(client.get_history()))
+        self.putChild(b"statistics", status.Statistics(client.stats_provider))
         static_dir = resource_filename("allmydata.web", "static")
         for filen in os.listdir(static_dir):
-            self.putChild(filen, static.File(os.path.join(static_dir, filen)))
+            child_path = filen
+            if PY3:
+                child_path = filen.encode("utf-8")
+            self.putChild(child_path, static.File(os.path.join(static_dir, filen)))
 
-        self.putChild("report_incident", IncidentReporter())
+        self.putChild(b"report_incident", IncidentReporter())
 
     @exception_to_child
     def getChild(self, path, request):
         if not path:
             # Render "/" path.
             return self
-        if path == "helper_status":
+        if path == b"helper_status":
             # the Helper isn't attached until after the Tub starts, so this child
             # needs to created on each request
             return status.HelperStatus(self._client.helper)
-        if path == "storage":
+        if path == b"storage":
             # Storage isn't initialized until after the web hierarchy is
             # constructed so this child needs to be created later than
             # `__init__`.
@@ -287,7 +294,7 @@ class Root(MultiFormatResource):
             self._describe_server(server)
             for server
             in broker.get_known_servers()
-        ))
+        ), key=lambda o: sorted(o.items()))
 
 
     def _describe_server(self, server):

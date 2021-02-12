@@ -133,6 +133,8 @@ def a2b(cs):
     """
     @param cs the base-32 encoded data (as bytes)
     """
+    # Workaround Future newbytes issues by converting to real bytes on Python 2:
+    cs = backwardscompat_bytes(cs)
     precondition(could_be_base32_encoded(cs), "cs is required to be possibly base32 encoded data.", cs=cs)
     precondition(isinstance(cs, bytes), cs)
 
@@ -140,7 +142,9 @@ def a2b(cs):
     # Add padding back, to make Python's base64 module happy:
     while (len(cs) * 5) % 8 != 0:
         cs += b"="
-    return base64.b32decode(cs)
+    # Let newbytes come through and still work on Python 2, where the base64
+    # module gets confused by them.
+    return base64.b32decode(backwardscompat_bytes(cs))
 
 
 __all__ = ["b2a", "a2b", "b2a_or_none", "BASE32CHAR_3bits", "BASE32CHAR_1bits", "BASE32CHAR", "BASE32STR_anybytes", "could_be_base32_encoded"]

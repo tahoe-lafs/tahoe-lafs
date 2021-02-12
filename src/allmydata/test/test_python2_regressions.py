@@ -14,8 +14,11 @@ from testtools.matchers import (
 )
 
 BLACKLIST = {
+    "allmydata.scripts.types_",
     "allmydata.test.check_load",
+    "allmydata.test._win_subprocess",
     "allmydata.windows.registry",
+    "allmydata.windows.fixups",
 }
 
 

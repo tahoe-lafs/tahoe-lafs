@@ -1,0 +1,42 @@
+-----BEGIN PGP SIGNED MESSAGE-----
+Hash: SHA512
+
+
+January 20, 2021
+
+Any of the following core Tahoe contributers may sign a release. Each
+release MUST be signed by at least one developer but MAY have
+additional signatures. Each developer independently produces a
+signature which is made available beside Tahoe releases after 1.15.0
+
+This statement is signed by the existing Tahoe release key. Any future
+such statements may be signed by it OR by any two developers (for
+example, to add or remove developers from the list).
+
+meejah
+0xC2602803128069A7
+9D5A 2BD5 688E CB88 9DEB CD3F C260 2803 1280 69A7
+https://meejah.ca/meejah.asc
+
+jean-paul calderone (exarkun)
+0xE27B085EDEAA4B1B
+96B9 C5DA B2EA 9EB6 7941 9DB7 E27B 085E DEAA 4B1B
+https://twistedmatrix.com/~exarkun/E27B085EDEAA4B1B.asc
+
+brian warner (lothar)
+0x863333C265497810
+5810 F125 7F8C F753 7753  895A 8633 33C2 6549 7810
+https://www.lothar.com/warner-gpg.html
+
+
+-----BEGIN PGP SIGNATURE-----
+
+iQEzBAEBCgAdFiEE405i0G0Oac/KQXn/veDTHWhmanoFAmAHIyIACgkQveDTHWhm
+anqhqQf/YSbMXL+gwFhAZsjX39EVlbr/Ik7WPPkJW7v1oHybTnwFpFIc52COU1x/
+sqRfk4OyYtz9IBgOPXoWgXu9R4qdK6vYKxEsekcGT9C5l0OyDz8YWXEWgbGK5mvI
+aEub9WucD8r2uOQnnW6DtznFuEpvOjtf/+2BU767+bvLsbViW88ocbuLfCqLdOgD
+WZT9j3M+Y2Dc56DAJzP/4fkrUSVIofZStYp5u9HBjburgcYIp0g/cyc4xXRoi6Mp
+lFTRFv3MIjmoamzSQseoIgP6fi8QRqPrffPrsyqAp+06mJnPhxxFqxtO/ZErmpSa
++BGrLBxdWa8IF9U1A4Fs5nuAzAKMEg==
+=E9J+
+-----END PGP SIGNATURE-----

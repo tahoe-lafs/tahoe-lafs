@@ -277,6 +277,20 @@ class Provider(unittest.TestCase):
         i2p.local_i2p.assert_called_with("configdir")
         self.assertIs(h, handler)
 
+    def test_handler_launch_executable(self):
+        i2p = mock.Mock()
+        handler = object()
+        i2p.launch = mock.Mock(return_value=handler)
+        reactor = object()
+
+        with mock_i2p(i2p):
+            p = i2p_provider.create(reactor,
+                                    FakeConfig(launch=True,
+                                               **{"i2p.executable": "myi2p"}))
+        h = p.get_i2p_handler()
+        self.assertIs(h, handler)
+        i2p.launch.assert_called_with(i2p_configdir=None, i2p_binary="myi2p")
+
     def test_handler_default(self):
         i2p = mock.Mock()
         handler = object()

@@ -207,10 +207,10 @@ create a new directory and lose the capability to it, then you cannot
 access that directory ever again.
 
 
-The SFTP and FTP frontends
---------------------------
+The SFTP frontend
+-----------------
 
-You can access your Tahoe-LAFS grid via any SFTP_ or FTP_ client. See
+You can access your Tahoe-LAFS grid via any SFTP_ client. See
 :doc:`frontends/FTP-and-SFTP` for how to set this up. On most Unix
 platforms, you can also use SFTP to plug Tahoe-LAFS into your computer's
 local filesystem via ``sshfs``, but see the `FAQ about performance
@@ -220,7 +220,6 @@ The SftpFrontend_ page on the wiki has more information about using SFTP with
 Tahoe-LAFS.
 
 .. _SFTP:  https://en.wikipedia.org/wiki/SSH_file_transfer_protocol
-.. _FTP: https://en.wikipedia.org/wiki/File_Transfer_Protocol
 .. _FAQ about performance problems: https://tahoe-lafs.org/trac/tahoe-lafs/wiki/FAQ#Q23_FUSE
 .. _SftpFrontend: https://tahoe-lafs.org/trac/tahoe-lafs/wiki/SftpFrontend
 

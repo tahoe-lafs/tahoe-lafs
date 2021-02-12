@@ -1,6 +1,16 @@
 """
 Tests for ```allmydata.web.status```.
+
+Ported to Python 3.
 """
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 from bs4 import BeautifulSoup
 from twisted.web.template import flattenString
@@ -143,12 +153,12 @@ class DownloadStatusElementTests(TrialTestCase):
         See if we can render the page almost fully.
         """
         status = FakeDownloadStatus(
-            "si-1", 123,
-            ["s-1", "s-2", "s-3"],
-            {"s-1": "unknown problem"},
-            {"s-1": [1], "s-2": [1,2], "s-3": [2,3]},
+            b"si-1", 123,
+            [b"s-1", b"s-2", b"s-3"],
+            {b"s-1": "unknown problem"},
+            {b"s-1": [1], b"s-2": [1,2], b"s-3": [2,3]},
             {"fetch_per_server":
-             {"s-1": [1], "s-2": [2,3], "s-3": [3,2]}}
+             {b"s-1": [1], b"s-2": [2,3], b"s-3": [3,2]}}
         )
 
         result = self._render_download_status_element(status)

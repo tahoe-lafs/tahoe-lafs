@@ -1,4 +1,15 @@
-"""Implementation of the deep stats class."""
+"""Implementation of the deep stats class.
+
+Ported to Python 3.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 import math
 
@@ -13,7 +24,7 @@ from allmydata.util import mathutil
 class DeepStats(object):
     """Deep stats object.
 
-    Holds results of the deep-stats opetation.
+    Holds results of the deep-stats operation.
     Used for json generation in the API."""
 
     # Json API version.
@@ -121,7 +132,7 @@ class DeepStats(object):
         h[bucket] += 1
 
     def get_results(self):
-        """Returns deep-stats resutls."""
+        """Returns deep-stats results."""
         stats = self.stats.copy()
         for key in self.histograms:
             h = self.histograms[key]

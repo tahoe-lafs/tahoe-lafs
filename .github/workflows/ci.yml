@@ -30,16 +30,36 @@ jobs:
         with:
           args: install vcpython27
 
+      # See https://github.com/actions/checkout. A fetch-depth of 0
+      # fetches all tags and branches.
       - name: Check out Tahoe-LAFS sources
         uses: actions/checkout@v2
-
-      - name: Fetch all history for all tags and branches
-        run: git fetch --prune --unshallow
+        with:
+          fetch-depth: 0
 
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v1
         with:
           python-version: ${{ matrix.python-version }}
+
+      # To use pip caching with GitHub Actions in an OS-independent
+      # manner, we need `pip cache dir` command, which became
+      # available since pip v20.1+.  At the time of writing this,
+      # GitHub Actions offers pip v20.3.3 for both ubuntu-latest and
+      # windows-latest, and pip v20.3.1 for macos-latest.
+      - name: Get pip cache directory
+        id: pip-cache
+        run: |
+          echo "::set-output name=dir::$(pip cache dir)"
+
+      # See https://github.com/actions/cache
+      - name: Use pip cache
+        uses: actions/cache@v2
+        with:
+          path: ${{ steps.pip-cache.outputs.dir }}
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/setup.py') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
 
       - name: Install Python packages
         run: |
@@ -59,11 +79,110 @@ jobs:
           name: eliot.log
           path: eliot.log
 
-      - name: Upload coverage report
-        uses: codecov/codecov-action@v1
-        with:
-          token: abf679b6-e2e6-4b33-b7b5-6cfbd41ee691
-          file: coverage.xml
+      # Upload this job's coverage data to Coveralls.  While there is a GitHub
+      # Action for this, as of Jan 2021 it does not support Python coverage
+      # files - only lcov files.  Therefore, we use coveralls-python, the
+      # coveralls.io-supplied Python reporter, for this.
+      - name: "Report Coverage to Coveralls"
+        run: |
+          pip install coveralls
+          python -m coveralls
+        env:
+          # Some magic value required for some magic reason.
+          GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+          # Help coveralls identify our project.
+          COVERALLS_REPO_TOKEN: "JPf16rLB7T2yjgATIxFzTsEgMdN1UNq6o"
+          # Every source of coverage reports needs a unique "flag name".
+          # Construct one by smashing a few variables from the matrix together
+          # here.
+          COVERALLS_FLAG_NAME: "run-${{ matrix.os }}-${{ matrix.python-version }}"
+          # Mark the data as just one piece of many because we have more than
+          # one instance of this job (Windows, macOS) which collects and
+          # reports coverage.  This is necessary to cause Coveralls to merge
+          # multiple coverage results into a single report.  Note the merge
+          # only happens when we "finish" a particular build, as identified by
+          # its "build_num" (aka "service_number").
+          COVERALLS_PARALLEL: true
+
+  # Tell Coveralls that we're done reporting coverage data.  Since we're using
+  # the "parallel" mode where more than one coverage data file is merged into
+  # a single report, we have to tell Coveralls when we've uploaded all of the
+  # data files.  This does it.  We make sure it runs last by making it depend
+  # on *all* of the coverage-collecting jobs.
+  finish-coverage-report:
+    # There happens to just be one coverage-collecting job at the moment.  If
+    # the coverage reports are broken and someone added more
+    # coverage-collecting jobs to this workflow but didn't update this, that's
+    # why.
+    needs:
+      - "coverage"
+    runs-on: "ubuntu-latest"
+    steps:
+      - name: "Check out Tahoe-LAFS sources"
+        uses: "actions/checkout@v2"
+
+      - name: "Finish Coveralls Reporting"
+        run: |
+          # coveralls-python does have a `--finish` option but it doesn't seem
+          # to work, at least for us.
+          # https://github.com/coveralls-clients/coveralls-python/issues/248
+          #
+          # But all it does is this simple POST so we can just send it
+          # ourselves.  The only hard part is guessing what the POST
+          # parameters mean.  And I've done that for you already.
+          #
+          # Since the build is done I'm going to guess that "done" is a fine
+          # value for status.
+          #
+          # That leaves "build_num".  The coveralls documentation gives some
+          # hints about it.  It suggests using $CIRCLE_WORKFLOW_ID if your job
+          # is on CircleCI.  CircleCI documentation says this about
+          # CIRCLE_WORKFLOW_ID:
+          #
+          # Observation of the coveralls.io web interface, logs from the
+          # coveralls command in action, and experimentation suggests the
+          # value for PRs is something more like:
+          #
+          #    <GIT MERGE COMMIT HASH>-PR-<PR NUM>
+          #
+          # For branches, it's just the git branch tip hash.
+
+          # For pull requests, refs/pull/<PR NUM>/merge was just checked out
+          # by so HEAD will refer to the right revision.  For branches, HEAD
+          # is also the tip of the branch.
+          REV=$(git rev-parse HEAD)
+
+          # We can get the PR number from the "context".
+          #
+          # https://docs.github.com/en/free-pro-team@latest/developers/webhooks-and-events/webhook-events-and-payloads#pull_request
+          #
+          # (via <https://github.community/t/github-ref-is-inconsistent/17728/3>).
+          #
+          # If this is a pull request, `github.event` is a `pull_request`
+          # structure which has `number` right in it.
+          #
+          # If this is a push, `github.event` is a `push` instead but we only
+          # need the revision to construct the build_num.
+
+          PR=${{ github.event.number }}
+
+          if [ "${PR}" = "" ]; then
+              BUILD_NUM=$REV
+          else
+              BUILD_NUM=$REV-PR-$PR
+          fi
+          REPO_NAME=$GITHUB_REPOSITORY
+
+          curl \
+            -k \
+            https://coveralls.io/webhook?repo_token=$COVERALLS_REPO_TOKEN \
+            -d \
+            "payload[build_num]=$BUILD_NUM&payload[status]=done&payload[repo_name]=$REPO_NAME"
+        env:
+          # Some magic value required for some magic reason.
+          GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+          # Help coveralls identify our project.
+          COVERALLS_REPO_TOKEN: "JPf16rLB7T2yjgATIxFzTsEgMdN1UNq6o"
 
   integration:
     runs-on: ${{ matrix.os }}
@@ -103,14 +222,26 @@ jobs:
 
       - name: Check out Tahoe-LAFS sources
         uses: actions/checkout@v2
-
-      - name: Fetch all history for all tags and branches
-        run: git fetch --prune --unshallow
+        with:
+          fetch-depth: 0
 
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v1
         with:
           python-version: ${{ matrix.python-version }}
+
+      - name: Get pip cache directory
+        id: pip-cache
+        run: |
+          echo "::set-output name=dir::$(pip cache dir)"
+
+      - name: Use pip cache
+        uses: actions/cache@v2
+        with:
+          path: ${{ steps.pip-cache.outputs.dir }}
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/setup.py') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
 
       - name: Install Python packages
         run: |
@@ -155,14 +286,26 @@ jobs:
 
       - name: Check out Tahoe-LAFS sources
         uses: actions/checkout@v2
-
-      - name: Fetch all history for all tags and branches
-        run: git fetch --prune --unshallow
+        with:
+          fetch-depth: 0
 
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v1
         with:
           python-version: ${{ matrix.python-version }}
+
+      - name: Get pip cache directory
+        id: pip-cache
+        run: |
+          echo "::set-output name=dir::$(pip cache dir)"
+
+      - name: Use pip cache
+        uses: actions/cache@v2
+        with:
+          path: ${{ steps.pip-cache.outputs.dir }}
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/setup.py') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
 
       - name: Install Python packages
         run: |

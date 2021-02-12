@@ -18,7 +18,6 @@ import time
 from zope.interface import implementer
 from twisted.internet import defer
 from foolscap.api import fireEventually
-import json
 
 from allmydata.crypto import aes
 from allmydata.deep_stats import DeepStats
@@ -31,7 +30,7 @@ from allmydata.interfaces import IFilesystemNode, IDirectoryNode, IFileNode, \
 from allmydata.check_results import DeepCheckResults, \
      DeepCheckAndRepairResults
 from allmydata.monitor import Monitor
-from allmydata.util import hashutil, base32, log
+from allmydata.util import hashutil, base32, log, jsonbytes as json
 from allmydata.util.encodingutil import quote_output, normalize
 from allmydata.util.assertutil import precondition
 from allmydata.util.netstring import netstring, split_netstring
@@ -569,7 +568,7 @@ class DirectoryNode(object):
         d = self.get_child_and_metadata(childnamex)
         return d
 
-    def set_uri(self, namex, writecap, readcap, metadata=None, overwrite=True):
+    def set_uri(self, namex, writecap, readcap=None, metadata=None, overwrite=True):
         precondition(isinstance(writecap, (bytes, type(None))), writecap)
         precondition(isinstance(readcap, (bytes, type(None))), readcap)
 
