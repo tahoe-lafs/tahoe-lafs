@@ -29,7 +29,7 @@ workflows:
       - "debian-9": &DOCKERHUB_CONTEXT
           context: "dockerhub-auth"
 
-      - "debian-8":
+      - "debian-10":
           <<: *DOCKERHUB_CONTEXT
           requires:
             - "debian-9"
@@ -107,7 +107,7 @@ workflows:
                 - "master"
 
     jobs:
-      - "build-image-debian-8":
+      - "build-image-debian-10":
           <<: *DOCKERHUB_CONTEXT
       - "build-image-debian-9":
           <<: *DOCKERHUB_CONTEXT
@@ -277,11 +277,11 @@ jobs:
             fi
 
 
-  debian-8:
+  debian-10:
     <<: *DEBIAN
     docker:
       - <<: *DOCKERHUB_AUTH
-        image: "tahoelafsci/debian:8-py2.7"
+        image: "tahoelafsci/debian:10-py2.7"
         user: "nobody"
 
 
@@ -529,12 +529,12 @@ jobs:
             docker push tahoelafsci/${DISTRO}:${TAG}-py${PYTHON_VERSION}
 
 
-  build-image-debian-8:
+  build-image-debian-10:
     <<: *BUILD_IMAGE
 
     environment:
       DISTRO: "debian"
-      TAG: "8"
+      TAG: "10"
       PYTHON_VERSION: "2.7"
 
 
