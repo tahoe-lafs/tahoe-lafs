@@ -1301,9 +1301,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
             s = stats["stats"]
             self.failUnlessEqual(s["storage_server.accepting_immutable_shares"], 1)
             c = stats["counters"]
-            # Probably this should be Unicode eventually? But we haven't ported
-            # stats code yet.
-            self.failUnless(b"storage_server.allocate" in c)
+            self.failUnless("storage_server.allocate" in c)
         d.addCallback(_grab_stats)
 
         return d
@@ -1608,7 +1606,6 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
     # the key, which should cause the download to fail the post-download
     # plaintext_hash check.
 
-    @skipIf(PY3, "Python 3 web support hasn't happened yet.")
     def test_filesystem(self):
         self.basedir = "system/SystemTest/test_filesystem"
         self.data = LARGE_DATA
@@ -1646,7 +1643,9 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         d.addCallback(self.log, "did _check_publish_private")
         d.addCallback(self._test_web)
         d.addCallback(self._test_control)
-        d.addCallback(self._test_cli)
+        if PY2:
+            # TODO when CLI is ported to Python 3, reenable.
+            d.addCallback(self._test_cli)
         # P now has four top-level children:
         # P/personal/sekrit data
         # P/s2-ro/
@@ -1900,9 +1899,9 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
             if isinstance(value, tuple):
                 filename, value = value
                 form.append(b'Content-Disposition: form-data; name="%s"; '
-                            b'filename="%s"' % (name, filename.encode("utf-8")))
+                            b'filename="%s"' % (name.encode("utf-8"), filename.encode("utf-8")))
             else:
-                form.append(b'Content-Disposition: form-data; name="%s"' % name)
+                form.append(b'Content-Disposition: form-data; name="%s"' % name.encode("utf-8"))
             form.append(b'')
             form.append(b"%s" % (value,))
             form.append(sep)
@@ -1959,22 +1958,22 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         d.addCallback(self.log, "done with _got_subdir1")
         d.addCallback(lambda res: self.GET(public + "/subdir1/mydata567"))
         def _got_data(page):
-            self.failUnlessEqual(page, self.data)
+            self.failUnlessEqual(page.encode("utf-8"), self.data)
         d.addCallback(_got_data)
 
         # download from a URI embedded in a URL
         d.addCallback(self.log, "_get_from_uri")
         def _get_from_uri(res):
-            return self.GET("uri/%s?filename=%s" % (self.uri, "mydata567"))
+            return self.GET("uri/%s?filename=%s" % (str(self.uri, "utf-8"), "mydata567"))
         d.addCallback(_get_from_uri)
         def _got_from_uri(page):
-            self.failUnlessEqual(page, self.data)
+            self.failUnlessEqual(page.encode("utf-8"), self.data)
         d.addCallback(_got_from_uri)
 
         # download from a URI embedded in a URL, second form
         d.addCallback(self.log, "_get_from_uri2")
         def _get_from_uri2(res):
-            return self.GET("uri?uri=%s" % (self.uri,))
+            return self.GET("uri?uri=%s" % (str(self.uri, "utf-8"),))
         d.addCallback(_get_from_uri2)
         d.addCallback(_got_from_uri)
 
@@ -1983,9 +1982,9 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         @defer.inlineCallbacks
         def _get_from_bogus_uri(res):
             d1 = self.GET("uri/%s?filename=%s"
-                          % (self.mangle_uri(self.uri), "mydata567"))
+                          % (str(self.mangle_uri(self.uri), "utf-8"), "mydata567"))
             e = yield self.assertFailure(d1, Error)
-            self.assertEquals(e.status, "410")
+            self.assertEquals(e.status, b"410")
         d.addCallback(_get_from_bogus_uri)
         d.addCallback(self.log, "_got_from_bogus_uri", level=log.UNUSUAL)
 
@@ -2069,14 +2068,14 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
             workdir = os.path.join(self.getdir("client0"), "helper")
             incfile = os.path.join(workdir, "CHK_incoming", "spurious")
             f = open(incfile, "wb")
-            f.write("small file")
+            f.write(b"small file")
             f.close()
             then = time.time() - 86400*3
             now = time.time()
             os.utime(incfile, (now, then))
             encfile = os.path.join(workdir, "CHK_encoding", "spurious")
             f = open(encfile, "wb")
-            f.write("less small file")
+            f.write(b"less small file")
             f.close()
             os.utime(encfile, (now, then))
         d.addCallback(_got_helper_status)
@@ -2117,7 +2116,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         d.addCallback(lambda res: self.GET("statistics"))
         def _got_stats(res):
             self.failUnlessIn("Operational Statistics", res)
-            self.failUnlessIn("  'downloader.files_downloaded': 5,", res)
+            self.failUnlessIn('  "downloader.files_downloaded": 5,', res)
         d.addCallback(_got_stats)
         d.addCallback(lambda res: self.GET("statistics?t=json"))
         def _got_stats_json(res):
@@ -2325,7 +2324,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         for i in range(10):
             fn = os.path.join(self.basedir, "file%d" % i)
             files.append(fn)
-            data = "data to be uploaded: file%d\n" % i
+            data = b"data to be uploaded: file%d\n" % i
             datas.append(data)
             with open(fn, "wb") as f:
                 f.write(data)

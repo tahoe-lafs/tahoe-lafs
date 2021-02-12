@@ -1760,7 +1760,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
     def test_PUT_NEWFILEURL_unlinked_bad_format(self):
         contents = self.NEWFILE_CONTENTS * 300000
         yield self.assertHTTPError(self.webish_url + "/uri?format=foo", 400,
-                                   "Unknown format:",
+                                   "Unknown format: foo",
                                    method="put", data=contents)
 
     def test_PUT_NEWFILEURL_range_bad(self):
@@ -1813,7 +1813,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
 
     def test_PUT_NEWFILEURL_bad_t(self):
         d = self.shouldFail2(error.Error, "PUT_bad_t", "400 Bad Request",
-                             "PUT to a file: bad t=",
+                             "PUT to a file: bad t=bogus",
                              self.PUT, self.public_url + "/foo/bar.txt?t=bogus",
                              b"contents")
         return d
@@ -2344,7 +2344,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
     def test_PUT_NEWDIRURL_bad_format(self):
         url = (self.webish_url + self.public_url +
                "/foo/newdir=?t=mkdir&format=foo")
-        yield self.assertHTTPError(url, 400, "Unknown format:",
+        yield self.assertHTTPError(url, 400, "Unknown format: foo",
                                    method="put", data="")
 
     def test_POST_NEWDIRURL(self):
@@ -2377,7 +2377,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
     def test_POST_NEWDIRURL_bad_format(self):
         url = (self.webish_url + self.public_url +
                "/foo/newdir?t=mkdir&format=foo")
-        yield self.assertHTTPError(url, 400, "Unknown format:",
+        yield self.assertHTTPError(url, 400, "Unknown format: foo",
                                    method="post", data="")
 
     def test_POST_NEWDIRURL_emptyname(self):
@@ -2454,7 +2454,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         (newkids, caps) = self._create_initial_children()
         url = (self.webish_url + self.public_url +
                "/foo/newdir?t=mkdir-with-children&format=foo")
-        yield self.assertHTTPError(url, 400, "Unknown format:",
+        yield self.assertHTTPError(url, 400, "Unknown format: foo",
                                    method="post", data=json.dumps(newkids).encode("utf-8"))
 
     def test_POST_NEWDIRURL_immutable(self):
@@ -2578,7 +2578,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
     def test_PUT_NEWDIRURL_mkdirs_bad_format(self):
         url = (self.webish_url + self.public_url +
                "/foo/subdir/newdir?t=mkdir&format=foo")
-        yield self.assertHTTPError(url, 400, "Unknown format:",
+        yield self.assertHTTPError(url, 400, "Unknown format: foo",
                                    method="put", data="")
 
     def test_DELETE_DIRURL(self):
@@ -2857,7 +2857,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         url = self.webish_url + "/uri?t=upload&format=foo"
         body, headers = self.build_form(file=("foo.txt", self.NEWFILE_CONTENTS * 300000))
         yield self.assertHTTPError(url, 400,
-                                   "Unknown format:",
+                                   "Unknown format: foo",
                                    method="post", data=body, headers=headers)
 
     def test_POST_upload_format(self):
@@ -2892,7 +2892,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
     def test_POST_upload_bad_format(self):
         url = self.webish_url + self.public_url + "/foo?t=upload&format=foo"
         body, headers = self.build_form(file=("foo.txt", self.NEWFILE_CONTENTS * 300000))
-        yield self.assertHTTPError(url, 400, "Unknown format:",
+        yield self.assertHTTPError(url, 400, "Unknown format: foo",
                                    method="post", data=body, headers=headers)
 
     def test_POST_upload_mutable(self):
@@ -3388,7 +3388,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
     def test_POST_mkdir_bad_format(self):
         url = (self.webish_url + self.public_url +
                "/foo?t=mkdir&name=newdir&format=foo")
-        yield self.assertHTTPError(url, 400, "Unknown format:",
+        yield self.assertHTTPError(url, 400, "Unknown format: foo",
                                    method="post")
 
     def test_POST_mkdir_initial_children(self):
@@ -3440,7 +3440,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         (newkids, caps) = self._create_initial_children()
         url = (self.webish_url + self.public_url +
                "/foo?t=mkdir-with-children&name=newdir&format=foo")
-        yield self.assertHTTPError(url, 400, "Unknown format:",
+        yield self.assertHTTPError(url, 400, "Unknown format: foo",
                                    method="post", data=json.dumps(newkids).encode("utf-8"))
 
     def test_POST_mkdir_immutable(self):
@@ -3519,7 +3519,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
     @inlineCallbacks
     def test_POST_mkdir_no_parentdir_noredirect_bad_format(self):
         url = self.webish_url + self.public_url + "/uri?t=mkdir&format=foo"
-        yield self.assertHTTPError(url, 400, "Unknown format:",
+        yield self.assertHTTPError(url, 400, "Unknown format: foo",
                                    method="post")
 
     def test_POST_mkdir_no_parentdir_noredirect2(self):
@@ -4462,7 +4462,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
     def test_PUT_NEWFILEURL_bad_format(self):
         new_contents = self.NEWFILE_CONTENTS * 300000
         url = self.webish_url + self.public_url + "/foo/foo.txt?format=foo"
-        yield self.assertHTTPError(url, 400, "Unknown format:",
+        yield self.assertHTTPError(url, 400, "Unknown format: foo",
                                    method="put", data=new_contents)
 
     def test_PUT_NEWFILEURL_uri_replace(self):
@@ -4595,7 +4595,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
     @inlineCallbacks
     def test_PUT_mkdir_bad_format(self):
         url = self.webish_url + "/uri?t=mkdir&format=foo"
-        yield self.assertHTTPError(url, 400, "Unknown format:",
+        yield self.assertHTTPError(url, 400, "Unknown format: foo",
                                    method="put", data=b"")
 
     def test_POST_check(self):
