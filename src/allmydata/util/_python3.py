@@ -37,6 +37,7 @@ PORTED_MODULES = [
     "allmydata.crypto.util",
     "allmydata.deep_stats",
     "allmydata.dirnode",
+    "allmydata.frontends.sftpd",
     "allmydata.hashtree",
     "allmydata.immutable.checker",
     "allmydata.immutable.downloader",
@@ -170,6 +171,7 @@ PORTED_TEST_MODULES = [
     "allmydata.test.test_pipeline",
     "allmydata.test.test_python3",
     "allmydata.test.test_repairer",
+    "allmydata.test.test_sftp",
     "allmydata.test.test_spans",
     "allmydata.test.test_statistics",
     "allmydata.test.test_stats",
@@ -194,5 +196,6 @@ PORTED_TEST_MODULES = [
     "allmydata.test.web.test_root",
     "allmydata.test.web.test_status",
     "allmydata.test.web.test_util",
+    "allmydata.test.web.test_web",
     "allmydata.test.web.test_webish",
 ]

@@ -126,6 +126,42 @@ class HashUtilTests(unittest.TestCase):
             base32.a2b(b"2ckv3dfzh6rgjis6ogfqhyxnzy"),
         )
 
+    def test_convergence_hasher_tag(self):
+        """
+        ``_convergence_hasher_tag`` constructs the convergence hasher tag from a
+        unique prefix, the required, total, and segment size parameters, and a
+        convergence secret.
+        """
+        self.assertEqual(
+            b"allmydata_immutable_content_to_key_with_added_secret_v1+"
+            b"16:\x42\x42\x42\x42\x42\x42\x42\x42\x42\x42\x42\x42\x42\x42\x42\x42,"
+            b"9:3,10,1024,",
+            hashutil._convergence_hasher_tag(
+                k=3,
+                n=10,
+                segsize=1024,
+                convergence=b"\x42" * 16,
+            ),
+        )
+
+    def test_convergence_hasher_out_of_bounds(self):
+        """
+        ``_convergence_hasher_tag`` raises ``ValueError`` if k or n is not between
+        1 and 256 inclusive or if k is greater than n.
+        """
+        segsize = 1024
+        secret = b"\x42" * 16
+        for bad_k in (0, 2, 257):
+            with self.assertRaises(ValueError):
+                hashutil._convergence_hasher_tag(
+                    k=bad_k, n=1, segsize=segsize, convergence=secret,
+                )
+        for bad_n in (0, 1, 257):
+            with self.assertRaises(ValueError):
+                hashutil._convergence_hasher_tag(
+                    k=2, n=bad_n, segsize=segsize, convergence=secret,
+                )
+
     def test_known_answers(self):
         """
         Verify backwards compatibility by comparing hash outputs for some

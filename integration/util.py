@@ -5,6 +5,7 @@ from os import mkdir, environ
 from os.path import exists, join
 from six.moves import StringIO
 from functools import partial
+from subprocess import check_output
 
 from twisted.python.filepath import (
     FilePath,
@@ -12,8 +13,12 @@ from twisted.python.filepath import (
 from twisted.internet.defer import Deferred, succeed
 from twisted.internet.protocol import ProcessProtocol
 from twisted.internet.error import ProcessExitedAlready, ProcessDone
+from twisted.internet.threads import deferToThread
 
 import requests
+
+from paramiko.rsakey import RSAKey
+from boltons.funcutils import wraps
 
 from allmydata.util.configutil import (
     get_config,
@@ -23,6 +28,12 @@ from allmydata.util.configutil import (
 from allmydata import client
 
 import pytest_twisted
+
+
+def block_with_timeout(deferred, reactor, timeout=120):
+    """Block until Deferred has result, but timeout instead of waiting forever."""
+    deferred.addTimeout(timeout, reactor)
+    return pytest_twisted.blockon(deferred)
 
 
 class _ProcessExitedProtocol(ProcessProtocol):
@@ -123,11 +134,12 @@ def _cleanup_tahoe_process(tahoe_transport, exited):
 
     :return: After the process has exited.
     """
+    from twisted.internet import reactor
     try:
         print("signaling {} with TERM".format(tahoe_transport.pid))
         tahoe_transport.signalProcess('TERM')
         print("signaled, blocking on exit")
-        pytest_twisted.blockon(exited)
+        block_with_timeout(exited, reactor)
         print("exited, goodbye")
     except ProcessExitedAlready:
         pass
@@ -175,11 +187,15 @@ class TahoeProcess(object):
             u"portnum",
         )
 
+    def kill(self):
+        """Kill the process, block until it's done."""
+        _cleanup_tahoe_process(self.transport, self.transport.exited)
+
     def __str__(self):
         return "<TahoeProcess in '{}'>".format(self._node_dir)
 
 
-def _run_node(reactor, node_dir, request, magic_text):
+def _run_node(reactor, node_dir, request, magic_text, finalize=True):
     """
     Run a tahoe process from its node_dir.
 
@@ -203,7 +219,8 @@ def _run_node(reactor, node_dir, request, magic_text):
     )
     transport.exited = protocol.exited
 
-    request.addfinalizer(partial(_cleanup_tahoe_process, transport, protocol.exited))
+    if finalize:
+        request.addfinalizer(partial(_cleanup_tahoe_process, transport, protocol.exited))
 
     # XXX abusing the Deferred; should use .when_magic_seen() pattern
 
@@ -222,7 +239,8 @@ def _create_node(reactor, request, temp_dir, introducer_furl, flog_gatherer, nam
                  magic_text=None,
                  needed=2,
                  happy=3,
-                 total=4):
+                 total=4,
+                 finalize=True):
     """
     Helper to create a single node, run it and return the instance
     spawnProcess returned (ITransport)
@@ -270,7 +288,7 @@ def _create_node(reactor, request, temp_dir, introducer_furl, flog_gatherer, nam
     d = Deferred()
     d.callback(None)
     d.addCallback(lambda _: created_d)
-    d.addCallback(lambda _: _run_node(reactor, node_dir, request, magic_text))
+    d.addCallback(lambda _: _run_node(reactor, node_dir, request, magic_text, finalize=finalize))
     return d
 
 
@@ -390,17 +408,13 @@ def await_file_vanishes(path, timeout=10):
     raise FileShouldVanishException(path, timeout)
 
 
-def cli(request, reactor, node_dir, *argv):
+def cli(node, *argv):
     """
-    Run a tahoe CLI subcommand for a given node, optionally running
-    under coverage if '--coverage' was supplied.
+    Run a tahoe CLI subcommand for a given node in a blocking manner, returning
+    the output.
     """
-    proto = _CollectOutputProtocol()
-    _tahoe_runner_optional_coverage(
-        proto, reactor, request,
-        ['--node-directory', node_dir] + list(argv),
-    )
-    return proto.done
+    arguments = ["tahoe", '--node-directory', node.node_dir]
+    return check_output(arguments + list(argv))
 
 
 def node_url(node_dir, uri_fragment):
@@ -505,3 +519,36 @@ def await_client_ready(tahoe, timeout=10, liveness=60*2):
             tahoe,
         )
     )
+
+
+def generate_ssh_key(path):
+    """Create a new SSH private/public key pair."""
+    key = RSAKey.generate(2048)
+    key.write_private_key_file(path)
+    with open(path + ".pub", "wb") as f:
+        f.write(b"%s %s" % (key.get_name(), key.get_base64()))
+
+
+def run_in_thread(f):
+    """Decorator for integration tests that runs code in a thread.
+
+    Because we're using pytest_twisted, tests that rely on the reactor are
+    expected to return a Deferred and use async APIs so the reactor can run.
+
+    In the case of the integration test suite, it launches nodes in the
+    background using Twisted APIs.  The nodes stdout and stderr is read via
+    Twisted code.  If the reactor doesn't run, reads don't happen, and
+    eventually the buffers fill up, and the nodes block when they try to flush
+    logs.
+
+    We can switch to Twisted APIs (treq instead of requests etc.), but
+    sometimes it's easier or expedient to just have a blocking test.  So this
+    decorator allows you to run the test in a thread, and the reactor can keep
+    running in the main thread.
+
+    See https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3597 for tracking bug.
+    """
+    @wraps(f)
+    def test(*args, **kwargs):
+        return deferToThread(lambda: f(*args, **kwargs))
+    return test

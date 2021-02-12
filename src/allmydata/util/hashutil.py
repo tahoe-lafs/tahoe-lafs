@@ -176,10 +176,44 @@ def convergence_hash(k, n, segsize, data, convergence):
     return h.digest()
 
 
-def convergence_hasher(k, n, segsize, convergence):
+def _convergence_hasher_tag(k, n, segsize, convergence):
+    """
+    Create the convergence hashing tag.
+
+    :param int k: Required shares (in [1..256]).
+    :param int n: Total shares (in [1..256]).
+    :param int segsize: Maximum segment size.
+    :param bytes convergence: The convergence secret.
+
+    :return bytes: The bytestring to use as a tag in the convergence hash.
+    """
     assert isinstance(convergence, bytes)
+    if k > n:
+        raise ValueError(
+            "k > n not allowed; k = {}, n = {}".format(k, n),
+        )
+    if k < 1 or n < 1:
+        # It doesn't make sense to have zero shares.  Zero shares carry no
+        # information, cannot encode any part of the application data.
+        raise ValueError(
+            "k, n < 1 not allowed; k = {}, n = {}".format(k, n),
+        )
+    if k > 256 or n > 256:
+        # ZFEC supports encoding application data into a maximum of 256
+        # shares.  If we ignore the limitations of ZFEC, it may be fine to use
+        # a configuration with more shares than that and it may be fine to
+        # construct a convergence tag from such a configuration.  Since ZFEC
+        # is the only supported encoder, though, this is moot for now.
+        raise ValueError(
+            "k, n > 256 not allowed; k = {}, n = {}".format(k, n),
+        )
     param_tag = netstring(b"%d,%d,%d" % (k, n, segsize))
     tag = CONVERGENT_ENCRYPTION_TAG + netstring(convergence) + param_tag
+    return tag
+
+
+def convergence_hasher(k, n, segsize, convergence):
+    tag = _convergence_hasher_tag(k, n, segsize, convergence)
     return tagged_hasher(tag, KEYLEN)
 
 
