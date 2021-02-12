@@ -91,7 +91,7 @@ class _ProcessProtocolAdapter(ProcessProtocol, object):
         try:
             proto = self._fds[childFD]
         except KeyError:
-            msg("Received unhandled output on {fd}: {output}",
+            msg("Received unhandled output on %(fd)s: %(output)s",
                 fd=childFD,
                 output=data,
             )
