@@ -130,7 +130,7 @@ class PlaceHolderNodeHandler(Resource, ReplaceMeMixin):
         if t == b"uri":
             return self.replace_me_with_a_childcap(req, self.client, replace)
 
-        raise WebError("PUT to a file: bad t=%s" % t)
+        raise WebError("PUT to a file: bad t=%s" % unicode(t, "utf-8"))
 
     @render_exception
     def render_POST(self, req):
@@ -147,7 +147,7 @@ class PlaceHolderNodeHandler(Resource, ReplaceMeMixin):
             # t=mkdir is handled in DirectoryNodeHandler._POST_mkdir, so
             # there are no other t= values left to be handled by the
             # placeholder.
-            raise WebError("POST to a file: bad t=%s" % t)
+            raise WebError("POST to a file: bad t=%s" % unicode(t, "utf-8"))
 
         return handle_when_done(req, d)
 
@@ -287,7 +287,7 @@ class FileNodeHandler(Resource, ReplaceMeMixin, object):
             assert self.parentnode and self.name
             return self.replace_me_with_a_childcap(req, self.client, replace)
 
-        raise WebError("PUT to a file: bad t=%s" % t)
+        raise WebError("PUT to a file: bad t=%s" % unicode(t, "utf-8"))
 
     @render_exception
     def render_POST(self, req):
