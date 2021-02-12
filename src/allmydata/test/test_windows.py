@@ -29,11 +29,6 @@ from json import (
 from textwrap import (
     dedent,
 )
-from subprocess import (
-    PIPE,
-    Popen,
-)
-
 from twisted.python.filepath import (
     FilePath,
 )
@@ -66,6 +61,8 @@ from hypothesis.strategies import (
 )
 
 from .common import (
+    PIPE,
+    Popen,
     SyncTestCase,
 )
 
@@ -132,13 +129,6 @@ class GetArgvTests(SyncTestCase):
         ``get_argv`` returns a list representing the result of tokenizing the
         "command line" argument string provided to Windows processes.
         """
-        # Python 2.7 doesn't have good options for launching a process with
-        # non-ASCII in its command line.  So use this alternative that does a
-        # better job.  Bury the import here because it only works on Windows.
-        from ._win_subprocess import (
-            Popen
-        )
-
         working_path = FilePath(self.mktemp())
         working_path.makedirs()
         save_argv_path = working_path.child("script.py")

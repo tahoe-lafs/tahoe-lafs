@@ -18,8 +18,9 @@ if PY2:
     from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, max, min  # noqa: F401
 
 from past.builtins import unicode
+from six import ensure_str
 
-import sys, os, re, locale
+import sys, os, re
 import unicodedata
 import warnings
 
@@ -50,36 +51,25 @@ def check_encoding(encoding):
     try:
         u"test".encode(encoding)
     except (LookupError, AttributeError):
-        raise AssertionError("The character encoding '%s' is not supported for conversion." % (encoding,))
+        raise AssertionError(
+            "The character encoding '%s' is not supported for conversion." % (encoding,),
+        )
+
+# On Windows we install UTF-8 stream wrappers for sys.stdout and
+# sys.stderr, and reencode the arguments as UTF-8 (see scripts/runner.py).
+#
+# On POSIX, we are moving towards a UTF-8-everything and ignore the locale.
+io_encoding = "utf-8"
 
 filesystem_encoding = None
-io_encoding = None
 is_unicode_platform = False
 use_unicode_filepath = False
 
 def _reload():
-    global filesystem_encoding, io_encoding, is_unicode_platform, use_unicode_filepath
+    global filesystem_encoding, is_unicode_platform, use_unicode_filepath
 
     filesystem_encoding = canonical_encoding(sys.getfilesystemencoding())
     check_encoding(filesystem_encoding)
-
-    if sys.platform == 'win32':
-        # On Windows we install UTF-8 stream wrappers for sys.stdout and
-        # sys.stderr, and reencode the arguments as UTF-8 (see scripts/runner.py).
-        io_encoding = 'utf-8'
-    else:
-        ioenc = None
-        if hasattr(sys.stdout, 'encoding'):
-            ioenc = sys.stdout.encoding
-        if ioenc is None:
-            try:
-                ioenc = locale.getpreferredencoding()
-            except Exception:
-                pass  # work around <http://bugs.python.org/issue1443504>
-        io_encoding = canonical_encoding(ioenc)
-
-    check_encoding(io_encoding)
-
     is_unicode_platform = PY3 or sys.platform in ["win32", "darwin"]
 
     # Despite the Unicode-mode FilePath support added to Twisted in
@@ -110,6 +100,8 @@ def get_io_encoding():
 def argv_to_unicode(s):
     """
     Decode given argv element to unicode. If this fails, raise a UsageError.
+
+    This is the inverse of ``unicode_to_argv``.
     """
     if isinstance(s, unicode):
         return s
@@ -133,26 +125,22 @@ def argv_to_abspath(s, **kwargs):
                                % (quote_output(s), quote_output(os.path.join('.', s))))
     return abspath_expanduser_unicode(decoded, **kwargs)
 
+
 def unicode_to_argv(s, mangle=False):
     """
-    Encode the given Unicode argument as a bytestring.
-    If the argument is to be passed to a different process, then the 'mangle' argument
-    should be true; on Windows, this uses a mangled encoding that will be reversed by
-    code in runner.py.
+    Make the given unicode string suitable for use in an argv list.
 
-    On Python 3, just return the string unchanged, since argv is unicode.
+    On Python 2 on POSIX, this encodes using UTF-8.  On Python 3 and on
+    Windows, this returns the input unmodified.
     """
     precondition(isinstance(s, unicode), s)
     if PY3:
         warnings.warn("This will be unnecessary once Python 2 is dropped.",
                       DeprecationWarning)
+    if sys.platform == "win32":
         return s
+    return ensure_str(s)
 
-    if mangle and sys.platform == "win32":
-        # This must be the same as 'mangle' in bin/tahoe-script.template.
-        return bytes(re.sub(u'[^\\x20-\\x7F]', lambda m: u'\x7F%x;' % (ord(m.group(0)),), s), io_encoding)
-    else:
-        return s.encode(io_encoding)
 
 def unicode_to_url(s):
     """
