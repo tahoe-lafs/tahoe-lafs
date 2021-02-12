@@ -182,6 +182,11 @@ class MetadataSetter(object):
 
 class Adder(object):
     def __init__(self, node, entries=None, overwrite=True, create_readonly_node=None):
+        """
+        :param overwrite: Either True (allow overwriting anything existing),
+            False (don't allow overwriting), or ONLY_FILES (only files can be
+            overwritten).
+        """
         self.node = node
         if entries is None:
             entries = {}
