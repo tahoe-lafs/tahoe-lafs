@@ -24,6 +24,9 @@ from twisted.internet.error import (
 from twisted.internet.interfaces import (
     IProcessProtocol,
 )
+from twisted.python.log import (
+    msg,
+)
 from twisted.python.filepath import (
     FilePath,
 )
@@ -88,7 +91,10 @@ class _ProcessProtocolAdapter(ProcessProtocol, object):
         try:
             proto = self._fds[childFD]
         except KeyError:
-            pass
+            msg("Received unhandled output on {fd}: {output}",
+                fd=childFD,
+                output=data,
+            )
         else:
             proto.dataReceived(data)
 
