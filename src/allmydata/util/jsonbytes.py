@@ -13,8 +13,24 @@ from future.utils import PY2
 if PY2:
     from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
-
 import json
+
+
+def _bytes_to_unicode(obj):
+    """Convert any bytes objects to unicode, recursively."""
+    if isinstance(obj, bytes):
+        return obj.decode("utf-8")
+    if isinstance(obj, dict):
+        new_obj = {}
+        for k, v in obj.items():
+            if isinstance(k, bytes):
+                k = k.decode("utf-8")
+            v = _bytes_to_unicode(v)
+            new_obj[k] = v
+        return new_obj
+    if isinstance(obj, (list, set, tuple)):
+        return [_bytes_to_unicode(i) for i in obj]
+    return obj
 
 
 class BytesJSONEncoder(json.JSONEncoder):
@@ -23,10 +39,8 @@ class BytesJSONEncoder(json.JSONEncoder):
 
     The bytes are assumed to be UTF-8 encoded Unicode strings.
     """
-    def default(self, o):
-        if isinstance(o, bytes):
-            return o.decode("utf-8")
-        return json.JSONEncoder.default(self, o)
+    def iterencode(self, o, **kwargs):
+        return json.JSONEncoder.iterencode(self, _bytes_to_unicode(o), **kwargs)
 
 
 def dumps(obj, *args, **kwargs):
@@ -34,13 +48,6 @@ def dumps(obj, *args, **kwargs):
 
     The bytes are assumed to be UTF-8 encoded Unicode strings.
     """
-    if isinstance(obj, dict):
-        new_obj = {}
-        for k, v in obj.items():
-            if isinstance(k, bytes):
-                k = k.decode("utf-8")
-            new_obj[k] = v
-        obj = new_obj
     return json.dumps(obj, cls=BytesJSONEncoder, *args, **kwargs)
 
 

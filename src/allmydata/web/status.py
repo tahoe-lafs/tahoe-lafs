@@ -284,7 +284,7 @@ def _find_overlap(events, start_key, end_key):
     rows = []
     for ev in events:
         ev = ev.copy()
-        if ev.has_key('server'):
+        if 'server' in ev:
             ev["serverid"] = ev["server"].get_longname()
             del ev["server"]
         # find an empty slot in the rows
@@ -362,8 +362,8 @@ def _find_overlap_requests(events):
 def _color(server):
     h = hashlib.sha256(server.get_serverid()).digest()
     def m(c):
-        return min(ord(c) / 2 + 0x80, 0xff)
-    return "#%02x%02x%02x" % (m(h[0]), m(h[1]), m(h[2]))
+        return min(ord(c) // 2 + 0x80, 0xff)
+    return "#%02x%02x%02x" % (m(h[0:1]), m(h[1:2]), m(h[2:3]))
 
 class _EventJson(Resource, object):
 
@@ -426,7 +426,7 @@ class DownloadStatusPage(Resource, object):
         """
         super(DownloadStatusPage, self).__init__()
         self._download_status = download_status
-        self.putChild("event_json", _EventJson(self._download_status))
+        self.putChild(b"event_json", _EventJson(self._download_status))
 
     @render_exception
     def render_GET(self, req):
@@ -1288,14 +1288,14 @@ class Status(MultiFormatResource):
         # final URL segment will be an empty string. Resources can
         # thus know if they were requested with or without a final
         # slash."
-        if not path and request.postpath != ['']:
+        if not path and request.postpath != [b'']:
             return self
 
         h = self.history
         try:
-            stype, count_s = path.split("-")
+            stype, count_s = path.split(b"-")
         except ValueError:
-            raise WebError("no '-' in '{}'".format(path))
+            raise WebError("no '-' in '{}'".format(unicode(path, "utf-8")))
         count = int(count_s)
         stype = unicode(stype, "ascii")
         if stype == "up":

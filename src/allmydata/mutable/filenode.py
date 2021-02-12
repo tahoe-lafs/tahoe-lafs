@@ -564,7 +564,7 @@ class MutableFileNode(object):
         return d
 
 
-    def upload(self, new_contents, servermap):
+    def upload(self, new_contents, servermap, progress=None):
         """
         I overwrite the contents of the best recoverable version of this
         mutable file with new_contents, using servermap instead of
@@ -951,7 +951,7 @@ class MutableFileVersion(object):
         return self._servermap.size_of_version(self._version)
 
 
-    def download_to_data(self, fetch_privkey=False, progress=None):
+    def download_to_data(self, fetch_privkey=False, progress=None):  # type: ignore # fixme
         """
         I return a Deferred that fires with the contents of this
         readable object as a byte string.
@@ -1205,3 +1205,7 @@ class MutableFileVersion(object):
                                  self._servermap,
                                  mode=mode)
         return u.update()
+
+    # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3562
+    def get_servermap(self):
+        raise NotImplementedError

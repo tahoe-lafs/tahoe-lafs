@@ -51,7 +51,6 @@ from allmydata.nodemaker import (
     NodeMaker,
 )
 from allmydata.node import OldConfigError, UnescapedHashError, create_node_dir
-from allmydata.frontends.auth import NeedRootcapLookupScheme
 from allmydata import client
 from allmydata.storage_client import (
     StorageClientConfig,
@@ -424,88 +423,8 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
         expected = fileutil.abspath_expanduser_unicode(u"relative", abs_basedir)
         self.failUnlessReallyEqual(w.staticdir, expected)
 
-    # TODO: also test config options for SFTP.
-
-    @defer.inlineCallbacks
-    def test_ftp_create(self):
-        """
-        configuration for sftpd results in it being started
-        """
-        root = FilePath(self.mktemp())
-        root.makedirs()
-        accounts = root.child(b"sftp-accounts")
-        accounts.touch()
-
-        data = FilePath(__file__).sibling(b"data")
-        privkey = data.child(b"openssh-rsa-2048.txt")
-        pubkey = data.child(b"openssh-rsa-2048.pub.txt")
-
-        basedir = u"client.Basic.test_ftp_create"
-        create_node_dir(basedir, "testing")
-        with open(os.path.join(basedir, "tahoe.cfg"), "w") as f:
-            f.write((
-                '[sftpd]\n'
-                'enabled = true\n'
-                'accounts.file = {}\n'
-                'host_pubkey_file = {}\n'
-                'host_privkey_file = {}\n'
-            ).format(accounts.path, pubkey.path, privkey.path))
-
-        client_node = yield client.create_client(
-            basedir,
-        )
-        sftp = client_node.getServiceNamed("frontend:sftp")
-        self.assertIs(sftp.parent, client_node)
-
-
-    @defer.inlineCallbacks
-    def test_ftp_auth_keyfile(self):
-        """
-        ftpd accounts.file is parsed properly
-        """
-        basedir = u"client.Basic.test_ftp_auth_keyfile"
-        os.mkdir(basedir)
-        fileutil.write(os.path.join(basedir, "tahoe.cfg"),
-                       (BASECONFIG +
-                        "[ftpd]\n"
-                        "enabled = true\n"
-                        "port = tcp:0:interface=127.0.0.1\n"
-                        "accounts.file = private/accounts\n"))
-        os.mkdir(os.path.join(basedir, "private"))
-        fileutil.write(os.path.join(basedir, "private", "accounts"), "\n")
-        c = yield client.create_client(basedir) # just make sure it can be instantiated
-        del c
-
-    @defer.inlineCallbacks
-    def test_ftp_auth_url(self):
-        """
-        ftpd accounts.url is parsed properly
-        """
-        basedir = u"client.Basic.test_ftp_auth_url"
-        os.mkdir(basedir)
-        fileutil.write(os.path.join(basedir, "tahoe.cfg"),
-                       (BASECONFIG +
-                        "[ftpd]\n"
-                        "enabled = true\n"
-                        "port = tcp:0:interface=127.0.0.1\n"
-                        "accounts.url = http://0.0.0.0/\n"))
-        c = yield client.create_client(basedir) # just make sure it can be instantiated
-        del c
-
-    @defer.inlineCallbacks
-    def test_ftp_auth_no_accountfile_or_url(self):
-        """
-        ftpd requires some way to look up accounts
-        """
-        basedir = u"client.Basic.test_ftp_auth_no_accountfile_or_url"
-        os.mkdir(basedir)
-        fileutil.write(os.path.join(basedir, "tahoe.cfg"),
-                       (BASECONFIG +
-                        "[ftpd]\n"
-                        "enabled = true\n"
-                        "port = tcp:0:interface=127.0.0.1\n"))
-        with self.assertRaises(NeedRootcapLookupScheme):
-            yield client.create_client(basedir)
+    # TODO: also test config options for SFTP. See Git history for deleted FTP
+    # tests that could be used as basis for these tests.
 
     @defer.inlineCallbacks
     def _storage_dir_test(self, basedir, storage_path, expected_path):
