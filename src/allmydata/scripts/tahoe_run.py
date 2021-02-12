@@ -203,8 +203,10 @@ def run(config, runApp=twistd.runApp):
         print("%s is not a recognizable node directory" % quoted_basedir, file=err)
         return 1
 
-    pidfile = get_pidfile(basedir)
-    twistd_args = ["--nodaemon", "--rundir", basedir, "--pidfile", pidfile]
+    twistd_args = ["--nodaemon", "--rundir", basedir]
+    if sys.platform != "win32":
+        pidfile = get_pidfile(basedir)
+        twistd_args.extend(["--pidfile", pidfile])
     twistd_args.extend(config.twistd_args)
     twistd_args.append("DaemonizeTahoeNode") # point at our DaemonizeTahoeNodePlugin
 
@@ -221,7 +223,7 @@ def run(config, runApp=twistd.runApp):
     twistd_config.loadedPlugins = {"DaemonizeTahoeNode": DaemonizeTahoeNodePlugin(nodetype, basedir)}
 
     # handle invalid PID file (twistd might not start otherwise)
-    if get_pid_from_pidfile(pidfile) == -1:
+    if sys.platform != "win32" and get_pid_from_pidfile(pidfile) == -1:
         print("found invalid PID file in %s - deleting it" % basedir, file=err)
         os.remove(pidfile)
 
