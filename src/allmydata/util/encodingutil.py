@@ -126,7 +126,7 @@ def argv_to_abspath(s, **kwargs):
     return abspath_expanduser_unicode(decoded, **kwargs)
 
 
-def unicode_to_argv(s, mangle=False):
+def unicode_to_argv(s):
     """
     Make the given unicode string suitable for use in an argv list.
 
