@@ -1,4 +1,5 @@
 from future.utils import PY3
+from past.builtins import unicode
 
 import os
 import time
@@ -97,7 +98,7 @@ class URIHandler(resource.Resource, object):
         either "PUT /uri" to create an unlinked file, or
         "PUT /uri?t=mkdir" to create an unlinked directory
         """
-        t = get_arg(req, "t", "").strip()
+        t = unicode(get_arg(req, "t", "").strip(), "utf-8")
         if t == "":
             file_format = get_format(req, "CHK")
             mutable_type = get_mutable_type(file_format)
@@ -120,7 +121,7 @@ class URIHandler(resource.Resource, object):
         unlinked file or "POST /uri?t=mkdir" to create a
         new directory
         """
-        t = get_arg(req, "t", "").strip()
+        t = unicode(get_arg(req, "t", "").strip(), "ascii")
         if t in ("", "upload"):
             file_format = get_format(req)
             mutable_type = get_mutable_type(file_format)
@@ -177,7 +178,7 @@ class FileHandler(resource.Resource, object):
 
     @exception_to_child
     def getChild(self, name, req):
-        if req.method not in ("GET", "HEAD"):
+        if req.method not in (b"GET", b"HEAD"):
             raise WebError("/file can only be used with GET or HEAD")
         # 'name' must be a file URI
         try:
@@ -200,7 +201,7 @@ class IncidentReporter(MultiFormatResource):
 
     @render_exception
     def render(self, req):
-        if req.method != "POST":
+        if req.method != b"POST":
             raise WebError("/report_incident can only be used with POST")
 
         log.msg(format="User reports incident through web page: %(details)s",
@@ -255,11 +256,11 @@ class Root(MultiFormatResource):
         if not path:
             # Render "/" path.
             return self
-        if path == "helper_status":
+        if path == b"helper_status":
             # the Helper isn't attached until after the Tub starts, so this child
             # needs to created on each request
             return status.HelperStatus(self._client.helper)
-        if path == "storage":
+        if path == b"storage":
             # Storage isn't initialized until after the web hierarchy is
             # constructed so this child needs to be created later than
             # `__init__`.
@@ -293,7 +294,7 @@ class Root(MultiFormatResource):
             self._describe_server(server)
             for server
             in broker.get_known_servers()
-        ))
+        ), key=lambda o: sorted(o.items()))
 
 
     def _describe_server(self, server):

@@ -432,7 +432,7 @@ class DeepCheckResultsRenderer(MultiFormatResource):
             return CheckResultsRenderer(self._client,
                                         r.get_results_for_storage_index(si))
         except KeyError:
-            raise WebError("No detailed results for SI %s" % html.escape(name),
+            raise WebError("No detailed results for SI %s" % html.escape(str(name, "utf-8")),
                            http.NOT_FOUND)
 
     @render_exception

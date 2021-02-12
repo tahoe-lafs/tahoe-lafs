@@ -173,7 +173,9 @@ from PyPI with ``venv/bin/pip install tahoe-lafs``. After installation, run
 Install From a Source Tarball
 -----------------------------
 
-You can also install directly from the source tarball URL::
+You can also install directly from the source tarball URL. To verify
+signatures, first see verifying_signatures_ and replace the URL in the
+following instructions with the local filename.
 
  % virtualenv venv
  New python executable in ~/venv/bin/python2.7
@@ -188,6 +190,40 @@ You can also install directly from the source tarball URL::
  % venv/bin/tahoe --version
  tahoe-lafs: 1.14.0
  ...
+
+.. _verifying_signatures:
+
+Verifying Signatures
+--------------------
+
+First download the source tarball and then any signatures. There are several
+developers who are able to produce signatures for a release. A release may
+have multiple signatures. All should be valid and you should confirm at least
+one of them (ideally, confirm all).
+
+This statement, signed by the existing Tahoe release-signing key, attests to
+those developers authorized to sign a Tahoe release:
+
+.. include:: developer-release-signatures
+   :code:
+
+Signatures are made available beside the release. So for example, a release
+like ``https://tahoe-lafs.org/downloads/tahoe-lafs-1.16.0.tar.bz2`` might
+have signatures ``tahoe-lafs-1.16.0.tar.bz2.meejah.asc`` and
+``tahoe-lafs-1.16.0.tar.bz2.warner.asc``.
+
+To verify the signatures using GnuPG::
+
+  % gpg --verify tahoe-lafs-1.16.0.tar.bz2.meejah.asc tahoe-lafs-1.16.0.tar.bz2
+  gpg: Signature made XXX
+  gpg:                using RSA key 9D5A2BD5688ECB889DEBCD3FC2602803128069A7
+  gpg: Good signature from "meejah <meejah@meejah.ca>" [full]
+  % gpg --verify tahoe-lafs-1.16.0.tar.bz2.warner.asc tahoe-lafs-1.16.0.tar.bz2
+  gpg: Signature made XXX
+  gpg:                using RSA key 967EFE06699872411A77DF36D43B4C9C73225AAF
+  gpg: Good signature from "Brian Warner <warner@lothar.com>" [full]
+
+
 
 Extras
 ------

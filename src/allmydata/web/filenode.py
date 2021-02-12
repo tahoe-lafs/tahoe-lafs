@@ -127,7 +127,7 @@ class PlaceHolderNodeHandler(Resource, ReplaceMeMixin):
                            http.NOT_IMPLEMENTED)
         if not t:
             return self.replace_me_with_a_child(req, self.client, replace)
-        if t == "uri":
+        if t == b"uri":
             return self.replace_me_with_a_childcap(req, self.client, replace)
 
         raise WebError("PUT to a file: bad t=%s" % t)
@@ -188,8 +188,8 @@ class FileNodeHandler(Resource, ReplaceMeMixin, object):
             # if the client already has the ETag then we can
             # short-circuit the whole process.
             si = self.node.get_storage_index()
-            if si and req.setETag('%s-%s' % (base32.b2a(si), t or "")):
-                return ""
+            if si and req.setETag(b'%s-%s' % (base32.b2a(si), t.encode("ascii") or b"")):
+                return b""
 
         if not t:
             # just get the contents
@@ -281,7 +281,7 @@ class FileNodeHandler(Resource, ReplaceMeMixin, object):
                 assert self.parentnode and self.name
                 return self.replace_me_with_a_child(req, self.client, replace)
 
-        if t == "uri":
+        if t == b"uri":
             if not replace:
                 raise ExistingChildError()
             assert self.parentnode and self.name
@@ -309,7 +309,7 @@ class FileNodeHandler(Resource, ReplaceMeMixin, object):
                 assert self.parentnode and self.name
                 d = self.replace_me_with_a_formpost(req, self.client, replace)
         else:
-            raise WebError("POST to file: bad t=%s" % t)
+            raise WebError("POST to file: bad t=%s" % unicode(t, "ascii"))
 
         return handle_when_done(req, d)
 
@@ -439,7 +439,7 @@ class FileDownloader(Resource, object):
             # bytes we were given in the URL. See the comment in
             # FileNodeHandler.render_GET for the sad details.
             req.setHeader("content-disposition",
-                          'attachment; filename="%s"' % self.filename)
+                          b'attachment; filename="%s"' % self.filename)
 
         filesize = self.filenode.get_size()
         assert isinstance(filesize, (int,long)), filesize
@@ -475,8 +475,8 @@ class FileDownloader(Resource, object):
                     size = contentsize
 
         req.setHeader("content-length", b"%d" % contentsize)
-        if req.method == "HEAD":
-            return ""
+        if req.method == b"HEAD":
+            return b""
 
         d = self.filenode.read(req, first, size)
 

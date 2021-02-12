@@ -186,7 +186,7 @@ def convert_children_json(nodemaker, children_json):
     children = {}
     if children_json:
         data = json.loads(children_json)
-        for (namex, (ctype, propdict)) in data.iteritems():
+        for (namex, (ctype, propdict)) in data.items():
             namex = unicode(namex)
             writecap = to_bytes(propdict.get("rw_uri"))
             readcap = to_bytes(propdict.get("ro_uri"))
@@ -283,8 +283,8 @@ def render_time_attr(t):
 # actual exception). The latter is growing increasingly annoying.
 
 def should_create_intermediate_directories(req):
-    t = get_arg(req, "t", "").strip()
-    return bool(req.method in ("PUT", "POST") and
+    t = unicode(get_arg(req, "t", "").strip(), "ascii")
+    return bool(req.method in (b"PUT", b"POST") and
                 t not in ("delete", "rename", "rename-form", "check"))
 
 def humanize_exception(exc):
@@ -674,7 +674,7 @@ def url_for_string(req, url_string):
         and the given URL string.
     """
     url = DecodedURL.from_text(url_string.decode("utf-8"))
-    if url.host == b"":
+    if not url.host:
         root = req.URLPath()
         netloc = root.netloc.split(b":", 1)
         if len(netloc) == 1:
