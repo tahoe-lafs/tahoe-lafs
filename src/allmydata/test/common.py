@@ -17,6 +17,7 @@ __all__ = [
 
 from past.builtins import chr as byteschr, unicode
 
+import sys
 import os, random, struct
 import six
 import tempfile
@@ -52,9 +53,6 @@ from testtools.twistedsupport import (
     flush_logged_errors,
 )
 
-from twisted.python.runtime import (
-    platform,
-)
 from twisted.application import service
 from twisted.plugin import IPlugin
 from twisted.internet import defer
@@ -108,7 +106,7 @@ from .eliotutil import (
 )
 from .common_util import ShouldFailMixin  # noqa: F401
 
-if platform.isWindows():
+if sys.platform == "win32":
     # Python 2.7 doesn't have good options for launching a process with
     # non-ASCII in its command line.  So use this alternative that does a
     # better job.  However, only use it on Windows because it doesn't work
