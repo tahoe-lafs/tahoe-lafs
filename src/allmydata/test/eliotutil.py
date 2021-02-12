@@ -36,6 +36,10 @@ from eliot.testing import (
     check_for_errors,
 )
 
+from twisted.python.monkey import (
+    MonkeyPatcher,
+)
+
 from ..util.jsonbytes import BytesJSONEncoder
 
 
@@ -115,13 +119,16 @@ class EliotLoggedRunTest(object):
         # and things do not go well when we add too much extra behavior here.
         # For example, exceptions raised here often just kill the whole
         # runner.
+        patcher = MonkeyPatcher()
 
         # So, grab the test method.
         name = self.case._testMethodName
         original = getattr(self.case, name)
+        decorated = with_logging(ensure_text(self.case.id()), original)
+        patcher.addPatch(self.case, name, decorated)
         try:
-            # Patch in a decorated version of it.
-            setattr(self.case, name, with_logging(ensure_text(self.case.id()), original))
+            # Patch it in
+            patcher.patch()
             # Then use the rest of the machinery to run it.
             return self._run_tests_with_factory(
                 self.case,
@@ -130,7 +137,7 @@ class EliotLoggedRunTest(object):
             ).run(result)
         finally:
             # Clean up the patching for idempotency or something.
-            delattr(self.case, name)
+            patcher.restore()
 
 
 def with_logging(
