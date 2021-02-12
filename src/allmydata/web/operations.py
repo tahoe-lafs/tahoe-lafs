@@ -1,3 +1,4 @@
+from past.builtins import unicode
 
 import time
 from hyperlink import (
@@ -101,12 +102,12 @@ class OphandleTable(resource.Resource, service.Service):
     def getChild(self, name, req):
         ophandle = name
         if ophandle not in self.handles:
-            raise WebError("unknown/expired handle '%s'" % escape(ophandle),
+            raise WebError("unknown/expired handle '%s'" % escape(unicode(ophandle, "utf-8")),
                            NOT_FOUND)
         (monitor, renderer, when_added) = self.handles[ophandle]
 
         t = get_arg(req, "t", "status")
-        if t == "cancel" and req.method == "POST":
+        if t == b"cancel" and req.method == b"POST":
             monitor.cancel()
             # return the status anyways, but release the handle
             self._release_ophandle(ophandle)
@@ -151,7 +152,7 @@ class ReloadMixin(object):
     @renderer
     def refresh(self, req, tag):
         if self.monitor.is_finished():
-            return ""
+            return b""
         tag.attributes["http-equiv"] = "refresh"
         tag.attributes["content"] = str(self.REFRESH_TIME)
         return tag

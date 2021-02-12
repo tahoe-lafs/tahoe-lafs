@@ -196,5 +196,6 @@ PORTED_TEST_MODULES = [
     "allmydata.test.web.test_root",
     "allmydata.test.web.test_status",
     "allmydata.test.web.test_util",
+    "allmydata.test.web.test_web",
     "allmydata.test.web.test_webish",
 ]

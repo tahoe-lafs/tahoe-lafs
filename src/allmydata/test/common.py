@@ -454,7 +454,7 @@ class FakeCHKFileNode(object):  # type: ignore # incomplete implementation
         return self.storage_index
 
     def check(self, monitor, verify=False, add_lease=False):
-        s = StubServer("\x00"*20)
+        s = StubServer(b"\x00"*20)
         r = CheckResults(self.my_uri, self.storage_index,
                          healthy=True, recoverable=True,
                          count_happiness=10,
@@ -588,12 +588,12 @@ class FakeMutableFileNode(object):  # type: ignore # incomplete implementation
         self.file_types[self.storage_index] = version
         initial_contents = self._get_initial_contents(contents)
         data = initial_contents.read(initial_contents.get_size())
-        data = "".join(data)
+        data = b"".join(data)
         self.all_contents[self.storage_index] = data
         return defer.succeed(self)
     def _get_initial_contents(self, contents):
         if contents is None:
-            return MutableData("")
+            return MutableData(b"")
 
         if IMutableUploadable.providedBy(contents):
             return contents
@@ -647,7 +647,7 @@ class FakeMutableFileNode(object):  # type: ignore # incomplete implementation
     def raise_error(self):
         pass
     def get_writekey(self):
-        return "\x00"*16
+        return b"\x00"*16
     def get_size(self):
         return len(self.all_contents[self.storage_index])
     def get_current_size(self):
@@ -666,7 +666,7 @@ class FakeMutableFileNode(object):  # type: ignore # incomplete implementation
         return self.file_types[self.storage_index]
 
     def check(self, monitor, verify=False, add_lease=False):
-        s = StubServer("\x00"*20)
+        s = StubServer(b"\x00"*20)
         r = CheckResults(self.my_uri, self.storage_index,
                          healthy=True, recoverable=True,
                          count_happiness=10,
@@ -677,7 +677,7 @@ class FakeMutableFileNode(object):  # type: ignore # incomplete implementation
                          count_recoverable_versions=1,
                          count_unrecoverable_versions=0,
                          servers_responding=[s],
-                         sharemap={"seq1-abcd-sh0": [s]},
+                         sharemap={b"seq1-abcd-sh0": [s]},
                          count_wrong_shares=0,
                          list_corrupt_shares=[],
                          count_corrupt_shares=0,
@@ -731,7 +731,7 @@ class FakeMutableFileNode(object):  # type: ignore # incomplete implementation
     def overwrite(self, new_contents):
         assert not self.is_readonly()
         new_data = new_contents.read(new_contents.get_size())
-        new_data = "".join(new_data)
+        new_data = b"".join(new_data)
         self.all_contents[self.storage_index] = new_data
         return defer.succeed(None)
     def modify(self, modifier):
@@ -762,7 +762,7 @@ class FakeMutableFileNode(object):  # type: ignore # incomplete implementation
     def update(self, data, offset):
         assert not self.is_readonly()
         def modifier(old, servermap, first_time):
-            new = old[:offset] + "".join(data.read(data.get_size()))
+            new = old[:offset] + b"".join(data.read(data.get_size()))
             new += old[len(new):]
             return new
         return self.modify(modifier)
@@ -881,6 +881,8 @@ class WebErrorMixin(object):
         body = yield response.content()
         self.assertEquals(response.code, code)
         if response_substring is not None:
+            if isinstance(response_substring, unicode):
+                response_substring = response_substring.encode("utf-8")
             self.assertIn(response_substring, body)
         returnValue(body)
 
