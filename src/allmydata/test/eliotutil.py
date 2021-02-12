@@ -26,10 +26,15 @@ from functools import (
 
 import attr
 
+from zope.interface import (
+    implementer,
+)
+
 from eliot import (
     ActionType,
     Field,
     MemoryLogger,
+    ILogger,
 )
 from eliot.testing import (
     swap_logger,
@@ -170,6 +175,7 @@ def with_logging(
     return run_with_logging
 
 
+@implementer(ILogger)
 class _TwoLoggers(object):
     """
     Log to two loggers.
@@ -180,9 +186,13 @@ class _TwoLoggers(object):
     the normal places and validate all written log messages.
     """
     def __init__(self, a, b):
-        self._a = a
-        self._b = b
+        """
+        :param ILogger a: One logger
+        :param ILogger b: Another logger
+        """
+        self._a = a # type: ILogger
+        self._b = b # type: ILogger
 
-    def write(self, *args, **kwargs):
-        self._a.write(*args, **kwargs)
-        self._b.write(*args, **kwargs)
+    def write(self, dictionary, serializer=None):
+        self._a.write(dictionary, serializer)
+        self._b.write(dictionary, serializer)
