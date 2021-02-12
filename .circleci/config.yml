@@ -208,7 +208,7 @@ jobs:
       # filenames and argv).
       LANG: "en_US.UTF-8"
       # Select a tox environment to run for this job.
-      TAHOE_LAFS_TOX_ENVIRONMENT: "py27-coverage"
+      TAHOE_LAFS_TOX_ENVIRONMENT: "py27"
       # Additional arguments to pass to tox.
       TAHOE_LAFS_TOX_ARGS: ""
       # The path in which test artifacts will be placed.
@@ -218,7 +218,7 @@ jobs:
       WHEELHOUSE_PATH: &WHEELHOUSE_PATH "/tmp/wheelhouse"
       PIP_FIND_LINKS: "file:///tmp/wheelhouse"
       # Upload the coverage report.
-      UPLOAD_COVERAGE: "yes"
+      UPLOAD_COVERAGE: ""
 
     # pip cannot install packages if the working directory is not readable.
     # We want to run a lot of steps as nobody instead of as root.
@@ -371,7 +371,7 @@ jobs:
       # this reporter on Python 3.  So drop that and just specify the
       # reporter.
       TAHOE_LAFS_TRIAL_ARGS: "--reporter=subunitv2-file"
-      TAHOE_LAFS_TOX_ENVIRONMENT: "py36-coverage"
+      TAHOE_LAFS_TOX_ENVIRONMENT: "py36"
 
 
   ubuntu-20-04:
