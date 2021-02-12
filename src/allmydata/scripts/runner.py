@@ -108,7 +108,17 @@ for module in (create_node,):
 def parse_options(argv, config=None):
     if not config:
         config = Options()
-    config.parseOptions(argv) # may raise usage.error
+    try:
+        config.parseOptions(argv)
+    except usage.error as e:
+        if six.PY2:
+            # Exceptions must stringify to bytes on Python 2.
+            raise usage.error(*(
+                arg.encode("utf-8") if isinstance(arg, unicode) else arg
+                for arg
+                in e.args
+            ))
+        raise
     return config
 
 def parse_or_exit_with_explanation_with_config(config, argv, stdout, stderr):
