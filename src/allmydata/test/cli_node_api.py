@@ -152,6 +152,9 @@ class CLINodeAPI(object):
             u"-m",
             u"allmydata.scripts.runner",
         ] + argv
+        msg(format="Executing %(argv)s",
+            argv=argv,
+        )
         return self.reactor.spawnProcess(
             processProtocol=process_protocol,
             executable=exe,
