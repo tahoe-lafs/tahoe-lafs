@@ -39,6 +39,7 @@ PORTED_MODULES = [
     "allmydata.dirnode",
     "allmydata.frontends.sftpd",
     "allmydata.hashtree",
+    "allmydata.history",
     "allmydata.immutable.checker",
     "allmydata.immutable.downloader",
     "allmydata.immutable.downloader.common",
