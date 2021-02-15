@@ -285,4 +285,8 @@ def escape_path(path):
     True
     """
     segments = path.split("/")
-    return "/".join([urllib.parse.quote(unicode_to_url(s)) for s in segments])
+    result = "/".join([urllib.parse.quote(unicode_to_url(s)) for s in segments])
+    # fixme: test.cli.test_create_alias fails if it gets Unicode on Python 2
+    if PY2 and isinstance(result, type(u'')):
+        result = result.encode('ascii')
+    return result
