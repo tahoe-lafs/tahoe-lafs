@@ -273,7 +273,7 @@ def get_alias(aliases, path_unicode, default):
 
 def escape_path(path):
     # type: (str) -> str
-    """
+    u"""
     Return path quoted to US-ASCII.
 
     >>> path = u'/føö/bar/☃'
