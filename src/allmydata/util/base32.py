@@ -83,6 +83,7 @@ def b2a(os):  # type: (bytes) -> bytes
 def b2a_or_none(os):  # type: (Optional[bytes]) -> Optional[bytes]
     if os is not None:
         return b2a(os)
+    return None
 
 # b2a() uses the minimal number of quintets sufficient to encode the binary
 # input.  It just so happens that the relation is like this (everything is
