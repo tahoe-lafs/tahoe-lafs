@@ -10,6 +10,8 @@ from eliot import (
     log_call,
 )
 
+import six
+
 from twisted.trial import unittest
 
 from twisted.internet import reactor
@@ -23,7 +25,7 @@ from twisted.python.runtime import (
     platform,
 )
 from allmydata.util import fileutil, pollmixin
-from allmydata.util.encodingutil import unicode_to_argv, get_filesystem_encoding
+from allmydata.util.encodingutil import unicode_to_argv
 from allmydata.test import common_util
 import allmydata
 from .common import (
@@ -72,7 +74,10 @@ def run_bintahoe(extra_argv, python_options=None):
     :return: A three-tuple of stdout (unicode), stderr (unicode), and the
         child process "returncode" (int).
     """
-    argv = [sys.executable.decode(get_filesystem_encoding())]
+    # fixme: below, 'unicode_to_argv' is called so ensure that
+    # executable is unicode to support that expectation.
+    executable = sys.executable.decode('utf-8') if six.PY2 else sys.executable
+    argv = [executable]
     if python_options is not None:
         argv.extend(python_options)
     argv.extend([u"-m", u"allmydata.scripts.runner"])

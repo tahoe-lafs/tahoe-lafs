@@ -174,6 +174,7 @@ PORTED_TEST_MODULES = [
     "allmydata.test.test_pipeline",
     "allmydata.test.test_python3",
     "allmydata.test.test_repairer",
+    "allmydata.test.test_runner",
     "allmydata.test.test_sftp",
     "allmydata.test.test_spans",
     "allmydata.test.test_statistics",
