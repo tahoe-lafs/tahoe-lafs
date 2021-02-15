@@ -6,6 +6,10 @@ from __future__ import (
 import os.path, re, sys
 from os import linesep
 
+from eliot import (
+    log_call,
+)
+
 from twisted.trial import unittest
 
 from twisted.internet import reactor
@@ -19,22 +23,25 @@ from twisted.python.runtime import (
     platform,
 )
 from allmydata.util import fileutil, pollmixin
-from allmydata.util.encodingutil import unicode_to_argv, unicode_to_output
+from allmydata.util.encodingutil import unicode_to_argv, get_filesystem_encoding
 from allmydata.test import common_util
 import allmydata
-from .common_util import parse_cli, run_cli
+from .common import (
+    PIPE,
+    Popen,
+)
+from .common_util import (
+    parse_cli,
+    run_cli,
+)
 from .cli_node_api import (
     CLINodeAPI,
     Expect,
     on_stdout,
     on_stdout_and_stderr,
 )
-from ._twisted_9607 import (
-    getProcessOutputAndValue,
-)
 from ..util.eliotutil import (
     inline_callbacks,
-    log_call_deferred,
 )
 
 def get_root_from_file(src):
@@ -54,93 +61,92 @@ srcfile = allmydata.__file__
 rootdir = get_root_from_file(srcfile)
 
 
-class RunBinTahoeMixin(object):
-    @log_call_deferred(action_type="run-bin-tahoe")
-    def run_bintahoe(self, args, stdin=None, python_options=[], env=None):
-        command = sys.executable
-        argv = python_options + ["-m", "allmydata.scripts.runner"] + args
+@log_call(action_type="run-bin-tahoe")
+def run_bintahoe(extra_argv, python_options=None):
+    """
+    Run the main Tahoe entrypoint in a child process with the given additional
+    arguments.
 
-        if env is None:
-            env = os.environ
+    :param [unicode] extra_argv: More arguments for the child process argv.
 
-        d = getProcessOutputAndValue(command, argv, env, stdinBytes=stdin)
-        def fix_signal(result):
-            # Mirror subprocess.Popen.returncode structure
-            (out, err, signal) = result
-            return (out, err, -signal)
-        d.addErrback(fix_signal)
-        return d
+    :return: A three-tuple of stdout (unicode), stderr (unicode), and the
+        child process "returncode" (int).
+    """
+    argv = [sys.executable.decode(get_filesystem_encoding())]
+    if python_options is not None:
+        argv.extend(python_options)
+    argv.extend([u"-m", u"allmydata.scripts.runner"])
+    argv.extend(extra_argv)
+    argv = list(unicode_to_argv(arg) for arg in argv)
+    p = Popen(argv, stdout=PIPE, stderr=PIPE)
+    out = p.stdout.read().decode("utf-8")
+    err = p.stderr.read().decode("utf-8")
+    returncode = p.wait()
+    return (out, err, returncode)
 
 
-class BinTahoe(common_util.SignalMixin, unittest.TestCase, RunBinTahoeMixin):
+class BinTahoe(common_util.SignalMixin, unittest.TestCase):
     def test_unicode_arguments_and_output(self):
+        """
+        The runner script receives unmangled non-ASCII values in argv.
+        """
         tricky = u"\u2621"
-        try:
-            tricky_arg = unicode_to_argv(tricky, mangle=True)
-            tricky_out = unicode_to_output(tricky)
-        except UnicodeEncodeError:
-            raise unittest.SkipTest("A non-ASCII argument/output could not be encoded on this platform.")
+        out, err, returncode = run_bintahoe([tricky])
+        self.assertEqual(returncode, 1)
+        self.assertIn(u"Unknown command: " + tricky, out)
 
-        d = self.run_bintahoe([tricky_arg])
-        def _cb(res):
-            out, err, rc_or_sig = res
-            self.failUnlessEqual(rc_or_sig, 1, str(res))
-            self.failUnlessIn("Unknown command: "+tricky_out, out)
-        d.addCallback(_cb)
-        return d
+    def test_with_python_options(self):
+        """
+        Additional options for the Python interpreter don't prevent the runner
+        script from receiving the arguments meant for it.
+        """
+        # This seems like a redundant test for someone else's functionality
+        # but on Windows we parse the whole command line string ourselves so
+        # we have to have our own implementation of skipping these options.
 
-    def test_run_with_python_options(self):
-        # -t is a harmless option that warns about tabs.
-        d = self.run_bintahoe(["--version"], python_options=["-t"])
-        def _cb(res):
-            out, err, rc_or_sig = res
-            self.assertEqual(rc_or_sig, 0, str(res))
-            self.assertTrue(out.startswith(allmydata.__appname__ + '/'), str(res))
-        d.addCallback(_cb)
-        return d
+        # -t is a harmless option that warns about tabs so we can add it
+        # without impacting other behavior noticably.
+        out, err, returncode = run_bintahoe([u"--version"], python_options=[u"-t"])
+        self.assertEqual(returncode, 0)
+        self.assertTrue(out.startswith(allmydata.__appname__ + '/'))
 
-    @inlineCallbacks
     def test_help_eliot_destinations(self):
-        out, err, rc_or_sig = yield self.run_bintahoe(["--help-eliot-destinations"])
-        self.assertIn("\tfile:<path>", out)
-        self.assertEqual(rc_or_sig, 0)
+        out, err, returncode = run_bintahoe([u"--help-eliot-destinations"])
+        self.assertIn(u"\tfile:<path>", out)
+        self.assertEqual(returncode, 0)
 
-    @inlineCallbacks
     def test_eliot_destination(self):
-        out, err, rc_or_sig = yield self.run_bintahoe([
+        out, err, returncode = run_bintahoe([
             # Proves little but maybe more than nothing.
-            "--eliot-destination=file:-",
+            u"--eliot-destination=file:-",
             # Throw in *some* command or the process exits with error, making
             # it difficult for us to see if the previous arg was accepted or
             # not.
-            "--help",
+            u"--help",
         ])
-        self.assertEqual(rc_or_sig, 0)
+        self.assertEqual(returncode, 0)
 
-    @inlineCallbacks
     def test_unknown_eliot_destination(self):
-        out, err, rc_or_sig = yield self.run_bintahoe([
-            "--eliot-destination=invalid:more",
+        out, err, returncode = run_bintahoe([
+            u"--eliot-destination=invalid:more",
         ])
-        self.assertEqual(1, rc_or_sig)
-        self.assertIn("Unknown destination description", out)
-        self.assertIn("invalid:more", out)
+        self.assertEqual(1, returncode)
+        self.assertIn(u"Unknown destination description", out)
+        self.assertIn(u"invalid:more", out)
 
-    @inlineCallbacks
     def test_malformed_eliot_destination(self):
-        out, err, rc_or_sig = yield self.run_bintahoe([
-            "--eliot-destination=invalid",
+        out, err, returncode = run_bintahoe([
+            u"--eliot-destination=invalid",
         ])
-        self.assertEqual(1, rc_or_sig)
-        self.assertIn("must be formatted like", out)
+        self.assertEqual(1, returncode)
+        self.assertIn(u"must be formatted like", out)
 
-    @inlineCallbacks
     def test_escape_in_eliot_destination(self):
-        out, err, rc_or_sig = yield self.run_bintahoe([
-            "--eliot-destination=file:@foo",
+        out, err, returncode = run_bintahoe([
+            u"--eliot-destination=file:@foo",
         ])
-        self.assertEqual(1, rc_or_sig)
-        self.assertIn("Unsupported escape character", out)
+        self.assertEqual(1, returncode)
+        self.assertIn(u"Unsupported escape character", out)
 
 
 class CreateNode(unittest.TestCase):
@@ -250,8 +256,7 @@ class CreateNode(unittest.TestCase):
                               )
 
 
-class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
-              RunBinTahoeMixin):
+class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin):
     """
     exercise "tahoe run" for both introducer and client node, by spawning
     "tahoe run" as a subprocess. This doesn't get us line-level coverage, but
@@ -271,18 +276,18 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
         The introducer furl is stable across restarts.
         """
         basedir = self.workdir("test_introducer")
-        c1 = os.path.join(basedir, "c1")
+        c1 = os.path.join(basedir, u"c1")
         tahoe = CLINodeAPI(reactor, FilePath(c1))
         self.addCleanup(tahoe.stop_and_wait)
 
-        out, err, rc_or_sig = yield self.run_bintahoe([
-            "--quiet",
-            "create-introducer",
-            "--basedir", c1,
-            "--hostname", "127.0.0.1",
+        out, err, returncode = run_bintahoe([
+            u"--quiet",
+            u"create-introducer",
+            u"--basedir", c1,
+            u"--hostname", u"127.0.0.1",
         ])
 
-        self.assertEqual(rc_or_sig, 0)
+        self.assertEqual(returncode, 0)
 
         # This makes sure that node.url is written, which allows us to
         # detect when the introducer restarts in _node_has_restarted below.
@@ -350,18 +355,18 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
         3) Verify that the pid file is removed after SIGTERM (on POSIX).
         """
         basedir = self.workdir("test_client")
-        c1 = os.path.join(basedir, "c1")
+        c1 = os.path.join(basedir, u"c1")
 
         tahoe = CLINodeAPI(reactor, FilePath(c1))
         # Set this up right now so we don't forget later.
         self.addCleanup(tahoe.cleanup)
 
-        out, err, rc_or_sig = yield self.run_bintahoe([
-            "--quiet", "create-node", "--basedir", c1,
-            "--webport", "0",
-            "--hostname", "localhost",
+        out, err, returncode = run_bintahoe([
+            u"--quiet", u"create-node", u"--basedir", c1,
+            u"--webport", u"0",
+            u"--hostname", u"localhost",
         ])
-        self.failUnlessEqual(rc_or_sig, 0)
+        self.failUnlessEqual(returncode, 0)
 
         # Check that the --webport option worked.
         config = fileutil.read(tahoe.config_file.path)

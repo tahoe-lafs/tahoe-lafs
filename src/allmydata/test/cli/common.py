@@ -1,4 +1,5 @@
-from ...util.encodingutil import unicode_to_argv
+from six import ensure_str
+
 from ...scripts import runner
 from ..common_util import ReallyEqualMixin, run_cli, run_cli_unicode
 
@@ -45,6 +46,12 @@ class CLITestMixin(ReallyEqualMixin):
         # client_num is used to execute client CLI commands on a specific
         # client.
         client_num = kwargs.pop("client_num", 0)
-        client_dir = unicode_to_argv(self.get_clientdir(i=client_num))
+        # If we were really going to launch a child process then
+        # `unicode_to_argv` would be the right thing to do here.  However,
+        # we're just going to call some Python functions directly and those
+        # Python functions want native strings.  So ignore the requirements
+        # for passing arguments to another process and make sure this argument
+        # is a native string.
+        client_dir = ensure_str(self.get_clientdir(i=client_num))
         nodeargs = [ b"--node-directory", client_dir ]
         return run_cli(verb, *args, nodeargs=nodeargs, **kwargs)

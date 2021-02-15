@@ -501,7 +501,7 @@ def list_aliases(options):
     rc = tahoe_add_alias.list_aliases(options)
     return rc
 
-def list(options):
+def list_(options):
     from allmydata.scripts import tahoe_ls
     rc = tahoe_ls.list(options)
     return rc
@@ -587,7 +587,7 @@ dispatch = {
     "add-alias": add_alias,
     "create-alias": create_alias,
     "list-aliases": list_aliases,
-    "ls": list,
+    "ls": list_,
     "get": get,
     "put": put,
     "cp": cp,

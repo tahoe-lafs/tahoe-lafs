@@ -9,10 +9,15 @@ __all__ = [
     "flush_logged_errors",
     "skip",
     "skipIf",
+
+    # Selected based on platform and re-exported for convenience.
+    "Popen",
+    "PIPE",
 ]
 
 from past.builtins import chr as byteschr, unicode
 
+import sys
 import os, random, struct
 import six
 import tempfile
@@ -101,6 +106,21 @@ from .eliotutil import (
 )
 from .common_util import ShouldFailMixin  # noqa: F401
 
+if sys.platform == "win32":
+    # Python 2.7 doesn't have good options for launching a process with
+    # non-ASCII in its command line.  So use this alternative that does a
+    # better job.  However, only use it on Windows because it doesn't work
+    # anywhere else.
+    from ._win_subprocess import (
+        Popen,
+    )
+else:
+    from subprocess import (
+        Popen,
+    )
+from subprocess import (
+    PIPE,
+)
 
 TEST_RSA_KEY_SIZE = 522
 
