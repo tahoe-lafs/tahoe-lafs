@@ -374,7 +374,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin):
         self.failUnlessEqual(returncode, 0)
 
         # Check that the --webport option worked.
-        config = fileutil.read(tahoe.config_file.path)
+        config = fileutil.read(tahoe.config_file.path).decode('utf-8')
         self.assertIn(
             '{}web.port = 0{}'.format(linesep, linesep),
             config,
@@ -387,7 +387,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin):
         # This will run until we stop it.
         tahoe.run(on_stdout(p))
         # Wait for startup to have proceeded to a reasonable point.
-        yield p.expect("client running")
+        yield p.expect(b"client running")
         tahoe.active()
 
         # read the storage.furl file so we can check that its contents don't
@@ -406,7 +406,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin):
         # We don't have to add another cleanup for this one, the one from
         # above is still registered.
         tahoe.run(on_stdout(p))
-        yield p.expect("client running")
+        yield p.expect(b"client running")
         tahoe.active()
 
         self.assertEqual(
