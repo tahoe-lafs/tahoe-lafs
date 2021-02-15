@@ -1,5 +1,4 @@
 from past.builtins import unicode, long
-from six import ensure_str
 
 from twisted.web import http, static
 from twisted.internet import defer
