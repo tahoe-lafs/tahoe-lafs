@@ -497,7 +497,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin):
         client_running = p.expect(b"client running")
 
         result, index = yield DeferredList([
-            p.expect(expected_message),
+            p.expect(expected_message.encode('utf-8')),
             client_running,
         ], fireOnOneCallback=True, consumeErrors=True,
         )
