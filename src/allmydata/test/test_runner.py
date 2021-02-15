@@ -184,7 +184,7 @@ class CreateNode(unittest.TestCase):
             # 'create-node', and disabled for 'create-client'.
             tahoe_cfg = os.path.join(n1, "tahoe.cfg")
             self.failUnless(os.path.exists(tahoe_cfg))
-            content = fileutil.read(tahoe_cfg).replace('\r\n', '\n')
+            content = fileutil.read(tahoe_cfg).decode('utf-8').replace('\r\n', '\n')
             if kind == "client":
                 self.failUnless(re.search(r"\n\[storage\]\n#.*\nenabled = false\n", content), content)
             else:
