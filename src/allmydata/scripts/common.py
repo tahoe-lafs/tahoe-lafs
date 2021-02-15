@@ -5,8 +5,7 @@ from __future__ import print_function
 import os, sys, textwrap
 import codecs
 from os.path import join
-
-from six.moves import urllib  # import urllib.parse
+import urllib.parse
 
 try:
     from typing import Optional
