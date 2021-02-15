@@ -180,9 +180,9 @@ PORTED_TEST_MODULES = [
     "allmydata.test.test_storage_client",
     "allmydata.test.test_storage_web",
 
-    # Only partially ported, test_filesystem_with_cli_in_subprocess and
-    # test_filesystem methods aren't ported yet, should be done once CLI and
-    # web are ported respectively.
+    # Only partially ported, test_filesystem_with_cli_in_subprocess isn't
+    # ported yet, nor is part of test_filesystem (the call to _test_cli). This
+    # should be done once CLI is ported.
     "allmydata.test.test_system",
 
     "allmydata.test.test_time_format",

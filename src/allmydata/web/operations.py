@@ -152,7 +152,7 @@ class ReloadMixin(object):
     @renderer
     def refresh(self, req, tag):
         if self.monitor.is_finished():
-            return b""
+            return ""
         tag.attributes["http-equiv"] = "refresh"
         tag.attributes["content"] = str(self.REFRESH_TIME)
         return tag

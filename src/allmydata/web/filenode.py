@@ -1,4 +1,5 @@
 from past.builtins import unicode, long
+from six import ensure_str
 
 from twisted.web import http, static
 from twisted.internet import defer
@@ -130,7 +131,7 @@ class PlaceHolderNodeHandler(Resource, ReplaceMeMixin):
         if t == b"uri":
             return self.replace_me_with_a_childcap(req, self.client, replace)
 
-        raise WebError("PUT to a file: bad t=%s" % t)
+        raise WebError("PUT to a file: bad t=%s" % ensure_str(t))
 
     @render_exception
     def render_POST(self, req):
@@ -287,7 +288,7 @@ class FileNodeHandler(Resource, ReplaceMeMixin, object):
             assert self.parentnode and self.name
             return self.replace_me_with_a_childcap(req, self.client, replace)
 
-        raise WebError("PUT to a file: bad t=%s" % t)
+        raise WebError("PUT to a file: bad t=%s" % ensure_str(t))
 
     @render_exception
     def render_POST(self, req):
