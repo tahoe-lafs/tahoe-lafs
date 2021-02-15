@@ -1,8 +1,14 @@
 # coding: utf-8
 
 from __future__ import print_function
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import unicode_literals
 from six import ensure_str
 
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 import os, sys, textwrap
 import codecs
 from os.path import join
@@ -149,7 +155,7 @@ def get_introducer_furl(nodedir, config):
     :return: the introducer FURL for the given node (no matter if it's
         a client-type node or an introducer itself)
     """
-    for petname, (furl, cache) in config.get_introducer_configuration().items():
+    for petname, (furl, cache) in list(config.get_introducer_configuration().items()):
         return furl
 
     # We have no configured introducers.  Maybe this is running *on* the
