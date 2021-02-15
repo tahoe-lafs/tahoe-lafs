@@ -296,7 +296,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin):
 
         # This makes sure that node.url is written, which allows us to
         # detect when the introducer restarts in _node_has_restarted below.
-        config = fileutil.read(tahoe.config_file.path)
+        config = fileutil.read(tahoe.config_file.path).decode('utf-8')
         self.assertIn('{}web.port = {}'.format(linesep, linesep), config)
         fileutil.write(
             tahoe.config_file.path,
@@ -308,7 +308,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin):
 
         p = Expect()
         tahoe.run(on_stdout(p))
-        yield p.expect("introducer running")
+        yield p.expect(b"introducer running")
         tahoe.active()
 
         yield self.poll(tahoe.introducer_furl_file.exists)
@@ -331,7 +331,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin):
 
         p = Expect()
         tahoe.run(on_stdout(p))
-        yield p.expect("introducer running")
+        yield p.expect(b"introducer running")
 
         # Again, the second incarnation of the node might not be ready yet, so
         # poll until it is. This time introducer_furl_file already exists, so
