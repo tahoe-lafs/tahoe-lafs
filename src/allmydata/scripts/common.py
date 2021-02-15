@@ -277,10 +277,11 @@ def escape_path(path):
     Return path quoted to US-ASCII.
 
     >>> path = u'/føö/bar/☃'
-    >>> escape_path(path)
+    >>> escaped = escape_path(path)
+    >>> str(escaped)
     '/f%C3%B8%C3%B6/bar/%E2%98%83'
-    >>> escape_path(path).encode('ascii')
-    b'/f%C3%B8%C3%B6/bar/%E2%98%83'
+    >>> escaped.encode('ascii').decode('ascii') == escaped
+    True
     """
     # this always returns bytes, specifically US-ASCII, valid URL characters
     segments = path.split("/")
