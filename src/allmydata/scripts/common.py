@@ -276,7 +276,7 @@ def get_alias(aliases, path_unicode, default):
 def escape_path(path):
     # type: (str) -> str
     u"""
-    Return path quoted to US-ASCII.
+    Return path quoted to US-ASCII, valid URL characters.
 
     >>> path = u'/føö/bar/☃'
     >>> escaped = escape_path(path)
@@ -285,6 +285,5 @@ def escape_path(path):
     >>> escaped.encode('ascii').decode('ascii') == escaped
     True
     """
-    # this always returns bytes, specifically US-ASCII, valid URL characters
     segments = path.split("/")
     return "/".join([urllib.parse.quote(unicode_to_url(s)) for s in segments])
