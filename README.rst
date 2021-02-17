@@ -78,6 +78,8 @@ Get involved with the Tahoe-LAFS community:
 
 -  Subscribe to `the tahoe-dev mailing list <https://www.tahoe-lafs.org/cgi-bin/mailman/listinfo/tahoe-dev>`__, the community forum for discussion of Tahoe-LAFS design, implementation, and usage.
 
+-  Follow governance decisions and find the latest meeting agendas in our `Community Repo <https://github.com/tahoe-lafs/community>`__.
+
 🤗 Contributing
 ---------------
 
