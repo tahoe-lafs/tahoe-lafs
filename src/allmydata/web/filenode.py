@@ -1,4 +1,18 @@
-from past.builtins import unicode, long
+"""
+Ported to Python 3.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, max, min  # noqa: F401
+    # Use native unicode() as str() to prevent leaking futurebytes in ways that
+    # break string formattin.
+    from past.builtins import unicode as str
+from past.builtins import long
 
 from twisted.web import http, static
 from twisted.internet import defer
@@ -130,7 +144,7 @@ class PlaceHolderNodeHandler(Resource, ReplaceMeMixin):
         if t == b"uri":
             return self.replace_me_with_a_childcap(req, self.client, replace)
 
-        raise WebError("PUT to a file: bad t=%s" % unicode(t, "utf-8"))
+        raise WebError("PUT to a file: bad t=%s" % str(t, "utf-8"))
 
     @render_exception
     def render_POST(self, req):
@@ -147,7 +161,7 @@ class PlaceHolderNodeHandler(Resource, ReplaceMeMixin):
             # t=mkdir is handled in DirectoryNodeHandler._POST_mkdir, so
             # there are no other t= values left to be handled by the
             # placeholder.
-            raise WebError("POST to a file: bad t=%s" % unicode(t, "utf-8"))
+            raise WebError("POST to a file: bad t=%s" % str(t, "utf-8"))
 
         return handle_when_done(req, d)
 
@@ -180,7 +194,7 @@ class FileNodeHandler(Resource, ReplaceMeMixin, object):
 
     @render_exception
     def render_GET(self, req):
-        t = unicode(get_arg(req, b"t", b"").strip(), "ascii")
+        t = str(get_arg(req, b"t", b"").strip(), "ascii")
 
         # t=info contains variable ophandles, so is not allowed an ETag.
         FIXED_OUTPUT_TYPES = ["", "json", "uri", "readonly-uri"]
@@ -287,7 +301,7 @@ class FileNodeHandler(Resource, ReplaceMeMixin, object):
             assert self.parentnode and self.name
             return self.replace_me_with_a_childcap(req, self.client, replace)
 
-        raise WebError("PUT to a file: bad t=%s" % unicode(t, "utf-8"))
+        raise WebError("PUT to a file: bad t=%s" % str(t, "utf-8"))
 
     @render_exception
     def render_POST(self, req):
@@ -309,7 +323,7 @@ class FileNodeHandler(Resource, ReplaceMeMixin, object):
                 assert self.parentnode and self.name
                 d = self.replace_me_with_a_formpost(req, self.client, replace)
         else:
-            raise WebError("POST to file: bad t=%s" % unicode(t, "ascii"))
+            raise WebError("POST to file: bad t=%s" % str(t, "ascii"))
 
         return handle_when_done(req, d)
 
