@@ -63,7 +63,7 @@ class Blacklist(object):
         reason = self.entries.get(si, None)
         if reason is not None:
             # log this to logs/twistd.log, since web logs go there too
-            twisted_log.msg("blacklist prohibited access to SI %s: %s" %
+            twisted_log.msg("blacklist prohibited access to SI %r: %r" %
                             (base32.b2a(si), reason))
         return reason
 

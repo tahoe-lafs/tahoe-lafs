@@ -477,7 +477,7 @@ class Checker(log.PrefixingLogMixin):
                  monitor):
         assert precondition(isinstance(verifycap, CHKFileVerifierURI), verifycap, type(verifycap))
 
-        prefix = "%s" % base32.b2a(verifycap.get_storage_index()[:8])[:12]
+        prefix = str(base32.b2a(verifycap.get_storage_index()[:8])[:12], "utf-8")
         log.PrefixingLogMixin.__init__(self, facility="tahoe.immutable.checker", prefix=prefix)
 
         self._verifycap = verifycap

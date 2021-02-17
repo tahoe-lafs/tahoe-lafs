@@ -125,7 +125,7 @@ class DownloadNode(object):
         self.ciphertext_hash_tree_leaves = self.guessed_num_segments
 
     def __repr__(self):
-        return "ImmutableDownloadNode(%s)" % (self._si_prefix,)
+        return "ImmutableDownloadNode(%r)" % (self._si_prefix,)
 
     def stop(self):
         # called by the Terminator at shutdown, mostly for tests

@@ -275,7 +275,7 @@ class ServerMap(object):
         """Take a versionid, return a string that describes it."""
         (seqnum, root_hash, IV, segsize, datalength, k, N, prefix,
          offsets_tuple) = verinfo
-        return "seq%d-%s" % (seqnum, base32.b2a(root_hash)[:4])
+        return "seq%d-%s" % (seqnum, unicode(base32.b2a(root_hash)[:4], "utf-8"))
 
     def summarize_versions(self):
         """Return a string describing which versions we know about."""
@@ -868,7 +868,7 @@ class ServermapUpdater(object):
         # ok, it's a valid verinfo. Add it to the list of validated
         # versions.
         self.log(" found valid version %d-%s from %s-sh%d: %d-%d/%d/%d"
-                 % (seqnum, base32.b2a(root_hash)[:4],
+                 % (seqnum, unicode(base32.b2a(root_hash)[:4], "utf-8"),
                     server.get_name(), shnum,
                     k, n, segsize, datalen),
                     parent=lp)

@@ -863,7 +863,7 @@ class WebErrorMixin(object):
             response_body = f.value.response
             if response_substring:
                 self.failUnless(response_substring in response_body,
-                                "%s: response substring '%s' not in '%s'"
+                                "%r: response substring %r not in %r"
                                 % (which, response_substring, response_body))
             return response_body
         d = defer.maybeDeferred(callable, *args, **kwargs)
