@@ -388,7 +388,7 @@ class FileDownloader(Resource, object):
         self.filenode = filenode
         self.filename = filename
 
-    def parse_range_header(self, range):
+    def parse_range_header(self, range_header):
         # Parse a byte ranges according to RFC 2616 "14.35.1 Byte
         # Ranges".  Returns None if the range doesn't make sense so it
         # can be ignored (per the spec).  When successful, returns a
@@ -399,7 +399,7 @@ class FileDownloader(Resource, object):
 
         try:
             # byte-ranges-specifier
-            units, rangeset = range.split('=', 1)
+            units, rangeset = range_header.split('=', 1)
             if units != 'bytes':
                 return None     # nothing else supported
 
