@@ -120,6 +120,7 @@ PORTED_MODULES = [
     "allmydata.web.check_results",
     "allmydata.web.filenode",
     "allmydata.web.info",
+    "allmydata.web.introweb",
     "allmydata.web.logs",
     "allmydata.webish",
 ]
