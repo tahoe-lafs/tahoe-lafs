@@ -19,6 +19,10 @@ jobs:
         python-version:
           - 2.7
           - 3.6
+        exclude:
+          # Testing with Python 3.6 on Windows does not work yet.
+          - os: windows-latest
+            python-version: 3.6
 
     steps:
 
