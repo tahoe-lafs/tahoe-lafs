@@ -1,3 +1,13 @@
+"""Ported to Python 3.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 import os, time, tempfile
 from zope.interface import implementer
@@ -13,17 +23,17 @@ from twisted.python import log
 
 def get_memory_usage():
     # this is obviously linux-specific
-    stat_names = ("VmPeak",
-                  "VmSize",
-                  #"VmHWM",
-                  "VmData")
+    stat_names = (b"VmPeak",
+                  b"VmSize",
+                  #b"VmHWM",
+                  b"VmData")
     stats = {}
     try:
-        with open("/proc/self/status", "r") as f:
+        with open("/proc/self/status", "rb") as f:
             for line in f:
-                name, right = line.split(":",2)
+                name, right = line.split(b":",2)
                 if name in stat_names:
-                    assert right.endswith(" kB\n")
+                    assert right.endswith(b" kB\n")
                     right = right[:-4]
                     stats[name] = int(right) * 1024
     except:
@@ -34,8 +44,8 @@ def get_memory_usage():
 
 def log_memory_usage(where=""):
     stats = get_memory_usage()
-    log.msg("VmSize: %9d  VmPeak: %9d  %s" % (stats["VmSize"],
-                                              stats["VmPeak"],
+    log.msg("VmSize: %9d  VmPeak: %9d  %s" % (stats[b"VmSize"],
+                                              stats[b"VmPeak"],
                                               where))
 
 @implementer(IConsumer)
