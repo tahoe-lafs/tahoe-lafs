@@ -705,7 +705,7 @@ class DirectoryAsHTML(Element):
 
     @renderer
     def title(self, req, tag):
-        si_s = abbreviated_dirnode(self.node)
+        si_s = unicode(abbreviated_dirnode(self.node), "utf-8")
         header = ["Tahoe-LAFS - Directory SI=%s" % si_s]
         if self.node.is_unknown():
             header.append(" (unknown)")
@@ -719,7 +719,7 @@ class DirectoryAsHTML(Element):
 
     @renderer
     def header(self, req, tag):
-        si_s = abbreviated_dirnode(self.node)
+        si_s = unicode(abbreviated_dirnode(self.node), "utf-8")
         header = ["Tahoe-LAFS Directory SI=", tags.span(si_s, class_="data-chars")]
         if self.node.is_unknown():
             header.append(" (unknown)")
@@ -1077,13 +1077,13 @@ class RenameForm(Element, object):
 
     @renderer
     def title(self, req, tag):
-        return tag("Directory SI={}".format(abbreviated_dirnode(self.original)))
+        return tag("Directory SI={}".format(unicode(abbreviated_dirnode(self.original), "ascii")))
 
     @renderer
     def header(self, req, tag):
         header = [
             "Rename "
-            "in directory SI=%s" % abbreviated_dirnode(self.original),
+            "in directory SI=%s" % unicode(abbreviated_dirnode(self.original), "ascii"),
         ]
 
         if self.original.is_readonly():
@@ -1194,7 +1194,7 @@ class ManifestElement(ReloadableMonitorElement):
         si = self.monitor.origin_si
         if not si:
             return "<LIT>"
-        return base32.b2a(si)[:6]
+        return unicode(base32.b2a(si)[:6], "utf-8")
 
     @renderer
     def title(self, req, tag):

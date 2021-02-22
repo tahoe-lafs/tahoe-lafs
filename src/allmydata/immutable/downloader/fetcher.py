@@ -63,7 +63,7 @@ class SegmentFetcher(object):
         self._running = True
 
     def stop(self):
-        log.msg("SegmentFetcher(%s).stop" % self._node._si_prefix,
+        log.msg("SegmentFetcher(%r).stop" % self._node._si_prefix,
                 level=log.NOISY, parent=self._lp, umid="LWyqpg")
         self._cancel_all_requests()
         self._running = False
@@ -241,7 +241,7 @@ class SegmentFetcher(object):
         # called by Shares, in response to our s.send_request() calls.
         if not self._running:
             return
-        log.msg("SegmentFetcher(%s)._block_request_activity: %s -> %s" %
+        log.msg("SegmentFetcher(%r)._block_request_activity: %s -> %r" %
                 (self._node._si_prefix, repr(share), state),
                 level=log.NOISY, parent=self._lp, umid="vilNWA")
         # COMPLETE, CORRUPT, DEAD, BADSEGNUM are terminal. Remove the share

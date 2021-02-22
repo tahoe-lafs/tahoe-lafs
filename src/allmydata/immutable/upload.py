@@ -437,7 +437,7 @@ class Tahoe2ServerSelector(log.PrefixingLogMixin):
         self._reactor = reactor
 
     def __repr__(self):
-        return "<Tahoe2ServerSelector for upload %s>" % self.upload_id
+        return "<Tahoe2ServerSelector for upload %r>" % self.upload_id
 
     def _create_trackers(self, candidate_servers, allocated_size,
                          file_renewal_secret, file_cancel_secret, create_server_tracker):
@@ -1314,7 +1314,7 @@ class CHKUploader(object):
         storage_index = encoder.get_param("storage_index")
         self._storage_index = storage_index
         upload_id = si_b2a(storage_index)[:5]
-        self.log("using storage index %s" % upload_id)
+        self.log("using storage index %r" % upload_id)
         server_selector = Tahoe2ServerSelector(
             upload_id,
             self._log_number,

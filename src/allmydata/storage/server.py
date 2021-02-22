@@ -271,7 +271,7 @@ class StorageServer(service.MultiService, Referenceable):
         si_dir = storage_index_to_dir(storage_index)
         si_s = si_b2a(storage_index)
 
-        log.msg("storage: allocate_buckets %s" % si_s)
+        log.msg("storage: allocate_buckets %r" % si_s)
 
         # in this implementation, the lease information (including secrets)
         # goes into the share files themselves. It could also be put into a
@@ -397,7 +397,7 @@ class StorageServer(service.MultiService, Referenceable):
         start = time.time()
         self.count("get")
         si_s = si_b2a(storage_index)
-        log.msg("storage: get_buckets %s" % si_s)
+        log.msg("storage: get_buckets %r" % si_s)
         bucketreaders = {} # k: sharenum, v: BucketReader
         for shnum, filename in self._get_bucket_shares(storage_index):
             bucketreaders[shnum] = BucketReader(self, filename,
@@ -602,7 +602,7 @@ class StorageServer(service.MultiService, Referenceable):
         start = time.time()
         self.count("writev")
         si_s = si_b2a(storage_index)
-        log.msg("storage: slot_writev %s" % si_s)
+        log.msg("storage: slot_writev %r" % si_s)
         si_dir = storage_index_to_dir(storage_index)
         (write_enabler, renew_secret, cancel_secret) = secrets
         bucketdir = os.path.join(self.sharedir, si_dir)
@@ -669,7 +669,7 @@ class StorageServer(service.MultiService, Referenceable):
         start = time.time()
         self.count("readv")
         si_s = si_b2a(storage_index)
-        lp = log.msg("storage: slot_readv %s %s" % (si_s, shares),
+        lp = log.msg("storage: slot_readv %r %r" % (si_s, shares),
                      facility="tahoe.storage", level=log.OPERATIONAL)
         si_dir = storage_index_to_dir(storage_index)
         # shares exist if there is a file for them
@@ -703,7 +703,7 @@ class StorageServer(service.MultiService, Referenceable):
         si_s = si_b2a(storage_index)
         # windows can't handle colons in the filename
         fn = os.path.join(self.corruption_advisory_dir,
-                          "%s--%s-%d" % (now, si_s, shnum)).replace(":","")
+                          "%s--%s-%d" % (now, str(si_s, "utf-8"), shnum)).replace(":","")
         with open(fn, "w") as f:
             f.write("report: Share Corruption\n")
             f.write("type: %s\n" % bytes_to_native_str(share_type))

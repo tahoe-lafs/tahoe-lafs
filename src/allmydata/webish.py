@@ -197,8 +197,8 @@ def _logFormatter(logDateTime, request):
     template = "web: %(clientip)s %(method)s %(uri)s %(code)s %(length)s"
     return template % dict(
         clientip=_get_client_ip(request),
-        method=request.method,
-        uri=uri,
+        method=str(request.method, "utf-8"),
+        uri=str(uri, "utf-8"),
         code=request.code,
         length=(request.sentLength or "-"),
         facility="tahoe.webish",

@@ -185,10 +185,10 @@ class FileHandler(resource.Resource, object):
             node = self.client.create_node_from_uri(name)
         except (TypeError, AssertionError):
             # I think this can no longer be reached
-            raise WebError("'%s' is not a valid file- or directory- cap"
+            raise WebError("%r is not a valid file- or directory- cap"
                            % name)
         if not IFileNode.providedBy(node):
-            raise WebError("'%s' is not a file-cap" % name)
+            raise WebError("%r is not a file-cap" % name)
         return filenode.FileNodeDownloadHandler(self.client, node)
 
     @render_exception
