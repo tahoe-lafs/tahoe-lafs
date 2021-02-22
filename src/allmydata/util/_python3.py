@@ -117,6 +117,7 @@ PORTED_MODULES = [
     "allmydata.util.statistics",
     "allmydata.util.time_format",
     "allmydata.web.common",
+    "allmydata.web.directory",
     "allmydata.web.logs",
     "allmydata.webish",
 ]

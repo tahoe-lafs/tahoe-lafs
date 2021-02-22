@@ -1,12 +1,15 @@
 """
-TODO: When porting to Python 3, the filename handling logic seems wrong.  On
-Python 3 filename will _already_ be correctly decoded.  So only decode if it's
-bytes.
-
-Also there's a lot of code duplication I think.
+Ported to Python 3.
 """
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
 
-from past.builtins import unicode
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, max, min  # noqa: F401
+    from past.builtins import unicode as str
 
 from urllib.parse import quote as url_quote
 from datetime import timedelta
@@ -143,7 +146,7 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
         terminal = (req.prepath + req.postpath)[-1].decode('utf8') == name
         nonterminal = not terminal  #len(req.postpath) > 0
 
-        t = unicode(get_arg(req, b"t", b"").strip(), "ascii")
+        t = str(get_arg(req, b"t", b"").strip(), "ascii")
         if isinstance(node_or_failure, Failure):
             f = node_or_failure
             f.trap(NoSuchChildError)
@@ -225,7 +228,7 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
     @render_exception
     def render_GET(self, req):
         # This is where all of the directory-related ?t=* code goes.
-        t = unicode(get_arg(req, b"t", b"").strip(), "ascii")
+        t = str(get_arg(req, b"t", b"").strip(), "ascii")
 
         # t=info contains variable ophandles, t=rename-form contains the name
         # of the child being renamed. Neither is allowed an ETag.
@@ -263,7 +266,7 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
 
     @render_exception
     def render_PUT(self, req):
-        t = unicode(get_arg(req, b"t", b"").strip(), "ascii")
+        t = str(get_arg(req, b"t", b"").strip(), "ascii")
         replace = parse_replace_arg(get_arg(req, "replace", "true"))
 
         if t == "mkdir":
@@ -283,7 +286,7 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
 
     @render_exception
     def render_POST(self, req):
-        t = unicode(get_arg(req, b"t", b"").strip(), "ascii")
+        t = str(get_arg(req, b"t", b"").strip(), "ascii")
 
         if t == "mkdir":
             d = self._POST_mkdir(req)
@@ -372,7 +375,7 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
         return d
 
     def _POST_upload(self, req):
-        charset = unicode(get_arg(req, "_charset", b"utf-8"), "utf-8")
+        charset = str(get_arg(req, "_charset", b"utf-8"), "utf-8")
         contents = req.fields["file"]
 
         # The filename embedded in the MIME file upload will be bytes on Python
@@ -380,7 +383,7 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
         # the upload will be bytes on Python 2, Unicode on Python 3, or missing
         # (i.e. None). We go through all these variations until we have a name
         # that is Unicode.
-        assert contents.filename is None or isinstance(contents.filename, (bytes, unicode))
+        assert contents.filename is None or isinstance(contents.filename, (bytes, str))
         name = get_arg(req, "name")  # returns bytes or None
         name = name or contents.filename  # unicode, bytes or None
         if name is not None:
@@ -390,7 +393,7 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
             raise WebError("upload requires a name")
         if isinstance(name, bytes):
             name = name.decode(charset)
-        assert isinstance(name, unicode)
+        assert isinstance(name, str)
         if "/" in name:
             raise WebError("name= may not contain a slash", http.BAD_REQUEST)
 
@@ -427,7 +430,7 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
         name = get_arg(req, "name")
         if not name:
             raise WebError("set-uri requires a name")
-        charset = unicode(get_arg(req, "_charset", b"utf-8"), "ascii")
+        charset = str(get_arg(req, "_charset", b"utf-8"), "ascii")
         name = name.decode(charset)
         replace = parse_replace_arg(get_arg(req, "replace", "true"))
 
@@ -451,7 +454,7 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
             # without a name= field. For our own HTML this isn't a big
             # deal, because we create the 'unlink' POST buttons ourselves.
             name = b''
-        charset = unicode(get_arg(req, "_charset", b"utf-8"), "ascii")
+        charset = str(get_arg(req, "_charset", b"utf-8"), "ascii")
         name = name.decode(charset)
         d = self.node.delete(name)
         d.addCallback(lambda res: "thing unlinked")
@@ -467,14 +470,14 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
         return self._POST_relink(req)
 
     def _POST_relink(self, req):
-        charset = unicode(get_arg(req, "_charset", b"utf-8"), "ascii")
+        charset = str(get_arg(req, "_charset", b"utf-8"), "ascii")
         replace = parse_replace_arg(get_arg(req, "replace", "true"))
 
         from_name = get_arg(req, "from_name")
         if from_name is not None:
             from_name = from_name.strip()
             from_name = from_name.decode(charset)
-            assert isinstance(from_name, unicode)
+            assert isinstance(from_name, str)
         else:
             raise WebError("from_name= is required")
 
@@ -482,7 +485,7 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
         if to_name is not None:
             to_name = to_name.strip()
             to_name = to_name.decode(charset)
-            assert isinstance(to_name, unicode)
+            assert isinstance(to_name, str)
         else:
             to_name = from_name
 
@@ -499,7 +502,7 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
         if to_dir is not None and to_dir != self.node.get_write_uri():
             to_dir = to_dir.strip()
             to_dir = to_dir.decode(charset)
-            assert isinstance(to_dir, unicode)
+            assert isinstance(to_dir, str)
             to_path = to_dir.split(u"/")
             to_root = self.client.nodemaker.create_from_cap(to_bytes(to_path[0]))
             if not IDirectoryNode.providedBy(to_root):
@@ -638,8 +641,8 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
             # TODO test handling of bad JSON
             raise
         cs = {}
-        for name, (file_or_dir, mddict) in children.items():
-            name = unicode(name) # json returns str *or* unicode
+        for name, (file_or_dir, mddict) in list(children.items()):
+            name = str(name) # json returns str *or* unicode
             writecap = mddict.get('rw_uri')
             if writecap is not None:
                 writecap = writecap.encode("utf-8")
@@ -711,7 +714,7 @@ class DirectoryAsHTML(Element):
 
     @renderer
     def title(self, req, tag):
-        si_s = unicode(abbreviated_dirnode(self.node), "utf-8")
+        si_s = str(abbreviated_dirnode(self.node), "utf-8")
         header = ["Tahoe-LAFS - Directory SI=%s" % si_s]
         if self.node.is_unknown():
             header.append(" (unknown)")
@@ -725,7 +728,7 @@ class DirectoryAsHTML(Element):
 
     @renderer
     def header(self, req, tag):
-        si_s = unicode(abbreviated_dirnode(self.node), "utf-8")
+        si_s = str(abbreviated_dirnode(self.node), "utf-8")
         header = ["Tahoe-LAFS Directory SI=", tags.span(si_s, class_="data-chars")]
         if self.node.is_unknown():
             header.append(" (unknown)")
@@ -1019,7 +1022,7 @@ def _directory_json_metadata(req, dirnode):
     d = dirnode.list()
     def _got(children):
         kids = {}
-        for name, (childnode, metadata) in children.items():
+        for name, (childnode, metadata) in list(children.items()):
             assert IFilesystemNode.providedBy(childnode), childnode
             rw_uri = childnode.get_write_uri()
             ro_uri = childnode.get_readonly_uri()
@@ -1083,13 +1086,13 @@ class RenameForm(Element, object):
 
     @renderer
     def title(self, req, tag):
-        return tag("Directory SI={}".format(unicode(abbreviated_dirnode(self.original), "ascii")))
+        return tag("Directory SI={}".format(str(abbreviated_dirnode(self.original), "ascii")))
 
     @renderer
     def header(self, req, tag):
         header = [
             "Rename "
-            "in directory SI=%s" % unicode(abbreviated_dirnode(self.original), "ascii"),
+            "in directory SI=%s" % str(abbreviated_dirnode(self.original), "ascii"),
         ]
 
         if self.original.is_readonly():
@@ -1200,7 +1203,7 @@ class ManifestElement(ReloadableMonitorElement):
         si = self.monitor.origin_si
         if not si:
             return "<LIT>"
-        return unicode(base32.b2a(si)[:6], "utf-8")
+        return str(base32.b2a(si)[:6], "utf-8")
 
     @renderer
     def title(self, req, tag):
@@ -1478,7 +1481,7 @@ class UnknownNodeHandler(Resource, object):
 
     @render_exception
     def render_GET(self, req):
-        t = unicode(get_arg(req, "t", "").strip(), "ascii")
+        t = str(get_arg(req, "t", "").strip(), "ascii")
         if t == "info":
             return MoreInfo(self.node)
         if t == "json":
