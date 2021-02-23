@@ -243,7 +243,7 @@ class WriteableSSKFileURI(_BaseURI):
     def init_from_string(cls, uri):
         mo = cls.STRING_RE.search(uri)
         if not mo:
-            raise BadURIError("'%s' doesn't look like a %s cap" % (uri, cls))
+            raise BadURIError("%r doesn't look like a %s cap" % (uri, cls))
         return cls(base32.a2b(mo.group(1)), base32.a2b(mo.group(2)))
 
     def to_string(self):
@@ -253,7 +253,7 @@ class WriteableSSKFileURI(_BaseURI):
                                    base32.b2a(self.fingerprint))
 
     def __repr__(self):
-        return "<%s %s>" % (self.__class__.__name__, self.abbrev())
+        return "<%s %r>" % (self.__class__.__name__, self.abbrev())
 
     def abbrev(self):
         return base32.b2a(self.writekey[:5])

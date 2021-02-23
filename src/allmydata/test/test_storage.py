@@ -11,7 +11,7 @@ from __future__ import unicode_literals
 from future.utils import native_str, PY2, bytes_to_native_str
 if PY2:
     from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
-
+from six import ensure_str
 
 import time
 import os.path
@@ -794,7 +794,7 @@ class Server(unittest.TestCase):
         reports = os.listdir(reportdir)
         self.failUnlessEqual(len(reports), 1)
         report_si0 = reports[0]
-        self.failUnlessIn(native_str(si0_s), report_si0)
+        self.failUnlessIn(ensure_str(si0_s), report_si0)
         f = open(os.path.join(reportdir, report_si0), "rb")
         report = f.read()
         f.close()

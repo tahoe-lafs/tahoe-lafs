@@ -1,3 +1,4 @@
+from past.builtins import unicode
 
 import os
 from urllib.parse import quote as urlquote
@@ -46,7 +47,7 @@ class MoreInfoElement(Element):
 
     def abbrev(self, storage_index_or_none):
         if storage_index_or_none:
-            return base32.b2a(storage_index_or_none)[:6]
+            return unicode(base32.b2a(storage_index_or_none)[:6], "ascii")
         return "LIT file"
 
     def get_type(self):

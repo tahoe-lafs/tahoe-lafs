@@ -127,7 +127,7 @@ class Publish(object):
         self._servermap = servermap
         self._storage_index = self._node.get_storage_index()
         self._log_prefix = prefix = si_b2a(self._storage_index)[:5]
-        num = self.log("Publish(%s): starting" % prefix, parent=None)
+        num = self.log("Publish(%r): starting" % prefix, parent=None)
         self._log_number = num
         self._running = True
         self._first_write_error = None

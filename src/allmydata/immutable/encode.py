@@ -106,7 +106,7 @@ class Encoder(object):
 
     def __repr__(self):
         if hasattr(self, "_storage_index"):
-            return "<Encoder for %s>" % si_b2a(self._storage_index)[:5]
+            return "<Encoder for %r>" % si_b2a(self._storage_index)[:5]
         return "<Encoder for unknown storage index>"
 
     def log(self, *args, **kwargs):
