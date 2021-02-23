@@ -1,4 +1,14 @@
-from past.builtins import unicode
+"""
+Ported to Python 3.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 import os
 from urllib.parse import quote as urlquote
@@ -47,7 +57,7 @@ class MoreInfoElement(Element):
 
     def abbrev(self, storage_index_or_none):
         if storage_index_or_none:
-            return unicode(base32.b2a(storage_index_or_none)[:6], "ascii")
+            return str(base32.b2a(storage_index_or_none)[:6], "ascii")
         return "LIT file"
 
     def get_type(self):
