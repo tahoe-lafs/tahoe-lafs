@@ -117,6 +117,10 @@ PORTED_MODULES = [
     "allmydata.util.statistics",
     "allmydata.util.time_format",
     "allmydata.web.common",
+    "allmydata.web.check_results",
+    "allmydata.web.filenode",
+    "allmydata.web.info",
+    "allmydata.web.introweb",
     "allmydata.web.logs",
     "allmydata.webish",
 ]
