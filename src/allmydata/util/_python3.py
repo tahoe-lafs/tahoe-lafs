@@ -120,6 +120,7 @@ PORTED_MODULES = [
     "allmydata.web.directory",
     "allmydata.web.logs",
     "allmydata.web.operations",
+    "allmydata.web.private",
     "allmydata.webish",
 ]
 
