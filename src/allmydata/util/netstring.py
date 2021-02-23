@@ -15,7 +15,7 @@ if PY2:
 from past.builtins import long
 
 try:
-    from typing import Optional, Tuple, List
+    from typing import Optional, Tuple, List  # noqa: F401
 except ImportError:
     pass
 
