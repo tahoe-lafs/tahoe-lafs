@@ -574,7 +574,7 @@ class Retrieve(object):
         remote server (with no guarantee of success) that its share is
         corrupt.
         """
-        self.log("marking share %d on server %s as bad" % \
+        self.log("marking share %d on server %r as bad" % \
                  (shnum, server.get_name()))
         prefix = self.verinfo[-2]
         self.servermap.mark_bad_share(server, shnum, prefix)

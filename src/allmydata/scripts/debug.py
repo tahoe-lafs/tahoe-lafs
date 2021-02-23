@@ -6,6 +6,7 @@ except ImportError:
     pass
 
 from future.utils import bchr
+from past.builtins import unicode
 
 # do not import any allmydata modules at this level. Do that from inside
 # individual functions instead.
@@ -90,27 +91,34 @@ def dump_immutable_chk_share(f, out, options):
              "crypttext_hash", "crypttext_root_hash",
              "share_root_hash", "UEB_hash")
     display_keys = {"size": "file_size"}
+
+    def to_string(v):
+        if isinstance(v, bytes):
+            return unicode(v, "utf-8")
+        else:
+            return str(v)
+
     for k in keys1:
         if k in unpacked:
             dk = display_keys.get(k, k)
-            print("%20s: %s" % (dk, unpacked[k]), file=out)
+            print("%20s: %s" % (dk, to_string(unpacked[k])), file=out)
     print(file=out)
     for k in keys2:
         if k in unpacked:
             dk = display_keys.get(k, k)
-            print("%20s: %s" % (dk, unpacked[k]), file=out)
+            print("%20s: %s" % (dk, to_string(unpacked[k])), file=out)
     print(file=out)
     for k in keys3:
         if k in unpacked:
             dk = display_keys.get(k, k)
-            print("%20s: %s" % (dk, unpacked[k]), file=out)
+            print("%20s: %s" % (dk, to_string(unpacked[k])), file=out)
 
     leftover = set(unpacked.keys()) - set(keys1 + keys2 + keys3)
     if leftover:
         print(file=out)
         print("LEFTOVER:", file=out)
         for k in sorted(leftover):
-            print("%20s: %s" % (k, unpacked[k]), file=out)
+            print("%20s: %s" % (k, to_string(unpacked[k])), file=out)
 
     # the storage index isn't stored in the share itself, so we depend upon
     # knowing the parent directory name to get it
@@ -197,7 +205,7 @@ def dump_mutable_share(options):
     print(file=out)
     print("Mutable slot found:", file=out)
     print(" share_type: %s" % share_type, file=out)
-    print(" write_enabler: %s" % base32.b2a(WE), file=out)
+    print(" write_enabler: %s" % unicode(base32.b2a(WE), "utf-8"), file=out)
     print(" WE for nodeid: %s" % idlib.nodeid_b2a(nodeid), file=out)
     print(" num_extra_leases: %d" % num_extra_leases, file=out)
     print(" container_size: %d" % container_size, file=out)
@@ -209,8 +217,8 @@ def dump_mutable_share(options):
             print("  ownerid: %d" % lease.owner_num, file=out)
             when = format_expiration_time(lease.expiration_time)
             print("  expires in %s" % when, file=out)
-            print("  renew_secret: %s" % base32.b2a(lease.renew_secret), file=out)
-            print("  cancel_secret: %s" % base32.b2a(lease.cancel_secret), file=out)
+            print("  renew_secret: %s" % unicode(base32.b2a(lease.renew_secret), "utf-8"), file=out)
+            print("  cancel_secret: %s" % unicode(base32.b2a(lease.cancel_secret), "utf-8"), file=out)
             print("  secrets are for nodeid: %s" % idlib.nodeid_b2a(lease.nodeid), file=out)
     else:
         print("No leases.", file=out)
@@ -258,8 +266,8 @@ def dump_SDMF_share(m, length, options):
 
     print(" SDMF contents:", file=out)
     print("  seqnum: %d" % seqnum, file=out)
-    print("  root_hash: %s" % base32.b2a(root_hash), file=out)
-    print("  IV: %s" % base32.b2a(IV), file=out)
+    print("  root_hash: %s" % unicode(base32.b2a(root_hash), "utf-8"), file=out)
+    print("  IV: %s" % unicode(base32.b2a(IV), "utf-8"), file=out)
     print("  required_shares: %d" % k, file=out)
     print("  total_shares: %d" % N, file=out)
     print("  segsize: %d" % segsize, file=out)
@@ -352,7 +360,7 @@ def dump_MDMF_share(m, length, options):
 
     print(" MDMF contents:", file=out)
     print("  seqnum: %d" % seqnum, file=out)
-    print("  root_hash: %s" % base32.b2a(root_hash), file=out)
+    print("  root_hash: %s" % unicode(base32.b2a(root_hash), "utf-8"), file=out)
     #print("  IV: %s" % base32.b2a(IV), file=out)
     print("  required_shares: %d" % k, file=out)
     print("  total_shares: %d" % N, file=out)
@@ -745,7 +753,7 @@ def describe_share(abs_sharefile, si_s, shnum_s, now, out):
 
             print("SDMF %s %d/%d %d #%d:%s %d %s" % \
                   (si_s, k, N, datalen,
-                   seqnum, base32.b2a(root_hash),
+                   seqnum, unicode(base32.b2a(root_hash), "utf-8"),
                    expiration, quote_output(abs_sharefile)), file=out)
         elif share_type == "MDMF":
             from allmydata.mutable.layout import MDMFSlotReadProxy
@@ -774,7 +782,7 @@ def describe_share(abs_sharefile, si_s, shnum_s, now, out):
              offsets) = verinfo
             print("MDMF %s %d/%d %d #%d:%s %d %s" % \
                   (si_s, k, N, datalen,
-                   seqnum, base32.b2a(root_hash),
+                   seqnum, unicode(base32.b2a(root_hash), "utf-8"),
                    expiration, quote_output(abs_sharefile)), file=out)
         else:
             print("UNKNOWN mutable %s" % quote_output(abs_sharefile), file=out)
@@ -808,8 +816,8 @@ def describe_share(abs_sharefile, si_s, shnum_s, now, out):
         ueb_hash = unpacked["UEB_hash"]
 
         print("CHK %s %d/%d %d %s %d %s" % (si_s, k, N, filesize,
-                                                   ueb_hash, expiration,
-                                                   quote_output(abs_sharefile)), file=out)
+                                            unicode(ueb_hash, "utf-8"), expiration,
+                                            quote_output(abs_sharefile)), file=out)
 
     else:
         print("UNKNOWN really-unknown %s" % quote_output(abs_sharefile), file=out)

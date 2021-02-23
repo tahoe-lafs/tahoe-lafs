@@ -127,7 +127,7 @@ class SegmentFetcher(object):
                 # we could have sent something if we'd been allowed to pull
                 # more shares per server. Increase the limit and try again.
                 self._max_shares_per_server += 1
-                log.msg("SegmentFetcher(%s) increasing diversity limit to %d"
+                log.msg("SegmentFetcher(%r) increasing diversity limit to %d"
                         % (self._node._si_prefix, self._max_shares_per_server),
                         level=log.NOISY, umid="xY2pBA")
                 # Also ask for more shares, in the hopes of achieving better
