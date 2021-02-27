@@ -29,6 +29,7 @@ PORTED_MODULES = [
     "allmydata._monkeypatch",
     "allmydata.blacklist",
     "allmydata.codec",
+    "allmydata.control",
     "allmydata.crypto",
     "allmydata.crypto.aes",
     "allmydata.crypto.ed25519",
