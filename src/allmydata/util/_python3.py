@@ -128,6 +128,8 @@ PORTED_MODULES = [
     "allmydata.web.private",
     "allmydata.web.root",
     "allmydata.web.status",
+    "allmydata.web.storage",
+    "allmydata.web.storage_plugins",
     "allmydata.webish",
 ]
 
