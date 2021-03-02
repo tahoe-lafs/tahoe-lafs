@@ -117,12 +117,16 @@ PORTED_MODULES = [
     "allmydata.util.spans",
     "allmydata.util.statistics",
     "allmydata.util.time_format",
-    "allmydata.web.common",
     "allmydata.web.check_results",
+    "allmydata.web.common",
+    "allmydata.web.directory",
     "allmydata.web.filenode",
     "allmydata.web.info",
     "allmydata.web.introweb",
     "allmydata.web.logs",
+    "allmydata.web.operations",
+    "allmydata.web.private",
+    "allmydata.web.root",
     "allmydata.webish",
 ]
 
