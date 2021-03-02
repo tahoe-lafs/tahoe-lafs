@@ -175,7 +175,7 @@ class WriteBucketProxy(object):
         self._offset_data = offset_data
 
     def __repr__(self):
-        return "<WriteBucketProxy for node %s>" % self._server.get_name()
+        return "<WriteBucketProxy for node %r>" % self._server.get_name()
 
     def put_header(self):
         return self._write(0, self._offset_data)
@@ -317,7 +317,7 @@ class ReadBucketProxy(object):
         return self._server.get_serverid()
 
     def __repr__(self):
-        return "<ReadBucketProxy %s to peer [%s] SI %s>" % \
+        return "<ReadBucketProxy %r to peer [%r] SI %r>" % \
                (id(self), self._server.get_name(), si_b2a(self._storage_index))
 
     def _start_if_needed(self):

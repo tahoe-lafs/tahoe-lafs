@@ -164,8 +164,10 @@ class CompleteBinaryTreeMixin(object):
     def dump(self):
         lines = []
         for i,depth in self.depth_first():
-            lines.append("%s%3d: %s" % ("  "*depth, i,
-                                        base32.b2a_or_none(self[i])))
+            value = base32.b2a_or_none(self[i])
+            if value is not None:
+                value = str(value, "utf-8")
+            lines.append("%s%3d: %s" % ("  "*depth, i, value))
         return "\n".join(lines) + "\n"
 
     def get_leaf_index(self, leafnum):

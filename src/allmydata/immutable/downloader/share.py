@@ -108,7 +108,7 @@ class Share(object):
         self.had_corruption = False # for unit tests
 
     def __repr__(self):
-        return "Share(sh%d-on-%s)" % (self._shnum, self._server.get_name())
+        return "Share(sh%d-on-%s)" % (self._shnum, str(self._server.get_name(), "utf-8"))
 
     def is_alive(self):
         # XXX: reconsider. If the share sees a single error, should it remain

@@ -300,7 +300,7 @@ class IntroducerService(service.MultiService, Referenceable):
                          level=log.UNUSUAL, umid="jfGMXQ")
 
     def remote_subscribe_v2(self, subscriber, service_name, subscriber_info):
-        self.log("introducer: subscription[%s] request at %s"
+        self.log("introducer: subscription[%r] request at %r"
                  % (service_name, subscriber), umid="U3uzLg")
         service_name = ensure_text(service_name)
         subscriber_info = dictutil.UnicodeKeyDict({
