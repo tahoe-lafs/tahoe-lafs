@@ -127,6 +127,7 @@ PORTED_MODULES = [
     "allmydata.web.operations",
     "allmydata.web.private",
     "allmydata.web.root",
+    "allmydata.web.status",
     "allmydata.webish",
 ]
 
