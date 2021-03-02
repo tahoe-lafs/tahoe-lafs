@@ -961,7 +961,7 @@ class PublishStatusElement(Element):
         if si_s is None:
             si_s = "(None)"
         else:
-            si_s = unicode("utf-8")
+            si_s = unicode(si_s, "utf-8")
         return tag(si_s)
 
     @renderer
