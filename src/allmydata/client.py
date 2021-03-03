@@ -364,8 +364,8 @@ class _StoragePlugins(object):
         """
         return set(
             config.get_config(
-                "storage", "plugins", b""
-            ).decode("ascii").split(u",")
+                "storage", "plugins", ""
+            ).split(u",")
         ) - {u""}
 
     @classmethod
@@ -870,7 +870,7 @@ class _Client(node.Node, pollmixin.PollMixin):
         """
         Register a storage server.
         """
-        config_key = b"storage-plugin.{}.furl".format(
+        config_key = "storage-plugin.{}.furl".format(
             # Oops, why don't I have a better handle on this value?
             announceable_storage_server.announcement[u"name"],
         )

@@ -482,7 +482,7 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
         the node's basedir.
         """
         basedir = u"client.Basic.test_relative_storage_dir"
-        config_path = b"myowndir"
+        config_path = u"myowndir"
         expected_path = os.path.join(
             abspath_expanduser_unicode(basedir),
             u"myowndir",
@@ -572,8 +572,8 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
         c = yield client.create_client(basedir)
         ss = c.getServiceNamed("storage")
         verdict = ss.remote_get_version()
-        self.failUnlessReallyEqual(verdict["application-version"],
-                                   str(allmydata.__full_version__))
+        self.failUnlessReallyEqual(verdict[b"application-version"],
+                                   allmydata.__full_version__.encode("ascii"))
         self.failIfEqual(str(allmydata.__version__), "unknown")
         self.failUnless("." in str(allmydata.__full_version__),
                         "non-numeric version in '%s'" % allmydata.__version__)
@@ -918,7 +918,7 @@ class Run(unittest.TestCase, testutil.StallMixin):
         private.makedirs()
         dummy = "pb://wl74cyahejagspqgy4x5ukrvfnevlknt@127.0.0.1:58889/bogus"
         write_introducer(basedir, "someintroducer", dummy)
-        basedir.child("tahoe.cfg").setContent(BASECONFIG)
+        basedir.child("tahoe.cfg").setContent(BASECONFIG.encode("ascii"))
         basedir.child(client._Client.EXIT_TRIGGER_FILE).touch()
         yield client.create_client(basedir.path)
 
@@ -929,7 +929,7 @@ class Run(unittest.TestCase, testutil.StallMixin):
         private.makedirs()
         dummy = "pb://wl74cyahejagspqgy4x5ukrvfnevlknt@127.0.0.1:58889/bogus"
         write_introducer(basedir, "someintroducer", dummy)
-        basedir.child("tahoe.cfg").setContent(BASECONFIG)
+        basedir.child("tahoe.cfg").setContent(BASECONFIG. encode("ascii"))
         c1 = yield client.create_client(basedir.path)
         c1.setServiceParent(self.sparent)
 
@@ -1056,7 +1056,7 @@ class NodeMakerTests(testutil.ReallyEqualMixin, AsyncBrokenTestCase):
         fileutil.write(os.path.join(basedir, "tahoe.cfg"), BASECONFIG)
         c = yield client.create_client(basedir)
 
-        n = c.create_node_from_uri("URI:CHK:6nmrpsubgbe57udnexlkiwzmlu:bjt7j6hshrlmadjyr7otq3dc24end5meo5xcr5xe5r663po6itmq:3:10:7277")
+        n = c.create_node_from_uri(b"URI:CHK:6nmrpsubgbe57udnexlkiwzmlu:bjt7j6hshrlmadjyr7otq3dc24end5meo5xcr5xe5r663po6itmq:3:10:7277")
         self.failUnless(IFilesystemNode.providedBy(n))
         self.failUnless(IFileNode.providedBy(n))
         self.failUnless(IImmutableFileNode.providedBy(n))
@@ -1074,10 +1074,10 @@ class NodeMakerTests(testutil.ReallyEqualMixin, AsyncBrokenTestCase):
         # current fix for this (hopefully to be superceded by a better fix
         # eventually) is to prevent re-use of filenodes, so the NodeMaker is
         # hereby required *not* to cache and re-use filenodes for CHKs.
-        other_n = c.create_node_from_uri("URI:CHK:6nmrpsubgbe57udnexlkiwzmlu:bjt7j6hshrlmadjyr7otq3dc24end5meo5xcr5xe5r663po6itmq:3:10:7277")
+        other_n = c.create_node_from_uri(b"URI:CHK:6nmrpsubgbe57udnexlkiwzmlu:bjt7j6hshrlmadjyr7otq3dc24end5meo5xcr5xe5r663po6itmq:3:10:7277")
         self.failIf(n is other_n, (n, other_n))
 
-        n = c.create_node_from_uri("URI:LIT:n5xgk")
+        n = c.create_node_from_uri(b"URI:LIT:n5xgk")
         self.failUnless(IFilesystemNode.providedBy(n))
         self.failUnless(IFileNode.providedBy(n))
         self.failUnless(IImmutableFileNode.providedBy(n))
@@ -1086,7 +1086,7 @@ class NodeMakerTests(testutil.ReallyEqualMixin, AsyncBrokenTestCase):
         self.failUnless(n.is_readonly())
         self.failIf(n.is_mutable())
 
-        n = c.create_node_from_uri("URI:SSK:n6x24zd3seu725yluj75q5boaa:mm6yoqjhl6ueh7iereldqxue4nene4wl7rqfjfybqrehdqmqskvq")
+        n = c.create_node_from_uri(b"URI:SSK:n6x24zd3seu725yluj75q5boaa:mm6yoqjhl6ueh7iereldqxue4nene4wl7rqfjfybqrehdqmqskvq")
         self.failUnless(IFilesystemNode.providedBy(n))
         self.failUnless(IFileNode.providedBy(n))
         self.failIf(IImmutableFileNode.providedBy(n))
@@ -1095,7 +1095,7 @@ class NodeMakerTests(testutil.ReallyEqualMixin, AsyncBrokenTestCase):
         self.failIf(n.is_readonly())
         self.failUnless(n.is_mutable())
 
-        n = c.create_node_from_uri("URI:SSK-RO:b7sr5qsifnicca7cbk3rhrhbvq:mm6yoqjhl6ueh7iereldqxue4nene4wl7rqfjfybqrehdqmqskvq")
+        n = c.create_node_from_uri(b"URI:SSK-RO:b7sr5qsifnicca7cbk3rhrhbvq:mm6yoqjhl6ueh7iereldqxue4nene4wl7rqfjfybqrehdqmqskvq")
         self.failUnless(IFilesystemNode.providedBy(n))
         self.failUnless(IFileNode.providedBy(n))
         self.failIf(IImmutableFileNode.providedBy(n))
@@ -1104,7 +1104,7 @@ class NodeMakerTests(testutil.ReallyEqualMixin, AsyncBrokenTestCase):
         self.failUnless(n.is_readonly())
         self.failUnless(n.is_mutable())
 
-        n = c.create_node_from_uri("URI:DIR2:n6x24zd3seu725yluj75q5boaa:mm6yoqjhl6ueh7iereldqxue4nene4wl7rqfjfybqrehdqmqskvq")
+        n = c.create_node_from_uri(b"URI:DIR2:n6x24zd3seu725yluj75q5boaa:mm6yoqjhl6ueh7iereldqxue4nene4wl7rqfjfybqrehdqmqskvq")
         self.failUnless(IFilesystemNode.providedBy(n))
         self.failIf(IFileNode.providedBy(n))
         self.failIf(IImmutableFileNode.providedBy(n))
@@ -1113,7 +1113,7 @@ class NodeMakerTests(testutil.ReallyEqualMixin, AsyncBrokenTestCase):
         self.failIf(n.is_readonly())
         self.failUnless(n.is_mutable())
 
-        n = c.create_node_from_uri("URI:DIR2-RO:b7sr5qsifnicca7cbk3rhrhbvq:mm6yoqjhl6ueh7iereldqxue4nene4wl7rqfjfybqrehdqmqskvq")
+        n = c.create_node_from_uri(b"URI:DIR2-RO:b7sr5qsifnicca7cbk3rhrhbvq:mm6yoqjhl6ueh7iereldqxue4nene4wl7rqfjfybqrehdqmqskvq")
         self.failUnless(IFilesystemNode.providedBy(n))
         self.failIf(IFileNode.providedBy(n))
         self.failIf(IImmutableFileNode.providedBy(n))
@@ -1122,8 +1122,8 @@ class NodeMakerTests(testutil.ReallyEqualMixin, AsyncBrokenTestCase):
         self.failUnless(n.is_readonly())
         self.failUnless(n.is_mutable())
 
-        unknown_rw = "lafs://from_the_future"
-        unknown_ro = "lafs://readonly_from_the_future"
+        unknown_rw = b"lafs://from_the_future"
+        unknown_ro = b"lafs://readonly_from_the_future"
         n = c.create_node_from_uri(unknown_rw, unknown_ro)
         self.failUnless(IFilesystemNode.providedBy(n))
         self.failIf(IFileNode.providedBy(n))
@@ -1133,7 +1133,7 @@ class NodeMakerTests(testutil.ReallyEqualMixin, AsyncBrokenTestCase):
         self.failUnless(n.is_unknown())
         self.failUnlessReallyEqual(n.get_uri(), unknown_rw)
         self.failUnlessReallyEqual(n.get_write_uri(), unknown_rw)
-        self.failUnlessReallyEqual(n.get_readonly_uri(), "ro." + unknown_ro)
+        self.failUnlessReallyEqual(n.get_readonly_uri(), b"ro." + unknown_ro)
 
         # Note: it isn't that we *intend* to deploy non-ASCII caps in
         # the future, it is that we want to make sure older Tahoe-LAFS
@@ -1150,7 +1150,7 @@ class NodeMakerTests(testutil.ReallyEqualMixin, AsyncBrokenTestCase):
         self.failUnless(n.is_unknown())
         self.failUnlessReallyEqual(n.get_uri(), unknown_rw)
         self.failUnlessReallyEqual(n.get_write_uri(), unknown_rw)
-        self.failUnlessReallyEqual(n.get_readonly_uri(), "ro." + unknown_ro)
+        self.failUnlessReallyEqual(n.get_readonly_uri(), b"ro." + unknown_ro)
 
 
 
