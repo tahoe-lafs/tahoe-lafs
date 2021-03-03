@@ -1,3 +1,5 @@
+from past.builtins import unicode
+
 import os, sys
 from functools import (
     partial,
@@ -186,7 +188,7 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
             basedir,
             "client.port",
         )
-        abs_basedir = fileutil.abspath_expanduser_unicode(unicode(basedir)).encode(sys.getfilesystemencoding())
+        abs_basedir = fileutil.abspath_expanduser_unicode(unicode(basedir))
         self.failUnlessIn(os.path.join(abs_basedir, "introducer.furl"), e.args[0])
         self.failUnlessIn(os.path.join(abs_basedir, "no_storage"), e.args[0])
         self.failUnlessIn(os.path.join(abs_basedir, "readonly_storage"), e.args[0])
@@ -234,7 +236,7 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
         fileutil.write(os.path.join(basedir, "tahoe.cfg"),
                        BASECONFIG)
         c = yield client.create_client(basedir)
-        self.failUnless(c.get_long_nodeid().startswith("v0-"))
+        self.failUnless(c.get_long_nodeid().startswith(b"v0-"))
 
     @defer.inlineCallbacks
     def test_nodekey_no_storage(self):
@@ -246,7 +248,7 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
         fileutil.write(os.path.join(basedir, "tahoe.cfg"),
                        BASECONFIG + "[storage]\n" + "enabled = false\n")
         c = yield client.create_client(basedir)
-        self.failUnless(c.get_long_nodeid().startswith("v0-"))
+        self.failUnless(c.get_long_nodeid().startswith(b"v0-"))
 
     def test_storage_anonymous_enabled_by_default(self):
         """
@@ -431,6 +433,9 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
         """
         generic helper for following storage_dir tests
         """
+        assert isinstance(basedir, unicode)
+        assert isinstance(storage_path, (unicode, type(None)))
+        assert isinstance(expected_path, unicode)
         os.mkdir(basedir)
         cfg_path = os.path.join(basedir, "tahoe.cfg")
         fileutil.write(
@@ -504,7 +509,7 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
         expected_path = abspath_expanduser_unicode(
             u"client.Basic.test_absolute_storage_dir_myowndir/" + base
         )
-        config_path = expected_path.encode("utf-8")
+        config_path = expected_path
         return self._storage_dir_test(
             basedir,
             config_path,
@@ -516,32 +521,42 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
 
     def test_permute(self):
         sb = StorageFarmBroker(True, None, EMPTY_CLIENT_CONFIG)
-        for k in ["%d" % i for i in range(5)]:
+        ks = [b"%d" % i for i in range(5)]
+        for k in ks:
             ann = {"anonymous-storage-FURL": SOME_FURL,
                    "permutation-seed-base32": base32.b2a(k) }
             sb.test_add_rref(k, "rref", ann)
 
-        self.failUnlessReallyEqual(self._permute(sb, "one"), ['3','1','0','4','2'])
-        self.failUnlessReallyEqual(self._permute(sb, "two"), ['0','4','2','1','3'])
+        one = self._permute(sb, b"one")
+        two = self._permute(sb, b"two")
+        self.assertEqual(sorted(one), ks)
+        self.assertEqual(sorted(two), ks)
+        self.assertNotEqual(one, two)
         sb.servers.clear()
-        self.failUnlessReallyEqual(self._permute(sb, "one"), [])
+        self.failUnlessReallyEqual(self._permute(sb, b"one"), [])
 
     def test_permute_with_preferred(self):
         sb = StorageFarmBroker(
             True,
             None,
             EMPTY_CLIENT_CONFIG,
-            StorageClientConfig(preferred_peers=['1','4']),
+            StorageClientConfig(preferred_peers=[b'1',b'4']),
         )
-        for k in ["%d" % i for i in range(5)]:
+        ks = [b"%d" % i for i in range(5)]
+        for k in [b"%d" % i for i in range(5)]:
             ann = {"anonymous-storage-FURL": SOME_FURL,
                    "permutation-seed-base32": base32.b2a(k) }
             sb.test_add_rref(k, "rref", ann)
 
-        self.failUnlessReallyEqual(self._permute(sb, "one"), ['1','4','3','0','2'])
-        self.failUnlessReallyEqual(self._permute(sb, "two"), ['4','1','0','2','3'])
+        one = self._permute(sb, b"one")
+        two = self._permute(sb, b"two")
+        self.assertEqual(sorted(one), ks)
+        self.assertEqual(sorted(one[:2]), [b"1", b"4"])
+        self.assertEqual(sorted(two), ks)
+        self.assertEqual(sorted(two[:2]), [b"1", b"4"])
+        self.assertNotEqual(one, two)
         sb.servers.clear()
-        self.failUnlessReallyEqual(self._permute(sb, "one"), [])
+        self.failUnlessReallyEqual(self._permute(sb, b"one"), [])
 
     @defer.inlineCallbacks
     def test_versions(self):
