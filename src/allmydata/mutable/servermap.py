@@ -11,6 +11,7 @@ if PY2:
     # Doesn't import str to prevent API leakage on Python 2
     from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, max, min  # noqa: F401
 from past.builtins import unicode
+from six import ensure_str
 
 import sys, time, copy
 from zope.interface import implementer
@@ -202,8 +203,8 @@ class ServerMap(object):
             (seqnum, root_hash, IV, segsize, datalength, k, N, prefix,
              offsets_tuple) = verinfo
             print("[%s]: sh#%d seq%d-%s %d-of-%d len%d" %
-                         (server.get_name(), shnum,
-                          seqnum, base32.b2a(root_hash)[:4], k, N,
+                         (unicode(server.get_name(), "utf-8"), shnum,
+                          seqnum, unicode(base32.b2a(root_hash)[:4], "utf-8"), k, N,
                           datalength), file=out)
         if self._problems:
             print("%d PROBLEMS" % len(self._problems), file=out)
@@ -869,7 +870,7 @@ class ServermapUpdater(object):
         # versions.
         self.log(" found valid version %d-%s from %s-sh%d: %d-%d/%d/%d"
                  % (seqnum, unicode(base32.b2a(root_hash)[:4], "utf-8"),
-                    server.get_name(), shnum,
+                    ensure_str(server.get_name()), shnum,
                     k, n, segsize, datalen),
                     parent=lp)
         self._valid_versions.add(verinfo)
@@ -943,13 +944,13 @@ class ServermapUpdater(object):
         alleged_privkey_s = self._node._decrypt_privkey(enc_privkey)
         alleged_writekey = hashutil.ssk_writekey_hash(alleged_privkey_s)
         if alleged_writekey != self._node.get_writekey():
-            self.log("invalid privkey from %s shnum %d" %
+            self.log("invalid privkey from %r shnum %d" %
                      (server.get_name(), shnum),
                      parent=lp, level=log.WEIRD, umid="aJVccw")
             return
 
         # it's good
-        self.log("got valid privkey from shnum %d on serverid %s" %
+        self.log("got valid privkey from shnum %d on serverid %r" %
                  (shnum, server.get_name()),
                  parent=lp)
         privkey, _ = rsa.create_signing_keypair_from_string(alleged_privkey_s)
@@ -1211,9 +1212,9 @@ class ServermapUpdater(object):
                 break
             more_queries.append(self.extra_servers.pop(0))
 
-        self.log(format="sending %(more)d more queries: %(who)s",
+        self.log(format="sending %(more)d more queries: %(who)d",
                  more=len(more_queries),
-                 who=" ".join(["[%s]" % s.get_name() for s in more_queries]),
+                 who=" ".join(["[%r]" % s.get_name() for s in more_queries]),
                  level=log.NOISY)
 
         for server in more_queries:

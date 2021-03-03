@@ -98,7 +98,7 @@ class MutableFileNode(object):
 
     def __repr__(self):
         if hasattr(self, '_uri'):
-            return "<%s %x %s %s>" % (self.__class__.__name__, id(self), self.is_readonly() and 'RO' or 'RW', self._uri.abbrev())
+            return "<%s %x %s %r>" % (self.__class__.__name__, id(self), self.is_readonly() and 'RO' or 'RW', self._uri.abbrev())
         else:
             return "<%s %x %s %s>" % (self.__class__.__name__, id(self), None, None)
 

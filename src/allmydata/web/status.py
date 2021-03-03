@@ -76,7 +76,7 @@ class UploadResultsRendererMixin(Element):
             ul = tags.ul()
             for server, shnums in sorted(servermap.items(), key=id):
                 shares_s = ",".join(["#%d" % shnum for shnum in shnums])
-                ul(tags.li("[%s] got share%s: %s" % (server.get_name(),
+                ul(tags.li("[%s] got share%s: %s" % (unicode(server.get_name(), "utf-8"),
                                                      plural(shnums), shares_s)))
             return ul
         d.addCallback(_render)
@@ -230,7 +230,9 @@ class UploadStatusElement(UploadResultsRendererMixin):
         si_s = base32.b2a_or_none(self._upload_status.get_storage_index())
         if si_s is None:
             si_s = "(None)"
-        return tag(str(si_s))
+        else:
+            si_s = unicode(si_s, "utf-8")
+        return tag(si_s)
 
     @renderer
     def helper(self, req, tag):
@@ -920,7 +922,7 @@ class RetrieveStatusElement(Element):
         for server in sorted(per_server.keys(), key=lambda s: s.get_name()):
             times_s = ", ".join([abbreviate_time(t)
                                  for t in per_server[server]])
-            l(tags.li("[%s]: %s" % (server.get_name(), times_s)))
+            l(tags.li("[%s]: %s" % (unicode(server.get_name(), "utf-8"), times_s)))
         return tags.li("Per-Server Fetch Response Times: ", l)
 
 
@@ -958,7 +960,9 @@ class PublishStatusElement(Element):
         si_s = base32.b2a_or_none(self._publish_status.get_storage_index())
         if si_s is None:
             si_s = "(None)"
-        return tag(str(si_s))
+        else:
+            si_s = unicode(si_s, "utf-8")
+        return tag(si_s)
 
     @renderer
     def helper(self, req, tag):
@@ -996,7 +1000,7 @@ class PublishStatusElement(Element):
         sharemap = servermap.make_sharemap()
         for shnum in sorted(sharemap.keys()):
             l(tags.li("%d -> Placed on " % shnum,
-                      ", ".join(["[%s]" % server.get_name()
+                      ", ".join(["[%s]" % unicode(server.get_name(), "utf-8")
                                  for server in sharemap[shnum]])))
         return tag("Sharemap:", l)
 
@@ -1078,7 +1082,7 @@ class PublishStatusElement(Element):
         for server in sorted(per_server.keys(), key=lambda s: s.get_name()):
             times_s = ", ".join([abbreviate_time(t)
                                  for t in per_server[server]])
-            l(tags.li("[%s]: %s" % (server.get_name(), times_s)))
+            l(tags.li("[%s]: %s" % (unicode(server.get_name(), "utf-8"), times_s)))
         return tags.li("Per-Server Response Times: ", l)
 
 
@@ -1204,7 +1208,7 @@ class MapupdateStatusElement(Element):
                 else:
                     times.append("privkey(" + abbreviate_time(t) + ")")
             times_s = ", ".join(times)
-            l(tags.li("[%s]: %s" % (server.get_name(), times_s)))
+            l(tags.li("[%s]: %s" % (unicode(server.get_name(), "utf-8"), times_s)))
         return tags.li("Per-Server Response Times: ", l)
 
 

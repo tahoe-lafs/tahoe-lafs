@@ -118,17 +118,17 @@ class NativeStorageServerWithVersion(NativeStorageServer):  # type: ignore  # ta
 class TestNativeStorageServer(unittest.TestCase):
     def test_get_available_space_new(self):
         nss = NativeStorageServerWithVersion(
-            { "http://allmydata.org/tahoe/protocols/storage/v1":
-                { "maximum-immutable-share-size": 111,
-                  "available-space": 222,
+            { b"http://allmydata.org/tahoe/protocols/storage/v1":
+                { b"maximum-immutable-share-size": 111,
+                  b"available-space": 222,
                 }
             })
         self.failUnlessEqual(nss.get_available_space(), 222)
 
     def test_get_available_space_old(self):
         nss = NativeStorageServerWithVersion(
-            { "http://allmydata.org/tahoe/protocols/storage/v1":
-                { "maximum-immutable-share-size": 111,
+            { b"http://allmydata.org/tahoe/protocols/storage/v1":
+                { b"maximum-immutable-share-size": 111,
                 }
             })
         self.failUnlessEqual(nss.get_available_space(), 111)

@@ -9,6 +9,7 @@ from __future__ import unicode_literals
 from future.utils import PY2
 if PY2:
     from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+from six import ensure_str
 
 from allmydata.uri import from_string
 from allmydata.util import base32, log, dictutil
@@ -202,7 +203,7 @@ class MutableChecker(object):
             serverid = server.get_serverid()
             locator = (server, self._storage_index, shnum)
             corrupt_share_locators.append(locator)
-            s = "%s-sh%d" % (server.get_name(), shnum)
+            s = "%s-sh%d" % (ensure_str(server.get_name()), shnum)
             if f.check(CorruptShareError):
                 ft = f.value.reason
             else:
