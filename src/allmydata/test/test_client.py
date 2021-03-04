@@ -1,5 +1,14 @@
+"""
+Ported to Python 3.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
 from future.utils import PY2
-from past.builtins import unicode
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 import os, sys
 from functools import (
@@ -189,7 +198,7 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
             basedir,
             "client.port",
         )
-        abs_basedir = fileutil.abspath_expanduser_unicode(unicode(basedir))
+        abs_basedir = fileutil.abspath_expanduser_unicode(str(basedir))
         self.failUnlessIn(os.path.join(abs_basedir, "introducer.furl"), e.args[0])
         self.failUnlessIn(os.path.join(abs_basedir, "no_storage"), e.args[0])
         self.failUnlessIn(os.path.join(abs_basedir, "readonly_storage"), e.args[0])
@@ -434,9 +443,9 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
         """
         generic helper for following storage_dir tests
         """
-        assert isinstance(basedir, unicode)
-        assert isinstance(storage_path, (unicode, type(None)))
-        assert isinstance(expected_path, unicode)
+        assert isinstance(basedir, str)
+        assert isinstance(storage_path, (str, type(None)))
+        assert isinstance(expected_path, str)
         os.mkdir(basedir)
         cfg_path = os.path.join(basedir, "tahoe.cfg")
         fileutil.write(
