@@ -1,3 +1,4 @@
+from future.utils import PY2
 from past.builtins import unicode
 
 import os, sys
@@ -23,7 +24,6 @@ from hypothesis.strategies import (
 )
 
 from eliot.testing import (
-    capture_logging,
     assertHasAction,
 )
 from twisted.trial import unittest
@@ -64,6 +64,7 @@ from allmydata.util import (
     encodingutil,
     configutil,
 )
+from allmydata.util.eliotutil import capture_logging
 from allmydata.util.fileutil import abspath_expanduser_unicode
 from allmydata.interfaces import IFilesystemNode, IFileNode, \
      IImmutableFileNode, IMutableFileNode, IDirectoryNode
@@ -798,7 +799,7 @@ class StaticServers(Fixture):
                 for (serverid, announcement)
                 in self._server_details
             },
-        }))
+        }).encode("utf-8"))
 
 
 class StorageClients(SyncTestCase):
@@ -847,7 +848,7 @@ class StorageClients(SyncTestCase):
             succeeded(
                 AfterPreprocessing(
                     get_known_server_details,
-                    Equals([(serverid, announcement)]),
+                    Equals([(serverid.encode("utf-8"), announcement)]),
                 ),
             ),
         )
@@ -874,7 +875,7 @@ class StorageClients(SyncTestCase):
         self.useFixture(
             StaticServers(
                 self.basedir,
-                [(serverid, announcement),
+                [(serverid.encode("ascii"), announcement),
                  # Along with a "bad" server announcement.  Order in this list
                  # doesn't matter, yaml serializer and Python dicts are going
                  # to shuffle everything around kind of randomly.
@@ -891,7 +892,7 @@ class StorageClients(SyncTestCase):
                 AfterPreprocessing(
                     get_known_server_details,
                     # It should have the good server details.
-                    Equals([(serverid, announcement)]),
+                    Equals([(serverid.encode("utf-8"), announcement)]),
                 ),
             ),
         )
