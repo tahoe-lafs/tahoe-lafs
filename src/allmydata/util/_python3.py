@@ -87,6 +87,7 @@ PORTED_MODULES = [
     "allmydata.storage.server",
     "allmydata.storage.shares",
     "allmydata.test.no_network",
+    "allmydata.test.matchers",
     "allmydata.test.mutable.util",
     "allmydata.unknown",
     "allmydata.uri",
