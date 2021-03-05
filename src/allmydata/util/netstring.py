@@ -14,14 +14,19 @@ if PY2:
 
 from past.builtins import long
 
+try:
+    from typing import Optional, Tuple, List  # noqa: F401
+except ImportError:
+    pass
 
-def netstring(s):
+
+def netstring(s):  # type: (bytes) -> bytes
     assert isinstance(s, bytes), s # no unicode here
     return b"%d:%s," % (len(s), s,)
 
 def split_netstring(data, numstrings,
                     position=0,
-                    required_trailer=None):
+                    required_trailer=None):  # type (bytes, init, int, Optional[bytes]) -> Tuple[List[bytes], int]
     """like string.split(), but extracts netstrings. Ignore all bytes of data
     before the 'position' byte. Return a tuple of (list of elements (numstrings
     in length), new position index). The new position index points to the first
