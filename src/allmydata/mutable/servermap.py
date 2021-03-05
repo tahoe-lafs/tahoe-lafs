@@ -1212,7 +1212,7 @@ class ServermapUpdater(object):
                 break
             more_queries.append(self.extra_servers.pop(0))
 
-        self.log(format="sending %(more)d more queries: %(who)d",
+        self.log(format="sending %(more)d more queries: %(who)s",
                  more=len(more_queries),
                  who=" ".join(["[%r]" % s.get_name() for s in more_queries]),
                  level=log.NOISY)

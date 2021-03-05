@@ -238,11 +238,11 @@ class StorageFarmBroker(service.MultiService):
             for plugin
             in getPlugins(IFoolscapStoragePlugin)
         }
-        return {
+        return UnicodeKeyDict({
             name: plugins[name].get_client_resource(node_config)
             for (name, config)
             in self.storage_client_config.storage_plugins.items()
-        }
+        })
 
     @log_call(
         action_type=u"storage-client:broker:make-storage-server",
