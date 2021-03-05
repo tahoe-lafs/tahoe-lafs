@@ -120,7 +120,7 @@ class Segmentation(object):
             # we didn't get the first byte, so we can't use this segment
             log.msg("Segmentation handed wrong data:"
                     " want [%d-%d), given [%d-%d), for segnum=%d,"
-                    " for si=%s"
+                    " for si=%r"
                     % (self._offset, self._offset+self._size,
                        segment_start, segment_start+len(segment),
                        wanted_segnum, self._node._si_prefix),

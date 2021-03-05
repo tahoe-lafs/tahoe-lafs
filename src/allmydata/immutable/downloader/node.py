@@ -500,7 +500,7 @@ class DownloadNode(object):
             return (offset, segment, decodetime)
         except (BadHashError, NotEnoughHashesError):
             format = ("hash failure in ciphertext_hash_tree:"
-                      " segnum=%(segnum)d, SI=%(si)s")
+                      " segnum=%(segnum)d, SI=%(si)r")
             log.msg(format=format, segnum=segnum, si=self._si_prefix,
                     failure=Failure(),
                     level=log.WEIRD, parent=self._lp, umid="MTwNnw")

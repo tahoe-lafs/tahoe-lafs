@@ -114,9 +114,9 @@ class Update(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
         # with problems and display them separately
         gotmods = [mo.span() for mo in re.finditer(b'([A-Z]+)', got)]
         expmods = [mo.span() for mo in re.finditer(b'([A-Z]+)', expected)]
-        gotspans = ["%d:%d=%s" % (start,end,got[start:end])
+        gotspans = ["%d:%d=%r" % (start,end,got[start:end])
                     for (start,end) in gotmods]
-        expspans = ["%d:%d=%s" % (start,end,expected[start:end])
+        expspans = ["%d:%d=%r" % (start,end,expected[start:end])
                     for (start,end) in expmods]
         #print("expecting: %s" % expspans)
 
