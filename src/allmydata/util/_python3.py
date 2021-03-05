@@ -29,6 +29,7 @@ PORTED_MODULES = [
     "allmydata._monkeypatch",
     "allmydata.blacklist",
     "allmydata.check_results",
+    "allmydata.client",
     "allmydata.codec",
     "allmydata.control",
     "allmydata.crypto",
