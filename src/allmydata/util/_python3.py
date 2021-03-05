@@ -28,6 +28,7 @@ PORTED_MODULES = [
     "allmydata._auto_deps",
     "allmydata._monkeypatch",
     "allmydata.blacklist",
+    "allmydata.check_results",
     "allmydata.codec",
     "allmydata.control",
     "allmydata.crypto",
