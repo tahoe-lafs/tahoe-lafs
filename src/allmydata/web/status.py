@@ -547,14 +547,14 @@ class DownloadStatusElement(Element):
         for r_ev in self._download_status.read_events:
             start = r_ev["start"]
             length = r_ev["length"]
-            bytes = r_ev["bytes_returned"]
+            bytes_returned = r_ev["bytes_returned"]
             decrypt_time = ""
             if bytes:
-                decrypt_time = self._rate_and_time(bytes, r_ev["decrypt_time"])
+                decrypt_time = self._rate_and_time(bytes_returned, r_ev["decrypt_time"])
             speed, rtt = "",""
             if r_ev["finish_time"] is not None:
                 rtt = r_ev["finish_time"] - r_ev["start_time"] - r_ev["paused_time"]
-                speed = abbreviate_rate(compute_rate(bytes, rtt))
+                speed = abbreviate_rate(compute_rate(bytes_returned, rtt))
                 rtt = abbreviate_time(rtt)
             paused = abbreviate_time(r_ev["paused_time"])
 
@@ -562,7 +562,7 @@ class DownloadStatusElement(Element):
                 tags.td("[%d:+%d]" % (start, length)),
                 tags.td(srt(r_ev["start_time"])),
                 tags.td(srt(r_ev["finish_time"])),
-                tags.td(str(bytes)),
+                tags.td(str(bytes_returned)),
                 tags.td(rtt),
                 tags.td(decrypt_time),
                 tags.td(paused),
