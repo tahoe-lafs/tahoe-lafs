@@ -1,4 +1,16 @@
-from past.builtins import long, unicode
+"""
+Ported to Python 3.
+"""
+
+from __future__ import division
+from __future__ import absolute_import
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+from past.builtins import long
 
 import itertools
 import hashlib
@@ -60,7 +72,7 @@ class UploadResultsRendererMixin(Element):
                 return "None"
             ul = tags.ul()
             for shnum, servers in sorted(sharemap.items()):
-                server_names = ', '.join([unicode(s.get_name(), "utf-8") for s in servers])
+                server_names = ', '.join([str(s.get_name(), "utf-8") for s in servers])
                 ul(tags.li("%d -> placed on [%s]" % (shnum, server_names)))
             return ul
         d.addCallback(_render)
@@ -76,7 +88,7 @@ class UploadResultsRendererMixin(Element):
             ul = tags.ul()
             for server, shnums in sorted(servermap.items(), key=id):
                 shares_s = ",".join(["#%d" % shnum for shnum in shnums])
-                ul(tags.li("[%s] got share%s: %s" % (unicode(server.get_name(), "utf-8"),
+                ul(tags.li("[%s] got share%s: %s" % (str(server.get_name(), "utf-8"),
                                                      plural(shnums), shares_s)))
             return ul
         d.addCallback(_render)
@@ -231,7 +243,7 @@ class UploadStatusElement(UploadResultsRendererMixin):
         if si_s is None:
             si_s = "(None)"
         else:
-            si_s = unicode(si_s, "utf-8")
+            si_s = str(si_s, "utf-8")
         return tag(si_s)
 
     @renderer
@@ -467,10 +479,10 @@ class DownloadStatusElement(Element):
             return ""
         return "+%.6fs" % t
 
-    def _rate_and_time(self, bytes, seconds):
+    def _rate_and_time(self, bytes_count, seconds):
         time_s = abbreviate_time(seconds)
         if seconds != 0:
-            rate = abbreviate_rate(1.0 * bytes / seconds)
+            rate = abbreviate_rate(bytes_count / seconds)
             return tags.span(time_s, title=rate)
         return tags.span(time_s)
 
@@ -535,14 +547,14 @@ class DownloadStatusElement(Element):
         for r_ev in self._download_status.read_events:
             start = r_ev["start"]
             length = r_ev["length"]
-            bytes = r_ev["bytes_returned"]
+            bytes_returned = r_ev["bytes_returned"]
             decrypt_time = ""
             if bytes:
-                decrypt_time = self._rate_and_time(bytes, r_ev["decrypt_time"])
+                decrypt_time = self._rate_and_time(bytes_returned, r_ev["decrypt_time"])
             speed, rtt = "",""
             if r_ev["finish_time"] is not None:
                 rtt = r_ev["finish_time"] - r_ev["start_time"] - r_ev["paused_time"]
-                speed = abbreviate_rate(compute_rate(bytes, rtt))
+                speed = abbreviate_rate(compute_rate(bytes_returned, rtt))
                 rtt = abbreviate_time(rtt)
             paused = abbreviate_time(r_ev["paused_time"])
 
@@ -550,7 +562,7 @@ class DownloadStatusElement(Element):
                 tags.td("[%d:+%d]" % (start, length)),
                 tags.td(srt(r_ev["start_time"])),
                 tags.td(srt(r_ev["finish_time"])),
-                tags.td(str(bytes)),
+                tags.td(str(bytes_returned)),
                 tags.td(rtt),
                 tags.td(decrypt_time),
                 tags.td(paused),
@@ -919,10 +931,10 @@ class RetrieveStatusElement(Element):
         if not per_server:
             return tag("")
         l = tags.ul()
-        for server in sorted(per_server.keys(), key=lambda s: s.get_name()):
+        for server in sorted(list(per_server.keys()), key=lambda s: s.get_name()):
             times_s = ", ".join([abbreviate_time(t)
                                  for t in per_server[server]])
-            l(tags.li("[%s]: %s" % (unicode(server.get_name(), "utf-8"), times_s)))
+            l(tags.li("[%s]: %s" % (str(server.get_name(), "utf-8"), times_s)))
         return tags.li("Per-Server Fetch Response Times: ", l)
 
 
@@ -961,7 +973,7 @@ class PublishStatusElement(Element):
         if si_s is None:
             si_s = "(None)"
         else:
-            si_s = unicode(si_s, "utf-8")
+            si_s = str(si_s, "utf-8")
         return tag(si_s)
 
     @renderer
@@ -1000,7 +1012,7 @@ class PublishStatusElement(Element):
         sharemap = servermap.make_sharemap()
         for shnum in sorted(sharemap.keys()):
             l(tags.li("%d -> Placed on " % shnum,
-                      ", ".join(["[%s]" % unicode(server.get_name(), "utf-8")
+                      ", ".join(["[%s]" % str(server.get_name(), "utf-8")
                                  for server in sharemap[shnum]])))
         return tag("Sharemap:", l)
 
@@ -1079,10 +1091,10 @@ class PublishStatusElement(Element):
         if not per_server:
             return tag()
         l = tags.ul()
-        for server in sorted(per_server.keys(), key=lambda s: s.get_name()):
+        for server in sorted(list(per_server.keys()), key=lambda s: s.get_name()):
             times_s = ", ".join([abbreviate_time(t)
                                  for t in per_server[server]])
-            l(tags.li("[%s]: %s" % (unicode(server.get_name(), "utf-8"), times_s)))
+            l(tags.li("[%s]: %s" % (str(server.get_name(), "utf-8"), times_s)))
         return tags.li("Per-Server Response Times: ", l)
 
 
@@ -1208,7 +1220,7 @@ class MapupdateStatusElement(Element):
                 else:
                     times.append("privkey(" + abbreviate_time(t) + ")")
             times_s = ", ".join(times)
-            l(tags.li("[%s]: %s" % (unicode(server.get_name(), "utf-8"), times_s)))
+            l(tags.li("[%s]: %s" % (str(server.get_name(), "utf-8"), times_s)))
         return tags.li("Per-Server Response Times: ", l)
 
 
@@ -1298,9 +1310,9 @@ class Status(MultiFormatResource):
         try:
             stype, count_s = path.split(b"-")
         except ValueError:
-            raise WebError("no '-' in '{}'".format(unicode(path, "utf-8")))
+            raise WebError("no '-' in '{}'".format(str(path, "utf-8")))
         count = int(count_s)
-        stype = unicode(stype, "ascii")
+        stype = str(stype, "ascii")
         if stype == "up":
             for s in itertools.chain(h.list_all_upload_statuses(),
                                      h.list_all_helper_statuses()):
