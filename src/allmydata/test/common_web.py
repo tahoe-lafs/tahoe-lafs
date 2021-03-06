@@ -56,7 +56,7 @@ def do_http(method, url, **kwargs):
     # https://github.com/twisted/treq/pull/159 has landed
     if 400 <= response.code < 600:
         raise VerboseError(
-            response.code, response="For request {} to {}, got: {}".format(
+            response.code, response="For request {!r} to {!r}, got: {!r}".format(
                 method, url, body))
     returnValue(body)
 

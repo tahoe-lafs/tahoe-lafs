@@ -1072,7 +1072,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         d.addCallback(_do_upload)
         def _upload_done(results):
             theuri = results.get_uri()
-            log.msg("upload finished: uri is %s" % (theuri,))
+            log.msg("upload finished: uri is %r" % (theuri,))
             self.uri = theuri
             assert isinstance(self.uri, bytes), self.uri
             self.cap = uri.from_string(self.uri)

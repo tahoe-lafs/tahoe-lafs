@@ -6,6 +6,10 @@ on:
       - "master"
   pull_request:
 
+env:
+  # Tell Hypothesis which configuration we want it to use.
+  TAHOE_LAFS_HYPOTHESIS_PROFILE: "ci"
+
 jobs:
 
   coverage:
