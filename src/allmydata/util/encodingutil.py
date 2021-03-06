@@ -145,7 +145,7 @@ def unicode_to_argv(s, mangle=False):
 
 # According to unicode_to_argv above, the expected type for
 # cli args depends on the platform, so capture that expectation.
-argv_type = future_str if sys.platform == "win32" else native_str
+argv_type = (future_str, native_str) if sys.platform == "win32" else native_str
 """
 The expected type for args to a subprocess
 """
