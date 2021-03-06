@@ -164,8 +164,10 @@ class CompleteBinaryTreeMixin(object):
     def dump(self):
         lines = []
         for i,depth in self.depth_first():
-            lines.append("%s%3d: %s" % ("  "*depth, i,
-                                        base32.b2a_or_none(self[i])))
+            value = base32.b2a_or_none(self[i])
+            if value is not None:
+                value = str(value, "utf-8")
+            lines.append("%s%3d: %s" % ("  "*depth, i, value))
         return "\n".join(lines) + "\n"
 
     def get_leaf_index(self, leafnum):
@@ -430,8 +432,8 @@ class IncompleteHashTree(CompleteBinaryTreeMixin, list):
             for i,h in new_hashes.items():
                 if self[i]:
                     if self[i] != h:
-                        raise BadHashError("new hash %s does not match "
-                                           "existing hash %s at %s"
+                        raise BadHashError("new hash %r does not match "
+                                           "existing hash %r at %r"
                                            % (base32.b2a(h),
                                               base32.b2a(self[i]),
                                               self._name_hash(i)))

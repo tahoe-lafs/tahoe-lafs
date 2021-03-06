@@ -17,7 +17,7 @@ from twisted.application.internet import TimerService
 from zope.interface import implementer
 from foolscap.api import eventually
 
-from allmydata.util import log
+from allmydata.util import log, dictutil
 from allmydata.interfaces import IStatsProducer
 
 @implementer(IStatsProducer)
@@ -79,15 +79,13 @@ class StatsProvider(service.MultiService):
         service.MultiService.__init__(self)
         self.node = node
 
-        self.counters = {}
+        self.counters = dictutil.UnicodeKeyDict()
         self.stats_producers = []
         self.cpu_monitor = CPUUsageMonitor()
         self.cpu_monitor.setServiceParent(self)
         self.register_producer(self.cpu_monitor)
 
     def count(self, name, delta=1):
-        if isinstance(name, str):
-            name = name.encode("utf-8")
         val = self.counters.setdefault(name, 0)
         self.counters[name] = val + delta
 

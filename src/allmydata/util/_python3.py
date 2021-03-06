@@ -28,7 +28,9 @@ PORTED_MODULES = [
     "allmydata._auto_deps",
     "allmydata._monkeypatch",
     "allmydata.blacklist",
+    "allmydata.check_results",
     "allmydata.codec",
+    "allmydata.control",
     "allmydata.crypto",
     "allmydata.crypto.aes",
     "allmydata.crypto.ed25519",
@@ -39,6 +41,7 @@ PORTED_MODULES = [
     "allmydata.dirnode",
     "allmydata.frontends.sftpd",
     "allmydata.hashtree",
+    "allmydata.history",
     "allmydata.immutable.checker",
     "allmydata.immutable.downloader",
     "allmydata.immutable.downloader.common",
@@ -117,7 +120,20 @@ PORTED_MODULES = [
     "allmydata.util.spans",
     "allmydata.util.statistics",
     "allmydata.util.time_format",
+    "allmydata.web.check_results",
+    "allmydata.web.common",
+    "allmydata.web.directory",
+    "allmydata.web.filenode",
+    "allmydata.web.info",
+    "allmydata.web.introweb",
     "allmydata.web.logs",
+    "allmydata.web.operations",
+    "allmydata.web.private",
+    "allmydata.web.root",
+    "allmydata.web.status",
+    "allmydata.web.storage",
+    "allmydata.web.storage_plugins",
+    "allmydata.web.unlinked",
     "allmydata.webish",
 ]
 
@@ -182,9 +198,9 @@ PORTED_TEST_MODULES = [
     "allmydata.test.test_storage_client",
     "allmydata.test.test_storage_web",
 
-    # Only partially ported, test_filesystem_with_cli_in_subprocess and
-    # test_filesystem methods aren't ported yet, should be done once CLI and
-    # web are ported respectively.
+    # Only partially ported, test_filesystem_with_cli_in_subprocess isn't
+    # ported yet, nor is part of test_filesystem (the call to _test_cli). This
+    # should be done once CLI is ported.
     "allmydata.test.test_system",
 
     "allmydata.test.test_time_format",
