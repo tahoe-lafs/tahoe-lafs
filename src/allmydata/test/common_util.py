@@ -1,6 +1,6 @@
 from __future__ import print_function
 
-from future.utils import PY2, native_str, bchr, binary_type
+from future.utils import PY2, bchr, binary_type
 from future.builtins import str as future_str
 from past.builtins import unicode
 
@@ -20,7 +20,7 @@ from twisted.trial import unittest
 
 from ..util.assertutil import precondition
 from ..scripts import runner
-from allmydata.util.encodingutil import unicode_platform, get_filesystem_encoding, get_io_encoding
+from allmydata.util.encodingutil import unicode_platform, get_filesystem_encoding, get_io_encoding, argv_type
 
 
 def skip_if_cannot_represent_filename(u):
@@ -75,8 +75,8 @@ def run_cli_native(verb, *args, **kwargs):
     nodeargs = kwargs.pop("nodeargs", [])
     encoding = kwargs.pop("encoding", None)
     precondition(
-        all(isinstance(arg, native_str) for arg in [verb] + nodeargs + list(args)),
-        "arguments to run_cli must be a native string -- convert using unicode_to_argv",
+        all(isinstance(arg, argv_type) for arg in [verb] + nodeargs + list(args)),
+        "arguments to run_cli must be {argv_type} -- convert using unicode_to_argv".format(argv_type=argv_type),
         verb=verb,
         args=args,
         nodeargs=nodeargs,
