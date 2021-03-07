@@ -117,6 +117,8 @@ jobs:
           # only happens when we "finish" a particular build, as identified by
           # its "build_num" (aka "service_number").
           COVERALLS_PARALLEL: true
+        if:
+          always()
 
       - name: "Report Coverage to Coveralls"
         run: |
@@ -141,6 +143,8 @@ jobs:
           # only happens when we "finish" a particular build, as identified by
           # its "build_num" (aka "service_number").
           COVERALLS_PARALLEL: true
+        if:
+          always()
 
   # Tell Coveralls that we're done reporting coverage data.  Since we're using
   # the "parallel" mode where more than one coverage data file is merged into
