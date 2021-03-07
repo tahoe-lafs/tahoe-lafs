@@ -95,7 +95,7 @@ jobs:
       # coveralls.io-supplied Python reporter, for this.
       - name: "Report Coverage to Coveralls"
         run: |
-          pip install coveralls
+          pip install --upgrade coveralls
           python -m coveralls
         env:
           # Some magic value required for some magic reason.
