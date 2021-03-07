@@ -93,11 +93,29 @@ jobs:
       # Action for this, as of Jan 2021 it does not support Python coverage
       # files - only lcov files.  Therefore, we use coveralls-python, the
       # coveralls.io-supplied Python reporter, for this.
+
       - name: "Report Coverage to Coveralls (python -m coveralls)"
         run: |
           pip install --upgrade coveralls
           python -m coveralls --version
           python -m coveralls
+        env:
+          # Some magic value required for some magic reason.
+          GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+          # Help coveralls identify our project.
+          COVERALLS_REPO_TOKEN: "JPf16rLB7T2yjgATIxFzTsEgMdN1UNq6o"
+          # Every source of coverage reports needs a unique "flag name".
+          # Construct one by smashing a few variables from the matrix together
+          # here.
+          COVERALLS_FLAG_NAME: "run-${{ matrix.os }}-${{ matrix.python-version }}"
+          # Mark the data as just one piece of many because we have more than
+          # one instance of this job (Windows, macOS) which collects and
+          # reports coverage.  This is necessary to cause Coveralls to merge
+          # multiple coverage results into a single report.  Note the merge
+          # only happens when we "finish" a particular build, as identified by
+          # its "build_num" (aka "service_number").
+          COVERALLS_PARALLEL: true
+
       - name: "Report Coverage to Coveralls"
         run: |
           pip install --upgrade coveralls
