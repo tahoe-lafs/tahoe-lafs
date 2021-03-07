@@ -93,12 +93,15 @@ jobs:
       # Action for this, as of Jan 2021 it does not support Python coverage
       # files - only lcov files.  Therefore, we use coveralls-python, the
       # coveralls.io-supplied Python reporter, for this.
+      - name: "Report Coverage to Coveralls (python -m coveralls)"
+        run: |
+          pip install --upgrade coveralls
+          python -m coveralls --version
+          python -m coveralls
       - name: "Report Coverage to Coveralls"
         run: |
           pip install --upgrade coveralls
           coveralls --version
-          python -m coveralls --version
-          python -m coveralls
           coveralls
         env:
           # Some magic value required for some magic reason.
