@@ -187,7 +187,7 @@ jobs:
             -k \
             https://coveralls.io/webhook?repo_token=$COVERALLS_REPO_TOKEN \
             -d \
-            "payload[build_num]=$BUILD_NUM&payload[status]=done&payload[repo_name]=$REPO_NAME"
+            "payload[build_num]=$GITHUB_RUN_NUMBER&payload[status]=done&payload[repo_name]=$REPO_NAME"
         env:
           # Some magic value required for some magic reason.
           GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
