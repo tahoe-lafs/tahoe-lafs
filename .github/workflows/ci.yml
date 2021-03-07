@@ -96,6 +96,8 @@ jobs:
       - name: "Report Coverage to Coveralls"
         run: |
           pip install --upgrade coveralls
+          coveralls --version
+          python -m coveralls --version
           python -m coveralls
         env:
           # Some magic value required for some magic reason.
