@@ -185,7 +185,7 @@ jobs:
 
           curl \
             -k \
-            https://coveralls.io/webhook?repo_name=$GITHUB_REPOSITORY&repo_token=${{ secrets.GITHUB_TOKEN }} \
+            "https://coveralls.io/webhook?repo_name=$GITHUB_REPOSITORY&repo_token=${{ secrets.GITHUB_TOKEN }}" \
             -d \
             "payload[build_num]=$GITHUB_RUN_NUMBER&payload[status]=done"
         env:
