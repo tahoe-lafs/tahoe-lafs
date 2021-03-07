@@ -99,8 +99,6 @@ jobs:
           pip install --upgrade coveralls
           python -m coveralls --version
           python -m coveralls
-        with:
-          python-version: 3.x
         env:
           # Some magic value required for some magic reason.
           GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
@@ -125,8 +123,6 @@ jobs:
           pip install --upgrade coveralls
           coveralls --version
           coveralls
-        with:
-          python-version: 3.x
         env:
           # Some magic value required for some magic reason.
           GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
