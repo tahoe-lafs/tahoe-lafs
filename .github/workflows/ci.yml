@@ -96,9 +96,9 @@ jobs:
 
       - name: "Report Coverage to Coveralls (python -m coveralls)"
         run: |
-          pip install --upgrade coveralls
-          python -m coveralls --version
-          python -m coveralls
+          pip3 install --upgrade coveralls
+          python3 -m coveralls --version
+          python3 -m coveralls
         env:
           # Some magic value required for some magic reason.
           GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
@@ -120,7 +120,7 @@ jobs:
 
       - name: "Report Coverage to Coveralls"
         run: |
-          pip install --upgrade coveralls
+          pip3 install --upgrade coveralls
           coveralls --version
           coveralls
         env:
