@@ -79,8 +79,14 @@ jobs:
       - name: Display tool versions
         run: python misc/build_helpers/show-tool-versions.py
 
-      - name: Run coverage tests
-        run: tox
+      - name: Run coverage tests (Python 2.7)
+        if: matrix.python-version == '2.7'
+        run: tox -e py27-coverage
+        timeout-minutes: 20
+
+      - name: Run coverage tests (Python 3.6)
+        if: matrix.python-version == '3.6'
+        run: tox -e py36-coverage
         timeout-minutes: 20
 
       - name: Upload eliot.log in case of failure
