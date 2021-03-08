@@ -73,7 +73,7 @@ jobs:
 
       - name: Install Python packages
         run: |
-          pip install --upgrade codecov tox setuptools tox-gh-actions
+          pip install --upgrade codecov tox setuptools
           pip list
 
       - name: Display tool versions
