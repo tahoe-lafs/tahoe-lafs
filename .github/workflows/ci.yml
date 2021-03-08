@@ -134,7 +134,8 @@ jobs:
       - name: Indicate completion to coveralls.io
         run: |
           pip3 install --upgrade coveralls
-          coveralls --finish
+          python3 -m coveralls --version
+          python3 -m coveralls --finish
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
