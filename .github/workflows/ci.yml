@@ -73,14 +73,14 @@ jobs:
 
       - name: Install Python packages
         run: |
-          pip install --upgrade codecov tox setuptools
+          pip install --upgrade codecov tox setuptools tox-gh-actions
           pip list
 
       - name: Display tool versions
         run: python misc/build_helpers/show-tool-versions.py
 
-      - name: Run "tox -e py-coverage"
-        run: tox -e py-coverage
+      - name: Run coverage tests
+        run: tox
         timeout-minutes: 20
 
       - name: Upload eliot.log in case of failure
