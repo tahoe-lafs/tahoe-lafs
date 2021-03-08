@@ -104,7 +104,7 @@ jobs:
       # They get job IDs in different fashions, so the finalizing step
       # will be only able to set half of the jobs as done.  So we try
       # to use the never coveralls available with Python 3.
-      - name: Report Coverage to Coveralls
+      - name: Report coverage to coveralls.io
         run: |
           pip3 install --upgrade coveralls
           python3 -m coveralls --version
