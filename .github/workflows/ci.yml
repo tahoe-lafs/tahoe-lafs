@@ -156,8 +156,6 @@ jobs:
         env:
           # Some magic value required for some magic reason.
           GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
-          # Help coveralls identify our project.
-          COVERALLS_REPO_TOKEN: "JPf16rLB7T2yjgATIxFzTsEgMdN1UNq6o"
 
 
   integration:
