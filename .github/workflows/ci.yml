@@ -94,7 +94,7 @@ jobs:
       # files - only lcov files.  Therefore, we use coveralls-python, the
       # coveralls.io-supplied Python reporter, for this.
 
-      - name: "Report Coverage to Coveralls (python -m coveralls)"
+      - name: Report Coverage to Coveralls
         run: |
           pip3 install --upgrade coveralls
           python3 -m coveralls --version
