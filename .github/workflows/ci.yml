@@ -118,30 +118,6 @@ jobs:
         if:
           always()
 
-      - name: "Report Coverage to Coveralls"
-        run: |
-          pip3 install --upgrade coveralls
-          coveralls --version
-          coveralls
-        env:
-          # Some magic value required for some magic reason.
-          GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
-          # Help coveralls identify our project.
-          COVERALLS_REPO_TOKEN: "JPf16rLB7T2yjgATIxFzTsEgMdN1UNq6o"
-          # Every source of coverage reports needs a unique "flag name".
-          # Construct one by smashing a few variables from the matrix together
-          # here.
-          COVERALLS_FLAG_NAME: "run-${{ matrix.os }}-${{ matrix.python-version }}"
-          # Mark the data as just one piece of many because we have more than
-          # one instance of this job (Windows, macOS) which collects and
-          # reports coverage.  This is necessary to cause Coveralls to merge
-          # multiple coverage results into a single report.  Note the merge
-          # only happens when we "finish" a particular build, as identified by
-          # its "build_num" (aka "service_number").
-          COVERALLS_PARALLEL: true
-        if:
-          always()
-
   # Tell Coveralls that we're done reporting coverage data.  Since we're using
   # the "parallel" mode where more than one coverage data file is merged into
   # a single report, we have to tell Coveralls when we've uploaded all of the
