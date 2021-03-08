@@ -93,7 +93,17 @@ jobs:
       # Action for this, as of Jan 2021 it does not support Python coverage
       # files - only lcov files.  Therefore, we use coveralls-python, the
       # coveralls.io-supplied Python reporter, for this.
-
+      #
+      # GitHub Actions' tool cache has coveralls-python bundled: at
+      # the of writing this is, it is coveralls-python 1.11.1 for
+      # Python 2.7, and coveralls-python 3.0.1 for Python 3.
+      #
+      # If we use the version of Python from the test matrix for this
+      # step, we will end up with a mix of two different versions of
+      # coveralls-python for this workflow, which will lead to grief.
+      # They get job IDs in different fashions, so the finalizing step
+      # will be only able to set half of the jobs as done.  So we try
+      # to use the never coveralls available with Python 3.
       - name: Report Coverage to Coveralls
         run: |
           pip3 install --upgrade coveralls
