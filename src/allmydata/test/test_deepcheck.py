@@ -1,3 +1,11 @@
+"""
+Ported to Python 3.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
 # Python 2 compatibility
 # Can't use `builtins.str` because something deep in Twisted callbacks ends up repr'ing
 # a `future.types.newstr.newstr` as a *Python 3* byte string representation under
@@ -9,7 +17,10 @@
 # (Pdb) pp data
 # '334:12:b\'mutable-good\',90:URI:SSK-RO:...
 from past.builtins import unicode as str
-from future.utils import native_str, PY3
+from future.utils import native_str, PY3, PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, max, min  # noqa: F401
+
 
 import os, json
 from urllib.parse import quote as url_quote
@@ -30,10 +41,16 @@ from allmydata.uri import LiteralFileURI
 
 from allmydata.test.common import ErrorMixin, _corrupt_mutable_share_data, \
      ShouldFailMixin
-from .common_util import StallMixin, run_cli
+from .common_util import StallMixin, run_cli_unicode
 from .common_web import do_http
 from allmydata.test.no_network import GridTestMixin
 from .cli.common import CLITestMixin
+
+
+def run_cli(verb, *argv):
+    """Match usage in existing tests by accept *args."""
+    return run_cli_unicode(verb, list(argv))
+
 
 class MutableChecker(GridTestMixin, unittest.TestCase, ErrorMixin):
     def test_good(self):
@@ -293,7 +310,7 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
                                  sorted(self.g.get_all_serverids()),
                                  where)
             all_serverids = set()
-            for (shareid, servers) in cr.get_sharemap().items():
+            for (shareid, servers) in list(cr.get_sharemap().items()):
                 all_serverids.update([s.get_serverid() for s in servers])
             self.failUnlessEqual(sorted(all_serverids),
                                  sorted(self.g.get_all_serverids()),
@@ -551,7 +568,7 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
                                  where)
             self.failUnless("sharemap" in r, where)
             all_serverids = set()
-            for (shareid, serverids_s) in r["sharemap"].items():
+            for (shareid, serverids_s) in list(r["sharemap"].items()):
                 all_serverids.update(serverids_s)
             self.failUnlessEqual(sorted(all_serverids),
                                  sorted([idlib.nodeid_b2a(sid)
@@ -962,10 +979,10 @@ class DeepCheckWebBad(DeepCheckBase, unittest.TestCase):
     def _corrupt_some_shares(self, node):
         for (shnum, serverid, sharefile) in self.find_uri_shares(node.get_uri()):
             if shnum in (0,1):
-                yield run_cli("debug", "corrupt-share", native_str(sharefile))
+                yield run_cli("debug", "corrupt-share", sharefile)
 
     def _delete_most_shares(self, node):
-        self.delete_shares_numbered(node.get_uri(), range(1,10))
+        self.delete_shares_numbered(node.get_uri(), list(range(1,10)))
 
 
     def check_is_healthy(self, cr, where):
