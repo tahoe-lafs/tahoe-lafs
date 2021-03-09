@@ -17,7 +17,7 @@ from __future__ import unicode_literals
 # (Pdb) pp data
 # '334:12:b\'mutable-good\',90:URI:SSK-RO:...
 from past.builtins import unicode as str
-from future.utils import native_str, PY3, PY2
+from future.utils import PY3, PY2
 if PY2:
     from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, max, min  # noqa: F401
 
