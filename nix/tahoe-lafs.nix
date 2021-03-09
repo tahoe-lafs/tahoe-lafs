@@ -28,7 +28,6 @@ python.pkgs.buildPythonPackage rec {
     rm src/allmydata/test/test_i2p_provider.py
     rm src/allmydata/test/test_connections.py
     rm src/allmydata/test/cli/test_create.py
-    rm src/allmydata/test/test_client.py
   '';
 
 
