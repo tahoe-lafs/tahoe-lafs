@@ -458,6 +458,18 @@ jobs:
           command: |
             /tmp/venv/bin/tox -e typechecks
 
+  docs:
+    docker:
+      - <<: *DOCKERHUB_AUTH
+        image: "tahoelafsci/ubuntu:18.04-py3"
+
+    steps:
+      - "checkout"
+      - run:
+          name: "Build documentation"
+          command: |
+            /tmp/venv/bin/tox -e docs
+
   build-image: &BUILD_IMAGE
     # This is a template for a job to build a Docker image that has as much of
     # the setup as we can manage already done and baked in.  This cuts down on
