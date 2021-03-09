@@ -50,11 +50,11 @@ class MutableChecker(GridTestMixin, unittest.TestCase, ErrorMixin):
         d.addCallback(lambda ign: self.GET(self.fileurl+"?t=check&verify=true",
                                            method="POST"))
         def _got_results(out):
-            self.failUnless("<span>Healthy : Healthy</span>" in out, out)
-            self.failUnless("Recoverable Versions: 10*seq1-" in out, out)
-            self.failIf("Not Healthy!" in out, out)
-            self.failIf("Unhealthy" in out, out)
-            self.failIf("Corrupt Shares" in out, out)
+            self.failUnless(b"<span>Healthy : Healthy</span>" in out, out)
+            self.failUnless(b"Recoverable Versions: 10*seq1-" in out, out)
+            self.failIf(b"Not Healthy!" in out, out)
+            self.failIf(b"Unhealthy" in out, out)
+            self.failIf(b"Corrupt Shares" in out, out)
         d.addCallback(_got_results)
         d.addErrback(self.explain_web_error)
         return d
@@ -75,9 +75,9 @@ class MutableChecker(GridTestMixin, unittest.TestCase, ErrorMixin):
         d.addCallback(lambda ign: self.GET(self.fileurl+"?t=check&verify=true",
                                            method="POST"))
         def _got_results(out):
-            self.failUnless("Not Healthy!" in out, out)
-            self.failUnless("Unhealthy: best version has only 9 shares (encoding is 3-of-10)" in out, out)
-            self.failUnless("Corrupt Shares:" in out, out)
+            self.failUnless(b"Not Healthy!" in out, out)
+            self.failUnless(b"Unhealthy: best version has only 9 shares (encoding is 3-of-10)" in out, out)
+            self.failUnless(b"Corrupt Shares:" in out, out)
         d.addCallback(_got_results)
 
         # now make sure the webapi repairer can fix it
@@ -85,13 +85,13 @@ class MutableChecker(GridTestMixin, unittest.TestCase, ErrorMixin):
                       self.GET(self.fileurl+"?t=check&verify=true&repair=true",
                                method="POST"))
         def _got_repair_results(out):
-            self.failUnless("<div>Repair successful</div>" in out, out)
+            self.failUnless(b"<div>Repair successful</div>" in out, out)
         d.addCallback(_got_repair_results)
         d.addCallback(lambda ign: self.GET(self.fileurl+"?t=check&verify=true",
                                            method="POST"))
         def _got_postrepair_results(out):
-            self.failIf("Not Healthy!" in out, out)
-            self.failUnless("Recoverable Versions: 10*seq" in out, out)
+            self.failIf(b"Not Healthy!" in out, out)
+            self.failUnless(b"Recoverable Versions: 10*seq" in out, out)
         d.addCallback(_got_postrepair_results)
         d.addErrback(self.explain_web_error)
 
@@ -112,9 +112,9 @@ class MutableChecker(GridTestMixin, unittest.TestCase, ErrorMixin):
         d.addCallback(lambda ign: self.GET(self.fileurl+"?t=check&verify=false",
                                            method="POST"))
         def _got_results(out):
-            self.failUnless("Not Healthy!" in out, out)
-            self.failUnless("Unhealthy: best version has only 9 shares (encoding is 3-of-10)" in out, out)
-            self.failIf("Corrupt Shares" in out, out)
+            self.failUnless(b"Not Healthy!" in out, out)
+            self.failUnless(b"Unhealthy: best version has only 9 shares (encoding is 3-of-10)" in out, out)
+            self.failIf(b"Corrupt Shares" in out, out)
         d.addCallback(_got_results)
 
         # now make sure the webapi repairer can fix it
@@ -122,13 +122,13 @@ class MutableChecker(GridTestMixin, unittest.TestCase, ErrorMixin):
                       self.GET(self.fileurl+"?t=check&verify=false&repair=true",
                                method="POST"))
         def _got_repair_results(out):
-            self.failUnless("Repair successful" in out)
+            self.failUnless(b"Repair successful" in out)
         d.addCallback(_got_repair_results)
         d.addCallback(lambda ign: self.GET(self.fileurl+"?t=check&verify=false",
                                            method="POST"))
         def _got_postrepair_results(out):
-            self.failIf("Not Healthy!" in out, out)
-            self.failUnless("Recoverable Versions: 10*seq" in out)
+            self.failIf(b"Not Healthy!" in out, out)
+            self.failUnless(b"Recoverable Versions: 10*seq" in out)
         d.addCallback(_got_postrepair_results)
         d.addErrback(self.explain_web_error)
 
@@ -1202,11 +1202,11 @@ class Large(DeepCheckBase, unittest.TestCase):
             self.subdir_node = subdir_node
             kids = {}
             for i in range(1, COUNT):
-                litcap = LiteralFileURI("%03d-data" % i).to_string()
+                litcap = LiteralFileURI(b"%03d-data" % i).to_string()
                 kids[u"%03d-small" % i] = (litcap, litcap)
             return subdir_node.set_children(kids)
         d.addCallback(_add_children)
-        up = upload.Data(b"large enough for CHK" * 100, "")
+        up = upload.Data(b"large enough for CHK" * 100, b"")
         d.addCallback(lambda ign: self.subdir_node.add_file(u"0000-large", up))
 
         def _start_deepcheck(ignored):
