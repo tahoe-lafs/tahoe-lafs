@@ -154,7 +154,7 @@ i2p_requires = [
     # txi2p has Python 3 support, but it's unreleased (see
     # https://github.com/str4d/txi2p/issues/10). We could use a fork until
     # txi2p's maintainers are back in action.
-    "txi2p-tahoe",
+    "txi2p-tahoe >= 0.3.5",
 ]
 
 if len(sys.argv) > 1 and sys.argv[1] == '--fakedependency':
