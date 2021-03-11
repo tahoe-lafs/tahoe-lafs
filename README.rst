@@ -71,7 +71,9 @@ You can find the full Tahoe-LAFS documentation at our `documentation site <http:
 ------------
 
 Get involved with the Tahoe-LAFS community:
--  Chat with Tahoe-LAFS developers at #tahoe-lafs chat on irc.freenode.net. Never used IRC  before? Read our `beginner's IRC tutorial <https://gist.github.com/May-Lee/7d71020360e478802ead69a5f9eb55ac>`__. 
+-  Chat with Tahoe-LAFS developers at #tahoe-lafs chat on irc.freenode.net.
+   Never used IRC before?
+   Read our `beginner's IRC tutorial <https://gist.github.com/May-Lee/7d71020360e478802ead69a5f9eb55ac>`__. 
 
 -  Join our `weekly conference calls <https://www.tahoe-lafs.org/trac/tahoe-lafs/wiki/WeeklyMeeting>`__ with core developers and interested community members.
 
