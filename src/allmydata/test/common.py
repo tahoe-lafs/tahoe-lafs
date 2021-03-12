@@ -1059,7 +1059,7 @@ def _corrupt_mutable_share_data(data, debug=False):
     assert prefix == MutableShareFile.MAGIC, "This function is designed to corrupt mutable shares of v1, and the magic number doesn't look right: %r vs %r" % (prefix, MutableShareFile.MAGIC)
     data_offset = MutableShareFile.DATA_OFFSET
     sharetype = data[data_offset:data_offset+1]
-    assert sharetype == "\x00", "non-SDMF mutable shares not supported"
+    assert sharetype == b"\x00", "non-SDMF mutable shares not supported"
     (version, ig_seqnum, ig_roothash, ig_IV, ig_k, ig_N, ig_segsize,
      ig_datalen, offsets) = unpack_header(data[data_offset:])
     assert version == 0, "this function only handles v0 SDMF files"

@@ -161,6 +161,11 @@ PORTED_TEST_MODULES = [
     "allmydata.test.test_connection_status",
     "allmydata.test.test_crawler",
     "allmydata.test.test_crypto",
+
+    # Only partially ported, CLI-using test code is disabled for now until CLI
+    # is ported.
+    "allmydata.test.test_deepcheck",
+
     "allmydata.test.test_deferredutil",
     "allmydata.test.test_dictutil",
     "allmydata.test.test_dirnode",
@@ -214,4 +219,5 @@ PORTED_TEST_MODULES = [
     "allmydata.test.web.test_util",
     "allmydata.test.web.test_web",
     "allmydata.test.web.test_webish",
+    "allmydata.test.test_windows",
 ]
