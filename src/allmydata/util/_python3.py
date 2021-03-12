@@ -138,6 +138,8 @@ PORTED_MODULES = [
 ]
 
 PORTED_TEST_MODULES = [
+    "allmydata.test.cli.test_create",
+    
     "allmydata.test.mutable.test_checker",
     "allmydata.test.mutable.test_datahandle",
     "allmydata.test.mutable.test_different_encoding",
