@@ -105,8 +105,8 @@ def capability_generator(kind):
     if kind not in KNOWN_CAPABILITIES:
         raise ValueError(
             "Unknown capability kind '{} (valid are {})'".format(
-                kind,
-                b", ".join(KNOWN_CAPABILITIES),
+                kind.decode('ascii'),
+                ", ".join([x.decode('ascii') for x in KNOWN_CAPABILITIES]),
             )
         )
     # what we do here is to start with empty hashers for the key and
