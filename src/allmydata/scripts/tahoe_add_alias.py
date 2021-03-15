@@ -5,7 +5,6 @@ from past.builtins import unicode
 
 import os.path
 import codecs
-import json
 
 from allmydata.util.assertutil import precondition
 
@@ -14,6 +13,7 @@ from allmydata.scripts.common_http import do_http, check_http_error
 from allmydata.scripts.common import get_aliases
 from allmydata.util.fileutil import move_into_place
 from allmydata.util.encodingutil import quote_output, quote_output_u
+from allmydata.util import jsonbytes as json
 
 
 def add_line_to_aliasfile(aliasfile, alias, cap):
@@ -169,7 +169,10 @@ def list_aliases(options):
     data = _get_alias_details(options['node-directory'])
 
     if options['json']:
-        output = _escape_format(json.dumps(data, indent=4).decode("ascii"))
+        dumped = json.dumps(data, indent=4)
+        if isinstance(dumped, bytes):
+            loaded = dumped.decode("utf-8")
+        output = _escape_format(dumped)
     else:
         def dircap(details):
             return (
