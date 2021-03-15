@@ -530,6 +530,16 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
         return [ s.get_longname() for s in sb.get_servers_for_psi(key) ]
 
     def test_permute(self):
+        """
+        Permutations need to be stable across Tahoe releases, which is why we
+        hardcode a specific expected order.
+
+        This is because the order of these results determines which servers a
+        client will choose to place shares on and which servers it will consult
+        (and in what order) when trying to retrieve those shares.  If the order
+        ever changes, all already-placed shares become (at best) harder to find
+        or (at worst) impossible to find.
+        """
         sb = StorageFarmBroker(True, None, EMPTY_CLIENT_CONFIG)
         ks = [b"%d" % i for i in range(5)]
         for k in ks:
@@ -539,6 +549,8 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
 
         one = self._permute(sb, b"one")
         two = self._permute(sb, b"two")
+        self.failUnlessReallyEqual(one, [b'3',b'1',b'0',b'4',b'2'])
+        self.failUnlessReallyEqual(two, [b'0',b'4',b'2',b'1',b'3'])
         self.assertEqual(sorted(one), ks)
         self.assertEqual(sorted(two), ks)
         self.assertNotEqual(one, two)
@@ -546,6 +558,11 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
         self.failUnlessReallyEqual(self._permute(sb, b"one"), [])
 
     def test_permute_with_preferred(self):
+        """
+        Permutations need to be stable across Tahoe releases, which is why we
+        hardcode a specific expected order.  In this case, two values are
+        preferred and should come first.
+        """
         sb = StorageFarmBroker(
             True,
             None,
@@ -560,6 +577,8 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
 
         one = self._permute(sb, b"one")
         two = self._permute(sb, b"two")
+        self.failUnlessReallyEqual(b"".join(one), b'14302')
+        self.failUnlessReallyEqual(b"".join(two), b'41023')
         self.assertEqual(sorted(one), ks)
         self.assertEqual(sorted(one[:2]), [b"1", b"4"])
         self.assertEqual(sorted(two), ks)
