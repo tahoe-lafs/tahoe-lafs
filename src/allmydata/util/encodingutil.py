@@ -13,6 +13,7 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 from future.utils import PY2, PY3, native_str
+from future.builtins import str as future_str
 if PY2:
     # We omit str() because that seems too tricky to get right.
     from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, max, min  # noqa: F401
@@ -140,6 +141,14 @@ def unicode_to_argv(s, mangle=False):
     if sys.platform == "win32":
         return s
     return ensure_str(s)
+
+
+# According to unicode_to_argv above, the expected type for
+# cli args depends on the platform, so capture that expectation.
+argv_type = (future_str, native_str) if sys.platform == "win32" else native_str
+"""
+The expected type for args to a subprocess
+"""
 
 
 def unicode_to_url(s):

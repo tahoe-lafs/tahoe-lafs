@@ -75,6 +75,8 @@ PORTED_MODULES = [
     "allmydata.mutable.servermap",
     "allmydata.node",
     "allmydata.nodemaker",
+    "allmydata.scripts.create_node",
+    "allmydata.scripts.types_",
     "allmydata.stats",
     "allmydata.storage_client",
     "allmydata.storage.common",
@@ -137,7 +139,8 @@ PORTED_MODULES = [
 
 PORTED_TEST_MODULES = [
     "allmydata.test.cli.test_alias",
-    
+    "allmydata.test.cli.test_create",
+
     "allmydata.test.mutable.test_checker",
     "allmydata.test.mutable.test_datahandle",
     "allmydata.test.mutable.test_different_encoding",
@@ -194,6 +197,7 @@ PORTED_TEST_MODULES = [
     "allmydata.test.test_pipeline",
     "allmydata.test.test_python3",
     "allmydata.test.test_repairer",
+    "allmydata.test.test_runner",
     "allmydata.test.test_sftp",
     "allmydata.test.test_spans",
     "allmydata.test.test_statistics",

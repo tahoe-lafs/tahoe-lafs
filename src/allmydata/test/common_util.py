@@ -1,6 +1,6 @@
 from __future__ import print_function
 
-from future.utils import PY2, native_str, bchr, binary_type
+from future.utils import PY2, bchr, binary_type
 from future.builtins import str as future_str
 from past.builtins import unicode
 
@@ -20,7 +20,7 @@ from twisted.trial import unittest
 
 from ..util.assertutil import precondition
 from ..scripts import runner
-from allmydata.util.encodingutil import unicode_platform, get_filesystem_encoding, get_io_encoding
+from allmydata.util.encodingutil import unicode_platform, get_filesystem_encoding, get_io_encoding, argv_type, unicode_to_argv
 
 
 def skip_if_cannot_represent_filename(u):
@@ -49,6 +49,13 @@ def _getvalue(io):
     return io.read()
 
 
+def maybe_unicode_to_argv(o):
+    """Convert object to argv form if necessary."""
+    if isinstance(o, unicode):
+        return unicode_to_argv(o)
+    return o
+
+
 def run_cli_native(verb, *args, **kwargs):
     """
     Run a Tahoe-LAFS CLI command specified as bytes (on Python 2) or Unicode
@@ -74,9 +81,12 @@ def run_cli_native(verb, *args, **kwargs):
     """
     nodeargs = kwargs.pop("nodeargs", [])
     encoding = kwargs.pop("encoding", None)
+    verb = maybe_unicode_to_argv(verb)
+    args = [maybe_unicode_to_argv(a) for a in args]
+    nodeargs = [maybe_unicode_to_argv(a) for a in nodeargs]
     precondition(
-        all(isinstance(arg, native_str) for arg in [verb] + nodeargs + list(args)),
-        "arguments to run_cli must be a native string -- convert using unicode_to_argv",
+        all(isinstance(arg, argv_type) for arg in [verb] + nodeargs + list(args)),
+        "arguments to run_cli must be {argv_type} -- convert using unicode_to_argv".format(argv_type=argv_type),
         verb=verb,
         args=args,
         nodeargs=nodeargs,
