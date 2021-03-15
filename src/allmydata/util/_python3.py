@@ -152,6 +152,7 @@ PORTED_TEST_MODULES = [
     "allmydata.test.mutable.test_update",
     "allmydata.test.mutable.test_version",
     "allmydata.test.test_abbreviate",
+    "allmydata.test.test_auth",
     "allmydata.test.test_base32",
     "allmydata.test.test_base62",
     "allmydata.test.test_checker",
