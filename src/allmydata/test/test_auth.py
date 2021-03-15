@@ -35,7 +35,7 @@ DUMMY_ACCOUNTS = u"""\
 alice password URI:DIR2:aaaaaaaaaaaaaaaaaaaaaaaaaa:1111111111111111111111111111111111111111111111111111
 bob sekrit URI:DIR2:bbbbbbbbbbbbbbbbbbbbbbbbbb:2222222222222222222222222222222222222222222222222222
 carol {key} URI:DIR2:cccccccccccccccccccccccccc:3333333333333333333333333333333333333333333333333333
-""".format(key=DUMMY_KEY.public().toString("openssh")).encode("ascii")
+""".format(key=str(DUMMY_KEY.public().toString("openssh"), "ascii")).encode("ascii")
 
 class AccountFileCheckerKeyTests(unittest.TestCase):
     """
