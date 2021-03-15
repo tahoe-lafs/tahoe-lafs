@@ -29,6 +29,7 @@ PORTED_MODULES = [
     "allmydata._monkeypatch",
     "allmydata.blacklist",
     "allmydata.check_results",
+    "allmydata.client",
     "allmydata.codec",
     "allmydata.control",
     "allmydata.crypto",
@@ -88,6 +89,7 @@ PORTED_MODULES = [
     "allmydata.storage.server",
     "allmydata.storage.shares",
     "allmydata.test.no_network",
+    "allmydata.test.matchers",
     "allmydata.test.mutable.util",
     "allmydata.unknown",
     "allmydata.uri",
@@ -159,12 +161,18 @@ PORTED_TEST_MODULES = [
     "allmydata.test.test_base32",
     "allmydata.test.test_base62",
     "allmydata.test.test_checker",
+    "allmydata.test.test_client",
     "allmydata.test.test_codec",
     "allmydata.test.test_common_util",
     "allmydata.test.test_configutil",
     "allmydata.test.test_connection_status",
     "allmydata.test.test_crawler",
     "allmydata.test.test_crypto",
+
+    # Only partially ported, CLI-using test code is disabled for now until CLI
+    # is ported.
+    "allmydata.test.test_deepcheck",
+
     "allmydata.test.test_deferredutil",
     "allmydata.test.test_dictutil",
     "allmydata.test.test_dirnode",
@@ -219,4 +227,5 @@ PORTED_TEST_MODULES = [
     "allmydata.test.web.test_util",
     "allmydata.test.web.test_web",
     "allmydata.test.web.test_webish",
+    "allmydata.test.test_windows",
 ]
