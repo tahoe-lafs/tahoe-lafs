@@ -59,7 +59,7 @@ class ListAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
         # the node filesystem state.
         aliases = get_aliases(self.get_clientdir())
         self.assertIn(alias, aliases)
-        self.assertTrue(aliases[alias].startswith(u"URI:DIR2:"))
+        self.assertTrue(aliases[alias].startswith(b"URI:DIR2:"))
 
         # And inspect the state via the user interface list-aliases command
         # too.
