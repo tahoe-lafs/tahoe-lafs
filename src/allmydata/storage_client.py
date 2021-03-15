@@ -37,6 +37,7 @@ from __future__ import unicode_literals
 from future.utils import PY2
 if PY2:
     from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+from six import ensure_text
 
 import re, time, hashlib
 
@@ -198,6 +199,7 @@ class StorageFarmBroker(service.MultiService):
         # doesn't really matter but it makes the logging behavior more
         # predictable and easier to test (and at least one test does depend on
         # this sorted order).
+        servers = {ensure_text(key): value for (key, value) in servers.items()}
         for (server_id, server) in sorted(servers.items()):
             try:
                 storage_server = self._make_storage_server(
