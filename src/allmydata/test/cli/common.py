@@ -55,5 +55,5 @@ class CLITestMixin(ReallyEqualMixin):
         verb = ensure_str(verb)
         args = [ensure_str(arg) for arg in args]
         client_dir = ensure_str(self.get_clientdir(i=client_num))
-        nodeargs = [ b"--node-directory", client_dir ]
+        nodeargs = [ "--node-directory", client_dir ]
         return run_cli(verb, *args, nodeargs=nodeargs, **kwargs)

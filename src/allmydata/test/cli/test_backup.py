@@ -412,7 +412,7 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
             self.failUnlessEqual(name, abspath_expanduser_unicode(exclude_file))
             return StringIO()
 
-        patcher = MonkeyPatcher((builtins, 'file', call_file))
+        patcher = MonkeyPatcher((builtins, 'open', call_file))
         patcher.runWithPatches(parse_options, basedir, "backup", ['--exclude-from', unicode_to_argv(exclude_file), 'from', 'to'])
         self.failUnless(ns.called)
 
