@@ -1,6 +1,8 @@
 from __future__ import print_function
 from __future__ import unicode_literals
 
+from past.builtins import unicode
+
 import os.path
 import codecs
 import json
@@ -52,7 +54,7 @@ def add_alias(options):
         show_output(stderr, "Alias {alias} already exists!", alias=alias)
         return 1
     aliasfile = os.path.join(nodedir, "private", "aliases")
-    cap = uri.from_string_dirnode(cap).to_string()
+    cap = unicode(uri.from_string_dirnode(cap).to_string(), 'utf-8')
 
     add_line_to_aliasfile(aliasfile, alias, cap)
     show_output(stdout, "Alias {alias} added", alias=alias)
@@ -92,7 +94,7 @@ def create_alias(options):
 
     # probably check for others..
 
-    add_line_to_aliasfile(aliasfile, alias, new_uri)
+    add_line_to_aliasfile(aliasfile, alias, unicode(new_uri, "utf-8"))
     show_output(stdout, "Alias {alias} created", alias=alias)
     return 0
 
