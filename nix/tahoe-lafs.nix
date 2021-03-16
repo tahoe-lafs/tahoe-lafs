@@ -85,6 +85,6 @@ python.pkgs.buildPythonPackage rec {
   ];
 
   checkPhase = ''
-    ${python}/bin/python -m twisted.trial -j $NIX_BUILD_CORES allmydata.test.test_client
+    ${python}/bin/python -m twisted.trial -j $NIX_BUILD_CORES allmydata
   '';
 }
