@@ -1,4 +1,11 @@
-# Python 2 compatibility
+"""
+Ported to Python 3.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
 from future.utils import PY2
 if PY2:
     from future.builtins import str  # noqa: F401
@@ -35,7 +42,7 @@ DUMMY_ACCOUNTS = u"""\
 alice password URI:DIR2:aaaaaaaaaaaaaaaaaaaaaaaaaa:1111111111111111111111111111111111111111111111111111
 bob sekrit URI:DIR2:bbbbbbbbbbbbbbbbbbbbbbbbbb:2222222222222222222222222222222222222222222222222222
 carol {key} URI:DIR2:cccccccccccccccccccccccccc:3333333333333333333333333333333333333333333333333333
-""".format(key=DUMMY_KEY.public().toString("openssh")).encode("ascii")
+""".format(key=str(DUMMY_KEY.public().toString("openssh"), "ascii")).encode("ascii")
 
 class AccountFileCheckerKeyTests(unittest.TestCase):
     """
