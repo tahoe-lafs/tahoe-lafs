@@ -108,7 +108,7 @@ class FakeNodeMaker(NodeMaker):
         return n.create(contents, version=version)
 
 class FakeUploader(service.Service):
-    name = "uploader"
+    name = "uploader" # type: ignore # https://twistedmatrix.com/trac/ticket/10135
     helper_furl = None
     helper_connected = False
 
@@ -254,7 +254,7 @@ class FakeLeaseChecker(object):
                 "remaining-wait-time": 0}
 
 class FakeStorageServer(service.MultiService):
-    name = 'storage'
+    name = 'storage' # type: ignore # https://twistedmatrix.com/trac/ticket/10135
     def __init__(self, nodeid, nickname):
         service.MultiService.__init__(self)
         self.my_nodeid = nodeid
