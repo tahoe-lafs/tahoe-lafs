@@ -174,8 +174,9 @@ def _maybe_enable_eliot_logging(options, reactor):
     return options
 
 def run():
-    if not six.PY2:
-        warnings.warn("Support for Python 3 is experimental. Use at your own risk.")
+    if six.PY3:
+        warnings.warn("Support for Python 3 is an incomplete work-in-progress."
+                      " Use at your own risk.")
 
     if sys.platform == "win32":
         from allmydata.windows.fixups import initialize
