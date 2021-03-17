@@ -1,6 +1,7 @@
 # coding: utf-8
 
 from __future__ import print_function
+from six import ensure_str
 
 import os, sys, textwrap
 import codecs
@@ -286,7 +287,5 @@ def escape_path(path):
     """
     segments = path.split("/")
     result = "/".join([urllib.parse.quote(unicode_to_url(s)) for s in segments])
-    # fixme: test.cli.test_create_alias fails if it gets Unicode on Python 2
-    if PY2 and isinstance(result, type(u'')):
-        result = result.encode('ascii')
+    result = ensure_str(result, "ascii")
     return result

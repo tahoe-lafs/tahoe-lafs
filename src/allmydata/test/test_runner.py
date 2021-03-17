@@ -12,14 +12,15 @@ from __future__ import unicode_literals
 from future.utils import PY2
 if PY2:
     from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+
+from six import ensure_text
+
 import os.path, re, sys
 from os import linesep
 
 from eliot import (
     log_call,
 )
-
-import six
 
 from twisted.trial import unittest
 
@@ -83,9 +84,7 @@ def run_bintahoe(extra_argv, python_options=None):
     :return: A three-tuple of stdout (unicode), stderr (unicode), and the
         child process "returncode" (int).
     """
-    # fixme: below, 'unicode_to_argv' is called so ensure that
-    # executable is unicode to support that expectation.
-    executable = sys.executable.decode('utf-8') if six.PY2 else sys.executable
+    executable = ensure_text(sys.executable)
     argv = [executable]
     if python_options is not None:
         argv.extend(python_options)
