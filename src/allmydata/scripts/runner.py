@@ -1,5 +1,6 @@
 from __future__ import print_function
 
+import warnings
 import os, sys
 from six.moves import StringIO
 import six
@@ -15,7 +16,7 @@ from twisted.internet import defer, task, threads
 from allmydata.scripts.common import get_default_nodedir
 from allmydata.scripts import debug, create_node, cli, \
     admin, tahoe_run, tahoe_invite
-from allmydata.util.encodingutil import quote_output, quote_local_unicode_path, get_io_encoding
+from allmydata.util.encodingutil import quote_local_unicode_path
 from allmydata.util.eliotutil import (
     opt_eliot_destination,
     opt_help_eliot_destinations,
@@ -120,11 +121,7 @@ def parse_or_exit_with_explanation(argv, stdout=sys.stdout):
         while hasattr(c, 'subOptions'):
             c = c.subOptions
         print(str(c), file=stdout)
-        try:
-            msg = e.args[0].decode(get_io_encoding())
-        except Exception:
-            msg = repr(e)
-        print("%s:  %s\n" % (sys.argv[0], quote_output(msg, quotemarks=False)), file=stdout)
+        print("%s:  %s\n" % (sys.argv[0], e), file=stdout)
         sys.exit(1)
     return config
 
@@ -177,9 +174,9 @@ def _maybe_enable_eliot_logging(options, reactor):
     return options
 
 def run():
-    # TODO(3035): Remove tox-check when error becomes a warning
-    if 'TOX_ENV_NAME' not in os.environ:
-        assert sys.version_info < (3,), u"Tahoe-LAFS does not run under Python 3. Please use Python 2.7.x."
+    if six.PY3:
+        warnings.warn("Support for Python 3 is an incomplete work-in-progress."
+                      " Use at your own risk.")
 
     if sys.platform == "win32":
         from allmydata.windows.fixups import initialize

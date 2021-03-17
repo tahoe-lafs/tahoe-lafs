@@ -1,8 +1,12 @@
-from __future__ import print_function
+# coding: utf-8
 
-import os, sys, urllib, textwrap
+from __future__ import print_function
+from six import ensure_str
+
+import os, sys, textwrap
 import codecs
 from os.path import join
+import urllib.parse
 
 try:
     from typing import Optional
@@ -270,6 +274,18 @@ def get_alias(aliases, path_unicode, default):
     return uri.from_string_dirnode(aliases[alias]).to_string(), path[colon+1:]
 
 def escape_path(path):
-    # this always returns bytes, specifically US-ASCII, valid URL characters
+    # type: (str) -> str
+    u"""
+    Return path quoted to US-ASCII, valid URL characters.
+
+    >>> path = u'/føö/bar/☃'
+    >>> escaped = escape_path(path)
+    >>> str(escaped)
+    '/f%C3%B8%C3%B6/bar/%E2%98%83'
+    >>> escaped.encode('ascii').decode('ascii') == escaped
+    True
+    """
     segments = path.split("/")
-    return "/".join([urllib.quote(unicode_to_url(s)) for s in segments])
+    result = "/".join([urllib.parse.quote(unicode_to_url(s)) for s in segments])
+    result = ensure_str(result, "ascii")
+    return result
