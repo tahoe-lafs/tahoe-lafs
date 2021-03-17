@@ -91,6 +91,7 @@ PORTED_MODULES = [
     "allmydata.test.no_network",
     "allmydata.test.matchers",
     "allmydata.test.mutable.util",
+    "allmydata.testing.web",
     "allmydata.unknown",
     "allmydata.uri",
     "allmydata.util._python3",
@@ -215,6 +216,7 @@ PORTED_TEST_MODULES = [
     # should be done once CLI is ported.
     "allmydata.test.test_system",
 
+    "allmydata.test.test_testing",
     "allmydata.test.test_time_format",
     "allmydata.test.test_upload",
     "allmydata.test.test_uri",
