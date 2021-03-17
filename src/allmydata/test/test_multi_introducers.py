@@ -175,6 +175,3 @@ class NoDefault(unittest.TestCase):
         self.yaml_path.setContent(yamlutil.safe_dump(connections))
         myclient = yield create_client(self.basedir)
         self.assertEquals(len(myclient.introducer_clients), 0)
-
-if __name__ == "__main__":
-    unittest.main()
