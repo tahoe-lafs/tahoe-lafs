@@ -89,7 +89,7 @@ PORTED_MODULES = [
     "allmydata.test.no_network",
     "allmydata.test.matchers",
     "allmydata.test.mutable.util",
-    "allmydata.testing",
+    "allmydata.testing.web",
     "allmydata.unknown",
     "allmydata.uri",
     "allmydata.util._python3",
