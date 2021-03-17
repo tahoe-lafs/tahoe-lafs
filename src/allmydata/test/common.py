@@ -425,6 +425,9 @@ class DummyProducer(object):
     def resumeProducing(self):
         pass
 
+    def stopProducing(self):
+        pass
+
 @implementer(IImmutableFileNode)
 class FakeCHKFileNode(object):  # type: ignore # incomplete implementation
     """I provide IImmutableFileNode, but all of my data is stored in a
