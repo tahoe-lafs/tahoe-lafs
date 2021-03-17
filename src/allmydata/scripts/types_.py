@@ -10,3 +10,5 @@ SubCommand = Tuple[str, None, Type[Options], str]
 SubCommands = List[SubCommand]
 
 Parameters = List[Sequence[Any]]
+
+Flags = List[Tuple[str, None, str]]
