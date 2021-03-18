@@ -173,7 +173,7 @@ class CreateOnion(unittest.TestCase):
                                                            protocol)))
         txtorcon = mock.Mock()
         ehs = mock.Mock()
-        ehs.private_key = "privkey"
+        ehs.private_key = b"privkey"
         ehs.hostname = "ONION.onion"
         txtorcon.EphemeralHiddenService = mock.Mock(return_value=ehs)
         ehs.add_to_tor = mock.Mock(return_value=defer.succeed(None))
@@ -208,7 +208,7 @@ class CreateOnion(unittest.TestCase):
         fn = os.path.join(basedir, tahoe_config_tor["onion.private_key_file"])
         with open(fn, "rb") as f:
             privkey = f.read()
-        self.assertEqual(privkey, "privkey")
+        self.assertEqual(privkey, b"privkey")
 
     def test_launch(self):
         return self._do_test_launch(None)
@@ -227,7 +227,7 @@ class CreateOnion(unittest.TestCase):
                                                                protocol)))
         txtorcon = mock.Mock()
         ehs = mock.Mock()
-        ehs.private_key = "privkey"
+        ehs.private_key = b"privkey"
         ehs.hostname = "ONION.onion"
         txtorcon.EphemeralHiddenService = mock.Mock(return_value=ehs)
         ehs.add_to_tor = mock.Mock(return_value=defer.succeed(None))
@@ -259,7 +259,7 @@ class CreateOnion(unittest.TestCase):
         fn = os.path.join(basedir, tahoe_config_tor["onion.private_key_file"])
         with open(fn, "rb") as f:
             privkey = f.read()
-        self.assertEqual(privkey, "privkey")
+        self.assertEqual(privkey, b"privkey")
 
 
 _None = object()
@@ -590,7 +590,7 @@ class Provider_Service(unittest.TestCase):
         launch_tor.assert_called_with(reactor, None,
                                       os.path.join(basedir, "private"), txtorcon)
         txtorcon.EphemeralHiddenService.assert_called_with("456 127.0.0.1:123",
-                                                           "private key")
+                                                           b"private key")
         ehs.add_to_tor.assert_called_with(tor_state.protocol)
 
         yield p.stopService()
@@ -632,7 +632,7 @@ class Provider_Service(unittest.TestCase):
         cfs.assert_called_with(reactor, "ep_desc")
         txtorcon.build_tor_connection.assert_called_with(tcep)
         txtorcon.EphemeralHiddenService.assert_called_with("456 127.0.0.1:123",
-                                                           "private key")
+                                                           b"private key")
         ehs.add_to_tor.assert_called_with(tor_state.protocol)
 
         yield p.stopService()
