@@ -110,6 +110,7 @@ PORTED_MODULES = [
     "allmydata.util.happinessutil",
     "allmydata.util.hashutil",
     "allmydata.util.humanreadable",
+    "allmydata.util.i2p_provider",
     "allmydata.util.idlib",
     "allmydata.util.iputil",
     "allmydata.util.jsonbytes",
