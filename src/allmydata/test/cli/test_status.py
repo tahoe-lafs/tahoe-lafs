@@ -4,7 +4,6 @@ import json
 import tempfile
 from six.moves import StringIO
 from os.path import join
-from UserDict import UserDict
 
 from twisted.trial import unittest
 from twisted.internet import defer
@@ -60,9 +59,8 @@ class ProgressBar(unittest.TestCase):
         )
 
 
-class _FakeOptions(UserDict, object):
+class _FakeOptions(dict):
     def __init__(self):
-        super(_FakeOptions, self).__init__()
         self._tmp = tempfile.mkdtemp()
         os.mkdir(join(self._tmp, 'private'), 0o777)
         with open(join(self._tmp, 'private', 'api_auth_token'), 'w') as f:

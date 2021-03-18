@@ -1,7 +1,9 @@
 from __future__ import print_function
 
+from future.builtins import chr
+
 import os
-import urllib
+from urllib.parse import urlencode, quote as url_quote
 
 import json
 
@@ -25,7 +27,7 @@ def _get_json_for_fragment(options, fragment, method='GET', post_args=None):
     if method == 'POST':
         if post_args is None:
             raise ValueError("Must pass post_args= for POST method")
-        body = urllib.urlencode(post_args)
+        body = urlencode(post_args)
     else:
         body = ''
         if post_args is not None:
@@ -48,7 +50,7 @@ def _get_json_for_fragment(options, fragment, method='GET', post_args=None):
 def _get_json_for_cap(options, cap):
     return _get_json_for_fragment(
         options,
-        'uri/%s?t=json' % urllib.quote(cap),
+        'uri/%s?t=json' % url_quote(cap),
     )
 
 def pretty_progress(percent, size=10, ascii=False):
@@ -74,8 +76,8 @@ def pretty_progress(percent, size=10, ascii=False):
 
         # unicode 0x2581 -> 2589 are vertical bar chunks, like rainbarf uses
         # and following are narrow -> wider bars
-        part = unichr(0x258f - part) # for smooth bar
-        # part = unichr(0x2581 + part) # for neater-looking thing
+        part = chr(0x258f - part) # for smooth bar
+        # part = chr(0x2581 + part) # for neater-looking thing
 
     # hack for 100+ full so we don't print extra really-narrow/high bar
     if percent >= 100.0:
