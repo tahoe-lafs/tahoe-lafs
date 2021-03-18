@@ -76,6 +76,8 @@ PORTED_MODULES = [
     "allmydata.mutable.servermap",
     "allmydata.node",
     "allmydata.nodemaker",
+    "allmydata.scripts.create_node",
+    "allmydata.scripts.types_",
     "allmydata.stats",
     "allmydata.storage_client",
     "allmydata.storage.common",
@@ -89,6 +91,7 @@ PORTED_MODULES = [
     "allmydata.test.no_network",
     "allmydata.test.matchers",
     "allmydata.test.mutable.util",
+    "allmydata.testing.web",
     "allmydata.unknown",
     "allmydata.uri",
     "allmydata.util._python3",
@@ -138,6 +141,8 @@ PORTED_MODULES = [
 ]
 
 PORTED_TEST_MODULES = [
+    "allmydata.test.cli.test_create",
+
     "allmydata.test.mutable.test_checker",
     "allmydata.test.mutable.test_datahandle",
     "allmydata.test.mutable.test_different_encoding",
@@ -154,6 +159,7 @@ PORTED_TEST_MODULES = [
     "allmydata.test.mutable.test_update",
     "allmydata.test.mutable.test_version",
     "allmydata.test.test_abbreviate",
+    "allmydata.test.test_auth",
     "allmydata.test.test_base32",
     "allmydata.test.test_base62",
     "allmydata.test.test_checker",
@@ -182,6 +188,7 @@ PORTED_TEST_MODULES = [
     "allmydata.test.test_hashutil",
     "allmydata.test.test_helper",
     "allmydata.test.test_humanreadable",
+    "allmydata.test.test_hung_server",
     "allmydata.test.test_immutable",
     "allmydata.test.test_introducer",
     "allmydata.test.test_iputil",
@@ -195,6 +202,7 @@ PORTED_TEST_MODULES = [
     "allmydata.test.test_pipeline",
     "allmydata.test.test_python3",
     "allmydata.test.test_repairer",
+    "allmydata.test.test_runner",
     "allmydata.test.test_sftp",
     "allmydata.test.test_spans",
     "allmydata.test.test_statistics",
@@ -208,6 +216,7 @@ PORTED_TEST_MODULES = [
     # should be done once CLI is ported.
     "allmydata.test.test_system",
 
+    "allmydata.test.test_testing",
     "allmydata.test.test_time_format",
     "allmydata.test.test_upload",
     "allmydata.test.test_uri",

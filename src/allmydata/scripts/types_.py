@@ -1,3 +1,9 @@
+"""
+Type definitions used by modules in this package.
+"""
+
+# Python 3 only
+
 from typing import List, Tuple, Type, Sequence, Any
 from twisted.python.usage import Options
 

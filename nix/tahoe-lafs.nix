@@ -1,5 +1,5 @@
 { fetchFromGitHub, lib
-, python
+, git, python
 , twisted, foolscap, zfec
 , setuptools, setuptoolsTrial, pyasn1, zope_interface
 , service-identity, pyyaml, magic-wormhole, treq, appdirs
@@ -9,7 +9,35 @@
 python.pkgs.buildPythonPackage rec {
   version = "1.14.0.dev";
   name = "tahoe-lafs-${version}";
-  src = lib.cleanSource ../.;
+  src = lib.cleanSourceWith {
+    src = ../.;
+    filter = name: type:
+      let
+        basename = baseNameOf name;
+
+        split = lib.splitString ".";
+        join = builtins.concatStringsSep ".";
+        ext = join (builtins.tail (split basename));
+
+        # Build up a bunch of knowledge about what kind of file this is.
+        isTox = type == "directory" && basename == ".tox";
+        isTrialTemp = type == "directory" && basename == "_trial_temp";
+        isVersion = basename == "version.py";
+        isBytecode = ext == "pyc" || ext == "pyo";
+        isBackup = lib.hasSuffix "~" basename;
+        isTemporary = lib.hasPrefix "#" basename && lib.hasSuffix "#" basename;
+        isSymlink = type == "symlink";
+      in
+      # Exclude all these things
+      ! (isTrialTemp
+      || isTox
+      || isVersion
+      || isBytecode
+      || isBackup
+      || isTemporary
+      || isSymlink
+      );
+  };
 
   postPatch = ''
     # Chroots don't have /etc/hosts and /etc/resolv.conf, so work around
@@ -24,19 +52,20 @@ python.pkgs.buildPythonPackage rec {
     # tests with in a module.
 
     # Many of these tests don't properly skip when i2p or tor dependencies are
-    # not supplied (and we are not supplying them). test_client.py fails because
-    # version is "unknown" on Nix.
-    # see https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3629 for the latter.
+    # not supplied (and we are not supplying them).
     rm src/allmydata/test/test_i2p_provider.py
     rm src/allmydata/test/test_connections.py
     rm src/allmydata/test/cli/test_create.py
-    rm src/allmydata/test/test_client.py
 
     # Since we're deleting files, this complains they're missing. For now Nix
     # is Python 2-only, anyway, so these tests don't add anything yet.
     rm src/allmydata/test/test_python3.py
   '';
 
+
+  nativeBuildInputs = [
+    git
+  ];
 
   propagatedBuildInputs = with python.pkgs; [
     twisted foolscap zfec appdirs

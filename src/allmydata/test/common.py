@@ -323,7 +323,7 @@ class AdoptedServerPort(object):
     """
     prefix = "adopt-socket"
 
-    def parseStreamServer(self, reactor, fd):
+    def parseStreamServer(self, reactor, fd): # type: ignore # https://twistedmatrix.com/trac/ticket/10134
         log.msg("Adopting {}".format(fd))
         # AdoptedStreamServerEndpoint wants to own the file descriptor.  It
         # will duplicate it and then close the one we pass in.  This means it
@@ -423,6 +423,9 @@ class SameProcessStreamEndpointAssigner(object):
 @implementer(IPullProducer)
 class DummyProducer(object):
     def resumeProducing(self):
+        pass
+
+    def stopProducing(self):
         pass
 
 @implementer(IImmutableFileNode)
