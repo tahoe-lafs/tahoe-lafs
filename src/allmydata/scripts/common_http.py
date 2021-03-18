@@ -1,7 +1,7 @@
 from __future__ import print_function
 
 import os
-from six.moves import cStringIO as StringIO
+from io import BytesIO
 from six.moves import urllib, http_client
 import six
 import allmydata # for __full_version__
@@ -38,9 +38,9 @@ class BadResponse(object):
         return ""
 
 
-def do_http(method, url, body=""):
-    if isinstance(body, str):
-        body = StringIO(body)
+def do_http(method, url, body=b""):
+    if isinstance(body, bytes):
+        body = BytesIO(body)
     elif isinstance(body, six.text_type):
         raise TypeError("do_http body must be a bytestring, not unicode")
     else:

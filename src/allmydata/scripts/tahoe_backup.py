@@ -1,14 +1,15 @@
 from __future__ import print_function
 
+from past.builtins import unicode
+
 import os.path
 import time
 from urllib.parse import quote as url_quote
-import json
 import datetime
 from allmydata.scripts.common import get_alias, escape_path, DEFAULT_ALIAS, \
                                      UnknownAliasError
 from allmydata.scripts.common_http import do_http, HTTPError, format_http_error
-from allmydata.util import time_format
+from allmydata.util import time_format, jsonbytes as json
 from allmydata.scripts import backupdb
 from allmydata.util.encodingutil import listdir_unicode, quote_output, \
      quote_local_unicode_path, to_bytes, FilenameEncodingError, unicode_to_url
@@ -99,7 +100,7 @@ class BackerUpper(object):
             return 1
         to_url = nodeurl + "uri/%s/" % url_quote(rootcap)
         if path:
-            to_url += escape_path(path)
+            to_url += escape_path(unicode(path, "utf-8"))
         if not to_url.endswith("/"):
             to_url += "/"
 
@@ -165,7 +166,7 @@ class BackerUpper(object):
         if must_create:
             self.verboseprint(" creating directory for %s" % quote_local_unicode_path(path))
             newdircap = mkdir(create_contents, self.options)
-            assert isinstance(newdircap, str)
+            assert isinstance(newdircap, bytes)
             if r:
                 r.did_create(newdircap)
             return True, newdircap
@@ -345,7 +346,7 @@ class FileTarget(object):
             target = PermissionDeniedTarget(self._path, isdir=False)
             return target.backup(progress, upload_file, upload_directory)
         else:
-            assert isinstance(childcap, str)
+            assert isinstance(childcap, bytes)
             if created:
                 return progress.created_file(self._path, childcap, metadata)
             return progress.reused_file(self._path, childcap, metadata)
@@ -363,6 +364,7 @@ class DirectoryTarget(object):
         progress, create, compare = progress.consume_directory(self._path)
         did_create, dircap = upload_directory(self._path, compare, create)
         if did_create:
+            assert isinstance(dircap, bytes)
             return progress.created_directory(self._path, dircap, metadata)
         return progress.reused_directory(self._path, dircap, metadata)
 
@@ -525,12 +527,12 @@ class BackupProgress(object):
         return self, {
             os.path.basename(create_path): create_value
             for (create_path, create_value)
-            in self._create_contents.iteritems()
+            in self._create_contents.items()
             if os.path.dirname(create_path) == dirpath
         }, {
             os.path.basename(compare_path): compare_value
             for (compare_path, compare_value)
-            in self._compare_contents.iteritems()
+            in self._compare_contents.items()
             if os.path.dirname(compare_path) == dirpath
         }
 

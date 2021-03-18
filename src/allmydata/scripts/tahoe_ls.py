@@ -1,6 +1,8 @@
 from __future__ import print_function
+from past.builtins import unicode
 
-import urllib, time
+import time
+from urllib.parse import quote as url_quote
 import json
 from allmydata.scripts.common import get_alias, DEFAULT_ALIAS, escape_path, \
                                      UnknownAliasError
@@ -23,10 +25,10 @@ def list(options):
     except UnknownAliasError as e:
         e.display(stderr)
         return 1
-    url = nodeurl + "uri/%s" % urllib.quote(rootcap)
+    url = nodeurl + "uri/%s" % url_quote(rootcap)
     if path:
         # move where.endswith check here?
-        url += "/" + escape_path(path)
+        url += "/" + escape_path(unicode(path, "utf-8"))
     assert not url.endswith("/")
     url += "?t=json"
     resp = do_http("GET", url)
@@ -164,7 +166,7 @@ def list(options):
             while len(left_justifys) <= i:
                 left_justifys.append(False)
             max_widths[i] = max(max_widths[i], len(cell))
-            if cell.startswith("URI"):
+            if cell.startswith(b"URI"):
                 left_justifys[i] = True
     if len(left_justifys) == 1:
         left_justifys[0] = True
