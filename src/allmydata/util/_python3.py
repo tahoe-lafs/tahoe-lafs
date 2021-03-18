@@ -219,6 +219,7 @@ PORTED_TEST_MODULES = [
 
     "allmydata.test.test_testing",
     "allmydata.test.test_time_format",
+    "allmydata.test.test_tor_provider",
     "allmydata.test.test_upload",
     "allmydata.test.test_uri",
     "allmydata.test.test_util",
