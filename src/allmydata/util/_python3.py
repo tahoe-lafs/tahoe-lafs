@@ -189,6 +189,7 @@ PORTED_TEST_MODULES = [
     "allmydata.test.test_helper",
     "allmydata.test.test_humanreadable",
     "allmydata.test.test_hung_server",
+    "allmydata.test.test_i2p_provider",
     "allmydata.test.test_immutable",
     "allmydata.test.test_introducer",
     "allmydata.test.test_iputil",
