@@ -1,8 +1,7 @@
 import os
 import mock
-import json
 import tempfile
-from six.moves import StringIO
+from io import BytesIO, StringIO
 from os.path import join
 
 from twisted.trial import unittest
@@ -21,6 +20,7 @@ from allmydata.immutable.downloader.status import DownloadStatus
 from allmydata.mutable.publish import PublishStatus
 from allmydata.mutable.retrieve import RetrieveStatus
 from allmydata.mutable.servermap import UpdateStatus
+from allmydata.util import jsonbytes as json
 
 from ..no_network import GridTestMixin
 from ..common_web import do_http
@@ -84,7 +84,7 @@ class Integration(GridTestMixin, CLITestMixin, unittest.TestCase):
 
         # upload something
         c0 = self.g.clients[0]
-        data = MutableData("data" * 100)
+        data = MutableData(b"data" * 100)
         filenode = yield c0.create_mutable_file(data)
         self.uri = filenode.get_uri()
 
@@ -143,14 +143,14 @@ class CommandStatus(unittest.TestCase):
     def test_simple(self, http):
         recent_items = active_items = [
             UploadStatus(),
-            DownloadStatus("abcd", 12345),
+            DownloadStatus(b"abcd", 12345),
             PublishStatus(),
             RetrieveStatus(),
             UpdateStatus(),
             FakeStatus(),
         ]
         values = [
-            StringIO(json.dumps({
+            BytesIO(json.dumps({
                 "active": list(
                     marshal_json(item)
                     for item
@@ -161,15 +161,15 @@ class CommandStatus(unittest.TestCase):
                     for item
                     in recent_items
                 ),
-            })),
-            StringIO(json.dumps({
+            }).encode("utf-8")),
+            BytesIO(json.dumps({
                 "counters": {
                     "bytes_downloaded": 0,
                 },
                 "stats": {
                     "node.uptime": 0,
                 }
-            })),
+            }).encode("utf-8")),
         ]
         http.side_effect = lambda *args, **kw: values.pop(0)
         do_status(self.options)
