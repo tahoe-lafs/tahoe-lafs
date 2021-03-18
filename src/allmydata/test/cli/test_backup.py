@@ -2,11 +2,11 @@ import os.path
 from six.moves import cStringIO as StringIO
 from datetime import timedelta
 import re
-import builtins
 
 from twisted.trial import unittest
 from twisted.python.monkey import MonkeyPatcher
 
+import __builtin__
 from allmydata.util import fileutil
 from allmydata.util.fileutil import abspath_expanduser_unicode
 from allmydata.util.encodingutil import get_io_encoding, unicode_to_argv
@@ -412,7 +412,7 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
             self.failUnlessEqual(name, abspath_expanduser_unicode(exclude_file))
             return StringIO()
 
-        patcher = MonkeyPatcher((builtins, 'open', call_file))
+        patcher = MonkeyPatcher((__builtin__, 'file', call_file))
         patcher.runWithPatches(parse_options, basedir, "backup", ['--exclude-from', unicode_to_argv(exclude_file), 'from', 'to'])
         self.failUnless(ns.called)
 

@@ -2,7 +2,7 @@ from __future__ import print_function
 
 import os.path
 import time
-from urllib.parse import quote as url_quote
+import urllib
 import json
 import datetime
 from allmydata.scripts.common import get_alias, escape_path, DEFAULT_ALIAS, \
@@ -52,7 +52,7 @@ def mkdir(contents, options):
 
 def put_child(dirurl, childname, childcap):
     assert dirurl[-1] != "/"
-    url = dirurl + "/" + url_quote(unicode_to_url(childname)) + "?t=uri"
+    url = dirurl + "/" + urllib.quote(unicode_to_url(childname)) + "?t=uri"
     resp = do_http("PUT", url, childcap)
     if resp.status not in (200, 201):
         raise HTTPError("Error during put_child", resp)
@@ -97,7 +97,7 @@ class BackerUpper(object):
         except UnknownAliasError as e:
             e.display(stderr)
             return 1
-        to_url = nodeurl + "uri/%s/" % url_quote(rootcap)
+        to_url = nodeurl + "uri/%s/" % urllib.quote(rootcap)
         if path:
             to_url += escape_path(path)
         if not to_url.endswith("/"):
@@ -192,7 +192,7 @@ class BackerUpper(object):
         filecap = r.was_uploaded()
         self.verboseprint("checking %s" % quote_output(filecap))
         nodeurl = self.options['node-url']
-        checkurl = nodeurl + "uri/%s?t=check&output=JSON" % url_quote(filecap)
+        checkurl = nodeurl + "uri/%s?t=check&output=JSON" % urllib.quote(filecap)
         self._files_checked += 1
         resp = do_http("POST", checkurl)
         if resp.status != 200:
@@ -225,7 +225,7 @@ class BackerUpper(object):
         dircap = r.was_created()
         self.verboseprint("checking %s" % quote_output(dircap))
         nodeurl = self.options['node-url']
-        checkurl = nodeurl + "uri/%s?t=check&output=JSON" % url_quote(dircap)
+        checkurl = nodeurl + "uri/%s?t=check&output=JSON" % urllib.quote(dircap)
         self._directories_checked += 1
         resp = do_http("POST", checkurl)
         if resp.status != 200:
