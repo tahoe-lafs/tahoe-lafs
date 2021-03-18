@@ -32,7 +32,7 @@ def _get_json_for_fragment(options, fragment, method='GET', post_args=None):
         body = ''
         if post_args is not None:
             raise ValueError("post_args= only valid for POST method")
-    resp = do_http(method, url, body=body)
+    resp = do_http(method, url, body=body.encode("utf-8"))
     if isinstance(resp, BadResponse):
         # specifically NOT using format_http_error() here because the
         # URL is pretty sensitive (we're doing /uri/<key>).

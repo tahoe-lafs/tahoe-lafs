@@ -95,8 +95,8 @@ class Integration(GridTestMixin, CLITestMixin, unittest.TestCase):
         d = self.do_cli('status')# '--verbose')
 
         def _check(ign):
-            code, stdout, stdin = ign
-            self.assertEqual(code, 0)
+            code, stdout, stderr = ign
+            self.assertEqual(code, 0, stderr)
             self.assertTrue('Skipped 1' in stdout)
         d.addCallback(_check)
         return d
