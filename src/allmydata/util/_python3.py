@@ -167,6 +167,7 @@ PORTED_TEST_MODULES = [
     "allmydata.test.test_codec",
     "allmydata.test.test_common_util",
     "allmydata.test.test_configutil",
+    "allmydata.test.test_connections",
     "allmydata.test.test_connection_status",
     "allmydata.test.test_crawler",
     "allmydata.test.test_crypto",
