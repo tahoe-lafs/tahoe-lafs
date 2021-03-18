@@ -171,7 +171,7 @@ def list_aliases(options):
     if options['json']:
         dumped = json.dumps(data, indent=4)
         if isinstance(dumped, bytes):
-            loaded = dumped.decode("utf-8")
+            dumped = dumped.decode("utf-8")
         output = _escape_format(dumped)
     else:
         def dircap(details):
