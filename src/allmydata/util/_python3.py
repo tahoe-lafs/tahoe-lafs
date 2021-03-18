@@ -123,6 +123,7 @@ PORTED_MODULES = [
     "allmydata.util.spans",
     "allmydata.util.statistics",
     "allmydata.util.time_format",
+    "allmydata.util.tor_provider",
     "allmydata.web.check_results",
     "allmydata.web.common",
     "allmydata.web.directory",
