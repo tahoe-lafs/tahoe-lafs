@@ -38,7 +38,7 @@ class BadResponse(object):
         return ""
 
 
-def do_http(method, url, body=""):
+def do_http(method, url, body=b""):
     if isinstance(body, bytes):
         body = BytesIO(body)
     elif isinstance(body, six.text_type):
