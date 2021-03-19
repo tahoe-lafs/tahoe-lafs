@@ -286,8 +286,13 @@ We considered making this ``POST /v1/immutable`` instead.
 The motivation was to keep *storage index* out of the request URL.
 Request URLs have an elevated chance of being logged by something.
 We were concerned that having the *storage index* logged may increase some risks.
-However, we decided this does not matter because the *storage index* can only be used to read the share (which is ciphertext).
-TODO Verify this conclusion.
+However, we decided this does not matter because:
+
+* the *storage index* can only be used to retrieve (not decrypt) the ciphertext-bearing share.
+* the *storage index* is already persistently present on the storage node in the form of directory names in the storage servers ``shares`` directory.
+* the request is made via HTTPS and so only Tahoe can see the contents,
+  therefore no proxy servers can perform any extra logging.
+* Tahoe itself does not currently log HTTP request URLs.
 
 ``PUT /v1/immutable/:storage_index/:share_number``
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
