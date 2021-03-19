@@ -89,6 +89,9 @@ workflows:
       - "typechecks":
           <<: *DOCKERHUB_CONTEXT
 
+      - "docs":
+          <<: *DOCKERHUB_CONTEXT
+
   images:
     # Build the Docker images used by the ci jobs.  This makes the ci jobs
     # faster and takes various spurious failures out of the critical path.
