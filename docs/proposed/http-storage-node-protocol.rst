@@ -257,6 +257,62 @@ For example::
     "application-version": "1.13.0"
     }
 
+``PUT /v1/lease/:storage_index``
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+Create a new lease that applies to all shares for the given storage index.
+The details of the lease are encoded in the request body.
+For example::
+
+  {"renew-secret": "abcd", "cancel-secret": "efgh"}
+
+If there are no shares for the given ``storage_index``
+then do nothing and return ``NO CONTENT``.
+
+If the ``renew-secret`` value matches an existing lease
+then that lease will be renewed instead.
+
+The lease expires after 31 days.
+
+Discussion
+``````````
+
+Several behaviors here are blindly copied from the Foolscap-based storage server protocol.
+
+* There is a cancel secret but there is no API to use it to cancel a lease.
+* The lease period is hard-coded at 31 days.
+* There is no way to differentiate between success and an unknown **storage index**.
+* There are separate **add** and **renew** lease APIs.
+
+These are not necessarily ideal behaviors
+but they are adopted to avoid any *semantic* changes between the Foolscap- and HTTP-based protocols.
+It is expected that some or all of these behaviors may change in a future revision of the HTTP-based protocol.
+
+``POST /v1/lease/:storage_index``
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+Renew an existing lease for all shares for the given storage index.
+The details of the lease are encoded in the request body.
+For example::
+
+  {"renew-secret": "abcd"}
+
+If there are no shares for the given ``storage_index``
+then ``NOT FOUND`` is returned.
+
+If there is no lease with a matching ``renew-secret`` value on the given storage index
+then ``NOT FOUND`` is returned.
+In this case,
+if the storage index refers to mutable data
+then the response also includes a list of nodeids where the lease can be renewed.
+For example::
+
+  {"nodeids": ["aaa...", "bbb..."]}
+
+Othewise,
+the matching lease's expiration time is changed to be 31 days from the time of this operation
+and ``NO CONTENT`` is returned.
+
 Immutable
 ---------
 
@@ -268,6 +324,7 @@ Writing
 
 Initialize an immutable storage index with some buckets.
 The buckets may have share data written to them once.
+A lease is also created for the shares.
 Details of the buckets to create are encoded in the request body.
 For example::
 
