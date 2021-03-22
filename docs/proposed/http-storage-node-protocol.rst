@@ -499,13 +499,6 @@ Just like the immutable version.
    Note we use `base64url`_ rather than the Foolscap- and Tahoe-LAFS-preferred Base32.
 
 .. [#]
-   Other schemes for differentiating between the two server types is possible.
-   If the tubID length remains different,
-   that provides an unambiguous (if obscure) signal about which protocol to use.
-   Or a different scheme could be adopted
-   (``[x-]pb+http``, ``x-tahoe+http``, ``x-gbs`` come to mind).
-
-.. [#]
    https://www.cvedetails.com/cve/CVE-2017-5638/
 .. [#]
    https://pivotal.io/security/cve-2018-1272
