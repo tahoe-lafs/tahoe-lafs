@@ -16,6 +16,8 @@ class _FakeWormhole(object):
 
     def __init__(self, outgoing_messages):
         self.messages = []
+        for o in outgoing_messages:
+            assert isinstance(o, bytes)
         self._outgoing = outgoing_messages
 
     def get_code(self):
@@ -26,15 +28,16 @@ class _FakeWormhole(object):
 
     def get_welcome(self):
         return defer.succeed(
-            json.dumps({
+            {
                 u"welcome": {},
-            })
+            }
         )
 
     def allocate_code(self):
         return None
 
     def send_message(self, msg):
+        assert isinstance(msg, bytes)
         self.messages.append(msg)
 
     def get_message(self):
