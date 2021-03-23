@@ -14,7 +14,11 @@ import os
 import json
 
 try:
-    from allmydata.scripts.types_ import SubCommands
+    from allmydata.scripts.types_ import (
+        SubCommands,
+        Parameters,
+        Flags,
+    )
 except ImportError:
     pass
 
@@ -57,29 +61,29 @@ WHERE_OPTS = [
      "Hostname to automatically set --location/--port when --listen=tcp"),
     ("listen", None, "tcp",
      "Comma-separated list of listener types (tcp,tor,i2p,none)."),
-]
+] # type: Parameters
 
 TOR_OPTS = [
     ("tor-control-port", None, None,
      "Tor's control port endpoint descriptor string (e.g. tcp:127.0.0.1:9051 or unix:/var/run/tor/control)"),
     ("tor-executable", None, None,
      "The 'tor' executable to run (default is to search $PATH)."),
-]
+] # type: Parameters
 
 TOR_FLAGS = [
     ("tor-launch", None, "Launch a tor instead of connecting to a tor control port."),
-]
+] # type: Flags
 
 I2P_OPTS = [
     ("i2p-sam-port", None, None,
      "I2P's SAM API port endpoint descriptor string (e.g. tcp:127.0.0.1:7656)"),
     ("i2p-executable", None, None,
      "(future) The 'i2prouter' executable to run (default is to search $PATH)."),
-]
+] # type: Parameters
 
 I2P_FLAGS = [
     ("i2p-launch", None, "(future) Launch an I2P router instead of connecting to a SAM API port."),
-]
+] # type: Flags
 
 def validate_where_options(o):
     if o['listen'] == "none":
@@ -185,7 +189,7 @@ class CreateClientOptions(_CreateBaseOptions):
         ("shares-happy", None, 7, "How many servers new files must be placed on."),
         ("shares-total", None, 10, "Total shares required for uploaded files."),
         ("join", None, None, "Join a grid with the given Invite Code."),
-        ]
+        ] # type: Parameters
 
     # This is overridden in order to ensure we get a "Wrong number of
     # arguments." error when more than one argument is given.

@@ -13,7 +13,7 @@ class FakeTransport(object):
     disconnecting = False
 
 class ManifestStreamer(LineOnlyReceiver, object):
-    delimiter = "\n"
+    delimiter = b"\n"
 
     def __init__(self):
         self.transport = FakeTransport()
