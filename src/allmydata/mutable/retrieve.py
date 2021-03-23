@@ -122,7 +122,7 @@ class Retrieve(object):
         _assert(self._node.get_readkey())
         self._last_failure = None
         prefix = si_b2a(self._storage_index)[:5]
-        self._log_number = log.msg("Retrieve(%s): starting" % prefix)
+        self._log_number = log.msg("Retrieve(%r): starting" % prefix)
         self._running = True
         self._decoding = False
         self._bad_shares = set()
@@ -574,7 +574,7 @@ class Retrieve(object):
         remote server (with no guarantee of success) that its share is
         corrupt.
         """
-        self.log("marking share %d on server %s as bad" % \
+        self.log("marking share %d on server %r as bad" % \
                  (shnum, server.get_name()))
         prefix = self.verinfo[-2]
         self.servermap.mark_bad_share(server, shnum, prefix)

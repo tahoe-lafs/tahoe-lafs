@@ -6,10 +6,20 @@
 # This file is part of Tahoe-LAFS.
 #
 # See the docs/about.rst file for licensing information.
+"""Test-helpers for clients that use the WebUI.
+
+Ported to Python 3.
 
 """
-Test-helpers for clients that use the WebUI.
-"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+
 
 import hashlib
 
@@ -84,16 +94,19 @@ def capability_generator(kind):
     given kind. The N, K and size values aren't related to anything
     real.
 
-    :param str kind: the kind of capability, like `URI:CHK`
+    :param bytes kind: the kind of capability, like `URI:CHK`
 
     :returns: a generator that yields new capablities of a particular
         kind.
     """
+    if not isinstance(kind, bytes):
+        raise TypeError("'kind' must be bytes")
+
     if kind not in KNOWN_CAPABILITIES:
         raise ValueError(
-            "Unknown capability kind '{} (valid are {})'".format(
-                kind,
-                ", ".join(KNOWN_CAPABILITIES),
+            "Unknown capability kind '{}' (valid are {})".format(
+                kind.decode('ascii'),
+                ", ".join([x.decode('ascii') for x in KNOWN_CAPABILITIES]),
             )
         )
     # what we do here is to start with empty hashers for the key and
@@ -108,16 +121,16 @@ def capability_generator(kind):
     # capabilities are "prefix:<128-bits-base32>:<256-bits-base32>:N:K:size"
     while True:
         number += 1
-        key_hasher.update("\x00")
-        ueb_hasher.update("\x00")
+        key_hasher.update(b"\x00")
+        ueb_hasher.update(b"\x00")
 
         key = base32.b2a(key_hasher.digest()[:16])  # key is 16 bytes
         ueb_hash = base32.b2a(ueb_hasher.digest())  # ueb hash is 32 bytes
 
         cap = u"{kind}{key}:{ueb_hash}:{n}:{k}:{size}".format(
-            kind=kind,
-            key=key,
-            ueb_hash=ueb_hash,
+            kind=kind.decode('ascii'),
+            key=key.decode('ascii'),
+            ueb_hash=ueb_hash.decode('ascii'),
             n=1,
             k=1,
             size=number * 1000,
@@ -154,6 +167,8 @@ class _FakeTahoeUriHandler(Resource, object):
 
         :returns: a two-tuple: a bool (True if the data is freshly added) and a capability-string
         """
+        if not isinstance(kind, bytes):
+            raise TypeError("'kind' must be bytes")
         if not isinstance(data, bytes):
             raise TypeError("'data' must be bytes")
 
@@ -171,7 +186,7 @@ class _FakeTahoeUriHandler(Resource, object):
 
     def render_PUT(self, request):
         data = request.content.read()
-        fresh, cap = self.add_data("URI:CHK:", data)
+        fresh, cap = self.add_data(b"URI:CHK:", data)
         if fresh:
             request.setResponseCode(http.CREATED)  # real code does this for brand-new files
         else:
@@ -183,7 +198,7 @@ class _FakeTahoeUriHandler(Resource, object):
         data = request.content.read()
 
         type_to_kind = {
-            "mkdir-immutable": "URI:DIR2-CHK:"
+            "mkdir-immutable": b"URI:DIR2-CHK:"
         }
         kind = type_to_kind[t]
         fresh, cap = self.add_data(kind, data)
@@ -206,9 +221,10 @@ class _FakeTahoeUriHandler(Resource, object):
 
         # the user gave us a capability; if our Grid doesn't have any
         # data for it, that's an error.
+        capability = capability.encode('ascii')
         if capability not in self.data:
             request.setResponseCode(http.BAD_REQUEST)
-            return u"No data for '{}'".format(capability).decode("ascii")
+            return u"No data for '{}'".format(capability.decode('ascii'))
 
         return self.data[capability]
 

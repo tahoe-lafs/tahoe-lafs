@@ -278,7 +278,7 @@ class ServerTracker(object):
         self.cancel_secret = bucket_cancel_secret
 
     def __repr__(self):
-        return ("<ServerTracker for server %s and SI %s>"
+        return ("<ServerTracker for server %r and SI %r>"
                 % (self._server.get_name(), si_b2a(self.storage_index)[:5]))
 
     def get_server(self):
@@ -338,7 +338,7 @@ class ServerTracker(object):
 
 
 def str_shareloc(shnum, bucketwriter):
-    return "%s: %s" % (shnum, bucketwriter.get_servername(),)
+    return "%s: %s" % (shnum, ensure_str(bucketwriter.get_servername()),)
 
 
 @implementer(IPeerSelector)
@@ -437,7 +437,7 @@ class Tahoe2ServerSelector(log.PrefixingLogMixin):
         self._reactor = reactor
 
     def __repr__(self):
-        return "<Tahoe2ServerSelector for upload %s>" % self.upload_id
+        return "<Tahoe2ServerSelector for upload %r>" % self.upload_id
 
     def _create_trackers(self, candidate_servers, allocated_size,
                          file_renewal_secret, file_cancel_secret, create_server_tracker):
@@ -590,7 +590,7 @@ class Tahoe2ServerSelector(log.PrefixingLogMixin):
             d = timeout_call(self._reactor, tracker.ask_about_existing_shares(), 15)
             d.addBoth(self._handle_existing_response, tracker)
             ds.append(d)
-            self.log("asking server %s for any existing shares" %
+            self.log("asking server %r for any existing shares" %
                      (tracker.get_name(),), level=log.NOISY)
 
         for tracker in write_trackers:
@@ -605,7 +605,7 @@ class Tahoe2ServerSelector(log.PrefixingLogMixin):
             d.addErrback(timed_out, tracker)
             d.addBoth(self._handle_existing_write_response, tracker, set())
             ds.append(d)
-            self.log("asking server %s for any existing shares" %
+            self.log("asking server %r for any existing shares" %
                      (tracker.get_name(),), level=log.NOISY)
 
         trackers = set(write_trackers) | set(readonly_trackers)
@@ -749,7 +749,7 @@ class Tahoe2ServerSelector(log.PrefixingLogMixin):
             buckets = res
             if buckets:
                 self.serverids_with_shares.add(serverid)
-            self.log("response to get_buckets() from server %s: alreadygot=%s"
+            self.log("response to get_buckets() from server %r: alreadygot=%s"
                     % (tracker.get_name(), tuple(sorted(buckets))),
                     level=log.NOISY)
             for bucket in buckets:
@@ -818,7 +818,7 @@ class Tahoe2ServerSelector(log.PrefixingLogMixin):
                     self.homeless_shares.remove(shnum)
 
         if self._status:
-            self._status.set_status("Contacting Servers [%s] (first query),"
+            self._status.set_status("Contacting Servers [%r] (first query),"
                                     " %d shares left.."
                                     % (tracker.get_name(),
                                        len(self.homeless_shares)))
@@ -845,7 +845,7 @@ class Tahoe2ServerSelector(log.PrefixingLogMixin):
 
         else:
             (alreadygot, allocated) = res
-            self.log("response to allocate_buckets() from server %s: alreadygot=%s, allocated=%s"
+            self.log("response to allocate_buckets() from server %r: alreadygot=%s, allocated=%s"
                     % (tracker.get_name(),
                        tuple(sorted(alreadygot)), tuple(sorted(allocated))),
                     level=log.NOISY)
@@ -1314,7 +1314,7 @@ class CHKUploader(object):
         storage_index = encoder.get_param("storage_index")
         self._storage_index = storage_index
         upload_id = si_b2a(storage_index)[:5]
-        self.log("using storage index %s" % upload_id)
+        self.log("using storage index %r" % upload_id)
         server_selector = Tahoe2ServerSelector(
             upload_id,
             self._log_number,

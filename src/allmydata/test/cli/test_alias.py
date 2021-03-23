@@ -1,3 +1,15 @@
+"""
+Ported to Python 3.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+
 import json
 
 from twisted.trial import unittest
@@ -59,7 +71,7 @@ class ListAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
         # the node filesystem state.
         aliases = get_aliases(self.get_clientdir())
         self.assertIn(alias, aliases)
-        self.assertTrue(aliases[alias].startswith(u"URI:DIR2:"))
+        self.assertTrue(aliases[alias].startswith(b"URI:DIR2:"))
 
         # And inspect the state via the user interface list-aliases command
         # too.
@@ -96,22 +108,6 @@ class ListAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
         return self._check_create_alias(
             u"tahoe",
             encoding="ascii",
-        )
-
-
-    def test_list_latin_1(self):
-        """
-        An alias composed of all Latin-1-encodeable code points can be created
-        when the active encoding is Latin-1.
-
-        This is very similar to ``test_list_utf_8`` but the assumption of
-        UTF-8 is nearly ubiquitous and explicitly exercising the codepaths
-        with a UTF-8-incompatible encoding helps flush out unintentional UTF-8
-        assumptions.
-        """
-        return self._check_create_alias(
-            u"taho\N{LATIN SMALL LETTER E WITH ACUTE}",
-            encoding="latin-1",
         )
 
 

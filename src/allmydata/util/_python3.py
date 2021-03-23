@@ -28,7 +28,10 @@ PORTED_MODULES = [
     "allmydata._auto_deps",
     "allmydata._monkeypatch",
     "allmydata.blacklist",
+    "allmydata.check_results",
+    "allmydata.client",
     "allmydata.codec",
+    "allmydata.control",
     "allmydata.crypto",
     "allmydata.crypto.aes",
     "allmydata.crypto.ed25519",
@@ -39,6 +42,7 @@ PORTED_MODULES = [
     "allmydata.dirnode",
     "allmydata.frontends.sftpd",
     "allmydata.hashtree",
+    "allmydata.history",
     "allmydata.immutable.checker",
     "allmydata.immutable.downloader",
     "allmydata.immutable.downloader.common",
@@ -72,6 +76,8 @@ PORTED_MODULES = [
     "allmydata.mutable.servermap",
     "allmydata.node",
     "allmydata.nodemaker",
+    "allmydata.scripts.create_node",
+    "allmydata.scripts.types_",
     "allmydata.stats",
     "allmydata.storage_client",
     "allmydata.storage.common",
@@ -83,7 +89,9 @@ PORTED_MODULES = [
     "allmydata.storage.server",
     "allmydata.storage.shares",
     "allmydata.test.no_network",
+    "allmydata.test.matchers",
     "allmydata.test.mutable.util",
+    "allmydata.testing.web",
     "allmydata.unknown",
     "allmydata.uri",
     "allmydata.util._python3",
@@ -102,6 +110,7 @@ PORTED_MODULES = [
     "allmydata.util.happinessutil",
     "allmydata.util.hashutil",
     "allmydata.util.humanreadable",
+    "allmydata.util.i2p_provider",
     "allmydata.util.idlib",
     "allmydata.util.iputil",
     "allmydata.util.jsonbytes",
@@ -115,11 +124,30 @@ PORTED_MODULES = [
     "allmydata.util.spans",
     "allmydata.util.statistics",
     "allmydata.util.time_format",
+    "allmydata.util.tor_provider",
+    "allmydata.web.check_results",
+    "allmydata.web.common",
+    "allmydata.web.directory",
+    "allmydata.web.filenode",
+    "allmydata.web.info",
+    "allmydata.web.introweb",
     "allmydata.web.logs",
+    "allmydata.web.operations",
+    "allmydata.web.private",
+    "allmydata.web.root",
+    "allmydata.web.status",
+    "allmydata.web.storage",
+    "allmydata.web.storage_plugins",
+    "allmydata.web.unlinked",
     "allmydata.webish",
 ]
 
 PORTED_TEST_MODULES = [
+    "allmydata.test.cli.test_alias",
+    "allmydata.test.cli.test_backupdb",
+    "allmydata.test.cli.test_create",
+    "allmydata.test.cli.test_status",
+
     "allmydata.test.mutable.test_checker",
     "allmydata.test.mutable.test_datahandle",
     "allmydata.test.mutable.test_different_encoding",
@@ -136,15 +164,23 @@ PORTED_TEST_MODULES = [
     "allmydata.test.mutable.test_update",
     "allmydata.test.mutable.test_version",
     "allmydata.test.test_abbreviate",
+    "allmydata.test.test_auth",
     "allmydata.test.test_base32",
     "allmydata.test.test_base62",
     "allmydata.test.test_checker",
+    "allmydata.test.test_client",
     "allmydata.test.test_codec",
     "allmydata.test.test_common_util",
     "allmydata.test.test_configutil",
+    "allmydata.test.test_connections",
     "allmydata.test.test_connection_status",
     "allmydata.test.test_crawler",
     "allmydata.test.test_crypto",
+
+    # Only partially ported, CLI-using test code is disabled for now until CLI
+    # is ported.
+    "allmydata.test.test_deepcheck",
+
     "allmydata.test.test_deferredutil",
     "allmydata.test.test_dictutil",
     "allmydata.test.test_dirnode",
@@ -158,6 +194,8 @@ PORTED_TEST_MODULES = [
     "allmydata.test.test_hashutil",
     "allmydata.test.test_helper",
     "allmydata.test.test_humanreadable",
+    "allmydata.test.test_hung_server",
+    "allmydata.test.test_i2p_provider",
     "allmydata.test.test_immutable",
     "allmydata.test.test_introducer",
     "allmydata.test.test_iputil",
@@ -171,6 +209,7 @@ PORTED_TEST_MODULES = [
     "allmydata.test.test_pipeline",
     "allmydata.test.test_python3",
     "allmydata.test.test_repairer",
+    "allmydata.test.test_runner",
     "allmydata.test.test_sftp",
     "allmydata.test.test_spans",
     "allmydata.test.test_statistics",
@@ -179,12 +218,14 @@ PORTED_TEST_MODULES = [
     "allmydata.test.test_storage_client",
     "allmydata.test.test_storage_web",
 
-    # Only partially ported, test_filesystem_with_cli_in_subprocess and
-    # test_filesystem methods aren't ported yet, should be done once CLI and
-    # web are ported respectively.
+    # Only partially ported, test_filesystem_with_cli_in_subprocess isn't
+    # ported yet, nor is part of test_filesystem (the call to _test_cli). This
+    # should be done once CLI is ported.
     "allmydata.test.test_system",
 
+    "allmydata.test.test_testing",
     "allmydata.test.test_time_format",
+    "allmydata.test.test_tor_provider",
     "allmydata.test.test_upload",
     "allmydata.test.test_uri",
     "allmydata.test.test_util",
@@ -196,5 +237,7 @@ PORTED_TEST_MODULES = [
     "allmydata.test.web.test_root",
     "allmydata.test.web.test_status",
     "allmydata.test.web.test_util",
+    "allmydata.test.web.test_web",
     "allmydata.test.web.test_webish",
+    "allmydata.test.test_windows",
 ]

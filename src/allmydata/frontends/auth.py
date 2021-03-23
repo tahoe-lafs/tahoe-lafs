@@ -7,6 +7,7 @@ from twisted.cred import error, checkers, credentials
 from twisted.conch.ssh import keys
 from twisted.conch.checkers import SSHPublicKeyChecker, InMemorySSHKeyDB
 
+from allmydata.util.dictutil import BytesKeyDict
 from allmydata.util import base32
 from allmydata.util.fileutil import abspath_expanduser_unicode
 
@@ -28,18 +29,18 @@ class AccountFileChecker(object):
                             credentials.ISSHPrivateKey)
     def __init__(self, client, accountfile):
         self.client = client
-        self.passwords = {}
-        pubkeys = {}
-        self.rootcaps = {}
-        with open(abspath_expanduser_unicode(accountfile), "r") as f:
+        self.passwords = BytesKeyDict()
+        pubkeys = BytesKeyDict()
+        self.rootcaps = BytesKeyDict()
+        with open(abspath_expanduser_unicode(accountfile), "rb") as f:
             for line in f:
                 line = line.strip()
-                if line.startswith("#") or not line:
+                if line.startswith(b"#") or not line:
                     continue
                 name, passwd, rest = line.split(None, 2)
-                if passwd.startswith("ssh-"):
+                if passwd.startswith(b"ssh-"):
                     bits = rest.split()
-                    keystring = " ".join([passwd] + bits[:-1])
+                    keystring = b" ".join([passwd] + bits[:-1])
                     key = keys.Key.fromString(keystring)
                     rootcap = bits[-1]
                     pubkeys[name] = [key]

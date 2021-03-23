@@ -63,7 +63,7 @@ class SegmentFetcher(object):
         self._running = True
 
     def stop(self):
-        log.msg("SegmentFetcher(%s).stop" % self._node._si_prefix,
+        log.msg("SegmentFetcher(%r).stop" % self._node._si_prefix,
                 level=log.NOISY, parent=self._lp, umid="LWyqpg")
         self._cancel_all_requests()
         self._running = False
@@ -127,7 +127,7 @@ class SegmentFetcher(object):
                 # we could have sent something if we'd been allowed to pull
                 # more shares per server. Increase the limit and try again.
                 self._max_shares_per_server += 1
-                log.msg("SegmentFetcher(%s) increasing diversity limit to %d"
+                log.msg("SegmentFetcher(%r) increasing diversity limit to %d"
                         % (self._node._si_prefix, self._max_shares_per_server),
                         level=log.NOISY, umid="xY2pBA")
                 # Also ask for more shares, in the hopes of achieving better
@@ -241,7 +241,7 @@ class SegmentFetcher(object):
         # called by Shares, in response to our s.send_request() calls.
         if not self._running:
             return
-        log.msg("SegmentFetcher(%s)._block_request_activity: %s -> %s" %
+        log.msg("SegmentFetcher(%r)._block_request_activity: %s -> %r" %
                 (self._node._si_prefix, repr(share), state),
                 level=log.NOISY, parent=self._lp, umid="vilNWA")
         # COMPLETE, CORRUPT, DEAD, BADSEGNUM are terminal. Remove the share

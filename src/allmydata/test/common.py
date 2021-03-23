@@ -9,10 +9,15 @@ __all__ = [
     "flush_logged_errors",
     "skip",
     "skipIf",
+
+    # Selected based on platform and re-exported for convenience.
+    "Popen",
+    "PIPE",
 ]
 
 from past.builtins import chr as byteschr, unicode
 
+import sys
 import os, random, struct
 import six
 import tempfile
@@ -101,6 +106,21 @@ from .eliotutil import (
 )
 from .common_util import ShouldFailMixin  # noqa: F401
 
+if sys.platform == "win32":
+    # Python 2.7 doesn't have good options for launching a process with
+    # non-ASCII in its command line.  So use this alternative that does a
+    # better job.  However, only use it on Windows because it doesn't work
+    # anywhere else.
+    from ._win_subprocess import (
+        Popen,
+    )
+else:
+    from subprocess import (
+        Popen,
+    )
+from subprocess import (
+    PIPE,
+)
 
 TEST_RSA_KEY_SIZE = 522
 
@@ -303,7 +323,7 @@ class AdoptedServerPort(object):
     """
     prefix = "adopt-socket"
 
-    def parseStreamServer(self, reactor, fd):
+    def parseStreamServer(self, reactor, fd): # type: ignore # https://twistedmatrix.com/trac/ticket/10134
         log.msg("Adopting {}".format(fd))
         # AdoptedStreamServerEndpoint wants to own the file descriptor.  It
         # will duplicate it and then close the one we pass in.  This means it
@@ -405,6 +425,9 @@ class DummyProducer(object):
     def resumeProducing(self):
         pass
 
+    def stopProducing(self):
+        pass
+
 @implementer(IImmutableFileNode)
 class FakeCHKFileNode(object):  # type: ignore # incomplete implementation
     """I provide IImmutableFileNode, but all of my data is stored in a
@@ -432,7 +455,7 @@ class FakeCHKFileNode(object):  # type: ignore # incomplete implementation
         return self.storage_index
 
     def check(self, monitor, verify=False, add_lease=False):
-        s = StubServer("\x00"*20)
+        s = StubServer(b"\x00"*20)
         r = CheckResults(self.my_uri, self.storage_index,
                          healthy=True, recoverable=True,
                          count_happiness=10,
@@ -566,12 +589,12 @@ class FakeMutableFileNode(object):  # type: ignore # incomplete implementation
         self.file_types[self.storage_index] = version
         initial_contents = self._get_initial_contents(contents)
         data = initial_contents.read(initial_contents.get_size())
-        data = "".join(data)
+        data = b"".join(data)
         self.all_contents[self.storage_index] = data
         return defer.succeed(self)
     def _get_initial_contents(self, contents):
         if contents is None:
-            return MutableData("")
+            return MutableData(b"")
 
         if IMutableUploadable.providedBy(contents):
             return contents
@@ -625,7 +648,7 @@ class FakeMutableFileNode(object):  # type: ignore # incomplete implementation
     def raise_error(self):
         pass
     def get_writekey(self):
-        return "\x00"*16
+        return b"\x00"*16
     def get_size(self):
         return len(self.all_contents[self.storage_index])
     def get_current_size(self):
@@ -644,7 +667,7 @@ class FakeMutableFileNode(object):  # type: ignore # incomplete implementation
         return self.file_types[self.storage_index]
 
     def check(self, monitor, verify=False, add_lease=False):
-        s = StubServer("\x00"*20)
+        s = StubServer(b"\x00"*20)
         r = CheckResults(self.my_uri, self.storage_index,
                          healthy=True, recoverable=True,
                          count_happiness=10,
@@ -655,7 +678,7 @@ class FakeMutableFileNode(object):  # type: ignore # incomplete implementation
                          count_recoverable_versions=1,
                          count_unrecoverable_versions=0,
                          servers_responding=[s],
-                         sharemap={"seq1-abcd-sh0": [s]},
+                         sharemap={b"seq1-abcd-sh0": [s]},
                          count_wrong_shares=0,
                          list_corrupt_shares=[],
                          count_corrupt_shares=0,
@@ -709,7 +732,7 @@ class FakeMutableFileNode(object):  # type: ignore # incomplete implementation
     def overwrite(self, new_contents):
         assert not self.is_readonly()
         new_data = new_contents.read(new_contents.get_size())
-        new_data = "".join(new_data)
+        new_data = b"".join(new_data)
         self.all_contents[self.storage_index] = new_data
         return defer.succeed(None)
     def modify(self, modifier):
@@ -740,7 +763,7 @@ class FakeMutableFileNode(object):  # type: ignore # incomplete implementation
     def update(self, data, offset):
         assert not self.is_readonly()
         def modifier(old, servermap, first_time):
-            new = old[:offset] + "".join(data.read(data.get_size()))
+            new = old[:offset] + b"".join(data.read(data.get_size()))
             new += old[len(new):]
             return new
         return self.modify(modifier)
@@ -843,7 +866,7 @@ class WebErrorMixin(object):
             response_body = f.value.response
             if response_substring:
                 self.failUnless(response_substring in response_body,
-                                "%s: response substring '%s' not in '%s'"
+                                "%r: response substring %r not in %r"
                                 % (which, response_substring, response_body))
             return response_body
         d = defer.maybeDeferred(callable, *args, **kwargs)
@@ -859,6 +882,8 @@ class WebErrorMixin(object):
         body = yield response.content()
         self.assertEquals(response.code, code)
         if response_substring is not None:
+            if isinstance(response_substring, unicode):
+                response_substring = response_substring.encode("utf-8")
             self.assertIn(response_substring, body)
         returnValue(body)
 
@@ -1037,7 +1062,7 @@ def _corrupt_mutable_share_data(data, debug=False):
     assert prefix == MutableShareFile.MAGIC, "This function is designed to corrupt mutable shares of v1, and the magic number doesn't look right: %r vs %r" % (prefix, MutableShareFile.MAGIC)
     data_offset = MutableShareFile.DATA_OFFSET
     sharetype = data[data_offset:data_offset+1]
-    assert sharetype == "\x00", "non-SDMF mutable shares not supported"
+    assert sharetype == b"\x00", "non-SDMF mutable shares not supported"
     (version, ig_seqnum, ig_roothash, ig_IV, ig_k, ig_N, ig_segsize,
      ig_datalen, offsets) = unpack_header(data[data_offset:])
     assert version == 0, "this function only handles v0 SDMF files"

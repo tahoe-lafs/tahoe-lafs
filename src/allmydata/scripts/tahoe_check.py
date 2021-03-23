@@ -122,7 +122,7 @@ class FakeTransport(object):
     disconnecting = False
 
 class DeepCheckOutput(LineOnlyReceiver, object):
-    delimiter = "\n"
+    delimiter = b"\n"
     def __init__(self, streamer, options):
         self.streamer = streamer
         self.transport = FakeTransport()
@@ -181,7 +181,7 @@ class DeepCheckOutput(LineOnlyReceiver, object):
               % (self.num_objects, self.files_healthy, self.files_unhealthy), file=stdout)
 
 class DeepCheckAndRepairOutput(LineOnlyReceiver, object):
-    delimiter = "\n"
+    delimiter = b"\n"
     def __init__(self, streamer, options):
         self.streamer = streamer
         self.transport = FakeTransport()

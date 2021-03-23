@@ -2862,7 +2862,7 @@ class RIControlClient(RemoteInterface):
         @return: a dictionary mapping peerid to a float (RTT time in seconds)
         """
 
-        return DictOf(str, float)
+        return DictOf(bytes, float)
 
 
 UploadResults = Any() #DictOf(bytes, bytes)

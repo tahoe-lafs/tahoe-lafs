@@ -14,13 +14,23 @@ Rather than defining interesting APIs for other code to use, this just causes
 some side-effects which make things better when the test suite runs.
 """
 
+from future.utils import PY3
+
+import warnings
 from traceback import extract_stack, format_list
+
 from foolscap.pb import Listener
 from twisted.python.log import err
 from twisted.application import service
 
-
 from foolscap.logging.incident import IncidentQualifier
+
+if PY3:
+    # Error on BytesWarnings, to catch things like str(b""), but only for
+    # allmydata code.
+    warnings.filterwarnings("error", category=BytesWarning, module="allmydata.*")
+
+
 class NonQualifier(IncidentQualifier, object):
     def check_event(self, ev):
         return False

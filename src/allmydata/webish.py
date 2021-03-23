@@ -44,6 +44,43 @@ from .web.storage_plugins import (
     StoragePlugins,
 )
 
+
+if PY2:
+    FileUploadFieldStorage = FieldStorage
+else:
+    class FileUploadFieldStorage(FieldStorage):
+        """
+        Do terrible things to ensure files are still bytes.
+
+        On Python 2, uploaded files were always bytes.  On Python 3, there's a
+        heuristic: if the filename is set on a field, it's assumed to be a file
+        upload and therefore bytes.  If no filename is set, it's Unicode.
+
+        Unfortunately, we always want it to be bytes, and Tahoe-LAFS also
+        enables setting the filename not via the MIME filename, but via a
+        separate field called "name".
+
+        Thus we need to do this ridiculous workaround.  Mypy doesn't like it
+        either, thus the ``# type: ignore`` below.
+
+        Source for idea:
+        https://mail.python.org/pipermail/python-dev/2017-February/147402.html
+        """
+        @property  # type: ignore
+        def filename(self):
+            if self.name == "file" and not self._mime_filename:
+                # We use the file field to upload files, see directory.py's
+                # _POST_upload. Lack of _mime_filename means we need to trick
+                # FieldStorage into thinking there is a filename so it'll
+                # return bytes.
+                return "unknown-filename"
+            return self._mime_filename
+
+        @filename.setter
+        def filename(self, value):
+            self._mime_filename = value
+
+
 class TahoeLAFSRequest(Request, object):
     """
     ``TahoeLAFSRequest`` adds several features to a Twisted Web ``Request``
@@ -94,7 +131,8 @@ class TahoeLAFSRequest(Request, object):
                 headers['content-length'] = str(self.content.tell())
                 self.content.seek(0)
 
-            self.fields = FieldStorage(self.content, headers, environ={'REQUEST_METHOD': 'POST'})
+            self.fields = FileUploadFieldStorage(
+                self.content, headers, environ={'REQUEST_METHOD': 'POST'})
             self.content.seek(0)
 
         self._tahoeLAFSSecurityPolicy()
@@ -159,8 +197,8 @@ def _logFormatter(logDateTime, request):
     template = "web: %(clientip)s %(method)s %(uri)s %(code)s %(length)s"
     return template % dict(
         clientip=_get_client_ip(request),
-        method=request.method,
-        uri=uri,
+        method=str(request.method, "utf-8"),
+        uri=str(uri, "utf-8"),
         code=request.code,
         length=(request.sentLength or "-"),
         facility="tahoe.webish",
@@ -211,7 +249,7 @@ class WebishServer(service.MultiService):
         # use to test ophandle expiration.
         self._operations = OphandleTable(clock)
         self._operations.setServiceParent(self)
-        self.root.putChild("operations", self._operations)
+        self.root.putChild(b"operations", self._operations)
 
         self.root.putChild(b"storage-plugins", StoragePlugins(client))
 
@@ -220,7 +258,7 @@ class WebishServer(service.MultiService):
         self.site = TahoeLAFSSite(tempdir, self.root)
         self.staticdir = staticdir # so tests can check
         if staticdir:
-            self.root.putChild("static", static.File(staticdir))
+            self.root.putChild(b"static", static.File(staticdir))
         if re.search(r'^\d', webport):
             webport = "tcp:"+webport # twisted warns about bare "0" or "3456"
         # strports must be native strings.

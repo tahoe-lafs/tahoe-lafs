@@ -30,5 +30,5 @@ def remove_prefix(s_bytes, prefix):
     if s_bytes.startswith(prefix):
         return s_bytes[len(prefix):]
     raise BadPrefixError(
-        "did not see expected '{}' prefix".format(prefix)
+        "did not see expected '{!r}' prefix".format(prefix)
     )

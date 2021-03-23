@@ -1978,12 +1978,12 @@ class Adder(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
                                 overwrite=False))
             d.addCallback(lambda res:
                 root_node.set_node(u'file1', filenode,
-                                   overwrite="only-files"))
+                                   overwrite=dirnode.ONLY_FILES))
             d.addCallback(lambda res:
                 self.shouldFail(ExistingChildError, "set_node",
                                 "child 'dir1' already exists",
                                 root_node.set_node, u'dir1', filenode,
-                                overwrite="only-files"))
+                                overwrite=dirnode.ONLY_FILES))
             return d
 
         d.addCallback(_test_adder)

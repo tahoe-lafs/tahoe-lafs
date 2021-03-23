@@ -1,5 +1,17 @@
+"""
+Ported to Python 3.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
 
-import os, urllib
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+
+import os
+from urllib.parse import quote as urlquote
 
 from twisted.python.filepath import FilePath
 from twisted.web.template import tags as T, Element, renderElement, XMLFile, renderer
@@ -45,7 +57,7 @@ class MoreInfoElement(Element):
 
     def abbrev(self, storage_index_or_none):
         if storage_index_or_none:
-            return base32.b2a(storage_index_or_none)[:6]
+            return str(base32.b2a(storage_index_or_none)[:6], "ascii")
         return "LIT file"
 
     def get_type(self):
@@ -180,7 +192,7 @@ class MoreInfoElement(Element):
         else:
             return ""
         root = self.get_root(req)
-        quoted_uri = urllib.quote(node.get_uri())
+        quoted_uri = urlquote(node.get_uri())
         text_plain_url = "%s/file/%s/@@named=/raw.txt" % (root, quoted_uri)
         return T.li("Raw data as ", T.a("text/plain", href=text_plain_url))
 
@@ -196,7 +208,7 @@ class MoreInfoElement(Element):
     @renderer
     def check_form(self, req, tag):
         node = self.original
-        quoted_uri = urllib.quote(node.get_uri())
+        quoted_uri = urlquote(node.get_uri())
         target = self.get_root(req) + "/uri/" + quoted_uri
         if IDirectoryNode.providedBy(node):
             target += "/"
@@ -236,8 +248,8 @@ class MoreInfoElement(Element):
     def overwrite_form(self, req, tag):
         node = self.original
         root = self.get_root(req)
-        action = "%s/uri/%s" % (root, urllib.quote(node.get_uri()))
-        done_url = "%s/uri/%s?t=info" % (root, urllib.quote(node.get_uri()))
+        action = "%s/uri/%s" % (root, urlquote(node.get_uri()))
+        done_url = "%s/uri/%s?t=info" % (root, urlquote(node.get_uri()))
         overwrite = T.form(action=action, method="post",
                            enctype="multipart/form-data")(
             T.fieldset(

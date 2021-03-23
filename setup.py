@@ -151,10 +151,13 @@ tor_requires = [
 ]
 
 i2p_requires = [
-    # txi2p has Python 3 support, but it's unreleased: https://github.com/str4d/txi2p/issues/10.
-    # URL lookups are in PEP-508 (via https://stackoverflow.com/a/54794506).
-    # Also see the comment in tor_requires.
-    "txi2p @ git+https://github.com/str4d/txi2p@0611b9a86172cb70d2f5e415a88eee9f230590b3#egg=txi2p",
+    # txi2p has Python 3 support in master branch, but it has not been
+    # released -- see https://github.com/str4d/txi2p/issues/10.  We
+    # could use a fork for Python 3 until txi2p's maintainers are back
+    # in action.  For Python 2, we could continue using the txi2p
+    # version about which no one has complained to us so far.
+    "txi2p; python_version < '3.0'",
+    "txi2p-tahoe >= 0.3.5; python_version > '3.0'",
 ]
 
 if len(sys.argv) > 1 and sys.argv[1] == '--fakedependency':

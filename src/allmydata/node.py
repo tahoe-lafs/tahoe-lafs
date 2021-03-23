@@ -970,7 +970,7 @@ def create_main_tub(config, tub_options,
             tubport,
             location,
         )
-        log.msg("Tub location set to %s" % (location,))
+        log.msg("Tub location set to %r" % (location,))
     return tub
 
 

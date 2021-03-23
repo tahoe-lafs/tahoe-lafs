@@ -1,10 +1,26 @@
+"""
+Ported to Python 3
+"""
 
 from __future__ import (
     absolute_import,
 )
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+
+from six import ensure_text
 
 import os.path, re, sys
 from os import linesep
+
+from eliot import (
+    log_call,
+)
 
 from twisted.trial import unittest
 
@@ -19,22 +35,25 @@ from twisted.python.runtime import (
     platform,
 )
 from allmydata.util import fileutil, pollmixin
-from allmydata.util.encodingutil import unicode_to_argv, unicode_to_output
+from allmydata.util.encodingutil import unicode_to_argv
 from allmydata.test import common_util
 import allmydata
-from .common_util import parse_cli, run_cli
+from .common import (
+    PIPE,
+    Popen,
+)
+from .common_util import (
+    parse_cli,
+    run_cli,
+)
 from .cli_node_api import (
     CLINodeAPI,
     Expect,
     on_stdout,
     on_stdout_and_stderr,
 )
-from ._twisted_9607 import (
-    getProcessOutputAndValue,
-)
 from ..util.eliotutil import (
     inline_callbacks,
-    log_call_deferred,
 )
 
 def get_root_from_file(src):
@@ -54,93 +73,93 @@ srcfile = allmydata.__file__
 rootdir = get_root_from_file(srcfile)
 
 
-class RunBinTahoeMixin(object):
-    @log_call_deferred(action_type="run-bin-tahoe")
-    def run_bintahoe(self, args, stdin=None, python_options=[], env=None):
-        command = sys.executable
-        argv = python_options + ["-m", "allmydata.scripts.runner"] + args
+@log_call(action_type="run-bin-tahoe")
+def run_bintahoe(extra_argv, python_options=None):
+    """
+    Run the main Tahoe entrypoint in a child process with the given additional
+    arguments.
 
-        if env is None:
-            env = os.environ
+    :param [unicode] extra_argv: More arguments for the child process argv.
 
-        d = getProcessOutputAndValue(command, argv, env, stdinBytes=stdin)
-        def fix_signal(result):
-            # Mirror subprocess.Popen.returncode structure
-            (out, err, signal) = result
-            return (out, err, -signal)
-        d.addErrback(fix_signal)
-        return d
+    :return: A three-tuple of stdout (unicode), stderr (unicode), and the
+        child process "returncode" (int).
+    """
+    executable = ensure_text(sys.executable)
+    argv = [executable]
+    if python_options is not None:
+        argv.extend(python_options)
+    argv.extend([u"-m", u"allmydata.scripts.runner"])
+    argv.extend(extra_argv)
+    argv = list(unicode_to_argv(arg) for arg in argv)
+    p = Popen(argv, stdout=PIPE, stderr=PIPE)
+    out = p.stdout.read().decode("utf-8")
+    err = p.stderr.read().decode("utf-8")
+    returncode = p.wait()
+    return (out, err, returncode)
 
 
-class BinTahoe(common_util.SignalMixin, unittest.TestCase, RunBinTahoeMixin):
+class BinTahoe(common_util.SignalMixin, unittest.TestCase):
     def test_unicode_arguments_and_output(self):
+        """
+        The runner script receives unmangled non-ASCII values in argv.
+        """
         tricky = u"\u2621"
-        try:
-            tricky_arg = unicode_to_argv(tricky, mangle=True)
-            tricky_out = unicode_to_output(tricky)
-        except UnicodeEncodeError:
-            raise unittest.SkipTest("A non-ASCII argument/output could not be encoded on this platform.")
+        out, err, returncode = run_bintahoe([tricky])
+        self.assertEqual(returncode, 1)
+        self.assertIn(u"Unknown command: " + tricky, out)
 
-        d = self.run_bintahoe([tricky_arg])
-        def _cb(res):
-            out, err, rc_or_sig = res
-            self.failUnlessEqual(rc_or_sig, 1, str(res))
-            self.failUnlessIn("Unknown command: "+tricky_out, out)
-        d.addCallback(_cb)
-        return d
+    def test_with_python_options(self):
+        """
+        Additional options for the Python interpreter don't prevent the runner
+        script from receiving the arguments meant for it.
+        """
+        # This seems like a redundant test for someone else's functionality
+        # but on Windows we parse the whole command line string ourselves so
+        # we have to have our own implementation of skipping these options.
 
-    def test_run_with_python_options(self):
-        # -t is a harmless option that warns about tabs.
-        d = self.run_bintahoe(["--version"], python_options=["-t"])
-        def _cb(res):
-            out, err, rc_or_sig = res
-            self.assertEqual(rc_or_sig, 0, str(res))
-            self.assertTrue(out.startswith(allmydata.__appname__ + '/'), str(res))
-        d.addCallback(_cb)
-        return d
+        # -t is a harmless option that warns about tabs so we can add it
+        # without impacting other behavior noticably.
+        out, err, returncode = run_bintahoe([u"--version"], python_options=[u"-t"])
+        self.assertEqual(returncode, 0)
+        self.assertTrue(out.startswith(allmydata.__appname__ + '/'))
 
-    @inlineCallbacks
     def test_help_eliot_destinations(self):
-        out, err, rc_or_sig = yield self.run_bintahoe(["--help-eliot-destinations"])
-        self.assertIn("\tfile:<path>", out)
-        self.assertEqual(rc_or_sig, 0)
+        out, err, returncode = run_bintahoe([u"--help-eliot-destinations"])
+        self.assertIn(u"\tfile:<path>", out)
+        self.assertEqual(returncode, 0)
 
-    @inlineCallbacks
     def test_eliot_destination(self):
-        out, err, rc_or_sig = yield self.run_bintahoe([
+        out, err, returncode = run_bintahoe([
             # Proves little but maybe more than nothing.
-            "--eliot-destination=file:-",
+            u"--eliot-destination=file:-",
             # Throw in *some* command or the process exits with error, making
             # it difficult for us to see if the previous arg was accepted or
             # not.
-            "--help",
+            u"--help",
         ])
-        self.assertEqual(rc_or_sig, 0)
+        self.assertEqual(returncode, 0)
 
-    @inlineCallbacks
     def test_unknown_eliot_destination(self):
-        out, err, rc_or_sig = yield self.run_bintahoe([
-            "--eliot-destination=invalid:more",
+        out, err, returncode = run_bintahoe([
+            u"--eliot-destination=invalid:more",
         ])
-        self.assertEqual(1, rc_or_sig)
-        self.assertIn("Unknown destination description", out)
-        self.assertIn("invalid:more", out)
+        self.assertEqual(1, returncode)
+        self.assertIn(u"Unknown destination description", out)
+        self.assertIn(u"invalid:more", out)
 
-    @inlineCallbacks
     def test_malformed_eliot_destination(self):
-        out, err, rc_or_sig = yield self.run_bintahoe([
-            "--eliot-destination=invalid",
+        out, err, returncode = run_bintahoe([
+            u"--eliot-destination=invalid",
         ])
-        self.assertEqual(1, rc_or_sig)
-        self.assertIn("must be formatted like", out)
+        self.assertEqual(1, returncode)
+        self.assertIn(u"must be formatted like", out)
 
-    @inlineCallbacks
     def test_escape_in_eliot_destination(self):
-        out, err, rc_or_sig = yield self.run_bintahoe([
-            "--eliot-destination=file:@foo",
+        out, err, returncode = run_bintahoe([
+            u"--eliot-destination=file:@foo",
         ])
-        self.assertEqual(1, rc_or_sig)
-        self.assertIn("Unsupported escape character", out)
+        self.assertEqual(1, returncode)
+        self.assertIn(u"Unsupported escape character", out)
 
 
 class CreateNode(unittest.TestCase):
@@ -161,7 +180,7 @@ class CreateNode(unittest.TestCase):
 
         n1 = os.path.join(basedir, command + "-n1")
         argv = ["--quiet", command, "--basedir", n1] + list(args)
-        rc, out, err = yield run_cli(*argv)
+        rc, out, err = yield run_cli(*map(unicode_to_argv, argv))
         self.failUnlessEqual(err, "")
         self.failUnlessEqual(out, "")
         self.failUnlessEqual(rc, 0)
@@ -173,7 +192,7 @@ class CreateNode(unittest.TestCase):
             # 'create-node', and disabled for 'create-client'.
             tahoe_cfg = os.path.join(n1, "tahoe.cfg")
             self.failUnless(os.path.exists(tahoe_cfg))
-            content = fileutil.read(tahoe_cfg).replace('\r\n', '\n')
+            content = fileutil.read(tahoe_cfg).decode('utf-8').replace('\r\n', '\n')
             if kind == "client":
                 self.failUnless(re.search(r"\n\[storage\]\n#.*\nenabled = false\n", content), content)
             else:
@@ -181,7 +200,7 @@ class CreateNode(unittest.TestCase):
                 self.failUnless("\nreserved_space = 1G\n" in content)
 
         # creating the node a second time should be rejected
-        rc, out, err = yield run_cli(*argv)
+        rc, out, err = yield run_cli(*map(unicode_to_argv, argv))
         self.failIfEqual(rc, 0, str((out, err, rc)))
         self.failUnlessEqual(out, "")
         self.failUnless("is not empty." in err)
@@ -194,7 +213,7 @@ class CreateNode(unittest.TestCase):
         # test that the non --basedir form works too
         n2 = os.path.join(basedir, command + "-n2")
         argv = ["--quiet", command] + list(args) + [n2]
-        rc, out, err = yield run_cli(*argv)
+        rc, out, err = yield run_cli(*map(unicode_to_argv, argv))
         self.failUnlessEqual(err, "")
         self.failUnlessEqual(out, "")
         self.failUnlessEqual(rc, 0)
@@ -204,7 +223,7 @@ class CreateNode(unittest.TestCase):
         # test the --node-directory form
         n3 = os.path.join(basedir, command + "-n3")
         argv = ["--quiet", "--node-directory", n3, command] + list(args)
-        rc, out, err = yield run_cli(*argv)
+        rc, out, err = yield run_cli(*map(unicode_to_argv, argv))
         self.failUnlessEqual(err, "")
         self.failUnlessEqual(out, "")
         self.failUnlessEqual(rc, 0)
@@ -215,7 +234,7 @@ class CreateNode(unittest.TestCase):
             # test that the output (without --quiet) includes the base directory
             n4 = os.path.join(basedir, command + "-n4")
             argv = [command] + list(args) + [n4]
-            rc, out, err = yield run_cli(*argv)
+            rc, out, err = yield run_cli(*map(unicode_to_argv, argv))
             self.failUnlessEqual(err, "")
             self.failUnlessIn(" created in ", out)
             self.failUnlessIn(n4, out)
@@ -250,8 +269,7 @@ class CreateNode(unittest.TestCase):
                               )
 
 
-class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
-              RunBinTahoeMixin):
+class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin):
     """
     exercise "tahoe run" for both introducer and client node, by spawning
     "tahoe run" as a subprocess. This doesn't get us line-level coverage, but
@@ -271,22 +289,22 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
         The introducer furl is stable across restarts.
         """
         basedir = self.workdir("test_introducer")
-        c1 = os.path.join(basedir, "c1")
+        c1 = os.path.join(basedir, u"c1")
         tahoe = CLINodeAPI(reactor, FilePath(c1))
         self.addCleanup(tahoe.stop_and_wait)
 
-        out, err, rc_or_sig = yield self.run_bintahoe([
-            "--quiet",
-            "create-introducer",
-            "--basedir", c1,
-            "--hostname", "127.0.0.1",
+        out, err, returncode = run_bintahoe([
+            u"--quiet",
+            u"create-introducer",
+            u"--basedir", c1,
+            u"--hostname", u"127.0.0.1",
         ])
 
-        self.assertEqual(rc_or_sig, 0)
+        self.assertEqual(returncode, 0)
 
         # This makes sure that node.url is written, which allows us to
         # detect when the introducer restarts in _node_has_restarted below.
-        config = fileutil.read(tahoe.config_file.path)
+        config = fileutil.read(tahoe.config_file.path).decode('utf-8')
         self.assertIn('{}web.port = {}'.format(linesep, linesep), config)
         fileutil.write(
             tahoe.config_file.path,
@@ -298,7 +316,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
 
         p = Expect()
         tahoe.run(on_stdout(p))
-        yield p.expect("introducer running")
+        yield p.expect(b"introducer running")
         tahoe.active()
 
         yield self.poll(tahoe.introducer_furl_file.exists)
@@ -321,7 +339,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
 
         p = Expect()
         tahoe.run(on_stdout(p))
-        yield p.expect("introducer running")
+        yield p.expect(b"introducer running")
 
         # Again, the second incarnation of the node might not be ready yet, so
         # poll until it is. This time introducer_furl_file already exists, so
@@ -350,21 +368,21 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
         3) Verify that the pid file is removed after SIGTERM (on POSIX).
         """
         basedir = self.workdir("test_client")
-        c1 = os.path.join(basedir, "c1")
+        c1 = os.path.join(basedir, u"c1")
 
         tahoe = CLINodeAPI(reactor, FilePath(c1))
         # Set this up right now so we don't forget later.
         self.addCleanup(tahoe.cleanup)
 
-        out, err, rc_or_sig = yield self.run_bintahoe([
-            "--quiet", "create-node", "--basedir", c1,
-            "--webport", "0",
-            "--hostname", "localhost",
+        out, err, returncode = run_bintahoe([
+            u"--quiet", u"create-node", u"--basedir", c1,
+            u"--webport", u"0",
+            u"--hostname", u"localhost",
         ])
-        self.failUnlessEqual(rc_or_sig, 0)
+        self.failUnlessEqual(returncode, 0)
 
         # Check that the --webport option worked.
-        config = fileutil.read(tahoe.config_file.path)
+        config = fileutil.read(tahoe.config_file.path).decode('utf-8')
         self.assertIn(
             '{}web.port = 0{}'.format(linesep, linesep),
             config,
@@ -377,7 +395,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
         # This will run until we stop it.
         tahoe.run(on_stdout(p))
         # Wait for startup to have proceeded to a reasonable point.
-        yield p.expect("client running")
+        yield p.expect(b"client running")
         tahoe.active()
 
         # read the storage.furl file so we can check that its contents don't
@@ -396,7 +414,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
         # We don't have to add another cleanup for this one, the one from
         # above is still registered.
         tahoe.run(on_stdout(p))
-        yield p.expect("client running")
+        yield p.expect(b"client running")
         tahoe.active()
 
         self.assertEqual(
@@ -487,7 +505,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
         client_running = p.expect(b"client running")
 
         result, index = yield DeferredList([
-            p.expect(expected_message),
+            p.expect(expected_message.encode('utf-8')),
             client_running,
         ], fireOnOneCallback=True, consumeErrors=True,
         )

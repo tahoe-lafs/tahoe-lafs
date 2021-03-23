@@ -1,4 +1,16 @@
-from past.builtins import unicode
+"""
+Ported to Python 3.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, max, min  # noqa: F401
+    # Don't use Future's str so that we don't get leaks into bad byte formatting
+    from past.builtins import unicode as str
 
 from urllib.parse import quote as url_quote
 from datetime import timedelta
@@ -135,7 +147,7 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
         terminal = (req.prepath + req.postpath)[-1].decode('utf8') == name
         nonterminal = not terminal  #len(req.postpath) > 0
 
-        t = get_arg(req, b"t", b"").strip()
+        t = str(get_arg(req, b"t", b"").strip(), "ascii")
         if isinstance(node_or_failure, Failure):
             f = node_or_failure
             f.trap(NoSuchChildError)
@@ -150,10 +162,10 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
             else:
                 # terminal node
                 terminal_requests = (
-                    ("POST", "mkdir"),
-                    ("PUT", "mkdir"),
-                    ("POST", "mkdir-with-children"),
-                    ("POST", "mkdir-immutable")
+                    (b"POST", "mkdir"),
+                    (b"PUT", "mkdir"),
+                    (b"POST", "mkdir-with-children"),
+                    (b"POST", "mkdir-immutable")
                 )
                 if (req.method, t) in terminal_requests:
                     # final directory
@@ -182,8 +194,8 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
                     )
                     return d
                 leaf_requests = (
-                    ("PUT",""),
-                    ("PUT","uri"),
+                    (b"PUT",""),
+                    (b"PUT","uri"),
                 )
                 if (req.method, t) in leaf_requests:
                     # we were trying to find the leaf filenode (to put a new
@@ -217,14 +229,14 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
     @render_exception
     def render_GET(self, req):
         # This is where all of the directory-related ?t=* code goes.
-        t = unicode(get_arg(req, b"t", b"").strip(), "ascii")
+        t = str(get_arg(req, b"t", b"").strip(), "ascii")
 
         # t=info contains variable ophandles, t=rename-form contains the name
         # of the child being renamed. Neither is allowed an ETag.
         FIXED_OUTPUT_TYPES =  ["", "json", "uri", "readonly-uri"]
         if not self.node.is_mutable() and t in FIXED_OUTPUT_TYPES:
             si = self.node.get_storage_index()
-            if si and req.setETag('DIR:%s-%s' % (base32.b2a(si), t or "")):
+            if si and req.setETag(b'DIR:%s-%s' % (base32.b2a(si), t.encode("ascii") or b"")):
                 return b""
 
         if not t:
@@ -255,7 +267,7 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
 
     @render_exception
     def render_PUT(self, req):
-        t = get_arg(req, b"t", b"").strip()
+        t = str(get_arg(req, b"t", b"").strip(), "ascii")
         replace = parse_replace_arg(get_arg(req, "replace", "true"))
 
         if t == "mkdir":
@@ -275,7 +287,7 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
 
     @render_exception
     def render_POST(self, req):
-        t = unicode(get_arg(req, b"t", b"").strip(), "ascii")
+        t = str(get_arg(req, b"t", b"").strip(), "ascii")
 
         if t == "mkdir":
             d = self._POST_mkdir(req)
@@ -364,21 +376,27 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
         return d
 
     def _POST_upload(self, req):
-        charset = get_arg(req, "_charset", "utf-8")
+        charset = str(get_arg(req, "_charset", b"utf-8"), "utf-8")
         contents = req.fields["file"]
-        assert contents.filename is None or isinstance(contents.filename, str)
-        name = get_arg(req, "name")
-        name = name or contents.filename
+
+        # The filename embedded in the MIME file upload will be bytes on Python
+        # 2, Unicode on Python 3, or missing (i.e. None). The "name" field in
+        # the upload will be bytes on Python 2, Unicode on Python 3, or missing
+        # (i.e. None). We go through all these variations until we have a name
+        # that is Unicode.
+        assert contents.filename is None or isinstance(contents.filename, (bytes, str))
+        name = get_arg(req, "name")  # returns bytes or None
+        name = name or contents.filename  # unicode, bytes or None
         if name is not None:
             name = name.strip()
         if not name:
             # this prohibts empty, missing, and all-whitespace filenames
             raise WebError("upload requires a name")
+        if isinstance(name, bytes):
+            name = name.decode(charset)
         assert isinstance(name, str)
-        name = name.decode(charset)
         if "/" in name:
             raise WebError("name= may not contain a slash", http.BAD_REQUEST)
-        assert isinstance(name, unicode)
 
         # since POST /uri/path/file?t=upload is equivalent to
         # POST /uri/path/dir?t=upload&name=foo, just do the same thing that
@@ -413,7 +431,7 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
         name = get_arg(req, "name")
         if not name:
             raise WebError("set-uri requires a name")
-        charset = get_arg(req, "_charset", "utf-8")
+        charset = str(get_arg(req, "_charset", b"utf-8"), "ascii")
         name = name.decode(charset)
         replace = parse_replace_arg(get_arg(req, "replace", "true"))
 
@@ -436,8 +454,8 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
             # a slightly confusing error message if someone does a POST
             # without a name= field. For our own HTML this isn't a big
             # deal, because we create the 'unlink' POST buttons ourselves.
-            name = ''
-        charset = get_arg(req, "_charset", "utf-8")
+            name = b''
+        charset = str(get_arg(req, "_charset", b"utf-8"), "ascii")
         name = name.decode(charset)
         d = self.node.delete(name)
         d.addCallback(lambda res: "thing unlinked")
@@ -453,14 +471,14 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
         return self._POST_relink(req)
 
     def _POST_relink(self, req):
-        charset = get_arg(req, "_charset", "utf-8")
+        charset = str(get_arg(req, "_charset", b"utf-8"), "ascii")
         replace = parse_replace_arg(get_arg(req, "replace", "true"))
 
         from_name = get_arg(req, "from_name")
         if from_name is not None:
             from_name = from_name.strip()
             from_name = from_name.decode(charset)
-            assert isinstance(from_name, unicode)
+            assert isinstance(from_name, str)
         else:
             raise WebError("from_name= is required")
 
@@ -468,7 +486,7 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
         if to_name is not None:
             to_name = to_name.strip()
             to_name = to_name.decode(charset)
-            assert isinstance(to_name, unicode)
+            assert isinstance(to_name, str)
         else:
             to_name = from_name
 
@@ -485,7 +503,7 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
         if to_dir is not None and to_dir != self.node.get_write_uri():
             to_dir = to_dir.strip()
             to_dir = to_dir.decode(charset)
-            assert isinstance(to_dir, unicode)
+            assert isinstance(to_dir, str)
             to_path = to_dir.split(u"/")
             to_root = self.client.nodemaker.create_from_cap(to_bytes(to_path[0]))
             if not IDirectoryNode.providedBy(to_root):
@@ -624,14 +642,14 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
             # TODO test handling of bad JSON
             raise
         cs = {}
-        for name, (file_or_dir, mddict) in children.iteritems():
-            name = unicode(name) # json returns str *or* unicode
+        for name, (file_or_dir, mddict) in list(children.items()):
+            name = str(name) # json returns str *or* unicode
             writecap = mddict.get('rw_uri')
             if writecap is not None:
-                writecap = str(writecap)
+                writecap = writecap.encode("utf-8")
             readcap = mddict.get('ro_uri')
             if readcap is not None:
-                readcap = str(readcap)
+                readcap = readcap.encode("utf-8")
             cs[name] = (writecap, readcap, mddict.get('metadata'))
         d = self.node.set_children(cs, replace)
         d.addCallback(lambda res: "Okay so I did it.")
@@ -697,7 +715,7 @@ class DirectoryAsHTML(Element):
 
     @renderer
     def title(self, req, tag):
-        si_s = abbreviated_dirnode(self.node)
+        si_s = str(abbreviated_dirnode(self.node), "utf-8")
         header = ["Tahoe-LAFS - Directory SI=%s" % si_s]
         if self.node.is_unknown():
             header.append(" (unknown)")
@@ -711,7 +729,7 @@ class DirectoryAsHTML(Element):
 
     @renderer
     def header(self, req, tag):
-        si_s = abbreviated_dirnode(self.node)
+        si_s = str(abbreviated_dirnode(self.node), "utf-8")
         header = ["Tahoe-LAFS Directory SI=", tags.span(si_s, class_="data-chars")]
         if self.node.is_unknown():
             header.append(" (unknown)")
@@ -1005,7 +1023,7 @@ def _directory_json_metadata(req, dirnode):
     d = dirnode.list()
     def _got(children):
         kids = {}
-        for name, (childnode, metadata) in children.items():
+        for name, (childnode, metadata) in list(children.items()):
             assert IFilesystemNode.providedBy(childnode), childnode
             rw_uri = childnode.get_write_uri()
             ro_uri = childnode.get_readonly_uri()
@@ -1069,13 +1087,13 @@ class RenameForm(Element, object):
 
     @renderer
     def title(self, req, tag):
-        return tag("Directory SI={}".format(abbreviated_dirnode(self.original)))
+        return tag("Directory SI={}".format(str(abbreviated_dirnode(self.original), "ascii")))
 
     @renderer
     def header(self, req, tag):
         header = [
             "Rename "
-            "in directory SI=%s" % abbreviated_dirnode(self.original),
+            "in directory SI=%s" % str(abbreviated_dirnode(self.original), "ascii"),
         ]
 
         if self.original.is_readonly():
@@ -1144,8 +1162,8 @@ def _slashify_path(path):
     in it
     """
     if not path:
-        return ""
-    return "/".join([p.encode("utf-8") for p in path])
+        return b""
+    return b"/".join([p.encode("utf-8") for p in path])
 
 
 def _cap_to_link(root, path, cap):
@@ -1186,7 +1204,7 @@ class ManifestElement(ReloadableMonitorElement):
         si = self.monitor.origin_si
         if not si:
             return "<LIT>"
-        return base32.b2a(si)[:6]
+        return str(base32.b2a(si)[:6], "utf-8")
 
     @renderer
     def title(self, req, tag):
@@ -1234,10 +1252,10 @@ class ManifestResults(MultiFormatResource, ReloadMixin):
         req.setHeader("content-type", "text/plain")
         lines = []
         is_finished = self.monitor.is_finished()
-        lines.append("finished: " + {True: "yes", False: "no"}[is_finished])
+        lines.append(b"finished: " + {True: b"yes", False: b"no"}[is_finished])
         for path, cap in self.monitor.get_status()["manifest"]:
-            lines.append(_slashify_path(path) + " " + cap)
-        return "\n".join(lines) + "\n"
+            lines.append(_slashify_path(path) + b" " + cap)
+        return b"\n".join(lines) + b"\n"
 
     def render_JSON(self, req):
         req.setHeader("content-type", "text/plain")
@@ -1290,7 +1308,7 @@ class DeepSizeResults(MultiFormatResource):
                      + stats.get("size-mutable-files", 0)
                      + stats.get("size-directories", 0))
             output += "size: %d\n" % total
-        return output
+        return output.encode("utf-8")
     render_TEXT = render_HTML
 
     def render_JSON(self, req):
@@ -1315,7 +1333,7 @@ class DeepStatsResults(Resource, object):
         req.setHeader("content-type", "text/plain")
         s = self.monitor.get_status().copy()
         s["finished"] = self.monitor.is_finished()
-        return json.dumps(s, indent=1)
+        return json.dumps(s, indent=1).encode("utf-8")
 
 
 @implementer(IPushProducer)
@@ -1464,7 +1482,7 @@ class UnknownNodeHandler(Resource, object):
 
     @render_exception
     def render_GET(self, req):
-        t = unicode(get_arg(req, "t", "").strip(), "ascii")
+        t = str(get_arg(req, "t", "").strip(), "ascii")
         if t == "info":
             return MoreInfo(self.node)
         if t == "json":

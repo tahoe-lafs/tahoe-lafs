@@ -1,3 +1,14 @@
+"""
+Ported to Python 3.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 import time
 from hyperlink import (
@@ -90,7 +101,7 @@ class OphandleTable(resource.Resource, service.Service):
         """
         ophandle = get_arg(req, "ophandle").decode("utf-8")
         assert ophandle
-        here = DecodedURL.from_text(unicode(URLPath.fromRequest(req)))
+        here = DecodedURL.from_text(str(URLPath.fromRequest(req)))
         target = here.click(u"/").child(u"operations", ophandle)
         output = get_arg(req, "output")
         if output:
@@ -101,12 +112,12 @@ class OphandleTable(resource.Resource, service.Service):
     def getChild(self, name, req):
         ophandle = name
         if ophandle not in self.handles:
-            raise WebError("unknown/expired handle '%s'" % escape(ophandle),
+            raise WebError("unknown/expired handle '%s'" % escape(str(ophandle, "utf-8")),
                            NOT_FOUND)
         (monitor, renderer, when_added) = self.handles[ophandle]
 
         t = get_arg(req, "t", "status")
-        if t == "cancel" and req.method == "POST":
+        if t == b"cancel" and req.method == b"POST":
             monitor.cancel()
             # return the status anyways, but release the handle
             self._release_ophandle(ophandle)

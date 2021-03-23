@@ -204,7 +204,8 @@ class NoNetworkServer(object):
         return self.serverid
 
     def get_name(self):
-        return idlib.shortnodeid_b2a(self.serverid)
+        # Other implementations return bytes.
+        return idlib.shortnodeid_b2a(self.serverid).encode("utf-8")
     def get_longname(self):
         return idlib.nodeid_b2a(self.serverid)
     def get_nickname(self):
