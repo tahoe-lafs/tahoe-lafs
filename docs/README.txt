@@ -27,7 +27,7 @@ the resulting docs/_build/html/index.html in your web browser.
 
 If you have Sphinx and Make installed, you can also run `make html`
 within the docs directory. You may also need to install some
-additional Python packages, such as setuptools and recommonmark.
+additional Python packages, such as `setuptools` and `recommonmark`.
 
 Note that Sphinx can also process comments in Python source code to
 generate API documentation. Tahoe-LAFS currently does not use Sphinx
