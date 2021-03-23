@@ -303,8 +303,8 @@ class BackupDB_v2(object):
         for name in contents:
             entries.append( [name.encode("utf-8"), contents[name]] )
         entries.sort()
-        data = "".join([netstring(name_utf8)+netstring(cap)
-                        for (name_utf8,cap) in entries])
+        data = b"".join([netstring(name_utf8)+netstring(cap)
+                         for (name_utf8,cap) in entries])
         dirhash = backupdb_dirhash(data)
         dirhash_s = base32.b2a(dirhash)
         c = self.cursor
