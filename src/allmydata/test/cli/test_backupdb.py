@@ -9,7 +9,7 @@ from twisted.trial import unittest
 from allmydata.util import fileutil
 from allmydata.util.encodingutil import listdir_unicode
 from allmydata.scripts import backupdb
-from .common_util import skip_if_cannot_represent_filename
+from ..common_util import skip_if_cannot_represent_filename
 
 class BackupDB(unittest.TestCase):
     def create(self, dbfile):
