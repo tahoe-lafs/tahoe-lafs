@@ -1,4 +1,5 @@
 from __future__ import print_function
+from past.builtins import unicode
 
 import sys
 import os.path, time
@@ -87,15 +88,15 @@ class BackupDB(unittest.TestCase):
 
         r = bdb.check_file(foo_fn)
         self.failUnlessEqual(r.was_uploaded(), False)
-        r.did_upload("foo-cap")
+        r.did_upload(b"foo-cap")
 
         r = bdb.check_file(blah_fn)
         self.failUnlessEqual(r.was_uploaded(), False)
         r.did_upload("blah-cap")
 
         r = bdb.check_file(foo_fn)
-        self.failUnlessEqual(r.was_uploaded(), "foo-cap")
-        self.failUnlessEqual(type(r.was_uploaded()), str)
+        self.failUnlessEqual(r.was_uploaded(), b"foo-cap")
+        self.failUnlessEqual(type(r.was_uploaded()), bytes)
         self.failUnlessEqual(r.should_check(), False)
 
         time.sleep(1.0) # make sure the timestamp changes
@@ -103,28 +104,28 @@ class BackupDB(unittest.TestCase):
 
         r = bdb.check_file(foo_fn)
         self.failUnlessEqual(r.was_uploaded(), False)
-        r.did_upload("new-cap")
+        r.did_upload(b"new-cap")
 
         r = bdb.check_file(foo_fn)
-        self.failUnlessEqual(r.was_uploaded(), "new-cap")
+        self.failUnlessEqual(r.was_uploaded(), b"new-cap")
         self.failUnlessEqual(r.should_check(), False)
         # if we spontaneously decide to upload it anyways, nothing should
         # break
-        r.did_upload("new-cap")
+        r.did_upload(b"new-cap")
 
         r = bdb.check_file(foo_fn, use_timestamps=False)
         self.failUnlessEqual(r.was_uploaded(), False)
-        r.did_upload("new-cap")
+        r.did_upload(b"new-cap")
 
         r = bdb.check_file(foo_fn)
-        self.failUnlessEqual(r.was_uploaded(), "new-cap")
+        self.failUnlessEqual(r.was_uploaded(), b"new-cap")
         self.failUnlessEqual(r.should_check(), False)
 
         bdb.NO_CHECK_BEFORE = 0
         bdb.ALWAYS_CHECK_AFTER = 0.1
 
         r = bdb.check_file(blah_fn)
-        self.failUnlessEqual(r.was_uploaded(), "blah-cap")
+        self.failUnlessEqual(r.was_uploaded(), b"blah-cap")
         self.failUnlessEqual(r.should_check(), True)
         r.did_check_healthy("results") # we know they're ignored for now
 
@@ -132,7 +133,7 @@ class BackupDB(unittest.TestCase):
         bdb.ALWAYS_CHECK_AFTER = 400
 
         r = bdb.check_file(blah_fn)
-        self.failUnlessEqual(r.was_uploaded(), "blah-cap")
+        self.failUnlessEqual(r.was_uploaded(), b"blah-cap")
         self.failUnlessEqual(r.should_check(), False)
 
         os.unlink(os.path.join(basedir, "foo.txt"))
@@ -165,13 +166,13 @@ class BackupDB(unittest.TestCase):
         dbfile = os.path.join(basedir, "dbfile")
         bdb = self.create(dbfile)
 
-        contents = {u"file1": "URI:CHK:blah1",
-                    u"file2": "URI:CHK:blah2",
-                    u"dir1": "URI:DIR2-CHK:baz2"}
+        contents = {u"file1": b"URI:CHK:blah1",
+                    u"file2": b"URI:CHK:blah2",
+                    u"dir1": b"URI:DIR2-CHK:baz2"}
         r = bdb.check_directory(contents)
         self.failUnless(isinstance(r, backupdb.DirectoryResult))
         self.failIf(r.was_created())
-        dircap = "URI:DIR2-CHK:foo1"
+        dircap = b"URI:DIR2-CHK:foo1"
         r.did_create(dircap)
 
         r = bdb.check_directory(contents)
@@ -185,7 +186,7 @@ class BackupDB(unittest.TestCase):
         r = bdb.check_directory(contents)
         self.failUnless(r.was_created())
         self.failUnlessEqual(r.was_created(), dircap)
-        self.failUnlessEqual(type(r.was_created()), str)
+        self.failUnlessEqual(type(r.was_created()), bytes)
         self.failUnlessEqual(r.should_check(), False)
 
         bdb.NO_CHECK_BEFORE = 0
@@ -207,14 +208,14 @@ class BackupDB(unittest.TestCase):
         self.failUnlessEqual(r.should_check(), False)
 
 
-        contents2 = {u"file1": "URI:CHK:blah1",
-                     u"dir1": "URI:DIR2-CHK:baz2"}
+        contents2 = {u"file1": b"URI:CHK:blah1",
+                     u"dir1": b"URI:DIR2-CHK:baz2"}
         r = bdb.check_directory(contents2)
         self.failIf(r.was_created())
 
-        contents3 = {u"file1": "URI:CHK:blah1",
-                     u"file2": "URI:CHK:blah3",
-                     u"dir1": "URI:DIR2-CHK:baz2"}
+        contents3 = {u"file1": b"URI:CHK:blah1",
+                     u"file2": b"URI:CHK:blah3",
+                     u"dir1": b"URI:DIR2-CHK:baz2"}
         r = bdb.check_directory(contents3)
         self.failIf(r.was_created())
 
@@ -235,10 +236,10 @@ class BackupDB(unittest.TestCase):
 
         r = bdb.check_file(foo_fn)
         self.failUnlessEqual(r.was_uploaded(), False)
-        r.did_upload("foo-cap")
+        r.did_upload(b"foo-cap")
 
         r = bdb.check_file(foo_fn)
-        self.failUnlessEqual(r.was_uploaded(), "foo-cap")
+        self.failUnlessEqual(r.was_uploaded(), b"foo-cap")
         self.failUnlessEqual(r.should_check(), False)
 
         bar_fn = self.writeto(u"b\u00e5r.txt", "bar.txt")
@@ -246,9 +247,9 @@ class BackupDB(unittest.TestCase):
 
         r = bdb.check_file(bar_fn)
         self.failUnlessEqual(r.was_uploaded(), False)
-        r.did_upload("bar-cap")
+        r.did_upload(b"bar-cap")
 
         r = bdb.check_file(bar_fn)
-        self.failUnlessEqual(r.was_uploaded(), "bar-cap")
+        self.failUnlessEqual(r.was_uploaded(), b"bar-cap")
         self.failUnlessEqual(r.should_check(), False)
 
