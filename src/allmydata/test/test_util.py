@@ -507,7 +507,6 @@ class JSONBytes(unittest.TestCase):
         self.assertEqual(json.loads(encoded), expected)
         self.assertEqual(jsonbytes.loads(encoded), expected)
 
-
     def test_encode_unicode(self):
         """BytesJSONEncoder encodes Unicode string as usual."""
         expected = {
@@ -515,3 +514,10 @@ class JSONBytes(unittest.TestCase):
         }
         encoded = jsonbytes.dumps(expected)
         self.assertEqual(json.loads(encoded), expected)
+
+    def test_dumps_bytes(self):
+        """jsonbytes.dumps_bytes always returns bytes."""
+        x = {u"def\N{SNOWMAN}\uFF00": 123}
+        encoded = jsonbytes.dumps_bytes(x)
+        self.assertIsInstance(encoded, bytes)
+        self.assertEqual(json.loads(encoded, encoding="utf-8"), x)
