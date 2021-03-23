@@ -1,5 +1,15 @@
+"""
+Ported to Python 3.
+"""
 from __future__ import print_function
-from past.builtins import unicode
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    # Don't import future bytes so we don't break a couple of tests
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, dict, list, object, range, str, max, min  # noqa: F401
 
 import sys
 import os.path, time
@@ -71,7 +81,7 @@ class BackupDB(unittest.TestCase):
 
 
     def writeto(self, filename, data):
-        fn = os.path.join(self.basedir, unicode(filename))
+        fn = os.path.join(self.basedir, filename)
         parentdir = os.path.dirname(fn)
         fileutil.make_dirs(parentdir)
         fileutil.write(fn, data)
@@ -229,7 +239,7 @@ class BackupDB(unittest.TestCase):
         bdb = self.create(dbfile)
 
         self.writeto(u"f\u00f6\u00f6.txt", "foo.txt")
-        files = [fn for fn in listdir_unicode(unicode(basedir)) if fn.endswith(".txt")]
+        files = [fn for fn in listdir_unicode(str(basedir)) if fn.endswith(".txt")]
         self.failUnlessEqual(len(files), 1)
         foo_fn = os.path.join(basedir, files[0])
         #print(foo_fn, type(foo_fn))
