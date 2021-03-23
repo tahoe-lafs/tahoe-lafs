@@ -101,12 +101,12 @@ Alice generates a key pair and secures it properly.
 Alice generates a self-signed storage node certificate with the key pair.
 Alice's storage node announces (to an introducer) a fURL containing (among other information) the SPKI hash.
 Imagine the SPKI hash is ``i5xb...``.
-This results in a fURL of ``pb://i5xb...@example.com:443/g3m5...#v=2`` [#]_.
+This results in a fURL of ``pb://i5xb...@example.com:443/g3m5...#v=1``.
 Bob creates a client node pointed at the same introducer.
 Bob's client node receives the announcement from Alice's storage node
 (indirected through the introducer).
 
-Bob's client node recognizes the fURL as referring to an HTTP-dialect server due to the ``v=2`` fragment.
+Bob's client node recognizes the fURL as referring to an HTTP-dialect server due to the ``v=1`` fragment.
 Bob's client node can now perform a TLS handshake with a server at the address in the fURL location hints
 (``example.com:443`` in this example).
 Following the above described validation procedures,
@@ -156,7 +156,7 @@ Such an announcement will resemble this::
 
   {
       "anonymous-storage-FURL": "pb://...",          # The old key
-      "gbs-anonymous-storage-url": "pb://...#v=2"    # The new key
+      "gbs-anonymous-storage-url": "pb://...#v=1"    # The new key
   }
 
 The transition process will proceed in three stages:
@@ -252,7 +252,7 @@ For example::
       "delete-mutable-shares-with-zero-length-writev": true,
       "fills-holes-with-zero-bytes": true,
       "prevents-read-past-end-of-share-data": true,
-      "gbs-anonymous-storage-url": "pb://...#v=2"
+      "gbs-anonymous-storage-url": "pb://...#v=1"
       },
     "application-version": "1.13.0"
     }
@@ -497,13 +497,6 @@ Just like the immutable version.
         assert spki_encoded == tub_id
 
    Note we use `base64url`_ rather than the Foolscap- and Tahoe-LAFS-preferred Base32.
-
-.. [#]
-   Other schemes for differentiating between the two server types is possible.
-   If the tubID length remains different,
-   that provides an unambiguous (if obscure) signal about which protocol to use.
-   Or a different scheme could be adopted
-   (``[x-]pb+http``, ``x-tahoe+http``, ``x-gbs`` come to mind).
 
 .. [#]
    https://www.cvedetails.com/cve/CVE-2017-5638/
