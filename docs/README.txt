@@ -25,10 +25,6 @@ https://www.sphinx-doc.org/
 If you have `tox` installed, you can run `tox -e docs` and then open
 the resulting docs/_build/html/index.html in your web browser.
 
-If you have Sphinx and Make installed, you can also run `make html`
-within the docs directory. You may also need to install some
-additional Python packages, such as `setuptools` and `recommonmark`.
-
 Note that Sphinx can also process Python docstrings to generate API
 documentation. Tahoe-LAFS currently does not use Sphinx for this
 purpose.
