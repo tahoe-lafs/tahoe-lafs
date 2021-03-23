@@ -13,6 +13,54 @@ Specifically, it should be possible to implement a Tahoe-LAFS storage server wit
 The Tahoe-LAFS client will also need to change but it is not expected that it will be noticably simplified by this change
 (though this may be the first step towards simplifying it).
 
+Motivation
+----------
+
+Foolscap
+~~~~~~~~
+
+Foolscap is a remote method invocation protocol with several distinctive features.
+At its core it allows separate processes to refer each other's objects and methods using a capability-based model.
+This allows for extremely fine-grained access control in a system that remains highly securable without becoming overwhelmingly complicated.
+Supporting this is a flexible and extensible serialization system which allows data to be exchanged between processes in carefully controlled ways.
+
+Tahoe avails itself of only a small portion of these features.
+A Tahoe storage server typically only exposes one object with a fixed set of methods to clients.
+A Tahoe introducer node does roughly the same.
+Tahoe exchanges simple data structures that have many common, standard serialized representations.
+
+In exchange for this slight use of Foolscap's sophisticated mechanisms,
+Tahoe pays a substantial price:
+
+* Foolscap is implemented only for Python.
+  Tahoe is thus limited to being implemented on in Python.
+* There is only one Python implementation of Foolscap.
+  The implementation is therefore the de facto standard and understanding of the protocol often relies on understanding that implementation.
+* The Foolscap developer community is very small.
+  The implementation therefore advances very little and some non-trivial part of the maintenance cost falls on the Tahoe project.
+* The extensible serialization system imposes substantial overhead for the simple data structures Tahoe exchanges.
+  Tahoe therefore presents a more sluggish experience to users and taxes servers more greatly than is necessary.
+
+HTTP
+~~~~
+
+HTTP is a request/response protocol that has become the lingua franca of the internet.
+Combined with the principles of Representational state transfer (REST) it is widely employed to create, update, and delete data in collections on the internet.
+HTTP itself provides only modest functionality in comparison to Foolscap.
+However its simplicity and widespread use have led to a diverse and almost overwhelming ecosystem of libraries, frameworks, toolkits, and so on.
+
+By adopting HTTP in place of Foolscap Tahoe can realize the following concrete benefits:
+
+* Practically every language or runtime has an HTTP protocol implementation (or a dozen of them) available.
+  This change paves the way for new Tahoe implementations using tools better suited for certain situations
+  (mobile client implementations, high-performance server implementations, easily distributed desktop clients, etc).
+* The simplicity of and vast quantity of resources about HTTP make it a very easy protocol to learn and use.
+  This change reduces the barrier to entry for developers to contribute improvements to Tahoe's network interactions.
+* For any given language there is very likely an HTTP implementation with a large and active developer community.
+  Tahoe can therefore benefit from the large effort being put into making better libraries for using HTTP.
+* One of the core features of HTTP is the mundane transfer of bulk data and implementions are often capable of doing this with extreme efficiency.
+  The alignment of this core feature with a core activity of Tahoe of transferring bulk data means that a substantial barrier to improved Tahoe runtime performance will be eliminated.
+
 Requirements
 ------------
 
