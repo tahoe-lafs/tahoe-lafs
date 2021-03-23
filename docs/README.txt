@@ -15,10 +15,10 @@ can edit the `.rst` files in this directory using a text editor, and
 then generate HTML output using Sphinx, a program that can produce its
 output in HTML and other formats.
 
-The files with `.rst` extension use reStructuredText markup format,
-which is the format Sphinx natively handles. To learn more about
-Sphinx, and for a friendly primer on reStructuredText, please see
-Sphinx project's documentation, available at:
+Files with `.rst` extension use reStructuredText markup format, which
+is the format Sphinx natively handles. To learn more about Sphinx, and
+for a friendly primer on reStructuredText, please see Sphinx project's
+documentation, available at:
 
 https://www.sphinx-doc.org/
 
