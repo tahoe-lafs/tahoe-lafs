@@ -22,8 +22,8 @@ documentation, available at:
 
 https://www.sphinx-doc.org/
 
-If you have tox installed, you can run `tox -e docs` and then open the
-resulting docs/_build/html/index.html in your web browser.
+If you have `tox` installed, you can run `tox -e docs` and then open
+the resulting docs/_build/html/index.html in your web browser.
 
 If you have Sphinx and Make installed, you can also run `make html`
 within docs directory. You may also need to install some additional
