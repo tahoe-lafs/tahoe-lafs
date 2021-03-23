@@ -1,3 +1,5 @@
+from past.builtins import unicode
+
 import os
 import mock
 import json
@@ -48,6 +50,10 @@ class _FakeWormhole(object):
 
 
 def _create_fake_wormhole(outgoing_messages):
+    outgoing_messages = [
+        m.encode("utf-8") if isinstance(m, unicode) else m
+        for m in outgoing_messages
+    ]
     return _FakeWormhole(outgoing_messages)
 
 

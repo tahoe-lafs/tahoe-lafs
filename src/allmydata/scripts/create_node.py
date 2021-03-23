@@ -5,13 +5,12 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import unicode_literals
 
-from future.utils import PY2
+from future.utils import PY2, PY3
 if PY2:
     from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 import io
 import os
-import json
 
 try:
     from allmydata.scripts.types_ import SubCommands
@@ -32,7 +31,7 @@ from allmydata.scripts.common import (
 from allmydata.scripts.default_nodedir import _default_nodedir
 from allmydata.util.assertutil import precondition
 from allmydata.util.encodingutil import listdir_unicode, argv_to_unicode, quote_local_unicode_path, get_io_encoding
-from allmydata.util import fileutil, i2p_provider, iputil, tor_provider
+from allmydata.util import fileutil, i2p_provider, iputil, tor_provider, jsonbytes as json
 
 from wormhole import wormhole
 
@@ -389,7 +388,7 @@ def _get_config_via_wormhole(config):
             "client-v1": {},
         }
     }
-    wh.send_message(json.dumps(intro))
+    wh.send_message(json.dumps_bytes(intro))
 
     server_intro = yield wh.get_message()
     server_intro = json.loads(server_intro)
