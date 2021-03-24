@@ -3,6 +3,11 @@ import mock
 import json
 from os.path import join
 
+try:
+    from typing import Optional, Tuple
+except ImportError:
+    pass
+
 from twisted.trial import unittest
 from twisted.internet import defer
 from ..common_util import run_cli
@@ -144,10 +149,17 @@ class Invite(GridTestMixin, CLITestMixin, unittest.TestCase):
             intro_dir,
         )
 
-    @defer.inlineCallbacks
-    def test_invite_success(self):
+
+    def _invite_success(self, extra_args=(), tahoe_config=None):
+        # type: (Tuple[bytes], Optional[bytes]) -> defer.Deferred
         """
-        successfully send an invite
+        Exercise an expected-success case of ``tahoe invite``.
+
+        :param extra_args: Positional arguments to pass to ``tahoe invite``
+            before the nickname.
+
+        :param tahoe_config: If given, bytes to write to the node's
+            ``tahoe.cfg`` before running ``tahoe invite.
         """
         intro_dir = os.path.join(self.basedir, "introducer")
         # we've never run the introducer, so it hasn't created
@@ -155,6 +167,9 @@ class Invite(GridTestMixin, CLITestMixin, unittest.TestCase):
         priv_dir = join(intro_dir, "private")
         with open(join(priv_dir, "introducer.furl"), "w") as f:
             f.write("pb://fooblam\n")
+        if tahoe_config is not None:
+            with open(join(intro_dir, "tahoe.cfg"), "w") as f:
+                f.write(tahoe_config)
 
         with mock.patch('allmydata.scripts.tahoe_invite.wormhole') as w:
             fake_wh = _create_fake_wormhole([
@@ -162,34 +177,76 @@ class Invite(GridTestMixin, CLITestMixin, unittest.TestCase):
             ])
             w.create = mock.Mock(return_value=fake_wh)
 
-            rc, out, err = yield run_cli(
+            def done(result):
+                rc, out, err = result
+                self.assertEqual(2, len(fake_wh.messages))
+                self.assertEqual(
+                    json.loads(fake_wh.messages[0]),
+                    {
+                        "abilities":
+                        {
+                            "server-v1": {}
+                        },
+                    },
+                )
+                invite = json.loads(fake_wh.messages[1])
+                self.assertEqual(
+                    invite["nickname"], "foo",
+                )
+                self.assertEqual(
+                    invite["introducer"], "pb://fooblam",
+                )
+                return invite
+            d = run_cli(
                 "-d", intro_dir,
                 "invite",
-                "--shares-needed", "1",
-                "--shares-happy", "1",
-                "--shares-total", "1",
-                "foo",
+                *(extra_args + ("foo",))
             )
-            self.assertEqual(2, len(fake_wh.messages))
-            self.assertEqual(
-                json.loads(fake_wh.messages[0]),
-                {
-                    "abilities":
-                    {
-                        "server-v1": {}
-                    },
-                },
-            )
-            self.assertEqual(
-                json.loads(fake_wh.messages[1]),
-                {
-                    "shares-needed": "1",
-                    "shares-total": "1",
-                    "nickname": "foo",
-                    "introducer": "pb://fooblam",
-                    "shares-happy": "1",
-                },
-            )
+            d.addCallback(done)
+            return d
+
+    @defer.inlineCallbacks
+    def test_invite_success(self):
+        """
+        successfully send an invite
+        """
+        invite = yield self._invite_success((
+            "--shares-needed", "1",
+            "--shares-happy", "2",
+            "--shares-total", "3",
+        ))
+        self.assertEqual(
+            invite["shares-needed"], "1",
+        )
+        self.assertEqual(
+            invite["shares-happy"], "2",
+        )
+        self.assertEqual(
+            invite["shares-total"], "3",
+        )
+
+    @defer.inlineCallbacks
+    def test_invite_success_read_share_config(self):
+        """
+        If ``--shares-{needed,happy,total}`` are not given on the command line
+        then the invitation is generated using the configured values.
+        """
+        invite = yield self._invite_success(tahoe_config="""
+[client]
+shares.needed = 2
+shares.happy = 4
+shares.total = 6
+""")
+        self.assertEqual(
+            invite["shares-needed"], "2",
+        )
+        self.assertEqual(
+            invite["shares-happy"], "4",
+        )
+        self.assertEqual(
+            invite["shares-total"], "6",
+        )
+
 
     @defer.inlineCallbacks
     def test_invite_no_furl(self):
