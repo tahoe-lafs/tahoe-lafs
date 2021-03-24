@@ -4,7 +4,7 @@ import json
 from os.path import join
 
 try:
-    from typing import Optional, Tuple
+    from typing import Optional, Sequence
 except ImportError:
     pass
 
@@ -149,9 +149,8 @@ class Invite(GridTestMixin, CLITestMixin, unittest.TestCase):
             intro_dir,
         )
 
-
     def _invite_success(self, extra_args=(), tahoe_config=None):
-        # type: (Tuple[bytes], Optional[bytes]) -> defer.Deferred
+        # type: (Sequence[bytes], Optional[bytes]) -> defer.Deferred
         """
         Exercise an expected-success case of ``tahoe invite``.
 
@@ -165,17 +164,26 @@ class Invite(GridTestMixin, CLITestMixin, unittest.TestCase):
         # we've never run the introducer, so it hasn't created
         # introducer.furl yet
         priv_dir = join(intro_dir, "private")
-        with open(join(priv_dir, "introducer.furl"), "w") as f:
-            f.write("pb://fooblam\n")
+        with open(join(priv_dir, "introducer.furl"), "w") as fobj_intro:
+            fobj_intro.write("pb://fooblam\n")
         if tahoe_config is not None:
-            with open(join(intro_dir, "tahoe.cfg"), "w") as f:
-                f.write(tahoe_config)
+            assert isinstance(tahoe_config, bytes)
+            with open(join(intro_dir, "tahoe.cfg"), "wb") as fobj_cfg:
+                fobj_cfg.write(tahoe_config)
 
         with mock.patch('allmydata.scripts.tahoe_invite.wormhole') as w:
             fake_wh = _create_fake_wormhole([
                 json.dumps({u"abilities": {u"client-v1": {}}}),
             ])
             w.create = mock.Mock(return_value=fake_wh)
+
+            extra_args = tuple(extra_args)
+
+            d = run_cli(
+                "-d", intro_dir,
+                "invite",
+                *(extra_args + ("foo",))
+            )
 
             def done(result):
                 rc, out, err = result
@@ -197,11 +205,6 @@ class Invite(GridTestMixin, CLITestMixin, unittest.TestCase):
                     invite["introducer"], "pb://fooblam",
                 )
                 return invite
-            d = run_cli(
-                "-d", intro_dir,
-                "invite",
-                *(extra_args + ("foo",))
-            )
             d.addCallback(done)
             return d
 
@@ -211,9 +214,9 @@ class Invite(GridTestMixin, CLITestMixin, unittest.TestCase):
         successfully send an invite
         """
         invite = yield self._invite_success((
-            "--shares-needed", "1",
-            "--shares-happy", "2",
-            "--shares-total", "3",
+            b"--shares-needed", b"1",
+            b"--shares-happy", b"2",
+            b"--shares-total", b"3",
         ))
         self.assertEqual(
             invite["shares-needed"], "1",
@@ -231,7 +234,7 @@ class Invite(GridTestMixin, CLITestMixin, unittest.TestCase):
         If ``--shares-{needed,happy,total}`` are not given on the command line
         then the invitation is generated using the configured values.
         """
-        invite = yield self._invite_success(tahoe_config="""
+        invite = yield self._invite_success(tahoe_config=b"""
 [client]
 shares.needed = 2
 shares.happy = 4
