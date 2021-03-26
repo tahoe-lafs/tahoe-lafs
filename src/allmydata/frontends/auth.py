@@ -125,15 +125,13 @@ class AccountURLChecker(object):
         return headers, body
 
     def post_form(self, username, password):
-        mp = self._build_multipart(
+        headers, body = self._build_multipart(
             action="authenticate",
             email=username,
             passwd=password,
         )
-        # getPage needs everything in bytes.
-        headers, body = map(encode_all, mp)
         return getPage(self.auth_url, method="POST",
-                       postdata=body, headers=headers,
+                       postdata=encode_all(body), headers=encode_all(headers),
                        followRedirect=True, timeout=30)
 
     def _parse_response(self, res):
