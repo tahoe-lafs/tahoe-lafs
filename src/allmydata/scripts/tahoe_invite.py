@@ -13,7 +13,7 @@ from wormhole import wormhole
 from allmydata.util.encodingutil import argv_to_abspath
 from allmydata.util import jsonbytes as json
 from allmydata.scripts.common import get_default_nodedir, get_introducer_furl
-from allmydata.node import read_config
+from allmydata.client import read_config
 
 
 class InviteOptions(usage.Options):
@@ -93,9 +93,9 @@ def invite(options):
     nick = options['nick']
 
     remote_config = {
-        "shares-needed": options["shares-needed"] or config.get('client', 'shares.needed'),
-        "shares-total": options["shares-total"] or config.get('client', 'shares.total'),
-        "shares-happy": options["shares-happy"] or config.get('client', 'shares.happy'),
+        "shares-needed": options["shares-needed"] or config.get_config('client', 'shares.needed'),
+        "shares-total": options["shares-total"] or config.get_config('client', 'shares.total'),
+        "shares-happy": options["shares-happy"] or config.get_config('client', 'shares.happy'),
         "nickname": nick,
         "introducer": introducer_furl,
     }
