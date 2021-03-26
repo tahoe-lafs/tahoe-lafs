@@ -1,6 +1,6 @@
 import os
 
-import future
+import future.builtins
 
 from zope.interface import implementer
 from twisted.web.client import getPage
@@ -107,11 +107,11 @@ class AccountURLChecker(object):
         Build headers and body for a multipart form request
         containing the supplied fields.
         """
-        sepbase = base32.b2a(os.urandom(4))
+        sepbase = base32.b2a(os.urandom(4)).decode('ascii')
         sep = "--" + sepbase
         form = []
         form.append(sep)
-        for name, value in fields.iteritems():
+        for name, value in fields.items():
             form.append('Content-Disposition: form-data; name="%s"' % name)
             form.append('')
             assert isinstance(value, (future.builtins.str, bytes))
