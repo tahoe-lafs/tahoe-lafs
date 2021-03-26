@@ -1,4 +1,9 @@
 import os
+import itertools
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import map
 
 import future.builtins
 
@@ -91,6 +96,9 @@ class AccountFileChecker(object):
         return d
 
 
+flatten = itertools.chain.from_iterable
+
+
 @implementer(checkers.ICredentialsChecker)
 class AccountURLChecker(object):
     credentialInterfaces = (credentials.IUsernamePassword,)
@@ -110,16 +118,18 @@ class AccountURLChecker(object):
         """
         sepbase = base32.b2a(os.urandom(4)).decode('ascii')
         sep = "--" + sepbase
-        form = []
-        form.append(sep)
-        for name, value in fields.items():
-            form.append('Content-Disposition: form-data; name="%s"' % name)
-            form.append('')
-            assert isinstance(value, (future.builtins.str, bytes))
-            form.append(value)
-            form.append(sep)
-        form[-1] += "--"
-        body = "\r\n".join(form) + "\r\n"
+        assert all(isinstance(value, (future.builtins.str, bytes)) for value in fields.values())
+
+        def field_lines(item):
+            name, value = item
+            yield sep
+            yield 'Content-Disposition: form-data; name="%s"' % name
+            yield ''
+            yield value
+
+        final = '--' + sepbase + '--'
+        form = list(flatten(map(field_lines, fields.items()))) + [final, '']
+        body = "\r\n".join(form)
         content_type = "multipart/form-data; boundary=%s" % sepbase
         headers = {"content-type": content_type}
         return headers, body
