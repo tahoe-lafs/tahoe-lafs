@@ -12,6 +12,7 @@ from twisted.conch.checkers import SSHPublicKeyChecker, InMemorySSHKeyDB
 from allmydata.util.dictutil import BytesKeyDict
 from allmydata.util import base32
 from allmydata.util.fileutil import abspath_expanduser_unicode
+from allmydata.util.encodingutil import encode_all
 
 
 class NeedRootcapLookupScheme(Exception):
@@ -130,7 +131,7 @@ class AccountURLChecker(object):
             passwd=password,
         )
         # getPage needs everything in bytes.
-        headers, body = map(_encode_all, mp)
+        headers, body = map(encode_all, mp)
         return getPage(self.auth_url, method="POST",
                        postdata=body, headers=headers,
                        followRedirect=True, timeout=30)
@@ -149,16 +150,3 @@ class AccountURLChecker(object):
         d.addCallback(self._parse_response)
         d.addCallback(self._cbPasswordMatch, str(credentials.username))
         return d
-
-
-def _encode_all(val):
-    """
-    Encode text or a dict to bytes using utf-8.
-    TODO: Consider using singledispatch.
-    """
-    if isinstance(val, dict):
-        return {
-            _encode_all(key): _encode_all(value)
-            for key, value in val.items()
-        }
-    return val.encode('utf-8')
