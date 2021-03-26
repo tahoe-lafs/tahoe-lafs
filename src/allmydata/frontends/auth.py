@@ -140,7 +140,7 @@ class AccountURLChecker(object):
             email=username,
             passwd=password,
         )
-        return getPage(self.auth_url, method="POST",
+        return getPage(encode_all(self.auth_url), method=encode_all("POST"),
                        postdata=encode_all(body), headers=encode_all(headers),
                        followRedirect=True, timeout=30)
 

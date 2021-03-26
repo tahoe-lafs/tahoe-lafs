@@ -7,6 +7,7 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 import string
+import json
 
 from future.utils import PY2
 if PY2:
@@ -164,3 +165,16 @@ class AccountURLCheckerTests(unittest.TestCase):
         del parts[0]
         assert len(parts) == 3
         assert all('\r\n\r\n' in part.strip() for part in parts)
+
+    def test_get_page(self):
+        checker = auth.AccountURLChecker(None, 'https://httpbin.org/post')
+        d = checker.post_form('schmoe@joe.org', self.valid_password_characters)
+        def check(resp):
+            data = json.loads(resp)
+            assert data['headers']['Content-Type'].startswith('multipart/form-data')
+            form = data['form']
+            assert form['action'] == 'authenticate'
+            assert form['email'] == 'schmoe@joe.org'
+            assert form['passwd'] == self.valid_password_characters
+        d.addCallback(check)
+        return d
