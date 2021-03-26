@@ -1,5 +1,7 @@
 import os
 
+import future
+
 from zope.interface import implementer
 from twisted.web.client import getPage
 from twisted.internet import defer
@@ -112,7 +114,7 @@ class AccountURLChecker(object):
         for name, value in fields.iteritems():
             form.append('Content-Disposition: form-data; name="%s"' % name)
             form.append('')
-            assert isinstance(value, str)
+            assert isinstance(value, (future.builtins.str, bytes))
             form.append(value)
             form.append(sep)
         form[-1] += "--"
@@ -122,11 +124,13 @@ class AccountURLChecker(object):
         return headers, body
 
     def post_form(self, username, password):
-        headers, body = self._build_multipart(
+        mp = self._build_multipart(
             action="authenticate",
             email=username,
             passwd=password,
         )
+        # getPage needs everything in bytes.
+        headers, body = map(_encode_all, mp)
         return getPage(self.auth_url, method="POST",
                        postdata=body, headers=headers,
                        followRedirect=True, timeout=30)
@@ -146,3 +150,15 @@ class AccountURLChecker(object):
         d.addCallback(self._cbPasswordMatch, str(credentials.username))
         return d
 
+
+def _encode_all(val):
+    """
+    Encode text or a dict to bytes using utf-8.
+    TODO: Consider using singledispatch.
+    """
+    if isinstance(val, dict):
+        return {
+            _encode_all(key): _encode_all(value)
+            for key, value in val.items()
+        }
+    return val.encode('utf-8')
