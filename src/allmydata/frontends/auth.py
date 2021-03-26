@@ -99,15 +99,16 @@ class AccountURLChecker(object):
     def _cbPasswordMatch(self, rootcap, username):
         return FTPAvatarID(username, rootcap)
 
-    def post_form(self, username, password):
+    @staticmethod
+    def _build_multipart(**fields):
+        """
+        Build headers and body for a multipart form request
+        containing the supplied fields.
+        """
         sepbase = base32.b2a(os.urandom(4))
         sep = "--" + sepbase
         form = []
         form.append(sep)
-        fields = {"action": "authenticate",
-                  "email": username,
-                  "passwd": password,
-                  }
         for name, value in fields.iteritems():
             form.append('Content-Disposition: form-data; name="%s"' % name)
             form.append('')
@@ -116,8 +117,16 @@ class AccountURLChecker(object):
             form.append(sep)
         form[-1] += "--"
         body = "\r\n".join(form) + "\r\n"
-        headers = {"content-type": "multipart/form-data; boundary=%s" % sepbase,
-                   }
+        content_type = "multipart/form-data; boundary=%s" % sepbase
+        headers = {"content-type": content_type}
+        return headers, body
+
+    def post_form(self, username, password):
+        headers, body = self._build_multipart(
+            action="authenticate",
+            email=username,
+            passwd=password,
+        )
         return getPage(self.auth_url, method="POST",
                        postdata=body, headers=headers,
                        followRedirect=True, timeout=30)
