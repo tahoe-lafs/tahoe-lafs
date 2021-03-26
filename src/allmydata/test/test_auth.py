@@ -6,12 +6,15 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
+import string
+
 from future.utils import PY2
 if PY2:
     from future.builtins import str  # noqa: F401
 
 from twisted.trial import unittest
 from twisted.python import filepath
+from twisted.python.util import InsensitiveDict
 from twisted.cred import error, credentials
 from twisted.conch import error as conch_error
 from twisted.conch.ssh import keys
@@ -138,3 +141,26 @@ ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAAAYQDJGMWlPXh2M3pYzTiamjcBIMqctt4VvLVW2QZgEFc8
                 (avatarId.username, avatarId.rootcap))
         avatarId.addCallback(authenticated)
         return avatarId
+
+
+class AccountURLCheckerTests(unittest.TestCase):
+    valid_password_characters = string.ascii_letters + string.digits + string.punctuation
+    def test_build_multipart(self):
+        header, body = auth.AccountURLChecker._build_multipart(
+            action="authenticate",
+            email="schmoe@joe.org",
+            password=self.valid_password_characters,
+        )
+        ct = InsensitiveDict(header)['content-type']
+        assert ct.startswith('multipart/form-data; boundary=')
+        _, _, boundary = ct.partition('boundary=')
+        assert boundary in body
+        last = '--' + boundary + '--'
+        assert last in body
+        parts = body.split('--' + boundary)
+        assert not any(part.startswith('--') for part in parts[:-1])
+        assert parts[-1].startswith('--')
+        del parts[-1]
+        del parts[0]
+        assert len(parts) == 3
+        assert all('\r\n\r\n' in part.strip() for part in parts)
