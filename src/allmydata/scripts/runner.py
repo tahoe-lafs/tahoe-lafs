@@ -22,7 +22,7 @@ from twisted.internet import defer, task, threads
 from allmydata.scripts.common import get_default_nodedir
 from allmydata.scripts import debug, create_node, cli, \
     admin, tahoe_run, tahoe_invite
-from allmydata.util.encodingutil import quote_local_unicode_path
+from allmydata.util.encodingutil import quote_local_unicode_path, argv_to_unicode
 from allmydata.util.eliotutil import (
     opt_eliot_destination,
     opt_help_eliot_destinations,
@@ -118,6 +118,22 @@ def parse_options(argv, config=None):
     config.parseOptions(argv) # may raise usage.error
     return config
 
+
+def _safety_encode(msg):
+    """
+    Previously, on Python 2, argv was utf-8 encoded bytes and
+    Options.parseOptions would pass through those unicode
+    characters (such as in a UsageError unknown command).
+
+    In a Unicode-preferred world, the argv is decoded to
+    Unicode early and that's what's passed through, but
+    print still needs an encoded value.
+    """
+    if PY2:
+        return msg.encode('utf-8')
+    return msg
+
+
 def parse_or_exit_with_explanation(argv, stdout=sys.stdout):
     config = Options()
     try:
@@ -127,7 +143,7 @@ def parse_or_exit_with_explanation(argv, stdout=sys.stdout):
         while hasattr(c, 'subOptions'):
             c = c.subOptions
         print(str(c), file=stdout)
-        print("%s:  %s\n" % (sys.argv[0], e), file=stdout)
+        print(_safety_encode("%s:  %s\n" % (sys.argv[0], e)), file=stdout)
         sys.exit(1)
     return config
 
@@ -235,7 +251,8 @@ def _run_with_reactor(reactor):
 
     _setup_coverage(reactor)
 
-    d = defer.maybeDeferred(parse_or_exit_with_explanation, sys.argv[1:])
+    argv = list(map(argv_to_unicode, sys.argv[1:]))
+    d = defer.maybeDeferred(parse_or_exit_with_explanation, argv)
     d.addCallback(_maybe_enable_eliot_logging, reactor)
     d.addCallback(dispatch)
     def _show_exception(f):
