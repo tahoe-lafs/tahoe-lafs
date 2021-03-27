@@ -98,11 +98,14 @@ jobs:
       # they get job IDs in different fashion.  If we use both
       # versions of coveralls in the same workflow, the finalizing
       # step will be able to mark only part of the jobs as done, and
-      # the other part will be left hanging, never marked as done.  It
-      # doesn't matter if we make an API call or `coveralls --finish`.
+      # the other part will be left hanging, never marked as done: it
+      # does not matter if we make an API call or `coveralls --finish`
+      # to indicate that CI has finished running.
       #
-      # So we just use the newer coveralls-python that is available to
-      # Python 3 throughout this workflow.
+      # So we try to use the newer coveralls-python that is available
+      # via Python 3 (which is present in GitHub Actions tool cache,
+      # even when we're running Python 2.7 tests) throughout this
+      # workflow.
       - name: "Report Coverage to Coveralls"
         run: |
           pip3 install --upgrade coveralls==3.0.1
