@@ -87,10 +87,26 @@ jobs:
       # Action for this, as of Jan 2021 it does not support Python coverage
       # files - only lcov files.  Therefore, we use coveralls-python, the
       # coveralls.io-supplied Python reporter, for this.
+      #
+      # It is coveralls-python 1.x that has maintained compatibility
+      # with Python 2, while coveralls-python 3.x is compatible with
+      # Python 3.  Sadly we can't use them both in the same workflow.
+      #
+      # The two versions of coveralls-python are somewhat mutually
+      # incompatible.  Mixing these two different versions when
+      # reporting coverage to coveralls.io will lead to grief, since
+      # they get job IDs in different fashion.  If we use both
+      # versions of coveralls in the same workflow, the finalizing
+      # step will be able to mark only part of the jobs as done, and
+      # the other part will be left hanging, never marked as done.  It
+      # doesn't matter if we make an API call or `coveralls --finish`.
+      #
+      # So we just use the newer coveralls-python that is available to
+      # Python 3 throughout this workflow.
       - name: "Report Coverage to Coveralls"
         run: |
-          pip install coveralls
-          python -m coveralls
+          pip3 install --upgrade coveralls==3.0.1
+          python3 -m coveralls
         env:
           # Some magic value required for some magic reason.
           GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
