@@ -233,9 +233,9 @@ class Invite(GridTestMixin, CLITestMixin, unittest.TestCase):
         successfully send an invite
         """
         invite = yield self._invite_success((
-            b"--shares-needed", b"1",
-            b"--shares-happy", b"2",
-            b"--shares-total", b"3",
+            "--shares-needed", "1",
+            "--shares-happy", "2",
+            "--shares-total", "3",
         ))
         self.assertEqual(
             invite["shares-needed"], "1",
