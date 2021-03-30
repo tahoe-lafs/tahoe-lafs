@@ -234,6 +234,19 @@ Because of the simple types used throughout
 and the equivalence described in `RFC 7049`_
 these examples should be representative regardless of which of these two encodings is chosen.
 
+HTTP Design
+~~~~~~~~~~~
+
+The HTTP interface described here is informed by the ideas of REST
+(Representational State Transfer).
+For ``GET`` requests query parameters are preferred over values encoded in the request body.
+For other requests query parameters are encoded into the message body.
+
+Many branches of the resource tree are conceived as homogenous containers:
+one branch contains all of the share data;
+another branch contains all of the lease data;
+etc.
+
 General
 ~~~~~~~
 
@@ -276,6 +289,9 @@ The lease expires after 31 days.
 
 Discussion
 ``````````
+
+We considered an alternative where ``renew-secret`` and ``cancel-secret`` are placed in query arguments on the request path.
+We chose to put these values into the request body to make the URL simpler.
 
 Several behaviors here are blindly copied from the Foolscap-based storage server protocol.
 
