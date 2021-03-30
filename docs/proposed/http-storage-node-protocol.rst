@@ -33,7 +33,7 @@ In exchange for this slight use of Foolscap's sophisticated mechanisms,
 Tahoe pays a substantial price:
 
 * Foolscap is implemented only for Python.
-  Tahoe is thus limited to being implemented on in Python.
+  Tahoe is thus limited to being implemented only in Python.
 * There is only one Python implementation of Foolscap.
   The implementation is therefore the de facto standard and understanding of the protocol often relies on understanding that implementation.
 * The Foolscap developer community is very small.
