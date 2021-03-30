@@ -119,21 +119,6 @@ def parse_options(argv, config=None):
     return config
 
 
-def _safety_encode(msg):
-    """
-    Previously, on Python 2, argv was utf-8 encoded bytes and
-    Options.parseOptions would pass through those unicode
-    characters (such as in a UsageError unknown command).
-
-    In a Unicode-preferred world, the argv is decoded to
-    Unicode early and that's what's passed through, but
-    print still needs an encoded value.
-    """
-    if PY2:
-        return msg.encode('utf-8')
-    return msg
-
-
 def parse_or_exit_with_explanation(argv, stdout=sys.stdout):
     config = Options()
     try:
@@ -143,7 +128,10 @@ def parse_or_exit_with_explanation(argv, stdout=sys.stdout):
         while hasattr(c, 'subOptions'):
             c = c.subOptions
         print(str(c), file=stdout)
-        print(_safety_encode("%s:  %s\n" % (sys.argv[0], e)), file=stdout)
+        # On Python 2 the string may turn into a unicode string, e.g. the error
+        # may be unicode, in which case it will print funny. Once we're on
+        # Python 3 we can just drop the ensure_str().
+        print(six.ensure_str("%s:  %s\n" % (sys.argv[0], e)), file=stdout)
         sys.exit(1)
     return config
 
