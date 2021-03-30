@@ -110,6 +110,7 @@ PORTED_MODULES = [
     "allmydata.util.happinessutil",
     "allmydata.util.hashutil",
     "allmydata.util.humanreadable",
+    "allmydata.util.i2p_provider",
     "allmydata.util.idlib",
     "allmydata.util.iputil",
     "allmydata.util.jsonbytes",
@@ -123,6 +124,7 @@ PORTED_MODULES = [
     "allmydata.util.spans",
     "allmydata.util.statistics",
     "allmydata.util.time_format",
+    "allmydata.util.tor_provider",
     "allmydata.web.check_results",
     "allmydata.web.common",
     "allmydata.web.directory",
@@ -141,7 +143,11 @@ PORTED_MODULES = [
 ]
 
 PORTED_TEST_MODULES = [
+    "allmydata.test.cli.test_alias",
+    "allmydata.test.cli.test_backupdb",
     "allmydata.test.cli.test_create",
+    "allmydata.test.cli.test_invite",
+    "allmydata.test.cli.test_status",
 
     "allmydata.test.mutable.test_checker",
     "allmydata.test.mutable.test_datahandle",
@@ -167,6 +173,7 @@ PORTED_TEST_MODULES = [
     "allmydata.test.test_codec",
     "allmydata.test.test_common_util",
     "allmydata.test.test_configutil",
+    "allmydata.test.test_connections",
     "allmydata.test.test_connection_status",
     "allmydata.test.test_crawler",
     "allmydata.test.test_crypto",
@@ -189,6 +196,7 @@ PORTED_TEST_MODULES = [
     "allmydata.test.test_helper",
     "allmydata.test.test_humanreadable",
     "allmydata.test.test_hung_server",
+    "allmydata.test.test_i2p_provider",
     "allmydata.test.test_immutable",
     "allmydata.test.test_introducer",
     "allmydata.test.test_iputil",
@@ -218,6 +226,7 @@ PORTED_TEST_MODULES = [
 
     "allmydata.test.test_testing",
     "allmydata.test.test_time_format",
+    "allmydata.test.test_tor_provider",
     "allmydata.test.test_upload",
     "allmydata.test.test_uri",
     "allmydata.test.test_util",

@@ -1,7 +1,5 @@
 from __future__ import print_function
 
-import json
-
 try:
     from allmydata.scripts.types_ import SubCommands
 except ImportError:
@@ -13,8 +11,9 @@ from twisted.internet import defer, reactor
 from wormhole import wormhole
 
 from allmydata.util.encodingutil import argv_to_abspath
+from allmydata.util import jsonbytes as json
 from allmydata.scripts.common import get_default_nodedir, get_introducer_furl
-from allmydata.node import read_config
+from allmydata.client import read_config
 
 
 class InviteOptions(usage.Options):
@@ -54,7 +53,7 @@ def _send_config_via_wormhole(options, config):
     code = yield wh.get_code()
     print("Invite Code for client: {}".format(code), file=out)
 
-    wh.send_message(json.dumps({
+    wh.send_message(json.dumps_bytes({
         u"abilities": {
             u"server-v1": {},
         }
@@ -71,7 +70,7 @@ def _send_config_via_wormhole(options, config):
         defer.returnValue(1)
 
     print("  transmitting configuration", file=out)
-    wh.send_message(json.dumps(config))
+    wh.send_message(json.dumps_bytes(config))
     yield wh.close()
 
 
@@ -94,9 +93,9 @@ def invite(options):
     nick = options['nick']
 
     remote_config = {
-        "shares-needed": options["shares-needed"] or config.get('client', 'shares.needed'),
-        "shares-total": options["shares-total"] or config.get('client', 'shares.total'),
-        "shares-happy": options["shares-happy"] or config.get('client', 'shares.happy'),
+        "shares-needed": options["shares-needed"] or config.get_config('client', 'shares.needed'),
+        "shares-total": options["shares-total"] or config.get_config('client', 'shares.total'),
+        "shares-happy": options["shares-happy"] or config.get_config('client', 'shares.happy'),
         "nickname": nick,
         "introducer": introducer_furl,
     }

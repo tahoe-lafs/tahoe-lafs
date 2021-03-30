@@ -9,7 +9,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from future.utils import PY2
+from future.utils import PY2, PY3
 if PY2:
     from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
@@ -49,6 +49,14 @@ def dumps(obj, *args, **kwargs):
     The bytes are assumed to be UTF-8 encoded Unicode strings.
     """
     return json.dumps(obj, cls=BytesJSONEncoder, *args, **kwargs)
+
+
+def dumps_bytes(obj, *args, **kwargs):
+    """Encode to JSON, then encode as bytes."""
+    result = dumps(obj, *args, **kwargs)
+    if PY3:
+        result = result.encode("utf-8")
+    return result
 
 
 # To make this module drop-in compatible with json module:
