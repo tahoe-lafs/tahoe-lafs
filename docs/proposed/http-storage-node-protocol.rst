@@ -64,6 +64,14 @@ By adopting HTTP in place of Foolscap Tahoe can realize the following concrete b
 * One of the core features of HTTP is the mundane transfer of bulk data and implementions are often capable of doing this with extreme efficiency.
   The alignment of this core feature with a core activity of Tahoe of transferring bulk data means that a substantial barrier to improved Tahoe runtime performance will be eliminated.
 
+TLS
+~~~
+
+The Foolscap-based protocol provides *some* of Tahoe's confidentiality, integrity, and authentication properties by leveraging TLS.
+An HTTP-based protocol can make use of TLS in largely the same way to provide the same properties.
+Provision of these properties *is* dependant on implementers following Great Black Swamp's rules for x509 certificate validation
+(rather than the standard "web" rules for validation).
+
 Requirements
 ------------
 
