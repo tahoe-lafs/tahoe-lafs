@@ -24,6 +24,7 @@ if PY2:
 
 # Keep these sorted alphabetically, to reduce merge conflicts:
 PORTED_MODULES = [
+    "allmydata",
     "allmydata.__main__",
     "allmydata._auto_deps",
     "allmydata._monkeypatch",

@@ -132,4 +132,4 @@ if sys.platform == "win32":
 
 from eliot import to_file
 from allmydata.util.jsonbytes import BytesJSONEncoder
-to_file(open("eliot.log", "w"), encoder=BytesJSONEncoder)
+to_file(open("eliot.log", "wb"), encoder=BytesJSONEncoder)
