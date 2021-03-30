@@ -48,7 +48,7 @@ HTTP
 ~~~~
 
 HTTP is a request/response protocol that has become the lingua franca of the internet.
-Combined with the principles of Representational state transfer (REST) it is widely employed to create, update, and delete data in collections on the internet.
+Combined with the principles of Representational State Transfer (REST) it is widely employed to create, update, and delete data in collections on the internet.
 HTTP itself provides only modest functionality in comparison to Foolscap.
 However its simplicity and widespread use have led to a diverse and almost overwhelming ecosystem of libraries, frameworks, toolkits, and so on.
 
