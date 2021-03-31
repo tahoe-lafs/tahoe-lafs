@@ -23,7 +23,17 @@ jobs:
           - ubuntu-latest
         python-version:
           - 2.7
-          - 3.6
+
+        # Also run coverage tests with Python 3.6.  Expect failures on
+        # Windows, until we've had a chance to deal with them.
+        include:
+          - python-version: 3.6
+            os:
+              - macos-latest
+              - ubuntu-latest
+          - python-version: 3.6
+            os: windows-latest
+            experimental: true
 
     steps:
 
