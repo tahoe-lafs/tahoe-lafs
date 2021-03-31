@@ -115,6 +115,7 @@ PORTED_MODULES = [
     "allmydata.util.base62",
     "allmydata.util.configutil",
     "allmydata.util.connection_status",
+    "allmydata.util.consumer",
     "allmydata.util.deferredutil",
     "allmydata.util.dictutil",
     "allmydata.util.eliotutil",
