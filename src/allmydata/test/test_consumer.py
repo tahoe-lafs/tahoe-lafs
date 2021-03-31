@@ -78,3 +78,7 @@ class MemoryConsumerTests(TestCase):
         consumer.registerProducer(producer, False)
         self.assertEqual(consumer.chunks, [b"abc", b"def", b"ghi"])
         self.assertEqual(consumer.done, True)
+
+
+# download_to_data() is effectively tested by some of the filenode tests, e.g.
+# test_immutable.py.
