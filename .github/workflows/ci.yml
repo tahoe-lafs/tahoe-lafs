@@ -87,10 +87,29 @@ jobs:
       # Action for this, as of Jan 2021 it does not support Python coverage
       # files - only lcov files.  Therefore, we use coveralls-python, the
       # coveralls.io-supplied Python reporter, for this.
+      #
+      # It is coveralls-python 1.x that has maintained compatibility
+      # with Python 2, while coveralls-python 3.x is compatible with
+      # Python 3.  Sadly we can't use them both in the same workflow.
+      #
+      # The two versions of coveralls-python are somewhat mutually
+      # incompatible.  Mixing these two different versions when
+      # reporting coverage to coveralls.io will lead to grief, since
+      # they get job IDs in different fashion.  If we use both
+      # versions of coveralls in the same workflow, the finalizing
+      # step will be able to mark only part of the jobs as done, and
+      # the other part will be left hanging, never marked as done: it
+      # does not matter if we make an API call or `coveralls --finish`
+      # to indicate that CI has finished running.
+      #
+      # So we try to use the newer coveralls-python that is available
+      # via Python 3 (which is present in GitHub Actions tool cache,
+      # even when we're running Python 2.7 tests) throughout this
+      # workflow.
       - name: "Report Coverage to Coveralls"
         run: |
-          pip install coveralls
-          python -m coveralls
+          pip3 install --upgrade coveralls==3.0.1
+          python3 -m coveralls
         env:
           # Some magic value required for some magic reason.
           GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
@@ -113,80 +132,22 @@ jobs:
   # a single report, we have to tell Coveralls when we've uploaded all of the
   # data files.  This does it.  We make sure it runs last by making it depend
   # on *all* of the coverage-collecting jobs.
+  #
+  # See notes about parallel builds on GitHub Actions at
+  # https://coveralls-python.readthedocs.io/en/latest/usage/configuration.html
   finish-coverage-report:
-    # There happens to just be one coverage-collecting job at the moment.  If
-    # the coverage reports are broken and someone added more
-    # coverage-collecting jobs to this workflow but didn't update this, that's
-    # why.
-    needs:
+    needs: 
       - "coverage"
     runs-on: "ubuntu-latest"
+    container: "python:3-slim"
     steps:
-      - name: "Check out Tahoe-LAFS sources"
-        uses: "actions/checkout@v2"
-
-      - name: "Finish Coveralls Reporting"
+      - name: "Indicate completion to coveralls.io"
         run: |
-          # coveralls-python does have a `--finish` option but it doesn't seem
-          # to work, at least for us.
-          # https://github.com/coveralls-clients/coveralls-python/issues/248
-          #
-          # But all it does is this simple POST so we can just send it
-          # ourselves.  The only hard part is guessing what the POST
-          # parameters mean.  And I've done that for you already.
-          #
-          # Since the build is done I'm going to guess that "done" is a fine
-          # value for status.
-          #
-          # That leaves "build_num".  The coveralls documentation gives some
-          # hints about it.  It suggests using $CIRCLE_WORKFLOW_ID if your job
-          # is on CircleCI.  CircleCI documentation says this about
-          # CIRCLE_WORKFLOW_ID:
-          #
-          # Observation of the coveralls.io web interface, logs from the
-          # coveralls command in action, and experimentation suggests the
-          # value for PRs is something more like:
-          #
-          #    <GIT MERGE COMMIT HASH>-PR-<PR NUM>
-          #
-          # For branches, it's just the git branch tip hash.
-
-          # For pull requests, refs/pull/<PR NUM>/merge was just checked out
-          # by so HEAD will refer to the right revision.  For branches, HEAD
-          # is also the tip of the branch.
-          REV=$(git rev-parse HEAD)
-
-          # We can get the PR number from the "context".
-          #
-          # https://docs.github.com/en/free-pro-team@latest/developers/webhooks-and-events/webhook-events-and-payloads#pull_request
-          #
-          # (via <https://github.community/t/github-ref-is-inconsistent/17728/3>).
-          #
-          # If this is a pull request, `github.event` is a `pull_request`
-          # structure which has `number` right in it.
-          #
-          # If this is a push, `github.event` is a `push` instead but we only
-          # need the revision to construct the build_num.
-
-          PR=${{ github.event.number }}
-
-          if [ "${PR}" = "" ]; then
-              BUILD_NUM=$REV
-          else
-              BUILD_NUM=$REV-PR-$PR
-          fi
-          REPO_NAME=$GITHUB_REPOSITORY
-
-          curl \
-            -k \
-            https://coveralls.io/webhook?repo_token=$COVERALLS_REPO_TOKEN \
-            -d \
-            "payload[build_num]=$BUILD_NUM&payload[status]=done&payload[repo_name]=$REPO_NAME"
+          pip3 install --upgrade coveralls==3.0.1
+          python3 -m coveralls --finish
         env:
           # Some magic value required for some magic reason.
           GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
-          # Help coveralls identify our project.
-          COVERALLS_REPO_TOKEN: "JPf16rLB7T2yjgATIxFzTsEgMdN1UNq6o"
 
   integration:
     runs-on: ${{ matrix.os }}
