@@ -9,10 +9,9 @@ from twisted.internet.interfaces import IConsumer
 @implementer(IConsumer)
 class MemoryConsumer(object):
 
-    def __init__(self, progress=None):
+    def __init__(self):
         self.chunks = []
         self.done = False
-        self._progress = progress
 
     def registerProducer(self, p, streaming):
         self.producer = p
@@ -25,16 +24,14 @@ class MemoryConsumer(object):
 
     def write(self, data):
         self.chunks.append(data)
-        if self._progress is not None:
-            self._progress.set_progress(sum([len(c) for c in self.chunks]))
 
     def unregisterProducer(self):
         self.done = True
 
-def download_to_data(n, offset=0, size=None, progress=None):
+def download_to_data(n, offset=0, size=None):
     """
-    :param progress: None or an IProgress implementer
+    Return Deferred that fires with results of reading from the given filenode.
     """
-    d = n.read(MemoryConsumer(progress=progress), offset, size)
+    d = n.read(MemoryConsumer(), offset, size)
     d.addCallback(lambda mc: b"".join(mc.chunks))
     return d

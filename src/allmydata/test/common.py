@@ -539,8 +539,8 @@ class FakeCHKFileNode(object):  # type: ignore # incomplete implementation
         return defer.succeed(self)
 
 
-    def download_to_data(self, progress=None):
-        return download_to_data(self, progress=progress)
+    def download_to_data(self):
+        return download_to_data(self)
 
 
     download_best_version = download_to_data
@@ -717,11 +717,11 @@ class FakeMutableFileNode(object):  # type: ignore # incomplete implementation
         d.addCallback(_done)
         return d
 
-    def download_best_version(self, progress=None):
-        return defer.succeed(self._download_best_version(progress=progress))
+    def download_best_version(self):
+        return defer.succeed(self._download_best_version())
 
 
-    def _download_best_version(self, ignored=None, progress=None):
+    def _download_best_version(self, ignored=None):
         if isinstance(self.my_uri, uri.LiteralFileURI):
             return self.my_uri.data
         if self.storage_index not in self.all_contents:
