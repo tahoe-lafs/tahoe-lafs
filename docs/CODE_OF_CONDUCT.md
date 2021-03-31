@@ -45,6 +45,7 @@ The following community members have made themselves available for conduct issue
 
 - Jean-Paul Calderone (jean-paul at leastauthority dot com)
 - meejah (meejah at meejah dot ca)
+- May-Lee Sia(she/her) (tahoe dot lafs dot community at gmail dot com)
 
 This Code of Conduct is adapted from the [Contributor Covenant][homepage],
 version 1.3.0, available at
