@@ -191,6 +191,7 @@ PORTED_TEST_MODULES = [
     "allmydata.test.test_configutil",
     "allmydata.test.test_connections",
     "allmydata.test.test_connection_status",
+    "allmydata.test.test_consumer",
     "allmydata.test.test_crawler",
     "allmydata.test.test_crypto",
 
