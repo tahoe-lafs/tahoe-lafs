@@ -117,7 +117,7 @@ jobs:
       - name: "Report Coverage to Coveralls"
         run: |
           pip3 install --upgrade coveralls==3.0.1
-          python3 -m coveralls
+          python3 -m coveralls --verbose
         env:
           # Some magic value required for some magic reason.
           GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
@@ -152,7 +152,7 @@ jobs:
       - name: "Indicate completion to coveralls.io"
         run: |
           pip3 install --upgrade coveralls==3.0.1
-          python3 -m coveralls --finish
+          python3 -m coveralls --verbose --finish
         env:
           # Some magic value required for some magic reason.
           GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
