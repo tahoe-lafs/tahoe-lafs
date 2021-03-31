@@ -136,9 +136,10 @@ jobs:
   # See notes about parallel builds on GitHub Actions at
   # https://coveralls-python.readthedocs.io/en/latest/usage/configuration.html
   finish-coverage-report:
-    needs: coverage
-    runs-on: ubuntu-latest
-    container: python:3-slim
+    needs: 
+      - "coverage"
+    runs-on: "ubuntu-latest"
+    container: "python:3-slim"
     steps:
       - name: "Indicate completion to coveralls.io"
         run: |
