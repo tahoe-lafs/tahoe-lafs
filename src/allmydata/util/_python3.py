@@ -140,6 +140,7 @@ PORTED_MODULES = [
     "allmydata.util.statistics",
     "allmydata.util.time_format",
     "allmydata.util.tor_provider",
+    "allmydata.util.yamlutil",
     "allmydata.web",
     "allmydata.web.check_results",
     "allmydata.web.common",
