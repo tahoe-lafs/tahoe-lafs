@@ -2,8 +2,6 @@
 import os, sys
 
 import sqlite3
-from sqlite3 import IntegrityError
-[IntegrityError]
 
 
 class DBError(Exception):
@@ -12,7 +10,7 @@ class DBError(Exception):
 
 def get_db(dbfile, stderr=sys.stderr,
            create_version=(None, None), updaters={}, just_create=False, dbname="db",
-           journal_mode=None, synchronous=None):
+           ):
     """Open or create the given db file. The parent directory must exist.
     create_version=(SCHEMA, VERNUM), and SCHEMA must have a 'version' table.
     Updaters is a {newver: commands} mapping, where e.g. updaters[2] is used
@@ -31,12 +29,6 @@ def get_db(dbfile, stderr=sys.stderr,
     # Enabling foreign keys allows stricter integrity checking.
     # The default is unspecified according to <http://www.sqlite.org/foreignkeys.html#fk_enable>.
     c.execute("PRAGMA foreign_keys = ON;")
-
-    if journal_mode is not None:
-        c.execute("PRAGMA journal_mode = %s;" % (journal_mode,))
-
-    if synchronous is not None:
-        c.execute("PRAGMA synchronous = %s;" % (synchronous,))
 
     if must_create:
         c.executescript(schema)
