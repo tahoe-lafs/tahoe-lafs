@@ -136,6 +136,7 @@ PORTED_MODULES = [
     "allmydata.util.observer",
     "allmydata.util.pipeline",
     "allmydata.util.pollmixin",
+    "allmydata.util.rrefutil",
     "allmydata.util.spans",
     "allmydata.util.statistics",
     "allmydata.util.time_format",
