@@ -17,12 +17,15 @@ import yaml
 import json
 
 from twisted.trial import unittest
+from twisted.internet import defer
+from foolscap.api import Violation, RemoteException
 
 from allmydata.util import idlib, mathutil
 from allmydata.util import fileutil
 from allmydata.util import jsonbytes
 from allmydata.util import pollmixin
 from allmydata.util import yamlutil
+from allmydata.util import rrefutil
 from allmydata.util.fileutil import EncryptedTemporaryFile
 from allmydata.test.common_util import ReallyEqualMixin
 
@@ -526,3 +529,39 @@ class JSONBytes(unittest.TestCase):
         encoded = jsonbytes.dumps_bytes(x)
         self.assertIsInstance(encoded, bytes)
         self.assertEqual(json.loads(encoded, encoding="utf-8"), x)
+
+
+class FakeRemoteRef(object):
+    """Emulate a RemoteRef."""
+
+    def __init__(self, result):
+        self.result = result
+
+    def callRemote(self, method):
+        assert method == "get_version"
+        if isinstance(self.result, Exception):
+            return defer.fail(self.result)
+        return defer.succeed(self.result)
+
+
+class RrefUtilTests(unittest.TestCase):
+    """Tests for rrefutil."""
+
+    def test_version_returned(self):
+        """If get_version() succeeded, it is set on the rref."""
+        rref = FakeRemoteRef(12345)
+        result = self.successResultOf(
+            rrefutil.add_version_to_remote_reference(rref, "default")
+        )
+        self.assertEqual(result.version, 12345)
+        self.assertIdentical(result, rref)
+
+    def test_exceptions(self):
+        """If get_version() failed, default version is set on the rref."""
+        for exception in (Violation(), RemoteException(ValueError())):
+            rref = FakeRemoteRef(exception)
+            result = self.successResultOf(
+                rrefutil.add_version_to_remote_reference(rref, "Default")
+            )
+            self.assertEqual(result.version, "Default")
+            self.assertIdentical(result, rref)
