@@ -24,6 +24,7 @@ except ImportError:
 from zope.interface import implementer
 from twisted.application import service
 from twisted.internet import defer
+from twisted.internet.address import IPv4Address
 from twisted.python.failure import Failure
 from foolscap.api import Referenceable
 import allmydata
@@ -147,6 +148,15 @@ class _IntroducerNode(node.Node):
         staticdir = self.config.get_config_path(config_staticdir)
         ws = IntroducerWebishServer(self, webport, nodeurl_path, staticdir)
         ws.setServiceParent(self)
+
+
+def stringify_remote_address(rref):
+    remote = rref.getPeer()
+    if isinstance(remote, IPv4Address):
+        return "%s:%d" % (remote.host, remote.port)
+    # loopback is a non-IPv4Address
+    return str(remote)
+
 
 @implementer(RIIntroducerPublisherAndSubscriberService_v2)
 class IntroducerService(service.MultiService, Referenceable):

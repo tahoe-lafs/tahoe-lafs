@@ -1,5 +1,4 @@
 
-from twisted.internet import address
 from foolscap.api import Violation, RemoteException, SturdyRef
 
 
@@ -18,11 +17,3 @@ def add_version_to_remote_reference(rref, default):
         return rref
     d.addCallbacks(_got_version, _no_get_version)
     return d
-
-
-def stringify_remote_address(rref):
-    remote = rref.getPeer()
-    if isinstance(remote, address.IPv4Address):
-        return "%s:%d" % (remote.host, remote.port)
-    # loopback is a non-IPv4Address
-    return str(remote)
