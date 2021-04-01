@@ -11,9 +11,11 @@ if PY2:
     from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 import re
+
+from foolscap.api import SturdyRef
 from allmydata.crypto.util import remove_prefix
 from allmydata.crypto import ed25519
-from allmydata.util import base32, rrefutil, jsonbytes as json
+from allmydata.util import base32, jsonbytes as json
 
 
 def get_tubid_string_from_ann(ann):
@@ -127,6 +129,6 @@ class AnnouncementDescriptor(object):
         self.serverid = key_s
         furl = ann_d.get("anonymous-storage-FURL")
         if furl:
-            self.connection_hints = rrefutil.connection_hints_for_furl(furl)
+            self.connection_hints = list(SturdyRef(furl).locationHints)
         else:
             self.connection_hints = []

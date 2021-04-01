@@ -20,19 +20,6 @@ def add_version_to_remote_reference(rref, default):
     return d
 
 
-def connection_hints_for_furl(furl):
-    hints = []
-    for h in SturdyRef(furl).locationHints:
-        # Foolscap-0.2.5 and earlier used strings in .locationHints, 0.2.6
-        # through 0.6.4 used tuples of ("ipv4",host,port), 0.6.5 through
-        # 0.8.0 used tuples of ("tcp",host,port), and >=0.9.0 uses strings
-        # again. Tolerate them all.
-        if isinstance(h, tuple):
-            hints.append(":".join([str(s) for s in h]))
-        else:
-            hints.append(h)
-    return hints
-
 def stringify_remote_address(rref):
     remote = rref.getPeer()
     if isinstance(remote, address.IPv4Address):
