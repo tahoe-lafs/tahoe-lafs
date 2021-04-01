@@ -22,7 +22,7 @@ from allmydata.util.consumer import MemoryConsumer, download_to_data
 
 @implementer(IPushProducer)
 @implementer(IPullProducer)
-class Producer:
+class Producer(object):
     """Can be used as either streaming or non-streaming producer.
 
     If used as streaming, the test should call iterate() manually.
