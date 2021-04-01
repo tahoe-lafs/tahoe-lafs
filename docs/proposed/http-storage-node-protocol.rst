@@ -24,25 +24,25 @@ At its core it allows separate processes to refer each other's objects and metho
 This allows for extremely fine-grained access control in a system that remains highly securable without becoming overwhelmingly complicated.
 Supporting this is a flexible and extensible serialization system which allows data to be exchanged between processes in carefully controlled ways.
 
-Tahoe avails itself of only a small portion of these features.
-A Tahoe storage server typically only exposes one object with a fixed set of methods to clients.
-A Tahoe introducer node does roughly the same.
-Tahoe exchanges simple data structures that have many common, standard serialized representations.
+Tahoe-LAFS avails itself of only a small portion of these features.
+A Tahoe-LAFS storage server typically only exposes one object with a fixed set of methods to clients.
+A Tahoe-LAFS introducer node does roughly the same.
+Tahoe-LAFS exchanges simple data structures that have many common, standard serialized representations.
 
 In exchange for this slight use of Foolscap's sophisticated mechanisms,
-Tahoe pays a substantial price:
+Tahoe-LAFS pays a substantial price:
 
 * Foolscap is implemented only for Python.
-  Tahoe is thus limited to being implemented only in Python.
+  Tahoe-LAFS is thus limited to being implemented only in Python.
 * There is only one Python implementation of Foolscap.
   The implementation is therefore the de facto standard and understanding of the protocol often relies on understanding that implementation.
 * The Foolscap developer community is very small.
-  The implementation therefore advances very little and some non-trivial part of the maintenance cost falls on the Tahoe project.
-* The extensible serialization system imposes substantial overhead for the simple data structures Tahoe exchanges.
+  The implementation therefore advances very little and some non-trivial part of the maintenance cost falls on the Tahoe-LAFS project.
+* The extensible serialization system imposes substantial overhead for the simple data structures Tahoe-LAFS exchanges.
 * Foolscap encourages a "remote object" style of protocol design with involves many client-server interactions.
   However, Foolscap does not implement "promise pipelining".
   The result is that Foolscap encourages a protocol that requires many round-trips between client and server.
-* The serialization overhead combined with the many round-trips result in Tahoe presenting a more sluggish experience to users and taxes servers more greatly than is necessary.
+* The serialization overhead combined with the many round-trips result in Tahoe-LAFS presenting a more sluggish experience to users and taxes servers more greatly than is necessary.
 
 HTTP
 ~~~~
@@ -52,22 +52,22 @@ Combined with the principles of Representational State Transfer (REST) it is wid
 HTTP itself provides only modest functionality in comparison to Foolscap.
 However its simplicity and widespread use have led to a diverse and almost overwhelming ecosystem of libraries, frameworks, toolkits, and so on.
 
-By adopting HTTP in place of Foolscap Tahoe can realize the following concrete benefits:
+By adopting HTTP in place of Foolscap Tahoe-LAFS can realize the following concrete benefits:
 
 * Practically every language or runtime has an HTTP protocol implementation (or a dozen of them) available.
-  This change paves the way for new Tahoe implementations using tools better suited for certain situations
+  This change paves the way for new Tahoe-LAFS implementations using tools better suited for certain situations
   (mobile client implementations, high-performance server implementations, easily distributed desktop clients, etc).
 * The simplicity of and vast quantity of resources about HTTP make it a very easy protocol to learn and use.
-  This change reduces the barrier to entry for developers to contribute improvements to Tahoe's network interactions.
+  This change reduces the barrier to entry for developers to contribute improvements to Tahoe-LAFS's network interactions.
 * For any given language there is very likely an HTTP implementation with a large and active developer community.
-  Tahoe can therefore benefit from the large effort being put into making better libraries for using HTTP.
+  Tahoe-LAFS can therefore benefit from the large effort being put into making better libraries for using HTTP.
 * One of the core features of HTTP is the mundane transfer of bulk data and implementions are often capable of doing this with extreme efficiency.
-  The alignment of this core feature with a core activity of Tahoe of transferring bulk data means that a substantial barrier to improved Tahoe runtime performance will be eliminated.
+  The alignment of this core feature with a core activity of Tahoe-LAFS of transferring bulk data means that a substantial barrier to improved Tahoe-LAFS runtime performance will be eliminated.
 
 TLS
 ~~~
 
-The Foolscap-based protocol provides *some* of Tahoe's confidentiality, integrity, and authentication properties by leveraging TLS.
+The Foolscap-based protocol provides *some* of Tahoe-LAFS's confidentiality, integrity, and authentication properties by leveraging TLS.
 An HTTP-based protocol can make use of TLS in largely the same way to provide the same properties.
 Provision of these properties *is* dependant on implementers following Great Black Swamp's rules for x509 certificate validation
 (rather than the standard "web" rules for validation).
