@@ -480,7 +480,12 @@ class EqButNotIs(object):
 
 class YAML(unittest.TestCase):
     def test_convert(self):
-        data = yaml.safe_dump(["str", u"unicode", u"\u1234nicode"])
+        """
+        Unicode and (ASCII) native strings get roundtripped to Unicode strings.
+        """
+        data = yaml.safe_dump(
+            [six.ensure_str("str"), u"unicode", u"\u1234nicode"]
+        )
         back = yamlutil.safe_load(data)
         self.assertIsInstance(back[0], str)
         self.assertIsInstance(back[1], str)
