@@ -83,10 +83,3 @@ Contents:
    OS-X
    build/build-pyOpenSSL
 
-
-Indices and tables
-==================
-
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
