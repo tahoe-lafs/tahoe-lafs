@@ -43,6 +43,7 @@ Contents:
    cautions
    backupdb
    nodekeys
+   performance
 
 .. toctree::
    :maxdepth: 1
@@ -67,7 +68,6 @@ Contents:
 
    developer-guide
 
-   performance
    logging
    stats
 
