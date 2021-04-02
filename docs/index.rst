@@ -39,6 +39,7 @@ Contents:
    filesystem-notes
    key-value-store
    frontends/webapi
+   write_coordination
 
 .. toctree::
    :maxdepth: 1
@@ -64,7 +65,6 @@ Contents:
    developer-guide
 
    cautions
-   write_coordination
    backupdb
 
    nodekeys
