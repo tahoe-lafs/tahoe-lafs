@@ -21,6 +21,7 @@ Contents:
    running
    magic-wormhole-invites
    configuration
+   servers
    frontends/CLI
    frontends/webapi
    frontends/FTP-and-SFTP
@@ -40,7 +41,6 @@ Contents:
    :caption: Technical Notes
 
    architecture
-   servers
    helper
    convergence-secret
    garbage-collection
