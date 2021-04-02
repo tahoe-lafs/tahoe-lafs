@@ -30,7 +30,7 @@ Contents:
 
 .. toctree::
    :maxdepth: 1
-   :caption: Miscellaneous Information
+   :caption: Notes for all contributors
 
    contributing
    CODE_OF_CONDUCT
