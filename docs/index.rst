@@ -75,7 +75,7 @@ Contents:
 
 .. toctree::
    :maxdepth: 1
-   :caption: Of Historical Interest
+   :caption: Notes of Historical Interest
 
    historical/configuration
    debian
