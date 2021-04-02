@@ -28,7 +28,7 @@ from allmydata.util import yamlutil
 from allmydata.util import rrefutil
 from allmydata.util.fileutil import EncryptedTemporaryFile
 from allmydata.test.common_util import ReallyEqualMixin
-
+from .no_network import fireNow, LocalWrapper
 
 if six.PY3:
     long = int
@@ -531,17 +531,16 @@ class JSONBytes(unittest.TestCase):
         self.assertEqual(json.loads(encoded, encoding="utf-8"), x)
 
 
-class FakeRemoteRef(object):
-    """Emulate a RemoteRef."""
+class FakeGetVersion(object):
+    """Emulate an object with a get_version."""
 
     def __init__(self, result):
         self.result = result
 
-    def callRemote(self, method):
-        assert method == "get_version"
+    def remote_get_version(self):
         if isinstance(self.result, Exception):
-            return defer.fail(self.result)
-        return defer.succeed(self.result)
+            raise self.result
+        return self.result
 
 
 class RrefUtilTests(unittest.TestCase):
@@ -549,7 +548,7 @@ class RrefUtilTests(unittest.TestCase):
 
     def test_version_returned(self):
         """If get_version() succeeded, it is set on the rref."""
-        rref = FakeRemoteRef(12345)
+        rref = LocalWrapper(FakeGetVersion(12345), fireNow)
         result = self.successResultOf(
             rrefutil.add_version_to_remote_reference(rref, "default")
         )
@@ -559,7 +558,7 @@ class RrefUtilTests(unittest.TestCase):
     def test_exceptions(self):
         """If get_version() failed, default version is set on the rref."""
         for exception in (Violation(), RemoteException(ValueError())):
-            rref = FakeRemoteRef(exception)
+            rref = LocalWrapper(FakeGetVersion(exception), fireNow)
             result = self.successResultOf(
                 rrefutil.add_version_to_remote_reference(rref, "Default")
             )
