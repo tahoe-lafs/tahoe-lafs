@@ -30,20 +30,20 @@ Contents:
 
 .. toctree::
    :maxdepth: 1
-   :caption: Notes for all contributors
-
-   contributing
-   CODE_OF_CONDUCT
-   release-checklist
-
-.. toctree::
-   :maxdepth: 1
    :caption: Technical Notes
 
    architecture
    helper
    convergence-secret
    garbage-collection
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Notes for all contributors
+
+   contributing
+   CODE_OF_CONDUCT
+   release-checklist
 
 .. toctree::
    :maxdepth: 1
