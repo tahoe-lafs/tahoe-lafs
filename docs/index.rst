@@ -41,6 +41,7 @@ Contents:
    frontends/webapi
    write_coordination
    cautions
+   backupdb
 
 .. toctree::
    :maxdepth: 1
@@ -64,8 +65,6 @@ Contents:
    :caption: Developer Information
 
    developer-guide
-
-   backupdb
 
    nodekeys
    performance
