@@ -29,7 +29,7 @@ from twisted.python.failure import Failure
 from foolscap.api import Referenceable
 import allmydata
 from allmydata import node
-from allmydata.util import log, rrefutil, dictutil
+from allmydata.util import log, dictutil
 from allmydata.util.i2p_provider import create as create_i2p_provider
 from allmydata.util.tor_provider import create as create_tor_provider
 from allmydata.introducer.interfaces import \

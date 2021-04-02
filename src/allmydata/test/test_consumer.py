@@ -17,7 +17,7 @@ from zope.interface import implementer
 from twisted.trial.unittest import TestCase
 from twisted.internet.interfaces import IPushProducer, IPullProducer
 
-from allmydata.util.consumer import MemoryConsumer, download_to_data
+from allmydata.util.consumer import MemoryConsumer
 
 
 @implementer(IPushProducer)

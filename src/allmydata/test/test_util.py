@@ -17,7 +17,6 @@ import yaml
 import json
 
 from twisted.trial import unittest
-from twisted.internet import defer
 from foolscap.api import Violation, RemoteException
 
 from allmydata.util import idlib, mathutil
