@@ -45,6 +45,7 @@ Contents:
    nodekeys
    performance
    logging
+   stats
 
 .. toctree::
    :maxdepth: 1
@@ -68,9 +69,6 @@ Contents:
    :caption: Developer Information
 
    developer-guide
-
-   stats
-
    desert-island
 
 .. toctree::
