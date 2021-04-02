@@ -58,16 +58,11 @@ Contents:
 
 .. toctree::
    :maxdepth: 1
-   :caption: Notes for all contributors
+   :caption: Notes for Contributors
 
    contributing
    CODE_OF_CONDUCT
    release-checklist
-
-.. toctree::
-   :maxdepth: 1
-   :caption: Developer Information
-
    developer-guide
    desert-island
 
