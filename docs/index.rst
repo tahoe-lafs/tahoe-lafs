@@ -74,7 +74,6 @@ Contents:
 
    desert-island
 
-   OS-X
    build/build-pyOpenSSL
 
 .. toctree::
@@ -91,6 +90,7 @@ Contents:
    historical/configuration
    debian
    windows
+   OS-X
 
 Indices and tables
 ==================
