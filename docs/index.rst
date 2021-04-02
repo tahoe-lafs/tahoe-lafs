@@ -58,11 +58,11 @@ Contents:
    :maxdepth: 1
    :caption: Developer Information
 
+   developer-guide
+
    cautions
    write_coordination
    backupdb
-
-   developer-guide
 
    anonymity-configuration
 
