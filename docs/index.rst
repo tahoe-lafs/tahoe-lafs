@@ -44,6 +44,7 @@ Contents:
    backupdb
    nodekeys
    performance
+   logging
 
 .. toctree::
    :maxdepth: 1
@@ -68,7 +69,6 @@ Contents:
 
    developer-guide
 
-   logging
    stats
 
    desert-island
