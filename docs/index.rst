@@ -74,8 +74,6 @@ Contents:
 
    desert-island
 
-   build/build-pyOpenSSL
-
 .. toctree::
    :maxdepth: 1
    :caption: Specifications
@@ -91,6 +89,8 @@ Contents:
    debian
    windows
    OS-X
+   build/build-pyOpenSSL
+
 
 Indices and tables
 ==================
