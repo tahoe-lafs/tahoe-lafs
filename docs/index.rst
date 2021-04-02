@@ -19,13 +19,13 @@ Contents:
 
    INSTALL
    running
-   magic-wormhole-invites
    configuration
    servers
    frontends/CLI
    frontends/webapi
    frontends/FTP-and-SFTP
    frontends/download-status
+   magic-wormhole-invites
    known_issues
 
 .. toctree::
