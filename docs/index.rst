@@ -42,6 +42,7 @@ Contents:
    write_coordination
    cautions
    backupdb
+   nodekeys
 
 .. toctree::
    :maxdepth: 1
@@ -66,7 +67,6 @@ Contents:
 
    developer-guide
 
-   nodekeys
    performance
    logging
    stats
