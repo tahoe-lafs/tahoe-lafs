@@ -21,7 +21,6 @@ Contents:
    running
    magic-wormhole-invites
    configuration
-   architecture
    frontends/CLI
    frontends/webapi
    frontends/FTP-and-SFTP
@@ -40,6 +39,7 @@ Contents:
    :maxdepth: 1
    :caption: Technical Notes
 
+   architecture
    servers
    helper
    convergence-secret
