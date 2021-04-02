@@ -49,6 +49,13 @@ Contents:
 
 .. toctree::
    :maxdepth: 1
+   :caption: Specifications
+
+   specifications/index
+   proposed/index
+
+.. toctree::
+   :maxdepth: 1
    :caption: Notes of Community Interest
 
    backdoors
@@ -65,13 +72,6 @@ Contents:
    developer-guide
    release-checklist
    desert-island
-
-.. toctree::
-   :maxdepth: 1
-   :caption: Specifications
-
-   specifications/index
-   proposed/index
 
 .. toctree::
    :maxdepth: 1
