@@ -28,8 +28,8 @@ class Producer(object):
     If used as streaming, the test should call iterate() manually.
     """
 
-    def __init__(self, consumer):
-        self.data = [b"abc", b"def", b"ghi"]
+    def __init__(self, consumer, data):
+        self.data = data
         self.consumer = consumer
         self.done = False
 
@@ -58,7 +58,7 @@ class MemoryConsumerTests(TestCase):
         A MemoryConsumer accumulates all data sent by a streaming producer.
         """
         consumer = MemoryConsumer()
-        producer = Producer(consumer)
+        producer = Producer(consumer, [b"abc", b"def", b"ghi"])
         consumer.registerProducer(producer, True)
         self.assertEqual(consumer.chunks, [b"abc"])
         producer.iterate()
@@ -74,7 +74,7 @@ class MemoryConsumerTests(TestCase):
         A MemoryConsumer accumulates all data sent by a non-streaming producer.
         """
         consumer = MemoryConsumer()
-        producer = Producer(consumer)
+        producer = Producer(consumer, [b"abc", b"def", b"ghi"])
         consumer.registerProducer(producer, False)
         self.assertEqual(consumer.chunks, [b"abc", b"def", b"ghi"])
         self.assertEqual(consumer.done, True)
