@@ -38,11 +38,7 @@ Tahoe-LAFS pays a substantial price:
   The implementation is therefore the de facto standard and understanding of the protocol often relies on understanding that implementation.
 * The Foolscap developer community is very small.
   The implementation therefore advances very little and some non-trivial part of the maintenance cost falls on the Tahoe-LAFS project.
-* The extensible serialization system imposes substantial overhead for the simple data structures Tahoe-LAFS exchanges.
-* Foolscap encourages a "remote object" style of protocol design with involves many client-server interactions.
-  However, Foolscap does not implement "promise pipelining".
-  The result is that Foolscap encourages a protocol that requires many round-trips between client and server.
-* The serialization overhead combined with the many round-trips result in Tahoe-LAFS presenting a more sluggish experience to users and taxes servers more greatly than is necessary.
+* The extensible serialization system imposes substantial complexity compared to the simple data structures Tahoe-LAFS actually exchanges.
 
 HTTP
 ~~~~
