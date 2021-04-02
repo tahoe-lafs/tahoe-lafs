@@ -74,7 +74,6 @@ Contents:
 
    desert-island
 
-   windows
    OS-X
    build/build-pyOpenSSL
 
@@ -91,6 +90,7 @@ Contents:
 
    historical/configuration
    debian
+   windows
 
 Indices and tables
 ==================
