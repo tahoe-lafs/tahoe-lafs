@@ -26,6 +26,7 @@ Contents:
    frontends/FTP-and-SFTP
    frontends/download-status
    magic-wormhole-invites
+   anonymity-configuration
    known_issues
 
 .. toctree::
@@ -63,8 +64,6 @@ Contents:
    cautions
    write_coordination
    backupdb
-
-   anonymity-configuration
 
    nodekeys
    performance
