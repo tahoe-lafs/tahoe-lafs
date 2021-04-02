@@ -40,6 +40,7 @@ Contents:
    key-value-store
    frontends/webapi
    write_coordination
+   cautions
 
 .. toctree::
    :maxdepth: 1
@@ -64,7 +65,6 @@ Contents:
 
    developer-guide
 
-   cautions
    backupdb
 
    nodekeys
