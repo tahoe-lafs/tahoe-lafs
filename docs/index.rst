@@ -43,20 +43,20 @@ Contents:
 
 .. toctree::
    :maxdepth: 1
-   :caption: Notes for all contributors
-
-   contributing
-   CODE_OF_CONDUCT
-   release-checklist
-
-.. toctree::
-   :maxdepth: 1
    :caption: Community Information
 
    backdoors
    donations
    accepting-donations
    expenses
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Notes for all contributors
+
+   contributing
+   CODE_OF_CONDUCT
+   release-checklist
 
 .. toctree::
    :maxdepth: 1
