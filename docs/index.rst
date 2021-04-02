@@ -49,7 +49,7 @@ Contents:
 
 .. toctree::
    :maxdepth: 1
-   :caption: Community Information
+   :caption: Notes of Community Interest
 
    backdoors
    donations
