@@ -26,12 +26,12 @@ Contents:
    frontends/webapi
    frontends/FTP-and-SFTP
    frontends/download-status
+   known_issues
 
 .. toctree::
    :maxdepth: 1
    :caption: Miscellaneous Information
 
-   known_issues
    contributing
    CODE_OF_CONDUCT
    release-checklist
