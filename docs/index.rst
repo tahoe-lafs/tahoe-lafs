@@ -62,8 +62,8 @@ Contents:
 
    contributing
    CODE_OF_CONDUCT
-   release-checklist
    developer-guide
+   release-checklist
    desert-island
 
 .. toctree::
