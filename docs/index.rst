@@ -56,15 +56,6 @@ Contents:
 
 .. toctree::
    :maxdepth: 1
-   :caption: Notes of Community Interest
-
-   backdoors
-   donations
-   accepting-donations
-   expenses
-
-.. toctree::
-   :maxdepth: 1
    :caption: Notes for Contributors
 
    contributing
@@ -72,6 +63,15 @@ Contents:
    developer-guide
    release-checklist
    desert-island
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Notes of Community Interest
+
+   backdoors
+   donations
+   accepting-donations
+   expenses
 
 .. toctree::
    :maxdepth: 1
