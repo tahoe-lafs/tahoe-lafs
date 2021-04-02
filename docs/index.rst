@@ -8,34 +8,56 @@ Tahoe-LAFS
 Contents:
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
+   :caption: Preliminaries
 
    about
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Running Tahoe-LAFS
+
    INSTALL
    running
    magic-wormhole-invites
    configuration
    architecture
-
    frontends/CLI
    frontends/webapi
    frontends/FTP-and-SFTP
    frontends/download-status
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Miscellaneous Information
 
    known_issues
    contributing
    CODE_OF_CONDUCT
    release-checklist
 
+.. toctree::
+   :maxdepth: 1
+   :caption: Technical Notes
+
    servers
    helper
    convergence-secret
    garbage-collection
 
+.. toctree::
+   :maxdepth: 1
+   :caption: Community Information
+
    backdoors
    donations
    accepting-donations
    expenses
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Developer Information
+
    cautions
    write_coordination
    backupdb
@@ -55,8 +77,17 @@ Contents:
    OS-X
    build/build-pyOpenSSL
 
+.. toctree::
+   :maxdepth: 1
+   :caption: Specifications
+
    specifications/index
    proposed/index
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Of historical interest
+
    filesystem-notes
    historical/configuration
    key-value-store
