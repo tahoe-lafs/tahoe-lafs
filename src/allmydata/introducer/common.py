@@ -12,7 +12,7 @@ if PY2:
 
 import re
 
-from foolscap.api import SturdyRef
+from foolscap.furl import decode_furl
 from allmydata.crypto.util import remove_prefix
 from allmydata.crypto import ed25519
 from allmydata.util import base32, jsonbytes as json
@@ -125,10 +125,10 @@ class AnnouncementDescriptor(object):
         self.service_name = ann_d["service-name"]
         self.version = ann_d.get("my-version", "")
         self.nickname = ann_d.get("nickname", u"")
-        (service_name, key_s) = index
+        (_, key_s) = index
         self.serverid = key_s
         furl = ann_d.get("anonymous-storage-FURL")
         if furl:
-            self.connection_hints = list(SturdyRef(furl).locationHints)
+            _, self.connection_hints, _ = decode_furl(furl)
         else:
             self.connection_hints = []
