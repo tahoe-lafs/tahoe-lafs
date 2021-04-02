@@ -22,7 +22,6 @@ Contents:
    configuration
    servers
    frontends/CLI
-   frontends/webapi
    frontends/FTP-and-SFTP
    frontends/download-status
    magic-wormhole-invites
@@ -39,6 +38,7 @@ Contents:
    garbage-collection
    filesystem-notes
    key-value-store
+   frontends/webapi
 
 .. toctree::
    :maxdepth: 1
