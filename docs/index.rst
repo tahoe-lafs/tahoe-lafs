@@ -38,6 +38,7 @@ Contents:
    convergence-secret
    garbage-collection
    filesystem-notes
+   key-value-store
 
 .. toctree::
    :maxdepth: 1
@@ -89,7 +90,6 @@ Contents:
    :caption: Of historical interest
 
    historical/configuration
-   key-value-store
 
 Indices and tables
 ==================
