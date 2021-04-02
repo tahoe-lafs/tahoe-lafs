@@ -5,7 +5,11 @@ Tahoe-LAFS
 .. Please view a nicely formatted version of this documentation at
    http://tahoe-lafs.readthedocs.io/en/latest/
 
-Contents:
+Tahoe-LAFS is a Free and Open decentralized cloud storage system.
+It distributes your data across multiple servers.
+Even if some of the servers fail or are taken over by an attacker,
+the entire file store continues to function correctly,
+preserving your privacy and security.
 
 .. toctree::
    :maxdepth: 1
@@ -82,4 +86,3 @@ Contents:
    windows
    OS-X
    build/build-pyOpenSSL
-
