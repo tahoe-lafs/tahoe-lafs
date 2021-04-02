@@ -73,7 +73,7 @@ Contents:
    stats
 
    desert-island
-   debian
+
    windows
    OS-X
    build/build-pyOpenSSL
@@ -90,6 +90,7 @@ Contents:
    :caption: Of historical interest
 
    historical/configuration
+   debian
 
 Indices and tables
 ==================
