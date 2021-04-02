@@ -37,6 +37,7 @@ Contents:
    helper
    convergence-secret
    garbage-collection
+   filesystem-notes
 
 .. toctree::
    :maxdepth: 1
@@ -87,7 +88,6 @@ Contents:
    :maxdepth: 1
    :caption: Of historical interest
 
-   filesystem-notes
    historical/configuration
    key-value-store
 
