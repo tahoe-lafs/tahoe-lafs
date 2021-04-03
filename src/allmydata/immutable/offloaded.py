@@ -154,8 +154,8 @@ class CHKUploadHelper(Referenceable, upload.CHKUploader):  # type: ignore # warn
     def __init__(self, storage_index,
                  helper, storage_broker, secret_holder,
                  incoming_file, encoding_file,
-                 log_number, progress=None):
-        upload.CHKUploader.__init__(self, storage_broker, secret_holder, progress=progress)
+                 log_number):
+        upload.CHKUploader.__init__(self, storage_broker, secret_holder)
         self._storage_index = storage_index
         self._helper = helper
         self._incoming_file = incoming_file

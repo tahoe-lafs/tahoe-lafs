@@ -1,5 +1,11 @@
 from __future__ import print_function
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import unicode_literals
 
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 import warnings
 import os, sys
 from six.moves import StringIO
@@ -16,7 +22,7 @@ from twisted.internet import defer, task, threads
 from allmydata.scripts.common import get_default_nodedir
 from allmydata.scripts import debug, create_node, cli, \
     admin, tahoe_run, tahoe_invite
-from allmydata.util.encodingutil import quote_local_unicode_path
+from allmydata.util.encodingutil import quote_local_unicode_path, argv_to_unicode
 from allmydata.util.eliotutil import (
     opt_eliot_destination,
     opt_help_eliot_destinations,
@@ -112,6 +118,7 @@ def parse_options(argv, config=None):
     config.parseOptions(argv) # may raise usage.error
     return config
 
+
 def parse_or_exit_with_explanation(argv, stdout=sys.stdout):
     config = Options()
     try:
@@ -121,7 +128,10 @@ def parse_or_exit_with_explanation(argv, stdout=sys.stdout):
         while hasattr(c, 'subOptions'):
             c = c.subOptions
         print(str(c), file=stdout)
-        print("%s:  %s\n" % (sys.argv[0], e), file=stdout)
+        # On Python 2 the string may turn into a unicode string, e.g. the error
+        # may be unicode, in which case it will print funny. Once we're on
+        # Python 3 we can just drop the ensure_str().
+        print(six.ensure_str("%s:  %s\n" % (sys.argv[0], e)), file=stdout)
         sys.exit(1)
     return config
 
@@ -229,7 +239,8 @@ def _run_with_reactor(reactor):
 
     _setup_coverage(reactor)
 
-    d = defer.maybeDeferred(parse_or_exit_with_explanation, sys.argv[1:])
+    argv = list(map(argv_to_unicode, sys.argv[1:]))
+    d = defer.maybeDeferred(parse_or_exit_with_explanation, argv)
     d.addCallback(_maybe_enable_eliot_logging, reactor)
     d.addCallback(dispatch)
     def _show_exception(f):
