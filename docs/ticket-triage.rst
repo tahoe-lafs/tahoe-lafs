@@ -24,4 +24,5 @@ Process
     - There is another question about a ticket
 - These tickets will be brought to a weekly meeting (currently Tuesdays) for 
 discussion 
+
 - Ticket Triager role is also assigned at this meeting 
