@@ -22,7 +22,5 @@ Process
     - A ticket should probably be deleted
     - A ticket could be assigned to multiple milestones 
     - There is another question about a ticket
-- These tickets will be brought to a weekly meeting (currently Tuesdays) for 
-discussion 
-
+- These tickets will be brought to a weekly meeting (currently Tuesdays) for discussion 
 - Ticket Triager role is also assigned at this meeting 
