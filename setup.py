@@ -389,6 +389,10 @@ setup(name="tahoe-lafs", # also set in __init__.py
               "tox",
               "pytest",
               "pytest-twisted",
+              # XXX: decorator isn't a direct dependency, but pytest-twisted
+              # depends on decorator, and decorator 5.x isn't compatible with
+              # Python 2.7.
+              "decorator < 5",
               "hypothesis >= 3.6.1",
               "treq",
               "towncrier",
