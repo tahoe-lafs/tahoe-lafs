@@ -106,6 +106,7 @@ PORTED_MODULES = [
     "allmydata.test.mutable",
     "allmydata.test.mutable.util",
     "allmydata.test.python3_tests",
+    "allmydata.test.storage_plugin",
     "allmydata.test.web",
     "allmydata.testing",
     "allmydata.testing.web",
