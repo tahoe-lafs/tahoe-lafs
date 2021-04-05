@@ -98,6 +98,7 @@ PORTED_MODULES = [
     "allmydata.storage.shares",
     "allmydata.test",
     "allmydata.test.cli",
+    "allmydata.test.cli_node_api",
     "allmydata.test.no_network",
     "allmydata.test.matchers",
     "allmydata.test.mutable",
