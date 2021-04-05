@@ -389,8 +389,7 @@ class TimezoneMixin(object):
 
 
 __all__ = [
-    "TestMixin", "ShouldFailMixin",
-    "StallMixin", "skip_if_cannot_represent_argv", "run_cli", "parse_cli",
+    "TestMixin", "ShouldFailMixin", "StallMixin", "run_cli", "parse_cli",
     "DevNullDictionary", "insecurerandstr", "flip_bit", "flip_one_bit",
     "SignalMixin", "skip_if_cannot_represent_filename", "ReallyEqualMixin"
 ]
