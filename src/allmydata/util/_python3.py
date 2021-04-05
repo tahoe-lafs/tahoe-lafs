@@ -99,6 +99,7 @@ PORTED_MODULES = [
     "allmydata.test",
     "allmydata.test.cli",
     "allmydata.test.cli_node_api",
+    "allmydata.test.common",
     "allmydata.test.common_web",
     "allmydata.test.no_network",
     "allmydata.test.matchers",

@@ -1,4 +1,15 @@
+"""
+Ported to Python 3.
+"""
 from __future__ import print_function
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+from past.builtins import chr as byteschr, str as native_str
 
 __all__ = [
     "SyncTestCase",
@@ -14,8 +25,6 @@ __all__ = [
     "Popen",
     "PIPE",
 ]
-
-from past.builtins import chr as byteschr, unicode
 
 import sys
 import os, random, struct
@@ -106,7 +115,7 @@ from .eliotutil import (
 )
 from .common_util import ShouldFailMixin  # noqa: F401
 
-if sys.platform == "win32":
+if sys.platform == "win32" and PY2:
     # Python 2.7 doesn't have good options for launching a process with
     # non-ASCII in its command line.  So use this alternative that does a
     # better job.  However, only use it on Windows because it doesn't work
@@ -253,7 +262,7 @@ class UseNode(object):
     plugin_config = attr.ib()
     storage_plugin = attr.ib()
     basedir = attr.ib(validator=attr.validators.instance_of(FilePath))
-    introducer_furl = attr.ib(validator=attr.validators.instance_of(str),
+    introducer_furl = attr.ib(validator=attr.validators.instance_of(native_str),
                               converter=six.ensure_str)
     node_config = attr.ib(default=attr.Factory(dict))
 
@@ -264,7 +273,7 @@ class UseNode(object):
             return "\n".join(
                 " = ".join((key, value))
                 for (key, value)
-                in config.items()
+                in list(config.items())
             )
 
         if self.plugin_config is None:
@@ -849,17 +858,17 @@ class WebErrorMixin(object):
                         callable=None, *args, **kwargs):
         # returns a Deferred with the response body
         if isinstance(substring, bytes):
-            substring = unicode(substring, "ascii")
-        if isinstance(response_substring, unicode):
+            substring = str(substring, "ascii")
+        if isinstance(response_substring, str):
             response_substring = response_substring.encode("ascii")
-        assert substring is None or isinstance(substring, unicode)
+        assert substring is None or isinstance(substring, str)
         assert response_substring is None or isinstance(response_substring, bytes)
         assert callable
         def _validate(f):
             if code is not None:
                 self.failUnlessEqual(f.value.status, b"%d" % code, which)
             if substring:
-                code_string = unicode(f)
+                code_string = str(f)
                 self.failUnless(substring in code_string,
                                 "%s: substring '%s' not in '%s'"
                                 % (which, substring, code_string))
@@ -882,7 +891,7 @@ class WebErrorMixin(object):
         body = yield response.content()
         self.assertEquals(response.code, code)
         if response_substring is not None:
-            if isinstance(response_substring, unicode):
+            if isinstance(response_substring, str):
                 response_substring = response_substring.encode("utf-8")
             self.assertIn(response_substring, body)
         returnValue(body)
