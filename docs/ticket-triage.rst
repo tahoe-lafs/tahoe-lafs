@@ -19,7 +19,7 @@ Process
 - Assign each ticket to a milestone on the Roadmap 
 - The following situations merit discussion:
     - A ticket doesn't have an appropriate milestone and we should create one 
-    - A ticket should probably be deleted
+    - A ticket, in vanishingly rare circumstances, should be deleted
     - A ticket could be assigned to multiple milestones 
     - There is another question about a ticket
 - These tickets will be brought to a weekly meeting (currently Tuesdays) for discussion 
