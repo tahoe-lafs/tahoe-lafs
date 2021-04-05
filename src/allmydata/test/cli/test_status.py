@@ -37,8 +37,24 @@ from allmydata.util import jsonbytes as json
 
 from ..no_network import GridTestMixin
 from ..common_web import do_http
-from ..status import FakeStatus
 from .common import CLITestMixin
+
+
+class FakeStatus(object):
+    def __init__(self):
+        self.status = []
+
+    def setServiceParent(self, p):
+        pass
+
+    def get_status(self):
+        return self.status
+
+    def get_storage_index(self):
+        return None
+
+    def get_size(self):
+        return None
 
 
 class ProgressBar(unittest.TestCase):
