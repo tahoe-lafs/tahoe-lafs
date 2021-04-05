@@ -20,7 +20,7 @@ from twisted.trial import unittest
 
 from ..util.assertutil import precondition
 from ..scripts import runner
-from allmydata.util.encodingutil import unicode_platform, get_filesystem_encoding, get_io_encoding, argv_type, unicode_to_argv
+from allmydata.util.encodingutil import unicode_platform, get_filesystem_encoding, argv_type, unicode_to_argv
 
 
 def skip_if_cannot_represent_filename(u):
