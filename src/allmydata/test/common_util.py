@@ -20,7 +20,7 @@ from twisted.trial import unittest
 
 from ..util.assertutil import precondition
 from ..scripts import runner
-from allmydata.util.encodingutil import unicode_platform, get_filesystem_encoding, get_io_encoding, argv_type, unicode_to_argv
+from allmydata.util.encodingutil import unicode_platform, get_filesystem_encoding, argv_type, unicode_to_argv
 
 
 def skip_if_cannot_represent_filename(u):
@@ -32,13 +32,6 @@ def skip_if_cannot_represent_filename(u):
             u.encode(enc)
         except UnicodeEncodeError:
             raise unittest.SkipTest("A non-ASCII filename could not be encoded on this platform.")
-
-def skip_if_cannot_represent_argv(u):
-    precondition(isinstance(u, unicode))
-    try:
-        u.encode(get_io_encoding())
-    except UnicodeEncodeError:
-        raise unittest.SkipTest("A non-ASCII argv could not be encoded on this platform.")
 
 
 def _getvalue(io):
@@ -395,28 +388,8 @@ class TimezoneMixin(object):
         return hasattr(time, 'tzset')
 
 
-try:
-    import win32file
-    import win32con
-    def make_readonly(path):
-        win32file.SetFileAttributes(path, win32con.FILE_ATTRIBUTE_READONLY)
-    def make_accessible(path):
-        win32file.SetFileAttributes(path, win32con.FILE_ATTRIBUTE_NORMAL)
-except ImportError:
-    import stat
-    def _make_readonly(path):
-        os.chmod(path, stat.S_IREAD)
-        os.chmod(os.path.dirname(path), stat.S_IREAD)
-    def _make_accessible(path):
-        os.chmod(os.path.dirname(path), stat.S_IWRITE | stat.S_IEXEC | stat.S_IREAD)
-        os.chmod(path, stat.S_IWRITE | stat.S_IEXEC | stat.S_IREAD)
-    make_readonly = _make_readonly
-    make_accessible = _make_accessible
-
-
 __all__ = [
-    "make_readonly", "make_accessible", "TestMixin", "ShouldFailMixin",
-    "StallMixin", "skip_if_cannot_represent_argv", "run_cli", "parse_cli",
+    "TestMixin", "ShouldFailMixin", "StallMixin", "run_cli", "parse_cli",
     "DevNullDictionary", "insecurerandstr", "flip_bit", "flip_one_bit",
     "SignalMixin", "skip_if_cannot_represent_filename", "ReallyEqualMixin"
 ]
