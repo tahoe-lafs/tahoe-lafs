@@ -24,15 +24,6 @@ jobs:
         python-version:
           - 2.7
           - 3.6
-        exclude:
-          # Do not run coverage tests with Python 3.6 on Windows for
-          # now.  They will fail.  Dealing with them separately would
-          # be simpler.
-          #
-          # XXX: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3669
-          # should track the effort to add Windows to the test matrix.
-          - python-version: 3.6
-            os: windows-latest
 
     steps:
 
