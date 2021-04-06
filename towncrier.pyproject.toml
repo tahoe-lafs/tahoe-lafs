@@ -38,6 +38,11 @@
         showcontent = true
 
     [[tool.towncrier.type]]
+        directory = "documentation"
+        name = "Documentation Changes"
+        showcontent = true
+
+    [[tool.towncrier.type]]
         directory = "removed"
         name = "Removed Features"
         showcontent = true
