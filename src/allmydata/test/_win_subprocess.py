@@ -1,3 +1,13 @@
+"""
+This module is only necessary on Python 2.  Once Python 2 code is dropped, it
+can be deleted.
+"""
+
+from future.utils import PY3
+if PY3:
+    raise RuntimeError("Just use subprocess.Popen")
+
+
 # -*- coding: utf-8 -*-
 
 ## Copyright (C) 2021 Valentin Lab
