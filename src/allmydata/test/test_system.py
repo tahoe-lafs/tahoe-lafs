@@ -50,8 +50,7 @@ from twisted.python.failure import Failure
 from twisted.python.filepath import (
     FilePath,
 )
-
-from ._twisted_9607 import (
+from twisted.internet.utils import (
     getProcessOutputAndValue,
 )
 
