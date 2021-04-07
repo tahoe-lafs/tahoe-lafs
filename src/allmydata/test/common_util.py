@@ -1,8 +1,15 @@
+"""
+Ported to Python 3.
+"""
 from __future__ import print_function
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import unicode_literals
 
 from future.utils import PY2, bchr, binary_type
 from future.builtins import str as future_str
-from past.builtins import unicode
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, dict, list, object, range, str, max, min  # noqa: F401
 
 import os
 import time
@@ -24,7 +31,7 @@ from allmydata.util.encodingutil import unicode_platform, get_filesystem_encodin
 
 
 def skip_if_cannot_represent_filename(u):
-    precondition(isinstance(u, unicode))
+    precondition(isinstance(u, str))
 
     enc = get_filesystem_encoding()
     if not unicode_platform():
@@ -44,7 +51,7 @@ def _getvalue(io):
 
 def maybe_unicode_to_argv(o):
     """Convert object to argv form if necessary."""
-    if isinstance(o, unicode):
+    if isinstance(o, str):
         return unicode_to_argv(o)
     return o
 
@@ -181,7 +188,7 @@ class DevNullDictionary(dict):
         return
 
 def insecurerandstr(n):
-    return b''.join(map(bchr, map(randrange, [0]*n, [256]*n)))
+    return b''.join(map(bchr, list(map(randrange, [0]*n, [256]*n))))
 
 def flip_bit(good, which):
     """Flip the low-order bit of good[which]."""
@@ -211,9 +218,9 @@ class ReallyEqualMixin(object):
         # type. They're equal, and _logically_ the same type, but have
         # different types in practice.
         if a.__class__ == future_str:
-            a = unicode(a)
+            a = str(a)
         if b.__class__ == future_str:
-            b = unicode(b)
+            b = str(b)
         self.assertEqual(type(a), type(b), "a :: %r (%s), b :: %r (%s), %r" % (a, type(a), b, type(b), msg))
 
 
@@ -297,7 +304,7 @@ class ShouldFailMixin(object):
         of the message wrapped by this Failure, or the test will fail.
         """
 
-        assert substring is None or isinstance(substring, (bytes, unicode))
+        assert substring is None or isinstance(substring, (bytes, str))
         d = defer.maybeDeferred(callable, *args, **kwargs)
         def done(res):
             if isinstance(res, failure.Failure):
