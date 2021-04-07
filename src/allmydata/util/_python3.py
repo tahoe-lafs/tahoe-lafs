@@ -230,6 +230,7 @@ PORTED_TEST_MODULES = [
     "allmydata.test.test_json_metadata",
     "allmydata.test.test_log",
     "allmydata.test.test_monitor",
+    "allmydata.test.test_multi_introducers",
     "allmydata.test.test_netstring",
     "allmydata.test.test_no_network",
     "allmydata.test.test_node",

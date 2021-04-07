@@ -1,8 +1,17 @@
-from past.builtins import unicode
+"""
+Ported to Python 3.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+from six import ensure_binary
 
 import os
-
-from six import ensure_binary
 
 from twisted.python.filepath import FilePath
 from twisted.trial import unittest
@@ -76,7 +85,7 @@ class MultiIntroTests(unittest.TestCase):
         tahoe_cfg_furl = myclient.introducer_clients[0].introducer_furl
 
         # assertions
-        self.failUnlessEqual(fake_furl, unicode(tahoe_cfg_furl, "utf-8"))
+        self.failUnlessEqual(fake_furl, str(tahoe_cfg_furl, "utf-8"))
         self.assertEqual(
             list(
                 warning["message"]
