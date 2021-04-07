@@ -1,7 +1,7 @@
 # coding: utf-8
 
 from __future__ import print_function
-from six import ensure_str
+from six import ensure_binary
 
 import os, sys, textwrap
 import codecs
@@ -22,6 +22,8 @@ from yaml import (
 from future.utils import PY2
 if PY2:
     from future.builtins import str  # noqa: F401
+else:
+    from typing import Union
 
 from twisted.python import usage
 
@@ -274,18 +276,17 @@ def get_alias(aliases, path_unicode, default):
     return uri.from_string_dirnode(aliases[alias]).to_string(), path[colon+1:]
 
 def escape_path(path):
-    # type: (str) -> str
+    # type: (Union[str,bytes]) -> bytes
     u"""
     Return path quoted to US-ASCII, valid URL characters.
 
     >>> path = u'/føö/bar/☃'
     >>> escaped = escape_path(path)
-    >>> str(escaped)
-    '/f%C3%B8%C3%B6/bar/%E2%98%83'
-    >>> escaped.encode('ascii').decode('ascii') == escaped
-    True
+    >>> escaped
+    b'/f%C3%B8%C3%B6/bar/%E2%98%83'
     """
-    segments = path.split("/")
-    result = "/".join([urllib.parse.quote(unicode_to_url(s)) for s in segments])
-    result = ensure_str(result, "ascii")
-    return result
+    if isinstance(path, str):
+        path = path.encode("utf-8")
+    segments = path.split(b"/")
+    return b"/".join([urllib.parse.quote(s).encode("ascii") for s in segments])
+
