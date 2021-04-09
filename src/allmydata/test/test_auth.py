@@ -161,18 +161,18 @@ class AccountURLCheckerTests(unittest.TestCase):
             password=self.valid_password_characters,
         )
         ct = InsensitiveDict(header)['content-type']
-        assert ct.startswith('multipart/form-data; boundary=')
+        self.assertSubstring('multipart/form-data; boundary=', ct)
         _, _, boundary = ct.partition('boundary=')
-        assert boundary in body
+        self.assertIn(boundary, body)
         last = '--' + boundary + '--'
-        assert last in body
+        self.assertIn(last, body)
         parts = body.split('--' + boundary)
-        assert not any(part.startswith('--') for part in parts[:-1])
-        assert parts[-1].startswith('--')
+        self.assertFalse(any(part.startswith('--') for part in parts[:-1]))
+        self.assertEqual(parts[-1][:2], '--')
         del parts[-1]
         del parts[0]
-        assert len(parts) == 3
-        assert all('\r\n\r\n' in part.strip() for part in parts)
+        self.assertEqual(len(parts), 3)
+        self.assertTrue(all('\r\n\r\n' in part.strip() for part in parts))
 
     def test_get_page(self):
         """
@@ -183,10 +183,10 @@ class AccountURLCheckerTests(unittest.TestCase):
         d = checker.post_form('schmoe@joe.org', self.valid_password_characters)
         def check(resp):
             data = json.loads(resp)
-            assert data['headers']['Content-Type'].startswith('multipart/form-data')
+            self.assertSubstring('multipart/form-data', data['headers']['Content-Type'])
             form = data['form']
-            assert form['action'] == 'authenticate'
-            assert form['email'] == 'schmoe@joe.org'
-            assert form['passwd'] == self.valid_password_characters
+            self.assertEqual(form['action'], 'authenticate')
+            self.assertEqual(form['email'], 'schmoe@joe.org')
+            self.assertEqual(form['passwd'], self.valid_password_characters)
         d.addCallback(check)
         return d
