@@ -151,6 +151,10 @@ class AccountURLCheckerTests(unittest.TestCase):
 
     valid_password_characters = string.ascii_letters + string.digits + string.punctuation
     def test_build_multipart(self):
+        """
+        ``auth.AccountURLChecker._build_multipart``
+        builds a plausibly valid header and multipart payload.
+        """
         header, body = auth.AccountURLChecker._build_multipart(
             action="authenticate",
             email="schmoe@joe.org",
@@ -171,6 +175,10 @@ class AccountURLCheckerTests(unittest.TestCase):
         assert all('\r\n\r\n' in part.strip() for part in parts)
 
     def test_get_page(self):
+        """
+        ``auth.AccountURLChecker.post_form`` submits a
+        valid multipart request as parsed by a server.
+        """
         checker = auth.AccountURLChecker(None, 'https://httpbin.org/post')
         d = checker.post_form('schmoe@joe.org', self.valid_password_characters)
         def check(resp):
