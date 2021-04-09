@@ -145,6 +145,10 @@ ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAAAYQDJGMWlPXh2M3pYzTiamjcBIMqctt4VvLVW2QZgEFc8
 
 
 class AccountURLCheckerTests(unittest.TestCase):
+    """
+    Tests for ``auth.AccountURLChecker``.
+    """
+
     valid_password_characters = string.ascii_letters + string.digits + string.punctuation
     def test_build_multipart(self):
         header, body = auth.AccountURLChecker._build_multipart(
