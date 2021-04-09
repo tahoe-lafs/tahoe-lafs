@@ -17,7 +17,7 @@ from twisted.conch.checkers import SSHPublicKeyChecker, InMemorySSHKeyDB
 from allmydata.util.dictutil import BytesKeyDict
 from allmydata.util import base32
 from allmydata.util.fileutil import abspath_expanduser_unicode
-from allmydata.util.encodingutil import encode_all
+from allmydata.util.encodingutil import encode_dict
 
 
 class NeedRootcapLookupScheme(Exception):
@@ -140,8 +140,8 @@ class AccountURLChecker(object):
             email=username,
             passwd=password,
         )
-        return getPage(encode_all(self.auth_url), method=encode_all("POST"),
-                       postdata=encode_all(body), headers=encode_all(headers),
+        return getPage(self.auth_url.encode("utf-8"), method="POST".encode("utf-8"),
+                       postdata=body.encode("utf-8"), headers=encode_dict(headers),
                        followRedirect=True, timeout=30)
 
     def _parse_response(self, res):

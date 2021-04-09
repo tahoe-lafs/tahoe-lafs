@@ -436,14 +436,11 @@ def normalize(namex):
     return unicodedata.normalize('NFC', namex)
 
 
-def encode_all(val, encoding='utf-8'):
+def encode_dict(val, encoding='utf-8'):
     """
-    Encode text or a dict to bytes using utf-8.
-    TODO: Consider using singledispatch.
+    Encode a dict to bytes using utf-8.
     """
-    if isinstance(val, dict):
-        return {
-            encode_all(key): encode_all(value)
-            for key, value in val.items()
-        }
-    return val.encode(encoding)
+    return {
+        key.encode(encoding): value.encode(encoding)
+        for key, value in val.items()
+    }
