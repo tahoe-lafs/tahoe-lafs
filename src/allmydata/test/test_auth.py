@@ -6,6 +6,7 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
+import io
 import string
 import json
 
@@ -13,9 +14,9 @@ from future.utils import PY2
 if PY2:
     from future.builtins import str  # noqa: F401
 
+import multipart
 from twisted.trial import unittest
 from twisted.python import filepath
-from twisted.python.util import InsensitiveDict
 from twisted.cred import error, credentials
 from twisted.conch import error as conch_error
 from twisted.conch.ssh import keys
@@ -150,6 +151,7 @@ class AccountURLCheckerTests(unittest.TestCase):
     """
 
     valid_password_characters = string.ascii_letters + string.digits + string.punctuation
+
     def test_build_multipart(self):
         """
         ``auth.AccountURLChecker._build_multipart``
@@ -160,19 +162,24 @@ class AccountURLCheckerTests(unittest.TestCase):
             email="schmoe@joe.org",
             password=self.valid_password_characters,
         )
-        ct = InsensitiveDict(header)['content-type']
-        self.assertSubstring('multipart/form-data; boundary=', ct)
-        _, _, boundary = ct.partition('boundary=')
-        self.assertIn(boundary, body)
-        last = '--' + boundary + '--'
-        self.assertIn(last, body)
-        parts = body.split('--' + boundary)
-        self.assertFalse(any(part.startswith('--') for part in parts[:-1]))
-        self.assertEqual(parts[-1][:2], '--')
-        del parts[-1]
-        del parts[0]
-        self.assertEqual(len(parts), 3)
-        self.assertTrue(all('\r\n\r\n' in part.strip() for part in parts))
+        environ = self.wsgi_environ(header, body)
+        forms, files = multipart.parse_form_data(environ, strict=True)
+        self.assertEqual(forms['action'], 'authenticate')
+        self.assertEqual(forms['email'], 'schmoe@joe.org')
+        self.assertEqual(forms['password'], self.valid_password_characters)
+
+    @staticmethod
+    def wsgi_environ(header, body):
+        """
+        Construct a WSGI environ from a header and body.
+        """
+        environ = {
+            key.upper().replace('-', '_'): value
+            for key, value in header.items()
+        }
+        environ['wsgi.input'] = io.BytesIO(body.encode('utf-8'))
+        environ['REQUEST_METHOD'] = 'POST'
+        return environ
 
     def test_get_page(self):
         """
