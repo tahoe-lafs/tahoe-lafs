@@ -407,6 +407,7 @@ setup(name="tahoe-lafs", # also set in __init__.py
               "pytest-timeout",
               'multipart<0.2; python_version < "3.5"',
               'multipart; python_version >= "3.5"',
+              "httpbin",
           ] + tor_requires + i2p_requires,
           "tor": tor_requires,
           "i2p": i2p_requires,

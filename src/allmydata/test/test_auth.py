@@ -186,7 +186,10 @@ class AccountURLCheckerTests(unittest.TestCase):
         ``auth.AccountURLChecker.post_form`` submits a
         valid multipart request as parsed by a server.
         """
-        checker = auth.AccountURLChecker(None, 'https://httpbin.org/post')
+        # doesn't work
+        # url = self.start_httpbin() + '/post'
+        url = 'https://httpbin.org/post'
+        checker = auth.AccountURLChecker(None, url)
         d = checker.post_form('schmoe@joe.org', self.valid_password_characters)
         def check(resp):
             data = json.loads(resp)
@@ -197,3 +200,24 @@ class AccountURLCheckerTests(unittest.TestCase):
             self.assertEqual(form['passwd'], self.valid_password_characters)
         d.addCallback(check)
         return d
+
+    def start_httpbin(self):
+        from twisted.python import threadpool
+        from twisted.web import wsgi
+        import twisted.web.server
+        import httpbin
+        from twisted.application import service, strports
+        from twisted.internet import reactor
+        pool = threadpool.ThreadPool()
+        pool.start()
+        # is there a better trigger for when the test is done?
+        reactor.addSystemEventTrigger('after', 'shutdown', pool.stop)
+        resource = wsgi.WSGIResource(reactor, pool, httpbin.app)
+        app = service.Application('HTTPbin')
+        # TODO: find an available port and use that
+        server = strports.service('tcp:8080', twisted.web.server.Site(resource))
+        server.setServiceParent(app)
+
+        # TODO: How to start the server?
+
+        return 'http://localhost:8080'
