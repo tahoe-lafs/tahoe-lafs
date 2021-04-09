@@ -11,6 +11,7 @@ import sys
 # See the docs/about.rst file for licensing information.
 
 import os, subprocess, re
+from io import open
 
 basedir = os.path.dirname(os.path.abspath(__file__))
 
@@ -357,7 +358,7 @@ if version:
 
 setup(name="tahoe-lafs", # also set in __init__.py
       description='secure, decentralized, fault-tolerant file store',
-      long_description=open('README.rst', 'rU').read(),
+      long_description=open('README.rst', 'r', encoding='utf-8').read(),
       author='the Tahoe-LAFS project',
       author_email='tahoe-dev@tahoe-lafs.org',
       url='https://tahoe-lafs.org/',
@@ -389,6 +390,10 @@ setup(name="tahoe-lafs", # also set in __init__.py
               "tox",
               "pytest",
               "pytest-twisted",
+              # XXX: decorator isn't a direct dependency, but pytest-twisted
+              # depends on decorator, and decorator 5.x isn't compatible with
+              # Python 2.7.
+              "decorator < 5",
               "hypothesis >= 3.6.1",
               "treq",
               "towncrier",

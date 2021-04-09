@@ -17,15 +17,17 @@ import yaml
 import json
 
 from twisted.trial import unittest
+from foolscap.api import Violation, RemoteException
 
 from allmydata.util import idlib, mathutil
 from allmydata.util import fileutil
 from allmydata.util import jsonbytes
 from allmydata.util import pollmixin
 from allmydata.util import yamlutil
+from allmydata.util import rrefutil
 from allmydata.util.fileutil import EncryptedTemporaryFile
 from allmydata.test.common_util import ReallyEqualMixin
-
+from .no_network import fireNow, LocalWrapper
 
 if six.PY3:
     long = int
@@ -480,7 +482,12 @@ class EqButNotIs(object):
 
 class YAML(unittest.TestCase):
     def test_convert(self):
-        data = yaml.safe_dump(["str", u"unicode", u"\u1234nicode"])
+        """
+        Unicode and (ASCII) native strings get roundtripped to Unicode strings.
+        """
+        data = yaml.safe_dump(
+            [six.ensure_str("str"), u"unicode", u"\u1234nicode"]
+        )
         back = yamlutil.safe_load(data)
         self.assertIsInstance(back[0], str)
         self.assertIsInstance(back[1], str)
@@ -521,3 +528,38 @@ class JSONBytes(unittest.TestCase):
         encoded = jsonbytes.dumps_bytes(x)
         self.assertIsInstance(encoded, bytes)
         self.assertEqual(json.loads(encoded, encoding="utf-8"), x)
+
+
+class FakeGetVersion(object):
+    """Emulate an object with a get_version."""
+
+    def __init__(self, result):
+        self.result = result
+
+    def remote_get_version(self):
+        if isinstance(self.result, Exception):
+            raise self.result
+        return self.result
+
+
+class RrefUtilTests(unittest.TestCase):
+    """Tests for rrefutil."""
+
+    def test_version_returned(self):
+        """If get_version() succeeded, it is set on the rref."""
+        rref = LocalWrapper(FakeGetVersion(12345), fireNow)
+        result = self.successResultOf(
+            rrefutil.add_version_to_remote_reference(rref, "default")
+        )
+        self.assertEqual(result.version, 12345)
+        self.assertIdentical(result, rref)
+
+    def test_exceptions(self):
+        """If get_version() failed, default version is set on the rref."""
+        for exception in (Violation(), RemoteException(ValueError())):
+            rref = LocalWrapper(FakeGetVersion(exception), fireNow)
+            result = self.successResultOf(
+                rrefutil.add_version_to_remote_reference(rref, "Default")
+            )
+            self.assertEqual(result.version, "Default")
+            self.assertIdentical(result, rref)
