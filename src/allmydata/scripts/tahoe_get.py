@@ -30,6 +30,10 @@ def get(options):
             outf = open(to_file, "wb")
         else:
             outf = stdout
+            # Make sure we can write bytes; on Python 3 stdout is Unicode by
+            # default.
+            if getattr(outf, "encoding", None) is not None:
+                outf = outf.buffer
         while True:
             data = resp.read(4096)
             if not data:
