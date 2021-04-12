@@ -449,12 +449,13 @@ def create_node(config):
             v = remote_config.get(k, None)
             if v is not None:
                 # we're faking usually argv-supplied options :/
+                v_orig = v
                 if isinstance(v, str):
                     v = v.encode(get_io_encoding())
                 config[k] = v
                 if k not in sensitive_keys:
                     if k not in ['shares-happy', 'shares-total', 'shares-needed']:
-                        print("  {}: {}".format(k, v), file=out)
+                        print("  {}: {}".format(k, v_orig), file=out)
                 else:
                     print("  {}: [sensitive data; see tahoe.cfg]".format(k), file=out)
 
