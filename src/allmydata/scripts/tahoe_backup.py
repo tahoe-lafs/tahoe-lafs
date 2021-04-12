@@ -1,5 +1,7 @@
 from __future__ import print_function
 
+from past.builtins import unicode
+
 import os.path
 import time
 from urllib.parse import quote as url_quote
@@ -345,7 +347,7 @@ class FileTarget(object):
             target = PermissionDeniedTarget(self._path, isdir=False)
             return target.backup(progress, upload_file, upload_directory)
         else:
-            assert isinstance(childcap, str)
+            assert isinstance(childcap, bytes)
             if created:
                 return progress.created_file(self._path, childcap, metadata)
             return progress.reused_file(self._path, childcap, metadata)
@@ -525,12 +527,12 @@ class BackupProgress(object):
         return self, {
             os.path.basename(create_path): create_value
             for (create_path, create_value)
-            in self._create_contents.iteritems()
+            in self._create_contents.items()
             if os.path.dirname(create_path) == dirpath
         }, {
             os.path.basename(compare_path): compare_value
             for (compare_path, compare_value)
-            in self._compare_contents.iteritems()
+            in self._compare_contents.items()
             if os.path.dirname(compare_path) == dirpath
         }
 

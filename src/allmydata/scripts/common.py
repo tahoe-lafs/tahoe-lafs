@@ -1,7 +1,7 @@
 # coding: utf-8
 
 from __future__ import print_function
-from six import ensure_binary
+from six import ensure_str
 
 import os, sys, textwrap
 import codecs
@@ -276,17 +276,27 @@ def get_alias(aliases, path_unicode, default):
     return uri.from_string_dirnode(aliases[alias]).to_string(), path[colon+1:]
 
 def escape_path(path):
-    # type: (Union[str,bytes]) -> bytes
+    # type: (Union[str,bytes]) -> str
     u"""
     Return path quoted to US-ASCII, valid URL characters.
 
     >>> path = u'/føö/bar/☃'
     >>> escaped = escape_path(path)
     >>> escaped
-    b'/f%C3%B8%C3%B6/bar/%E2%98%83'
+    u'/f%C3%B8%C3%B6/bar/%E2%98%83'
     """
     if isinstance(path, str):
         path = path.encode("utf-8")
     segments = path.split(b"/")
-    return b"/".join([urllib.parse.quote(s).encode("ascii") for s in segments])
-
+    result = str(
+        b"/".join([
+            urllib.parse.quote(s).encode("ascii") for s in segments
+        ]),
+        "ascii"
+    )
+    # Eventually (i.e. as part of Python 3 port) we want this to always return
+    # Unicode strings. However, to reduce diff sizes in the short term it'll
+    # return native string (i.e. bytes) on Python 2.
+    if PY2:
+        result = result.encode("ascii").__native__()
+    return result
