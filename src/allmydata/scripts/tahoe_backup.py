@@ -5,12 +5,12 @@ from past.builtins import unicode
 import os.path
 import time
 from urllib.parse import quote as url_quote
-import json
 import datetime
+
 from allmydata.scripts.common import get_alias, escape_path, DEFAULT_ALIAS, \
                                      UnknownAliasError
 from allmydata.scripts.common_http import do_http, HTTPError, format_http_error
-from allmydata.util import time_format
+from allmydata.util import time_format, jsonbytes as json
 from allmydata.scripts import backupdb
 from allmydata.util.encodingutil import listdir_unicode, quote_output, \
      quote_local_unicode_path, to_bytes, FilenameEncodingError, unicode_to_url
@@ -167,7 +167,7 @@ class BackerUpper(object):
         if must_create:
             self.verboseprint(" creating directory for %s" % quote_local_unicode_path(path))
             newdircap = mkdir(create_contents, self.options)
-            assert isinstance(newdircap, str)
+            assert isinstance(newdircap, bytes)
             if r:
                 r.did_create(newdircap)
             return True, newdircap

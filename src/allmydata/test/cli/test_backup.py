@@ -153,7 +153,7 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
             lines = out.split("\n")
             children = dict([line.split() for line in lines if line])
             latest_uri = children["Latest"]
-            self.failUnless(latest_uri.startswith("URI:DIR2-CHK:"), latest_uri)
+            self.failUnless(latest_uri.startswith(b"URI:DIR2-CHK:"), latest_uri)
             childnames = children.keys()
             self.failUnlessReallyEqual(sorted(childnames), ["Archives", "Latest"])
         d.addCallback(_check1)
@@ -387,7 +387,7 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
         self._check_filtering(filtered, root_listdir, (u'_darcs', u'subdir'),
                              (nice_doc, u'lib.a'))
         # read exclude patterns from file
-        exclusion_string = doc_pattern_arg + "\nlib.?"
+        exclusion_string = doc_pattern_arg + b"\nlib.?"
         excl_filepath = os.path.join(basedir, 'exclusion')
         fileutil.write(excl_filepath, exclusion_string)
         backup_options = parse(['--exclude-from', excl_filepath, 'from', 'to'])
