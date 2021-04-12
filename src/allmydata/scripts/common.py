@@ -1,7 +1,6 @@
 # coding: utf-8
 
 from __future__ import print_function
-from six import ensure_str
 
 import os, sys, textwrap
 import codecs
@@ -28,7 +27,7 @@ else:
 from twisted.python import usage
 
 from allmydata.util.assertutil import precondition
-from allmydata.util.encodingutil import unicode_to_url, quote_output, \
+from allmydata.util.encodingutil import quote_output, \
     quote_local_unicode_path, argv_to_abspath
 from allmydata.scripts.default_nodedir import _default_nodedir
 
