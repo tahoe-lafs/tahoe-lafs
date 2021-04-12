@@ -153,7 +153,7 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
             lines = out.split("\n")
             children = dict([line.split() for line in lines if line])
             latest_uri = children["Latest"]
-            self.failUnless(latest_uri.startswith(b"URI:DIR2-CHK:"), latest_uri)
+            self.failUnless(latest_uri.startswith("URI:DIR2-CHK:"), latest_uri)
             childnames = children.keys()
             self.failUnlessReallyEqual(sorted(childnames), ["Archives", "Latest"])
         d.addCallback(_check1)

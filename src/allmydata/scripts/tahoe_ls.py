@@ -1,7 +1,7 @@
 from __future__ import print_function
 
 from past.builtins import unicode
-from six import ensure_text
+from six import ensure_text, ensure_str
 
 import time
 from urllib.parse import quote as url_quote
@@ -153,9 +153,9 @@ def list(options):
             line.append(quote_output(name) + classify)
 
         if options["uri"]:
-            line.append(uri)
+            line.append(ensure_str(uri))
         if options["readonly-uri"]:
-            line.append(quote_output(ro_uri or "-", quotemarks=False))
+            line.append(quote_output(ensure_str(ro_uri) or "-", quotemarks=False))
 
         rows.append((encoding_error, line))
 
