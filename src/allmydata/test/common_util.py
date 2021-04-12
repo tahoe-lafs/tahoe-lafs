@@ -87,13 +87,18 @@ def run_cli_native(verb, *args, **kwargs):
     argv = nodeargs + [verb] + list(args)
     stdin = kwargs.get("stdin", "")
     if encoding is None:
-        # The original behavior, the Python 2 behavior, is to accept either
-        # bytes or unicode and try to automatically encode or decode as
-        # necessary.  This works okay for ASCII and if LANG is set
-        # appropriately.  These aren't great constraints so we should move
-        # away from this behavior.
-        stdout = StringIO()
-        stderr = StringIO()
+        if PY2:
+            # The original behavior, the Python 2 behavior, is to accept either
+            # bytes or unicode and try to automatically encode or decode as
+            # necessary.  This works okay for ASCII and if LANG is set
+            # appropriately.  These aren't great constraints so we should move
+            # away from this behavior.
+            stdout = StringIO()
+            stderr = StringIO()
+        else:
+            # Default on Python 3 is accepting text.
+            stdout = TextIOWrapper(BytesIO(), "utf-8")
+            stderr = TextIOWrapper(BytesIO(), "utf-8")
     else:
         # The new behavior, the Python 3 behavior, is to accept unicode and
         # encode it using a specific encoding.  For older versions of Python
