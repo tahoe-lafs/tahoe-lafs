@@ -19,7 +19,7 @@ preserving your privacy and security.
 
 .. toctree::
    :maxdepth: 1
-   :caption: Running Tahoe-LAFS
+   :caption: Using Tahoe-LAFS
 
    INSTALL
    running
