@@ -1304,7 +1304,7 @@ class MyShare(object):
         self._dyhb_rtt = rtt
 
     def __repr__(self):
-        return "sh%d-on-%s" % (self._shnum, self._server.get_name())
+        return "sh%d-on-%s" % (self._shnum, str(self._server.get_name(), "ascii"))
 
 class MySegmentFetcher(SegmentFetcher):
     def __init__(self, *args, **kwargs):
@@ -1383,7 +1383,7 @@ class Selection(unittest.TestCase):
             self.failUnless(node.failed)
             self.failUnless(node.failed.check(NotEnoughSharesError))
             sname = serverA.get_name()
-            self.failUnlessIn("complete= pending=sh0-on-%s overdue= unused="  % sname,
+            self.failUnlessIn("complete= pending=sh0-on-%s overdue= unused="  % str(sname, "ascii"),
                               str(node.failed))
         d.addCallback(_check2)
         return d
@@ -1605,7 +1605,7 @@ class Selection(unittest.TestCase):
             self.failUnless(node.failed)
             self.failUnless(node.failed.check(NotEnoughSharesError))
             sname = servers[b"peer-2"].get_name()
-            self.failUnlessIn("complete=sh0 pending= overdue=sh2-on-%s unused=" % sname,
+            self.failUnlessIn("complete=sh0 pending= overdue=sh2-on-%s unused=" % str(sname, "ascii"),
                               str(node.failed))
         d.addCallback(_check4)
         return d
