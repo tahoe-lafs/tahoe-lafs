@@ -174,6 +174,7 @@ PORTED_MODULES = [
 
 PORTED_TEST_MODULES = [
     "allmydata.test.cli.test_alias",
+    "allmydata.test.cli.test_backup",
     "allmydata.test.cli.test_backupdb",
     "allmydata.test.cli.test_create",
     "allmydata.test.cli.test_invite",
@@ -234,6 +235,7 @@ PORTED_TEST_MODULES = [
     "allmydata.test.test_json_metadata",
     "allmydata.test.test_log",
     "allmydata.test.test_monitor",
+    "allmydata.test.test_multi_introducers",
     "allmydata.test.test_netstring",
     "allmydata.test.test_no_network",
     "allmydata.test.test_node",
