@@ -1,5 +1,11 @@
 import sys
-import _winreg
+
+from future.utils import PY2
+
+if PY2:
+    import _winreg
+else:
+    import winreg as _winreg
 
 _AMD_KEY = r"Software\Allmydata"
 _BDIR_KEY = 'Base Dir Path'
