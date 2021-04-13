@@ -81,13 +81,13 @@ jobs:
         run: python misc/build_helpers/show-tool-versions.py
 
       - name: "Run tests [macOS or Ubuntu]"
-        if: matrix.os == "macos-latest" || matrix.os == "ubuntu-latest"
+        if: matrix.os == 'macos-latest' || matrix.os == 'ubuntu-latest'
         env:
           TAHOE_LAFS_TOX_ENVIRONMENT: ${{ matrix.tox-environment }}
         run: tox -e $TAHOE_LAFS_TOX_ENVIRONMENT
 
       - name: "Run tests [Windows]"
-        if: matrix.os == "windows-latest"
+        if: matrix.os == 'windows-latest'
         env:
           TAHOE_LAFS_TOX_ENVIRONMENT: ${{ matrix.tox-environment }}
         run: tox -e $Env:TAHOE_LAFS_TOX_ENVIRONMENT
