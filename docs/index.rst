@@ -41,6 +41,7 @@ Contents:
    backupdb
 
    developer-guide
+   ticket-triage
 
    anonymity-configuration
 
