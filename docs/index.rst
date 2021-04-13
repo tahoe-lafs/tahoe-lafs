@@ -60,7 +60,7 @@ preserving your privacy and security.
 
 .. toctree::
    :maxdepth: 1
-   :caption: Notes for Contributors
+   :caption: Contributing to Tahoe-LAFS
 
    contributing
    CODE_OF_CONDUCT
