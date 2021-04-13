@@ -36,7 +36,7 @@ from foolscap.logging.incident import IncidentQualifier
 if PY3:
     # Error on BytesWarnings, to catch things like str(b""), but only for
     # allmydata code.
-    warnings.filterwarnings("error", category=BytesWarning, module="allmydata.*")
+    warnings.filterwarnings("error", category=BytesWarning, module=".*allmydata.*")
 
 
 class NonQualifier(IncidentQualifier, object):
