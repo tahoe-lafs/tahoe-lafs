@@ -100,7 +100,7 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
         d.addCallback(lambda res: do_backup(True))
         def _check0(args):
             (rc, out, err) = args
-            self.assertEqual(len(err), 0)
+            self.assertEqual(len(err), 0,  err)
             self.failUnlessReallyEqual(rc, 0)
             (
                 files_uploaded,
@@ -157,7 +157,7 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
         d.addCallback(lambda res: self.do_cli("ls", "--uri", "tahoe:backups"))
         def _check1(args):
             (rc, out, err) = args
-            self.assertEqual(len(err), 0)
+            self.assertEqual(len(err), 0,  err)
             self.failUnlessReallyEqual(rc, 0)
             lines = out.split("\n")
             children = dict([line.split() for line in lines if line])
@@ -169,14 +169,14 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
         d.addCallback(lambda res: self.do_cli("ls", "tahoe:backups/Latest"))
         def _check2(args):
             (rc, out, err) = args
-            self.assertEqual(len(err), 0)
+            self.assertEqual(len(err), 0,  err)
             self.failUnlessReallyEqual(rc, 0)
             self.failUnlessReallyEqual(sorted(out.split()), ["empty", "parent"])
         d.addCallback(_check2)
         d.addCallback(lambda res: self.do_cli("ls", "tahoe:backups/Latest/empty"))
         def _check2a(args):
             (rc, out, err) = args
-            self.assertEqual(len(err), 0)
+            self.assertEqual(len(err), 0,  err)
             self.failUnlessReallyEqual(rc, 0)
             self.assertFalse(out.strip())
         d.addCallback(_check2a)
