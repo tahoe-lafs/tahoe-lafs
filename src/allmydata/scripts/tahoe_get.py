@@ -1,6 +1,6 @@
 from __future__ import print_function
 
-import urllib
+from urllib.parse import quote as url_quote
 from allmydata.scripts.common import get_alias, DEFAULT_ALIAS, escape_path, \
                                      UnknownAliasError
 from allmydata.scripts.common_http import do_http, format_http_error
@@ -20,7 +20,7 @@ def get(options):
     except UnknownAliasError as e:
         e.display(stderr)
         return 1
-    url = nodeurl + "uri/%s" % urllib.quote(rootcap)
+    url = nodeurl + "uri/%s" % url_quote(rootcap)
     if path:
         url += "/" + escape_path(path)
 
@@ -30,6 +30,10 @@ def get(options):
             outf = open(to_file, "wb")
         else:
             outf = stdout
+            # Make sure we can write bytes; on Python 3 stdout is Unicode by
+            # default.
+            if getattr(outf, "encoding", None) is not None:
+                outf = outf.buffer
         while True:
             data = resp.read(4096)
             if not data:

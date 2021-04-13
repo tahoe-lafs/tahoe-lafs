@@ -1,6 +1,10 @@
 from __future__ import print_function
 
-import urllib, time
+from past.builtins import unicode
+from six import ensure_text, ensure_str
+
+import time
+from urllib.parse import quote as url_quote
 import json
 from allmydata.scripts.common import get_alias, DEFAULT_ALIAS, escape_path, \
                                      UnknownAliasError
@@ -23,7 +27,7 @@ def list(options):
     except UnknownAliasError as e:
         e.display(stderr)
         return 1
-    url = nodeurl + "uri/%s" % urllib.quote(rootcap)
+    url = nodeurl + "uri/%s" % url_quote(rootcap)
     if path:
         # move where.endswith check here?
         url += "/" + escape_path(path)
@@ -149,9 +153,9 @@ def list(options):
             line.append(quote_output(name) + classify)
 
         if options["uri"]:
-            line.append(uri)
+            line.append(ensure_str(uri))
         if options["readonly-uri"]:
-            line.append(quote_output(ro_uri or "-", quotemarks=False))
+            line.append(quote_output(ensure_str(ro_uri) or "-", quotemarks=False))
 
         rows.append((encoding_error, line))
 
@@ -164,7 +168,7 @@ def list(options):
             while len(left_justifys) <= i:
                 left_justifys.append(False)
             max_widths[i] = max(max_widths[i], len(cell))
-            if cell.startswith("URI"):
+            if ensure_text(cell).startswith("URI"):
                 left_justifys[i] = True
     if len(left_justifys) == 1:
         left_justifys[0] = True
