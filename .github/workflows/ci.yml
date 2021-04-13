@@ -21,9 +21,11 @@ jobs:
           - macos-latest
           - windows-latest
           - ubuntu-latest
-        python-version:
-          - 2.7
-          - 3.6
+        include:
+          - python-version: "2.7"
+            tox-environment: "py27"
+          - python-version: "3.6"
+            tox-environment: "py36"
 
     steps:
 
@@ -75,8 +77,10 @@ jobs:
       - name: Display tool versions
         run: python misc/build_helpers/show-tool-versions.py
 
-      - name: Run "tox -e py-coverage"
-        run: tox -e py-coverage
+      - name: "Run tests"
+        env:
+          TAHOE_LAFS_TOX_ENVIRONMENT: ${{ matrix.tox-environment }}
+        run: tox -e $TAHOE_LAFS_TOX_ENVIRONMENT
 
       - name: Upload eliot.log in case of failure
         uses: actions/upload-artifact@v1
