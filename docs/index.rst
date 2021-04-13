@@ -65,6 +65,7 @@ preserving your privacy and security.
    contributing
    CODE_OF_CONDUCT
    developer-guide
+   ticket-triage
    release-checklist
    desert-island
 

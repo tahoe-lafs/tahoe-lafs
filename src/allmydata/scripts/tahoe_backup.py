@@ -1,14 +1,16 @@
 from __future__ import print_function
 
+from past.builtins import unicode
+
 import os.path
 import time
-import urllib
-import json
+from urllib.parse import quote as url_quote
 import datetime
+
 from allmydata.scripts.common import get_alias, escape_path, DEFAULT_ALIAS, \
                                      UnknownAliasError
 from allmydata.scripts.common_http import do_http, HTTPError, format_http_error
-from allmydata.util import time_format
+from allmydata.util import time_format, jsonbytes as json
 from allmydata.scripts import backupdb
 from allmydata.util.encodingutil import listdir_unicode, quote_output, \
      quote_local_unicode_path, to_bytes, FilenameEncodingError, unicode_to_url
@@ -52,7 +54,7 @@ def mkdir(contents, options):
 
 def put_child(dirurl, childname, childcap):
     assert dirurl[-1] != "/"
-    url = dirurl + "/" + urllib.quote(unicode_to_url(childname)) + "?t=uri"
+    url = dirurl + "/" + url_quote(unicode_to_url(childname)) + "?t=uri"
     resp = do_http("PUT", url, childcap)
     if resp.status not in (200, 201):
         raise HTTPError("Error during put_child", resp)
@@ -97,7 +99,7 @@ class BackerUpper(object):
         except UnknownAliasError as e:
             e.display(stderr)
             return 1
-        to_url = nodeurl + "uri/%s/" % urllib.quote(rootcap)
+        to_url = nodeurl + "uri/%s/" % url_quote(rootcap)
         if path:
             to_url += escape_path(path)
         if not to_url.endswith("/"):
@@ -165,7 +167,7 @@ class BackerUpper(object):
         if must_create:
             self.verboseprint(" creating directory for %s" % quote_local_unicode_path(path))
             newdircap = mkdir(create_contents, self.options)
-            assert isinstance(newdircap, str)
+            assert isinstance(newdircap, bytes)
             if r:
                 r.did_create(newdircap)
             return True, newdircap
@@ -192,7 +194,7 @@ class BackerUpper(object):
         filecap = r.was_uploaded()
         self.verboseprint("checking %s" % quote_output(filecap))
         nodeurl = self.options['node-url']
-        checkurl = nodeurl + "uri/%s?t=check&output=JSON" % urllib.quote(filecap)
+        checkurl = nodeurl + "uri/%s?t=check&output=JSON" % url_quote(filecap)
         self._files_checked += 1
         resp = do_http("POST", checkurl)
         if resp.status != 200:
@@ -225,7 +227,7 @@ class BackerUpper(object):
         dircap = r.was_created()
         self.verboseprint("checking %s" % quote_output(dircap))
         nodeurl = self.options['node-url']
-        checkurl = nodeurl + "uri/%s?t=check&output=JSON" % urllib.quote(dircap)
+        checkurl = nodeurl + "uri/%s?t=check&output=JSON" % url_quote(dircap)
         self._directories_checked += 1
         resp = do_http("POST", checkurl)
         if resp.status != 200:
@@ -345,7 +347,7 @@ class FileTarget(object):
             target = PermissionDeniedTarget(self._path, isdir=False)
             return target.backup(progress, upload_file, upload_directory)
         else:
-            assert isinstance(childcap, str)
+            assert isinstance(childcap, bytes)
             if created:
                 return progress.created_file(self._path, childcap, metadata)
             return progress.reused_file(self._path, childcap, metadata)
@@ -525,12 +527,12 @@ class BackupProgress(object):
         return self, {
             os.path.basename(create_path): create_value
             for (create_path, create_value)
-            in self._create_contents.iteritems()
+            in self._create_contents.items()
             if os.path.dirname(create_path) == dirpath
         }, {
             os.path.basename(compare_path): compare_value
             for (compare_path, compare_value)
-            in self._compare_contents.iteritems()
+            in self._compare_contents.items()
             if os.path.dirname(compare_path) == dirpath
         }
 

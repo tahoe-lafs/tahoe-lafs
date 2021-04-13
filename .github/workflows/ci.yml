@@ -20,8 +20,10 @@ jobs:
         os:
           - macos-latest
           - windows-latest
+          - ubuntu-latest
         python-version:
           - 2.7
+          - 3.6
 
     steps:
 
