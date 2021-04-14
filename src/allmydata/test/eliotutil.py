@@ -73,7 +73,10 @@ RUN_TEST = ActionType(
 
 # On Python 3, we want to use our custom JSON encoder when validating messages
 # can be encoded to JSON:
-_memory_logger = lambda: MemoryLogger(encoder=AnyBytesJSONEncoder)
+if PY2:
+    _memory_logger = MemoryLogger
+else:
+    _memory_logger = lambda: MemoryLogger(encoder=AnyBytesJSONEncoder)
 
 
 @attr.s
