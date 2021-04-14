@@ -92,6 +92,7 @@ jobs:
           TAHOE_LAFS_TOX_ENVIRONMENT: ${{ matrix.tox-environment }}
         run: tox -e $Env:TAHOE_LAFS_TOX_ENVIRONMENT
         timeout-minutes: 15
+        continue-on-error: true
 
       - name: Upload eliot.log in case of failure
         uses: actions/upload-artifact@v1
