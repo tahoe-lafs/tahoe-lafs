@@ -87,7 +87,7 @@ from twisted.internet.defer import (
 )
 from twisted.application.service import Service
 
-from .jsonbytes import BytesJSONEncoder
+from .jsonbytes import AnyBytesJSONEncoder
 
 
 def validateInstanceOf(t):
@@ -306,7 +306,7 @@ class _DestinationParser(object):
                     rotateLength=rotate_length,
                     maxRotatedFiles=max_rotated_files,
                 )
-        return lambda reactor: FileDestination(get_file(), BytesJSONEncoder)
+        return lambda reactor: FileDestination(get_file(), AnyBytesJSONEncoder)
 
 
 _parse_destination_description = _DestinationParser().parse
@@ -333,4 +333,4 @@ def log_call_deferred(action_type):
 if PY2:
     capture_logging = eliot_capture_logging
 else:
-    capture_logging = partial(eliot_capture_logging, encoder_=BytesJSONEncoder)
+    capture_logging = partial(eliot_capture_logging, encoder_=AnyBytesJSONEncoder)

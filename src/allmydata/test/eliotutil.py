@@ -54,7 +54,7 @@ from twisted.python.monkey import (
     MonkeyPatcher,
 )
 
-from ..util.jsonbytes import BytesJSONEncoder
+from ..util.jsonbytes import AnyBytesJSONEncoder
 
 
 _NAME = Field.for_types(
@@ -73,10 +73,7 @@ RUN_TEST = ActionType(
 
 # On Python 3, we want to use our custom JSON encoder when validating messages
 # can be encoded to JSON:
-if PY2:
-    _memory_logger = MemoryLogger
-else:
-    _memory_logger = lambda: MemoryLogger(encoder=BytesJSONEncoder)
+_memory_logger = lambda: MemoryLogger(encoder=AnyBytesJSONEncoder)
 
 
 @attr.s

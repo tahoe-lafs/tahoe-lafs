@@ -47,10 +47,7 @@ class TokenAuthenticatedWebSocketServerProtocol(WebSocketServerProtocol):
         """
         # probably want a try/except around here? what do we do if
         # transmission fails or anything else bad happens?
-        encoded = json.dumps(message)
-        if isinstance(encoded, str):
-            # On Python 3 dumps() returns Unicode...
-            encoded = encoded.encode("utf-8")
+        encoded = json.dumps_bytes(message, any_bytes=True)
         self.sendMessage(encoded)
 
     def onOpen(self):
