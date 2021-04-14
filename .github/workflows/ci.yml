@@ -86,6 +86,10 @@ jobs:
           TAHOE_LAFS_TOX_ENVIRONMENT: ${{ matrix.tox-environment }}
         run: tox -e $TAHOE_LAFS_TOX_ENVIRONMENT
 
+      # Python 3.6 on Windows is not quite ready to pass all the
+      # tests.  Sometimes the below step runs for hours -- over six
+      # hours, when last observed.  Allow for failures, and allow them
+      # early enough so that we're not stuck waiting for CI.
       - name: "Run tests [Windows]"
         if: matrix.os == 'windows-latest'
         env:
