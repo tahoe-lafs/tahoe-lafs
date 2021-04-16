@@ -92,7 +92,7 @@ class TestStreamingLogs(unittest.TestCase):
     @inlineCallbacks
     def test_one_log(self):
         """
-        Write a single Eliot log actin and see it streamed via websocket.
+        Write a single Eliot log action and see it streamed via websocket.
         """
 
         proto = yield self.agent.open(
