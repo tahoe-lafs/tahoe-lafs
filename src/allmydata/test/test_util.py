@@ -541,9 +541,9 @@ class JSONBytes(unittest.TestCase):
 
     def test_any_bytes(self):
         """If any_bytes is True, non-UTF-8 bytes don't break encoding."""
-        bytestring = b"abc\xff"
+        bytestring = b"abc\xff\xff123"
         o = {bytestring: bytestring}
-        expected = {"abc\\xff": "abc\\xff"}
+        expected = {"abc\\xff\\xff123": "abc\\xff\\xff123"}
         self.assertEqual(
             json.loads(jsonbytes.dumps(o, any_bytes=True)),
             expected,

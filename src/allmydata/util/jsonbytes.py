@@ -14,7 +14,18 @@ if PY2:
     from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 import json
+import codecs
 
+if PY2:
+    def backslashreplace_py2(ex):
+        """
+        On Python 2 'backslashreplace' error handler doesn't work, so write our
+        own.
+        """
+        return ''.join('\\x{:02x}'.format(ord(c))
+                       for c in ex.object[ex.start:ex.end]), ex.end
+
+    codecs.register_error("backslashreplace_tahoe_py2", backslashreplace_py2)
 
 def _make_bytes_to_unicode(any_bytes):
     """Create a function that recursively converts bytes to unicode.
@@ -22,6 +33,8 @@ def _make_bytes_to_unicode(any_bytes):
     :param any_bytes: If True, also support non-UTF-8-encoded bytes.
     """
     errors = "backslashreplace" if any_bytes else "strict"
+    if PY2 and errors == "backslashreplace":
+        errors = "backslashreplace_tahoe_py2"
 
     def _bytes_to_unicode(obj):
         """Convert any bytes objects to unicode, recursively."""
