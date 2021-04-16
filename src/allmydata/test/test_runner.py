@@ -515,7 +515,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin):
             0,
             "Expected error message from '{}', got something else: {}".format(
                 description,
-                p.get_buffered_output(),
+                str(p.get_buffered_output(), "utf-8"),
             ),
         )
 
