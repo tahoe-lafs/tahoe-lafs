@@ -152,9 +152,9 @@ def _tahoe_runner_optional_coverage(proto, reactor, request, other_args):
     `--coverage` option if the `request` indicates we should.
     """
     if request.config.getoption('coverage'):
-        args = [sys.executable, '-m', 'coverage', 'run', '-m', 'allmydata.scripts.runner', '--coverage']
+        args = [sys.executable, '-b', '-m', 'coverage', 'run', '-m', 'allmydata.scripts.runner', '--coverage']
     else:
-        args = [sys.executable, '-m', 'allmydata.scripts.runner']
+        args = [sys.executable, '-b', '-m', 'allmydata.scripts.runner']
     args += other_args
     return reactor.spawnProcess(
         proto,

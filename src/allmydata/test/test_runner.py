@@ -88,7 +88,7 @@ def run_bintahoe(extra_argv, python_options=None):
     argv = [executable]
     if python_options is not None:
         argv.extend(python_options)
-    argv.extend([u"-m", u"allmydata.scripts.runner"])
+    argv.extend([u"-b", u"-m", u"allmydata.scripts.runner"])
     argv.extend(extra_argv)
     argv = list(unicode_to_argv(arg) for arg in argv)
     p = Popen(argv, stdout=PIPE, stderr=PIPE)
