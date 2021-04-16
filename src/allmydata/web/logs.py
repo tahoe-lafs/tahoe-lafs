@@ -8,8 +8,6 @@ from __future__ import (
     division,
 )
 
-import json
-
 from autobahn.twisted.resource import WebSocketResource
 from autobahn.twisted.websocket import (
     WebSocketServerFactory,
@@ -20,6 +18,8 @@ import eliot
 from twisted.web.resource import (
     Resource,
 )
+
+from allmydata.util import jsonbytes as json
 
 
 class TokenAuthenticatedWebSocketServerProtocol(WebSocketServerProtocol):
