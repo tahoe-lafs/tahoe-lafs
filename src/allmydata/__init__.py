@@ -8,7 +8,7 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
-from future.utils import PY2
+from future.utils import PY2, PY3
 if PY2:
     # Don't import future str() so we don't break Foolscap serialization on Python 2.
     from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, max, min  # noqa: F401
@@ -62,3 +62,18 @@ standard_library.install_aliases()
 from ._monkeypatch import patch
 patch()
 del patch
+
+
+# On Python 3, turn BytesWarnings into exceptions. This can have potential
+# production impact... if BytesWarnings are actually present in the codebase.
+# Given that this has been enabled before Python 3 Tahoe-LAFS was publicly
+# released, no such code should exist, and this will ensure it doesn't get
+# added either.
+#
+# Also note that BytesWarnings only happen if Python is run with -b option, so
+# in practice this should only affect tests.
+if PY3:
+    import warnings
+    # Error on BytesWarnings, to catch things like str(b""), but only for
+    # allmydata code.
+    warnings.filterwarnings("error", category=BytesWarning, module=".*allmydata.*")
