@@ -7,11 +7,10 @@ Tahoe-LAFS SFTP Frontend
 1.  `SFTP Background`_
 2.  `Tahoe-LAFS Support`_
 3.  `Creating an Account File`_
-4.  `Running An Account Server (accounts.url)`_
-5.  `Configuring SFTP Access`_
-6.  `Dependencies`_
-7.  `Immutable and Mutable Files`_
-8.  `Known Issues`_
+4.  `Configuring SFTP Access`_
+5.  `Dependencies`_
+6.  `Immutable and Mutable Files`_
+7.  `Known Issues`_
 
 
 SFTP Background
