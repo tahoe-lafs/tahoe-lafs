@@ -237,8 +237,8 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
             cso.parseOptions([shares[1][2]])
             storage_index = uri.from_string(self.uris["mutable"]).get_storage_index()
             self._corrupt_share_line = " corrupt: server %s, SI %s, shnum %d" % \
-                                       (base32.b2a(shares[1][1]),
-                                        base32.b2a(storage_index),
+                                       (unicode(base32.b2a(shares[1][1]), "ascii"),
+                                        unicode(base32.b2a(storage_index), "ascii"),
                                         shares[1][0])
             debug.corrupt_share(cso)
         d.addCallback(_clobber_shares)

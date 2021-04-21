@@ -206,7 +206,7 @@ class DeepCheckAndRepairOutput(LineOnlyReceiver, object):
         if self.in_error:
             print(quote_output(line, quotemarks=False), file=self.stderr)
             return
-        if line.startswith("ERROR:"):
+        if line.startswith(b"ERROR:"):
             self.in_error = True
             self.streamer.rc = 1
             print(quote_output(line, quotemarks=False), file=self.stderr)
@@ -321,12 +321,17 @@ class DeepCheckStreamer(LineOnlyReceiver, object):
             return 1
 
         # use Twisted to split this into lines
+        if PY3:
+            stdoutb = stdout.buffer
+        else:
+            stdoutb = stdout
+
         while True:
             chunk = resp.read(100)
             if not chunk:
                 break
             if self.options["raw"]:
-                stdout.write(chunk)
+                stdoutb.write(chunk)
             else:
                 output.dataReceived(chunk)
         if not self.options["raw"]:

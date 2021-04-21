@@ -1,4 +1,5 @@
 from __future__ import print_function
+from six import ensure_str
 
 import os, time
 from allmydata.scripts.common import get_alias, DEFAULT_ALIAS, escape_path, \
@@ -14,7 +15,7 @@ class SlowOperationRunner(object):
     def run(self, options):
         stderr = options.stderr
         self.options = options
-        self.ophandle = ophandle = base32.b2a(os.urandom(16))
+        self.ophandle = ophandle = ensure_str(base32.b2a(os.urandom(16)))
         nodeurl = options['node-url']
         if not nodeurl.endswith("/"):
             nodeurl += "/"

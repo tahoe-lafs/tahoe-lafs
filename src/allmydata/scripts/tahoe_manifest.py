@@ -1,6 +1,7 @@
 from __future__ import print_function
 
-import urllib, json
+from urllib.parse import quote as url_quote
+import json
 from twisted.protocols.basic import LineOnlyReceiver
 from allmydata.util.abbreviate import abbreviate_space_both
 from allmydata.scripts.slow_operation import SlowOperationRunner
@@ -35,7 +36,7 @@ class ManifestStreamer(LineOnlyReceiver, object):
             return 1
         if path == '/':
             path = ''
-        url = nodeurl + "uri/%s" % urllib.quote(rootcap)
+        url = nodeurl + "uri/%s" % url_quote(rootcap)
         if path:
             url += "/" + escape_path(path)
         # todo: should it end with a slash?
@@ -63,7 +64,7 @@ class ManifestStreamer(LineOnlyReceiver, object):
         if self.in_error:
             print(quote_output(line, quotemarks=False), file=stderr)
             return
-        if line.startswith("ERROR:"):
+        if line.startswith(b"ERROR:"):
             self.in_error = True
             self.rc = 1
             print(quote_output(line, quotemarks=False), file=stderr)
