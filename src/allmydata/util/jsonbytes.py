@@ -61,6 +61,10 @@ class UTF8BytesJSONEncoder(json.JSONEncoder):
     """
     A JSON encoder than can also encode UTF-8 encoded strings.
     """
+    def encode(self, o, **kwargs):
+        return json.JSONEncoder.encode(
+            self, _bytes_to_unicode(False, o), **kwargs)
+
     def iterencode(self, o, **kwargs):
         return json.JSONEncoder.iterencode(
             self, _bytes_to_unicode(False, o), **kwargs)
@@ -73,6 +77,10 @@ class AnyBytesJSONEncoder(json.JSONEncoder):
     Bytes are decoded to strings using UTF-8, if that fails to decode then the
     bytes are quoted.
     """
+    def encode(self, o, **kwargs):
+        return json.JSONEncoder.encode(
+            self, _bytes_to_unicode(True, o), **kwargs)
+
     def iterencode(self, o, **kwargs):
         return json.JSONEncoder.iterencode(
             self, _bytes_to_unicode(True, o), **kwargs)
