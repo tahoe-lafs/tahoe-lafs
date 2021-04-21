@@ -176,6 +176,7 @@ PORTED_TEST_MODULES = [
     "allmydata.test.cli.test_alias",
     "allmydata.test.cli.test_backup",
     "allmydata.test.cli.test_backupdb",
+    "allmydata.test.cli.test_check",
     "allmydata.test.cli.test_create",
     "allmydata.test.cli.test_invite",
     "allmydata.test.cli.test_status",
