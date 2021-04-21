@@ -18,7 +18,7 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
         self.basedir = "cli/Check/check"
         self.set_up_grid()
         c0 = self.g.clients[0]
-        DATA = "data" * 100
+        DATA = b"data" * 100
         DATA_uploadable = MutableData(DATA)
         d = c0.create_mutable_file(DATA_uploadable)
         def _stash_uri(n):
@@ -45,7 +45,7 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.failUnlessReallyEqual(data["results"]["healthy"], True)
         d.addCallback(_check2)
 
-        d.addCallback(lambda ign: c0.upload(upload.Data("literal", convergence="")))
+        d.addCallback(lambda ign: c0.upload(upload.Data(b"literal", convergence=b"")))
         def _stash_lit_uri(n):
             self.lit_uri = n.get_uri()
         d.addCallback(_stash_lit_uri)
@@ -156,14 +156,14 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
         c0 = self.g.clients[0]
         self.uris = {}
         self.fileurls = {}
-        DATA = "data" * 100
+        DATA = b"data" * 100
         quoted_good = quote_output(u"g\u00F6\u00F6d")
 
         d = c0.create_dirnode()
         def _stash_root_and_create_file(n):
             self.rootnode = n
             self.rooturi = n.get_uri()
-            return n.add_file(u"g\u00F6\u00F6d", upload.Data(DATA, convergence=""))
+            return n.add_file(u"g\u00F6\u00F6d", upload.Data(DATA, convergence=b""))
         d.addCallback(_stash_root_and_create_file)
         def _stash_uri(fn, which):
             self.uris[which] = fn.get_uri()
@@ -171,11 +171,11 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(_stash_uri, u"g\u00F6\u00F6d")
         d.addCallback(lambda ign:
                       self.rootnode.add_file(u"small",
-                                           upload.Data("literal",
-                                                        convergence="")))
+                                           upload.Data(b"literal",
+                                                        convergence=b"")))
         d.addCallback(_stash_uri, "small")
         d.addCallback(lambda ign:
-            c0.create_mutable_file(MutableData(DATA+"1")))
+            c0.create_mutable_file(MutableData(DATA+b"1")))
         d.addCallback(lambda fn: self.rootnode.set_node(u"mutable", fn))
         d.addCallback(_stash_uri, "mutable")
 
@@ -322,7 +322,7 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(lambda ign: self.rootnode.create_subdirectory(u"subdir"))
         d.addCallback(_stash_uri, "subdir")
         d.addCallback(lambda fn:
-                      fn.add_file(u"subfile", upload.Data(DATA+"2", "")))
+                      fn.add_file(u"subfile", upload.Data(DATA+b"2", b"")))
         d.addCallback(lambda ign:
                       self.delete_shares_numbered(self.uris["subdir"],
                                                   range(10)))

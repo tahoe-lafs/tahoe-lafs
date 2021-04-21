@@ -1,6 +1,6 @@
 from __future__ import print_function
 
-import urllib
+from urllib.parse import quote as url_quote
 import json
 
 # Python 2 compatibility
@@ -36,7 +36,7 @@ def check_location(options, where):
         return 1
     if path == '/':
         path = ''
-    url = nodeurl + "uri/%s" % urllib.quote(rootcap)
+    url = nodeurl + "uri/%s" % url_quote(rootcap)
     if path:
         url += "/" + escape_path(path)
     # todo: should it end with a slash?
@@ -139,7 +139,7 @@ class DeepCheckOutput(LineOnlyReceiver, object):
         if self.in_error:
             print(quote_output(line, quotemarks=False), file=self.stderr)
             return
-        if line.startswith("ERROR:"):
+        if line.startswith(b"ERROR:"):
             self.in_error = True
             self.streamer.rc = 1
             print(quote_output(line, quotemarks=False), file=self.stderr)
@@ -297,7 +297,7 @@ class DeepCheckStreamer(LineOnlyReceiver, object):
             return 1
         if path == '/':
             path = ''
-        url = nodeurl + "uri/%s" % urllib.quote(rootcap)
+        url = nodeurl + "uri/%s" % url_quote(rootcap)
         if path:
             url += "/" + escape_path(path)
         # todo: should it end with a slash?
