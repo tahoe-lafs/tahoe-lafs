@@ -46,7 +46,7 @@ def test_onion_service_storage(reactor, request, temp_dir, flog_gatherer, tor_ne
         proto,
         sys.executable,
         (
-            sys.executable, '-m', 'allmydata.scripts.runner',
+            sys.executable, '-b', '-m', 'allmydata.scripts.runner',
             '-d', join(temp_dir, 'carol'),
             'put', gold_path,
         )
@@ -60,7 +60,7 @@ def test_onion_service_storage(reactor, request, temp_dir, flog_gatherer, tor_ne
         proto,
         sys.executable,
         (
-            sys.executable, '-m', 'allmydata.scripts.runner',
+            sys.executable, '-b', '-m', 'allmydata.scripts.runner',
             '-d', join(temp_dir, 'dave'),
             'get', cap,
         )
@@ -84,7 +84,7 @@ def _create_anonymous_node(reactor, name, control_port, request, temp_dir, flog_
             proto,
             sys.executable,
             (
-                sys.executable, '-m', 'allmydata.scripts.runner',
+                sys.executable, '-b', '-m', 'allmydata.scripts.runner',
                 'create-node',
                 '--nickname', name,
                 '--introducer', introducer_furl,

@@ -154,6 +154,7 @@ class CLINodeAPI(object):
         exe = sys.executable
         argv = [
             exe,
+            "-b",
             u"-m",
             u"allmydata.scripts.runner",
         ] + argv
