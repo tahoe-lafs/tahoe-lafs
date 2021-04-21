@@ -1,3 +1,4 @@
+from past.builtins import unicode
 import os.path
 import json
 from twisted.trial import unittest
@@ -41,7 +42,7 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.failUnlessReallyEqual(err, "")
             self.failUnlessReallyEqual(rc, 0)
             data = json.loads(out)
-            self.failUnlessReallyEqual(to_bytes(data["summary"]), "Healthy")
+            self.failUnlessReallyEqual(to_bytes(data["summary"]), b"Healthy")
             self.failUnlessReallyEqual(data["results"]["healthy"], True)
         d.addCallback(_check2)
 
@@ -68,7 +69,7 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.failUnlessReallyEqual(data["results"]["healthy"], True)
         d.addCallback(_check_lit_raw)
 
-        d.addCallback(lambda ign: c0.create_immutable_dirnode({}, convergence=""))
+        d.addCallback(lambda ign: c0.create_immutable_dirnode({}, convergence=b""))
         def _stash_lit_dir_uri(n):
             self.lit_dir_uri = n.get_uri()
         d.addCallback(_stash_lit_dir_uri)
@@ -89,9 +90,9 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
             cso.parseOptions([shares[1][2]])
             storage_index = uri.from_string(self.uri).get_storage_index()
             self._corrupt_share_line = "  server %s, SI %s, shnum %d" % \
-                                       (base32.b2a(shares[1][1]),
-                                        base32.b2a(storage_index),
-                                        shares[1][0])
+                (unicode(base32.b2a(shares[1][1]), "ascii"),
+                 unicode(base32.b2a(storage_index), "ascii"),
+                 shares[1][0])
             debug.corrupt_share(cso)
         d.addCallback(_clobber_shares)
 
@@ -418,8 +419,8 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.failUnlessReallyEqual(rc, 0)
             self.failUnlessReallyEqual(err, "")
             #Ensure healthy appears for each uri
-            self.failUnlessIn("Healthy", out[:len(out)/2])
-            self.failUnlessIn("Healthy", out[len(out)/2:])
+            self.failUnlessIn("Healthy", out[:len(out)//2])
+            self.failUnlessIn("Healthy", out[len(out)//2:])
         d.addCallback(_check)
 
         d.addCallback(lambda ign: self.do_cli("check", self.uriList[0], "nonexistent:"))

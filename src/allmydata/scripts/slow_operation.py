@@ -6,7 +6,7 @@ from allmydata.scripts.common import get_alias, DEFAULT_ALIAS, escape_path, \
 from allmydata.scripts.common_http import do_http, format_http_error
 from allmydata.util import base32
 from allmydata.util.encodingutil import quote_output, is_printable_ascii
-import urllib
+from urllib.parse import quote as url_quote
 import json
 
 class SlowOperationRunner(object):
@@ -27,7 +27,7 @@ class SlowOperationRunner(object):
             return 1
         if path == '/':
             path = ''
-        url = nodeurl + "uri/%s" % urllib.quote(rootcap)
+        url = nodeurl + "uri/%s" % url_quote(rootcap)
         if path:
             url += "/" + escape_path(path)
         # todo: should it end with a slash?
