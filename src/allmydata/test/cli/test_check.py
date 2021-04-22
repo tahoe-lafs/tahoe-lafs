@@ -6,6 +6,7 @@ from __future__ import unicode_literals
 from future.utils import PY2
 if PY2:
     from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+from six import ensure_text
 
 import os.path
 import json
@@ -167,7 +168,7 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
         self.uris = {}
         self.fileurls = {}
         DATA = b"data" * 100
-        quoted_good = quote_output(u"g\u00F6\u00F6d")
+        quoted_good = u"'g\u00F6\u00F6d'"
 
         d = c0.create_dirnode()
         def _stash_root_and_create_file(n):
@@ -210,6 +211,7 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
             (rc, out, err) = args
             self.assertEqual(len(err), 0, err)
             self.failUnlessReallyEqual(rc, 0)
+            out = ensure_text(out)
             lines = out.splitlines()
             self.failUnless("'<root>': Healthy" in lines, out)
             self.failUnless("'small': Healthy (LIT)" in lines, out)
@@ -263,6 +265,7 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
             (rc, out, err) = args
             self.assertEqual(len(err), 0, err)
             self.failUnlessReallyEqual(rc, 0)
+            out = ensure_text(out)
             lines = out.splitlines()
             self.failUnless("'<root>': Healthy" in lines, out)
             self.failUnless("'small': Healthy (LIT)" in lines, out)
@@ -280,6 +283,7 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
             (rc, out, err) = args
             self.assertEqual(len(err), 0, err)
             self.failUnlessReallyEqual(rc, 0)
+            out = ensure_text(out)
             lines = out.splitlines()
             self.failUnless("'<root>': Healthy" in lines, out)
             self.failUnless("'small': Healthy (LIT)" in lines, out)
@@ -313,6 +317,7 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
             (rc, out, err) = args
             self.assertEqual(len(err), 0, err)
             self.failUnlessReallyEqual(rc, 0)
+            out = ensure_text(out)
             lines = out.splitlines()
             self.failUnless("'<root>': healthy" in lines, out)
             self.failUnless("'small': healthy" in lines, out)
@@ -350,7 +355,7 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.failIfEqual(rc, 0)
             self.failUnlessIn("ERROR: UnrecoverableFileError", err)
             # the fatal directory should still show up, as the last line
-            self.failUnlessIn(" subdir\n", out)
+            self.failUnlessIn(" subdir\n", ensure_text(out))
         d.addCallback(_manifest_failed)
 
         d.addCallback(lambda ign: self.do_cli("deep-check", self.rooturi))
