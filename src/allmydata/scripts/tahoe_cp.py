@@ -4,7 +4,6 @@ from past.builtins import unicode
 
 import os.path
 from urllib.parse import quote as url_quote
-import json
 from collections import defaultdict
 from six.moves import cStringIO as StringIO
 from twisted.python.failure import Failure
@@ -17,6 +16,7 @@ from allmydata.util.fileutil import abspath_expanduser_unicode, precondition_abs
 from allmydata.util.encodingutil import unicode_to_url, listdir_unicode, quote_output, \
     quote_local_unicode_path, to_bytes
 from allmydata.util.assertutil import precondition, _assert
+from allmydata.util import jsonbytes as json
 
 
 class MissingSourceError(TahoeError):
@@ -452,7 +452,7 @@ class TahoeDirectoryTarget(object):
             # TODO: think about how this affects forward-compatibility for
             # unknown caps
             set_data[name] = ["filenode", {"rw_uri": filecap}]
-        body = json.dumps(set_data)
+        body = json.dumps_bytes(set_data)
         POST(url, body)
 
 FileSources = (LocalFileSource, TahoeFileSource)
