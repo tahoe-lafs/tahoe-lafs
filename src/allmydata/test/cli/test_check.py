@@ -15,7 +15,7 @@ from six.moves import cStringIO as StringIO
 
 from allmydata import uri
 from allmydata.util import base32
-from allmydata.util.encodingutil import quote_output, to_bytes
+from allmydata.util.encodingutil import to_bytes
 from allmydata.mutable.publish import MutableData
 from allmydata.immutable import upload
 from allmydata.scripts import debug
