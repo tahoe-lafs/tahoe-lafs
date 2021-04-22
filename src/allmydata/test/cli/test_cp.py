@@ -1,5 +1,7 @@
 from __future__ import print_function
 
+from past.builtins import unicode
+
 import os.path, json
 from twisted.trial import unittest
 from twisted.python import usage
