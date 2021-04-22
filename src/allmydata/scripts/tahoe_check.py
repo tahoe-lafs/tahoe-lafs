@@ -34,6 +34,7 @@ def check_location(options, where):
     except UnknownAliasError as e:
         e.display(stderr)
         return 1
+    path = str(path, "utf-8")
     if path == '/':
         path = ''
     url = nodeurl + "uri/%s" % url_quote(rootcap)
@@ -299,6 +300,7 @@ class DeepCheckStreamer(LineOnlyReceiver, object):
         except UnknownAliasError as e:
             e.display(stderr)
             return 1
+        path = str(path, "utf-8")
         if path == '/':
             path = ''
         url = nodeurl + "uri/%s" % url_quote(rootcap)

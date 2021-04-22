@@ -1,5 +1,7 @@
 from __future__ import print_function
 
+from past.builtins import unicode
+
 from urllib.parse import quote as url_quote
 import json
 from twisted.protocols.basic import LineOnlyReceiver
@@ -34,6 +36,7 @@ class ManifestStreamer(LineOnlyReceiver, object):
         except UnknownAliasError as e:
             e.display(stderr)
             return 1
+        path = unicode(path, "utf-8")
         if path == '/':
             path = ''
         url = nodeurl + "uri/%s" % url_quote(rootcap)

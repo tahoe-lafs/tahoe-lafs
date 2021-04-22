@@ -1,4 +1,6 @@
 from __future__ import print_function
+
+from past.builtins import unicode
 from six import ensure_str
 
 import os, time
@@ -26,6 +28,7 @@ class SlowOperationRunner(object):
         except UnknownAliasError as e:
             e.display(stderr)
             return 1
+        path = unicode(path, "utf-8")
         if path == '/':
             path = ''
         url = nodeurl + "uri/%s" % url_quote(rootcap)
