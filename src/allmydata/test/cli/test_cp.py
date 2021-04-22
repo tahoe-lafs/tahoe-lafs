@@ -26,12 +26,8 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
     def test_unicode_filename(self):
         self.basedir = "cli/Cp/unicode_filename"
 
-        fn1 = os.path.join(unicode(self.basedir), u"\u00C4rtonwall")
-        try:
-            fn1_arg = fn1.encode(get_io_encoding())
-            artonwall_arg = u"\u00C4rtonwall".encode(get_io_encoding())
-        except UnicodeEncodeError:
-            raise unittest.SkipTest("A non-ASCII command argument could not be encoded on this platform.")
+        fn1 = os.path.join(self.basedir, u"\u00C4rtonwall")
+        artonwall_arg = u"\u00C4rtonwall"
 
         skip_if_cannot_represent_filename(fn1)
 
@@ -46,7 +42,7 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
 
         d = self.do_cli("create-alias", "tahoe")
 
-        d.addCallback(lambda res: self.do_cli("cp", fn1_arg, "tahoe:"))
+        d.addCallback(lambda res: self.do_cli("cp", fn1, "tahoe:"))
 
         d.addCallback(lambda res: self.do_cli("get", "tahoe:" + artonwall_arg))
         d.addCallback(lambda rc_out_err: self.failUnlessReallyEqual(rc_out_err[1], DATA1))
@@ -202,13 +198,8 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
     def test_unicode_dirnames(self):
         self.basedir = "cli/Cp/unicode_dirnames"
 
-        fn1 = os.path.join(unicode(self.basedir), u"\u00C4rtonwall")
-        try:
-            fn1_arg = fn1.encode(get_io_encoding())
-            del fn1_arg # hush pyflakes
-            artonwall_arg = u"\u00C4rtonwall".encode(get_io_encoding())
-        except UnicodeEncodeError:
-            raise unittest.SkipTest("A non-ASCII command argument could not be encoded on this platform.")
+        fn1 = os.path.join(self.basedir, u"\u00C4rtonwall")
+        artonwall_arg = u"\u00C4rtonwall"
 
         skip_if_cannot_represent_filename(fn1)
 
