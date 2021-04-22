@@ -1,5 +1,6 @@
 from __future__ import print_function
 
+from future.utils import PY2
 from past.builtins import unicode
 
 import os.path, json
@@ -64,7 +65,9 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
                 self.failUnlessIn("files whose names could not be converted", err)
             else:
                 self.failUnlessReallyEqual(rc, 0)
-                self.failUnlessReallyEqual(out.decode(get_io_encoding()), u"Metallica\n\u00C4rtonwall\n")
+                if PY2:
+                    out = out.decode(get_io_encoding())
+                self.failUnlessReallyEqual(out, u"Metallica\n\u00C4rtonwall\n")
                 self.failUnlessReallyEqual(err, "")
         d.addCallback(_check)
 
@@ -220,7 +223,9 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
                 self.failUnlessIn("files whose names could not be converted", err)
             else:
                 self.failUnlessReallyEqual(rc, 0)
-                self.failUnlessReallyEqual(out.decode(get_io_encoding()), u"\u00C4rtonwall\n")
+                if PY2:
+                    out = out.decode(get_io_encoding())
+                self.failUnlessReallyEqual(out, u"\u00C4rtonwall\n")
                 self.failUnlessReallyEqual(err, "")
         d.addCallback(_check)
 
@@ -259,6 +264,7 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
         def _get_test_txt_uris(args):
             (rc, out, err) = args
             self.failUnlessEqual(rc, 0)
+            import pdb; pdb.set_trace()
             filetype, data = json.loads(out)
 
             self.failUnlessEqual(filetype, "filenode")

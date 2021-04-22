@@ -1,7 +1,9 @@
 from __future__ import print_function
 
+from past.builtins import unicode
+
 from six.moves import cStringIO as StringIO
-import urllib
+from urllib.parse import quote as url_quote
 
 from allmydata.scripts.common_http import do_http, format_http_success, format_http_error
 from allmydata.scripts.common import get_alias, DEFAULT_ALIAS, escape_path, \
@@ -46,19 +48,20 @@ def put(options):
 
         # FIXME: don't hardcode cap format.
         if to_file.startswith("URI:MDMF:") or to_file.startswith("URI:SSK:"):
-            url = nodeurl + "uri/%s" % urllib.quote(to_file)
+            url = nodeurl + "uri/%s" % url_quote(to_file)
         else:
             try:
                 rootcap, path = get_alias(aliases, to_file, DEFAULT_ALIAS)
             except UnknownAliasError as e:
                 e.display(stderr)
                 return 1
+            path = unicode(path, "utf-8")
             if path.startswith("/"):
                 suggestion = to_file.replace(u"/", u"", 1)
                 print("Error: The remote filename must not start with a slash", file=stderr)
                 print("Please try again, perhaps with %s" % quote_output(suggestion), file=stderr)
                 return 1
-            url = nodeurl + "uri/%s/" % urllib.quote(rootcap)
+            url = nodeurl + "uri/%s/" % url_quote(rootcap)
             if path:
                 url += escape_path(path)
     else:
