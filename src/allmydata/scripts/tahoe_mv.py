@@ -1,7 +1,7 @@
 from __future__ import print_function
 
 import re
-import urllib
+from urllib.parse import quote as url_quote
 import json
 from allmydata.scripts.common import get_alias, DEFAULT_ALIAS, escape_path, \
                                      UnknownAliasError
@@ -25,7 +25,7 @@ def mv(options, mode="move"):
     except UnknownAliasError as e:
         e.display(stderr)
         return 1
-    from_url = nodeurl + "uri/%s" % urllib.quote(rootcap)
+    from_url = nodeurl + "uri/%s" % url_quote(rootcap)
     if from_path:
         from_url += "/" + escape_path(from_path)
     # figure out the source cap
@@ -43,7 +43,7 @@ def mv(options, mode="move"):
     except UnknownAliasError as e:
         e.display(stderr)
         return 1
-    to_url = nodeurl + "uri/%s" % urllib.quote(rootcap)
+    to_url = nodeurl + "uri/%s" % url_quote(rootcap)
     if path:
         to_url += "/" + escape_path(path)
 

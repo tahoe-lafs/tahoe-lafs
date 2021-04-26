@@ -99,7 +99,7 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
         fn1 = os.path.join(self.basedir, "Metallica")
         fn2 = os.path.join(outdir, "Not Metallica")
         fn3 = os.path.join(outdir, "test2")
-        DATA1 = "puppies" * 10000
+        DATA1 = b"puppies" * 10000
         fileutil.write(fn1, DATA1)
 
         d = self.do_cli("create-alias", "tahoe")
@@ -264,7 +264,6 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
         def _get_test_txt_uris(args):
             (rc, out, err) = args
             self.failUnlessEqual(rc, 0)
-            import pdb; pdb.set_trace()
             filetype, data = json.loads(out)
 
             self.failUnlessEqual(filetype, "filenode")
@@ -817,9 +816,9 @@ cp -r $DIRCAP5 $DIRCAP6 to : E9-COLLIDING-TARGETS
 """
 
 class CopyOut(GridTestMixin, CLITestMixin, unittest.TestCase):
-    FILE_CONTENTS = "file text"
-    FILE_CONTENTS_5 = "5"
-    FILE_CONTENTS_6 = "6"
+    FILE_CONTENTS = b"file text"
+    FILE_CONTENTS_5 = b"5"
+    FILE_CONTENTS_6 = b"6"
 
     def do_setup(self):
         # first we build a tahoe filesystem that contains:

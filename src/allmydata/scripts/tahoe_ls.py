@@ -45,10 +45,10 @@ def list(options):
             return resp.status
 
     data = resp.read()
-
     if options['json']:
         # The webapi server should always output printable ASCII.
         if is_printable_ascii(data):
+            data = unicode(data, "ascii")
             print(data, file=stdout)
             return 0
         else:
