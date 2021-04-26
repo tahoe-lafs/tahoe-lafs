@@ -1,7 +1,15 @@
+"""
+Ported to Python 3.
+"""
 from __future__ import print_function
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import unicode_literals
 
 from future.utils import PY2
-from past.builtins import unicode
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+from six import ensure_text
 
 import os.path, json
 from twisted.trial import unittest
@@ -46,12 +54,12 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(lambda res: self.do_cli("cp", fn1, "tahoe:"))
 
         d.addCallback(lambda res: self.do_cli("get", "tahoe:" + artonwall_arg))
-        d.addCallback(lambda rc_out_err: self.failUnlessReallyEqual(rc_out_err[1], DATA1))
+        d.addCallback(lambda rc_out_err: self.assertEqual(rc_out_err[1], DATA1))
 
         d.addCallback(lambda res: self.do_cli("cp", fn2, "tahoe:"))
 
         d.addCallback(lambda res: self.do_cli("get", "tahoe:Metallica"))
-        d.addCallback(lambda rc_out_err: self.failUnlessReallyEqual(rc_out_err[1], DATA2))
+        d.addCallback(lambda rc_out_err: self.assertEqual(rc_out_err[1], DATA2))
 
         d.addCallback(lambda res: self.do_cli("ls", "tahoe:"))
         def _check(args):
@@ -68,7 +76,7 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
                 if PY2:
                     out = out.decode(get_io_encoding())
                 self.failUnlessReallyEqual(out, u"Metallica\n\u00C4rtonwall\n")
-                self.failUnlessReallyEqual(err, "")
+                self.assertEqual(len(err), 0, err)
         d.addCallback(_check)
 
         return d
@@ -129,7 +137,7 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("when copying into a directory, all source files must have names, but",
                               err)
-            self.failUnlessReallyEqual(out, "")
+            self.assertEqual(len(out), 0, out)
         d.addCallback(_resp)
 
         # Create a directory, linked at tahoe:test .
@@ -218,7 +226,7 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
                 unicode_to_output(u"\u00C4rtonwall")
             except UnicodeEncodeError:
                 self.failUnlessReallyEqual(rc, 1)
-                self.failUnlessReallyEqual(out, "")
+                self.assertEqual(len(out), 0, out)
                 self.failUnlessIn(quote_output(u"\u00C4rtonwall"), err)
                 self.failUnlessIn("files whose names could not be converted", err)
             else:
@@ -226,7 +234,7 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
                 if PY2:
                     out = out.decode(get_io_encoding())
                 self.failUnlessReallyEqual(out, u"\u00C4rtonwall\n")
-                self.failUnlessReallyEqual(err, "")
+                self.assertEqual(len(err), 0, err)
         d.addCallback(_check)
 
         return d
