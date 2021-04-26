@@ -1,0 +1,3 @@
+Tahoe-LAFS CI now runs tests only on 32-bit Windows. Microsoft has
+removed vcpython27 compiler downloads from their site, and Tahoe-LAFS
+needs vcpython27 to build and install netifaces on 64-bit Windows.
