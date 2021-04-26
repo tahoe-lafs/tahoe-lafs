@@ -35,9 +35,21 @@ jobs:
           fetch-depth: 0
 
       - name: Set up Python ${{ matrix.python-version }}
+        if: matrix.os != 'windows-latest' && matrix.python-version != '2.7'
         uses: actions/setup-python@v1
         with:
           python-version: ${{ matrix.python-version }}
+
+      # We use netifaces, which does not ship a 64-bit wheel for
+      # Windows, but it ships a 32-bit wheel.  Since MS has pulled
+      # vcpython27 compiler, building a netifaces wheel is not an
+      # option anymore, so let us test on 32-bit Windows.
+      - name: Set up Python ${{ matrix.python-version }} [Windows x86]
+        if: matrix.os == 'windows-latest' && matrix.python-version == '2.7'
+        uses: actions/setup-python@v1
+        with:
+          python-version: ${{ matrix.python-version }}
+          architecture: x64
 
       # To use pip caching with GitHub Actions in an OS-independent
       # manner, we need `pip cache dir` command, which became
@@ -175,9 +187,18 @@ jobs:
           fetch-depth: 0
 
       - name: Set up Python ${{ matrix.python-version }}
+        if: matrix.os != 'windows-latest' && matrix.python-version != '2.7'
         uses: actions/setup-python@v1
         with:
           python-version: ${{ matrix.python-version }}
+
+      # See this step under coverage job.          
+      - name: Set up Python ${{ matrix.python-version }} [Windows x86]
+        if: matrix.os == 'windows-latest' && matrix.python-version == '2.7'
+        uses: actions/setup-python@v1
+        with:
+          python-version: ${{ matrix.python-version }}
+          architecture: x64
 
       - name: Get pip cache directory
         id: pip-cache
@@ -230,9 +251,18 @@ jobs:
           fetch-depth: 0
 
       - name: Set up Python ${{ matrix.python-version }}
+        if: matrix.os != 'windows-latest' && matrix.python-version != '2.7'
         uses: actions/setup-python@v1
         with:
           python-version: ${{ matrix.python-version }}
+
+      # See this step under coverage job.
+      - name: Set up Python ${{ matrix.python-version }} [Windows x86]
+        if: matrix.os == 'windows-latest' && matrix.python-version == '2.7'
+        uses: actions/setup-python@v1
+        with:
+          python-version: ${{ matrix.python-version }}
+          architecture: x64
 
       - name: Get pip cache directory
         id: pip-cache
