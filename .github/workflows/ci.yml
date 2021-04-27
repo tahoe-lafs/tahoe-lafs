@@ -49,7 +49,7 @@ jobs:
         uses: actions/setup-python@v1
         with:
           python-version: ${{ matrix.python-version }}
-          architecture: x64
+          architecture: 'x64'
 
       # We use netifaces, which does not ship a 64-bit wheel for the
       # Python 2.7 + Windows combination, but it ships a 32-bit wheel.
@@ -62,7 +62,7 @@ jobs:
         uses: actions/setup-python@v1
         with:
           python-version: ${{ matrix.python-version }}
-          architecture: x86
+          architecture: 'x86'
 
       # To use pip caching with GitHub Actions in an OS-independent
       # manner, we need `pip cache dir` command, which became
@@ -211,7 +211,7 @@ jobs:
         uses: actions/setup-python@v1
         with:
           python-version: ${{ matrix.python-version }}
-          architecture: x86
+          architecture: 'x86'
 
       - name: Get pip cache directory
         id: pip-cache
@@ -275,7 +275,7 @@ jobs:
         uses: actions/setup-python@v1
         with:
           python-version: ${{ matrix.python-version }}
-          architecture: x86
+          architecture: 'x86'
 
       - name: Get pip cache directory
         id: pip-cache
