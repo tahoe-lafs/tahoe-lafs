@@ -45,7 +45,7 @@ jobs:
       # because I could not figure out the right GitHub Actions
       # expression to do this in a better way.
       - name: Set up Python ${{ matrix.python-version }} [Windows x64]
-        if: ${{ matrix.os == 'windows-latest' && matrix.python-version == '3.6' }}
+        if: ${{ ( matrix.os == 'windows-latest' ) && ( matrix.python-version == '3.6' ) }}
         uses: actions/setup-python@v1
         with:
           python-version: ${{ matrix.python-version }}
@@ -58,7 +58,7 @@ jobs:
       # an option anymore.  So let us just test with 32-bit Python on
       # Windows.
       - name: Set up Python ${{ matrix.python-version }} [Windows x86]
-        if: ${{ matrix.os == 'windows-latest' && matrix.python-version == '2.7' }}
+        if: ${{ ( matrix.os == 'windows-latest' ) && ( matrix.python-version == '2.7' ) }}
         uses: actions/setup-python@v1
         with:
           python-version: ${{ matrix.python-version }}
