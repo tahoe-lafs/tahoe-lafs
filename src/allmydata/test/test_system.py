@@ -76,7 +76,7 @@ class RunBinTahoeMixin(object):
         # support env yet and is also synchronous.  If we could get rid of
         # this in favor of that, though, it would probably be an improvement.
         command = sys.executable
-        argv = python_options + ["-m", "allmydata.scripts.runner"] + args
+        argv = python_options + ["-b", "-m", "allmydata.scripts.runner"] + args
 
         if env is None:
             env = os.environ

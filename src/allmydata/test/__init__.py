@@ -20,11 +20,10 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
-from future.utils import PY2, PY3
+from future.utils import PY2
 if PY2:
     from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
-import warnings
 from traceback import extract_stack, format_list
 
 from foolscap.pb import Listener
@@ -32,11 +31,6 @@ from twisted.python.log import err
 from twisted.application import service
 
 from foolscap.logging.incident import IncidentQualifier
-
-if PY3:
-    # Error on BytesWarnings, to catch things like str(b""), but only for
-    # allmydata code.
-    warnings.filterwarnings("error", category=BytesWarning, module="allmydata.*")
 
 
 class NonQualifier(IncidentQualifier, object):
