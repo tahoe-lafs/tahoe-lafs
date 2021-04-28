@@ -3,7 +3,7 @@
 See also :doc:`cautions.rst<cautions>`.
 
 ============
-Known Issues
+Known Issues.
 ============
 
 Below is a list of known issues in recent releases of Tahoe-LAFS, and how to
