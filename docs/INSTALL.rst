@@ -66,6 +66,7 @@ everything you need::
 
     apt-get install build-essential python-dev libffi-dev libssl-dev libyaml-dev python-virtualenv
 
+If this fails you may have to install the needed packages one after the other.
 On OS-X, install pip and virtualenv as described below. If you want to
 compile the dependencies yourself, you'll also need to install
 Xcode and its command-line tools.
@@ -165,7 +166,7 @@ from PyPI with ``venv/bin/pip install tahoe-lafs``. After installation, run
  Successfully installed ...
 
  % venv/bin/tahoe --version
- tahoe-lafs: 1.14.0
+ tahoe-lafs: 1.15.0
  foolscap: ...
 
  %
