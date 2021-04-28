@@ -495,10 +495,10 @@ class YAML(unittest.TestCase):
 
 
 class JSONBytes(unittest.TestCase):
-    """Tests for BytesJSONEncoder."""
+    """Tests for jsonbytes module."""
 
     def test_encode_bytes(self):
-        """BytesJSONEncoder can encode bytes.
+        """jsonbytes.dumps() encodes bytes.
 
         Bytes are presumed to be UTF-8 encoded.
         """
@@ -515,7 +515,7 @@ class JSONBytes(unittest.TestCase):
         self.assertEqual(jsonbytes.loads(encoded), expected)
 
     def test_encode_unicode(self):
-        """BytesJSONEncoder encodes Unicode string as usual."""
+        """jsonbytes.dumps() encodes Unicode string as usual."""
         expected = {
             u"hello": [1, u"cd"],
         }
@@ -528,6 +528,37 @@ class JSONBytes(unittest.TestCase):
         encoded = jsonbytes.dumps_bytes(x)
         self.assertIsInstance(encoded, bytes)
         self.assertEqual(json.loads(encoded, encoding="utf-8"), x)
+
+    def test_any_bytes_unsupported_by_default(self):
+        """By default non-UTF-8 bytes raise error."""
+        bytestring = b"abc\xff\x00"
+        with self.assertRaises(UnicodeDecodeError):
+            jsonbytes.dumps(bytestring)
+        with self.assertRaises(UnicodeDecodeError):
+            jsonbytes.dumps_bytes(bytestring)
+        with self.assertRaises(UnicodeDecodeError):
+            json.dumps(bytestring, cls=jsonbytes.UTF8BytesJSONEncoder)
+
+    def test_any_bytes(self):
+        """If any_bytes is True, non-UTF-8 bytes don't break encoding."""
+        bytestring = b"abc\xff\xff123"
+        o = {bytestring: bytestring}
+        expected = {"abc\\xff\\xff123": "abc\\xff\\xff123"}
+        self.assertEqual(
+            json.loads(jsonbytes.dumps(o, any_bytes=True)),
+            expected,
+        )
+        self.assertEqual(
+            json.loads(json.dumps(
+                o, cls=jsonbytes.AnyBytesJSONEncoder)),
+            expected,
+        )
+        self.assertEqual(
+            json.loads(jsonbytes.dumps(o, any_bytes=True),
+                       encoding="utf-8"),
+            expected,
+        )
+
 
 
 class FakeGetVersion(object):

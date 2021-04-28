@@ -92,7 +92,7 @@ class TestStreamingLogs(unittest.TestCase):
     @inlineCallbacks
     def test_one_log(self):
         """
-        Write a single Eliot log actin and see it streamed via websocket.
+        Write a single Eliot log action and see it streamed via websocket.
         """
 
         proto = yield self.agent.open(
@@ -109,7 +109,7 @@ class TestStreamingLogs(unittest.TestCase):
         def do_a_thing(arguments):
             pass
 
-        do_a_thing(arguments=[u"hello", b"good-day", 123, {"a": 35}, [None]])
+        do_a_thing(arguments=[u"hello", b"good-\xff-day", 123, {"a": 35}, [None]])
 
         proto.transport.loseConnection()
         yield proto.is_closed
@@ -117,7 +117,7 @@ class TestStreamingLogs(unittest.TestCase):
         self.assertEqual(len(messages), 2)
         self.assertEqual(messages[0]["action_type"], "test:cli:some-exciting-action")
         self.assertEqual(messages[0]["arguments"],
-                         ["hello", "good-day", 123, {"a": 35}, [None]])
+                         ["hello", "good-\\xff-day", 123, {"a": 35}, [None]])
         self.assertEqual(messages[1]["action_type"], "test:cli:some-exciting-action")
         self.assertEqual("started", messages[0]["action_status"])
         self.assertEqual("succeeded", messages[1]["action_status"])
