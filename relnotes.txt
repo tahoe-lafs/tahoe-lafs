@@ -1,6 +1,6 @@
-﻿ANNOUNCING Tahoe, the Least-Authority File Store, v1.14.0
+﻿ANNOUNCING Tahoe, the Least-Authority File Store, v1.15.0
 
-The Tahoe-LAFS team is pleased to announce version 1.14.0 of
+The Tahoe-LAFS team is pleased to announce version 1.15.0 of
 Tahoe-LAFS, an extremely reliable decentralized storage
 system. Get it with "pip install tahoe-lafs", or download a
 tarball here:
