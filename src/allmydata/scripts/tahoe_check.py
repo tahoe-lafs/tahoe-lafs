@@ -4,7 +4,7 @@ from urllib.parse import quote as url_quote
 import json
 
 # Python 2 compatibility
-from future.utils import PY2, PY3
+from future.utils import PY2
 if PY2:
     from future.builtins import str  # noqa: F401
 
