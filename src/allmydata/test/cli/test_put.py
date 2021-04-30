@@ -1,4 +1,14 @@
-from past.builtins import unicode
+"""
+Ported to Python 3.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 import os.path
 from twisted.trial import unittest
@@ -49,7 +59,7 @@ class Put(GridTestMixin, CLITestMixin, unittest.TestCase):
         self.basedir = "cli/Put/unlinked_immutable_from_file"
         self.set_up_grid(oneshare=True)
 
-        rel_fn = unicode(os.path.join(self.basedir, "DATAFILE"))
+        rel_fn = str(os.path.join(self.basedir, "DATAFILE"))
         abs_fn = abspath_expanduser_unicode(rel_fn)
         # we make the file small enough to fit in a LIT file, for speed
         fileutil.write(rel_fn, b"short file has some bytes \xff yes")
@@ -135,7 +145,7 @@ class Put(GridTestMixin, CLITestMixin, unittest.TestCase):
                       self.failUnlessReallyEqual(rc_stdout_stderr[1], DATA))
 
         def _get_dircap(res):
-            self.dircap = unicode(get_aliases(self.get_clientdir())["tahoe"], "ascii")
+            self.dircap = str(get_aliases(self.get_clientdir())["tahoe"], "ascii")
         d.addCallback(_get_dircap)
 
         d.addCallback(lambda res:
@@ -213,10 +223,10 @@ class Put(GridTestMixin, CLITestMixin, unittest.TestCase):
         self.basedir = "cli/Put/mutable"
         self.set_up_grid(oneshare=True)
 
-        DATA1 = "data" * 100
+        DATA1 = b"data" * 100
         fn1 = os.path.join(self.basedir, "DATA1")
         fileutil.write(fn1, DATA1)
-        DATA2 = "two" * 100
+        DATA2 = b"two\xff" * 100
         fn2 = os.path.join(self.basedir, "DATA2")
         fileutil.write(fn2, DATA2)
 
@@ -238,7 +248,7 @@ class Put(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.failUnlessEqual(out, self.uri, str(res))
         d.addCallback(_check2)
         d.addCallback(lambda res:
-                      self.do_cli("get", "tahoe:uploaded.txt"))
+                      self.do_cli("get", "tahoe:uploaded.txt", return_bytes=True))
         d.addCallback(lambda rc_out_err: self.failUnlessReallyEqual(rc_out_err[1], DATA2))
         return d
 
@@ -438,7 +448,7 @@ class Put(GridTestMixin, CLITestMixin, unittest.TestCase):
             (rc, out, err) = args
             self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("error:", err)
-            self.failUnlessReallyEqual(out, "")
+            self.assertEqual(len(out), 0, out)
         d.addCallback(_check)
         return d
 
@@ -452,7 +462,7 @@ class Put(GridTestMixin, CLITestMixin, unittest.TestCase):
         self.basedir = "cli/Put/immutable_from_file_unicode"
         self.set_up_grid(oneshare=True)
 
-        rel_fn = os.path.join(unicode(self.basedir), u"\u00E0 trier.txt")
+        rel_fn = os.path.join(str(self.basedir), u"\u00E0 trier.txt")
         # we make the file small enough to fit in a LIT file, for speed
         DATA = b"short file \xff bytes"
         fileutil.write(rel_fn, DATA)
