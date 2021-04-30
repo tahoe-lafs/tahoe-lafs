@@ -1983,7 +1983,7 @@ class ShellSession(PrefixingLogMixin):
 components.registerAdapter(ShellSession, SFTPUserHandler, ISession)
 
 
-from allmydata.frontends.auth import AccountURLChecker, AccountFileChecker, NeedRootcapLookupScheme
+from allmydata.frontends.auth import AccountFileChecker, NeedRootcapLookupScheme
 
 @implementer(portal.IRealm)
 class Dispatcher(object):
@@ -2000,7 +2000,7 @@ class Dispatcher(object):
 class SFTPServer(service.MultiService):
     name = "frontend:sftp"
 
-    def __init__(self, client, accountfile, accounturl,
+    def __init__(self, client, accountfile,
                  sftp_portstr, pubkey_file, privkey_file):
         precondition(isinstance(accountfile, (str, type(None))), accountfile)
         precondition(isinstance(pubkey_file, str), pubkey_file)
@@ -2013,12 +2013,9 @@ class SFTPServer(service.MultiService):
         if accountfile:
             c = AccountFileChecker(self, accountfile)
             p.registerChecker(c)
-        if accounturl:
-            c = AccountURLChecker(self, accounturl)
-            p.registerChecker(c)
-        if not accountfile and not accounturl:
+        if not accountfile:
             # we could leave this anonymous, with just the /uri/CAP form
-            raise NeedRootcapLookupScheme("must provide an account file or URL")
+            raise NeedRootcapLookupScheme("must provide an account file")
 
         pubkey = keys.Key.fromFile(pubkey_file.encode(get_filesystem_encoding()))
         privkey = keys.Key.fromFile(privkey_file.encode(get_filesystem_encoding()))
