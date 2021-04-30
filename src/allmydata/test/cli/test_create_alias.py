@@ -1,7 +1,9 @@
+from future.builtins import str
 from six.moves import StringIO
 import os.path
 from twisted.trial import unittest
-import urllib
+from urllib.parse import quote as url_quote
+
 from allmydata.util import fileutil
 from allmydata.scripts.common import get_aliases
 from allmydata.scripts import cli, runner
@@ -22,7 +24,7 @@ class CreateAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
         rc = cli.webopen(o.subOptions, urls.append)
         self.failUnlessReallyEqual(rc, 0)
         self.failUnlessReallyEqual(len(urls), 1)
-        self.failUnlessReallyEqual(urls[0], expected_url)
+        self.assertEqual(urls[0], expected_url)
 
     def test_create(self):
         self.basedir = "cli/CreateAlias/create"
@@ -36,19 +38,19 @@ class CreateAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.assertIn("Alias 'tahoe' created", stdout)
             aliases = get_aliases(self.get_clientdir())
             self.failUnless("tahoe" in aliases)
-            self.failUnless(aliases["tahoe"].startswith("URI:DIR2:"))
+            self.failUnless(aliases["tahoe"].startswith(b"URI:DIR2:"))
         d.addCallback(_done)
         d.addCallback(lambda res: self.do_cli("create-alias", "two:"))
 
         def _stash_urls(res):
             aliases = get_aliases(self.get_clientdir())
             node_url_file = os.path.join(self.get_clientdir(), "node.url")
-            nodeurl = fileutil.read(node_url_file).strip()
+            nodeurl = fileutil.read(node_url_file, mode="r").strip()
             self.welcome_url = nodeurl
             uribase = nodeurl + "uri/"
-            self.tahoe_url = uribase + urllib.quote(aliases["tahoe"])
+            self.tahoe_url = uribase + url_quote(aliases["tahoe"])
             self.tahoe_subdir_url = self.tahoe_url + "/subdir"
-            self.two_url = uribase + urllib.quote(aliases["two"])
+            self.two_url = uribase + url_quote(aliases["two"])
             self.two_uri = aliases["two"]
         d.addCallback(_stash_urls)
 
@@ -128,13 +130,13 @@ class CreateAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
             # like a valid dircap, so get_aliases() will raise an exception.
             aliases = get_aliases(self.get_clientdir())
             self.failUnless("added" in aliases)
-            self.failUnless(aliases["added"].startswith("URI:DIR2:"))
+            self.failUnless(aliases["added"].startswith(b"URI:DIR2:"))
             # to be safe, let's confirm that we don't see "NAME2:" in CAP1.
             # No chance of a false-negative, because the hyphen in
             # "un-corrupted1" is not a valid base32 character.
-            self.failIfIn("un-corrupted1:", aliases["added"])
+            self.failIfIn(b"un-corrupted1:", aliases["added"])
             self.failUnless("un-corrupted1" in aliases)
-            self.failUnless(aliases["un-corrupted1"].startswith("URI:DIR2:"))
+            self.failUnless(aliases["un-corrupted1"].startswith(b"URI:DIR2:"))
         d.addCallback(_check_not_corrupted1)
 
         def _remove_trailing_newline_and_add_alias(ign):
@@ -149,10 +151,10 @@ class CreateAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.failIf(stderr)
             aliases = get_aliases(self.get_clientdir())
             self.failUnless("un-corrupted1" in aliases)
-            self.failUnless(aliases["un-corrupted1"].startswith("URI:DIR2:"))
-            self.failIfIn("un-corrupted2:", aliases["un-corrupted1"])
+            self.failUnless(aliases["un-corrupted1"].startswith(b"URI:DIR2:"))
+            self.failIfIn(b"un-corrupted2:", aliases["un-corrupted1"])
             self.failUnless("un-corrupted2" in aliases)
-            self.failUnless(aliases["un-corrupted2"].startswith("URI:DIR2:"))
+            self.failUnless(aliases["un-corrupted2"].startswith(b"URI:DIR2:"))
         d.addCallback(_check_not_corrupted)
         return d
 
