@@ -162,48 +162,47 @@ class CreateAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
         self.basedir = "cli/CreateAlias/create_unicode"
         self.set_up_grid(oneshare=True)
 
-        try:
-            etudes_arg = u"\u00E9tudes".encode(get_io_encoding())
-            lumiere_arg = u"lumi\u00E8re.txt".encode(get_io_encoding())
-        except UnicodeEncodeError:
-            raise unittest.SkipTest("A non-ASCII command argument could not be encoded on this platform.")
+        etudes_arg = u"\u00E9tudes"
+        lumiere_arg = u"lumi\u00E8re.txt"
 
         d = self.do_cli("create-alias", etudes_arg)
         def _check_create_unicode(args):
             (rc, out, err) = args
             self.failUnlessReallyEqual(rc, 0)
-            self.failUnlessReallyEqual(err, "")
+            self.assertEqual(len(err), 0, err)
             self.failUnlessIn("Alias %s created" % quote_output(u"\u00E9tudes"), out)
 
             aliases = get_aliases(self.get_clientdir())
-            self.failUnless(aliases[u"\u00E9tudes"].startswith("URI:DIR2:"))
+            self.failUnless(aliases[u"\u00E9tudes"].startswith(b"URI:DIR2:"))
         d.addCallback(_check_create_unicode)
 
         d.addCallback(lambda res: self.do_cli("ls", etudes_arg + ":"))
         def _check_ls1(args):
             (rc, out, err) = args
             self.failUnlessReallyEqual(rc, 0)
-            self.failUnlessReallyEqual(err, "")
-            self.failUnlessReallyEqual(out, "")
+            self.assertEqual(len(err), 0, err)
+            self.assertEqual(len(out), 0, out)
         d.addCallback(_check_ls1)
 
+        DATA = b"Blah blah blah \xff blah \x00 blah"
         d.addCallback(lambda res: self.do_cli("put", "-", etudes_arg + ":uploaded.txt",
-                                              stdin="Blah blah blah"))
+                                              stdin=DATA))
 
         d.addCallback(lambda res: self.do_cli("ls", etudes_arg + ":"))
         def _check_ls2(args):
             (rc, out, err) = args
             self.failUnlessReallyEqual(rc, 0)
-            self.failUnlessReallyEqual(err, "")
+            self.assertEqual(len(err), 0, err)
             self.failUnlessReallyEqual(out, "uploaded.txt\n")
         d.addCallback(_check_ls2)
 
-        d.addCallback(lambda res: self.do_cli("get", etudes_arg + ":uploaded.txt"))
+        d.addCallback(lambda res: self.do_cli("get", etudes_arg + ":uploaded.txt",
+                                              return_bytes=True))
         def _check_get(args):
             (rc, out, err) = args
             self.failUnlessReallyEqual(rc, 0)
-            self.failUnlessReallyEqual(err, "")
-            self.failUnlessReallyEqual(out, "Blah blah blah")
+            self.assertEqual(len(err), 0, err)
+            self.failUnlessReallyEqual(out, DATA)
         d.addCallback(_check_get)
 
         # Ensure that an Unicode filename in an Unicode alias works as expected
@@ -211,11 +210,11 @@ class CreateAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
                                               stdin="Let the sunshine In!"))
 
         d.addCallback(lambda res: self.do_cli("get",
-                                              get_aliases(self.get_clientdir())[u"\u00E9tudes"] + "/" + lumiere_arg))
+                                              str(get_aliases(self.get_clientdir())[u"\u00E9tudes"], "ascii") + "/" + lumiere_arg))
         def _check_get2(args):
             (rc, out, err) = args
             self.failUnlessReallyEqual(rc, 0)
-            self.failUnlessReallyEqual(err, "")
+            self.assertEqual(len(err), 0, err)
             self.failUnlessReallyEqual(out, "Let the sunshine In!")
         d.addCallback(_check_get2)
 

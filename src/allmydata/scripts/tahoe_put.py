@@ -1,8 +1,9 @@
 from __future__ import print_function
 
+from future.utils import PY2
 from past.builtins import unicode
 
-from six.moves import cStringIO as StringIO
+from io import BytesIO
 from urllib.parse import quote as url_quote
 
 from allmydata.scripts.common_http import do_http, format_http_success, format_http_error
@@ -83,8 +84,13 @@ def put(options):
         # Content-Length field. So we currently must copy it.
         if verbosity > 0:
             print("waiting for file data on stdin..", file=stderr)
-        data = stdin.read()
-        infileobj = StringIO(data)
+        # We're uploading arbitrary files, so this had better be bytes:
+        if PY2:
+            stdinb = stdin
+        else:
+            stdinb = stdin.buffer
+        data = stdinb.read()
+        infileobj = BytesIO(data)
 
     resp = do_http("PUT", url, infileobj)
 
