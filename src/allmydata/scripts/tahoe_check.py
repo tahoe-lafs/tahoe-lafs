@@ -1,6 +1,6 @@
 from __future__ import print_function
 
-import urllib
+from urllib.parse import quote as url_quote
 import json
 
 # Python 2 compatibility
@@ -34,9 +34,10 @@ def check_location(options, where):
     except UnknownAliasError as e:
         e.display(stderr)
         return 1
+    path = str(path, "utf-8")
     if path == '/':
         path = ''
-    url = nodeurl + "uri/%s" % urllib.quote(rootcap)
+    url = nodeurl + "uri/%s" % url_quote(rootcap)
     if path:
         url += "/" + escape_path(path)
     # todo: should it end with a slash?
@@ -52,7 +53,8 @@ def check_location(options, where):
     if resp.status != 200:
         print(format_http_error("ERROR", resp), file=stderr)
         return 1
-    jdata = resp.read()
+    jdata = resp.read().decode()
+
     if options.get("raw"):
         stdout.write(jdata)
         stdout.write("\n")
@@ -139,7 +141,7 @@ class DeepCheckOutput(LineOnlyReceiver, object):
         if self.in_error:
             print(quote_output(line, quotemarks=False), file=self.stderr)
             return
-        if line.startswith("ERROR:"):
+        if line.startswith(b"ERROR:"):
             self.in_error = True
             self.streamer.rc = 1
             print(quote_output(line, quotemarks=False), file=self.stderr)
@@ -202,7 +204,7 @@ class DeepCheckAndRepairOutput(LineOnlyReceiver, object):
         if self.in_error:
             print(quote_output(line, quotemarks=False), file=self.stderr)
             return
-        if line.startswith("ERROR:"):
+        if line.startswith(b"ERROR:"):
             self.in_error = True
             self.streamer.rc = 1
             print(quote_output(line, quotemarks=False), file=self.stderr)
@@ -295,9 +297,10 @@ class DeepCheckStreamer(LineOnlyReceiver, object):
         except UnknownAliasError as e:
             e.display(stderr)
             return 1
+        path = str(path, "utf-8")
         if path == '/':
             path = ''
-        url = nodeurl + "uri/%s" % urllib.quote(rootcap)
+        url = nodeurl + "uri/%s" % url_quote(rootcap)
         if path:
             url += "/" + escape_path(path)
         # todo: should it end with a slash?
@@ -322,7 +325,7 @@ class DeepCheckStreamer(LineOnlyReceiver, object):
             if not chunk:
                 break
             if self.options["raw"]:
-                stdout.write(chunk)
+                stdout.write(chunk.decode())
             else:
                 output.dataReceived(chunk)
         if not self.options["raw"]:
