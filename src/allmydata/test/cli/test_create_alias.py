@@ -1,4 +1,16 @@
-from future.builtins import str
+"""
+Ported to Python 3.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+
+from six import ensure_str
 from six.moves import StringIO
 import os.path
 from twisted.trial import unittest
@@ -170,7 +182,7 @@ class CreateAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
             (rc, out, err) = args
             self.failUnlessReallyEqual(rc, 0)
             self.assertEqual(len(err), 0, err)
-            self.failUnlessIn("Alias %s created" % quote_output(u"\u00E9tudes"), out)
+            self.failUnlessIn(ensure_str("Alias %s created") % quote_output(etudes_arg), out)
 
             aliases = get_aliases(self.get_clientdir())
             self.failUnless(aliases[u"\u00E9tudes"].startswith(b"URI:DIR2:"))
@@ -193,7 +205,7 @@ class CreateAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
             (rc, out, err) = args
             self.failUnlessReallyEqual(rc, 0)
             self.assertEqual(len(err), 0, err)
-            self.failUnlessReallyEqual(out, "uploaded.txt\n")
+            self.assertEqual(out, "uploaded.txt\n")
         d.addCallback(_check_ls2)
 
         d.addCallback(lambda res: self.do_cli("get", etudes_arg + ":uploaded.txt",
@@ -207,15 +219,17 @@ class CreateAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
 
         # Ensure that an Unicode filename in an Unicode alias works as expected
         d.addCallback(lambda res: self.do_cli("put", "-", etudes_arg + ":" + lumiere_arg,
-                                              stdin="Let the sunshine In!"))
+                                              stdin=b"Let the sunshine In!"))
 
-        d.addCallback(lambda res: self.do_cli("get",
-                                              str(get_aliases(self.get_clientdir())[u"\u00E9tudes"], "ascii") + "/" + lumiere_arg))
+        d.addCallback(lambda res: self.do_cli(
+            "get",
+            str(get_aliases(self.get_clientdir())[u"\u00E9tudes"], "ascii") + "/" + lumiere_arg,
+            return_bytes=True))
         def _check_get2(args):
             (rc, out, err) = args
             self.failUnlessReallyEqual(rc, 0)
             self.assertEqual(len(err), 0, err)
-            self.failUnlessReallyEqual(out, "Let the sunshine In!")
+            self.failUnlessReallyEqual(out, b"Let the sunshine In!")
         d.addCallback(_check_get2)
 
         return d
