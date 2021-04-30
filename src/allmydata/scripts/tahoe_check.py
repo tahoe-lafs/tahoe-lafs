@@ -53,14 +53,11 @@ def check_location(options, where):
     if resp.status != 200:
         print(format_http_error("ERROR", resp), file=stderr)
         return 1
-    jdata = resp.read()
+    jdata = resp.read().decode()
+
     if options.get("raw"):
-        if PY3:
-            stdoutb = stdout.buffer
-        else:
-            stdoutb = stdout
-        stdoutb.write(jdata)
-        stdoutb.write(b"\n")
+        stdout.write(jdata)
+        stdout.write("\n")
         return 0
     data = json.loads(jdata)
 
@@ -323,17 +320,12 @@ class DeepCheckStreamer(LineOnlyReceiver, object):
             return 1
 
         # use Twisted to split this into lines
-        if PY3:
-            stdoutb = stdout.buffer
-        else:
-            stdoutb = stdout
-
         while True:
             chunk = resp.read(100)
             if not chunk:
                 break
             if self.options["raw"]:
-                stdoutb.write(chunk)
+                stdout.write(chunk.decode())
             else:
                 output.dataReceived(chunk)
         if not self.options["raw"]:
