@@ -20,7 +20,7 @@ from allmydata.util import fileutil
 from allmydata.scripts.common import get_aliases
 from allmydata.scripts import cli, runner
 from ..no_network import GridTestMixin
-from allmydata.util.encodingutil import quote_output, get_io_encoding
+from allmydata.util.encodingutil import quote_output
 from .common import CLITestMixin
 
 class CreateAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
