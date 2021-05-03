@@ -64,13 +64,14 @@ def list(options):
         print(quote_output(data, quotemarks=False), file=stderr)
         return 1
 
+    path = unicode(path, "utf-8")
     nodetype, d = parsed
     children = {}
     if nodetype == "dirnode":
         children = d['children']
     else:
         # paths returned from get_alias are always valid UTF-8
-        childname = path.split("/")[-1].decode('utf-8')
+        childname = path.split("/")[-1]
         children = {childname: (nodetype, d)}
         if "metadata" not in d:
             d["metadata"] = {}
