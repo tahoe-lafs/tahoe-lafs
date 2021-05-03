@@ -6,7 +6,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import unicode_literals
 
-from future.utils import PY2, bchr, binary_type
+from future.utils import PY2, PY3, bchr, binary_type
 from future.builtins import str as future_str
 if PY2:
     from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, dict, list, object, range, str, max, min  # noqa: F401
@@ -15,7 +15,8 @@ import os
 import time
 import signal
 from random import randrange
-from six.moves import StringIO
+if PY2:
+    from StringIO import StringIO
 from io import (
     TextIOWrapper,
     BytesIO,
@@ -64,23 +65,28 @@ def run_cli_native(verb, *args, **kwargs):
     Most code should prefer ``run_cli_unicode`` which deals with all the
     necessary encoding considerations.
 
-    :param native_str verb: The command to run.  For example, ``"create-node"``.
+    :param native_str verb: The command to run.  For example,
+        ``"create-node"``.
 
-    :param [native_str] args: The arguments to pass to the command.  For example,
-        ``("--hostname=localhost",)``.
+    :param [native_str] args: The arguments to pass to the command.  For
+        example, ``("--hostname=localhost",)``.
 
-    :param [native_str] nodeargs: Extra arguments to pass to the Tahoe executable
-        before ``verb``.
+    :param [native_str] nodeargs: Extra arguments to pass to the Tahoe
+        executable before ``verb``.
 
-    :param native_str stdin: Text to pass to the command via stdin.
+    :param bytes|unicode stdin: Text or bytes to pass to the command via stdin.
 
     :param NoneType|str encoding: The name of an encoding which stdout and
-        stderr will be configured to use.  ``None`` means stdout and stderr
-        will accept bytes and unicode and use the default system encoding for
-        translating between them.
+        stderr will be configured to use.  ``None`` means matching default
+        behavior for the given Python version.
+
+    :param bool return_bytes: If False, stdout/stderr is native string,
+        matching native behavior.  If True, stdout/stderr are returned as
+        bytes.
     """
     nodeargs = kwargs.pop("nodeargs", [])
-    encoding = kwargs.pop("encoding", None)
+    encoding = kwargs.pop("encoding", "utf-8")
+    return_bytes = kwargs.pop("return_bytes", False)
     verb = maybe_unicode_to_argv(verb)
     args = [maybe_unicode_to_argv(a) for a in args]
     nodeargs = [maybe_unicode_to_argv(a) for a in nodeargs]
@@ -93,36 +99,42 @@ def run_cli_native(verb, *args, **kwargs):
     )
     argv = nodeargs + [verb] + list(args)
     stdin = kwargs.get("stdin", "")
-    if encoding is None:
-        if PY2:
-            # The original behavior, the Python 2 behavior, is to accept either
-            # bytes or unicode and try to automatically encode or decode as
-            # necessary.  This works okay for ASCII and if LANG is set
-            # appropriately.  These aren't great constraints so we should move
-            # away from this behavior.
-            stdout = StringIO()
-            stderr = StringIO()
-        else:
-            # Default on Python 3 is accepting text.
-            stdout = TextIOWrapper(BytesIO(), "utf-8")
-            stderr = TextIOWrapper(BytesIO(), "utf-8")
+    if PY2:
+        # The original behavior, the Python 2 behavior, is to accept either
+        # bytes or unicode and try to automatically encode or decode as
+        # necessary.  This works okay for ASCII and if LANG is set
+        # appropriately.  These aren't great constraints so we should move
+        # away from this behavior.
+        stdin = StringIO(stdin)
+        stdout = StringIO()
+        stderr = StringIO()
     else:
         # The new behavior, the Python 3 behavior, is to accept unicode and
-        # encode it using a specific encoding.  For older versions of Python
-        # 3, the encoding is determined from LANG (bad) but for newer Python
-        # 3, the encoding is always utf-8 (good).  Tests can pass in different
-        # encodings to exercise different behaviors.
+        # encode it using a specific encoding. For older versions of Python 3,
+        # the encoding is determined from LANG (bad) but for newer Python 3,
+        # the encoding is either LANG if it supports full Unicode, otherwise
+        # utf-8 (good). Tests can pass in different encodings to exercise
+        # different behaviors.
+        if isinstance(stdin, str):
+            stdin = stdin.encode(encoding)
+        stdin = TextIOWrapper(BytesIO(stdin), encoding)
         stdout = TextIOWrapper(BytesIO(), encoding)
         stderr = TextIOWrapper(BytesIO(), encoding)
     d = defer.succeed(argv)
     d.addCallback(runner.parse_or_exit_with_explanation, stdout=stdout)
     d.addCallback(runner.dispatch,
-                  stdin=StringIO(stdin),
+                  stdin=stdin,
                   stdout=stdout, stderr=stderr)
-    def _done(rc):
+    def _done(rc, stdout=stdout, stderr=stderr):
+        if return_bytes and PY3:
+            stdout = stdout.buffer
+            stderr = stderr.buffer
         return 0, _getvalue(stdout), _getvalue(stderr)
-    def _err(f):
+    def _err(f, stdout=stdout, stderr=stderr):
         f.trap(SystemExit)
+        if return_bytes and PY3:
+            stdout = stdout.buffer
+            stderr = stderr.buffer
         return f.value.code, _getvalue(stdout), _getvalue(stderr)
     d.addCallbacks(_done, _err)
     return d
