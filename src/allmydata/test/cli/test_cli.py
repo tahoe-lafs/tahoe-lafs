@@ -1,3 +1,5 @@
+from past.builtins import unicode
+
 import os.path
 from six.moves import cStringIO as StringIO
 import urllib, sys
@@ -718,8 +720,9 @@ class Admin(unittest.TestCase):
             self.failUnlessEqual(pubkey_bits[0], vk_header, lines[1])
             self.failUnless(privkey_bits[1].startswith("priv-v0-"), lines[0])
             self.failUnless(pubkey_bits[1].startswith("pub-v0-"), lines[1])
-            sk, pk = ed25519.signing_keypair_from_string(privkey_bits[1])
-            vk_bytes = pubkey_bits[1]
+            sk, pk = ed25519.signing_keypair_from_string(
+                privkey_bits[1].encode("ascii"))
+            vk_bytes = pubkey_bits[1].encode("ascii")
             self.assertEqual(
                 ed25519.string_from_verifying_key(pk),
                 vk_bytes,
@@ -729,8 +732,8 @@ class Admin(unittest.TestCase):
 
     def test_derive_pubkey(self):
         priv_key, pub_key = ed25519.create_signing_keypair()
-        priv_key_str = ed25519.string_from_signing_key(priv_key)
-        pub_key_str = ed25519.string_from_verifying_key(pub_key)
+        priv_key_str = unicode(ed25519.string_from_signing_key(priv_key), "ascii")
+        pub_key_str = unicode(ed25519.string_from_verifying_key(pub_key), "ascii")
         d = run_cli("admin", "derive-pubkey", priv_key_str)
         def _done(args):
             (rc, stdout, stderr) = args
