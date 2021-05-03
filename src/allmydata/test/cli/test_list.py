@@ -1,5 +1,15 @@
-from future.utils import PY3
-from past.builtins import unicode
+"""
+Ported to Python 3.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2, PY3
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+from six import ensure_str
 
 from twisted.trial import unittest
 from twisted.internet import defer
@@ -29,7 +39,7 @@ class List(GridTestMixin, CLITestMixin, unittest.TestCase):
         d = c0.create_dirnode()
         def _stash_root_and_create_file(n):
             self.rootnode = n
-            self.rooturi = unicode(n.get_uri(), "utf-8")
+            self.rooturi = str(n.get_uri(), "utf-8")
             return n.add_file(u"g\u00F6\u00F6d", upload.Data(small, convergence=b""))
         d.addCallback(_stash_root_and_create_file)
         def _stash_goodcap(n):
@@ -37,10 +47,10 @@ class List(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(_stash_goodcap)
         d.addCallback(lambda ign: self.rootnode.create_subdirectory(u"1share"))
         d.addCallback(lambda n:
-                      self.delete_shares_numbered(n.get_uri(), range(1,10)))
+                      self.delete_shares_numbered(n.get_uri(), list(range(1,10))))
         d.addCallback(lambda ign: self.rootnode.create_subdirectory(u"0share"))
         d.addCallback(lambda n:
-                      self.delete_shares_numbered(n.get_uri(), range(0,10)))
+                      self.delete_shares_numbered(n.get_uri(), list(range(0,10))))
         d.addCallback(lambda ign:
                       self.do_cli("add-alias", "tahoe", self.rooturi))
         d.addCallback(lambda ign: self.do_cli("ls"))
@@ -48,15 +58,15 @@ class List(GridTestMixin, CLITestMixin, unittest.TestCase):
             (rc, out, err) = args
             self.failUnlessReallyEqual(rc, 0)
             self.assertEqual(len(err), 0, err)
-            self.failUnlessReallyEqual(sorted(out.splitlines()),
-                                       sorted(["0share", "1share", good_out_encoded]))
+            expected = sorted([ensure_str("0share"), ensure_str("1share"), good_out_encoded])
+            self.assertEqual(sorted(out.splitlines()), expected)
         d.addCallback(_check1)
         d.addCallback(lambda ign: self.do_cli("ls", "missing"))
         def _check2(args):
             (rc, out, err) = args
             self.failIfEqual(rc, 0)
-            self.failUnlessReallyEqual(err.strip(), "No such file or directory")
-            self.failUnlessReallyEqual(out, "")
+            self.assertEqual(err.strip(), "No such file or directory")
+            self.assertEqual(len(out), 0, out)
         d.addCallback(_check2)
         d.addCallback(lambda ign: self.do_cli("ls", "1share"))
         def _check3(args):
@@ -66,7 +76,7 @@ class List(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.failUnlessIn("UnrecoverableFileError:", err)
             self.failUnlessIn("could not be retrieved, because there were "
                               "insufficient good shares.", err)
-            self.failUnlessReallyEqual(out, "")
+            self.assertEqual(len(out), 0, out)
         d.addCallback(_check3)
         d.addCallback(lambda ign: self.do_cli("ls", "0share"))
         d.addCallback(_check3)
@@ -76,13 +86,13 @@ class List(GridTestMixin, CLITestMixin, unittest.TestCase):
                 self.failUnlessReallyEqual(rc, 1)
                 self.failUnlessIn("files whose names could not be converted", err)
                 self.failUnlessIn(quote_output(u"g\u00F6\u00F6d"), err)
-                self.failUnlessReallyEqual(out, "")
+                self.assertEqual(len(out), 0, out)
             else:
                 # listing a file (as dir/filename) should have the edge metadata,
                 # including the filename
                 self.failUnlessReallyEqual(rc, 0)
                 self.failUnlessIn(good_out_encoded, out)
-                self.failIfIn("-r-- %d -" % len(small), out,
+                self.failIfIn(ensure_str("-r-- %d -" % len(small)), out,
                               "trailing hyphen means unknown date")
 
         if good_arg is not None:
@@ -100,7 +110,7 @@ class List(GridTestMixin, CLITestMixin, unittest.TestCase):
             # metadata, just the size
             (rc, out, err) = args
             self.failUnlessReallyEqual(rc, 0)
-            self.failUnlessReallyEqual("-r-- %d -" % len(small), out.strip())
+            self.assertEqual("-r-- %d -" % len(small), out.strip())
         d.addCallback(lambda ign: self.do_cli("ls", "-l", self.goodcap))
         d.addCallback(_check5)
 
@@ -112,7 +122,7 @@ class List(GridTestMixin, CLITestMixin, unittest.TestCase):
         def _check1_ascii(args):
             (rc,out,err) = args
             self.failUnlessReallyEqual(rc, 0)
-            self.failUnlessReallyEqual(err, "")
+            self.assertEqual(len(err), 0, err)
             self.failUnlessReallyEqual(sorted(out.splitlines()), sorted(["0share", "1share", "good"]))
         d.addCallback(_check1_ascii)
         def _check4_ascii(args):
@@ -172,7 +182,7 @@ class List(GridTestMixin, CLITestMixin, unittest.TestCase):
             (rc, out, err) = args
             self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("error:", err)
-            self.failUnlessReallyEqual(out, "")
+            self.assertEqual(len(out), 0, out)
         d.addCallback(_check)
         return d
 
@@ -187,7 +197,7 @@ class List(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("error:", err)
             self.failUnlessIn("nonexistent", err)
-            self.failUnlessReallyEqual(out, "")
+            self.assertEqual(len(out), 0, out)
         d.addCallback(_check)
         return d
 
@@ -289,11 +299,11 @@ class List(GridTestMixin, CLITestMixin, unittest.TestCase):
             (rc, out, err) = args
             self.failUnlessEqual(rc, 0)
             self.assertEqual(len(err), 0, err)
-            self.failUnlessIn(unicode(self._mdmf_uri, "ascii"), out)
-            self.failUnlessIn(unicode(self._mdmf_readonly_uri, "ascii"), out)
-            self.failUnlessIn(unicode(self._sdmf_uri, "ascii"), out)
-            self.failUnlessIn(unicode(self._sdmf_readonly_uri, "ascii"), out)
-            self.failUnlessIn(unicode(self._imm_uri, "ascii"), out)
+            self.failUnlessIn(str(self._mdmf_uri, "ascii"), out)
+            self.failUnlessIn(str(self._mdmf_readonly_uri, "ascii"), out)
+            self.failUnlessIn(str(self._sdmf_uri, "ascii"), out)
+            self.failUnlessIn(str(self._sdmf_readonly_uri, "ascii"), out)
+            self.failUnlessIn(str(self._imm_uri, "ascii"), out)
             self.failUnlessIn('"format": "SDMF"', out)
             self.failUnlessIn('"format": "MDMF"', out)
         d.addCallback(_got_json)
