@@ -224,7 +224,7 @@ class CpOptions(FileStoreOptions):
     def parseArgs(self, *args):
         if len(args) < 2:
             raise usage.UsageError("cp requires at least two arguments")
-        self.sources = list(map(argv_to_unicode, args[:-1]))
+        self.sources = [argv_to_unicode(arg) for arg in args[:-1]]
         self.destination = argv_to_unicode(args[-1])
 
     synopsis = "[options] FROM.. TO"
