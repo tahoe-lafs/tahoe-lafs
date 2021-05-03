@@ -50,7 +50,7 @@ class DaemonizeTheRealServiceTests(SyncTestCase):
         """
         nodedir = FilePath(self.mktemp())
         nodedir.makedirs()
-        nodedir.child("tahoe.cfg").setContent(config)
+        nodedir.child("tahoe.cfg").setContent(config.encode("ascii"))
         nodedir.child("tahoe-client.tac").touch()
 
         options = parse_options(["run", nodedir.path])
