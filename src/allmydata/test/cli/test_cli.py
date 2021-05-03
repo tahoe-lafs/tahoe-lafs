@@ -363,11 +363,11 @@ class CLI(CLITestMixin, unittest.TestCase):
                         "didn't see 'mqfblse6m5a6dh45isu2cg7oji' in '%s'" % err)
 
     def test_alias(self):
-        def s128(c): return base32.b2a(c*(128/8))
-        def s256(c): return base32.b2a(c*(256/8))
-        TA = "URI:DIR2:%s:%s" % (s128("T"), s256("T"))
-        WA = "URI:DIR2:%s:%s" % (s128("W"), s256("W"))
-        CA = "URI:DIR2:%s:%s" % (s128("C"), s256("C"))
+        def s128(c): return base32.b2a(c*(128//8))
+        def s256(c): return base32.b2a(c*(256//8))
+        TA = b"URI:DIR2:%s:%s" % (s128(b"T"), s256(b"T"))
+        WA = b"URI:DIR2:%s:%s" % (s128(b"W"), s256(b"W"))
+        CA = b"URI:DIR2:%s:%s" % (s128(b"C"), s256(b"C"))
         aliases = {"tahoe": TA,
                    "work": WA,
                    "c": CA}
