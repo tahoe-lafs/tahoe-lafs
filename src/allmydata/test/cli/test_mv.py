@@ -10,10 +10,10 @@ class Mv(GridTestMixin, CLITestMixin, unittest.TestCase):
         self.basedir = "cli/Mv/mv_behavior"
         self.set_up_grid(oneshare=True)
         fn1 = os.path.join(self.basedir, "file1")
-        DATA1 = "Nuclear launch codes"
+        DATA1 = b"Nuclear launch codes"
         fileutil.write(fn1, DATA1)
         fn2 = os.path.join(self.basedir, "file2")
-        DATA2 = "UML diagrams"
+        DATA2 = b"UML diagrams"
         fileutil.write(fn2, DATA2)
         # copy both files to the grid
         d = self.do_cli("create-alias", "tahoe")
@@ -104,11 +104,11 @@ class Mv(GridTestMixin, CLITestMixin, unittest.TestCase):
         self.basedir = "cli/Mv/mv_error_if_DELETE_fails"
         self.set_up_grid(oneshare=True)
         fn1 = os.path.join(self.basedir, "file1")
-        DATA1 = "Nuclear launch codes"
+        DATA1 = b"Nuclear launch codes"
         fileutil.write(fn1, DATA1)
 
         original_do_http = tahoe_mv.do_http
-        def mock_do_http(method, url, body=""):
+        def mock_do_http(method, url, body=b""):
             if method == "DELETE":
                 class FakeResponse(object):
                     def read(self):

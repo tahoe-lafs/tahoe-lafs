@@ -1,5 +1,7 @@
 from __future__ import print_function
 
+from past.builtins import unicode
+
 import re
 from urllib.parse import quote as url_quote
 import json
@@ -47,6 +49,7 @@ def mv(options, mode="move"):
     if path:
         to_url += "/" + escape_path(path)
 
+    from_path = unicode(from_path, "utf-8")
     if to_url.endswith("/"):
         # "mv foo.txt bar/" == "mv foo.txt bar/foo.txt"
         to_url += escape_path(from_path[from_path.rfind("/")+1:])
