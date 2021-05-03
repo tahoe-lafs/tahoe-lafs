@@ -1,9 +1,22 @@
+"""
+Ported to Python 3.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+
 import os.path
 from twisted.trial import unittest
 from allmydata.util import fileutil
 from ..no_network import GridTestMixin
 from allmydata.scripts import tahoe_mv
 from .common import CLITestMixin
+
 
 class Mv(GridTestMixin, CLITestMixin, unittest.TestCase):
     def test_mv_behavior(self):
@@ -152,7 +165,7 @@ class Mv(GridTestMixin, CLITestMixin, unittest.TestCase):
             (rc, out, err) = args
             self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("error:", err)
-            self.failUnlessReallyEqual(out, "")
+            self.assertEqual(len(out), 0, out)
         d.addCallback(_check)
         # check to see that the validation extends to the
         # target argument by making an alias that will work with the first
@@ -180,7 +193,7 @@ class Mv(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("error:", err)
             self.failUnlessIn("fake", err)
-            self.failUnlessReallyEqual(out, "")
+            self.assertEqual(len(out), 0, out)
         d.addCallback(_check)
         # check to see that the validation extends to the
         # target argument by making an alias that will work with the first
