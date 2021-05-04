@@ -1,7 +1,7 @@
 from past.builtins import unicode
 
 from six.moves import cStringIO as StringIO
-from six import ensure_text
+from six import ensure_text, ensure_str
 
 import os.path
 import sys
@@ -1151,7 +1151,7 @@ class Webopen(GridTestMixin, CLITestMixin, unittest.TestCase):
         # TODO: replace with @patch that supports Deferreds.
         import webbrowser
         def call_webbrowser_open(url):
-            self.failUnlessIn(self.alias_uri.replace(':', '%3A'), url)
+            self.failUnlessIn(unicode(self.alias_uri, "ascii").replace(':', '%3A'), url)
             self.webbrowser_open_called = True
         def _cleanup(res):
             webbrowser.open = self.old_webbrowser_open
@@ -1332,7 +1332,7 @@ class Run(unittest.TestCase):
         If the pidfile exists but does not contain a numeric value, a complaint to
         this effect is written to stderr.
         """
-        basedir = FilePath(self.mktemp().decode("ascii"))
+        basedir = FilePath(ensure_str(self.mktemp()))
         basedir.makedirs()
         basedir.child(u"twistd.pid").setContent(b"foo")
         basedir.child(u"tahoe-client.tac").setContent(b"")
@@ -1340,7 +1340,7 @@ class Run(unittest.TestCase):
         config = tahoe_run.RunOptions()
         config.stdout = StringIO()
         config.stderr = StringIO()
-        config['basedir'] = basedir.path
+        config['basedir'] = ensure_text(basedir.path)
         config.twistd_args = []
 
         result_code = tahoe_run.run(config)
