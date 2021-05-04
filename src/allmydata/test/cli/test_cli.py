@@ -1,7 +1,9 @@
 from past.builtins import unicode
 
-import os.path
 from six.moves import cStringIO as StringIO
+from six import ensure_text
+
+import os.path
 import sys
 import re
 from mock import patch, Mock
@@ -47,8 +49,7 @@ from allmydata.util.encodingutil import listdir_unicode, get_io_encoding
 
 class CLI(CLITestMixin, unittest.TestCase):
     def _dump_cap(self, *args):
-        args = [(unicode(s, "ascii") if isinstance(s, bytes) else s)
-                for s in args]
+        args = [ensure_text(s) for s in args]
         config = debug.DumpCapOptions()
         config.stdout,config.stderr = StringIO(), StringIO()
         config.parseOptions(args)
@@ -759,8 +760,8 @@ class Errors(GridTestMixin, CLITestMixin, unittest.TestCase):
         self.set_up_grid()
         c0 = self.g.clients[0]
         self.fileurls = {}
-        DATA = "data" * 100
-        d = c0.upload(upload.Data(DATA, convergence=""))
+        DATA = b"data" * 100
+        d = c0.upload(upload.Data(DATA, convergence=b""))
         def _stash_bad(ur):
             self.uri_1share = ur.get_uri()
             self.delete_shares_numbered(ur.get_uri(), range(1,10))
@@ -1201,31 +1202,31 @@ class Options(ReallyEqualMixin, unittest.TestCase):
         fileutil.make_dirs("cli/test_options")
         fileutil.make_dirs("cli/test_options/private")
         fileutil.write("cli/test_options/node.url", "http://localhost:8080/\n")
-        filenode_uri = uri.WriteableSSKFileURI(writekey="\x00"*16,
-                                               fingerprint="\x00"*32)
+        filenode_uri = uri.WriteableSSKFileURI(writekey=b"\x00"*16,
+                                               fingerprint=b"\x00"*32)
         private_uri = uri.DirectoryURI(filenode_uri).to_string()
-        fileutil.write("cli/test_options/private/root_dir.cap", private_uri + "\n")
+        fileutil.write("cli/test_options/private/root_dir.cap", private_uri + b"\n")
         def parse2(args): return parse_options("cli/test_options", "ls", args)
         o = parse2([])
         self.failUnlessEqual(o['node-url'], "http://localhost:8080/")
-        self.failUnlessEqual(o.aliases[DEFAULT_ALIAS], private_uri)
+        self.failUnlessEqual(o.aliases[DEFAULT_ALIAS].encode("ascii"), private_uri)
         self.failUnlessEqual(o.where, u"")
 
         o = parse2(["--node-url", "http://example.org:8111/"])
         self.failUnlessEqual(o['node-url'], "http://example.org:8111/")
-        self.failUnlessEqual(o.aliases[DEFAULT_ALIAS], private_uri)
+        self.failUnlessEqual(o.aliases[DEFAULT_ALIAS].encode("ascii"), private_uri)
         self.failUnlessEqual(o.where, u"")
 
         # -u for --node-url used to clash with -u for --uri (tickets #1949 and #2137).
         o = parse2(["-u", "http://example.org:8111/"])
         self.failUnlessEqual(o['node-url'], "http://example.org:8111/")
-        self.failUnlessEqual(o.aliases[DEFAULT_ALIAS], private_uri)
+        self.failUnlessEqual(o.aliases[DEFAULT_ALIAS].encode("ascii"), private_uri)
         self.failUnlessEqual(o.where, u"")
         self.failIf(o["uri"])
 
         o = parse2(["-u", "http://example.org:8111/", "--uri"])
         self.failUnlessEqual(o['node-url'], "http://example.org:8111/")
-        self.failUnlessEqual(o.aliases[DEFAULT_ALIAS], private_uri)
+        self.failUnlessEqual(o.aliases[DEFAULT_ALIAS].encode("ascii"), private_uri)
         self.failUnlessEqual(o.where, u"")
         self.failUnless(o["uri"])
 
@@ -1234,17 +1235,17 @@ class Options(ReallyEqualMixin, unittest.TestCase):
         self.failUnlessEqual(o.aliases[DEFAULT_ALIAS], "root")
         self.failUnlessEqual(o.where, u"")
 
-        other_filenode_uri = uri.WriteableSSKFileURI(writekey="\x11"*16,
-                                                     fingerprint="\x11"*32)
+        other_filenode_uri = uri.WriteableSSKFileURI(writekey=b"\x11"*16,
+                                                     fingerprint=b"\x11"*32)
         other_uri = uri.DirectoryURI(other_filenode_uri).to_string()
         o = parse2(["--dir-cap", other_uri])
         self.failUnlessEqual(o['node-url'], "http://localhost:8080/")
-        self.failUnlessEqual(o.aliases[DEFAULT_ALIAS], other_uri)
+        self.failUnlessEqual(o.aliases[DEFAULT_ALIAS].encode("ascii"), other_uri)
         self.failUnlessEqual(o.where, u"")
 
         o = parse2(["--dir-cap", other_uri, "subdir"])
         self.failUnlessEqual(o['node-url'], "http://localhost:8080/")
-        self.failUnlessEqual(o.aliases[DEFAULT_ALIAS], other_uri)
+        self.failUnlessEqual(o.aliases[DEFAULT_ALIAS].encode("ascii"), other_uri)
         self.failUnlessEqual(o.where, u"subdir")
 
         self.failUnlessRaises(usage.UsageError, parse2,

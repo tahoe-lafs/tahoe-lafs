@@ -1,9 +1,10 @@
-from six import ensure_str
+from six import ensure_str, ensure_text
 
 from ...scripts import runner
 from ..common_util import ReallyEqualMixin, run_cli, run_cli_unicode
 
 def parse_options(basedir, command, args):
+    args = [ensure_text(s) for s in args]
     o = runner.Options()
     o.parseOptions(["--node-directory", basedir, command] + args)
     while hasattr(o, "subOptions"):
