@@ -27,6 +27,7 @@ def mv(options, mode="move"):
     except UnknownAliasError as e:
         e.display(stderr)
         return 1
+    from_path = unicode(from_path, "utf-8")
     from_url = nodeurl + "uri/%s" % url_quote(rootcap)
     if from_path:
         from_url += "/" + escape_path(from_path)
@@ -46,10 +47,10 @@ def mv(options, mode="move"):
         e.display(stderr)
         return 1
     to_url = nodeurl + "uri/%s" % url_quote(rootcap)
+    path = unicode(path, "utf-8")
     if path:
         to_url += "/" + escape_path(path)
 
-    from_path = unicode(from_path, "utf-8")
     if to_url.endswith("/"):
         # "mv foo.txt bar/" == "mv foo.txt bar/foo.txt"
         to_url += escape_path(from_path[from_path.rfind("/")+1:])

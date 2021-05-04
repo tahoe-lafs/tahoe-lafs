@@ -27,6 +27,8 @@ def list(options):
     except UnknownAliasError as e:
         e.display(stderr)
         return 1
+
+    path = unicode(path, "utf-8")
     url = nodeurl + "uri/%s" % url_quote(rootcap)
     if path:
         # move where.endswith check here?
@@ -64,7 +66,6 @@ def list(options):
         print(quote_output(data, quotemarks=False), file=stderr)
         return 1
 
-    path = unicode(path, "utf-8")
     nodetype, d = parsed
     children = {}
     if nodetype == "dirnode":
