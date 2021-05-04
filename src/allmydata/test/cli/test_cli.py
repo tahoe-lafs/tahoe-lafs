@@ -47,6 +47,8 @@ from allmydata.util.encodingutil import listdir_unicode, get_io_encoding
 
 class CLI(CLITestMixin, unittest.TestCase):
     def _dump_cap(self, *args):
+        args = [(unicode(s, "ascii") if isinstance(s, bytes) else s)
+                for s in args]
         config = debug.DumpCapOptions()
         config.stdout,config.stderr = StringIO(), StringIO()
         config.parseOptions(args)
@@ -66,7 +68,7 @@ class CLI(CLITestMixin, unittest.TestCase):
                            needed_shares=needed_shares,
                            total_shares=total_shares,
                            size=size)
-        output = self._dump_cap(unicode(u.to_string(), "ascii"))
+        output = self._dump_cap(u.to_string())
         self.failUnless("CHK File:" in output, output)
         self.failUnless("key: aaaqeayeaudaocajbifqydiob4" in output, output)
         self.failUnless("UEB hash: nf3nimquen7aeqm36ekgxomalstenpkvsdmf6fplj7swdatbv5oa" in output, output)
@@ -78,7 +80,7 @@ class CLI(CLITestMixin, unittest.TestCase):
                                 u.to_string())
         self.failUnless("client renewal secret: znxmki5zdibb5qlt46xbdvk2t55j7hibejq3i5ijyurkr6m6jkhq" in output, output)
 
-        output = self._dump_cap(u.get_verify_cap().to_string())
+        output = self._dump_cap(unicode(u.get_verify_cap().to_string(), "ascii"))
         self.failIf("key: " in output, output)
         self.failUnless("UEB hash: nf3nimquen7aeqm36ekgxomalstenpkvsdmf6fplj7swdatbv5oa" in output, output)
         self.failUnless("size: 1234" in output, output)
@@ -95,14 +97,14 @@ class CLI(CLITestMixin, unittest.TestCase):
         self.failUnless("storage index: hdis5iaveku6lnlaiccydyid7q" in output, output)
 
     def test_dump_cap_lit(self):
-        u = uri.LiteralFileURI("this is some data")
+        u = uri.LiteralFileURI(b"this is some data")
         output = self._dump_cap(u.to_string())
         self.failUnless("Literal File URI:" in output, output)
         self.failUnless("data: 'this is some data'" in output, output)
 
     def test_dump_cap_sdmf(self):
-        writekey = "\x01" * 16
-        fingerprint = "\xfe" * 32
+        writekey = b"\x01" * 16
+        fingerprint = b"\xfe" * 32
         u = uri.WriteableSSKFileURI(writekey, fingerprint)
 
         output = self._dump_cap(u.to_string())
@@ -152,8 +154,8 @@ class CLI(CLITestMixin, unittest.TestCase):
         self.failUnless("fingerprint: 737p57x6737p57x6737p57x6737p57x6737p57x6737p57x6737a" in output, output)
 
     def test_dump_cap_mdmf(self):
-        writekey = "\x01" * 16
-        fingerprint = "\xfe" * 32
+        writekey = b"\x01" * 16
+        fingerprint = b"\xfe" * 32
         u = uri.WriteableMDMFFileURI(writekey, fingerprint)
 
         output = self._dump_cap(u.to_string())
@@ -204,8 +206,8 @@ class CLI(CLITestMixin, unittest.TestCase):
 
 
     def test_dump_cap_chk_directory(self):
-        key = "\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f"
-        uri_extension_hash = hashutil.uri_extension_hash("stuff")
+        key = b"\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f"
+        uri_extension_hash = hashutil.uri_extension_hash(b"stuff")
         needed_shares = 25
         total_shares = 100
         size = 1234
@@ -238,8 +240,8 @@ class CLI(CLITestMixin, unittest.TestCase):
         self.failUnless("storage index: hdis5iaveku6lnlaiccydyid7q" in output, output)
 
     def test_dump_cap_sdmf_directory(self):
-        writekey = "\x01" * 16
-        fingerprint = "\xfe" * 32
+        writekey = b"\x01" * 16
+        fingerprint = b"\xfe" * 32
         u1 = uri.WriteableSSKFileURI(writekey, fingerprint)
         u = uri.DirectoryURI(u1)
 
@@ -282,8 +284,8 @@ class CLI(CLITestMixin, unittest.TestCase):
         self.failUnless("fingerprint: 737p57x6737p57x6737p57x6737p57x6737p57x6737p57x6737a" in output, output)
 
     def test_dump_cap_mdmf_directory(self):
-        writekey = "\x01" * 16
-        fingerprint = "\xfe" * 32
+        writekey = b"\x01" * 16
+        fingerprint = b"\xfe" * 32
         u1 = uri.WriteableMDMFFileURI(writekey, fingerprint)
         u = uri.MDMFDirectoryURI(u1)
 
@@ -343,7 +345,7 @@ class CLI(CLITestMixin, unittest.TestCase):
         fileutil.write("cli/test_catalog_shares/node1/storage/shares/mq/not-a-dir", "")
         # write a bogus share that looks a little bit like CHK
         fileutil.write(os.path.join(sharedir, "8"),
-                       "\x00\x00\x00\x01" + "\xff" * 200) # this triggers an assert
+                       b"\x00\x00\x00\x01" + b"\xff" * 200) # this triggers an assert
 
         nodedir2 = "cli/test_catalog_shares/node2"
         fileutil.make_dirs(nodedir2)
