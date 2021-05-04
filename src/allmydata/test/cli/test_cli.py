@@ -2,9 +2,10 @@ from past.builtins import unicode
 
 import os.path
 from six.moves import cStringIO as StringIO
-import urllib, sys
+import sys
 import re
 from mock import patch, Mock
+from urllib.parse import quote as url_quote
 
 from twisted.trial import unittest
 from twisted.python.monkey import MonkeyPatcher
@@ -55,8 +56,8 @@ class CLI(CLITestMixin, unittest.TestCase):
         return output
 
     def test_dump_cap_chk(self):
-        key = "\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f"
-        uri_extension_hash = hashutil.uri_extension_hash("stuff")
+        key = b"\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f"
+        uri_extension_hash = hashutil.uri_extension_hash(b"stuff")
         needed_shares = 25
         total_shares = 100
         size = 1234
@@ -65,7 +66,7 @@ class CLI(CLITestMixin, unittest.TestCase):
                            needed_shares=needed_shares,
                            total_shares=total_shares,
                            size=size)
-        output = self._dump_cap(u.to_string())
+        output = self._dump_cap(unicode(u.to_string(), "ascii"))
         self.failUnless("CHK File:" in output, output)
         self.failUnless("key: aaaqeayeaudaocajbifqydiob4" in output, output)
         self.failUnless("UEB hash: nf3nimquen7aeqm36ekgxomalstenpkvsdmf6fplj7swdatbv5oa" in output, output)
@@ -84,7 +85,7 @@ class CLI(CLITestMixin, unittest.TestCase):
         self.failUnless("k/N: 25/100" in output, output)
         self.failUnless("storage index: hdis5iaveku6lnlaiccydyid7q" in output, output)
 
-        prefixed_u = "http://127.0.0.1/uri/%s" % urllib.quote(u.to_string())
+        prefixed_u = "http://127.0.0.1/uri/%s" % url_quote(u.to_string())
         output = self._dump_cap(prefixed_u)
         self.failUnless("CHK File:" in output, output)
         self.failUnless("key: aaaqeayeaudaocajbifqydiob4" in output, output)
@@ -374,60 +375,60 @@ class CLI(CLITestMixin, unittest.TestCase):
         def ga1(path):
             return get_alias(aliases, path, u"tahoe")
         uses_lettercolon = common.platform_uses_lettercolon_drivename()
-        self.failUnlessReallyEqual(ga1(u"bare"), (TA, "bare"))
-        self.failUnlessReallyEqual(ga1(u"baredir/file"), (TA, "baredir/file"))
-        self.failUnlessReallyEqual(ga1(u"baredir/file:7"), (TA, "baredir/file:7"))
-        self.failUnlessReallyEqual(ga1(u"tahoe:"), (TA, ""))
-        self.failUnlessReallyEqual(ga1(u"tahoe:file"), (TA, "file"))
-        self.failUnlessReallyEqual(ga1(u"tahoe:dir/file"), (TA, "dir/file"))
-        self.failUnlessReallyEqual(ga1(u"work:"), (WA, ""))
-        self.failUnlessReallyEqual(ga1(u"work:file"), (WA, "file"))
-        self.failUnlessReallyEqual(ga1(u"work:dir/file"), (WA, "dir/file"))
+        self.failUnlessReallyEqual(ga1(u"bare"), (TA, b"bare"))
+        self.failUnlessReallyEqual(ga1(u"baredir/file"), (TA, b"baredir/file"))
+        self.failUnlessReallyEqual(ga1(u"baredir/file:7"), (TA, b"baredir/file:7"))
+        self.failUnlessReallyEqual(ga1(u"tahoe:"), (TA, b""))
+        self.failUnlessReallyEqual(ga1(u"tahoe:file"), (TA, b"file"))
+        self.failUnlessReallyEqual(ga1(u"tahoe:dir/file"), (TA, b"dir/file"))
+        self.failUnlessReallyEqual(ga1(u"work:"), (WA, b""))
+        self.failUnlessReallyEqual(ga1(u"work:file"), (WA, b"file"))
+        self.failUnlessReallyEqual(ga1(u"work:dir/file"), (WA, b"dir/file"))
         # default != None means we really expect a tahoe path, regardless of
         # whether we're on windows or not. This is what 'tahoe get' uses.
-        self.failUnlessReallyEqual(ga1(u"c:"), (CA, ""))
-        self.failUnlessReallyEqual(ga1(u"c:file"), (CA, "file"))
-        self.failUnlessReallyEqual(ga1(u"c:dir/file"), (CA, "dir/file"))
-        self.failUnlessReallyEqual(ga1(u"URI:stuff"), ("URI:stuff", ""))
-        self.failUnlessReallyEqual(ga1(u"URI:stuff/file"), ("URI:stuff", "file"))
-        self.failUnlessReallyEqual(ga1(u"URI:stuff:./file"), ("URI:stuff", "file"))
-        self.failUnlessReallyEqual(ga1(u"URI:stuff/dir/file"), ("URI:stuff", "dir/file"))
-        self.failUnlessReallyEqual(ga1(u"URI:stuff:./dir/file"), ("URI:stuff", "dir/file"))
+        self.failUnlessReallyEqual(ga1(u"c:"), (CA, b""))
+        self.failUnlessReallyEqual(ga1(u"c:file"), (CA, b"file"))
+        self.failUnlessReallyEqual(ga1(u"c:dir/file"), (CA, b"dir/file"))
+        self.failUnlessReallyEqual(ga1(u"URI:stuff"), (b"URI:stuff", b""))
+        self.failUnlessReallyEqual(ga1(u"URI:stuff/file"), (b"URI:stuff", b"file"))
+        self.failUnlessReallyEqual(ga1(u"URI:stuff:./file"), (b"URI:stuff", b"file"))
+        self.failUnlessReallyEqual(ga1(u"URI:stuff/dir/file"), (b"URI:stuff", b"dir/file"))
+        self.failUnlessReallyEqual(ga1(u"URI:stuff:./dir/file"), (b"URI:stuff", b"dir/file"))
         self.failUnlessRaises(common.UnknownAliasError, ga1, u"missing:")
         self.failUnlessRaises(common.UnknownAliasError, ga1, u"missing:dir")
         self.failUnlessRaises(common.UnknownAliasError, ga1, u"missing:dir/file")
 
         def ga2(path):
             return get_alias(aliases, path, None)
-        self.failUnlessReallyEqual(ga2(u"bare"), (DefaultAliasMarker, "bare"))
+        self.failUnlessReallyEqual(ga2(u"bare"), (DefaultAliasMarker, b"bare"))
         self.failUnlessReallyEqual(ga2(u"baredir/file"),
-                             (DefaultAliasMarker, "baredir/file"))
+                             (DefaultAliasMarker, b"baredir/file"))
         self.failUnlessReallyEqual(ga2(u"baredir/file:7"),
-                             (DefaultAliasMarker, "baredir/file:7"))
+                             (DefaultAliasMarker, b"baredir/file:7"))
         self.failUnlessReallyEqual(ga2(u"baredir/sub:1/file:7"),
-                             (DefaultAliasMarker, "baredir/sub:1/file:7"))
-        self.failUnlessReallyEqual(ga2(u"tahoe:"), (TA, ""))
-        self.failUnlessReallyEqual(ga2(u"tahoe:file"), (TA, "file"))
-        self.failUnlessReallyEqual(ga2(u"tahoe:dir/file"), (TA, "dir/file"))
+                             (DefaultAliasMarker, b"baredir/sub:1/file:7"))
+        self.failUnlessReallyEqual(ga2(u"tahoe:"), (TA, b""))
+        self.failUnlessReallyEqual(ga2(u"tahoe:file"), (TA, b"file"))
+        self.failUnlessReallyEqual(ga2(u"tahoe:dir/file"), (TA, b"dir/file"))
         # on windows, we really want c:foo to indicate a local file.
         # default==None is what 'tahoe cp' uses.
         if uses_lettercolon:
-            self.failUnlessReallyEqual(ga2(u"c:"), (DefaultAliasMarker, "c:"))
-            self.failUnlessReallyEqual(ga2(u"c:file"), (DefaultAliasMarker, "c:file"))
+            self.failUnlessReallyEqual(ga2(u"c:"), (DefaultAliasMarker, b"c:"))
+            self.failUnlessReallyEqual(ga2(u"c:file"), (DefaultAliasMarker, b"c:file"))
             self.failUnlessReallyEqual(ga2(u"c:dir/file"),
-                                 (DefaultAliasMarker, "c:dir/file"))
+                                 (DefaultAliasMarker, b"c:dir/file"))
         else:
-            self.failUnlessReallyEqual(ga2(u"c:"), (CA, ""))
-            self.failUnlessReallyEqual(ga2(u"c:file"), (CA, "file"))
-            self.failUnlessReallyEqual(ga2(u"c:dir/file"), (CA, "dir/file"))
-        self.failUnlessReallyEqual(ga2(u"work:"), (WA, ""))
-        self.failUnlessReallyEqual(ga2(u"work:file"), (WA, "file"))
-        self.failUnlessReallyEqual(ga2(u"work:dir/file"), (WA, "dir/file"))
-        self.failUnlessReallyEqual(ga2(u"URI:stuff"), ("URI:stuff", ""))
-        self.failUnlessReallyEqual(ga2(u"URI:stuff/file"), ("URI:stuff", "file"))
-        self.failUnlessReallyEqual(ga2(u"URI:stuff:./file"), ("URI:stuff", "file"))
-        self.failUnlessReallyEqual(ga2(u"URI:stuff/dir/file"), ("URI:stuff", "dir/file"))
-        self.failUnlessReallyEqual(ga2(u"URI:stuff:./dir/file"), ("URI:stuff", "dir/file"))
+            self.failUnlessReallyEqual(ga2(u"c:"), (CA, b""))
+            self.failUnlessReallyEqual(ga2(u"c:file"), (CA, b"file"))
+            self.failUnlessReallyEqual(ga2(u"c:dir/file"), (CA, b"dir/file"))
+        self.failUnlessReallyEqual(ga2(u"work:"), (WA, b""))
+        self.failUnlessReallyEqual(ga2(u"work:file"), (WA, b"file"))
+        self.failUnlessReallyEqual(ga2(u"work:dir/file"), (WA, b"dir/file"))
+        self.failUnlessReallyEqual(ga2(u"URI:stuff"), (b"URI:stuff", b""))
+        self.failUnlessReallyEqual(ga2(u"URI:stuff/file"), (b"URI:stuff", b"file"))
+        self.failUnlessReallyEqual(ga2(u"URI:stuff:./file"), (b"URI:stuff", b"file"))
+        self.failUnlessReallyEqual(ga2(u"URI:stuff/dir/file"), (b"URI:stuff", b"dir/file"))
+        self.failUnlessReallyEqual(ga2(u"URI:stuff:./dir/file"), (b"URI:stuff", b"dir/file"))
         self.failUnlessRaises(common.UnknownAliasError, ga2, u"missing:")
         self.failUnlessRaises(common.UnknownAliasError, ga2, u"missing:dir")
         self.failUnlessRaises(common.UnknownAliasError, ga2, u"missing:dir/file")
@@ -440,26 +441,26 @@ class CLI(CLITestMixin, unittest.TestCase):
             finally:
                 common.pretend_platform_uses_lettercolon = old
             return retval
-        self.failUnlessReallyEqual(ga3(u"bare"), (DefaultAliasMarker, "bare"))
+        self.failUnlessReallyEqual(ga3(u"bare"), (DefaultAliasMarker, b"bare"))
         self.failUnlessReallyEqual(ga3(u"baredir/file"),
-                             (DefaultAliasMarker, "baredir/file"))
+                             (DefaultAliasMarker, b"baredir/file"))
         self.failUnlessReallyEqual(ga3(u"baredir/file:7"),
-                             (DefaultAliasMarker, "baredir/file:7"))
+                             (DefaultAliasMarker, b"baredir/file:7"))
         self.failUnlessReallyEqual(ga3(u"baredir/sub:1/file:7"),
-                             (DefaultAliasMarker, "baredir/sub:1/file:7"))
-        self.failUnlessReallyEqual(ga3(u"tahoe:"), (TA, ""))
-        self.failUnlessReallyEqual(ga3(u"tahoe:file"), (TA, "file"))
-        self.failUnlessReallyEqual(ga3(u"tahoe:dir/file"), (TA, "dir/file"))
-        self.failUnlessReallyEqual(ga3(u"c:"), (DefaultAliasMarker, "c:"))
-        self.failUnlessReallyEqual(ga3(u"c:file"), (DefaultAliasMarker, "c:file"))
+                             (DefaultAliasMarker, b"baredir/sub:1/file:7"))
+        self.failUnlessReallyEqual(ga3(u"tahoe:"), (TA, b""))
+        self.failUnlessReallyEqual(ga3(u"tahoe:file"), (TA, b"file"))
+        self.failUnlessReallyEqual(ga3(u"tahoe:dir/file"), (TA, b"dir/file"))
+        self.failUnlessReallyEqual(ga3(u"c:"), (DefaultAliasMarker, b"c:"))
+        self.failUnlessReallyEqual(ga3(u"c:file"), (DefaultAliasMarker, b"c:file"))
         self.failUnlessReallyEqual(ga3(u"c:dir/file"),
-                             (DefaultAliasMarker, "c:dir/file"))
-        self.failUnlessReallyEqual(ga3(u"work:"), (WA, ""))
-        self.failUnlessReallyEqual(ga3(u"work:file"), (WA, "file"))
-        self.failUnlessReallyEqual(ga3(u"work:dir/file"), (WA, "dir/file"))
-        self.failUnlessReallyEqual(ga3(u"URI:stuff"), ("URI:stuff", ""))
-        self.failUnlessReallyEqual(ga3(u"URI:stuff:./file"), ("URI:stuff", "file"))
-        self.failUnlessReallyEqual(ga3(u"URI:stuff:./dir/file"), ("URI:stuff", "dir/file"))
+                             (DefaultAliasMarker, b"c:dir/file"))
+        self.failUnlessReallyEqual(ga3(u"work:"), (WA, b""))
+        self.failUnlessReallyEqual(ga3(u"work:file"), (WA, b"file"))
+        self.failUnlessReallyEqual(ga3(u"work:dir/file"), (WA, b"dir/file"))
+        self.failUnlessReallyEqual(ga3(u"URI:stuff"), (b"URI:stuff", b""))
+        self.failUnlessReallyEqual(ga3(u"URI:stuff:./file"), (b"URI:stuff", b"file"))
+        self.failUnlessReallyEqual(ga3(u"URI:stuff:./dir/file"), (b"URI:stuff", b"dir/file"))
         self.failUnlessRaises(common.UnknownAliasError, ga3, u"missing:")
         self.failUnlessRaises(common.UnknownAliasError, ga3, u"missing:dir")
         self.failUnlessRaises(common.UnknownAliasError, ga3, u"missing:dir/file")
@@ -482,14 +483,14 @@ class CLI(CLITestMixin, unittest.TestCase):
         self.failUnlessRaises(common.UnknownAliasError, ga5, u"C:\\Windows")
 
     def test_alias_tolerance(self):
-        def s128(c): return base32.b2a(c*(128/8))
-        def s256(c): return base32.b2a(c*(256/8))
-        TA = "URI:DIR2:%s:%s" % (s128("T"), s256("T"))
+        def s128(c): return base32.b2a(c*(128//8))
+        def s256(c): return base32.b2a(c*(256//8))
+        TA = b"URI:DIR2:%s:%s" % (s128(b"T"), s256(b"T"))
         aliases = {"present": TA,
-                   "future": "URI-FROM-FUTURE:ooh:aah"}
+                   "future": b"URI-FROM-FUTURE:ooh:aah"}
         def ga1(path):
             return get_alias(aliases, path, u"tahoe")
-        self.failUnlessReallyEqual(ga1(u"present:file"), (TA, "file"))
+        self.failUnlessReallyEqual(ga1(u"present:file"), (TA, b"file"))
         # this throws, via assert IDirnodeURI.providedBy(), since get_alias()
         # wants a dirnode, and the future cap gives us UnknownURI instead.
         self.failUnlessRaises(AssertionError, ga1, u"future:stuff")
