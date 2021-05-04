@@ -1,5 +1,6 @@
 from __future__ import print_function
 
+from future.utils import PY3
 from past.builtins import unicode
 from six import ensure_str
 
@@ -78,8 +79,13 @@ class SlowOperationRunner(object):
         if not data["finished"]:
             return False
         if self.options.get("raw"):
+            if PY3:
+                # need to write bytes!
+                stdout = stdout.buffer
             if is_printable_ascii(jdata):
-                print(jdata, file=stdout)
+                stdout.write(jdata)
+                stdout.write(b"\n")
+                stdout.flush()
             else:
                 print("The JSON response contained unprintable characters:\n%s" % quote_output(jdata), file=stderr)
             return True
