@@ -1,5 +1,7 @@
 from __future__ import print_function
 
+from past.builtins import unicode
+
 import re
 from urllib.parse import quote as url_quote
 import json
@@ -25,6 +27,7 @@ def mv(options, mode="move"):
     except UnknownAliasError as e:
         e.display(stderr)
         return 1
+    from_path = unicode(from_path, "utf-8")
     from_url = nodeurl + "uri/%s" % url_quote(rootcap)
     if from_path:
         from_url += "/" + escape_path(from_path)
@@ -44,6 +47,7 @@ def mv(options, mode="move"):
         e.display(stderr)
         return 1
     to_url = nodeurl + "uri/%s" % url_quote(rootcap)
+    path = unicode(path, "utf-8")
     if path:
         to_url += "/" + escape_path(path)
 

@@ -181,7 +181,10 @@ PORTED_TEST_MODULES = [
     "allmydata.test.cli.test_create",
     "allmydata.test.cli.test_create_alias",
     "allmydata.test.cli.test_invite",
+    "allmydata.test.cli.test_list",
+    "allmydata.test.cli.test_mv",
     "allmydata.test.cli.test_put",
+    "allmydata.test.cli.test_run",
     "allmydata.test.cli.test_status",
 
     "allmydata.test.mutable.test_checker",
