@@ -5,7 +5,8 @@ from past.builtins import unicode
 import os.path
 from urllib.parse import quote as url_quote
 from collections import defaultdict
-from six.moves import cStringIO as StringIO
+from io import BytesIO
+
 from twisted.python.failure import Failure
 from allmydata.scripts.common import get_alias, escape_path, \
                                      DefaultAliasMarker, TahoeError
@@ -200,12 +201,20 @@ class TahoeFileSource(object):
 
     def open(self, caps_only):
         if caps_only:
-            return StringIO(self.readcap)
+            return BytesIO(self.readcap)
         url = self.nodeurl + "uri/" + url_quote(self.readcap)
         return GET_to_file(url)
 
     def bestcap(self):
         return self.writecap or self.readcap
+
+
+def seekable(file_like):
+    """Return whether the file-like object is seekable."""
+    return hasattr(file_like, "seek") and (
+        not hasattr(file_like, "seekable") or file_like.seekable()
+    )
+
 
 class TahoeFileTarget(object):
     def __init__(self, nodeurl, mutable, writecap, readcap, url):
@@ -220,7 +229,7 @@ class TahoeFileTarget(object):
         assert self.url
         # our do_http() call currently requires a string or a filehandle with
         # a real .seek
-        if not hasattr(inf, "seek"):
+        if not seekable(inf):
             inf = inf.read()
         PUT(self.url, inf)
         # TODO: this always creates immutable files. We might want an option
@@ -306,7 +315,7 @@ class TahoeMissingTarget(object):
 
     def put_file(self, inf):
         # We want to replace this object in-place.
-        if not hasattr(inf, "seek"):
+        if not seekable(inf):
             inf = inf.read()
         PUT(self.url, inf)
         # TODO: this always creates immutable files. We might want an option
@@ -417,7 +426,7 @@ class TahoeDirectoryTarget(object):
     def put_file(self, name, inf):
         precondition(isinstance(name, unicode), name)
         url = self.nodeurl + "uri"
-        if not hasattr(inf, "seek"):
+        if not seekable(inf):
             inf = inf.read()
 
         if self.children is None:

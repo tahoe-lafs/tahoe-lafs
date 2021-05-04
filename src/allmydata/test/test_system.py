@@ -2579,7 +2579,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
             (out, err) = out_and_err
             x = open(os.path.join(dn_copy2, "dir1", "subdir2", "rfile4")).read()
             y = uri.from_string_filenode(x)
-            self.failUnlessEqual(y.data, "rfile4")
+            self.failUnlessEqual(y.data, b"rfile4")
         d.addCallback(_check_capsonly)
 
         # and tahoe-to-tahoe
