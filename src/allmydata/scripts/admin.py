@@ -1,6 +1,7 @@
 from __future__ import print_function
 
 from past.builtins import unicode
+from six import ensure_binary
 
 try:
     from allmydata.scripts.types_ import SubCommands
@@ -49,8 +50,8 @@ def derive_pubkey(options):
     out = options.stdout
     from allmydata.crypto import ed25519
     privkey_vs = options.privkey
-    private_key, public_key = ed25519.signing_keypair_from_string(
-        privkey_vs.encode("ascii"))
+    privkey_vs = ensure_binary(privkey_vs)
+    private_key, public_key = ed25519.signing_keypair_from_string(privkey_vs)
     print("private:", unicode(ed25519.string_from_signing_key(private_key), "ascii"), file=out)
     print("public:", unicode(ed25519.string_from_verifying_key(public_key), "ascii"), file=out)
     return 0

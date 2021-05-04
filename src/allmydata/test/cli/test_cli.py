@@ -1,4 +1,14 @@
-from past.builtins import unicode
+"""
+Ported to Python 3.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 from six.moves import cStringIO as StringIO
 from six import ensure_text, ensure_str
@@ -81,7 +91,7 @@ class CLI(CLITestMixin, unittest.TestCase):
                                 u.to_string())
         self.failUnless("client renewal secret: znxmki5zdibb5qlt46xbdvk2t55j7hibejq3i5ijyurkr6m6jkhq" in output, output)
 
-        output = self._dump_cap(unicode(u.get_verify_cap().to_string(), "ascii"))
+        output = self._dump_cap(str(u.get_verify_cap().to_string(), "ascii"))
         self.failIf("key: " in output, output)
         self.failUnless("UEB hash: nf3nimquen7aeqm36ekgxomalstenpkvsdmf6fplj7swdatbv5oa" in output, output)
         self.failUnless("size: 1234" in output, output)
@@ -354,7 +364,7 @@ class CLI(CLITestMixin, unittest.TestCase):
 
         # now make sure that the 'catalog-shares' commands survives the error
         out, err = self._catalog_shares(nodedir1, nodedir2)
-        self.failUnlessReallyEqual(out, "", out)
+        self.assertEqual(out, "")
         self.failUnless("Error processing " in err,
                         "didn't see 'error processing' in '%s'" % err)
         #self.failUnless(nodedir1 in err,
@@ -508,9 +518,9 @@ class CLI(CLITestMixin, unittest.TestCase):
         fileutil.make_dirs(basedir)
 
         for name in filenames:
-            open(os.path.join(unicode(basedir), name), "wb").close()
+            open(os.path.join(str(basedir), name), "wb").close()
 
-        for file in listdir_unicode(unicode(basedir)):
+        for file in listdir_unicode(str(basedir)):
             self.failUnlessIn(normalize(file), filenames)
 
     def test_exception_catcher(self):
@@ -677,7 +687,7 @@ class Ln(GridTestMixin, CLITestMixin, unittest.TestCase):
             (rc, out, err) = args
             self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("error:", err)
-            self.failUnlessReallyEqual(out, "")
+            self.assertEqual(out, "")
         d.addCallback(_check)
         # Make sure that validation extends to the "to" parameter
         d.addCallback(lambda ign: self.do_cli("create-alias", "havasu"))
@@ -736,8 +746,8 @@ class Admin(unittest.TestCase):
 
     def test_derive_pubkey(self):
         priv_key, pub_key = ed25519.create_signing_keypair()
-        priv_key_str = unicode(ed25519.string_from_signing_key(priv_key), "ascii")
-        pub_key_str = unicode(ed25519.string_from_verifying_key(pub_key), "ascii")
+        priv_key_str = str(ed25519.string_from_signing_key(priv_key), "ascii")
+        pub_key_str = str(ed25519.string_from_verifying_key(pub_key), "ascii")
         d = run_cli("admin", "derive-pubkey", priv_key_str)
         def _done(args):
             (rc, stdout, stderr) = args
@@ -764,7 +774,7 @@ class Errors(GridTestMixin, CLITestMixin, unittest.TestCase):
         d = c0.upload(upload.Data(DATA, convergence=b""))
         def _stash_bad(ur):
             self.uri_1share = ur.get_uri()
-            self.delete_shares_numbered(ur.get_uri(), range(1,10))
+            self.delete_shares_numbered(ur.get_uri(), list(range(1,10)))
         d.addCallback(_stash_bad)
 
         # the download is abandoned as soon as it's clear that we won't get
@@ -828,7 +838,7 @@ class Get(GridTestMixin, CLITestMixin, unittest.TestCase):
             (rc, out, err) = args
             self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("error:", err)
-            self.failUnlessReallyEqual(out, "")
+            self.assertEqual(out, "")
         d.addCallback(_check)
         return d
 
@@ -843,7 +853,7 @@ class Get(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("error:", err)
             self.failUnlessIn("nonexistent", err)
-            self.failUnlessReallyEqual(out, "")
+            self.assertEqual(out, "")
         d.addCallback(_check)
         return d
 
@@ -860,7 +870,7 @@ class Manifest(GridTestMixin, CLITestMixin, unittest.TestCase):
             (rc, out, err) = args
             self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("error:", err)
-            self.failUnlessReallyEqual(out, "")
+            self.assertEqual(out, "")
         d.addCallback(_check)
         return d
 
@@ -875,7 +885,7 @@ class Manifest(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("error:", err)
             self.failUnlessIn("nonexistent", err)
-            self.failUnlessReallyEqual(out, "")
+            self.assertEqual(out, "")
         d.addCallback(_check)
         return d
 
@@ -890,7 +900,7 @@ class Mkdir(GridTestMixin, CLITestMixin, unittest.TestCase):
         def _check(args):
             (rc, out, err) = args
             self.failUnlessReallyEqual(rc, 0)
-            self.failUnlessReallyEqual(err, "")
+            self.assertEqual(err, "")
             self.failUnlessIn("URI:", out)
         d.addCallback(_check)
 
@@ -903,7 +913,7 @@ class Mkdir(GridTestMixin, CLITestMixin, unittest.TestCase):
         def _check(args, st):
             (rc, out, err) = args
             self.failUnlessReallyEqual(rc, 0)
-            self.failUnlessReallyEqual(err, "")
+            self.assertEqual(err, "")
             self.failUnlessIn(st, out)
             return out
 
@@ -939,7 +949,7 @@ class Mkdir(GridTestMixin, CLITestMixin, unittest.TestCase):
         def _check(args, st):
             (rc, out, err) = args
             self.failUnlessReallyEqual(rc, 0)
-            self.failUnlessReallyEqual(err, "")
+            self.assertEqual(err, "")
             self.failUnlessIn(st, out)
             return out
         d.addCallback(_check, "URI:DIR2")
@@ -983,7 +993,7 @@ class Mkdir(GridTestMixin, CLITestMixin, unittest.TestCase):
         def _check(args):
             (rc, out, err) = args
             self.failUnlessReallyEqual(rc, 0)
-            self.failUnlessReallyEqual(err, "")
+            self.assertEqual(err, "")
             self.failUnlessIn("URI:", out)
         d.addCallback(_check)
 
@@ -999,7 +1009,7 @@ class Mkdir(GridTestMixin, CLITestMixin, unittest.TestCase):
             (rc, out, err) = args
             self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("error:", err)
-            self.failUnlessReallyEqual(out, "")
+            self.assertEqual(out, "")
         d.addCallback(_check)
         return d
 
@@ -1023,7 +1033,7 @@ class Unlink(GridTestMixin, CLITestMixin, unittest.TestCase):
             (rc, out, err) = args
             self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("error:", err)
-            self.failUnlessReallyEqual(out, "")
+            self.assertEqual(out, "")
         d.addCallback(_check)
 
         d.addCallback(lambda ign: self.do_cli(self.command, "afile"))
@@ -1041,7 +1051,7 @@ class Unlink(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("error:", err)
             self.failUnlessIn("nonexistent", err)
-            self.failUnlessReallyEqual(out, "")
+            self.assertEqual(out, "")
         d.addCallback(_check)
 
         d.addCallback(lambda ign: self.do_cli(self.command, "nonexistent:afile"))
@@ -1067,7 +1077,7 @@ class Unlink(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("'tahoe %s'" % (self.command,), err)
             self.failUnlessIn("path must be given", err)
-            self.failUnlessReallyEqual(out, "")
+            self.assertEqual(out, "")
         d.addCallback(_check)
         return d
 
@@ -1088,7 +1098,7 @@ class Stats(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(lambda ign: self.do_cli("stats", self.rooturi))
         def _check_stats(args):
             (rc, out, err) = args
-            self.failUnlessReallyEqual(err, "")
+            self.assertEqual(err, "")
             self.failUnlessReallyEqual(rc, 0)
             lines = out.splitlines()
             self.failUnlessIn(" count-immutable-files: 0", lines)
@@ -1112,7 +1122,7 @@ class Stats(GridTestMixin, CLITestMixin, unittest.TestCase):
             (rc, out, err) = args
             self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("error:", err)
-            self.failUnlessReallyEqual(out, "")
+            self.assertEqual(out, "")
         d.addCallback(_check)
         return d
 
@@ -1126,7 +1136,7 @@ class Stats(GridTestMixin, CLITestMixin, unittest.TestCase):
             (rc, out, err) = args
             self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("error:", err)
-            self.failUnlessReallyEqual(out, "")
+            self.assertEqual(out, "")
         d.addCallback(_check)
         return d
 
@@ -1143,7 +1153,7 @@ class Webopen(GridTestMixin, CLITestMixin, unittest.TestCase):
             (rc, out, err) = args
             self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("error:", err)
-            self.failUnlessReallyEqual(out, "")
+            self.assertEqual(out, "")
         d.addCallback(_check)
         return d
 
@@ -1151,7 +1161,7 @@ class Webopen(GridTestMixin, CLITestMixin, unittest.TestCase):
         # TODO: replace with @patch that supports Deferreds.
         import webbrowser
         def call_webbrowser_open(url):
-            self.failUnlessIn(unicode(self.alias_uri, "ascii").replace(':', '%3A'), url)
+            self.failUnlessIn(str(self.alias_uri, "ascii").replace(':', '%3A'), url)
             self.webbrowser_open_called = True
         def _cleanup(res):
             webbrowser.open = self.old_webbrowser_open
@@ -1168,15 +1178,15 @@ class Webopen(GridTestMixin, CLITestMixin, unittest.TestCase):
                 (rc, out, err) = args
                 self.failUnlessReallyEqual(rc, 0, repr((rc, out, err)))
                 self.failUnlessIn("Alias 'alias' created", out)
-                self.failUnlessReallyEqual(err, "")
+                self.assertEqual(err, "")
                 self.alias_uri = get_aliases(self.get_clientdir())["alias"]
             d.addCallback(_check_alias)
             d.addCallback(lambda res: self.do_cli("webopen", "alias:"))
             def _check_webopen(args):
                 (rc, out, err) = args
                 self.failUnlessReallyEqual(rc, 0, repr((rc, out, err)))
-                self.failUnlessReallyEqual(out, "")
-                self.failUnlessReallyEqual(err, "")
+                self.assertEqual(out, "")
+                self.assertEqual(err, "")
                 self.failUnless(self.webbrowser_open_called)
             d.addCallback(_check_webopen)
             d.addBoth(_cleanup)
