@@ -85,7 +85,7 @@ def run_cli_native(verb, *args, **kwargs):
         bytes.
     """
     nodeargs = kwargs.pop("nodeargs", [])
-    encoding = kwargs.pop("encoding", "utf-8")
+    encoding = kwargs.pop("encoding", None) or "utf-8"
     return_bytes = kwargs.pop("return_bytes", False)
     verb = maybe_unicode_to_argv(verb)
     args = [maybe_unicode_to_argv(a) for a in args]
