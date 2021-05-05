@@ -19,7 +19,6 @@ jobs:
       matrix:
         os:
           - macos-latest
-          - windows-latest
           - ubuntu-latest
         python-version:
           - 2.7
@@ -27,6 +26,11 @@ jobs:
           - 3.7
           - 3.8
           - 3.9
+        include:
+          # For now we're only doing Windows on 2.7, will be fixed in
+          # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3701
+          - os: windows-latest
+            python-version: 2.7
 
     steps:
 
