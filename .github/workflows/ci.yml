@@ -40,17 +40,15 @@ jobs:
 
       - name: Set up Python ${{ matrix.python-version }}
         if: ${{ matrix.os != 'windows-latest' }}
-        uses: actions/setup-python@v1
+        uses: actions/setup-python@v2
         with:
           python-version: ${{ matrix.python-version }}
 
       # See note below about need for using 32-bit Python 2.7 on
-      # Windows.  The extra handling here for Python 3.6 on Windows is
-      # because I could not figure out the right GitHub Actions
-      # expression to do this in a better way.
+      # Windows.
       - name: Set up Python ${{ matrix.python-version }} [Windows x64]
-        if: ${{ ( matrix.os == 'windows-latest' ) && ( matrix.python-version == '3.6' ) }}
-        uses: actions/setup-python@v1
+        if: ${{ ( matrix.os == 'windows-latest' ) && ( matrix.python-version != '2.7' ) }}
+        uses: actions/setup-python@v2
         with:
           python-version: ${{ matrix.python-version }}
           architecture: 'x64'
@@ -89,14 +87,14 @@ jobs:
 
       - name: Install Python packages
         run: |
-          pip install --upgrade codecov tox setuptools
+          pip install --upgrade codecov tox tox-gh-actions setuptools
           pip list
 
       - name: Display tool versions
         run: python misc/build_helpers/show-tool-versions.py
 
-      - name: Run "tox -e py27-coverage"
-        run: tox -e py27-coverage
+      - name: Run tox for corresponding Python version
+        run: python -m tox
 
       - name: Upload eliot.log in case of failure
         uses: actions/upload-artifact@v1
