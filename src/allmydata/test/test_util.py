@@ -527,7 +527,7 @@ class JSONBytes(unittest.TestCase):
         x = {u"def\N{SNOWMAN}\uFF00": 123}
         encoded = jsonbytes.dumps_bytes(x)
         self.assertIsInstance(encoded, bytes)
-        self.assertEqual(json.loads(encoded, encoding="utf-8"), x)
+        self.assertEqual(json.loads(encoded), x)
 
     def test_any_bytes_unsupported_by_default(self):
         """By default non-UTF-8 bytes raise error."""
@@ -554,9 +554,8 @@ class JSONBytes(unittest.TestCase):
             expected,
         )
         self.assertEqual(
-            json.loads(jsonbytes.dumps(o, any_bytes=True),
-                       encoding="utf-8"),
-            expected,
+            json.loads(jsonbytes.dumps(o, any_bytes=True)),
+            expected
         )
 
 
