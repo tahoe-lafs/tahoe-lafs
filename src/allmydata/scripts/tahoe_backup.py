@@ -22,7 +22,6 @@ def get_local_metadata(path):
     metadata = {}
 
     # posix stat(2) metadata, depends on the platform
-    os.stat_float_times(True)
     s = os.stat(path)
     metadata["ctime"] = s.st_ctime
     metadata["mtime"] = s.st_mtime
