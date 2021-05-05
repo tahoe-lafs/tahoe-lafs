@@ -1,5 +1,6 @@
 from __future__ import print_function
 
+from future.utils import PY3
 from past.builtins import unicode
 
 from urllib.parse import quote as url_quote
@@ -51,6 +52,9 @@ class ManifestStreamer(LineOnlyReceiver, object):
         #print("RESP", dir(resp))
         # use Twisted to split this into lines
         self.in_error = False
+        # Writing bytes, so need binary stdout.
+        if PY3:
+            stdout = stdout.buffer
         while True:
             chunk = resp.read(100)
             if not chunk:

@@ -452,7 +452,7 @@ def dump_cap(options):
     from allmydata import uri
     from allmydata.util import base32
     from base64 import b32decode
-    import urlparse, urllib
+    from urllib.parse import unquote, urlparse
 
     out = options.stdout
     cap = options.cap
@@ -461,18 +461,18 @@ def dump_cap(options):
         nodeid = b32decode(options['nodeid'].upper())
     secret = None
     if options['client-secret']:
-        secret = base32.a2b(options['client-secret'])
+        secret = base32.a2b(options['client-secret'].encode("ascii"))
     elif options['client-dir']:
         secretfile = os.path.join(options['client-dir'], "private", "secret")
         try:
-            secret = base32.a2b(open(secretfile, "r").read().strip())
+            secret = base32.a2b(open(secretfile, "rb").read().strip())
         except EnvironmentError:
             pass
 
     if cap.startswith("http"):
-        scheme, netloc, path, params, query, fragment = urlparse.urlparse(cap)
+        scheme, netloc, path, params, query, fragment = urlparse(cap)
         assert path.startswith("/uri/")
-        cap = urllib.unquote(path[len("/uri/"):])
+        cap = unquote(path[len("/uri/"):])
 
     u = uri.from_string(cap)
 
@@ -485,19 +485,19 @@ def _dump_secrets(storage_index, secret, nodeid, out):
 
     if secret:
         crs = hashutil.my_renewal_secret_hash(secret)
-        print(" client renewal secret:", base32.b2a(crs), file=out)
+        print(" client renewal secret:", unicode(base32.b2a(crs), "ascii"), file=out)
         frs = hashutil.file_renewal_secret_hash(crs, storage_index)
-        print(" file renewal secret:", base32.b2a(frs), file=out)
+        print(" file renewal secret:", unicode(base32.b2a(frs), "ascii"), file=out)
         if nodeid:
             renew = hashutil.bucket_renewal_secret_hash(frs, nodeid)
-            print(" lease renewal secret:", base32.b2a(renew), file=out)
+            print(" lease renewal secret:", unicode(base32.b2a(renew), "ascii"), file=out)
         ccs = hashutil.my_cancel_secret_hash(secret)
-        print(" client cancel secret:", base32.b2a(ccs), file=out)
+        print(" client cancel secret:", unicode(base32.b2a(ccs), "ascii"), file=out)
         fcs = hashutil.file_cancel_secret_hash(ccs, storage_index)
-        print(" file cancel secret:", base32.b2a(fcs), file=out)
+        print(" file cancel secret:", unicode(base32.b2a(fcs), "ascii"), file=out)
         if nodeid:
             cancel = hashutil.bucket_cancel_secret_hash(fcs, nodeid)
-            print(" lease cancel secret:", base32.b2a(cancel), file=out)
+            print(" lease cancel secret:", unicode(base32.b2a(cancel), "ascii"), file=out)
 
 def dump_uri_instance(u, nodeid, secret, out, show_header=True):
     from allmydata import uri
@@ -508,19 +508,19 @@ def dump_uri_instance(u, nodeid, secret, out, show_header=True):
     if isinstance(u, uri.CHKFileURI):
         if show_header:
             print("CHK File:", file=out)
-        print(" key:", base32.b2a(u.key), file=out)
-        print(" UEB hash:", base32.b2a(u.uri_extension_hash), file=out)
+        print(" key:", unicode(base32.b2a(u.key), "ascii"), file=out)
+        print(" UEB hash:", unicode(base32.b2a(u.uri_extension_hash), "ascii"), file=out)
         print(" size:", u.size, file=out)
         print(" k/N: %d/%d" % (u.needed_shares, u.total_shares), file=out)
-        print(" storage index:", si_b2a(u.get_storage_index()), file=out)
+        print(" storage index:", unicode(si_b2a(u.get_storage_index()), "ascii"), file=out)
         _dump_secrets(u.get_storage_index(), secret, nodeid, out)
     elif isinstance(u, uri.CHKFileVerifierURI):
         if show_header:
             print("CHK Verifier URI:", file=out)
-        print(" UEB hash:", base32.b2a(u.uri_extension_hash), file=out)
+        print(" UEB hash:", unicode(base32.b2a(u.uri_extension_hash), "ascii"), file=out)
         print(" size:", u.size, file=out)
         print(" k/N: %d/%d" % (u.needed_shares, u.total_shares), file=out)
-        print(" storage index:", si_b2a(u.get_storage_index()), file=out)
+        print(" storage index:", unicode(si_b2a(u.get_storage_index()), "ascii"), file=out)
 
     elif isinstance(u, uri.LiteralFileURI):
         if show_header:
@@ -530,52 +530,52 @@ def dump_uri_instance(u, nodeid, secret, out, show_header=True):
     elif isinstance(u, uri.WriteableSSKFileURI): # SDMF
         if show_header:
             print("SDMF Writeable URI:", file=out)
-        print(" writekey:", base32.b2a(u.writekey), file=out)
-        print(" readkey:", base32.b2a(u.readkey), file=out)
-        print(" storage index:", si_b2a(u.get_storage_index()), file=out)
-        print(" fingerprint:", base32.b2a(u.fingerprint), file=out)
+        print(" writekey:", unicode(base32.b2a(u.writekey), "ascii"), file=out)
+        print(" readkey:", unicode(base32.b2a(u.readkey), "ascii"), file=out)
+        print(" storage index:", unicode(si_b2a(u.get_storage_index()), "ascii"), file=out)
+        print(" fingerprint:", unicode(base32.b2a(u.fingerprint), "ascii"), file=out)
         print(file=out)
         if nodeid:
             we = hashutil.ssk_write_enabler_hash(u.writekey, nodeid)
-            print(" write_enabler:", base32.b2a(we), file=out)
+            print(" write_enabler:", unicode(base32.b2a(we), "ascii"), file=out)
             print(file=out)
         _dump_secrets(u.get_storage_index(), secret, nodeid, out)
     elif isinstance(u, uri.ReadonlySSKFileURI):
         if show_header:
             print("SDMF Read-only URI:", file=out)
-        print(" readkey:", base32.b2a(u.readkey), file=out)
-        print(" storage index:", si_b2a(u.get_storage_index()), file=out)
-        print(" fingerprint:", base32.b2a(u.fingerprint), file=out)
+        print(" readkey:", unicode(base32.b2a(u.readkey), "ascii"), file=out)
+        print(" storage index:", unicode(si_b2a(u.get_storage_index()), "ascii"), file=out)
+        print(" fingerprint:", unicode(base32.b2a(u.fingerprint), "ascii"), file=out)
     elif isinstance(u, uri.SSKVerifierURI):
         if show_header:
             print("SDMF Verifier URI:", file=out)
-        print(" storage index:", si_b2a(u.get_storage_index()), file=out)
-        print(" fingerprint:", base32.b2a(u.fingerprint), file=out)
+        print(" storage index:", unicode(si_b2a(u.get_storage_index()), "ascii"), file=out)
+        print(" fingerprint:", unicode(base32.b2a(u.fingerprint), "ascii"), file=out)
 
     elif isinstance(u, uri.WriteableMDMFFileURI): # MDMF
         if show_header:
             print("MDMF Writeable URI:", file=out)
-        print(" writekey:", base32.b2a(u.writekey), file=out)
-        print(" readkey:", base32.b2a(u.readkey), file=out)
-        print(" storage index:", si_b2a(u.get_storage_index()), file=out)
-        print(" fingerprint:", base32.b2a(u.fingerprint), file=out)
+        print(" writekey:", unicode(base32.b2a(u.writekey), "ascii"), file=out)
+        print(" readkey:", unicode(base32.b2a(u.readkey), "ascii"), file=out)
+        print(" storage index:", unicode(si_b2a(u.get_storage_index()), "ascii"), file=out)
+        print(" fingerprint:", unicode(base32.b2a(u.fingerprint), "ascii"), file=out)
         print(file=out)
         if nodeid:
             we = hashutil.ssk_write_enabler_hash(u.writekey, nodeid)
-            print(" write_enabler:", base32.b2a(we), file=out)
+            print(" write_enabler:", unicode(base32.b2a(we), "ascii"), file=out)
             print(file=out)
         _dump_secrets(u.get_storage_index(), secret, nodeid, out)
     elif isinstance(u, uri.ReadonlyMDMFFileURI):
         if show_header:
             print("MDMF Read-only URI:", file=out)
-        print(" readkey:", base32.b2a(u.readkey), file=out)
-        print(" storage index:", si_b2a(u.get_storage_index()), file=out)
-        print(" fingerprint:", base32.b2a(u.fingerprint), file=out)
+        print(" readkey:", unicode(base32.b2a(u.readkey), "ascii"), file=out)
+        print(" storage index:", unicode(si_b2a(u.get_storage_index()), "ascii"), file=out)
+        print(" fingerprint:", unicode(base32.b2a(u.fingerprint), "ascii"), file=out)
     elif isinstance(u, uri.MDMFVerifierURI):
         if show_header:
             print("MDMF Verifier URI:", file=out)
-        print(" storage index:", si_b2a(u.get_storage_index()), file=out)
-        print(" fingerprint:", base32.b2a(u.fingerprint), file=out)
+        print(" storage index:", unicode(si_b2a(u.get_storage_index()), "ascii"), file=out)
+        print(" fingerprint:", unicode(base32.b2a(u.fingerprint), "ascii"), file=out)
 
 
     elif isinstance(u, uri.ImmutableDirectoryURI): # CHK-based directory

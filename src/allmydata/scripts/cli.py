@@ -1,5 +1,7 @@
 from __future__ import print_function
 
+from past.builtins import unicode
+
 import os.path, re, fnmatch
 
 try:
@@ -36,7 +38,7 @@ class FileStoreOptions(BaseOptions):
 
         # compute a node-url from the existing options, put in self['node-url']
         if self['node-url']:
-            if (not isinstance(self['node-url'], basestring)
+            if (not isinstance(self['node-url'], (bytes, unicode))
                 or not NODEURL_RE.match(self['node-url'])):
                 msg = ("--node-url is required to be a string and look like "
                        "\"http://HOSTNAMEORADDR:PORT\", not: %r" %

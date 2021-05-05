@@ -1,6 +1,6 @@
 from __future__ import print_function
 
-import urllib
+from urllib.parse import quote as url_quote
 from allmydata.scripts.common_http import do_http, format_http_success, format_http_error
 from allmydata.scripts.common import get_alias, DEFAULT_ALIAS, escape_path, \
                                      UnknownAliasError
@@ -27,7 +27,7 @@ def unlink(options, command="unlink"):
 'tahoe %s' can only unlink directory entries, so a path must be given.""" % (command,), file=stderr)
         return 1
 
-    url = nodeurl + "uri/%s" % urllib.quote(rootcap)
+    url = nodeurl + "uri/%s" % url_quote(rootcap)
     url += "/" + escape_path(path)
 
     resp = do_http("DELETE", url)
