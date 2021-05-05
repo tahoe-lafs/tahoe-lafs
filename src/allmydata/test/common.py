@@ -405,7 +405,7 @@ class SameProcessStreamEndpointAssigner(object):
         :return: A two-tuple of (location hint, port endpoint description) as
             strings.
         """
-        if IReactorSocket.providedBy(reactor):
+        if sys.platform != "win32" and IReactorSocket.providedBy(reactor):
             # On this platform, we can reliable pre-allocate a listening port.
             # Once it is bound we know it will not fail later with EADDRINUSE.
             s = socket(AF_INET, SOCK_STREAM)
