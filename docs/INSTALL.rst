@@ -64,7 +64,9 @@ and some libraries (libffi-dev and libssl-dev).
 On a modern Debian/Ubuntu-derived distribution, this command will get you
 everything you need::
 
-    apt-get install build-essential python-dev libffi-dev libssl-dev libyaml-dev python-virtualenv
+    apt-get install build-essential python-dev libffi-dev libssl-dev libyaml-dev virtualenv
+    
+    
 
 If this fails you may have to install the needed packages one after the other.
 On OS-X, install pip and virtualenv as described below. If you want to
