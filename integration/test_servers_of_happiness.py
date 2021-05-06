@@ -30,7 +30,7 @@ def test_upload_immutable(reactor, temp_dir, introducer_furl, flog_gatherer, sto
         proto,
         sys.executable,
         [
-            sys.executable, '-m', 'allmydata.scripts.runner',
+            sys.executable, '-b', '-m', 'allmydata.scripts.runner',
             '-d', node_dir,
             'put', __file__,
         ]

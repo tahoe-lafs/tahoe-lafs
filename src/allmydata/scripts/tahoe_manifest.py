@@ -1,6 +1,10 @@
 from __future__ import print_function
 
-import urllib, json
+from future.utils import PY3
+from past.builtins import unicode
+
+from urllib.parse import quote as url_quote
+import json
 from twisted.protocols.basic import LineOnlyReceiver
 from allmydata.util.abbreviate import abbreviate_space_both
 from allmydata.scripts.slow_operation import SlowOperationRunner
@@ -33,9 +37,10 @@ class ManifestStreamer(LineOnlyReceiver, object):
         except UnknownAliasError as e:
             e.display(stderr)
             return 1
+        path = unicode(path, "utf-8")
         if path == '/':
             path = ''
-        url = nodeurl + "uri/%s" % urllib.quote(rootcap)
+        url = nodeurl + "uri/%s" % url_quote(rootcap)
         if path:
             url += "/" + escape_path(path)
         # todo: should it end with a slash?
@@ -47,6 +52,9 @@ class ManifestStreamer(LineOnlyReceiver, object):
         #print("RESP", dir(resp))
         # use Twisted to split this into lines
         self.in_error = False
+        # Writing bytes, so need binary stdout.
+        if PY3:
+            stdout = stdout.buffer
         while True:
             chunk = resp.read(100)
             if not chunk:
@@ -63,7 +71,7 @@ class ManifestStreamer(LineOnlyReceiver, object):
         if self.in_error:
             print(quote_output(line, quotemarks=False), file=stderr)
             return
-        if line.startswith("ERROR:"):
+        if line.startswith(b"ERROR:"):
             self.in_error = True
             self.rc = 1
             print(quote_output(line, quotemarks=False), file=stderr)

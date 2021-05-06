@@ -1,3 +1,15 @@
+"""
+Ported to Python 3.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+
 import os.path
 from twisted.trial import unittest
 from allmydata.util import fileutil
@@ -5,15 +17,16 @@ from ..no_network import GridTestMixin
 from allmydata.scripts import tahoe_mv
 from .common import CLITestMixin
 
+
 class Mv(GridTestMixin, CLITestMixin, unittest.TestCase):
     def test_mv_behavior(self):
         self.basedir = "cli/Mv/mv_behavior"
         self.set_up_grid(oneshare=True)
         fn1 = os.path.join(self.basedir, "file1")
-        DATA1 = "Nuclear launch codes"
+        DATA1 = b"Nuclear launch codes"
         fileutil.write(fn1, DATA1)
         fn2 = os.path.join(self.basedir, "file2")
-        DATA2 = "UML diagrams"
+        DATA2 = b"UML diagrams"
         fileutil.write(fn2, DATA2)
         # copy both files to the grid
         d = self.do_cli("create-alias", "tahoe")
@@ -104,11 +117,11 @@ class Mv(GridTestMixin, CLITestMixin, unittest.TestCase):
         self.basedir = "cli/Mv/mv_error_if_DELETE_fails"
         self.set_up_grid(oneshare=True)
         fn1 = os.path.join(self.basedir, "file1")
-        DATA1 = "Nuclear launch codes"
+        DATA1 = b"Nuclear launch codes"
         fileutil.write(fn1, DATA1)
 
         original_do_http = tahoe_mv.do_http
-        def mock_do_http(method, url, body=""):
+        def mock_do_http(method, url, body=b""):
             if method == "DELETE":
                 class FakeResponse(object):
                     def read(self):
@@ -152,7 +165,7 @@ class Mv(GridTestMixin, CLITestMixin, unittest.TestCase):
             (rc, out, err) = args
             self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("error:", err)
-            self.failUnlessReallyEqual(out, "")
+            self.assertEqual(len(out), 0, out)
         d.addCallback(_check)
         # check to see that the validation extends to the
         # target argument by making an alias that will work with the first
@@ -180,7 +193,7 @@ class Mv(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("error:", err)
             self.failUnlessIn("fake", err)
-            self.failUnlessReallyEqual(out, "")
+            self.assertEqual(len(out), 0, out)
         d.addCallback(_check)
         # check to see that the validation extends to the
         # target argument by making an alias that will work with the first

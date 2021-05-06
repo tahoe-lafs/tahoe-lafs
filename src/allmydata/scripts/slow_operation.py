@@ -1,12 +1,16 @@
 from __future__ import print_function
 
+from future.utils import PY3
+from past.builtins import unicode
+from six import ensure_str
+
 import os, time
 from allmydata.scripts.common import get_alias, DEFAULT_ALIAS, escape_path, \
                                      UnknownAliasError
 from allmydata.scripts.common_http import do_http, format_http_error
 from allmydata.util import base32
 from allmydata.util.encodingutil import quote_output, is_printable_ascii
-import urllib
+from urllib.parse import quote as url_quote
 import json
 
 class SlowOperationRunner(object):
@@ -14,7 +18,7 @@ class SlowOperationRunner(object):
     def run(self, options):
         stderr = options.stderr
         self.options = options
-        self.ophandle = ophandle = base32.b2a(os.urandom(16))
+        self.ophandle = ophandle = ensure_str(base32.b2a(os.urandom(16)))
         nodeurl = options['node-url']
         if not nodeurl.endswith("/"):
             nodeurl += "/"
@@ -25,9 +29,10 @@ class SlowOperationRunner(object):
         except UnknownAliasError as e:
             e.display(stderr)
             return 1
+        path = unicode(path, "utf-8")
         if path == '/':
             path = ''
-        url = nodeurl + "uri/%s" % urllib.quote(rootcap)
+        url = nodeurl + "uri/%s" % url_quote(rootcap)
         if path:
             url += "/" + escape_path(path)
         # todo: should it end with a slash?
@@ -74,8 +79,13 @@ class SlowOperationRunner(object):
         if not data["finished"]:
             return False
         if self.options.get("raw"):
+            if PY3:
+                # need to write bytes!
+                stdout = stdout.buffer
             if is_printable_ascii(jdata):
-                print(jdata, file=stdout)
+                stdout.write(jdata)
+                stdout.write(b"\n")
+                stdout.flush()
             else:
                 print("The JSON response contained unprintable characters:\n%s" % quote_output(jdata), file=stderr)
             return True

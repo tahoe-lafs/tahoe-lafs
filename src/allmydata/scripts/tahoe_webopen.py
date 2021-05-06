@@ -1,7 +1,10 @@
+from past.builtins import unicode
+
+from urllib.parse import quote as url_quote
 
 from allmydata.scripts.common import get_alias, DEFAULT_ALIAS, escape_path, \
                                      UnknownAliasError
-import urllib
+
 
 def webopen(options, opener=None):
     nodeurl = options['node-url']
@@ -15,9 +18,10 @@ def webopen(options, opener=None):
         except UnknownAliasError as e:
             e.display(stderr)
             return 1
+        path = unicode(path, "utf-8")
         if path == '/':
             path = ''
-        url = nodeurl + "uri/%s" % urllib.quote(rootcap)
+        url = nodeurl + "uri/%s" % url_quote(rootcap)
         if path:
             url += "/" + escape_path(path)
     else:

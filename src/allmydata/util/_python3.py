@@ -98,6 +98,7 @@ PORTED_MODULES = [
     "allmydata.storage.shares",
     "allmydata.test",
     "allmydata.test.cli",
+    "allmydata.test.cli.common",
     "allmydata.test.cli_node_api",
     "allmydata.test.common",
     "allmydata.test.common_util",
@@ -176,8 +177,16 @@ PORTED_TEST_MODULES = [
     "allmydata.test.cli.test_alias",
     "allmydata.test.cli.test_backup",
     "allmydata.test.cli.test_backupdb",
+    "allmydata.test.cli.test_check",
+    "allmydata.test.cli.test_cli",
+    "allmydata.test.cli.test_cp",
     "allmydata.test.cli.test_create",
+    "allmydata.test.cli.test_create_alias",
     "allmydata.test.cli.test_invite",
+    "allmydata.test.cli.test_list",
+    "allmydata.test.cli.test_mv",
+    "allmydata.test.cli.test_put",
+    "allmydata.test.cli.test_run",
     "allmydata.test.cli.test_status",
 
     "allmydata.test.mutable.test_checker",
@@ -209,11 +218,7 @@ PORTED_TEST_MODULES = [
     "allmydata.test.test_consumer",
     "allmydata.test.test_crawler",
     "allmydata.test.test_crypto",
-
-    # Only partially ported, CLI-using test code is disabled for now until CLI
-    # is ported.
     "allmydata.test.test_deepcheck",
-
     "allmydata.test.test_deferredutil",
     "allmydata.test.test_dictutil",
     "allmydata.test.test_dirnode",
@@ -251,12 +256,7 @@ PORTED_TEST_MODULES = [
     "allmydata.test.test_storage",
     "allmydata.test.test_storage_client",
     "allmydata.test.test_storage_web",
-
-    # Only partially ported, test_filesystem_with_cli_in_subprocess isn't
-    # ported yet, nor is part of test_filesystem (the call to _test_cli). This
-    # should be done once CLI is ported.
     "allmydata.test.test_system",
-
     "allmydata.test.test_testing",
     "allmydata.test.test_time_format",
     "allmydata.test.test_tor_provider",

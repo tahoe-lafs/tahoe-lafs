@@ -17,10 +17,10 @@ from __future__ import unicode_literals
 # (Pdb) pp data
 # '334:12:b\'mutable-good\',90:URI:SSK-RO:...
 from past.builtins import unicode as str
-from future.utils import PY3, PY2
+from future.utils import PY2
 if PY2:
     from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, max, min  # noqa: F401
-
+from six import ensure_text
 
 import os, json
 from urllib.parse import quote as url_quote
@@ -170,7 +170,8 @@ class DeepCheckBase(GridTestMixin, ErrorMixin, StallMixin, ShouldFailMixin,
         return data
 
     def parse_streamed_json(self, s):
-        for unit in s.split(b"\n"):
+        s = ensure_text(s)
+        for unit in s.split("\n"):
             if not unit:
                 # stream should end with a newline, so split returns ""
                 continue
@@ -746,8 +747,6 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
 
     def do_test_cli_good(self, ignored):
         d = defer.succeed(None)
-        if PY3:  # TODO fixme once Python 3 CLI porting is done
-            return d
         d.addCallback(lambda ign: self.do_cli_manifest_stream1())
         d.addCallback(lambda ign: self.do_cli_manifest_stream2())
         d.addCallback(lambda ign: self.do_cli_manifest_stream3())
@@ -758,7 +757,7 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
         return d
 
     def _check_manifest_storage_index(self, out):
-        lines = [l for l in out.split(b"\n") if l]
+        lines = [l.encode("utf-8") for l in out.split("\n") if l]
         self.failUnlessEqual(len(lines), 3)
         self.failUnless(base32.b2a(self.root.get_storage_index()) in lines)
         self.failUnless(base32.b2a(self.mutable.get_storage_index()) in lines)
@@ -769,7 +768,7 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
         def _check(args):
             (rc, out, err) = args
             self.failUnlessEqual(err, "")
-            lines = [l for l in out.split(b"\n") if l]
+            lines = [l for l in out.split("\n") if l]
             self.failUnlessEqual(len(lines), 8)
             caps = {}
             for l in lines:
@@ -778,7 +777,7 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
                 except ValueError:
                     cap = l.strip()
                     path = ""
-                caps[cap] = path
+                caps[cap.encode("ascii")] = path
             self.failUnless(self.root.get_uri() in caps)
             self.failUnlessEqual(caps[self.root.get_uri()], "")
             self.failUnlessEqual(caps[self.mutable.get_uri()], "mutable")
@@ -814,7 +813,7 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
         def _check(args):
             (rc, out, err) = args
             self.failUnlessEqual(err, "")
-            lines = [l for l in out.split(b"\n") if l]
+            lines = [l.encode("utf-8") for l in out.split("\n") if l]
             self.failUnlessEqual(len(lines), 3)
             self.failUnless(self.root.get_verify_cap().to_string() in lines)
             self.failUnless(self.mutable.get_verify_cap().to_string() in lines)
@@ -827,7 +826,7 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
         def _check(args):
             (rc, out, err) = args
             self.failUnlessEqual(err, "")
-            lines = [l for l in out.split(b"\n") if l]
+            lines = [l.encode("utf-8") for l in out.split("\n") if l]
             self.failUnlessEqual(len(lines), 3)
             self.failUnless(self.root.get_repair_cap().to_string() in lines)
             self.failUnless(self.mutable.get_repair_cap().to_string() in lines)
@@ -839,7 +838,7 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
         d = self.do_cli("stats", self.root_uri)
         def _check3(args):
             (rc, out, err) = args
-            lines = [l.strip() for l in out.split(b"\n") if l]
+            lines = [l.strip() for l in out.split("\n") if l]
             self.failUnless("count-immutable-files: 1" in lines)
             self.failUnless("count-mutable-files: 1" in lines)
             self.failUnless("count-literal-files: 3" in lines)

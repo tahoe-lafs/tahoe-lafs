@@ -1,4 +1,14 @@
+"""
+Ported to Python 3.
+"""
 from __future__ import print_function
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 import os.path, json
 from twisted.trial import unittest
@@ -24,12 +34,8 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
     def test_unicode_filename(self):
         self.basedir = "cli/Cp/unicode_filename"
 
-        fn1 = os.path.join(unicode(self.basedir), u"\u00C4rtonwall")
-        try:
-            fn1_arg = fn1.encode(get_io_encoding())
-            artonwall_arg = u"\u00C4rtonwall".encode(get_io_encoding())
-        except UnicodeEncodeError:
-            raise unittest.SkipTest("A non-ASCII command argument could not be encoded on this platform.")
+        fn1 = os.path.join(self.basedir, u"\u00C4rtonwall")
+        artonwall_arg = u"\u00C4rtonwall"
 
         skip_if_cannot_represent_filename(fn1)
 
@@ -44,15 +50,15 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
 
         d = self.do_cli("create-alias", "tahoe")
 
-        d.addCallback(lambda res: self.do_cli("cp", fn1_arg, "tahoe:"))
+        d.addCallback(lambda res: self.do_cli("cp", fn1, "tahoe:"))
 
         d.addCallback(lambda res: self.do_cli("get", "tahoe:" + artonwall_arg))
-        d.addCallback(lambda rc_out_err: self.failUnlessReallyEqual(rc_out_err[1], DATA1))
+        d.addCallback(lambda rc_out_err: self.assertEqual(rc_out_err[1], DATA1))
 
         d.addCallback(lambda res: self.do_cli("cp", fn2, "tahoe:"))
 
         d.addCallback(lambda res: self.do_cli("get", "tahoe:Metallica"))
-        d.addCallback(lambda rc_out_err: self.failUnlessReallyEqual(rc_out_err[1], DATA2))
+        d.addCallback(lambda rc_out_err: self.assertEqual(rc_out_err[1], DATA2))
 
         d.addCallback(lambda res: self.do_cli("ls", "tahoe:"))
         def _check(args):
@@ -66,8 +72,10 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
                 self.failUnlessIn("files whose names could not be converted", err)
             else:
                 self.failUnlessReallyEqual(rc, 0)
-                self.failUnlessReallyEqual(out.decode(get_io_encoding()), u"Metallica\n\u00C4rtonwall\n")
-                self.failUnlessReallyEqual(err, "")
+                if PY2:
+                    out = out.decode(get_io_encoding())
+                self.failUnlessReallyEqual(out, u"Metallica\n\u00C4rtonwall\n")
+                self.assertEqual(len(err), 0, err)
         d.addCallback(_check)
 
         return d
@@ -98,7 +106,7 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
         fn1 = os.path.join(self.basedir, "Metallica")
         fn2 = os.path.join(outdir, "Not Metallica")
         fn3 = os.path.join(outdir, "test2")
-        DATA1 = "puppies" * 10000
+        DATA1 = b"puppies" * 10000
         fileutil.write(fn1, DATA1)
 
         d = self.do_cli("create-alias", "tahoe")
@@ -128,7 +136,7 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("when copying into a directory, all source files must have names, but",
                               err)
-            self.failUnlessReallyEqual(out, "")
+            self.assertEqual(len(out), 0, out)
         d.addCallback(_resp)
 
         # Create a directory, linked at tahoe:test .
@@ -200,13 +208,8 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
     def test_unicode_dirnames(self):
         self.basedir = "cli/Cp/unicode_dirnames"
 
-        fn1 = os.path.join(unicode(self.basedir), u"\u00C4rtonwall")
-        try:
-            fn1_arg = fn1.encode(get_io_encoding())
-            del fn1_arg # hush pyflakes
-            artonwall_arg = u"\u00C4rtonwall".encode(get_io_encoding())
-        except UnicodeEncodeError:
-            raise unittest.SkipTest("A non-ASCII command argument could not be encoded on this platform.")
+        fn1 = os.path.join(self.basedir, u"\u00C4rtonwall")
+        artonwall_arg = u"\u00C4rtonwall"
 
         skip_if_cannot_represent_filename(fn1)
 
@@ -222,13 +225,15 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
                 unicode_to_output(u"\u00C4rtonwall")
             except UnicodeEncodeError:
                 self.failUnlessReallyEqual(rc, 1)
-                self.failUnlessReallyEqual(out, "")
+                self.assertEqual(len(out), 0, out)
                 self.failUnlessIn(quote_output(u"\u00C4rtonwall"), err)
                 self.failUnlessIn("files whose names could not be converted", err)
             else:
                 self.failUnlessReallyEqual(rc, 0)
-                self.failUnlessReallyEqual(out.decode(get_io_encoding()), u"\u00C4rtonwall\n")
-                self.failUnlessReallyEqual(err, "")
+                if PY2:
+                    out = out.decode(get_io_encoding())
+                self.failUnlessReallyEqual(out, u"\u00C4rtonwall\n")
+                self.assertEqual(len(err), 0, err)
         d.addCallback(_check)
 
         return d
@@ -818,9 +823,9 @@ cp -r $DIRCAP5 $DIRCAP6 to : E9-COLLIDING-TARGETS
 """
 
 class CopyOut(GridTestMixin, CLITestMixin, unittest.TestCase):
-    FILE_CONTENTS = "file text"
-    FILE_CONTENTS_5 = "5"
-    FILE_CONTENTS_6 = "6"
+    FILE_CONTENTS = b"file text"
+    FILE_CONTENTS_5 = b"5"
+    FILE_CONTENTS_6 = b"6"
 
     def do_setup(self):
         # first we build a tahoe filesystem that contains:

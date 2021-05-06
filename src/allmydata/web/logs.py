@@ -8,8 +8,6 @@ from __future__ import (
     division,
 )
 
-import json
-
 from autobahn.twisted.resource import WebSocketResource
 from autobahn.twisted.websocket import (
     WebSocketServerFactory,
@@ -20,6 +18,8 @@ import eliot
 from twisted.web.resource import (
     Resource,
 )
+
+from allmydata.util import jsonbytes as json
 
 
 class TokenAuthenticatedWebSocketServerProtocol(WebSocketServerProtocol):
@@ -47,10 +47,7 @@ class TokenAuthenticatedWebSocketServerProtocol(WebSocketServerProtocol):
         """
         # probably want a try/except around here? what do we do if
         # transmission fails or anything else bad happens?
-        encoded = json.dumps(message)
-        if isinstance(encoded, str):
-            # On Python 3 dumps() returns Unicode...
-            encoded = encoded.encode("utf-8")
+        encoded = json.dumps_bytes(message, any_bytes=True)
         self.sendMessage(encoded)
 
     def onOpen(self):

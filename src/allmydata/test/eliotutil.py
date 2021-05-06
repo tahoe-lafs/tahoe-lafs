@@ -54,7 +54,7 @@ from twisted.python.monkey import (
     MonkeyPatcher,
 )
 
-from ..util.jsonbytes import BytesJSONEncoder
+from ..util.jsonbytes import AnyBytesJSONEncoder
 
 
 _NAME = Field.for_types(
@@ -76,7 +76,7 @@ RUN_TEST = ActionType(
 if PY2:
     _memory_logger = MemoryLogger
 else:
-    _memory_logger = lambda: MemoryLogger(encoder=BytesJSONEncoder)
+    _memory_logger = lambda: MemoryLogger(encoder=AnyBytesJSONEncoder)
 
 
 @attr.s

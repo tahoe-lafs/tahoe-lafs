@@ -1,5 +1,7 @@
 from __future__ import print_function
 
+from past.builtins import unicode
+
 import os.path, re, fnmatch
 
 try:
@@ -36,7 +38,7 @@ class FileStoreOptions(BaseOptions):
 
         # compute a node-url from the existing options, put in self['node-url']
         if self['node-url']:
-            if (not isinstance(self['node-url'], basestring)
+            if (not isinstance(self['node-url'], (bytes, unicode))
                 or not NODEURL_RE.match(self['node-url'])):
                 msg = ("--node-url is required to be a string and look like "
                        "\"http://HOSTNAMEORADDR:PORT\", not: %r" %
@@ -224,7 +226,7 @@ class CpOptions(FileStoreOptions):
     def parseArgs(self, *args):
         if len(args) < 2:
             raise usage.UsageError("cp requires at least two arguments")
-        self.sources = map(argv_to_unicode, args[:-1])
+        self.sources = [argv_to_unicode(arg) for arg in args[:-1]]
         self.destination = argv_to_unicode(args[-1])
 
     synopsis = "[options] FROM.. TO"
@@ -435,7 +437,7 @@ class CheckOptions(FileStoreOptions):
         ("add-lease", None, "Add/renew lease on all shares."),
         ]
     def parseArgs(self, *locations):
-        self.locations = map(argv_to_unicode, locations)
+        self.locations = list(map(argv_to_unicode, locations))
 
     synopsis = "[options] [ALIAS:PATH]"
     description = """
@@ -452,7 +454,7 @@ class DeepCheckOptions(FileStoreOptions):
         ("verbose", "v", "Be noisy about what is happening."),
         ]
     def parseArgs(self, *locations):
-        self.locations = map(argv_to_unicode, locations)
+        self.locations = list(map(argv_to_unicode, locations))
 
     synopsis = "[options] [ALIAS:PATH]"
     description = """

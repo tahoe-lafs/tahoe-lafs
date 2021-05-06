@@ -27,6 +27,8 @@ def list(options):
     except UnknownAliasError as e:
         e.display(stderr)
         return 1
+
+    path = unicode(path, "utf-8")
     url = nodeurl + "uri/%s" % url_quote(rootcap)
     if path:
         # move where.endswith check here?
@@ -45,10 +47,10 @@ def list(options):
             return resp.status
 
     data = resp.read()
-
     if options['json']:
         # The webapi server should always output printable ASCII.
         if is_printable_ascii(data):
+            data = unicode(data, "ascii")
             print(data, file=stdout)
             return 0
         else:
@@ -70,7 +72,7 @@ def list(options):
         children = d['children']
     else:
         # paths returned from get_alias are always valid UTF-8
-        childname = path.split("/")[-1].decode('utf-8')
+        childname = path.split("/")[-1]
         children = {childname: (nodetype, d)}
         if "metadata" not in d:
             d["metadata"] = {}
