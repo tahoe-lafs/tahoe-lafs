@@ -31,22 +31,22 @@ merged imminently (for example, "I will prepare a release this coming
 Tuesday if you want to get anything in").
 
 - Create a ticket for the release in Trac
-- Ticket number needed in next section
+- Ticket number will be needed in the next section
 
 
 Create Branch and Apply Updates
 ```````````````````````````````
 
-- Create a branch for release-candidates (e.g. `XXXX.release-1.15.0.rc0`)
-- run `tox -e news` to produce a new NEWS.txt file (this does a commit)
-- create the news for the release
+- Create a branch for the release-candidates (e.g. `XXXX.release-1.15.0.rc0`)
+- run `tox -e news` to produce a new NEWS.txt file (this does a commit)(You may have to install tox by running 'pip install tox' )
+- Create the news for the release
 
-  - newsfragments/<ticket number>.minor
+  - create newsfragments/<ticket number>.minor (e.g 'tahoe-lafs/newsfragments/3680.minor')
   - commit it
 
 - manually fix NEWS.txt
 
-  - proper title for latest release ("Release 1.15.0" instead of "Release ...post1432")
+  - set a proper title for latest release ("Release 1.15.0" instead of "Release ...post1432")
   - double-check date (maybe release will be in the future)
   - spot-check the release notes (these come from the newsfragments
     files though so don't do heavy editing)
