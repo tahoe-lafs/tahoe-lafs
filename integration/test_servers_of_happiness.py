@@ -3,7 +3,7 @@ from os.path import join
 
 from twisted.internet.error import ProcessTerminated
 
-import util
+from . import util
 
 import pytest_twisted
 

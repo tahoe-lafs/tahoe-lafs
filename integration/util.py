@@ -116,6 +116,7 @@ class _MagicTextProtocol(ProcessProtocol):
         self.exited.callback(None)
 
     def outReceived(self, data):
+        data = unicode(data, sys.stdout.encoding)
         sys.stdout.write(data)
         self._output.write(data)
         if not self.magic_seen.called and self._magic_text in self._output.getvalue():
@@ -123,6 +124,7 @@ class _MagicTextProtocol(ProcessProtocol):
             self.magic_seen.callback(self)
 
     def errReceived(self, data):
+        data = unicode(data, sys.stderr.encoding)
         sys.stdout.write(data)
 
 
