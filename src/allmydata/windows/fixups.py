@@ -1,4 +1,5 @@
 from __future__ import print_function
+from past.builtins import unicode
 
 # This code isn't loadable or sensible except on Windows.  Importers all know
 # this and are careful.  Normally I would just let an import error from ctypes
