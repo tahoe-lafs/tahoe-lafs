@@ -1,14 +1,8 @@
 """
 Track the port to Python 3.
 
-The two easiest ways to run the part of the test suite which is expected to
-pass on Python 3 are::
-
-    $ tox -e py36
-
-and::
-
-    $ trial allmydata.test.python3_tests
+At this point all unit tests have been ported to Python 3, so you can just run
+them normally.
 
 This module has been ported to Python 3.
 """
