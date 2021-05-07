@@ -42,4 +42,4 @@ def test_upload_immutable(reactor, temp_dir, introducer_furl, flog_gatherer, sto
         assert isinstance(e, ProcessTerminated)
 
     output = proto.output.getvalue()
-    assert "shares could be placed on only" in output
+    assert b"shares could be placed on only" in output
