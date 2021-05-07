@@ -9,6 +9,8 @@ WebAPI *should* do in every situation. It's not clear the latter
 exists anywhere, however.
 """
 
+from past.builtins import unicode
+
 import time
 import json
 import urllib2
