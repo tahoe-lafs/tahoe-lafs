@@ -240,6 +240,7 @@ PORTED_TEST_MODULES = [
     "allmydata.test.test_node",
     "allmydata.test.test_observer",
     "allmydata.test.test_pipeline",
+    "allmydata.test.test_python2_regressions",
     "allmydata.test.test_python3",
     "allmydata.test.test_repairer",
     "allmydata.test.test_runner",
