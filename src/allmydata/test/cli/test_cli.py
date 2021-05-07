@@ -1,8 +1,23 @@
-import os.path
+"""
+Ported to Python 3.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+
 from six.moves import cStringIO as StringIO
-import urllib, sys
+from six import ensure_text, ensure_str
+
+import os.path
+import sys
 import re
 from mock import patch, Mock
+from urllib.parse import quote as url_quote
 
 from twisted.trial import unittest
 from twisted.python.monkey import MonkeyPatcher
@@ -44,6 +59,7 @@ from allmydata.util.encodingutil import listdir_unicode, get_io_encoding
 
 class CLI(CLITestMixin, unittest.TestCase):
     def _dump_cap(self, *args):
+        args = [ensure_text(s) for s in args]
         config = debug.DumpCapOptions()
         config.stdout,config.stderr = StringIO(), StringIO()
         config.parseOptions(args)
@@ -53,8 +69,8 @@ class CLI(CLITestMixin, unittest.TestCase):
         return output
 
     def test_dump_cap_chk(self):
-        key = "\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f"
-        uri_extension_hash = hashutil.uri_extension_hash("stuff")
+        key = b"\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f"
+        uri_extension_hash = hashutil.uri_extension_hash(b"stuff")
         needed_shares = 25
         total_shares = 100
         size = 1234
@@ -75,14 +91,14 @@ class CLI(CLITestMixin, unittest.TestCase):
                                 u.to_string())
         self.failUnless("client renewal secret: znxmki5zdibb5qlt46xbdvk2t55j7hibejq3i5ijyurkr6m6jkhq" in output, output)
 
-        output = self._dump_cap(u.get_verify_cap().to_string())
+        output = self._dump_cap(str(u.get_verify_cap().to_string(), "ascii"))
         self.failIf("key: " in output, output)
         self.failUnless("UEB hash: nf3nimquen7aeqm36ekgxomalstenpkvsdmf6fplj7swdatbv5oa" in output, output)
         self.failUnless("size: 1234" in output, output)
         self.failUnless("k/N: 25/100" in output, output)
         self.failUnless("storage index: hdis5iaveku6lnlaiccydyid7q" in output, output)
 
-        prefixed_u = "http://127.0.0.1/uri/%s" % urllib.quote(u.to_string())
+        prefixed_u = "http://127.0.0.1/uri/%s" % url_quote(u.to_string())
         output = self._dump_cap(prefixed_u)
         self.failUnless("CHK File:" in output, output)
         self.failUnless("key: aaaqeayeaudaocajbifqydiob4" in output, output)
@@ -92,14 +108,14 @@ class CLI(CLITestMixin, unittest.TestCase):
         self.failUnless("storage index: hdis5iaveku6lnlaiccydyid7q" in output, output)
 
     def test_dump_cap_lit(self):
-        u = uri.LiteralFileURI("this is some data")
+        u = uri.LiteralFileURI(b"this is some data")
         output = self._dump_cap(u.to_string())
         self.failUnless("Literal File URI:" in output, output)
         self.failUnless("data: 'this is some data'" in output, output)
 
     def test_dump_cap_sdmf(self):
-        writekey = "\x01" * 16
-        fingerprint = "\xfe" * 32
+        writekey = b"\x01" * 16
+        fingerprint = b"\xfe" * 32
         u = uri.WriteableSSKFileURI(writekey, fingerprint)
 
         output = self._dump_cap(u.to_string())
@@ -149,8 +165,8 @@ class CLI(CLITestMixin, unittest.TestCase):
         self.failUnless("fingerprint: 737p57x6737p57x6737p57x6737p57x6737p57x6737p57x6737a" in output, output)
 
     def test_dump_cap_mdmf(self):
-        writekey = "\x01" * 16
-        fingerprint = "\xfe" * 32
+        writekey = b"\x01" * 16
+        fingerprint = b"\xfe" * 32
         u = uri.WriteableMDMFFileURI(writekey, fingerprint)
 
         output = self._dump_cap(u.to_string())
@@ -201,8 +217,8 @@ class CLI(CLITestMixin, unittest.TestCase):
 
 
     def test_dump_cap_chk_directory(self):
-        key = "\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f"
-        uri_extension_hash = hashutil.uri_extension_hash("stuff")
+        key = b"\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f"
+        uri_extension_hash = hashutil.uri_extension_hash(b"stuff")
         needed_shares = 25
         total_shares = 100
         size = 1234
@@ -235,8 +251,8 @@ class CLI(CLITestMixin, unittest.TestCase):
         self.failUnless("storage index: hdis5iaveku6lnlaiccydyid7q" in output, output)
 
     def test_dump_cap_sdmf_directory(self):
-        writekey = "\x01" * 16
-        fingerprint = "\xfe" * 32
+        writekey = b"\x01" * 16
+        fingerprint = b"\xfe" * 32
         u1 = uri.WriteableSSKFileURI(writekey, fingerprint)
         u = uri.DirectoryURI(u1)
 
@@ -279,8 +295,8 @@ class CLI(CLITestMixin, unittest.TestCase):
         self.failUnless("fingerprint: 737p57x6737p57x6737p57x6737p57x6737p57x6737p57x6737a" in output, output)
 
     def test_dump_cap_mdmf_directory(self):
-        writekey = "\x01" * 16
-        fingerprint = "\xfe" * 32
+        writekey = b"\x01" * 16
+        fingerprint = b"\xfe" * 32
         u1 = uri.WriteableMDMFFileURI(writekey, fingerprint)
         u = uri.MDMFDirectoryURI(u1)
 
@@ -340,7 +356,7 @@ class CLI(CLITestMixin, unittest.TestCase):
         fileutil.write("cli/test_catalog_shares/node1/storage/shares/mq/not-a-dir", "")
         # write a bogus share that looks a little bit like CHK
         fileutil.write(os.path.join(sharedir, "8"),
-                       "\x00\x00\x00\x01" + "\xff" * 200) # this triggers an assert
+                       b"\x00\x00\x00\x01" + b"\xff" * 200) # this triggers an assert
 
         nodedir2 = "cli/test_catalog_shares/node2"
         fileutil.make_dirs(nodedir2)
@@ -348,7 +364,7 @@ class CLI(CLITestMixin, unittest.TestCase):
 
         # now make sure that the 'catalog-shares' commands survives the error
         out, err = self._catalog_shares(nodedir1, nodedir2)
-        self.failUnlessReallyEqual(out, "", out)
+        self.assertEqual(out, "")
         self.failUnless("Error processing " in err,
                         "didn't see 'error processing' in '%s'" % err)
         #self.failUnless(nodedir1 in err,
@@ -361,71 +377,71 @@ class CLI(CLITestMixin, unittest.TestCase):
                         "didn't see 'mqfblse6m5a6dh45isu2cg7oji' in '%s'" % err)
 
     def test_alias(self):
-        def s128(c): return base32.b2a(c*(128/8))
-        def s256(c): return base32.b2a(c*(256/8))
-        TA = "URI:DIR2:%s:%s" % (s128("T"), s256("T"))
-        WA = "URI:DIR2:%s:%s" % (s128("W"), s256("W"))
-        CA = "URI:DIR2:%s:%s" % (s128("C"), s256("C"))
+        def s128(c): return base32.b2a(c*(128//8))
+        def s256(c): return base32.b2a(c*(256//8))
+        TA = b"URI:DIR2:%s:%s" % (s128(b"T"), s256(b"T"))
+        WA = b"URI:DIR2:%s:%s" % (s128(b"W"), s256(b"W"))
+        CA = b"URI:DIR2:%s:%s" % (s128(b"C"), s256(b"C"))
         aliases = {"tahoe": TA,
                    "work": WA,
                    "c": CA}
         def ga1(path):
             return get_alias(aliases, path, u"tahoe")
         uses_lettercolon = common.platform_uses_lettercolon_drivename()
-        self.failUnlessReallyEqual(ga1(u"bare"), (TA, "bare"))
-        self.failUnlessReallyEqual(ga1(u"baredir/file"), (TA, "baredir/file"))
-        self.failUnlessReallyEqual(ga1(u"baredir/file:7"), (TA, "baredir/file:7"))
-        self.failUnlessReallyEqual(ga1(u"tahoe:"), (TA, ""))
-        self.failUnlessReallyEqual(ga1(u"tahoe:file"), (TA, "file"))
-        self.failUnlessReallyEqual(ga1(u"tahoe:dir/file"), (TA, "dir/file"))
-        self.failUnlessReallyEqual(ga1(u"work:"), (WA, ""))
-        self.failUnlessReallyEqual(ga1(u"work:file"), (WA, "file"))
-        self.failUnlessReallyEqual(ga1(u"work:dir/file"), (WA, "dir/file"))
+        self.failUnlessReallyEqual(ga1(u"bare"), (TA, b"bare"))
+        self.failUnlessReallyEqual(ga1(u"baredir/file"), (TA, b"baredir/file"))
+        self.failUnlessReallyEqual(ga1(u"baredir/file:7"), (TA, b"baredir/file:7"))
+        self.failUnlessReallyEqual(ga1(u"tahoe:"), (TA, b""))
+        self.failUnlessReallyEqual(ga1(u"tahoe:file"), (TA, b"file"))
+        self.failUnlessReallyEqual(ga1(u"tahoe:dir/file"), (TA, b"dir/file"))
+        self.failUnlessReallyEqual(ga1(u"work:"), (WA, b""))
+        self.failUnlessReallyEqual(ga1(u"work:file"), (WA, b"file"))
+        self.failUnlessReallyEqual(ga1(u"work:dir/file"), (WA, b"dir/file"))
         # default != None means we really expect a tahoe path, regardless of
         # whether we're on windows or not. This is what 'tahoe get' uses.
-        self.failUnlessReallyEqual(ga1(u"c:"), (CA, ""))
-        self.failUnlessReallyEqual(ga1(u"c:file"), (CA, "file"))
-        self.failUnlessReallyEqual(ga1(u"c:dir/file"), (CA, "dir/file"))
-        self.failUnlessReallyEqual(ga1(u"URI:stuff"), ("URI:stuff", ""))
-        self.failUnlessReallyEqual(ga1(u"URI:stuff/file"), ("URI:stuff", "file"))
-        self.failUnlessReallyEqual(ga1(u"URI:stuff:./file"), ("URI:stuff", "file"))
-        self.failUnlessReallyEqual(ga1(u"URI:stuff/dir/file"), ("URI:stuff", "dir/file"))
-        self.failUnlessReallyEqual(ga1(u"URI:stuff:./dir/file"), ("URI:stuff", "dir/file"))
+        self.failUnlessReallyEqual(ga1(u"c:"), (CA, b""))
+        self.failUnlessReallyEqual(ga1(u"c:file"), (CA, b"file"))
+        self.failUnlessReallyEqual(ga1(u"c:dir/file"), (CA, b"dir/file"))
+        self.failUnlessReallyEqual(ga1(u"URI:stuff"), (b"URI:stuff", b""))
+        self.failUnlessReallyEqual(ga1(u"URI:stuff/file"), (b"URI:stuff", b"file"))
+        self.failUnlessReallyEqual(ga1(u"URI:stuff:./file"), (b"URI:stuff", b"file"))
+        self.failUnlessReallyEqual(ga1(u"URI:stuff/dir/file"), (b"URI:stuff", b"dir/file"))
+        self.failUnlessReallyEqual(ga1(u"URI:stuff:./dir/file"), (b"URI:stuff", b"dir/file"))
         self.failUnlessRaises(common.UnknownAliasError, ga1, u"missing:")
         self.failUnlessRaises(common.UnknownAliasError, ga1, u"missing:dir")
         self.failUnlessRaises(common.UnknownAliasError, ga1, u"missing:dir/file")
 
         def ga2(path):
             return get_alias(aliases, path, None)
-        self.failUnlessReallyEqual(ga2(u"bare"), (DefaultAliasMarker, "bare"))
+        self.failUnlessReallyEqual(ga2(u"bare"), (DefaultAliasMarker, b"bare"))
         self.failUnlessReallyEqual(ga2(u"baredir/file"),
-                             (DefaultAliasMarker, "baredir/file"))
+                             (DefaultAliasMarker, b"baredir/file"))
         self.failUnlessReallyEqual(ga2(u"baredir/file:7"),
-                             (DefaultAliasMarker, "baredir/file:7"))
+                             (DefaultAliasMarker, b"baredir/file:7"))
         self.failUnlessReallyEqual(ga2(u"baredir/sub:1/file:7"),
-                             (DefaultAliasMarker, "baredir/sub:1/file:7"))
-        self.failUnlessReallyEqual(ga2(u"tahoe:"), (TA, ""))
-        self.failUnlessReallyEqual(ga2(u"tahoe:file"), (TA, "file"))
-        self.failUnlessReallyEqual(ga2(u"tahoe:dir/file"), (TA, "dir/file"))
+                             (DefaultAliasMarker, b"baredir/sub:1/file:7"))
+        self.failUnlessReallyEqual(ga2(u"tahoe:"), (TA, b""))
+        self.failUnlessReallyEqual(ga2(u"tahoe:file"), (TA, b"file"))
+        self.failUnlessReallyEqual(ga2(u"tahoe:dir/file"), (TA, b"dir/file"))
         # on windows, we really want c:foo to indicate a local file.
         # default==None is what 'tahoe cp' uses.
         if uses_lettercolon:
-            self.failUnlessReallyEqual(ga2(u"c:"), (DefaultAliasMarker, "c:"))
-            self.failUnlessReallyEqual(ga2(u"c:file"), (DefaultAliasMarker, "c:file"))
+            self.failUnlessReallyEqual(ga2(u"c:"), (DefaultAliasMarker, b"c:"))
+            self.failUnlessReallyEqual(ga2(u"c:file"), (DefaultAliasMarker, b"c:file"))
             self.failUnlessReallyEqual(ga2(u"c:dir/file"),
-                                 (DefaultAliasMarker, "c:dir/file"))
+                                 (DefaultAliasMarker, b"c:dir/file"))
         else:
-            self.failUnlessReallyEqual(ga2(u"c:"), (CA, ""))
-            self.failUnlessReallyEqual(ga2(u"c:file"), (CA, "file"))
-            self.failUnlessReallyEqual(ga2(u"c:dir/file"), (CA, "dir/file"))
-        self.failUnlessReallyEqual(ga2(u"work:"), (WA, ""))
-        self.failUnlessReallyEqual(ga2(u"work:file"), (WA, "file"))
-        self.failUnlessReallyEqual(ga2(u"work:dir/file"), (WA, "dir/file"))
-        self.failUnlessReallyEqual(ga2(u"URI:stuff"), ("URI:stuff", ""))
-        self.failUnlessReallyEqual(ga2(u"URI:stuff/file"), ("URI:stuff", "file"))
-        self.failUnlessReallyEqual(ga2(u"URI:stuff:./file"), ("URI:stuff", "file"))
-        self.failUnlessReallyEqual(ga2(u"URI:stuff/dir/file"), ("URI:stuff", "dir/file"))
-        self.failUnlessReallyEqual(ga2(u"URI:stuff:./dir/file"), ("URI:stuff", "dir/file"))
+            self.failUnlessReallyEqual(ga2(u"c:"), (CA, b""))
+            self.failUnlessReallyEqual(ga2(u"c:file"), (CA, b"file"))
+            self.failUnlessReallyEqual(ga2(u"c:dir/file"), (CA, b"dir/file"))
+        self.failUnlessReallyEqual(ga2(u"work:"), (WA, b""))
+        self.failUnlessReallyEqual(ga2(u"work:file"), (WA, b"file"))
+        self.failUnlessReallyEqual(ga2(u"work:dir/file"), (WA, b"dir/file"))
+        self.failUnlessReallyEqual(ga2(u"URI:stuff"), (b"URI:stuff", b""))
+        self.failUnlessReallyEqual(ga2(u"URI:stuff/file"), (b"URI:stuff", b"file"))
+        self.failUnlessReallyEqual(ga2(u"URI:stuff:./file"), (b"URI:stuff", b"file"))
+        self.failUnlessReallyEqual(ga2(u"URI:stuff/dir/file"), (b"URI:stuff", b"dir/file"))
+        self.failUnlessReallyEqual(ga2(u"URI:stuff:./dir/file"), (b"URI:stuff", b"dir/file"))
         self.failUnlessRaises(common.UnknownAliasError, ga2, u"missing:")
         self.failUnlessRaises(common.UnknownAliasError, ga2, u"missing:dir")
         self.failUnlessRaises(common.UnknownAliasError, ga2, u"missing:dir/file")
@@ -438,26 +454,26 @@ class CLI(CLITestMixin, unittest.TestCase):
             finally:
                 common.pretend_platform_uses_lettercolon = old
             return retval
-        self.failUnlessReallyEqual(ga3(u"bare"), (DefaultAliasMarker, "bare"))
+        self.failUnlessReallyEqual(ga3(u"bare"), (DefaultAliasMarker, b"bare"))
         self.failUnlessReallyEqual(ga3(u"baredir/file"),
-                             (DefaultAliasMarker, "baredir/file"))
+                             (DefaultAliasMarker, b"baredir/file"))
         self.failUnlessReallyEqual(ga3(u"baredir/file:7"),
-                             (DefaultAliasMarker, "baredir/file:7"))
+                             (DefaultAliasMarker, b"baredir/file:7"))
         self.failUnlessReallyEqual(ga3(u"baredir/sub:1/file:7"),
-                             (DefaultAliasMarker, "baredir/sub:1/file:7"))
-        self.failUnlessReallyEqual(ga3(u"tahoe:"), (TA, ""))
-        self.failUnlessReallyEqual(ga3(u"tahoe:file"), (TA, "file"))
-        self.failUnlessReallyEqual(ga3(u"tahoe:dir/file"), (TA, "dir/file"))
-        self.failUnlessReallyEqual(ga3(u"c:"), (DefaultAliasMarker, "c:"))
-        self.failUnlessReallyEqual(ga3(u"c:file"), (DefaultAliasMarker, "c:file"))
+                             (DefaultAliasMarker, b"baredir/sub:1/file:7"))
+        self.failUnlessReallyEqual(ga3(u"tahoe:"), (TA, b""))
+        self.failUnlessReallyEqual(ga3(u"tahoe:file"), (TA, b"file"))
+        self.failUnlessReallyEqual(ga3(u"tahoe:dir/file"), (TA, b"dir/file"))
+        self.failUnlessReallyEqual(ga3(u"c:"), (DefaultAliasMarker, b"c:"))
+        self.failUnlessReallyEqual(ga3(u"c:file"), (DefaultAliasMarker, b"c:file"))
         self.failUnlessReallyEqual(ga3(u"c:dir/file"),
-                             (DefaultAliasMarker, "c:dir/file"))
-        self.failUnlessReallyEqual(ga3(u"work:"), (WA, ""))
-        self.failUnlessReallyEqual(ga3(u"work:file"), (WA, "file"))
-        self.failUnlessReallyEqual(ga3(u"work:dir/file"), (WA, "dir/file"))
-        self.failUnlessReallyEqual(ga3(u"URI:stuff"), ("URI:stuff", ""))
-        self.failUnlessReallyEqual(ga3(u"URI:stuff:./file"), ("URI:stuff", "file"))
-        self.failUnlessReallyEqual(ga3(u"URI:stuff:./dir/file"), ("URI:stuff", "dir/file"))
+                             (DefaultAliasMarker, b"c:dir/file"))
+        self.failUnlessReallyEqual(ga3(u"work:"), (WA, b""))
+        self.failUnlessReallyEqual(ga3(u"work:file"), (WA, b"file"))
+        self.failUnlessReallyEqual(ga3(u"work:dir/file"), (WA, b"dir/file"))
+        self.failUnlessReallyEqual(ga3(u"URI:stuff"), (b"URI:stuff", b""))
+        self.failUnlessReallyEqual(ga3(u"URI:stuff:./file"), (b"URI:stuff", b"file"))
+        self.failUnlessReallyEqual(ga3(u"URI:stuff:./dir/file"), (b"URI:stuff", b"dir/file"))
         self.failUnlessRaises(common.UnknownAliasError, ga3, u"missing:")
         self.failUnlessRaises(common.UnknownAliasError, ga3, u"missing:dir")
         self.failUnlessRaises(common.UnknownAliasError, ga3, u"missing:dir/file")
@@ -480,14 +496,14 @@ class CLI(CLITestMixin, unittest.TestCase):
         self.failUnlessRaises(common.UnknownAliasError, ga5, u"C:\\Windows")
 
     def test_alias_tolerance(self):
-        def s128(c): return base32.b2a(c*(128/8))
-        def s256(c): return base32.b2a(c*(256/8))
-        TA = "URI:DIR2:%s:%s" % (s128("T"), s256("T"))
+        def s128(c): return base32.b2a(c*(128//8))
+        def s256(c): return base32.b2a(c*(256//8))
+        TA = b"URI:DIR2:%s:%s" % (s128(b"T"), s256(b"T"))
         aliases = {"present": TA,
-                   "future": "URI-FROM-FUTURE:ooh:aah"}
+                   "future": b"URI-FROM-FUTURE:ooh:aah"}
         def ga1(path):
             return get_alias(aliases, path, u"tahoe")
-        self.failUnlessReallyEqual(ga1(u"present:file"), (TA, "file"))
+        self.failUnlessReallyEqual(ga1(u"present:file"), (TA, b"file"))
         # this throws, via assert IDirnodeURI.providedBy(), since get_alias()
         # wants a dirnode, and the future cap gives us UnknownURI instead.
         self.failUnlessRaises(AssertionError, ga1, u"future:stuff")
@@ -502,9 +518,9 @@ class CLI(CLITestMixin, unittest.TestCase):
         fileutil.make_dirs(basedir)
 
         for name in filenames:
-            open(os.path.join(unicode(basedir), name), "wb").close()
+            open(os.path.join(str(basedir), name), "wb").close()
 
-        for file in listdir_unicode(unicode(basedir)):
+        for file in listdir_unicode(str(basedir)):
             self.failUnlessIn(normalize(file), filenames)
 
     def test_exception_catcher(self):
@@ -671,7 +687,7 @@ class Ln(GridTestMixin, CLITestMixin, unittest.TestCase):
             (rc, out, err) = args
             self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("error:", err)
-            self.failUnlessReallyEqual(out, "")
+            self.assertEqual(out, "")
         d.addCallback(_check)
         # Make sure that validation extends to the "to" parameter
         d.addCallback(lambda ign: self.do_cli("create-alias", "havasu"))
@@ -718,8 +734,9 @@ class Admin(unittest.TestCase):
             self.failUnlessEqual(pubkey_bits[0], vk_header, lines[1])
             self.failUnless(privkey_bits[1].startswith("priv-v0-"), lines[0])
             self.failUnless(pubkey_bits[1].startswith("pub-v0-"), lines[1])
-            sk, pk = ed25519.signing_keypair_from_string(privkey_bits[1])
-            vk_bytes = pubkey_bits[1]
+            sk, pk = ed25519.signing_keypair_from_string(
+                privkey_bits[1].encode("ascii"))
+            vk_bytes = pubkey_bits[1].encode("ascii")
             self.assertEqual(
                 ed25519.string_from_verifying_key(pk),
                 vk_bytes,
@@ -729,8 +746,8 @@ class Admin(unittest.TestCase):
 
     def test_derive_pubkey(self):
         priv_key, pub_key = ed25519.create_signing_keypair()
-        priv_key_str = ed25519.string_from_signing_key(priv_key)
-        pub_key_str = ed25519.string_from_verifying_key(pub_key)
+        priv_key_str = str(ed25519.string_from_signing_key(priv_key), "ascii")
+        pub_key_str = str(ed25519.string_from_verifying_key(pub_key), "ascii")
         d = run_cli("admin", "derive-pubkey", priv_key_str)
         def _done(args):
             (rc, stdout, stderr) = args
@@ -753,11 +770,11 @@ class Errors(GridTestMixin, CLITestMixin, unittest.TestCase):
         self.set_up_grid()
         c0 = self.g.clients[0]
         self.fileurls = {}
-        DATA = "data" * 100
-        d = c0.upload(upload.Data(DATA, convergence=""))
+        DATA = b"data" * 100
+        d = c0.upload(upload.Data(DATA, convergence=b""))
         def _stash_bad(ur):
             self.uri_1share = ur.get_uri()
-            self.delete_shares_numbered(ur.get_uri(), range(1,10))
+            self.delete_shares_numbered(ur.get_uri(), list(range(1,10)))
         d.addCallback(_stash_bad)
 
         # the download is abandoned as soon as it's clear that we won't get
@@ -821,7 +838,7 @@ class Get(GridTestMixin, CLITestMixin, unittest.TestCase):
             (rc, out, err) = args
             self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("error:", err)
-            self.failUnlessReallyEqual(out, "")
+            self.assertEqual(out, "")
         d.addCallback(_check)
         return d
 
@@ -836,7 +853,7 @@ class Get(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("error:", err)
             self.failUnlessIn("nonexistent", err)
-            self.failUnlessReallyEqual(out, "")
+            self.assertEqual(out, "")
         d.addCallback(_check)
         return d
 
@@ -853,7 +870,7 @@ class Manifest(GridTestMixin, CLITestMixin, unittest.TestCase):
             (rc, out, err) = args
             self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("error:", err)
-            self.failUnlessReallyEqual(out, "")
+            self.assertEqual(out, "")
         d.addCallback(_check)
         return d
 
@@ -868,7 +885,7 @@ class Manifest(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("error:", err)
             self.failUnlessIn("nonexistent", err)
-            self.failUnlessReallyEqual(out, "")
+            self.assertEqual(out, "")
         d.addCallback(_check)
         return d
 
@@ -883,7 +900,7 @@ class Mkdir(GridTestMixin, CLITestMixin, unittest.TestCase):
         def _check(args):
             (rc, out, err) = args
             self.failUnlessReallyEqual(rc, 0)
-            self.failUnlessReallyEqual(err, "")
+            self.assertEqual(err, "")
             self.failUnlessIn("URI:", out)
         d.addCallback(_check)
 
@@ -896,7 +913,7 @@ class Mkdir(GridTestMixin, CLITestMixin, unittest.TestCase):
         def _check(args, st):
             (rc, out, err) = args
             self.failUnlessReallyEqual(rc, 0)
-            self.failUnlessReallyEqual(err, "")
+            self.assertEqual(err, "")
             self.failUnlessIn(st, out)
             return out
 
@@ -932,7 +949,7 @@ class Mkdir(GridTestMixin, CLITestMixin, unittest.TestCase):
         def _check(args, st):
             (rc, out, err) = args
             self.failUnlessReallyEqual(rc, 0)
-            self.failUnlessReallyEqual(err, "")
+            self.assertEqual(err, "")
             self.failUnlessIn(st, out)
             return out
         d.addCallback(_check, "URI:DIR2")
@@ -976,7 +993,7 @@ class Mkdir(GridTestMixin, CLITestMixin, unittest.TestCase):
         def _check(args):
             (rc, out, err) = args
             self.failUnlessReallyEqual(rc, 0)
-            self.failUnlessReallyEqual(err, "")
+            self.assertEqual(err, "")
             self.failUnlessIn("URI:", out)
         d.addCallback(_check)
 
@@ -992,7 +1009,7 @@ class Mkdir(GridTestMixin, CLITestMixin, unittest.TestCase):
             (rc, out, err) = args
             self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("error:", err)
-            self.failUnlessReallyEqual(out, "")
+            self.assertEqual(out, "")
         d.addCallback(_check)
         return d
 
@@ -1016,7 +1033,7 @@ class Unlink(GridTestMixin, CLITestMixin, unittest.TestCase):
             (rc, out, err) = args
             self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("error:", err)
-            self.failUnlessReallyEqual(out, "")
+            self.assertEqual(out, "")
         d.addCallback(_check)
 
         d.addCallback(lambda ign: self.do_cli(self.command, "afile"))
@@ -1034,7 +1051,7 @@ class Unlink(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("error:", err)
             self.failUnlessIn("nonexistent", err)
-            self.failUnlessReallyEqual(out, "")
+            self.assertEqual(out, "")
         d.addCallback(_check)
 
         d.addCallback(lambda ign: self.do_cli(self.command, "nonexistent:afile"))
@@ -1060,7 +1077,7 @@ class Unlink(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("'tahoe %s'" % (self.command,), err)
             self.failUnlessIn("path must be given", err)
-            self.failUnlessReallyEqual(out, "")
+            self.assertEqual(out, "")
         d.addCallback(_check)
         return d
 
@@ -1081,7 +1098,7 @@ class Stats(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(lambda ign: self.do_cli("stats", self.rooturi))
         def _check_stats(args):
             (rc, out, err) = args
-            self.failUnlessReallyEqual(err, "")
+            self.assertEqual(err, "")
             self.failUnlessReallyEqual(rc, 0)
             lines = out.splitlines()
             self.failUnlessIn(" count-immutable-files: 0", lines)
@@ -1105,7 +1122,7 @@ class Stats(GridTestMixin, CLITestMixin, unittest.TestCase):
             (rc, out, err) = args
             self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("error:", err)
-            self.failUnlessReallyEqual(out, "")
+            self.assertEqual(out, "")
         d.addCallback(_check)
         return d
 
@@ -1119,7 +1136,7 @@ class Stats(GridTestMixin, CLITestMixin, unittest.TestCase):
             (rc, out, err) = args
             self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("error:", err)
-            self.failUnlessReallyEqual(out, "")
+            self.assertEqual(out, "")
         d.addCallback(_check)
         return d
 
@@ -1136,7 +1153,7 @@ class Webopen(GridTestMixin, CLITestMixin, unittest.TestCase):
             (rc, out, err) = args
             self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("error:", err)
-            self.failUnlessReallyEqual(out, "")
+            self.assertEqual(out, "")
         d.addCallback(_check)
         return d
 
@@ -1144,7 +1161,7 @@ class Webopen(GridTestMixin, CLITestMixin, unittest.TestCase):
         # TODO: replace with @patch that supports Deferreds.
         import webbrowser
         def call_webbrowser_open(url):
-            self.failUnlessIn(self.alias_uri.replace(':', '%3A'), url)
+            self.failUnlessIn(str(self.alias_uri, "ascii").replace(':', '%3A'), url)
             self.webbrowser_open_called = True
         def _cleanup(res):
             webbrowser.open = self.old_webbrowser_open
@@ -1161,15 +1178,15 @@ class Webopen(GridTestMixin, CLITestMixin, unittest.TestCase):
                 (rc, out, err) = args
                 self.failUnlessReallyEqual(rc, 0, repr((rc, out, err)))
                 self.failUnlessIn("Alias 'alias' created", out)
-                self.failUnlessReallyEqual(err, "")
+                self.assertEqual(err, "")
                 self.alias_uri = get_aliases(self.get_clientdir())["alias"]
             d.addCallback(_check_alias)
             d.addCallback(lambda res: self.do_cli("webopen", "alias:"))
             def _check_webopen(args):
                 (rc, out, err) = args
                 self.failUnlessReallyEqual(rc, 0, repr((rc, out, err)))
-                self.failUnlessReallyEqual(out, "")
-                self.failUnlessReallyEqual(err, "")
+                self.assertEqual(out, "")
+                self.assertEqual(err, "")
                 self.failUnless(self.webbrowser_open_called)
             d.addCallback(_check_webopen)
             d.addBoth(_cleanup)
@@ -1195,31 +1212,31 @@ class Options(ReallyEqualMixin, unittest.TestCase):
         fileutil.make_dirs("cli/test_options")
         fileutil.make_dirs("cli/test_options/private")
         fileutil.write("cli/test_options/node.url", "http://localhost:8080/\n")
-        filenode_uri = uri.WriteableSSKFileURI(writekey="\x00"*16,
-                                               fingerprint="\x00"*32)
+        filenode_uri = uri.WriteableSSKFileURI(writekey=b"\x00"*16,
+                                               fingerprint=b"\x00"*32)
         private_uri = uri.DirectoryURI(filenode_uri).to_string()
-        fileutil.write("cli/test_options/private/root_dir.cap", private_uri + "\n")
+        fileutil.write("cli/test_options/private/root_dir.cap", private_uri + b"\n")
         def parse2(args): return parse_options("cli/test_options", "ls", args)
         o = parse2([])
         self.failUnlessEqual(o['node-url'], "http://localhost:8080/")
-        self.failUnlessEqual(o.aliases[DEFAULT_ALIAS], private_uri)
+        self.failUnlessEqual(o.aliases[DEFAULT_ALIAS].encode("ascii"), private_uri)
         self.failUnlessEqual(o.where, u"")
 
         o = parse2(["--node-url", "http://example.org:8111/"])
         self.failUnlessEqual(o['node-url'], "http://example.org:8111/")
-        self.failUnlessEqual(o.aliases[DEFAULT_ALIAS], private_uri)
+        self.failUnlessEqual(o.aliases[DEFAULT_ALIAS].encode("ascii"), private_uri)
         self.failUnlessEqual(o.where, u"")
 
         # -u for --node-url used to clash with -u for --uri (tickets #1949 and #2137).
         o = parse2(["-u", "http://example.org:8111/"])
         self.failUnlessEqual(o['node-url'], "http://example.org:8111/")
-        self.failUnlessEqual(o.aliases[DEFAULT_ALIAS], private_uri)
+        self.failUnlessEqual(o.aliases[DEFAULT_ALIAS].encode("ascii"), private_uri)
         self.failUnlessEqual(o.where, u"")
         self.failIf(o["uri"])
 
         o = parse2(["-u", "http://example.org:8111/", "--uri"])
         self.failUnlessEqual(o['node-url'], "http://example.org:8111/")
-        self.failUnlessEqual(o.aliases[DEFAULT_ALIAS], private_uri)
+        self.failUnlessEqual(o.aliases[DEFAULT_ALIAS].encode("ascii"), private_uri)
         self.failUnlessEqual(o.where, u"")
         self.failUnless(o["uri"])
 
@@ -1228,17 +1245,17 @@ class Options(ReallyEqualMixin, unittest.TestCase):
         self.failUnlessEqual(o.aliases[DEFAULT_ALIAS], "root")
         self.failUnlessEqual(o.where, u"")
 
-        other_filenode_uri = uri.WriteableSSKFileURI(writekey="\x11"*16,
-                                                     fingerprint="\x11"*32)
+        other_filenode_uri = uri.WriteableSSKFileURI(writekey=b"\x11"*16,
+                                                     fingerprint=b"\x11"*32)
         other_uri = uri.DirectoryURI(other_filenode_uri).to_string()
         o = parse2(["--dir-cap", other_uri])
         self.failUnlessEqual(o['node-url'], "http://localhost:8080/")
-        self.failUnlessEqual(o.aliases[DEFAULT_ALIAS], other_uri)
+        self.failUnlessEqual(o.aliases[DEFAULT_ALIAS].encode("ascii"), other_uri)
         self.failUnlessEqual(o.where, u"")
 
         o = parse2(["--dir-cap", other_uri, "subdir"])
         self.failUnlessEqual(o['node-url'], "http://localhost:8080/")
-        self.failUnlessEqual(o.aliases[DEFAULT_ALIAS], other_uri)
+        self.failUnlessEqual(o.aliases[DEFAULT_ALIAS].encode("ascii"), other_uri)
         self.failUnlessEqual(o.where, u"subdir")
 
         self.failUnlessRaises(usage.UsageError, parse2,
@@ -1325,7 +1342,7 @@ class Run(unittest.TestCase):
         If the pidfile exists but does not contain a numeric value, a complaint to
         this effect is written to stderr.
         """
-        basedir = FilePath(self.mktemp().decode("ascii"))
+        basedir = FilePath(ensure_str(self.mktemp()))
         basedir.makedirs()
         basedir.child(u"twistd.pid").setContent(b"foo")
         basedir.child(u"tahoe-client.tac").setContent(b"")
@@ -1333,7 +1350,7 @@ class Run(unittest.TestCase):
         config = tahoe_run.RunOptions()
         config.stdout = StringIO()
         config.stderr = StringIO()
-        config['basedir'] = basedir.path
+        config['basedir'] = ensure_text(basedir.path)
         config.twistd_args = []
 
         result_code = tahoe_run.run(config)

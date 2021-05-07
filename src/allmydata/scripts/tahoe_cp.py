@@ -1,10 +1,12 @@
 from __future__ import print_function
 
+from past.builtins import unicode
+
 import os.path
-import urllib
-import json
+from urllib.parse import quote as url_quote
 from collections import defaultdict
-from six.moves import cStringIO as StringIO
+from io import BytesIO
+
 from twisted.python.failure import Failure
 from allmydata.scripts.common import get_alias, escape_path, \
                                      DefaultAliasMarker, TahoeError
@@ -15,6 +17,7 @@ from allmydata.util.fileutil import abspath_expanduser_unicode, precondition_abs
 from allmydata.util.encodingutil import unicode_to_url, listdir_unicode, quote_output, \
     quote_local_unicode_path, to_bytes
 from allmydata.util.assertutil import precondition, _assert
+from allmydata.util import jsonbytes as json
 
 
 class MissingSourceError(TahoeError):
@@ -61,8 +64,8 @@ def mkdir(targeturl):
 
 def make_tahoe_subdirectory(nodeurl, parent_writecap, name):
     url = nodeurl + "/".join(["uri",
-                              urllib.quote(parent_writecap),
-                              urllib.quote(unicode_to_url(name)),
+                              url_quote(parent_writecap),
+                              url_quote(unicode_to_url(name)),
                               ]) + "?t=mkdir"
     resp = do_http("POST", url)
     if resp.status in (200, 201):
@@ -198,12 +201,20 @@ class TahoeFileSource(object):
 
     def open(self, caps_only):
         if caps_only:
-            return StringIO(self.readcap)
-        url = self.nodeurl + "uri/" + urllib.quote(self.readcap)
+            return BytesIO(self.readcap)
+        url = self.nodeurl + "uri/" + url_quote(self.readcap)
         return GET_to_file(url)
 
     def bestcap(self):
         return self.writecap or self.readcap
+
+
+def seekable(file_like):
+    """Return whether the file-like object is seekable."""
+    return hasattr(file_like, "seek") and (
+        not hasattr(file_like, "seekable") or file_like.seekable()
+    )
+
 
 class TahoeFileTarget(object):
     def __init__(self, nodeurl, mutable, writecap, readcap, url):
@@ -218,7 +229,7 @@ class TahoeFileTarget(object):
         assert self.url
         # our do_http() call currently requires a string or a filehandle with
         # a real .seek
-        if not hasattr(inf, "seek"):
+        if not seekable(inf):
             inf = inf.read()
         PUT(self.url, inf)
         # TODO: this always creates immutable files. We might want an option
@@ -239,7 +250,7 @@ class TahoeDirectorySource(object):
         self.writecap = writecap
         self.readcap = readcap
         bestcap = writecap or readcap
-        url = self.nodeurl + "uri/%s" % urllib.quote(bestcap)
+        url = self.nodeurl + "uri/%s" % url_quote(bestcap)
         resp = do_http("GET", url + "?t=json")
         if resp.status != 200:
             raise HTTPError("Error examining source directory", resp)
@@ -249,7 +260,7 @@ class TahoeDirectorySource(object):
         self.mutable = d.get("mutable", False) # older nodes don't provide it
         self.children_d = dict( [(unicode(name),value)
                                  for (name,value)
-                                 in d["children"].iteritems()] )
+                                 in d["children"].items()] )
         self.children = None
 
     def init_from_parsed(self, parsed):
@@ -259,7 +270,7 @@ class TahoeDirectorySource(object):
         self.mutable = d.get("mutable", False) # older nodes don't provide it
         self.children_d = dict( [(unicode(name),value)
                                  for (name,value)
-                                 in d["children"].iteritems()] )
+                                 in d["children"].items()] )
         self.children = None
 
     def populate(self, recurse):
@@ -304,7 +315,7 @@ class TahoeMissingTarget(object):
 
     def put_file(self, inf):
         # We want to replace this object in-place.
-        if not hasattr(inf, "seek"):
+        if not seekable(inf):
             inf = inf.read()
         PUT(self.url, inf)
         # TODO: this always creates immutable files. We might want an option
@@ -329,14 +340,14 @@ class TahoeDirectoryTarget(object):
         self.mutable = d.get("mutable", False) # older nodes don't provide it
         self.children_d = dict( [(unicode(name),value)
                                  for (name,value)
-                                 in d["children"].iteritems()] )
+                                 in d["children"].items()] )
         self.children = None
 
     def init_from_grid(self, writecap, readcap):
         self.writecap = writecap
         self.readcap = readcap
         bestcap = writecap or readcap
-        url = self.nodeurl + "uri/%s" % urllib.quote(bestcap)
+        url = self.nodeurl + "uri/%s" % url_quote(bestcap)
         resp = do_http("GET", url + "?t=json")
         if resp.status != 200:
             raise HTTPError("Error examining target directory", resp)
@@ -346,7 +357,7 @@ class TahoeDirectoryTarget(object):
         self.mutable = d.get("mutable", False) # older nodes don't provide it
         self.children_d = dict( [(unicode(name),value)
                                  for (name,value)
-                                 in d["children"].iteritems()] )
+                                 in d["children"].items()] )
         self.children = None
 
     def just_created(self, writecap):
@@ -370,8 +381,8 @@ class TahoeDirectoryTarget(object):
                 url = None
                 if self.writecap:
                     url = self.nodeurl + "/".join(["uri",
-                                                   urllib.quote(self.writecap),
-                                                   urllib.quote(unicode_to_url(name))])
+                                                   url_quote(self.writecap),
+                                                   url_quote(unicode_to_url(name))])
                 self.children[name] = TahoeFileTarget(self.nodeurl, mutable,
                                                       writecap, readcap, url)
             elif data[0] == "dirnode":
@@ -415,7 +426,7 @@ class TahoeDirectoryTarget(object):
     def put_file(self, name, inf):
         precondition(isinstance(name, unicode), name)
         url = self.nodeurl + "uri"
-        if not hasattr(inf, "seek"):
+        if not seekable(inf):
             inf = inf.read()
 
         if self.children is None:
@@ -439,7 +450,7 @@ class TahoeDirectoryTarget(object):
     def set_children(self):
         if not self.new_children:
             return
-        url = (self.nodeurl + "uri/" + urllib.quote(self.writecap)
+        url = (self.nodeurl + "uri/" + url_quote(self.writecap)
                + "?t=set_children")
         set_data = {}
         for (name, filecap) in self.new_children.items():
@@ -450,7 +461,7 @@ class TahoeDirectoryTarget(object):
             # TODO: think about how this affects forward-compatibility for
             # unknown caps
             set_data[name] = ["filenode", {"rw_uri": filecap}]
-        body = json.dumps(set_data)
+        body = json.dumps_bytes(set_data)
         POST(url, body)
 
 FileSources = (LocalFileSource, TahoeFileSource)
@@ -603,7 +614,7 @@ class Copier(object):
                 t = LocalFileTarget(pathname) # non-empty
         else:
             # this is a tahoe object
-            url = self.nodeurl + "uri/%s" % urllib.quote(rootcap)
+            url = self.nodeurl + "uri/%s" % url_quote(rootcap)
             if path:
                 url += "/" + escape_path(path)
 
@@ -656,7 +667,7 @@ class Copier(object):
                 t = LocalFileSource(pathname, name) # non-empty
         else:
             # this is a tahoe object
-            url = self.nodeurl + "uri/%s" % urllib.quote(rootcap)
+            url = self.nodeurl + "uri/%s" % url_quote(rootcap)
             name = None
             if path:
                 if path.endswith("/"):
