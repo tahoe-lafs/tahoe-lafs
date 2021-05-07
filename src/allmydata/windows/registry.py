@@ -32,7 +32,7 @@ def get_registry_setting(key, name, _topkey=None):
             regkey = winreg.OpenKey(topkey, key)
 
             sublen, vallen, timestamp = winreg.QueryInfoKey(regkey)
-            for validx in xrange(vallen):
+            for validx in range(vallen):
                 keyname, value, keytype = winreg.EnumValue(regkey, validx)
                 if keyname == name and keytype == winreg.REG_SZ:
                     return value
