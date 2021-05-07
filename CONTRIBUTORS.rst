@@ -31,8 +31,7 @@ Contributor Checklist
 
   This makes the ``Trac`` ticket close when your PR gets approved.
 
-* Request appropriate review.
-
+* Request appropriate review - we suggest asking `Tahoe Committers <https://github.com/orgs/tahoe-lafs/teams/tahoe-committers>`__
 
 References
 ----------
