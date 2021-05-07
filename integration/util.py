@@ -5,7 +5,7 @@ import time
 import json
 from os import mkdir, environ
 from os.path import exists, join
-from six.moves import StringIO
+from io import StringIO, BytesIO
 from functools import partial
 from subprocess import check_output
 
@@ -59,7 +59,7 @@ class _CollectOutputProtocol(ProcessProtocol):
     """
     def __init__(self):
         self.done = Deferred()
-        self.output = StringIO()
+        self.output = BytesIO()
 
     def processEnded(self, reason):
         if not self.done.called:
@@ -73,7 +73,7 @@ class _CollectOutputProtocol(ProcessProtocol):
         self.output.write(data)
 
     def errReceived(self, data):
-        print("ERR: {}".format(data))
+        print("ERR: {!r}".format(data))
         self.output.write(data)
 
 
@@ -94,9 +94,11 @@ class _DumpOutputProtocol(ProcessProtocol):
             self.done.errback(reason)
 
     def outReceived(self, data):
+        data = unicode(data, sys.stdout.encoding)
         self._out.write(data)
 
     def errReceived(self, data):
+        data = unicode(data, sys.stdout.encoding)
         self._out.write(data)
 
 
@@ -284,7 +286,7 @@ def _create_node(reactor, request, temp_dir, introducer_furl, flog_gatherer, nam
                 config,
                 u'node',
                 u'log_gatherer.furl',
-                flog_gatherer.decode("utf-8"),
+                flog_gatherer,
             )
             write_config(FilePath(config_path), config)
         created_d.addCallback(created)
