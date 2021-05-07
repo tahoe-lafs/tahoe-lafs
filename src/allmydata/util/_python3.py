@@ -23,6 +23,9 @@ if PY2:
     from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 
+# Every time a module is added here, also add it to tox.ini environment
+# integrations3. Bit of duplication, but it's only a handful of files so quite
+# temporary.
 PORTED_INTEGRATION_TESTS = [
     "integration.test_servers_of_happiness",
 ]
