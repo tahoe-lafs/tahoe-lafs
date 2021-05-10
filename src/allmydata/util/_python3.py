@@ -21,6 +21,7 @@ if PY2:
 # integrations3. Bit of duplication, but it's only a handful of files so quite
 # temporary.
 PORTED_INTEGRATION_TESTS = [
+    "integration.test_aaa_aardvark",
     "integration.test_servers_of_happiness",
     "integration.test_sftp",
 ]
