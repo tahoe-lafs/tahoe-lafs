@@ -4,6 +4,8 @@
 
 from __future__ import print_function
 
+from past.builtins import cmp
+
 import random
 
 SERVER_CAPACITY = 10**12

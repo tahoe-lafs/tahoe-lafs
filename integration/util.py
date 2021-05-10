@@ -1,3 +1,5 @@
+from past.builtins import unicode
+
 import sys
 import time
 import json
