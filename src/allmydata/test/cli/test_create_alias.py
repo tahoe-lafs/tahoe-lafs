@@ -10,7 +10,7 @@ from future.utils import PY2
 if PY2:
     from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
-from six import ensure_str
+from six import ensure_text
 from six.moves import StringIO
 import os.path
 from twisted.trial import unittest
@@ -182,7 +182,7 @@ class CreateAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
             (rc, out, err) = args
             self.failUnlessReallyEqual(rc, 0)
             self.assertEqual(len(err), 0, err)
-            self.failUnlessIn(ensure_str("Alias %s created") % quote_output(etudes_arg), out)
+            self.failUnlessIn(u"Alias %s created" % ensure_text(quote_output(etudes_arg)), out)
 
             aliases = get_aliases(self.get_clientdir())
             self.failUnless(aliases[u"\u00E9tudes"].startswith(b"URI:DIR2:"))
