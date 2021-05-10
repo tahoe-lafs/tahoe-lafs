@@ -318,7 +318,7 @@ class Root(MultiFormatResource):
         }
         version = server.get_version()
         if version is not None:
-            description[u"version"] = version["application-version"]
+            description[u"version"] = version[b"application-version"]
 
         return description
 
