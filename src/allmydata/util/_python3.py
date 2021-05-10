@@ -22,6 +22,7 @@ if PY2:
 # temporary.
 PORTED_INTEGRATION_TESTS = [
     "integration.test_servers_of_happiness",
+    "integration.test_sftp",
 ]
 
 
