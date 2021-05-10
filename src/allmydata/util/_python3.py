@@ -1,14 +1,8 @@
 """
 Track the port to Python 3.
 
-The two easiest ways to run the part of the test suite which is expected to
-pass on Python 3 are::
-
-    $ tox -e py36
-
-and::
-
-    $ trial allmydata.test.python3_tests
+At this point all unit tests have been ported to Python 3, so you can just run
+them normally.
 
 This module has been ported to Python 3.
 """
@@ -108,7 +102,6 @@ PORTED_MODULES = [
     "allmydata.test.matchers",
     "allmydata.test.mutable",
     "allmydata.test.mutable.util",
-    "allmydata.test.python3_tests",
     "allmydata.test.storage_plugin",
     "allmydata.test.strategies",
     "allmydata.test.web",
@@ -246,6 +239,7 @@ PORTED_TEST_MODULES = [
     "allmydata.test.test_node",
     "allmydata.test.test_observer",
     "allmydata.test.test_pipeline",
+    "allmydata.test.test_python2_regressions",
     "allmydata.test.test_python3",
     "allmydata.test.test_repairer",
     "allmydata.test.test_runner",
