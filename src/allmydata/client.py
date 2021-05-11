@@ -928,7 +928,8 @@ class _Client(node.Node, pollmixin.PollMixin):
         random data in "api_auth_token" which must be echoed to API
         calls.
         """
-        return self.config.get_private_config('api_auth_token')
+        return self.config.get_private_config(
+            'api_auth_token').encode("ascii")
 
     def _create_auth_token(self):
         """
