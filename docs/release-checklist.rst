@@ -189,11 +189,16 @@ is appropriate.
 Once a release-candidate has marinated for some time then it can be
 made into a the actual release.
 
-XXX Write this section when doing 1.15.0 actual release
+The actual release follows the same steps as above, with some differences:
 
-(In general, this means dropping the "rcX" part of the release and the
-tag, uploading those artifacts, uploading to PyPI, ... )
-
+- there is no "-rcX" on the end of release names
+- the release is uploaded to PyPI (using Twine)
+- the version is tagged in Git (ideally using "the tahoe release key"
+  but can be done with any of the authorized core developers' personal
+  key)
+- the release-candidate branches must be merged back to master after
+  the release is official (e.g. causing newsfragments to be deleted on
+  master, etc)
 
 
 Announcing the Release
