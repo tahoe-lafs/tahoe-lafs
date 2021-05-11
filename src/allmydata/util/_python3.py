@@ -25,6 +25,7 @@ PORTED_INTEGRATION_TESTS = [
     "integration.test_servers_of_happiness",
     "integration.test_sftp",
     "integration.test_streaming_logs",
+    "integration.test_tor",
 ]
 
 
