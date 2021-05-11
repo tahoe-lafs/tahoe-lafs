@@ -75,7 +75,7 @@ class _CollectOutputProtocol(ProcessProtocol):
 
     def errReceived(self, data):
         print("ERR: {!r}".format(data))
-        if self.capture_err:
+        if self.capture_stderr:
             self.output.write(data)
 
 
