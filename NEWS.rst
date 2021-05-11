@@ -5,6 +5,15 @@ User-Visible Changes in Tahoe-LAFS
 ==================================
 
 .. towncrier start line
+Release 1.15.1
+''''''''''''''
+
+Misc/Other
+----------
+
+- `#3469 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3469>`_, `#3608 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3608>`_
+
+
 Release 1.15.0 (2020-10-13)
 '''''''''''''''''''''''''''
 

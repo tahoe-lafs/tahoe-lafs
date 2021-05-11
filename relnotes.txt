@@ -1,6 +1,6 @@
-﻿ANNOUNCING Tahoe, the Least-Authority File Store, v1.15.0
+﻿ANNOUNCING Tahoe, the Least-Authority File Store, v1.15.1
 
-The Tahoe-LAFS team is pleased to announce version 1.15.0 of
+The Tahoe-LAFS team is pleased to announce version 1.15.1 of
 Tahoe-LAFS, an extremely reliable decentralized storage
 system. Get it with "pip install tahoe-lafs", or download a
 tarball here:
@@ -15,24 +15,17 @@ unique security and fault-tolerance properties:
 
   https://tahoe-lafs.readthedocs.org/en/latest/about.html
 
-The previous stable release of Tahoe-LAFS was v1.14.0, released on
-April 21, 2020.
+The previous stable release of Tahoe-LAFS was v1.15.0, released on
+January 19, 2021.
 
-In this release: RSA exponent is changed to 65537 for mutable files;
-magic-folder has been split to a stand-alone project. A formal code of
-conduct has been adopted.
-
-Platform support has changed for this release. No longer supported
-are: Slackware 14.2 and CentOS 7. Newly supported are: the PyPy
-interpreter (on MacOS, Windows and Linux); CentOS 8; Ubuntu 20.04.
+In this release: PyPI does not accept uploads of packages that use
+PEP-508 version specifiers.
 
 Note that Python3 porting is underway but not yet complete in this
 release. Developers may notice python3 as new targets for certain
 tools.
 
-In addition, 121 other minor tickets have been completed since the
-last release. Please see ``NEWS.rst`` for a more complete list of
-changes.
+Please see ``NEWS.rst`` for a more complete list of changes.
 
 
 WHAT IS IT GOOD FOR?
@@ -152,16 +145,16 @@ Tahoe-LAFS possible.
 meejah
 on behalf of the Tahoe-LAFS team
 
-October 13, 2020
+March 23, 2021
 Planet Earth
 
 
-[1] https://github.com/tahoe-lafs/tahoe-lafs/blob/tahoe-lafs-1.15.0/NEWS.rst
+[1] https://github.com/tahoe-lafs/tahoe-lafs/blob/tahoe-lafs-1.15.1/NEWS.rst
 [2] https://github.com/tahoe-lafs/tahoe-lafs/blob/master/docs/known_issues.rst
 [3] https://tahoe-lafs.org/trac/tahoe-lafs/wiki/RelatedProjects
-[4] https://github.com/tahoe-lafs/tahoe-lafs/blob/tahoe-lafs-1.15.0/COPYING.GPL
-[5] https://github.com/tahoe-lafs/tahoe-lafs/blob/tahoe-lafs-1.15.0/COPYING.TGPPL.rst
-[6] https://tahoe-lafs.readthedocs.org/en/tahoe-lafs-1.15.0/INSTALL.html
+[4] https://github.com/tahoe-lafs/tahoe-lafs/blob/tahoe-lafs-1.15.1/COPYING.GPL
+[5] https://github.com/tahoe-lafs/tahoe-lafs/blob/tahoe-lafs-1.15.1/COPYING.TGPPL.rst
+[6] https://tahoe-lafs.readthedocs.org/en/tahoe-lafs-1.15.1/INSTALL.html
 [7] https://tahoe-lafs.org/cgi-bin/mailman/listinfo/tahoe-dev
 [8] https://tahoe-lafs.org/trac/tahoe-lafs/roadmap
 [9] https://github.com/tahoe-lafs/tahoe-lafs/blob/master/CREDITS
