@@ -1,6 +1,6 @@
-﻿ANNOUNCING Tahoe, the Least-Authority File Store, v1.14.0
+﻿ANNOUNCING Tahoe, the Least-Authority File Store, v1.15.0
 
-The Tahoe-LAFS team is pleased to announce version 1.14.0 of
+The Tahoe-LAFS team is pleased to announce version 1.15.0 of
 Tahoe-LAFS, an extremely reliable decentralized storage
 system. Get it with "pip install tahoe-lafs", or download a
 tarball here:
@@ -15,21 +15,24 @@ unique security and fault-tolerance properties:
 
   https://tahoe-lafs.readthedocs.org/en/latest/about.html
 
-The previous stable release of Tahoe-LAFS was v1.12.1,
-released on January 18, 2017.
+The previous stable release of Tahoe-LAFS was v1.14.0, released on
+April 21, 2020.
 
-The v1.14.0 release: makes several Magic Folder improvements (MacOS
-support, better logs, fewer conflict cases); adds an Eliot streaming
-logs endpoint; adds an extension point for storage customization;
-makes a bunch of bug-fixes and cleanups. NixOS is a supported
-platform; Fedora 29 is no longer a supported platform. Several early
-parts of Python3 porting have landed.
+In this release: RSA exponent is changed to 65537 for mutable files;
+magic-folder has been split to a stand-alone project. A formal code of
+conduct has been adopted.
 
-DEPRECATED: ``tahoe start``, ``tahoe stop``, ``tahoe restart`` and
-``tahoe daemonize`` are all deprecated in favour of using ``tahoe
-run`` (along with a suitable process manager if desired).
+Platform support has changed for this release. No longer supported
+are: Slackware 14.2 and CentOS 7. Newly supported are: the PyPy
+interpreter (on MacOS, Windows and Linux); CentOS 8; Ubuntu 20.04.
 
-Please see ``NEWS.rst`` for a more complete list of changes.
+Note that Python3 porting is underway but not yet complete in this
+release. Developers may notice python3 as new targets for certain
+tools.
+
+In addition, 121 other minor tickets have been completed since the
+last release. Please see ``NEWS.rst`` for a more complete list of
+changes.
 
 
 WHAT IS IT GOOD FOR?
@@ -146,19 +149,19 @@ solely as a labor of love by volunteers. Thank you very much
 to the team of "hackers in the public interest" who make
 Tahoe-LAFS possible.
 
-Brian Warner
+meejah
 on behalf of the Tahoe-LAFS team
 
-May 17, 2018
-San Francisco, California, USA
+October 13, 2020
+Planet Earth
 
 
-[1] https://github.com/tahoe-lafs/tahoe-lafs/blob/tahoe-lafs-1.14.0/NEWS.rst
+[1] https://github.com/tahoe-lafs/tahoe-lafs/blob/tahoe-lafs-1.15.0/NEWS.rst
 [2] https://github.com/tahoe-lafs/tahoe-lafs/blob/master/docs/known_issues.rst
 [3] https://tahoe-lafs.org/trac/tahoe-lafs/wiki/RelatedProjects
-[4] https://github.com/tahoe-lafs/tahoe-lafs/blob/tahoe-lafs-1.14.0/COPYING.GPL
-[5] https://github.com/tahoe-lafs/tahoe-lafs/blob/tahoe-lafs-1.14.0/COPYING.TGPPL.rst
-[6] https://tahoe-lafs.readthedocs.org/en/tahoe-lafs-1.14.0/INSTALL.html
+[4] https://github.com/tahoe-lafs/tahoe-lafs/blob/tahoe-lafs-1.15.0/COPYING.GPL
+[5] https://github.com/tahoe-lafs/tahoe-lafs/blob/tahoe-lafs-1.15.0/COPYING.TGPPL.rst
+[6] https://tahoe-lafs.readthedocs.org/en/tahoe-lafs-1.15.0/INSTALL.html
 [7] https://tahoe-lafs.org/cgi-bin/mailman/listinfo/tahoe-dev
 [8] https://tahoe-lafs.org/trac/tahoe-lafs/roadmap
 [9] https://github.com/tahoe-lafs/tahoe-lafs/blob/master/CREDITS
