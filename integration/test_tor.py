@@ -6,7 +6,7 @@ from os.path import join
 import pytest
 import pytest_twisted
 
-import util
+from . import util
 
 from twisted.python.filepath import (
     FilePath,
@@ -55,7 +55,7 @@ def test_onion_service_storage(reactor, request, temp_dir, flog_gatherer, tor_ne
     cap = proto.output.getvalue().strip().split()[-1]
     print("TEH CAP!", cap)
 
-    proto = util._CollectOutputProtocol()
+    proto = util._CollectOutputProtocol(capture_stderr=False)
     reactor.spawnProcess(
         proto,
         sys.executable,
@@ -68,7 +68,7 @@ def test_onion_service_storage(reactor, request, temp_dir, flog_gatherer, tor_ne
     yield proto.done
 
     dave_got = proto.output.getvalue().strip()
-    assert dave_got == open(gold_path, 'r').read().strip()
+    assert dave_got == open(gold_path, 'rb').read().strip()
 
 
 @pytest_twisted.inlineCallbacks
@@ -100,7 +100,7 @@ def _create_anonymous_node(reactor, name, control_port, request, temp_dir, flog_
     # Which services should this client connect to?
     write_introducer(node_dir, "default", introducer_furl)
     with node_dir.child('tahoe.cfg').open('w') as f:
-        f.write('''
+        node_config = '''
 [node]
 nickname = %(name)s
 web.port = %(web_port)s
@@ -125,7 +125,9 @@ shares.total = 2
     'log_furl': flog_gatherer,
     'control_port': control_port,
     'local_port': control_port + 1000,
-})
+}
+        node_config = node_config.encode("utf-8")
+        f.write(node_config)
 
     print("running")
     yield util._run_node(reactor, node_dir.path, request, None)

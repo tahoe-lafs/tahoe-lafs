@@ -57,9 +57,10 @@ class _CollectOutputProtocol(ProcessProtocol):
     self.output, and callback's on done with all of it after the
     process exits (for any reason).
     """
-    def __init__(self):
+    def __init__(self, capture_stderr=True):
         self.done = Deferred()
         self.output = BytesIO()
+        self.capture_stderr = capture_stderr
 
     def processEnded(self, reason):
         if not self.done.called:
@@ -74,7 +75,8 @@ class _CollectOutputProtocol(ProcessProtocol):
 
     def errReceived(self, data):
         print("ERR: {!r}".format(data))
-        self.output.write(data)
+        if self.capture_err:
+            self.output.write(data)
 
 
 class _DumpOutputProtocol(ProcessProtocol):
