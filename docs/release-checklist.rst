@@ -59,6 +59,10 @@ Create Branch and Apply Updates
   - summarize major changes
   - commit it
 
+- update "nix/tahoe-lafs.nix"
+
+  - change the value given for `version` from `OLD.post1` to `NEW.post1`
+
 - update "CREDITS"
 
   - are there any new contributors in this release?
