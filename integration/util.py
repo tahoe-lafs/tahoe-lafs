@@ -1,4 +1,14 @@
-from past.builtins import unicode
+"""
+Ported to Python 3.
+"""
+from __future__ import unicode_literals
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 import sys
 import time
@@ -96,11 +106,11 @@ class _DumpOutputProtocol(ProcessProtocol):
             self.done.errback(reason)
 
     def outReceived(self, data):
-        data = unicode(data, sys.stdout.encoding)
+        data = str(data, sys.stdout.encoding)
         self._out.write(data)
 
     def errReceived(self, data):
-        data = unicode(data, sys.stdout.encoding)
+        data = str(data, sys.stdout.encoding)
         self._out.write(data)
 
 
@@ -120,7 +130,7 @@ class _MagicTextProtocol(ProcessProtocol):
         self.exited.callback(None)
 
     def outReceived(self, data):
-        data = unicode(data, sys.stdout.encoding)
+        data = str(data, sys.stdout.encoding)
         sys.stdout.write(data)
         self._output.write(data)
         if not self.magic_seen.called and self._magic_text in self._output.getvalue():
@@ -128,7 +138,7 @@ class _MagicTextProtocol(ProcessProtocol):
             self.magic_seen.callback(self)
 
     def errReceived(self, data):
-        data = unicode(data, sys.stderr.encoding)
+        data = str(data, sys.stderr.encoding)
         sys.stdout.write(data)
 
 
@@ -269,9 +279,9 @@ def _create_node(reactor, request, temp_dir, introducer_furl, flog_gatherer, nam
             '--hostname', 'localhost',
             '--listen', 'tcp',
             '--webport', web_port,
-            '--shares-needed', unicode(needed),
-            '--shares-happy', unicode(happy),
-            '--shares-total', unicode(total),
+            '--shares-needed', str(needed),
+            '--shares-happy', str(happy),
+            '--shares-total', str(total),
             '--helper',
         ]
         if not storage:
