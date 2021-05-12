@@ -11,7 +11,6 @@ from future.builtins import str as future_str
 if PY2:
     from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, dict, list, object, range, str, max, min  # noqa: F401
 
-import sys
 import os
 import time
 import signal
