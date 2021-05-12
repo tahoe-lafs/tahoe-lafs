@@ -121,7 +121,7 @@ See `TGPPL.PDF <https://tahoe-lafs.org/~zooko/tgppl.pdf>`__ for why the TGPPL ex
 .. |circleci| image:: https://circleci.com/gh/tahoe-lafs/tahoe-lafs.svg?style=svg
     :target: https://circleci.com/gh/tahoe-lafs/tahoe-lafs
 
-.. |githubactions| image:: https://github.com/tahoe-lafs/tahoe-lafs/actions/workflows/ci/badge.svg
+.. |githubactions| image:: https://github.com/tahoe-lafs/tahoe-lafs/actions/workflows/CI/badge.svg
     :target: https://github.com/tahoe-lafs/tahoe-lafs/actions
 
 .. |coveralls| image:: https://coveralls.io/repos/github/tahoe-lafs/tahoe-lafs/badge.svg
