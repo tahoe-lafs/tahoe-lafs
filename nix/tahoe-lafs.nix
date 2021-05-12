@@ -114,6 +114,13 @@ EOF
   ];
 
   checkPhase = ''
+    if ! $out/bin/tahoe --version | grep --fixed-strings "${version}"; then
+      echo "Package version:"
+      $out/bin/tahoe --version
+      echo "Did not contain expected:"
+      echo "${version}"
+      exit 1
+    fi
     ${python}/bin/python -m twisted.trial -j $NIX_BUILD_CORES allmydata
   '';
 }
