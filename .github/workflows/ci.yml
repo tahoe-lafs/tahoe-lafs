@@ -33,6 +33,19 @@ jobs:
             python-version: 2.7
 
     steps:
+      - name: Install Tor [Ubuntu]
+        if: matrix.os == 'ubuntu-latest'
+        run: sudo apt install tor
+
+      - name: Install Tor [macOS]
+        if: matrix.os == 'macos-latest'
+        run: brew install tor
+
+      - name: Install Tor [Windows]
+        if: matrix.os == 'windows-latest'
+        uses: crazy-max/ghaction-chocolatey@v1
+        with:
+          args: install tor
 
       # See https://github.com/actions/checkout. A fetch-depth of 0
       # fetches all tags and branches.
@@ -172,82 +185,6 @@ jobs:
           # Some magic value required for some magic reason.
           GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
 
-  integration:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os:
-          - macos-latest
-          - windows-latest
-        python-version:
-          - 2.7
-
-    steps:
-
-      - name: Install Tor [Ubuntu]
-        if: matrix.os == 'ubuntu-latest'
-        run: sudo apt install tor
-
-      - name: Install Tor [macOS]
-        if: matrix.os == 'macos-latest'
-        run: brew install tor
-
-      - name: Install Tor [Windows]
-        if: matrix.os == 'windows-latest'
-        uses: crazy-max/ghaction-chocolatey@v1
-        with:
-          args: install tor
-
-      - name: Check out Tahoe-LAFS sources
-        uses: actions/checkout@v2
-        with:
-          fetch-depth: 0
-
-      - name: Set up Python ${{ matrix.python-version }}
-        if: ${{ matrix.os != 'windows-latest' }}
-        uses: actions/setup-python@v1
-        with:
-          python-version: ${{ matrix.python-version }}
-
-      # See this step under coverage job.
-      - name: Set up Python ${{ matrix.python-version }} [Windows x86]
-        if: ${{ matrix.os == 'windows-latest' }}
-        uses: actions/setup-python@v1
-        with:
-          python-version: ${{ matrix.python-version }}
-          architecture: 'x86'
-
-      - name: Get pip cache directory
-        id: pip-cache
-        run: |
-          echo "::set-output name=dir::$(pip cache dir)"
-
-      - name: Use pip cache
-        uses: actions/cache@v2
-        with:
-          path: ${{ steps.pip-cache.outputs.dir }}
-          key: ${{ runner.os }}-pip-${{ hashFiles('**/setup.py') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-
-
-      - name: Install Python packages
-        run: |
-          pip install --upgrade tox
-          pip list
-
-      - name: Display tool versions
-        run: python misc/build_helpers/show-tool-versions.py
-
-      - name: Run "tox -e integration"
-        run: tox -e integration
-
-      - name: Upload eliot.log in case of failure
-        uses: actions/upload-artifact@v1
-        if: failure()
-        with:
-          name: integration.eliot.json
-          path: integration.eliot.json
 
   packaging:
     runs-on: ${{ matrix.os }}
