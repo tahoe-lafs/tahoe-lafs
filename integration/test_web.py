@@ -7,9 +7,18 @@ Most of the tests have cursory asserts and encode 'what the WebAPI did
 at the time of testing' -- not necessarily a cohesive idea of what the
 WebAPI *should* do in every situation. It's not clear the latter
 exists anywhere, however.
+
+Ported to Python 3.
 """
 
-from past.builtins import unicode
+from __future__ import unicode_literals
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 import time
 from urllib.parse import unquote as url_unquote, quote as url_quote
@@ -66,7 +75,7 @@ def test_upload_download(alice):
             u"filename": u"boom",
         }
     )
-    assert unicode(data, "utf-8") == FILE_CONTENTS
+    assert str(data, "utf-8") == FILE_CONTENTS
 
 
 def test_put(alice):
@@ -97,7 +106,7 @@ def test_helper_status(storage_nodes):
     resp = requests.get(url)
     assert resp.status_code >= 200 and resp.status_code < 300
     dom = BeautifulSoup(resp.content, "html5lib")
-    assert unicode(dom.h1.string) == u"Helper Status"
+    assert str(dom.h1.string) == u"Helper Status"
 
 
 def test_deep_stats(alice):
@@ -202,7 +211,7 @@ def test_status(alice):
     )
 
     print("Downloaded {} bytes of data".format(len(resp.content)))
-    assert unicode(resp.content, "ascii") == FILE_CONTENTS
+    assert str(resp.content, "ascii") == FILE_CONTENTS
 
     resp = requests.get(
         util.node_url(alice.node_dir, "status"),
@@ -400,9 +409,9 @@ def test_directory_deep_check(alice):
     for _ in range(5):
         resp = requests.get(deepcheck_uri)
         dom = BeautifulSoup(resp.content, "html5lib")
-        if dom.h1 and u'Results' in unicode(dom.h1.string):
+        if dom.h1 and u'Results' in str(dom.h1.string):
             break
-        if dom.h2 and dom.h2.a and u"Reload" in unicode(dom.h2.a.string):
+        if dom.h2 and dom.h2.a and u"Reload" in str(dom.h2.a.string):
             dom = None
             time.sleep(1)
     assert dom is not None, "Operation never completed"
