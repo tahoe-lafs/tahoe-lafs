@@ -26,6 +26,11 @@ PORTED_INTEGRATION_TESTS = [
     "integration.test_web",
 ]
 
+PORTED_INTEGRATION_MODULES = [
+    "integration",
+    "integration.conftest",
+    "integration.util",
+]
 
 # Keep these sorted alphabetically, to reduce merge conflicts:
 PORTED_MODULES = [
@@ -279,8 +284,4 @@ PORTED_TEST_MODULES = [
     "allmydata.test.web.test_web",
     "allmydata.test.web.test_webish",
     "allmydata.test.test_windows",
-
-    "integration",
-    "integration.conftest",
-    "integration.util",
 ]
