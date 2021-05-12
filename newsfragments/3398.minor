@@ -1,1 +1,0 @@
-Added pre-commit config to run flake8 checks on commit/push.
