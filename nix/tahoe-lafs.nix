@@ -120,6 +120,8 @@ EOF
       echo "Did not contain expected:"
       echo "${version}"
       exit 1
+    else
+      echo "Version string contained expected value \"${version}.\""
     fi
     ${python}/bin/python -m twisted.trial -j $NIX_BUILD_CORES allmydata
   '';
