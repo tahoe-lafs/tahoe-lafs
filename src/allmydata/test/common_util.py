@@ -105,9 +105,15 @@ def run_cli_native(verb, *args, **kwargs):
         # necessary.  This works okay for ASCII and if LANG is set
         # appropriately.  These aren't great constraints so we should move
         # away from this behavior.
+        #
+        # The encoding attribute doesn't change StringIO behavior on Python 2,
+        # but it's there for realism of the emulation.
         stdin = StringIO(stdin)
+        stdin.encoding = encoding
         stdout = StringIO()
+        stdout.encoding = encoding
         stderr = StringIO()
+        stderr.encoding = encoding
     else:
         # The new behavior, the Python 3 behavior, is to accept unicode and
         # encode it using a specific encoding. For older versions of Python 3,

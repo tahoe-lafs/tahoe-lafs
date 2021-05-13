@@ -6,7 +6,7 @@ Free and Open decentralized data store
 
 `Tahoe-LAFS <https://www.tahoe-lafs.org>`__ (Tahoe Least-Authority File Store) is the first free software / open-source storage technology that distributes your data across multiple servers. Even if some servers fail or are taken over by an attacker, the entire file store continues to function correctly, preserving your privacy and security.
 
-|Contributor Covenant|  |readthedocs|  |travis|  |circleci|  |coveralls|
+|Contributor Covenant|  |readthedocs|  |circleci|  |githubactions|  |coveralls|
 
 
 Table of contents
@@ -118,12 +118,11 @@ See `TGPPL.PDF <https://tahoe-lafs.org/~zooko/tgppl.pdf>`__ for why the TGPPL ex
     :alt: documentation status
     :target: http://tahoe-lafs.readthedocs.io/en/latest/?badge=latest
 
-.. |travis| image:: https://travis-ci.org/tahoe-lafs/tahoe-lafs.png?branch=master
-    :alt: build status
-    :target: https://travis-ci.org/tahoe-lafs/tahoe-lafs
-
 .. |circleci| image:: https://circleci.com/gh/tahoe-lafs/tahoe-lafs.svg?style=svg
     :target: https://circleci.com/gh/tahoe-lafs/tahoe-lafs
+
+.. |githubactions| image:: https://github.com/tahoe-lafs/tahoe-lafs/actions/workflows/ci.yml/badge.svg
+    :target: https://github.com/tahoe-lafs/tahoe-lafs/actions
 
 .. |coveralls| image:: https://coveralls.io/repos/github/tahoe-lafs/tahoe-lafs/badge.svg
     :alt: code coverage

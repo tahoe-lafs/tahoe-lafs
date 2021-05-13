@@ -1,5 +1,7 @@
 from __future__ import print_function
 
+from future.utils import PY3
+
 from urllib.parse import quote as url_quote
 from allmydata.scripts.common import get_alias, DEFAULT_ALIAS, escape_path, \
                                      UnknownAliasError
@@ -32,7 +34,7 @@ def get(options):
             outf = stdout
             # Make sure we can write bytes; on Python 3 stdout is Unicode by
             # default.
-            if getattr(outf, "encoding", None) is not None:
+            if PY3 and getattr(outf, "encoding", None) is not None:
                 outf = outf.buffer
         while True:
             data = resp.read(4096)
