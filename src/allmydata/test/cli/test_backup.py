@@ -9,9 +9,7 @@ from __future__ import unicode_literals
 from future.utils import PY2
 if PY2:
     from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
-    import __builtin__ as builtins
-else:
-    import builtins
+
 
 import os.path
 from six.moves import cStringIO as StringIO
@@ -430,7 +428,11 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
             else:
                 return original_open(name, *args)
 
-        patcher = MonkeyPatcher((builtins, 'open', call_file))
+        if PY2:
+            from allmydata.scripts import cli as module_to_patch
+        else:
+            import builtins as module_to_patch
+        patcher = MonkeyPatcher((module_to_patch, 'open', call_file))
         patcher.runWithPatches(parse_options, basedir, "backup", ['--exclude-from', unicode_to_argv(exclude_file), 'from', 'to'])
         self.failUnless(ns.called)
 
