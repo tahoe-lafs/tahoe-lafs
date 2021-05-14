@@ -1173,7 +1173,8 @@ class MapupdateStatusElement(Element):
     def privkey_from(self, req, tag):
         server = self._update_status.get_privkey_from()
         if server:
-            return tag(tags.li("Got privkey from: [%s]" % server.get_name()))
+            return tag(tags.li("Got privkey from: [%s]" % str(
+                server.get_name(), "utf-8")))
         else:
             return tag
 
