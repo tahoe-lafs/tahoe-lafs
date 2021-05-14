@@ -12,6 +12,8 @@ from __future__ import print_function
 from future.utils import PY2
 if PY2:
     from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+else:
+    from typing import Union
 
 
 import os, sys, textwrap
@@ -28,13 +30,6 @@ except ImportError:
 from yaml import (
     safe_dump,
 )
-
-# Python 2 compatibility
-from future.utils import PY2
-if PY2:
-    from future.builtins import str  # noqa: F401
-else:
-    from typing import Union
 
 from twisted.python import usage
 
