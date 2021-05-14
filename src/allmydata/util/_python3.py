@@ -88,6 +88,7 @@ PORTED_MODULES = [
     "allmydata.node",
     "allmydata.nodemaker",
     "allmydata.scripts",
+    "allmydata.scripts.admin",
     "allmydata.scripts.create_node",
     "allmydata.scripts.runner",
     "allmydata.scripts.types_",
