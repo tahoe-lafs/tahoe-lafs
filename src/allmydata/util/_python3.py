@@ -91,6 +91,7 @@ PORTED_MODULES = [
     "allmydata.scripts.admin",
     "allmydata.scripts.backupdb"
     "allmydata.scripts.cli",
+    "allmydata.scripts.common_http",
     "allmydata.scripts.create_node",
     "allmydata.scripts.runner",
     "allmydata.scripts.types_",
