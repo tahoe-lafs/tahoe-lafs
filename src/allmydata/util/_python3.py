@@ -16,17 +16,20 @@ from future.utils import PY2
 if PY2:
     from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
-
-# Every time a module is added here, also add it to tox.ini environment
-# integrations3. Bit of duplication, but it's only a handful of files and quite
-# temporary, just until we've ported them all.
 PORTED_INTEGRATION_TESTS = [
     "integration.test_aaa_aardvark",
     "integration.test_servers_of_happiness",
     "integration.test_sftp",
     "integration.test_streaming_logs",
+    "integration.test_tor",
+    "integration.test_web",
 ]
 
+PORTED_INTEGRATION_MODULES = [
+    "integration",
+    "integration.conftest",
+    "integration.util",
+]
 
 # Keep these sorted alphabetically, to reduce merge conflicts:
 PORTED_MODULES = [

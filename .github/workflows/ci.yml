@@ -33,7 +33,6 @@ jobs:
             python-version: 2.7
 
     steps:
-
       # See https://github.com/actions/checkout. A fetch-depth of 0
       # fetches all tags and branches.
       - name: Check out Tahoe-LAFS sources

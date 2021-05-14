@@ -6,7 +6,7 @@ from __future__ import unicode_literals
 from future.utils import PY2
 if PY2:
     from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
-import warnings
+
 import os, sys
 from six.moves import StringIO
 import six
@@ -183,10 +183,12 @@ def _maybe_enable_eliot_logging(options, reactor):
     # Pass on the options so we can dispatch the subcommand.
     return options
 
+PYTHON_3_WARNING = ("Support for Python 3 is an incomplete work-in-progress."
+                    " Use at your own risk.")
+
 def run():
     if six.PY3:
-        warnings.warn("Support for Python 3 is an incomplete work-in-progress."
-                      " Use at your own risk.")
+        print(PYTHON_3_WARNING, file=sys.stderr)
 
     if sys.platform == "win32":
         from allmydata.windows.fixups import initialize

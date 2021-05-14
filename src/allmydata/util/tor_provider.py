@@ -211,6 +211,8 @@ def create_config(reactor, cli_config):
                                                               "tor_onion.privkey")
     privkeyfile = os.path.join(private_dir, "tor_onion.privkey")
     with open(privkeyfile, "wb") as f:
+        if isinstance(privkey, str):
+            privkey = privkey.encode("ascii")
         f.write(privkey)
 
     # tahoe_config_tor: this is a dictionary of keys/values to add to the
