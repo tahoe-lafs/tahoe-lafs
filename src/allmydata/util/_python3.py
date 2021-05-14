@@ -18,10 +18,13 @@ if PY2:
 
 
 # Every time a module is added here, also add it to tox.ini environment
-# integrations3. Bit of duplication, but it's only a handful of files so quite
-# temporary.
+# integrations3. Bit of duplication, but it's only a handful of files and quite
+# temporary, just until we've ported them all.
 PORTED_INTEGRATION_TESTS = [
+    "integration.test_aaa_aardvark",
     "integration.test_servers_of_happiness",
+    "integration.test_sftp",
+    "integration.test_streaming_logs",
 ]
 
 

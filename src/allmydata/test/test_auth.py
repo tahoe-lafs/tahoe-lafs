@@ -65,7 +65,7 @@ class AccountFileCheckerKeyTests(unittest.TestCase):
         avatarId = self.checker.requestAvatarId(key_credentials)
         return self.assertFailure(avatarId, error.UnauthorizedLogin)
 
-    def test_password_auth_user(self):
+    def test_password_auth_user_with_ssh_key(self):
         """
         AccountFileChecker.requestAvatarId returns a Deferred that fires with
         UnauthorizedLogin if called with an SSHPrivateKey object for a username
@@ -73,6 +73,29 @@ class AccountFileCheckerKeyTests(unittest.TestCase):
         """
         key_credentials = credentials.SSHPrivateKey(
             b"alice", b"md5", None, None, None)
+        avatarId = self.checker.requestAvatarId(key_credentials)
+        return self.assertFailure(avatarId, error.UnauthorizedLogin)
+
+    def test_password_auth_user_with_correct_password(self):
+        """
+        AccountFileChecker.requestAvatarId returns a Deferred that fires with
+        the user if the correct password is given.
+        """
+        key_credentials = credentials.UsernamePassword(b"alice", b"password")
+        d = self.checker.requestAvatarId(key_credentials)
+        def authenticated(avatarId):
+            self.assertEqual(
+                (b"alice",
+                 b"URI:DIR2:aaaaaaaaaaaaaaaaaaaaaaaaaa:1111111111111111111111111111111111111111111111111111"),
+                (avatarId.username, avatarId.rootcap))
+        return d
+
+    def test_password_auth_user_with_wrong_password(self):
+        """
+        AccountFileChecker.requestAvatarId returns a Deferred that fires with
+        UnauthorizedLogin if the wrong password is given.
+        """
+        key_credentials = credentials.UsernamePassword(b"alice", b"WRONG")
         avatarId = self.checker.requestAvatarId(key_credentials)
         return self.assertFailure(avatarId, error.UnauthorizedLogin)
 

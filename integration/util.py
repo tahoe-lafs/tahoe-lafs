@@ -532,7 +532,8 @@ def generate_ssh_key(path):
     key = RSAKey.generate(2048)
     key.write_private_key_file(path)
     with open(path + ".pub", "wb") as f:
-        f.write(b"%s %s" % (key.get_name(), key.get_base64()))
+        s = "%s %s" % (key.get_name(), key.get_base64())
+        f.write(s.encode("ascii"))
 
 
 def run_in_thread(f):
