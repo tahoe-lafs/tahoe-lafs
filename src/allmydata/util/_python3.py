@@ -94,6 +94,7 @@ PORTED_MODULES = [
     "allmydata.scripts.common_http",
     "allmydata.scripts.common",
     "allmydata.scripts.create_node",
+    "allmydata.scripts.debug",
     "allmydata.scripts.runner",
     "allmydata.scripts.types_",
     "allmydata.stats",
