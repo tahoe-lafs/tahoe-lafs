@@ -98,6 +98,7 @@ PORTED_MODULES = [
     "allmydata.scripts.common",
     "allmydata.scripts.create_node",
     "allmydata.scripts.debug",
+    "allmydata.scripts.default_nodedir",
     "allmydata.scripts.runner",
     "allmydata.scripts.types_",
     "allmydata.stats",
