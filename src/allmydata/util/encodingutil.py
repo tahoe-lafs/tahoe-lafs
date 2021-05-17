@@ -276,7 +276,10 @@ def quote_output(s, quotemarks=True, quote_newlines=None, encoding=None):
     On Python 3, returns Unicode strings.
     """
     precondition(isinstance(s, (bytes, unicode)), s)
-    encoding = encoding or io_encoding
+    # Since we're quoting, the assumption is this will be read by a human, and
+    # therefore printed, so stdout's encoding is the plausible one. io_encoding
+    # is now always utf-8.
+    encoding = encoding or getattr(sys.stdout, "encoding") or io_encoding
 
     if quote_newlines is None:
         quote_newlines = quotemarks

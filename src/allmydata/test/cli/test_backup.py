@@ -15,13 +15,14 @@ import os.path
 from six.moves import cStringIO as StringIO
 from datetime import timedelta
 import re
+import sys
 
 from twisted.trial import unittest
 from twisted.python.monkey import MonkeyPatcher
 
 from allmydata.util import fileutil
 from allmydata.util.fileutil import abspath_expanduser_unicode
-from allmydata.util.encodingutil import get_io_encoding, unicode_to_argv
+from allmydata.util.encodingutil import quote_output, unicode_to_argv
 from allmydata.util.namespace import Namespace
 from allmydata.scripts import cli, backupdb
 from ..common_util import StallMixin
@@ -372,7 +373,7 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
     def test_exclude_options_unicode(self):
         nice_doc = u"nice_d\u00F8c.lyx"
         try:
-            doc_pattern_arg = u"*d\u00F8c*".encode(get_io_encoding())
+            doc_pattern_arg = quote_output(u"*d\u00F8c*", sys.stdout.encoding)
         except UnicodeEncodeError:
             raise unittest.SkipTest("A non-ASCII command argument could not be encoded on this platform.")
 
@@ -399,6 +400,7 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
         fileutil.write(excl_filepath, exclusion_string)
         backup_options = parse(['--exclude-from', excl_filepath, 'from', 'to'])
         filtered = list(backup_options.filter_listdir(root_listdir))
+        import pdb; pdb.set_trace()
         self._check_filtering(filtered, root_listdir, (u'_darcs', u'subdir'),
                              (nice_doc, u'lib.a'))
 
