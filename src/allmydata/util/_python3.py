@@ -102,6 +102,7 @@ PORTED_MODULES = [
     "allmydata.scripts.runner",
     "allmydata.scripts.slow_operation",
     "allmydata.scripts.tahoe_add_alias",
+    "allmydata.scripts.tahoe_backup",
     "allmydata.scripts.types_",
     "allmydata.stats",
     "allmydata.storage_client",
