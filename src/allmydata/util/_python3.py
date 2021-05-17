@@ -100,6 +100,7 @@ PORTED_MODULES = [
     "allmydata.scripts.debug",
     "allmydata.scripts.default_nodedir",
     "allmydata.scripts.runner",
+    "allmydata.scripts.slow_operation",
     "allmydata.scripts.types_",
     "allmydata.stats",
     "allmydata.storage_client",
