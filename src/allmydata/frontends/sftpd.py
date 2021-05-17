@@ -1011,8 +1011,8 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
         PrefixingLogMixin.__init__(self, facility="tahoe.sftp", prefix=username)
         if noisy: self.log(".__init__(%r, %r, %r)" % (client, rootnode, username), level=NOISY)
 
-        self.channelLookup["session"] = session.SSHSession
-        self.subsystemLookup["sftp"] = FileTransferServer
+        self.channelLookup[b"session"] = session.SSHSession
+        self.subsystemLookup[b"sftp"] = FileTransferServer
 
         self._client = client
         self._root = rootnode
