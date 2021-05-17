@@ -1,6 +1,15 @@
+"""
+Ported to Python 3.
+"""
+from __future__ import unicode_literals
+from __future__ import absolute_import
+from __future__ import division
 from __future__ import print_function
 
-from past.builtins import unicode
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+
 
 import os.path, re, fnmatch
 
@@ -38,7 +47,7 @@ class FileStoreOptions(BaseOptions):
 
         # compute a node-url from the existing options, put in self['node-url']
         if self['node-url']:
-            if (not isinstance(self['node-url'], (bytes, unicode))
+            if (not isinstance(self['node-url'], (bytes, str))
                 or not NODEURL_RE.match(self['node-url'])):
                 msg = ("--node-url is required to be a string and look like "
                        "\"http://HOSTNAMEORADDR:PORT\", not: %r" %
@@ -354,8 +363,9 @@ class BackupOptions(FileStoreOptions):
         abs_filepath = argv_to_abspath(filepath)
         try:
             exclude_file = open(abs_filepath)
-        except:
-            raise BackupConfigurationError('Error opening exclude file %s.' % quote_local_unicode_path(abs_filepath))
+        except Exception as e:
+            raise BackupConfigurationError('Error opening exclude file %s. (Error: %s)' % (
+                quote_local_unicode_path(abs_filepath), e))
         try:
             for line in exclude_file:
                 self.opt_exclude(line)
