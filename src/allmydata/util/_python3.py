@@ -92,7 +92,7 @@ PORTED_MODULES = [
     "allmydata.nodemaker",
     "allmydata.scripts",
     "allmydata.scripts.admin",
-    "allmydata.scripts.backupdb"
+    "allmydata.scripts.backupdb",
     "allmydata.scripts.cli",
     "allmydata.scripts.common_http",
     "allmydata.scripts.common",
