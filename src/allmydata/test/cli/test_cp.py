@@ -238,6 +238,43 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
 
         return d
 
+    @defer.inlineCallbacks
+    def test_cp_duplicate_directories(self):
+        self.basedir = "cli/Cp/cp_duplicate_directories"
+        self.set_up_grid(oneshare=True)
+
+        filename = os.path.join(self.basedir, "file")
+        data = b"abc\xff\x00\xee"
+        with open(filename, "wb") as f:
+            f.write(data)
+
+        yield self.do_cli("create-alias", "tahoe")
+        (rc, out, err) = yield self.do_cli("mkdir", "tahoe:test1")
+        self.assertEqual(rc, 0, (rc, err))
+        dircap = out.strip()
+
+        (rc, out, err) = yield self.do_cli("cp", filename, "tahoe:test1/file")
+        self.assertEqual(rc, 0, (rc, err))
+
+        # Now duplicate dirnode, testing duplicates on destination side:
+        (rc, out, err) = yield self.do_cli(
+            "cp", "--recursive", dircap, "tahoe:test2/")
+        self.assertEqual(rc, 0, (rc, err))
+        (rc, out, err) = yield self.do_cli(
+            "cp", "--recursive", dircap, "tahoe:test3/")
+        self.assertEqual(rc, 0, (rc, err))
+
+        (rc, out, err) = yield self.do_cli("ls", "tahoe:test1")
+        (rc, out, err) = yield self.do_cli("ls", "tahoe:test2")
+        (rc, out, err) = yield self.do_cli("ls", "tahoe:test3")
+
+        # Now copy to local directory, testing duplicates on origin side:
+        yield self.do_cli("cp", "--recursive", "tahoe:", self.basedir)
+
+        for i in range(1, 4):
+            with open(os.path.join(self.basedir, "test%d" % (i,), "file"), "rb") as f:
+                self.assertEquals(f.read(), data)
+
     def test_cp_replaces_mutable_file_contents(self):
         self.basedir = "cli/Cp/cp_replaces_mutable_file_contents"
         self.set_up_grid(oneshare=True)
