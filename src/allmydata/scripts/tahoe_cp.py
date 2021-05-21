@@ -701,6 +701,8 @@ class Copier(object):
 
 
     def need_to_copy_bytes(self, source, target):
+        # This should likley be a method call! but enabling that triggers
+        # additional bugs. https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3719
         if source.need_to_copy_bytes:
             # mutable tahoe files, and local files
             return True
