@@ -491,7 +491,6 @@ class Put(GridTestMixin, CLITestMixin, unittest.TestCase):
         self.basedir = "cli/Put/leading_slash"
         self.set_up_grid(oneshare=True)
 
-        DATA1 = b"data" * 100
         fn1 = os.path.join(self.basedir, "DATA1")
 
         d = self.do_cli("create-alias", "tahoe")
