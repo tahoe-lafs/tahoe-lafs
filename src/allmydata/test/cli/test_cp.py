@@ -275,6 +275,33 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
             with open(os.path.join(self.basedir, "test%d" % (i,), "file"), "rb") as f:
                 self.assertEquals(f.read(), data)
 
+    @defer.inlineCallbacks
+    def test_cp_immutable_file(self):
+        self.basedir = "cli/Cp/cp_immutable_file"
+        self.set_up_grid(oneshare=True)
+
+        filename = os.path.join(self.basedir, "source_file")
+        data = b"abc\xff\x00\xee"
+        with open(filename, "wb") as f:
+            f.write(data)
+
+        # Create immutable file:
+        yield self.do_cli("create-alias", "tahoe")
+        (rc, out, _) = yield self.do_cli("put", filename, "tahoe:file1")
+        filecap = out.strip()
+        self.assertEqual(rc, 0)
+
+        # Copy it:
+        (rc, _, _) = yield self.do_cli("cp", "tahoe:file1", "tahoe:file2")
+        self.assertEqual(rc, 0)
+
+        # Make sure resulting file is the same:
+        (rc, _, _) = yield self.do_cli("cp", "--recursive", "--caps-only",
+                                       "tahoe:", self.basedir)
+        self.assertEqual(rc, 0)
+        with open(os.path.join(self.basedir, "file2")) as f:
+            self.assertEqual(f.read().strip(), filecap)
+
     def test_cp_replaces_mutable_file_contents(self):
         self.basedir = "cli/Cp/cp_replaces_mutable_file_contents"
         self.set_up_grid(oneshare=True)
