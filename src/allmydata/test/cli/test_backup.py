@@ -12,6 +12,7 @@ if PY2:
     import __builtin__ as builtins
 else:
     import builtins
+from six import ensure_str
 
 import os.path
 from six.moves import cStringIO as StringIO
@@ -374,7 +375,9 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
     def test_exclude_options_unicode(self):
         nice_doc = u"nice_d\u00F8c.lyx"
         try:
-            doc_pattern_arg = u"*d\u00F8c*".encode(get_io_encoding())
+            doc_pattern_arg = u"*d\u00F8c*"
+            if PY2:
+                doc_pattern_arg = doc_pattern_arg.encode(get_io_encoding())
         except UnicodeEncodeError:
             raise unittest.SkipTest("A non-ASCII command argument could not be encoded on this platform.")
 
@@ -396,7 +399,7 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
         self._check_filtering(filtered, root_listdir, (u'_darcs', u'subdir'),
                              (nice_doc, u'lib.a'))
         # read exclude patterns from file
-        exclusion_string = doc_pattern_arg + b"\nlib.?"
+        exclusion_string = doc_pattern_arg + ensure_str("\nlib.?")
         excl_filepath = os.path.join(basedir, 'exclusion')
         fileutil.write(excl_filepath, exclusion_string)
         backup_options = parse(['--exclude-from', excl_filepath, 'from', 'to'])
