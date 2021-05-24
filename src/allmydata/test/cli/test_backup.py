@@ -6,7 +6,7 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
-from future.utils import PY2
+from future.utils import PY2, PY3
 if PY2:
     from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
     import __builtin__ as builtins
@@ -18,6 +18,7 @@ import os.path
 from six.moves import cStringIO as StringIO
 from datetime import timedelta
 import re
+import locale
 
 from twisted.trial import unittest
 from twisted.python.monkey import MonkeyPatcher
@@ -400,6 +401,10 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
                              (nice_doc, u'lib.a'))
         # read exclude patterns from file
         exclusion_string = doc_pattern_arg + ensure_str("\nlib.?")
+        if PY3:
+            # On Python 2 this gives some garbage encoding. Also on Python 2 we
+            # expect exclusion string to be bytes.
+            exclusion_string = exclusion_string.encode(locale.getpreferredencoding(False))
         excl_filepath = os.path.join(basedir, 'exclusion')
         fileutil.write(excl_filepath, exclusion_string)
         backup_options = parse(['--exclude-from', excl_filepath, 'from', 'to'])
