@@ -486,3 +486,20 @@ class Put(GridTestMixin, CLITestMixin, unittest.TestCase):
                       self.failUnlessReallyEqual(rc_out_err[1], DATA))
 
         return d
+
+    def test_no_leading_slash(self):
+        self.basedir = "cli/Put/leading_slash"
+        self.set_up_grid(oneshare=True)
+
+        fn1 = os.path.join(self.basedir, "DATA1")
+
+        d = self.do_cli("create-alias", "tahoe")
+        d.addCallback(lambda res:
+                      self.do_cli("put", fn1, "tahoe:/uploaded.txt"))
+        def _check(args):
+            (rc, out, err) = args
+            self.assertEqual(rc, 1)
+            self.failUnlessIn("must not start with a slash", err)
+            self.assertEqual(len(out), 0, out)
+        d.addCallback(_check)
+        return d
