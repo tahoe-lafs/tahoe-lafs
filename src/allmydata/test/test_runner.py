@@ -17,6 +17,7 @@ from six import ensure_text
 
 import os.path, re, sys
 from os import linesep
+import locale
 
 from eliot import (
     log_call,
@@ -92,6 +93,10 @@ def run_bintahoe(extra_argv, python_options=None):
     argv.extend(extra_argv)
     argv = list(unicode_to_argv(arg) for arg in argv)
     p = Popen(argv, stdout=PIPE, stderr=PIPE)
+    if PY2:
+        encoding = "utf-8"
+    else:
+        encoding = locale.getpreferredencoding(False)
     out = p.stdout.read().decode("utf-8")
     err = p.stderr.read().decode("utf-8")
     returncode = p.wait()
@@ -103,7 +108,7 @@ class BinTahoe(common_util.SignalMixin, unittest.TestCase):
         """
         The runner script receives unmangled non-ASCII values in argv.
         """
-        tricky = u"\u2621"
+        tricky = u"\u00F6"
         out, err, returncode = run_bintahoe([tricky])
         self.assertEqual(returncode, 1)
         self.assertIn(u"Unknown command: " + tricky, out)
