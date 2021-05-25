@@ -264,10 +264,6 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
             "cp", "--recursive", dircap, "tahoe:test3/")
         self.assertEqual(rc, 0, (rc, err))
 
-        (rc, out, err) = yield self.do_cli("ls", "tahoe:test1")
-        (rc, out, err) = yield self.do_cli("ls", "tahoe:test2")
-        (rc, out, err) = yield self.do_cli("ls", "tahoe:test3")
-
         # Now copy to local directory, testing duplicates on origin side:
         yield self.do_cli("cp", "--recursive", "tahoe:", self.basedir)
 
