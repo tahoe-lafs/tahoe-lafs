@@ -97,8 +97,8 @@ def run_bintahoe(extra_argv, python_options=None):
         encoding = "utf-8"
     else:
         encoding = locale.getpreferredencoding(False)
-    out = p.stdout.read().decode("utf-8")
-    err = p.stderr.read().decode("utf-8")
+    out = p.stdout.read().decode(encoding)
+    err = p.stderr.read().decode(encoding)
     returncode = p.wait()
     return (out, err, returncode)
 
