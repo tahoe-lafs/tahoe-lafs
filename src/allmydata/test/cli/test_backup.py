@@ -9,9 +9,6 @@ from __future__ import unicode_literals
 from future.utils import PY2, PY3
 if PY2:
     from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
-    import __builtin__ as builtins
-else:
-    import builtins
 from six import ensure_str
 
 import os.path
@@ -25,7 +22,7 @@ from twisted.python.monkey import MonkeyPatcher
 
 from allmydata.util import fileutil
 from allmydata.util.fileutil import abspath_expanduser_unicode
-from allmydata.util.encodingutil import quote_output, unicode_to_argv
+from allmydata.util.encodingutil import get_io_encoding, unicode_to_argv
 from allmydata.util.namespace import Namespace
 from allmydata.scripts import cli, backupdb
 from ..common_util import StallMixin
