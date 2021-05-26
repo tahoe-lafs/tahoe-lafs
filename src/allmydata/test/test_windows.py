@@ -79,6 +79,7 @@ slow_settings = settings(
 )
 
 @skipUnless(platform.isWindows(), "get_argv is Windows-only")
+@skipUnless(PY2, "Not used on Python 3.")
 class GetArgvTests(SyncTestCase):
     """
     Tests for ``get_argv``.
@@ -172,6 +173,7 @@ class GetArgvTests(SyncTestCase):
 
 
 @skipUnless(platform.isWindows(), "intended for Windows-only codepaths")
+@skipUnless(PY2, "Not used on Python 3.")
 class UnicodeOutputTests(SyncTestCase):
     """
     Tests for writing unicode to stdout and stderr.

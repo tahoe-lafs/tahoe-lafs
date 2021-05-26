@@ -6,17 +6,19 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
-from future.utils import PY2
+from future.utils import PY2, PY3
 if PY2:
     from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
     import __builtin__ as builtins
 else:
     import builtins
+from six import ensure_str
 
 import os.path
 from six.moves import cStringIO as StringIO
 from datetime import timedelta
 import re
+import locale
 
 from twisted.trial import unittest
 from twisted.python.monkey import MonkeyPatcher
@@ -374,7 +376,9 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
     def test_exclude_options_unicode(self):
         nice_doc = u"nice_d\u00F8c.lyx"
         try:
-            doc_pattern_arg = u"*d\u00F8c*".encode(get_io_encoding())
+            doc_pattern_arg = u"*d\u00F8c*"
+            if PY2:
+                doc_pattern_arg = doc_pattern_arg.encode(get_io_encoding())
         except UnicodeEncodeError:
             raise unittest.SkipTest("A non-ASCII command argument could not be encoded on this platform.")
 
@@ -396,7 +400,11 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
         self._check_filtering(filtered, root_listdir, (u'_darcs', u'subdir'),
                              (nice_doc, u'lib.a'))
         # read exclude patterns from file
-        exclusion_string = doc_pattern_arg + b"\nlib.?"
+        exclusion_string = doc_pattern_arg + ensure_str("\nlib.?")
+        if PY3:
+            # On Python 2 this gives some garbage encoding. Also on Python 2 we
+            # expect exclusion string to be bytes.
+            exclusion_string = exclusion_string.encode(locale.getpreferredencoding(False))
         excl_filepath = os.path.join(basedir, 'exclusion')
         fileutil.write(excl_filepath, exclusion_string)
         backup_options = parse(['--exclude-from', excl_filepath, 'from', 'to'])
