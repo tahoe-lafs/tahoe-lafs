@@ -409,7 +409,6 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
         fileutil.write(excl_filepath, exclusion_string)
         backup_options = parse(['--exclude-from', excl_filepath, 'from', 'to'])
         filtered = list(backup_options.filter_listdir(root_listdir))
-        import pdb; pdb.set_trace()
         self._check_filtering(filtered, root_listdir, (u'_darcs', u'subdir'),
                              (nice_doc, u'lib.a'))
 
