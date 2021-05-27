@@ -362,11 +362,12 @@ class BackupOptions(FileStoreOptions):
         line. The file is assumed to be in the argv encoding."""
         abs_filepath = argv_to_abspath(filepath)
         try:
-            exclude_file = open(abs_filepath)
+            exclude_file = open(abs_filepath, "rb")
         except Exception as e:
             raise BackupConfigurationError('Error opening exclude file %s. (Error: %s)' % (
                 quote_local_unicode_path(abs_filepath), e))
         try:
+
             for line in exclude_file:
                 self.opt_exclude(line)
         finally:
