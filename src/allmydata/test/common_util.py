@@ -12,6 +12,7 @@ if PY2:
     from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, dict, list, object, range, str, max, min  # noqa: F401
 
 import os
+import sys
 import time
 import signal
 from random import randrange
@@ -85,7 +86,7 @@ def run_cli_native(verb, *args, **kwargs):
         bytes.
     """
     nodeargs = kwargs.pop("nodeargs", [])
-    encoding = kwargs.pop("encoding", None) or "utf-8"
+    encoding = kwargs.pop("encoding", None) or getattr(sys.stdout, "encoding") or "utf-8"
     return_bytes = kwargs.pop("return_bytes", False)
     verb = maybe_unicode_to_argv(verb)
     args = [maybe_unicode_to_argv(a) for a in args]

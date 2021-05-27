@@ -256,7 +256,11 @@ def quote_output_u(*args, **kwargs):
     result = quote_output(*args, **kwargs)
     if isinstance(result, unicode):
         return result
-    return result.decode(kwargs.get("encoding", None) or io_encoding)
+    # Since we're quoting, the assumption is this will be read by a human, and
+    # therefore printed, so stdout's encoding is the plausible one. io_encoding
+    # is now always utf-8.
+    return result.decode(kwargs.get("encoding", None) or
+                         getattr(sys.stdout, "encoding") or io_encoding)
 
 
 def quote_output(s, quotemarks=True, quote_newlines=None, encoding=None):
@@ -287,7 +291,7 @@ def quote_output(s, quotemarks=True, quote_newlines=None, encoding=None):
     def _encode(s):
         if isinstance(s, bytes):
             try:
-                s = s.decode('utf-8')
+                s = s.decode("utf-8")
             except UnicodeDecodeError:
                 return b'b"%s"' % (ESCAPABLE_8BIT.sub(lambda m: _bytes_escape(m, quote_newlines), s),)
 
