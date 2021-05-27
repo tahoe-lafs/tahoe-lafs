@@ -130,9 +130,10 @@ class Integration(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(_check)
         return d
 
-    @mock.patch('sys.stdout')
-    def test_help(self, fake):
-        return self.do_cli('status', '--help')
+    @defer.inlineCallbacks
+    def test_help(self):
+        rc, _, _ = yield self.do_cli('status', '--help')
+        self.assertEqual(rc, 0)
 
 
 class CommandStatus(unittest.TestCase):
