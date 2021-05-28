@@ -357,12 +357,12 @@ class BackupOptions(FileStoreOptions):
             exclude = self['exclude']
             exclude.add(g)
 
-    def opt_exclude_from(self, filepath):
+    def opt_exclude_from_utf_8(self, filepath):
         """Ignore file matching glob patterns listed in file, one per
         line. The file is assumed to be in the argv encoding."""
         abs_filepath = argv_to_abspath(filepath)
         try:
-            exclude_file = open(abs_filepath)
+            exclude_file = open(abs_filepath, "r", encoding="utf-8")
         except Exception as e:
             raise BackupConfigurationError('Error opening exclude file %s. (Error: %s)' % (
                 quote_local_unicode_path(abs_filepath), e))

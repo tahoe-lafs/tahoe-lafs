@@ -514,10 +514,10 @@ Command Examples
  the pattern will be matched against any level of the directory tree;
  it's still impossible to specify absolute path exclusions.
 
-``tahoe backup --exclude-from=/path/to/filename ~ work:backups``
+``tahoe backup --exclude-from-utf-8=/path/to/filename ~ work:backups``
 
- ``--exclude-from`` is similar to ``--exclude``, but reads exclusion
- patterns from ``/path/to/filename``, one per line.
+ ``--exclude-from-utf-8`` is similar to ``--exclude``, but reads exclusion
+ patterns from a UTF-8-encoded ``/path/to/filename``, one per line.
 
 ``tahoe backup --exclude-vcs ~ work:backups``
 

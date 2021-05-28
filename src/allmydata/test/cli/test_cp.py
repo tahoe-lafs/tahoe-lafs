@@ -238,6 +238,66 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
 
         return d
 
+    @defer.inlineCallbacks
+    def test_cp_duplicate_directories(self):
+        self.basedir = "cli/Cp/cp_duplicate_directories"
+        self.set_up_grid(oneshare=True)
+
+        filename = os.path.join(self.basedir, "file")
+        data = b"abc\xff\x00\xee"
+        with open(filename, "wb") as f:
+            f.write(data)
+
+        yield self.do_cli("create-alias", "tahoe")
+        (rc, out, err) = yield self.do_cli("mkdir", "tahoe:test1")
+        self.assertEqual(rc, 0, (rc, err))
+        dircap = out.strip()
+
+        (rc, out, err) = yield self.do_cli("cp", filename, "tahoe:test1/file")
+        self.assertEqual(rc, 0, (rc, err))
+
+        # Now duplicate dirnode, testing duplicates on destination side:
+        (rc, out, err) = yield self.do_cli(
+            "cp", "--recursive", dircap, "tahoe:test2/")
+        self.assertEqual(rc, 0, (rc, err))
+        (rc, out, err) = yield self.do_cli(
+            "cp", "--recursive", dircap, "tahoe:test3/")
+        self.assertEqual(rc, 0, (rc, err))
+
+        # Now copy to local directory, testing duplicates on origin side:
+        yield self.do_cli("cp", "--recursive", "tahoe:", self.basedir)
+
+        for i in range(1, 4):
+            with open(os.path.join(self.basedir, "test%d" % (i,), "file"), "rb") as f:
+                self.assertEquals(f.read(), data)
+
+    @defer.inlineCallbacks
+    def test_cp_immutable_file(self):
+        self.basedir = "cli/Cp/cp_immutable_file"
+        self.set_up_grid(oneshare=True)
+
+        filename = os.path.join(self.basedir, "source_file")
+        data = b"abc\xff\x00\xee"
+        with open(filename, "wb") as f:
+            f.write(data)
+
+        # Create immutable file:
+        yield self.do_cli("create-alias", "tahoe")
+        (rc, out, _) = yield self.do_cli("put", filename, "tahoe:file1")
+        filecap = out.strip()
+        self.assertEqual(rc, 0)
+
+        # Copy it:
+        (rc, _, _) = yield self.do_cli("cp", "tahoe:file1", "tahoe:file2")
+        self.assertEqual(rc, 0)
+
+        # Make sure resulting file is the same:
+        (rc, _, _) = yield self.do_cli("cp", "--recursive", "--caps-only",
+                                       "tahoe:", self.basedir)
+        self.assertEqual(rc, 0)
+        with open(os.path.join(self.basedir, "file2")) as f:
+            self.assertEqual(f.read().strip(), filecap)
+
     def test_cp_replaces_mutable_file_contents(self):
         self.basedir = "cli/Cp/cp_replaces_mutable_file_contents"
         self.set_up_grid(oneshare=True)

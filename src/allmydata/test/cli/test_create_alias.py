@@ -10,7 +10,6 @@ from future.utils import PY2
 if PY2:
     from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
-from six import ensure_text
 from six.moves import StringIO
 import os.path
 from twisted.trial import unittest
@@ -20,7 +19,7 @@ from allmydata.util import fileutil
 from allmydata.scripts.common import get_aliases
 from allmydata.scripts import cli, runner
 from ..no_network import GridTestMixin
-from allmydata.util.encodingutil import quote_output
+from allmydata.util.encodingutil import quote_output_u
 from .common import CLITestMixin
 
 class CreateAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
@@ -182,7 +181,7 @@ class CreateAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
             (rc, out, err) = args
             self.failUnlessReallyEqual(rc, 0)
             self.assertEqual(len(err), 0, err)
-            self.failUnlessIn(u"Alias %s created" % ensure_text(quote_output(etudes_arg)), out)
+            self.failUnlessIn(u"Alias %s created" % (quote_output_u(etudes_arg),), out)
 
             aliases = get_aliases(self.get_clientdir())
             self.failUnless(aliases[u"\u00E9tudes"].startswith(b"URI:DIR2:"))
