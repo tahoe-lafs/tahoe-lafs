@@ -355,14 +355,14 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
         exclusion_string = "_darcs\n*py\n.svn"
         excl_filepath = os.path.join(basedir, 'exclusion')
         fileutil.write(excl_filepath, exclusion_string)
-        backup_options = parse(['--exclude-from', excl_filepath, 'from', 'to'])
+        backup_options = parse(['--exclude-from-utf-8', excl_filepath, 'from', 'to'])
         filtered = list(backup_options.filter_listdir(subdir_listdir))
         self._check_filtering(filtered, subdir_listdir, (u'another_doc.lyx', u'CVS'),
                               (u'.svn', u'_darcs', u'run_snake_run.py'))
         # test BackupConfigurationError
         self.failUnlessRaises(cli.BackupConfigurationError,
                               parse,
-                              ['--exclude-from', excl_filepath + '.no', 'from', 'to'])
+                              ['--exclude-from-utf-8', excl_filepath + '.no', 'from', 'to'])
 
         # test that an iterator works too
         backup_options = parse(['--exclude', '*lyx', 'from', 'to'])
@@ -373,7 +373,7 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
     def test_exclude_options_unicode(self):
         nice_doc = u"nice_d\u00F8c.lyx"
         try:
-            doc_pattern_arg = u"*d\u00F8c*"
+            doc_pattern_arg_unicode = doc_pattern_arg = u"*d\u00F8c*"
             if PY2:
                 doc_pattern_arg = doc_pattern_arg.encode(get_io_encoding())
         except UnicodeEncodeError:
@@ -397,14 +397,10 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
         self._check_filtering(filtered, root_listdir, (u'_darcs', u'subdir'),
                              (nice_doc, u'lib.a'))
         # read exclude patterns from file
-        exclusion_string = doc_pattern_arg + ensure_str("\nlib.?")
-        if PY3:
-            # On Python 2 this gives some garbage encoding. Also on Python 2 we
-            # expect exclusion string to be bytes.
-            exclusion_string = exclusion_string.encode(locale.getpreferredencoding(False))
+        exclusion_string = (doc_pattern_arg_unicode + "\nlib.?").encode("utf-8")
         excl_filepath = os.path.join(basedir, 'exclusion')
         fileutil.write(excl_filepath, exclusion_string)
-        backup_options = parse(['--exclude-from', excl_filepath, 'from', 'to'])
+        backup_options = parse(['--exclude-from-utf-8', excl_filepath, 'from', 'to'])
         filtered = list(backup_options.filter_listdir(root_listdir))
         self._check_filtering(filtered, root_listdir, (u'_darcs', u'subdir'),
                              (nice_doc, u'lib.a'))
@@ -427,20 +423,20 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
         ns = Namespace()
         ns.called = False
         original_open = open
-        def call_file(name, *args):
+        def call_file(name, *args, **kwargs):
             if name.endswith("excludes.dummy"):
                 ns.called = True
                 self.failUnlessEqual(name, abspath_expanduser_unicode(exclude_file))
                 return StringIO()
             else:
-                return original_open(name, *args)
+                return original_open(name, *args, **kwargs)
 
         if PY2:
             from allmydata.scripts import cli as module_to_patch
         else:
             import builtins as module_to_patch
         patcher = MonkeyPatcher((module_to_patch, 'open', call_file))
-        patcher.runWithPatches(parse_options, basedir, "backup", ['--exclude-from', unicode_to_argv(exclude_file), 'from', 'to'])
+        patcher.runWithPatches(parse_options, basedir, "backup", ['--exclude-from-utf-8', unicode_to_argv(exclude_file), 'from', 'to'])
         self.failUnless(ns.called)
 
     def test_ignore_symlinks(self):
