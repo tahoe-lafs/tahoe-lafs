@@ -93,6 +93,10 @@ As a community-driven open source project, Tahoe-LAFS welcomes contributions of 
 
 Before authoring or reviewing a patch, please familiarize yourself with the `Coding Standard <https://tahoe-lafs.org/trac/tahoe-lafs/wiki/CodingStandards>`__ and the `Contributor Code of Conduct <docs/CODE_OF_CONDUCT.md>`__.
 
+🤝 Supporters
+--------------
+
+We would like to thank `Fosshost <https://fosshost.org>`__ for supporting us with hosting services. If your project open source project needs help, you can apply for support.
 
 ❓ FAQ
 ------
