@@ -96,7 +96,7 @@ Before authoring or reviewing a patch, please familiarize yourself with the `Cod
 🤝 Supporters
 --------------
 
-We would like to thank `Fosshost <https://fosshost.org>`__ for supporting us with hosting services. If your project open source project needs help, you can apply for support.
+We would like to thank `Fosshost <https://fosshost.org>`__ for supporting us with hosting services. If your open source project needs help, you can apply for their support.
 
 ❓ FAQ
 ------
