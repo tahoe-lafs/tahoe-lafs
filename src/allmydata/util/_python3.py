@@ -105,6 +105,7 @@ PORTED_MODULES = [
     "allmydata.scripts.tahoe_add_alias",
     "allmydata.scripts.tahoe_backup",
     "allmydata.scripts.tahoe_check",
+    "allmydata.scripts.tahoe_cp",
     "allmydata.scripts.types_",
     "allmydata.stats",
     "allmydata.storage_client",
