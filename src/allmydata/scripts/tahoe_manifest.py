@@ -1,7 +1,16 @@
+"""
+Ported to Python 3.
+"""
+from __future__ import unicode_literals
+from __future__ import absolute_import
+from __future__ import division
 from __future__ import print_function
 
-from future.utils import PY3
-from past.builtins import unicode
+from future.utils import PY2, PY3
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+
+from six import ensure_str
 
 from urllib.parse import quote as url_quote
 import json
@@ -37,7 +46,7 @@ class ManifestStreamer(LineOnlyReceiver, object):
         except UnknownAliasError as e:
             e.display(stderr)
             return 1
-        path = unicode(path, "utf-8")
+        path = str(path, "utf-8")
         if path == '/':
             path = ''
         url = nodeurl + "uri/%s" % url_quote(rootcap)
@@ -96,8 +105,10 @@ class ManifestStreamer(LineOnlyReceiver, object):
                     if vc:
                         print(quote_output(vc, quotemarks=False), file=stdout)
                 else:
-                    print("%s %s" % (quote_output(d["cap"], quotemarks=False),
-                                               quote_path(d["path"], quotemarks=False)), file=stdout)
+                    # ensure_str() only necessary for Python 2.
+                    print(ensure_str("%s %s") % (
+                        quote_output(d["cap"], quotemarks=False),
+                        quote_path(d["path"], quotemarks=False)), file=stdout)
 
 def manifest(options):
     return ManifestStreamer().run(options)
