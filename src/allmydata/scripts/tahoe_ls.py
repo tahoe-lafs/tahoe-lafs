@@ -10,7 +10,7 @@ from future.utils import PY2
 if PY2:
     from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
-from six import ensure_text, ensure_str
+from six import ensure_text
 
 import time
 from urllib.parse import quote as url_quote
@@ -20,7 +20,7 @@ from allmydata.scripts.common import get_alias, DEFAULT_ALIAS, escape_path, \
 from allmydata.scripts.common_http import do_http, format_http_error
 from allmydata.util.encodingutil import unicode_to_output, quote_output, is_printable_ascii, to_bytes
 
-def list(options):
+def ls(options):
     nodeurl = options['node-url']
     aliases = options.aliases
     where = options.where
