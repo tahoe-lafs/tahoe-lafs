@@ -15,7 +15,7 @@ from six.moves import cStringIO as StringIO
 
 from allmydata import uri
 from allmydata.util import base32
-from allmydata.util.encodingutil import to_bytes
+from allmydata.util.encodingutil import to_bytes, quote_output_u
 from allmydata.mutable.publish import MutableData
 from allmydata.immutable import upload
 from allmydata.scripts import debug
@@ -168,7 +168,7 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
         self.uris = {}
         self.fileurls = {}
         DATA = b"data" * 100
-        quoted_good = u"'g\u00F6\u00F6d'"
+        quoted_good = quote_output_u("g\u00F6\u00F6d")
 
         d = c0.create_dirnode()
         def _stash_root_and_create_file(n):
