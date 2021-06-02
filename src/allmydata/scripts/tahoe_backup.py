@@ -1,6 +1,14 @@
+"""
+Ported to Python 3.
+"""
+from __future__ import unicode_literals
+from __future__ import absolute_import
+from __future__ import division
 from __future__ import print_function
 
-from past.builtins import unicode
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 import os.path
 import time
@@ -293,7 +301,7 @@ def collect_backup_targets(root, listdir, filter_children):
         yield FilenameUndecodableTarget(root, isdir=True)
     else:
         for child in filter_children(children):
-            assert isinstance(child, unicode), child
+            assert isinstance(child, str), child
             childpath = os.path.join(root, child)
             if os.path.islink(childpath):
                 yield LinkTarget(childpath, isdir=False)
@@ -498,10 +506,10 @@ class BackupProgress(object):
         )
 
     def _format_elapsed(self, elapsed):
-        seconds = elapsed.total_seconds()
-        hours = int(seconds / 3600)
-        minutes = int(seconds / 60 % 60)
-        seconds = int(seconds % 60)
+        seconds = int(elapsed.total_seconds())
+        hours = seconds // 3600
+        minutes = (seconds // 60) % 60
+        seconds = seconds % 60
         return "{}h {}m {}s".format(
             hours,
             minutes,
@@ -526,12 +534,12 @@ class BackupProgress(object):
         return self, {
             os.path.basename(create_path): create_value
             for (create_path, create_value)
-            in self._create_contents.items()
+            in list(self._create_contents.items())
             if os.path.dirname(create_path) == dirpath
         }, {
             os.path.basename(compare_path): compare_value
             for (compare_path, compare_value)
-            in self._compare_contents.items()
+            in list(self._compare_contents.items())
             if os.path.dirname(compare_path) == dirpath
         }
 
