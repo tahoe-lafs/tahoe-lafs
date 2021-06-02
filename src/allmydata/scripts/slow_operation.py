@@ -66,10 +66,10 @@ class SlowOperationRunner(object):
 
     def wait_for_results(self):
         last = 0
-        for next in self.poll_times():
-            delay = next - last
+        for next_item in self.poll_times():
+            delay = next_item - last
             time.sleep(delay)
-            last = next
+            last = next_item
             if self.poll():
                 return 0
 
