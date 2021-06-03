@@ -111,6 +111,7 @@ PORTED_MODULES = [
     "allmydata.scripts.tahoe_ls",
     "allmydata.scripts.tahoe_manifest",
     "allmydata.scripts.tahoe_mkdir",
+    "allmydata.scripts.tahoe_mv",
     "allmydata.scripts.types_",
     "allmydata.stats",
     "allmydata.storage_client",
