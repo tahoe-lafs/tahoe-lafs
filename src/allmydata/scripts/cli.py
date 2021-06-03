@@ -515,7 +515,7 @@ def list_aliases(options):
 
 def list_(options):
     from allmydata.scripts import tahoe_ls
-    rc = tahoe_ls.list(options)
+    rc = tahoe_ls.ls(options)
     return rc
 
 def get(options):
