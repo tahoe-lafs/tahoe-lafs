@@ -61,7 +61,7 @@ def _get_json_for_cap(options, cap):
         'uri/%s?t=json' % url_quote(cap),
     )
 
-def pretty_progress(percent, size=10, ascii=False):
+def pretty_progress(percent, size=10, output_ascii=False):
     """
     Displays a unicode or ascii based progress bar of a certain
     length. Should we just depend on a library instead?
@@ -72,7 +72,7 @@ def pretty_progress(percent, size=10, ascii=False):
     curr = int(percent / 100.0 * size)
     part = (percent / (100.0 / size)) - curr
 
-    if ascii:
+    if output_ascii:
         part = int(part * 4)
         part = '.oO%'[part]
         block_chr = '#'

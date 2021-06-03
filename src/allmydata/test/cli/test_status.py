@@ -60,30 +60,30 @@ class FakeStatus(object):
 class ProgressBar(unittest.TestCase):
 
     def test_ascii0(self):
-        prog = pretty_progress(80.0, size=10, ascii=True)
+        prog = pretty_progress(80.0, size=10, output_ascii=True)
         self.assertEqual('########. ', prog)
 
     def test_ascii1(self):
-        prog = pretty_progress(10.0, size=10, ascii=True)
+        prog = pretty_progress(10.0, size=10, output_ascii=True)
         self.assertEqual('#.        ', prog)
 
     def test_ascii2(self):
-        prog = pretty_progress(13.0, size=10, ascii=True)
+        prog = pretty_progress(13.0, size=10, output_ascii=True)
         self.assertEqual('#o        ', prog)
 
     def test_ascii3(self):
-        prog = pretty_progress(90.0, size=10, ascii=True)
+        prog = pretty_progress(90.0, size=10, output_ascii=True)
         self.assertEqual('#########.', prog)
 
     def test_unicode0(self):
         self.assertEqual(
-            pretty_progress(82.0, size=10, ascii=False),
+            pretty_progress(82.0, size=10, output_ascii=False),
             u'\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u258e ',
         )
 
     def test_unicode1(self):
         self.assertEqual(
-            pretty_progress(100.0, size=10, ascii=False),
+            pretty_progress(100.0, size=10, output_ascii=False),
             u'\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588',
         )
 
