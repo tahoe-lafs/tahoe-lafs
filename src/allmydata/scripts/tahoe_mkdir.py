@@ -1,6 +1,14 @@
+"""
+Ported to Python 3.
+"""
+from __future__ import unicode_literals
+from __future__ import absolute_import
+from __future__ import division
 from __future__ import print_function
 
-from past.builtins import unicode
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 from urllib.parse import quote as url_quote
 from allmydata.scripts.common_http import do_http, check_http_error
@@ -37,7 +45,7 @@ def mkdir(options):
         return 0
 
     # create a new directory at the given location
-    path = unicode(path, "utf-8")
+    path = str(path, "utf-8")
     if path.endswith("/"):
         path = path[:-1]
     # path must be "/".join([s.encode("utf-8") for s in segments])
