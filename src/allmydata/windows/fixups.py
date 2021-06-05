@@ -1,5 +1,8 @@
 from __future__ import print_function
 
+from future.utils import PY3
+from past.builtins import unicode
+
 # This code isn't loadable or sensible except on Windows.  Importers all know
 # this and are careful.  Normally I would just let an import error from ctypes
 # explain any mistakes but Mypy also needs some help here.  This assert
@@ -120,6 +123,10 @@ def initialize():
     _done = True
 
     SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOOPENFILEERRORBOX)
+
+    if PY3:
+        # The rest of this appears to be Python 2-specific
+        return
 
     original_stderr = sys.stderr
 

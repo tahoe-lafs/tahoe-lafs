@@ -1,7 +1,15 @@
+"""
+Ported to Python 3.
+"""
+from __future__ import unicode_literals
+from __future__ import absolute_import
+from __future__ import division
 from __future__ import print_function
 
-from future.utils import PY3
-from past.builtins import unicode
+from future.utils import PY2, PY3
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+
 from six import ensure_str
 
 import os, time
@@ -29,7 +37,7 @@ class SlowOperationRunner(object):
         except UnknownAliasError as e:
             e.display(stderr)
             return 1
-        path = unicode(path, "utf-8")
+        path = str(path, "utf-8")
         if path == '/':
             path = ''
         url = nodeurl + "uri/%s" % url_quote(rootcap)
@@ -58,10 +66,10 @@ class SlowOperationRunner(object):
 
     def wait_for_results(self):
         last = 0
-        for next in self.poll_times():
-            delay = next - last
+        for next_item in self.poll_times():
+            delay = next_item - last
             time.sleep(delay)
-            last = next
+            last = next_item
             if self.poll():
                 return 0
 

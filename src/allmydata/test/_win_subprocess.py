@@ -7,6 +7,9 @@ from future.utils import PY3
 if PY3:
     raise RuntimeError("Just use subprocess.Popen")
 
+# This is necessary to pacify flake8 on Python 3, while we're still supporting
+# Python 2.
+from past.builtins import unicode
 
 # -*- coding: utf-8 -*-
 

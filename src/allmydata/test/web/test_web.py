@@ -218,7 +218,7 @@ class FakeDisplayableServer(StubServer):  # type: ignore  # tahoe-lafs/ticket/35
         return self.connected
     def get_version(self):
         return {
-            "application-version": "1.0"
+            b"application-version": b"1.0"
         }
     def get_permutation_seed(self):
         return b""

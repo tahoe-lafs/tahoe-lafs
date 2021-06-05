@@ -43,6 +43,7 @@ from allmydata.monitor import Monitor
 from allmydata.mutable.common import NotWriteableError
 from allmydata.mutable import layout as mutable_layout
 from allmydata.mutable.publish import MutableData
+from allmydata.scripts.runner import PYTHON_3_WARNING
 
 from foolscap.api import DeadReferenceError, fireEventually, flushEventualQueue
 from twisted.python.failure import Failure
@@ -2635,7 +2636,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
             out, err, rc_or_sig = res
             self.failUnlessEqual(rc_or_sig, 0, str(res))
             if check_stderr:
-                self.failUnlessEqual(err, b"")
+                self.assertIn(err.strip(), (b"", PYTHON_3_WARNING.encode("ascii")))
 
         d.addCallback(_run_in_subprocess, "create-alias", "newalias")
         d.addCallback(_check_succeeded)
@@ -2655,7 +2656,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         def _check_ls(res):
             out, err, rc_or_sig = res
             self.failUnlessEqual(rc_or_sig, 0, str(res))
-            self.failUnlessEqual(err, b"", str(res))
+            self.assertIn(err.strip(), (b"", PYTHON_3_WARNING.encode("ascii")))
             self.failUnlessIn(b"tahoe-moved", out)
             self.failIfIn(b"tahoe-file", out)
         d.addCallback(_check_ls)

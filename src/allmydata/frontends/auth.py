@@ -80,5 +80,5 @@ class AccountFileChecker(object):
             return defer.fail(error.UnauthorizedLogin())
 
         d = defer.maybeDeferred(creds.checkPassword, correct)
-        d.addCallback(self._cbPasswordMatch, str(creds.username))
+        d.addCallback(self._cbPasswordMatch, creds.username)
         return d

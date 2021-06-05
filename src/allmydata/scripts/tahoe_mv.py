@@ -1,6 +1,14 @@
+"""
+Ported to Python 3.
+"""
+from __future__ import unicode_literals
+from __future__ import absolute_import
+from __future__ import division
 from __future__ import print_function
 
-from past.builtins import unicode
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 import re
 from urllib.parse import quote as url_quote
@@ -27,7 +35,7 @@ def mv(options, mode="move"):
     except UnknownAliasError as e:
         e.display(stderr)
         return 1
-    from_path = unicode(from_path, "utf-8")
+    from_path = str(from_path, "utf-8")
     from_url = nodeurl + "uri/%s" % url_quote(rootcap)
     if from_path:
         from_url += "/" + escape_path(from_path)
@@ -47,7 +55,7 @@ def mv(options, mode="move"):
         e.display(stderr)
         return 1
     to_url = nodeurl + "uri/%s" % url_quote(rootcap)
-    path = unicode(path, "utf-8")
+    path = str(path, "utf-8")
     if path:
         to_url += "/" + escape_path(path)
 

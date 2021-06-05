@@ -660,7 +660,6 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
                          if line]
             except ValueError:
                 print("response is:", res)
-                print("undecodeable line was '%s'" % line)
                 raise
             self.failUnlessReallyEqual(len(units), 5+1)
             # should be parent-first

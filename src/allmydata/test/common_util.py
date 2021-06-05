@@ -12,6 +12,7 @@ if PY2:
     from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, dict, list, object, range, str, max, min  # noqa: F401
 
 import os
+import sys
 import time
 import signal
 from random import randrange
@@ -85,7 +86,7 @@ def run_cli_native(verb, *args, **kwargs):
         bytes.
     """
     nodeargs = kwargs.pop("nodeargs", [])
-    encoding = kwargs.pop("encoding", None) or "utf-8"
+    encoding = kwargs.pop("encoding", None) or getattr(sys.stdout, "encoding") or "utf-8"
     return_bytes = kwargs.pop("return_bytes", False)
     verb = maybe_unicode_to_argv(verb)
     args = [maybe_unicode_to_argv(a) for a in args]
@@ -105,9 +106,15 @@ def run_cli_native(verb, *args, **kwargs):
         # necessary.  This works okay for ASCII and if LANG is set
         # appropriately.  These aren't great constraints so we should move
         # away from this behavior.
+        #
+        # The encoding attribute doesn't change StringIO behavior on Python 2,
+        # but it's there for realism of the emulation.
         stdin = StringIO(stdin)
+        stdin.encoding = encoding
         stdout = StringIO()
+        stdout.encoding = encoding
         stderr = StringIO()
+        stderr.encoding = encoding
     else:
         # The new behavior, the Python 3 behavior, is to accept unicode and
         # encode it using a specific encoding. For older versions of Python 3,

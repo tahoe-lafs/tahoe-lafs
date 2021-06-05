@@ -1,14 +1,8 @@
 """
 Track the port to Python 3.
 
-The two easiest ways to run the part of the test suite which is expected to
-pass on Python 3 are::
-
-    $ tox -e py36
-
-and::
-
-    $ trial allmydata.test.python3_tests
+At this point all unit tests have been ported to Python 3, so you can just run
+them normally.
 
 This module has been ported to Python 3.
 """
@@ -21,6 +15,22 @@ from __future__ import print_function
 from future.utils import PY2
 if PY2:
     from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+
+
+PORTED_INTEGRATION_TESTS = [
+    "integration.test_aaa_aardvark",
+    "integration.test_servers_of_happiness",
+    "integration.test_sftp",
+    "integration.test_streaming_logs",
+    "integration.test_tor",
+    "integration.test_web",
+]
+
+PORTED_INTEGRATION_MODULES = [
+    "integration",
+    "integration.conftest",
+    "integration.util",
+]
 
 # Keep these sorted alphabetically, to reduce merge conflicts:
 PORTED_MODULES = [
@@ -82,8 +92,31 @@ PORTED_MODULES = [
     "allmydata.node",
     "allmydata.nodemaker",
     "allmydata.scripts",
+    "allmydata.scripts.admin",
+    "allmydata.scripts.backupdb",
+    "allmydata.scripts.cli",
+    "allmydata.scripts.common_http",
+    "allmydata.scripts.common",
     "allmydata.scripts.create_node",
+    "allmydata.scripts.debug",
+    "allmydata.scripts.default_nodedir",
     "allmydata.scripts.runner",
+    "allmydata.scripts.slow_operation",
+    "allmydata.scripts.tahoe_add_alias",
+    "allmydata.scripts.tahoe_backup",
+    "allmydata.scripts.tahoe_check",
+    "allmydata.scripts.tahoe_cp",
+    "allmydata.scripts.tahoe_get",
+    "allmydata.scripts.tahoe_invite",
+    "allmydata.scripts.tahoe_ls",
+    "allmydata.scripts.tahoe_manifest",
+    "allmydata.scripts.tahoe_mkdir",
+    "allmydata.scripts.tahoe_mv",
+    "allmydata.scripts.tahoe_put",
+    "allmydata.scripts.tahoe_run",
+    "allmydata.scripts.tahoe_status",
+    "allmydata.scripts.tahoe_unlink",
+    "allmydata.scripts.tahoe_webopen",
     "allmydata.scripts.types_",
     "allmydata.stats",
     "allmydata.storage_client",
@@ -108,7 +141,6 @@ PORTED_MODULES = [
     "allmydata.test.matchers",
     "allmydata.test.mutable",
     "allmydata.test.mutable.util",
-    "allmydata.test.python3_tests",
     "allmydata.test.storage_plugin",
     "allmydata.test.strategies",
     "allmydata.test.web",
@@ -246,6 +278,7 @@ PORTED_TEST_MODULES = [
     "allmydata.test.test_node",
     "allmydata.test.test_observer",
     "allmydata.test.test_pipeline",
+    "allmydata.test.test_python2_regressions",
     "allmydata.test.test_python3",
     "allmydata.test.test_repairer",
     "allmydata.test.test_runner",
