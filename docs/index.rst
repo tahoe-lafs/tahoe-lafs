@@ -13,7 +13,7 @@ preserving your privacy and security.
 
 .. toctree::
    :maxdepth: 1
-   :caption: Preliminaries
+   :caption: Introduction
 
    about
 
