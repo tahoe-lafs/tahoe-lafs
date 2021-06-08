@@ -128,7 +128,7 @@ install_requires = [
     "future >= 0.18.2",
 
     # Discover local network configuration
-    "netifaces >= 0.11.0",
+    "netifaces",
 
     # Utility code:
     "pyutil >= 3.3.0",
