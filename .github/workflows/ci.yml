@@ -175,11 +175,11 @@ jobs:
         os:
           - macos-latest
           - windows-latest
+          - ubuntu-latest
         python-version:
           - 2.7
-        include:
-          - os: ubuntu-latest
-            python-version: 3.6
+          - 3.6
+          - 3.9
 
     steps:
 
