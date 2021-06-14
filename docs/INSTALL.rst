@@ -181,8 +181,8 @@ following instructions with the local filename.
  New python executable in ~/venv/bin/python2.7
  Installing setuptools, pip, wheel...done.
  
- % venv/bin/pip install https://tahoe-lafs.org/downloads/tahoe-lafs-1.15.1.tar.bz2
- Collecting https://tahoe-lafs.org/downloads/tahoe-lafs-1.15.1.tar.bz2
+ % venv/bin/pip install https://tahoe-lafs.org/downloads/tahoe-lafs-1.15.1.tar.gz
+ Collecting https://tahoe-lafs.org/downloads/tahoe-lafs-1.15.1.tar.gz
  ...
  Installing collected packages: ...
  Successfully installed ...
@@ -208,17 +208,17 @@ those developers authorized to sign a Tahoe release:
    :code:
 
 Signatures are made available beside the release. So for example, a release
-like ``https://tahoe-lafs.org/downloads/tahoe-lafs-1.16.0.tar.bz2`` might
-have signatures ``tahoe-lafs-1.16.0.tar.bz2.meejah.asc`` and
-``tahoe-lafs-1.16.0.tar.bz2.warner.asc``.
+like ``https://tahoe-lafs.org/downloads/tahoe-lafs-1.16.0.tar.gz`` might
+have signatures ``tahoe-lafs-1.16.0.tar.gz.meejah.asc`` and
+``tahoe-lafs-1.16.0.tar.gz.warner.asc``.
 
 To verify the signatures using GnuPG::
 
-  % gpg --verify tahoe-lafs-1.16.0.tar.bz2.meejah.asc tahoe-lafs-1.16.0.tar.bz2
+  % gpg --verify tahoe-lafs-1.16.0.tar.gz.meejah.asc tahoe-lafs-1.16.0.tar.gz
   gpg: Signature made XXX
   gpg:                using RSA key 9D5A2BD5688ECB889DEBCD3FC2602803128069A7
   gpg: Good signature from "meejah <meejah@meejah.ca>" [full]
-  % gpg --verify tahoe-lafs-1.16.0.tar.bz2.warner.asc tahoe-lafs-1.16.0.tar.bz2
+  % gpg --verify tahoe-lafs-1.16.0.tar.gz.warner.asc tahoe-lafs-1.16.0.tar.gz
   gpg: Signature made XXX
   gpg:                using RSA key 967EFE06699872411A77DF36D43B4C9C73225AAF
   gpg: Good signature from "Brian Warner <warner@lothar.com>" [full]
