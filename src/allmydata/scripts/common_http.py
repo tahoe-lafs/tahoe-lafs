@@ -94,7 +94,10 @@ def do_http(method, url, body=b""):
 
 
 def format_http_success(resp):
-    return "%s %s" % (resp.status, quote_output(resp.reason, quotemarks=False))
+    # ensure_text() shouldn't be necessary when Python 2 is dropped.
+    return quote_output(
+        "%s %s" % (resp.status, six.ensure_text(resp.reason)),
+        quotemarks=False)
 
 def format_http_error(msg, resp):
     # ensure_text() shouldn't be necessary when Python 2 is dropped.
