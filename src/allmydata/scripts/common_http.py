@@ -97,9 +97,10 @@ def format_http_success(resp):
     return "%s %s" % (resp.status, quote_output(resp.reason, quotemarks=False))
 
 def format_http_error(msg, resp):
+    # ensure_text() shouldn't be necessary when Python 2 is dropped.
     return quote_output(
-        "%s: %s %s\n%s" % (msg, resp.status, str(resp.reason, "utf-8"),
-                           str(resp.read(), "utf-8")),
+        "%s: %s %s\n%s" % (msg, resp.status, six.ensure_text(resp.reason),
+                           six.ensure_text(resp.read())),
         quotemarks=False)
 
 def check_http_error(resp, stderr):
