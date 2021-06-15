@@ -1,0 +1,1 @@
+Fix regression where uploading files with non-ASCII names failed.
