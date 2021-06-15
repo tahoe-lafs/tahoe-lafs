@@ -97,8 +97,10 @@ def format_http_success(resp):
     return "%s %s" % (resp.status, quote_output(resp.reason, quotemarks=False))
 
 def format_http_error(msg, resp):
-    return "%s: %s %s\n%s" % (msg, resp.status, quote_output(resp.reason, quotemarks=False),
-                              quote_output(resp.read(), quotemarks=False))
+    return quote_output(
+        "%s: %s %s\n%s" % (msg, resp.status, str(resp.reason, "utf-8"),
+                           str(resp.read(), "utf-8")),
+        quotemarks=False)
 
 def check_http_error(resp, stderr):
     if resp.status < 200 or resp.status >= 300:
