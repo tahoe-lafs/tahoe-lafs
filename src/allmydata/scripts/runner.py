@@ -204,7 +204,8 @@ def _setup_coverage(reactor):
     """
     # can we put this _setup_coverage call after we hit
     # argument-parsing?
-    if '--coverage' not in sys.argv:
+    # ensure_str() only necessary on Python 2.
+    if six.ensure_str('--coverage') not in sys.argv:
         return
     sys.argv.remove('--coverage')
 
