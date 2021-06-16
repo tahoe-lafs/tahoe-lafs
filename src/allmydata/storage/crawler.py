@@ -252,7 +252,9 @@ class ShareCrawler(service.MultiService):
         self.state["last-complete-prefix"] = last_complete_prefix
         tmpfile = self.statefile + ".tmp"
         with open(tmpfile, "wb") as f:
-            pickle.dump(self.state, f)
+            # Newer protocols won't work in Python 2; when it is dropped,
+            # protocol v4 can be used (added in Python 3.4).
+            pickle.dump(self.state, f, protocol=2)
         fileutil.move_into_place(tmpfile, self.statefile)
 
     def startService(self):
