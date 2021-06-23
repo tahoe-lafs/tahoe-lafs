@@ -52,6 +52,7 @@ PORTED_MODULES = [
     "allmydata.deep_stats",
     "allmydata.dirnode",
     "allmydata.frontends",
+    "allmydata.frontends.auth",
     "allmydata.frontends.sftpd",
     "allmydata.hashtree",
     "allmydata.history",
