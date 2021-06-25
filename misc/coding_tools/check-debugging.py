@@ -1,13 +1,18 @@
 #! /usr/bin/python
 
-# ./check-debugging.py src
+"""
+Checks for defer.setDebugging().
+
+Runs on Python 3.
+
+Usage: ./check-debugging.py src
+"""
 
 from __future__ import print_function
 
 import sys, re, os
 
 ok = True
-umids = {}
 
 for starting_point in sys.argv[1:]:
     for root, dirs, files in os.walk(starting_point):
