@@ -152,13 +152,11 @@ jobs:
         os:
           - windows-latest
           - ubuntu-latest
+          - macos-latest
         python-version:
           - 2.7
           - 3.6
           - 3.9
-        include:
-          - os: macos-latest
-            python-version: 2.7
 
     steps:
 
