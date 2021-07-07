@@ -19,7 +19,6 @@ jobs:
       matrix:
         os:
           - windows-latest
-          - macos-latest
           - ubuntu-latest
         python-version:
           - 2.7
@@ -27,6 +26,12 @@ jobs:
           - 3.7
           - 3.8
           - 3.9
+        include:
+          # On macOS don't bother with 3.6-3.8, just to get faster builds.
+          - os: macos-latest
+            python-version: 2.7
+          - os: macos-latest
+            python-version: 3.9
 
     steps:
       # See https://github.com/actions/checkout. A fetch-depth of 0
@@ -157,25 +162,23 @@ jobs:
           - 3.6
           - 3.9
         include:
+          # On macOS don't bother with 3.6, just to get faster builds.
           - os: macos-latest
             python-version: 2.7
+          - os: macos-latest
+            python-version: 3.9
 
     steps:
 
       - name: Install Tor [Ubuntu]
         if: matrix.os == 'ubuntu-latest'
         run: sudo apt install tor
-
-      - name: Install Tor [macOS, ${{ matrix.python-version }} ]
-        if: ${{ ( matrix.os == 'macos-latest' ) &&  ( matrix.python-version != '2.7' ) }}
-        run: brew install tor
         
       # TODO: See https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3744.
       # We have to use an older version of Tor for running integration
-      # tests on macOS using Python 2.7.  We should stop doing this
-      # when Python 2.7 is dropped.
+      # tests on macOS.
       - name: Install Tor [macOS, ${{ matrix.python-version }} ]
-        if: ${{ ( matrix.os == 'macos-latest' ) &&  ( matrix.python-version == '2.7' ) }}
+        if: ${{ matrix.os == 'macos-latest' }}
         run: |
           brew extract --version 0.4.5.8 tor homebrew/cask
           brew install tor@0.4.5.8
