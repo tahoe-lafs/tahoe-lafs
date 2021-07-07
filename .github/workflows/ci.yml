@@ -19,7 +19,6 @@ jobs:
       matrix:
         os:
           - windows-latest
-          - macos-latest
           - ubuntu-latest
         python-version:
           - 2.7
@@ -27,6 +26,12 @@ jobs:
           - 3.7
           - 3.8
           - 3.9
+        include:
+          # On macOS don't bother with 3.6-3.8, just to get faster builds.
+          - os: macos-latest
+            python-version: 2.7
+          - os: macos-latest
+            python-version: 3.9
 
     steps:
       # See https://github.com/actions/checkout. A fetch-depth of 0
@@ -152,11 +157,16 @@ jobs:
         os:
           - windows-latest
           - ubuntu-latest
-          - macos-latest
         python-version:
           - 2.7
           - 3.6
           - 3.9
+        include:
+          # On macOS don't bother with 3.6, just to get faster builds.
+          - os: macos-latest
+            python-version: 2.7
+          - os: macos-latest
+            python-version: 3.9
 
     steps:
 
