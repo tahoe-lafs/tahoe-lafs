@@ -10,7 +10,7 @@ Introduction
 
 This is how to run a Tahoe-LAFS client or a complete Tahoe-LAFS grid.
 First you have to install the Tahoe-LAFS software, as documented in
-:doc:`INSTALL`.
+:doc:`Installing Tahoe-LAFS <../Installation/install-tahoe>`.
 
 The ``tahoe`` program in your virtualenv's ``bin`` directory is used to
 create, start, and stop nodes. Each node lives in a separate base
