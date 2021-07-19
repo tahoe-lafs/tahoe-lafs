@@ -70,7 +70,7 @@ Create Branch and Apply Updates
   - commit it
 
 - update "docs/known_issues.rst" if appropriate
-- update "docs/INSTALL.rst" references to the new release
+- update "docs/Installation/install-tahoe.rst" references to the new release
 - Push the branch to github
 - Create a (draft) PR; this should trigger CI (note that github
   doesn't let you create a PR without some changes on the branch so
