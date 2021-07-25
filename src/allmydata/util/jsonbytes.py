@@ -28,8 +28,8 @@ if PY2:
     codecs.register_error("backslashreplace_tahoe_py2", backslashreplace_py2)
 
 
-def _bytes_to_unicode(any_bytes, obj):
-    """Create a function that recursively converts bytes to unicode.
+def bytes_to_unicode(any_bytes, obj):
+    """Convert bytes to unicode.
 
     :param any_bytes: If True, also support non-UTF-8-encoded bytes.
     :param obj: Object to de-byte-ify.
@@ -63,11 +63,11 @@ class UTF8BytesJSONEncoder(json.JSONEncoder):
     """
     def encode(self, o, **kwargs):
         return json.JSONEncoder.encode(
-            self, _bytes_to_unicode(False, o), **kwargs)
+            self, bytes_to_unicode(False, o), **kwargs)
 
     def iterencode(self, o, **kwargs):
         return json.JSONEncoder.iterencode(
-            self, _bytes_to_unicode(False, o), **kwargs)
+            self, bytes_to_unicode(False, o), **kwargs)
 
 
 class AnyBytesJSONEncoder(json.JSONEncoder):
@@ -79,11 +79,11 @@ class AnyBytesJSONEncoder(json.JSONEncoder):
     """
     def encode(self, o, **kwargs):
         return json.JSONEncoder.encode(
-            self, _bytes_to_unicode(True, o), **kwargs)
+            self, bytes_to_unicode(True, o), **kwargs)
 
     def iterencode(self, o, **kwargs):
         return json.JSONEncoder.iterencode(
-            self, _bytes_to_unicode(True, o), **kwargs)
+            self, bytes_to_unicode(True, o), **kwargs)
 
 
 def dumps(obj, *args, **kwargs):

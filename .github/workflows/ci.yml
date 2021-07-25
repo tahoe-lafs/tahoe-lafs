@@ -19,7 +19,6 @@ jobs:
       matrix:
         os:
           - windows-latest
-          - macos-latest
           - ubuntu-latest
         python-version:
           - 2.7
@@ -27,6 +26,12 @@ jobs:
           - 3.7
           - 3.8
           - 3.9
+        include:
+          # On macOS don't bother with 3.6-3.8, just to get faster builds.
+          - os: macos-latest
+            python-version: 2.7
+          - os: macos-latest
+            python-version: 3.9
 
     steps:
       # See https://github.com/actions/checkout. A fetch-depth of 0
@@ -37,32 +42,9 @@ jobs:
           fetch-depth: 0
 
       - name: Set up Python ${{ matrix.python-version }}
-        if: ${{ matrix.os != 'windows-latest' }}
         uses: actions/setup-python@v2
         with:
           python-version: ${{ matrix.python-version }}
-
-      # See note below about need for using 32-bit Python 2.7 on
-      # Windows.
-      - name: Set up Python ${{ matrix.python-version }} [Windows x64]
-        if: ${{ ( matrix.os == 'windows-latest' ) && ( matrix.python-version != '2.7' ) }}
-        uses: actions/setup-python@v2
-        with:
-          python-version: ${{ matrix.python-version }}
-          architecture: 'x64'
-
-      # We use netifaces, which does not ship a 64-bit wheel for the
-      # Python 2.7 + Windows combination, but it ships a 32-bit wheel.
-      # Since MS has removed vcpython27 compiler downloads from their
-      # usual download site, building a netifaces wheel locally is not
-      # an option anymore.  So let us just test with 32-bit Python on
-      # Windows.
-      - name: Set up Python ${{ matrix.python-version }} [Windows x86]
-        if: ${{ ( matrix.os == 'windows-latest' ) && ( matrix.python-version == '2.7' ) }}
-        uses: actions/setup-python@v1
-        with:
-          python-version: ${{ matrix.python-version }}
-          architecture: 'x86'
 
       # To use pip caching with GitHub Actions in an OS-independent
       # manner, we need `pip cache dir` command, which became
@@ -173,23 +155,34 @@ jobs:
       fail-fast: false
       matrix:
         os:
-          - macos-latest
           - windows-latest
+          - ubuntu-latest
         python-version:
           - 2.7
+          - 3.6
+          - 3.9
         include:
-          - os: ubuntu-latest
-            python-version: 3.6
+          # On macOS don't bother with 3.6, just to get faster builds.
+          - os: macos-latest
+            python-version: 2.7
+          - os: macos-latest
+            python-version: 3.9
 
     steps:
 
       - name: Install Tor [Ubuntu]
         if: matrix.os == 'ubuntu-latest'
         run: sudo apt install tor
-
-      - name: Install Tor [macOS]
-        if: matrix.os == 'macos-latest'
-        run: brew install tor
+        
+      # TODO: See https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3744.
+      # We have to use an older version of Tor for running integration
+      # tests on macOS.
+      - name: Install Tor [macOS, ${{ matrix.python-version }} ]
+        if: ${{ matrix.os == 'macos-latest' }}
+        run: |
+          brew extract --version 0.4.5.8 tor homebrew/cask
+          brew install tor@0.4.5.8
+          brew link --overwrite tor@0.4.5.8
 
       - name: Install Tor [Windows]
         if: matrix.os == 'windows-latest'
@@ -203,18 +196,9 @@ jobs:
           fetch-depth: 0
 
       - name: Set up Python ${{ matrix.python-version }}
-        if: ${{ matrix.os != 'windows-latest' }}
         uses: actions/setup-python@v1
         with:
           python-version: ${{ matrix.python-version }}
-
-      # See this step under coverage job.
-      - name: Set up Python ${{ matrix.python-version }} [Windows x86]
-        if: ${{ matrix.os == 'windows-latest' }}
-        uses: actions/setup-python@v1
-        with:
-          python-version: ${{ matrix.python-version }}
-          architecture: 'x86'
 
       - name: Get pip cache directory
         id: pip-cache
@@ -272,18 +256,9 @@ jobs:
           fetch-depth: 0
 
       - name: Set up Python ${{ matrix.python-version }}
-        if: ${{ matrix.os != 'windows-latest' }}
         uses: actions/setup-python@v1
         with:
           python-version: ${{ matrix.python-version }}
-
-      # See this step under coverage job.
-      - name: Set up Python ${{ matrix.python-version }} [Windows x86]
-        if: ${{ matrix.os == 'windows-latest' }}
-        uses: actions/setup-python@v1
-        with:
-          python-version: ${{ matrix.python-version }}
-          architecture: 'x86'
 
       - name: Get pip cache directory
         id: pip-cache

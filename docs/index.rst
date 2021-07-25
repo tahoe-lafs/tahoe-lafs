@@ -22,6 +22,13 @@ preserving your privacy and security.
    :caption: Using Tahoe-LAFS
 
    INSTALL
+
+   about-tahoe
+   Installation/install-tahoe
+   Installation/install-on-windows
+   Installation/install-on-linux
+   Installation/install-on-desert-island
+
    running
    configuration
    servers
@@ -50,6 +57,8 @@ preserving your privacy and security.
    performance
    logging
    stats
+   debian
+   build/build-pyOpenSSL
 
 .. toctree::
    :maxdepth: 1

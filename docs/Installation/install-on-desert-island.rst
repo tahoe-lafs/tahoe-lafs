@@ -1,6 +1,6 @@
-******************************************
-How To Build Tahoe-LAFS On A Desert Island
-******************************************
+***************************************
+Building Tahoe-LAFS On A Desert Island
+***************************************
 
 (or an airplane, or anywhere else without internet connectivity)
 

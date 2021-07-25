@@ -94,11 +94,17 @@ def do_http(method, url, body=b""):
 
 
 def format_http_success(resp):
-    return "%s %s" % (resp.status, quote_output(resp.reason, quotemarks=False))
+    # ensure_text() shouldn't be necessary when Python 2 is dropped.
+    return quote_output(
+        "%s %s" % (resp.status, six.ensure_text(resp.reason)),
+        quotemarks=False)
 
 def format_http_error(msg, resp):
-    return "%s: %s %s\n%s" % (msg, resp.status, quote_output(resp.reason, quotemarks=False),
-                              quote_output(resp.read(), quotemarks=False))
+    # ensure_text() shouldn't be necessary when Python 2 is dropped.
+    return quote_output(
+        "%s: %s %s\n%s" % (msg, resp.status, six.ensure_text(resp.reason),
+                           six.ensure_text(resp.read())),
+        quotemarks=False)
 
 def check_http_error(resp, stderr):
     if resp.status < 200 or resp.status >= 300:

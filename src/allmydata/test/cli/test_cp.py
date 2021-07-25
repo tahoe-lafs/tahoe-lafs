@@ -55,6 +55,11 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(lambda res: self.do_cli("get", "tahoe:" + artonwall_arg))
         d.addCallback(lambda rc_out_err: self.assertEqual(rc_out_err[1], DATA1))
 
+        # Version where destination filename is explicitly Unicode too.
+        d.addCallback(lambda res: self.do_cli("cp", fn1, "tahoe:" + artonwall_arg + "-2"))
+        d.addCallback(lambda res: self.do_cli("get", "tahoe:" + artonwall_arg + "-2"))
+        d.addCallback(lambda rc_out_err: self.assertEqual(rc_out_err[1], DATA1))
+
         d.addCallback(lambda res: self.do_cli("cp", fn2, "tahoe:"))
 
         d.addCallback(lambda res: self.do_cli("get", "tahoe:Metallica"))
@@ -74,7 +79,7 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
                 self.failUnlessReallyEqual(rc, 0)
                 if PY2:
                     out = out.decode(get_io_encoding())
-                self.failUnlessReallyEqual(out, u"Metallica\n\u00C4rtonwall\n")
+                self.failUnlessReallyEqual(out, u"Metallica\n\u00C4rtonwall\n\u00C4rtonwall-2\n")
                 self.assertEqual(len(err), 0, err)
         d.addCallback(_check)
 
