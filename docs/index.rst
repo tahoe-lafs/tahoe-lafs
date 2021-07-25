@@ -74,7 +74,6 @@ preserving your privacy and security.
    developer-guide
    ticket-triage
    release-checklist
-   desert-island
 
 .. toctree::
    :maxdepth: 1
