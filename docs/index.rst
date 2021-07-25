@@ -21,8 +21,6 @@ preserving your privacy and security.
    :maxdepth: 1
    :caption: Using Tahoe-LAFS
 
-   INSTALL
-
    about-tahoe
    Installation/install-tahoe
    Installation/install-on-windows
