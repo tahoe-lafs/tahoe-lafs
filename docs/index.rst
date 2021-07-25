@@ -15,7 +15,7 @@ preserving your privacy and security.
    :maxdepth: 1
    :caption: Introduction
 
-   about
+   about-tahoe
 
 .. toctree::
    :maxdepth: 1
