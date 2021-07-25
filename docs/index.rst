@@ -90,6 +90,5 @@ preserving your privacy and security.
 
    historical/configuration
    debian
-   windows
    OS-X
    build/build-pyOpenSSL
