@@ -38,7 +38,7 @@ preserving your privacy and security.
 
 .. toctree::
    :maxdepth: 1
-   :caption: Technical Notes
+   :caption: Tahoe-LAFS in Depth
 
    architecture
    helper
