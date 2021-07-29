@@ -56,7 +56,6 @@ def i2p_network(reactor, temp_dir, request):
             "--reseed.urls", "http://localhost:1/",
         ),
     )
-    pytest_twisted.blockon(proto.magic_seen)
 
     def cleanup():
         try:
@@ -65,6 +64,8 @@ def i2p_network(reactor, temp_dir, request):
         except ProcessExitedAlready:
             pass
     request.addfinalizer(cleanup)
+
+    util.block_with_timeout(proto.magic_seen, reactor, timeout=30)
 
 
 @pytest.fixture(scope='session')
