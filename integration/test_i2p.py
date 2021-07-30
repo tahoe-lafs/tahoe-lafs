@@ -47,7 +47,7 @@ if sys.platform.startswith('win'):
     pytest.skip('Skipping I2P tests on Windows', allow_module_level=True)
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture
 def i2p_network(reactor, temp_dir, request):
     """Fixture to start up local i2pd."""
     proto = util._MagicTextProtocol("ephemeral keys")
@@ -63,7 +63,7 @@ def i2p_network(reactor, temp_dir, request):
 
     def cleanup():
         try:
-            proto.transport.signalProcess("INT")
+            proto.transport.signalProcess("KILL")
             util.block_with_timeout(proto.exited, reactor)
         except ProcessExitedAlready:
             pass
@@ -72,7 +72,7 @@ def i2p_network(reactor, temp_dir, request):
     util.block_with_timeout(proto.magic_seen, reactor, timeout=30)
 
 
-@pytest.fixture(scope='session')
+@pytest.fixture
 @log_call(
     action_type=u"integration:i2p:introducer",
     include_args=["temp_dir", "flog_gatherer"],
@@ -133,7 +133,7 @@ log_gatherer.furl = {log_furl}
     return transport
 
 
-@pytest.fixture(scope='session')
+@pytest.fixture
 def i2p_introducer_furl(i2p_introducer, temp_dir):
     furl_fname = join(temp_dir, 'introducer_i2p', 'private', 'introducer.furl')
     while not exists(furl_fname):
