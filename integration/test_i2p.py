@@ -145,8 +145,8 @@ def i2p_introducer_furl(i2p_introducer, temp_dir):
 
 @pytest_twisted.inlineCallbacks
 def test_i2p_service_storage(reactor, request, temp_dir, flog_gatherer, i2p_network, i2p_introducer_furl):
-    yield _create_anonymous_node(reactor, 'carol', 8008, request, temp_dir, flog_gatherer, i2p_network, i2p_introducer_furl)
-    yield _create_anonymous_node(reactor, 'dave', 8009, request, temp_dir, flog_gatherer, i2p_network, i2p_introducer_furl)
+    yield _create_anonymous_node(reactor, 'carol_i2p', 8008, request, temp_dir, flog_gatherer, i2p_network, i2p_introducer_furl)
+    yield _create_anonymous_node(reactor, 'dave_i2p', 8009, request, temp_dir, flog_gatherer, i2p_network, i2p_introducer_furl)
     # ensure both nodes are connected to "a grid" by uploading
     # something via carol, and retrieve it using dave.
     gold_path = join(temp_dir, "gold")
@@ -165,7 +165,7 @@ def test_i2p_service_storage(reactor, request, temp_dir, flog_gatherer, i2p_netw
         sys.executable,
         (
             sys.executable, '-b', '-m', 'allmydata.scripts.runner',
-            '-d', join(temp_dir, 'carol'),
+            '-d', join(temp_dir, 'carol_i2p'),
             'put', gold_path,
         )
     )
@@ -179,7 +179,7 @@ def test_i2p_service_storage(reactor, request, temp_dir, flog_gatherer, i2p_netw
         sys.executable,
         (
             sys.executable, '-b', '-m', 'allmydata.scripts.runner',
-            '-d', join(temp_dir, 'dave'),
+            '-d', join(temp_dir, 'dave_i2p'),
             'get', cap,
         )
     )
