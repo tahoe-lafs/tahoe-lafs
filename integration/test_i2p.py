@@ -41,6 +41,10 @@ from allmydata.test.common import (
 
 if which("docker") is None:
     pytest.skip('Skipping I2P tests since Docker is unavailable', allow_module_level=True)
+# Docker on Windows machines sometimes expects Windows-y Docker images, so just
+# don't bother.
+if sys.platform.startswith('win'):
+    pytest.skip('Skipping I2P tests on Windows', allow_module_level=True)
 
 
 @pytest.fixture(scope="session")
