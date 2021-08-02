@@ -49,3 +49,46 @@ TBD.
 I would personally choose `cbors` over `cbor2`, assuming extensions aren't needed.
 
 
+## Question 3: How should support for two protocols be implemented in code structure?
+
+While the transition from old to new protocol is happening, the codebase will need support both protocols.
+Beyond having two code paths, this requires some thought about the internal APIs will work to support this.
+
+### Design alternatives
+
+#### `INTERNAL-CLIENT-API-SEPARATE`: Two completely distinct APIs
+
+There are two distinct storage APIs available to Python code, one for Foolscap and one for GBS, and code using the storage APIs is required to support both.
+This require touching every single client of the current internal storage API and making it support two different APIs.
+
+It's unclear to me how much code this would actually touch.
+Command-line tools, for example, wouldn't need to change since they use Tahoe-LAFS's external high-level "filesystem" HTTP API, rather than the internal storage APIs.
+
+TODO: Audit the code/talk to experts to clarify.
+
+
+#### `INTERNAL-CLIENT-API-NEW-EMULATES-OLD`: Implement facade around GBS that implements Foolscap-like API
+
+Even though GBS is quite different protocol, one could in theory create a GBS-based Python API that emulates the existing Foolscap protocol/API underneath (e.g. `RIStorageServer` interface).
+Python code talking to storage server would therefore mostly be unchanged.
+
+Upside: Don't need to change much in existing code that uses storage client API.
+Less chance of breakage.
+
+Downside: Stuck with old interfaces even once old protocol is done, but that could be fixed with second pass of refactoring.
+
+#### `INTERNAL-CLIENT-API-OLD-EMULATES-NEW`: Implement facade around Foolscap that implements GBS-like API
+
+1. Come up improved, GBS-y interface.
+2. Build facade that makes Foolscap storage client API that look like GBS client API.
+3. Update all code that currently uses Foolscap storage client API to use the new GBS-y interface.
+
+Upside: Code starts using improved API from the beginning.
+
+Downside: All code using `RIStorageServer` etc. needs to be updated.
+More chance of bugs.
+
+### Discussion
+
+The first option is clearly possible.
+It's not clear which of the other two options is actually feasible, the semantics may be too different.
