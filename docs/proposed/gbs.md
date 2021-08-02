@@ -106,7 +106,8 @@ This is useful for documentation, and also for validation.
 
 For the HTTP level, options includes:
 
-* OpenAPI (formerly Swagger)
+* OpenAPI (formerly Swagger).
+  v3.0 apparently supports a bunch of JSONSchema, v3.1 supports all of it, but 3.1 tool support seems lacking (it's new).
 
 Apparently that's pretty common so let's just say use that.
 
