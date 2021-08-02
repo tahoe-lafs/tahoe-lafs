@@ -2,6 +2,8 @@
 
 This is the corresponding document to the HTTP Storage Node Protocol, except focusing on actual implementation details within the context of the existing `tahoe-lafs` codebase.
 
+This is a design document, where design is used as a verb.
+
 ## Question 1: What programming language to use?
 
 Options include:
