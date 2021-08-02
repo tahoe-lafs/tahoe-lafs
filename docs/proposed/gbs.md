@@ -92,3 +92,20 @@ More chance of bugs.
 
 The first option is clearly possible.
 It's not clear which of the other two options is actually feasible, the semantics may be too different.
+
+
+## Question 4: Can we create a (somewhat) formal protocol spec of the HTTP API?
+
+There are various tools for specifying HTTP APIs.
+This is useful for documentation, and also for validation.
+
+For the HTTP level, options includes:
+
+* OpenAPI (Swagger)
+* ...
+
+For the CBOR/JSON records.
+
+* For the records, CDDL is apparently the schema language of choice for CBOR; it also supports JSON.
+  There is a Rust implementation which could be wrapped for Python, but support is in general not very broad (but might suffice).
+* JSON Schema tools _might_ work with CBOR, not sure how bytes are handled.
