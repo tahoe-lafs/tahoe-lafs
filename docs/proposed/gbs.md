@@ -4,6 +4,11 @@ This is the corresponding document to the HTTP Storage Node Protocol, except foc
 
 This is a design document, where design is used as a verb.
 
+## Resources
+
+* [The HTTP spec](http-storage-node-protocol.rst)
+* https://github.com/LeastAuthority/haskell-tahoe-lafs-storage-server is a sketch in Haskell of the proposed protocol.
+
 ## Question 1: What programming language to use?
 
 Options include:
