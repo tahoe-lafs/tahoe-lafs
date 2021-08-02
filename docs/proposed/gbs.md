@@ -106,11 +106,14 @@ This is useful for documentation, and also for validation.
 
 For the HTTP level, options includes:
 
-* OpenAPI (Swagger)
-* ...
+* OpenAPI (formerly Swagger)
 
-For the CBOR/JSON records.
+Apparently that's pretty common so let's just say use that.
 
-* For the records, CDDL is apparently the schema language of choice for CBOR; it also supports JSON.
-  There is a Rust implementation which could be wrapped for Python, but support is in general not very broad (but might suffice).
-* JSON Schema tools _might_ work with CBOR, not sure how bytes are handled.
+For the CBOR/JSON records:
+
+* CDDL is apparently the schema language of choice for CBOR; it also supports JSON.
+  There is a Rust implementation which could be wrapped for Python, but support for CDDL is in general not very broad (but might suffice).
+* JSON Schema tools _might_ work with CBOR, not sure how bytes are handled though...
+
+If the goal is generating client code, [Servant](https://docs.servant.dev/en/stable/) can do that.
