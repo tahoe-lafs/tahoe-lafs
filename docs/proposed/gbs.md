@@ -17,18 +17,21 @@ Options include:
    This has maximum compatibility.
 2. `LANG-PY3`: Python 3 only.
    Means we can use newer language features more easily, but makes merging back in more tricky.
-3. `LANG-PY3-RUST`: Some combination of Python 3 and Rust exposed via `PyO3`.
+   The main issue is _existing_ modules needs to be changed to support new protocol.
+   If you start using Python 3-only code, those modules might fail or even stop importing on Python 2.
+3. `LANG-PY3-RUST`: Some combination of Python 3 and Rust exposed via `PyO3` (which supports PyPy too via `cpyext`: https://pyo3.rs/v0.14.1/building_and_distribution/pypy.html).
    The benefit of using Rust is ability to share code with future implementations in other languages, much like C, but less likelihood of buffer overflows and other security problems, as well as performance improvements.
    In practice this seems like unnecessary complexity; if it turns out performance is an issue this option can be revisited.
+4. `LANG-PY3-NEW-MODULES`: New modules are Python 3-only, but existing modules stick to intersection of Python 2 + 3 that is currently in use, so as not to break Python 2.
 
 ### Recommendation
 
-Start with Python-only, but beyond that TBD, need to:
+`LANG-PY3-NEW-MODULES` sees like the obvious minimal choice.
+For Rust, we can see if there are natural places to do Rust.
+As far as dropping Python 2 in existing modules as well, TBD based on:
 
-1. Discuss timeline of dropping Python 2.
-2. See which versions are supported by 3rd-party dependencies.
-   Which brings us to the next question—
-
+1. Discussing timeline of dropping Python 2.
+2. Seeing which Python versions are supported by new 3rd-party dependencies.
 
 ## Question 2: What criteria to use for new dependencies?
 
