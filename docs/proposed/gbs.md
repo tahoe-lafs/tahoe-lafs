@@ -47,15 +47,23 @@ There appear to be the following main options:
    Written in Rust so inherently much more secure than C code, much faster than a pure-Python implementation, but has _far_ fewer users.
    On the third hand, the amount of new code in it is tiny, most of the heavy lifting is done by broadly used existing Rust libraries.
 
-### TBD: Any other criteria?
+### Portability
+
+Tahoe-LAFS wants to run on Linux/macOS/Windows, at least.
+As such:
+
+1. A pure-Python package is great.
+2. A package with compiled code should have binary wheels on PyPI for all three.
 
 ### Recommendation
 
-In practice decisions would have to be made on a case-by-case basis, but some guidelines would be good.
+In practice decisions would have to be made on a case-by-case basis, but basic criteria are as above:
 
-TBD.
-I would personally choose `cbors` over `cbor2`, assuming extensions aren't needed.
-
+1. Works.
+2. Maintained.
+3. Does not use unsafe language (C/C++) if there are alternatives.
+4. Available for easy installation (no compiler required) on Linux/macOS/Windows.
+5. Compatible license.
 
 ## Question 3: How should support for two protocols be implemented in code structure?
 
