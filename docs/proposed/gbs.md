@@ -98,6 +98,19 @@ More chance of bugs.
 
 ### Discussion
 
+Looking through the code, it seems that storage clients interact with the server using a `RIStorageServer`.
+Much of its interface is simple methods, pass in simple objects and get back simple objects.
+
+The two exceptions are:
+
+1. Reading a bucket, which involves a `RIBucketReader` that has a simple `read()` method, and a simple `advise_corrupt_share` method.
+2. When buckets are allocated, one gets back an object structure that has a dictionary with `RIBucketWriter`.
+   The bucket writers have simple `write()/close()/abort()` methods.
+
+This isn't _that_ object-oriented of an API.
+
+...
+
 The first option is clearly possible.
 It's not clear which of the other two options is actually feasible, the semantics may be too different.
 
