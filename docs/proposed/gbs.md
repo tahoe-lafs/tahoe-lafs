@@ -19,19 +19,31 @@ Options include:
    Means we can use newer language features more easily, but makes merging back in more tricky.
    The main issue is _existing_ modules needs to be changed to support new protocol.
    If you start using Python 3-only code, those modules might fail or even stop importing on Python 2.
-3. `LANG-PY3-RUST`: Some combination of Python 3 and Rust exposed via `PyO3` (which supports PyPy too via `cpyext`: https://pyo3.rs/v0.14.1/building_and_distribution/pypy.html).
+3. `LANG-PY3-RUST-CORE`: A core library for the storage protocol written in Rust, with Python just being thin bindings, with `PyO3` (which supports PyPy too via `cpyext`: https://pyo3.rs/v0.14.1/building_and_distribution/pypy.html).
    The benefit of using Rust is ability to share code with future implementations in other languages, much like C, but less likelihood of buffer overflows and other security problems, as well as performance improvements.
-   In practice this seems like unnecessary complexity; if it turns out performance is an issue this option can be revisited.
-4. `LANG-PY3-NEW-MODULES`: New modules are Python 3-only, but existing modules stick to intersection of Python 2 + 3 that is currently in use, so as not to break Python 2.
+4. `LANG-PY3-RUST-PERFORMANCE`: Still a Python project, but Rust is used when performance is a bottleneck.
+5. `LANG-PY3-NEW-MODULES`: New modules are Python 3-only, but existing modules stick to intersection of Python 2 + 3 that is currently in use, so as not to break Python 2.
+
+### `LANG-PY3-RUST-CORE` Discussion
+
+#### Pros
+
+There is an interest in supporting iOS/Android/browser.
+Rust would make these easier; maybe.
+
+1. Seems like using Rust in Android/iOS is possible.
+2. Unclear how concurrency requirements feed in to it (no-I/O approach? just block?).
+3. Browser is somewhat iffier insofar as `wasm` is a quite different computing environment.
+
+#### Cons
+
+No one else knows Rust.
+
+The protocol isn't that complex, doing a no-I/O model would be necessary to get this to integrate everywhere, so probably not worth the complexity.
 
 ### Recommendation
 
-`LANG-PY3-NEW-MODULES` sees like the obvious minimal choice.
-For Rust, we can see if there are natural places to do Rust.
-As far as dropping Python 2 in existing modules as well, TBD based on:
-
-1. Discussing timeline of dropping Python 2.
-2. Seeing which Python versions are supported by new 3rd-party dependencies.
+`LANG-PY3`, on the presumption that Python 2 support can continue in a long-lived branch, rather than blocking new development on main branch.
 
 ## Question 2: What criteria to use for new dependencies?
 
@@ -65,7 +77,7 @@ In practice decisions would have to be made on a case-by-case basis, but basic c
 4. Available for easy installation (no compiler required) on Linux/macOS/Windows.
 5. Compatible license.
 
-## Question 3: How should support for two protocols be implemented in code structure?
+## Question 3: How should support for two protocols be implemented in code structure, on the client side?
 
 While the transition from old to new protocol is happening, the codebase will need support both protocols.
 Beyond having two code paths, this requires some thought about the internal APIs will work to support this.
@@ -122,8 +134,9 @@ This isn't _that_ object-oriented of an API.
 The first option is clearly possible.
 It's not clear which of the other two options is actually feasible, the semantics may be too different.
 
+## Question 4: How should support for two protocols be implemented in code structure, on the server side?
 
-## Question 4: Can we create a (somewhat) formal protocol spec of the HTTP API?
+## Question 5: Can we create a (somewhat) formal protocol spec of the HTTP API?
 
 There are various tools for specifying HTTP APIs.
 This is useful for documentation, and also for validation.
