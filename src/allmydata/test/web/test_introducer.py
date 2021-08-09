@@ -15,7 +15,6 @@ from os.path import join
 
 from bs4 import BeautifulSoup
 
-from twisted.trial import unittest
 from twisted.internet import reactor
 from twisted.internet import defer
 from testtools.twistedsupport import succeeded
@@ -60,7 +59,8 @@ from ..common_web import (
 )
 
 from testtools.matchers import (
-    Equals
+    Equals,
+    AfterPreprocessing,
 )
 
 
@@ -112,7 +112,6 @@ class IntroducerWeb(AsyncTestCase):
         # we have to arrange to have cleaned up.
         self.addCleanup(lambda: flushEventualQueue(None))
         return super(IntroducerWeb, self).setUp()
-        
 
     @defer.inlineCallbacks
     def test_welcome(self):
@@ -233,12 +232,10 @@ class IntroducerRootTests(SyncTestCase):
             0,
         )
 
-        resource = IntroducerRoot(introducer_node) 
-        response = json.loads(succeeded(
-                render(resource, {b"t": [b"json"]}),
-            )._matcher.result)
-        deferred = defer.succeed({
-                u"subscription_summary": {"arbitrary": 2},
-                u"announcement_summary": {"arbitrary": 1},
-            })
-        self.assertThat(deferred.result, Equals(response))
+        resource = IntroducerRoot(introducer_node)
+        response = render(resource, {b"t": [b"json"]})
+        expected = {
+            u"subscription_summary": {"arbitrary": 2},
+            u"announcement_summary": {"arbitrary": 1},
+        }
+        self.assertThat(response, succeeded(AfterPreprocessing(json.loads, Equals(expected)))
