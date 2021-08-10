@@ -238,4 +238,6 @@ class IntroducerRootTests(SyncTestCase):
             u"subscription_summary": {"arbitrary": 2},
             u"announcement_summary": {"arbitrary": 1},
         }
-        self.assertThat(response, succeeded(AfterPreprocessing(json.loads, Equals(expected)))
+        self.assertThat(
+            response,
+            succeeded(AfterPreprocessing(json.loads, Equals(expected))))
