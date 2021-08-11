@@ -99,7 +99,7 @@ class ParseOptionsTests(SyncTestCase):
         """
         tricky = u"\u2621"
         try:
-            parse_options([unicode_to_argv(tricky)])
+            parse_options([tricky])
         except usage.error as e:
             self.assertEqual(
                 b"Unknown command: " + tricky.encode("utf-8"),
