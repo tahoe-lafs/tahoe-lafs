@@ -1,4 +1,14 @@
+"""
+Ported to Python 3.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
 from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 import time
 from twisted.python.filepath import FilePath
@@ -9,7 +19,7 @@ from twisted.web.template import (
     renderer,
     renderElement
 )
-from allmydata.web.common_py3 import (
+from allmydata.web.common import (
     abbreviate_time,
     MultiFormatResource
 )
@@ -318,7 +328,4 @@ class StorageStatus(MultiFormatResource):
              "lease-checker": self._storage.lease_checker.get_state(),
              "lease-checker-progress": self._storage.lease_checker.get_progress(),
              }
-        result = json.dumps(d, indent=1) + "\n"
-        if PY2:
-            result = result.decode("utf-8")
-        return result.encode("utf-8")
+        return json.dumps(d, indent=1) + "\n"

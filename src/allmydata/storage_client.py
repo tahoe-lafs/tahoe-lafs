@@ -37,7 +37,7 @@ from __future__ import unicode_literals
 from future.utils import PY2
 if PY2:
     from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
-
+from six import ensure_text
 
 import re, time, hashlib
 
@@ -199,6 +199,7 @@ class StorageFarmBroker(service.MultiService):
         # doesn't really matter but it makes the logging behavior more
         # predictable and easier to test (and at least one test does depend on
         # this sorted order).
+        servers = {ensure_text(key): value for (key, value) in servers.items()}
         for (server_id, server) in sorted(servers.items()):
             try:
                 storage_server = self._make_storage_server(
@@ -237,11 +238,11 @@ class StorageFarmBroker(service.MultiService):
             for plugin
             in getPlugins(IFoolscapStoragePlugin)
         }
-        return {
+        return UnicodeKeyDict({
             name: plugins[name].get_client_resource(node_config)
             for (name, config)
             in self.storage_client_config.storage_plugins.items()
-        }
+        })
 
     @log_call(
         action_type=u"storage-client:broker:make-storage-server",
@@ -820,7 +821,7 @@ class NativeStorageServer(service.MultiService):
         return self
 
     def __repr__(self):
-        return "<NativeStorageServer for %s>" % self.get_name()
+        return "<NativeStorageServer for %r>" % self.get_name()
     def get_serverid(self):
         return self._server_id
     def get_version(self):
@@ -844,10 +845,10 @@ class NativeStorageServer(service.MultiService):
         version = self.get_version()
         if version is None:
             return None
-        protocol_v1_version = version.get('http://allmydata.org/tahoe/protocols/storage/v1', UnicodeKeyDict())
-        available_space = protocol_v1_version.get('available-space')
+        protocol_v1_version = version.get(b'http://allmydata.org/tahoe/protocols/storage/v1', BytesKeyDict())
+        available_space = protocol_v1_version.get(b'available-space')
         if available_space is None:
-            available_space = protocol_v1_version.get('maximum-immutable-share-size', None)
+            available_space = protocol_v1_version.get(b'maximum-immutable-share-size', None)
         return available_space
 
     def start_connecting(self, trigger_cb):

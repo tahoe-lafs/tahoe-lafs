@@ -1,5 +1,15 @@
 # -*- coding: utf-8 -*-
+"""
+Ported to Python 3.
+"""
 from __future__ import absolute_import, print_function, with_statement
+from __future__ import division
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+
 import os
 
 from zope.interface import (
@@ -201,6 +211,8 @@ def create_config(reactor, cli_config):
                                                               "tor_onion.privkey")
     privkeyfile = os.path.join(private_dir, "tor_onion.privkey")
     with open(privkeyfile, "wb") as f:
+        if isinstance(privkey, str):
+            privkey = privkey.encode("ascii")
         f.write(privkey)
 
     # tahoe_config_tor: this is a dictionary of keys/values to add to the

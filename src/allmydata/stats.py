@@ -9,7 +9,9 @@ from __future__ import unicode_literals
 from future.utils import PY2
 if PY2:
     from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
-
+    from time import clock as process_time
+else:
+    from time import process_time
 import time
 
 from twisted.application import service
@@ -17,7 +19,7 @@ from twisted.application.internet import TimerService
 from zope.interface import implementer
 from foolscap.api import eventually
 
-from allmydata.util import log
+from allmydata.util import log, dictutil
 from allmydata.interfaces import IStatsProducer
 
 @implementer(IStatsProducer)
@@ -27,7 +29,7 @@ class CPUUsageMonitor(service.MultiService):
 
     def __init__(self):
         service.MultiService.__init__(self)
-        # we don't use time.clock() here, because the constructor is run by
+        # we don't use process_time() here, because the constructor is run by
         # the twistd parent process (as it loads the .tac file), whereas the
         # rest of the program will be run by the child process, after twistd
         # forks. Instead, set self.initial_cpu as soon as the reactor starts
@@ -39,11 +41,11 @@ class CPUUsageMonitor(service.MultiService):
         TimerService(self.POLL_INTERVAL, self.check).setServiceParent(self)
 
     def _set_initial_cpu(self):
-        self.initial_cpu = time.clock()
+        self.initial_cpu = process_time()
 
     def check(self):
         now_wall = time.time()
-        now_cpu = time.clock()
+        now_cpu = process_time()
         self.samples.append( (now_wall, now_cpu) )
         while len(self.samples) > self.HISTORY_LENGTH+1:
             self.samples.pop(0)
@@ -68,7 +70,7 @@ class CPUUsageMonitor(service.MultiService):
         avg = self._average_N_minutes(15)
         if avg is not None:
             s["cpu_monitor.15min_avg"] = avg
-        now_cpu = time.clock()
+        now_cpu = process_time()
         s["cpu_monitor.total"] = now_cpu - self.initial_cpu
         return s
 
@@ -79,15 +81,13 @@ class StatsProvider(service.MultiService):
         service.MultiService.__init__(self)
         self.node = node
 
-        self.counters = {}
+        self.counters = dictutil.UnicodeKeyDict()
         self.stats_producers = []
         self.cpu_monitor = CPUUsageMonitor()
         self.cpu_monitor.setServiceParent(self)
         self.register_producer(self.cpu_monitor)
 
     def count(self, name, delta=1):
-        if isinstance(name, str):
-            name = name.encode("utf-8")
         val = self.counters.setdefault(name, 0)
         self.counters[name] = val + delta
 

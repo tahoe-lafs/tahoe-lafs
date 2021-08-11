@@ -81,7 +81,7 @@ class CHKCheckerAndUEBFetcher(object):
     def _got_response(self, buckets, server):
         # buckets is a dict: maps shum to an rref of the server who holds it
         shnums_s = ",".join([str(shnum) for shnum in buckets])
-        self.log("got_response: [%s] has %d shares (%s)" %
+        self.log("got_response: [%r] has %d shares (%s)" %
                  (server.get_name(), len(buckets), shnums_s),
                  level=log.NOISY)
         self._found_shares.update(buckets.keys())
@@ -154,8 +154,8 @@ class CHKUploadHelper(Referenceable, upload.CHKUploader):  # type: ignore # warn
     def __init__(self, storage_index,
                  helper, storage_broker, secret_holder,
                  incoming_file, encoding_file,
-                 log_number, progress=None):
-        upload.CHKUploader.__init__(self, storage_broker, secret_holder, progress=progress)
+                 log_number):
+        upload.CHKUploader.__init__(self, storage_broker, secret_holder)
         self._storage_index = storage_index
         self._helper = helper
         self._incoming_file = incoming_file
@@ -167,7 +167,7 @@ class CHKUploadHelper(Referenceable, upload.CHKUploader):  # type: ignore # warn
         self._upload_status.set_storage_index(storage_index)
         self._upload_status.set_status("fetching ciphertext")
         self._upload_status.set_progress(0, 1.0)
-        self._helper.log("CHKUploadHelper starting for SI %s" % self._upload_id,
+        self._helper.log("CHKUploadHelper starting for SI %r" % self._upload_id,
                          parent=log_number)
 
         self._storage_broker = storage_broker

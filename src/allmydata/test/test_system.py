@@ -1,12 +1,12 @@
 """
-Ported to Python 3, partially: test_filesystem* will be done in a future round.
+Ported to Python 3.
 """
 from __future__ import print_function
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import unicode_literals
 
-from future.utils import PY2, PY3
+from future.utils import PY2
 if PY2:
     # Don't import bytes since it causes issues on (so far unported) modules on Python 2.
     from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, dict, list, object, range, max, min, str  # noqa: F401
@@ -16,7 +16,6 @@ from six import ensure_text, ensure_str
 
 import os, re, sys, time, json
 from functools import partial
-from unittest import skipIf
 
 from bs4 import BeautifulSoup
 
@@ -44,14 +43,14 @@ from allmydata.monitor import Monitor
 from allmydata.mutable.common import NotWriteableError
 from allmydata.mutable import layout as mutable_layout
 from allmydata.mutable.publish import MutableData
+from allmydata.scripts.runner import PYTHON_3_WARNING
 
 from foolscap.api import DeadReferenceError, fireEventually, flushEventualQueue
 from twisted.python.failure import Failure
 from twisted.python.filepath import (
     FilePath,
 )
-
-from ._twisted_9607 import (
+from twisted.internet.utils import (
     getProcessOutputAndValue,
 )
 
@@ -77,7 +76,7 @@ class RunBinTahoeMixin(object):
         # support env yet and is also synchronous.  If we could get rid of
         # this in favor of that, though, it would probably be an improvement.
         command = sys.executable
-        argv = python_options + ["-m", "allmydata.scripts.runner"] + args
+        argv = python_options + ["-b", "-m", "allmydata.scripts.runner"] + args
 
         if env is None:
             env = os.environ
@@ -1072,7 +1071,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         d.addCallback(_do_upload)
         def _upload_done(results):
             theuri = results.get_uri()
-            log.msg("upload finished: uri is %s" % (theuri,))
+            log.msg("upload finished: uri is %r" % (theuri,))
             self.uri = theuri
             assert isinstance(self.uri, bytes), self.uri
             self.cap = uri.from_string(self.uri)
@@ -1324,9 +1323,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
             s = stats["stats"]
             self.failUnlessEqual(s["storage_server.accepting_immutable_shares"], 1)
             c = stats["counters"]
-            # Probably this should be Unicode eventually? But we haven't ported
-            # stats code yet.
-            self.failUnless(b"storage_server.allocate" in c)
+            self.failUnless("storage_server.allocate" in c)
         d.addCallback(_grab_stats)
 
         return d
@@ -1631,7 +1628,6 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
     # the key, which should cause the download to fail the post-download
     # plaintext_hash check.
 
-    @skipIf(PY3, "Python 3 web support hasn't happened yet.")
     def test_filesystem(self):
         self.basedir = "system/SystemTest/test_filesystem"
         self.data = LARGE_DATA
@@ -1923,9 +1919,9 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
             if isinstance(value, tuple):
                 filename, value = value
                 form.append(b'Content-Disposition: form-data; name="%s"; '
-                            b'filename="%s"' % (name, filename.encode("utf-8")))
+                            b'filename="%s"' % (name.encode("utf-8"), filename.encode("utf-8")))
             else:
-                form.append(b'Content-Disposition: form-data; name="%s"' % name)
+                form.append(b'Content-Disposition: form-data; name="%s"' % name.encode("utf-8"))
             form.append(b'')
             form.append(b"%s" % (value,))
             form.append(sep)
@@ -1982,22 +1978,22 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         d.addCallback(self.log, "done with _got_subdir1")
         d.addCallback(lambda res: self.GET(public + "/subdir1/mydata567"))
         def _got_data(page):
-            self.failUnlessEqual(page, self.data)
+            self.failUnlessEqual(page.encode("utf-8"), self.data)
         d.addCallback(_got_data)
 
         # download from a URI embedded in a URL
         d.addCallback(self.log, "_get_from_uri")
         def _get_from_uri(res):
-            return self.GET("uri/%s?filename=%s" % (self.uri, "mydata567"))
+            return self.GET("uri/%s?filename=%s" % (str(self.uri, "utf-8"), "mydata567"))
         d.addCallback(_get_from_uri)
         def _got_from_uri(page):
-            self.failUnlessEqual(page, self.data)
+            self.failUnlessEqual(page.encode("utf-8"), self.data)
         d.addCallback(_got_from_uri)
 
         # download from a URI embedded in a URL, second form
         d.addCallback(self.log, "_get_from_uri2")
         def _get_from_uri2(res):
-            return self.GET("uri?uri=%s" % (self.uri,))
+            return self.GET("uri?uri=%s" % (str(self.uri, "utf-8"),))
         d.addCallback(_get_from_uri2)
         d.addCallback(_got_from_uri)
 
@@ -2006,9 +2002,9 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         @defer.inlineCallbacks
         def _get_from_bogus_uri(res):
             d1 = self.GET("uri/%s?filename=%s"
-                          % (self.mangle_uri(self.uri), "mydata567"))
+                          % (str(self.mangle_uri(self.uri), "utf-8"), "mydata567"))
             e = yield self.assertFailure(d1, Error)
-            self.assertEquals(e.status, "410")
+            self.assertEquals(e.status, b"410")
         d.addCallback(_get_from_bogus_uri)
         d.addCallback(self.log, "_got_from_bogus_uri", level=log.UNUSUAL)
 
@@ -2092,14 +2088,14 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
             workdir = os.path.join(self.getdir("client0"), "helper")
             incfile = os.path.join(workdir, "CHK_incoming", "spurious")
             f = open(incfile, "wb")
-            f.write("small file")
+            f.write(b"small file")
             f.close()
             then = time.time() - 86400*3
             now = time.time()
             os.utime(incfile, (now, then))
             encfile = os.path.join(workdir, "CHK_encoding", "spurious")
             f = open(encfile, "wb")
-            f.write("less small file")
+            f.write(b"less small file")
             f.close()
             os.utime(encfile, (now, then))
         d.addCallback(_got_helper_status)
@@ -2140,7 +2136,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         d.addCallback(lambda res: self.GET("statistics"))
         def _got_stats(res):
             self.failUnlessIn("Operational Statistics", res)
-            self.failUnlessIn("  'downloader.files_downloaded': 5,", res)
+            self.failUnlessIn('  "downloader.files_downloaded": 5,', res)
         d.addCallback(_got_stats)
         d.addCallback(lambda res: self.GET("statistics?t=json"))
         def _got_stats_json(res):
@@ -2300,7 +2296,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         def _check_aliases_1(out_and_err):
             (out, err) = out_and_err
             self.failUnlessEqual(err, "")
-            self.failUnlessEqual(out.strip(" \n"), "tahoe: %s" % private_uri)
+            self.failUnlessEqual(out.strip(" \n"), "tahoe: %s" % str(private_uri, "ascii"))
         d.addCallback(_check_aliases_1)
 
         # now that that's out of the way, remove root_dir.cap and work with
@@ -2348,7 +2344,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         for i in range(10):
             fn = os.path.join(self.basedir, "file%d" % i)
             files.append(fn)
-            data = "data to be uploaded: file%d\n" % i
+            data = b"data to be uploaded: file%d\n" % i
             datas.append(data)
             with open(fn, "wb") as f:
                 f.write(data)
@@ -2357,7 +2353,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
             (out, err) = out_and_err
             self.failUnlessEqual(err, "")
             if filenum is not None:
-                self.failUnlessEqual(out, datas[filenum])
+                self.failUnlessEqual(out, str(datas[filenum], "ascii"))
             if data is not None:
                 self.failUnlessEqual(out, data)
 
@@ -2371,7 +2367,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
             uri0 = out.strip()
             return run(None, "get", uri0)
         d.addCallback(_put_out)
-        d.addCallback(lambda out_err: self.failUnlessEqual(out_err[0], datas[0]))
+        d.addCallback(lambda out_err: self.failUnlessEqual(out_err[0], str(datas[0], "ascii")))
 
         d.addCallback(run, "put", files[1], "subdir/tahoe-file1")
         #  tahoe put bar tahoe:FOO
@@ -2413,14 +2409,14 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         def _check_outfile0(out_and_err):
             (out, err) = out_and_err
             data = open(outfile0,"rb").read()
-            self.failUnlessEqual(data, "data to be uploaded: file2\n")
+            self.failUnlessEqual(data, b"data to be uploaded: file2\n")
         d.addCallback(_check_outfile0)
         outfile1 = os.path.join(self.basedir, "outfile0")
         d.addCallback(run, "get", "tahoe:subdir/tahoe-file1", outfile1)
         def _check_outfile1(out_and_err):
             (out, err) = out_and_err
             data = open(outfile1,"rb").read()
-            self.failUnlessEqual(data, "data to be uploaded: file1\n")
+            self.failUnlessEqual(data, b"data to be uploaded: file1\n")
         d.addCallback(_check_outfile1)
 
         d.addCallback(run, "unlink", "tahoe-file0")
@@ -2457,7 +2453,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
                 if "file3" in l:
                     rw_uri = self._mutable_file3_uri
                     u = uri.from_string_mutable_filenode(rw_uri)
-                    ro_uri = u.get_readonly().to_string()
+                    ro_uri = str(u.get_readonly().to_string(), "ascii")
                     self.failUnless(ro_uri in l)
         d.addCallback(_check_ls_rouri)
 
@@ -2530,17 +2526,17 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         dn = os.path.join(self.basedir, "dir1")
         os.makedirs(dn)
         with open(os.path.join(dn, "rfile1"), "wb") as f:
-            f.write("rfile1")
+            f.write(b"rfile1")
         with open(os.path.join(dn, "rfile2"), "wb") as f:
-            f.write("rfile2")
+            f.write(b"rfile2")
         with open(os.path.join(dn, "rfile3"), "wb") as f:
-            f.write("rfile3")
+            f.write(b"rfile3")
         sdn2 = os.path.join(dn, "subdir2")
         os.makedirs(sdn2)
         with open(os.path.join(sdn2, "rfile4"), "wb") as f:
-            f.write("rfile4")
+            f.write(b"rfile4")
         with open(os.path.join(sdn2, "rfile5"), "wb") as f:
-            f.write("rfile5")
+            f.write(b"rfile5")
 
         # from disk into tahoe
         d.addCallback(run, "cp", "-r", dn, "tahoe:")
@@ -2584,7 +2580,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
             (out, err) = out_and_err
             x = open(os.path.join(dn_copy2, "dir1", "subdir2", "rfile4")).read()
             y = uri.from_string_filenode(x)
-            self.failUnlessEqual(y.data, "rfile4")
+            self.failUnlessEqual(y.data, b"rfile4")
         d.addCallback(_check_capsonly)
 
         # and tahoe-to-tahoe
@@ -2617,7 +2613,6 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
 
         return d
 
-    @skipIf(PY3, "Python 3 CLI support hasn't happened yet.")
     def test_filesystem_with_cli_in_subprocess(self):
         # We do this in a separate test so that test_filesystem doesn't skip if we can't run bin/tahoe.
 
@@ -2641,7 +2636,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
             out, err, rc_or_sig = res
             self.failUnlessEqual(rc_or_sig, 0, str(res))
             if check_stderr:
-                self.failUnlessEqual(err, b"")
+                self.assertIn(err.strip(), (b"", PYTHON_3_WARNING.encode("ascii")))
 
         d.addCallback(_run_in_subprocess, "create-alias", "newalias")
         d.addCallback(_check_succeeded)
@@ -2661,9 +2656,9 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         def _check_ls(res):
             out, err, rc_or_sig = res
             self.failUnlessEqual(rc_or_sig, 0, str(res))
-            self.failUnlessEqual(err, "", str(res))
-            self.failUnlessIn("tahoe-moved", out)
-            self.failIfIn("tahoe-file", out)
+            self.assertIn(err.strip(), (b"", PYTHON_3_WARNING.encode("ascii")))
+            self.failUnlessIn(b"tahoe-moved", out)
+            self.failIfIn(b"tahoe-file", out)
         d.addCallback(_check_ls)
         return d
 

@@ -10,7 +10,7 @@ Introduction
 
 This is how to run a Tahoe-LAFS client or a complete Tahoe-LAFS grid.
 First you have to install the Tahoe-LAFS software, as documented in
-:doc:`INSTALL`.
+:doc:`Installing Tahoe-LAFS <../Installation/install-tahoe>`.
 
 The ``tahoe`` program in your virtualenv's ``bin`` directory is used to
 create, start, and stop nodes. Each node lives in a separate base
@@ -235,7 +235,7 @@ Socialize
 =========
 
 You can chat with other users of and hackers of this software on the
-#tahoe-lafs IRC channel at ``irc.freenode.net``, or on the `tahoe-dev mailing
+#tahoe-lafs IRC channel at ``irc.libera.chat``, or on the `tahoe-dev mailing
 list`_.
 
 .. _tahoe-dev mailing list: https://tahoe-lafs.org/cgi-bin/mailman/listinfo/tahoe-dev

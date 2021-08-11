@@ -1,12 +1,21 @@
 """
 Tools aimed at the interaction between tests and Eliot.
+
+Ported to Python 3.
 """
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
 
 # Python 2 compatibility
 # Can't use `builtins.str` because it's not JSON encodable:
 # `exceptions.TypeError: <class 'future.types.newstr.newstr'> is not JSON-encodeable`
 from past.builtins import unicode as str
 from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, max, min  # noqa: F401
+
 from six import ensure_text
 
 __all__ = [
@@ -45,7 +54,7 @@ from twisted.python.monkey import (
     MonkeyPatcher,
 )
 
-from ..util.jsonbytes import BytesJSONEncoder
+from ..util.jsonbytes import AnyBytesJSONEncoder
 
 
 _NAME = Field.for_types(
@@ -67,7 +76,7 @@ RUN_TEST = ActionType(
 if PY2:
     _memory_logger = MemoryLogger
 else:
-    _memory_logger = lambda: MemoryLogger(encoder=BytesJSONEncoder)
+    _memory_logger = lambda: MemoryLogger(encoder=AnyBytesJSONEncoder)
 
 
 @attr.s

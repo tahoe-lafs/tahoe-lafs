@@ -1,3 +1,15 @@
+"""
+Ported to Python 3.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+
 import os.path
 from six.moves import cStringIO as StringIO
 from datetime import timedelta
@@ -6,7 +18,6 @@ import re
 from twisted.trial import unittest
 from twisted.python.monkey import MonkeyPatcher
 
-import __builtin__
 from allmydata.util import fileutil
 from allmydata.util.fileutil import abspath_expanduser_unicode
 from allmydata.util.encodingutil import get_io_encoding, unicode_to_argv
@@ -86,7 +97,7 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
         d.addCallback(lambda res: do_backup(True))
         def _check0(args):
             (rc, out, err) = args
-            self.failUnlessReallyEqual(err, "")
+            self.assertEqual(len(err), 0,  err)
             self.failUnlessReallyEqual(rc, 0)
             (
                 files_uploaded,
@@ -143,40 +154,40 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
         d.addCallback(lambda res: self.do_cli("ls", "--uri", "tahoe:backups"))
         def _check1(args):
             (rc, out, err) = args
-            self.failUnlessReallyEqual(err, "")
+            self.assertEqual(len(err), 0,  err)
             self.failUnlessReallyEqual(rc, 0)
             lines = out.split("\n")
             children = dict([line.split() for line in lines if line])
             latest_uri = children["Latest"]
             self.failUnless(latest_uri.startswith("URI:DIR2-CHK:"), latest_uri)
-            childnames = children.keys()
+            childnames = list(children.keys())
             self.failUnlessReallyEqual(sorted(childnames), ["Archives", "Latest"])
         d.addCallback(_check1)
         d.addCallback(lambda res: self.do_cli("ls", "tahoe:backups/Latest"))
         def _check2(args):
             (rc, out, err) = args
-            self.failUnlessReallyEqual(err, "")
+            self.assertEqual(len(err), 0,  err)
             self.failUnlessReallyEqual(rc, 0)
             self.failUnlessReallyEqual(sorted(out.split()), ["empty", "parent"])
         d.addCallback(_check2)
         d.addCallback(lambda res: self.do_cli("ls", "tahoe:backups/Latest/empty"))
         def _check2a(args):
             (rc, out, err) = args
-            self.failUnlessReallyEqual(err, "")
+            self.assertEqual(len(err), 0,  err)
             self.failUnlessReallyEqual(rc, 0)
-            self.failUnlessReallyEqual(out.strip(), "")
+            self.assertFalse(out.strip())
         d.addCallback(_check2a)
         d.addCallback(lambda res: self.do_cli("get", "tahoe:backups/Latest/parent/subdir/foo.txt"))
         def _check3(args):
             (rc, out, err) = args
-            self.failUnlessReallyEqual(err, "")
+            self.assertFalse(err)
             self.failUnlessReallyEqual(rc, 0)
-            self.failUnlessReallyEqual(out, "foo")
+            self.assertEqual(out, "foo")
         d.addCallback(_check3)
         d.addCallback(lambda res: self.do_cli("ls", "tahoe:backups/Archives"))
         def _check4(args):
             (rc, out, err) = args
-            self.failUnlessReallyEqual(err, "")
+            self.assertFalse(err)
             self.failUnlessReallyEqual(rc, 0)
             self.old_archives = out.split()
             self.failUnlessReallyEqual(len(self.old_archives), 1)
@@ -189,7 +200,7 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
             # second backup should reuse everything, if the backupdb is
             # available
             (rc, out, err) = args
-            self.failUnlessReallyEqual(err, "")
+            self.assertFalse(err)
             self.failUnlessReallyEqual(rc, 0)
             fu, fr, fs, dc, dr, ds = self.count_output(out)
             # foo.txt, bar.txt, blah.txt
@@ -221,7 +232,7 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
             # the directories should have been changed, so we should
             # re-use all of them too.
             (rc, out, err) = args
-            self.failUnlessReallyEqual(err, "")
+            self.assertFalse(err)
             self.failUnlessReallyEqual(rc, 0)
             fu, fr, fs, dc, dr, ds = self.count_output(out)
             fchecked, dchecked = self.count_output2(out)
@@ -238,7 +249,7 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
         d.addCallback(lambda res: self.do_cli("ls", "tahoe:backups/Archives"))
         def _check5(args):
             (rc, out, err) = args
-            self.failUnlessReallyEqual(err, "")
+            self.assertFalse(err)
             self.failUnlessReallyEqual(rc, 0)
             self.new_archives = out.split()
             self.failUnlessReallyEqual(len(self.new_archives), 3, out)
@@ -265,7 +276,7 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
             # second backup should reuse bar.txt (if backupdb is available),
             # and upload the rest. None of the directories can be reused.
             (rc, out, err) = args
-            self.failUnlessReallyEqual(err, "")
+            self.assertFalse(err)
             self.failUnlessReallyEqual(rc, 0)
             fu, fr, fs, dc, dr, ds = self.count_output(out)
             # new foo.txt, surprise file, subfile, empty
@@ -281,7 +292,7 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
         d.addCallback(lambda res: self.do_cli("ls", "tahoe:backups/Archives"))
         def _check6(args):
             (rc, out, err) = args
-            self.failUnlessReallyEqual(err, "")
+            self.assertFalse(err)
             self.failUnlessReallyEqual(rc, 0)
             self.new_archives = out.split()
             self.failUnlessReallyEqual(len(self.new_archives), 4)
@@ -291,17 +302,17 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
         d.addCallback(lambda res: self.do_cli("get", "tahoe:backups/Latest/parent/subdir/foo.txt"))
         def _check7(args):
             (rc, out, err) = args
-            self.failUnlessReallyEqual(err, "")
+            self.assertFalse(err)
             self.failUnlessReallyEqual(rc, 0)
-            self.failUnlessReallyEqual(out, "FOOF!")
+            self.assertEqual(out, "FOOF!")
             # the old snapshot should not be modified
             return self.do_cli("get", "tahoe:backups/Archives/%s/parent/subdir/foo.txt" % self.old_archives[0])
         d.addCallback(_check7)
         def _check8(args):
             (rc, out, err) = args
-            self.failUnlessReallyEqual(err, "")
+            self.assertFalse(err)
             self.failUnlessReallyEqual(rc, 0)
-            self.failUnlessReallyEqual(out, "foo")
+            self.assertEqual(out, "foo")
         d.addCallback(_check8)
 
         return d
@@ -342,14 +353,14 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
         exclusion_string = "_darcs\n*py\n.svn"
         excl_filepath = os.path.join(basedir, 'exclusion')
         fileutil.write(excl_filepath, exclusion_string)
-        backup_options = parse(['--exclude-from', excl_filepath, 'from', 'to'])
+        backup_options = parse(['--exclude-from-utf-8', excl_filepath, 'from', 'to'])
         filtered = list(backup_options.filter_listdir(subdir_listdir))
         self._check_filtering(filtered, subdir_listdir, (u'another_doc.lyx', u'CVS'),
                               (u'.svn', u'_darcs', u'run_snake_run.py'))
         # test BackupConfigurationError
         self.failUnlessRaises(cli.BackupConfigurationError,
                               parse,
-                              ['--exclude-from', excl_filepath + '.no', 'from', 'to'])
+                              ['--exclude-from-utf-8', excl_filepath + '.no', 'from', 'to'])
 
         # test that an iterator works too
         backup_options = parse(['--exclude', '*lyx', 'from', 'to'])
@@ -360,7 +371,9 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
     def test_exclude_options_unicode(self):
         nice_doc = u"nice_d\u00F8c.lyx"
         try:
-            doc_pattern_arg = u"*d\u00F8c*".encode(get_io_encoding())
+            doc_pattern_arg_unicode = doc_pattern_arg = u"*d\u00F8c*"
+            if PY2:
+                doc_pattern_arg = doc_pattern_arg.encode(get_io_encoding())
         except UnicodeEncodeError:
             raise unittest.SkipTest("A non-ASCII command argument could not be encoded on this platform.")
 
@@ -382,10 +395,10 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
         self._check_filtering(filtered, root_listdir, (u'_darcs', u'subdir'),
                              (nice_doc, u'lib.a'))
         # read exclude patterns from file
-        exclusion_string = doc_pattern_arg + "\nlib.?"
+        exclusion_string = (doc_pattern_arg_unicode + "\nlib.?").encode("utf-8")
         excl_filepath = os.path.join(basedir, 'exclusion')
         fileutil.write(excl_filepath, exclusion_string)
-        backup_options = parse(['--exclude-from', excl_filepath, 'from', 'to'])
+        backup_options = parse(['--exclude-from-utf-8', excl_filepath, 'from', 'to'])
         filtered = list(backup_options.filter_listdir(root_listdir))
         self._check_filtering(filtered, root_listdir, (u'_darcs', u'subdir'),
                              (nice_doc, u'lib.a'))
@@ -407,13 +420,21 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
 
         ns = Namespace()
         ns.called = False
-        def call_file(name, *args):
-            ns.called = True
-            self.failUnlessEqual(name, abspath_expanduser_unicode(exclude_file))
-            return StringIO()
+        original_open = open
+        def call_file(name, *args, **kwargs):
+            if name.endswith("excludes.dummy"):
+                ns.called = True
+                self.failUnlessEqual(name, abspath_expanduser_unicode(exclude_file))
+                return StringIO()
+            else:
+                return original_open(name, *args, **kwargs)
 
-        patcher = MonkeyPatcher((__builtin__, 'file', call_file))
-        patcher.runWithPatches(parse_options, basedir, "backup", ['--exclude-from', unicode_to_argv(exclude_file), 'from', 'to'])
+        if PY2:
+            from allmydata.scripts import cli as module_to_patch
+        else:
+            import builtins as module_to_patch
+        patcher = MonkeyPatcher((module_to_patch, 'open', call_file))
+        patcher.runWithPatches(parse_options, basedir, "backup", ['--exclude-from-utf-8', unicode_to_argv(exclude_file), 'from', 'to'])
         self.failUnless(ns.called)
 
     def test_ignore_symlinks(self):
@@ -584,7 +605,7 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
             (rc, out, err) = args
             self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("error:", err)
-            self.failUnlessReallyEqual(out, "")
+            self.assertEqual(len(out), 0)
         d.addCallback(_check)
         return d
 
@@ -600,6 +621,6 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
             self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("error:", err)
             self.failUnlessIn("nonexistent", err)
-            self.failUnlessReallyEqual(out, "")
+            self.assertEqual(len(out), 0)
         d.addCallback(_check)
         return d

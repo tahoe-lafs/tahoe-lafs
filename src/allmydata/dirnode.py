@@ -74,6 +74,13 @@ ADD_FILE = ActionType(
     u"Add a new file as a child of a directory.",
 )
 
+
+class _OnlyFiles(object):
+    """Marker for replacement option of only replacing files."""
+
+ONLY_FILES = _OnlyFiles()
+
+
 def update_metadata(metadata, new_metadata, now):
     """Updates 'metadata' in-place with the information in 'new_metadata'.
 
@@ -175,11 +182,16 @@ class MetadataSetter(object):
 
 class Adder(object):
     def __init__(self, node, entries=None, overwrite=True, create_readonly_node=None):
+        """
+        :param overwrite: Either True (allow overwriting anything existing),
+            False (don't allow overwriting), or ONLY_FILES (only files can be
+            overwritten).
+        """
         self.node = node
         if entries is None:
             entries = {}
         precondition(isinstance(entries, dict), entries)
-        precondition(overwrite in (True, False, "only-files"), overwrite)
+        precondition(overwrite in (True, False, ONLY_FILES), overwrite)
         # keys of 'entries' may not be normalized.
         self.entries = entries
         self.overwrite = overwrite
@@ -205,7 +217,7 @@ class Adder(object):
                 if not self.overwrite:
                     raise ExistingChildError("child %s already exists" % quote_output(name, encoding='utf-8'))
 
-                if self.overwrite == "only-files" and IDirectoryNode.providedBy(children[name][0]):
+                if self.overwrite == ONLY_FILES and IDirectoryNode.providedBy(children[name][0]):
                     raise ExistingChildError("child %s already exists as a directory" % quote_output(name, encoding='utf-8'))
                 metadata = children[name][1].copy()
 
@@ -316,7 +328,7 @@ class DirectoryNode(object):
         return "<%s %s-%s %s>" % (self.__class__.__name__,
                                   self.is_readonly() and "RO" or "RW",
                                   self.is_mutable() and "MUT" or "IMM",
-                                  hasattr(self, '_uri') and self._uri.abbrev())
+                                  hasattr(self, '_uri') and str(self._uri.abbrev(), "utf-8"))
 
     def get_size(self):
         """Return the size of our backing mutable file, in bytes, if we've
@@ -634,7 +646,7 @@ class DirectoryNode(object):
         return d
 
 
-    def add_file(self, namex, uploadable, metadata=None, overwrite=True, progress=None):
+    def add_file(self, namex, uploadable, metadata=None, overwrite=True):
         """I upload a file (using the given IUploadable), then attach the
         resulting FileNode to the directory at the given name. I return a
         Deferred that fires (with the IFileNode of the uploaded file) when
@@ -645,7 +657,7 @@ class DirectoryNode(object):
                 d = DeferredContext(defer.fail(NotWriteableError()))
             else:
                 # XXX should pass reactor arg
-                d = DeferredContext(self._uploader.upload(uploadable, progress=progress))
+                d = DeferredContext(self._uploader.upload(uploadable))
                 d.addCallback(lambda results:
                               self._create_and_validate_node(results.get_uri(), None,
                                                              name))
@@ -701,7 +713,7 @@ class DirectoryNode(object):
         'new_child_namex' and 'current_child_namex' need not be normalized.
 
         The overwrite parameter may be True (overwrite any existing child),
-        False (error if the new child link already exists), or "only-files"
+        False (error if the new child link already exists), or ONLY_FILES
         (error if the new child link exists and points to a directory).
         """
         if self.is_readonly() or new_parent.is_readonly():

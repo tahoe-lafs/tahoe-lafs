@@ -48,7 +48,7 @@ from allmydata.util.rrefutil import add_version_to_remote_reference
 from allmydata.interfaces import IUploadable, IUploader, IUploadResults, \
      IEncryptedUploadable, RIEncryptedUploadable, IUploadStatus, \
      NoServersError, InsufficientVersionError, UploadUnhappinessError, \
-     DEFAULT_MAX_SEGMENT_SIZE, IProgress, IPeerSelector
+     DEFAULT_MAX_SEGMENT_SIZE, IPeerSelector
 from allmydata.immutable import layout
 
 from io import BytesIO
@@ -278,7 +278,7 @@ class ServerTracker(object):
         self.cancel_secret = bucket_cancel_secret
 
     def __repr__(self):
-        return ("<ServerTracker for server %s and SI %s>"
+        return ("<ServerTracker for server %r and SI %r>"
                 % (self._server.get_name(), si_b2a(self.storage_index)[:5]))
 
     def get_server(self):
@@ -338,7 +338,7 @@ class ServerTracker(object):
 
 
 def str_shareloc(shnum, bucketwriter):
-    return "%s: %s" % (shnum, bucketwriter.get_servername(),)
+    return "%s: %s" % (shnum, ensure_str(bucketwriter.get_servername()),)
 
 
 @implementer(IPeerSelector)
@@ -437,7 +437,7 @@ class Tahoe2ServerSelector(log.PrefixingLogMixin):
         self._reactor = reactor
 
     def __repr__(self):
-        return "<Tahoe2ServerSelector for upload %s>" % self.upload_id
+        return "<Tahoe2ServerSelector for upload %r>" % self.upload_id
 
     def _create_trackers(self, candidate_servers, allocated_size,
                          file_renewal_secret, file_cancel_secret, create_server_tracker):
@@ -590,7 +590,7 @@ class Tahoe2ServerSelector(log.PrefixingLogMixin):
             d = timeout_call(self._reactor, tracker.ask_about_existing_shares(), 15)
             d.addBoth(self._handle_existing_response, tracker)
             ds.append(d)
-            self.log("asking server %s for any existing shares" %
+            self.log("asking server %r for any existing shares" %
                      (tracker.get_name(),), level=log.NOISY)
 
         for tracker in write_trackers:
@@ -605,7 +605,7 @@ class Tahoe2ServerSelector(log.PrefixingLogMixin):
             d.addErrback(timed_out, tracker)
             d.addBoth(self._handle_existing_write_response, tracker, set())
             ds.append(d)
-            self.log("asking server %s for any existing shares" %
+            self.log("asking server %r for any existing shares" %
                      (tracker.get_name(),), level=log.NOISY)
 
         trackers = set(write_trackers) | set(readonly_trackers)
@@ -749,7 +749,7 @@ class Tahoe2ServerSelector(log.PrefixingLogMixin):
             buckets = res
             if buckets:
                 self.serverids_with_shares.add(serverid)
-            self.log("response to get_buckets() from server %s: alreadygot=%s"
+            self.log("response to get_buckets() from server %r: alreadygot=%s"
                     % (tracker.get_name(), tuple(sorted(buckets))),
                     level=log.NOISY)
             for bucket in buckets:
@@ -818,7 +818,7 @@ class Tahoe2ServerSelector(log.PrefixingLogMixin):
                     self.homeless_shares.remove(shnum)
 
         if self._status:
-            self._status.set_status("Contacting Servers [%s] (first query),"
+            self._status.set_status("Contacting Servers [%r] (first query),"
                                     " %d shares left.."
                                     % (tracker.get_name(),
                                        len(self.homeless_shares)))
@@ -845,7 +845,7 @@ class Tahoe2ServerSelector(log.PrefixingLogMixin):
 
         else:
             (alreadygot, allocated) = res
-            self.log("response to allocate_buckets() from server %s: alreadygot=%s, allocated=%s"
+            self.log("response to allocate_buckets() from server %r: alreadygot=%s, allocated=%s"
                     % (tracker.get_name(),
                        tuple(sorted(alreadygot)), tuple(sorted(allocated))),
                     level=log.NOISY)
@@ -945,7 +945,7 @@ class EncryptAnUploadable(object):
     IEncryptedUploadable."""
     CHUNKSIZE = 50*1024
 
-    def __init__(self, original, log_parent=None, progress=None, chunk_size=None):
+    def __init__(self, original, log_parent=None, chunk_size=None):
         """
         :param chunk_size: The number of bytes to read from the uploadable at a
             time, or None for some default.
@@ -962,7 +962,6 @@ class EncryptAnUploadable(object):
         self._file_size = None
         self._ciphertext_bytes_read = 0
         self._status = None
-        self._progress = progress
         if chunk_size is not None:
             self.CHUNKSIZE = chunk_size
 
@@ -985,8 +984,6 @@ class EncryptAnUploadable(object):
             self._file_size = size
             if self._status:
                 self._status.set_size(size)
-            if self._progress:
-                self._progress.set_progress_total(size)
             return size
         d.addCallback(_got_size)
         return d
@@ -1229,7 +1226,7 @@ class UploadStatus(object):
 
 class CHKUploader(object):
 
-    def __init__(self, storage_broker, secret_holder, progress=None, reactor=None):
+    def __init__(self, storage_broker, secret_holder, reactor=None):
         # server_selector needs storage_broker and secret_holder
         self._storage_broker = storage_broker
         self._secret_holder = secret_holder
@@ -1239,7 +1236,6 @@ class CHKUploader(object):
         self._upload_status = UploadStatus()
         self._upload_status.set_helper(False)
         self._upload_status.set_active(True)
-        self._progress = progress
         self._reactor = reactor
 
         # locate_all_shareholders() will create the following attribute:
@@ -1294,7 +1290,6 @@ class CHKUploader(object):
         self._encoder = encode.Encoder(
             self._log_number,
             self._upload_status,
-            progress=self._progress,
         )
         # this just returns itself
         yield self._encoder.set_encrypted_uploadable(eu)
@@ -1314,7 +1309,7 @@ class CHKUploader(object):
         storage_index = encoder.get_param("storage_index")
         self._storage_index = storage_index
         upload_id = si_b2a(storage_index)[:5]
-        self.log("using storage index %s" % upload_id)
+        self.log("using storage index %r" % upload_id)
         server_selector = Tahoe2ServerSelector(
             upload_id,
             self._log_number,
@@ -1428,13 +1423,12 @@ def read_this_many_bytes(uploadable, size, prepend_data=[]):
 
 class LiteralUploader(object):
 
-    def __init__(self, progress=None):
+    def __init__(self):
         self._status = s = UploadStatus()
         s.set_storage_index(None)
         s.set_helper(False)
         s.set_progress(0, 1.0)
         s.set_active(False)
-        self._progress = progress
 
     def start(self, uploadable):
         uploadable = IUploadable(uploadable)
@@ -1442,8 +1436,6 @@ class LiteralUploader(object):
         def _got_size(size):
             self._size = size
             self._status.set_size(size)
-            if self._progress:
-                self._progress.set_progress_total(size)
             return read_this_many_bytes(uploadable, size)
         d.addCallback(_got_size)
         d.addCallback(lambda data: uri.LiteralFileURI(b"".join(data)))
@@ -1467,8 +1459,6 @@ class LiteralUploader(object):
         self._status.set_progress(1, 1.0)
         self._status.set_progress(2, 1.0)
         self._status.set_results(ur)
-        if self._progress:
-            self._progress.set_progress(self._size)
         return ur
 
     def close(self):
@@ -1867,13 +1857,12 @@ class Uploader(service.MultiService, log.PrefixingLogMixin):
     name = "uploader"
     URI_LIT_SIZE_THRESHOLD = 55
 
-    def __init__(self, helper_furl=None, stats_provider=None, history=None, progress=None):
+    def __init__(self, helper_furl=None, stats_provider=None, history=None):
         self._helper_furl = helper_furl
         self.stats_provider = stats_provider
         self._history = history
         self._helper = None
         self._all_uploads = weakref.WeakKeyDictionary() # for debugging
-        self._progress = progress
         log.PrefixingLogMixin.__init__(self, facility="tahoe.immutable.upload")
         service.MultiService.__init__(self)
 
@@ -1907,13 +1896,12 @@ class Uploader(service.MultiService, log.PrefixingLogMixin):
         return (self._helper_furl, bool(self._helper))
 
 
-    def upload(self, uploadable, progress=None, reactor=None):
+    def upload(self, uploadable, reactor=None):
         """
         Returns a Deferred that will fire with the UploadResults instance.
         """
         assert self.parent
         assert self.running
-        assert progress is None or IProgress.providedBy(progress)
 
         uploadable = IUploadable(uploadable)
         d = uploadable.get_size()
@@ -1922,15 +1910,13 @@ class Uploader(service.MultiService, log.PrefixingLogMixin):
             precondition(isinstance(default_params, dict), default_params)
             precondition("max_segment_size" in default_params, default_params)
             uploadable.set_default_encoding_parameters(default_params)
-            if progress:
-                progress.set_progress_total(size)
 
             if self.stats_provider:
                 self.stats_provider.count('uploader.files_uploaded', 1)
                 self.stats_provider.count('uploader.bytes_uploaded', size)
 
             if size <= self.URI_LIT_SIZE_THRESHOLD:
-                uploader = LiteralUploader(progress=progress)
+                uploader = LiteralUploader()
                 return uploader.start(uploadable)
             else:
                 eu = EncryptAnUploadable(uploadable, self._parentmsgid)
@@ -1943,7 +1929,7 @@ class Uploader(service.MultiService, log.PrefixingLogMixin):
                 else:
                     storage_broker = self.parent.get_storage_broker()
                     secret_holder = self.parent._secret_holder
-                    uploader = CHKUploader(storage_broker, secret_holder, progress=progress, reactor=reactor)
+                    uploader = CHKUploader(storage_broker, secret_holder, reactor=reactor)
                     d2.addCallback(lambda x: uploader.start(eu))
 
                 self._all_uploads[uploader] = None

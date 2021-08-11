@@ -7,11 +7,10 @@ Tahoe-LAFS SFTP Frontend
 1.  `SFTP Background`_
 2.  `Tahoe-LAFS Support`_
 3.  `Creating an Account File`_
-4.  `Running An Account Server (accounts.url)`_
-5.  `Configuring SFTP Access`_
-6.  `Dependencies`_
-7.  `Immutable and Mutable Files`_
-8.  `Known Issues`_
+4.  `Configuring SFTP Access`_
+5.  `Dependencies`_
+6.  `Immutable and Mutable Files`_
+7.  `Known Issues`_
 
 
 SFTP Background
@@ -77,33 +76,6 @@ start with "ssh-".
 
 Now add an ``accounts.file`` directive to your ``tahoe.cfg`` file, as described in
 the next sections.
-
-Running An Account Server (accounts.url)
-========================================
-
-The accounts.url directive allows access requests to be controlled by an
-HTTP-based login service, useful for centralized deployments. This was used
-by AllMyData to provide web-based file access, where the service used a
-simple PHP script and database lookups to map an account email address and
-password to a Tahoe-LAFS directory cap. The service will receive a
-multipart/form-data POST, just like one created with a <form> and <input>
-fields, with three parameters:
-
-• action: "authenticate" (this is a static string)
-• email: USERNAME (Tahoe-LAFS has no notion of email addresses, but the
-  authentication service uses them as account names, so the interface
-  presents this argument as "email" rather than "username").
-• passwd: PASSWORD
-
-It should return a single string that either contains a Tahoe-LAFS directory
-cap (URI:DIR2:...), or "0" to indicate a login failure.
-
-Tahoe-LAFS recommends the service be secure, preferably localhost-only.  This
-makes it harder for attackers to brute force the password or use DNS
-poisoning to cause the Tahoe-LAFS gateway to talk with the wrong server,
-thereby revealing the usernames and passwords.
-
-Public key authentication is not supported when an account server is used.
 
 Configuring SFTP Access
 =======================

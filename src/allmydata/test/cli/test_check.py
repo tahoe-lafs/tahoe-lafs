@@ -1,3 +1,13 @@
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+from six import ensure_text
+
 import os.path
 import json
 from twisted.trial import unittest
@@ -5,12 +15,13 @@ from six.moves import cStringIO as StringIO
 
 from allmydata import uri
 from allmydata.util import base32
-from allmydata.util.encodingutil import quote_output, to_bytes
+from allmydata.util.encodingutil import to_bytes, quote_output_u
 from allmydata.mutable.publish import MutableData
 from allmydata.immutable import upload
 from allmydata.scripts import debug
 from ..no_network import GridTestMixin
 from .common import CLITestMixin
+
 
 class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
 
@@ -18,7 +29,7 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
         self.basedir = "cli/Check/check"
         self.set_up_grid()
         c0 = self.g.clients[0]
-        DATA = "data" * 100
+        DATA = b"data" * 100
         DATA_uploadable = MutableData(DATA)
         d = c0.create_mutable_file(DATA_uploadable)
         def _stash_uri(n):
@@ -28,7 +39,7 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(lambda ign: self.do_cli("check", self.uri))
         def _check1(args):
             (rc, out, err) = args
-            self.failUnlessReallyEqual(err, "")
+            self.assertEqual(len(err), 0, err)
             self.failUnlessReallyEqual(rc, 0)
             lines = out.splitlines()
             self.failUnless("Summary: Healthy" in lines, out)
@@ -38,14 +49,14 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(lambda ign: self.do_cli("check", "--raw", self.uri))
         def _check2(args):
             (rc, out, err) = args
-            self.failUnlessReallyEqual(err, "")
+            self.assertEqual(len(err), 0, err)
             self.failUnlessReallyEqual(rc, 0)
             data = json.loads(out)
-            self.failUnlessReallyEqual(to_bytes(data["summary"]), "Healthy")
+            self.failUnlessReallyEqual(to_bytes(data["summary"]), b"Healthy")
             self.failUnlessReallyEqual(data["results"]["healthy"], True)
         d.addCallback(_check2)
 
-        d.addCallback(lambda ign: c0.upload(upload.Data("literal", convergence="")))
+        d.addCallback(lambda ign: c0.upload(upload.Data(b"literal", convergence=b"")))
         def _stash_lit_uri(n):
             self.lit_uri = n.get_uri()
         d.addCallback(_stash_lit_uri)
@@ -53,7 +64,7 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(lambda ign: self.do_cli("check", self.lit_uri))
         def _check_lit(args):
             (rc, out, err) = args
-            self.failUnlessReallyEqual(err, "")
+            self.assertEqual(len(err), 0, err)
             self.failUnlessReallyEqual(rc, 0)
             lines = out.splitlines()
             self.failUnless("Summary: Healthy (LIT)" in lines, out)
@@ -62,13 +73,13 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(lambda ign: self.do_cli("check", "--raw", self.lit_uri))
         def _check_lit_raw(args):
             (rc, out, err) = args
-            self.failUnlessReallyEqual(err, "")
+            self.assertEqual(len(err), 0, err)
             self.failUnlessReallyEqual(rc, 0)
             data = json.loads(out)
             self.failUnlessReallyEqual(data["results"]["healthy"], True)
         d.addCallback(_check_lit_raw)
 
-        d.addCallback(lambda ign: c0.create_immutable_dirnode({}, convergence=""))
+        d.addCallback(lambda ign: c0.create_immutable_dirnode({}, convergence=b""))
         def _stash_lit_dir_uri(n):
             self.lit_dir_uri = n.get_uri()
         d.addCallback(_stash_lit_dir_uri)
@@ -89,16 +100,16 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
             cso.parseOptions([shares[1][2]])
             storage_index = uri.from_string(self.uri).get_storage_index()
             self._corrupt_share_line = "  server %s, SI %s, shnum %d" % \
-                                       (base32.b2a(shares[1][1]),
-                                        base32.b2a(storage_index),
-                                        shares[1][0])
+                (str(base32.b2a(shares[1][1]), "ascii"),
+                 str(base32.b2a(storage_index), "ascii"),
+                 shares[1][0])
             debug.corrupt_share(cso)
         d.addCallback(_clobber_shares)
 
         d.addCallback(lambda ign: self.do_cli("check", "--verify", self.uri))
         def _check3(args):
             (rc, out, err) = args
-            self.failUnlessReallyEqual(err, "")
+            self.assertEqual(len(err), 0, err)
             self.failUnlessReallyEqual(rc, 0)
             lines = out.splitlines()
             summary = [l for l in lines if l.startswith("Summary")][0]
@@ -112,7 +123,7 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(lambda ign: self.do_cli("check", "--verify", "--raw", self.uri))
         def _check3_raw(args):
             (rc, out, err) = args
-            self.failUnlessReallyEqual(err, "")
+            self.assertEqual(len(err), 0, err)
             self.failUnlessReallyEqual(rc, 0)
             data = json.loads(out)
             self.failUnlessReallyEqual(data["results"]["healthy"], False)
@@ -126,7 +137,7 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
                       self.do_cli("check", "--verify", "--repair", self.uri))
         def _check4(args):
             (rc, out, err) = args
-            self.failUnlessReallyEqual(err, "")
+            self.assertEqual(len(err), 0, err)
             self.failUnlessReallyEqual(rc, 0)
             lines = out.splitlines()
             self.failUnless("Summary: not healthy" in lines, out)
@@ -140,7 +151,7 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
                       self.do_cli("check", "--verify", "--repair", self.uri))
         def _check5(args):
             (rc, out, err) = args
-            self.failUnlessReallyEqual(err, "")
+            self.assertEqual(len(err), 0, err)
             self.failUnlessReallyEqual(rc, 0)
             lines = out.splitlines()
             self.failUnless("Summary: healthy" in lines, out)
@@ -156,14 +167,14 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
         c0 = self.g.clients[0]
         self.uris = {}
         self.fileurls = {}
-        DATA = "data" * 100
-        quoted_good = quote_output(u"g\u00F6\u00F6d")
+        DATA = b"data" * 100
+        quoted_good = quote_output_u("g\u00F6\u00F6d")
 
         d = c0.create_dirnode()
         def _stash_root_and_create_file(n):
             self.rootnode = n
             self.rooturi = n.get_uri()
-            return n.add_file(u"g\u00F6\u00F6d", upload.Data(DATA, convergence=""))
+            return n.add_file(u"g\u00F6\u00F6d", upload.Data(DATA, convergence=b""))
         d.addCallback(_stash_root_and_create_file)
         def _stash_uri(fn, which):
             self.uris[which] = fn.get_uri()
@@ -171,18 +182,18 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(_stash_uri, u"g\u00F6\u00F6d")
         d.addCallback(lambda ign:
                       self.rootnode.add_file(u"small",
-                                           upload.Data("literal",
-                                                        convergence="")))
+                                           upload.Data(b"literal",
+                                                        convergence=b"")))
         d.addCallback(_stash_uri, "small")
         d.addCallback(lambda ign:
-            c0.create_mutable_file(MutableData(DATA+"1")))
+            c0.create_mutable_file(MutableData(DATA+b"1")))
         d.addCallback(lambda fn: self.rootnode.set_node(u"mutable", fn))
         d.addCallback(_stash_uri, "mutable")
 
         d.addCallback(lambda ign: self.do_cli("deep-check", self.rooturi))
         def _check1(args):
             (rc, out, err) = args
-            self.failUnlessReallyEqual(err, "")
+            self.assertEqual(len(err), 0, err)
             self.failUnlessReallyEqual(rc, 0)
             lines = out.splitlines()
             self.failUnless("done: 4 objects checked, 4 healthy, 0 unhealthy"
@@ -198,8 +209,9 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
                                               self.rooturi))
         def _check2(args):
             (rc, out, err) = args
-            self.failUnlessReallyEqual(err, "")
+            self.assertEqual(len(err), 0, err)
             self.failUnlessReallyEqual(rc, 0)
+            out = ensure_text(out)
             lines = out.splitlines()
             self.failUnless("'<root>': Healthy" in lines, out)
             self.failUnless("'small': Healthy (LIT)" in lines, out)
@@ -212,7 +224,7 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(lambda ign: self.do_cli("stats", self.rooturi))
         def _check_stats(args):
             (rc, out, err) = args
-            self.failUnlessReallyEqual(err, "")
+            self.assertEqual(len(err), 0, err)
             self.failUnlessReallyEqual(rc, 0)
             lines = out.splitlines()
             self.failUnlessIn(" count-immutable-files: 1", lines)
@@ -236,8 +248,8 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
             cso.parseOptions([shares[1][2]])
             storage_index = uri.from_string(self.uris["mutable"]).get_storage_index()
             self._corrupt_share_line = " corrupt: server %s, SI %s, shnum %d" % \
-                                       (base32.b2a(shares[1][1]),
-                                        base32.b2a(storage_index),
+                                       (str(base32.b2a(shares[1][1]), "ascii"),
+                                        str(base32.b2a(storage_index), "ascii"),
                                         shares[1][0])
             debug.corrupt_share(cso)
         d.addCallback(_clobber_shares)
@@ -251,8 +263,9 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
                       self.do_cli("deep-check", "--verbose", self.rooturi))
         def _check3(args):
             (rc, out, err) = args
-            self.failUnlessReallyEqual(err, "")
+            self.assertEqual(len(err), 0, err)
             self.failUnlessReallyEqual(rc, 0)
+            out = ensure_text(out)
             lines = out.splitlines()
             self.failUnless("'<root>': Healthy" in lines, out)
             self.failUnless("'small': Healthy (LIT)" in lines, out)
@@ -268,8 +281,9 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
                                   self.rooturi))
         def _check4(args):
             (rc, out, err) = args
-            self.failUnlessReallyEqual(err, "")
+            self.assertEqual(len(err), 0, err)
             self.failUnlessReallyEqual(rc, 0)
+            out = ensure_text(out)
             lines = out.splitlines()
             self.failUnless("'<root>': Healthy" in lines, out)
             self.failUnless("'small': Healthy (LIT)" in lines, out)
@@ -287,7 +301,7 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
                                   self.rooturi))
         def _check5(args):
             (rc, out, err) = args
-            self.failUnlessReallyEqual(err, "")
+            self.assertEqual(len(err), 0, err)
             self.failUnlessReallyEqual(rc, 0)
             lines = out.splitlines()
             units = [json.loads(line) for line in lines]
@@ -301,8 +315,9 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
                                   self.rooturi))
         def _check6(args):
             (rc, out, err) = args
-            self.failUnlessReallyEqual(err, "")
+            self.assertEqual(len(err), 0, err)
             self.failUnlessReallyEqual(rc, 0)
+            out = ensure_text(out)
             lines = out.splitlines()
             self.failUnless("'<root>': healthy" in lines, out)
             self.failUnless("'small': healthy" in lines, out)
@@ -322,10 +337,10 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(lambda ign: self.rootnode.create_subdirectory(u"subdir"))
         d.addCallback(_stash_uri, "subdir")
         d.addCallback(lambda fn:
-                      fn.add_file(u"subfile", upload.Data(DATA+"2", "")))
+                      fn.add_file(u"subfile", upload.Data(DATA+b"2", b"")))
         d.addCallback(lambda ign:
                       self.delete_shares_numbered(self.uris["subdir"],
-                                                  range(10)))
+                                                  list(range(10))))
 
         # root
         # rootg\u00F6\u00F6d/
@@ -340,7 +355,7 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.failIfEqual(rc, 0)
             self.failUnlessIn("ERROR: UnrecoverableFileError", err)
             # the fatal directory should still show up, as the last line
-            self.failUnlessIn(" subdir\n", out)
+            self.failUnlessIn(" subdir\n", ensure_text(out))
         d.addCallback(_manifest_failed)
 
         d.addCallback(lambda ign: self.do_cli("deep-check", self.rooturi))
@@ -379,7 +394,7 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
             (rc, out, err) = args
             self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("error:", err)
-            self.failUnlessReallyEqual(out, "")
+            self.assertEqual(len(out), 0, out)
         d.addCallback(_check)
         d.addCallback(lambda ign: self.do_cli("deep-check"))
         d.addCallback(_check)
@@ -396,7 +411,7 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("error:", err)
             self.failUnlessIn("nonexistent", err)
-            self.failUnlessReallyEqual(out, "")
+            self.assertEqual(len(out), 0, out)
         d.addCallback(_check)
         return d
 
@@ -416,10 +431,10 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
         def _check(args):
             (rc, out, err) = args
             self.failUnlessReallyEqual(rc, 0)
-            self.failUnlessReallyEqual(err, "")
+            self.assertEqual(len(err), 0, err)
             #Ensure healthy appears for each uri
-            self.failUnlessIn("Healthy", out[:len(out)/2])
-            self.failUnlessIn("Healthy", out[len(out)/2:])
+            self.failUnlessIn("Healthy", out[:len(out)//2])
+            self.failUnlessIn("Healthy", out[len(out)//2:])
         d.addCallback(_check)
 
         d.addCallback(lambda ign: self.do_cli("check", self.uriList[0], "nonexistent:"))

@@ -1,3 +1,16 @@
+"""
+Ported to Python 3.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2, PY3
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+from six import ensure_str
+
 from twisted.trial import unittest
 from twisted.internet import defer
 
@@ -8,61 +21,52 @@ from ..no_network import GridTestMixin
 from allmydata.util.encodingutil import quote_output, get_io_encoding
 from .common import CLITestMixin
 
+
 class List(GridTestMixin, CLITestMixin, unittest.TestCase):
     def test_list(self):
         self.basedir = "cli/List/list"
         self.set_up_grid()
         c0 = self.g.clients[0]
-        small = "small"
+        small = b"small"
 
-        # u"g\u00F6\u00F6d" might not be representable in the argv and/or output encodings.
-        # It is initially included in the directory in any case.
-        try:
-            good_arg = u"g\u00F6\u00F6d".encode(get_io_encoding())
-        except UnicodeEncodeError:
-            good_arg = None
+        good_arg = u"g\u00F6\u00F6d"
+        good_out = u"g\u00F6\u00F6d"
 
-        try:
-            good_out = u"g\u00F6\u00F6d".encode(get_io_encoding())
-        except UnicodeEncodeError:
-            good_out = None
+        # On Python 2 we get bytes, so we need encoded version. On Python 3
+        # stdio is unicode so can leave unchanged.
+        good_out_encoded = good_out if PY3 else good_out.encode(get_io_encoding())
 
         d = c0.create_dirnode()
         def _stash_root_and_create_file(n):
             self.rootnode = n
-            self.rooturi = n.get_uri()
-            return n.add_file(u"g\u00F6\u00F6d", upload.Data(small, convergence=""))
+            self.rooturi = str(n.get_uri(), "utf-8")
+            return n.add_file(u"g\u00F6\u00F6d", upload.Data(small, convergence=b""))
         d.addCallback(_stash_root_and_create_file)
         def _stash_goodcap(n):
             self.goodcap = n.get_uri()
         d.addCallback(_stash_goodcap)
         d.addCallback(lambda ign: self.rootnode.create_subdirectory(u"1share"))
         d.addCallback(lambda n:
-                      self.delete_shares_numbered(n.get_uri(), range(1,10)))
+                      self.delete_shares_numbered(n.get_uri(), list(range(1,10))))
         d.addCallback(lambda ign: self.rootnode.create_subdirectory(u"0share"))
         d.addCallback(lambda n:
-                      self.delete_shares_numbered(n.get_uri(), range(0,10)))
+                      self.delete_shares_numbered(n.get_uri(), list(range(0,10))))
         d.addCallback(lambda ign:
                       self.do_cli("add-alias", "tahoe", self.rooturi))
         d.addCallback(lambda ign: self.do_cli("ls"))
         def _check1(args):
             (rc, out, err) = args
-            if good_out is None:
-                self.failUnlessReallyEqual(rc, 1)
-                self.failUnlessIn("files whose names could not be converted", err)
-                self.failUnlessIn(quote_output(u"g\u00F6\u00F6d"), err)
-                self.failUnlessReallyEqual(sorted(out.splitlines()), sorted(["0share", "1share"]))
-            else:
-                self.failUnlessReallyEqual(rc, 0)
-                self.failUnlessReallyEqual(err, "")
-                self.failUnlessReallyEqual(sorted(out.splitlines()), sorted(["0share", "1share", good_out]))
+            self.failUnlessReallyEqual(rc, 0)
+            self.assertEqual(len(err), 0, err)
+            expected = sorted([ensure_str("0share"), ensure_str("1share"), good_out_encoded])
+            self.assertEqual(sorted(out.splitlines()), expected)
         d.addCallback(_check1)
         d.addCallback(lambda ign: self.do_cli("ls", "missing"))
         def _check2(args):
             (rc, out, err) = args
             self.failIfEqual(rc, 0)
-            self.failUnlessReallyEqual(err.strip(), "No such file or directory")
-            self.failUnlessReallyEqual(out, "")
+            self.assertEqual(err.strip(), "No such file or directory")
+            self.assertEqual(len(out), 0, out)
         d.addCallback(_check2)
         d.addCallback(lambda ign: self.do_cli("ls", "1share"))
         def _check3(args):
@@ -72,7 +76,7 @@ class List(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.failUnlessIn("UnrecoverableFileError:", err)
             self.failUnlessIn("could not be retrieved, because there were "
                               "insufficient good shares.", err)
-            self.failUnlessReallyEqual(out, "")
+            self.assertEqual(len(out), 0, out)
         d.addCallback(_check3)
         d.addCallback(lambda ign: self.do_cli("ls", "0share"))
         d.addCallback(_check3)
@@ -82,13 +86,13 @@ class List(GridTestMixin, CLITestMixin, unittest.TestCase):
                 self.failUnlessReallyEqual(rc, 1)
                 self.failUnlessIn("files whose names could not be converted", err)
                 self.failUnlessIn(quote_output(u"g\u00F6\u00F6d"), err)
-                self.failUnlessReallyEqual(out, "")
+                self.assertEqual(len(out), 0, out)
             else:
                 # listing a file (as dir/filename) should have the edge metadata,
                 # including the filename
                 self.failUnlessReallyEqual(rc, 0)
-                self.failUnlessIn(good_out, out)
-                self.failIfIn("-r-- %d -" % len(small), out,
+                self.failUnlessIn(good_out_encoded, out)
+                self.failIfIn(ensure_str("-r-- %d -" % len(small)), out,
                               "trailing hyphen means unknown date")
 
         if good_arg is not None:
@@ -106,7 +110,7 @@ class List(GridTestMixin, CLITestMixin, unittest.TestCase):
             # metadata, just the size
             (rc, out, err) = args
             self.failUnlessReallyEqual(rc, 0)
-            self.failUnlessReallyEqual("-r-- %d -" % len(small), out.strip())
+            self.assertEqual("-r-- %d -" % len(small), out.strip())
         d.addCallback(lambda ign: self.do_cli("ls", "-l", self.goodcap))
         d.addCallback(_check5)
 
@@ -118,7 +122,7 @@ class List(GridTestMixin, CLITestMixin, unittest.TestCase):
         def _check1_ascii(args):
             (rc,out,err) = args
             self.failUnlessReallyEqual(rc, 0)
-            self.failUnlessReallyEqual(err, "")
+            self.assertEqual(len(err), 0, err)
             self.failUnlessReallyEqual(sorted(out.splitlines()), sorted(["0share", "1share", "good"]))
         d.addCallback(_check1_ascii)
         def _check4_ascii(args):
@@ -139,7 +143,7 @@ class List(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(lambda ign: self.do_cli("ls", "-l", self.rooturi + ":./good"))
         d.addCallback(_check4_ascii)
 
-        unknown_immcap = "imm.URI:unknown"
+        unknown_immcap = b"imm.URI:unknown"
         def _create_unknown(ign):
             nm = c0.nodemaker
             kids = {u"unknownchild-imm": (nm.create_from_cap(unknown_immcap), {})}
@@ -178,7 +182,7 @@ class List(GridTestMixin, CLITestMixin, unittest.TestCase):
             (rc, out, err) = args
             self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("error:", err)
-            self.failUnlessReallyEqual(out, "")
+            self.assertEqual(len(out), 0, out)
         d.addCallback(_check)
         return d
 
@@ -193,7 +197,7 @@ class List(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("error:", err)
             self.failUnlessIn("nonexistent", err)
-            self.failUnlessReallyEqual(out, "")
+            self.assertEqual(len(out), 0, out)
         d.addCallback(_check)
         return d
 
@@ -226,8 +230,8 @@ class List(GridTestMixin, CLITestMixin, unittest.TestCase):
             # The uploaders may run at the same time, so we need two
             # MutableData instances or they'll fight over offsets &c and
             # break.
-            mutable_data = MutableData("data" * 100000)
-            mutable_data2 = MutableData("data" * 100000)
+            mutable_data = MutableData(b"data" * 100000)
+            mutable_data2 = MutableData(b"data" * 100000)
             # Add both kinds of mutable node.
             d1 = nm.create_mutable_file(mutable_data,
                                         version=MDMF_VERSION)
@@ -235,8 +239,8 @@ class List(GridTestMixin, CLITestMixin, unittest.TestCase):
                                         version=SDMF_VERSION)
             # Add an immutable node. We do this through the directory,
             # with add_file.
-            immutable_data = upload.Data("immutable data" * 100000,
-                                         convergence="")
+            immutable_data = upload.Data(b"immutable data" * 100000,
+                                         convergence=b"")
             d3 = n.add_file(u"immutable", immutable_data)
             ds = [d1, d2, d3]
             dl = defer.DeferredList(ds)
@@ -294,12 +298,12 @@ class List(GridTestMixin, CLITestMixin, unittest.TestCase):
         def _got_json(args):
             (rc, out, err) = args
             self.failUnlessEqual(rc, 0)
-            self.failUnlessEqual(err, "")
-            self.failUnlessIn(self._mdmf_uri, out)
-            self.failUnlessIn(self._mdmf_readonly_uri, out)
-            self.failUnlessIn(self._sdmf_uri, out)
-            self.failUnlessIn(self._sdmf_readonly_uri, out)
-            self.failUnlessIn(self._imm_uri, out)
+            self.assertEqual(len(err), 0, err)
+            self.failUnlessIn(str(self._mdmf_uri, "ascii"), out)
+            self.failUnlessIn(str(self._mdmf_readonly_uri, "ascii"), out)
+            self.failUnlessIn(str(self._sdmf_uri, "ascii"), out)
+            self.failUnlessIn(str(self._sdmf_readonly_uri, "ascii"), out)
+            self.failUnlessIn(str(self._imm_uri, "ascii"), out)
             self.failUnlessIn('"format": "SDMF"', out)
             self.failUnlessIn('"format": "MDMF"', out)
         d.addCallback(_got_json)

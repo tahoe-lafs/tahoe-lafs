@@ -1,4 +1,11 @@
-# Python 2 compatibility
+"""
+Ported to Python 3.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
 from future.utils import PY2
 if PY2:
     from future.builtins import str  # noqa: F401
@@ -32,10 +39,12 @@ dBSD8940XU3YW+oeq8e+p3yQ2GinHfeJ3BYQyNQLuMAJ
 """)
 
 DUMMY_ACCOUNTS = u"""\
-alice password URI:DIR2:aaaaaaaaaaaaaaaaaaaaaaaaaa:1111111111111111111111111111111111111111111111111111
+alice herpassword URI:DIR2:aaaaaaaaaaaaaaaaaaaaaaaaaa:1111111111111111111111111111111111111111111111111111
 bob sekrit URI:DIR2:bbbbbbbbbbbbbbbbbbbbbbbbbb:2222222222222222222222222222222222222222222222222222
+
+# dennis password URI:DIR2:aaaaaaaaaaaaaaaaaaaaaaaaaa:1111111111111111111111111111111111111111111111111111
 carol {key} URI:DIR2:cccccccccccccccccccccccccc:3333333333333333333333333333333333333333333333333333
-""".format(key=DUMMY_KEY.public().toString("openssh")).encode("ascii")
+""".format(key=str(DUMMY_KEY.public().toString("openssh"), "ascii")).encode("ascii")
 
 class AccountFileCheckerKeyTests(unittest.TestCase):
     """
@@ -47,7 +56,7 @@ class AccountFileCheckerKeyTests(unittest.TestCase):
         abspath = abspath_expanduser_unicode(str(self.account_file.path))
         self.checker = auth.AccountFileChecker(None, abspath)
 
-    def test_unknown_user(self):
+    def test_unknown_user_ssh(self):
         """
         AccountFileChecker.requestAvatarId returns a Deferred that fires with
         UnauthorizedLogin if called with an SSHPrivateKey object with a
@@ -58,7 +67,20 @@ class AccountFileCheckerKeyTests(unittest.TestCase):
         avatarId = self.checker.requestAvatarId(key_credentials)
         return self.assertFailure(avatarId, error.UnauthorizedLogin)
 
-    def test_password_auth_user(self):
+    def test_unknown_user_password(self):
+        """
+        AccountFileChecker.requestAvatarId returns a Deferred that fires with
+        UnauthorizedLogin if called with an SSHPrivateKey object with a
+        username not present in the account file.
+
+        We use a commented out user, so we're also checking that comments are
+        skipped.
+        """
+        key_credentials = credentials.UsernamePassword(b"dennis", b"password")
+        d = self.checker.requestAvatarId(key_credentials)
+        return self.assertFailure(d, error.UnauthorizedLogin)
+
+    def test_password_auth_user_with_ssh_key(self):
         """
         AccountFileChecker.requestAvatarId returns a Deferred that fires with
         UnauthorizedLogin if called with an SSHPrivateKey object for a username
@@ -66,6 +88,43 @@ class AccountFileCheckerKeyTests(unittest.TestCase):
         """
         key_credentials = credentials.SSHPrivateKey(
             b"alice", b"md5", None, None, None)
+        avatarId = self.checker.requestAvatarId(key_credentials)
+        return self.assertFailure(avatarId, error.UnauthorizedLogin)
+
+    def test_password_auth_user_with_correct_password(self):
+        """
+        AccountFileChecker.requestAvatarId returns a Deferred that fires with
+        the user if the correct password is given.
+        """
+        key_credentials = credentials.UsernamePassword(b"alice", b"herpassword")
+        d = self.checker.requestAvatarId(key_credentials)
+        def authenticated(avatarId):
+            self.assertEqual(
+                (b"alice",
+                 b"URI:DIR2:aaaaaaaaaaaaaaaaaaaaaaaaaa:1111111111111111111111111111111111111111111111111111"),
+                (avatarId.username, avatarId.rootcap))
+        return d
+
+    def test_password_auth_user_with_correct_hashed_password(self):
+        """
+        AccountFileChecker.requestAvatarId returns a Deferred that fires with
+        the user if the correct password is given in hashed form.
+        """
+        key_credentials = credentials.UsernameHashedPassword(b"alice", b"herpassword")
+        d = self.checker.requestAvatarId(key_credentials)
+        def authenticated(avatarId):
+            self.assertEqual(
+                (b"alice",
+                 b"URI:DIR2:aaaaaaaaaaaaaaaaaaaaaaaaaa:1111111111111111111111111111111111111111111111111111"),
+                (avatarId.username, avatarId.rootcap))
+        return d
+
+    def test_password_auth_user_with_wrong_password(self):
+        """
+        AccountFileChecker.requestAvatarId returns a Deferred that fires with
+        UnauthorizedLogin if the wrong password is given.
+        """
+        key_credentials = credentials.UsernamePassword(b"alice", b"WRONG")
         avatarId = self.checker.requestAvatarId(key_credentials)
         return self.assertFailure(avatarId, error.UnauthorizedLogin)
 

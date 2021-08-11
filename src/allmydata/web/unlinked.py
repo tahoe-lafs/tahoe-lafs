@@ -1,4 +1,14 @@
-from past.builtins import unicode
+"""
+Ported to Python 3.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 from urllib.parse import quote as urlquote
 
@@ -119,8 +129,8 @@ class UploadResultsElement(status.UploadResultsRendererMixin):
     def download_link(self, req, tag):
         d = self.upload_results()
         d.addCallback(lambda res:
-                      tags.a("/uri/" + unicode(res.get_uri(), "utf-8"),
-                             href="/uri/" + urlquote(unicode(res.get_uri(), "utf-8"))))
+                      tags.a("/uri/" + str(res.get_uri(), "utf-8"),
+                             href="/uri/" + urlquote(str(res.get_uri(), "utf-8"))))
         return d
 
 

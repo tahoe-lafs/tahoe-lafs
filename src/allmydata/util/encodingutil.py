@@ -13,6 +13,7 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 from future.utils import PY2, PY3, native_str
+from future.builtins import str as future_str
 if PY2:
     # We omit str() because that seems too tricky to get right.
     from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, max, min  # noqa: F401
@@ -142,6 +143,14 @@ def unicode_to_argv(s):
     return ensure_str(s)
 
 
+# According to unicode_to_argv above, the expected type for
+# cli args depends on the platform, so capture that expectation.
+argv_type = (future_str, native_str) if sys.platform == "win32" else native_str
+"""
+The expected type for args to a subprocess
+"""
+
+
 def unicode_to_url(s):
     """
     Encode an unicode object used in an URL to bytes.
@@ -247,7 +256,11 @@ def quote_output_u(*args, **kwargs):
     result = quote_output(*args, **kwargs)
     if isinstance(result, unicode):
         return result
-    return result.decode(kwargs.get("encoding", None) or io_encoding)
+    # Since we're quoting, the assumption is this will be read by a human, and
+    # therefore printed, so stdout's encoding is the plausible one. io_encoding
+    # is now always utf-8.
+    return result.decode(kwargs.get("encoding", None) or
+                         getattr(sys.stdout, "encoding") or io_encoding)
 
 
 def quote_output(s, quotemarks=True, quote_newlines=None, encoding=None):
@@ -267,7 +280,10 @@ def quote_output(s, quotemarks=True, quote_newlines=None, encoding=None):
     On Python 3, returns Unicode strings.
     """
     precondition(isinstance(s, (bytes, unicode)), s)
-    encoding = encoding or io_encoding
+    # Since we're quoting, the assumption is this will be read by a human, and
+    # therefore printed, so stdout's encoding is the plausible one. io_encoding
+    # is now always utf-8.
+    encoding = encoding or getattr(sys.stdout, "encoding") or io_encoding
 
     if quote_newlines is None:
         quote_newlines = quotemarks
@@ -275,7 +291,7 @@ def quote_output(s, quotemarks=True, quote_newlines=None, encoding=None):
     def _encode(s):
         if isinstance(s, bytes):
             try:
-                s = s.decode('utf-8')
+                s = s.decode("utf-8")
             except UnicodeDecodeError:
                 return b'b"%s"' % (ESCAPABLE_8BIT.sub(lambda m: _bytes_escape(m, quote_newlines), s),)
 

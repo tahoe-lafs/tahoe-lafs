@@ -1,7 +1,17 @@
+"""
+Ported to Python 3.
+"""
+from __future__ import unicode_literals
+from __future__ import absolute_import
+from __future__ import division
 from __future__ import print_function
 
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+
 import os
-import urllib
+from urllib.parse import urlencode, quote as url_quote
 
 import json
 
@@ -25,12 +35,12 @@ def _get_json_for_fragment(options, fragment, method='GET', post_args=None):
     if method == 'POST':
         if post_args is None:
             raise ValueError("Must pass post_args= for POST method")
-        body = urllib.urlencode(post_args)
+        body = urlencode(post_args)
     else:
         body = ''
         if post_args is not None:
             raise ValueError("post_args= only valid for POST method")
-    resp = do_http(method, url, body=body)
+    resp = do_http(method, url, body=body.encode("utf-8"))
     if isinstance(resp, BadResponse):
         # specifically NOT using format_http_error() here because the
         # URL is pretty sensitive (we're doing /uri/<key>).
@@ -48,10 +58,10 @@ def _get_json_for_fragment(options, fragment, method='GET', post_args=None):
 def _get_json_for_cap(options, cap):
     return _get_json_for_fragment(
         options,
-        'uri/%s?t=json' % urllib.quote(cap),
+        'uri/%s?t=json' % url_quote(cap),
     )
 
-def pretty_progress(percent, size=10, ascii=False):
+def pretty_progress(percent, size=10, output_ascii=False):
     """
     Displays a unicode or ascii based progress bar of a certain
     length. Should we just depend on a library instead?
@@ -62,7 +72,7 @@ def pretty_progress(percent, size=10, ascii=False):
     curr = int(percent / 100.0 * size)
     part = (percent / (100.0 / size)) - curr
 
-    if ascii:
+    if output_ascii:
         part = int(part * 4)
         part = '.oO%'[part]
         block_chr = '#'
@@ -74,8 +84,8 @@ def pretty_progress(percent, size=10, ascii=False):
 
         # unicode 0x2581 -> 2589 are vertical bar chunks, like rainbarf uses
         # and following are narrow -> wider bars
-        part = unichr(0x258f - part) # for smooth bar
-        # part = unichr(0x2581 + part) # for neater-looking thing
+        part = chr(0x258f - part) # for smooth bar
+        # part = chr(0x2581 + part) # for neater-looking thing
 
     # hack for 100+ full so we don't print extra really-narrow/high bar
     if percent >= 100.0:

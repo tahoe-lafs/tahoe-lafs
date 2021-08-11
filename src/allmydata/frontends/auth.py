@@ -1,13 +1,22 @@
-import os
+"""
+Authentication for frontends.
+"""
+from __future__ import unicode_literals
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 from zope.interface import implementer
-from twisted.web.client import getPage
 from twisted.internet import defer
 from twisted.cred import error, checkers, credentials
 from twisted.conch.ssh import keys
 from twisted.conch.checkers import SSHPublicKeyChecker, InMemorySSHKeyDB
 
-from allmydata.util import base32
+from allmydata.util.dictutil import BytesKeyDict
 from allmydata.util.fileutil import abspath_expanduser_unicode
 
 
@@ -28,18 +37,18 @@ class AccountFileChecker(object):
                             credentials.ISSHPrivateKey)
     def __init__(self, client, accountfile):
         self.client = client
-        self.passwords = {}
-        pubkeys = {}
-        self.rootcaps = {}
-        with open(abspath_expanduser_unicode(accountfile), "r") as f:
+        self.passwords = BytesKeyDict()
+        pubkeys = BytesKeyDict()
+        self.rootcaps = BytesKeyDict()
+        with open(abspath_expanduser_unicode(accountfile), "rb") as f:
             for line in f:
                 line = line.strip()
-                if line.startswith("#") or not line:
+                if line.startswith(b"#") or not line:
                     continue
                 name, passwd, rest = line.split(None, 2)
-                if passwd.startswith("ssh-"):
+                if passwd.startswith(b"ssh-"):
                     bits = rest.split()
-                    keystring = " ".join([passwd] + bits[:-1])
+                    keystring = b" ".join([passwd] + bits[:-1])
                     key = keys.Key.fromString(keystring)
                     rootcap = bits[-1]
                     pubkeys[name] = [key]
@@ -83,56 +92,5 @@ class AccountFileChecker(object):
             return defer.fail(error.UnauthorizedLogin())
 
         d = defer.maybeDeferred(creds.checkPassword, correct)
-        d.addCallback(self._cbPasswordMatch, str(creds.username))
+        d.addCallback(self._cbPasswordMatch, creds.username)
         return d
-
-
-@implementer(checkers.ICredentialsChecker)
-class AccountURLChecker(object):
-    credentialInterfaces = (credentials.IUsernamePassword,)
-
-    def __init__(self, client, auth_url):
-        self.client = client
-        self.auth_url = auth_url
-
-    def _cbPasswordMatch(self, rootcap, username):
-        return FTPAvatarID(username, rootcap)
-
-    def post_form(self, username, password):
-        sepbase = base32.b2a(os.urandom(4))
-        sep = "--" + sepbase
-        form = []
-        form.append(sep)
-        fields = {"action": "authenticate",
-                  "email": username,
-                  "passwd": password,
-                  }
-        for name, value in fields.iteritems():
-            form.append('Content-Disposition: form-data; name="%s"' % name)
-            form.append('')
-            assert isinstance(value, str)
-            form.append(value)
-            form.append(sep)
-        form[-1] += "--"
-        body = "\r\n".join(form) + "\r\n"
-        headers = {"content-type": "multipart/form-data; boundary=%s" % sepbase,
-                   }
-        return getPage(self.auth_url, method="POST",
-                       postdata=body, headers=headers,
-                       followRedirect=True, timeout=30)
-
-    def _parse_response(self, res):
-        rootcap = res.strip()
-        if rootcap == "0":
-            raise error.UnauthorizedLogin
-        return rootcap
-
-    def requestAvatarId(self, credentials):
-        # construct a POST to the login form. While this could theoretically
-        # be done with something like the stdlib 'email' package, I can't
-        # figure out how, so we just slam together a form manually.
-        d = self.post_form(credentials.username, credentials.password)
-        d.addCallback(self._parse_response)
-        d.addCallback(self._cbPasswordMatch, str(credentials.username))
-        return d
-

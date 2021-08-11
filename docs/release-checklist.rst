@@ -59,6 +59,10 @@ Create Branch and Apply Updates
   - summarize major changes
   - commit it
 
+- update "nix/tahoe-lafs.nix"
+
+  - change the value given for `version` from `OLD.post1` to `NEW.post1`
+
 - update "CREDITS"
 
   - are there any new contributors in this release?
@@ -66,7 +70,7 @@ Create Branch and Apply Updates
   - commit it
 
 - update "docs/known_issues.rst" if appropriate
-- update "docs/INSTALL.rst" references to the new release
+- update "docs/Installation/install-tahoe.rst" references to the new release
 - Push the branch to github
 - Create a (draft) PR; this should trigger CI (note that github
   doesn't let you create a PR without some changes on the branch so
@@ -189,11 +193,16 @@ is appropriate.
 Once a release-candidate has marinated for some time then it can be
 made into a the actual release.
 
-XXX Write this section when doing 1.15.0 actual release
+The actual release follows the same steps as above, with some differences:
 
-(In general, this means dropping the "rcX" part of the release and the
-tag, uploading those artifacts, uploading to PyPI, ... )
-
+- there is no "-rcX" on the end of release names
+- the release is uploaded to PyPI (using Twine)
+- the version is tagged in Git (ideally using "the tahoe release key"
+  but can be done with any of the authorized core developers' personal
+  key)
+- the release-candidate branches must be merged back to master after
+  the release is official (e.g. causing newsfragments to be deleted on
+  master, etc)
 
 
 Announcing the Release

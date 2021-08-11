@@ -1,4 +1,11 @@
 from __future__ import print_function
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 import os, sys
 from six.moves import StringIO
@@ -15,7 +22,7 @@ from twisted.internet import defer, task, threads
 from allmydata.scripts.common import get_default_nodedir
 from allmydata.scripts import debug, create_node, cli, \
     admin, tahoe_run, tahoe_invite
-from allmydata.util.encodingutil import quote_output, quote_local_unicode_path, get_io_encoding
+from allmydata.util.encodingutil import quote_local_unicode_path, argv_to_unicode
 from allmydata.util.eliotutil import (
     opt_eliot_destination,
     opt_help_eliot_destinations,
@@ -159,11 +166,10 @@ def parse_or_exit_with_explanation_with_config(config, argv, stdout, stderr):
         while hasattr(c, 'subOptions'):
             c = c.subOptions
         print(str(c), file=stdout)
-        try:
-            msg = e.args[0].decode(get_io_encoding())
-        except Exception:
-            msg = repr(e)
-        print("%s:  %s\n" % (argv[0], quote_output(msg, quotemarks=False)), file=stdout)
+        # On Python 2 the string may turn into a unicode string, e.g. the error
+        # may be unicode, in which case it will print funny. Once we're on
+        # Python 3 we can just drop the ensure_str().
+        print(six.ensure_str("%s:  %s\n" % (sys.argv[0], e)), file=stdout)
         sys.exit(1)
     return config
 
@@ -229,10 +235,6 @@ def run(configFactory=Options, argv=sys.argv, stdout=sys.stdout, stderr=sys.stde
 
     :raise SystemExit: Always raised after the run is complete.
     """
-    # TODO(3035): Remove tox-check when error becomes a warning
-    if 'TOX_ENV_NAME' not in os.environ:
-        assert sys.version_info < (3,), u"Tahoe-LAFS does not run under Python 3. Please use Python 2.7.x."
-
     if sys.platform == "win32":
         from allmydata.windows.fixups import initialize
         initialize()
@@ -271,8 +273,10 @@ def _setup_coverage(reactor, argv):
     This function arranges to have any Tahoe-LAFS process (such as that
     client node process) collect and report coverage measurements as well.
     """
-    # can we put this _setup_coverage call after we hit argument-parsing?
-    if '--coverage' not in argv:
+    # can we put this _setup_coverage call after we hit
+    # argument-parsing?
+    # ensure_str() only necessary on Python 2.
+    if six.ensure_str('--coverage') not in sys.argv:
         return
     argv.remove('--coverage')
 
@@ -325,6 +329,7 @@ def _run_with_reactor(reactor, config, argv, stdout, stderr):
     """
     _setup_coverage(reactor, argv)
 
+    argv = list(map(argv_to_unicode, argv[1:]))
     d = defer.maybeDeferred(
         parse_or_exit_with_explanation_with_config,
         config,

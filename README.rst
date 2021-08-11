@@ -6,7 +6,7 @@ Free and Open decentralized data store
 
 `Tahoe-LAFS <https://www.tahoe-lafs.org>`__ (Tahoe Least-Authority File Store) is the first free software / open-source storage technology that distributes your data across multiple servers. Even if some servers fail or are taken over by an attacker, the entire file store continues to function correctly, preserving your privacy and security.
 
-|Contributor Covenant|  |readthedocs|  |travis|  |circleci|  |coveralls|
+|Contributor Covenant|  |readthedocs|  |circleci|  |githubactions|  |coveralls|
 
 
 Table of contents
@@ -72,7 +72,7 @@ You can find the full Tahoe-LAFS documentation at our `documentation site <http:
 
 Get involved with the Tahoe-LAFS community:
 
--  Chat with Tahoe-LAFS developers at #tahoe-lafs chat on irc.freenode.net or `Slack <https://join.slack.com/t/tahoe-lafs/shared_invite/zt-jqfj12r5-ZZ5z3RvHnubKVADpP~JINQ>`__.
+-  Chat with Tahoe-LAFS developers at ``#tahoe-lafs`` channel on `libera.chat <https://libera.chat/>`__ IRC network or `Slack <https://join.slack.com/t/tahoe-lafs/shared_invite/zt-jqfj12r5-ZZ5z3RvHnubKVADpP~JINQ>`__.
 
 -  Join our `weekly conference calls <https://www.tahoe-lafs.org/trac/tahoe-lafs/wiki/WeeklyMeeting>`__ with core developers and interested community members.
 
@@ -93,6 +93,10 @@ As a community-driven open source project, Tahoe-LAFS welcomes contributions of 
 
 Before authoring or reviewing a patch, please familiarize yourself with the `Coding Standard <https://tahoe-lafs.org/trac/tahoe-lafs/wiki/CodingStandards>`__ and the `Contributor Code of Conduct <docs/CODE_OF_CONDUCT.md>`__.
 
+🤝 Supporters
+--------------
+
+We would like to thank `Fosshost <https://fosshost.org>`__ for supporting us with hosting services. If your open source project needs help, you can apply for their support.
 
 ❓ FAQ
 ------
@@ -118,12 +122,11 @@ See `TGPPL.PDF <https://tahoe-lafs.org/~zooko/tgppl.pdf>`__ for why the TGPPL ex
     :alt: documentation status
     :target: http://tahoe-lafs.readthedocs.io/en/latest/?badge=latest
 
-.. |travis| image:: https://travis-ci.org/tahoe-lafs/tahoe-lafs.png?branch=master
-    :alt: build status
-    :target: https://travis-ci.org/tahoe-lafs/tahoe-lafs
-
 .. |circleci| image:: https://circleci.com/gh/tahoe-lafs/tahoe-lafs.svg?style=svg
     :target: https://circleci.com/gh/tahoe-lafs/tahoe-lafs
+
+.. |githubactions| image:: https://github.com/tahoe-lafs/tahoe-lafs/actions/workflows/ci.yml/badge.svg
+    :target: https://github.com/tahoe-lafs/tahoe-lafs/actions
 
 .. |coveralls| image:: https://coveralls.io/repos/github/tahoe-lafs/tahoe-lafs/badge.svg
     :alt: code coverage

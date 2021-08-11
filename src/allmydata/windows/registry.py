@@ -1,5 +1,5 @@
 import sys
-import _winreg
+import winreg
 
 _AMD_KEY = r"Software\Allmydata"
 _BDIR_KEY = 'Base Dir Path'
@@ -22,19 +22,19 @@ def get_registry_setting(key, name, _topkey=None):
     @param name: The name of the setting we are querying.
     @type name: String
     """
-    topkeys = [_winreg.HKEY_CURRENT_USER, _winreg.HKEY_LOCAL_MACHINE]
+    topkeys = [winreg.HKEY_CURRENT_USER, winreg.HKEY_LOCAL_MACHINE]
 
     if _topkey:
         topkeys.insert(0, _topkey)
 
     for topkey in topkeys:
         try:
-            regkey = _winreg.OpenKey(topkey, key)
+            regkey = winreg.OpenKey(topkey, key)
 
-            sublen, vallen, timestamp = _winreg.QueryInfoKey(regkey)
-            for validx in xrange(vallen):
-                keyname, value, keytype = _winreg.EnumValue(regkey, validx)
-                if keyname == name and keytype == _winreg.REG_SZ:
+            sublen, vallen, timestamp = winreg.QueryInfoKey(regkey)
+            for validx in range(vallen):
+                keyname, value, keytype = winreg.EnumValue(regkey, validx)
+                if keyname == name and keytype == winreg.REG_SZ:
                     return value
 
         except WindowsError:
@@ -42,27 +42,27 @@ def get_registry_setting(key, name, _topkey=None):
     # We didn't find the key:
     raise KeyError(key, name, "registry setting not found")
 
-def set_registry_setting(key, name, data, reg_type=_winreg.REG_SZ,
-                         _topkey=_winreg.HKEY_LOCAL_MACHINE, create_key_if_missing=True):
+def set_registry_setting(key, name, data, reg_type=winreg.REG_SZ,
+                         _topkey=winreg.HKEY_LOCAL_MACHINE, create_key_if_missing=True):
     """
     Sets a registry setting.
 
     defaults to string values (REG_SZ) - overridable with reg_type.
     """
     try:
-        regkey = _winreg.OpenKey(_topkey, key, 0, _winreg.KEY_SET_VALUE)
+        regkey = winreg.OpenKey(_topkey, key, 0, winreg.KEY_SET_VALUE)
     except WindowsError:
         if create_key_if_missing:
-            regkey = _winreg.CreateKey(_topkey, key)
+            regkey = winreg.CreateKey(_topkey, key)
         else:
             raise KeyError(key, "registry key not found")
 
     try:
-        _winreg.DeleteValue(regkey, name)
+        winreg.DeleteValue(regkey, name)
     except:
         pass
 
-    _winreg.SetValueEx(regkey, name, 0, reg_type, data)
+    winreg.SetValueEx(regkey, name, 0, reg_type, data)
 
 def get_registry_value(keyname):
     """

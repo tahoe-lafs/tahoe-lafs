@@ -10,8 +10,11 @@ Contents:
 .. toctree::
    :maxdepth: 2
 
-   about
-   INSTALL
+   about-tahoe
+   Installation/install-tahoe
+   Installation/install-on-windows
+   Installation/install-on-linux
+   Installation/install-on-desert-island
    running
    magic-wormhole-invites
    configuration
@@ -41,6 +44,7 @@ Contents:
    backupdb
 
    developer-guide
+   ticket-triage
 
    anonymity-configuration
 
@@ -49,10 +53,7 @@ Contents:
    logging
    stats
 
-   desert-island
    debian
-   windows
-   OS-X
    build/build-pyOpenSSL
 
    specifications/index

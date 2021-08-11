@@ -1,5 +1,5 @@
 { fetchFromGitHub, lib
-, python
+, git, python
 , twisted, foolscap, zfec
 , setuptools, setuptoolsTrial, pyasn1, zope_interface
 , service-identity, pyyaml, magic-wormhole, treq, appdirs
@@ -7,9 +7,52 @@
 , html5lib, pyutil, distro, configparser
 }:
 python.pkgs.buildPythonPackage rec {
-  version = "1.14.0.dev";
+  # Most of the time this is not exactly the release version (eg 1.15.1).
+  # Give it a `post` component to make it look newer than the release version
+  # and we'll bump this up at the time of each release.
+  #
+  # It's difficult to read the version from Git the way the Python code does
+  # for two reasons.  First, doing so involves populating the Nix expression
+  # with values from the source.  Nix calls this "import from derivation" or
+  # "IFD" (<https://nixos.wiki/wiki/Import_From_Derivation>).  This is
+  # discouraged in most cases - including this one, I think.  Second, the
+  # Python code reads the contents of `.git` to determine its version.  `.git`
+  # is not a reproducable artifact (in the sense of "reproducable builds") so
+  # it is excluded from the source tree by default.  When it is included, the
+  # package tends to be frequently spuriously rebuilt.
+  version = "1.15.1.post1";
   name = "tahoe-lafs-${version}";
-  src = lib.cleanSource ../.;
+  src = lib.cleanSourceWith {
+    src = ../.;
+    filter = name: type:
+      let
+        basename = baseNameOf name;
+
+        split = lib.splitString ".";
+        join = builtins.concatStringsSep ".";
+        ext = join (builtins.tail (split basename));
+
+        # Build up a bunch of knowledge about what kind of file this is.
+        isTox = type == "directory" && basename == ".tox";
+        isTrialTemp = type == "directory" && basename == "_trial_temp";
+        isVersion = basename == "_version.py";
+        isBytecode = ext == "pyc" || ext == "pyo";
+        isBackup = lib.hasSuffix "~" basename;
+        isTemporary = lib.hasPrefix "#" basename && lib.hasSuffix "#" basename;
+        isSymlink = type == "symlink";
+        isGit = type == "directory" && basename == ".git";
+      in
+      # Exclude all these things
+      ! (isTox
+      || isTrialTemp
+      || isVersion
+      || isBytecode
+      || isBackup
+      || isTemporary
+      || isSymlink
+      || isGit
+      );
+  };
 
   postPatch = ''
     # Chroots don't have /etc/hosts and /etc/resolv.conf, so work around
@@ -28,9 +71,26 @@ python.pkgs.buildPythonPackage rec {
     rm src/allmydata/test/test_i2p_provider.py
     rm src/allmydata/test/test_connections.py
     rm src/allmydata/test/cli/test_create.py
-    rm src/allmydata/test/test_client.py
-  '';
 
+    # Generate _version.py ourselves since we can't rely on the Python code
+    # extracting the information from the .git directory we excluded.
+    cat > src/allmydata/_version.py <<EOF
+
+# This _version.py is generated from metadata by nix/tahoe-lafs.nix.
+
+__pkgname__ = "tahoe-lafs"
+real_version = "${version}"
+full_version = "${version}"
+branch = "master"
+verstr = "${version}"
+__version__ = verstr
+EOF
+'';
+
+
+  nativeBuildInputs = [
+    git
+  ];
 
   propagatedBuildInputs = with python.pkgs; [
     twisted foolscap zfec appdirs
@@ -50,6 +110,15 @@ python.pkgs.buildPythonPackage rec {
   ];
 
   checkPhase = ''
+    if ! $out/bin/tahoe --version | grep --fixed-strings "${version}"; then
+      echo "Package version:"
+      $out/bin/tahoe --version
+      echo "Did not contain expected:"
+      echo "${version}"
+      exit 1
+    else
+      echo "Version string contained expected value \"${version}.\""
+    fi
     ${python}/bin/python -m twisted.trial -j $NIX_BUILD_CORES allmydata
   '';
 }

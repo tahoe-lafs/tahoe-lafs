@@ -1,5 +1,14 @@
-from future.utils import PY3
-from past.builtins import unicode
+"""
+Ported to Python 3.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2, PY3
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 import os
 import time
@@ -98,7 +107,7 @@ class URIHandler(resource.Resource, object):
         either "PUT /uri" to create an unlinked file, or
         "PUT /uri?t=mkdir" to create an unlinked directory
         """
-        t = unicode(get_arg(req, "t", "").strip(), "utf-8")
+        t = str(get_arg(req, "t", "").strip(), "utf-8")
         if t == "":
             file_format = get_format(req, "CHK")
             mutable_type = get_mutable_type(file_format)
@@ -121,7 +130,7 @@ class URIHandler(resource.Resource, object):
         unlinked file or "POST /uri?t=mkdir" to create a
         new directory
         """
-        t = unicode(get_arg(req, "t", "").strip(), "ascii")
+        t = str(get_arg(req, "t", "").strip(), "ascii")
         if t in ("", "upload"):
             file_format = get_format(req)
             mutable_type = get_mutable_type(file_format)
@@ -185,10 +194,10 @@ class FileHandler(resource.Resource, object):
             node = self.client.create_node_from_uri(name)
         except (TypeError, AssertionError):
             # I think this can no longer be reached
-            raise WebError("'%s' is not a valid file- or directory- cap"
+            raise WebError("%r is not a valid file- or directory- cap"
                            % name)
         if not IFileNode.providedBy(node):
-            raise WebError("'%s' is not a file-cap" % name)
+            raise WebError("%r is not a file-cap" % name)
         return filenode.FileNodeDownloadHandler(self.client, node)
 
     @render_exception
@@ -309,7 +318,7 @@ class Root(MultiFormatResource):
         }
         version = server.get_version()
         if version is not None:
-            description[u"version"] = version["application-version"]
+            description[u"version"] = version[b"application-version"]
 
         return description
 

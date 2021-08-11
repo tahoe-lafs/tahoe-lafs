@@ -63,7 +63,7 @@ class Blacklist(object):
         reason = self.entries.get(si, None)
         if reason is not None:
             # log this to logs/twistd.log, since web logs go there too
-            twisted_log.msg("blacklist prohibited access to SI %s: %s" %
+            twisted_log.msg("blacklist prohibited access to SI %r: %r" %
                             (base32.b2a(si), reason))
         return reason
 
@@ -142,7 +142,7 @@ class ProhibitedNode(object):
     def get_best_readable_version(self):
         raise FileProhibited(self.reason)
 
-    def download_best_version(self, progress=None):
+    def download_best_version(self):
         raise FileProhibited(self.reason)
 
     def get_best_mutable_version(self):

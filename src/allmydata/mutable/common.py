@@ -63,7 +63,7 @@ class CorruptShareError(BadShareError):
         self.shnum = shnum
         self.reason = reason
     def __str__(self):
-        return "<CorruptShareError server=%s shnum[%d]: %s" % \
+        return "<CorruptShareError server=%r shnum[%d]: %s" % \
                (self.server.get_name(), self.shnum, self.reason)
 
 class UnknownVersionError(BadShareError):

@@ -1,7 +1,17 @@
+"""
+Ported to Python 3.
+"""
+from __future__ import unicode_literals
+from __future__ import absolute_import
+from __future__ import division
 from __future__ import print_function
 
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+
 import os
-from six.moves import cStringIO as StringIO
+from io import BytesIO
 from six.moves import urllib, http_client
 import six
 import allmydata # for __full_version__
@@ -38,9 +48,9 @@ class BadResponse(object):
         return ""
 
 
-def do_http(method, url, body=""):
-    if isinstance(body, str):
-        body = StringIO(body)
+def do_http(method, url, body=b""):
+    if isinstance(body, bytes):
+        body = BytesIO(body)
     elif isinstance(body, six.text_type):
         raise TypeError("do_http body must be a bytestring, not unicode")
     else:
@@ -84,11 +94,17 @@ def do_http(method, url, body=""):
 
 
 def format_http_success(resp):
-    return "%s %s" % (resp.status, quote_output(resp.reason, quotemarks=False))
+    # ensure_text() shouldn't be necessary when Python 2 is dropped.
+    return quote_output(
+        "%s %s" % (resp.status, six.ensure_text(resp.reason)),
+        quotemarks=False)
 
 def format_http_error(msg, resp):
-    return "%s: %s %s\n%s" % (msg, resp.status, quote_output(resp.reason, quotemarks=False),
-                              quote_output(resp.read(), quotemarks=False))
+    # ensure_text() shouldn't be necessary when Python 2 is dropped.
+    return quote_output(
+        "%s: %s %s\n%s" % (msg, resp.status, six.ensure_text(resp.reason),
+                           six.ensure_text(resp.read())),
+        quotemarks=False)
 
 def check_http_error(resp, stderr):
     if resp.status < 200 or resp.status >= 300:

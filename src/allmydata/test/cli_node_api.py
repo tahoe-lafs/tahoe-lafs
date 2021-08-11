@@ -1,3 +1,14 @@
+"""
+Ported to Python 3.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 __all__ = [
     "CLINodeAPI",
@@ -84,7 +95,7 @@ class _ProcessProtocolAdapter(ProcessProtocol, object):
         self._fds = fds
 
     def connectionMade(self):
-        for proto in self._fds.values():
+        for proto in list(self._fds.values()):
             proto.makeConnection(self.transport)
 
     def childDataReceived(self, childFD, data):
@@ -100,7 +111,7 @@ class _ProcessProtocolAdapter(ProcessProtocol, object):
 
     def processEnded(self, reason):
         notified = set()
-        for proto in self._fds.values():
+        for proto in list(self._fds.values()):
             if proto not in notified:
                 proto.connectionLost(reason)
                 notified.add(proto)
@@ -149,6 +160,7 @@ class CLINodeAPI(object):
         exe = sys.executable
         argv = [
             exe,
+            "-b",
             u"-m",
             u"allmydata.scripts.runner",
         ] + argv

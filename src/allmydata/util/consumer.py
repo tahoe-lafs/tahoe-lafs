@@ -1,18 +1,28 @@
-
-"""This file defines a basic download-to-memory consumer, suitable for use in
-a filenode's read() method. See download_to_data() for an example of its use.
 """
+This file defines a basic download-to-memory consumer, suitable for use in
+a filenode's read() method. See download_to_data() for an example of its use.
+
+Ported to Python 3.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 from zope.interface import implementer
 from twisted.internet.interfaces import IConsumer
 
+
 @implementer(IConsumer)
 class MemoryConsumer(object):
 
-    def __init__(self, progress=None):
+    def __init__(self):
         self.chunks = []
         self.done = False
-        self._progress = progress
 
     def registerProducer(self, p, streaming):
         self.producer = p
@@ -25,16 +35,15 @@ class MemoryConsumer(object):
 
     def write(self, data):
         self.chunks.append(data)
-        if self._progress is not None:
-            self._progress.set_progress(sum([len(c) for c in self.chunks]))
 
     def unregisterProducer(self):
         self.done = True
 
-def download_to_data(n, offset=0, size=None, progress=None):
+
+def download_to_data(n, offset=0, size=None):
     """
-    :param progress: None or an IProgress implementer
+    Return Deferred that fires with results of reading from the given filenode.
     """
-    d = n.read(MemoryConsumer(progress=progress), offset, size)
+    d = n.read(MemoryConsumer(), offset, size)
     d.addCallback(lambda mc: b"".join(mc.chunks))
     return d

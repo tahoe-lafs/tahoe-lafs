@@ -1,6 +1,19 @@
+"""
+Ported to Python 3.
+"""
+from __future__ import unicode_literals
+from __future__ import absolute_import
+from __future__ import division
 from __future__ import print_function
 
-import urllib, json
+from future.utils import PY2, PY3
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+
+from six import ensure_str
+
+from urllib.parse import quote as url_quote
+import json
 from twisted.protocols.basic import LineOnlyReceiver
 from allmydata.util.abbreviate import abbreviate_space_both
 from allmydata.scripts.slow_operation import SlowOperationRunner
@@ -13,7 +26,7 @@ class FakeTransport(object):
     disconnecting = False
 
 class ManifestStreamer(LineOnlyReceiver, object):
-    delimiter = "\n"
+    delimiter = b"\n"
 
     def __init__(self):
         self.transport = FakeTransport()
@@ -33,9 +46,10 @@ class ManifestStreamer(LineOnlyReceiver, object):
         except UnknownAliasError as e:
             e.display(stderr)
             return 1
+        path = str(path, "utf-8")
         if path == '/':
             path = ''
-        url = nodeurl + "uri/%s" % urllib.quote(rootcap)
+        url = nodeurl + "uri/%s" % url_quote(rootcap)
         if path:
             url += "/" + escape_path(path)
         # todo: should it end with a slash?
@@ -47,6 +61,9 @@ class ManifestStreamer(LineOnlyReceiver, object):
         #print("RESP", dir(resp))
         # use Twisted to split this into lines
         self.in_error = False
+        # Writing bytes, so need binary stdout.
+        if PY3:
+            stdout = stdout.buffer
         while True:
             chunk = resp.read(100)
             if not chunk:
@@ -63,7 +80,7 @@ class ManifestStreamer(LineOnlyReceiver, object):
         if self.in_error:
             print(quote_output(line, quotemarks=False), file=stderr)
             return
-        if line.startswith("ERROR:"):
+        if line.startswith(b"ERROR:"):
             self.in_error = True
             self.rc = 1
             print(quote_output(line, quotemarks=False), file=stderr)
@@ -88,8 +105,10 @@ class ManifestStreamer(LineOnlyReceiver, object):
                     if vc:
                         print(quote_output(vc, quotemarks=False), file=stdout)
                 else:
-                    print("%s %s" % (quote_output(d["cap"], quotemarks=False),
-                                               quote_path(d["path"], quotemarks=False)), file=stdout)
+                    # ensure_str() only necessary for Python 2.
+                    print(ensure_str("%s %s") % (
+                        quote_output(d["cap"], quotemarks=False),
+                        quote_path(d["path"], quotemarks=False)), file=stdout)
 
 def manifest(options):
     return ManifestStreamer().run(options)

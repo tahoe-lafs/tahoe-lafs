@@ -18,6 +18,16 @@ from pyutil import nummedobj
 from foolscap.logging import log
 from twisted.python import log as tw_log
 
+if PY2:
+    def bytes_to_unicode(ign, obj):
+        return obj
+else:
+    # We want to convert bytes keys to Unicode, otherwise JSON serialization
+    # inside foolscap will fail (for details see
+    # https://github.com/warner/foolscap/issues/88)
+    from .jsonbytes import bytes_to_unicode
+
+
 NOISY = log.NOISY # 10
 OPERATIONAL = log.OPERATIONAL # 20
 UNUSUAL = log.UNUSUAL # 23
@@ -28,7 +38,8 @@ SCARY = log.SCARY # 35
 BAD = log.BAD # 40
 
 
-msg = log.msg
+def msg(*args, **kwargs):
+    return log.msg(*args, **bytes_to_unicode(True, kwargs))
 
 # If log.err() happens during a unit test, the unit test should fail. We
 # accomplish this by sending it to twisted.log too. When a WEIRD/SCARY/BAD
@@ -39,7 +50,7 @@ def err(failure=None, _why=None, **kwargs):
     tw_log.err(failure, _why, **kwargs)
     if 'level' not in kwargs:
         kwargs['level'] = log.UNUSUAL
-    return log.err(failure, _why, **kwargs)
+    return log.err(failure, _why, **bytes_to_unicode(True, kwargs))
 
 class LogMixin(object):
     """ I remember a msg id and a facility and pass them to log.msg() """
@@ -57,7 +68,8 @@ class LogMixin(object):
             if pmsgid is None:
                 pmsgid = self._grandparentmsgid
         kwargs = {ensure_str(k): v for (k, v) in kwargs.items()}
-        msgid = log.msg(msg, facility=facility, parent=pmsgid, *args, **kwargs)
+        msgid = log.msg(msg, facility=facility, parent=pmsgid, *args,
+                        **bytes_to_unicode(True, kwargs))
         if self._parentmsgid is None:
             self._parentmsgid = msgid
         return msgid

@@ -1,3 +1,13 @@
+"""Ported to Python 3.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 import os, time, tempfile
 from zope.interface import implementer
@@ -13,17 +23,17 @@ from twisted.python import log
 
 def get_memory_usage():
     # this is obviously linux-specific
-    stat_names = ("VmPeak",
-                  "VmSize",
-                  #"VmHWM",
-                  "VmData")
+    stat_names = (b"VmPeak",
+                  b"VmSize",
+                  #b"VmHWM",
+                  b"VmData")
     stats = {}
     try:
-        with open("/proc/self/status", "r") as f:
+        with open("/proc/self/status", "rb") as f:
             for line in f:
-                name, right = line.split(":",2)
+                name, right = line.split(b":",2)
                 if name in stat_names:
-                    assert right.endswith(" kB\n")
+                    assert right.endswith(b" kB\n")
                     right = right[:-4]
                     stats[name] = int(right) * 1024
     except:
@@ -34,8 +44,8 @@ def get_memory_usage():
 
 def log_memory_usage(where=""):
     stats = get_memory_usage()
-    log.msg("VmSize: %9d  VmPeak: %9d  %s" % (stats["VmSize"],
-                                              stats["VmPeak"],
+    log.msg("VmSize: %9d  VmPeak: %9d  %s" % (stats[b"VmSize"],
+                                              stats[b"VmPeak"],
                                               where))
 
 @implementer(IConsumer)
@@ -65,7 +75,7 @@ class ControlServer(Referenceable, service.Service):
         tempdir = tempfile.mkdtemp()
         filename = os.path.join(tempdir, "data")
         f = open(filename, "wb")
-        block = "a" * 8192
+        block = b"a" * 8192
         while size > 0:
             l = min(size, 8192)
             f.write(block[:l])
@@ -126,7 +136,7 @@ class ControlServer(Referenceable, service.Service):
         server_name = server.get_longname()
         storage_server = server.get_storage_server()
         start = time.time()
-        d = storage_server.get_buckets("\x00" * 16)
+        d = storage_server.get_buckets(b"\x00" * 16)
         def _done(ignored):
             stop = time.time()
             elapsed = stop - start
@@ -138,7 +148,7 @@ class ControlServer(Referenceable, service.Service):
         d.addCallback(self._do_one_ping, everyone_left, results)
         def _average(res):
             averaged = {}
-            for server_name,times in results.iteritems():
+            for server_name,times in results.items():
                 averaged[server_name] = sum(times) / len(times)
             return averaged
         d.addCallback(_average)
@@ -168,19 +178,19 @@ class SpeedTest(object):
             fn = os.path.join(self.basedir, str(i))
             if os.path.exists(fn):
                 os.unlink(fn)
-            f = open(fn, "w")
+            f = open(fn, "wb")
             f.write(os.urandom(8))
             s -= 8
             while s > 0:
                 chunk = min(s, 4096)
-                f.write("\x00" * chunk)
+                f.write(b"\x00" * chunk)
                 s -= chunk
             f.close()
 
     def do_upload(self):
         d = defer.succeed(None)
         def _create_slot(res):
-            d1 = self.parent.create_mutable_file("")
+            d1 = self.parent.create_mutable_file(b"")
             def _created(n):
                 self._n = n
             d1.addCallback(_created)

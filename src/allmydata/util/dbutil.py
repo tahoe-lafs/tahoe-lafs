@@ -1,9 +1,23 @@
+"""
+SQLite3 utilities.
+
+Test coverage currently provided by test_backupdb.py.
+
+Ported to Python 3.
+"""
+
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 import os, sys
 
 import sqlite3
-from sqlite3 import IntegrityError
-[IntegrityError]
 
 
 class DBError(Exception):
@@ -12,7 +26,7 @@ class DBError(Exception):
 
 def get_db(dbfile, stderr=sys.stderr,
            create_version=(None, None), updaters={}, just_create=False, dbname="db",
-           journal_mode=None, synchronous=None):
+           ):
     """Open or create the given db file. The parent directory must exist.
     create_version=(SCHEMA, VERNUM), and SCHEMA must have a 'version' table.
     Updaters is a {newver: commands} mapping, where e.g. updaters[2] is used
@@ -31,12 +45,6 @@ def get_db(dbfile, stderr=sys.stderr,
     # Enabling foreign keys allows stricter integrity checking.
     # The default is unspecified according to <http://www.sqlite.org/foreignkeys.html#fk_enable>.
     c.execute("PRAGMA foreign_keys = ON;")
-
-    if journal_mode is not None:
-        c.execute("PRAGMA journal_mode = %s;" % (journal_mode,))
-
-    if synchronous is not None:
-        c.execute("PRAGMA synchronous = %s;" % (synchronous,))
 
     if must_create:
         c.executescript(schema)

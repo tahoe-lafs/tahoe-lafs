@@ -1,10 +1,20 @@
+"""
+Ported to Python 3.
+"""
+from __future__ import unicode_literals
+from __future__ import absolute_import
+from __future__ import division
 from __future__ import print_function
 
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+
 import os.path
-import urllib
-import json
+from urllib.parse import quote as url_quote
 from collections import defaultdict
-from six.moves import cStringIO as StringIO
+from io import BytesIO
+
 from twisted.python.failure import Failure
 from allmydata.scripts.common import get_alias, escape_path, \
                                      DefaultAliasMarker, TahoeError
@@ -15,6 +25,7 @@ from allmydata.util.fileutil import abspath_expanduser_unicode, precondition_abs
 from allmydata.util.encodingutil import unicode_to_url, listdir_unicode, quote_output, \
     quote_local_unicode_path, to_bytes
 from allmydata.util.assertutil import precondition, _assert
+from allmydata.util import jsonbytes as json
 
 
 class MissingSourceError(TahoeError):
@@ -61,8 +72,8 @@ def mkdir(targeturl):
 
 def make_tahoe_subdirectory(nodeurl, parent_writecap, name):
     url = nodeurl + "/".join(["uri",
-                              urllib.quote(parent_writecap),
-                              urllib.quote(unicode_to_url(name)),
+                              url_quote(parent_writecap),
+                              url_quote(unicode_to_url(name)),
                               ]) + "?t=mkdir"
     resp = do_http("POST", url)
     if resp.status in (200, 201):
@@ -159,7 +170,7 @@ class LocalDirectoryTarget(object):
                 self.children[n] = LocalFileTarget(pn)
 
     def get_child_target(self, name):
-        precondition(isinstance(name, unicode), name)
+        precondition(isinstance(name, str), name)
         precondition(len(name), name) # don't want ""
         if self.children is None:
             self.populate(recurse=False)
@@ -172,7 +183,7 @@ class LocalDirectoryTarget(object):
         return child
 
     def put_file(self, name, inf):
-        precondition(isinstance(name, unicode), name)
+        precondition(isinstance(name, str), name)
         pathname = os.path.join(self.pathname, name)
         fileutil.put_file(pathname, inf)
 
@@ -198,12 +209,20 @@ class TahoeFileSource(object):
 
     def open(self, caps_only):
         if caps_only:
-            return StringIO(self.readcap)
-        url = self.nodeurl + "uri/" + urllib.quote(self.readcap)
+            return BytesIO(self.readcap)
+        url = self.nodeurl + "uri/" + url_quote(self.readcap)
         return GET_to_file(url)
 
     def bestcap(self):
         return self.writecap or self.readcap
+
+
+def seekable(file_like):
+    """Return whether the file-like object is seekable."""
+    return hasattr(file_like, "seek") and (
+        not hasattr(file_like, "seekable") or file_like.seekable()
+    )
+
 
 class TahoeFileTarget(object):
     def __init__(self, nodeurl, mutable, writecap, readcap, url):
@@ -218,7 +237,7 @@ class TahoeFileTarget(object):
         assert self.url
         # our do_http() call currently requires a string or a filehandle with
         # a real .seek
-        if not hasattr(inf, "seek"):
+        if not seekable(inf):
             inf = inf.read()
         PUT(self.url, inf)
         # TODO: this always creates immutable files. We might want an option
@@ -239,7 +258,7 @@ class TahoeDirectorySource(object):
         self.writecap = writecap
         self.readcap = readcap
         bestcap = writecap or readcap
-        url = self.nodeurl + "uri/%s" % urllib.quote(bestcap)
+        url = self.nodeurl + "uri/%s" % url_quote(bestcap)
         resp = do_http("GET", url + "?t=json")
         if resp.status != 200:
             raise HTTPError("Error examining source directory", resp)
@@ -247,9 +266,9 @@ class TahoeDirectorySource(object):
         nodetype, d = parsed
         assert nodetype == "dirnode"
         self.mutable = d.get("mutable", False) # older nodes don't provide it
-        self.children_d = dict( [(unicode(name),value)
+        self.children_d = dict( [(str(name),value)
                                  for (name,value)
-                                 in d["children"].iteritems()] )
+                                 in d["children"].items()] )
         self.children = None
 
     def init_from_parsed(self, parsed):
@@ -257,9 +276,9 @@ class TahoeDirectorySource(object):
         self.writecap = to_bytes(d.get("rw_uri"))
         self.readcap = to_bytes(d.get("ro_uri"))
         self.mutable = d.get("mutable", False) # older nodes don't provide it
-        self.children_d = dict( [(unicode(name),value)
+        self.children_d = dict( [(str(name),value)
                                  for (name,value)
-                                 in d["children"].iteritems()] )
+                                 in d["children"].items()] )
         self.children = None
 
     def populate(self, recurse):
@@ -304,7 +323,7 @@ class TahoeMissingTarget(object):
 
     def put_file(self, inf):
         # We want to replace this object in-place.
-        if not hasattr(inf, "seek"):
+        if not seekable(inf):
             inf = inf.read()
         PUT(self.url, inf)
         # TODO: this always creates immutable files. We might want an option
@@ -327,16 +346,16 @@ class TahoeDirectoryTarget(object):
         self.writecap = to_bytes(d.get("rw_uri"))
         self.readcap = to_bytes(d.get("ro_uri"))
         self.mutable = d.get("mutable", False) # older nodes don't provide it
-        self.children_d = dict( [(unicode(name),value)
+        self.children_d = dict( [(str(name),value)
                                  for (name,value)
-                                 in d["children"].iteritems()] )
+                                 in d["children"].items()] )
         self.children = None
 
     def init_from_grid(self, writecap, readcap):
         self.writecap = writecap
         self.readcap = readcap
         bestcap = writecap or readcap
-        url = self.nodeurl + "uri/%s" % urllib.quote(bestcap)
+        url = self.nodeurl + "uri/%s" % url_quote(bestcap)
         resp = do_http("GET", url + "?t=json")
         if resp.status != 200:
             raise HTTPError("Error examining target directory", resp)
@@ -344,9 +363,9 @@ class TahoeDirectoryTarget(object):
         nodetype, d = parsed
         assert nodetype == "dirnode"
         self.mutable = d.get("mutable", False) # older nodes don't provide it
-        self.children_d = dict( [(unicode(name),value)
+        self.children_d = dict( [(str(name),value)
                                  for (name,value)
-                                 in d["children"].iteritems()] )
+                                 in d["children"].items()] )
         self.children = None
 
     def just_created(self, writecap):
@@ -370,8 +389,8 @@ class TahoeDirectoryTarget(object):
                 url = None
                 if self.writecap:
                     url = self.nodeurl + "/".join(["uri",
-                                                   urllib.quote(self.writecap),
-                                                   urllib.quote(unicode_to_url(name))])
+                                                   url_quote(self.writecap),
+                                                   url_quote(unicode_to_url(name))])
                 self.children[name] = TahoeFileTarget(self.nodeurl, mutable,
                                                       writecap, readcap, url)
             elif data[0] == "dirnode":
@@ -400,7 +419,7 @@ class TahoeDirectoryTarget(object):
 
     def get_child_target(self, name):
         # return a new target for a named subdirectory of this dir
-        precondition(isinstance(name, unicode), name)
+        precondition(isinstance(name, str), name)
         if self.children is None:
             self.populate(recurse=False)
         if name in self.children:
@@ -413,9 +432,9 @@ class TahoeDirectoryTarget(object):
         return child
 
     def put_file(self, name, inf):
-        precondition(isinstance(name, unicode), name)
+        precondition(isinstance(name, str), name)
         url = self.nodeurl + "uri"
-        if not hasattr(inf, "seek"):
+        if not seekable(inf):
             inf = inf.read()
 
         if self.children is None:
@@ -433,16 +452,16 @@ class TahoeDirectoryTarget(object):
             self.new_children[name] = filecap
 
     def put_uri(self, name, filecap):
-        precondition(isinstance(name, unicode), name)
+        precondition(isinstance(name, str), name)
         self.new_children[name] = filecap
 
     def set_children(self):
         if not self.new_children:
             return
-        url = (self.nodeurl + "uri/" + urllib.quote(self.writecap)
+        url = (self.nodeurl + "uri/" + url_quote(self.writecap)
                + "?t=set_children")
         set_data = {}
-        for (name, filecap) in self.new_children.items():
+        for (name, filecap) in list(self.new_children.items()):
             # it just so happens that ?t=set_children will accept both file
             # read-caps and write-caps as ['rw_uri'], and will handle either
             # correctly. So don't bother trying to figure out whether the one
@@ -450,7 +469,7 @@ class TahoeDirectoryTarget(object):
             # TODO: think about how this affects forward-compatibility for
             # unknown caps
             set_data[name] = ["filenode", {"rw_uri": filecap}]
-        body = json.dumps(set_data)
+        body = json.dumps_bytes(set_data)
         POST(url, body)
 
 FileSources = (LocalFileSource, TahoeFileSource)
@@ -586,7 +605,7 @@ class Copier(object):
     # and get_source_info.
 
     def get_target_info(self, destination_spec):
-        precondition(isinstance(destination_spec, unicode), destination_spec)
+        precondition(isinstance(destination_spec, str), destination_spec)
         rootcap, path_utf8 = get_alias(self.aliases, destination_spec, None)
         path = path_utf8.decode("utf-8")
         if rootcap == DefaultAliasMarker:
@@ -603,7 +622,7 @@ class Copier(object):
                 t = LocalFileTarget(pathname) # non-empty
         else:
             # this is a tahoe object
-            url = self.nodeurl + "uri/%s" % urllib.quote(rootcap)
+            url = self.nodeurl + "uri/%s" % url_quote(rootcap)
             if path:
                 url += "/" + escape_path(path)
 
@@ -633,7 +652,7 @@ class Copier(object):
         """
         This turns an argv string into a (Local|Tahoe)(File|Directory)Source.
         """
-        precondition(isinstance(source_spec, unicode), source_spec)
+        precondition(isinstance(source_spec, str), source_spec)
         rootcap, path_utf8 = get_alias(self.aliases, source_spec, None)
         path = path_utf8.decode("utf-8")
         # any trailing slash is removed in abspath_expanduser_unicode(), so
@@ -656,7 +675,7 @@ class Copier(object):
                 t = LocalFileSource(pathname, name) # non-empty
         else:
             # this is a tahoe object
-            url = self.nodeurl + "uri/%s" % urllib.quote(rootcap)
+            url = self.nodeurl + "uri/%s" % url_quote(rootcap)
             name = None
             if path:
                 if path.endswith("/"):
@@ -690,6 +709,8 @@ class Copier(object):
 
 
     def need_to_copy_bytes(self, source, target):
+        # This should likley be a method call! but enabling that triggers
+        # additional bugs. https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3719
         if source.need_to_copy_bytes:
             # mutable tahoe files, and local files
             return True
@@ -739,7 +760,7 @@ class Copier(object):
 
         # target name collisions are an error
         collisions = []
-        for target, sources in targetmap.items():
+        for target, sources in list(targetmap.items()):
             target_names = {}
             for source in sources:
                 name = source.basename()
@@ -808,7 +829,7 @@ class Copier(object):
     def assign_targets(self, targetmap, source, target):
         # copy everything in the source into the target
         precondition(isinstance(source, DirectorySources), source)
-        for name, child in source.children.items():
+        for name, child in list(source.children.items()):
             if isinstance(child, DirectorySources):
                 # we will need a target directory for this one
                 subtarget = target.get_child_target(name)
@@ -824,7 +845,7 @@ class Copier(object):
         files_copied = 0
         targets_finished = 0
 
-        for target, sources in targetmap.items():
+        for target, sources in list(targetmap.items()):
             _assert(isinstance(target, DirectoryTargets), target)
             for source in sources:
                 _assert(isinstance(source, FileSources), source)
@@ -844,7 +865,7 @@ class Copier(object):
     def copy_file_into_dir(self, source, name, target):
         precondition(isinstance(source, FileSources), source)
         precondition(isinstance(target, DirectoryTargets), target)
-        precondition(isinstance(name, unicode), name)
+        precondition(isinstance(name, str), name)
         if self.need_to_copy_bytes(source, target):
             # if the target is a local directory, this will just write the
             # bytes to disk. If it is a tahoe directory, it will upload the

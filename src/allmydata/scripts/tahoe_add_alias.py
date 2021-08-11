@@ -1,9 +1,17 @@
-from __future__ import print_function
+"""
+Ported to Python 3.
+"""
 from __future__ import unicode_literals
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 import os.path
 import codecs
-import json
 
 from allmydata.util.assertutil import precondition
 
@@ -12,6 +20,7 @@ from allmydata.scripts.common_http import do_http, check_http_error
 from allmydata.scripts.common import get_aliases
 from allmydata.util.fileutil import move_into_place
 from allmydata.util.encodingutil import quote_output, quote_output_u
+from allmydata.util import jsonbytes as json
 
 
 def add_line_to_aliasfile(aliasfile, alias, cap):
@@ -35,7 +44,7 @@ def add_line_to_aliasfile(aliasfile, alias, cap):
 def add_alias(options):
     nodedir = options['node-directory']
     alias = options.alias
-    precondition(isinstance(alias, unicode), alias=alias)
+    precondition(isinstance(alias, str), alias=alias)
     cap = options.cap
     stdout = options.stdout
     stderr = options.stderr
@@ -52,7 +61,7 @@ def add_alias(options):
         show_output(stderr, "Alias {alias} already exists!", alias=alias)
         return 1
     aliasfile = os.path.join(nodedir, "private", "aliases")
-    cap = uri.from_string_dirnode(cap).to_string()
+    cap = str(uri.from_string_dirnode(cap).to_string(), 'utf-8')
 
     add_line_to_aliasfile(aliasfile, alias, cap)
     show_output(stdout, "Alias {alias} added", alias=alias)
@@ -62,7 +71,7 @@ def create_alias(options):
     # mkdir+add_alias
     nodedir = options['node-directory']
     alias = options.alias
-    precondition(isinstance(alias, unicode), alias=alias)
+    precondition(isinstance(alias, str), alias=alias)
     stdout = options.stdout
     stderr = options.stderr
     if u":" in alias:
@@ -92,7 +101,7 @@ def create_alias(options):
 
     # probably check for others..
 
-    add_line_to_aliasfile(aliasfile, alias, new_uri)
+    add_line_to_aliasfile(aliasfile, alias, str(new_uri, "utf-8"))
     show_output(stdout, "Alias {alias} created", alias=alias)
     return 0
 
@@ -112,7 +121,7 @@ def show_output(fp, template, **kwargs):
         ``encoding`` attribute at all (eg StringIO.StringIO) by writing
         utf-8-encoded bytes.
     """
-    assert isinstance(template, unicode)
+    assert isinstance(template, str)
 
     # On Python 3 fp has an encoding attribute under all real usage.  On
     # Python 2, the encoding attribute is None if stdio is not a tty.  The
@@ -167,7 +176,10 @@ def list_aliases(options):
     data = _get_alias_details(options['node-directory'])
 
     if options['json']:
-        output = _escape_format(json.dumps(data, indent=4).decode("ascii"))
+        dumped = json.dumps(data, indent=4)
+        if isinstance(dumped, bytes):
+            dumped = dumped.decode("utf-8")
+        output = _escape_format(dumped)
     else:
         def dircap(details):
             return (

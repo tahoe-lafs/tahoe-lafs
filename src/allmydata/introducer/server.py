@@ -24,11 +24,12 @@ except ImportError:
 from zope.interface import implementer
 from twisted.application import service
 from twisted.internet import defer
+from twisted.internet.address import IPv4Address
 from twisted.python.failure import Failure
 from foolscap.api import Referenceable
 import allmydata
 from allmydata import node
-from allmydata.util import log, rrefutil, dictutil
+from allmydata.util import log, dictutil
 from allmydata.util.i2p_provider import create as create_i2p_provider
 from allmydata.util.tor_provider import create as create_tor_provider
 from allmydata.introducer.interfaces import \
@@ -148,6 +149,15 @@ class _IntroducerNode(node.Node):
         ws = IntroducerWebishServer(self, webport, nodeurl_path, staticdir)
         ws.setServiceParent(self)
 
+
+def stringify_remote_address(rref):
+    remote = rref.getPeer()
+    if isinstance(remote, IPv4Address):
+        return "%s:%d" % (remote.host, remote.port)
+    # loopback is a non-IPv4Address
+    return str(remote)
+
+
 @implementer(RIIntroducerPublisherAndSubscriberService_v2)
 class IntroducerService(service.MultiService, Referenceable):
     name = "introducer"
@@ -216,7 +226,7 @@ class IntroducerService(service.MultiService, Referenceable):
                 # tubid will be None. Also, subscribers do not tell us which
                 # pubkey they use; only publishers do that.
                 tubid = rref.getRemoteTubID() or "?"
-                remote_address = rrefutil.stringify_remote_address(rref)
+                remote_address = stringify_remote_address(rref)
                 # these three assume subscriber_info["version"]==0, but
                 # should tolerate other versions
                 nickname = subscriber_info.get("nickname", u"?")
@@ -300,7 +310,7 @@ class IntroducerService(service.MultiService, Referenceable):
                          level=log.UNUSUAL, umid="jfGMXQ")
 
     def remote_subscribe_v2(self, subscriber, service_name, subscriber_info):
-        self.log("introducer: subscription[%s] request at %s"
+        self.log("introducer: subscription[%r] request at %r"
                  % (service_name, subscriber), umid="U3uzLg")
         service_name = ensure_text(service_name)
         subscriber_info = dictutil.UnicodeKeyDict({

@@ -1,19 +1,26 @@
+"""
+Ported to Python 3.
+"""
+from __future__ import unicode_literals
+from __future__ import absolute_import
+from __future__ import division
 from __future__ import print_function
 
-import urllib
-import json
-
-# Python 2 compatibility
 from future.utils import PY2
 if PY2:
-    from future.builtins import str  # noqa: F401
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+
+from six import ensure_str, ensure_text
+
+from urllib.parse import quote as url_quote
+import json
 
 from twisted.protocols.basic import LineOnlyReceiver
 
 from allmydata.scripts.common import get_alias, DEFAULT_ALIAS, escape_path, \
                                      UnknownAliasError
 from allmydata.scripts.common_http import do_http, format_http_error
-from allmydata.util.encodingutil import quote_output, quote_path
+from allmydata.util.encodingutil import quote_output, quote_path, get_io_encoding
 
 class Checker(object):
     pass
@@ -34,9 +41,10 @@ def check_location(options, where):
     except UnknownAliasError as e:
         e.display(stderr)
         return 1
+    path = str(path, "utf-8")
     if path == '/':
         path = ''
-    url = nodeurl + "uri/%s" % urllib.quote(rootcap)
+    url = nodeurl + "uri/%s" % url_quote(rootcap)
     if path:
         url += "/" + escape_path(path)
     # todo: should it end with a slash?
@@ -52,7 +60,8 @@ def check_location(options, where):
     if resp.status != 200:
         print(format_http_error("ERROR", resp), file=stderr)
         return 1
-    jdata = resp.read()
+    jdata = resp.read().decode()
+
     if options.get("raw"):
         stdout.write(jdata)
         stdout.write("\n")
@@ -122,7 +131,7 @@ class FakeTransport(object):
     disconnecting = False
 
 class DeepCheckOutput(LineOnlyReceiver, object):
-    delimiter = "\n"
+    delimiter = b"\n"
     def __init__(self, streamer, options):
         self.streamer = streamer
         self.transport = FakeTransport()
@@ -139,7 +148,7 @@ class DeepCheckOutput(LineOnlyReceiver, object):
         if self.in_error:
             print(quote_output(line, quotemarks=False), file=self.stderr)
             return
-        if line.startswith("ERROR:"):
+        if line.startswith(b"ERROR:"):
             self.in_error = True
             self.streamer.rc = 1
             print(quote_output(line, quotemarks=False), file=self.stderr)
@@ -166,7 +175,9 @@ class DeepCheckOutput(LineOnlyReceiver, object):
 
             # LIT files and directories do not have a "summary" field.
             summary = cr.get("summary", "Healthy (LIT)")
-            print("%s: %s" % (quote_path(path), quote_output(summary, quotemarks=False)), file=stdout)
+            # When Python 2 is dropped the ensure_text()/ensure_str() will be unnecessary.
+            print(ensure_text(ensure_str("%s: %s") % (quote_path(path), quote_output(summary, quotemarks=False)),
+                              encoding=get_io_encoding()), file=stdout)
 
         # always print out corrupt shares
         for shareloc in cr["results"].get("list-corrupt-shares", []):
@@ -181,7 +192,7 @@ class DeepCheckOutput(LineOnlyReceiver, object):
               % (self.num_objects, self.files_healthy, self.files_unhealthy), file=stdout)
 
 class DeepCheckAndRepairOutput(LineOnlyReceiver, object):
-    delimiter = "\n"
+    delimiter = b"\n"
     def __init__(self, streamer, options):
         self.streamer = streamer
         self.transport = FakeTransport()
@@ -202,7 +213,7 @@ class DeepCheckAndRepairOutput(LineOnlyReceiver, object):
         if self.in_error:
             print(quote_output(line, quotemarks=False), file=self.stderr)
             return
-        if line.startswith("ERROR:"):
+        if line.startswith(b"ERROR:"):
             self.in_error = True
             self.streamer.rc = 1
             print(quote_output(line, quotemarks=False), file=self.stderr)
@@ -243,11 +254,14 @@ class DeepCheckAndRepairOutput(LineOnlyReceiver, object):
             if not path:
                 path = ["<root>"]
             # we don't seem to have a summary available, so build one
+            # When Python 2 is dropped the ensure_text/ensure_str crap can be
+            # dropped.
             if was_healthy:
-                summary = "healthy"
+                summary = ensure_str("healthy")
             else:
-                summary = "not healthy"
-            print("%s: %s" % (quote_path(path), summary), file=stdout)
+                summary = ensure_str("not healthy")
+            print(ensure_text(ensure_str("%s: %s") % (quote_path(path), summary),
+                              encoding=get_io_encoding()), file=stdout)
 
         # always print out corrupt shares
         prr = crr.get("pre-repair-results", {})
@@ -295,9 +309,10 @@ class DeepCheckStreamer(LineOnlyReceiver, object):
         except UnknownAliasError as e:
             e.display(stderr)
             return 1
+        path = str(path, "utf-8")
         if path == '/':
             path = ''
-        url = nodeurl + "uri/%s" % urllib.quote(rootcap)
+        url = nodeurl + "uri/%s" % url_quote(rootcap)
         if path:
             url += "/" + escape_path(path)
         # todo: should it end with a slash?
@@ -322,7 +337,7 @@ class DeepCheckStreamer(LineOnlyReceiver, object):
             if not chunk:
                 break
             if self.options["raw"]:
-                stdout.write(chunk)
+                stdout.write(chunk.decode())
             else:
                 output.dataReceived(chunk)
         if not self.options["raw"]:

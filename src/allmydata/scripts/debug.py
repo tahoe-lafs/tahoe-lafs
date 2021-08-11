@@ -1,11 +1,20 @@
+"""
+Ported to Python 3.
+"""
+from __future__ import unicode_literals
+from __future__ import absolute_import
+from __future__ import division
 from __future__ import print_function
+
+from future.utils import PY2, bchr
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 try:
     from allmydata.scripts.types_ import SubCommands
 except ImportError:
     pass
 
-from future.utils import bchr
 
 # do not import any allmydata modules at this level. Do that from inside
 # individual functions instead.
@@ -90,27 +99,34 @@ def dump_immutable_chk_share(f, out, options):
              "crypttext_hash", "crypttext_root_hash",
              "share_root_hash", "UEB_hash")
     display_keys = {"size": "file_size"}
+
+    def to_string(v):
+        if isinstance(v, bytes):
+            return str(v, "utf-8")
+        else:
+            return str(v)
+
     for k in keys1:
         if k in unpacked:
             dk = display_keys.get(k, k)
-            print("%20s: %s" % (dk, unpacked[k]), file=out)
+            print("%20s: %s" % (dk, to_string(unpacked[k])), file=out)
     print(file=out)
     for k in keys2:
         if k in unpacked:
             dk = display_keys.get(k, k)
-            print("%20s: %s" % (dk, unpacked[k]), file=out)
+            print("%20s: %s" % (dk, to_string(unpacked[k])), file=out)
     print(file=out)
     for k in keys3:
         if k in unpacked:
             dk = display_keys.get(k, k)
-            print("%20s: %s" % (dk, unpacked[k]), file=out)
+            print("%20s: %s" % (dk, to_string(unpacked[k])), file=out)
 
     leftover = set(unpacked.keys()) - set(keys1 + keys2 + keys3)
     if leftover:
         print(file=out)
         print("LEFTOVER:", file=out)
         for k in sorted(leftover):
-            print("%20s: %s" % (k, unpacked[k]), file=out)
+            print("%20s: %s" % (k, to_string(unpacked[k])), file=out)
 
     # the storage index isn't stored in the share itself, so we depend upon
     # knowing the parent directory name to get it
@@ -165,9 +181,9 @@ def format_expiration_time(expiration_time):
     remains = expiration_time - now
     when = "%ds" % remains
     if remains > 24*3600:
-        when += " (%d days)" % (remains / (24*3600))
+        when += " (%d days)" % (remains // (24*3600))
     elif remains > 3600:
-        when += " (%d hours)" % (remains / 3600)
+        when += " (%d hours)" % (remains // 3600)
     return when
 
 
@@ -197,7 +213,7 @@ def dump_mutable_share(options):
     print(file=out)
     print("Mutable slot found:", file=out)
     print(" share_type: %s" % share_type, file=out)
-    print(" write_enabler: %s" % base32.b2a(WE), file=out)
+    print(" write_enabler: %s" % str(base32.b2a(WE), "utf-8"), file=out)
     print(" WE for nodeid: %s" % idlib.nodeid_b2a(nodeid), file=out)
     print(" num_extra_leases: %d" % num_extra_leases, file=out)
     print(" container_size: %d" % container_size, file=out)
@@ -209,8 +225,8 @@ def dump_mutable_share(options):
             print("  ownerid: %d" % lease.owner_num, file=out)
             when = format_expiration_time(lease.expiration_time)
             print("  expires in %s" % when, file=out)
-            print("  renew_secret: %s" % base32.b2a(lease.renew_secret), file=out)
-            print("  cancel_secret: %s" % base32.b2a(lease.cancel_secret), file=out)
+            print("  renew_secret: %s" % str(base32.b2a(lease.renew_secret), "utf-8"), file=out)
+            print("  cancel_secret: %s" % str(base32.b2a(lease.cancel_secret), "utf-8"), file=out)
             print("  secrets are for nodeid: %s" % idlib.nodeid_b2a(lease.nodeid), file=out)
     else:
         print("No leases.", file=out)
@@ -258,8 +274,8 @@ def dump_SDMF_share(m, length, options):
 
     print(" SDMF contents:", file=out)
     print("  seqnum: %d" % seqnum, file=out)
-    print("  root_hash: %s" % base32.b2a(root_hash), file=out)
-    print("  IV: %s" % base32.b2a(IV), file=out)
+    print("  root_hash: %s" % str(base32.b2a(root_hash), "utf-8"), file=out)
+    print("  IV: %s" % str(base32.b2a(IV), "utf-8"), file=out)
     print("  required_shares: %d" % k, file=out)
     print("  total_shares: %d" % N, file=out)
     print("  segsize: %d" % segsize, file=out)
@@ -352,7 +368,7 @@ def dump_MDMF_share(m, length, options):
 
     print(" MDMF contents:", file=out)
     print("  seqnum: %d" % seqnum, file=out)
-    print("  root_hash: %s" % base32.b2a(root_hash), file=out)
+    print("  root_hash: %s" % str(base32.b2a(root_hash), "utf-8"), file=out)
     #print("  IV: %s" % base32.b2a(IV), file=out)
     print("  required_shares: %d" % k, file=out)
     print("  total_shares: %d" % N, file=out)
@@ -444,7 +460,7 @@ def dump_cap(options):
     from allmydata import uri
     from allmydata.util import base32
     from base64 import b32decode
-    import urlparse, urllib
+    from urllib.parse import unquote, urlparse
 
     out = options.stdout
     cap = options.cap
@@ -453,18 +469,18 @@ def dump_cap(options):
         nodeid = b32decode(options['nodeid'].upper())
     secret = None
     if options['client-secret']:
-        secret = base32.a2b(options['client-secret'])
+        secret = base32.a2b(options['client-secret'].encode("ascii"))
     elif options['client-dir']:
         secretfile = os.path.join(options['client-dir'], "private", "secret")
         try:
-            secret = base32.a2b(open(secretfile, "r").read().strip())
+            secret = base32.a2b(open(secretfile, "rb").read().strip())
         except EnvironmentError:
             pass
 
     if cap.startswith("http"):
-        scheme, netloc, path, params, query, fragment = urlparse.urlparse(cap)
+        scheme, netloc, path, params, query, fragment = urlparse(cap)
         assert path.startswith("/uri/")
-        cap = urllib.unquote(path[len("/uri/"):])
+        cap = unquote(path[len("/uri/"):])
 
     u = uri.from_string(cap)
 
@@ -477,19 +493,19 @@ def _dump_secrets(storage_index, secret, nodeid, out):
 
     if secret:
         crs = hashutil.my_renewal_secret_hash(secret)
-        print(" client renewal secret:", base32.b2a(crs), file=out)
+        print(" client renewal secret:", str(base32.b2a(crs), "ascii"), file=out)
         frs = hashutil.file_renewal_secret_hash(crs, storage_index)
-        print(" file renewal secret:", base32.b2a(frs), file=out)
+        print(" file renewal secret:", str(base32.b2a(frs), "ascii"), file=out)
         if nodeid:
             renew = hashutil.bucket_renewal_secret_hash(frs, nodeid)
-            print(" lease renewal secret:", base32.b2a(renew), file=out)
+            print(" lease renewal secret:", str(base32.b2a(renew), "ascii"), file=out)
         ccs = hashutil.my_cancel_secret_hash(secret)
-        print(" client cancel secret:", base32.b2a(ccs), file=out)
+        print(" client cancel secret:", str(base32.b2a(ccs), "ascii"), file=out)
         fcs = hashutil.file_cancel_secret_hash(ccs, storage_index)
-        print(" file cancel secret:", base32.b2a(fcs), file=out)
+        print(" file cancel secret:", str(base32.b2a(fcs), "ascii"), file=out)
         if nodeid:
             cancel = hashutil.bucket_cancel_secret_hash(fcs, nodeid)
-            print(" lease cancel secret:", base32.b2a(cancel), file=out)
+            print(" lease cancel secret:", str(base32.b2a(cancel), "ascii"), file=out)
 
 def dump_uri_instance(u, nodeid, secret, out, show_header=True):
     from allmydata import uri
@@ -500,19 +516,19 @@ def dump_uri_instance(u, nodeid, secret, out, show_header=True):
     if isinstance(u, uri.CHKFileURI):
         if show_header:
             print("CHK File:", file=out)
-        print(" key:", base32.b2a(u.key), file=out)
-        print(" UEB hash:", base32.b2a(u.uri_extension_hash), file=out)
+        print(" key:", str(base32.b2a(u.key), "ascii"), file=out)
+        print(" UEB hash:", str(base32.b2a(u.uri_extension_hash), "ascii"), file=out)
         print(" size:", u.size, file=out)
         print(" k/N: %d/%d" % (u.needed_shares, u.total_shares), file=out)
-        print(" storage index:", si_b2a(u.get_storage_index()), file=out)
+        print(" storage index:", str(si_b2a(u.get_storage_index()), "ascii"), file=out)
         _dump_secrets(u.get_storage_index(), secret, nodeid, out)
     elif isinstance(u, uri.CHKFileVerifierURI):
         if show_header:
             print("CHK Verifier URI:", file=out)
-        print(" UEB hash:", base32.b2a(u.uri_extension_hash), file=out)
+        print(" UEB hash:", str(base32.b2a(u.uri_extension_hash), "ascii"), file=out)
         print(" size:", u.size, file=out)
         print(" k/N: %d/%d" % (u.needed_shares, u.total_shares), file=out)
-        print(" storage index:", si_b2a(u.get_storage_index()), file=out)
+        print(" storage index:", str(si_b2a(u.get_storage_index()), "ascii"), file=out)
 
     elif isinstance(u, uri.LiteralFileURI):
         if show_header:
@@ -522,52 +538,52 @@ def dump_uri_instance(u, nodeid, secret, out, show_header=True):
     elif isinstance(u, uri.WriteableSSKFileURI): # SDMF
         if show_header:
             print("SDMF Writeable URI:", file=out)
-        print(" writekey:", base32.b2a(u.writekey), file=out)
-        print(" readkey:", base32.b2a(u.readkey), file=out)
-        print(" storage index:", si_b2a(u.get_storage_index()), file=out)
-        print(" fingerprint:", base32.b2a(u.fingerprint), file=out)
+        print(" writekey:", str(base32.b2a(u.writekey), "ascii"), file=out)
+        print(" readkey:", str(base32.b2a(u.readkey), "ascii"), file=out)
+        print(" storage index:", str(si_b2a(u.get_storage_index()), "ascii"), file=out)
+        print(" fingerprint:", str(base32.b2a(u.fingerprint), "ascii"), file=out)
         print(file=out)
         if nodeid:
             we = hashutil.ssk_write_enabler_hash(u.writekey, nodeid)
-            print(" write_enabler:", base32.b2a(we), file=out)
+            print(" write_enabler:", str(base32.b2a(we), "ascii"), file=out)
             print(file=out)
         _dump_secrets(u.get_storage_index(), secret, nodeid, out)
     elif isinstance(u, uri.ReadonlySSKFileURI):
         if show_header:
             print("SDMF Read-only URI:", file=out)
-        print(" readkey:", base32.b2a(u.readkey), file=out)
-        print(" storage index:", si_b2a(u.get_storage_index()), file=out)
-        print(" fingerprint:", base32.b2a(u.fingerprint), file=out)
+        print(" readkey:", str(base32.b2a(u.readkey), "ascii"), file=out)
+        print(" storage index:", str(si_b2a(u.get_storage_index()), "ascii"), file=out)
+        print(" fingerprint:", str(base32.b2a(u.fingerprint), "ascii"), file=out)
     elif isinstance(u, uri.SSKVerifierURI):
         if show_header:
             print("SDMF Verifier URI:", file=out)
-        print(" storage index:", si_b2a(u.get_storage_index()), file=out)
-        print(" fingerprint:", base32.b2a(u.fingerprint), file=out)
+        print(" storage index:", str(si_b2a(u.get_storage_index()), "ascii"), file=out)
+        print(" fingerprint:", str(base32.b2a(u.fingerprint), "ascii"), file=out)
 
     elif isinstance(u, uri.WriteableMDMFFileURI): # MDMF
         if show_header:
             print("MDMF Writeable URI:", file=out)
-        print(" writekey:", base32.b2a(u.writekey), file=out)
-        print(" readkey:", base32.b2a(u.readkey), file=out)
-        print(" storage index:", si_b2a(u.get_storage_index()), file=out)
-        print(" fingerprint:", base32.b2a(u.fingerprint), file=out)
+        print(" writekey:", str(base32.b2a(u.writekey), "ascii"), file=out)
+        print(" readkey:", str(base32.b2a(u.readkey), "ascii"), file=out)
+        print(" storage index:", str(si_b2a(u.get_storage_index()), "ascii"), file=out)
+        print(" fingerprint:", str(base32.b2a(u.fingerprint), "ascii"), file=out)
         print(file=out)
         if nodeid:
             we = hashutil.ssk_write_enabler_hash(u.writekey, nodeid)
-            print(" write_enabler:", base32.b2a(we), file=out)
+            print(" write_enabler:", str(base32.b2a(we), "ascii"), file=out)
             print(file=out)
         _dump_secrets(u.get_storage_index(), secret, nodeid, out)
     elif isinstance(u, uri.ReadonlyMDMFFileURI):
         if show_header:
             print("MDMF Read-only URI:", file=out)
-        print(" readkey:", base32.b2a(u.readkey), file=out)
-        print(" storage index:", si_b2a(u.get_storage_index()), file=out)
-        print(" fingerprint:", base32.b2a(u.fingerprint), file=out)
+        print(" readkey:", str(base32.b2a(u.readkey), "ascii"), file=out)
+        print(" storage index:", str(si_b2a(u.get_storage_index()), "ascii"), file=out)
+        print(" fingerprint:", str(base32.b2a(u.fingerprint), "ascii"), file=out)
     elif isinstance(u, uri.MDMFVerifierURI):
         if show_header:
             print("MDMF Verifier URI:", file=out)
-        print(" storage index:", si_b2a(u.get_storage_index()), file=out)
-        print(" fingerprint:", base32.b2a(u.fingerprint), file=out)
+        print(" storage index:", str(si_b2a(u.get_storage_index()), "ascii"), file=out)
+        print(" fingerprint:", str(base32.b2a(u.fingerprint), "ascii"), file=out)
 
 
     elif isinstance(u, uri.ImmutableDirectoryURI): # CHK-based directory
@@ -615,7 +631,7 @@ class FindSharesOptions(BaseOptions):
     def parseArgs(self, storage_index_s, *nodedirs):
         from allmydata.util.encodingutil import argv_to_abspath
         self.si_s = storage_index_s
-        self.nodedirs = map(argv_to_abspath, nodedirs)
+        self.nodedirs = list(map(argv_to_abspath, nodedirs))
 
     description = """
 Locate all shares for the given storage index. This command looks through one
@@ -645,7 +661,7 @@ def find_shares(options):
     from allmydata.util.encodingutil import listdir_unicode, quote_local_unicode_path
 
     out = options.stdout
-    sharedir = storage_index_to_dir(si_a2b(options.si_s))
+    sharedir = storage_index_to_dir(si_a2b(options.si_s.encode("utf-8")))
     for d in options.nodedirs:
         d = os.path.join(d, "storage", "shares", sharedir)
         if os.path.exists(d):
@@ -658,7 +674,7 @@ def find_shares(options):
 class CatalogSharesOptions(BaseOptions):
     def parseArgs(self, *nodedirs):
         from allmydata.util.encodingutil import argv_to_abspath
-        self.nodedirs = map(argv_to_abspath, nodedirs)
+        self.nodedirs = list(map(argv_to_abspath, nodedirs))
         if not nodedirs:
             raise usage.UsageError("must specify at least one node directory")
 
@@ -745,7 +761,7 @@ def describe_share(abs_sharefile, si_s, shnum_s, now, out):
 
             print("SDMF %s %d/%d %d #%d:%s %d %s" % \
                   (si_s, k, N, datalen,
-                   seqnum, base32.b2a(root_hash),
+                   seqnum, str(base32.b2a(root_hash), "utf-8"),
                    expiration, quote_output(abs_sharefile)), file=out)
         elif share_type == "MDMF":
             from allmydata.mutable.layout import MDMFSlotReadProxy
@@ -774,7 +790,7 @@ def describe_share(abs_sharefile, si_s, shnum_s, now, out):
              offsets) = verinfo
             print("MDMF %s %d/%d %d #%d:%s %d %s" % \
                   (si_s, k, N, datalen,
-                   seqnum, base32.b2a(root_hash),
+                   seqnum, str(base32.b2a(root_hash), "utf-8"),
                    expiration, quote_output(abs_sharefile)), file=out)
         else:
             print("UNKNOWN mutable %s" % quote_output(abs_sharefile), file=out)
@@ -808,8 +824,8 @@ def describe_share(abs_sharefile, si_s, shnum_s, now, out):
         ueb_hash = unpacked["UEB_hash"]
 
         print("CHK %s %d/%d %d %s %d %s" % (si_s, k, N, filesize,
-                                                   ueb_hash, expiration,
-                                                   quote_output(abs_sharefile)), file=out)
+                                            str(ueb_hash, "utf-8"), expiration,
+                                            quote_output(abs_sharefile)), file=out)
 
     else:
         print("UNKNOWN really-unknown %s" % quote_output(abs_sharefile), file=out)
@@ -982,7 +998,7 @@ def fixOptionsClass(args):
 class FlogtoolOptions(foolscap_cli.Options):
     def __init__(self):
         super(FlogtoolOptions, self).__init__()
-        self.subCommands = map(fixOptionsClass, self.subCommands)
+        self.subCommands = list(map(fixOptionsClass, self.subCommands))
 
     def getSynopsis(self):
         return "Usage: tahoe [global-options] debug flogtool COMMAND [flogtool-options]"

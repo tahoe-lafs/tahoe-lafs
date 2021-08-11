@@ -98,7 +98,7 @@ class MutableFileNode(object):
 
     def __repr__(self):
         if hasattr(self, '_uri'):
-            return "<%s %x %s %s>" % (self.__class__.__name__, id(self), self.is_readonly() and 'RO' or 'RW', self._uri.abbrev())
+            return "<%s %x %s %r>" % (self.__class__.__name__, id(self), self.is_readonly() and 'RO' or 'RW', self._uri.abbrev())
         else:
             return "<%s %x %s %s>" % (self.__class__.__name__, id(self), None, None)
 
@@ -418,21 +418,21 @@ class MutableFileNode(object):
         return d.addCallback(_get_version, version)
 
 
-    def download_best_version(self, progress=None):
+    def download_best_version(self):
         """
         I return a Deferred that fires with the contents of the best
         version of this mutable file.
         """
-        return self._do_serialized(self._download_best_version, progress=progress)
+        return self._do_serialized(self._download_best_version)
 
 
-    def _download_best_version(self, progress=None):
+    def _download_best_version(self):
         """
         I am the serialized sibling of download_best_version.
         """
         d = self.get_best_readable_version()
         d.addCallback(self._record_size)
-        d.addCallback(lambda version: version.download_to_data(progress=progress))
+        d.addCallback(lambda version: version.download_to_data())
 
         # It is possible that the download will fail because there
         # aren't enough shares to be had. If so, we will try again after
@@ -447,7 +447,7 @@ class MutableFileNode(object):
 
             d = self.get_best_mutable_version()
             d.addCallback(self._record_size)
-            d.addCallback(lambda version: version.download_to_data(progress=progress))
+            d.addCallback(lambda version: version.download_to_data())
             return d
 
         d.addErrback(_maybe_retry)
@@ -564,7 +564,7 @@ class MutableFileNode(object):
         return d
 
 
-    def upload(self, new_contents, servermap, progress=None):
+    def upload(self, new_contents, servermap):
         """
         I overwrite the contents of the best recoverable version of this
         mutable file with new_contents, using servermap instead of
@@ -951,13 +951,13 @@ class MutableFileVersion(object):
         return self._servermap.size_of_version(self._version)
 
 
-    def download_to_data(self, fetch_privkey=False, progress=None):  # type: ignore # fixme
+    def download_to_data(self, fetch_privkey=False):  # type: ignore # fixme
         """
         I return a Deferred that fires with the contents of this
         readable object as a byte string.
 
         """
-        c = consumer.MemoryConsumer(progress=progress)
+        c = consumer.MemoryConsumer()
         d = self.read(c, fetch_privkey=fetch_privkey)
         d.addCallback(lambda mc: b"".join(mc.chunks))
         return d

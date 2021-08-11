@@ -1592,7 +1592,7 @@ class FakeMutableFile(object):  # type: ignore # incomplete implementation
     def get_write_uri(self):
         return self.uri.to_string()
 
-    def download_best_version(self, progress=None):
+    def download_best_version(self):
         return defer.succeed(self.data)
 
     def get_writekey(self):
@@ -1978,12 +1978,12 @@ class Adder(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
                                 overwrite=False))
             d.addCallback(lambda res:
                 root_node.set_node(u'file1', filenode,
-                                   overwrite="only-files"))
+                                   overwrite=dirnode.ONLY_FILES))
             d.addCallback(lambda res:
                 self.shouldFail(ExistingChildError, "set_node",
                                 "child 'dir1' already exists",
                                 root_node.set_node, u'dir1', filenode,
-                                overwrite="only-files"))
+                                overwrite=dirnode.ONLY_FILES))
             return d
 
         d.addCallback(_test_adder)

@@ -201,7 +201,9 @@ class CPUWatcher(service.MultiService, resource.Resource, Referenceable):
                 log.msg("error reading process %s (%s), ignoring" % (pid, name))
                 log.err()
         try:
-            pickle.dump(self.history, open("history.pickle.tmp", "wb"))
+            # Newer protocols won't work in Python 2; when it is dropped,
+            # protocol v4 can be used (added in Python 3.4).
+            pickle.dump(self.history, open("history.pickle.tmp", "wb"), protocol=2)
             os.rename("history.pickle.tmp", "history.pickle")
         except:
             pass

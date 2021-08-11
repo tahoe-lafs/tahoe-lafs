@@ -1,9 +1,21 @@
+"""
+Ported to Python 3.
+"""
+from __future__ import unicode_literals
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+
 import sys
 import time
 import json
 from os import mkdir, environ
 from os.path import exists, join
-from six.moves import StringIO
+from io import StringIO, BytesIO
 from functools import partial
 from subprocess import check_output
 
@@ -55,9 +67,10 @@ class _CollectOutputProtocol(ProcessProtocol):
     self.output, and callback's on done with all of it after the
     process exits (for any reason).
     """
-    def __init__(self):
+    def __init__(self, capture_stderr=True):
         self.done = Deferred()
-        self.output = StringIO()
+        self.output = BytesIO()
+        self.capture_stderr = capture_stderr
 
     def processEnded(self, reason):
         if not self.done.called:
@@ -71,8 +84,9 @@ class _CollectOutputProtocol(ProcessProtocol):
         self.output.write(data)
 
     def errReceived(self, data):
-        print("ERR: {}".format(data))
-        self.output.write(data)
+        print("ERR: {!r}".format(data))
+        if self.capture_stderr:
+            self.output.write(data)
 
 
 class _DumpOutputProtocol(ProcessProtocol):
@@ -92,9 +106,11 @@ class _DumpOutputProtocol(ProcessProtocol):
             self.done.errback(reason)
 
     def outReceived(self, data):
+        data = str(data, sys.stdout.encoding)
         self._out.write(data)
 
     def errReceived(self, data):
+        data = str(data, sys.stdout.encoding)
         self._out.write(data)
 
 
@@ -114,6 +130,7 @@ class _MagicTextProtocol(ProcessProtocol):
         self.exited.callback(None)
 
     def outReceived(self, data):
+        data = str(data, sys.stdout.encoding)
         sys.stdout.write(data)
         self._output.write(data)
         if not self.magic_seen.called and self._magic_text in self._output.getvalue():
@@ -121,6 +138,7 @@ class _MagicTextProtocol(ProcessProtocol):
             self.magic_seen.callback(self)
 
     def errReceived(self, data):
+        data = str(data, sys.stderr.encoding)
         sys.stdout.write(data)
 
 
@@ -152,9 +170,9 @@ def _tahoe_runner_optional_coverage(proto, reactor, request, other_args):
     `--coverage` option if the `request` indicates we should.
     """
     if request.config.getoption('coverage'):
-        args = [sys.executable, '-m', 'coverage', 'run', '-m', 'allmydata.scripts.runner', '--coverage']
+        args = [sys.executable, '-b', '-m', 'coverage', 'run', '-m', 'allmydata.scripts.runner', '--coverage']
     else:
-        args = [sys.executable, '-m', 'allmydata.scripts.runner']
+        args = [sys.executable, '-b', '-m', 'allmydata.scripts.runner']
     args += other_args
     return reactor.spawnProcess(
         proto,
@@ -261,9 +279,9 @@ def _create_node(reactor, request, temp_dir, introducer_furl, flog_gatherer, nam
             '--hostname', 'localhost',
             '--listen', 'tcp',
             '--webport', web_port,
-            '--shares-needed', unicode(needed),
-            '--shares-happy', unicode(happy),
-            '--shares-total', unicode(total),
+            '--shares-needed', str(needed),
+            '--shares-happy', str(happy),
+            '--shares-total', str(total),
             '--helper',
         ]
         if not storage:
@@ -280,7 +298,7 @@ def _create_node(reactor, request, temp_dir, introducer_furl, flog_gatherer, nam
                 config,
                 u'node',
                 u'log_gatherer.furl',
-                flog_gatherer.decode("utf-8"),
+                flog_gatherer,
             )
             write_config(FilePath(config_path), config)
         created_d.addCallback(created)
@@ -526,7 +544,8 @@ def generate_ssh_key(path):
     key = RSAKey.generate(2048)
     key.write_private_key_file(path)
     with open(path + ".pub", "wb") as f:
-        f.write(b"%s %s" % (key.get_name(), key.get_base64()))
+        s = "%s %s" % (key.get_name(), key.get_base64())
+        f.write(s.encode("ascii"))
 
 
 def run_in_thread(f):

@@ -13,6 +13,61 @@ Specifically, it should be possible to implement a Tahoe-LAFS storage server wit
 The Tahoe-LAFS client will also need to change but it is not expected that it will be noticably simplified by this change
 (though this may be the first step towards simplifying it).
 
+Motivation
+----------
+
+Foolscap
+~~~~~~~~
+
+Foolscap is a remote method invocation protocol with several distinctive features.
+At its core it allows separate processes to refer each other's objects and methods using a capability-based model.
+This allows for extremely fine-grained access control in a system that remains highly securable without becoming overwhelmingly complicated.
+Supporting this is a flexible and extensible serialization system which allows data to be exchanged between processes in carefully controlled ways.
+
+Tahoe-LAFS avails itself of only a small portion of these features.
+A Tahoe-LAFS storage server typically only exposes one object with a fixed set of methods to clients.
+A Tahoe-LAFS introducer node does roughly the same.
+Tahoe-LAFS exchanges simple data structures that have many common, standard serialized representations.
+
+In exchange for this slight use of Foolscap's sophisticated mechanisms,
+Tahoe-LAFS pays a substantial price:
+
+* Foolscap is implemented only for Python.
+  Tahoe-LAFS is thus limited to being implemented only in Python.
+* There is only one Python implementation of Foolscap.
+  The implementation is therefore the de facto standard and understanding of the protocol often relies on understanding that implementation.
+* The Foolscap developer community is very small.
+  The implementation therefore advances very little and some non-trivial part of the maintenance cost falls on the Tahoe-LAFS project.
+* The extensible serialization system imposes substantial complexity compared to the simple data structures Tahoe-LAFS actually exchanges.
+
+HTTP
+~~~~
+
+HTTP is a request/response protocol that has become the lingua franca of the internet.
+Combined with the principles of Representational State Transfer (REST) it is widely employed to create, update, and delete data in collections on the internet.
+HTTP itself provides only modest functionality in comparison to Foolscap.
+However its simplicity and widespread use have led to a diverse and almost overwhelming ecosystem of libraries, frameworks, toolkits, and so on.
+
+By adopting HTTP in place of Foolscap Tahoe-LAFS can realize the following concrete benefits:
+
+* Practically every language or runtime has an HTTP protocol implementation (or a dozen of them) available.
+  This change paves the way for new Tahoe-LAFS implementations using tools better suited for certain situations
+  (mobile client implementations, high-performance server implementations, easily distributed desktop clients, etc).
+* The simplicity of and vast quantity of resources about HTTP make it a very easy protocol to learn and use.
+  This change reduces the barrier to entry for developers to contribute improvements to Tahoe-LAFS's network interactions.
+* For any given language there is very likely an HTTP implementation with a large and active developer community.
+  Tahoe-LAFS can therefore benefit from the large effort being put into making better libraries for using HTTP.
+* One of the core features of HTTP is the mundane transfer of bulk data and implementions are often capable of doing this with extreme efficiency.
+  The alignment of this core feature with a core activity of Tahoe-LAFS of transferring bulk data means that a substantial barrier to improved Tahoe-LAFS runtime performance will be eliminated.
+
+TLS
+~~~
+
+The Foolscap-based protocol provides *some* of Tahoe-LAFS's confidentiality, integrity, and authentication properties by leveraging TLS.
+An HTTP-based protocol can make use of TLS in largely the same way to provide the same properties.
+Provision of these properties *is* dependant on implementers following Great Black Swamp's rules for x509 certificate validation
+(rather than the standard "web" rules for validation).
+
 Requirements
 ------------
 
@@ -101,12 +156,12 @@ Alice generates a key pair and secures it properly.
 Alice generates a self-signed storage node certificate with the key pair.
 Alice's storage node announces (to an introducer) a fURL containing (among other information) the SPKI hash.
 Imagine the SPKI hash is ``i5xb...``.
-This results in a fURL of ``pb://i5xb...@example.com:443/g3m5...#v=2`` [#]_.
+This results in a fURL of ``pb://i5xb...@example.com:443/g3m5...#v=1``.
 Bob creates a client node pointed at the same introducer.
 Bob's client node receives the announcement from Alice's storage node
 (indirected through the introducer).
 
-Bob's client node recognizes the fURL as referring to an HTTP-dialect server due to the ``v=2`` fragment.
+Bob's client node recognizes the fURL as referring to an HTTP-dialect server due to the ``v=1`` fragment.
 Bob's client node can now perform a TLS handshake with a server at the address in the fURL location hints
 (``example.com:443`` in this example).
 Following the above described validation procedures,
@@ -156,7 +211,7 @@ Such an announcement will resemble this::
 
   {
       "anonymous-storage-FURL": "pb://...",          # The old key
-      "gbs-anonymous-storage-url": "pb://...#v=2"    # The new key
+      "gbs-anonymous-storage-url": "pb://...#v=1"    # The new key
   }
 
 The transition process will proceed in three stages:
@@ -234,6 +289,19 @@ Because of the simple types used throughout
 and the equivalence described in `RFC 7049`_
 these examples should be representative regardless of which of these two encodings is chosen.
 
+HTTP Design
+~~~~~~~~~~~
+
+The HTTP interface described here is informed by the ideas of REST
+(Representational State Transfer).
+For ``GET`` requests query parameters are preferred over values encoded in the request body.
+For other requests query parameters are encoded into the message body.
+
+Many branches of the resource tree are conceived as homogenous containers:
+one branch contains all of the share data;
+another branch contains all of the lease data;
+etc.
+
 General
 ~~~~~~~
 
@@ -252,10 +320,69 @@ For example::
       "delete-mutable-shares-with-zero-length-writev": true,
       "fills-holes-with-zero-bytes": true,
       "prevents-read-past-end-of-share-data": true,
-      "gbs-anonymous-storage-url": "pb://...#v=2"
+      "gbs-anonymous-storage-url": "pb://...#v=1"
       },
     "application-version": "1.13.0"
     }
+
+``PUT /v1/lease/:storage_index``
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+Create a new lease that applies to all shares for the given storage index.
+The details of the lease are encoded in the request body.
+For example::
+
+  {"renew-secret": "abcd", "cancel-secret": "efgh"}
+
+If there are no shares for the given ``storage_index``
+then do nothing and return ``NO CONTENT``.
+
+If the ``renew-secret`` value matches an existing lease
+then that lease will be renewed instead.
+
+The lease expires after 31 days.
+
+Discussion
+``````````
+
+We considered an alternative where ``renew-secret`` and ``cancel-secret`` are placed in query arguments on the request path.
+We chose to put these values into the request body to make the URL simpler.
+
+Several behaviors here are blindly copied from the Foolscap-based storage server protocol.
+
+* There is a cancel secret but there is no API to use it to cancel a lease.
+* The lease period is hard-coded at 31 days.
+* There is no way to differentiate between success and an unknown **storage index**.
+* There are separate **add** and **renew** lease APIs.
+
+These are not necessarily ideal behaviors
+but they are adopted to avoid any *semantic* changes between the Foolscap- and HTTP-based protocols.
+It is expected that some or all of these behaviors may change in a future revision of the HTTP-based protocol.
+
+``POST /v1/lease/:storage_index``
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+Renew an existing lease for all shares for the given storage index.
+The details of the lease are encoded in the request body.
+For example::
+
+  {"renew-secret": "abcd"}
+
+If there are no shares for the given ``storage_index``
+then ``NOT FOUND`` is returned.
+
+If there is no lease with a matching ``renew-secret`` value on the given storage index
+then ``NOT FOUND`` is returned.
+In this case,
+if the storage index refers to mutable data
+then the response also includes a list of nodeids where the lease can be renewed.
+For example::
+
+  {"nodeids": ["aaa...", "bbb..."]}
+
+Othewise,
+the matching lease's expiration time is changed to be 31 days from the time of this operation
+and ``NO CONTENT`` is returned.
 
 Immutable
 ---------
@@ -268,6 +395,7 @@ Writing
 
 Initialize an immutable storage index with some buckets.
 The buckets may have share data written to them once.
+A lease is also created for the shares.
 Details of the buckets to create are encoded in the request body.
 For example::
 
@@ -286,8 +414,13 @@ We considered making this ``POST /v1/immutable`` instead.
 The motivation was to keep *storage index* out of the request URL.
 Request URLs have an elevated chance of being logged by something.
 We were concerned that having the *storage index* logged may increase some risks.
-However, we decided this does not matter because the *storage index* can only be used to read the share (which is ciphertext).
-TODO Verify this conclusion.
+However, we decided this does not matter because:
+
+* the *storage index* can only be used to retrieve (not decrypt) the ciphertext-bearing share.
+* the *storage index* is already persistently present on the storage node in the form of directory names in the storage servers ``shares`` directory.
+* the request is made via HTTPS and so only Tahoe-LAFS can see the contents,
+  therefore no proxy servers can perform any extra logging.
+* Tahoe-LAFS itself does not currently log HTTP request URLs.
 
 ``PUT /v1/immutable/:storage_index/:share_number``
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -492,13 +625,6 @@ Just like the immutable version.
         assert spki_encoded == tub_id
 
    Note we use `base64url`_ rather than the Foolscap- and Tahoe-LAFS-preferred Base32.
-
-.. [#]
-   Other schemes for differentiating between the two server types is possible.
-   If the tubID length remains different,
-   that provides an unambiguous (if obscure) signal about which protocol to use.
-   Or a different scheme could be adopted
-   (``[x-]pb+http``, ``x-tahoe+http``, ``x-gbs`` come to mind).
 
 .. [#]
    https://www.cvedetails.com/cve/CVE-2017-5638/

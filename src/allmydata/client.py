@@ -1,4 +1,16 @@
-from past.builtins import unicode
+"""
+Ported to Python 3.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, max, min  # noqa: F401
+    # Don't use future str to prevent leaking future's newbytes into foolscap, which they break.
+    from past.builtins import unicode as str
 
 import os, stat, time, weakref
 from base64 import urlsafe_b64encode
@@ -104,7 +116,6 @@ _client_config = configutil.ValidConfiguration(
         ),
         "sftpd": (
             "accounts.file",
-            "accounts.url",
             "enabled",
             "host_privkey_file",
             "host_pubkey_file",
@@ -364,8 +375,8 @@ class _StoragePlugins(object):
         """
         return set(
             config.get_config(
-                "storage", "plugins", b""
-            ).decode("ascii").split(u",")
+                "storage", "plugins", ""
+            ).split(u",")
         ) - {u""}
 
     @classmethod
@@ -460,7 +471,7 @@ def create_introducer_clients(config, main_tub, _introducer_factory=None):
 
     introducers = config.get_introducer_configuration()
 
-    for petname, (furl, cache_path) in introducers.items():
+    for petname, (furl, cache_path) in list(introducers.items()):
         ic = _introducer_factory(
             main_tub,
             furl.encode("ascii"),
@@ -679,7 +690,7 @@ class _Client(node.Node, pollmixin.PollMixin):
     def init_secrets(self):
         # configs are always unicode
         def _unicode_make_secret():
-            return unicode(_make_secret(), "ascii")
+            return str(_make_secret(), "ascii")
         lease_s = self.config.get_or_create_private_config(
             "secret", _unicode_make_secret).encode("utf-8")
         lease_secret = base32.a2b(lease_s)
@@ -694,7 +705,7 @@ class _Client(node.Node, pollmixin.PollMixin):
         def _make_key():
             private_key, _ = ed25519.create_signing_keypair()
             # Config values are always unicode:
-            return unicode(ed25519.string_from_signing_key(private_key) + b"\n", "utf-8")
+            return str(ed25519.string_from_signing_key(private_key) + b"\n", "utf-8")
 
         private_key_str = self.config.get_or_create_private_config(
             "node.privkey", _make_key).encode("utf-8")
@@ -870,7 +881,7 @@ class _Client(node.Node, pollmixin.PollMixin):
         """
         Register a storage server.
         """
-        config_key = b"storage-plugin.{}.furl".format(
+        config_key = "storage-plugin.{}.furl".format(
             # Oops, why don't I have a better handle on this value?
             announceable_storage_server.announcement[u"name"],
         )
@@ -917,7 +928,8 @@ class _Client(node.Node, pollmixin.PollMixin):
         random data in "api_auth_token" which must be echoed to API
         calls.
         """
-        return self.config.get_private_config('api_auth_token')
+        return self.config.get_private_config(
+            'api_auth_token').encode("ascii")
 
     def _create_auth_token(self):
         """
@@ -1030,13 +1042,12 @@ class _Client(node.Node, pollmixin.PollMixin):
             accountfile = self.config.get_config("sftpd", "accounts.file", None)
             if accountfile:
                 accountfile = self.config.get_config_path(accountfile)
-            accounturl = self.config.get_config("sftpd", "accounts.url", None)
             sftp_portstr = self.config.get_config("sftpd", "port", "tcp:8022")
             pubkey_file = self.config.get_config("sftpd", "host_pubkey_file")
             privkey_file = self.config.get_config("sftpd", "host_privkey_file")
 
             from allmydata.frontends import sftpd
-            s = sftpd.SFTPServer(self, accountfile, accounturl,
+            s = sftpd.SFTPServer(self, accountfile,
                                  sftp_portstr, pubkey_file, privkey_file)
             s.setServiceParent(self)
 
