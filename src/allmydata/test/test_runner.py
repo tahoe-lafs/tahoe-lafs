@@ -144,7 +144,11 @@ class BinTahoe(common_util.SignalMixin, unittest.TestCase):
         tricky = u"\u00F6"
         out, err, returncode = run_bintahoe([tricky])
         self.assertEqual(returncode, 1)
-        self.assertIn(u"Unknown command: " + tricky, out)
+        self.assertIn(
+            u"Unknown command: " + tricky,
+            out,
+            "stdout: {!r}\nstderr: {!r}".format(out, err),
+        )
 
     def test_with_python_options(self):
         """
