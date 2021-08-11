@@ -325,7 +325,8 @@ def _run_with_reactor(reactor, config, argv, stdout, stderr):
     :param twisted.python.usage.Options config: The config object to use to
         parse the argument list.
 
-    :param argv: See ``run``.
+    :param [str] argv: The argument list to parse, *excluding* the name of the
+        program being run.
 
     :param stdout: See ``run``.
     :param stderr: See ``run``.
@@ -334,7 +335,7 @@ def _run_with_reactor(reactor, config, argv, stdout, stderr):
     """
     _setup_coverage(reactor, argv)
 
-    argv = list(map(argv_to_unicode, argv[1:]))
+    argv = list(map(argv_to_unicode, argv))
     d = defer.maybeDeferred(
         parse_or_exit_with_explanation_with_config,
         config,
