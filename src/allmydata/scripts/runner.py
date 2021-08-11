@@ -221,6 +221,9 @@ def _maybe_enable_eliot_logging(options, reactor):
     # Pass on the options so we can dispatch the subcommand.
     return options
 
+PYTHON_3_WARNING = ("Support for Python 3 is an incomplete work-in-progress."
+                    " Use at your own risk.")
+
 def run(configFactory=Options, argv=sys.argv, stdout=sys.stdout, stderr=sys.stderr):
     """
     Run a Tahoe-LAFS node.
@@ -235,6 +238,8 @@ def run(configFactory=Options, argv=sys.argv, stdout=sys.stdout, stderr=sys.stde
 
     :raise SystemExit: Always raised after the run is complete.
     """
+    if six.PY3:
+        print(PYTHON_3_WARNING, file=sys.stderr)
     if sys.platform == "win32":
         from allmydata.windows.fixups import initialize
         initialize()
