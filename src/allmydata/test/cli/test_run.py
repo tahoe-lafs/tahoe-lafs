@@ -157,7 +157,7 @@ class RunTests(SyncTestCase):
         If the pidfile exists but does not contain a numeric value, a complaint to
         this effect is written to stderr.
         """
-        basedir = FilePath(self.mktemp().decode("ascii"))
+        basedir = FilePath(self.mktemp()).asTextMode()
         basedir.makedirs()
         basedir.child(u"twistd.pid").setContent(b"foo")
         basedir.child(u"tahoe-client.tac").setContent(b"")
