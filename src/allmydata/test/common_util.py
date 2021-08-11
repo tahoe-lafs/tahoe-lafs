@@ -133,7 +133,7 @@ def run_cli_native(verb, *args, **kwargs):
     d = defer.succeed(argv)
     d.addCallback(
         partial(
-            runner.parse_or_exit_with_explanation_with_config,
+            runner.parse_or_exit,
             runner.Options(),
         ),
         stdout=stdout,

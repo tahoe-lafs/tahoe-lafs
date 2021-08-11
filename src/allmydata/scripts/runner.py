@@ -129,7 +129,7 @@ def parse_options(argv, config=None):
         raise
     return config
 
-def parse_or_exit_with_explanation_with_config(config, argv, stdout, stderr):
+def parse_or_exit(config, argv, stdout, stderr):
     """
     Parse Tahoe-LAFS CLI arguments and return a configuration object if they
     are valid.
@@ -338,7 +338,7 @@ def _run_with_reactor(reactor, config, argv, stdout, stderr):
 
     argv = list(map(argv_to_unicode, argv))
     d = defer.maybeDeferred(
-        parse_or_exit_with_explanation_with_config,
+        parse_or_exit,
         config,
         argv,
         stdout,
