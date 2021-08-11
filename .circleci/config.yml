@@ -16,18 +16,8 @@ workflows:
     jobs:
       # Start with jobs testing various platforms.
 
-      # Every job that pulls a Docker image from Docker Hub needs to provide
-      # credentials for that pull operation to avoid being subjected to
-      # unauthenticated pull limits shared across all of CircleCI.  Use this
-      # first job to define a yaml anchor that can be used to supply a
-      # CircleCI job context which makes Docker Hub credentials available in
-      # the environment.
-      #
-      # Contexts are managed in the CircleCI web interface:
-      #
-      #  https://app.circleci.com/settings/organization/github/tahoe-lafs/contexts
       - "debian-9": &DOCKERHUB_CONTEXT
-          context: "dockerhub-auth"
+          {}
 
       - "debian-10":
           <<: *DOCKERHUB_CONTEXT
