@@ -9,6 +9,7 @@ if PY2:
 
 import os, sys
 from six.moves import StringIO
+from past.builtins import unicode
 import six
 
 try:
