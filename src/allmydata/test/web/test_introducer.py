@@ -15,9 +15,14 @@ from os.path import join
 
 from bs4 import BeautifulSoup
 
-from twisted.trial import unittest
 from twisted.internet import reactor
 from twisted.internet import defer
+from testtools.twistedsupport import succeeded
+
+from ..common import (
+    SyncTestCase,
+    AsyncTestCase,
+)
 
 from foolscap.api import (
     fireEventually,
@@ -53,6 +58,11 @@ from ..common_web import (
     render,
 )
 
+from testtools.matchers import (
+    Equals,
+    AfterPreprocessing,
+)
+
 
 @defer.inlineCallbacks
 def create_introducer_webish(reactor, port_assigner, basedir):
@@ -86,11 +96,10 @@ def create_introducer_webish(reactor, port_assigner, basedir):
 
     yield fireEventually(None)
     intro_node.startService()
-
     defer.returnValue((intro_node, ws))
 
 
-class IntroducerWeb(unittest.TestCase):
+class IntroducerWeb(AsyncTestCase):
     """
     Tests for web-facing functionality of an introducer node.
     """
@@ -102,6 +111,7 @@ class IntroducerWeb(unittest.TestCase):
         # Anything using Foolscap leaves some timer trash in the reactor that
         # we have to arrange to have cleaned up.
         self.addCleanup(lambda: flushEventualQueue(None))
+        return super(IntroducerWeb, self).setUp()
 
     @defer.inlineCallbacks
     def test_welcome(self):
@@ -187,7 +197,7 @@ class IntroducerWeb(unittest.TestCase):
         self.assertEqual(data["announcement_summary"], {})
 
 
-class IntroducerRootTests(unittest.TestCase):
+class IntroducerRootTests(SyncTestCase):
     """
     Tests for ``IntroducerRoot``.
     """
@@ -223,15 +233,11 @@ class IntroducerRootTests(unittest.TestCase):
         )
 
         resource = IntroducerRoot(introducer_node)
-        response = json.loads(
-            self.successResultOf(
-                render(resource, {b"t": [b"json"]}),
-            ),
-        )
-        self.assertEqual(
+        response = render(resource, {b"t": [b"json"]})
+        expected = {
+            u"subscription_summary": {"arbitrary": 2},
+            u"announcement_summary": {"arbitrary": 1},
+        }
+        self.assertThat(
             response,
-            {
-                u"subscription_summary": {"arbitrary": 2},
-                u"announcement_summary": {"arbitrary": 1},
-            },
-        )
+            succeeded(AfterPreprocessing(json.loads, Equals(expected))))
