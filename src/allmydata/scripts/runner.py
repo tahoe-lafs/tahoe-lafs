@@ -239,7 +239,7 @@ def run(configFactory=Options, argv=sys.argv, stdout=sys.stdout, stderr=sys.stde
     :raise SystemExit: Always raised after the run is complete.
     """
     if six.PY3:
-        print(PYTHON_3_WARNING, file=sys.stderr)
+        print(PYTHON_3_WARNING, file=stderr)
     if sys.platform == "win32":
         from allmydata.windows.fixups import initialize
         initialize()
