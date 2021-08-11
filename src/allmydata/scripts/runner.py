@@ -138,7 +138,7 @@ def parse_or_exit_with_explanation_with_config(config, argv, stdout, stderr):
     :param allmydata.scripts.runner.Options config: An instance of the
         argument-parsing class to use.
 
-    :param [str] argv: The argument list to parse, including the name of the
+    :param [unicode] argv: The argument list to parse, including the name of the
         program being run as ``argv[0]``.
 
     :param stdout: The file-like object to use as stdout.
