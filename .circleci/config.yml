@@ -53,6 +53,8 @@ workflows:
       # Other assorted tasks and configurations
       - "lint":
           {}
+      - "codechecks3":
+          {}
       - "pyinstaller":
           {}
       - "deprecations":
