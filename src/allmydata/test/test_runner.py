@@ -103,7 +103,7 @@ class ParseOptionsTests(SyncTestCase):
         except usage.error as e:
             self.assertEqual(
                 b"Unknown command: " + tricky.encode("utf-8"),
-                str(e)
+                b"{}".format(e),
             )
 
 
