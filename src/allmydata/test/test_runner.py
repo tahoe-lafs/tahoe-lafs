@@ -24,6 +24,16 @@ import six
 from testtools import (
     skipUnless,
 )
+from testtools.matchers import (
+    MatchesListwise,
+    MatchesAny,
+    Contains,
+    Equals,
+    Always,
+)
+from testtools.twistedsupport import (
+    succeeded,
+)
 from eliot import (
     log_call,
 )
@@ -55,6 +65,7 @@ from .common import (
 from .common_util import (
     parse_cli,
     run_cli,
+    run_cli_unicode,
 )
 from .cli_node_api import (
     CLINodeAPI,
@@ -97,7 +108,7 @@ class ParseOptionsTests(SyncTestCase):
         does not exist and which also contains non-ascii characters, the
         exception it raises includes the subcommand encoded as UTF-8.
         """
-        tricky = u"\u2621"
+        tricky = u"\u00F6"
         try:
             parse_options([tricky])
         except usage.error as e:
@@ -105,6 +116,35 @@ class ParseOptionsTests(SyncTestCase):
                 b"Unknown command: " + tricky.encode("utf-8"),
                 b"{}".format(e),
             )
+
+
+class ParseOrExitTests(SyncTestCase):
+    """
+    Tests for ``parse_or_exit``.
+    """
+    def test_nonascii_error_content(self):
+        """
+        ``parse_or_exit`` can report errors that include non-ascii content.
+        """
+        tricky = u"\u00F6"
+        self.assertThat(
+            run_cli_unicode(tricky, [], encoding="utf-8"),
+            succeeded(
+                MatchesListwise([
+                    # returncode
+                    Equals(1),
+                    # stdout
+                    MatchesAny(
+                        # Python 2
+                        Contains(u"Unknown command: \\xf6"),
+                        # Python 3
+                        Contains(u"Unknown command: \xf6"),
+                    ),
+                    # stderr,
+                    Always()
+                ]),
+            ),
+        )
 
 
 @log_call(action_type="run-bin-tahoe")
@@ -143,11 +183,15 @@ class BinTahoe(common_util.SignalMixin, unittest.TestCase):
         """
         tricky = u"\u00F6"
         out, err, returncode = run_bintahoe([tricky])
+        if PY2:
+            expected = u"Unknown command: \\xf6"
+        else:
+            expected = u"Unknown command: \xf6"
         self.assertEqual(returncode, 1)
         self.assertIn(
-            u"Unknown command: " + tricky,
+            expected,
             out,
-            "stdout: {!r}\nstderr: {!r}".format(out, err),
+            "expected {!r} not found in {!r}\nstderr: {!r}".format(expected, out, err),
         )
 
     def test_with_python_options(self):
