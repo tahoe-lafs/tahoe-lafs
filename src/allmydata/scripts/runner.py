@@ -170,7 +170,7 @@ def parse_or_exit_with_explanation_with_config(config, argv, stdout, stderr):
         # On Python 2 the string may turn into a unicode string, e.g. the error
         # may be unicode, in which case it will print funny. Once we're on
         # Python 3 we can just drop the ensure_str().
-        print(six.ensure_str("%s:  %s\n" % (sys.argv[0], e)), file=stdout)
+        print(six.ensure_str("%s:  %s\n" % (argv[0], e)), file=stdout)
         sys.exit(1)
     return config
 
