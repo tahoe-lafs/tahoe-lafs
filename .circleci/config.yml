@@ -140,7 +140,7 @@ jobs:
             # Since this job is never scheduled this step is never run so the
             # actual value here is irrelevant.
 
-  codechecks:
+  lint:
     docker:
       - <<: *DOCKERHUB_AUTH
         image: "circleci/python:2"
