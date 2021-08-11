@@ -338,7 +338,12 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin):
             u"--hostname", u"127.0.0.1",
         ])
 
-        self.assertEqual(returncode, 0)
+        self.assertEqual(
+            returncode,
+            0,
+            "stdout: {!r}\n"
+            "stderr: {!r}\n",
+        )
 
         # This makes sure that node.url is written, which allows us to
         # detect when the introducer restarts in _node_has_restarted below.
