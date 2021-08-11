@@ -16,11 +16,13 @@ workflows:
     jobs:
       # Start with jobs testing various platforms.
       - "debian-9":
+          {}
       - "debian-10":
           requires:
             - "debian-9"
 
       - "ubuntu-20-04":
+          {}
       - "ubuntu-18-04":
           requires:
             - "ubuntu-20-04"
@@ -29,26 +31,37 @@ workflows:
             - "ubuntu-20-04"
 
       - "fedora-29":
+          {}
       - "fedora-28":
           requires:
             - "fedora-29"
 
       - "centos-8":
+          {}
+
       - "nixos-19-09":
+          {}
 
       # Test against PyPy 2.7
       - "pypy27-buster":
+          {}
 
       # Just one Python 3.6 configuration while the port is in-progress.
       - "python36":
+          {}
 
       # Other assorted tasks and configurations
       - "lint":
+          {}
       - "pyinstaller":
+          {}
       - "deprecations":
+          {}
       - "c-locale":
+          {}
       # Any locale other than C or UTF-8.
       - "another-locale":
+          {}
 
       - "integration":
           requires:
@@ -57,7 +70,9 @@ workflows:
             - "debian-9"
 
       - "typechecks":
+          {}
       - "docs":
+          {}
 
   images:
     # Build the Docker images used by the ci jobs.  This makes the ci jobs
