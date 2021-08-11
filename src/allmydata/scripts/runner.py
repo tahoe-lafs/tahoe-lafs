@@ -120,9 +120,23 @@ def parse_options(argv, config=None):
         config.parseOptions(argv)
     except usage.error as e:
         if six.PY2:
-            # Exceptions must stringify to bytes on Python 2.
+            # On Python 2 the exception may hold non-ascii in a byte string.
+            # This makes it impossible to convert the exception to any kind of
+            # string using str() or unicode().  It could also hold non-ascii
+            # in a unicode string which still makes it difficult to convert it
+            # to a byte string later.
+            #
+            # So, reach inside and turn it into some entirely safe ascii byte
+            # strings that will survive being written to stdout without
+            # causing too much damage in the process.
+            #
+            # As a result, non-ascii will not be rendered correctly but
+            # instead as escape sequences.  At least this can go away when
+            # we're done with Python 2 support.
             raise usage.error(*(
-                arg.encode("utf-8") if isinstance(arg, unicode) else arg
+                arg.encode("ascii", errors="backslashreplace")
+                if isinstance(arg, unicode)
+                else arg.decode("utf-8").encode("ascii", errors="backslashreplace")
                 for arg
                 in e.args
             ))
@@ -167,29 +181,8 @@ def parse_or_exit(config, argv, stdout, stderr):
         while hasattr(c, 'subOptions'):
             c = c.subOptions
         print(str(c), file=stdout)
-        # On Python 2 the exception may hold non-ascii in a byte string.  This
-        # makes it impossible to convert the exception to any kind of string
-        # using str() or unicode().  So, reach inside and get what we need.
-        #
-        # Then, since we are on Python 2, turn it into some entirely safe
-        # ascii that will survive being written to stdout without causing too
-        # much damage in the process.
-        #
-        # As a result, non-ascii will not be rendered correctly but instead as
-        # escape sequences.  At least this can go away when we're done with
-        # Python 2 support.
-        if PY2:
-            exc_text = e.args[0].decode(
-                "utf-8",
-            ).encode(
-                "ascii",
-                errors="backslashreplace",
-            ).decode(
-                "ascii",
-            )
-        else:
-            exc_text = unicode(e)
-        exc_bytes = six.ensure_binary(exc_text, "utf-8")
+        exc_str = str(e)
+        exc_bytes = six.ensure_binary(exc_str, "utf-8")
         msg_bytes = b"%s:  %s\n" % (six.ensure_binary(argv[0]), exc_bytes)
         print(six.ensure_text(msg_bytes, "utf-8"), file=stdout)
         sys.exit(1)
