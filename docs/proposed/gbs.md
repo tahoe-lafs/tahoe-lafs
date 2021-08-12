@@ -446,9 +446,15 @@ This is out of scope for now, just needs to not break.
 Here's a starting point of chunks of work; probably these will be broken up into sub-chunks, e.g. mutable vs. immutable on server and client.
 
 * `SERVER`: HTTP server implementation.
+    * `OPENAPI`: OpenAPI validation for incoming/outgoing messages.
+    * `ENDPOINTS`: Implementation of all the endpoints.
 * `MINIMAL-CLIENT`: Minimal HTTP client, sufficient for testing `SERVER` but also as building block for `CLIENT-PROTOCOL-INTEGRATION`.
+    * `OPENAPI`: OpenAPI validation for incoming/outgoing messages.
+    * `ENDPOINTS`: Implementation of client code for all the endpoints.
 * `CLIENT-PROTOCOL-INTEGRATION`: Ability to talk to `SERVER` using `MINIMAL-CLIENT` from within the client business logic.
 * `SERVER-ANNOUNCEMENTS`: Ability for server to announce presence of HTTP protocol.
 * `CLIENT-ANNOUNCEMENTS`: Ability for client to choose HTTP protocol when available.
 * `CONFIGURATION`: Ability to configure the HTTP protocol.
 * `DOCUMENTATION`: Explanation for users.
+
+Probably will want to do `SERVER/ENDPOINTS` and `CLIENT/ENDPOINTS` in a series of issues, each of which adds an endpoint to both client and server.
