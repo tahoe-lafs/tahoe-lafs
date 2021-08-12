@@ -17,15 +17,17 @@ import json
 
 from .common import BaseOptions
 from allmydata.scripts.common import get_default_nodedir
-from allmydata.scripts.common_http import do_http, BadResponse
+from allmydata.scripts.common_http import BadResponse
 from allmydata.util.abbreviate import abbreviate_space, abbreviate_time
 from allmydata.util.encodingutil import argv_to_abspath
 
 
-def _get_json_for_fragment(options, fragment, method='GET', post_args=None):
+def _get_request_parameters_for_fragment(options, fragment, method, post_args):
     """
-    returns the JSON for a particular URI-fragment (to which is
-    pre-pended the node's URL)
+    Get parameters for ``do_http`` for requesting the given fragment.
+
+    :return dict: A dictionary suitable for use as keyword arguments to
+        ``do_http``.
     """
     nodeurl = options['node-url']
     if nodeurl.endswith('/'):
@@ -40,7 +42,17 @@ def _get_json_for_fragment(options, fragment, method='GET', post_args=None):
         body = ''
         if post_args is not None:
             raise ValueError("post_args= only valid for POST method")
-    resp = do_http(method, url, body=body.encode("utf-8"))
+    return dict(
+        method=method,
+        url=url,
+        body=body.encode("utf-8"),
+    )
+
+
+def _handle_response_for_fragment(resp, nodeurl):
+    """
+    Inspect an HTTP response and return the parsed payload, if possible.
+    """
     if isinstance(resp, BadResponse):
         # specifically NOT using format_http_error() here because the
         # URL is pretty sensitive (we're doing /uri/<key>).
@@ -54,12 +66,6 @@ def _get_json_for_fragment(options, fragment, method='GET', post_args=None):
         raise RuntimeError("No data from '%s'" % (nodeurl,))
     return parsed
 
-
-def _get_json_for_cap(options, cap):
-    return _get_json_for_fragment(
-        options,
-        'uri/%s?t=json' % url_quote(cap),
-    )
 
 def pretty_progress(percent, size=10, output_ascii=False):
     """
@@ -251,7 +257,10 @@ def render_recent(verbose, stdout, status_data):
         print(u"   Skipped {} non-upload/download operations; use --verbose to see".format(skipped), file=stdout)
 
 
-def do_status(options):
+def do_status(options, do_http=None):
+    if do_http is None:
+        from allmydata.scripts.common_http import do_http
+
     nodedir = options["node-directory"]
     with open(os.path.join(nodedir, u'private', u'api_auth_token'), 'r') as f:
         token = f.read().strip()
@@ -260,25 +269,30 @@ def do_status(options):
 
     # do *all* our data-retrievals first in case there's an error
     try:
-        status_data = _get_json_for_fragment(
-            options,
-            'status?t=json',
-            method='POST',
-            post_args=dict(
-                t='json',
-                token=token,
-            )
+        status_data = _handle_response_for_fragment(
+            do_http(**_get_request_parameters_for_fragment(
+                options,
+                'status?t=json',
+                method='POST',
+                post_args=dict(
+                    t='json',
+                    token=token,
+                ),
+            )),
+            options['node-url'],
         )
-        statistics_data = _get_json_for_fragment(
-            options,
-            'statistics?t=json',
-            method='POST',
-            post_args=dict(
-                t='json',
-                token=token,
-            )
+        statistics_data = _handle_response_for_fragment(
+            do_http(**_get_request_parameters_for_fragment(
+                options,
+                'statistics?t=json',
+                method='POST',
+                post_args=dict(
+                    t='json',
+                    token=token,
+                ),
+            )),
+            options['node-url'],
         )
-
     except Exception as e:
         print(u"failed to retrieve data: %s" % str(e), file=options.stderr)
         return 2
