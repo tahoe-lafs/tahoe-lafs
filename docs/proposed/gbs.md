@@ -137,7 +137,7 @@ It's not clear which of the other two options is actually feasible, the semantic
 TODO braindump what we discussed.
 
 ```
-[2021-08-04 14:46:38] <itamarst> so there are 3 proposed models (there might be more, if you can think of any)
+o[2021-08-04 14:46:38] <itamarst> so there are 3 proposed models (there might be more, if you can think of any)
 [2021-08-04 14:46:51] <exarkun> It _might_ make sense to consider 2 instances of question 3, though perhaps we'll come to the same answer for each
 [2021-08-04 14:46:51] <itamarst> 1. completely separate interfaces, all clients need to support both 
 [2021-08-04 14:46:56] <exarkun> client, server
@@ -437,3 +437,18 @@ With the helper, you contact the "helper node" and upload ciphertext; it does th
 Thus user only upload the number of bytes in the ciphertext, rather than the multiple shares.
 
 This is out of scope for now, just needs to not break.
+
+
+# Implementation plan
+
+## Chunks of work
+
+Here's a starting point of chunks of work; probably these will be broken up into sub-chunks, e.g. mutable vs. immutable on server and client.
+
+* `SERVER`: HTTP server implementation.
+* `MINIMAL-CLIENT`: Minimal HTTP client, sufficient for testing `SERVER` but also as building block for `CLIENT-PROTOCOL-INTEGRATION`.
+* `CLIENT-PROTOCOL-INTEGRATION`: Ability to talk to `SERVER` using `MINIMAL-CLIENT` from within the client business logic.
+* `SERVER-ANNOUNCEMENTS`: Ability for server to announce presence of HTTP protocol.
+* `CLIENT-ANNOUNCEMENTS`: Ability for client to choose HTTP protocol when available.
+* `CONFIGURATION`: Ability to configure the HTTP protocol.
+* `DOCUMENTATION`: Explanation for users.
