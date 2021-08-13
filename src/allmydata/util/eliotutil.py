@@ -324,8 +324,8 @@ def log_call_deferred(action_type):
         def logged_f(*a, **kw):
             # Use the action's context method to avoid ending the action when
             # the `with` block ends.
-            args = bytes_to_unicode(True, kw['arguments'])
-            with start_action(action_type=action_type, arguments=args).context():
+            args = {k: bytes_to_unicode(True, kw[k]) for k in kw}
+            with start_action(action_type=action_type, **args).context():
                 # Use addActionFinish so that the action finishes when the
                 # Deferred fires.
                 d = maybeDeferred(f, *a, **kw)
