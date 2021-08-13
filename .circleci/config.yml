@@ -53,6 +53,8 @@ workflows:
       # Other assorted tasks and configurations
       - "lint":
           {}
+      - "codechecks3":
+          {}
       - "pyinstaller":
           {}
       - "deprecations":
@@ -157,6 +159,24 @@ jobs:
           name: "Static-ish code checks"
           command: |
             ~/.local/bin/tox -e codechecks
+
+  codechecks3:
+    docker:
+      - <<: *DOCKERHUB_AUTH
+        image: "circleci/python:3"
+
+    steps:
+      - "checkout"
+
+      - run:
+          name: "Install tox"
+          command: |
+            pip install --user tox
+
+      - run:
+          name: "Static-ish code checks"
+          command: |
+            ~/.local/bin/tox -e codechecks3
 
   pyinstaller:
     docker:
