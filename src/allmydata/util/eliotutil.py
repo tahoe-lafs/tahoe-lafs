@@ -87,7 +87,11 @@ from twisted.internet.defer import (
 )
 from twisted.application.service import Service
 
-from .jsonbytes import AnyBytesJSONEncoder
+from .jsonbytes import (
+    AnyBytesJSONEncoder,
+    bytes_to_unicode
+)
+
 
 
 def validateInstanceOf(t):
@@ -320,7 +324,8 @@ def log_call_deferred(action_type):
         def logged_f(*a, **kw):
             # Use the action's context method to avoid ending the action when
             # the `with` block ends.
-            with start_action(action_type=action_type).context():
+            args = bytes_to_unicode(True, kw['arguments'])
+            with start_action(action_type=action_type, arguments=args).context():
                 # Use addActionFinish so that the action finishes when the
                 # Deferred fires.
                 d = maybeDeferred(f, *a, **kw)
