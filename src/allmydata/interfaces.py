@@ -22,6 +22,7 @@ from zope.interface import Interface, Attribute
 from twisted.plugin import (
     IPlugin,
 )
+from twisted.internet.defer import Deferred
 from foolscap.api import StringConstraint, ListOf, TupleOf, SetOf, DictOf, \
      ChoiceOf, IntegerConstraint, Any, RemoteInterface, Referenceable
 
@@ -3110,4 +3111,39 @@ class IAddressFamily(Interface):
     def get_client_endpoint():
         """
         Return an ``IStreamClientEndpoint``.
+        """
+
+
+class IStorageClient(Interface):
+    """
+    An improved interface for talking to the storage client.
+
+    Eventually this will replace ``RIStorageServer`` and related interfaces, as
+    part of replacing their use of Foolscap with an HTTP-based protocol.
+
+    This is a work in progress, see
+    https://tahoe-lafs.org/trac/tahoe-lafs/milestone/HTTP%20Storage%20Protocol
+    for status.
+    """
+
+    def add_lease(storage_index, renew_secret, cancel_secret):
+        # type: (bytes, bytes, bytes) -> Deferred[None]
+        """
+        Create a new lease on all shares for the given storage index.
+
+        Result fires when creating the lease succeeded, if creating the lease
+        failed the result will fire with an exception.
+        """
+
+    def renew_lease(storage_index, renew_secret):
+        # type: (bytes, bytes) -> Deferred[None]
+        """
+        Renew a lease.
+
+        If something something mutable something something the nodeids will be
+        renewed automatically (which will involve more HTTP requests in the
+        underlying API).
+
+        Result fires when creating the lease succeeded, if creating the lease
+        failed the result will fire with an exception.
         """
