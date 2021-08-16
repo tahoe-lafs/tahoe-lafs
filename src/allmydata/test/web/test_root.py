@@ -20,10 +20,11 @@ from bs4 import (
     BeautifulSoup,
 )
 
-from twisted.trial import unittest
 from twisted.web.template import Tag
 from twisted.web.test.requesthelper import DummyRequest
 from twisted.application import service
+from testtools.twistedsupport import succeeded
+from twisted.internet.defer import inlineCallbacks
 
 from ...storage_client import (
     NativeStorageServer,
@@ -44,7 +45,17 @@ from ..common import (
     EMPTY_CLIENT_CONFIG,
 )
 
-class RenderSlashUri(unittest.TestCase):
+from ..common import (
+    SyncTestCase,
+)
+
+from testtools.matchers import (
+    Equals,
+    Contains,
+    AfterPreprocessing,
+)
+
+class RenderSlashUri(SyncTestCase):
     """
     Ensure that URIs starting with /uri?uri= only accept valid
     capabilities
@@ -53,7 +64,9 @@ class RenderSlashUri(unittest.TestCase):
     def setUp(self):
         self.client = object()
         self.res = URIHandler(self.client)
+        super(RenderSlashUri, self).setUp()
 
+    @inlineCallbacks
     def test_valid_query_redirect(self):
         """
         A syntactically valid capability given in the ``uri`` query argument
@@ -64,9 +77,7 @@ class RenderSlashUri(unittest.TestCase):
             b"mukesarwdjxiyqsjinbfiiro6q7kgmmekocxfjcngh23oxwyxtzq:2:5:5874882"
         )
         query_args = {b"uri": [cap]}
-        response_body = self.successResultOf(
-            render(self.res, query_args),
-        )
+        response_body = yield render(self.res, query_args)
         soup = BeautifulSoup(response_body, 'html5lib')
         tag = assert_soup_has_tag_with_attributes(
             self,
@@ -74,9 +85,9 @@ class RenderSlashUri(unittest.TestCase):
             u"meta",
             {u"http-equiv": "refresh"},
         )
-        self.assertIn(
-            quote(cap, safe=""),
+        self.assertThat(
             tag.attrs.get(u"content"),
+            Contains(quote(cap, safe="")),
         )
 
     def test_invalid(self):
@@ -84,16 +95,14 @@ class RenderSlashUri(unittest.TestCase):
         A syntactically invalid capbility results in an error.
         """
         query_args = {b"uri": [b"not a capability"]}
-        response_body = self.successResultOf(
-            render(self.res, query_args),
-        )
-        self.assertEqual(
+        response_body = render(self.res, query_args)
+        self.assertThat(
             response_body,
-            b"Invalid capability",
+            succeeded(AfterPreprocessing(bytes, Equals(b"Invalid capability"))),
         )
 
 
-class RenderServiceRow(unittest.TestCase):
+class RenderServiceRow(SyncTestCase):
     def test_missing(self):
         """
         minimally-defined static servers just need anonymous-storage-FURL
@@ -127,5 +136,5 @@ class RenderServiceRow(unittest.TestCase):
         # Coerce `items` to list and pick the first item from it.
         item = list(items)[0]
 
-        self.assertEqual(item.slotData.get("version"), "")
-        self.assertEqual(item.slotData.get("nickname"), "")
+        self.assertThat(item.slotData.get("version"), Equals(""))
+        self.assertThat(item.slotData.get("nickname"), Equals(""))
