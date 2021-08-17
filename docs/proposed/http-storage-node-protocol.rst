@@ -661,7 +661,7 @@ Mutable Data
          "data": []
      }
 
-#. Safely rewrite the contents of a known version of mutble share number ``3`` (or fail)::
+#. Safely rewrite the contents of a known version of mutable share number ``3`` (or fail)::
 
      POST /v1/mutable/BBBBBBBBBBBBBBBB/read-test-write
      {
