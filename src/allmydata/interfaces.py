@@ -16,6 +16,12 @@ if PY2:
     # interfaces. Not importing open() because it triggers bogus flake8 error.
     from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, pow, round, super, range, max, min  # noqa: F401
 
+try:
+    from typing import List, Optional, BinaryIO
+except ImportError:
+    # Python 2
+    pass
+
 from past.builtins import long
 
 from zope.interface import Interface, Attribute
@@ -3114,9 +3120,10 @@ class IAddressFamily(Interface):
         """
 
 
-class IStorageClient(Interface):
+class IImmutableStorageClient(Interface):
     """
-    An improved interface for talking to the storage client.
+    An improved interface for talking to the storage client, specifically for
+    immutable interactions.
 
     Eventually this will replace ``RIStorageServer`` and related interfaces, as
     part of replacing their use of Foolscap with an HTTP-based protocol.
@@ -3133,6 +3140,9 @@ class IStorageClient(Interface):
 
         Result fires when creating the lease succeeded, if creating the lease
         failed the result will fire with an exception.
+
+        NOTE: This is likely to change as the spec design improves, see e.g.
+        https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3763
         """
 
     def renew_lease(storage_index, renew_secret):
@@ -3146,4 +3156,75 @@ class IStorageClient(Interface):
 
         Result fires when creating the lease succeeded, if creating the lease
         failed the result will fire with an exception.
+
+        NOTE: This is likely to change as the spec design improves, see e.g.
+        https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3763
+        """
+
+    def create_storage_index(storage_index, share_numbers, allocated_size,
+                             lease_renew_secret, lease_cancel_secret):
+        # type: (bytes, List[int], int, bytes, bytes) -> Deferred[None]
+        """
+        Create a new storage index.
+
+        The implementation is expected to retry internally on failure, to
+        ensure the operation fully succeeded.  If sufficient number of failures
+        occurred, the result may fire with an error, but there's no expectation
+        that user code needs to have a recovery codepath; it will most likely
+        just report error to the user.
+
+        Result fires when creating the storage index succeeded, if creating the
+        storage index failed the result will fire with an exception.
+
+        NOTE: The cancel/renew secret part for leases is likely to change as
+        the spec design improves, see e.g.
+        https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3763
+        """
+
+    # TODO all wrong, code expects the low-level interface!
+    def upload_share(storage_index, share_number, share_file, timeout=None):
+        # type: (bytes, int, BinaryIO, Optional[int]) -> Deferred[None]
+        """
+        Upload a specific share.
+
+        The ``share_file`` is expected to be readable and seekable; it cannot
+        be a streaming file-like object without seek.
+
+        The implementation is expected to retry failed uploads, break the
+        upload into chunks where relevant, etc..  All of this is is transparent
+        to the caller.  The timeout is for the overall upload process.
+
+        Result fires when the upload succeeded.
+        """
+
+    def notify_share_corrupted(storage_index, share_number, reason):
+        # type: (bytes, int, str) -> Deferred[None]
+        """
+        Advise the server a particular share was corrupted.
+
+        Result fires when the operation succeeded.
+        """
+
+    def list_shares(storage_index):
+        # type: (bytes,) -> Deferred[List[int]]
+        """
+        Return the shares numbers for a particular storage index.
+        """
+
+    # TODO all wrong, code expects the low-level interface!
+    def download_shares(storage_index, share_numbers):
+        # type: (bytes, List[int]) -> Deferred[Dict[int,Union[BytesIO,Exception]]
+        """
+        Download one or more shares.
+
+        TODO match type?  Is type wrong?  The ``share_files`` parameter is a
+        mapping between share numbers to download, and the corresponding
+        writeable file-like objects where the download data should be written.
+        The file-like objects should be seekable.
+
+        Failed downloads should be retried and redownloaded by the
+        implementation.
+
+        If share numbers don't exist Result fires when the operation succeeded,
+        with the shares that
         """
