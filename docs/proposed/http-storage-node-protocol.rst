@@ -584,7 +584,7 @@ Immutable Data
 
 1. Create a bucket for storage index ``AAAAAAAAAAAAAAAA`` to hold two immutable shares, discovering that share ``1`` was already uploaded::
 
-     PUT /v1/immutable/AAAAAAAAAAAAAAAA
+     POST /v1/immutable/AAAAAAAAAAAAAAAA
      {"renew-secret": "efgh", "cancel-secret": "ijkl",
       "share-numbers": [1, 7], "allocated-size": 48}
 
