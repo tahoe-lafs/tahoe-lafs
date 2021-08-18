@@ -422,6 +422,15 @@ However, we decided this does not matter because:
   therefore no proxy servers can perform any extra logging.
 * Tahoe-LAFS itself does not currently log HTTP request URLs.
 
+The response includes ``already-have`` and ``allocated`` for two reasons:
+
+* If an upload is interrupted and the client loses its local state that lets it know it already uploaded some shares
+  then this allows it to discover this fact (by inspecting ``already-have``) and only upload the missing shares (indicated by ``allocated``).
+
+* If an upload has completed a client may still choose to re-balance storage by moving shares between servers.
+  This might be because a server has become unavailable and a remaining server needs to store more shares for the upload.
+  It could also just be that the client's preferred servers have changed.
+
 ``PUT /v1/immutable/:storage_index/:share_number``
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
