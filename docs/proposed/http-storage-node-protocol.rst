@@ -422,6 +422,15 @@ However, we decided this does not matter because:
   therefore no proxy servers can perform any extra logging.
 * Tahoe-LAFS itself does not currently log HTTP request URLs.
 
+The response includes ``already-have`` and ``allocated`` for two reasons:
+
+* If an upload is interrupted and the client loses its local state that lets it know it already uploaded some shares
+  then this allows it to discover this fact (by inspecting ``already-have``) and only upload the missing shares (indicated by ``allocated``).
+
+* If an upload has completed a client may still choose to re-balance storage by moving shares between servers.
+  This might be because a server has become unavailable and a remaining server needs to store more shares for the upload.
+  It could also just be that the client's preferred servers have changed.
+
 ``PUT /v1/immutable/:storage_index/:share_number``
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
@@ -575,6 +584,136 @@ Just like ``GET /v1/mutable/:storage_index``.
 
 Advise the server the data read from the indicated share was corrupt.
 Just like the immutable version.
+
+Sample Interactions
+-------------------
+
+Immutable Data
+~~~~~~~~~~~~~~
+
+1. Create a bucket for storage index ``AAAAAAAAAAAAAAAA`` to hold two immutable shares, discovering that share ``1`` was already uploaded::
+
+     POST /v1/immutable/AAAAAAAAAAAAAAAA
+     {"renew-secret": "efgh", "cancel-secret": "ijkl",
+      "share-numbers": [1, 7], "allocated-size": 48}
+
+     200 OK
+     {"already-have": [1], "allocated": [7]}
+
+#. Upload the content for immutable share ``7``::
+
+     PUT /v1/immutable/AAAAAAAAAAAAAAAA/7
+     Content-Range: bytes 0-15/48
+     <first 16 bytes of share data>
+
+     200 OK
+
+     PUT /v1/immutable/AAAAAAAAAAAAAAAA/7
+     Content-Range: bytes 16-31/48
+     <second 16 bytes of share data>
+
+     200 OK
+
+     PUT /v1/immutable/AAAAAAAAAAAAAAAA/7
+     Content-Range: bytes 32-47/48
+     <final 16 bytes of share data>
+
+     201 CREATED
+
+#. Download the content of the previously uploaded immutable share ``7``::
+
+     GET /v1/immutable/AAAAAAAAAAAAAAAA?share=7&offset=0&size=48
+
+     200 OK
+     <complete 48 bytes of previously uploaded data>
+
+#. Renew the lease on all immutable shares in bucket ``AAAAAAAAAAAAAAAA``::
+
+     POST /v1/lease/AAAAAAAAAAAAAAAA
+     {"renew-secret": "efgh"}
+
+     204 NO CONTENT
+
+Mutable Data
+~~~~~~~~~~~~
+
+1. Create mutable share number ``3`` with ``10`` bytes of data in slot ``BBBBBBBBBBBBBBBB``::
+
+     POST /v1/mutable/BBBBBBBBBBBBBBBB/read-test-write
+     {
+         "secrets": {
+             "write-enabler": "abcd",
+             "lease-renew": "efgh",
+             "lease-cancel": "ijkl"
+         },
+         "test-write-vectors": {
+             3: {
+                 "test": [{
+                     "offset": 0,
+                     "size": 1,
+                     "operator": "eq",
+                     "specimen": ""
+                 }],
+                 "write": [{
+                     "offset": 0,
+                     "data": "xxxxxxxxxx"
+                 }],
+                 "new-length": 10
+             }
+         },
+         "read-vector": []
+     }
+
+     200 OK
+     {
+         "success": true,
+         "data": []
+     }
+
+#. Safely rewrite the contents of a known version of mutable share number ``3`` (or fail)::
+
+     POST /v1/mutable/BBBBBBBBBBBBBBBB/read-test-write
+     {
+         "secrets": {
+             "write-enabler": "abcd",
+             "lease-renew": "efgh",
+             "lease-cancel": "ijkl"
+         },
+         "test-write-vectors": {
+             3: {
+                 "test": [{
+                     "offset": 0,
+                     "size": <checkstring size>,
+                     "operator": "eq",
+                     "specimen": "<checkstring>"
+                 }],
+                 "write": [{
+                     "offset": 0,
+                     "data": "yyyyyyyyyy"
+                 }],
+                 "new-length": 10
+             }
+         },
+         "read-vector": []
+     }
+
+     200 OK
+     {
+         "success": true,
+         "data": []
+     }
+
+#. Download the contents of share number ``3``::
+
+     GET /v1/mutable/BBBBBBBBBBBBBBBB?share=3&offset=0&size=10
+     <complete 16 bytes of previously uploaded data>
+
+#. Renew the lease on previously uploaded mutable share in slot ``BBBBBBBBBBBBBBBB``::
+
+     POST /v1/lease/BBBBBBBBBBBBBBBB
+     {"renew-secret": "efgh"}
+
+     204 NO CONTENT
 
 .. _RFC 7469: https://tools.ietf.org/html/rfc7469#section-2.4
 
