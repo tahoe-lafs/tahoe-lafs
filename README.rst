@@ -1,5 +1,5 @@
 ======================================
-Free and Open decentralized data store
+Free and Open Decentralized Data Store
 ======================================
 
 |image0|
@@ -48,13 +48,10 @@ Please read more about Tahoe-LAFS architecture `here <docs/architecture.rst>`__.
 ✅ Installation
 ---------------
 
-For more detailed instructions, read `docs/INSTALL.rst <docs/INSTALL.rst>`__ .
+For more detailed instructions, read `Installing Tahoe-LAFS <docs/Installation/install-tahoe.rst>`__.
 
--  `Building Tahoe-LAFS on Windows <docs/windows.rst>`__
 
--  `OS-X Packaging <docs/OS-X.rst>`__
-
-Once tahoe --version works, see `docs/running.rst <docs/running.rst>`__ to learn how to set up your first Tahoe-LAFS node.
+Once ``tahoe --version`` works, see `How to Run Tahoe-LAFS <docs/running.rst>`__ to learn how to set up your first Tahoe-LAFS node.
 
 
 🤖 Issues
