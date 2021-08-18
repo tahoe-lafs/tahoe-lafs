@@ -3181,20 +3181,15 @@ class IImmutableStorageClient(Interface):
         https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3763
         """
 
-    # TODO all wrong, code expects the low-level interface!
-    def upload_share(storage_index, share_number, share_file, timeout=None):
-        # type: (bytes, int, BinaryIO, Optional[int]) -> Deferred[None]
+    def write_share_chunk(storage_index, share_number, offset, data):
+        # type: (bytes, int, int, bytes) -> Deferred[bool]
         """
-        Upload a specific share.
+        Upload a chunk of data for a specific share.
 
-        The ``share_file`` is expected to be readable and seekable; it cannot
-        be a streaming file-like object without seek.
+        The implementation can choose to retry failed uploads transparently.
 
-        The implementation is expected to retry failed uploads, break the
-        upload into chunks where relevant, etc..  All of this is is transparent
-        to the caller.  The timeout is for the overall upload process.
-
-        Result fires when the upload succeeded.
+        Result fires when the upload succeeded, with a boolean indiciating
+        whether the complete share has been uploaded.
         """
 
     def notify_share_corrupted(storage_index, share_number, reason):
@@ -3211,20 +3206,15 @@ class IImmutableStorageClient(Interface):
         Return the shares numbers for a particular storage index.
         """
 
-    # TODO all wrong, code expects the low-level interface!
-    def download_shares(storage_index, share_numbers):
-        # type: (bytes, List[int]) -> Deferred[Dict[int,Union[BytesIO,Exception]]
+    def read_share_chunk(storage_index, share_number, offset, length):
+        # type: (bytes, int, int, int) -> Deferred[bytes]
         """
-        Download one or more shares.
+        Download a chunk of data from a share.
 
-        TODO match type?  Is type wrong?  The ``share_files`` parameter is a
-        mapping between share numbers to download, and the corresponding
-        writeable file-like objects where the download data should be written.
-        The file-like objects should be seekable.
-
-        Failed downloads should be retried and redownloaded by the
+        Failed downloads may be transparently retried and redownloaded by the
         implementation.
 
-        If share numbers don't exist Result fires when the operation succeeded,
-        with the shares that
+        Note that the underlying HTTP protocol is much more flexible than this
+        API, so a future refactor may expand this in order to simplify the
+        calling code and perhaps download data more efficiently.
         """
