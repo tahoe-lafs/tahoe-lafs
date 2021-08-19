@@ -965,17 +965,6 @@ class _StorageServer(object):
             cancel_secret,
         )
 
-    def renew_lease(
-            self,
-            storage_index,
-            renew_secret,
-    ):
-        return self._rref.callRemote(
-            "renew_lease",
-            storage_index,
-            renew_secret,
-        )
-
     def get_buckets(
             self,
             storage_index,
