@@ -369,19 +369,26 @@ For example::
 ``PUT /v1/lease/:storage_index``
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-Either renew or create a new lease that applies to all shares for the given storage index.
+Either renew or create a new lease on the bucket addressed by ``storage_index``.
 The details of the lease are encoded in the request body.
 For example::
 
   {"renew-secret": "abcd", "cancel-secret": "efgh"}
 
-If there are no shares for the given ``storage_index``
-then do nothing and return ``NO CONTENT``.
-
 If the ``renew-secret`` value matches an existing lease
-then that lease will be renewed instead.
+then the expiration time of that lease will be changed to 31 days after the time of this operation.
+If it does not match an existing lease
+then a new lease will be created with this ``renew-secret`` which expires 31 days after the time of this operation.
 
-The lease expires after 31 days.
+In these cases the response is ``NO CONTENT`` with an empty body.
+
+It is possible that the storage server will have no shares for the given ``storage_index`` because:
+
+* no such shares have ever been uploaded.
+* a previous lease expired and the storage server reclaimed the storage by deleting the shares.
+
+In these cases the server takes no action and returns ``NOT FOUND``.
+
 
 Discussion
 ``````````
@@ -391,7 +398,7 @@ We chose to put these values into the request body to make the URL simpler.
 
 Several behaviors here are blindly copied from the Foolscap-based storage server protocol.
 
-* There is a cancel secret but there is no API to use it to cancel a lease.
+* There is a cancel secret but there is no API to use it to cancel a lease (see ticket:3768).
 * The lease period is hard-coded at 31 days.
 * There is no way to differentiate between success and an unknown **storage index**.
 
