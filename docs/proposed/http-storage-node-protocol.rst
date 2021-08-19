@@ -400,7 +400,6 @@ Several behaviors here are blindly copied from the Foolscap-based storage server
 
 * There is a cancel secret but there is no API to use it to cancel a lease (see ticket:3768).
 * The lease period is hard-coded at 31 days.
-* There is no way to differentiate between success and an unknown **storage index**.
 
 These are not necessarily ideal behaviors
 but they are adopted to avoid any *semantic* changes between the Foolscap- and HTTP-based protocols.
