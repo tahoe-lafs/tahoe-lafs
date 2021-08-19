@@ -49,6 +49,9 @@ from allmydata.storage.expirer import LeaseCheckingCrawler
 NUM_RE=re.compile("^[0-9]+$")
 
 
+# Number of seconds to add to expiration time on lease renewal:
+DEFAULT_RENEWAL_TIME = 31 * 24 * 60 * 60
+
 
 @implementer(RIStorageServer, IStatsProducer)
 class StorageServer(service.MultiService, Referenceable):
@@ -279,7 +282,7 @@ class StorageServer(service.MultiService, Referenceable):
         # goes into the share files themselves. It could also be put into a
         # separate database. Note that the lease should not be added until
         # the BucketWriter has been closed.
-        expire_time = self._get_current_time() + 31*24*60*60
+        expire_time = self._get_current_time() + DEFAULT_RENEWAL_TIME
         lease_info = LeaseInfo(owner_num,
                                renew_secret, cancel_secret,
                                expire_time, self.my_nodeid)
