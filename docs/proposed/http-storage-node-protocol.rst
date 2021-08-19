@@ -409,27 +409,17 @@ It is expected that some or all of these behaviors may change in a future revisi
 ``POST /v1/lease/:storage_index``
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-Renew an existing lease for all shares for the given storage index.
+Renew an existing lease on the bucket addressed by ``storage_index``.
 The details of the lease are encoded in the request body.
 For example::
 
   {"renew-secret": "abcd"}
 
-If there are no shares for the given ``storage_index``
-then ``NOT FOUND`` is returned.
-
-If there is no lease with a matching ``renew-secret`` value on the given storage index
-then ``NOT FOUND`` is returned.
-In this case,
-if the storage index refers to mutable data
-then the response also includes a list of nodeids where the lease can be renewed.
-For example::
-
-  {"nodeids": ["aaa...", "bbb..."]}
-
-Othewise,
-the matching lease's expiration time is changed to be 31 days from the time of this operation
+If the ``renew-secret`` value matches an existing lease
+then the matching lease's expiration time is changed to be 31 days from the time of this operation
 and ``NO CONTENT`` is returned.
+
+All of the error cases which apply to ``PUT /v1/lease/:storage_index`` also apply here.
 
 Immutable
 ---------
