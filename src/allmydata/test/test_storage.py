@@ -1418,7 +1418,6 @@ class MutableServer(unittest.TestCase):
                      self.cancel_secret(b"we1-%d" % n) )
         data = b"".join([ (b"%d" % i) * 10 for i in range(10) ])
         write = ss.remote_slot_testv_and_readv_and_writev
-        read = ss.remote_slot_readv
         write_enabler, renew_secret, cancel_secret = secrets(0)
         rc = write(b"si1", (write_enabler, renew_secret, cancel_secret),
                    {0: ([], [(0,data)], None)}, [])
