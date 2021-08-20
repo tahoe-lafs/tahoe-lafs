@@ -650,8 +650,8 @@ Immutable Data
 
 #. Renew the lease on all immutable shares in bucket ``AAAAAAAAAAAAAAAA``::
 
-     POST /v1/lease/AAAAAAAAAAAAAAAA
-     {"renew-secret": "efgh"}
+     PUT /v1/lease/AAAAAAAAAAAAAAAA
+     {"renew-secret": "efgh", "cancel-secret": "ijkl"}
 
      204 NO CONTENT
 
@@ -731,8 +731,8 @@ Mutable Data
 
 #. Renew the lease on previously uploaded mutable share in slot ``BBBBBBBBBBBBBBBB``::
 
-     POST /v1/lease/BBBBBBBBBBBBBBBB
-     {"renew-secret": "efgh"}
+     PUT /v1/lease/BBBBBBBBBBBBBBBB
+     {"renew-secret": "efgh", "cancel-secret": "ijkl"}
 
      204 NO CONTENT
 
