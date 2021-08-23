@@ -17,7 +17,7 @@ if PY2:
     from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, pow, round, super, range, max, min  # noqa: F401
 
 try:
-    from typing import List, Dict
+    from typing import List, Dict, Set
 except ImportError:
     # Python 2
     pass
@@ -3125,8 +3125,8 @@ class IAddressFamily(Interface):
 @attr.s
 class ImmutableCreateResult(object):
     """Result of creating a storage index for an immutable."""
-    already_have = attr.ib(type=int)
-    allocated = attr.ib(type=int)
+    already_have = attr.ib(type=Set[int])
+    allocated = attr.ib(type=Set[int])
 
 
 @attr.s
