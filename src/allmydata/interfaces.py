@@ -22,6 +22,7 @@ except ImportError:
     # Python 2
     pass
 
+from enum import Enum
 from past.builtins import long
 
 import attr
@@ -97,7 +98,7 @@ class RIBucketReader(RemoteInterface):
         """
 
 
-TestVector = ListOf(TupleOf(Offset, ReadSize, bytes, bytes))
+TestVectorFoolscapType = ListOf(TupleOf(Offset, ReadSize, bytes, bytes))
 # elements are (offset, length, operator, specimen)
 # operator is one of "lt, le, eq, ne, ge, gt"
 # nop always passes and is used to fetch data while writing.
@@ -105,13 +106,13 @@ TestVector = ListOf(TupleOf(Offset, ReadSize, bytes, bytes))
 DataVector = ListOf(TupleOf(Offset, ShareData))
 # (offset, data). This limits us to 30 writes of 1MiB each per call
 TestAndWriteVectorsForShares = DictOf(int,
-                                      TupleOf(TestVector,
+                                      TupleOf(TestVectorFoolscapType,
                                               DataVector,
                                               ChoiceOf(None, Offset), # new_length
                                               ))
-ReadVector = ListOf(TupleOf(Offset, ReadSize))
+ReadVectorFoolscapType = ListOf(TupleOf(Offset, ReadSize))
 ReadData = ListOf(ShareData)
-# returns data[offset:offset+length] for each element of TestVector
+# returns data[offset:offset+length] for each element of TestVectorFoolscapType
 
 
 class RIStorageServer(RemoteInterface):
@@ -182,7 +183,7 @@ class RIStorageServer(RemoteInterface):
 
 
     def slot_readv(storage_index=StorageIndex,
-                   shares=ListOf(int), readv=ReadVector):
+                   shares=ListOf(int), readv=ReadVectorFoolscapType):
         """Read a vector from the numbered shares associated with the given
         storage index. An empty shares list means to return data from all
         known shares. Returns a dictionary with one key per share."""
@@ -193,7 +194,7 @@ class RIStorageServer(RemoteInterface):
                                                         LeaseRenewSecret,
                                                         LeaseCancelSecret),
                                         tw_vectors=TestAndWriteVectorsForShares,
-                                        r_vector=ReadVector,
+                                        r_vector=ReadVectorFoolscapType,
                                         ):
         """
         General-purpose test-read-and-set operation for mutable slots:
@@ -3128,6 +3129,56 @@ class ImmutableCreateResult(object):
     allocated = attr.ib(type=int)
 
 
+@attr.s
+class WriteVector(object):
+    """Data to write to a chunk."""
+    offset = attr.ib(type=int)
+    data = attr.ib(type=bytes)
+
+
+class TestVectorOperator(Enum):
+    """Possible operators for test vectors."""
+    LT = b"lt"
+    LE = b"le"
+    EQ = b"eq"
+    NE = b"ne"
+    GE = b"ge"
+    GT = b"gt"
+
+
+@attr.s
+class TestVector(object):
+    """Checks to make on a chunk before writing to it."""
+    offset = attr.ib(type=int)
+    size = attr.ib(type=int)
+    operator = attr.ib(type=TestVectorOperator)
+    specimen = attr.ib(type=bytes)
+
+
+@attr.s
+class ReadVector(object):
+    """Reads to do on chunks operated on by the test/write vectors."""
+    offset = attr.ib(type=int)
+    size = attr.ib(type=int)
+
+
+@attr.s
+class TestWriteVectors(object):
+    """Test and write vectors for a specific share."""
+    test_vectors = attr.ib(type=List[TestVector])
+    write_vectors = attr.ib(type=List[WriteVector])
+    new_length = attr.ib(type=int)
+
+
+@attr.s
+class ReadTestWriteResult(object):
+    """Result of sending read-test-write vectors."""
+    success = attr.ib(type=bool)
+    # Map share numbers to reads corresponding to the request's list of
+    # ReadVectors:
+    data = attr.ib(type=Dict[int, List[bytes]])
+
+
 class IStorageClientV2(Interface):
     """
     An improved interface for talking to the storage client, specifically for
@@ -3205,6 +3256,53 @@ class IStorageClientV2(Interface):
         """
 
     def immutable_read_share_chunk(storage_index, share_number, offset, length):
+        # type: (bytes, int, int, int) -> Deferred[bytes]
+        """
+        Download a chunk of data from a share.
+
+        Failed downloads may be transparently retried and redownloaded by the
+        implementation.
+
+        NOTE: the underlying HTTP protocol is much more flexible than this API,
+        so a future refactor may expand this in order to simplify the calling
+        code and perhaps download data more efficiently.  But then again maybe
+        the HTTP protocol will be simplified, see
+        https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3777
+        """
+
+    def mutable_read_test_write_chunks(
+            storage_index, write_enabled_secret, lease_renew_secret,
+            lease_cancel_secret, testwrite_vectors, read_vector
+    ):
+        # type: (bytes, bytes, bytes, bytes, Dict[int,TestWriteVectors], List[ReadVector]) -> Deferred[ReadTestWriteResult]
+        """
+        Read, test, and possibly write chunks to a particular mutable storage
+        index.
+
+        Reads are done before writes.
+
+        Given a mapping between share numbers and test/write vectors, the tests
+        are done and if they are valid the writes are done.
+        """
+
+    def mutable_list_shares(storage_index):
+        # type: (bytes,) -> Deferred[List[int]]
+        """
+        Return the shares numbers for a particular storage index.
+
+        NOTE: Might change, see e.g.
+        https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3771
+        """
+
+    def mutable_notify_share_corrupted(storage_index, share_number, reason):
+        # type: (bytes, int, str) -> Deferred[None]
+        """
+        Advise the server a particular share was corrupted.
+
+        Result fires when the operation succeeded.
+        """
+
+    def mutable_read_share_chunk(storage_index, share_number, offset, length):
         # type: (bytes, int, int, int) -> Deferred[bytes]
         """
         Download a chunk of data from a share.

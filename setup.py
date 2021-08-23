@@ -137,6 +137,9 @@ install_requires = [
 
     # Backported configparser for Python 2:
     "configparser ; python_version < '3.0'",
+
+    # Backported enum for Python 2:
+    "enum34 ; python_version < '3.0'",
 ]
 
 setup_requires = [

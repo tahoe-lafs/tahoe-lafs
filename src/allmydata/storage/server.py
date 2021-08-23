@@ -498,7 +498,7 @@ class StorageServer(service.MultiService, Referenceable):
         """
         Execute read vectors against share data.
 
-        :param read_vector: See ``allmydata.interfaces.ReadVector``.
+        :param read_vector: See ``allmydata.interfaces.ReadVectorFoolscapType``.
 
         :param dict[int, MutableShareFile] shares: The shares against which to
             execute the vector.
