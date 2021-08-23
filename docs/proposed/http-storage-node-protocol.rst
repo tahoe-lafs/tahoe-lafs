@@ -13,6 +13,47 @@ Specifically, it should be possible to implement a Tahoe-LAFS storage server wit
 The Tahoe-LAFS client will also need to change but it is not expected that it will be noticably simplified by this change
 (though this may be the first step towards simplifying it).
 
+Glossary
+--------
+
+.. glossary::
+
+   `Foolscap <https://github.com/warner/foolscap/>`_
+     an RPC/RMI (Remote Procedure Call / Remote Method Invocation) protocol for use with Twisted
+
+   storage server
+     a Tahoe-LAFS process configured to offer storage and reachable over the network for store and retrieve operations
+
+   introducer
+     a Tahoe-LAFS process at a known location configured to re-publish announcements about the location of storage servers
+
+   fURL
+     a self-authenticating URL-like string which can be used to locate a remote object using the Foolscap protocol
+
+   lease
+     state associated with a share informing a storage server of the duration of storage desired by a client
+
+   share
+     a single unit of client-provided arbitrary data to be stored by a storage server
+     (in practice, one of the outputs of applying ZFEC encoding to some ciphertext with some additional metadata attached)
+
+   bucket
+     a group of one or more immutable shares held by a storage server and having a common storage index
+
+   slot
+     a group of one or more mutable shares held by a storage server and having a common storage index
+     (sometimes "slot" is considered a synonym for "storage index of a slot")
+
+   storage index
+     a short string which can address a slot or a bucket
+     (in practice, derived by hashing the encryption key associated with contents of that slot or bucket)
+
+   write enabler
+     a short secret string which storage servers require to be presented before allowing mutation of any mutable share
+
+   lease renew secret
+     a short secret string which storage servers required to be presented before allowing a particular lease to be renewed
+
 Motivation
 ----------
 
@@ -328,19 +369,26 @@ For example::
 ``PUT /v1/lease/:storage_index``
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-Create a new lease that applies to all shares for the given storage index.
+Create a new lease on the bucket addressed by ``storage_index``.
 The details of the lease are encoded in the request body.
 For example::
 
   {"renew-secret": "abcd", "cancel-secret": "efgh"}
 
-If there are no shares for the given ``storage_index``
-then do nothing and return ``NO CONTENT``.
-
 If the ``renew-secret`` value matches an existing lease
-then that lease will be renewed instead.
+then the expiration time of that lease will be changed to 31 days after the time of this operation.
+If it does not match an existing lease
+then a new lease will be created with this ``renew-secret`` which expires 31 days after the time of this operation.
 
-The lease expires after 31 days.
+In these cases the response is ``NO CONTENT`` with an empty body.
+
+It is possible that the storage server will have no shares for the given ``storage_index`` because:
+
+* no such shares have ever been uploaded.
+* a previous lease expired and the storage server reclaimed the storage by deleting the shares.
+
+In these cases the server takes no action and returns ``NOT FOUND``.
+
 
 Discussion
 ``````````
@@ -350,10 +398,9 @@ We chose to put these values into the request body to make the URL simpler.
 
 Several behaviors here are blindly copied from the Foolscap-based storage server protocol.
 
-* There is a cancel secret but there is no API to use it to cancel a lease.
+* There is a cancel secret but there is no API to use it to cancel a lease (see ticket:3768).
 * The lease period is hard-coded at 31 days.
-* There is no way to differentiate between success and an unknown **storage index**.
-* There are separate **add** and **renew** lease APIs.
+* There are separate **add** and **renew** lease APIs (see ticket:3773).
 
 These are not necessarily ideal behaviors
 but they are adopted to avoid any *semantic* changes between the Foolscap- and HTTP-based protocols.
@@ -421,6 +468,15 @@ However, we decided this does not matter because:
 * the request is made via HTTPS and so only Tahoe-LAFS can see the contents,
   therefore no proxy servers can perform any extra logging.
 * Tahoe-LAFS itself does not currently log HTTP request URLs.
+
+The response includes ``already-have`` and ``allocated`` for two reasons:
+
+* If an upload is interrupted and the client loses its local state that lets it know it already uploaded some shares
+  then this allows it to discover this fact (by inspecting ``already-have``) and only upload the missing shares (indicated by ``allocated``).
+
+* If an upload has completed a client may still choose to re-balance storage by moving shares between servers.
+  This might be because a server has become unavailable and a remaining server needs to store more shares for the upload.
+  It could also just be that the client's preferred servers have changed.
 
 ``PUT /v1/immutable/:storage_index/:share_number``
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -575,6 +631,136 @@ Just like ``GET /v1/mutable/:storage_index``.
 
 Advise the server the data read from the indicated share was corrupt.
 Just like the immutable version.
+
+Sample Interactions
+-------------------
+
+Immutable Data
+~~~~~~~~~~~~~~
+
+1. Create a bucket for storage index ``AAAAAAAAAAAAAAAA`` to hold two immutable shares, discovering that share ``1`` was already uploaded::
+
+     POST /v1/immutable/AAAAAAAAAAAAAAAA
+     {"renew-secret": "efgh", "cancel-secret": "ijkl",
+      "share-numbers": [1, 7], "allocated-size": 48}
+
+     200 OK
+     {"already-have": [1], "allocated": [7]}
+
+#. Upload the content for immutable share ``7``::
+
+     PUT /v1/immutable/AAAAAAAAAAAAAAAA/7
+     Content-Range: bytes 0-15/48
+     <first 16 bytes of share data>
+
+     200 OK
+
+     PUT /v1/immutable/AAAAAAAAAAAAAAAA/7
+     Content-Range: bytes 16-31/48
+     <second 16 bytes of share data>
+
+     200 OK
+
+     PUT /v1/immutable/AAAAAAAAAAAAAAAA/7
+     Content-Range: bytes 32-47/48
+     <final 16 bytes of share data>
+
+     201 CREATED
+
+#. Download the content of the previously uploaded immutable share ``7``::
+
+     GET /v1/immutable/AAAAAAAAAAAAAAAA?share=7&offset=0&size=48
+
+     200 OK
+     <complete 48 bytes of previously uploaded data>
+
+#. Renew the lease on all immutable shares in bucket ``AAAAAAAAAAAAAAAA``::
+
+     POST /v1/lease/AAAAAAAAAAAAAAAA
+     {"renew-secret": "efgh"}
+
+     204 NO CONTENT
+
+Mutable Data
+~~~~~~~~~~~~
+
+1. Create mutable share number ``3`` with ``10`` bytes of data in slot ``BBBBBBBBBBBBBBBB``::
+
+     POST /v1/mutable/BBBBBBBBBBBBBBBB/read-test-write
+     {
+         "secrets": {
+             "write-enabler": "abcd",
+             "lease-renew": "efgh",
+             "lease-cancel": "ijkl"
+         },
+         "test-write-vectors": {
+             3: {
+                 "test": [{
+                     "offset": 0,
+                     "size": 1,
+                     "operator": "eq",
+                     "specimen": ""
+                 }],
+                 "write": [{
+                     "offset": 0,
+                     "data": "xxxxxxxxxx"
+                 }],
+                 "new-length": 10
+             }
+         },
+         "read-vector": []
+     }
+
+     200 OK
+     {
+         "success": true,
+         "data": []
+     }
+
+#. Safely rewrite the contents of a known version of mutable share number ``3`` (or fail)::
+
+     POST /v1/mutable/BBBBBBBBBBBBBBBB/read-test-write
+     {
+         "secrets": {
+             "write-enabler": "abcd",
+             "lease-renew": "efgh",
+             "lease-cancel": "ijkl"
+         },
+         "test-write-vectors": {
+             3: {
+                 "test": [{
+                     "offset": 0,
+                     "size": <checkstring size>,
+                     "operator": "eq",
+                     "specimen": "<checkstring>"
+                 }],
+                 "write": [{
+                     "offset": 0,
+                     "data": "yyyyyyyyyy"
+                 }],
+                 "new-length": 10
+             }
+         },
+         "read-vector": []
+     }
+
+     200 OK
+     {
+         "success": true,
+         "data": []
+     }
+
+#. Download the contents of share number ``3``::
+
+     GET /v1/mutable/BBBBBBBBBBBBBBBB?share=3&offset=0&size=10
+     <complete 16 bytes of previously uploaded data>
+
+#. Renew the lease on previously uploaded mutable share in slot ``BBBBBBBBBBBBBBBB``::
+
+     POST /v1/lease/BBBBBBBBBBBBBBBB
+     {"renew-secret": "efgh"}
+
+     204 NO CONTENT
 
 .. _RFC 7469: https://tools.ietf.org/html/rfc7469#section-2.4
 
