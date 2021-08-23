@@ -17,13 +17,14 @@ if PY2:
     from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, pow, round, super, range, max, min  # noqa: F401
 
 try:
-    from typing import List, Optional, BinaryIO
+    from typing import List, Dict
 except ImportError:
     # Python 2
     pass
 
 from past.builtins import long
 
+import attr
 from zope.interface import Interface, Attribute
 from twisted.plugin import (
     IPlugin,
@@ -3120,79 +3121,73 @@ class IAddressFamily(Interface):
         """
 
 
-class IImmutableStorageClient(Interface):
+@attr.s
+class ImmutableCreateResult(object):
+    """Result of creating a storage index for an immutable."""
+    already_have = attr.ib(type=int)
+    allocated = attr.ib(type=int)
+
+
+class IStorageClientV2(Interface):
     """
     An improved interface for talking to the storage client, specifically for
     immutable interactions.
 
-    Eventually this will replace ``RIStorageServer`` and related interfaces, as
-    part of replacing their use of Foolscap with an HTTP-based protocol.
+    This is an attempt to make a Python API that closely maps to the HTTP
+    protocol that will replace Foolscap for storage server interactions.
 
     This is a work in progress, see
     https://tahoe-lafs.org/trac/tahoe-lafs/milestone/HTTP%20Storage%20Protocol
     for status.
     """
+    def get_version():
+        # type: () -> Deferred[Dict]
+        """
+        Return the version info for the server, ala ``RIStorageServer.get_version``.
+
+        NOTE: Specific format details TBD.
+        https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3762
+        """
 
     def add_lease(storage_index, renew_secret, cancel_secret):
         # type: (bytes, bytes, bytes) -> Deferred[None]
         """
-        Create a new lease on all shares for the given storage index.
+        Create a new lease or renew an existing lease on all shares for the
+        given storage index.
 
         Result fires when creating the lease succeeded, if creating the lease
         failed the result will fire with an exception.
-
-        NOTE: This is likely to change as the spec design improves, see e.g.
-        https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3763
         """
 
-    def renew_lease(storage_index, renew_secret):
-        # type: (bytes, bytes) -> Deferred[None]
+    def immutable_create(storage_index, share_numbers, allocated_size,
+                         lease_renew_secret, lease_cancel_secret):
+        # type: (bytes, List[int], int, bytes, bytes) -> Deferred[ImmutableCreateResult]
         """
-        Renew a lease.
-
-        If something something mutable something something the nodeids will be
-        renewed automatically (which will involve more HTTP requests in the
-        underlying API).
-
-        Result fires when creating the lease succeeded, if creating the lease
-        failed the result will fire with an exception.
-
-        NOTE: This is likely to change as the spec design improves, see e.g.
-        https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3763
-        """
-
-    def create_storage_index(storage_index, share_numbers, allocated_size,
-                             lease_renew_secret, lease_cancel_secret):
-        # type: (bytes, List[int], int, bytes, bytes) -> Deferred[None]
-        """
-        Create a new storage index.
+        Create a new storage index for an immutable.
 
         The implementation is expected to retry internally on failure, to
         ensure the operation fully succeeded.  If sufficient number of failures
         occurred, the result may fire with an error, but there's no expectation
         that user code needs to have a recovery codepath; it will most likely
-        just report error to the user.
+        just report an error to the user.
 
         Result fires when creating the storage index succeeded, if creating the
         storage index failed the result will fire with an exception.
-
-        NOTE: The cancel/renew secret part for leases is likely to change as
-        the spec design improves, see e.g.
-        https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3763
         """
 
-    def write_share_chunk(storage_index, share_number, offset, data):
+    def immutable_write_share_chunk(storage_index, share_number, offset, data):
         # type: (bytes, int, int, bytes) -> Deferred[bool]
         """
         Upload a chunk of data for a specific share.
 
         The implementation can choose to retry failed uploads transparently.
 
-        Result fires when the upload succeeded, with a boolean indiciating
-        whether the complete share has been uploaded.
+        Result fires when the upload succeeded, with a boolean indicating
+        whether the _complete_ share (i.e. all chunks, not just this one) has
+        been uploaded.
         """
 
-    def notify_share_corrupted(storage_index, share_number, reason):
+    def immutable_notify_share_corrupted(storage_index, share_number, reason):
         # type: (bytes, int, str) -> Deferred[None]
         """
         Advise the server a particular share was corrupted.
@@ -3200,13 +3195,16 @@ class IImmutableStorageClient(Interface):
         Result fires when the operation succeeded.
         """
 
-    def list_shares(storage_index):
+    def immutable_list_shares(storage_index):
         # type: (bytes,) -> Deferred[List[int]]
         """
         Return the shares numbers for a particular storage index.
+
+        NOTE: Might change, see e.g.
+        https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3771
         """
 
-    def read_share_chunk(storage_index, share_number, offset, length):
+    def immutable_read_share_chunk(storage_index, share_number, offset, length):
         # type: (bytes, int, int, int) -> Deferred[bytes]
         """
         Download a chunk of data from a share.
@@ -3214,7 +3212,9 @@ class IImmutableStorageClient(Interface):
         Failed downloads may be transparently retried and redownloaded by the
         implementation.
 
-        Note that the underlying HTTP protocol is much more flexible than this
-        API, so a future refactor may expand this in order to simplify the
-        calling code and perhaps download data more efficiently.
+        NOTE: the underlying HTTP protocol is much more flexible than this API,
+        so a future refactor may expand this in order to simplify the calling
+        code and perhaps download data more efficiently.  But then again maybe
+        the HTTP protocol will be simplified, see
+        https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3777
         """
