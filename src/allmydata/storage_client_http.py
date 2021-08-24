@@ -50,6 +50,28 @@ class _ClientV2BucketWriter(object):
         return succeed(None)
 
 
+@attr.s
+class _ClientV2BucketReader(object):
+    """
+    Emulate a ``RIBucketReader``.
+    """
+    client = attr.ib(type=IStorageClientV2)
+    storage_index = attr.ib(type=bytes)
+    share_number = attr.ib(type=int)
+
+    def read(self, offset, length):
+        self.client.immutable_read_share_chunk(
+            self.storage_index, self.share_number, offset, length
+        )
+
+    def advise_corrupt_share(self, reason):
+        # Convert to unicode, let's just assume it's UTF-8 this week.
+        reason = str(reason, "utf-8", errors="backslashreplace")
+        return self.client.immutable_notify_share_corrupted(
+            self.storage_index, self.share_number, reason
+        )
+
+
 @implementer(IStorageServer)
 class _AdaptStorageClientV2(object):
     """
@@ -90,3 +112,31 @@ class _AdaptStorageClientV2(object):
                 for share_num in result.allocated
              }
         )
+    @inlineCallbacks
+    def get_buckets(self, storage_index):
+        share_numbers = yield self._client.immutable_list_shares(
+            storage_index
+        )
+        returnValue({
+            share_num: _ClientV2BucketReader(
+                self._client, storage_index, share_num
+            )
+            for share_num in share_numbers
+        })
+
+    @inlineCallbacks
+    def slot_readv(self, storage_index, shares, readv):
+        reads = {}
+        for share_number in shares:
+            share_reads = reads[share_number] = []
+            for (offset, length) in readv:
+                d = self._client.mutable.read_share_chunk(
+                    storage_index, share_number, offset, length
+                )
+                share_reads.append(d)
+        result = {
+            share_number: [(yield d) for d in share_reads]
+            for (share_number, reads) in reads.items()
+        }
+        returnValue(result)
+
