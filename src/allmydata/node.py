@@ -793,7 +793,7 @@ def _tub_portlocation(config, get_local_addresses_sync, allocate_tcp_port):
         tubport = _convert_tub_port(cfg_tubport)
 
     for port in tubport.split(","):
-        if port in ("0", "tcp:0"):
+        if port in ("0", "tcp:0", "tcp:port=0", "tcp:0:interface=127.0.0.1"):
             raise PortAssignmentRequired()
 
     if cfg_location is None:
