@@ -15,7 +15,11 @@ import attr
 from zope.interface import implementer
 from twisted.internet.defer import inlineCallbacks, returnValue, Deferred, succeed
 
-from .interfaces import IStorageClientV2, IStorageServer
+from .interfaces import (
+    IStorageClientV2, IStorageServer,
+    TestVector, ReadVector, TestWriteVectors,
+    TestVectorOperator, WriteVector,
+)
 
 
 @attr.s
@@ -65,7 +69,6 @@ class _ClientV2BucketReader(object):
         )
 
     def advise_corrupt_share(self, reason):
-        # Convert to unicode, let's just assume it's UTF-8 this week.
         reason = str(reason, "utf-8", errors="backslashreplace")
         return self.client.immutable_notify_share_corrupted(
             self.storage_index, self.share_number, reason
@@ -112,6 +115,12 @@ class _AdaptStorageClientV2(object):
                 for share_num in result.allocated
              }
         )
+
+    def add_lease(self, storage_index, renew_secret, cancel_secret):
+        return self._client.add_lease(
+            storage_index, renew_secret, cancel_secret
+        )
+
     @inlineCallbacks
     def get_buckets(self, storage_index):
         share_numbers = yield self._client.immutable_list_shares(
@@ -140,3 +149,45 @@ class _AdaptStorageClientV2(object):
         }
         returnValue(result)
 
+    def slot_testv_and_readv_and_writev(
+            self,
+            storage_index,
+            secrets,
+            tw_vectors,
+            r_vector,
+    ):
+        we_secret, lr_secret, lc_secret = secrets
+        client_tw_vectors = {}
+        for share_num, (test_vector, data_vector, new_length) in tw_vectors.items():
+            assert new_length is not None, "Protocol in theory supports it, actual code seems not to"
+            client_test_vectors = [
+                TestVector(offset, size, TestVectorOperator[op], specimen)
+                for (offset, size, op, specimen) in test_vector
+            ]
+            client_write_vectors = [
+                WriteVector(offset, data) for (offset, data) in data_vector
+            ]
+            client_tw_vectors[share_num] = TestWriteVectors(
+                test_vectors=client_test_vectors,
+                write_vectors=client_write_vectors,
+                new_length=new_length
+            )
+        client_read_vectors = [
+            ReadVector(offset=offset, size=size)
+            for (offset, size) in r_vector
+        ]
+        client_result = yield self._client.mutable_read_test_write_chunk(
+            storage_index, we_secret, lr_secret, lc_secret, client_tw_vectors,
+            client_read_vectors,
+        )
+        returnValue((client_result.success, client_result.reads))
+
+    def advise_corrupt_share(self, share_type, storage_index, shnum, reason):
+        reason = str(reason, "utf-8", errors="backslashreplace")
+        if share_type == b"mutable":
+            advise = self._client.mutable_notify_shared_corrupted
+        elif share_type == b"immutable":
+            advise = self._client.immutable_notify_shared_corrupted
+        else:
+            raise ValueError("Bad share_type: {!r}".format(share_type))
+        return advise(storage_index, shnum, reason)

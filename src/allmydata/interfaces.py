@@ -3176,7 +3176,7 @@ class ReadTestWriteResult(object):
     success = attr.ib(type=bool)
     # Map share numbers to reads corresponding to the request's list of
     # ReadVectors:
-    data = attr.ib(type=Dict[int, List[bytes]])
+    reads = attr.ib(type=Dict[int, List[bytes]])
 
 
 class IStorageClientV2(Interface):
