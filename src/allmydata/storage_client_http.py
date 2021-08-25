@@ -22,8 +22,19 @@ from .interfaces import (
 )
 
 
+class _FakeRemoteReference(object):
+    """Emulate a Foolscap RemoteReference."""
+
+    def callRemote(self, action, *args, **kwargs):
+        return getattr(self, action)(*args, **kwargs)
+
+    def callRemoteOnly(self, action, *args, **kwargs):
+        getattr(self, action)(*args, **kwargs)
+        return None
+
+
 @attr.s
-class _ClientV2BucketWriter(object):
+class _ClientV2BucketWriter(_FakeRemoteReference):
     """
     Emulate a ``RIBucketWriter``.
     """
@@ -55,7 +66,7 @@ class _ClientV2BucketWriter(object):
 
 
 @attr.s
-class _ClientV2BucketReader(object):
+class _ClientV2BucketReader(_FakeRemoteReference):
     """
     Emulate a ``RIBucketReader``.
     """
