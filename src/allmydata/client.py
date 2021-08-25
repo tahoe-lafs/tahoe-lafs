@@ -123,7 +123,6 @@ _client_config = configutil.ValidConfiguration(
         ),
         "sftpd": (
             "accounts.file",
-            "accounts.url",
             "enabled",
             "host_privkey_file",
             "host_pubkey_file",
@@ -949,7 +948,8 @@ class _Client(node.Node, pollmixin.PollMixin):
         random data in "api_auth_token" which must be echoed to API
         calls.
         """
-        return self.config.get_private_config('api_auth_token')
+        return self.config.get_private_config(
+            'api_auth_token').encode("ascii")
 
     def _create_auth_token(self):
         """
@@ -1062,13 +1062,12 @@ class _Client(node.Node, pollmixin.PollMixin):
             accountfile = self.config.get_config("sftpd", "accounts.file", None)
             if accountfile:
                 accountfile = self.config.get_config_path(accountfile)
-            accounturl = self.config.get_config("sftpd", "accounts.url", None)
             sftp_portstr = self.config.get_config("sftpd", "port", "tcp:8022")
             pubkey_file = self.config.get_config("sftpd", "host_pubkey_file")
             privkey_file = self.config.get_config("sftpd", "host_privkey_file")
 
             from allmydata.frontends import sftpd
-            s = sftpd.SFTPServer(self, accountfile, accounturl,
+            s = sftpd.SFTPServer(self, accountfile,
                                  sftp_portstr, pubkey_file, privkey_file)
             s.setServiceParent(self)
 

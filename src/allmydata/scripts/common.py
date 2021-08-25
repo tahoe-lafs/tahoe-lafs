@@ -1,7 +1,20 @@
 # coding: utf-8
 
+"""
+Ported to Python 3.
+"""
+
+from __future__ import unicode_literals
+from __future__ import absolute_import
+from __future__ import division
 from __future__ import print_function
-from six import ensure_str
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+else:
+    from typing import Union
+
 
 import os, sys, textwrap
 import codecs
@@ -18,15 +31,10 @@ from yaml import (
     safe_dump,
 )
 
-# Python 2 compatibility
-from future.utils import PY2
-if PY2:
-    from future.builtins import str  # noqa: F401
-
 from twisted.python import usage
 
 from allmydata.util.assertutil import precondition
-from allmydata.util.encodingutil import unicode_to_url, quote_output, \
+from allmydata.util.encodingutil import quote_output, \
     quote_local_unicode_path, argv_to_abspath
 from allmydata.scripts.default_nodedir import _default_nodedir
 
@@ -274,18 +282,27 @@ def get_alias(aliases, path_unicode, default):
     return uri.from_string_dirnode(aliases[alias]).to_string(), path[colon+1:]
 
 def escape_path(path):
-    # type: (str) -> str
+    # type: (Union[str,bytes]) -> str
     u"""
     Return path quoted to US-ASCII, valid URL characters.
 
     >>> path = u'/føö/bar/☃'
     >>> escaped = escape_path(path)
-    >>> str(escaped)
-    '/f%C3%B8%C3%B6/bar/%E2%98%83'
-    >>> escaped.encode('ascii').decode('ascii') == escaped
-    True
+    >>> escaped
+    u'/f%C3%B8%C3%B6/bar/%E2%98%83'
     """
-    segments = path.split("/")
-    result = "/".join([urllib.parse.quote(unicode_to_url(s)) for s in segments])
-    result = ensure_str(result, "ascii")
+    if isinstance(path, str):
+        path = path.encode("utf-8")
+    segments = path.split(b"/")
+    result = str(
+        b"/".join([
+            urllib.parse.quote(s).encode("ascii") for s in segments
+        ]),
+        "ascii"
+    )
+    # Eventually (i.e. as part of Python 3 port) we want this to always return
+    # Unicode strings. However, to reduce diff sizes in the short term it'll
+    # return native string (i.e. bytes) on Python 2.
+    if PY2:
+        result = result.encode("ascii").__native__()
     return result

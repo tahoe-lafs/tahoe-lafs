@@ -90,6 +90,7 @@ from allmydata.util.time_format import (
 )
 from allmydata.util.encodingutil import (
     quote_output,
+    quote_output_u,
     to_bytes,
 )
 from allmydata.util import abbreviate
@@ -324,7 +325,7 @@ def humanize_exception(exc):
         return ("There was already a child by that name, and you asked me "
                 "to not replace it.", http.CONFLICT)
     if isinstance(exc, NoSuchChildError):
-        quoted_name = quote_output(exc.args[0], encoding="utf-8", quotemarks=False)
+        quoted_name = quote_output_u(exc.args[0], quotemarks=False)
         return ("No such child: %s" % quoted_name, http.NOT_FOUND)
     if isinstance(exc, NotEnoughSharesError):
         t = ("NotEnoughSharesError: This indicates that some "

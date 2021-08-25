@@ -1,12 +1,12 @@
 """
-Ported to Python 3, partially: test_filesystem* will be done in a future round.
+Ported to Python 3.
 """
 from __future__ import print_function
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import unicode_literals
 
-from future.utils import PY2, PY3
+from future.utils import PY2
 if PY2:
     # Don't import bytes since it causes issues on (so far unported) modules on Python 2.
     from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, dict, list, object, range, max, min, str  # noqa: F401
@@ -16,7 +16,6 @@ from six import ensure_text, ensure_str
 
 import os, re, sys, time, json
 from functools import partial
-from unittest import skipIf
 
 from bs4 import BeautifulSoup
 
@@ -44,14 +43,14 @@ from allmydata.monitor import Monitor
 from allmydata.mutable.common import NotWriteableError
 from allmydata.mutable import layout as mutable_layout
 from allmydata.mutable.publish import MutableData
+from allmydata.scripts.runner import PYTHON_3_WARNING
 
 from foolscap.api import DeadReferenceError, fireEventually, flushEventualQueue
 from twisted.python.failure import Failure
 from twisted.python.filepath import (
     FilePath,
 )
-
-from ._twisted_9607 import (
+from twisted.internet.utils import (
     getProcessOutputAndValue,
 )
 
@@ -77,7 +76,7 @@ class RunBinTahoeMixin(object):
         # support env yet and is also synchronous.  If we could get rid of
         # this in favor of that, though, it would probably be an improvement.
         command = sys.executable
-        argv = python_options + ["-m", "allmydata.scripts.runner"] + args
+        argv = python_options + ["-b", "-m", "allmydata.scripts.runner"] + args
 
         if env is None:
             env = os.environ
@@ -1666,9 +1665,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         d.addCallback(self.log, "did _check_publish_private")
         d.addCallback(self._test_web)
         d.addCallback(self._test_control)
-        if PY2:
-            # TODO when CLI is ported to Python 3, reenable.
-            d.addCallback(self._test_cli)
+        d.addCallback(self._test_cli)
         # P now has four top-level children:
         # P/personal/sekrit data
         # P/s2-ro/
@@ -2299,7 +2296,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         def _check_aliases_1(out_and_err):
             (out, err) = out_and_err
             self.failUnlessEqual(err, "")
-            self.failUnlessEqual(out.strip(" \n"), "tahoe: %s" % private_uri)
+            self.failUnlessEqual(out.strip(" \n"), "tahoe: %s" % str(private_uri, "ascii"))
         d.addCallback(_check_aliases_1)
 
         # now that that's out of the way, remove root_dir.cap and work with
@@ -2356,7 +2353,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
             (out, err) = out_and_err
             self.failUnlessEqual(err, "")
             if filenum is not None:
-                self.failUnlessEqual(out, datas[filenum])
+                self.failUnlessEqual(out, str(datas[filenum], "ascii"))
             if data is not None:
                 self.failUnlessEqual(out, data)
 
@@ -2370,7 +2367,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
             uri0 = out.strip()
             return run(None, "get", uri0)
         d.addCallback(_put_out)
-        d.addCallback(lambda out_err: self.failUnlessEqual(out_err[0], datas[0]))
+        d.addCallback(lambda out_err: self.failUnlessEqual(out_err[0], str(datas[0], "ascii")))
 
         d.addCallback(run, "put", files[1], "subdir/tahoe-file1")
         #  tahoe put bar tahoe:FOO
@@ -2412,14 +2409,14 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         def _check_outfile0(out_and_err):
             (out, err) = out_and_err
             data = open(outfile0,"rb").read()
-            self.failUnlessEqual(data, "data to be uploaded: file2\n")
+            self.failUnlessEqual(data, b"data to be uploaded: file2\n")
         d.addCallback(_check_outfile0)
         outfile1 = os.path.join(self.basedir, "outfile0")
         d.addCallback(run, "get", "tahoe:subdir/tahoe-file1", outfile1)
         def _check_outfile1(out_and_err):
             (out, err) = out_and_err
             data = open(outfile1,"rb").read()
-            self.failUnlessEqual(data, "data to be uploaded: file1\n")
+            self.failUnlessEqual(data, b"data to be uploaded: file1\n")
         d.addCallback(_check_outfile1)
 
         d.addCallback(run, "unlink", "tahoe-file0")
@@ -2456,7 +2453,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
                 if "file3" in l:
                     rw_uri = self._mutable_file3_uri
                     u = uri.from_string_mutable_filenode(rw_uri)
-                    ro_uri = u.get_readonly().to_string()
+                    ro_uri = str(u.get_readonly().to_string(), "ascii")
                     self.failUnless(ro_uri in l)
         d.addCallback(_check_ls_rouri)
 
@@ -2529,17 +2526,17 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         dn = os.path.join(self.basedir, "dir1")
         os.makedirs(dn)
         with open(os.path.join(dn, "rfile1"), "wb") as f:
-            f.write("rfile1")
+            f.write(b"rfile1")
         with open(os.path.join(dn, "rfile2"), "wb") as f:
-            f.write("rfile2")
+            f.write(b"rfile2")
         with open(os.path.join(dn, "rfile3"), "wb") as f:
-            f.write("rfile3")
+            f.write(b"rfile3")
         sdn2 = os.path.join(dn, "subdir2")
         os.makedirs(sdn2)
         with open(os.path.join(sdn2, "rfile4"), "wb") as f:
-            f.write("rfile4")
+            f.write(b"rfile4")
         with open(os.path.join(sdn2, "rfile5"), "wb") as f:
-            f.write("rfile5")
+            f.write(b"rfile5")
 
         # from disk into tahoe
         d.addCallback(run, "cp", "-r", dn, "tahoe:")
@@ -2583,7 +2580,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
             (out, err) = out_and_err
             x = open(os.path.join(dn_copy2, "dir1", "subdir2", "rfile4")).read()
             y = uri.from_string_filenode(x)
-            self.failUnlessEqual(y.data, "rfile4")
+            self.failUnlessEqual(y.data, b"rfile4")
         d.addCallback(_check_capsonly)
 
         # and tahoe-to-tahoe
@@ -2616,7 +2613,6 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
 
         return d
 
-    @skipIf(PY3, "Python 3 CLI support hasn't happened yet.")
     def test_filesystem_with_cli_in_subprocess(self):
         # We do this in a separate test so that test_filesystem doesn't skip if we can't run bin/tahoe.
 
@@ -2640,7 +2636,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
             out, err, rc_or_sig = res
             self.failUnlessEqual(rc_or_sig, 0, str(res))
             if check_stderr:
-                self.failUnlessEqual(err, b"")
+                self.assertIn(err.strip(), (b"", PYTHON_3_WARNING.encode("ascii")))
 
         d.addCallback(_run_in_subprocess, "create-alias", "newalias")
         d.addCallback(_check_succeeded)
@@ -2660,9 +2656,9 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         def _check_ls(res):
             out, err, rc_or_sig = res
             self.failUnlessEqual(rc_or_sig, 0, str(res))
-            self.failUnlessEqual(err, "", str(res))
-            self.failUnlessIn("tahoe-moved", out)
-            self.failIfIn("tahoe-file", out)
+            self.assertIn(err.strip(), (b"", PYTHON_3_WARNING.encode("ascii")))
+            self.failUnlessIn(b"tahoe-moved", out)
+            self.failIfIn(b"tahoe-file", out)
         d.addCallback(_check_ls)
         return d
 

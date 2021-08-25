@@ -1,7 +1,17 @@
+"""
+Ported to Python 3.
+"""
+from __future__ import unicode_literals
+from __future__ import absolute_import
+from __future__ import division
 from __future__ import print_function
 
-from six.moves import cStringIO as StringIO
-import urllib
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+
+from io import BytesIO
+from urllib.parse import quote as url_quote
 
 from allmydata.scripts.common_http import do_http, format_http_success, format_http_error
 from allmydata.scripts.common import get_alias, DEFAULT_ALIAS, escape_path, \
@@ -46,19 +56,20 @@ def put(options):
 
         # FIXME: don't hardcode cap format.
         if to_file.startswith("URI:MDMF:") or to_file.startswith("URI:SSK:"):
-            url = nodeurl + "uri/%s" % urllib.quote(to_file)
+            url = nodeurl + "uri/%s" % url_quote(to_file)
         else:
             try:
                 rootcap, path = get_alias(aliases, to_file, DEFAULT_ALIAS)
             except UnknownAliasError as e:
                 e.display(stderr)
                 return 1
+            path = str(path, "utf-8")
             if path.startswith("/"):
                 suggestion = to_file.replace(u"/", u"", 1)
                 print("Error: The remote filename must not start with a slash", file=stderr)
                 print("Please try again, perhaps with %s" % quote_output(suggestion), file=stderr)
                 return 1
-            url = nodeurl + "uri/%s/" % urllib.quote(rootcap)
+            url = nodeurl + "uri/%s/" % url_quote(rootcap)
             if path:
                 url += escape_path(path)
     else:
@@ -80,8 +91,13 @@ def put(options):
         # Content-Length field. So we currently must copy it.
         if verbosity > 0:
             print("waiting for file data on stdin..", file=stderr)
-        data = stdin.read()
-        infileobj = StringIO(data)
+        # We're uploading arbitrary files, so this had better be bytes:
+        if PY2:
+            stdinb = stdin
+        else:
+            stdinb = stdin.buffer
+        data = stdinb.read()
+        infileobj = BytesIO(data)
 
     resp = do_http("PUT", url, infileobj)
 

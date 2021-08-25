@@ -1,6 +1,16 @@
+"""
+Ported to Python 3.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
 
-from twisted.internet import address
-from foolscap.api import Violation, RemoteException, SturdyRef
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+
+from foolscap.api import Violation, RemoteException
 
 
 def add_version_to_remote_reference(rref, default):
@@ -18,24 +28,3 @@ def add_version_to_remote_reference(rref, default):
         return rref
     d.addCallbacks(_got_version, _no_get_version)
     return d
-
-
-def connection_hints_for_furl(furl):
-    hints = []
-    for h in SturdyRef(furl).locationHints:
-        # Foolscap-0.2.5 and earlier used strings in .locationHints, 0.2.6
-        # through 0.6.4 used tuples of ("ipv4",host,port), 0.6.5 through
-        # 0.8.0 used tuples of ("tcp",host,port), and >=0.9.0 uses strings
-        # again. Tolerate them all.
-        if isinstance(h, tuple):
-            hints.append(":".join([str(s) for s in h]))
-        else:
-            hints.append(h)
-    return hints
-
-def stringify_remote_address(rref):
-    remote = rref.getPeer()
-    if isinstance(remote, address.IPv4Address):
-        return "%s:%d" % (remote.host, remote.port)
-    # loopback is a non-IPv4Address
-    return str(remote)

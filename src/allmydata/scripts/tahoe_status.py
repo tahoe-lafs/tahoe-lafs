@@ -1,6 +1,14 @@
+"""
+Ported to Python 3.
+"""
+from __future__ import unicode_literals
+from __future__ import absolute_import
+from __future__ import division
 from __future__ import print_function
 
-from future.builtins import chr
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 import os
 from urllib.parse import urlencode, quote as url_quote
@@ -53,7 +61,7 @@ def _get_json_for_cap(options, cap):
         'uri/%s?t=json' % url_quote(cap),
     )
 
-def pretty_progress(percent, size=10, ascii=False):
+def pretty_progress(percent, size=10, output_ascii=False):
     """
     Displays a unicode or ascii based progress bar of a certain
     length. Should we just depend on a library instead?
@@ -64,7 +72,7 @@ def pretty_progress(percent, size=10, ascii=False):
     curr = int(percent / 100.0 * size)
     part = (percent / (100.0 / size)) - curr
 
-    if ascii:
+    if output_ascii:
         part = int(part * 4)
         part = '.oO%'[part]
         block_chr = '#'

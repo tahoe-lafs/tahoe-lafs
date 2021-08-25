@@ -2,6 +2,11 @@
 
 from __future__ import print_function
 
+from future.utils import PY2
+if PY2:
+    from future.builtins import input
+
+
 import random, math, re
 from twisted.python import usage
 
@@ -205,7 +210,7 @@ def graph():
         series["alacrity"][file_size] = s.bytes_until_some_data
     g.plot([ (fs, series["overhead"][fs])
              for fs in sizes ])
-    raw_input("press return")
+    input("press return")
 
 
 if __name__ == '__main__':

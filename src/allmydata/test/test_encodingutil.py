@@ -379,7 +379,10 @@ class QuoteOutput(ReallyEqualMixin, unittest.TestCase):
         check(u"\n",       u"\"\\x0a\"", quote_newlines=True)
 
     def test_quote_output_default(self):
-        self.test_quote_output_utf8(None)
+        """Default is the encoding of sys.stdout if known, otherwise utf-8."""
+        encoding = getattr(sys.stdout, "encoding") or "utf-8"
+        self.assertEqual(quote_output(u"\u2621"),
+                         quote_output(u"\u2621", encoding=encoding))
 
 
 def win32_other(win32, other):

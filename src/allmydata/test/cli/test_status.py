@@ -37,37 +37,53 @@ from allmydata.util import jsonbytes as json
 
 from ..no_network import GridTestMixin
 from ..common_web import do_http
-from ..status import FakeStatus
 from .common import CLITestMixin
+
+
+class FakeStatus(object):
+    def __init__(self):
+        self.status = []
+
+    def setServiceParent(self, p):
+        pass
+
+    def get_status(self):
+        return self.status
+
+    def get_storage_index(self):
+        return None
+
+    def get_size(self):
+        return None
 
 
 class ProgressBar(unittest.TestCase):
 
     def test_ascii0(self):
-        prog = pretty_progress(80.0, size=10, ascii=True)
+        prog = pretty_progress(80.0, size=10, output_ascii=True)
         self.assertEqual('########. ', prog)
 
     def test_ascii1(self):
-        prog = pretty_progress(10.0, size=10, ascii=True)
+        prog = pretty_progress(10.0, size=10, output_ascii=True)
         self.assertEqual('#.        ', prog)
 
     def test_ascii2(self):
-        prog = pretty_progress(13.0, size=10, ascii=True)
+        prog = pretty_progress(13.0, size=10, output_ascii=True)
         self.assertEqual('#o        ', prog)
 
     def test_ascii3(self):
-        prog = pretty_progress(90.0, size=10, ascii=True)
+        prog = pretty_progress(90.0, size=10, output_ascii=True)
         self.assertEqual('#########.', prog)
 
     def test_unicode0(self):
         self.assertEqual(
-            pretty_progress(82.0, size=10, ascii=False),
+            pretty_progress(82.0, size=10, output_ascii=False),
             u'\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u258e ',
         )
 
     def test_unicode1(self):
         self.assertEqual(
-            pretty_progress(100.0, size=10, ascii=False),
+            pretty_progress(100.0, size=10, output_ascii=False),
             u'\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588',
         )
 
@@ -114,9 +130,10 @@ class Integration(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(_check)
         return d
 
-    @mock.patch('sys.stdout')
-    def test_help(self, fake):
-        return self.do_cli('status', '--help')
+    @defer.inlineCallbacks
+    def test_help(self):
+        rc, _, _ = yield self.do_cli('status', '--help')
+        self.assertEqual(rc, 0)
 
 
 class CommandStatus(unittest.TestCase):

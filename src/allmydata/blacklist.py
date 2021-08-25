@@ -142,7 +142,7 @@ class ProhibitedNode(object):
     def get_best_readable_version(self):
         raise FileProhibited(self.reason)
 
-    def download_best_version(self, progress=None):
+    def download_best_version(self):
         raise FileProhibited(self.reason)
 
     def get_best_mutable_version(self):

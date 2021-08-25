@@ -1,13 +1,26 @@
+"""
+Ported to Python 3.
+"""
+from __future__ import unicode_literals
+from __future__ import absolute_import
+from __future__ import division
 from __future__ import print_function
 
-import urllib, time
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+
+from six import ensure_text
+
+import time
+from urllib.parse import quote as url_quote
 import json
 from allmydata.scripts.common import get_alias, DEFAULT_ALIAS, escape_path, \
                                      UnknownAliasError
 from allmydata.scripts.common_http import do_http, format_http_error
 from allmydata.util.encodingutil import unicode_to_output, quote_output, is_printable_ascii, to_bytes
 
-def list(options):
+def ls(options):
     nodeurl = options['node-url']
     aliases = options.aliases
     where = options.where
@@ -23,7 +36,9 @@ def list(options):
     except UnknownAliasError as e:
         e.display(stderr)
         return 1
-    url = nodeurl + "uri/%s" % urllib.quote(rootcap)
+
+    path = str(path, "utf-8")
+    url = nodeurl + "uri/%s" % url_quote(rootcap)
     if path:
         # move where.endswith check here?
         url += "/" + escape_path(path)
@@ -41,10 +56,10 @@ def list(options):
             return resp.status
 
     data = resp.read()
-
     if options['json']:
         # The webapi server should always output printable ASCII.
         if is_printable_ascii(data):
+            data = str(data, "ascii")
             print(data, file=stdout)
             return 0
         else:
@@ -66,7 +81,7 @@ def list(options):
         children = d['children']
     else:
         # paths returned from get_alias are always valid UTF-8
-        childname = path.split("/")[-1].decode('utf-8')
+        childname = path.split("/")[-1]
         children = {childname: (nodetype, d)}
         if "metadata" not in d:
             d["metadata"] = {}
@@ -81,7 +96,7 @@ def list(options):
 
     for name in childnames:
         child = children[name]
-        name = unicode(name)
+        name = str(name)
         childtype = child[0]
 
         # See webapi.txt for a discussion of the meanings of unix local
@@ -141,30 +156,25 @@ def list(options):
         if not options["classify"]:
             classify = ""
 
-        encoding_error = False
-        try:
-            line.append(unicode_to_output(name) + classify)
-        except UnicodeEncodeError:
-            encoding_error = True
-            line.append(quote_output(name) + classify)
+        line.append(name + classify)
 
         if options["uri"]:
-            line.append(uri)
+            line.append(ensure_text(uri))
         if options["readonly-uri"]:
-            line.append(quote_output(ro_uri or "-", quotemarks=False))
+            line.append(quote_output(ensure_text(ro_uri) or "-", quotemarks=False))
 
-        rows.append((encoding_error, line))
+        rows.append(line)
 
     max_widths = []
     left_justifys = []
-    for (encoding_error, row) in rows:
+    for row in rows:
         for i,cell in enumerate(row):
             while len(max_widths) <= i:
                 max_widths.append(0)
             while len(left_justifys) <= i:
                 left_justifys.append(False)
             max_widths[i] = max(max_widths[i], len(cell))
-            if cell.startswith("URI"):
+            if ensure_text(cell).startswith("URI"):
                 left_justifys[i] = True
     if len(left_justifys) == 1:
         left_justifys[0] = True
@@ -179,12 +189,19 @@ def list(options):
     fmt = " ".join(fmt_pieces)
 
     rc = 0
-    for (encoding_error, row) in rows:
+    for row in rows:
+        row = (fmt % tuple(row)).rstrip()
+        encoding_error = False
+        try:
+            row = unicode_to_output(row)
+        except UnicodeEncodeError:
+            encoding_error = True
+            row = quote_output(row)
         if encoding_error:
-            print((fmt % tuple(row)).rstrip(), file=stderr)
+            print(row, file=stderr)
             rc = 1
         else:
-            print((fmt % tuple(row)).rstrip(), file=stdout)
+            print(row, file=stdout)
 
     if rc == 1:
         print("\nThis listing included files whose names could not be converted to the terminal" \

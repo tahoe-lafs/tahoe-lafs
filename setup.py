@@ -11,6 +11,7 @@ import sys
 # See the docs/about.rst file for licensing information.
 
 import os, subprocess, re
+from io import open
 
 basedir = os.path.dirname(os.path.abspath(__file__))
 
@@ -53,9 +54,9 @@ install_requires = [
     # * foolscap >= 0.12.5 has ConnectionInfo and ReconnectionInfo
     # * foolscap >= 0.12.6 has an i2p.sam_endpoint() that takes kwargs
     # * foolscap 0.13.2 drops i2p support completely
-    # * foolscap >= 20.4 is necessary for Python 3
+    # * foolscap >= 21.7 is necessary for Python 3 with i2p support.
     "foolscap == 0.13.1 ; python_version < '3.0'",
-    "foolscap >= 20.4.0 ; python_version > '3.0'",
+    "foolscap >= 21.7.0 ; python_version > '3.0'",
 
     # * cryptography 2.6 introduced some ed25519 APIs we rely on.  Note that
     #   Twisted[conch] also depends on cryptography and Twisted[tls]
@@ -113,12 +114,11 @@ install_requires = [
 
     # Pyrsistent 0.17.0 (which we use by way of Eliot) has dropped
     # Python 2 entirely; stick to the version known to work for us.
-    # XXX: drop this bound: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3404
-    "pyrsistent < 0.17.0",
+    "pyrsistent < 0.17.0 ; python_version < '3.0'",
+    "pyrsistent ; python_version > '3.0'",
 
     # A great way to define types of values.
-    # XXX: drop the upper bound: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3390
-    "attrs >= 18.2.0, < 20",
+    "attrs >= 18.2.0",
 
     # WebSocket library for twisted and asyncio
     "autobahn >= 19.5.2",
@@ -357,7 +357,7 @@ if version:
 
 setup(name="tahoe-lafs", # also set in __init__.py
       description='secure, decentralized, fault-tolerant file store',
-      long_description=open('README.rst', 'rU').read(),
+      long_description=open('README.rst', 'r', encoding='utf-8').read(),
       author='the Tahoe-LAFS project',
       author_email='tahoe-dev@tahoe-lafs.org',
       url='https://tahoe-lafs.org/',
@@ -389,6 +389,10 @@ setup(name="tahoe-lafs", # also set in __init__.py
               "tox",
               "pytest",
               "pytest-twisted",
+              # XXX: decorator isn't a direct dependency, but pytest-twisted
+              # depends on decorator, and decorator 5.x isn't compatible with
+              # Python 2.7.
+              "decorator < 5",
               "hypothesis >= 3.6.1",
               "treq",
               "towncrier",

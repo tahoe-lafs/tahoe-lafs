@@ -1,4 +1,10 @@
-#! /usr/bin/python
+#! /usr/bin/python3
+
+"""
+Ensure UMIDS are unique.
+
+This runs on Python 3.
+"""
 
 # ./check-umids.py src
 

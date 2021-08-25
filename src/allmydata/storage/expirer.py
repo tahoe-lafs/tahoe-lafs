@@ -95,7 +95,9 @@ class LeaseCheckingCrawler(ShareCrawler):
         if not os.path.exists(self.historyfile):
             history = {} # cyclenum -> dict
             with open(self.historyfile, "wb") as f:
-                pickle.dump(history, f)
+                # Newer protocols won't work in Python 2; when it is dropped,
+                # protocol v4 can be used (added in Python 3.4).
+                pickle.dump(history, f, protocol=2)
 
     def create_empty_cycle_dict(self):
         recovered = self.create_empty_recovered_dict()
@@ -319,7 +321,9 @@ class LeaseCheckingCrawler(ShareCrawler):
             oldcycles = sorted(history.keys())
             del history[oldcycles[0]]
         with open(self.historyfile, "wb") as f:
-            pickle.dump(history, f)
+            # Newer protocols won't work in Python 2; when it is dropped,
+            # protocol v4 can be used (added in Python 3.4).
+            pickle.dump(history, f, protocol=2)
 
     def get_state(self):
         """In addition to the crawler state described in

@@ -1,12 +1,25 @@
+"""
+Ported to Python 3.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+
 from six.moves import StringIO
 import os.path
 from twisted.trial import unittest
-import urllib
+from urllib.parse import quote as url_quote
+
 from allmydata.util import fileutil
 from allmydata.scripts.common import get_aliases
 from allmydata.scripts import cli, runner
 from ..no_network import GridTestMixin
-from allmydata.util.encodingutil import quote_output, get_io_encoding
+from allmydata.util.encodingutil import quote_output_u
 from .common import CLITestMixin
 
 class CreateAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
@@ -22,7 +35,7 @@ class CreateAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
         rc = cli.webopen(o.subOptions, urls.append)
         self.failUnlessReallyEqual(rc, 0)
         self.failUnlessReallyEqual(len(urls), 1)
-        self.failUnlessReallyEqual(urls[0], expected_url)
+        self.assertEqual(urls[0], expected_url)
 
     def test_create(self):
         self.basedir = "cli/CreateAlias/create"
@@ -36,19 +49,19 @@ class CreateAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.assertIn("Alias 'tahoe' created", stdout)
             aliases = get_aliases(self.get_clientdir())
             self.failUnless("tahoe" in aliases)
-            self.failUnless(aliases["tahoe"].startswith("URI:DIR2:"))
+            self.failUnless(aliases["tahoe"].startswith(b"URI:DIR2:"))
         d.addCallback(_done)
         d.addCallback(lambda res: self.do_cli("create-alias", "two:"))
 
         def _stash_urls(res):
             aliases = get_aliases(self.get_clientdir())
             node_url_file = os.path.join(self.get_clientdir(), "node.url")
-            nodeurl = fileutil.read(node_url_file).strip()
+            nodeurl = fileutil.read(node_url_file, mode="r").strip()
             self.welcome_url = nodeurl
             uribase = nodeurl + "uri/"
-            self.tahoe_url = uribase + urllib.quote(aliases["tahoe"])
+            self.tahoe_url = uribase + url_quote(aliases["tahoe"])
             self.tahoe_subdir_url = self.tahoe_url + "/subdir"
-            self.two_url = uribase + urllib.quote(aliases["two"])
+            self.two_url = uribase + url_quote(aliases["two"])
             self.two_uri = aliases["two"]
         d.addCallback(_stash_urls)
 
@@ -128,13 +141,13 @@ class CreateAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
             # like a valid dircap, so get_aliases() will raise an exception.
             aliases = get_aliases(self.get_clientdir())
             self.failUnless("added" in aliases)
-            self.failUnless(aliases["added"].startswith("URI:DIR2:"))
+            self.failUnless(aliases["added"].startswith(b"URI:DIR2:"))
             # to be safe, let's confirm that we don't see "NAME2:" in CAP1.
             # No chance of a false-negative, because the hyphen in
             # "un-corrupted1" is not a valid base32 character.
-            self.failIfIn("un-corrupted1:", aliases["added"])
+            self.failIfIn(b"un-corrupted1:", aliases["added"])
             self.failUnless("un-corrupted1" in aliases)
-            self.failUnless(aliases["un-corrupted1"].startswith("URI:DIR2:"))
+            self.failUnless(aliases["un-corrupted1"].startswith(b"URI:DIR2:"))
         d.addCallback(_check_not_corrupted1)
 
         def _remove_trailing_newline_and_add_alias(ign):
@@ -149,10 +162,10 @@ class CreateAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.failIf(stderr)
             aliases = get_aliases(self.get_clientdir())
             self.failUnless("un-corrupted1" in aliases)
-            self.failUnless(aliases["un-corrupted1"].startswith("URI:DIR2:"))
-            self.failIfIn("un-corrupted2:", aliases["un-corrupted1"])
+            self.failUnless(aliases["un-corrupted1"].startswith(b"URI:DIR2:"))
+            self.failIfIn(b"un-corrupted2:", aliases["un-corrupted1"])
             self.failUnless("un-corrupted2" in aliases)
-            self.failUnless(aliases["un-corrupted2"].startswith("URI:DIR2:"))
+            self.failUnless(aliases["un-corrupted2"].startswith(b"URI:DIR2:"))
         d.addCallback(_check_not_corrupted)
         return d
 
@@ -160,61 +173,62 @@ class CreateAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
         self.basedir = "cli/CreateAlias/create_unicode"
         self.set_up_grid(oneshare=True)
 
-        try:
-            etudes_arg = u"\u00E9tudes".encode(get_io_encoding())
-            lumiere_arg = u"lumi\u00E8re.txt".encode(get_io_encoding())
-        except UnicodeEncodeError:
-            raise unittest.SkipTest("A non-ASCII command argument could not be encoded on this platform.")
+        etudes_arg = u"\u00E9tudes"
+        lumiere_arg = u"lumi\u00E8re.txt"
 
         d = self.do_cli("create-alias", etudes_arg)
         def _check_create_unicode(args):
             (rc, out, err) = args
             self.failUnlessReallyEqual(rc, 0)
-            self.failUnlessReallyEqual(err, "")
-            self.failUnlessIn("Alias %s created" % quote_output(u"\u00E9tudes"), out)
+            self.assertEqual(len(err), 0, err)
+            self.failUnlessIn(u"Alias %s created" % (quote_output_u(etudes_arg),), out)
 
             aliases = get_aliases(self.get_clientdir())
-            self.failUnless(aliases[u"\u00E9tudes"].startswith("URI:DIR2:"))
+            self.failUnless(aliases[u"\u00E9tudes"].startswith(b"URI:DIR2:"))
         d.addCallback(_check_create_unicode)
 
         d.addCallback(lambda res: self.do_cli("ls", etudes_arg + ":"))
         def _check_ls1(args):
             (rc, out, err) = args
             self.failUnlessReallyEqual(rc, 0)
-            self.failUnlessReallyEqual(err, "")
-            self.failUnlessReallyEqual(out, "")
+            self.assertEqual(len(err), 0, err)
+            self.assertEqual(len(out), 0, out)
         d.addCallback(_check_ls1)
 
+        DATA = b"Blah blah blah \xff blah \x00 blah"
         d.addCallback(lambda res: self.do_cli("put", "-", etudes_arg + ":uploaded.txt",
-                                              stdin="Blah blah blah"))
+                                              stdin=DATA))
 
         d.addCallback(lambda res: self.do_cli("ls", etudes_arg + ":"))
         def _check_ls2(args):
             (rc, out, err) = args
             self.failUnlessReallyEqual(rc, 0)
-            self.failUnlessReallyEqual(err, "")
-            self.failUnlessReallyEqual(out, "uploaded.txt\n")
+            self.assertEqual(len(err), 0, err)
+            self.assertEqual(out, "uploaded.txt\n")
         d.addCallback(_check_ls2)
 
-        d.addCallback(lambda res: self.do_cli("get", etudes_arg + ":uploaded.txt"))
+        d.addCallback(lambda res: self.do_cli("get", etudes_arg + ":uploaded.txt",
+                                              return_bytes=True))
         def _check_get(args):
             (rc, out, err) = args
             self.failUnlessReallyEqual(rc, 0)
-            self.failUnlessReallyEqual(err, "")
-            self.failUnlessReallyEqual(out, "Blah blah blah")
+            self.assertEqual(len(err), 0, err)
+            self.failUnlessReallyEqual(out, DATA)
         d.addCallback(_check_get)
 
         # Ensure that an Unicode filename in an Unicode alias works as expected
         d.addCallback(lambda res: self.do_cli("put", "-", etudes_arg + ":" + lumiere_arg,
-                                              stdin="Let the sunshine In!"))
+                                              stdin=b"Let the sunshine In!"))
 
-        d.addCallback(lambda res: self.do_cli("get",
-                                              get_aliases(self.get_clientdir())[u"\u00E9tudes"] + "/" + lumiere_arg))
+        d.addCallback(lambda res: self.do_cli(
+            "get",
+            str(get_aliases(self.get_clientdir())[u"\u00E9tudes"], "ascii") + "/" + lumiere_arg,
+            return_bytes=True))
         def _check_get2(args):
             (rc, out, err) = args
             self.failUnlessReallyEqual(rc, 0)
-            self.failUnlessReallyEqual(err, "")
-            self.failUnlessReallyEqual(out, "Let the sunshine In!")
+            self.assertEqual(len(err), 0, err)
+            self.failUnlessReallyEqual(out, b"Let the sunshine In!")
         d.addCallback(_check_get2)
 
         return d

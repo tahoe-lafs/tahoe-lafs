@@ -14,6 +14,7 @@ import os
 from twisted.trial import unittest
 from twisted.internet import defer, error
 from six.moves import StringIO
+from six import ensure_str
 import mock
 from ..util import tor_provider
 from ..scripts import create_node, runner
@@ -185,7 +186,8 @@ class CreateOnion(unittest.TestCase):
                                                            protocol)))
         txtorcon = mock.Mock()
         ehs = mock.Mock()
-        ehs.private_key = b"privkey"
+        # This appears to be a native string in the real txtorcon object...
+        ehs.private_key = ensure_str("privkey")
         ehs.hostname = "ONION.onion"
         txtorcon.EphemeralHiddenService = mock.Mock(return_value=ehs)
         ehs.add_to_tor = mock.Mock(return_value=defer.succeed(None))

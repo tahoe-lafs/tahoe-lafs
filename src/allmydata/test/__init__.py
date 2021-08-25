@@ -12,11 +12,18 @@ Some setup that should apply across the entire test suite.
 
 Rather than defining interesting APIs for other code to use, this just causes
 some side-effects which make things better when the test suite runs.
+
+Ported to Python 3.
 """
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
 
-from future.utils import PY3
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
-import warnings
 from traceback import extract_stack, format_list
 
 from foolscap.pb import Listener
@@ -24,11 +31,6 @@ from twisted.python.log import err
 from twisted.application import service
 
 from foolscap.logging.incident import IncidentQualifier
-
-if PY3:
-    # Error on BytesWarnings, to catch things like str(b""), but only for
-    # allmydata code.
-    warnings.filterwarnings("error", category=BytesWarning, module="allmydata.*")
 
 
 class NonQualifier(IncidentQualifier, object):
@@ -123,5 +125,5 @@ if sys.platform == "win32":
     initialize()
 
 from eliot import to_file
-from allmydata.util.jsonbytes import BytesJSONEncoder
-to_file(open("eliot.log", "w"), encoder=BytesJSONEncoder)
+from allmydata.util.jsonbytes import AnyBytesJSONEncoder
+to_file(open("eliot.log", "wb"), encoder=AnyBytesJSONEncoder)

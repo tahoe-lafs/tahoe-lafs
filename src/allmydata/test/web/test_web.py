@@ -218,7 +218,7 @@ class FakeDisplayableServer(StubServer):  # type: ignore  # tahoe-lafs/ticket/35
         return self.connected
     def get_version(self):
         return {
-            "application-version": "1.0"
+            b"application-version": b"1.0"
         }
     def get_permutation_seed(self):
         return b""
@@ -1394,8 +1394,8 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         def _got(res_and_status_and_headers):
             (res, status, headers) = res_and_status_and_headers
             self.failUnlessReallyEqual(res, "")
-            self.failUnlessReallyEqual(headers.getRawHeaders("content-length")[0],
-                                       str(len(self.BAR_CONTENTS)))
+            self.failUnlessReallyEqual(int(headers.getRawHeaders("content-length")[0]),
+                                       len(self.BAR_CONTENTS))
             self.failUnlessReallyEqual(headers.getRawHeaders("content-type"),
                                        ["text/plain"])
         d.addCallback(_got)
@@ -3015,8 +3015,8 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         def _got_headers(res_and_status_and_headers):
             (res, status, headers) = res_and_status_and_headers
             self.failUnlessReallyEqual(res, "")
-            self.failUnlessReallyEqual(headers.getRawHeaders("content-length")[0],
-                                       str(len(NEW2_CONTENTS)))
+            self.failUnlessReallyEqual(int(headers.getRawHeaders("content-length")[0]),
+                                       len(NEW2_CONTENTS))
             self.failUnlessReallyEqual(headers.getRawHeaders("content-type"),
                                        ["text/plain"])
         d.addCallback(_got_headers)

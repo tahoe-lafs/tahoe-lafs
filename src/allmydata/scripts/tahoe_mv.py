@@ -1,7 +1,17 @@
+"""
+Ported to Python 3.
+"""
+from __future__ import unicode_literals
+from __future__ import absolute_import
+from __future__ import division
 from __future__ import print_function
 
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+
 import re
-import urllib
+from urllib.parse import quote as url_quote
 import json
 from allmydata.scripts.common import get_alias, DEFAULT_ALIAS, escape_path, \
                                      UnknownAliasError
@@ -25,7 +35,8 @@ def mv(options, mode="move"):
     except UnknownAliasError as e:
         e.display(stderr)
         return 1
-    from_url = nodeurl + "uri/%s" % urllib.quote(rootcap)
+    from_path = str(from_path, "utf-8")
+    from_url = nodeurl + "uri/%s" % url_quote(rootcap)
     if from_path:
         from_url += "/" + escape_path(from_path)
     # figure out the source cap
@@ -43,7 +54,8 @@ def mv(options, mode="move"):
     except UnknownAliasError as e:
         e.display(stderr)
         return 1
-    to_url = nodeurl + "uri/%s" % urllib.quote(rootcap)
+    to_url = nodeurl + "uri/%s" % url_quote(rootcap)
+    path = str(path, "utf-8")
     if path:
         to_url += "/" + escape_path(path)
 

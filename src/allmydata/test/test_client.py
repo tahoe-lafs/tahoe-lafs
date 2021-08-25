@@ -418,7 +418,7 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
             f.write("deadbeef")
 
         token = c.get_auth_token()
-        self.assertEqual("deadbeef", token)
+        self.assertEqual(b"deadbeef", token)
 
     @defer.inlineCallbacks
     def test_web_staticdir(self):

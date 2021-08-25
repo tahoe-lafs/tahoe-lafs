@@ -11,7 +11,6 @@ if PY2:
 
 import io
 import os
-import json
 
 try:
     from allmydata.scripts.types_ import (
@@ -36,7 +35,7 @@ from allmydata.scripts.common import (
 from allmydata.scripts.default_nodedir import _default_nodedir
 from allmydata.util.assertutil import precondition
 from allmydata.util.encodingutil import listdir_unicode, argv_to_unicode, quote_local_unicode_path, get_io_encoding
-from allmydata.util import fileutil, i2p_provider, iputil, tor_provider
+from allmydata.util import fileutil, i2p_provider, iputil, tor_provider, jsonbytes as json
 
 from wormhole import wormhole
 
@@ -393,7 +392,7 @@ def _get_config_via_wormhole(config):
             "client-v1": {},
         }
     }
-    wh.send_message(json.dumps(intro))
+    wh.send_message(json.dumps_bytes(intro))
 
     server_intro = yield wh.get_message()
     server_intro = json.loads(server_intro)
@@ -450,12 +449,13 @@ def create_node(config):
             v = remote_config.get(k, None)
             if v is not None:
                 # we're faking usually argv-supplied options :/
+                v_orig = v
                 if isinstance(v, str):
                     v = v.encode(get_io_encoding())
                 config[k] = v
                 if k not in sensitive_keys:
                     if k not in ['shares-happy', 'shares-total', 'shares-needed']:
-                        print("  {}: {}".format(k, v), file=out)
+                        print("  {}: {}".format(k, v_orig), file=out)
                 else:
                     print("  {}: [sensitive data; see tahoe.cfg]".format(k), file=out)
 

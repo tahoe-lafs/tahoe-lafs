@@ -1,4 +1,15 @@
+"""
+Ported to Python 3.
+"""
+from __future__ import unicode_literals
+from __future__ import absolute_import
+from __future__ import division
 from __future__ import print_function
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+
 
 import os.path, re, fnmatch
 
@@ -36,7 +47,7 @@ class FileStoreOptions(BaseOptions):
 
         # compute a node-url from the existing options, put in self['node-url']
         if self['node-url']:
-            if (not isinstance(self['node-url'], basestring)
+            if (not isinstance(self['node-url'], (bytes, str))
                 or not NODEURL_RE.match(self['node-url'])):
                 msg = ("--node-url is required to be a string and look like "
                        "\"http://HOSTNAMEORADDR:PORT\", not: %r" %
@@ -224,7 +235,7 @@ class CpOptions(FileStoreOptions):
     def parseArgs(self, *args):
         if len(args) < 2:
             raise usage.UsageError("cp requires at least two arguments")
-        self.sources = map(argv_to_unicode, args[:-1])
+        self.sources = [argv_to_unicode(arg) for arg in args[:-1]]
         self.destination = argv_to_unicode(args[-1])
 
     synopsis = "[options] FROM.. TO"
@@ -346,14 +357,15 @@ class BackupOptions(FileStoreOptions):
             exclude = self['exclude']
             exclude.add(g)
 
-    def opt_exclude_from(self, filepath):
+    def opt_exclude_from_utf_8(self, filepath):
         """Ignore file matching glob patterns listed in file, one per
         line. The file is assumed to be in the argv encoding."""
         abs_filepath = argv_to_abspath(filepath)
         try:
-            exclude_file = file(abs_filepath)
-        except:
-            raise BackupConfigurationError('Error opening exclude file %s.' % quote_local_unicode_path(abs_filepath))
+            exclude_file = open(abs_filepath, "r", encoding="utf-8")
+        except Exception as e:
+            raise BackupConfigurationError('Error opening exclude file %s. (Error: %s)' % (
+                quote_local_unicode_path(abs_filepath), e))
         try:
             for line in exclude_file:
                 self.opt_exclude(line)
@@ -435,7 +447,7 @@ class CheckOptions(FileStoreOptions):
         ("add-lease", None, "Add/renew lease on all shares."),
         ]
     def parseArgs(self, *locations):
-        self.locations = map(argv_to_unicode, locations)
+        self.locations = list(map(argv_to_unicode, locations))
 
     synopsis = "[options] [ALIAS:PATH]"
     description = """
@@ -452,7 +464,7 @@ class DeepCheckOptions(FileStoreOptions):
         ("verbose", "v", "Be noisy about what is happening."),
         ]
     def parseArgs(self, *locations):
-        self.locations = map(argv_to_unicode, locations)
+        self.locations = list(map(argv_to_unicode, locations))
 
     synopsis = "[options] [ALIAS:PATH]"
     description = """
@@ -503,7 +515,7 @@ def list_aliases(options):
 
 def list_(options):
     from allmydata.scripts import tahoe_ls
-    rc = tahoe_ls.list(options)
+    rc = tahoe_ls.ls(options)
     return rc
 
 def get(options):
