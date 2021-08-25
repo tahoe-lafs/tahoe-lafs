@@ -92,8 +92,6 @@ This require touching every single client of the current internal storage API an
 It's unclear to me how much code this would actually touch.
 Command-line tools, for example, wouldn't need to change since they use Tahoe-LAFS's external high-level "filesystem" HTTP API, rather than the internal storage APIs.
 
-TODO: Audit the code/talk to experts to clarify.
-
 
 #### `INTERNAL-CLIENT-API-NEW-EMULATES-OLD`: Implement facade around GBS that implements Foolscap-like API
 
@@ -118,26 +116,80 @@ More chance of bugs.
 
 ### Discussion
 
-Looking through the code, it seems that storage clients interact with the server using a `RIStorageServer`.
-Much of its interface is simple methods, pass in simple objects and get back simple objects.
+Here's how the code actually works (Itamar's preliminary understanding):
 
-The two exceptions are:
+* `RIStorageServer` is wrapped by `IStorageServer`.
+   As a result, the code mostly doesn't actually do direct `callRemote()` calls, it calls normal methods that return `Deferreds`.
+* Testing is typically done without faking the `IStorageServer`; instead, the `RIStorageServer` is faked.
+* The `RIBuckerWriter` and `RIBucketReader` returned by `(R)IStorageServer` are sometimes accessed via `IStorageBucketReader` and `IStorageWriter` implementations that wrap around the `RemoteReference` and do `callRemote()` on it.
+   There are other classes that do this too, though, e.g. `allmydata.immutable.downloader.share.Share`.
 
-1. Reading a bucket, which involves a `RIBucketReader` that has a simple `read()` method, and a simple `advise_corrupt_share` method.
-2. When buckets are allocated, one gets back an object structure that has a dictionary with `RIBucketWriter`.
-   The bucket writers have simple `write()/close()/abort()` methods.
+This suggests that one could make a `IStorageServer` implementation that under the hood called HTTP methods.
+That is to say, option `INTERNAL-CLIENT-API-NEW-EMULATES-OLD`.
 
-This isn't _that_ object-oriented of an API.
+### Decision
 
-...
+Based on the above, and some [initial experiments](https://github.com/tahoe-lafs/tahoe-lafs/pull/1112), `INTERNAL-CLIENT-API-NEW-EMULATES-OLD` seems plausible.
 
-The first option is clearly possible.
-It's not clear which of the other two options is actually feasible, the semantics may be too different.
+## Question 4: How should support for two protocols be implemented in code structure, on the server side?
+
+## Question 5: Can we create a (somewhat) formal protocol spec of the HTTP API?
+
+There are various tools for specifying HTTP APIs.
+This is useful for documentation, and also for validation.
+
+For the HTTP level, options includes:
+
+* OpenAPI (formerly Swagger).
+  v3.0 apparently supports a bunch of JSONSchema, v3.1 supports all of it, but 3.1 tool support seems lacking (it's new).
+  It's unclear whether byte fields will work with this, though...
+
+Apparently that's pretty common so let's just say use that.
+
+For the CBOR/JSON records, if we're not validating as part of OpenAPI:
+
+* CDDL is apparently the schema language of choice for CBOR; it also supports JSON.
+  There is a Rust implementation which could be wrapped for Python, but support for CDDL is in general not very broad (but might suffice).
+* JSON Schema tools _might_ work with CBOR, not sure how bytes are handled though...
+
+If the goal is generating client code, [Servant](https://docs.servant.dev/en/stable/) can do that.
+
+Alternatively, there can be no validation and just relying on the implementation and tests.
+
+## Question 6: What about helper client?
+
+A "tahoe client" usually does the share-building + uploading itself, locally, so the amount of uploaded data is greater than the plaintext.
+With the helper, you contact the "helper node" and upload ciphertext; it does the share-building etc there.
+Thus user only upload the number of bytes in the ciphertext, rather than the multiple shares.
+
+This is out of scope for now, just needs to not break.
+
+
+# Implementation plan
+
+## Chunks of work
+
+Here's a starting point of chunks of work; probably these will be broken up into sub-chunks, e.g. mutable vs. immutable on server and client.
+
+* `SERVER`: HTTP server implementation.
+    * `OPENAPI`: OpenAPI validation for incoming/outgoing messages.
+    * `ENDPOINTS`: Implementation of all the endpoints.
+* `MINIMAL-CLIENT`: Minimal HTTP client, sufficient for testing `SERVER` but also as building block for `CLIENT-PROTOCOL-INTEGRATION`.
+    * `OPENAPI`: OpenAPI validation for incoming/outgoing messages.
+    * `ENDPOINTS`: Implementation of client code for all the endpoints.
+* `CLIENT-PROTOCOL-INTEGRATION`: Ability to talk to `SERVER` using `MINIMAL-CLIENT` from within the client business logic.
+* `SERVER-ANNOUNCEMENTS`: Ability for server to announce presence of HTTP protocol.
+* `CLIENT-ANNOUNCEMENTS`: Ability for client to choose HTTP protocol when available.
+* `CONFIGURATION`: Ability to configure the HTTP protocol.
+* `DOCUMENTATION`: Explanation for users.
+
+
+# Appendix: IRC discussion on question 4
 
 TODO braindump what we discussed.
 
 ```
-o[2021-08-04 14:46:38] <itamarst> so there are 3 proposed models (there might be more, if you can think of any)
+[2021-08-04 14:46:38] <itamarst> so there are 3 proposed models (there might be more, if you can think of any)
 [2021-08-04 14:46:51] <exarkun> It _might_ make sense to consider 2 instances of question 3, though perhaps we'll come to the same answer for each
 [2021-08-04 14:46:51] <itamarst> 1. completely separate interfaces, all clients need to support both 
 [2021-08-04 14:46:56] <exarkun> client, server
@@ -407,54 +459,3 @@ o[2021-08-04 14:46:38] <itamarst> so there are 3 proposed models (there might be
 [2021-08-04 16:22:16] <meejah> cool
 [2021-08-04 16:22:46] <meejah> basically i think of them as separate things, since the code-paths are (usually) pretty different
 ```
-
-## Question 4: How should support for two protocols be implemented in code structure, on the server side?
-
-## Question 5: Can we create a (somewhat) formal protocol spec of the HTTP API?
-
-There are various tools for specifying HTTP APIs.
-This is useful for documentation, and also for validation.
-
-For the HTTP level, options includes:
-
-* OpenAPI (formerly Swagger).
-  v3.0 apparently supports a bunch of JSONSchema, v3.1 supports all of it, but 3.1 tool support seems lacking (it's new).
-
-Apparently that's pretty common so let's just say use that.
-
-For the CBOR/JSON records:
-
-* CDDL is apparently the schema language of choice for CBOR; it also supports JSON.
-  There is a Rust implementation which could be wrapped for Python, but support for CDDL is in general not very broad (but might suffice).
-* JSON Schema tools _might_ work with CBOR, not sure how bytes are handled though...
-
-If the goal is generating client code, [Servant](https://docs.servant.dev/en/stable/) can do that.
-
-## Question 6: What about helper client?
-
-A "tahoe client" usually does the share-building + uploading itself, locally, so the amount of uploaded data is greater than the plaintext.
-With the helper, you contact the "helper node" and upload ciphertext; it does the share-building etc there.
-Thus user only upload the number of bytes in the ciphertext, rather than the multiple shares.
-
-This is out of scope for now, just needs to not break.
-
-
-# Implementation plan
-
-## Chunks of work
-
-Here's a starting point of chunks of work; probably these will be broken up into sub-chunks, e.g. mutable vs. immutable on server and client.
-
-* `SERVER`: HTTP server implementation.
-    * `OPENAPI`: OpenAPI validation for incoming/outgoing messages.
-    * `ENDPOINTS`: Implementation of all the endpoints.
-* `MINIMAL-CLIENT`: Minimal HTTP client, sufficient for testing `SERVER` but also as building block for `CLIENT-PROTOCOL-INTEGRATION`.
-    * `OPENAPI`: OpenAPI validation for incoming/outgoing messages.
-    * `ENDPOINTS`: Implementation of client code for all the endpoints.
-* `CLIENT-PROTOCOL-INTEGRATION`: Ability to talk to `SERVER` using `MINIMAL-CLIENT` from within the client business logic.
-* `SERVER-ANNOUNCEMENTS`: Ability for server to announce presence of HTTP protocol.
-* `CLIENT-ANNOUNCEMENTS`: Ability for client to choose HTTP protocol when available.
-* `CONFIGURATION`: Ability to configure the HTTP protocol.
-* `DOCUMENTATION`: Explanation for users.
-
-Probably will want to do `SERVER/ENDPOINTS` and `CLIENT/ENDPOINTS` in a series of issues, each of which adds an endpoint to both client and server.
