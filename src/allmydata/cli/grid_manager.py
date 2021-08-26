@@ -1,3 +1,5 @@
+from __future__ import print_function
+
 from datetime import (
     datetime,
     timedelta,
@@ -188,7 +190,7 @@ def sign(ctx, name, expiry_days):
             "No storage-server called '{}' exists".format(name)
         )
 
-    certificate_data = json.dumps(certificate, indent=4)
+    certificate_data = json.dumps(certificate.asdict(), indent=4)
     click.echo(certificate_data)
     if fp is not None:
         next_serial = 0

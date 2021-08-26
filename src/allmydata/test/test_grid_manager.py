@@ -27,6 +27,7 @@ from allmydata.grid_manager import (
     create_grid_manager,
     parse_grid_manager_certificate,
     create_grid_manager_verifier,
+    SignedCertificate,
 )
 from allmydata.test.strategies import (
     base32text,
@@ -165,16 +166,13 @@ class GridManagerVerifier(SyncTestCase):
         cert1 = self.gm.sign("test", timedelta(seconds=3600))
         self.assertNotEqual(cert0, cert1)
 
-        self.assertEqual(
-            set(cert0.keys()),
-            {"certificate", "signature"},
-        )
+        self.assertIsInstance(cert0, SignedCertificate)
         gm_key = ed25519.verifying_key_from_string(self.gm.public_identity())
         self.assertEqual(
             ed25519.verify_signature(
                 gm_key,
-                base32.a2b(cert0["signature"]),
-                cert0["certificate"],
+                base32.a2b(cert0.signature.encode("ascii")),
+                cert0.certificate.encode("ascii"),
             ),
             None
         )
@@ -432,7 +430,7 @@ class GridManagerInvalidVerifier(SyncTestCase):
         An incorrect signature is rejected
         """
         # make signature invalid
-        self.cert0["signature"] = invalid_signature
+        self.cert0.signature = invalid_signature
 
         verify = create_grid_manager_verifier(
             [self.gm._public_key],

@@ -2,6 +2,9 @@
 Functions and classes relating to the Grid Manager internal state
 """
 
+from future.utils import PY2, PY3
+from past.builtins import unicode
+
 import sys
 import json
 from datetime import (
@@ -16,6 +19,24 @@ from allmydata.util import (
 )
 
 import attr
+
+
+@attr.s
+class SignedCertificate(object):
+    """
+    A signed certificate.
+    """
+    # A JSON-encoded certificate.
+    certificate = attr.ib(type=unicode)
+    # The signature in base32.
+    signature = attr.ib(type=unicode)
+
+    @classmethod
+    def load(cls, file_like):
+        return cls(**json.load(file_like))
+
+    def asdict(self):
+        return attr.asdict(self)
 
 
 @attr.s
@@ -97,10 +118,10 @@ def _load_certificates_for(config_path, name, gm_key=None):
     cert_path = config_path.child('{}.cert.{}'.format(name, cert_index))
     certificates = []
     while cert_path.exists():
-        container = json.load(cert_path.open('r'))
+        container = SignedCertificate.load(cert_path.open('r'))
         if gm_key is not None:
             validate_grid_manager_certificate(gm_key, container)
-        cert_data = json.loads(container['certificate'])
+        cert_data = json.loads(container.certificate)
         if cert_data['version'] != 1:
             raise ValueError(
                 "Unknown certificate version '{}' in '{}'".format(
@@ -207,8 +228,7 @@ class _GridManager(object):
         :param timedelta expiry: how far in the future the certificate
             should expire.
 
-        :returns: a dict defining the certificate (it has
-            "certificate" and "signature" keys).
+        :returns SignedCertificate: the signed certificate.
         """
         try:
             srv = self._storage_servers[name]
@@ -225,11 +245,10 @@ class _GridManager(object):
         }
         cert_data = json.dumps(cert_info, separators=(',',':'), sort_keys=True).encode('utf8')
         sig = ed25519.sign_data(self._private_key, cert_data)
-        certificate = {
-            u"certificate": cert_data,
-            u"signature": base32.b2a(sig),
-        }
-
+        certificate = SignedCertificate(
+            certificate=cert_data,
+            signature=base32.b2a(sig),
+        )
         vk = ed25519.verifying_key_from_signing_key(self._private_key)
         ed25519.verify_signature(vk, sig, cert_data)
 
@@ -343,9 +362,7 @@ def validate_grid_manager_certificate(gm_key, alleged_cert):
     :param gm_key: a VerifyingKey instance, a Grid Manager's public
         key.
 
-    :param alleged_cert: dict with "certificate" and "signature" keys, where
-        "certificate" contains a JSON-serialized certificate for a Storage
-        Server (comes from a Grid Manager).
+    :param alleged_cert SignedCertificate: A signed certificate.
 
     :return: a dict consisting of the deserialized certificate data or
         None if the signature is invalid. Note we do NOT check the
@@ -354,13 +371,13 @@ def validate_grid_manager_certificate(gm_key, alleged_cert):
     try:
         ed25519.verify_signature(
             gm_key,
-            base32.a2b(alleged_cert['signature'].encode('ascii')),
-            alleged_cert['certificate'].encode('ascii'),
+            base32.a2b(alleged_cert.signature.encode('ascii')),
+            alleged_cert.certificate.encode('ascii'),
         )
     except ed25519.BadSignature:
         return None
     # signature is valid; now we can load the actual data
-    cert = json.loads(alleged_cert['certificate'])
+    cert = json.loads(alleged_cert.certificate)
     return cert
 
 
@@ -371,10 +388,10 @@ def create_grid_manager_verifier(keys, certs, public_key, now_fn=None, bad_cert=
     (instead of just returning True/False here) so that the
     expiry-time can be tested on each call.
 
-    :param list keys: 0 or more `VerifyingKey` instances
+    :param list keys: 0 or more ``VerifyingKey`` instances
 
     :param list certs: 1 or more Grid Manager certificates each of
-        which is a `dict` containing 'signature' and 'certificate' keys.
+        which is a ``SignedCertificate``.
 
     :param str public_key: the identifier of the server we expect
         certificates for.
