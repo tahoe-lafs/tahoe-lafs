@@ -137,6 +137,9 @@ install_requires = [
 
     # Backported configparser for Python 2:
     "configparser ; python_version < '3.0'",
+
+    # Command-line parsing
+    "click >= 7.0",
 ]
 
 setup_requires = [
