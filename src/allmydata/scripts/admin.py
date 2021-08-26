@@ -10,7 +10,7 @@ from future.utils import PY2
 if PY2:
     from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
-from six import ensure_binary
+from six import ensure_binary, ensure_str
 import json
 
 try:
@@ -100,7 +100,7 @@ class AddGridManagerCertOptions(BaseOptions):
                 "Must provide --filename option"
             )
         if self['filename'] == '-':
-            print("reading certificate from stdin", file=self.parent.parent.stderr)
+            print(ensure_str("reading certificate from stdin"), file=self.parent.parent.stderr)
             data = self.parent.parent.stdin.read()
             if len(data) == 0:
                 raise usage.UsageError(
@@ -151,7 +151,7 @@ def add_grid_manager_cert(options):
             options['name'],
             cert_path.path,
         )
-        print(msg, file=options.parent.parent.stderr)
+        print(ensure_str(msg), file=options.parent.parent.stderr)
         return 1
 
     config.set_config("storage", "grid_management", "True")
@@ -162,7 +162,8 @@ def add_grid_manager_cert(options):
         f.write(cert_bytes)
 
     cert_count = len(config.enumerate_section("grid_manager_certificates"))
-    print("There are now {} certificates".format(cert_count), file=options.parent.parent.stderr)
+    print(ensure_str("There are now {} certificates").format(cert_count),
+          file=options.parent.parent.stderr)
 
     return 0
 
