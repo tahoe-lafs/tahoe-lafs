@@ -1,1 +1,0 @@
-``tahoe invite`` will now read share encoding/placement configuration values from a Tahoe client node configuration file if they are not given on the command line, instead of raising an unhandled exception.
