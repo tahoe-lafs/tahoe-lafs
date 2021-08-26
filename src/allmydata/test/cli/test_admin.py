@@ -1,7 +1,11 @@
-import json
-from io import (
-    BytesIO,
-)
+from future.utils import PY3
+from six import ensure_str
+
+# We're going to override stdin/stderr, so want to match their behavior on respective Python versions.
+if PY3:
+    from io import StringIO
+else:
+    from StringIO import StringIO
 
 from twisted.python.usage import (
     UsageError,
@@ -16,6 +20,7 @@ from allmydata.scripts.admin import (
 from allmydata.scripts.runner import (
     Options,
 )
+from allmydata.util import jsonbytes as json
 from ..common import (
     SyncTestCase,
 )
@@ -31,7 +36,6 @@ class AddCertificateOptions(SyncTestCase):
     """
     Tests for 'tahoe admin add-grid-manager-cert' option validation
     """
-
     def setUp(self):
         self.tahoe = Options()
         return super(AddCertificateOptions, self).setUp()
@@ -40,8 +44,8 @@ class AddCertificateOptions(SyncTestCase):
         """
         When no data is passed to stdin an error is produced
         """
-        self.tahoe.stdin = BytesIO(b"")
-        self.tahoe.stderr = BytesIO()  # suppress message
+        self.tahoe.stdin = StringIO(ensure_str(""))
+        self.tahoe.stderr = StringIO()  # suppress message
 
         with self.assertRaises(UsageError) as ctx:
             self.tahoe.parseOptions(
@@ -63,7 +67,7 @@ class AddCertificateOptions(SyncTestCase):
         """
         tmp = self.mktemp()
         with open(tmp, "w") as f:
-            json.dump(fake_cert, f)
+            f.write(json.dumps(fake_cert))
 
         # certificate should be loaded
         self.tahoe.parseOptions(
@@ -83,8 +87,8 @@ class AddCertificateOptions(SyncTestCase):
         """
         Unparseable data produces an error
         """
-        self.tahoe.stdin = BytesIO(b"{}")
-        self.tahoe.stderr = BytesIO()  # suppress message
+        self.tahoe.stdin = StringIO(ensure_str("{}"))
+        self.tahoe.stderr = StringIO()  # suppress message
 
         with self.assertRaises(UsageError) as ctx:
             self.tahoe.parseOptions(
@@ -111,15 +115,15 @@ class AddCertificateCommand(SyncTestCase):
         self.node_path = FilePath(self.mktemp())
         self.node_path.makedirs()
         with self.node_path.child("tahoe.cfg").open("w") as f:
-            f.write("# minimal test config\n")
+            f.write(b"# minimal test config\n")
         return super(AddCertificateCommand, self).setUp()
 
     def test_add_one(self):
         """
         Adding a certificate succeeds
         """
-        self.tahoe.stdin = BytesIO(json.dumps(fake_cert))
-        self.tahoe.stderr = BytesIO()
+        self.tahoe.stdin = StringIO(json.dumps(fake_cert))
+        self.tahoe.stderr = StringIO()
         self.tahoe.parseOptions(
             [
                 "--node-directory", self.node_path.path,
@@ -145,8 +149,8 @@ class AddCertificateCommand(SyncTestCase):
         An error message is produced when adding a certificate with a
         duplicate name.
         """
-        self.tahoe.stdin = BytesIO(json.dumps(fake_cert))
-        self.tahoe.stderr = BytesIO()
+        self.tahoe.stdin = StringIO(json.dumps(fake_cert))
+        self.tahoe.stderr = StringIO()
         self.tahoe.parseOptions(
             [
                 "--node-directory", self.node_path.path,
@@ -158,7 +162,7 @@ class AddCertificateCommand(SyncTestCase):
         rc = add_grid_manager_cert(self.tahoe.subOptions.subOptions)
         self.assertEqual(rc, 0)
 
-        self.tahoe.stdin = BytesIO(json.dumps(fake_cert))
+        self.tahoe.stdin = StringIO(json.dumps(fake_cert))
         self.tahoe.parseOptions(
             [
                 "--node-directory", self.node_path.path,

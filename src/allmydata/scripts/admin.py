@@ -11,7 +11,6 @@ if PY2:
     from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 from six import ensure_binary, ensure_str
-import json
 
 try:
     from allmydata.scripts.types_ import SubCommands
@@ -28,7 +27,7 @@ from allmydata.grid_manager import (
 from allmydata.scripts.cli import _default_nodedir
 from allmydata.scripts.common import BaseOptions
 from allmydata.util.encodingutil import argv_to_abspath
-
+from allmydata.util import jsonbytes
 
 
 class GenerateKeypairOptions(BaseOptions):
@@ -143,7 +142,7 @@ def add_grid_manager_cert(options):
     config = read_config(nd, "portnum")
     cert_fname = "{}.cert".format(options['name'])
     cert_path = FilePath(config.get_config_path(cert_fname))
-    cert_bytes = json.dumps(options.certificate_data, indent=4) + '\n'
+    cert_bytes = jsonbytes.dumps_bytes(options.certificate_data, indent=4) + b'\n'
     cert_name = options['name']
 
     if cert_path.exists():
