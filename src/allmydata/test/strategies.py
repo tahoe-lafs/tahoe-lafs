@@ -131,6 +131,6 @@ def base32text():
     Build text()s that are valid base32
     """
     return builds(
-        b2a,
+        lambda b: str(b2a(b), "ascii"),
         binary(),
     )
