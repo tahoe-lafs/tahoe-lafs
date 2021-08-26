@@ -1,4 +1,15 @@
-from future.utils import PY3
+"""
+Ported to Python 3.
+"""
+
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2, PY3
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 from six import ensure_str
 
 # We're going to override stdin/stderr, so want to match their behavior on respective Python versions.
@@ -66,8 +77,8 @@ class AddCertificateOptions(SyncTestCase):
         A certificate can be read from a file
         """
         tmp = self.mktemp()
-        with open(tmp, "w") as f:
-            f.write(json.dumps(fake_cert))
+        with open(tmp, "wb") as f:
+            f.write(json.dumps_bytes(fake_cert))
 
         # certificate should be loaded
         self.tahoe.parseOptions(
