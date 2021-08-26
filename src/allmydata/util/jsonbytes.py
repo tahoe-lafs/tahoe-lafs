@@ -116,6 +116,7 @@ def dumps_bytes(obj, *args, **kwargs):
 
 # To make this module drop-in compatible with json module:
 loads = json.loads
+load = json.load
 
 
 __all__ = ["dumps", "loads"]
