@@ -1551,6 +1551,21 @@ class Statistics(MultiFormatResource):
         req.setHeader("content-type", "text/plain")
         return json.dumps(stats, indent=1) + "\n"
 
+    @render_exception
+    def render_OPENMETRICS(self, req):
+        req.setHeader("content-type", "application/openmetrics-text")
+        return "3. occurence. This should be the one.\n"
+
+    # @render_exception
+    # def render_OPENMETRICS(self, req):
+    #     req.setHeader("content-type", "text/plain")
+    #     if self._helper:
+    #         stats = self._helper.get_stats()
+    #         import pprint
+    #         return pprint.PrettyPrinter().pprint(stats) + "\n"
+    #     return "uh oh\n"
+
+
 class StatisticsElement(Element):
 
     loader = XMLFile(FilePath(__file__).sibling("statistics.xhtml"))
