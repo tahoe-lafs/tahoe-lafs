@@ -1,10 +1,10 @@
 from __future__ import print_function
+from past.builtins import unicode
 
 from datetime import (
     datetime,
     timedelta,
 )
-import json
 
 import click
 
@@ -23,6 +23,7 @@ from allmydata.grid_manager import (
     save_grid_manager,
     load_grid_manager,
 )
+from allmydata.util import jsonbytes as json
 
 
 @click.group()
@@ -102,7 +103,7 @@ def public_identity(config):
 
 @grid_manager.command()
 @click.argument("name")
-@click.argument("public_key", type=click.UNPROCESSED)
+@click.argument("public_key", type=click.STRING)
 @click.pass_context
 def add(ctx, name, public_key):
     """
@@ -160,7 +161,9 @@ def list(ctx):
     """
     for name in sorted(ctx.obj.grid_manager.storage_servers.keys()):
         blank_name = " " * len(name)
-        click.echo("{}: {}".format(name, ctx.obj.grid_manager.storage_servers[name].public_key_string()))
+        click.echo("{}: {}".format(
+            name,
+            unicode(ctx.obj.grid_manager.storage_servers[name].public_key_string(), "utf-8")))
         for cert in ctx.obj.grid_manager.storage_servers[name].certificates:
             delta = datetime.utcnow() - cert.expires
             click.echo("{}  cert {}: ".format(blank_name, cert.index), nl=False)
@@ -209,7 +212,7 @@ def sign(ctx, name, expiry_days):
                     )
             next_serial += 1
         with f:
-            f.write(certificate_data)
+            f.write(certificate_data.encode("ascii"))
 
 
 def _config_path_from_option(config):

@@ -1,7 +1,6 @@
 from future.utils import raise_
 
 import os
-import json
 from io import (
     BytesIO,
 )
@@ -31,6 +30,7 @@ from twisted.python.filepath import (
 from twisted.python.runtime import (
     platform,
 )
+from allmydata.util import jsonbytes as json
 
 
 class GridManagerCommandLine(TestCase):
@@ -66,8 +66,8 @@ class GridManagerCommandLine(TestCase):
         An invalid config is reported to the user
         """
         with self.runner.isolated_filesystem():
-            with open("config.json", "w") as f:
-                json.dump({"not": "valid"}, f)
+            with open("config.json", "wb") as f:
+                f.write(json.dumps_bytes({"not": "valid"}))
             result = self.runner.invoke(grid_manager, ["--config", ".", "public-identity"])
             self.assertNotEqual(result.exit_code, 0)
             self.assertIn(
@@ -117,7 +117,7 @@ class GridManagerCommandLine(TestCase):
         }
         result = self.invoke_and_check(
             grid_manager, ["--config", "-", "list"],
-            input=BytesIO(json.dumps(config)),
+            input=BytesIO(json.dumps_bytes(config)),
         )
         self.assertEqual(result.exit_code, 0)
         self.assertEqual(
@@ -260,7 +260,7 @@ class TahoeAddGridManagerCert(TestCase):
         """
         code, out, err = yield run_cli(
             "admin", "add-grid-manager-cert", "--filename", "-",
-            stdin="the cert",
+            stdin=b"the cert",
         )
         self.assertIn(
             "Must provide --name",
@@ -274,7 +274,7 @@ class TahoeAddGridManagerCert(TestCase):
         """
         code, out, err = yield run_cli(
             "admin", "add-grid-manager-cert", "--name", "foo",
-            stdin="the cert",
+            stdin=b"the cert",
         )
         self.assertIn(
             "Must provide --filename",
@@ -287,7 +287,7 @@ class TahoeAddGridManagerCert(TestCase):
         we can add a certificate
         """
         nodedir = self.mktemp()
-        fake_cert = """{"certificate": "", "signature": ""}"""
+        fake_cert = b"""{"certificate": "", "signature": ""}"""
 
         code, out, err = yield run_cli(
             "--node-directory", nodedir,
@@ -301,7 +301,7 @@ class TahoeAddGridManagerCert(TestCase):
 
         self.assertIn("tahoe.cfg", nodepath.listdir())
         self.assertIn(
-            "foo = foo.cert",
+            b"foo = foo.cert",
             config_data,
         )
         self.assertIn("foo.cert", nodepath.listdir())
