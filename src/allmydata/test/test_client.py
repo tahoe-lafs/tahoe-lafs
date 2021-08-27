@@ -12,7 +12,6 @@ if PY2:
 
 import os
 import sys
-import json
 from functools import (
     partial,
 )
@@ -75,6 +74,7 @@ from allmydata.util import (
     fileutil,
     encodingutil,
     configutil,
+    jsonbytes as json,
 )
 from allmydata.util.eliotutil import capture_logging
 from allmydata.util.fileutil import abspath_expanduser_unicode
@@ -1520,9 +1520,9 @@ enabled = {storage_enabled}
             "signature": "fvjd3uvvupf2v6tnvkwjd473u3m3inyqkwiclhp7balmchkmn3px5pei3qyfjnhymq4cjcwvbpqmcwwnwswdtrfkpnlaxuih2zbdmda",
         }
         with self.basedir.child("zero.cert").open("w") as f:
-            json.dump(fake_cert, f)
+            f.write(json.dumps_bytes(fake_cert))
         with self.basedir.child("gm0.cert").open("w") as f:
-            json.dump(fake_cert, f)
+            f.write(json.dumps_bytes(fake_cert))
 
         config = client.config_from_string(
             self.basedir.path,
