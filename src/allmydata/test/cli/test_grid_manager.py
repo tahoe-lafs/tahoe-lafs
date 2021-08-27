@@ -1,3 +1,4 @@
+from future.utils import raise_
 
 import os
 import json
@@ -44,6 +45,8 @@ class GridManagerCommandLine(TestCase):
     def invoke_and_check(self, *args, **kwargs):
         """Invoke a command with the runner and ensure it succeeded."""
         result = self.runner.invoke(*args, **kwargs)
+        if result.exception is not None:
+            raise_(*result.exc_info)
         self.assertEqual(result.exit_code, 0, result)
         return result
 

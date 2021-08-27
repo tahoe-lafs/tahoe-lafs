@@ -111,6 +111,7 @@ def add(ctx, name, public_key):
     PUBLIC_KEY is the contents of a node.pubkey file from a Tahoe
     node-directory. NAME is an arbitrary label.
     """
+    public_key = public_key.encode("ascii")
     try:
         ctx.obj.grid_manager.add_storage_server(
             name,
