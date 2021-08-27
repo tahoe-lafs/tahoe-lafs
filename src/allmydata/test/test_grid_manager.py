@@ -1,4 +1,14 @@
-from past.builtins import unicode
+"""
+Ported to Python 3.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 from datetime import (
     timedelta,
@@ -52,8 +62,8 @@ class GridManagerUtilities(SyncTestCase):
             "certificate": "{\"expires\":1601687822,\"public_key\":\"pub-v0-cbq6hcf3pxcz6ouoafrbktmkixkeuywpcpbcomzd3lqbkq4nmfga\",\"version\":1}",
             "signature": "fvjd3uvvupf2v6tnvkwjd473u3m3inyqkwiclhp7balmchkmn3px5pei3qyfjnhymq4cjcwvbpqmcwwnwswdtrfkpnlaxuih2zbdmda"
         }
-        with open(cert_path, "w") as f:
-            f.write(json.dumps(fake_cert))
+        with open(cert_path, "wb") as f:
+            f.write(json.dumps_bytes(fake_cert))
         config_data = (
             "[grid_managers]\n"
             "fluffy = pub-v0-vqimc4s5eflwajttsofisp5st566dbq36xnpp4siz57ufdavpvlq\n"
@@ -77,8 +87,8 @@ class GridManagerUtilities(SyncTestCase):
             "certificate": "{\"expires\":1601687822,\"public_key\":\"pub-v0-cbq6hcf3pxcz6ouoafrbktmkixkeuywpcpbcomzd3lqbkq4nmfga\",\"version\":22}",
             "signature": "fvjd3uvvupf2v6tnvkwjd473u3m3inyqkwiclhp7balmchkmn3px5pei3qyfjnhymq4cjcwvbpqmcwwnwswdtrfkpnlaxuih2zbdmda"
         }
-        with open(cert_path, "w") as f:
-            f.write(json.dumps(fake_cert))
+        with open(cert_path, "wb") as f:
+            f.write(json.dumps_bytes(fake_cert))
         config_data = (
             "[grid_managers]\n"
             "fluffy = pub-v0-vqimc4s5eflwajttsofisp5st566dbq36xnpp4siz57ufdavpvlq\n"
@@ -103,8 +113,8 @@ class GridManagerUtilities(SyncTestCase):
             "signature": "fvjd3uvvupf2v6tnvkwjd473u3m3inyqkwiclhp7balmchkmn3px5pei3qyfjnhymq4cjcwvbpqmcwwnwswdtrfkpnlaxuih2zbdmda",
             "something-else": "not valid in a v0 certificate"
         }
-        with open(cert_path, "w") as f:
-            f.write(json.dumps(fake_cert))
+        with open(cert_path, "wb") as f:
+            f.write(json.dumps_bytes(fake_cert))
         config_data = (
             "[grid_manager_certificates]\n"
             "ding = {}\n".format(cert_path)
@@ -234,7 +244,7 @@ class GridManagerVerifier(SyncTestCase):
             len(self.gm.storage_servers),
             len(gm2.storage_servers),
         )
-        for name, ss0 in self.gm.storage_servers.items():
+        for name, ss0 in list(self.gm.storage_servers.items()):
             ss1 = gm2.storage_servers[name]
             self.assertEqual(ss0.name, ss1.name)
             self.assertEqual(ss0.public_key_string(), ss1.public_key_string())
