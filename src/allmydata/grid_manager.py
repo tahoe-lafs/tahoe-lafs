@@ -6,7 +6,6 @@ from future.utils import PY2, PY3
 from past.builtins import unicode
 
 import sys
-import json
 from datetime import (
     datetime,
 )
@@ -16,6 +15,7 @@ from allmydata.crypto import (
 )
 from allmydata.util import (
     base32,
+    jsonbytes as json,
 )
 
 import attr
@@ -26,14 +26,23 @@ class SignedCertificate(object):
     """
     A signed certificate.
     """
-    # A JSON-encoded certificate.
-    certificate = attr.ib(type=unicode)
+    # A JSON-encoded, UTF-8-encoded certificate.
+    certificate = attr.ib(
+        type=bytes, validator=attr.validators.instance_of(bytes)
+    )
     # The signature in base32.
-    signature = attr.ib(type=unicode)
+    signature = attr.ib(
+        type=bytes,
+        validator=attr.validators.instance_of(bytes)
+    )
 
     @classmethod
     def load(cls, file_like):
-        return cls(**json.load(file_like))
+        data = json.load(file_like)
+        return cls(
+            certificate=data["certificate"].encode("ascii"),
+            signature=data["signature"].encode("ascii")
+        )
 
     def asdict(self):
         return attr.asdict(self)
@@ -243,7 +252,7 @@ class _GridManager(object):
             "public_key": srv.public_key_string(),
             "version": 1,
         }
-        cert_data = json.dumps(cert_info, separators=(',',':'), sort_keys=True).encode('utf8')
+        cert_data = json.dumps_bytes(cert_info, separators=(',',':'), sort_keys=True)
         sig = ed25519.sign_data(self._private_key, cert_data)
         certificate = SignedCertificate(
             certificate=cert_data,
@@ -371,8 +380,8 @@ def validate_grid_manager_certificate(gm_key, alleged_cert):
     try:
         ed25519.verify_signature(
             gm_key,
-            base32.a2b(alleged_cert.signature.encode('ascii')),
-            alleged_cert.certificate.encode('ascii'),
+            base32.a2b(alleged_cert.signature),
+            alleged_cert.certificate,
         )
     except ed25519.BadSignature:
         return None

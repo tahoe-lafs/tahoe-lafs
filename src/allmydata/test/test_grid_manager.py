@@ -1,3 +1,5 @@
+from past.builtins import unicode
+
 from datetime import (
     timedelta,
 )
@@ -430,7 +432,7 @@ class GridManagerInvalidVerifier(SyncTestCase):
         An incorrect signature is rejected
         """
         # make signature invalid
-        self.cert0.signature = invalid_signature
+        self.cert0.signature = invalid_signature.encode("ascii")
 
         verify = create_grid_manager_verifier(
             [self.gm._public_key],
