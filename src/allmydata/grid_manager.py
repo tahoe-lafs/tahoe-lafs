@@ -334,7 +334,8 @@ def save_grid_manager(file_path, grid_manager, create=True):
             if create:
                 raise
         with file_path.child("config.json").open("w") as f:
-            f.write("{}\n".format(data))
+            f.write(data.encode("utf-8"))
+            f.write(b"\n")
 
 
 def parse_grid_manager_certificate(gm_data):
@@ -465,7 +466,7 @@ def create_grid_manager_verifier(keys, certs, public_key, now_fn=None, bad_cert=
         now = now_fn()
         for cert in valid_certs:
             expires = datetime.utcfromtimestamp(cert['expires'])
-            if cert['public_key'] == public_key:
+            if cert['public_key'].encode("ascii") == public_key:
                 if expires > now:
                     # not-expired
                     return True

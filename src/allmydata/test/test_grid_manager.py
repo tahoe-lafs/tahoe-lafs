@@ -3,7 +3,6 @@ from past.builtins import unicode
 from datetime import (
     timedelta,
 )
-import json
 
 from twisted.python.filepath import (
     FilePath,
@@ -22,6 +21,7 @@ from allmydata.crypto import (
 )
 from allmydata.util import (
     base32,
+    jsonbytes as json,
 )
 from allmydata.grid_manager import (
     load_grid_manager,
@@ -173,8 +173,8 @@ class GridManagerVerifier(SyncTestCase):
         self.assertEqual(
             ed25519.verify_signature(
                 gm_key,
-                base32.a2b(cert0.signature.encode("ascii")),
-                cert0.certificate.encode("ascii"),
+                base32.a2b(cert0.signature),
+                cert0.certificate,
             ),
             None
         )
@@ -251,7 +251,7 @@ class GridManagerVerifier(SyncTestCase):
         }
         fp.makedirs()
         with fp.child("config.json").open("w") as f:
-            json.dump(bad_config, f)
+            f.write(json.dumps_bytes(bad_config))
 
         with self.assertRaises(ValueError) as ctx:
             load_grid_manager(fp)
@@ -283,9 +283,9 @@ class GridManagerVerifier(SyncTestCase):
 
         fp.makedirs()
         with fp.child("config.json").open("w") as f:
-            json.dump(config, f)
+            f.write(json.dumps_bytes(config))
         with fp.child("alice.cert.0").open("w") as f:
-            json.dump(bad_cert, f)
+            f.write(json.dumps_bytes(bad_cert))
 
         with self.assertRaises(ValueError) as ctx:
             load_grid_manager(fp)
@@ -306,7 +306,7 @@ class GridManagerVerifier(SyncTestCase):
         }
         fp.makedirs()
         with fp.child("config.json").open("w") as f:
-            json.dump(bad_config, f)
+            f.write(json.dumps_bytes(bad_config))
 
         with self.assertRaises(ValueError) as ctx:
             load_grid_manager(fp)
@@ -327,7 +327,7 @@ class GridManagerVerifier(SyncTestCase):
         }
         fp.makedirs()
         with fp.child("config.json").open("w") as f:
-            json.dump(bad_config, f)
+            f.write(json.dumps_bytes(bad_config))
 
         with self.assertRaises(ValueError) as ctx:
             load_grid_manager(fp)
@@ -352,7 +352,7 @@ class GridManagerVerifier(SyncTestCase):
         }
         fp.makedirs()
         with fp.child("config.json").open("w") as f:
-            json.dump(bad_config, f)
+            f.write(json.dumps_bytes(bad_config))
 
         with self.assertRaises(ValueError) as ctx:
             load_grid_manager(fp)

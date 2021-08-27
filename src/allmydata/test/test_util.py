@@ -559,7 +559,6 @@ class JSONBytes(unittest.TestCase):
         )
 
 
-
 class FakeGetVersion(object):
     """Emulate an object with a get_version."""
 
