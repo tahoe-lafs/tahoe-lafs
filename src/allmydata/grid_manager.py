@@ -1,9 +1,16 @@
 """
 Functions and classes relating to the Grid Manager internal state
-"""
 
-from future.utils import PY2, PY3
-from past.builtins import unicode
+Ported to Python 3.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 import sys
 from datetime import (
@@ -16,6 +23,7 @@ from allmydata.crypto import (
 from allmydata.util import (
     base32,
     jsonbytes as json,
+    dictutil,
 )
 
 import attr
@@ -193,7 +201,7 @@ def load_grid_manager(config_path):
         )
 
     storage_servers = dict()
-    for name, srv_config in config.get(u'storage_servers', {}).items():
+    for name, srv_config in list(config.get(u'storage_servers', {}).items()):
         if 'public_key' not in srv_config:
             raise ValueError(
                 "No 'public_key' for storage server '{}'".format(name)
@@ -213,7 +221,10 @@ class _GridManager(object):
     """
 
     def __init__(self, private_key_bytes, storage_servers):
-        self._storage_servers = dict() if storage_servers is None else storage_servers
+        self._storage_servers = dictutil.UnicodeKeyDict(
+            {} if storage_servers is None else storage_servers
+        )
+        assert isinstance(private_key_bytes, bytes)
         self._private_key_bytes = private_key_bytes
         self._private_key, self._public_key = ed25519.signing_keypair_from_string(self._private_key_bytes)
         self._version = 0
@@ -239,6 +250,7 @@ class _GridManager(object):
 
         :returns SignedCertificate: the signed certificate.
         """
+        assert isinstance(name, str)  # must be unicode
         try:
             srv = self._storage_servers[name]
         except KeyError:
