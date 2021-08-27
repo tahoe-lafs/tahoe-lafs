@@ -558,6 +558,12 @@ class JSONBytes(unittest.TestCase):
             expected
         )
 
+    def test_dumps_bytes_unicode_separators(self):
+        """Unicode separators don't prevent the result from being bytes."""
+        result = jsonbytes.dumps_bytes([1, 2], separators=(u',', u':'))
+        self.assertIsInstance(result, bytes)
+        self.assertEqual(result, b"[1,2]")
+
 
 class FakeGetVersion(object):
     """Emulate an object with a get_version."""
