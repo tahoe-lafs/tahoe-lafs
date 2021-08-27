@@ -1,5 +1,14 @@
+"""
+Ported to Python 3.
+"""
+from __future__ import absolute_import
+from __future__ import division
 from __future__ import print_function
-from past.builtins import unicode
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 from datetime import (
     datetime,
@@ -163,7 +172,7 @@ def list(ctx):
         blank_name = " " * len(name)
         click.echo("{}: {}".format(
             name,
-            unicode(ctx.obj.grid_manager.storage_servers[name].public_key_string(), "utf-8")))
+            str(ctx.obj.grid_manager.storage_servers[name].public_key_string(), "utf-8")))
         for cert in ctx.obj.grid_manager.storage_servers[name].certificates:
             delta = datetime.utcnow() - cert.expires
             click.echo("{}  cert {}: ".format(blank_name, cert.index), nl=False)
