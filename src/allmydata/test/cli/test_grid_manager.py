@@ -41,15 +41,21 @@ class GridManagerCommandLine(TestCase):
         self.runner = click.testing.CliRunner()
         super(GridManagerCommandLine, self).setUp()
 
+    def invoke_and_check(self, *args, **kwargs):
+        """Invoke a command with the runner and ensure it succeeded."""
+        result = self.runner.invoke(*args, **kwargs)
+        self.assertEqual(result.exit_code, 0, result)
+        return result
+
     def test_create(self):
         """
         Create a new grid-manager
         """
         with self.runner.isolated_filesystem():
-            result = self.runner.invoke(grid_manager, ["--config", "foo", "create"])
+            result = self.invoke_and_check(grid_manager, ["--config", "foo", "create"])
             self.assertEqual(["foo"], os.listdir("."))
             self.assertEqual(["config.json"], os.listdir("./foo"))
-            result = self.runner.invoke(grid_manager, ["--config", "foo", "public-identity"])
+            result = self.invoke_and_check(grid_manager, ["--config", "foo", "public-identity"])
             self.assertTrue(result.output.startswith("pub-v0-"))
 
     def test_load_invalid(self):
@@ -72,7 +78,7 @@ class GridManagerCommandLine(TestCase):
         directory.
         """
         with self.runner.isolated_filesystem():
-            result = self.runner.invoke(grid_manager, ["--config", "foo", "create"])
+            result = self.invoke_and_check(grid_manager, ["--config", "foo", "create"])
             result = self.runner.invoke(grid_manager, ["--config", "foo", "create"])
             self.assertEqual(1, result.exit_code)
             self.assertIn(
@@ -85,7 +91,7 @@ class GridManagerCommandLine(TestCase):
         Create a new grid-manager with no files
         """
         with self.runner.isolated_filesystem():
-            result = self.runner.invoke(grid_manager, ["--config", "-", "create"])
+            result = self.invoke_and_check(grid_manager, ["--config", "-", "create"])
             self.assertEqual([], os.listdir("."))
             config = json.loads(result.output)
             self.assertEqual(
@@ -106,7 +112,7 @@ class GridManagerCommandLine(TestCase):
             "private_key": "priv-v0-6uinzyaxy3zvscwgsps5pxcfezhrkfb43kvnrbrhhfzyduyqnniq",
             "grid_manager_config_version": 0
         }
-        result = self.runner.invoke(
+        result = self.invoke_and_check(
             grid_manager, ["--config", "-", "list"],
             input=BytesIO(json.dumps(config)),
         )
@@ -122,9 +128,9 @@ class GridManagerCommandLine(TestCase):
         """
         pubkey = "pub-v0-cbq6hcf3pxcz6ouoafrbktmkixkeuywpcpbcomzd3lqbkq4nmfga"
         with self.runner.isolated_filesystem():
-            self.runner.invoke(grid_manager, ["--config", "foo", "create"])
-            self.runner.invoke(grid_manager, ["--config", "foo", "add", "storage0", pubkey])
-            result = self.runner.invoke(grid_manager, ["--config", "foo", "sign", "storage0", "10"])
+            self.invoke_and_check(grid_manager, ["--config", "foo", "create"])
+            self.invoke_and_check(grid_manager, ["--config", "foo", "add", "storage0", pubkey])
+            result = self.invoke_and_check(grid_manager, ["--config", "foo", "sign", "storage0", "10"])
             sigcert = json.loads(result.output)
             self.assertEqual({"certificate", "signature"}, set(sigcert.keys()))
             cert = json.loads(sigcert['certificate'])
@@ -136,10 +142,10 @@ class GridManagerCommandLine(TestCase):
         """
         pubkey = "pub-v0-cbq6hcf3pxcz6ouoafrbktmkixkeuywpcpbcomzd3lqbkq4nmfga"
         with self.runner.isolated_filesystem():
-            self.runner.invoke(grid_manager, ["--config", "foo", "create"])
-            self.runner.invoke(grid_manager, ["--config", "foo", "add", "storage0", pubkey])
-            self.runner.invoke(grid_manager, ["--config", "foo", "sign", "storage0", "10"])
-            self.runner.invoke(grid_manager, ["--config", "foo", "sign", "storage0", "10"])
+            self.invoke_and_check(grid_manager, ["--config", "foo", "create"])
+            self.invoke_and_check(grid_manager, ["--config", "foo", "add", "storage0", pubkey])
+            self.invoke_and_check(grid_manager, ["--config", "foo", "sign", "storage0", "10"])
+            self.invoke_and_check(grid_manager, ["--config", "foo", "sign", "storage0", "10"])
             # we should now have two certificates stored
             self.assertEqual(
                 set(FilePath("foo").listdir()),
@@ -153,8 +159,8 @@ class GridManagerCommandLine(TestCase):
         pubkey0 = "pub-v0-cbq6hcf3pxcz6ouoafrbktmkixkeuywpcpbcomzd3lqbkq4nmfga"
         pubkey1 = "pub-v0-5ysc55trfvfvg466v46j4zmfyltgus3y2gdejifctv7h4zkuyveq"
         with self.runner.isolated_filesystem():
-            self.runner.invoke(grid_manager, ["--config", "foo", "create"])
-            self.runner.invoke(grid_manager, ["--config", "foo", "add", "storage0", pubkey0])
+            self.invoke_and_check(grid_manager, ["--config", "foo", "create"])
+            self.invoke_and_check(grid_manager, ["--config", "foo", "add", "storage0", pubkey0])
             result = self.runner.invoke(grid_manager, ["--config", "foo", "add", "storage0", pubkey1])
             self.assertNotEquals(result.exit_code, 0)
             self.assertIn(
@@ -168,11 +174,11 @@ class GridManagerCommandLine(TestCase):
         """
         pubkey = "pub-v0-cbq6hcf3pxcz6ouoafrbktmkixkeuywpcpbcomzd3lqbkq4nmfga"
         with self.runner.isolated_filesystem():
-            self.runner.invoke(grid_manager, ["--config", "foo", "create"])
-            self.runner.invoke(grid_manager, ["--config", "foo", "add", "storage0", pubkey])
-            self.runner.invoke(grid_manager, ["--config", "foo", "sign", "storage0", "1"])
+            self.invoke_and_check(grid_manager, ["--config", "foo", "create"])
+            self.invoke_and_check(grid_manager, ["--config", "foo", "add", "storage0", pubkey])
+            self.invoke_and_check(grid_manager, ["--config", "foo", "sign", "storage0", "1"])
 
-            result = self.runner.invoke(grid_manager, ["--config", "foo", "list"])
+            result = self.invoke_and_check(grid_manager, ["--config", "foo", "list"])
             names = [
                 line.split(':')[0]
                 for line in result.output.strip().split('\n')
@@ -180,9 +186,9 @@ class GridManagerCommandLine(TestCase):
             ]
             self.assertEqual(names, ["storage0"])
 
-            self.runner.invoke(grid_manager, ["--config", "foo", "remove", "storage0"])
+            self.invoke_and_check(grid_manager, ["--config", "foo", "remove", "storage0"])
 
-            result = self.runner.invoke(grid_manager, ["--config", "foo", "list"])
+            result = self.invoke_and_check(grid_manager, ["--config", "foo", "list"])
             self.assertEqual(result.output.strip(), "")
 
     def test_remove_missing(self):
@@ -190,7 +196,7 @@ class GridManagerCommandLine(TestCase):
         Error reported when removing non-existant server
         """
         with self.runner.isolated_filesystem():
-            self.runner.invoke(grid_manager, ["--config", "foo", "create"])
+            self.invoke_and_check(grid_manager, ["--config", "foo", "create"])
             result = self.runner.invoke(grid_manager, ["--config", "foo", "remove", "storage0"])
             self.assertNotEquals(result.exit_code, 0)
             self.assertIn(
@@ -203,7 +209,7 @@ class GridManagerCommandLine(TestCase):
         Error reported when signing non-existant server
         """
         with self.runner.isolated_filesystem():
-            self.runner.invoke(grid_manager, ["--config", "foo", "create"])
+            self.invoke_and_check(grid_manager, ["--config", "foo", "create"])
             result = self.runner.invoke(grid_manager, ["--config", "foo", "sign", "storage0", "42"])
             self.assertNotEquals(result.exit_code, 0)
             self.assertIn(
@@ -218,8 +224,8 @@ class GridManagerCommandLine(TestCase):
         """
         pubkey = "pub-v0-cbq6hcf3pxcz6ouoafrbktmkixkeuywpcpbcomzd3lqbkq4nmfga"
         with self.runner.isolated_filesystem():
-            self.runner.invoke(grid_manager, ["--config", "foo", "create"])
-            self.runner.invoke(grid_manager, ["--config", "foo", "add", "storage0", pubkey])
+            self.invoke_and_check(grid_manager, ["--config", "foo", "create"])
+            self.invoke_and_check(grid_manager, ["--config", "foo", "add", "storage0", pubkey])
             # make the directory un-writable (so we can't create a new cert)
             os.chmod("foo", 0o550)
             result = self.runner.invoke(grid_manager, ["--config", "foo", "sign", "storage0", "42"])
