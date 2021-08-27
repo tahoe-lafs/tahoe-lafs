@@ -283,6 +283,7 @@ class _GridManager(object):
             storage provider (e.g. from the contents of node.pubkey
             for the client)
         """
+        assert isinstance(name, str)  # must be unicode
         if name in self._storage_servers:
             raise KeyError(
                 "Already have a storage server called '{}'".format(name)
@@ -295,6 +296,7 @@ class _GridManager(object):
         """
         :param name: a user-meaningful name for the server
         """
+        assert isinstance(name, str)  # must be unicode
         try:
             del self._storage_servers[name]
         except KeyError:
