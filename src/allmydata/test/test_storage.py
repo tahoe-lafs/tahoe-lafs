@@ -648,10 +648,12 @@ class Server(unittest.TestCase):
         f2 = open(filename, "rb")
         self.failUnlessEqual(f2.read(5), b"start")
 
-    def create_bucket(self, ss, storage_index, expected_already=0, expected_writers=5):
+    def create_bucket_5_shares(
+            self, ss, storage_index, expected_already=0, expected_writers=5
+    ):
         """
-        Given a StorageServer, create a bucket and return renewal and
-        cancellation secrets.
+        Given a StorageServer, create a bucket with 5 shares and return renewal
+        and cancellation secrets.
         """
         canary = FakeCanary()
         sharenums = list(range(5))
@@ -675,15 +677,15 @@ class Server(unittest.TestCase):
         size = 100
 
         # Create a bucket:
-        rs0, cs0 = self.create_bucket(ss, b"si0")
+        rs0, cs0 = self.create_bucket_5_shares(ss, b"si0")
         leases = list(ss.get_leases(b"si0"))
         self.failUnlessEqual(len(leases), 1)
         self.failUnlessEqual(set([l.renew_secret for l in leases]), set([rs0]))
 
-        rs1, cs1 = self.create_bucket(ss, b"si1")
+        rs1, cs1 = self.create_bucket_5_shares(ss, b"si1")
 
         # take out a second lease on si1
-        rs2, cs2 = self.create_bucket(ss, b"si1", 5, 0)
+        rs2, cs2 = self.create_bucket_5_shares(ss, b"si1", 5, 0)
         leases = list(ss.get_leases(b"si1"))
         self.failUnlessEqual(len(leases), 2)
         self.failUnlessEqual(set([l.renew_secret for l in leases]), set([rs1, rs2]))
@@ -746,14 +748,15 @@ class Server(unittest.TestCase):
 
     def test_immutable_add_lease_renews(self):
         """
-        Adding a lease on an already leased immutable just renews it.
+        Adding a lease on an already leased immutable with the same secret just
+        renews it.
         """
         clock = Clock()
         clock.advance(123)
         ss = self.create("test_immutable_add_lease_renews", get_current_time=clock.seconds)
 
         # Start out with single lease created with bucket:
-        renewal_secret, cancel_secret = self.create_bucket(ss, b"si0")
+        renewal_secret, cancel_secret = self.create_bucket_5_shares(ss, b"si0")
         [lease] = ss.get_leases(b"si0")
         self.assertEqual(lease.expiration_time, 123 + DEFAULT_RENEWAL_TIME)
 
@@ -1406,7 +1409,8 @@ class MutableServer(unittest.TestCase):
 
     def test_mutable_add_lease_renews(self):
         """
-        Adding a lease on an already leased mutable just renews it.
+        Adding a lease on an already leased mutable with the same secret just
+        renews it.
         """
         clock = Clock()
         clock.advance(235)
