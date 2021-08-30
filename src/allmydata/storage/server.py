@@ -49,7 +49,8 @@ from allmydata.storage.expirer import LeaseCheckingCrawler
 NUM_RE=re.compile("^[0-9]+$")
 
 
-# Number of seconds to add to expiration time on lease renewal:
+# Number of seconds to add to expiration time on lease renewal.
+# For now it's not actually configurable, but maybe someday.
 DEFAULT_RENEWAL_TIME = 31 * 24 * 60 * 60
 
 
@@ -358,7 +359,7 @@ class StorageServer(service.MultiService, Referenceable):
                          owner_num=1):
         start = self._get_current_time()
         self.count("add-lease")
-        new_expire_time = self._get_current_time() + 31*24*60*60
+        new_expire_time = self._get_current_time() + DEFAULT_RENEWAL_TIME
         lease_info = LeaseInfo(owner_num,
                                renew_secret, cancel_secret,
                                new_expire_time, self.my_nodeid)
@@ -370,7 +371,7 @@ class StorageServer(service.MultiService, Referenceable):
     def remote_renew_lease(self, storage_index, renew_secret):
         start = self._get_current_time()
         self.count("renew")
-        new_expire_time = self._get_current_time() + 31*24*60*60
+        new_expire_time = self._get_current_time() + DEFAULT_RENEWAL_TIME
         found_buckets = False
         for sf in self._iter_share_files(storage_index):
             found_buckets = True
@@ -568,7 +569,7 @@ class StorageServer(service.MultiService, Referenceable):
         :return LeaseInfo: Information for a new lease for a share.
         """
         ownerid = 1 # TODO
-        expire_time = self._get_current_time() + 31*24*60*60   # one month
+        expire_time = self._get_current_time() + DEFAULT_RENEWAL_TIME
         lease_info = LeaseInfo(ownerid,
                                renew_secret, cancel_secret,
                                expire_time, self.my_nodeid)
