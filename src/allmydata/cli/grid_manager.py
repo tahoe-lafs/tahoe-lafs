@@ -162,7 +162,7 @@ def remove(ctx, name):
     save_grid_manager(fp, ctx.obj.grid_manager, create=False)
 
 
-@grid_manager.command()
+@grid_manager.command()  # noqa: F811
 @click.pass_context
 def list(ctx):
     """
