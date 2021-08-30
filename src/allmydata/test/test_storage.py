@@ -386,8 +386,8 @@ class Server(unittest.TestCase):
         self.failUnlessIn(b'available-space', sv1)
 
     def allocate(self, ss, storage_index, sharenums, size, canary=None):
-        renew_secret = hashutil.tagged_hash(b"blah", b"%d" % next(self._lease_secret))
-        cancel_secret = hashutil.tagged_hash(b"blah", b"%d" % next(self._lease_secret))
+        renew_secret = hashutil.my_renewal_secret_hash(b"%d" % next(self._lease_secret))
+        cancel_secret = hashutil.my_cancel_secret_hash(b"%d" % next(self._lease_secret))
         if not canary:
             canary = FakeCanary()
         return ss.remote_allocate_buckets(storage_index,
@@ -658,8 +658,8 @@ class Server(unittest.TestCase):
         size = 100
 
         # Creating a bucket also creates a lease:
-        rs, cs  = (hashutil.tagged_hash(b"blah", b"%d" % next(self._lease_secret)),
-                   hashutil.tagged_hash(b"blah", b"%d" % next(self._lease_secret)))
+        rs, cs  = (hashutil.my_renewal_secret_hash(b"%d" % next(self._lease_secret)),
+                   hashutil.my_cancel_secret_hash(b"%d" % next(self._lease_secret)))
         already, writers = ss.remote_allocate_buckets(storage_index, rs, cs,
                                                       sharenums, size, canary)
         self.failUnlessEqual(len(already), expected_already)
@@ -689,8 +689,8 @@ class Server(unittest.TestCase):
         self.failUnlessEqual(set([l.renew_secret for l in leases]), set([rs1, rs2]))
 
         # and a third lease, using add-lease
-        rs2a,cs2a = (hashutil.tagged_hash(b"blah", b"%d" % next(self._lease_secret)),
-                     hashutil.tagged_hash(b"blah", b"%d" % next(self._lease_secret)))
+        rs2a,cs2a = (hashutil.my_renewal_secret_hash(b"%d" % next(self._lease_secret)),
+                     hashutil.my_cancel_secret_hash(b"%d" % next(self._lease_secret)))
         ss.remote_add_lease(b"si1", rs2a, cs2a)
         leases = list(ss.get_leases(b"si1"))
         self.failUnlessEqual(len(leases), 3)
@@ -718,10 +718,10 @@ class Server(unittest.TestCase):
                         "ss should not have a 'remote_cancel_lease' method/attribute")
 
         # test overlapping uploads
-        rs3,cs3 = (hashutil.tagged_hash(b"blah", b"%d" % next(self._lease_secret)),
-                   hashutil.tagged_hash(b"blah", b"%d" % next(self._lease_secret)))
-        rs4,cs4 = (hashutil.tagged_hash(b"blah", b"%d" % next(self._lease_secret)),
-                   hashutil.tagged_hash(b"blah", b"%d" % next(self._lease_secret)))
+        rs3,cs3 = (hashutil.my_renewal_secret_hash(b"%d" % next(self._lease_secret)),
+                   hashutil.my_cancel_secret_hash(b"%d" % next(self._lease_secret)))
+        rs4,cs4 = (hashutil.my_renewal_secret_hash(b"%d" % next(self._lease_secret)),
+                   hashutil.my_cancel_secret_hash(b"%d" % next(self._lease_secret)))
         already,writers = ss.remote_allocate_buckets(b"si3", rs3, cs3,
                                                      sharenums, size, canary)
         self.failUnlessEqual(len(already), 0)
