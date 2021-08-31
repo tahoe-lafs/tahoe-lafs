@@ -98,6 +98,8 @@ Before authoring or reviewing a patch, please familiarize yourself with the `Cod
 
 We would like to thank `Fosshost <https://fosshost.org>`__ for supporting us with hosting services. If your open source project needs help, you can apply for their support.
 
+We are grateful to `Oregon State University Open Source Lab <https://osuosl.org/>`__ for hosting tahoe-dev mailing list.
+
 ❓ FAQ
 ------
 
