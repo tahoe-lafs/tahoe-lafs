@@ -65,4 +65,4 @@ If you are working on MacOS or a Linux distribution which does not have Tahoe-LA
 
 If you are looking to hack on the source code or run pre-release code, we recommend you install Tahoe-LAFS on a `virtualenv` instance. To learn more, see :doc:`install-on-linux`.    
 
-You can always write to the `tahoe-dev mailing list <https://tahoe-lafs.org/cgi-bin/mailman/listinfo/tahoe-dev>`_ or chat on the `Libera.chat IRC <irc://irc.libera.chat/%23tahoe-lafs>`_ if you are not able to get Tahoe-LAFS up and running on your deployment.
+You can always write to the `tahoe-dev mailing list <https://lists.tahoe-lafs.org/mailman/listinfo/tahoe-dev>`_ or chat on the `Libera.chat IRC <irc://irc.libera.chat/%23tahoe-lafs>`_ if you are not able to get Tahoe-LAFS up and running on your deployment.

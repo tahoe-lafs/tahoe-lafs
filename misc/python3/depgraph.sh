@@ -16,7 +16,7 @@ if git diff-index --quiet HEAD; then
 fi
 
 git config user.name 'Build Automation'
-git config user.email 'tahoe-dev@tahoe-lafs.org'
+git config user.email 'tahoe-dev@lists.tahoe-lafs.org'
 
 git add tahoe-deps.json tahoe-ported.json
 git commit -m "\

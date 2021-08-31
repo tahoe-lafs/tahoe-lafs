@@ -1188,7 +1188,7 @@ Precautions when Upgrading
 .. _`#1915`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1915
 .. _`#1926`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1926
 .. _`message to the tahoe-dev mailing list`:
-             https://tahoe-lafs.org/pipermail/tahoe-dev/2013-March/008096.html
+             https://lists.tahoe-lafs.org/pipermail/tahoe-dev/2013-March/008096.html
 
 
 Release 1.9.2 (2012-07-03)

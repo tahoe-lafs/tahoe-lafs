@@ -76,7 +76,7 @@ Get involved with the Tahoe-LAFS community:
 
 -  Join our `weekly conference calls <https://www.tahoe-lafs.org/trac/tahoe-lafs/wiki/WeeklyMeeting>`__ with core developers and interested community members.
 
--  Subscribe to `the tahoe-dev mailing list <https://www.tahoe-lafs.org/cgi-bin/mailman/listinfo/tahoe-dev>`__, the community forum for discussion of Tahoe-LAFS design, implementation, and usage.
+-  Subscribe to `the tahoe-dev mailing list <https://lists.tahoe-lafs.org/mailman/listinfo/tahoe-dev>`__, the community forum for discussion of Tahoe-LAFS design, implementation, and usage.
 
 🤗 Contributing
 ---------------

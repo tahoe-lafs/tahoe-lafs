@@ -155,7 +155,7 @@ Planet Earth
 [4] https://github.com/tahoe-lafs/tahoe-lafs/blob/tahoe-lafs-1.15.1/COPYING.GPL
 [5] https://github.com/tahoe-lafs/tahoe-lafs/blob/tahoe-lafs-1.15.1/COPYING.TGPPL.rst
 [6] https://tahoe-lafs.readthedocs.org/en/tahoe-lafs-1.15.1/INSTALL.html
-[7] https://tahoe-lafs.org/cgi-bin/mailman/listinfo/tahoe-dev
+[7] https://lists.tahoe-lafs.org/mailman/listinfo/tahoe-dev
 [8] https://tahoe-lafs.org/trac/tahoe-lafs/roadmap
 [9] https://github.com/tahoe-lafs/tahoe-lafs/blob/master/CREDITS
 [10] https://tahoe-lafs.org/trac/tahoe-lafs/wiki/Dev
