@@ -33,8 +33,9 @@ class _FakeRemoteReference(object):
         return getattr(self.local_object, action)(*args, **kwargs)
 
     def callRemoteOnly(self, action, *args, **kwargs):
-        getattr(self.local_object, action)(*args, **kwargs)
-        return None
+        raise RuntimeError(
+            "callRemoteOnly() swallows errors, so as such should never be used."
+        )
 
 
 @attr.s
