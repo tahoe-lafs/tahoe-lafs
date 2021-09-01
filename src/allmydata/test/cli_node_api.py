@@ -35,6 +35,9 @@ from twisted.internet.error import (
 from twisted.internet.interfaces import (
     IProcessProtocol,
 )
+from twisted.python.log import (
+    msg,
+)
 from twisted.python.filepath import (
     FilePath,
 )
@@ -99,7 +102,10 @@ class _ProcessProtocolAdapter(ProcessProtocol, object):
         try:
             proto = self._fds[childFD]
         except KeyError:
-            pass
+            msg(format="Received unhandled output on %(fd)s: %(output)s",
+                fd=childFD,
+                output=data,
+            )
         else:
             proto.dataReceived(data)
 
@@ -158,6 +164,9 @@ class CLINodeAPI(object):
             u"-m",
             u"allmydata.scripts.runner",
         ] + argv
+        msg(format="Executing %(argv)s",
+            argv=argv,
+        )
         return self.reactor.spawnProcess(
             processProtocol=process_protocol,
             executable=exe,

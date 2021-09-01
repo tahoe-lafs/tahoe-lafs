@@ -188,7 +188,17 @@ def initialize():
     # for example, the Python interpreter or any options passed to it, or runner
     # scripts such as 'coverage run'. It works even if there are no such arguments,
     # as in the case of a frozen executable created by bb-freeze or similar.
-    sys.argv = argv[-len(sys.argv):]
+    #
+    # Also, modify sys.argv in place.  If any code has already taken a
+    # reference to the original argument list object then this ensures that
+    # code sees the new values.  This reliance on mutation of shared state is,
+    # of course, awful.  Why does this function even modify sys.argv?  Why not
+    # have a function that *returns* the properly initialized argv as a new
+    # list?  I don't know.
+    #
+    # At least Python 3 gets sys.argv correct so before very much longer we
+    # should be able to fix this bad design by deleting it.
+    sys.argv[:] = argv[-len(sys.argv):]
 
 
 def a_console(handle):
