@@ -17,7 +17,7 @@ if PY2:
     from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, pow, round, super, range, max, min  # noqa: F401
 
 try:
-    from typing import List, Dict, Set
+    from typing import List, Dict, Set, Optional
 except ImportError:
     # Python 2
     pass
@@ -3145,7 +3145,7 @@ class TestWriteVectors(object):
     """Test and write vectors for a specific share."""
     test_vectors = attr.ib(type=List[TestVector])
     write_vectors = attr.ib(type=List[WriteVector])
-    new_length = attr.ib(type=int)
+    new_length = attr.ib(type=Optional[int])
 
 
 @attr.s

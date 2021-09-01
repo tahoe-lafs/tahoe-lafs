@@ -175,7 +175,6 @@ class _AdaptStorageClientV2(object):
         we_secret, lr_secret, lc_secret = secrets
         client_tw_vectors = {}
         for share_num, (test_vector, data_vector, new_length) in tw_vectors.items():
-            assert new_length is not None, "Protocol in theory supports it, actual code seems not to"
             client_test_vectors = [
                 TestVector(offset, size, TestVectorOperator[op], specimen)
                 for (offset, size, op, specimen) in test_vector
