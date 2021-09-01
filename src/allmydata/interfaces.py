@@ -3162,6 +3162,9 @@ class IStorageClientV2(Interface):
     An improved interface for talking to the storage client, specifically for
     immutable interactions.
 
+    Timeouts for retries will be configured (for now) on instance-level
+    constructor arguments, insofar as they can be configured.
+
     This is an attempt to make a Python API that closely maps to the HTTP
     protocol that will replace Foolscap for storage server interactions.
 
