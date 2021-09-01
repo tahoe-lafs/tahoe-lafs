@@ -3157,20 +3157,21 @@ class ReadTestWriteResult(object):
     reads = attr.ib(type=Dict[int, List[bytes]])
 
 
+
+# The following interfaces are an attempt to make a Python API that closely
+# maps to the HTTP protocol that will replace Foolscap for storage server
+# interactions.
+#
+# This is a work in progress, see
+# https://tahoe-lafs.org/trac/tahoe-lafs/milestone/HTTP%20Storage%20Protocol
+# for status.
+#
+# Timeouts for retries will be configured (for now) on instance-level
+# constructor arguments, insofar as they can be configured.
+
 class IStorageClientV2(Interface):
     """
-    An improved interface for talking to the storage client, specifically for
-    immutable interactions.
-
-    Timeouts for retries will be configured (for now) on instance-level
-    constructor arguments, insofar as they can be configured.
-
-    This is an attempt to make a Python API that closely maps to the HTTP
-    protocol that will replace Foolscap for storage server interactions.
-
-    This is a work in progress, see
-    https://tahoe-lafs.org/trac/tahoe-lafs/milestone/HTTP%20Storage%20Protocol
-    for status.
+    An improved interface for talking to the storage client: generic APIs.
     """
     def get_version():
         # type: () -> Deferred[Dict]
@@ -3191,8 +3192,13 @@ class IStorageClientV2(Interface):
         failed the result will fire with an exception.
         """
 
-    def immutable_create(storage_index, share_numbers, allocated_size,
-                         lease_renew_secret, lease_cancel_secret):
+
+class IImmutableStorageClientV2(Interface):
+    """
+    An improved interface for talking to the storage client: immutable APIs.
+    """
+    def create(storage_index, share_numbers, allocated_size,
+               lease_renew_secret, lease_cancel_secret):
         # type: (bytes, List[int], int, bytes, bytes) -> Deferred[ImmutableCreateResult]
         """
         Create a new storage index for an immutable.
@@ -3207,7 +3213,7 @@ class IStorageClientV2(Interface):
         storage index failed the result will fire with an exception.
         """
 
-    def immutable_write_share_chunk(storage_index, share_number, offset, data):
+    def write_share_chunk(storage_index, share_number, offset, data):
         # type: (bytes, int, int, bytes) -> Deferred[bool]
         """
         Upload a chunk of data for a specific share.
@@ -3221,7 +3227,7 @@ class IStorageClientV2(Interface):
         been uploaded.
         """
 
-    def immutable_notify_share_corrupted(storage_index, share_number, reason):
+    def notify_share_corrupted(storage_index, share_number, reason):
         # type: (bytes, int, str) -> Deferred[None]
         """
         Advise the server a particular share was corrupted.
@@ -3229,7 +3235,7 @@ class IStorageClientV2(Interface):
         Result fires when the operation succeeded.
         """
 
-    def immutable_list_shares(storage_index):
+    def list_shares(storage_index):
         # type: (bytes,) -> Deferred[List[int]]
         """
         Return the shares numbers for a particular storage index.
@@ -3238,7 +3244,7 @@ class IStorageClientV2(Interface):
         https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3771
         """
 
-    def immutable_read_share_chunk(storage_index, share_number, offset, length):
+    def read_share_chunk(storage_index, share_number, offset, length):
         # type: (bytes, int, int, int) -> Deferred[bytes]
         """
         Download a chunk of data from a share.
@@ -3254,7 +3260,12 @@ class IStorageClientV2(Interface):
         https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3777
         """
 
-    def mutable_read_test_write_chunks(
+
+class IMutableStorageClientV2(Interface):
+    """
+    An improved interface for talking to the storage client: mutable APIs.
+    """
+    def read_test_write_chunks(
             storage_index, write_enabled_secret, lease_renew_secret,
             lease_cancel_secret, testwrite_vectors, read_vector
     ):
@@ -3269,7 +3280,7 @@ class IStorageClientV2(Interface):
         are done and if they are valid the writes are done.
         """
 
-    def mutable_list_shares(storage_index):
+    def list_shares(storage_index):
         # type: (bytes,) -> Deferred[List[int]]
         """
         Return the shares numbers for a particular storage index.
@@ -3278,7 +3289,7 @@ class IStorageClientV2(Interface):
         https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3771
         """
 
-    def mutable_notify_share_corrupted(storage_index, share_number, reason):
+    def notify_share_corrupted(storage_index, share_number, reason):
         # type: (bytes, int, str) -> Deferred[None]
         """
         Advise the server a particular share was corrupted.
@@ -3286,7 +3297,7 @@ class IStorageClientV2(Interface):
         Result fires when the operation succeeded.
         """
 
-    def mutable_read_share_chunk(storage_index, share_number, offset, length):
+    def read_share_chunk(storage_index, share_number, offset, length):
         # type: (bytes, int, int, int) -> Deferred[bytes]
         """
         Download a chunk of data from a share.

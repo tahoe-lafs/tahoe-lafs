@@ -19,6 +19,7 @@ from .interfaces import (
     IStorageClientV2, IStorageServer,
     TestVector, ReadVector, TestWriteVectors,
     TestVectorOperator, WriteVector,
+    IImmutableStorageClientV2, IMutableStorageClientV2,
 )
 
 
@@ -44,7 +45,7 @@ class _ClientV2BucketWriter(object):
     """
     Emulate a ``RIBucketWriter``.
     """
-    client = attr.ib(type=IStorageClientV2)
+    client = attr.ib(type=IImmutableStorageClientV2)
     storage_index = attr.ib(type=bytes)
     share_number = attr.ib(type=int)
 
@@ -58,7 +59,7 @@ class _ClientV2BucketWriter(object):
     @inlineCallbacks
     def write(self, offset, data):
         # type: (int, bytes) -> Deferred[None]
-        yield self.client.immutable_write_share_chunk(
+        yield self.client.write_share_chunk(
             self.storage_index, self.share_number, offset, data
         )
         returnValue(None)
@@ -76,12 +77,12 @@ class _ClientV2BucketReader(object):
     """
     Emulate a ``RIBucketReader``.
     """
-    client = attr.ib(type=IStorageClientV2)
+    client = attr.ib(type=IImmutableStorageClientV2)
     storage_index = attr.ib(type=bytes)
     share_number = attr.ib(type=int)
 
     def read(self, offset, length):
-        return self.client.immutable_read_share_chunk(
+        return self.client.read_share_chunk(
             self.storage_index, self.share_number, offset, length
         )
 
@@ -95,7 +96,8 @@ class _ClientV2BucketReader(object):
 @implementer(IStorageServer)
 class _AdaptStorageClientV2(object):
     """
-    Wrap a new ``IStorageClientV2`` such that it implements ``IStorageServer``.
+    Wrap ``IStorageClientV2``, ``IImmutableStorageClientV2``, and
+    ``IMutableStorageClientV2`` in order to implement ``IStorageServer``.
 
     Some day ``IStorageServer`` might go away, but for now this is the proposed
     strategy for support the new HTTP protocol.
@@ -107,19 +109,21 @@ class _AdaptStorageClientV2(object):
     instead of tub ID), but ``IStorageServer`` is more fundamental so this is
     where we're starting.
     """
-    def __init__(self, storage_client):
-        # type: (IStorageClientV2) -> None
-        self._client = storage_client
+    def __init__(self, storage_client, immutable_client, mutable_client):
+        # type: (IStorageClientV2, IImmutableStorageClientV2, IMutableStorageClientV2) -> None
+        self._storage_client = storage_client
+        self._immutable_client = immutable_client
+        self._mutable_client = mutable_client
 
     def get_version(self):
-        return self._client.get_version()
+        return self._storage_client.get_version()
 
     @inlineCallbacks
     def allocate_buckets(
             self, storage_index, renew_secret, cancel_secret, sharenums,
             allocated_size, canary
     ):
-        result = yield self._client.immutable_create(
+        result = yield self._immutable_client.create(
             storage_index, sharenums, allocated_size, renew_secret,
             cancel_secret
         )
@@ -127,25 +131,25 @@ class _AdaptStorageClientV2(object):
             result.already_got,
             {
                 share_num: _FakeRemoteReference(_ClientV2BucketWriter(
-                    self._client, storage_index, share_num
+                    self._immutable_client, storage_index, share_num
                 ))
                 for share_num in result.allocated
              }
         )
 
     def add_lease(self, storage_index, renew_secret, cancel_secret):
-        return self._client.add_lease(
+        return self._storage_client.add_lease(
             storage_index, renew_secret, cancel_secret
         )
 
     @inlineCallbacks
     def get_buckets(self, storage_index):
-        share_numbers = yield self._client.immutable_list_shares(
+        share_numbers = yield self._immutable_client.list_shares(
             storage_index
         )
         returnValue({
             share_num: _FakeRemoteReference(_ClientV2BucketReader(
-                self._client, storage_index, share_num
+                self._immutable_client, storage_index, share_num
             ))
             for share_num in share_numbers
         })
@@ -156,7 +160,7 @@ class _AdaptStorageClientV2(object):
         for share_number in shares:
             share_reads = reads[share_number] = []
             for (offset, length) in readv:
-                d = self._client.mutable.read_share_chunk(
+                d = self._mutable_client.read_share_chunk(
                     storage_index, share_number, offset, length
                 )
                 share_reads.append(d)
@@ -192,7 +196,7 @@ class _AdaptStorageClientV2(object):
             ReadVector(offset=offset, size=size)
             for (offset, size) in r_vector
         ]
-        client_result = yield self._client.mutable_read_test_write_chunk(
+        client_result = yield self._mutable_client.read_test_write_chunk(
             storage_index, we_secret, lr_secret, lc_secret, client_tw_vectors,
             client_read_vectors,
         )
@@ -201,9 +205,9 @@ class _AdaptStorageClientV2(object):
     def advise_corrupt_share(self, share_type, storage_index, shnum, reason):
         reason = str(reason, "utf-8", errors="backslashreplace")
         if share_type == b"mutable":
-            advise = self._client.mutable_notify_shared_corrupted
+            advise = self._mutable_client.notify_shared_corrupted
         elif share_type == b"immutable":
-            advise = self._client.immutable_notify_shared_corrupted
+            advise = self._immutable_client.notify_shared_corrupted
         else:
             raise ValueError("Bad share_type: {!r}".format(share_type))
         return advise(storage_index, shnum, reason)
