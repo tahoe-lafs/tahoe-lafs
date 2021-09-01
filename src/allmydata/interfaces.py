@@ -3209,7 +3209,9 @@ class IStorageClientV2(Interface):
         """
         Upload a chunk of data for a specific share.
 
-        The implementation can choose to retry failed uploads transparently.
+        The implementation should retry failed uploads transparently a number
+        of times, so that if a failure percolates up, the caller can assume the
+        failure isn't a short-term blip.
 
         Result fires when the upload succeeded, with a boolean indicating
         whether the _complete_ share (i.e. all chunks, not just this one) has
@@ -3238,8 +3240,9 @@ class IStorageClientV2(Interface):
         """
         Download a chunk of data from a share.
 
-        Failed downloads may be transparently retried and redownloaded by the
-        implementation.
+        Failed downloads should be transparently retried and redownloaded by
+        the implementation a few times so that if a failure percolates up, the
+        caller can assume the failure isn't a short-term blip.
 
         NOTE: the underlying HTTP protocol is much more flexible than this API,
         so a future refactor may expand this in order to simplify the calling
@@ -3285,8 +3288,9 @@ class IStorageClientV2(Interface):
         """
         Download a chunk of data from a share.
 
-        Failed downloads may be transparently retried and redownloaded by the
-        implementation.
+        Failed downloads should be transparently retried and redownloaded by
+        the implementation a few times so that if a failure percolates up, the
+        caller can assume the failure isn't a short-term blip.
 
         NOTE: the underlying HTTP protocol is much more flexible than this API,
         so a future refactor may expand this in order to simplify the calling
