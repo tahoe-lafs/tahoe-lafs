@@ -80,7 +80,7 @@ class _ClientV2BucketReader(object):
     share_number = attr.ib(type=int)
 
     def read(self, offset, length):
-        self.client.immutable_read_share_chunk(
+        return self.client.immutable_read_share_chunk(
             self.storage_index, self.share_number, offset, length
         )
 
