@@ -192,7 +192,7 @@ class DaemonizeTahoeNodePlugin(object):
         return DaemonizeTheRealService(self.nodetype, self.basedir, so)
 
 
-def run(config):
+def run(config, runApp=twistd.runApp):
     """
     Runs a Tahoe-LAFS node in the foreground.
 
@@ -212,10 +212,11 @@ def run(config):
     if not nodetype:
         print("%s is not a recognizable node directory" % quoted_basedir, file=err)
         return 1
-    # Now prepare to turn into a twistd process. This os.chdir is the point
-    # of no return.
-    os.chdir(basedir)
-    twistd_args = ["--nodaemon"]
+
+    twistd_args = ["--nodaemon", "--rundir", basedir]
+    if sys.platform != "win32":
+        pidfile = get_pidfile(basedir)
+        twistd_args.extend(["--pidfile", pidfile])
     twistd_args.extend(config.twistd_args)
     twistd_args.append("DaemonizeTahoeNode") # point at our DaemonizeTahoeNodePlugin
 
@@ -232,12 +233,11 @@ def run(config):
     twistd_config.loadedPlugins = {"DaemonizeTahoeNode": DaemonizeTahoeNodePlugin(nodetype, basedir)}
 
     # handle invalid PID file (twistd might not start otherwise)
-    pidfile = get_pidfile(basedir)
-    if get_pid_from_pidfile(pidfile) == -1:
+    if sys.platform != "win32" and get_pid_from_pidfile(pidfile) == -1:
         print("found invalid PID file in %s - deleting it" % basedir, file=err)
         os.remove(pidfile)
 
     # We always pass --nodaemon so twistd.runApp does not daemonize.
     print("running node in %s" % (quoted_basedir,), file=out)
-    twistd.runApp(twistd_config)
+    runApp(twistd_config)
     return 0

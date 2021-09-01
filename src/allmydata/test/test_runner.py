@@ -19,6 +19,21 @@ import os.path, re, sys
 from os import linesep
 import locale
 
+import six
+
+from testtools import (
+    skipUnless,
+)
+from testtools.matchers import (
+    MatchesListwise,
+    MatchesAny,
+    Contains,
+    Equals,
+    Always,
+)
+from testtools.twistedsupport import (
+    succeeded,
+)
 from eliot import (
     log_call,
 )
@@ -39,6 +54,10 @@ from allmydata.util import fileutil, pollmixin
 from allmydata.util.encodingutil import unicode_to_argv
 from allmydata.test import common_util
 import allmydata
+from allmydata.scripts.runner import (
+    parse_options,
+)
+
 from .common import (
     PIPE,
     Popen,
@@ -46,6 +65,7 @@ from .common import (
 from .common_util import (
     parse_cli,
     run_cli,
+    run_cli_unicode,
 )
 from .cli_node_api import (
     CLINodeAPI,
@@ -55,6 +75,9 @@ from .cli_node_api import (
 )
 from ..util.eliotutil import (
     inline_callbacks,
+)
+from .common import (
+    SyncTestCase,
 )
 
 def get_root_from_file(src):
@@ -72,6 +95,56 @@ def get_root_from_file(src):
 
 srcfile = allmydata.__file__
 rootdir = get_root_from_file(srcfile)
+
+
+class ParseOptionsTests(SyncTestCase):
+    """
+    Tests for ``parse_options``.
+    """
+    @skipUnless(six.PY2, "Only Python 2 exceptions must stringify to bytes.")
+    def test_nonascii_unknown_subcommand_python2(self):
+        """
+        When ``parse_options`` is called with an argv indicating a subcommand that
+        does not exist and which also contains non-ascii characters, the
+        exception it raises includes the subcommand encoded as UTF-8.
+        """
+        tricky = u"\u00F6"
+        try:
+            parse_options([tricky])
+        except usage.error as e:
+            self.assertEqual(
+                b"Unknown command: \\xf6",
+                b"{}".format(e),
+            )
+
+
+class ParseOrExitTests(SyncTestCase):
+    """
+    Tests for ``parse_or_exit``.
+    """
+    def test_nonascii_error_content(self):
+        """
+        ``parse_or_exit`` can report errors that include non-ascii content.
+        """
+        tricky = u"\u00F6"
+        self.assertThat(
+            run_cli_unicode(tricky, [], encoding="utf-8"),
+            succeeded(
+                MatchesListwise([
+                    # returncode
+                    Equals(1),
+                    # stdout
+                    MatchesAny(
+                        # Python 2
+                        Contains(u"Unknown command: \\xf6"),
+                        # Python 3
+                        Contains(u"Unknown command: \xf6"),
+                    ),
+                    # stderr,
+                    Always()
+                ]),
+            ),
+        )
 
 
 @log_call(action_type="run-bin-tahoe")
@@ -110,8 +183,16 @@ class BinTahoe(common_util.SignalMixin, unittest.TestCase):
         """
         tricky = u"\u00F6"
         out, err, returncode = run_bintahoe([tricky])
+        if PY2:
+            expected = u"Unknown command: \\xf6"
+        else:
+            expected = u"Unknown command: \xf6"
         self.assertEqual(returncode, 1)
-        self.assertIn(u"Unknown command: " + tricky, out)
+        self.assertIn(
+            expected,
+            out,
+            "expected {!r} not found in {!r}\nstderr: {!r}".format(expected, out, err),
+        )
 
     def test_with_python_options(self):
         """
@@ -305,7 +386,12 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin):
             u"--hostname", u"127.0.0.1",
         ])
 
-        self.assertEqual(returncode, 0)
+        self.assertEqual(
+            returncode,
+            0,
+            "stdout: {!r}\n"
+            "stderr: {!r}\n",
+        )
 
         # This makes sure that node.url is written, which allows us to
         # detect when the introducer restarts in _node_has_restarted below.
