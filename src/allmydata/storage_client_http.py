@@ -22,19 +22,23 @@ from .interfaces import (
 )
 
 
+@attr.s
 class _FakeRemoteReference(object):
-    """Emulate a Foolscap RemoteReference."""
+    """
+    Emulate a Foolscap RemoteReference, calling a local object instead.
+    """
+    local_object = attr.ib(type=object)
 
     def callRemote(self, action, *args, **kwargs):
-        return getattr(self, action)(*args, **kwargs)
+        return getattr(self.local_object, action)(*args, **kwargs)
 
     def callRemoteOnly(self, action, *args, **kwargs):
-        getattr(self, action)(*args, **kwargs)
+        getattr(self.local_object, action)(*args, **kwargs)
         return None
 
 
 @attr.s
-class _ClientV2BucketWriter(_FakeRemoteReference):
+class _ClientV2BucketWriter(object):
     """
     Emulate a ``RIBucketWriter``.
     """
@@ -66,7 +70,7 @@ class _ClientV2BucketWriter(_FakeRemoteReference):
 
 
 @attr.s
-class _ClientV2BucketReader(_FakeRemoteReference):
+class _ClientV2BucketReader(object):
     """
     Emulate a ``RIBucketReader``.
     """
@@ -120,9 +124,9 @@ class _AdaptStorageClientV2(object):
         returnValue(
             result.already_got,
             {
-                share_num: _ClientV2BucketWriter(
+                share_num: _FakeRemoteReference(_ClientV2BucketWriter(
                     self._client, storage_index, share_num
-                )
+                ))
                 for share_num in result.allocated
              }
         )
@@ -138,9 +142,9 @@ class _AdaptStorageClientV2(object):
             storage_index
         )
         returnValue({
-            share_num: _ClientV2BucketReader(
+            share_num: _FakeRemoteReference(_ClientV2BucketReader(
                 self._client, storage_index, share_num
-            )
+            ))
             for share_num in share_numbers
         })
 
