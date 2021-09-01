@@ -3133,7 +3133,9 @@ class TestVector(object):
 
 @attr.s
 class ReadVector(object):
-    """Reads to do on chunks operated on by the test/write vectors."""
+    """
+    Reads to do on chunks, as part of a read/test/write operation.
+    """
     offset = attr.ib(type=int)
     size = attr.ib(type=int)
 
