@@ -380,6 +380,11 @@ then the expiration time of that lease will be changed to 31 days after the time
 If it does not match an existing lease
 then a new lease will be created with this ``renew-secret`` which expires 31 days after the time of this operation.
 
+The renew and cancel secrets must be 32 bytes long
+(or in the case of JSON encoding they must UTF-8 encode to 32 bytes).
+The server treats them as opaque values.
+See `leases`_ for details about how the Tahoe-LAFS storage client constructs these values.
+
 In these cases the response is ``NO CONTENT`` with an empty body.
 
 It is possible that the storage server will have no shares for the given ``storage_index`` because:
