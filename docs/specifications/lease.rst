@@ -21,10 +21,12 @@ This allows a client to maintain and renew single long-lived lease without maint
 The scheme in use in Tahoe-LAFS as of 1.16.0 is as follows.
 
 * The **netstring encoding** of a byte string is the concatenation of:
+
   * the base 10 representation of the length of the string
   * ":"
   * the string
   * ","
+
 * The **sha256d digest** is the **sha256 digest** of the **sha256 digest** of a string.
 * The **sha256d tagged digest** is the **sha256d digest** of the concatenation of the **netstring encoding** of one string with one other unmodified string.
 * The **sha256d tagged pair digest** the **sha256d digest** of the concatenation of the **netstring encodings** of each of three strings.
