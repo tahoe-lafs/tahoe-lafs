@@ -15,7 +15,7 @@ from zope.interface import implementer
 from twisted.internet import defer
 from allmydata.interfaces import IStorageBucketWriter, IStorageBucketReader, \
      FileTooLargeError, HASH_SIZE
-from allmydata.util import mathutil, observer, pipeline
+from allmydata.util import mathutil, observer, pipeline, log
 from allmydata.util.assertutil import precondition
 from allmydata.storage.server import si_b2a
 
@@ -254,8 +254,7 @@ class WriteBucketProxy(object):
         return d
 
     def abort(self):
-        return self._rref.callRemoteOnly("abort")
-
+        self._rref.callRemote("abort").addErrback(log.err)
 
     def get_servername(self):
         return self._server.get_name()
