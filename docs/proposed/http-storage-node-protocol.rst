@@ -469,10 +469,21 @@ The server must recognize when all of the data has been received and mark the sh
 (which it can do because it was informed of the size when the storage index was initialized).
 Clients should upload chunks in re-assembly order.
 
+* When a chunk that does not complete the share is successfully uploaded the response is ``OK``.
+* When the chunk that completes the share is successfully uploaded the response is ``CREATED``.
+* If the *Content-Range* for a request covers part of the share that has already been uploaded the response is ``CONFLICT``.
+  The response body indicates the range of share data that has yet to be uploaded.
+  That is::
 
-When a chunk that does not complete the share is successfully uploaded the response is ``OK``.
-When the chunk that completes the share is successfully uploaded the response is ``CREATED``.
-If the *Content-Range* for a request covers part of the share that has already been uploaded the response is ``CONFLICT``.
+    { "required":
+      [ { "begin": <byte position, inclusive>
+        , "end":   <byte position, exclusive>
+        }
+      ,
+      ...
+      ]
+    }
+
 
 ``POST /v1/immutable/:storage_index/:share_number/corrupt``
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
