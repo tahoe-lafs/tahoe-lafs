@@ -475,7 +475,9 @@ class Share(object):
         # there was corruption somewhere in the given range
         reason = "corruption in share[%d-%d): %s" % (start, start+offset,
                                                      str(f.value))
-        self._rref.callRemoteOnly("advise_corrupt_share", reason.encode("utf-8"))
+        self._rref.callRemote(
+            "advise_corrupt_share", reason.encode("utf-8")
+        ).addErrback(log.err)
 
     def _satisfy_block_hash_tree(self, needed_hashes):
         o_bh = self.actual_offsets["block_hashes"]
