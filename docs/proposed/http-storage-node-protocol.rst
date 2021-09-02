@@ -458,17 +458,32 @@ The response includes ``already-have`` and ``allocated`` for two reasons:
 Write data for the indicated share.
 The share number must belong to the storage index.
 The request body is the raw share data (i.e., ``application/octet-stream``).
-*Content-Range* requests are encouraged for large transfers.
+*Content-Range* requests are encouraged for large transfers to allow partially complete uploads to be resumed.
 For example,
-for a 1MiB share the data can be broken in to 8 128KiB chunks.
-Each chunk can be *PUT* separately with the appropriate *Content-Range* header.
+a 1MiB share can be divided in to eight separate 128KiB chunks.
+Each chunk can be uploaded in a separate request.
+Each request can include a *Content-Range* value indicating its placement within the complete share.
+If any one of these requests fails then at most 128KiB of upload work needs to be retried.
+
 The server must recognize when all of the data has been received and mark the share as complete
 (which it can do because it was informed of the size when the storage index was initialized).
 Clients should upload chunks in re-assembly order.
-Servers may reject out-of-order chunks for implementation simplicity.
-If an individual *PUT* fails then only a limited amount of effort is wasted on the necessary retry.
 
-.. think about copying https://developers.google.com/drive/api/v2/resumable-upload
+* When a chunk that does not complete the share is successfully uploaded the response is ``OK``.
+* When the chunk that completes the share is successfully uploaded the response is ``CREATED``.
+* If the *Content-Range* for a request covers part of the share that has already been uploaded the response is ``CONFLICT``.
+  The response body indicates the range of share data that has yet to be uploaded.
+  That is::
+
+    { "required":
+      [ { "begin": <byte position, inclusive>
+        , "end":   <byte position, exclusive>
+        }
+      ,
+      ...
+      ]
+    }
+
 
 ``POST /v1/immutable/:storage_index/:share_number/corrupt``
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
