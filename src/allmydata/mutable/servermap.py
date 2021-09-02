@@ -607,13 +607,14 @@ class ServermapUpdater(object):
         return d
 
     def _do_read(self, server, storage_index, shnums, readv):
+        """
+        If self._add_lease is true, a lease is added, and the result only fires
+        once the least has also been added.
+        """
         ss = server.get_storage_server()
         if self._add_lease:
             # send an add-lease message in parallel. The results are handled
-            # separately. This is sent before the slot_readv() so that we can
-            # be sure the add_lease is retired by the time slot_readv comes
-            # back (this relies upon our knowledge that the server code for
-            # add_lease is synchronous).
+            # separately.
             renew_secret = self._node.get_renewal_secret(server)
             cancel_secret = self._node.get_cancel_secret(server)
             d2 = ss.add_lease(
@@ -623,7 +624,16 @@ class ServermapUpdater(object):
             )
             # we ignore success
             d2.addErrback(self._add_lease_failed, server, storage_index)
+        else:
+            d2 = defer.succeed(None)
         d = ss.slot_readv(storage_index, shnums, readv)
+
+        def passthrough(result):
+            # Wait for d2, but fire with result of slot_readv() regardless of
+            # result of d2.
+            return d2.addBoth(lambda _: result)
+
+        d.addCallback(passthrough)
         return d
 
 
