@@ -22,17 +22,17 @@ The scheme in use in Tahoe-LAFS as of 1.16.0 is as follows.
 
 * The **netstring encoding** of a byte string is the concatenation of:
 
-  * the base 10 representation of the length of the string
-  * ":"
-  * the string
-  * ","
+  * the ascii encoding of the base 10 representation of the length of the string
+  * ``":"``
+  * the string itself
+  * ``","``
 
 * The **sha256d digest** is the **sha256 digest** of the **sha256 digest** of a string.
 * The **sha256d tagged digest** is the **sha256d digest** of the concatenation of the **netstring encoding** of one string with one other unmodified string.
 * The **sha256d tagged pair digest** the **sha256d digest** of the concatenation of the **netstring encodings** of each of three strings.
-* The **bucket renewal tag** is ``allmydata_bucket_renewal_secret_v1``.
-* The **file renewal tag** is ``allmydata_file_renewal_secret_v1``.
-* The **client renewal tag** is ``allmydata_client_renewal_secret_v1``.
+* The **bucket renewal tag** is ``"allmydata_bucket_renewal_secret_v1"``.
+* The **file renewal tag** is ``"allmydata_file_renewal_secret_v1"``.
+* The **client renewal tag** is ``"allmydata_client_renewal_secret_v1"``.
 * The **lease secret** is a 32 byte string, typically randomly generated once and then persisted for all future uses.
 * The **client renewal secret** is the **sha256d tagged digest** of (**lease secret**, **client renewal tag**).
 * The **storage index** is constructed using a capability-type-specific scheme.
