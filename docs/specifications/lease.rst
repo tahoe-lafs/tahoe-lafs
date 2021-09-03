@@ -43,3 +43,21 @@ The scheme in use in Tahoe-LAFS as of 1.16.0 is as follows.
 * The **base32 encoding** is ``base64.b32encode`` lowercased and with trailing ``=`` stripped.
 * The **peer id** is the **base32 encoding** of the SHA1 digest of the server's x509 certificate.
 * The **renewal secret** is the **sha256d tagged pair digest** of (**bucket renewal tag**, **file renewal secret**, **peer id**).
+
+Cancel Secrets
+--------------
+
+Lease cancellation is unimplemented.
+Nevertheless,
+a cancel secret is sent by storage clients to storage servers and stored in lease records.
+
+The scheme for deriving **cancel secret** in use in Tahoe-LAFS as of 1.16.0 is similar to that used to derive the **renewal secret**.
+
+The differences are:
+
+* Use of **client renewal tag** is replaced by use of **client cancel tag**.
+* Use of **file renewal secret** is replaced by use of **file cancel tag**.
+* Use of **bucket renewal tag** is replaced by use of **bucket cancel tag**.
+* **client cancel tag** is ``"allmydata_client_cancel_secret_v1"``.
+* **file cancel tag** is ``"allmydata_file_cancel_secret_v1"``.
+* **bucket cancel tag** is ``"allmydata_bucket_cancel_secret_v1"``.
