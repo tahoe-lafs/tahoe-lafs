@@ -24,11 +24,21 @@ Glossary
    storage server
      a Tahoe-LAFS process configured to offer storage and reachable over the network for store and retrieve operations
 
+   storage service
+     a Python object held in memory in the storage server which provides the implementation of the storage protocol
+
    introducer
      a Tahoe-LAFS process at a known location configured to re-publish announcements about the location of storage servers
 
    fURL
      a self-authenticating URL-like string which can be used to locate a remote object using the Foolscap protocol
+     (the storage service is an example of such an object)
+
+   NURL
+     a self-authenticating URL-like string almost exactly like a fURL but without being tied to Foolscap
+
+   swissnum
+     a short random string which is part of a fURL and which acts as a shared secret to authorize clients to use a storage service
 
    lease
      state associated with a share informing a storage server of the duration of storage desired by a client
@@ -128,6 +138,8 @@ The Foolscap-based protocol offers:
   * A careful configuration of the TLS connection parameters *may* also offer **forward secrecy**.
     However, Tahoe-LAFS' use of Foolscap takes no steps to ensure this is the case.
 
+* **Storage authorization** by way of a capability contained in the fURL addressing a storage service.
+
 Discussion
 !!!!!!!!!!
 
@@ -157,6 +169,10 @@ An attacker learning this secret can overwrite share data with garbage
 there is no way to write data which appears legitimate to a legitimate client).
 Therefore, **message confidentiality** is necessary when exchanging these secrets.
 **Forward secrecy** is preferred so that an attacker recording an exchange today cannot launch this attack at some future point after compromising the necessary keys.
+
+A storage service offers service only to some clients.
+A client proves their authorization to use the storage service by presenting a shared secret taken from the fURL.
+In this way **storage authorization** is performed to prevent disallowed parties from consuming all available storage resources.
 
 Functionality
 -------------
@@ -213,6 +229,10 @@ If and only if the validation procedure is successful does Bob's client node con
 Additionally,
 by continuing to interact using TLS,
 Bob's client and Alice's storage node are assured of both **message authentication** and **message confidentiality**.
+
+Bob's client further inspects the fURL for the *swissnum*.
+When Bob's client issues HTTP requests to Alice's storage node it includes the *swissnum* in its requests.
+**Storage authorization** has been achieved.
 
 .. note::
 
@@ -342,6 +362,12 @@ Many branches of the resource tree are conceived as homogenous containers:
 one branch contains all of the share data;
 another branch contains all of the lease data;
 etc.
+
+Authorization is required for all endpoints.
+The standard HTTP authorization protocol is used.
+The authentication *type* used is ``Tahoe-LAFS``.
+The swissnum from the NURL used to locate the storage service is used as the *credentials*.
+If credentials are not presented or the swissnum is not associated with a storage service then no storage processing is performed and the request receives an ``UNAUTHORIZED`` response.
 
 General
 ~~~~~~~
