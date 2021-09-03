@@ -534,6 +534,15 @@ There are many drawbacks to this framing technique:
 2. It is resource-intensive to parse.
 3. It is complex to parse safely [#]_ [#]_ [#]_ [#]_.
 
+A previous revision of this specification allowed requesting one or more contiguous sequences from one or more shares.
+This *superficially* mirrored the Foolscap based interface somewhat closely.
+The interface was simplified to this version because this version is all that is required to let clients retrieve any desired information.
+It only requires that the client issue multiple requests.
+This can be done with pipelining or parallel requests to avoid an additional latency penalty.
+In the future,
+if there are performance goals,
+benchmarks can demonstrate whether they are achieved by a more complicated interface or some other change.
+
 Mutable
 -------
 
