@@ -14,6 +14,7 @@ from past.builtins import long
 
 import itertools
 import hashlib
+import re
 from twisted.internet import defer
 from twisted.python.filepath import FilePath
 from twisted.web.resource import Resource
@@ -1553,18 +1554,22 @@ class Statistics(MultiFormatResource):
 
     @render_exception
     def render_OPENMETRICS(self, req):
-        req.setHeader("content-type", "application/openmetrics-text")
-        return "3. occurence. This should be the one.\n"
+        def mangle_name(name):
+            return re.sub(
+                "_(\d\d)_(\d)_percentile",
+                '{quantile="0.\g<1>\g<2>"}',
+                name.replace(".", "_")
+            )
 
-    # @render_exception
-    # def render_OPENMETRICS(self, req):
-    #     req.setHeader("content-type", "text/plain")
-    #     if self._helper:
-    #         stats = self._helper.get_stats()
-    #         import pprint
-    #         return pprint.PrettyPrinter().pprint(stats) + "\n"
-    #     return "uh oh\n"
+        req.setHeader(
+            "content-type", "application/openmetrics-text; version=1.0.0; charset=utf-8"
+        )
 
+        stats = self._provider.get_stats()
+        return (str({mangle_name(k): v for k, v in stats['counters'].items()})
+                + str({mangle_name(k): v for k, v in stats['stats'].items()})
+                + "\n"
+        )
 
 class StatisticsElement(Element):
 
