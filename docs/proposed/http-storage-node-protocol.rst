@@ -509,28 +509,21 @@ For example::
 
   [1, 5]
 
-``GET /v1/immutable/:storage_index?share=:s0&share=:sN&offset=o1&size=z0&offset=oN&size=zN``
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+``GET /v1/immutable/:storage_index/:share_number?offset=:offset&length=:length
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-Read data from the indicated immutable shares.
-If ``share`` query parameters are given, selecte only those shares for reading.
-Otherwise, select all shares present.
-If ``size`` and ``offset`` query parameters are given,
-only the portions thus identified of the selected shares are returned.
-Otherwise, all data is from the selected shares is returned.
+Read a contiguous sequence of bytes from one share in one bucket.
+If the ``offset`` query parameter is given then it is interpreted as a base 10 representation of an integer giving the position at which to begin reading.
+If it is not given then begin reading at the beginning of the share.
+If the ``length`` query parameter is given then it is interpreted as a base 10 representation of an integer giving the maximum number of bytes to read and return.
+If it is not given then bytes will be read until the end of the share is reached.
 
-The response body contains a mapping giving the read data.
-For example::
-
-  {
-      3: ["foo", "bar"],
-      7: ["baz", "quux"]
-  }
+The response body is the raw share data (i.e., ``application/octet-stream``).
 
 Discussion
 ``````````
 
-Offset and size of the requested data are specified here as query arguments.
+Offset and length of the requested data are specified here as query arguments.
 Instead, this information could be present in a ``Range`` header in the request.
 This is the more obvious choice and leverages an HTTP feature built for exactly this use-case.
 However, HTTP requires that the ``Content-Type`` of the response to "range requests" be ``multipart/...``.
