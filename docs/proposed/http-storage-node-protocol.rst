@@ -172,7 +172,7 @@ Therefore, **message confidentiality** is necessary when exchanging these secret
 
 A storage service offers service only to some clients.
 A client proves their authorization to use the storage service by presenting a shared secret taken from the fURL.
-In this way **storage authorization** is performed to prevent disallowed parties from consuming all available storage resources.
+In this way **storage authorization** is performed to prevent disallowed parties from consuming any storage resources.
 
 Functionality
 -------------
