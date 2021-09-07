@@ -139,9 +139,6 @@ class CommandStatus(unittest.TestCase):
     """
     These tests just exercise the renderers and ensure they don't
     catastrophically fail.
-
-    They could be enhanced to look for "some" magic strings in the
-    results and assert they're in the output.
     """
 
     def setUp(self):
