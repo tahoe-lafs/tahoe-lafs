@@ -45,7 +45,7 @@ Glossary
      (sometimes "slot" is considered a synonym for "storage index of a slot")
 
    storage index
-     a short string which can address a slot or a bucket
+     a 16 byte string which can address a slot or a bucket
      (in practice, derived by hashing the encryption key associated with contents of that slot or bucket)
 
    write enabler
