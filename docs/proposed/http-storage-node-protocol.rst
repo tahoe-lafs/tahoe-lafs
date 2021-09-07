@@ -539,24 +539,20 @@ For example::
 
   [1, 5]
 
-``GET /v1/immutable/:storage_index/:share_number?offset=:offset&length=:length
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+``GET /v1/immutable/:storage_index/:share_number
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 Read a contiguous sequence of bytes from one share in one bucket.
-If the ``offset`` query parameter is given then it is interpreted as a base 10 representation of an integer giving the position at which to begin reading.
-If it is not given then begin reading at the beginning of the share.
-If the ``length`` query parameter is given then it is interpreted as a base 10 representation of an integer giving the maximum number of bytes to read and return.
-If it is not given then bytes will be read until the end of the share is reached.
-
 The response body is the raw share data (i.e., ``application/octet-stream``).
+The ``Range`` header may be used to request exactly one ``bytes`` range.
+Interpretation and response behavior is as specified in RFC 7233 § 4.1.
+Multiple ranges in a single request are *not* supported.
 
 Discussion
 ``````````
 
-Offset and length of the requested data are specified here as query arguments.
-Instead, this information could be present in a ``Range`` header in the request.
-This is the more obvious choice and leverages an HTTP feature built for exactly this use-case.
-However, HTTP requires that the ``Content-Type`` of the response to "range requests" be ``multipart/...``.
+Multiple ``bytes`` ranges are not supported.
+HTTP requires that the ``Content-Type`` of the response in that case be ``multipart/...``.
 The ``multipart`` major type brings along string sentinel delimiting as a means to frame the different response parts.
 There are many drawbacks to this framing technique:
 
