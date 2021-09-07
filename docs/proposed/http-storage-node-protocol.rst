@@ -55,7 +55,7 @@ Glossary
      (sometimes "slot" is considered a synonym for "storage index of a slot")
 
    storage index
-     a short string which can address a slot or a bucket
+     a 16 byte string which can address a slot or a bucket
      (in practice, derived by hashing the encryption key associated with contents of that slot or bucket)
 
    write enabler
@@ -405,6 +405,10 @@ If the ``renew-secret`` value matches an existing lease
 then the expiration time of that lease will be changed to 31 days after the time of this operation.
 If it does not match an existing lease
 then a new lease will be created with this ``renew-secret`` which expires 31 days after the time of this operation.
+
+``renew-secret`` and ``cancel-secret`` values must be 32 bytes long.
+The server treats them as opaque values.
+:ref:`Share Leases` gives details about how the Tahoe-LAFS storage client constructs these values.
 
 In these cases the response is ``NO CONTENT`` with an empty body.
 
