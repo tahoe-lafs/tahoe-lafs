@@ -11,23 +11,22 @@ if PY2:
     from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 from six.moves import cStringIO as StringIO
-from six import ensure_text, ensure_str
+import re
+from six import ensure_text
 
 import os.path
-import sys
-import re
-from mock import patch, Mock
 from urllib.parse import quote as url_quote
 
 from twisted.trial import unittest
-from twisted.python.monkey import MonkeyPatcher
-from twisted.internet import task
-from twisted.python.filepath import FilePath
-
+from twisted.internet.testing import (
+    MemoryReactor,
+)
+from twisted.internet.test.modulehelpers import (
+    AlternateReactor,
+)
 import allmydata
 from allmydata.crypto import ed25519
 from allmydata.util import fileutil, hashutil, base32
-from allmydata.util.namespace import Namespace
 from allmydata import uri
 from allmydata.immutable import upload
 from allmydata.dirnode import normalize
@@ -524,42 +523,34 @@ class CLI(CLITestMixin, unittest.TestCase):
             self.failUnlessIn(normalize(file), filenames)
 
     def test_exception_catcher(self):
+        """
+        An exception that is otherwise unhandled during argument dispatch is
+        written to stderr and causes the process to exit with code 1.
+        """
         self.basedir = "cli/exception_catcher"
 
-        stderr = StringIO()
         exc = Exception("canary")
-        ns = Namespace()
+        class BrokenOptions(object):
+            def parseOptions(self, argv):
+                raise exc
 
-        ns.parse_called = False
-        def call_parse_or_exit(args):
-            ns.parse_called = True
-            raise exc
+        stderr = StringIO()
 
-        ns.sys_exit_called = False
-        def call_sys_exit(exitcode):
-            ns.sys_exit_called = True
-            self.failUnlessEqual(exitcode, 1)
+        reactor = MemoryReactor()
 
-        def fake_react(f):
-            reactor = Mock()
-            d = f(reactor)
-            # normally this Deferred would be errbacked with SystemExit, but
-            # since we mocked out sys.exit, it will be fired with None. So
-            # it's safe to drop it on the floor.
-            del d
+        with AlternateReactor(reactor):
+            with self.assertRaises(SystemExit) as ctx:
+                runner.run(
+                    configFactory=BrokenOptions,
+                    argv=["tahoe"],
+                    stderr=stderr,
+                )
 
-        patcher = MonkeyPatcher((runner, 'parse_or_exit_with_explanation',
-                                 call_parse_or_exit),
-                                (sys, 'argv', ["tahoe"]),
-                                (sys, 'exit', call_sys_exit),
-                                (sys, 'stderr', stderr),
-                                (task, 'react', fake_react),
-                                )
-        patcher.runWithPatches(runner.run)
+        self.assertTrue(reactor.hasRun)
+        self.assertFalse(reactor.running)
 
-        self.failUnless(ns.parse_called)
-        self.failUnless(ns.sys_exit_called)
         self.failUnlessIn(str(exc), stderr.getvalue())
+        self.assertEqual(1, ctx.exception.code)
 
 
 class Help(unittest.TestCase):
@@ -1331,30 +1322,3 @@ class Options(ReallyEqualMixin, unittest.TestCase):
                               ["--node-directory=there", "run", some_twistd_option])
         self.failUnlessRaises(usage.UsageError, self.parse,
                               ["run", "--basedir=here", some_twistd_option])
-
-
-class Run(unittest.TestCase):
-
-    @patch('allmydata.scripts.tahoe_run.os.chdir')
-    @patch('allmydata.scripts.tahoe_run.twistd')
-    def test_non_numeric_pid(self, mock_twistd, chdir):
-        """
-        If the pidfile exists but does not contain a numeric value, a complaint to
-        this effect is written to stderr.
-        """
-        basedir = FilePath(ensure_str(self.mktemp()))
-        basedir.makedirs()
-        basedir.child(u"twistd.pid").setContent(b"foo")
-        basedir.child(u"tahoe-client.tac").setContent(b"")
-
-        config = tahoe_run.RunOptions()
-        config.stdout = StringIO()
-        config.stderr = StringIO()
-        config['basedir'] = ensure_text(basedir.path)
-        config.twistd_args = []
-
-        result_code = tahoe_run.run(config)
-        self.assertIn("invalid PID file", config.stderr.getvalue())
-        self.assertTrue(len(mock_twistd.mock_calls), 1)
-        self.assertEqual(mock_twistd.mock_calls[0][0], 'runApp')
-        self.assertEqual(0, result_code)

@@ -154,24 +154,8 @@ class RIStorageServer(RemoteInterface):
         """
         return Any() # returns None now, but future versions might change
 
-    def renew_lease(storage_index=StorageIndex, renew_secret=LeaseRenewSecret):
-        """
-        Renew the lease on a given bucket, resetting the timer to 31 days.
-        Some networks will use this, some will not. If there is no bucket for
-        the given storage_index, IndexError will be raised.
-
-        For mutable shares, if the given renew_secret does not match an
-        existing lease, IndexError will be raised with a note listing the
-        server-nodeids on the existing leases, so leases on migrated shares
-        can be renewed. For immutable shares, IndexError (without the note)
-        will be raised.
-        """
-        return Any()
-
     def get_buckets(storage_index=StorageIndex):
         return DictOf(int, RIBucketReader, maxKeys=MAX_BUCKETS)
-
-
 
     def slot_readv(storage_index=StorageIndex,
                    shares=ListOf(int), readv=ReadVector):
@@ -341,14 +325,6 @@ class IStorageServer(Interface):
     ):
         """
         :see: ``RIStorageServer.add_lease``
-        """
-
-    def renew_lease(
-            storage_index,
-            renew_secret,
-    ):
-        """
-        :see: ``RIStorageServer.renew_lease``
         """
 
     def get_buckets(

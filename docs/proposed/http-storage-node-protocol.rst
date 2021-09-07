@@ -24,11 +24,21 @@ Glossary
    storage server
      a Tahoe-LAFS process configured to offer storage and reachable over the network for store and retrieve operations
 
+   storage service
+     a Python object held in memory in the storage server which provides the implementation of the storage protocol
+
    introducer
      a Tahoe-LAFS process at a known location configured to re-publish announcements about the location of storage servers
 
    fURL
      a self-authenticating URL-like string which can be used to locate a remote object using the Foolscap protocol
+     (the storage service is an example of such an object)
+
+   NURL
+     a self-authenticating URL-like string almost exactly like a fURL but without being tied to Foolscap
+
+   swissnum
+     a short random string which is part of a fURL and which acts as a shared secret to authorize clients to use a storage service
 
    lease
      state associated with a share informing a storage server of the duration of storage desired by a client
@@ -45,7 +55,7 @@ Glossary
      (sometimes "slot" is considered a synonym for "storage index of a slot")
 
    storage index
-     a short string which can address a slot or a bucket
+     a 16 byte string which can address a slot or a bucket
      (in practice, derived by hashing the encryption key associated with contents of that slot or bucket)
 
    write enabler
@@ -128,6 +138,8 @@ The Foolscap-based protocol offers:
   * A careful configuration of the TLS connection parameters *may* also offer **forward secrecy**.
     However, Tahoe-LAFS' use of Foolscap takes no steps to ensure this is the case.
 
+* **Storage authorization** by way of a capability contained in the fURL addressing a storage service.
+
 Discussion
 !!!!!!!!!!
 
@@ -157,6 +169,10 @@ An attacker learning this secret can overwrite share data with garbage
 there is no way to write data which appears legitimate to a legitimate client).
 Therefore, **message confidentiality** is necessary when exchanging these secrets.
 **Forward secrecy** is preferred so that an attacker recording an exchange today cannot launch this attack at some future point after compromising the necessary keys.
+
+A storage service offers service only to some clients.
+A client proves their authorization to use the storage service by presenting a shared secret taken from the fURL.
+In this way **storage authorization** is performed to prevent disallowed parties from consuming any storage resources.
 
 Functionality
 -------------
@@ -213,6 +229,10 @@ If and only if the validation procedure is successful does Bob's client node con
 Additionally,
 by continuing to interact using TLS,
 Bob's client and Alice's storage node are assured of both **message authentication** and **message confidentiality**.
+
+Bob's client further inspects the fURL for the *swissnum*.
+When Bob's client issues HTTP requests to Alice's storage node it includes the *swissnum* in its requests.
+**Storage authorization** has been achieved.
 
 .. note::
 
@@ -343,6 +363,12 @@ one branch contains all of the share data;
 another branch contains all of the lease data;
 etc.
 
+Authorization is required for all endpoints.
+The standard HTTP authorization protocol is used.
+The authentication *type* used is ``Tahoe-LAFS``.
+The swissnum from the NURL used to locate the storage service is used as the *credentials*.
+If credentials are not presented or the swissnum is not associated with a storage service then no storage processing is performed and the request receives an ``UNAUTHORIZED`` response.
+
 General
 ~~~~~~~
 
@@ -369,7 +395,7 @@ For example::
 ``PUT /v1/lease/:storage_index``
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-Create a new lease on the bucket addressed by ``storage_index``.
+Either renew or create a new lease on the bucket addressed by ``storage_index``.
 The details of the lease are encoded in the request body.
 For example::
 
@@ -379,6 +405,10 @@ If the ``renew-secret`` value matches an existing lease
 then the expiration time of that lease will be changed to 31 days after the time of this operation.
 If it does not match an existing lease
 then a new lease will be created with this ``renew-secret`` which expires 31 days after the time of this operation.
+
+``renew-secret`` and ``cancel-secret`` values must be 32 bytes long.
+The server treats them as opaque values.
+:ref:`Share Leases` gives details about how the Tahoe-LAFS storage client constructs these values.
 
 In these cases the response is ``NO CONTENT`` with an empty body.
 
@@ -400,36 +430,10 @@ Several behaviors here are blindly copied from the Foolscap-based storage server
 
 * There is a cancel secret but there is no API to use it to cancel a lease (see ticket:3768).
 * The lease period is hard-coded at 31 days.
-* There are separate **add** and **renew** lease APIs (see ticket:3773).
 
 These are not necessarily ideal behaviors
 but they are adopted to avoid any *semantic* changes between the Foolscap- and HTTP-based protocols.
 It is expected that some or all of these behaviors may change in a future revision of the HTTP-based protocol.
-
-``POST /v1/lease/:storage_index``
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-Renew an existing lease for all shares for the given storage index.
-The details of the lease are encoded in the request body.
-For example::
-
-  {"renew-secret": "abcd"}
-
-If there are no shares for the given ``storage_index``
-then ``NOT FOUND`` is returned.
-
-If there is no lease with a matching ``renew-secret`` value on the given storage index
-then ``NOT FOUND`` is returned.
-In this case,
-if the storage index refers to mutable data
-then the response also includes a list of nodeids where the lease can be renewed.
-For example::
-
-  {"nodeids": ["aaa...", "bbb..."]}
-
-Othewise,
-the matching lease's expiration time is changed to be 31 days from the time of this operation
-and ``NO CONTENT`` is returned.
 
 Immutable
 ---------
@@ -484,17 +488,32 @@ The response includes ``already-have`` and ``allocated`` for two reasons:
 Write data for the indicated share.
 The share number must belong to the storage index.
 The request body is the raw share data (i.e., ``application/octet-stream``).
-*Content-Range* requests are encouraged for large transfers.
+*Content-Range* requests are encouraged for large transfers to allow partially complete uploads to be resumed.
 For example,
-for a 1MiB share the data can be broken in to 8 128KiB chunks.
-Each chunk can be *PUT* separately with the appropriate *Content-Range* header.
+a 1MiB share can be divided in to eight separate 128KiB chunks.
+Each chunk can be uploaded in a separate request.
+Each request can include a *Content-Range* value indicating its placement within the complete share.
+If any one of these requests fails then at most 128KiB of upload work needs to be retried.
+
 The server must recognize when all of the data has been received and mark the share as complete
 (which it can do because it was informed of the size when the storage index was initialized).
 Clients should upload chunks in re-assembly order.
-Servers may reject out-of-order chunks for implementation simplicity.
-If an individual *PUT* fails then only a limited amount of effort is wasted on the necessary retry.
 
-.. think about copying https://developers.google.com/drive/api/v2/resumable-upload
+* When a chunk that does not complete the share is successfully uploaded the response is ``OK``.
+* When the chunk that completes the share is successfully uploaded the response is ``CREATED``.
+* If the *Content-Range* for a request covers part of the share that has already been uploaded the response is ``CONFLICT``.
+  The response body indicates the range of share data that has yet to be uploaded.
+  That is::
+
+    { "required":
+      [ { "begin": <byte position, inclusive>
+        , "end":   <byte position, exclusive>
+        }
+      ,
+      ...
+      ]
+    }
+
 
 ``POST /v1/immutable/:storage_index/:share_number/corrupt``
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -520,37 +539,35 @@ For example::
 
   [1, 5]
 
-``GET /v1/immutable/:storage_index?share=:s0&share=:sN&offset=o1&size=z0&offset=oN&size=zN``
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+``GET /v1/immutable/:storage_index/:share_number``
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-Read data from the indicated immutable shares.
-If ``share`` query parameters are given, selecte only those shares for reading.
-Otherwise, select all shares present.
-If ``size`` and ``offset`` query parameters are given,
-only the portions thus identified of the selected shares are returned.
-Otherwise, all data is from the selected shares is returned.
-
-The response body contains a mapping giving the read data.
-For example::
-
-  {
-      3: ["foo", "bar"],
-      7: ["baz", "quux"]
-  }
+Read a contiguous sequence of bytes from one share in one bucket.
+The response body is the raw share data (i.e., ``application/octet-stream``).
+The ``Range`` header may be used to request exactly one ``bytes`` range.
+Interpretation and response behavior is as specified in RFC 7233 § 4.1.
+Multiple ranges in a single request are *not* supported.
 
 Discussion
 ``````````
 
-Offset and size of the requested data are specified here as query arguments.
-Instead, this information could be present in a ``Range`` header in the request.
-This is the more obvious choice and leverages an HTTP feature built for exactly this use-case.
-However, HTTP requires that the ``Content-Type`` of the response to "range requests" be ``multipart/...``.
+Multiple ``bytes`` ranges are not supported.
+HTTP requires that the ``Content-Type`` of the response in that case be ``multipart/...``.
 The ``multipart`` major type brings along string sentinel delimiting as a means to frame the different response parts.
 There are many drawbacks to this framing technique:
 
 1. It is resource-intensive to generate.
 2. It is resource-intensive to parse.
 3. It is complex to parse safely [#]_ [#]_ [#]_ [#]_.
+
+A previous revision of this specification allowed requesting one or more contiguous sequences from one or more shares.
+This *superficially* mirrored the Foolscap based interface somewhat closely.
+The interface was simplified to this version because this version is all that is required to let clients retrieve any desired information.
+It only requires that the client issue multiple requests.
+This can be done with pipelining or parallel requests to avoid an additional latency penalty.
+In the future,
+if there are performance goals,
+benchmarks can demonstrate whether they are achieved by a more complicated interface or some other change.
 
 Mutable
 -------
@@ -676,8 +693,8 @@ Immutable Data
 
 #. Renew the lease on all immutable shares in bucket ``AAAAAAAAAAAAAAAA``::
 
-     POST /v1/lease/AAAAAAAAAAAAAAAA
-     {"renew-secret": "efgh"}
+     PUT /v1/lease/AAAAAAAAAAAAAAAA
+     {"renew-secret": "efgh", "cancel-secret": "ijkl"}
 
      204 NO CONTENT
 
@@ -757,8 +774,8 @@ Mutable Data
 
 #. Renew the lease on previously uploaded mutable share in slot ``BBBBBBBBBBBBBBBB``::
 
-     POST /v1/lease/BBBBBBBBBBBBBBBB
-     {"renew-secret": "efgh"}
+     PUT /v1/lease/BBBBBBBBBBBBBBBB
+     {"renew-secret": "efgh", "cancel-secret": "ijkl"}
 
      204 NO CONTENT
 
