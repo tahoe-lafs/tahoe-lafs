@@ -1,0 +1,1 @@
+There is now a specification for the scheme which Tahoe-LAFS storage clients use to derive their lease renewal secrets.

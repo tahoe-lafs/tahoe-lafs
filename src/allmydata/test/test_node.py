@@ -6,7 +6,7 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
-from future.utils import PY2, native_str
+from future.utils import PY2
 if PY2:
     from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
@@ -530,6 +530,14 @@ def _stub_allocate_tcp_port():
     """
     return 999
 
+def _stub_none():
+    """
+    A function like ``_stub_allocate_tcp`` or ``_stub_get_local_addresses_sync``
+    but that return an empty list since ``allmydata.node._tub_portlocation`` requires a
+    callable for paramter 1 and 2 counting from 0.
+    """
+    return []
+
 
 class TestMissingPorts(unittest.TestCase):
     """
@@ -550,7 +558,7 @@ class TestMissingPorts(unittest.TestCase):
         )
         config = config_from_string(self.basedir, "portnum", config_data)
         with self.assertRaises(PortAssignmentRequired):
-            _tub_portlocation(config, None, None)
+            _tub_portlocation(config, _stub_none, _stub_none)
 
     def test_listen_on_zero_with_host(self):
         """
@@ -563,10 +571,7 @@ class TestMissingPorts(unittest.TestCase):
         )
         config = config_from_string(self.basedir, "portnum", config_data)
         with self.assertRaises(PortAssignmentRequired):
-            _tub_portlocation(config, None, None)
-    test_listen_on_zero_with_host.todo = native_str(  # type: ignore
-        "https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3563"
-    )
+            _tub_portlocation(config, _stub_none, _stub_none)
 
     def test_parsing_tcp(self):
         """
