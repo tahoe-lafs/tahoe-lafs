@@ -44,6 +44,12 @@ The scheme in use in Tahoe-LAFS as of 1.16.0 is as follows.
 * The **peer id** is the **base32 encoding** of the SHA1 digest of the server's x509 certificate.
 * The **renewal secret** is the **sha256d tagged pair digest** of (**bucket renewal tag**, **file renewal secret**, **peer id**).
 
+A reference implementation is available.
+
+.. literalinclude:: derive_renewal_secret.py
+   :language: python
+   :linenos:
+
 Cancel Secrets
 --------------
 
