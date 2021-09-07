@@ -539,8 +539,8 @@ For example::
 
   [1, 5]
 
-``GET /v1/immutable/:storage_index/:share_number
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+``GET /v1/immutable/:storage_index/:share_number``
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 Read a contiguous sequence of bytes from one share in one bucket.
 The response body is the raw share data (i.e., ``application/octet-stream``).
