@@ -28,6 +28,7 @@ if PY2:
         Builtin ``print``-alike that will even write unicode not encodeable using
         the specified output file's encoding.
         """
+        from past.builtins import unicode
         out = kwargs.pop("file", None)
         if out is None:
             from sys import stdout as out
