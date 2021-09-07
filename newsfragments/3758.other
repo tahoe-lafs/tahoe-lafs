@@ -1,1 +1,0 @@
-Refactored test_logs, test_grid and test_root in web tests to use custom base test cases

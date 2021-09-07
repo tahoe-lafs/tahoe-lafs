@@ -49,8 +49,9 @@ from ..common import (
 from testtools.matchers import (
     Equals,
     Contains,
-    Is,
     Not,
+    HasLength,
+    EndsWith,
 )
 
 from testtools.twistedsupport import flush_logged_errors
@@ -190,7 +191,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
             r = json.loads(res)
             self.failUnlessEqual(r["summary"],
                                  "Not Healthy: 9 shares (enc 3-of-10)")
-            self.assertThat(r["results"]["healthy"], Is(False))
+            self.assertThat(r["results"]["healthy"], Equals(False))
             self.failUnless(r["results"]["recoverable"])
             self.assertThat(r["results"], Not(Contains("needs-rebalancing")))
         d.addCallback(_got_json_sick)
@@ -204,8 +205,8 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
             r = json.loads(res)
             self.failUnlessEqual(r["summary"],
                                  "Not Healthy: 1 shares (enc 3-of-10)")
-            self.assertThat(r["results"]["healthy"], Is(False))
-            self.assertThat(r["results"]["recoverable"], Is(False))
+            self.assertThat(r["results"]["healthy"], Equals(False))
+            self.assertThat(r["results"]["recoverable"], Equals(False))
             self.assertThat(r["results"], Not(Contains("needs-rebalancing")))
         d.addCallback(_got_json_dead)
 
@@ -217,7 +218,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
         def _got_json_corrupt(res):
             r = json.loads(res)
             self.assertThat(r["summary"], Contains("Unhealthy: 9 shares (enc 3-of-10)"))
-            self.assertThat(r["results"]["healthy"], Is(False))
+            self.assertThat(r["results"]["healthy"], Equals(False))
             self.failUnless(r["results"]["recoverable"])
             self.assertThat(r["results"], Not(Contains("needs-rebalancing")))
             self.failUnlessReallyEqual(r["results"]["count-happiness"], 9)
@@ -532,10 +533,10 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
 
         def _created(dn):
             self.failUnless(isinstance(dn, dirnode.DirectoryNode))
-            self.assertThat(dn.is_mutable(), Is(False))
+            self.assertThat(dn.is_mutable(), Equals(False))
             self.failUnless(dn.is_readonly())
             # This checks that if we somehow ended up calling dn._decrypt_rwcapdata, it would fail.
-            self.assertThat(hasattr(dn._node, 'get_writekey'), Is(False))
+            self.assertThat(hasattr(dn._node, 'get_writekey'), Equals(False))
             rep = str(dn)
             self.assertThat(rep, Contains("RO-IMM"))
             cap = dn.get_cap()
@@ -597,15 +598,15 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
                 self.assertThat(td.findNextSibling().findNextSibling().text, Equals(u"{}".format(len("one"))))
                 found = True
                 break
-            self.assertThat(found, Is(True))
+            self.assertThat(found, Equals(True))
 
             infos = list(
                 a[u"href"]
                 for a in soup.find_all(u"a")
                 if a.text == u"More Info"
             )
-            self.assertThat(len(infos), Equals(1))
-            self.assertThat(infos[0].endswith(url_quote(lonely_uri) + "?t=info"), Is(True))
+            self.assertThat(infos, HasLength(1))
+            self.assertThat(infos[0], EndsWith(url_quote(lonely_uri) + "?t=info"))
         d.addCallback(_check_html)
 
         # ... and in JSON.
