@@ -11,49 +11,28 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
-from future.utils import PY2
+from future.utils import PY2, bchr
 
 if PY2:
-    from future.builtins import (
-        filter,
-        map,
-        zip,
-        ascii,
-        chr,
-        hex,
-        input,
-        next,
-        oct,
-        open,
-        pow,
-        round,
-        super,
-        bytes,
-        dict,
-        list,
-        object,
-        range,
-        str,
-        max,
-        min,
-    )  # noqa: F401
+    # fmt: off
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+    # fmt: on
 
 from random import randrange
-from unittest import expectedFailure
 
-from twisted.internet.defer import inlineCallbacks, returnValue
+from twisted.internet.defer import inlineCallbacks
 from twisted.trial.unittest import TestCase
 
 from foolscap.api import Referenceable
 
-from allmydata.interfaces import IStorageServer, RIBucketWriter
+from allmydata.interfaces import IStorageServer
 from .test_system import SystemTestMixin
 
 
 def _randbytes(length):
     # type: (int) -> bytes
     """Return random bytes string of given length."""
-    return bytes([randrange(0, 256) for _ in range(length)])
+    return b"".join([bchr(randrange(0, 256)) for _ in range(length)])
 
 
 def new_storage_index():
@@ -104,7 +83,7 @@ class IStorageServerImmutableAPIsTestsMixin(object):
             Referenceable(),
         )
         self.assertEqual(already_got, set())
-        self.assertEqual(allocated.keys(), set(range(5)))
+        self.assertEqual(set(allocated.keys()), set(range(5)))
         # We validate the bucket objects' interface in a later test.
 
     @inlineCallbacks
@@ -137,13 +116,12 @@ class IStorageServerImmutableAPIsTestsMixin(object):
             Referenceable(),
         )
         self.assertEqual(already_got, already_got2)
-        self.assertEqual(allocated.keys(), allocated2.keys())
+        self.assertEqual(set(allocated.keys()), set(allocated2.keys()))
 
     test_allocate_buckets_repeat.todo = (
         "https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3793"
     )
 
-    @expectedFailure
     @inlineCallbacks
     def test_allocate_buckets_more_sharenums(self):
         """
@@ -174,7 +152,7 @@ class IStorageServerImmutableAPIsTestsMixin(object):
             Referenceable(),
         )
         self.assertEqual(already_got2, set())  # none were fully written
-        self.assertEqual(allocated2.keys(), set(range(7)))
+        self.assertEqual(set(allocated2.keys()), set(range(7)))
 
     test_allocate_buckets_more_sharenums.todo = (
         "https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3793"
@@ -265,7 +243,7 @@ class IStorageServerImmutableAPIsTestsMixin(object):
         yield allocated[3].callRemote("close")
 
         buckets = yield self.storage_server.get_buckets(si)
-        self.assertEqual(buckets.keys(), {1, 2, 3})
+        self.assertEqual(set(buckets.keys()), {1, 2, 3})
 
         self.assertEqual(
             (yield buckets[1].callRemote("read", 0, 1024)), b"1" * 512 + b"2" * 512
