@@ -539,37 +539,35 @@ For example::
 
   [1, 5]
 
-``GET /v1/immutable/:storage_index?share=:s0&share=:sN&offset=o1&size=z0&offset=oN&size=zN``
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+``GET /v1/immutable/:storage_index/:share_number``
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-Read data from the indicated immutable shares.
-If ``share`` query parameters are given, selecte only those shares for reading.
-Otherwise, select all shares present.
-If ``size`` and ``offset`` query parameters are given,
-only the portions thus identified of the selected shares are returned.
-Otherwise, all data is from the selected shares is returned.
-
-The response body contains a mapping giving the read data.
-For example::
-
-  {
-      3: ["foo", "bar"],
-      7: ["baz", "quux"]
-  }
+Read a contiguous sequence of bytes from one share in one bucket.
+The response body is the raw share data (i.e., ``application/octet-stream``).
+The ``Range`` header may be used to request exactly one ``bytes`` range.
+Interpretation and response behavior is as specified in RFC 7233 § 4.1.
+Multiple ranges in a single request are *not* supported.
 
 Discussion
 ``````````
 
-Offset and size of the requested data are specified here as query arguments.
-Instead, this information could be present in a ``Range`` header in the request.
-This is the more obvious choice and leverages an HTTP feature built for exactly this use-case.
-However, HTTP requires that the ``Content-Type`` of the response to "range requests" be ``multipart/...``.
+Multiple ``bytes`` ranges are not supported.
+HTTP requires that the ``Content-Type`` of the response in that case be ``multipart/...``.
 The ``multipart`` major type brings along string sentinel delimiting as a means to frame the different response parts.
 There are many drawbacks to this framing technique:
 
 1. It is resource-intensive to generate.
 2. It is resource-intensive to parse.
 3. It is complex to parse safely [#]_ [#]_ [#]_ [#]_.
+
+A previous revision of this specification allowed requesting one or more contiguous sequences from one or more shares.
+This *superficially* mirrored the Foolscap based interface somewhat closely.
+The interface was simplified to this version because this version is all that is required to let clients retrieve any desired information.
+It only requires that the client issue multiple requests.
+This can be done with pipelining or parallel requests to avoid an additional latency penalty.
+In the future,
+if there are performance goals,
+benchmarks can demonstrate whether they are achieved by a more complicated interface or some other change.
 
 Mutable
 -------
