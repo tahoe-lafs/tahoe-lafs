@@ -1565,12 +1565,13 @@ class Statistics(MultiFormatResource):
                 name.replace(".", "_")
             )
 
+        def mangle_value(val):
+            return str(val) if val is not None else "NaN"
+
         for (k, v) in sorted(stats['counters'].items()):
-            ret += u"tahoe_counters_%s %s\n" % (mangle_name(k), v)
-
+            ret += u"tahoe_counters_%s %s\n" % (mangle_name(k), mangle_value(v))
         for (k, v) in sorted(stats['stats'].items()):
-            ret += u"tahoe_stats_%s %s\n" % (mangle_name(k), v)
-
+            ret += u"tahoe_stats_%s %s\n" % (mangle_name(k), mangle_value(v))
         return ret
 
 class StatisticsElement(Element):
