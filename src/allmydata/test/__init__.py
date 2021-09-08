@@ -55,22 +55,9 @@ def disable_foolscap_incidents():
     iq = NonQualifier()
     theLogger.setIncidentQualifier(iq)
 
-def bridge_foolscap_logs_to_twisted():
-    # Dump all of the Foolscap logs into the Twisted logging system where they
-    # can get scooped up by any other log observers we configure.
-    from foolscap.logging import log
-    log.bridgeLogsToTwisted()
+# we disable incident reporting for all unit tests.
+disable_foolscap_incidents()
 
-def configure_foolscap_logging():
-    # we disable incident reporting for all unit tests.
-    disable_foolscap_incidents()
-
-    # we want to collect Foolscap logs too, and it's easiest to do this by
-    # getting them into one of the log systems we already have collection set
-    # up for.
-    bridge_foolscap_logs_to_twisted()
-
-configure_foolscap_logging()
 
 def _configure_hypothesis():
     from os import environ
