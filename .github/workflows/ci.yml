@@ -85,7 +85,7 @@ jobs:
       - name: Upload trial log
         uses: actions/upload-artifact@v1
         with:
-          name: _trial_temp/test.log
+          name: test.log
           path: _trial_temp/test.log
 
       # Upload this job's coverage data to Coveralls.  While there is a GitHub
