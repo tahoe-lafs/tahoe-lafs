@@ -141,7 +141,7 @@ jobs:
   # See notes about parallel builds on GitHub Actions at
   # https://coveralls-python.readthedocs.io/en/latest/usage/configuration.html
   finish-coverage-report:
-    needs: 
+    needs:
       - "coverage"
     runs-on: "ubuntu-latest"
     container: "python:3-slim"
@@ -178,7 +178,7 @@ jobs:
       - name: Install Tor [Ubuntu]
         if: matrix.os == 'ubuntu-latest'
         run: sudo apt install tor
-        
+
       # TODO: See https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3744.
       # We have to use an older version of Tor for running integration
       # tests on macOS.
