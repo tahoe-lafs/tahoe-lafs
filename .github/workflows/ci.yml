@@ -76,9 +76,8 @@ jobs:
       - name: Run tox for corresponding Python version
         run: python -m tox
 
-      - name: Upload eliot.log in case of failure
+      - name: Upload eliot.log
         uses: actions/upload-artifact@v1
-        if: failure()
         with:
           name: eliot.log
           path: eliot.log
