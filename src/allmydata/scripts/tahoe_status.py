@@ -21,28 +21,26 @@ from allmydata.scripts.common_http import BadResponse
 from allmydata.util.abbreviate import abbreviate_space, abbreviate_time
 from allmydata.util.encodingutil import argv_to_abspath
 
-if PY2:
-    _print = print
-    def print(*args, **kwargs):
-        """
-        Builtin ``print``-alike that will even write unicode not encodeable using
-        the specified output file's encoding.
-        """
-        from past.builtins import unicode
-        out = kwargs.pop("file", None)
-        if out is None:
-            from sys import stdout as out
-        encoding = out.encoding or "ascii"
-        def ensafe(o):
-            if isinstance(o, unicode):
-                return o.encode(encoding, errors="replace").decode(encoding)
-            return o
-        _print("printing {!r} with encoding {!r}".format(args, encoding))
-        return _print(
-            *(ensafe(a) for a in args),
-            file=out,
-            **kwargs
-        )
+_print = print
+def print(*args, **kwargs):
+    """
+    Builtin ``print``-alike that will even write unicode not encodeable using
+    the specified output file's encoding.
+    """
+    from past.builtins import unicode
+    out = kwargs.pop("file", None)
+    if out is None:
+        from sys import stdout as out
+    encoding = out.encoding or "ascii"
+    def ensafe(o):
+        if isinstance(o, unicode):
+            return o.encode(encoding, errors="replace").decode(encoding)
+        return o
+    return _print(
+        *(ensafe(a) for a in args),
+        file=out,
+        **kwargs
+    )
 
 def _get_request_parameters_for_fragment(options, fragment, method, post_args):
     """
