@@ -83,6 +83,12 @@ jobs:
           name: eliot.log
           path: eliot.log
 
+      - name: Upload trial log
+        uses: actions/upload-artifact@v1
+        with:
+          name: _trial_temp/test.log
+          path: _trial_temp/test.log
+
       # Upload this job's coverage data to Coveralls.  While there is a GitHub
       # Action for this, as of Jan 2021 it does not support Python coverage
       # files - only lcov files.  Therefore, we use coveralls-python, the
