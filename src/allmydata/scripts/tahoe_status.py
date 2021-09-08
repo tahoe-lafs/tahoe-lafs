@@ -37,6 +37,7 @@ if PY2:
             if isinstance(o, unicode):
                 return o.encode(encoding, errors="replace").decode(encoding)
             return o
+        _print("printing {!r} with encoding {!r}".format(args, encoding))
         return _print(
             *(ensafe(a) for a in args),
             file=out,
