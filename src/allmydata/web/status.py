@@ -1554,6 +1554,10 @@ class Statistics(MultiFormatResource):
 
     @render_exception
     def render_OPENMETRICS(self, req):
+        req.setHeader("content-type", "application/openmetrics-text; version=1.0.0; charset=utf-8")
+        stats = self._provider.get_stats()
+        ret = u""
+
         def mangle_name(name):
             return re.sub(
                 "_(\d\d)_(\d)_percentile",
@@ -1561,15 +1565,13 @@ class Statistics(MultiFormatResource):
                 name.replace(".", "_")
             )
 
-        req.setHeader(
-            "content-type", "application/openmetrics-text; version=1.0.0; charset=utf-8"
-        )
+        for (k, v) in sorted(stats['counters'].items()):
+            ret += u"tahoe_counters_%s %s\n" % (mangle_name(k), v)
 
-        stats = self._provider.get_stats()
-        return (str({mangle_name(k): v for k, v in stats['counters'].items()})
-                + str({mangle_name(k): v for k, v in stats['stats'].items()})
-                + "\n"
-        )
+        for (k, v) in sorted(stats['stats'].items()):
+            ret += u"tahoe_stats_%s %s\n" % (mangle_name(k), v)
+
+        return ret
 
 class StatisticsElement(Element):
 
