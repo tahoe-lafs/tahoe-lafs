@@ -10,11 +10,13 @@ from future.utils import PY2
 if PY2:
     from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
-from twisted.trial import unittest
+from ..common import SyncTestCase
 from allmydata.mutable.publish import MutableData
 
-class DataHandle(unittest.TestCase):
+
+class DataHandle(SyncTestCase):
     def setUp(self):
+        super(DataHandle, self).setUp()
         self.test_data = b"Test Data" * 50000
         self.uploadable = MutableData(self.test_data)
 
