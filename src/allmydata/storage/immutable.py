@@ -213,7 +213,7 @@ class BucketWriter(Referenceable):  # type: ignore # warner/foolscap#78
         self._disconnect_marker = canary.notifyOnDisconnect(self._disconnected)
         self.closed = False
         self.throw_out_all_data = False
-        self._sharefile = ShareFile(incominghome, create=True, max_size=max_size)
+        self._sharefile = ShareFile(incominghome, create=not os.path.exists(incominghome), max_size=max_size)
         # also, add our lease to the file now, so that other ones can be
         # added by simultaneous uploaders
         self._sharefile.add_lease(lease_info)

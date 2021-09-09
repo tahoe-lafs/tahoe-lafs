@@ -314,12 +314,6 @@ class StorageServer(service.MultiService, Referenceable):
             if os.path.exists(finalhome):
                 # great! we already have it. easy.
                 pass
-            elif os.path.exists(incominghome):
-                # Note that we don't create BucketWriters for shnums that
-                # have a partial share (in incoming/), so if a second upload
-                # occurs while the first is still in progress, the second
-                # uploader will use different storage servers.
-                pass
             elif (not limited) or (remaining_space >= max_space_per_bucket):
                 # ok! we need to create the new share file.
                 bw = BucketWriter(self, incominghome, finalhome,

@@ -91,8 +91,6 @@ class IStorageServerImmutableAPIsTestsMixin(object):
         """
         allocate_buckets() with the same storage index returns the same result,
         because the shares have not been written to.
-
-        This fails due to https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3793
         """
         si, renew_secret, cancel_secret = (
             new_storage_index(),
@@ -118,17 +116,11 @@ class IStorageServerImmutableAPIsTestsMixin(object):
         self.assertEqual(already_got, already_got2)
         self.assertEqual(set(allocated.keys()), set(allocated2.keys()))
 
-    test_allocate_buckets_repeat.skip = (
-        "https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3793"
-    )
-
     @inlineCallbacks
     def test_allocate_buckets_more_sharenums(self):
         """
         allocate_buckets() with the same storage index but more sharenums
         acknowledges the extra shares don't exist.
-
-        Fails due to https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3793
         """
         si, renew_secret, cancel_secret = (
             new_storage_index(),
@@ -153,10 +145,6 @@ class IStorageServerImmutableAPIsTestsMixin(object):
         )
         self.assertEqual(already_got2, set())  # none were fully written
         self.assertEqual(set(allocated2.keys()), set(range(7)))
-
-    test_allocate_buckets_more_sharenums.skip = (
-        "https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3793"
-    )
 
     @inlineCallbacks
     def test_written_shares_are_allocated(self):
