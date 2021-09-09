@@ -506,19 +506,19 @@ class Server(unittest.TestCase):
         self.failUnlessEqual(already, set([0,1,2]))
         self.failUnlessEqual(set(writers.keys()), set([3,4]))
 
-        # while those two buckets are open for writing, the server should
-        # refuse to offer them to uploaders
-
+        # while those two buckets are open for writing, and second connection
+        # can still write (when HTTP protocol happens, concept of "connection"
+        # is going away so preventing parallel writes is bad).
         already2,writers2 = self.allocate(ss, b"allocate", [2,3,4,5], 75)
         self.failUnlessEqual(already2, set([0,1,2]))
-        self.failUnlessEqual(set(writers2.keys()), set([5]))
+        self.failUnlessEqual(set(writers2.keys()), set([3, 4, 5]))
 
         # aborting the writes should remove the tempfiles
         for i,wb in writers2.items():
             wb.remote_abort()
         already2,writers2 = self.allocate(ss, b"allocate", [2,3,4,5], 75)
         self.failUnlessEqual(already2, set([0,1,2]))
-        self.failUnlessEqual(set(writers2.keys()), set([5]))
+        self.failUnlessEqual(set(writers2.keys()), set([3, 4, 5]))
 
         for i,wb in writers2.items():
             wb.remote_abort()
@@ -731,12 +731,12 @@ class Server(unittest.TestCase):
         already2,writers2 = ss.remote_allocate_buckets(b"si3", rs4, cs4,
                                                        sharenums, size, canary)
         self.failUnlessEqual(len(already2), 0)
-        self.failUnlessEqual(len(writers2), 0)
+        self.failUnlessEqual(len(writers2), 5)
         for wb in writers.values():
             wb.remote_close()
 
         leases = list(ss.get_leases(b"si3"))
-        self.failUnlessEqual(len(leases), 1)
+        self.failUnlessEqual(len(leases), 2)
 
         already3,writers3 = ss.remote_allocate_buckets(b"si3", rs4, cs4,
                                                        sharenums, size, canary)

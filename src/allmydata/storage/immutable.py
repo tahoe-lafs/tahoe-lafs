@@ -285,11 +285,13 @@ class BucketWriter(Referenceable):  # type: ignore # warner/foolscap#78
         if self.closed:
             return
 
-        os.remove(self.incominghome)
+        if os.path.exists(self.incominghome):
+            os.remove(self.incominghome)
+
         # if we were the last share to be moved, remove the incoming/
         # directory that was our parent
         parentdir = os.path.split(self.incominghome)[0]
-        if not os.listdir(parentdir):
+        if os.path.exists(parentdir) and not os.listdir(parentdir):
             os.rmdir(parentdir)
         self._sharefile = None
 
