@@ -18,6 +18,7 @@ from allmydata.mutable.common import NeedMoreDataError, UncoordinatedWriteError
 class Exceptions(SyncTestCase):
     def test_repr(self):
         nmde = NeedMoreDataError(100, 50, 100)
-        self.failUnless("NeedMoreDataError" in repr(nmde), repr(nmde))
+        self.assertTrue("NeedMoreDataError" in repr(nmde), msg=repr(nmde))
+        self.assertTrue("NeedMoreDataError" in repr(nmde), msg=repr(nmde))
         ucwe = UncoordinatedWriteError()
-        self.failUnless("UncoordinatedWriteError" in repr(ucwe), repr(ucwe))
+        self.assertTrue("UncoordinatedWriteError" in repr(ucwe), msg=repr(ucwe))
