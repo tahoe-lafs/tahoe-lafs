@@ -1560,13 +1560,13 @@ class Statistics(MultiFormatResource):
 
         def mangle_name(name):
             return re.sub(
-                "_(\d\d)_(\d)_percentile",
-                '{quantile="0.\g<1>\g<2>"}',
-                name.replace(".", "_")
+                u"_(\d\d)_(\d)_percentile",
+                u'{quantile="0.\g<1>\g<2>"}',
+                name.replace(u".", u"_")
             )
 
         def mangle_value(val):
-            return str(val) if val is not None else "NaN"
+            return str(val) if val is not None else u"NaN"
 
         for (k, v) in sorted(stats['counters'].items()):
             ret += u"tahoe_counters_%s %s\n" % (mangle_name(k), mangle_value(v))
