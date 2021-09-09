@@ -1572,6 +1572,9 @@ class Statistics(MultiFormatResource):
             ret += u"tahoe_counters_%s %s\n" % (mangle_name(k), mangle_value(v))
         for (k, v) in sorted(stats['stats'].items()):
             ret += u"tahoe_stats_%s %s\n" % (mangle_name(k), mangle_value(v))
+
+        ret += u"# EOF\n"
+
         return ret
 
 class StatisticsElement(Element):
