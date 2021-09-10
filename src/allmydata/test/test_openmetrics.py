@@ -108,8 +108,10 @@ class OpenMetrics(unittest.TestCase):
         metrics = Statistics.render_OPENMETRICS(stats, req)
 
         # "The content type MUST be..."
-        req.setHeader.assert_called_with("content-type", "application/openmetrics-text; version=1.0.0; charset=utf-8")
+        req.setHeader.assert_called_with(
+            "content-type", "application/openmetrics-text; version=1.0.0; charset=utf-8"
+        )
 
-        # The parser throws if it can't parse.
-        # Wrap in a list() to drain the generator.
+        # The parser throws if it does not like its input.
+        # Wrapped in a list() to drain the generator.
         families = list(parser.text_string_to_metric_families(metrics))
