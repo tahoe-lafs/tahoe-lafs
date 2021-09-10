@@ -115,3 +115,4 @@ class OpenMetrics(unittest.TestCase):
         # The parser throws if it does not like its input.
         # Wrapped in a list() to drain the generator.
         families = list(parser.text_string_to_metric_families(metrics))
+
