@@ -59,7 +59,9 @@ Once tahoe --version works, see `docs/running.rst <docs/running.rst>`__ to learn
 🐍 Python 3 Support 
 --------------------
 
-Python 3 support has been introduced starting with Tahoe-LAFS 1.16.0, alongside Python 2. System admnistrators are advised to start running Tahoe on Python 3 and should expect Python 2 support to be dropped in a future version.  Please, feel free to file issues if you run into bugs while running Tahoe on Python 3.
+Python 3 support has been introduced starting with Tahoe-LAFS 1.16.0, alongside Python 2.
+System administrators are advised to start running Tahoe on Python 3 and should expect Python 2 support to be dropped in a future version.
+Please, feel free to file issues if you run into bugs while running Tahoe on Python 3.
 
 
 🤖 Issues
