@@ -254,7 +254,7 @@ class WriteBucketProxy(object):
         return d
 
     def abort(self):
-        self._rref.callRemote("abort").addErrback(log.err)
+        self._rref.callRemote("abort").addErrback(log.err, "Error from remote call to abort an immutable write bucket")
 
     def get_servername(self):
         return self._server.get_name()

@@ -1015,4 +1015,4 @@ class _StorageServer(object):
             storage_index,
             shnum,
             reason,
-        ).addErrback(log.err)
+        ).addErrback(log.err, "Error from remote call to advise_corrupt_share")

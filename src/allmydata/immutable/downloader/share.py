@@ -477,7 +477,7 @@ class Share(object):
                                                      str(f.value))
         self._rref.callRemote(
             "advise_corrupt_share", reason.encode("utf-8")
-        ).addErrback(log.err)
+        ).addErrback(log.err, "Error from remote call to advise_corrupt_share")
 
     def _satisfy_block_hash_tree(self, needed_hashes):
         o_bh = self.actual_offsets["block_hashes"]
