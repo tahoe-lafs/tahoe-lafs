@@ -53,6 +53,13 @@ For more detailed instructions, read `Installing Tahoe-LAFS <docs/Installation/i
 
 Once ``tahoe --version`` works, see `How to Run Tahoe-LAFS <docs/running.rst>`__ to learn how to set up your first Tahoe-LAFS node.
 
+🐍 Python 3 Support 
+--------------------
+
+Python 3 support has been introduced starting with Tahoe-LAFS 1.16.0, alongside Python 2.
+System administrators are advised to start running Tahoe on Python 3 and should expect Python 2 support to be dropped in a future version.
+Please, feel free to file issues if you run into bugs while running Tahoe on Python 3.
+
 
 🤖 Issues
 ---------
