@@ -19,6 +19,7 @@ if PY2:
     # fmt: on
 
 from random import randrange
+from unittest import skipIf
 
 from twisted.internet.defer import inlineCallbacks
 from twisted.trial.unittest import TestCase
@@ -86,6 +87,7 @@ class IStorageServerImmutableAPIsTestsMixin(object):
         self.assertEqual(set(allocated.keys()), set(range(5)))
         # We validate the bucket objects' interface in a later test.
 
+    @skipIf(True, "https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3793")
     @inlineCallbacks
     def test_allocate_buckets_repeat(self):
         """
@@ -118,10 +120,7 @@ class IStorageServerImmutableAPIsTestsMixin(object):
         self.assertEqual(already_got, already_got2)
         self.assertEqual(set(allocated.keys()), set(allocated2.keys()))
 
-    test_allocate_buckets_repeat.skip = (
-        "https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3793"
-    )
-
+    @skipIf(True, "https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3793")
     @inlineCallbacks
     def test_allocate_buckets_more_sharenums(self):
         """
@@ -153,10 +152,6 @@ class IStorageServerImmutableAPIsTestsMixin(object):
         )
         self.assertEqual(already_got2, set())  # none were fully written
         self.assertEqual(set(allocated2.keys()), set(range(7)))
-
-    test_allocate_buckets_more_sharenums.skip = (
-        "https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3793"
-    )
 
     @inlineCallbacks
     def test_written_shares_are_allocated(self):
