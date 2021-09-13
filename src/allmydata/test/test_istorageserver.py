@@ -27,7 +27,7 @@ from twisted.internet.defer import inlineCallbacks
 from foolscap.api import Referenceable
 
 from allmydata.interfaces import IStorageServer
-from .test_system import SystemTestMixin
+from .common_system import SystemTestMixin
 from .common import AsyncTestCase
 
 
