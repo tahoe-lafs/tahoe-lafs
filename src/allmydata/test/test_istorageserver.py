@@ -78,11 +78,11 @@ class IStorageServerImmutableAPIsTestsMixin(object):
         """
         (already_got, allocated) = yield self.storage_server.allocate_buckets(
             new_storage_index(),
-            new_secret(),
-            new_secret(),
-            set(range(5)),
-            1024,
-            Referenceable(),
+            renew_secret=new_secret(),
+            cancel_secret=new_secret(),
+            sharenums=set(range(5)),
+            allocated_size=1024,
+            canary=Referenceable(),
         )
         self.assertEqual(already_got, set())
         self.assertEqual(set(allocated.keys()), set(range(5)))
@@ -97,21 +97,21 @@ class IStorageServerImmutableAPIsTestsMixin(object):
 
         This fails due to https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3793
         """
-        si, renew_secret, cancel_secret = (
+        storage_index, renew_secret, cancel_secret = (
             new_storage_index(),
             new_secret(),
             new_secret(),
         )
         (already_got, allocated) = yield self.storage_server.allocate_buckets(
-            si,
+            storage_index,
             renew_secret,
             cancel_secret,
-            set(range(5)),
-            1024,
-            Referenceable(),
+            sharenums=set(range(5)),
+            allocated_size=1024,
+            canary=Referenceable(),
         )
         (already_got2, allocated2) = yield self.storage_server.allocate_buckets(
-            si,
+            storage_index,
             renew_secret,
             cancel_secret,
             set(range(5)),
@@ -130,26 +130,26 @@ class IStorageServerImmutableAPIsTestsMixin(object):
 
         Fails due to https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3793
         """
-        si, renew_secret, cancel_secret = (
+        storage_index, renew_secret, cancel_secret = (
             new_storage_index(),
             new_secret(),
             new_secret(),
         )
         yield self.storage_server.allocate_buckets(
-            si,
+            storage_index,
             renew_secret,
             cancel_secret,
-            set(range(5)),
-            1024,
-            Referenceable(),
+            sharenums=set(range(5)),
+            allocated_size=1024,
+            canary=Referenceable(),
         )
         (already_got2, allocated2) = yield self.storage_server.allocate_buckets(
-            si,
+            storage_index,
             renew_secret,
             cancel_secret,
-            set(range(7)),
-            1024,
-            Referenceable(),
+            sharenums=set(range(7)),
+            allocated_size=1024,
+            canary=Referenceable(),
         )
         self.assertEqual(already_got2, set())  # none were fully written
         self.assertEqual(set(allocated2.keys()), set(range(7)))
@@ -161,18 +161,18 @@ class IStorageServerImmutableAPIsTestsMixin(object):
         ``IStoragServer.allocate_buckets()``.  Partially-written or empty
         shares don't.
         """
-        si, renew_secret, cancel_secret = (
+        storage_index, renew_secret, cancel_secret = (
             new_storage_index(),
             new_secret(),
             new_secret(),
         )
         (_, allocated) = yield self.storage_server.allocate_buckets(
-            si,
+            storage_index,
             renew_secret,
             cancel_secret,
-            set(range(5)),
-            1024,
-            Referenceable(),
+            sharenums=set(range(5)),
+            allocated_size=1024,
+            canary=Referenceable(),
         )
 
         # Bucket 1 is fully written in one go.
@@ -188,12 +188,12 @@ class IStorageServerImmutableAPIsTestsMixin(object):
         yield allocated[0].callRemote("write", 0, b"1" * 512)
 
         (already_got, _) = yield self.storage_server.allocate_buckets(
-            si,
+            storage_index,
             renew_secret,
             cancel_secret,
-            set(range(5)),
-            1024,
-            Referenceable(),
+            sharenums=set(range(5)),
+            allocated_size=1024,
+            canary=Referenceable(),
         )
         self.assertEqual(already_got, {1, 2})
 
@@ -208,18 +208,18 @@ class IStorageServerImmutableAPIsTestsMixin(object):
             2. When overlapping writes happen, the resulting read returns the
                earliest written value.
         """
-        si, renew_secret, cancel_secret = (
+        storage_index, renew_secret, cancel_secret = (
             new_storage_index(),
             new_secret(),
             new_secret(),
         )
         (_, allocated) = yield self.storage_server.allocate_buckets(
-            si,
+            storage_index,
             renew_secret,
             cancel_secret,
-            set(range(5)),
-            1024,
-            Referenceable(),
+            sharenums=set(range(5)),
+            allocated_size=1024,
+            canary=Referenceable(),
         )
 
         # Bucket 1 is fully written in order
@@ -238,7 +238,7 @@ class IStorageServerImmutableAPIsTestsMixin(object):
         yield allocated[3].callRemote("write", 24, b"6" * 1000)
         yield allocated[3].callRemote("close")
 
-        buckets = yield self.storage_server.get_buckets(si)
+        buckets = yield self.storage_server.get_buckets(storage_index)
         self.assertEqual(set(buckets.keys()), {1, 2, 3})
 
         self.assertEqual(
