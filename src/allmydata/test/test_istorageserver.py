@@ -18,21 +18,28 @@ if PY2:
     from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
     # fmt: on
 
-from random import randrange
+from random import Random
+
+from testtools import skipIf
 
 from twisted.internet.defer import inlineCallbacks
-from twisted.trial.unittest import TestCase
 
 from foolscap.api import Referenceable
 
 from allmydata.interfaces import IStorageServer
-from .test_system import SystemTestMixin
+from .common_system import SystemTestMixin
+from .common import AsyncTestCase
+
+
+# Use random generator with known seed, so results are reproducible if tests
+# are run in the same order.
+_RANDOM = Random(0)
 
 
 def _randbytes(length):
     # type: (int) -> bytes
     """Return random bytes string of given length."""
-    return b"".join([bchr(randrange(0, 256)) for _ in range(length)])
+    return b"".join([bchr(_RANDOM.randrange(0, 256)) for _ in range(length)])
 
 
 def new_storage_index():
@@ -56,9 +63,13 @@ class IStorageServerSharedAPIsTestsMixin(object):
 
     @inlineCallbacks
     def test_version(self):
-        # TODO get_version() returns a dict-like thing with some of the
-        # expected fields.
-        yield self.storage_server.get_version()
+        """
+        ``IStorageServer`` returns a dictionary where the key is an expected
+        protocol version.
+        """
+        result = yield self.storage_server.get_version()
+        self.assertIsInstance(result, dict)
+        self.assertIn(b"http://allmydata.org/tahoe/protocols/storage/v1", result)
 
 
 class IStorageServerImmutableAPIsTestsMixin(object):
@@ -76,17 +87,18 @@ class IStorageServerImmutableAPIsTestsMixin(object):
         """
         (already_got, allocated) = yield self.storage_server.allocate_buckets(
             new_storage_index(),
-            new_secret(),
-            new_secret(),
-            set(range(5)),
-            1024,
-            Referenceable(),
+            renew_secret=new_secret(),
+            cancel_secret=new_secret(),
+            sharenums=set(range(5)),
+            allocated_size=1024,
+            canary=Referenceable(),
         )
         self.assertEqual(already_got, set())
         self.assertEqual(set(allocated.keys()), set(range(5)))
         # We validate the bucket objects' interface in a later test.
 
     @inlineCallbacks
+    @skipIf(True, "https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3793")
     def test_allocate_buckets_repeat(self):
         """
         allocate_buckets() with the same storage index returns the same result,
@@ -94,21 +106,21 @@ class IStorageServerImmutableAPIsTestsMixin(object):
 
         This fails due to https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3793
         """
-        si, renew_secret, cancel_secret = (
+        storage_index, renew_secret, cancel_secret = (
             new_storage_index(),
             new_secret(),
             new_secret(),
         )
         (already_got, allocated) = yield self.storage_server.allocate_buckets(
-            si,
+            storage_index,
             renew_secret,
             cancel_secret,
-            set(range(5)),
-            1024,
-            Referenceable(),
+            sharenums=set(range(5)),
+            allocated_size=1024,
+            canary=Referenceable(),
         )
         (already_got2, allocated2) = yield self.storage_server.allocate_buckets(
-            si,
+            storage_index,
             renew_secret,
             cancel_secret,
             set(range(5)),
@@ -118,10 +130,7 @@ class IStorageServerImmutableAPIsTestsMixin(object):
         self.assertEqual(already_got, already_got2)
         self.assertEqual(set(allocated.keys()), set(allocated2.keys()))
 
-    test_allocate_buckets_repeat.skip = (
-        "https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3793"
-    )
-
+    @skipIf(True, "https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3793")
     @inlineCallbacks
     def test_allocate_buckets_more_sharenums(self):
         """
@@ -130,53 +139,49 @@ class IStorageServerImmutableAPIsTestsMixin(object):
 
         Fails due to https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3793
         """
-        si, renew_secret, cancel_secret = (
+        storage_index, renew_secret, cancel_secret = (
             new_storage_index(),
             new_secret(),
             new_secret(),
         )
         yield self.storage_server.allocate_buckets(
-            si,
+            storage_index,
             renew_secret,
             cancel_secret,
-            set(range(5)),
-            1024,
-            Referenceable(),
+            sharenums=set(range(5)),
+            allocated_size=1024,
+            canary=Referenceable(),
         )
         (already_got2, allocated2) = yield self.storage_server.allocate_buckets(
-            si,
+            storage_index,
             renew_secret,
             cancel_secret,
-            set(range(7)),
-            1024,
-            Referenceable(),
+            sharenums=set(range(7)),
+            allocated_size=1024,
+            canary=Referenceable(),
         )
         self.assertEqual(already_got2, set())  # none were fully written
         self.assertEqual(set(allocated2.keys()), set(range(7)))
-
-    test_allocate_buckets_more_sharenums.skip = (
-        "https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3793"
-    )
 
     @inlineCallbacks
     def test_written_shares_are_allocated(self):
         """
         Shares that are fully written to show up as allocated in result from
-        ``IStoragServer.allocate_buckets()``.  Partially-written or empty
+        ``IStorageServer.allocate_buckets()``.  Partially-written or empty
         shares don't.
         """
-        si, renew_secret, cancel_secret = (
+        storage_index, renew_secret, cancel_secret = (
             new_storage_index(),
             new_secret(),
             new_secret(),
         )
         (_, allocated) = yield self.storage_server.allocate_buckets(
-            si,
+            storage_index,
             renew_secret,
             cancel_secret,
-            set(range(5)),
-            1024,
-            Referenceable(),
+            sharenums=set(range(5)),
+            allocated_size=1024,
+            canary=Referenceable(),
         )
 
         # Bucket 1 is fully written in one go.
@@ -192,12 +197,12 @@ class IStorageServerImmutableAPIsTestsMixin(object):
         yield allocated[0].callRemote("write", 0, b"1" * 512)
 
         (already_got, _) = yield self.storage_server.allocate_buckets(
-            si,
+            storage_index,
             renew_secret,
             cancel_secret,
-            set(range(5)),
-            1024,
-            Referenceable(),
+            sharenums=set(range(5)),
+            allocated_size=1024,
+            canary=Referenceable(),
         )
         self.assertEqual(already_got, {1, 2})
 
@@ -210,20 +215,20 @@ class IStorageServerImmutableAPIsTestsMixin(object):
                happened, only by their offsets.
 
             2. When overlapping writes happen, the resulting read returns the
-               earliest written value.
+               latest written value.
         """
-        si, renew_secret, cancel_secret = (
+        storage_index, renew_secret, cancel_secret = (
             new_storage_index(),
             new_secret(),
             new_secret(),
         )
         (_, allocated) = yield self.storage_server.allocate_buckets(
-            si,
+            storage_index,
             renew_secret,
             cancel_secret,
-            set(range(5)),
-            1024,
-            Referenceable(),
+            sharenums=set(range(5)),
+            allocated_size=1024,
+            canary=Referenceable(),
         )
 
         # Bucket 1 is fully written in order
@@ -238,11 +243,12 @@ class IStorageServerImmutableAPIsTestsMixin(object):
 
         # Bucket 3 has an overlapping write.
         yield allocated[3].callRemote("write", 0, b"5" * 20)
-        yield allocated[3].callRemote("write", 0, b"5" * 24)
-        yield allocated[3].callRemote("write", 24, b"6" * 1000)
+        # The second write will overwrite the first.
+        yield allocated[3].callRemote("write", 0, b"6" * 24)
+        yield allocated[3].callRemote("write", 24, b"7" * 1000)
         yield allocated[3].callRemote("close")
 
-        buckets = yield self.storage_server.get_buckets(si)
+        buckets = yield self.storage_server.get_buckets(storage_index)
         self.assertEqual(set(buckets.keys()), {1, 2, 3})
 
         self.assertEqual(
@@ -252,7 +258,8 @@ class IStorageServerImmutableAPIsTestsMixin(object):
             (yield buckets[2].callRemote("read", 0, 1024)), b"3" * 512 + b"4" * 512
         )
         self.assertEqual(
-            (yield buckets[3].callRemote("read", 0, 1024)), b"5" * 24 + b"6" * 1000
+            (yield buckets[3].callRemote("read", 0, 1024)),
+            b"6" * 24 + b"7" * 1000,
         )
 
     @inlineCallbacks
@@ -349,6 +356,7 @@ class _FoolscapMixin(SystemTestMixin):
 
     @inlineCallbacks
     def setUp(self):
+        AsyncTestCase.setUp(self)
         self.basedir = "test_istorageserver/" + self.id()
         yield SystemTestMixin.setUp(self)
         yield self.set_up_nodes(1)
@@ -357,14 +365,19 @@ class _FoolscapMixin(SystemTestMixin):
         ).get_storage_server()
         self.assertTrue(IStorageServer.providedBy(self.storage_server))
 
+    @inlineCallbacks
+    def tearDown(self):
+        AsyncTestCase.tearDown(self)
+        yield SystemTestMixin.tearDown(self)
+
 
 class FoolscapSharedAPIsTests(
-    _FoolscapMixin, IStorageServerSharedAPIsTestsMixin, TestCase
+    _FoolscapMixin, IStorageServerSharedAPIsTestsMixin, AsyncTestCase
 ):
     """Foolscap-specific tests for shared ``IStorageServer`` APIs."""
 
 
 class FoolscapImmutableAPIsTests(
-    _FoolscapMixin, IStorageServerImmutableAPIsTestsMixin, TestCase
+    _FoolscapMixin, IStorageServerImmutableAPIsTestsMixin, AsyncTestCase
 ):
     """Foolscap-specific tests for immutable ``IStorageServer`` APIs."""
