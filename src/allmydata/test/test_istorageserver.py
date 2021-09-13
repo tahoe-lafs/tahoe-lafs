@@ -167,7 +167,7 @@ class IStorageServerImmutableAPIsTestsMixin(object):
     def test_written_shares_are_allocated(self):
         """
         Shares that are fully written to show up as allocated in result from
-        ``IStoragServer.allocate_buckets()``.  Partially-written or empty
+        ``IStorageServer.allocate_buckets()``.  Partially-written or empty
         shares don't.
         """
         storage_index, renew_secret, cancel_secret = (
