@@ -19,15 +19,16 @@ if PY2:
     # fmt: on
 
 from random import randrange
-from unittest import skipIf
+
+from testtools import skipIf
 
 from twisted.internet.defer import inlineCallbacks
-from twisted.trial.unittest import TestCase
 
 from foolscap.api import Referenceable
 
 from allmydata.interfaces import IStorageServer
 from .test_system import SystemTestMixin
+from .common import AsyncTestCase
 
 
 def _randbytes(length):
@@ -87,8 +88,8 @@ class IStorageServerImmutableAPIsTestsMixin(object):
         self.assertEqual(set(allocated.keys()), set(range(5)))
         # We validate the bucket objects' interface in a later test.
 
-    @skipIf(True, "https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3793")
     @inlineCallbacks
+    @skipIf(True, "https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3793")
     def test_allocate_buckets_repeat(self):
         """
         allocate_buckets() with the same storage index returns the same result,
@@ -256,6 +257,7 @@ class _FoolscapMixin(SystemTestMixin):
 
     @inlineCallbacks
     def setUp(self):
+        AsyncTestCase.setUp(self)
         self.basedir = "test_istorageserver/" + self.id()
         yield SystemTestMixin.setUp(self)
         yield self.set_up_nodes(1)
@@ -264,14 +266,19 @@ class _FoolscapMixin(SystemTestMixin):
         ).get_storage_server()
         self.assertTrue(IStorageServer.providedBy(self.storage_server))
 
+    @inlineCallbacks
+    def tearDown(self):
+        AsyncTestCase.tearDown(self)
+        yield SystemTestMixin.tearDown(self)
+
 
 class FoolscapSharedAPIsTests(
-    _FoolscapMixin, IStorageServerSharedAPIsTestsMixin, TestCase
+    _FoolscapMixin, IStorageServerSharedAPIsTestsMixin, AsyncTestCase
 ):
     """Foolscap-specific tests for shared ``IStorageServer`` APIs."""
 
 
 class FoolscapImmutableAPIsTests(
-    _FoolscapMixin, IStorageServerImmutableAPIsTestsMixin, TestCase
+    _FoolscapMixin, IStorageServerImmutableAPIsTestsMixin, AsyncTestCase
 ):
     """Foolscap-specific tests for immutable ``IStorageServer`` APIs."""
