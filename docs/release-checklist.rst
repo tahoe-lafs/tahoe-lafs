@@ -178,8 +178,8 @@ Announcing the Release Candidate
 ````````````````````````````````
 
 The release-candidate should be announced by posting to the
-mailing-list (tahoe-dev@tahoe-lafs.org). For example:
-https://tahoe-lafs.org/pipermail/tahoe-dev/2020-October/009995.html
+mailing-list (tahoe-dev@lists.tahoe-lafs.org). For example:
+https://lists.tahoe-lafs.org/pipermail/tahoe-dev/2020-October/009978.html
 
 
 Is The Release Done Yet?

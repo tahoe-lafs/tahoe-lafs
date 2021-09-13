@@ -80,7 +80,7 @@ Get involved with the Tahoe-LAFS community:
 
 -  Join our `weekly conference calls <https://www.tahoe-lafs.org/trac/tahoe-lafs/wiki/WeeklyMeeting>`__ with core developers and interested community members.
 
--  Subscribe to `the tahoe-dev mailing list <https://www.tahoe-lafs.org/cgi-bin/mailman/listinfo/tahoe-dev>`__, the community forum for discussion of Tahoe-LAFS design, implementation, and usage.
+-  Subscribe to `the tahoe-dev mailing list <https://lists.tahoe-lafs.org/mailman/listinfo/tahoe-dev>`__, the community forum for discussion of Tahoe-LAFS design, implementation, and usage.
 
 🤗 Contributing
 ---------------
@@ -101,6 +101,8 @@ Before authoring or reviewing a patch, please familiarize yourself with the `Cod
 --------------
 
 We would like to thank `Fosshost <https://fosshost.org>`__ for supporting us with hosting services. If your open source project needs help, you can apply for their support.
+
+We are grateful to `Oregon State University Open Source Lab <https://osuosl.org/>`__ for hosting tahoe-dev mailing list.
 
 ❓ FAQ
 ------
