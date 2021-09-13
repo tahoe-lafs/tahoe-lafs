@@ -215,7 +215,7 @@ class IStorageServerImmutableAPIsTestsMixin(object):
                happened, only by their offsets.
 
             2. When overlapping writes happen, the resulting read returns the
-               earliest written value.
+               latest written value.
         """
         storage_index, renew_secret, cancel_secret = (
             new_storage_index(),
