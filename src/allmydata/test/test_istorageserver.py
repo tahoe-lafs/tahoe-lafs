@@ -18,7 +18,7 @@ if PY2:
     from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
     # fmt: on
 
-from random import randrange
+from random import Random
 
 from testtools import skipIf
 
@@ -31,10 +31,15 @@ from .test_system import SystemTestMixin
 from .common import AsyncTestCase
 
 
+# Use random generator with known seed, so results are reproducible if tests
+# are run in the same order.
+_RANDOM = Random(0)
+
+
 def _randbytes(length):
     # type: (int) -> bytes
     """Return random bytes string of given length."""
-    return b"".join([bchr(randrange(0, 256)) for _ in range(length)])
+    return b"".join([bchr(_RANDOM.randrange(0, 256)) for _ in range(length)])
 
 
 def new_storage_index():
