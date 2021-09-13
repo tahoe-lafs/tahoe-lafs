@@ -63,9 +63,13 @@ class IStorageServerSharedAPIsTestsMixin(object):
 
     @inlineCallbacks
     def test_version(self):
-        # TODO get_version() returns a dict-like thing with some of the
-        # expected fields.
-        yield self.storage_server.get_version()
+        """
+        ``IStorageServer`` returns a dictionary where the key is an expected
+        protocol version.
+        """
+        result = yield self.storage_server.get_version()
+        self.assertIsInstance(result, dict)
+        self.assertIn(b"http://allmydata.org/tahoe/protocols/storage/v1", result)
 
 
 class IStorageServerImmutableAPIsTestsMixin(object):
