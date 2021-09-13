@@ -243,8 +243,9 @@ class IStorageServerImmutableAPIsTestsMixin(object):
 
         # Bucket 3 has an overlapping write.
         yield allocated[3].callRemote("write", 0, b"5" * 20)
-        yield allocated[3].callRemote("write", 0, b"5" * 24)
-        yield allocated[3].callRemote("write", 24, b"6" * 1000)
+        # The second write will overwrite the first.
+        yield allocated[3].callRemote("write", 0, b"6" * 24)
+        yield allocated[3].callRemote("write", 24, b"7" * 1000)
         yield allocated[3].callRemote("close")
 
         buckets = yield self.storage_server.get_buckets(storage_index)
@@ -257,7 +258,8 @@ class IStorageServerImmutableAPIsTestsMixin(object):
             (yield buckets[2].callRemote("read", 0, 1024)), b"3" * 512 + b"4" * 512
         )
         self.assertEqual(
-            (yield buckets[3].callRemote("read", 0, 1024)), b"5" * 24 + b"6" * 1000
+            (yield buckets[3].callRemote("read", 0, 1024)),
+            b"6" * 24 + b"7" * 1000,
         )
 
 
