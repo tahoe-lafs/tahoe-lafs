@@ -277,8 +277,10 @@ class IStorageServerMutableAPIsTestsMixin(object):
     # DONE reads happen before (re)writes
     # DONE write happens if test succeeds
     # DONE write prevented if tests fail
-    # TODO partial reads, reads beyond the edge
-    # TODO wrong write enabled prevents writes
+    # TODO multiple test vectors
+    # TODO multiple writes
+    # TODO multiple reads
+    # TODO wrong write enabler secret prevents writes
     # TODO write prevented if test data against empty share
     # TODO writes can create additional shares if only some exist
     # TODO later writes overwrite
@@ -292,7 +294,7 @@ class IStorageServerMutableAPIsTestsMixin(object):
         return self.storage_server.slot_testv_and_readv_and_writev(*args, **kwargs)
 
     @inlineCallbacks
-    def test_STARAW_reads(self):
+    def test_STARAW_reads_after_write(self):
         """
         When data is written with
         ``IStorageServer.slot_testv_and_readv_and_writev``, it can then be read
