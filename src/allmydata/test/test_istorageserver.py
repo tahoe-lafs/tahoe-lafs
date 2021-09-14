@@ -263,6 +263,62 @@ class IStorageServerImmutableAPIsTestsMixin(object):
         )
 
 
+class IStorageServerMutableAPIsTestsMixin(object):
+    """
+    Tests for ``IStorageServer``'s mutable APIs.
+
+    ``self.storage_server`` is expected to provide ``IStorageServer``.
+
+    ``STARAW`` is short for ``slot_testv_and_readv_and_writev``.
+    """
+
+    # slot_testv_and_readv_and_writev
+    # TODO it's possible to write and then in separate call read
+    # TODO reads happen before (re)writes
+    # TODO write prevented if tests fail
+    # TODO reads beyond the edge
+    # TODO wrong write enabled prevents writes
+    # TODO write prevented if test data against empty share
+    # TODO writes can create additional shares if only some exist
+    # TODO later writes overwrite
+
+    def new_secrets(self):
+        """Return a 3-tuple of secrets for STARAW calls."""
+        return (new_secret(), new_secret(), new_secret())
+
+    def staraw(self, *args, **kwargs):
+        """Like ``slot_testv_and_readv_and_writev``, but less typing."""
+        return self.storage_server.slot_testv_and_readv_and_writev(*args, **kwargs)
+
+    @inlineCallbacks
+    def test_STARAW_reads(self):
+        """
+        When data is written with
+        ``IStorageServer.slot_testv_and_readv_and_writev``, it can then be read
+        by a separate call using that API.
+        """
+        secrets = self.new_secrets()
+        storage_index = new_storage_index()
+        (written, _) = yield self.staraw(
+            storage_index,
+            secrets,
+            tw_vectors={
+                0: ([], [(0, b"abcdefg")], 7),
+                1: ([], [(0, b"0123456")], 7),
+            },
+            r_vector=[],
+        )
+        self.assertEqual(written, True)
+
+        (_, reads) = yield self.staraw(
+            storage_index,
+            secrets,
+            tw_vectors={},
+            r_vector=[(0, 7)],
+        )
+        self.assertEqual(reads, {0: [b"abcdefg"], 1: [b"0123456"]})
+
+
 class _FoolscapMixin(SystemTestMixin):
     """Run tests on Foolscap version of ``IStorageServer."""
 
@@ -291,5 +347,11 @@ class FoolscapSharedAPIsTests(
 
 class FoolscapImmutableAPIsTests(
     _FoolscapMixin, IStorageServerImmutableAPIsTestsMixin, AsyncTestCase
+):
+    """Foolscap-specific tests for immutable ``IStorageServer`` APIs."""
+
+
+class FoolscapMutableAPIsTests(
+    _FoolscapMixin, IStorageServerMutableAPIsTestsMixin, AsyncTestCase
 ):
     """Foolscap-specific tests for immutable ``IStorageServer`` APIs."""
