@@ -277,9 +277,9 @@ class IStorageServerMutableAPIsTestsMixin(object):
     # DONE reads happen before (re)writes
     # DONE write happens if test succeeds
     # DONE write prevented if tests fail
-    # TODO multiple test vectors
-    # TODO multiple writes
-    # TODO multiple reads
+    # DONE multiple test vectors
+    # DONE multiple writes
+    # DONE multiple reads
     # TODO wrong write enabler secret prevents writes
     # TODO write prevented if test data against empty share
     # TODO writes can create additional shares if only some exist
@@ -307,7 +307,7 @@ class IStorageServerMutableAPIsTestsMixin(object):
             secrets,
             tw_vectors={
                 0: ([], [(0, b"abcdefg")], 7),
-                1: ([], [(0, b"0123456")], 7),
+                1: ([], [(0, b"0123"), (4, b"456")], 7),
             },
             r_vector=[],
         )
@@ -317,9 +317,14 @@ class IStorageServerMutableAPIsTestsMixin(object):
             storage_index,
             secrets,
             tw_vectors={},
-            r_vector=[(0, 7)],
+            # Whole thing, partial, going beyond the edge, completely outside
+            # range:
+            r_vector=[(0, 7), (2, 3), (6, 8), (100, 10)],
         )
-        self.assertEqual(reads, {0: [b"abcdefg"], 1: [b"0123456"]})
+        self.assertEqual(
+            reads,
+            {0: [b"abcdefg", b"cde", b"g", b""], 1: [b"0123456", b"234", b"6", b""]},
+        )
 
     @inlineCallbacks
     def test_SATRAW_reads_happen_before_writes_in_single_query(self):
@@ -385,7 +390,11 @@ class IStorageServerMutableAPIsTestsMixin(object):
             storage_index,
             secrets,
             tw_vectors={
-                0: ([(0, 7, b"eq", b"1" * 7)], [(0, b"2" * 7)], 7),
+                0: (
+                    [(0, 3, b"eq", b"1" * 3), (3, 4, b"eq", b"1" * 4)],
+                    [(0, b"2" * 7)],
+                    7,
+                ),
             },
             r_vector=[],
         )
