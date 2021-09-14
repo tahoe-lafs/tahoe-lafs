@@ -275,7 +275,8 @@ class IStorageServerMutableAPIsTestsMixin(object):
     # slot_testv_and_readv_and_writev
     # DONE it's possible to write and then in separate call read
     # DONE reads happen before (re)writes
-    # TODO write prevented if tests fail
+    # DONE write happens if test succeeds
+    # DONE write prevented if tests fail
     # TODO partial reads, reads beyond the edge
     # TODO wrong write enabled prevents writes
     # TODO write prevented if test data against empty share
@@ -357,6 +358,61 @@ class IStorageServerMutableAPIsTestsMixin(object):
             r_vector=[(0, 7)],
         )
         self.assertEqual(reads, {0: [b"X" * 7]})
+
+    @inlineCallbacks
+    def test_SATRAW_writen_happens_only_if_test_matches(self):
+        """
+        If a ``IStorageServer.slot_testv_and_readv_and_writev`` includes both a
+        test and a write, the write succeeds if the test matches, and fails if
+        the test does not match.
+        """
+        secrets = self.new_secrets()
+        storage_index = new_storage_index()
+        (written, _) = yield self.staraw(
+            storage_index,
+            secrets,
+            tw_vectors={
+                0: ([], [(0, b"1" * 7)], 7),
+            },
+            r_vector=[],
+        )
+        self.assertEqual(written, True)
+
+        # Test matches, so write happens:
+        (written, _) = yield self.staraw(
+            storage_index,
+            secrets,
+            tw_vectors={
+                0: ([(0, 7, b"eq", b"1" * 7)], [(0, b"2" * 7)], 7),
+            },
+            r_vector=[],
+        )
+        self.assertEqual(written, True)
+        (_, reads) = yield self.staraw(
+            storage_index,
+            secrets,
+            tw_vectors={},
+            r_vector=[(0, 7)],
+        )
+        self.assertEqual(reads, {0: [b"2" * 7]})
+
+        # Test does not match, so write does not happen:
+        (written, _) = yield self.staraw(
+            storage_index,
+            secrets,
+            tw_vectors={
+                0: ([(0, 7, b"eq", b"1" * 7)], [(0, b"3" * 7)], 7),
+            },
+            r_vector=[],
+        )
+        self.assertEqual(written, False)
+        (_, reads) = yield self.staraw(
+            storage_index,
+            secrets,
+            tw_vectors={},
+            r_vector=[(0, 7)],
+        )
+        self.assertEqual(reads, {0: [b"2" * 7]})
 
 
 class _FoolscapMixin(SystemTestMixin):
