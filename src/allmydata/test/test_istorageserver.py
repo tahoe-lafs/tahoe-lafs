@@ -24,7 +24,7 @@ from testtools import skipIf
 
 from twisted.internet.defer import inlineCallbacks
 
-from foolscap.api import Referenceable
+from foolscap.api import Referenceable, RemoteException
 
 from allmydata.interfaces import IStorageServer
 from .common_system import SystemTestMixin
@@ -280,7 +280,7 @@ class IStorageServerMutableAPIsTestsMixin(object):
     # DONE multiple test vectors
     # DONE multiple writes
     # DONE multiple reads
-    # TODO wrong write enabler secret prevents writes
+    # DONE wrong write enabler secret prevents writes
     # TODO write prevented if test data against empty share
     # TODO writes can create additional shares if only some exist
     # TODO later writes overwrite
@@ -424,6 +424,44 @@ class IStorageServerMutableAPIsTestsMixin(object):
             r_vector=[(0, 7)],
         )
         self.assertEqual(reads, {0: [b"2" * 7]})
+
+    @inlineCallbacks
+    def test_STARAW_write_enabler_must_match(self):
+        """
+        If the write enabler secret passed to
+        ``IStorageServer.slot_testv_and_readv_and_writev`` doesn't match
+        previous writes, the write fails.
+        """
+        secrets = self.new_secrets()
+        storage_index = new_storage_index()
+        (written, _) = yield self.staraw(
+            storage_index,
+            secrets,
+            tw_vectors={
+                0: ([], [(0, b"1" * 7)], 7),
+            },
+            r_vector=[],
+        )
+        self.assertEqual(written, True)
+
+        # Write enabler secret does not match, so write does not happen:
+        bad_secrets = (new_secret(),) + secrets[1:]
+        with self.assertRaises(RemoteException):
+            yield self.staraw(
+                storage_index,
+                bad_secrets,
+                tw_vectors={
+                    0: ([], [(0, b"2" * 7)], 7),
+                },
+                r_vector=[],
+            )
+        (_, reads) = yield self.staraw(
+            storage_index,
+            secrets,
+            tw_vectors={},
+            r_vector=[(0, 7)],
+        )
+        self.assertEqual(reads, {0: [b"1" * 7]})
 
 
 class _FoolscapMixin(SystemTestMixin):
