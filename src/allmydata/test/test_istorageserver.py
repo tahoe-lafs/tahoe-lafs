@@ -268,14 +268,14 @@ class IStorageServerImmutableAPIsTestsMixin(object):
         Buckets that are not fully written are not returned by
         ``IStorageServer.get_buckets()`` implementations.
         """
-        si = new_storage_index()
+        storage_index = new_storage_index()
         (_, allocated) = yield self.storage_server.allocate_buckets(
-            si,
-            new_secret(),
-            new_secret(),
-            set(range(5)),
-            10,
-            Referenceable(),
+            storage_index,
+            renew_secret=new_secret(),
+            cancel_secret=new_secret(),
+            sharenums=set(range(5)),
+            allocated_size=10,
+            canary=Referenceable(),
         )
 
         # Bucket 1 is fully written
@@ -285,7 +285,7 @@ class IStorageServerImmutableAPIsTestsMixin(object):
         # Bucket 2 is partially written
         yield allocated[2].callRemote("write", 0, b"1" * 5)
 
-        buckets = yield self.storage_server.get_buckets(si)
+        buckets = yield self.storage_server.get_buckets(storage_index)
         self.assertEqual(set(buckets.keys()), {1})
 
     @inlineCallbacks
@@ -297,21 +297,21 @@ class IStorageServerImmutableAPIsTestsMixin(object):
         """
         length = 256 * 17
 
-        si = new_storage_index()
+        storage_index = new_storage_index()
         (_, allocated) = yield self.storage_server.allocate_buckets(
-            si,
-            new_secret(),
-            new_secret(),
-            set(range(1)),
-            length,
-            Referenceable(),
+            storage_index,
+            renew_secret=new_secret(),
+            cancel_secret=new_secret(),
+            sharenums=set(range(1)),
+            allocated_size=length,
+            canary=Referenceable(),
         )
 
         total_data = _randbytes(256) * 17
         yield allocated[0].callRemote("write", 0, total_data)
         yield allocated[0].callRemote("close")
 
-        buckets = yield self.storage_server.get_buckets(si)
+        buckets = yield self.storage_server.get_buckets(storage_index)
         bucket = buckets[0]
         for start, to_read in [
             (0, 250),  # fraction
@@ -334,20 +334,20 @@ class IStorageServerImmutableAPIsTestsMixin(object):
         ``IStorageServer.get_buckets()`` does not result in error (other
         behavior is opaque at this level of abstraction).
         """
-        si = new_storage_index()
+        storage_index = new_storage_index()
         (_, allocated) = yield self.storage_server.allocate_buckets(
-            si,
-            new_secret(),
-            new_secret(),
-            set(range(1)),
-            10,
-            Referenceable(),
+            storage_index,
+            renew_secret=new_secret(),
+            cancel_secret=new_secret(),
+            sharenums=set(range(1)),
+            allocated_size=10,
+            canary=Referenceable(),
         )
 
         yield allocated[0].callRemote("write", 0, b"0123456789")
         yield allocated[0].callRemote("close")
 
-        buckets = yield self.storage_server.get_buckets(si)
+        buckets = yield self.storage_server.get_buckets(storage_index)
         yield buckets[0].callRemote("advise_corrupt_share", b"OH NO")
 
 
