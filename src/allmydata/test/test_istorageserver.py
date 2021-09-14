@@ -273,10 +273,10 @@ class IStorageServerMutableAPIsTestsMixin(object):
     """
 
     # slot_testv_and_readv_and_writev
-    # TODO it's possible to write and then in separate call read
-    # TODO reads happen before (re)writes
+    # DONE it's possible to write and then in separate call read
+    # DONE reads happen before (re)writes
     # TODO write prevented if tests fail
-    # TODO reads beyond the edge
+    # TODO partial reads, reads beyond the edge
     # TODO wrong write enabled prevents writes
     # TODO write prevented if test data against empty share
     # TODO writes can create additional shares if only some exist
@@ -317,6 +317,46 @@ class IStorageServerMutableAPIsTestsMixin(object):
             r_vector=[(0, 7)],
         )
         self.assertEqual(reads, {0: [b"abcdefg"], 1: [b"0123456"]})
+
+    @inlineCallbacks
+    def test_SATRAW_reads_happen_before_writes_in_single_query(self):
+        """
+        If a ``IStorageServer.slot_testv_and_readv_and_writev`` command
+        contains both reads and writes, the read returns results that precede
+        the write.
+        """
+        secrets = self.new_secrets()
+        storage_index = new_storage_index()
+        (written, _) = yield self.staraw(
+            storage_index,
+            secrets,
+            tw_vectors={
+                0: ([], [(0, b"abcdefg")], 7),
+            },
+            r_vector=[],
+        )
+        self.assertEqual(written, True)
+
+        # Read and write in same command; read happens before write:
+        (written, reads) = yield self.staraw(
+            storage_index,
+            secrets,
+            tw_vectors={
+                0: ([], [(0, b"X" * 7)], 7),
+            },
+            r_vector=[(0, 7)],
+        )
+        self.assertEqual(written, True)
+        self.assertEqual(reads, {0: [b"abcdefg"]})
+
+        # The write is available in next read:
+        (_, reads) = yield self.staraw(
+            storage_index,
+            secrets,
+            tw_vectors={},
+            r_vector=[(0, 7)],
+        )
+        self.assertEqual(reads, {0: [b"X" * 7]})
 
 
 class _FoolscapMixin(SystemTestMixin):
