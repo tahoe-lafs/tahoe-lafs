@@ -1573,7 +1573,7 @@ class Statistics(MultiFormatResource):
         for (k, v) in sorted(stats['stats'].items()):
             ret.append(u"tahoe_stats_%s %s" % (mangle_name(k), mangle_value(v)))
 
-        ret.append(u"# EOF")
+        ret.append(u"# EOF\n")
 
         return u"\n".join(ret)
 
