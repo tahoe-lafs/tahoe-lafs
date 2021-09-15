@@ -434,20 +434,9 @@ class MutableShareFile(object):
                     # self._change_container_size() here.
 
 def testv_compare(a, op, b):
-    assert op in (b"lt", b"le", b"eq", b"ne", b"ge", b"gt")
-    if op == b"lt":
-        return a < b
-    if op == b"le":
-        return a <= b
-    if op == b"eq":
-        return a == b
-    if op == b"ne":
-        return a != b
-    if op == b"ge":
-        return a >= b
-    if op == b"gt":
-        return a > b
-    # never reached
+    assert op == b"eq"
+    return a == b
+
 
 class EmptyShare(object):
 

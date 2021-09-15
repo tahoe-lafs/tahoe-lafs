@@ -149,7 +149,7 @@ class FakeStorageServer(object):
         readv = {}
         for shnum, (testv, writev, new_length) in list(tw_vectors.items()):
             for (offset, length, op, specimen) in testv:
-                assert op in (b"le", b"eq", b"ge")
+                assert op == b"eq"
             # TODO: this isn't right, the read is controlled by read_vector,
             # not by testv
             readv[shnum] = [ specimen

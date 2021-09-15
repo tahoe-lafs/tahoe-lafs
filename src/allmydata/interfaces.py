@@ -91,9 +91,8 @@ class RIBucketReader(RemoteInterface):
 
 TestVector = ListOf(TupleOf(Offset, ReadSize, bytes, bytes))
 # elements are (offset, length, operator, specimen)
-# operator is one of "lt, le, eq, ne, ge, gt"
-# nop always passes and is used to fetch data while writing.
-# you should use length==len(specimen) for everything except nop
+# operator must be b"eq", you should use length==len(specimen).
+# (These are only used for wire compatibility with old versions).
 DataVector = ListOf(TupleOf(Offset, ShareData))
 # (offset, data). This limits us to 30 writes of 1MiB each per call
 TestAndWriteVectorsForShares = DictOf(int,

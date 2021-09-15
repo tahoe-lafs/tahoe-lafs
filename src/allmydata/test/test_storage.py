@@ -1074,23 +1074,6 @@ class MutableServer(unittest.TestCase):
                                        }))
         self.failUnlessEqual(read(b"si1", [0], [(0,100)]), {0: [data]})
 
-        # as should this one
-        answer = write(b"si1", secrets,
-                       {0: ([(10, 5, b"lt", b"11111"),
-                             ],
-                            [(0, b"x"*100)],
-                            None),
-                        },
-                       [(10,5)],
-                       )
-        self.failUnlessEqual(answer, (False,
-                                      {0: [b"11111"],
-                                       1: [b""],
-                                       2: [b""]},
-                                      ))
-        self.failUnlessEqual(read(b"si1", [0], [(0,100)]), {0: [data]})
-
-
     def test_operators(self):
         # test operators, the data we're comparing is '11111' in all cases.
         # test both fail+pass, reset data after each one.
@@ -1110,63 +1093,6 @@ class MutableServer(unittest.TestCase):
 
         reset()
 
-        #  lt
-        answer = write(b"si1", secrets, {0: ([(10, 5, b"lt", b"11110"),
-                                             ],
-                                            [(0, b"x"*100)],
-                                            None,
-                                            )}, [(10,5)])
-        self.failUnlessEqual(answer, (False, {0: [b"11111"]}))
-        self.failUnlessEqual(read(b"si1", [0], [(0,100)]), {0: [data]})
-        self.failUnlessEqual(read(b"si1", [], [(0,100)]), {0: [data]})
-        reset()
-
-        answer = write(b"si1", secrets, {0: ([(10, 5, b"lt", b"11111"),
-                                             ],
-                                            [(0, b"x"*100)],
-                                            None,
-                                            )}, [(10,5)])
-        self.failUnlessEqual(answer, (False, {0: [b"11111"]}))
-        self.failUnlessEqual(read(b"si1", [0], [(0,100)]), {0: [data]})
-        reset()
-
-        answer = write(b"si1", secrets, {0: ([(10, 5, b"lt", b"11112"),
-                                             ],
-                                            [(0, b"y"*100)],
-                                            None,
-                                            )}, [(10,5)])
-        self.failUnlessEqual(answer, (True, {0: [b"11111"]}))
-        self.failUnlessEqual(read(b"si1", [0], [(0,100)]), {0: [b"y"*100]})
-        reset()
-
-        #  le
-        answer = write(b"si1", secrets, {0: ([(10, 5, b"le", b"11110"),
-                                             ],
-                                            [(0, b"x"*100)],
-                                            None,
-                                            )}, [(10,5)])
-        self.failUnlessEqual(answer, (False, {0: [b"11111"]}))
-        self.failUnlessEqual(read(b"si1", [0], [(0,100)]), {0: [data]})
-        reset()
-
-        answer = write(b"si1", secrets, {0: ([(10, 5, b"le", b"11111"),
-                                             ],
-                                            [(0, b"y"*100)],
-                                            None,
-                                            )}, [(10,5)])
-        self.failUnlessEqual(answer, (True, {0: [b"11111"]}))
-        self.failUnlessEqual(read(b"si1", [0], [(0,100)]), {0: [b"y"*100]})
-        reset()
-
-        answer = write(b"si1", secrets, {0: ([(10, 5, b"le", b"11112"),
-                                             ],
-                                            [(0, b"y"*100)],
-                                            None,
-                                            )}, [(10,5)])
-        self.failUnlessEqual(answer, (True, {0: [b"11111"]}))
-        self.failUnlessEqual(read(b"si1", [0], [(0,100)]), {0: [b"y"*100]})
-        reset()
-
         #  eq
         answer = write(b"si1", secrets, {0: ([(10, 5, b"eq", b"11112"),
                                              ],
@@ -1184,81 +1110,6 @@ class MutableServer(unittest.TestCase):
                                             )}, [(10,5)])
         self.failUnlessEqual(answer, (True, {0: [b"11111"]}))
         self.failUnlessEqual(read(b"si1", [0], [(0,100)]), {0: [b"y"*100]})
-        reset()
-
-        #  ne
-        answer = write(b"si1", secrets, {0: ([(10, 5, b"ne", b"11111"),
-                                             ],
-                                            [(0, b"x"*100)],
-                                            None,
-                                            )}, [(10,5)])
-        self.failUnlessEqual(answer, (False, {0: [b"11111"]}))
-        self.failUnlessEqual(read(b"si1", [0], [(0,100)]), {0: [data]})
-        reset()
-
-        answer = write(b"si1", secrets, {0: ([(10, 5, b"ne", b"11112"),
-                                             ],
-                                            [(0, b"y"*100)],
-                                            None,
-                                            )}, [(10,5)])
-        self.failUnlessEqual(answer, (True, {0: [b"11111"]}))
-        self.failUnlessEqual(read(b"si1", [0], [(0,100)]), {0: [b"y"*100]})
-        reset()
-
-        #  ge
-        answer = write(b"si1", secrets, {0: ([(10, 5, b"ge", b"11110"),
-                                             ],
-                                            [(0, b"y"*100)],
-                                            None,
-                                            )}, [(10,5)])
-        self.failUnlessEqual(answer, (True, {0: [b"11111"]}))
-        self.failUnlessEqual(read(b"si1", [0], [(0,100)]), {0: [b"y"*100]})
-        reset()
-
-        answer = write(b"si1", secrets, {0: ([(10, 5, b"ge", b"11111"),
-                                             ],
-                                            [(0, b"y"*100)],
-                                            None,
-                                            )}, [(10,5)])
-        self.failUnlessEqual(answer, (True, {0: [b"11111"]}))
-        self.failUnlessEqual(read(b"si1", [0], [(0,100)]), {0: [b"y"*100]})
-        reset()
-
-        answer = write(b"si1", secrets, {0: ([(10, 5, b"ge", b"11112"),
-                                             ],
-                                            [(0, b"y"*100)],
-                                            None,
-                                            )}, [(10,5)])
-        self.failUnlessEqual(answer, (False, {0: [b"11111"]}))
-        self.failUnlessEqual(read(b"si1", [0], [(0,100)]), {0: [data]})
-        reset()
-
-        #  gt
-        answer = write(b"si1", secrets, {0: ([(10, 5, b"gt", b"11110"),
-                                             ],
-                                            [(0, b"y"*100)],
-                                            None,
-                                            )}, [(10,5)])
-        self.failUnlessEqual(answer, (True, {0: [b"11111"]}))
-        self.failUnlessEqual(read(b"si1", [0], [(0,100)]), {0: [b"y"*100]})
-        reset()
-
-        answer = write(b"si1", secrets, {0: ([(10, 5, b"gt", b"11111"),
-                                             ],
-                                            [(0, b"x"*100)],
-                                            None,
-                                            )}, [(10,5)])
-        self.failUnlessEqual(answer, (False, {0: [b"11111"]}))
-        self.failUnlessEqual(read(b"si1", [0], [(0,100)]), {0: [data]})
-        reset()
-
-        answer = write(b"si1", secrets, {0: ([(10, 5, b"gt", b"11112"),
-                                             ],
-                                            [(0, b"x"*100)],
-                                            None,
-                                            )}, [(10,5)])
-        self.failUnlessEqual(answer, (False, {0: [b"11111"]}))
-        self.failUnlessEqual(read(b"si1", [0], [(0,100)]), {0: [data]})
         reset()
 
         # finally, test some operators against empty shares
