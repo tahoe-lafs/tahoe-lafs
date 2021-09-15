@@ -997,7 +997,7 @@ class _StorageServer(object):
         # Match the wire protocol, which requires 4-tuples for test vectors.
         wire_format_tw_vectors = {
             key: (
-                [(start, len(data), b"eq", data) for (start, data) in value[0]],
+                [(start, length, b"eq", data) for (start, length, data) in value[0]],
                 value[1],
                 value[2],
             ) for (key, value) in tw_vectors.items()

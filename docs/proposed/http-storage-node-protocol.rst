@@ -599,6 +599,7 @@ For example::
            0: {
                "test": [{
                    "offset": 3,
+                   "size": 5,
                    "specimen": "hello"
                }, ...],
                "write": [{
@@ -699,7 +700,10 @@ Immutable Data
 Mutable Data
 ~~~~~~~~~~~~
 
-1. Create mutable share number ``3`` with ``10`` bytes of data in slot ``BBBBBBBBBBBBBBBB``::
+1. Create mutable share number ``3`` with ``10`` bytes of data in slot ``BBBBBBBBBBBBBBBB``.
+The special test vector of size 1 but empty bytes will only pass
+if there is no existing share,
+otherwise it will read a byte which won't match `b""`::
 
      POST /v1/mutable/BBBBBBBBBBBBBBBB/read-test-write
      {
@@ -710,7 +714,11 @@ Mutable Data
          },
          "test-write-vectors": {
              3: {
-                 "test": [],
+                 "test": [{
+                     "offset": 0,
+                     "size": 1,
+                     "specimen": ""
+                 }],
                  "write": [{
                      "offset": 0,
                      "data": "xxxxxxxxxx"
@@ -740,6 +748,7 @@ Mutable Data
              3: {
                  "test": [{
                      "offset": 0,
+                     "size": <length of checkstring>,
                      "specimen": "<checkstring>"
                  }],
                  "write": [{
