@@ -120,3 +120,7 @@ class OpenMetrics(unittest.TestCase):
         # Wrapped in a list() to drain the generator.
         families = list(parser.text_string_to_metric_families(metrics))
 
+        # Has the parser parsed our data?
+        # Just check the last item.
+        self.assertEqual(families[-1].name, u"tahoe_stats_storage_server_total_bucket_count")
+
