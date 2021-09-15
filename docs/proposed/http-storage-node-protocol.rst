@@ -599,8 +599,6 @@ For example::
            0: {
                "test": [{
                    "offset": 3,
-                   "size": 5,
-                   "operator": "eq",
                    "specimen": "hello"
                }, ...],
                "write": [{
@@ -712,12 +710,7 @@ Mutable Data
          },
          "test-write-vectors": {
              3: {
-                 "test": [{
-                     "offset": 0,
-                     "size": 1,
-                     "operator": "eq",
-                     "specimen": ""
-                 }],
+                 "test": [],
                  "write": [{
                      "offset": 0,
                      "data": "xxxxxxxxxx"
@@ -747,8 +740,6 @@ Mutable Data
              3: {
                  "test": [{
                      "offset": 0,
-                     "size": <checkstring size>,
-                     "operator": "eq",
                      "specimen": "<checkstring>"
                  }],
                  "write": [{
