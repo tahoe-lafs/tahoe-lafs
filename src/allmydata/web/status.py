@@ -1554,6 +1554,12 @@ class Statistics(MultiFormatResource):
 
     @render_exception
     def render_OPENMETRICS(self, req):
+        """
+        Render our stats in `OpenMetrics <https://openmetrics.io/>` format.
+        For example Prometheus and Victoriametrics can parse this.
+        Point the scraper to ``/statistics?t=openmetrics`` (instead of the
+        default ``/metrics``).
+        """
         req.setHeader("content-type", "application/openmetrics-text; version=1.0.0; charset=utf-8")
         stats = self._provider.get_stats()
         ret = []
