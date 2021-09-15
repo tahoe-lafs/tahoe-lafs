@@ -107,6 +107,7 @@ EOF
     beautifulsoup4
     html5lib
     tenacity
+    prometheus_client
   ];
 
   checkPhase = ''
