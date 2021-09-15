@@ -271,20 +271,6 @@ class IStorageServerMutableAPIsTestsMixin(object):
 
     ``STARAW`` is short for ``slot_testv_and_readv_and_writev``.
     """
-
-    # slot_testv_and_readv_and_writev
-    # DONE it's possible to write and then in separate call read
-    # DONE reads happen before (re)writes
-    # DONE write happens if test succeeds
-    # DONE write prevented if tests fail
-    # DONE multiple test vectors
-    # DONE multiple writes
-    # DONE multiple reads
-    # DONE wrong write enabler secret prevents writes
-    # TODO write prevented if test data against empty share
-    # TODO writes can create additional shares if only some exist
-    # TODO later writes overwrite
-
     def new_secrets(self):
         """Return a 3-tuple of secrets for STARAW calls."""
         return (new_secret(), new_secret(), new_secret())
@@ -462,6 +448,44 @@ class IStorageServerMutableAPIsTestsMixin(object):
             r_vector=[(0, 7)],
         )
         self.assertEqual(reads, {0: [b"1" * 7]})
+
+    @inlineCallbacks
+    def test_STARAW_zero_new_length_deletes(self):
+        """
+        A zero new length passed to
+        ``IStorageServer.slot_testv_and_readv_and_writev`` deletes the share.
+        """
+        secrets = self.new_secrets()
+        storage_index = new_storage_index()
+        (written, _) = yield self.staraw(
+            storage_index,
+            secrets,
+            tw_vectors={
+                0: ([], [(0, b"1" * 7)], 7),
+            },
+            r_vector=[],
+        )
+        self.assertEqual(written, True)
+
+        # Write with new length of 0:
+        (written, _) = yield self.staraw(
+            storage_index,
+            secrets,
+            tw_vectors={
+                0: ([], [(0, b"1" * 7)], 0),
+            },
+            r_vector=[],
+        )
+        self.assertEqual(written, True)
+
+        # It's gone!
+        (_, reads) = yield self.staraw(
+            storage_index,
+            secrets,
+            tw_vectors={},
+            r_vector=[(0, 7)],
+        )
+        self.assertEqual(reads, {})
 
 
 class _FoolscapMixin(SystemTestMixin):
