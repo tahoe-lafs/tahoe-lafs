@@ -545,13 +545,6 @@ class SDMFSlotWriteProxy(object):
         # in its entirely.
         datavs = [(0, final_share)]
 
-        if not self._testvs:
-            # Our caller has not provided us with another checkstring
-            # yet, so we assume that we are writing a new share, and set
-            # a test vector that will allow a new share to be written.
-            self._testvs = []
-            self._testvs.append(tuple([0, b""]))
-
         tw_vectors = {}
         tw_vectors[self.shnum] = (self._testvs, datavs, None)
         return self._storage_server.slot_testv_and_readv_and_writev(
@@ -888,8 +881,7 @@ class MDMFSlotWriteProxy(object):
             # empty string means.
             self._testvs = []
         else:
-            self._testvs = []
-            self._testvs.append((0, checkstring))
+            self._testvs = [(0, checkstring)]
 
 
     def __repr__(self):
@@ -1160,9 +1152,6 @@ class MDMFSlotWriteProxy(object):
     def _write(self, datavs, on_failure=None, on_success=None):
         """I write the data vectors in datavs to the remote slot."""
         tw_vectors = {}
-        if not self._testvs:
-            self._testvs = []
-            self._testvs.append(tuple([0, b""]))
         if not self._written:
             # Write a new checkstring to the share when we write it, so
             # that we have something to check later.
