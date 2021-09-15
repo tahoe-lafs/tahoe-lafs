@@ -103,8 +103,9 @@ class FakeStats():
 class OpenMetrics(unittest.TestCase):
     def test_spec_compliance(self):
         """
-        Does our output adhere to the OpenMetrics spec?
-        https://github.com/OpenObservability/OpenMetrics/blob/main/specification/OpenMetrics.md
+        Does our output adhere to the `OpenMetrics <https://openmetrics.io/>` spec?
+        https://github.com/OpenObservability/OpenMetrics/
+        https://prometheus.io/docs/instrumenting/exposition_formats/
         """
         req = mock.Mock()
         stats = FakeStats()
