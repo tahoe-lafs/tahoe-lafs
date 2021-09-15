@@ -96,7 +96,7 @@ class FakeStatsProvider(object):
          }
         return stats
 
-class FakeStats():
+class FakeStats(Statistics):
     def __init__(self):
         self._provider = FakeStatsProvider()
 
