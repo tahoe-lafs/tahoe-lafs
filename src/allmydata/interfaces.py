@@ -351,6 +351,10 @@ class IStorageServer(Interface):
     ):
         """
         :see: ``RIStorageServer.slot_testv_readv_and_writev``
+
+        While the interface mostly matches, test vectors are simplified.
+        Instead of a tuple ``(start, offset, operator, data)`` they are just
+        ``(start, data)`` with operator implicitly being ``b"eq"``.
         """
 
     def advise_corrupt_share(
