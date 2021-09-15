@@ -96,6 +96,10 @@ class FakeStatsProvider(object):
          }
         return stats
 
+class FakeStats():
+    def __init__(self):
+        self._provider = FakeStatsProvider()
+
 class OpenMetrics(unittest.TestCase):
     def test_spec_compliance(self):
         """
@@ -103,8 +107,7 @@ class OpenMetrics(unittest.TestCase):
         https://github.com/OpenObservability/OpenMetrics/blob/main/specification/OpenMetrics.md
         """
         req = mock.Mock()
-        stats = mock.Mock()
-        stats._provider = FakeStatsProvider()
+        stats = FakeStats()
         metrics = Statistics.render_OPENMETRICS(stats, req)
 
         # "The content type MUST be..."
