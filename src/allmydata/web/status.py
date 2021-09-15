@@ -1556,7 +1556,7 @@ class Statistics(MultiFormatResource):
     def render_OPENMETRICS(self, req):
         req.setHeader("content-type", "application/openmetrics-text; version=1.0.0; charset=utf-8")
         stats = self._provider.get_stats()
-        ret = u""
+        ret = []
 
         def mangle_name(name):
             return re.sub(
@@ -1569,13 +1569,13 @@ class Statistics(MultiFormatResource):
             return str(val) if val is not None else u"NaN"
 
         for (k, v) in sorted(stats['counters'].items()):
-            ret += u"tahoe_counters_%s %s\n" % (mangle_name(k), mangle_value(v))
+            ret.append(u"tahoe_counters_%s %s" % (mangle_name(k), mangle_value(v)))
         for (k, v) in sorted(stats['stats'].items()):
-            ret += u"tahoe_stats_%s %s\n" % (mangle_name(k), mangle_value(v))
+            ret.append(u"tahoe_stats_%s %s" % (mangle_name(k), mangle_value(v)))
 
-        ret += u"# EOF\n"
+        ret.append(u"# EOF")
 
-        return ret
+        return u"\n".join(ret)
 
 class StatisticsElement(Element):
 
