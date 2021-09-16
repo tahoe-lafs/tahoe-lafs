@@ -1,7 +1,25 @@
-import mock
 from prometheus_client.openmetrics import parser
-from twisted.trial import unittest
+
+from treq.testing import RequestTraversalAgent
+
+from twisted.web.http import OK
+from twisted.web.client import readBody    
+from twisted.web.resource import Resource
+
+from testtools.twistedsupport import succeeded
+from testtools.matchers import (
+    Always,
+    AfterPreprocessing,
+    Equals,
+    MatchesAll,
+    MatchesStructure,
+    MatchesPredicate,
+    )
+from testtools.content import text_content
+
 from allmydata.web.status import Statistics
+from allmydata.test.common import SyncTestCase
+
 
 class FakeStatsProvider(object):
     def get_stats(self):
@@ -97,31 +115,67 @@ class FakeStatsProvider(object):
           }
         return stats
 
-class FakeStats(Statistics):
-    def __init__(self):
-        self._provider = FakeStatsProvider()
+class HackItResource(Resource):
+    def getChildWithDefault(self, path, request):
+        request.fields = None
+        return Resource.getChildWithDefault(self, path, request)
 
-class OpenMetrics(unittest.TestCase):
+
+class OpenMetrics(SyncTestCase):
     def test_spec_compliance(self):
         """
         Does our output adhere to the `OpenMetrics <https://openmetrics.io/>` spec?
         https://github.com/OpenObservability/OpenMetrics/
         https://prometheus.io/docs/instrumenting/exposition_formats/
         """
-        req = mock.Mock()
-        stats = FakeStats()
-        metrics = Statistics.render_OPENMETRICS(stats, req)
+        root = HackItResource()
+        root.putChild(b"", Statistics(FakeStatsProvider())) 
+        rta = RequestTraversalAgent(root)
+        d = rta.request(b"GET", b"http://localhost/?t=openmetrics")
+        self.assertThat(d, succeeded(matches_stats(self)))
 
-        # "The content type MUST be..."
-        req.setHeader.assert_called_with(
-            "content-type", "application/openmetrics-text; version=1.0.0; charset=utf-8"
+def matches_stats(testcase):
+    def add_detail(testcase):
+        def predicate(body):
+            testcase.addDetail("body", text_content(body))
+            return True
+        return predicate
+
+    return MatchesAll(
+        MatchesStructure(
+            code=Equals(OK),
+            # "The content type MUST be..."
+            headers=has_header("content-type", "application/openmetrics-text; version=1.0.0; charset=utf-8"),
+        ),
+        AfterPreprocessing(
+            readBodyText,
+            succeeded(MatchesAll(
+                MatchesPredicate(add_detail(testcase), "%s dummy"),
+                parses_as_openmetrics(),
+            ))
         )
+    )
 
-        # The parser throws if it does not like its input.
-        # Wrapped in a list() to drain the generator.
-        families = list(parser.text_string_to_metric_families(metrics))
+def readBodyText(response):
+    d = readBody(response)
+    d.addCallback(lambda body: body.decode("utf-8"))
+    return d
 
-        # Has the parser parsed our data?
-        # Just check the last item.
-        self.assertEqual(families[-1].name, u"tahoe_stats_storage_server_total_bucket_count")
+def has_header(name, value):
+    return AfterPreprocessing(
+        lambda headers: headers.getRawHeaders(name),
+        Equals([value]),
+    )
+
+def parses_as_openmetrics():
+    # The parser throws if it does not like its input.
+    # Wrapped in a list() to drain the generator. 
+    return AfterPreprocessing(
+        lambda body: list(parser.text_string_to_metric_families(body)),
+        AfterPreprocessing(
+            lambda families: families[-1].name, 
+            Equals(u"tahoe_stats_storage_server_total_bucket_count"),
+        ),
+    )
+
 
