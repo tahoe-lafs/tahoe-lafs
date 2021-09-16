@@ -5,14 +5,15 @@ User-Visible Changes in Tahoe-LAFS
 ==================================
 
 .. towncrier start line
-Release 1.15.1.post2188.dev0 (2021-09-16)Release 1.15.1.post2188.dev0 (2021-09-16)
-'''''''''''''''''''''''''''''''''''''''''
+
+Release 1.16.0 (2021-09-16)
+'''''''''''''''''''''''''''
 
 Backwards Incompatible Changes
 ------------------------------
 
 - The Tahoe command line now always uses UTF-8 to decode its arguments, regardless of locale. (`#3588 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3588>`_)
-- tahoe backup's --exclude-from has been renamed to --exclude-from-utf-8, and correspondingly requires the file to be UTF-8 encoded. (`#3716 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3716>`_)
+- Tahoe backup's --exclude-from has been renamed to --exclude-from-utf-8, and correspondingly requires the file to be UTF-8 encoded. (`#3716 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3716>`_)
 
 
 Features
