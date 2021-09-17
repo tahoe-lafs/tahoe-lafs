@@ -8,7 +8,6 @@ from twisted.web.resource import Resource
 
 from testtools.twistedsupport import succeeded
 from testtools.matchers import (
-    Always,
     AfterPreprocessing,
     Equals,
     MatchesAll,
