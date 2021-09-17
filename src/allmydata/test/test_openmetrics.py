@@ -115,7 +115,7 @@ class FakeStatsProvider(object):
           }
         return stats
 
-class HackItResource(Resource):
+class HackItResource(Resource, object):
     def getChildWithDefault(self, path, request):
         request.fields = None
         return Resource.getChildWithDefault(self, path, request)
