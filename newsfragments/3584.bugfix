@@ -1,1 +1,0 @@
-SFTP public key auth likely works more consistently, and SFTP in general was previously broken.

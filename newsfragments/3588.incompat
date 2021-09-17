@@ -1,1 +1,0 @@
-The Tahoe command line now always uses UTF-8 to decode its arguments, regardless of locale.

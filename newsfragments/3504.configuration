@@ -1,1 +1,0 @@
-The ``[client]introducer.furl`` configuration item is now deprecated in favor of the ``private/introducers.yaml`` file.
