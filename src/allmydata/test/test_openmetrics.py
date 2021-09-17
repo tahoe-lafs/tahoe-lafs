@@ -3,7 +3,7 @@ from prometheus_client.openmetrics import parser
 from treq.testing import RequestTraversalAgent
 
 from twisted.web.http import OK
-from twisted.web.client import readBody    
+from twisted.web.client import readBody
 from twisted.web.resource import Resource
 
 from testtools.twistedsupport import succeeded
@@ -128,7 +128,7 @@ class OpenMetrics(SyncTestCase):
         https://prometheus.io/docs/instrumenting/exposition_formats/
         """
         root = HackItResource()
-        root.putChild(b"", Statistics(FakeStatsProvider())) 
+        root.putChild(b"", Statistics(FakeStatsProvider()))
         rta = RequestTraversalAgent(root)
         d = rta.request(b"GET", b"http://localhost/?t=openmetrics")
         self.assertThat(d, succeeded(matches_stats(self)))
@@ -168,11 +168,11 @@ def has_header(name, value):
 
 def parses_as_openmetrics():
     # The parser throws if it does not like its input.
-    # Wrapped in a list() to drain the generator. 
+    # Wrapped in a list() to drain the generator.
     return AfterPreprocessing(
         lambda body: list(parser.text_string_to_metric_families(body)),
         AfterPreprocessing(
-            lambda families: families[-1].name, 
+            lambda families: families[-1].name,
             Equals(u"tahoe_stats_storage_server_total_bucket_count"),
         ),
     )
