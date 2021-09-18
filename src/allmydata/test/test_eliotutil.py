@@ -281,3 +281,44 @@ class LogCallDeferredTests(TestCase):
                 ),
             ),
         )
+
+    @capture_logging(
+        lambda self, logger:
+        assertHasAction(self, logger, u"the-action", succeeded=True),
+    )
+    def test_gets_positional_arguments(self, logger):
+        """
+        Check that positional arguments are logged when using ``log_call_deferred``
+        """
+        @log_call_deferred(action_type=u"the-action")
+        def f(a):
+            return a ** 2
+        self.assertThat(
+            f(4), succeeded(Equals(16)))
+
+    @capture_logging(
+        lambda self, logger:
+        assertHasAction(self, logger, u"the-action", succeeded=True),
+    )
+    def test_gets_keyword_arguments(self, logger):
+        """
+        Check that keyword arguments are logged when using ``log_call_deferred``
+        """
+        @log_call_deferred(action_type=u"the-action")
+        def f(base, exp):
+            return base ** exp
+        self.assertThat(f(exp=2,base=10), succeeded(Equals(100)))
+
+
+    @capture_logging(
+        lambda self, logger:
+        assertHasAction(self, logger, u"the-action", succeeded=True),
+    )
+    def test_gets_keyword_and_positional_arguments(self, logger):
+        """
+        Check that both keyword and positional arguments are logged when using ``log_call_deferred``
+        """
+        @log_call_deferred(action_type=u"the-action")
+        def f(base, exp, message):
+            return base ** exp
+        self.assertThat(f(10, 2, message="an exponential function"), succeeded(Equals(100)))
