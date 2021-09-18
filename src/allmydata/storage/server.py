@@ -708,8 +708,10 @@ class StorageServer(service.MultiService, Referenceable):
         now = time_format.iso_utc(sep="T")
         si_s = si_b2a(storage_index)
         # windows can't handle colons in the filename
-        fn = os.path.join(self.corruption_advisory_dir,
-                          "%s--%s-%d" % (now, str(si_s, "utf-8"), shnum)).replace(":","")
+        fn = os.path.join(
+            self.corruption_advisory_dir,
+            ("%s--%s-%d" % (now, str(si_s, "utf-8"), shnum)).replace(":","")
+        )
         with open(fn, "w") as f:
             f.write("report: Share Corruption\n")
             f.write("type: %s\n" % bytes_to_native_str(share_type))

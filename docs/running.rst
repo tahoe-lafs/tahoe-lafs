@@ -238,7 +238,7 @@ You can chat with other users of and hackers of this software on the
 #tahoe-lafs IRC channel at ``irc.libera.chat``, or on the `tahoe-dev mailing
 list`_.
 
-.. _tahoe-dev mailing list: https://tahoe-lafs.org/cgi-bin/mailman/listinfo/tahoe-dev
+.. _tahoe-dev mailing list: https://lists.tahoe-lafs.org/mailman/listinfo/tahoe-dev
 
 
 Complain
