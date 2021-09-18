@@ -177,7 +177,7 @@ mutable files, you may be able to avoid the potential for "rollback"
 failure.
 
 A future version of Tahoe will include a fix for this issue.  Here is
-[https://tahoe-lafs.org/pipermail/tahoe-dev/2008-May/000630.html the
+[https://lists.tahoe-lafs.org/pipermail/tahoe-dev/2008-May/000628.html the
 mailing list discussion] about how that future version will work.
 
 
