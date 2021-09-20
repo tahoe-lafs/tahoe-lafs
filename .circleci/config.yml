@@ -271,6 +271,11 @@ jobs:
           # in the project source checkout.
           path: "/tmp/project/_trial_temp/test.log"
 
+      - store_artifacts: &STORE_ELIOT_LOG
+          # Despite passing --workdir /tmp to tox above, it still runs trial
+          # in the project source checkout.
+          path: "/tmp/project/eliot.log"
+
       - store_artifacts: &STORE_OTHER_ARTIFACTS
           # Store any other artifacts, too.  This is handy to allow other jobs
           # sharing most of the definition of this one to be able to
@@ -413,6 +418,7 @@ jobs:
       - run: *RUN_TESTS
       - store_test_results: *STORE_TEST_RESULTS
       - store_artifacts: *STORE_TEST_LOG
+      - store_artifacts: *STORE_ELIOT_LOG
       - store_artifacts: *STORE_OTHER_ARTIFACTS
       - run: *SUBMIT_COVERAGE
 
