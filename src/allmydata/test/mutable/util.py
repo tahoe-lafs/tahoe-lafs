@@ -96,8 +96,14 @@ class FakeStorage(object):
         shares[shnum] = f.getvalue()
 
 
+# This doesn't actually implement the whole interface, but adding a commented
+# interface implementation annotation for grepping purposes.
+#@implementer(RIStorageServer)
 class FakeStorageServer(object):
-
+    """
+    A fake Foolscap remote object, implemented by overriding callRemote() to
+    call local methods.
+    """
     def __init__(self, peerid, storage):
         self.peerid = peerid
         self.storage = storage
