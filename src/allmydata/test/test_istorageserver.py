@@ -211,11 +211,8 @@ class IStorageServerImmutableAPIsTestsMixin(object):
         """
         Shares that are fully written to can be read.
 
-            1. The result is not affected by the order in which writes
-               happened, only by their offsets.
-
-            2. When overlapping writes happen, the resulting read returns the
-               latest written value.
+        The result is not affected by the order in which writes
+        happened, only by their offsets.
         """
         storage_index, renew_secret, cancel_secret = (
             new_storage_index(),
@@ -241,15 +238,8 @@ class IStorageServerImmutableAPIsTestsMixin(object):
         yield allocated[2].callRemote("write", 0, b"3" * 512)
         yield allocated[2].callRemote("close")
 
-        # Bucket 3 has an overlapping write.
-        yield allocated[3].callRemote("write", 0, b"5" * 20)
-        # The second write will overwrite the first.
-        yield allocated[3].callRemote("write", 0, b"6" * 24)
-        yield allocated[3].callRemote("write", 24, b"7" * 1000)
-        yield allocated[3].callRemote("close")
-
         buckets = yield self.storage_server.get_buckets(storage_index)
-        self.assertEqual(set(buckets.keys()), {1, 2, 3})
+        self.assertEqual(set(buckets.keys()), {1, 2})
 
         self.assertEqual(
             (yield buckets[1].callRemote("read", 0, 1024)), b"1" * 512 + b"2" * 512
@@ -257,10 +247,13 @@ class IStorageServerImmutableAPIsTestsMixin(object):
         self.assertEqual(
             (yield buckets[2].callRemote("read", 0, 1024)), b"3" * 512 + b"4" * 512
         )
-        self.assertEqual(
-            (yield buckets[3].callRemote("read", 0, 1024)),
-            b"6" * 24 + b"7" * 1000,
-        )
+
+    @skipIf(True, "https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3801")
+    def test_overlapping_writes(self):
+        """
+        The policy for overlapping writes is TBD:
+        https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3801
+        """
 
     @inlineCallbacks
     def test_get_buckets_skips_unfinished_buckets(self):
