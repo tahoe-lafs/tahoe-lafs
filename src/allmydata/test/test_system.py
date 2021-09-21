@@ -38,7 +38,6 @@ from allmydata.monitor import Monitor
 from allmydata.mutable.common import NotWriteableError
 from allmydata.mutable import layout as mutable_layout
 from allmydata.mutable.publish import MutableData
-from allmydata.scripts.runner import PYTHON_3_WARNING
 
 from foolscap.api import DeadReferenceError, fireEventually
 from twisted.python.failure import Failure
@@ -1749,18 +1748,16 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
             newargs = ["--node-directory", self.getdir("client0"), verb] + list(args)
             return self.run_bintahoe(newargs, stdin=stdin, env=env)
 
-        def _check_succeeded(res, check_stderr=True):
+        def _check_succeeded(res):
             out, err, rc_or_sig = res
             self.failUnlessEqual(rc_or_sig, 0, str(res))
-            if check_stderr:
-                self.assertIn(err.strip(), (b"", PYTHON_3_WARNING.encode("ascii")))
 
         d.addCallback(_run_in_subprocess, "create-alias", "newalias")
         d.addCallback(_check_succeeded)
 
         STDIN_DATA = b"This is the file to upload from stdin."
         d.addCallback(_run_in_subprocess, "put", "-", "newalias:tahoe-file", stdin=STDIN_DATA)
-        d.addCallback(_check_succeeded, check_stderr=False)
+        d.addCallback(_check_succeeded)
 
         def _mv_with_http_proxy(ign):
             env = os.environ
@@ -1773,7 +1770,6 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         def _check_ls(res):
             out, err, rc_or_sig = res
             self.failUnlessEqual(rc_or_sig, 0, str(res))
-            self.assertIn(err.strip(), (b"", PYTHON_3_WARNING.encode("ascii")))
             self.failUnlessIn(b"tahoe-moved", out)
             self.failIfIn(b"tahoe-file", out)
         d.addCallback(_check_ls)

@@ -1,5 +1,5 @@
 ======================================
-Free and Open decentralized data store
+Free and Open Decentralized Data Store
 ======================================
 
 |image0|
@@ -48,13 +48,17 @@ Please read more about Tahoe-LAFS architecture `here <docs/architecture.rst>`__.
 ✅ Installation
 ---------------
 
-For more detailed instructions, read `docs/INSTALL.rst <docs/INSTALL.rst>`__ .
+For more detailed instructions, read `Installing Tahoe-LAFS <docs/Installation/install-tahoe.rst>`__.
 
--  `Building Tahoe-LAFS on Windows <docs/windows.rst>`__
 
--  `OS-X Packaging <docs/OS-X.rst>`__
+Once ``tahoe --version`` works, see `How to Run Tahoe-LAFS <docs/running.rst>`__ to learn how to set up your first Tahoe-LAFS node.
 
-Once tahoe --version works, see `docs/running.rst <docs/running.rst>`__ to learn how to set up your first Tahoe-LAFS node.
+🐍 Python 3 Support 
+--------------------
+
+Python 3 support has been introduced starting with Tahoe-LAFS 1.16.0, alongside Python 2.
+System administrators are advised to start running Tahoe on Python 3 and should expect Python 2 support to be dropped in a future version.
+Please, feel free to file issues if you run into bugs while running Tahoe on Python 3.
 
 
 🤖 Issues
@@ -76,7 +80,7 @@ Get involved with the Tahoe-LAFS community:
 
 -  Join our `weekly conference calls <https://www.tahoe-lafs.org/trac/tahoe-lafs/wiki/WeeklyMeeting>`__ with core developers and interested community members.
 
--  Subscribe to `the tahoe-dev mailing list <https://www.tahoe-lafs.org/cgi-bin/mailman/listinfo/tahoe-dev>`__, the community forum for discussion of Tahoe-LAFS design, implementation, and usage.
+-  Subscribe to `the tahoe-dev mailing list <https://lists.tahoe-lafs.org/mailman/listinfo/tahoe-dev>`__, the community forum for discussion of Tahoe-LAFS design, implementation, and usage.
 
 🤗 Contributing
 ---------------
@@ -97,6 +101,8 @@ Before authoring or reviewing a patch, please familiarize yourself with the `Cod
 --------------
 
 We would like to thank `Fosshost <https://fosshost.org>`__ for supporting us with hosting services. If your open source project needs help, you can apply for their support.
+
+We are grateful to `Oregon State University Open Source Lab <https://osuosl.org/>`__ for hosting tahoe-dev mailing list.
 
 ❓ FAQ
 ------
