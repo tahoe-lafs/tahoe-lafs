@@ -56,6 +56,7 @@ from eliot.testing import (
     capture_logging,
     assertHasAction,
     swap_logger,
+    assertContainsFields,
 )
 
 from twisted.internet.defer import (
@@ -295,6 +296,8 @@ class LogCallDeferredTests(TestCase):
             return a ** 2
         self.assertThat(
             f(4), succeeded(Equals(16)))
+        msg = logger.messages[0]
+        assertContainsFields(self, msg, {"args": (4,)})
 
     @capture_logging(
         lambda self, logger:
@@ -308,6 +311,8 @@ class LogCallDeferredTests(TestCase):
         def f(base, exp):
             return base ** exp
         self.assertThat(f(exp=2,base=10), succeeded(Equals(100)))
+        msg = logger.messages[0]
+        assertContainsFields(self, msg, {"base": 10, "exp": 2})
 
 
     @capture_logging(
@@ -322,3 +327,5 @@ class LogCallDeferredTests(TestCase):
         def f(base, exp, message):
             return base ** exp
         self.assertThat(f(10, 2, message="an exponential function"), succeeded(Equals(100)))
+        msg = logger.messages[0]
+        assertContainsFields(self, msg, {"args": (10, 2), "message": "an exponential function"})
