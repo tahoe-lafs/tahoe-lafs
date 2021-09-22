@@ -11,6 +11,7 @@ if PY2:
     from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 import os
+from sys import stdout as _sys_stdout
 from urllib.parse import urlencode
 
 import json
@@ -24,13 +25,17 @@ from allmydata.util.encodingutil import argv_to_abspath
 _print = print
 def print(*args, **kwargs):
     """
-    Builtin ``print``-alike that will even write unicode not encodeable using
-    the specified output file's encoding.
+    Builtin ``print``-alike that will even write unicode which cannot be
+    encoded using the specified output file's encoding.
+
+    This differs from the builtin print in that it will use the "replace"
+    encoding error handler and then write the result whereas builtin print
+    uses the "strict" encoding error handler.
     """
     from past.builtins import unicode
     out = kwargs.pop("file", None)
     if out is None:
-        from sys import stdout as out
+        out = _sys_stdout
     encoding = out.encoding or "ascii"
     def ensafe(o):
         if isinstance(o, unicode):
