@@ -162,7 +162,20 @@ class OpenMetrics(SyncTestCase):
         self.assertThat(d, succeeded(matches_stats(self)))
 
 def matches_stats(testcase):
+    """
+    Create a matcher that matches a response that confirms to the OpenMetrics
+    specification.
 
+    * The ``Content-Type`` is **application/openmetrics-text; version=1.0.0; charset=utf-8**.
+    * The status is **OK**.
+    * The body can be parsed by an OpenMetrics parser.
+    * The metric families in the body are grouped and sorted.
+    * At least one of the expected families appears in the body.
+
+    :param testtools.TestCase testcase: The case to which to add detail about the matching process.
+
+    :return: A matcher.
+    """
     return MatchesAll(
         MatchesStructure(
             code=Equals(OK),
