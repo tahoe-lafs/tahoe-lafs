@@ -36,6 +36,10 @@ from allmydata.test.common import SyncTestCase
 
 
 class FakeStatsProvider(object):
+    """
+    A stats provider that hands backed a canned collection of performance
+    statistics.
+    """
     def get_stats(self):
         # Parsed into a dict from a running tahoe's /statistics?t=json
         stats = {
@@ -130,12 +134,21 @@ class FakeStatsProvider(object):
         return stats
 
 class HackItResource(Resource, object):
+    """
+    A bridge between ``RequestTraversalAgent`` and ``MultiFormatResource``
+    (used by ``Statistics``).  ``MultiFormatResource`` expects the request
+    object to have a ``fields`` attribute but Twisted's ``IRequest`` has no
+    such attribute.  Create it here.
+    """
     def getChildWithDefault(self, path, request):
         request.fields = None
         return Resource.getChildWithDefault(self, path, request)
 
 
 class OpenMetrics(SyncTestCase):
+    """
+    Tests for ``/statistics?t=openmetrics``.
+    """
     def test_spec_compliance(self):
         """
         Does our output adhere to the `OpenMetrics <https://openmetrics.io/>` spec?
@@ -171,17 +184,41 @@ def matches_stats(testcase):
     )
 
 def readBodyText(response):
+    """
+    Read the response body and decode it using UTF-8.
+
+    :param twisted.web.iweb.IResponse response: The response from which to
+        read the body.
+
+    :return: A ``Deferred`` that fires with the ``str`` body.
+    """
     d = readBody(response)
     d.addCallback(lambda body: body.decode("utf-8"))
     return d
 
 def has_header(name, value):
+    """
+    Create a matcher that matches a response object that includes the given
+    name / value pair.
+
+    :param str name: The name of the item in the HTTP header to match.
+    :param str value: The value of the item in the HTTP header to match by equality.
+
+    :return: A matcher.
+    """
     return AfterPreprocessing(
         lambda headers: headers.getRawHeaders(name),
         Equals([value]),
     )
 
 def parses_as_openmetrics():
+    """
+    Create a matcher that matches a ``str`` string that can be parsed as an
+    OpenMetrics response and includes a certain well-known value expected by
+    the tests.
+
+    :return: A matcher.
+    """
     # The parser throws if it does not like its input.
     # Wrapped in a list() to drain the generator.
     return AfterPreprocessing(
