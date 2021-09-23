@@ -162,11 +162,6 @@ class OpenMetrics(SyncTestCase):
         self.assertThat(d, succeeded(matches_stats(self)))
 
 def matches_stats(testcase):
-    def add_detail(testcase):
-        def predicate(body):
-            testcase.addDetail("body", text_content(body))
-            return True
-        return predicate
 
     return MatchesAll(
         MatchesStructure(
@@ -177,11 +172,25 @@ def matches_stats(testcase):
         AfterPreprocessing(
             readBodyText,
             succeeded(MatchesAll(
-                MatchesPredicate(add_detail(testcase), "%s dummy"),
+                MatchesPredicate(add_detail(testcase, u"response body"), u"%s dummy"),
                 parses_as_openmetrics(),
             ))
         )
     )
+
+def add_detail(testcase, name):
+    """
+    Create a matcher that always matches and as a side-effect adds the matched
+    value as detail to the testcase.
+
+    :param testtools.TestCase testcase: The case to which to add the detail.
+
+    :return: A matcher.
+    """
+    def predicate(value):
+        testcase.addDetail(name, text_content(value))
+        return True
+    return predicate
 
 def readBodyText(response):
     """
