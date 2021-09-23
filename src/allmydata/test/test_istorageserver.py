@@ -248,12 +248,11 @@ class IStorageServerImmutableAPIsTestsMixin(object):
             (yield buckets[2].callRemote("read", 0, 1024)), b"3" * 512 + b"4" * 512
         )
 
-    @skipIf(True, "https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3801")
     def test_overlapping_writes(self):
         """
-        The policy for overlapping writes is TBD:
-        https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3801
+        Overlapping writes in immutable uploads fail with ``OverlappingWriteError``.
         """
+        1/0
 
 
 class _FoolscapMixin(SystemTestMixin):
