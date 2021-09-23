@@ -180,7 +180,10 @@ def matches_stats(testcase):
         MatchesStructure(
             code=Equals(OK),
             # "The content type MUST be..."
-            headers=has_header("content-type", "application/openmetrics-text; version=1.0.0; charset=utf-8"),
+            headers=has_header(
+                u"content-type",
+                u"application/openmetrics-text; version=1.0.0; charset=utf-8",
+            ),
         ),
         AfterPreprocessing(
             readBodyText,
