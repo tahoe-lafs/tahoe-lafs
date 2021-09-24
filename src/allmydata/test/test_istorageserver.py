@@ -24,7 +24,7 @@ from testtools import skipIf
 
 from twisted.internet.defer import inlineCallbacks
 
-from foolscap.api import Referenceable
+from foolscap.api import Referenceable, RemoteException
 
 from allmydata.interfaces import IStorageServer
 from .common_system import SystemTestMixin
@@ -248,11 +248,31 @@ class IStorageServerImmutableAPIsTestsMixin(object):
             (yield buckets[2].callRemote("read", 0, 1024)), b"3" * 512 + b"4" * 512
         )
 
+    @inlineCallbacks
     def test_overlapping_writes(self):
         """
-        Overlapping writes in immutable uploads fail with ``OverlappingWriteError``.
+        Overlapping, non-identical writes in immutable uploads fail.
         """
-        1/0
+        storage_index, renew_secret, cancel_secret = (
+            new_storage_index(),
+            new_secret(),
+            new_secret(),
+        )
+        (_, allocated) = yield self.storage_server.allocate_buckets(
+            storage_index,
+            renew_secret,
+            cancel_secret,
+            sharenums={0},
+            allocated_size=30,
+            canary=Referenceable(),
+        )
+
+        yield allocated[0].callRemote("write", 0, b"1" * 10)
+        # Overlapping write that matches:
+        yield allocated[0].callRemote("write", 5, b"1" * 20)
+        # Overlapping write that doesn't match:
+        with self.assertRaises(RemoteException):
+            yield allocated[0].callRemote("write", 20, b"2" * 10)
 
 
 class _FoolscapMixin(SystemTestMixin):
