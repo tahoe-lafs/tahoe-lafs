@@ -13,8 +13,9 @@ if PY2:
 import os.path
 from allmydata.util import base32
 
-class DataTooLargeError(Exception):
-    pass
+# Backwards compatibility.
+from allmydata.interfaces import DataTooLargeError
+
 class UnknownMutableContainerVersionError(Exception):
     pass
 class UnknownImmutableContainerVersionError(Exception):
