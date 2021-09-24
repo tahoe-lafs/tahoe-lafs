@@ -13,6 +13,14 @@ if PY2:
 from six.moves import cStringIO as StringIO
 from twisted.internet import defer, reactor
 from twisted.trial import unittest
+from ..common import AsyncTestCase, AsyncBrokenTestCase
+from testtools.matchers import (
+    Equals,
+    Contains,
+    HasLength,
+    Is,
+    IsInstance,
+)
 from allmydata import uri, client
 from allmydata.util.consumer import MemoryConsumer
 from allmydata.interfaces import SDMF_VERSION, MDMF_VERSION, DownloadStopped
@@ -29,12 +37,13 @@ from .util import (
     make_peer,
 )
 
-class Filenode(unittest.TestCase, testutil.ShouldFailMixin):
+class Filenode(AsyncBrokenTestCase, testutil.ShouldFailMixin):
     # this used to be in Publish, but we removed the limit. Some of
     # these tests test whether the new code correctly allows files
     # larger than the limit.
     OLD_MAX_SEGMENT_SIZE = 3500000
     def setUp(self):
+        super(Filenode, self).setUp()
         self._storage = FakeStorage()
         self._peers = list(
             make_peer(self._storage, n)
@@ -48,12 +57,12 @@ class Filenode(unittest.TestCase, testutil.ShouldFailMixin):
     def test_create(self):
         d = self.nodemaker.create_mutable_file()
         def _created(n):
-            self.failUnless(isinstance(n, MutableFileNode))
-            self.failUnlessEqual(n.get_storage_index(), n._storage_index)
+            self.assertThat(n, IsInstance(MutableFileNode))
+            self.assertThat(n.get_storage_index(), Equals(n._storage_index))
             sb = self.nodemaker.storage_broker
             peer0 = sorted(sb.get_all_serverids())[0]
             shnums = self._storage._peers[peer0].keys()
-            self.failUnlessEqual(len(shnums), 1)
+            self.assertThat(shnums, HasLength(1))
         d.addCallback(_created)
         return d
 
@@ -61,12 +70,12 @@ class Filenode(unittest.TestCase, testutil.ShouldFailMixin):
     def test_create_mdmf(self):
         d = self.nodemaker.create_mutable_file(version=MDMF_VERSION)
         def _created(n):
-            self.failUnless(isinstance(n, MutableFileNode))
-            self.failUnlessEqual(n.get_storage_index(), n._storage_index)
+            self.assertThat(n, IsInstance(MutableFileNode))
+            self.assertThat(n.get_storage_index(), Equals(n._storage_index))
             sb = self.nodemaker.storage_broker
             peer0 = sorted(sb.get_all_serverids())[0]
             shnums = self._storage._peers[peer0].keys()
-            self.failUnlessEqual(len(shnums), 1)
+            self.assertThat(shnums, HasLength(1))
         d.addCallback(_created)
         return d
 
@@ -80,7 +89,7 @@ class Filenode(unittest.TestCase, testutil.ShouldFailMixin):
             d.addCallback(lambda ignored, v=v:
                 self.nodemaker.create_mutable_file(version=v))
             def _created(n):
-                self.failUnless(isinstance(n, MutableFileNode))
+                self.assertThat(n, IsInstance(MutableFileNode))
                 self._node = n
                 return n
             d.addCallback(_created)
@@ -89,19 +98,19 @@ class Filenode(unittest.TestCase, testutil.ShouldFailMixin):
             d.addCallback(lambda ignored:
                 self._node.download_best_version())
             d.addCallback(lambda contents:
-                self.failUnlessEqual(contents, b"Contents" * 50000))
+                self.assertThat(contents, Equals(b"Contents" * 50000)))
         return d
 
     def test_max_shares(self):
         self.nodemaker.default_encoding_parameters['n'] = 255
         d = self.nodemaker.create_mutable_file(version=SDMF_VERSION)
         def _created(n):
-            self.failUnless(isinstance(n, MutableFileNode))
-            self.failUnlessEqual(n.get_storage_index(), n._storage_index)
+            self.assertThat(n, IsInstance(MutableFileNode))
+            self.assertThat(n.get_storage_index(), Equals(n._storage_index))
             sb = self.nodemaker.storage_broker
             num_shares = sum([len(self._storage._peers[x].keys()) for x \
                               in sb.get_all_serverids()])
-            self.failUnlessEqual(num_shares, 255)
+            self.assertThat(num_shares, Equals(255))
             self._node = n
             return n
         d.addCallback(_created)
@@ -121,12 +130,12 @@ class Filenode(unittest.TestCase, testutil.ShouldFailMixin):
         self.nodemaker.default_encoding_parameters['n'] = 255
         d = self.nodemaker.create_mutable_file(version=MDMF_VERSION)
         def _created(n):
-            self.failUnless(isinstance(n, MutableFileNode))
-            self.failUnlessEqual(n.get_storage_index(), n._storage_index)
+            self.assertThat(n, IsInstance(MutableFileNode))
+            self.assertThat(n.get_storage_index(), Equals(n._storage_index))
             sb = self.nodemaker.storage_broker
             num_shares = sum([len(self._storage._peers[x].keys()) for x \
                               in sb.get_all_serverids()])
-            self.failUnlessEqual(num_shares, 255)
+            self.assertThat(num_shares, Equals(255))
             self._node = n
             return n
         d.addCallback(_created)
@@ -135,20 +144,20 @@ class Filenode(unittest.TestCase, testutil.ShouldFailMixin):
         d.addCallback(lambda ignored:
             self._node.download_best_version())
         d.addCallback(lambda contents:
-            self.failUnlessEqual(contents, b"contents" * 50000))
+            self.assertThat(contents, Equals(b"contents" * 50000)))
         return d
 
     def test_mdmf_filenode_cap(self):
         # Test that an MDMF filenode, once created, returns an MDMF URI.
         d = self.nodemaker.create_mutable_file(version=MDMF_VERSION)
         def _created(n):
-            self.failUnless(isinstance(n, MutableFileNode))
+            self.assertThat(n, IsInstance(MutableFileNode))
             cap = n.get_cap()
-            self.failUnless(isinstance(cap, uri.WriteableMDMFFileURI))
+            self.assertThat(cap, IsInstance(uri.WriteableMDMFFileURI))
             rcap = n.get_readcap()
-            self.failUnless(isinstance(rcap, uri.ReadonlyMDMFFileURI))
+            self.assertThat(rcap, IsInstance(uri.ReadonlyMDMFFileURI))
             vcap = n.get_verify_cap()
-            self.failUnless(isinstance(vcap, uri.MDMFVerifierURI))
+            self.assertThat(vcap, IsInstance(uri.MDMFVerifierURI))
         d.addCallback(_created)
         return d
 
@@ -158,13 +167,13 @@ class Filenode(unittest.TestCase, testutil.ShouldFailMixin):
         # filenode given an MDMF cap.
         d = self.nodemaker.create_mutable_file(version=MDMF_VERSION)
         def _created(n):
-            self.failUnless(isinstance(n, MutableFileNode))
+            self.assertThat(n, IsInstance(MutableFileNode))
             s = n.get_uri()
             self.failUnless(s.startswith(b"URI:MDMF"))
             n2 = self.nodemaker.create_from_cap(s)
-            self.failUnless(isinstance(n2, MutableFileNode))
-            self.failUnlessEqual(n.get_storage_index(), n2.get_storage_index())
-            self.failUnlessEqual(n.get_uri(), n2.get_uri())
+            self.assertThat(n2, IsInstance(MutableFileNode))
+            self.assertThat(n.get_storage_index(), Equals(n2.get_storage_index()))
+            self.assertThat(n.get_uri(), Equals(n2.get_uri()))
         d.addCallback(_created)
         return d
 
@@ -172,10 +181,10 @@ class Filenode(unittest.TestCase, testutil.ShouldFailMixin):
     def test_create_from_mdmf_readcap(self):
         d = self.nodemaker.create_mutable_file(version=MDMF_VERSION)
         def _created(n):
-            self.failUnless(isinstance(n, MutableFileNode))
+            self.assertThat(n, IsInstance(MutableFileNode))
             s = n.get_readonly_uri()
             n2 = self.nodemaker.create_from_cap(s)
-            self.failUnless(isinstance(n2, MutableFileNode))
+            self.assertThat(n2, IsInstance(MutableFileNode))
 
             # Check that it's a readonly node
             self.failUnless(n2.is_readonly())
@@ -191,10 +200,10 @@ class Filenode(unittest.TestCase, testutil.ShouldFailMixin):
         d = self.nodemaker.create_mutable_file(version=MDMF_VERSION)
         def _created(n):
             self.uri = n.get_uri()
-            self.failUnlessEqual(n._protocol_version, MDMF_VERSION)
+            self.assertThat(n._protocol_version, Equals(MDMF_VERSION))
 
             n2 = self.nodemaker.create_from_cap(self.uri)
-            self.failUnlessEqual(n2._protocol_version, MDMF_VERSION)
+            self.assertThat(n2._protocol_version, Equals(MDMF_VERSION))
         d.addCallback(_created)
         return d
 
@@ -203,14 +212,14 @@ class Filenode(unittest.TestCase, testutil.ShouldFailMixin):
         n = MutableFileNode(None, None, {"k": 3, "n": 10}, None)
         calls = []
         def _callback(*args, **kwargs):
-            self.failUnlessEqual(args, (4,) )
-            self.failUnlessEqual(kwargs, {"foo": 5})
+            self.assertThat(args, Equals((4,)))
+            self.assertThat(kwargs, Equals({"foo": 5}))
             calls.append(1)
             return 6
         d = n._do_serialized(_callback, 4, foo=5)
         def _check_callback(res):
-            self.failUnlessEqual(res, 6)
-            self.failUnlessEqual(calls, [1])
+            self.assertThat(res, Equals(6))
+            self.assertThat(calls, Equals([1]))
         d.addCallback(_check_callback)
 
         def _errback():
@@ -229,24 +238,24 @@ class Filenode(unittest.TestCase, testutil.ShouldFailMixin):
             d.addCallback(lambda sio:
                           self.failUnless("3-of-10" in sio.getvalue()))
             d.addCallback(lambda res: n.overwrite(MutableData(b"contents 1")))
-            d.addCallback(lambda res: self.failUnlessIdentical(res, None))
+            d.addCallback(lambda res: self.assertThat(res, Is(None)))
             d.addCallback(lambda res: n.download_best_version())
-            d.addCallback(lambda res: self.failUnlessEqual(res, b"contents 1"))
+            d.addCallback(lambda res: self.assertThat(res, Equals(b"contents 1")))
             d.addCallback(lambda res: n.get_size_of_best_version())
             d.addCallback(lambda size:
-                          self.failUnlessEqual(size, len(b"contents 1")))
+                          self.assertThat(size, Equals(len(b"contents 1"))))
             d.addCallback(lambda res: n.overwrite(MutableData(b"contents 2")))
             d.addCallback(lambda res: n.download_best_version())
-            d.addCallback(lambda res: self.failUnlessEqual(res, b"contents 2"))
+            d.addCallback(lambda res: self.assertThat(res, Equals(b"contents 2")))
             d.addCallback(lambda res: n.get_servermap(MODE_WRITE))
             d.addCallback(lambda smap: n.upload(MutableData(b"contents 3"), smap))
             d.addCallback(lambda res: n.download_best_version())
-            d.addCallback(lambda res: self.failUnlessEqual(res, b"contents 3"))
+            d.addCallback(lambda res: self.assertThat(res, Equals(b"contents 3")))
             d.addCallback(lambda res: n.get_servermap(MODE_ANYTHING))
             d.addCallback(lambda smap:
                           n.download_version(smap,
                                              smap.best_recoverable_version()))
-            d.addCallback(lambda res: self.failUnlessEqual(res, b"contents 3"))
+            d.addCallback(lambda res: self.assertThat(res, Equals(b"contents 3")))
             # test a file that is large enough to overcome the
             # mapupdate-to-retrieve data caching (i.e. make the shares larger
             # than the default readsize, which is 2000 bytes). A 15kB file
@@ -254,7 +263,7 @@ class Filenode(unittest.TestCase, testutil.ShouldFailMixin):
             d.addCallback(lambda res: n.overwrite(MutableData(b"large size file" * 1000)))
             d.addCallback(lambda res: n.download_best_version())
             d.addCallback(lambda res:
-                          self.failUnlessEqual(res, b"large size file" * 1000))
+                          self.assertThat(res, Equals(b"large size file" * 1000)))
             return d
         d.addCallback(_created)
         return d
@@ -268,7 +277,7 @@ class Filenode(unittest.TestCase, testutil.ShouldFailMixin):
                 n.get_servermap(MODE_READ))
             def _then(servermap):
                 dumped = servermap.dump(StringIO())
-                self.failUnlessIn("3-of-10", dumped.getvalue())
+                self.assertThat(dumped.getvalue(), Contains("3-of-10"))
             d.addCallback(_then)
             # Now overwrite the contents with some new contents. We want
             # to make them big enough to force the file to be uploaded
@@ -431,7 +440,7 @@ class Filenode(unittest.TestCase, testutil.ShouldFailMixin):
     def test_create_with_initial_contents_function(self):
         data = b"initial contents"
         def _make_contents(n):
-            self.failUnless(isinstance(n, MutableFileNode))
+            self.assertThat(n, IsInstance(MutableFileNode))
             key = n.get_writekey()
             self.failUnless(isinstance(key, bytes), key)
             self.failUnlessEqual(len(key), 16) # AES key size
@@ -447,7 +456,7 @@ class Filenode(unittest.TestCase, testutil.ShouldFailMixin):
     def test_create_mdmf_with_initial_contents_function(self):
         data = b"initial contents" * 100000
         def _make_contents(n):
-            self.failUnless(isinstance(n, MutableFileNode))
+            self.assertThat(n, IsInstance(MutableFileNode))
             key = n.get_writekey()
             self.failUnless(isinstance(key, bytes), key)
             self.failUnlessEqual(len(key), 16)
@@ -643,7 +652,7 @@ class Filenode(unittest.TestCase, testutil.ShouldFailMixin):
             d.addCallback(lambda sio:
                           self.failUnless("3-of-10" in sio.getvalue()))
             d.addCallback(lambda res: n.overwrite(MutableData(b"contents 1")))
-            d.addCallback(lambda res: self.failUnlessIdentical(res, None))
+            d.addCallback(lambda res: self.assertThat(res, Is(None)))
             d.addCallback(lambda res: n.download_best_version())
             d.addCallback(lambda res: self.failUnlessEqual(res, b"contents 1"))
             d.addCallback(lambda res: n.overwrite(MutableData(b"contents 2")))
