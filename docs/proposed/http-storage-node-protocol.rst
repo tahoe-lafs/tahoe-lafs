@@ -497,22 +497,26 @@ If any one of these requests fails then at most 128KiB of upload work needs to b
 
 The server must recognize when all of the data has been received and mark the share as complete
 (which it can do because it was informed of the size when the storage index was initialized).
-Clients should upload chunks in re-assembly order.
 
 * When a chunk that does not complete the share is successfully uploaded the response is ``OK``.
 * When the chunk that completes the share is successfully uploaded the response is ``CREATED``.
-* If the *Content-Range* for a request covers part of the share that has already been uploaded the response is ``CONFLICT``.
-  The response body indicates the range of share data that has yet to be uploaded.
-  That is::
+* If the *Content-Range* for a request covers part of the share that has already,
+  and the data does not match already written data,
+  the response is ``CONFLICT``.
+  At this point the only thing to do is abort the upload and start from scratch (see below).
 
-    { "required":
-      [ { "begin": <byte position, inclusive>
-        , "end":   <byte position, exclusive>
-        }
-      ,
-      ...
-      ]
-    }
+``PUT /v1/immutable/:storage_index/:share_number/abort``
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+This cancels an *in-progress* upload.
+
+The response code:
+
+* When the upload is still in progress and therefore the abort has succeeded,
+  the response is ``OK``.
+  Future uploads can start from scratch with no pre-existing upload state stored on the server.
+* If the uploaded has already finished, the response is 405 (Method Not Allowed)
+  and no change is made.
 
 
 ``POST /v1/immutable/:storage_index/:share_number/corrupt``
