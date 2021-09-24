@@ -14,7 +14,7 @@ import os.path
 from allmydata.util import base32
 
 # Backwards compatibility.
-from allmydata.interfaces import DataTooLargeError
+from allmydata.interfaces import DataTooLargeError  # noqa: F401
 
 class UnknownMutableContainerVersionError(Exception):
     pass
