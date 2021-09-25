@@ -12,8 +12,7 @@ if PY2:
 
 from six.moves import cStringIO as StringIO
 from twisted.internet import defer, reactor
-from twisted.trial import unittest
-from ..common import AsyncTestCase, AsyncBrokenTestCase
+from ..common import AsyncBrokenTestCase
 from testtools.matchers import (
     Equals,
     Contains,
@@ -122,7 +121,7 @@ class Filenode(AsyncBrokenTestCase, testutil.ShouldFailMixin):
             self._node.download_best_version())
         # ...and check to make sure everything went okay.
         d.addCallback(lambda contents:
-            self.failUnlessEqual(b"contents" * 50000, contents))
+            self.assertThat(b"contents" * 50000, Equals(contents)))
         return d
 
     def test_max_shares_mdmf(self):
@@ -169,7 +168,7 @@ class Filenode(AsyncBrokenTestCase, testutil.ShouldFailMixin):
         def _created(n):
             self.assertThat(n, IsInstance(MutableFileNode))
             s = n.get_uri()
-            self.failUnless(s.startswith(b"URI:MDMF"))
+            self.assertTrue(s.startswith(b"URI:MDMF"))
             n2 = self.nodemaker.create_from_cap(s)
             self.assertThat(n2, IsInstance(MutableFileNode))
             self.assertThat(n.get_storage_index(), Equals(n2.get_storage_index()))
@@ -187,7 +186,7 @@ class Filenode(AsyncBrokenTestCase, testutil.ShouldFailMixin):
             self.assertThat(n2, IsInstance(MutableFileNode))
 
             # Check that it's a readonly node
-            self.failUnless(n2.is_readonly())
+            self.assertTrue(n2.is_readonly())
         d.addCallback(_created)
         return d
 
@@ -236,7 +235,7 @@ class Filenode(AsyncBrokenTestCase, testutil.ShouldFailMixin):
             d.addCallback(lambda res: n.get_servermap(MODE_READ))
             d.addCallback(lambda smap: smap.dump(StringIO()))
             d.addCallback(lambda sio:
-                          self.failUnless("3-of-10" in sio.getvalue()))
+                          self.assertTrue("3-of-10" in sio.getvalue()))
             d.addCallback(lambda res: n.overwrite(MutableData(b"contents 1")))
             d.addCallback(lambda res: self.assertThat(res, Is(None)))
             d.addCallback(lambda res: n.download_best_version())
@@ -289,7 +288,7 @@ class Filenode(AsyncBrokenTestCase, testutil.ShouldFailMixin):
             d.addCallback(lambda ignored:
                 n.download_best_version())
             d.addCallback(lambda data:
-                self.failUnlessEqual(data, big_contents))
+                self.assertThat(data, Equals(big_contents)))
             # Overwrite the contents again with some new contents. As
             # before, they need to be big enough to force multiple
             # segments, so that we make the downloader deal with
@@ -301,7 +300,7 @@ class Filenode(AsyncBrokenTestCase, testutil.ShouldFailMixin):
             d.addCallback(lambda ignored:
                 n.download_best_version())
             d.addCallback(lambda data:
-                self.failUnlessEqual(data, bigger_contents))
+                self.assertThat(data, Equals(bigger_contents)))
             return d
         d.addCallback(_created)
         return d
@@ -332,7 +331,7 @@ class Filenode(AsyncBrokenTestCase, testutil.ShouldFailMixin):
         # Now we'll retrieve it into a pausing consumer.
         c = PausingConsumer()
         d = version.read(c)
-        d.addCallback(lambda ign: self.failUnlessEqual(c.size, len(data)))
+        d.addCallback(lambda ign: self.assertThat(c.size, Equals(len(data))))
 
         c2 = PausingAndStoppingConsumer()
         d.addCallback(lambda ign:
@@ -369,14 +368,14 @@ class Filenode(AsyncBrokenTestCase, testutil.ShouldFailMixin):
             self.uri = node.get_uri()
             # also confirm that the cap has no extension fields
             pieces = self.uri.split(b":")
-            self.failUnlessEqual(len(pieces), 4)
+            self.assertThat(pieces, HasLength(4))
 
             return node.overwrite(MutableData(b"contents1" * 100000))
         def _then(ignored):
             node = self.nodemaker.create_from_cap(self.uri)
             return node.download_best_version()
         def _downloaded(data):
-            self.failUnlessEqual(data, b"contents1" * 100000)
+            self.assertThat(data, Equals(b"contents1" * 100000))
         d.addCallback(_created)
         d.addCallback(_then)
         d.addCallback(_downloaded)
@@ -406,11 +405,11 @@ class Filenode(AsyncBrokenTestCase, testutil.ShouldFailMixin):
         d = self.nodemaker.create_mutable_file(upload1)
         def _created(n):
             d = n.download_best_version()
-            d.addCallback(lambda res: self.failUnlessEqual(res, b"contents 1"))
+            d.addCallback(lambda res: self.assertThat(res, Equals(b"contents 1")))
             upload2 = MutableData(b"contents 2")
             d.addCallback(lambda res: n.overwrite(upload2))
             d.addCallback(lambda res: n.download_best_version())
-            d.addCallback(lambda res: self.failUnlessEqual(res, b"contents 2"))
+            d.addCallback(lambda res: self.assertThat(res, Equals(b"contents 2")))
             return d
         d.addCallback(_created)
         return d
@@ -424,15 +423,15 @@ class Filenode(AsyncBrokenTestCase, testutil.ShouldFailMixin):
         def _created(n):
             d = n.download_best_version()
             d.addCallback(lambda data:
-                self.failUnlessEqual(data, initial_contents))
+                self.assertThat(data, Equals(initial_contents)))
             uploadable2 = MutableData(initial_contents + b"foobarbaz")
             d.addCallback(lambda ignored:
                 n.overwrite(uploadable2))
             d.addCallback(lambda ignored:
                 n.download_best_version())
             d.addCallback(lambda data:
-                self.failUnlessEqual(data, initial_contents +
-                                           b"foobarbaz"))
+                self.assertThat(data, Equals(initial_contents +
+                                           b"foobarbaz")))
             return d
         d.addCallback(_created)
         return d
@@ -442,14 +441,14 @@ class Filenode(AsyncBrokenTestCase, testutil.ShouldFailMixin):
         def _make_contents(n):
             self.assertThat(n, IsInstance(MutableFileNode))
             key = n.get_writekey()
-            self.failUnless(isinstance(key, bytes), key)
-            self.failUnlessEqual(len(key), 16) # AES key size
+            self.assertTrue(isinstance(key, bytes), key)
+            self.assertThat(key, HasLength(16)) # AES key size
             return MutableData(data)
         d = self.nodemaker.create_mutable_file(_make_contents)
         def _created(n):
             return n.download_best_version()
         d.addCallback(_created)
-        d.addCallback(lambda data2: self.failUnlessEqual(data2, data))
+        d.addCallback(lambda data2: self.assertThat(data2, Equals(data)))
         return d
 
 
@@ -458,15 +457,15 @@ class Filenode(AsyncBrokenTestCase, testutil.ShouldFailMixin):
         def _make_contents(n):
             self.assertThat(n, IsInstance(MutableFileNode))
             key = n.get_writekey()
-            self.failUnless(isinstance(key, bytes), key)
-            self.failUnlessEqual(len(key), 16)
+            self.assertTrue(isinstance(key, bytes), key)
+            self.assertThat(key, HasLength(16))
             return MutableData(data)
         d = self.nodemaker.create_mutable_file(_make_contents,
                                                version=MDMF_VERSION)
         d.addCallback(lambda n:
             n.download_best_version())
         d.addCallback(lambda data2:
-            self.failUnlessEqual(data2, data))
+            self.assertThat(data2, Equals(data)))
         return d
 
 
@@ -485,7 +484,7 @@ class Filenode(AsyncBrokenTestCase, testutil.ShouldFailMixin):
         d = n.get_servermap(MODE_READ)
         d.addCallback(lambda servermap: servermap.best_recoverable_version())
         d.addCallback(lambda verinfo:
-                      self.failUnlessEqual(verinfo[0], expected_seqnum, which))
+                      self.assertThat(verinfo[0], Equals(expected_seqnum), which))
         return d
 
     def test_modify(self):
@@ -522,36 +521,36 @@ class Filenode(AsyncBrokenTestCase, testutil.ShouldFailMixin):
         def _created(n):
             d = n.modify(_modifier)
             d.addCallback(lambda res: n.download_best_version())
-            d.addCallback(lambda res: self.failUnlessEqual(res, b"line1line2"))
+            d.addCallback(lambda res: self.assertThat(res, Equals(b"line1line2")))
             d.addCallback(lambda res: self.failUnlessCurrentSeqnumIs(n, 2, "m"))
 
             d.addCallback(lambda res: n.modify(_non_modifier))
             d.addCallback(lambda res: n.download_best_version())
-            d.addCallback(lambda res: self.failUnlessEqual(res, b"line1line2"))
+            d.addCallback(lambda res: self.assertThat(res, Equals(b"line1line2")))
             d.addCallback(lambda res: self.failUnlessCurrentSeqnumIs(n, 2, "non"))
 
             d.addCallback(lambda res: n.modify(_none_modifier))
             d.addCallback(lambda res: n.download_best_version())
-            d.addCallback(lambda res: self.failUnlessEqual(res, b"line1line2"))
+            d.addCallback(lambda res: self.assertThat(res, Equals(b"line1line2")))
             d.addCallback(lambda res: self.failUnlessCurrentSeqnumIs(n, 2, "none"))
 
             d.addCallback(lambda res:
                           self.shouldFail(ValueError, "error_modifier", None,
                                           n.modify, _error_modifier))
             d.addCallback(lambda res: n.download_best_version())
-            d.addCallback(lambda res: self.failUnlessEqual(res, b"line1line2"))
+            d.addCallback(lambda res: self.assertThat(res, Equals(b"line1line2")))
             d.addCallback(lambda res: self.failUnlessCurrentSeqnumIs(n, 2, "err"))
 
 
             d.addCallback(lambda res: n.download_best_version())
-            d.addCallback(lambda res: self.failUnlessEqual(res, b"line1line2"))
+            d.addCallback(lambda res: self.assertThat(res, Equals(b"line1line2")))
             d.addCallback(lambda res: self.failUnlessCurrentSeqnumIs(n, 2, "big"))
 
             d.addCallback(lambda res: n.modify(_ucw_error_modifier))
-            d.addCallback(lambda res: self.failUnlessEqual(len(calls), 2))
+            d.addCallback(lambda res: self.assertThat(calls, HasLength(2)))
             d.addCallback(lambda res: n.download_best_version())
-            d.addCallback(lambda res: self.failUnlessEqual(res,
-                                                           b"line1line2line3"))
+            d.addCallback(lambda res: self.assertThat(res,
+                                                           Equals(b"line1line2line3")))
             d.addCallback(lambda res: self.failUnlessCurrentSeqnumIs(n, 3, "ucw"))
 
             def _reset_ucw_error_modifier(res):
@@ -566,10 +565,10 @@ class Filenode(AsyncBrokenTestCase, testutil.ShouldFailMixin):
             # will only be one larger than the previous test, not two (i.e. 4
             # instead of 5).
             d.addCallback(lambda res: n.modify(_ucw_error_non_modifier))
-            d.addCallback(lambda res: self.failUnlessEqual(len(calls), 2))
+            d.addCallback(lambda res: self.assertThat(calls, HasLength(2)))
             d.addCallback(lambda res: n.download_best_version())
-            d.addCallback(lambda res: self.failUnlessEqual(res,
-                                                           b"line1line2line3"))
+            d.addCallback(lambda res: self.assertThat(res,
+                                                           Equals(b"line1line2line3")))
             d.addCallback(lambda res: self.failUnlessCurrentSeqnumIs(n, 4, "ucw"))
             d.addCallback(lambda res: n.modify(_toobig_modifier))
             return d
@@ -605,7 +604,7 @@ class Filenode(AsyncBrokenTestCase, testutil.ShouldFailMixin):
         def _created(n):
             d = n.modify(_modifier)
             d.addCallback(lambda res: n.download_best_version())
-            d.addCallback(lambda res: self.failUnlessEqual(res, b"line1line2"))
+            d.addCallback(lambda res: self.assertThat(res, Equals(b"line1line2")))
             d.addCallback(lambda res: self.failUnlessCurrentSeqnumIs(n, 2, "m"))
 
             d.addCallback(lambda res:
@@ -614,7 +613,7 @@ class Filenode(AsyncBrokenTestCase, testutil.ShouldFailMixin):
                                           n.modify, _ucw_error_modifier,
                                           _backoff_stopper))
             d.addCallback(lambda res: n.download_best_version())
-            d.addCallback(lambda res: self.failUnlessEqual(res, b"line1line2"))
+            d.addCallback(lambda res: self.assertThat(res, Equals(b"line1line2")))
             d.addCallback(lambda res: self.failUnlessCurrentSeqnumIs(n, 2, "stop"))
 
             def _reset_ucw_error_modifier(res):
@@ -624,8 +623,8 @@ class Filenode(AsyncBrokenTestCase, testutil.ShouldFailMixin):
             d.addCallback(lambda res: n.modify(_ucw_error_modifier,
                                                _backoff_pauser))
             d.addCallback(lambda res: n.download_best_version())
-            d.addCallback(lambda res: self.failUnlessEqual(res,
-                                                           b"line1line2line3"))
+            d.addCallback(lambda res: self.assertThat(res,
+                                                           Equals(b"line1line2line3")))
             d.addCallback(lambda res: self.failUnlessCurrentSeqnumIs(n, 3, "pause"))
 
             d.addCallback(lambda res:
@@ -634,8 +633,8 @@ class Filenode(AsyncBrokenTestCase, testutil.ShouldFailMixin):
                                           n.modify, _always_ucw_error_modifier,
                                           giveuper.delay))
             d.addCallback(lambda res: n.download_best_version())
-            d.addCallback(lambda res: self.failUnlessEqual(res,
-                                                           b"line1line2line3"))
+            d.addCallback(lambda res: self.assertThat(res,
+                                                          Equals(b"line1line2line3")))
             d.addCallback(lambda res: self.failUnlessCurrentSeqnumIs(n, 3, "giveup"))
 
             return d
@@ -650,23 +649,23 @@ class Filenode(AsyncBrokenTestCase, testutil.ShouldFailMixin):
             d.addCallback(lambda res: n.get_servermap(MODE_READ))
             d.addCallback(lambda smap: smap.dump(StringIO()))
             d.addCallback(lambda sio:
-                          self.failUnless("3-of-10" in sio.getvalue()))
+                          self.assertTrue("3-of-10" in sio.getvalue()))
             d.addCallback(lambda res: n.overwrite(MutableData(b"contents 1")))
             d.addCallback(lambda res: self.assertThat(res, Is(None)))
             d.addCallback(lambda res: n.download_best_version())
-            d.addCallback(lambda res: self.failUnlessEqual(res, b"contents 1"))
+            d.addCallback(lambda res: self.assertThat(res, Equals(b"contents 1")))
             d.addCallback(lambda res: n.overwrite(MutableData(b"contents 2")))
             d.addCallback(lambda res: n.download_best_version())
-            d.addCallback(lambda res: self.failUnlessEqual(res, b"contents 2"))
+            d.addCallback(lambda res: self.assertThat(res, Equals(b"contents 2")))
             d.addCallback(lambda res: n.get_servermap(MODE_WRITE))
             d.addCallback(lambda smap: n.upload(MutableData(b"contents 3"), smap))
             d.addCallback(lambda res: n.download_best_version())
-            d.addCallback(lambda res: self.failUnlessEqual(res, b"contents 3"))
+            d.addCallback(lambda res: self.assertThat(res, Equals(b"contents 3")))
             d.addCallback(lambda res: n.get_servermap(MODE_ANYTHING))
             d.addCallback(lambda smap:
                           n.download_version(smap,
                                              smap.best_recoverable_version()))
-            d.addCallback(lambda res: self.failUnlessEqual(res, b"contents 3"))
+            d.addCallback(lambda res: self.assertThat(res, Equals(b"contents 3")))
             return d
         d.addCallback(_created)
         return d
@@ -682,14 +681,14 @@ class Filenode(AsyncBrokenTestCase, testutil.ShouldFailMixin):
             return n.get_servermap(MODE_READ)
         d.addCallback(_created)
         d.addCallback(lambda ignored:
-            self.failUnlessEqual(self.n.get_size(), 0))
+            self.assertThat(self.n.get_size(), Equals(0)))
         d.addCallback(lambda ignored:
             self.n.overwrite(MutableData(b"foobarbaz")))
         d.addCallback(lambda ignored:
-            self.failUnlessEqual(self.n.get_size(), 9))
+            self.assertThat(self.n.get_size(), Equals(9)))
         d.addCallback(lambda ignored:
             self.nodemaker.create_mutable_file(MutableData(b"foobarbaz")))
         d.addCallback(_created)
         d.addCallback(lambda ignored:
-            self.failUnlessEqual(self.n.get_size(), 9))
+            self.assertThat(self.n.get_size(), Equals(9)))
         return d
