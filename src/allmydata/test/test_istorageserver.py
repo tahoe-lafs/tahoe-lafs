@@ -300,7 +300,7 @@ class IStorageServerImmutableAPIsTestsMixin(object):
             canary=Referenceable(),
         )
 
-        total_data = _randbytes(256) * 17
+        total_data = _randbytes(256 * 17)
         yield allocated[0].callRemote("write", 0, total_data)
         yield allocated[0].callRemote("close")
 
