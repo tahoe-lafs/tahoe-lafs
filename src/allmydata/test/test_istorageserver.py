@@ -249,9 +249,10 @@ class IStorageServerImmutableAPIsTestsMixin(object):
         )
 
     @inlineCallbacks
-    def test_overlapping_writes(self):
+    def test_non_matching_overlapping_writes(self):
         """
-        Overlapping, non-identical writes in immutable uploads fail.
+        When doing overlapping writes in immutable uploads, non-matching writes
+        fail.
         """
         storage_index, renew_secret, cancel_secret = (
             new_storage_index(),
@@ -267,12 +268,40 @@ class IStorageServerImmutableAPIsTestsMixin(object):
             canary=Referenceable(),
         )
 
-        yield allocated[0].callRemote("write", 0, b"1" * 10)
-        # Overlapping write that matches:
-        yield allocated[0].callRemote("write", 5, b"1" * 20)
+        yield allocated[0].callRemote("write", 0, b"1" * 25)
         # Overlapping write that doesn't match:
         with self.assertRaises(RemoteException):
             yield allocated[0].callRemote("write", 20, b"2" * 10)
+
+    @inlineCallbacks
+    def test_matching_overlapping_writes(self):
+        """
+        When doing overlapping writes in immutable uploads, matching writes
+        succeed.
+        """
+        storage_index, renew_secret, cancel_secret = (
+            new_storage_index(),
+            new_secret(),
+            new_secret(),
+        )
+        (_, allocated) = yield self.storage_server.allocate_buckets(
+            storage_index,
+            renew_secret,
+            cancel_secret,
+            sharenums={0},
+            allocated_size=25,
+            canary=Referenceable(),
+        )
+
+        yield allocated[0].callRemote("write", 0, b"1" * 10)
+        # Overlapping write that matches:
+        yield allocated[0].callRemote("write", 5, b"1" * 20)
+        yield allocated[0].callRemote("close")
+
+        buckets = yield self.storage_server.get_buckets(storage_index)
+        self.assertEqual(set(buckets.keys()), {0})
+
+        self.assertEqual((yield buckets[0].callRemote("read", 0, 25)), b"1" * 25)
 
 
 class _FoolscapMixin(SystemTestMixin):
