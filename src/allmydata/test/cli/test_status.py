@@ -12,7 +12,6 @@ if PY2:
 from six import ensure_text
 
 import os
-import mock
 import tempfile
 from io import BytesIO, StringIO
 from os.path import join
@@ -22,8 +21,8 @@ from twisted.internet import defer
 
 from allmydata.mutable.publish import MutableData
 from allmydata.scripts.common_http import BadResponse
-from allmydata.scripts.tahoe_status import _get_json_for_fragment
-from allmydata.scripts.tahoe_status import _get_json_for_cap
+from allmydata.scripts.tahoe_status import _handle_response_for_fragment
+from allmydata.scripts.tahoe_status import _get_request_parameters_for_fragment
 from allmydata.scripts.tahoe_status import pretty_progress
 from allmydata.scripts.tahoe_status import do_status
 from allmydata.web.status import marshal_json
@@ -140,17 +139,12 @@ class CommandStatus(unittest.TestCase):
     """
     These tests just exercise the renderers and ensure they don't
     catastrophically fail.
-
-    They could be enhanced to look for "some" magic strings in the
-    results and assert they're in the output.
     """
 
     def setUp(self):
         self.options = _FakeOptions()
 
-    @mock.patch('allmydata.scripts.tahoe_status.do_http')
-    @mock.patch('sys.stdout', StringIO())
-    def test_no_operations(self, http):
+    def test_no_operations(self):
         values = [
             StringIO(ensure_text(json.dumps({
                 "active": [],
@@ -165,12 +159,11 @@ class CommandStatus(unittest.TestCase):
                 }
             }))),
         ]
-        http.side_effect = lambda *args, **kw: values.pop(0)
-        do_status(self.options)
+        def do_http(*args, **kw):
+            return values.pop(0)
+        do_status(self.options, do_http)
 
-    @mock.patch('allmydata.scripts.tahoe_status.do_http')
-    @mock.patch('sys.stdout', StringIO())
-    def test_simple(self, http):
+    def test_simple(self):
         recent_items = active_items = [
             UploadStatus(),
             DownloadStatus(b"abcd", 12345),
@@ -201,80 +194,72 @@ class CommandStatus(unittest.TestCase):
                 }
             }).encode("utf-8")),
         ]
-        http.side_effect = lambda *args, **kw: values.pop(0)
-        do_status(self.options)
+        def do_http(*args, **kw):
+            return values.pop(0)
+        do_status(self.options, do_http)
 
-    @mock.patch('allmydata.scripts.tahoe_status.do_http')
-    def test_fetch_error(self, http):
-
-        def boom(*args, **kw):
+    def test_fetch_error(self):
+        def do_http(*args, **kw):
             raise RuntimeError("boom")
-        http.side_effect = boom
-        do_status(self.options)
+        do_status(self.options, do_http)
 
 
 class JsonHelpers(unittest.TestCase):
 
-    @mock.patch('allmydata.scripts.tahoe_status.do_http')
-    def test_bad_response(self, http):
-        http.return_value = BadResponse('the url', 'some err')
+    def test_bad_response(self):
+        def do_http(*args, **kw):
+            return
         with self.assertRaises(RuntimeError) as ctx:
-            _get_json_for_fragment({'node-url': 'http://localhost:1234'}, '/fragment')
-        self.assertTrue(
-            "Failed to get" in str(ctx.exception)
+            _handle_response_for_fragment(
+                BadResponse('the url', 'some err'),
+                'http://localhost:1234',
+            )
+        self.assertIn(
+            "Failed to get",
+            str(ctx.exception),
         )
 
-    @mock.patch('allmydata.scripts.tahoe_status.do_http')
-    def test_happy_path(self, http):
-        http.return_value = StringIO('{"some": "json"}')
-        resp = _get_json_for_fragment({'node-url': 'http://localhost:1234/'}, '/fragment/')
-        self.assertEqual(resp, dict(some='json'))
-
-    @mock.patch('allmydata.scripts.tahoe_status.do_http')
-    def test_happy_path_post(self, http):
-        http.return_value = StringIO('{"some": "json"}')
-        resp = _get_json_for_fragment(
-            {'node-url': 'http://localhost:1234/'},
-            '/fragment/',
-            method='POST',
-            post_args={'foo': 'bar'}
+    def test_happy_path(self):
+        resp = _handle_response_for_fragment(
+            StringIO('{"some": "json"}'),
+            'http://localhost:1234/',
         )
         self.assertEqual(resp, dict(some='json'))
 
-    @mock.patch('allmydata.scripts.tahoe_status.do_http')
-    def test_happy_path_for_cap(self, http):
-        http.return_value = StringIO('{"some": "json"}')
-        resp = _get_json_for_cap({'node-url': 'http://localhost:1234'}, 'fake cap')
+    def test_happy_path_post(self):
+        resp = _handle_response_for_fragment(
+            StringIO('{"some": "json"}'),
+            'http://localhost:1234/',
+        )
         self.assertEqual(resp, dict(some='json'))
 
-    @mock.patch('allmydata.scripts.tahoe_status.do_http')
-    def test_no_data_returned(self, http):
-        http.return_value = StringIO('null')
-
+    def test_no_data_returned(self):
         with self.assertRaises(RuntimeError) as ctx:
-            _get_json_for_cap({'node-url': 'http://localhost:1234'}, 'fake cap')
-        self.assertTrue('No data from' in str(ctx.exception))
+            _handle_response_for_fragment(StringIO('null'), 'http://localhost:1234')
+        self.assertIn('No data from', str(ctx.exception))
 
     def test_no_post_args(self):
         with self.assertRaises(ValueError) as ctx:
-            _get_json_for_fragment(
+            _get_request_parameters_for_fragment(
                 {'node-url': 'http://localhost:1234'},
                 '/fragment',
                 method='POST',
                 post_args=None,
             )
-        self.assertTrue(
-            "Must pass post_args" in str(ctx.exception)
+        self.assertIn(
+            "Must pass post_args",
+            str(ctx.exception),
         )
 
     def test_post_args_for_get(self):
         with self.assertRaises(ValueError) as ctx:
-            _get_json_for_fragment(
+            _get_request_parameters_for_fragment(
                 {'node-url': 'http://localhost:1234'},
                 '/fragment',
                 method='GET',
                 post_args={'foo': 'bar'}
             )
-        self.assertTrue(
-            "only valid for POST" in str(ctx.exception)
+        self.assertIn(
+            "only valid for POST",
+            str(ctx.exception),
         )
