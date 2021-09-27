@@ -625,6 +625,9 @@ For example::
       }
   }
 
+A test vector or read vector that read beyond the boundaries of existing data will return nothing for any bytes past the end.
+As a result, if there is no data at all, an empty bytestring is returned no matter what the offset or length.
+
 Reading
 ~~~~~~~
 
