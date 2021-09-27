@@ -499,6 +499,18 @@ The server must recognize when all of the data has been received and mark the sh
 (which it can do because it was informed of the size when the storage index was initialized).
 
 * When a chunk that does not complete the share is successfully uploaded the response is ``OK``.
+  The response body indicates the range of share data that has yet to be uploaded.
+  That is::
+
+    { "required":
+      [ { "begin": <byte position, inclusive>
+        , "end":   <byte position, exclusive>
+        }
+      ,
+      ...
+      ]
+    }
+
 * When the chunk that completes the share is successfully uploaded the response is ``CREATED``.
 * If the *Content-Range* for a request covers part of the share that has already,
   and the data does not match already written data,
