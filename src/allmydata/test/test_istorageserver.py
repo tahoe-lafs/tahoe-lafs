@@ -255,6 +255,94 @@ class IStorageServerImmutableAPIsTestsMixin(object):
         https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3801
         """
 
+    @inlineCallbacks
+    def test_get_buckets_skips_unfinished_buckets(self):
+        """
+        Buckets that are not fully written are not returned by
+        ``IStorageServer.get_buckets()`` implementations.
+        """
+        storage_index = new_storage_index()
+        (_, allocated) = yield self.storage_server.allocate_buckets(
+            storage_index,
+            renew_secret=new_secret(),
+            cancel_secret=new_secret(),
+            sharenums=set(range(5)),
+            allocated_size=10,
+            canary=Referenceable(),
+        )
+
+        # Bucket 1 is fully written
+        yield allocated[1].callRemote("write", 0, b"1" * 10)
+        yield allocated[1].callRemote("close")
+
+        # Bucket 2 is partially written
+        yield allocated[2].callRemote("write", 0, b"1" * 5)
+
+        buckets = yield self.storage_server.get_buckets(storage_index)
+        self.assertEqual(set(buckets.keys()), {1})
+
+    @inlineCallbacks
+    def test_read_bucket_at_offset(self):
+        """
+        Given a read bucket returned from ``IStorageServer.get_buckets()``, it
+        is possible to read at different offsets and lengths, with reads past
+        the end resulting in empty bytes.
+        """
+        length = 256 * 17
+
+        storage_index = new_storage_index()
+        (_, allocated) = yield self.storage_server.allocate_buckets(
+            storage_index,
+            renew_secret=new_secret(),
+            cancel_secret=new_secret(),
+            sharenums=set(range(1)),
+            allocated_size=length,
+            canary=Referenceable(),
+        )
+
+        total_data = _randbytes(256 * 17)
+        yield allocated[0].callRemote("write", 0, total_data)
+        yield allocated[0].callRemote("close")
+
+        buckets = yield self.storage_server.get_buckets(storage_index)
+        bucket = buckets[0]
+        for start, to_read in [
+            (0, 250),  # fraction
+            (0, length),  # whole thing
+            (100, 1024),  # offset fraction
+            (length + 1, 100),  # completely out of bounds
+            (length - 100, 200),  # partially out of bounds
+        ]:
+            data = yield bucket.callRemote("read", start, to_read)
+            self.assertEqual(
+                data,
+                total_data[start : start + to_read],
+                "Didn't match for start {}, length {}".format(start, to_read),
+            )
+
+    @inlineCallbacks
+    def test_bucket_advise_corrupt_share(self):
+        """
+        Calling ``advise_corrupt_share()`` on a bucket returned by
+        ``IStorageServer.get_buckets()`` does not result in error (other
+        behavior is opaque at this level of abstraction).
+        """
+        storage_index = new_storage_index()
+        (_, allocated) = yield self.storage_server.allocate_buckets(
+            storage_index,
+            renew_secret=new_secret(),
+            cancel_secret=new_secret(),
+            sharenums=set(range(1)),
+            allocated_size=10,
+            canary=Referenceable(),
+        )
+
+        yield allocated[0].callRemote("write", 0, b"0123456789")
+        yield allocated[0].callRemote("close")
+
+        buckets = yield self.storage_server.get_buckets(storage_index)
+        yield buckets[0].callRemote("advise_corrupt_share", b"OH NO")
+
 
 class _FoolscapMixin(SystemTestMixin):
     """Run tests on Foolscap version of ``IStorageServer."""
