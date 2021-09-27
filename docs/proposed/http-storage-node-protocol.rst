@@ -600,7 +600,6 @@ For example::
                "test": [{
                    "offset": 3,
                    "size": 5,
-                   "operator": "eq",
                    "specimen": "hello"
                }, ...],
                "write": [{
@@ -625,6 +624,9 @@ For example::
           ...
       }
   }
+
+A test vector or read vector that read beyond the boundaries of existing data will return nothing for any bytes past the end.
+As a result, if there is no data at all, an empty bytestring is returned no matter what the offset or length.
 
 Reading
 ~~~~~~~
@@ -701,7 +703,10 @@ Immutable Data
 Mutable Data
 ~~~~~~~~~~~~
 
-1. Create mutable share number ``3`` with ``10`` bytes of data in slot ``BBBBBBBBBBBBBBBB``::
+1. Create mutable share number ``3`` with ``10`` bytes of data in slot ``BBBBBBBBBBBBBBBB``.
+The special test vector of size 1 but empty bytes will only pass
+if there is no existing share,
+otherwise it will read a byte which won't match `b""`::
 
      POST /v1/mutable/BBBBBBBBBBBBBBBB/read-test-write
      {
@@ -715,7 +720,6 @@ Mutable Data
                  "test": [{
                      "offset": 0,
                      "size": 1,
-                     "operator": "eq",
                      "specimen": ""
                  }],
                  "write": [{
@@ -747,8 +751,7 @@ Mutable Data
              3: {
                  "test": [{
                      "offset": 0,
-                     "size": <checkstring size>,
-                     "operator": "eq",
+                     "size": <length of checkstring>,
                      "specimen": "<checkstring>"
                  }],
                  "write": [{
