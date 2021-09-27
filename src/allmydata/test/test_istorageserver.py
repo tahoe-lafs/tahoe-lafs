@@ -458,7 +458,7 @@ class IStorageServerMutableAPIsTestsMixin(object):
             secrets,
             tw_vectors={
                 0: (
-                    [(0, 3, b"eq", b"1" * 3), (3, 4, b"eq", b"1" * 4)],
+                    [(0, 3, b"1" * 3), (3, 4, b"1" * 4)],
                     [(0, b"2" * 7)],
                     7,
                 ),
@@ -479,7 +479,7 @@ class IStorageServerMutableAPIsTestsMixin(object):
             storage_index,
             secrets,
             tw_vectors={
-                0: ([(0, 7, b"eq", b"1" * 7)], [(0, b"3" * 7)], 7),
+                0: ([(0, 7, b"1" * 7)], [(0, b"3" * 7)], 7),
             },
             r_vector=[],
         )
