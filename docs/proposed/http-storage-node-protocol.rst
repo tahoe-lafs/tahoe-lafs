@@ -506,7 +506,7 @@ The server must recognize when all of the data has been received and mark the sh
   At this point the only thing to do is abort the upload and start from scratch (see below).
 
 ``PUT /v1/immutable/:storage_index/:share_number/abort``
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 This cancels an *in-progress* upload.
 
