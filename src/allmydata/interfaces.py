@@ -91,9 +91,9 @@ class RIBucketReader(RemoteInterface):
 
 TestVector = ListOf(TupleOf(Offset, ReadSize, bytes, bytes))
 # elements are (offset, length, operator, specimen)
-# operator is one of "lt, le, eq, ne, ge, gt"
-# nop always passes and is used to fetch data while writing.
-# you should use length==len(specimen) for everything except nop
+# operator must be b"eq", typically length==len(specimen), but one can ensure
+# writes don't happen to empty shares by setting length to 1 and specimen to
+# b"". The operator is still used for wire compatibility with old versions.
 DataVector = ListOf(TupleOf(Offset, ShareData))
 # (offset, data). This limits us to 30 writes of 1MiB each per call
 TestAndWriteVectorsForShares = DictOf(int,
@@ -351,6 +351,12 @@ class IStorageServer(Interface):
     ):
         """
         :see: ``RIStorageServer.slot_testv_readv_and_writev``
+
+        While the interface mostly matches, test vectors are simplified.
+        Instead of a tuple ``(offset, read_size, operator, expected_data)`` in
+        the original, for this method you need only pass in
+        ``(offset, read_size, expected_data)``, with the operator implicitly
+        being ``b"eq"``.
         """
 
     def advise_corrupt_share(
