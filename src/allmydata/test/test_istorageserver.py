@@ -568,7 +568,12 @@ class IStorageServerMutableAPIsTestsMixin(object):
         )
         self.assertEqual(reads, {})
 
+    # TODO detection of empty/missing shares with length 1 reads that expect
+    # empty bytestring.
 
+    # TODO what else?
+
+    
 class _FoolscapMixin(SystemTestMixin):
     """Run tests on Foolscap version of ``IStorageServer."""
 
