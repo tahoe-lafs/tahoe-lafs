@@ -482,7 +482,7 @@ The response includes ``already-have`` and ``allocated`` for two reasons:
   This might be because a server has become unavailable and a remaining server needs to store more shares for the upload.
   It could also just be that the client's preferred servers have changed.
 
-``PUT /v1/immutable/:storage_index/:share_number``
+``PATCH /v1/immutable/:storage_index/:share_number``
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 Write data for the indicated share.
@@ -668,19 +668,19 @@ Immutable Data
 
 #. Upload the content for immutable share ``7``::
 
-     PUT /v1/immutable/AAAAAAAAAAAAAAAA/7
+     PATCH /v1/immutable/AAAAAAAAAAAAAAAA/7
      Content-Range: bytes 0-15/48
      <first 16 bytes of share data>
 
      200 OK
 
-     PUT /v1/immutable/AAAAAAAAAAAAAAAA/7
+     PATCH /v1/immutable/AAAAAAAAAAAAAAAA/7
      Content-Range: bytes 16-31/48
      <second 16 bytes of share data>
 
      200 OK
 
-     PUT /v1/immutable/AAAAAAAAAAAAAAAA/7
+     PATCH /v1/immutable/AAAAAAAAAAAAAAAA/7
      Content-Range: bytes 32-47/48
      <final 16 bytes of share data>
 
