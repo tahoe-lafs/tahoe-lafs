@@ -352,6 +352,7 @@ class IStorageServerMutableAPIsTestsMixin(object):
 
     ``STARAW`` is short for ``slot_testv_and_readv_and_writev``.
     """
+
     def new_secrets(self):
         """Return a 3-tuple of secrets for STARAW calls."""
         return (new_secret(), new_secret(), new_secret())
@@ -434,7 +435,7 @@ class IStorageServerMutableAPIsTestsMixin(object):
         self.assertEqual(reads, {0: [b"X" * 7]})
 
     @inlineCallbacks
-    def test_SATRAW_writen_happens_only_if_test_matches(self):
+    def test_SATRAW_writes_happens_only_if_test_matches(self):
         """
         If a ``IStorageServer.slot_testv_and_readv_and_writev`` includes both a
         test and a write, the write succeeds if the test matches, and fails if
@@ -491,6 +492,69 @@ class IStorageServerMutableAPIsTestsMixin(object):
             r_vector=[(0, 7)],
         )
         self.assertEqual(reads, {0: [b"2" * 7]})
+
+    @inlineCallbacks
+    def test_SATRAW_tests_past_end_of_data(self):
+        """
+        If a ``IStorageServer.slot_testv_and_readv_and_writev`` includes a test
+        vector that reads past the end of the data, the result is limited to
+        actual available data.
+        """
+        secrets = self.new_secrets()
+        storage_index = new_storage_index()
+
+        # Since there is no data on server, the test vector will return empty
+        # string, which matches expected result, so write will succeed.
+        (written, _) = yield self.staraw(
+            storage_index,
+            secrets,
+            tw_vectors={
+                0: ([(0, 10, b"")], [(0, b"1" * 7)], 7),
+            },
+            r_vector=[],
+        )
+        self.assertEqual(written, True)
+
+        # Now the test vector is a 10-read off of a 7-byte value, but expected
+        # value is still 7 bytes, so the write will again succeed.
+        (written, _) = yield self.staraw(
+            storage_index,
+            secrets,
+            tw_vectors={
+                0: ([(0, 10, b"1" * 7)], [(0, b"2" * 7)], 7),
+            },
+            r_vector=[],
+        )
+        self.assertEqual(written, True)
+
+    @inlineCallbacks
+    def test_SATRAW_reads_past_end_of_data(self):
+        """
+        If a ``IStorageServer.slot_testv_and_readv_and_writev`` reads past the
+        end of the data, the result is limited to actual available data.
+        """
+        secrets = self.new_secrets()
+        storage_index = new_storage_index()
+
+        # Write some data
+        (written, _) = yield self.staraw(
+            storage_index,
+            secrets,
+            tw_vectors={
+                0: ([], [(0, b"12345")], 5),
+            },
+            r_vector=[],
+        )
+        self.assertEqual(written, True)
+
+        # Reads past end.
+        (_, reads) = yield self.staraw(
+            storage_index,
+            secrets,
+            tw_vectors={},
+            r_vector=[(0, 100), (2, 50)],
+        )
+        self.assertEqual(reads, {0: [b"12345", b"345"]})
 
     @inlineCallbacks
     def test_STARAW_write_enabler_must_match(self):
@@ -568,12 +632,7 @@ class IStorageServerMutableAPIsTestsMixin(object):
         )
         self.assertEqual(reads, {})
 
-    # TODO detection of empty/missing shares with length 1 reads that expect
-    # empty bytestring.
 
-    # TODO what else?
-
-    
 class _FoolscapMixin(SystemTestMixin):
     """Run tests on Foolscap version of ``IStorageServer."""
 
