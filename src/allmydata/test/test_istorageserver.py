@@ -20,9 +20,9 @@ if PY2:
 
 from random import Random
 
-from testtools import skipIf
-
 from twisted.internet.defer import inlineCallbacks
+from twisted.internet import reactor
+from twisted.internet.task import deferLater
 
 from foolscap.api import Referenceable, RemoteException
 
@@ -77,6 +77,10 @@ class IStorageServerImmutableAPIsTestsMixin(object):
     Tests for ``IStorageServer``'s immutable APIs.
 
     ``self.storage_server`` is expected to provide ``IStorageServer``.
+
+    ``self.disconnect()`` should disconnect and then reconnect, creating a new
+    ``self.storage_server``.  Some implementations may wish to skip tests using
+    this; HTTP has no notion of disconnection.
     """
 
     @inlineCallbacks
@@ -100,7 +104,7 @@ class IStorageServerImmutableAPIsTestsMixin(object):
     @inlineCallbacks
     def test_allocate_buckets_repeat(self):
         """
-        allocate_buckets() with the same storage index does not return
+        ``IStorageServer.allocate_buckets()`` with the same storage index does not return
         work-in-progress buckets, but will add any newly added buckets.
         """
         storage_index, renew_secret, cancel_secret = (
@@ -126,6 +130,45 @@ class IStorageServerImmutableAPIsTestsMixin(object):
         )
         self.assertEqual(already_got, already_got2)
         self.assertEqual(set(allocated2.keys()), {4})
+
+    @inlineCallbacks
+    def test_disconnection(self):
+        """
+        If we disconnect in the middle of writing to a bucket, all data is
+        wiped, and it's even possible to write different data to the bucket
+        (don't do that though, mostly it's just a good way to test that the
+        data really was wiped).
+        """
+        storage_index, renew_secret, cancel_secret = (
+            new_storage_index(),
+            new_secret(),
+            new_secret(),
+        )
+        (_, allocated) = yield self.storage_server.allocate_buckets(
+            storage_index,
+            renew_secret,
+            cancel_secret,
+            sharenums={0},
+            allocated_size=1024,
+            canary=Referenceable(),
+        )
+
+        # Bucket 1 is fully written in one go.
+        yield allocated[0].callRemote("write", 0, b"1" * 1024)
+
+        # Disconnect:
+        yield self.disconnect()
+
+        # Write different data with no complaint:
+        (_, allocated) = yield self.storage_server.allocate_buckets(
+            storage_index,
+            renew_secret,
+            cancel_secret,
+            sharenums={0},
+            allocated_size=1024,
+            canary=Referenceable(),
+        )
+        yield allocated[0].callRemote("write", 0, b"2" * 1024)
 
     @inlineCallbacks
     def test_written_shares_are_allocated(self):
@@ -359,21 +402,41 @@ class IStorageServerImmutableAPIsTestsMixin(object):
 class _FoolscapMixin(SystemTestMixin):
     """Run tests on Foolscap version of ``IStorageServer."""
 
+    def _get_native_server(self):
+        return next(iter(self.clients[0].storage_broker.get_known_servers()))
+
     @inlineCallbacks
     def setUp(self):
         AsyncTestCase.setUp(self)
         self.basedir = "test_istorageserver/" + self.id()
         yield SystemTestMixin.setUp(self)
         yield self.set_up_nodes(1)
-        self.storage_server = next(
-            iter(self.clients[0].storage_broker.get_known_servers())
-        ).get_storage_server()
+        self.storage_server = self._get_native_server().get_storage_server()
         self.assertTrue(IStorageServer.providedBy(self.storage_server))
 
     @inlineCallbacks
     def tearDown(self):
         AsyncTestCase.tearDown(self)
         yield SystemTestMixin.tearDown(self)
+
+    @inlineCallbacks
+    def disconnect(self):
+        """
+        Disconnect and then reconnect with a new ``IStorageServer``.
+        """
+        current = self.storage_server
+        self._get_native_server()._rref.tracker.broker.transport.loseConnection()
+        for i in range(100000):
+            yield deferLater(reactor, 0.001)
+            import pdb
+
+            pdb.set_trace()
+            new = self._get_native_server().get_storage_server()
+            if new is not None and new is not current:
+                self.storage_server = new
+                return
+
+        raise RuntimeError("Failed to reconnect")
 
 
 class FoolscapSharedAPIsTests(
