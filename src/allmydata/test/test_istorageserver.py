@@ -98,13 +98,10 @@ class IStorageServerImmutableAPIsTestsMixin(object):
         # We validate the bucket objects' interface in a later test.
 
     @inlineCallbacks
-    @skipIf(True, "https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3793")
     def test_allocate_buckets_repeat(self):
         """
-        allocate_buckets() with the same storage index returns the same result,
-        because the shares have not been written to.
-
-        This fails due to https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3793
+        allocate_buckets() with the same storage index does not return
+        work-in-progress buckets, but will add any newly added buckets.
         """
         storage_index, renew_secret, cancel_secret = (
             new_storage_index(),
@@ -115,7 +112,7 @@ class IStorageServerImmutableAPIsTestsMixin(object):
             storage_index,
             renew_secret,
             cancel_secret,
-            sharenums=set(range(5)),
+            sharenums=set(range(4)),
             allocated_size=1024,
             canary=Referenceable(),
         )
@@ -128,40 +125,7 @@ class IStorageServerImmutableAPIsTestsMixin(object):
             Referenceable(),
         )
         self.assertEqual(already_got, already_got2)
-        self.assertEqual(set(allocated.keys()), set(allocated2.keys()))
-
-    @skipIf(True, "https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3793")
-    @inlineCallbacks
-    def test_allocate_buckets_more_sharenums(self):
-        """
-        allocate_buckets() with the same storage index but more sharenums
-        acknowledges the extra shares don't exist.
-
-        Fails due to https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3793
-        """
-        storage_index, renew_secret, cancel_secret = (
-            new_storage_index(),
-            new_secret(),
-            new_secret(),
-        )
-        yield self.storage_server.allocate_buckets(
-            storage_index,
-            renew_secret,
-            cancel_secret,
-            sharenums=set(range(5)),
-            allocated_size=1024,
-            canary=Referenceable(),
-        )
-        (already_got2, allocated2) = yield self.storage_server.allocate_buckets(
-            storage_index,
-            renew_secret,
-            cancel_secret,
-            sharenums=set(range(7)),
-            allocated_size=1024,
-            canary=Referenceable(),
-        )
-        self.assertEqual(already_got2, set())  # none were fully written
-        self.assertEqual(set(allocated2.keys()), set(range(7)))
+        self.assertEqual(set(allocated2.keys()), {4})
 
     @inlineCallbacks
     def test_written_shares_are_allocated(self):
