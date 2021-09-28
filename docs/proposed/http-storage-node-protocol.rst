@@ -483,7 +483,7 @@ The response includes ``already-have`` and ``allocated`` for two reasons:
   It could also just be that the client's preferred servers have changed.
 
 ``PATCH /v1/immutable/:storage_index/:share_number``
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 Write data for the indicated share.
 The share number must belong to the storage index.
