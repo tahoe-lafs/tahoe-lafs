@@ -121,7 +121,7 @@ class TestStreamingLogs(AsyncTestCase):
 
         self.assertThat(len(messages), Equals(3))
         self.assertThat(messages[0]["action_type"], Equals("test:cli:some-exciting-action"))
-        self.assertThat(messages[0]["arguments"],
+        self.assertThat(messages[0]["kwargs"]["arguments"],
                          Equals(["hello", "good-\\xff-day", 123, {"a": 35}, [None]]))
         self.assertThat(messages[1]["action_type"], Equals("test:cli:some-exciting-action"))
         self.assertThat("started", Equals(messages[0]["action_status"]))
