@@ -8,7 +8,7 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
-from future.utils import native_str, PY2, bytes_to_native_str
+from future.utils import native_str, PY2, bytes_to_native_str, bchr
 if PY2:
     from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 from six import ensure_str
@@ -20,11 +20,14 @@ import stat
 import struct
 import shutil
 import gc
+from uuid import uuid4
 
 from twisted.trial import unittest
 
 from twisted.internet import defer
 from twisted.internet.task import Clock
+
+from hypothesis import given, strategies
 
 import itertools
 from allmydata import interfaces
@@ -33,7 +36,7 @@ from allmydata.storage.server import StorageServer, DEFAULT_RENEWAL_TIME
 from allmydata.storage.shares import get_share_file
 from allmydata.storage.mutable import MutableShareFile
 from allmydata.storage.immutable import BucketWriter, BucketReader, ShareFile
-from allmydata.storage.common import DataTooLargeError, storage_index_to_dir, \
+from allmydata.storage.common import storage_index_to_dir, \
      UnknownMutableContainerVersionError, UnknownImmutableContainerVersionError, \
      si_b2a, si_a2b
 from allmydata.storage.lease import LeaseInfo
@@ -47,7 +50,9 @@ from allmydata.mutable.layout import MDMFSlotWriteProxy, MDMFSlotReadProxy, \
                                      SIGNATURE_SIZE, \
                                      VERIFICATION_KEY_SIZE, \
                                      SHARE_HASH_CHAIN_SIZE
-from allmydata.interfaces import BadWriteEnablerError
+from allmydata.interfaces import (
+    BadWriteEnablerError, DataTooLargeError, ConflictingWriteError,
+)
 from allmydata.test.no_network import NoNetworkServer
 from allmydata.storage_client import (
     _StorageServer,
@@ -146,6 +151,91 @@ class Bucket(unittest.TestCase):
         self.failUnlessEqual(br.remote_read(0, 25), b"a"*25)
         self.failUnlessEqual(br.remote_read(25, 25), b"b"*25)
         self.failUnlessEqual(br.remote_read(50, 7), b"c"*7)
+
+    def test_write_past_size_errors(self):
+        """Writing beyond the size of the bucket throws an exception."""
+        for (i, (offset, length)) in enumerate([(0, 201), (10, 191), (202, 34)]):
+            incoming, final = self.make_workdir(
+                "test_write_past_size_errors-{}".format(i)
+            )
+            bw = BucketWriter(self, incoming, final, 200, self.make_lease(),
+                              FakeCanary())
+            with self.assertRaises(DataTooLargeError):
+                bw.remote_write(offset, b"a" * length)
+
+    @given(
+        maybe_overlapping_offset=strategies.integers(min_value=0, max_value=98),
+        maybe_overlapping_length=strategies.integers(min_value=1, max_value=100),
+    )
+    def test_overlapping_writes_ok_if_matching(
+            self, maybe_overlapping_offset, maybe_overlapping_length
+    ):
+        """
+        Writes that overlap with previous writes are OK when the content is the
+        same.
+        """
+        length = 100
+        expected_data = b"".join(bchr(i) for i in range(100))
+        incoming, final = self.make_workdir("overlapping_writes_{}".format(uuid4()))
+        bw = BucketWriter(
+            self, incoming, final, length, self.make_lease(),
+            FakeCanary()
+        )
+        # Three writes: 10-19, 30-39, 50-59. This allows for a bunch of holes.
+        bw.remote_write(10, expected_data[10:20])
+        bw.remote_write(30, expected_data[30:40])
+        bw.remote_write(50, expected_data[50:60])
+        # Then, an overlapping write but with matching data:
+        bw.remote_write(
+            maybe_overlapping_offset,
+            expected_data[
+                maybe_overlapping_offset:maybe_overlapping_offset + maybe_overlapping_length
+            ]
+        )
+        # Now fill in the holes:
+        bw.remote_write(0, expected_data[0:10])
+        bw.remote_write(20, expected_data[20:30])
+        bw.remote_write(40, expected_data[40:50])
+        bw.remote_write(60, expected_data[60:])
+        bw.remote_close()
+
+        br = BucketReader(self, bw.finalhome)
+        self.assertEqual(br.remote_read(0, length), expected_data)
+
+
+    @given(
+        maybe_overlapping_offset=strategies.integers(min_value=0, max_value=98),
+        maybe_overlapping_length=strategies.integers(min_value=1, max_value=100),
+    )
+    def test_overlapping_writes_not_ok_if_different(
+            self, maybe_overlapping_offset, maybe_overlapping_length
+    ):
+        """
+        Writes that overlap with previous writes fail with an exception if the
+        contents don't match.
+        """
+        length = 100
+        incoming, final = self.make_workdir("overlapping_writes_{}".format(uuid4()))
+        bw = BucketWriter(
+            self, incoming, final, length, self.make_lease(),
+            FakeCanary()
+        )
+        # Three writes: 10-19, 30-39, 50-59. This allows for a bunch of holes.
+        bw.remote_write(10, b"1" * 10)
+        bw.remote_write(30, b"1" * 10)
+        bw.remote_write(50, b"1" * 10)
+        # Then, write something that might overlap with some of them, but
+        # conflicts. Then fill in holes left by first three writes. Conflict is
+        # inevitable.
+        with self.assertRaises(ConflictingWriteError):
+            bw.remote_write(
+                maybe_overlapping_offset,
+                b'X' * min(maybe_overlapping_length, length - maybe_overlapping_offset),
+            )
+            bw.remote_write(0, b"1" * 10)
+            bw.remote_write(20, b"1" * 10)
+            bw.remote_write(40, b"1" * 10)
+            bw.remote_write(60, b"1" * 40)
 
     def test_read_past_end_of_share_data(self):
         # test vector for immutable files (hard-coded contents of an immutable share

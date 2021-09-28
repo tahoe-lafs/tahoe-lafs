@@ -97,7 +97,7 @@ EOF
     setuptoolsTrial pyasn1 zope_interface
     service-identity pyyaml magic-wormhole treq
     eliot autobahn cryptography netifaces setuptools
-    future pyutil distro configparser
+    future pyutil distro configparser collections-extended
   ];
 
   checkInputs = with python.pkgs; [

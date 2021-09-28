@@ -18,6 +18,9 @@ self: super: {
 
       # Need a newer version of Twisted, too.
       twisted = python-super.callPackage ./twisted.nix { };
+
+      # collections-extended is not part of nixpkgs at this time.
+      collections-extended = python-super.callPackage ./collections-extended.nix { };
     };
   };
 }

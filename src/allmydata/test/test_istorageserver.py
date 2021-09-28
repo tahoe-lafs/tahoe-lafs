@@ -24,7 +24,7 @@ from testtools import skipIf
 
 from twisted.internet.defer import inlineCallbacks
 
-from foolscap.api import Referenceable
+from foolscap.api import Referenceable, RemoteException
 
 from allmydata.interfaces import IStorageServer
 from .common_system import SystemTestMixin
@@ -248,12 +248,60 @@ class IStorageServerImmutableAPIsTestsMixin(object):
             (yield buckets[2].callRemote("read", 0, 1024)), b"3" * 512 + b"4" * 512
         )
 
-    @skipIf(True, "https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3801")
-    def test_overlapping_writes(self):
+    @inlineCallbacks
+    def test_non_matching_overlapping_writes(self):
         """
-        The policy for overlapping writes is TBD:
-        https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3801
+        When doing overlapping writes in immutable uploads, non-matching writes
+        fail.
         """
+        storage_index, renew_secret, cancel_secret = (
+            new_storage_index(),
+            new_secret(),
+            new_secret(),
+        )
+        (_, allocated) = yield self.storage_server.allocate_buckets(
+            storage_index,
+            renew_secret,
+            cancel_secret,
+            sharenums={0},
+            allocated_size=30,
+            canary=Referenceable(),
+        )
+
+        yield allocated[0].callRemote("write", 0, b"1" * 25)
+        # Overlapping write that doesn't match:
+        with self.assertRaises(RemoteException):
+            yield allocated[0].callRemote("write", 20, b"2" * 10)
+
+    @inlineCallbacks
+    def test_matching_overlapping_writes(self):
+        """
+        When doing overlapping writes in immutable uploads, matching writes
+        succeed.
+        """
+        storage_index, renew_secret, cancel_secret = (
+            new_storage_index(),
+            new_secret(),
+            new_secret(),
+        )
+        (_, allocated) = yield self.storage_server.allocate_buckets(
+            storage_index,
+            renew_secret,
+            cancel_secret,
+            sharenums={0},
+            allocated_size=25,
+            canary=Referenceable(),
+        )
+
+        yield allocated[0].callRemote("write", 0, b"1" * 10)
+        # Overlapping write that matches:
+        yield allocated[0].callRemote("write", 5, b"1" * 20)
+        yield allocated[0].callRemote("close")
+
+        buckets = yield self.storage_server.get_buckets(storage_index)
+        self.assertEqual(set(buckets.keys()), {0})
+
+        self.assertEqual((yield buckets[0].callRemote("read", 0, 25)), b"1" * 25)
 
     @inlineCallbacks
     def test_get_buckets_skips_unfinished_buckets(self):

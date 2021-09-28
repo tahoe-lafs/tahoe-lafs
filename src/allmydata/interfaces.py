@@ -53,6 +53,14 @@ LeaseRenewSecret = Hash # used to protect lease renewal requests
 LeaseCancelSecret = Hash # was used to protect lease cancellation requests
 
 
+class DataTooLargeError(Exception):
+    """The write went past the expected size of the bucket."""
+
+
+class ConflictingWriteError(Exception):
+    """Two writes happened to same immutable with different data."""
+
+
 class RIBucketWriter(RemoteInterface):
     """ Objects of this kind live on the server side. """
     def write(offset=Offset, data=ShareData):
