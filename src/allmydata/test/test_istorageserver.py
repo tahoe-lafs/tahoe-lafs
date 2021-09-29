@@ -21,8 +21,6 @@ if PY2:
 from random import Random
 
 from twisted.internet.defer import inlineCallbacks
-from twisted.internet import reactor
-from twisted.internet.task import deferLater
 
 from foolscap.api import Referenceable, RemoteException
 

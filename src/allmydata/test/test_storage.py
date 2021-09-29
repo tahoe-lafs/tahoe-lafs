@@ -19,7 +19,6 @@ import platform
 import stat
 import struct
 import shutil
-import gc
 from uuid import uuid4
 
 from twisted.trial import unittest
