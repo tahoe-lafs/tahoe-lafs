@@ -475,7 +475,7 @@ jobs:
       # Note this doesn't look more similar to the 19.09 NIX_PATH URL because
       # there was some internal shuffling by the NixOS project about how they
       # publish stable revisions.
-      NIX_PATH: "nixpkgs=https://github.com/NixOS/nixpkgs/archive/refs/d32b07e6df276d78e3640eb43882b80c9b2b3459.tar.gz"
+      NIX_PATH: "nixpkgs=https://github.com/NixOS/nixpkgs/archive/d32b07e6df276d78e3640eb43882b80c9b2b3459.tar.gz"
       SOURCE: "nix/py3.nix"
 
   typechecks:
