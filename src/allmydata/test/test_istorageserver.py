@@ -135,9 +135,10 @@ class IStorageServerImmutableAPIsTestsMixin(object):
     def test_disconnection(self):
         """
         If we disconnect in the middle of writing to a bucket, all data is
-        wiped, and it's even possible to write different data to the bucket
-        (don't do that though, mostly it's just a good way to test that the
-        data really was wiped).
+        wiped, and it's even possible to write different data to the bucket.
+
+        (In the real world one shouldn't do that, but writing different data is
+        a good way to test that the original data really was wiped.)
         """
         storage_index, renew_secret, cancel_secret = (
             new_storage_index(),
@@ -425,18 +426,9 @@ class _FoolscapMixin(SystemTestMixin):
         Disconnect and then reconnect with a new ``IStorageServer``.
         """
         current = self.storage_server
-        self._get_native_server()._rref.tracker.broker.transport.loseConnection()
-        for i in range(100000):
-            yield deferLater(reactor, 0.001)
-            import pdb
-
-            pdb.set_trace()
-            new = self._get_native_server().get_storage_server()
-            if new is not None and new is not current:
-                self.storage_server = new
-                return
-
-        raise RuntimeError("Failed to reconnect")
+        yield self.bounce_client(0)
+        self.storage_server = self._get_native_server().get_storage_server()
+        assert self.storage_server is not current
 
 
 class FoolscapSharedAPIsTests(
