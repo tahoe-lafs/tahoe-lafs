@@ -392,6 +392,295 @@ class IStorageServerImmutableAPIsTestsMixin(object):
         yield buckets[0].callRemote("advise_corrupt_share", b"OH NO")
 
 
+class IStorageServerMutableAPIsTestsMixin(object):
+    """
+    Tests for ``IStorageServer``'s mutable APIs.
+
+    ``self.storage_server`` is expected to provide ``IStorageServer``.
+
+    ``STARAW`` is short for ``slot_testv_and_readv_and_writev``.
+    """
+
+    def new_secrets(self):
+        """Return a 3-tuple of secrets for STARAW calls."""
+        return (new_secret(), new_secret(), new_secret())
+
+    def staraw(self, *args, **kwargs):
+        """Like ``slot_testv_and_readv_and_writev``, but less typing."""
+        return self.storage_server.slot_testv_and_readv_and_writev(*args, **kwargs)
+
+    @inlineCallbacks
+    def test_STARAW_reads_after_write(self):
+        """
+        When data is written with
+        ``IStorageServer.slot_testv_and_readv_and_writev``, it can then be read
+        by a separate call using that API.
+        """
+        secrets = self.new_secrets()
+        storage_index = new_storage_index()
+        (written, _) = yield self.staraw(
+            storage_index,
+            secrets,
+            tw_vectors={
+                0: ([], [(0, b"abcdefg")], 7),
+                1: ([], [(0, b"0123"), (4, b"456")], 7),
+            },
+            r_vector=[],
+        )
+        self.assertEqual(written, True)
+
+        (_, reads) = yield self.staraw(
+            storage_index,
+            secrets,
+            tw_vectors={},
+            # Whole thing, partial, going beyond the edge, completely outside
+            # range:
+            r_vector=[(0, 7), (2, 3), (6, 8), (100, 10)],
+        )
+        self.assertEqual(
+            reads,
+            {0: [b"abcdefg", b"cde", b"g", b""], 1: [b"0123456", b"234", b"6", b""]},
+        )
+
+    @inlineCallbacks
+    def test_SATRAW_reads_happen_before_writes_in_single_query(self):
+        """
+        If a ``IStorageServer.slot_testv_and_readv_and_writev`` command
+        contains both reads and writes, the read returns results that precede
+        the write.
+        """
+        secrets = self.new_secrets()
+        storage_index = new_storage_index()
+        (written, _) = yield self.staraw(
+            storage_index,
+            secrets,
+            tw_vectors={
+                0: ([], [(0, b"abcdefg")], 7),
+            },
+            r_vector=[],
+        )
+        self.assertEqual(written, True)
+
+        # Read and write in same command; read happens before write:
+        (written, reads) = yield self.staraw(
+            storage_index,
+            secrets,
+            tw_vectors={
+                0: ([], [(0, b"X" * 7)], 7),
+            },
+            r_vector=[(0, 7)],
+        )
+        self.assertEqual(written, True)
+        self.assertEqual(reads, {0: [b"abcdefg"]})
+
+        # The write is available in next read:
+        (_, reads) = yield self.staraw(
+            storage_index,
+            secrets,
+            tw_vectors={},
+            r_vector=[(0, 7)],
+        )
+        self.assertEqual(reads, {0: [b"X" * 7]})
+
+    @inlineCallbacks
+    def test_SATRAW_writes_happens_only_if_test_matches(self):
+        """
+        If a ``IStorageServer.slot_testv_and_readv_and_writev`` includes both a
+        test and a write, the write succeeds if the test matches, and fails if
+        the test does not match.
+        """
+        secrets = self.new_secrets()
+        storage_index = new_storage_index()
+        (written, _) = yield self.staraw(
+            storage_index,
+            secrets,
+            tw_vectors={
+                0: ([], [(0, b"1" * 7)], 7),
+            },
+            r_vector=[],
+        )
+        self.assertEqual(written, True)
+
+        # Test matches, so write happens:
+        (written, _) = yield self.staraw(
+            storage_index,
+            secrets,
+            tw_vectors={
+                0: (
+                    [(0, 3, b"1" * 3), (3, 4, b"1" * 4)],
+                    [(0, b"2" * 7)],
+                    7,
+                ),
+            },
+            r_vector=[],
+        )
+        self.assertEqual(written, True)
+        (_, reads) = yield self.staraw(
+            storage_index,
+            secrets,
+            tw_vectors={},
+            r_vector=[(0, 7)],
+        )
+        self.assertEqual(reads, {0: [b"2" * 7]})
+
+        # Test does not match, so write does not happen:
+        (written, _) = yield self.staraw(
+            storage_index,
+            secrets,
+            tw_vectors={
+                0: ([(0, 7, b"1" * 7)], [(0, b"3" * 7)], 7),
+            },
+            r_vector=[],
+        )
+        self.assertEqual(written, False)
+        (_, reads) = yield self.staraw(
+            storage_index,
+            secrets,
+            tw_vectors={},
+            r_vector=[(0, 7)],
+        )
+        self.assertEqual(reads, {0: [b"2" * 7]})
+
+    @inlineCallbacks
+    def test_SATRAW_tests_past_end_of_data(self):
+        """
+        If a ``IStorageServer.slot_testv_and_readv_and_writev`` includes a test
+        vector that reads past the end of the data, the result is limited to
+        actual available data.
+        """
+        secrets = self.new_secrets()
+        storage_index = new_storage_index()
+
+        # Since there is no data on server, the test vector will return empty
+        # string, which matches expected result, so write will succeed.
+        (written, _) = yield self.staraw(
+            storage_index,
+            secrets,
+            tw_vectors={
+                0: ([(0, 10, b"")], [(0, b"1" * 7)], 7),
+            },
+            r_vector=[],
+        )
+        self.assertEqual(written, True)
+
+        # Now the test vector is a 10-read off of a 7-byte value, but expected
+        # value is still 7 bytes, so the write will again succeed.
+        (written, _) = yield self.staraw(
+            storage_index,
+            secrets,
+            tw_vectors={
+                0: ([(0, 10, b"1" * 7)], [(0, b"2" * 7)], 7),
+            },
+            r_vector=[],
+        )
+        self.assertEqual(written, True)
+
+    @inlineCallbacks
+    def test_SATRAW_reads_past_end_of_data(self):
+        """
+        If a ``IStorageServer.slot_testv_and_readv_and_writev`` reads past the
+        end of the data, the result is limited to actual available data.
+        """
+        secrets = self.new_secrets()
+        storage_index = new_storage_index()
+
+        # Write some data
+        (written, _) = yield self.staraw(
+            storage_index,
+            secrets,
+            tw_vectors={
+                0: ([], [(0, b"12345")], 5),
+            },
+            r_vector=[],
+        )
+        self.assertEqual(written, True)
+
+        # Reads past end.
+        (_, reads) = yield self.staraw(
+            storage_index,
+            secrets,
+            tw_vectors={},
+            r_vector=[(0, 100), (2, 50)],
+        )
+        self.assertEqual(reads, {0: [b"12345", b"345"]})
+
+    @inlineCallbacks
+    def test_STARAW_write_enabler_must_match(self):
+        """
+        If the write enabler secret passed to
+        ``IStorageServer.slot_testv_and_readv_and_writev`` doesn't match
+        previous writes, the write fails.
+        """
+        secrets = self.new_secrets()
+        storage_index = new_storage_index()
+        (written, _) = yield self.staraw(
+            storage_index,
+            secrets,
+            tw_vectors={
+                0: ([], [(0, b"1" * 7)], 7),
+            },
+            r_vector=[],
+        )
+        self.assertEqual(written, True)
+
+        # Write enabler secret does not match, so write does not happen:
+        bad_secrets = (new_secret(),) + secrets[1:]
+        with self.assertRaises(RemoteException):
+            yield self.staraw(
+                storage_index,
+                bad_secrets,
+                tw_vectors={
+                    0: ([], [(0, b"2" * 7)], 7),
+                },
+                r_vector=[],
+            )
+        (_, reads) = yield self.staraw(
+            storage_index,
+            secrets,
+            tw_vectors={},
+            r_vector=[(0, 7)],
+        )
+        self.assertEqual(reads, {0: [b"1" * 7]})
+
+    @inlineCallbacks
+    def test_STARAW_zero_new_length_deletes(self):
+        """
+        A zero new length passed to
+        ``IStorageServer.slot_testv_and_readv_and_writev`` deletes the share.
+        """
+        secrets = self.new_secrets()
+        storage_index = new_storage_index()
+        (written, _) = yield self.staraw(
+            storage_index,
+            secrets,
+            tw_vectors={
+                0: ([], [(0, b"1" * 7)], 7),
+            },
+            r_vector=[],
+        )
+        self.assertEqual(written, True)
+
+        # Write with new length of 0:
+        (written, _) = yield self.staraw(
+            storage_index,
+            secrets,
+            tw_vectors={
+                0: ([], [(0, b"1" * 7)], 0),
+            },
+            r_vector=[],
+        )
+        self.assertEqual(written, True)
+
+        # It's gone!
+        (_, reads) = yield self.staraw(
+            storage_index,
+            secrets,
+            tw_vectors={},
+            r_vector=[(0, 7)],
+        )
+        self.assertEqual(reads, {})
+
+
 class _FoolscapMixin(SystemTestMixin):
     """Run tests on Foolscap version of ``IStorageServer."""
 
@@ -420,5 +709,11 @@ class FoolscapSharedAPIsTests(
 
 class FoolscapImmutableAPIsTests(
     _FoolscapMixin, IStorageServerImmutableAPIsTestsMixin, AsyncTestCase
+):
+    """Foolscap-specific tests for immutable ``IStorageServer`` APIs."""
+
+
+class FoolscapMutableAPIsTests(
+    _FoolscapMixin, IStorageServerMutableAPIsTestsMixin, AsyncTestCase
 ):
     """Foolscap-specific tests for immutable ``IStorageServer`` APIs."""
