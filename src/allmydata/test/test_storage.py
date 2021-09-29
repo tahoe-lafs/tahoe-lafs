@@ -129,8 +129,7 @@ class Bucket(unittest.TestCase):
 
     def test_create(self):
         incoming, final = self.make_workdir("test_create")
-        bw = BucketWriter(self, incoming, final, 200, self.make_lease(),
-                          FakeCanary())
+        bw = BucketWriter(self, incoming, final, 200, self.make_lease())
         bw.remote_write(0, b"a"*25)
         bw.remote_write(25, b"b"*25)
         bw.remote_write(50, b"c"*25)
@@ -139,8 +138,7 @@ class Bucket(unittest.TestCase):
 
     def test_readwrite(self):
         incoming, final = self.make_workdir("test_readwrite")
-        bw = BucketWriter(self, incoming, final, 200, self.make_lease(),
-                          FakeCanary())
+        bw = BucketWriter(self, incoming, final, 200, self.make_lease())
         bw.remote_write(0, b"a"*25)
         bw.remote_write(25, b"b"*25)
         bw.remote_write(50, b"c"*7) # last block may be short
@@ -158,8 +156,7 @@ class Bucket(unittest.TestCase):
             incoming, final = self.make_workdir(
                 "test_write_past_size_errors-{}".format(i)
             )
-            bw = BucketWriter(self, incoming, final, 200, self.make_lease(),
-                              FakeCanary())
+            bw = BucketWriter(self, incoming, final, 200, self.make_lease())
             with self.assertRaises(DataTooLargeError):
                 bw.remote_write(offset, b"a" * length)
 
@@ -179,7 +176,6 @@ class Bucket(unittest.TestCase):
         incoming, final = self.make_workdir("overlapping_writes_{}".format(uuid4()))
         bw = BucketWriter(
             self, incoming, final, length, self.make_lease(),
-            FakeCanary()
         )
         # Three writes: 10-19, 30-39, 50-59. This allows for a bunch of holes.
         bw.remote_write(10, expected_data[10:20])
@@ -218,7 +214,6 @@ class Bucket(unittest.TestCase):
         incoming, final = self.make_workdir("overlapping_writes_{}".format(uuid4()))
         bw = BucketWriter(
             self, incoming, final, length, self.make_lease(),
-            FakeCanary()
         )
         # Three writes: 10-19, 30-39, 50-59. This allows for a bunch of holes.
         bw.remote_write(10, b"1" * 10)
@@ -318,8 +313,7 @@ class BucketProxy(unittest.TestCase):
         final = os.path.join(basedir, "bucket")
         fileutil.make_dirs(basedir)
         fileutil.make_dirs(os.path.join(basedir, "tmp"))
-        bw = BucketWriter(self, incoming, final, size, self.make_lease(),
-                          FakeCanary())
+        bw = BucketWriter(self, incoming, final, size, self.make_lease())
         rb = RemoteBucket(bw)
         return bw, rb, final
 
@@ -669,7 +663,7 @@ class Server(unittest.TestCase):
         # the size we request.
         OVERHEAD = 3*4
         LEASE_SIZE = 4+32+32+4
-        canary = FakeCanary(True)
+        canary = FakeCanary()
         already, writers = self.allocate(ss, b"vid1", [0,1,2], 1000, canary)
         self.failUnlessEqual(len(writers), 3)
         # now the StorageServer should have 3000 bytes provisionally
@@ -677,16 +671,14 @@ class Server(unittest.TestCase):
         self.failUnlessEqual(len(ss._active_writers), 3)
 
         # allocating 1001-byte shares only leaves room for one
-        already2, writers2 = self.allocate(ss, b"vid2", [0,1,2], 1001, canary)
+        canary2 = FakeCanary()
+        already2, writers2 = self.allocate(ss, b"vid2", [0,1,2], 1001, canary2)
         self.failUnlessEqual(len(writers2), 1)
         self.failUnlessEqual(len(ss._active_writers), 4)
 
         # we abandon the first set, so their provisional allocation should be
         # returned
-
-        del already
-        del writers
-        gc.collect()
+        canary.disconnected()
 
         self.failUnlessEqual(len(ss._active_writers), 1)
         # now we have a provisional allocation of 1001 bytes
@@ -697,9 +689,6 @@ class Server(unittest.TestCase):
         for bw in writers2.values():
             bw.remote_write(0, b"a"*25)
             bw.remote_close()
-        del already2
-        del writers2
-        del bw
         self.failUnlessEqual(len(ss._active_writers), 0)
 
         # this also changes the amount reported as available by call_get_disk_stats
@@ -707,13 +696,12 @@ class Server(unittest.TestCase):
 
         # now there should be ALLOCATED=1001+12+72=1085 bytes allocated, and
         # 5000-1085=3915 free, therefore we can fit 39 100byte shares
-        already3, writers3 = self.allocate(ss, b"vid3", list(range(100)), 100, canary)
+        canary3 = FakeCanary()
+        already3, writers3 = self.allocate(ss, b"vid3", list(range(100)), 100, canary3)
         self.failUnlessEqual(len(writers3), 39)
         self.failUnlessEqual(len(ss._active_writers), 39)
 
-        del already3
-        del writers3
-        gc.collect()
+        canary3.disconnected()
 
         self.failUnlessEqual(len(ss._active_writers), 0)
         ss.disownServiceParent()

@@ -208,8 +208,9 @@ class ShareFile(object):
 # Batch 1:
 # - bucketwriter dict in the server, to persist them + TEST of persistence
 # - aborting bucketwriter removes it from server persistent + TEST
-# - get rid of disconnect notification (probably no test, rely on existing?)
-# - add bucketwriter cancellation to remote_allocate_buckets() (probably rely on existing tests)
+# - disconnect still aborts _for Foolscap only_
+# - existing in-use buckets are not returned _for Foolscap only_
+# - this implies splitting remote_allocate_buckets into generic and Foolscap-y parts
 # Batch 2:
 # - scheduled events for aborting bucketwriter + TEST
 # - bucketwriter writes delay cancellation + TEST
@@ -218,13 +219,11 @@ class ShareFile(object):
 @implementer(RIBucketWriter)
 class BucketWriter(Referenceable):  # type: ignore # warner/foolscap#78
 
-    def __init__(self, ss, incominghome, finalhome, max_size, lease_info, canary):
+    def __init__(self, ss, incominghome, finalhome, max_size, lease_info):
         self.ss = ss
         self.incominghome = incominghome
         self.finalhome = finalhome
         self._max_size = max_size # don't allow the client to write more than this
-        self._canary = canary
-        self._disconnect_marker = canary.notifyOnDisconnect(self._disconnected)
         self.closed = False
         self.throw_out_all_data = False
         self._sharefile = ShareFile(incominghome, create=True, max_size=max_size)
@@ -290,22 +289,19 @@ class BucketWriter(Referenceable):  # type: ignore # warner/foolscap#78
             pass
         self._sharefile = None
         self.closed = True
-        self._canary.dontNotifyOnDisconnect(self._disconnect_marker)
 
         filelen = os.stat(self.finalhome)[stat.ST_SIZE]
         self.ss.bucket_writer_closed(self, filelen)
         self.ss.add_latency("close", time.time() - start)
         self.ss.count("close")
 
-    def _disconnected(self):
+    def disconnected(self):
         if not self.closed:
             self._abort()
 
     def remote_abort(self):
         log.msg("storage: aborting sharefile %s" % self.incominghome,
                 facility="tahoe.storage", level=log.UNUSUAL)
-        if not self.closed:
-            self._canary.dontNotifyOnDisconnect(self._disconnect_marker)
         self._abort()
         self.ss.count("abort")
 
