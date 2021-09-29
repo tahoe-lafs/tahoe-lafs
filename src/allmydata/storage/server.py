@@ -274,10 +274,10 @@ class StorageServer(service.MultiService, Referenceable):
                     }
         return version
 
-    def allocate_buckets(self, storage_index,
-                         renew_secret, cancel_secret,
-                         sharenums, allocated_size,
-                         owner_num=0):
+    def _allocate_buckets(self, storage_index,
+                          renew_secret, cancel_secret,
+                          sharenums, allocated_size,
+                          owner_num=0):
         """
         Generic bucket allocation API.
         """
@@ -359,7 +359,7 @@ class StorageServer(service.MultiService, Referenceable):
                                 sharenums, allocated_size,
                                 canary, owner_num=0):
         """Foolscap-specific ``allocate_buckets()`` API."""
-        alreadygot, bucketwriters = self.allocate_buckets(
+        alreadygot, bucketwriters = self._allocate_buckets(
             storage_index, renew_secret, cancel_secret, sharenums, allocated_size,
             owner_num=owner_num,
         )
