@@ -137,6 +137,10 @@ class IStorageServerImmutableAPIsTestsMixin(object):
 
         (In the real world one shouldn't do that, but writing different data is
         a good way to test that the original data really was wiped.)
+
+        HTTP protocol should skip this test, since disconnection is meaningless
+        concept; this is more about testing implicit contract the Foolscap
+        implementation depends on doesn't change as we refactor things.
         """
         storage_index, renew_secret, cancel_secret = (
             new_storage_index(),
