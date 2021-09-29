@@ -668,19 +668,19 @@ class Server(unittest.TestCase):
         self.failUnlessEqual(len(writers), 3)
         # now the StorageServer should have 3000 bytes provisionally
         # allocated, allowing only 2000 more to be claimed
-        self.failUnlessEqual(len(ss._active_writers), 3)
+        self.failUnlessEqual(len(ss._bucket_writers), 3)
 
         # allocating 1001-byte shares only leaves room for one
         canary2 = FakeCanary()
         already2, writers2 = self.allocate(ss, b"vid2", [0,1,2], 1001, canary2)
         self.failUnlessEqual(len(writers2), 1)
-        self.failUnlessEqual(len(ss._active_writers), 4)
+        self.failUnlessEqual(len(ss._bucket_writers), 4)
 
         # we abandon the first set, so their provisional allocation should be
         # returned
         canary.disconnected()
 
-        self.failUnlessEqual(len(ss._active_writers), 1)
+        self.failUnlessEqual(len(ss._bucket_writers), 1)
         # now we have a provisional allocation of 1001 bytes
 
         # and we close the second set, so their provisional allocation should
@@ -689,7 +689,7 @@ class Server(unittest.TestCase):
         for bw in writers2.values():
             bw.remote_write(0, b"a"*25)
             bw.remote_close()
-        self.failUnlessEqual(len(ss._active_writers), 0)
+        self.failUnlessEqual(len(ss._bucket_writers), 0)
 
         # this also changes the amount reported as available by call_get_disk_stats
         allocated = 1001 + OVERHEAD + LEASE_SIZE
@@ -699,11 +699,11 @@ class Server(unittest.TestCase):
         canary3 = FakeCanary()
         already3, writers3 = self.allocate(ss, b"vid3", list(range(100)), 100, canary3)
         self.failUnlessEqual(len(writers3), 39)
-        self.failUnlessEqual(len(ss._active_writers), 39)
+        self.failUnlessEqual(len(ss._bucket_writers), 39)
 
         canary3.disconnected()
 
-        self.failUnlessEqual(len(ss._active_writers), 0)
+        self.failUnlessEqual(len(ss._bucket_writers), 0)
         ss.disownServiceParent()
         del ss
 

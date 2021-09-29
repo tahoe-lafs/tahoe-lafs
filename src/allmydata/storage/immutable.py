@@ -204,17 +204,6 @@ class ShareFile(object):
             self.unlink()
         return space_freed
 
-# TODOs
-# Batch 1:
-# - bucketwriter dict in the server, to persist them + TEST of persistence
-# - aborting bucketwriter removes it from server persistent + TEST
-# - disconnect still aborts _for Foolscap only_
-# - existing in-use buckets are not returned _for Foolscap only_
-# - this implies splitting remote_allocate_buckets into generic and Foolscap-y parts
-# Batch 2:
-# - scheduled events for aborting bucketwriter + TEST
-# - bucketwriter writes delay cancellation + TEST
-
 
 @implementer(RIBucketWriter)
 class BucketWriter(Referenceable):  # type: ignore # warner/foolscap#78

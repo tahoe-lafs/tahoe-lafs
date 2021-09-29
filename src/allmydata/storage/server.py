@@ -121,12 +121,14 @@ class StorageServer(service.MultiService, Referenceable):
         self.lease_checker.setServiceParent(self)
         self._get_current_time = get_current_time
 
-        # Currently being-written Bucketwriters. TODO Can probably refactor so
-        # active_writers is unnecessary, do as second pass.
-        # Map BucketWriter -> (storage_index, share_num)
-        self._active_writers = {}  # type: Dict[BucketWriter, (bytes,int)]
-        # Map (storage_index, share_num) -> BucketWriter:
-        self._bucket_writers = {}  # type: Dict[(bytes, int),BucketWriter]
+        # Currently being-written Bucketwriters. For Foolscap, lifetime is tied
+        # to connection: when disconnection happens, the BucketWriters are
+        # removed. For HTTP, this makes no sense, so there will be
+        # timeout-based cleanup; see
+        # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3807.
+
+        # Map in-progress filesystem path -> BucketWriter:
+        self._bucket_writers = {}  # type: Dict[str,BucketWriter]
         # Canaries and disconnect markers for BucketWriters created via Foolscap:
         self._bucket_writer_disconnect_markers = {}  # type: Dict[BucketWriter,(IRemoteReference, object)]
 
@@ -247,7 +249,7 @@ class StorageServer(service.MultiService, Referenceable):
 
     def allocated_size(self):
         space = 0
-        for bw in self._active_writers:
+        for bw in self._bucket_writers.values():
             space += bw.allocated_size()
         return space
 
@@ -275,7 +277,6 @@ class StorageServer(service.MultiService, Referenceable):
     def allocate_buckets(self, storage_index,
                          renew_secret, cancel_secret,
                          sharenums, allocated_size,
-                         include_in_progress,
                          owner_num=0):
         """
         Generic bucket allocation API.
@@ -328,8 +329,7 @@ class StorageServer(service.MultiService, Referenceable):
                 # great! we already have it. easy.
                 pass
             elif os.path.exists(incominghome):
-                # TODO use include_in_progress
-                # Note that we don't create BucketWriters for shnums that
+                # For Foolscap we don't create BucketWriters for shnums that
                 # have a partial share (in incoming/), so if a second upload
                 # occurs while the first is still in progress, the second
                 # uploader will use different storage servers.
@@ -341,8 +341,7 @@ class StorageServer(service.MultiService, Referenceable):
                 if self.no_storage:
                     bw.throw_out_all_data = True
                 bucketwriters[shnum] = bw
-                self._active_writers[bw] = (storage_index, shnum)
-                self._bucket_writers[(storage_index, shnum)] = bw
+                self._bucket_writers[incominghome] = bw
                 if limited:
                     remaining_space -= max_space_per_bucket
             else:
@@ -362,7 +361,7 @@ class StorageServer(service.MultiService, Referenceable):
         """Foolscap-specific ``allocate_buckets()`` API."""
         alreadygot, bucketwriters = self.allocate_buckets(
             storage_index, renew_secret, cancel_secret, sharenums, allocated_size,
-            include_in_progress=False, owner_num=owner_num,
+            owner_num=owner_num,
         )
         # Abort BucketWriters if disconnection happens.
         for bw in bucketwriters.values():
@@ -413,8 +412,7 @@ class StorageServer(service.MultiService, Referenceable):
     def bucket_writer_closed(self, bw, consumed_size):
         if self.stats_provider:
             self.stats_provider.count('storage_server.bytes_added', consumed_size)
-        storage_index, shnum = self._active_writers.pop(bw)
-        del self._bucket_writers[(storage_index, shnum)]
+        del self._bucket_writers[bw.incominghome]
         if bw in self._bucket_writer_disconnect_markers:
             canary, disconnect_marker = self._bucket_writer_disconnect_markers.pop(bw)
             canary.dontNotifyOnDisconnect(disconnect_marker)
