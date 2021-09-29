@@ -42,6 +42,9 @@ workflows:
       - "nixos-19-09":
           {}
 
+      - "nixos-21-05":
+          {}
+
       # Test against PyPy 2.7
       - "pypy27-buster":
           {}
@@ -438,8 +441,7 @@ jobs:
         image: "tahoelafsci/fedora:29-py"
         user: "nobody"
 
-
-  nixos-19-09:
+  nixos-19-09: &NIXOS
     docker:
       # Run in a highly Nix-capable environment.
       - <<: *DOCKERHUB_AUTH
@@ -464,6 +466,15 @@ jobs:
             # advantage of multiple cores and we get a little speedup by doing
             # them in parallel.
             nix-build --cores 3 --max-jobs 2 nix/
+
+  nixos-21-05:
+    <<: *NIXOS
+
+    environment:
+      # Note this doesn't look more similar to the 19.09 NIX_PATH URL because
+      # there was some internal shuffling by the NixOS project about how they
+      # publish stable revisions.
+      NIX_PATH: "nixpkgs=https://github.com/NixOS/nixpkgs/archive/refs/heads/nixos-21.05-small.tar.gz"
 
   typechecks:
     docker:
