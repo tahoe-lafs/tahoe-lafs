@@ -23,4 +23,11 @@ self: super: {
       collections-extended = python-super.pythonPackages.callPackage ./collections-extended.nix { };
     };
   };
+
+  python39 = super.python39.override {
+    packageOverrides = python-self: python-super: {
+      # collections-extended is not part of nixpkgs at this time.
+      collections-extended = python-super.pythonPackages.callPackage ./collections-extended.nix { };
+    };
+  };
 }
