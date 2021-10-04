@@ -20,8 +20,6 @@ if PY2:
 
 from random import Random
 
-from testtools import skipIf
-
 from twisted.internet.defer import inlineCallbacks
 
 from foolscap.api import Referenceable, RemoteException
@@ -77,6 +75,10 @@ class IStorageServerImmutableAPIsTestsMixin(object):
     Tests for ``IStorageServer``'s immutable APIs.
 
     ``self.storage_server`` is expected to provide ``IStorageServer``.
+
+    ``self.disconnect()`` should disconnect and then reconnect, creating a new
+    ``self.storage_server``.  Some implementations may wish to skip tests using
+    this; HTTP has no notion of disconnection.
     """
 
     @inlineCallbacks
@@ -98,13 +100,10 @@ class IStorageServerImmutableAPIsTestsMixin(object):
         # We validate the bucket objects' interface in a later test.
 
     @inlineCallbacks
-    @skipIf(True, "https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3793")
     def test_allocate_buckets_repeat(self):
         """
-        allocate_buckets() with the same storage index returns the same result,
-        because the shares have not been written to.
-
-        This fails due to https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3793
+        ``IStorageServer.allocate_buckets()`` with the same storage index does not return
+        work-in-progress buckets, but will add any newly added buckets.
         """
         storage_index, renew_secret, cancel_secret = (
             new_storage_index(),
@@ -115,7 +114,7 @@ class IStorageServerImmutableAPIsTestsMixin(object):
             storage_index,
             renew_secret,
             cancel_secret,
-            sharenums=set(range(5)),
+            sharenums=set(range(4)),
             allocated_size=1024,
             canary=Referenceable(),
         )
@@ -128,40 +127,51 @@ class IStorageServerImmutableAPIsTestsMixin(object):
             Referenceable(),
         )
         self.assertEqual(already_got, already_got2)
-        self.assertEqual(set(allocated.keys()), set(allocated2.keys()))
+        self.assertEqual(set(allocated2.keys()), {4})
 
-    @skipIf(True, "https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3793")
     @inlineCallbacks
-    def test_allocate_buckets_more_sharenums(self):
+    def test_disconnection(self):
         """
-        allocate_buckets() with the same storage index but more sharenums
-        acknowledges the extra shares don't exist.
+        If we disconnect in the middle of writing to a bucket, all data is
+        wiped, and it's even possible to write different data to the bucket.
 
-        Fails due to https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3793
+        (In the real world one shouldn't do that, but writing different data is
+        a good way to test that the original data really was wiped.)
+
+        HTTP protocol should skip this test, since disconnection is meaningless
+        concept; this is more about testing implicit contract the Foolscap
+        implementation depends on doesn't change as we refactor things.
         """
         storage_index, renew_secret, cancel_secret = (
             new_storage_index(),
             new_secret(),
             new_secret(),
         )
-        yield self.storage_server.allocate_buckets(
+        (_, allocated) = yield self.storage_server.allocate_buckets(
             storage_index,
             renew_secret,
             cancel_secret,
-            sharenums=set(range(5)),
+            sharenums={0},
             allocated_size=1024,
             canary=Referenceable(),
         )
-        (already_got2, allocated2) = yield self.storage_server.allocate_buckets(
+
+        # Bucket 1 is fully written in one go.
+        yield allocated[0].callRemote("write", 0, b"1" * 1024)
+
+        # Disconnect:
+        yield self.disconnect()
+
+        # Write different data with no complaint:
+        (_, allocated) = yield self.storage_server.allocate_buckets(
             storage_index,
             renew_secret,
             cancel_secret,
-            sharenums=set(range(7)),
+            sharenums={0},
             allocated_size=1024,
             canary=Referenceable(),
         )
-        self.assertEqual(already_got2, set())  # none were fully written
-        self.assertEqual(set(allocated2.keys()), set(range(7)))
+        yield allocated[0].callRemote("write", 0, b"2" * 1024)
 
     @inlineCallbacks
     def test_written_shares_are_allocated(self):
@@ -684,21 +694,32 @@ class IStorageServerMutableAPIsTestsMixin(object):
 class _FoolscapMixin(SystemTestMixin):
     """Run tests on Foolscap version of ``IStorageServer."""
 
+    def _get_native_server(self):
+        return next(iter(self.clients[0].storage_broker.get_known_servers()))
+
     @inlineCallbacks
     def setUp(self):
         AsyncTestCase.setUp(self)
         self.basedir = "test_istorageserver/" + self.id()
         yield SystemTestMixin.setUp(self)
         yield self.set_up_nodes(1)
-        self.storage_server = next(
-            iter(self.clients[0].storage_broker.get_known_servers())
-        ).get_storage_server()
+        self.storage_server = self._get_native_server().get_storage_server()
         self.assertTrue(IStorageServer.providedBy(self.storage_server))
 
     @inlineCallbacks
     def tearDown(self):
         AsyncTestCase.tearDown(self)
         yield SystemTestMixin.tearDown(self)
+
+    @inlineCallbacks
+    def disconnect(self):
+        """
+        Disconnect and then reconnect with a new ``IStorageServer``.
+        """
+        current = self.storage_server
+        yield self.bounce_client(0)
+        self.storage_server = self._get_native_server().get_storage_server()
+        assert self.storage_server is not current
 
 
 class FoolscapSharedAPIsTests(
