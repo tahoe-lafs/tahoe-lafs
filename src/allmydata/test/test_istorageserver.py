@@ -314,6 +314,47 @@ class IStorageServerImmutableAPIsTestsMixin(object):
         self.assertEqual((yield buckets[0].callRemote("read", 0, 25)), b"1" * 25)
 
     @inlineCallbacks
+    def test_abort(self):
+        """
+        If we call ``abort`` on the ``RIBucketWriter`` disconnect in the middle
+        of writing to a bucket, all data is wiped, and it's even possible to
+        write different data to the bucket.
+
+        (In the real world one probably wouldn't do that, but writing different
+        data is a good way to test that the original data really was wiped.)
+        """
+        storage_index, renew_secret, cancel_secret = (
+            new_storage_index(),
+            new_secret(),
+            new_secret(),
+        )
+        (_, allocated) = yield self.storage_server.allocate_buckets(
+            storage_index,
+            renew_secret,
+            cancel_secret,
+            sharenums={0},
+            allocated_size=1024,
+            canary=Referenceable(),
+        )
+
+        # Bucket 0 is fully written in one go.
+        yield allocated[0].callRemote("write", 0, b"1" * 1024)
+
+        # Abort the upload:
+        yield allocated[0].callRemote("abort")
+
+        # Write different data with no complaint:
+        (_, allocated) = yield self.storage_server.allocate_buckets(
+            storage_index,
+            renew_secret,
+            cancel_secret,
+            sharenums={0},
+            allocated_size=1024,
+            canary=Referenceable(),
+        )
+        yield allocated[0].callRemote("write", 0, b"2" * 1024)
+
+    @inlineCallbacks
     def test_get_buckets_skips_unfinished_buckets(self):
         """
         Buckets that are not fully written are not returned by
