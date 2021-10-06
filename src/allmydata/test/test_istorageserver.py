@@ -647,7 +647,9 @@ class IStorageServerMutableAPIsTestsMixin(object):
             tw_vectors={
                 0: ([], [(0, b"abcdefg")], 7),
                 1: ([], [(0, b"0123"), (4, b"456")], 7),
-                2: ([], [(0, b"0123")], 4),
+                # This will never get read from, just here to show we only read
+                # from shares explicitly requested by slot_readv:
+                2: ([], [(0, b"XYZW")], 4),
             },
             r_vector=[],
         )
