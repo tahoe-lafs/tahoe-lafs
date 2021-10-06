@@ -11,13 +11,14 @@ if PY2:
     # Omit open() to get native behavior where open("w") always accepts native
     # strings. Omit bytes so we don't leak future's custom bytes.
     from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, pow, round, super, dict, list, object, range, str, max, min  # noqa: F401
-
+else:
+    from typing import Dict
 
 import os, re, struct, time
-import weakref
 import six
 
 from foolscap.api import Referenceable
+from foolscap.ipb import IRemoteReference
 from twisted.application import service
 
 from zope.interface import implementer
@@ -89,7 +90,6 @@ class StorageServer(service.MultiService, Referenceable):
         self.incomingdir = os.path.join(sharedir, 'incoming')
         self._clean_incomplete()
         fileutil.make_dirs(self.incomingdir)
-        self._active_writers = weakref.WeakKeyDictionary()
         log.msg("StorageServer created", facility="tahoe.storage")
 
         if reserved_space:
@@ -120,6 +120,17 @@ class StorageServer(service.MultiService, Referenceable):
                                    expiration_sharetypes)
         self.lease_checker.setServiceParent(self)
         self._get_current_time = get_current_time
+
+        # Currently being-written Bucketwriters. For Foolscap, lifetime is tied
+        # to connection: when disconnection happens, the BucketWriters are
+        # removed. For HTTP, this makes no sense, so there will be
+        # timeout-based cleanup; see
+        # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3807.
+
+        # Map in-progress filesystem path -> BucketWriter:
+        self._bucket_writers = {}  # type: Dict[str,BucketWriter]
+        # Canaries and disconnect markers for BucketWriters created via Foolscap:
+        self._bucket_writer_disconnect_markers = {}  # type: Dict[BucketWriter,(IRemoteReference, object)]
 
     def __repr__(self):
         return "<StorageServer %s>" % (idlib.shortnodeid_b2a(self.my_nodeid),)
@@ -238,7 +249,7 @@ class StorageServer(service.MultiService, Referenceable):
 
     def allocated_size(self):
         space = 0
-        for bw in self._active_writers:
+        for bw in self._bucket_writers.values():
             space += bw.allocated_size()
         return space
 
@@ -263,10 +274,13 @@ class StorageServer(service.MultiService, Referenceable):
                     }
         return version
 
-    def remote_allocate_buckets(self, storage_index,
-                                renew_secret, cancel_secret,
-                                sharenums, allocated_size,
-                                canary, owner_num=0):
+    def _allocate_buckets(self, storage_index,
+                          renew_secret, cancel_secret,
+                          sharenums, allocated_size,
+                          owner_num=0):
+        """
+        Generic bucket allocation API.
+        """
         # owner_num is not for clients to set, but rather it should be
         # curried into the PersonalStorageServer instance that is dedicated
         # to a particular owner.
@@ -315,7 +329,7 @@ class StorageServer(service.MultiService, Referenceable):
                 # great! we already have it. easy.
                 pass
             elif os.path.exists(incominghome):
-                # Note that we don't create BucketWriters for shnums that
+                # For Foolscap we don't create BucketWriters for shnums that
                 # have a partial share (in incoming/), so if a second upload
                 # occurs while the first is still in progress, the second
                 # uploader will use different storage servers.
@@ -323,11 +337,11 @@ class StorageServer(service.MultiService, Referenceable):
             elif (not limited) or (remaining_space >= max_space_per_bucket):
                 # ok! we need to create the new share file.
                 bw = BucketWriter(self, incominghome, finalhome,
-                                  max_space_per_bucket, lease_info, canary)
+                                  max_space_per_bucket, lease_info)
                 if self.no_storage:
                     bw.throw_out_all_data = True
                 bucketwriters[shnum] = bw
-                self._active_writers[bw] = 1
+                self._bucket_writers[incominghome] = bw
                 if limited:
                     remaining_space -= max_space_per_bucket
             else:
@@ -338,6 +352,21 @@ class StorageServer(service.MultiService, Referenceable):
             fileutil.make_dirs(os.path.join(self.sharedir, si_dir))
 
         self.add_latency("allocate", self._get_current_time() - start)
+        return alreadygot, bucketwriters
+
+    def remote_allocate_buckets(self, storage_index,
+                                renew_secret, cancel_secret,
+                                sharenums, allocated_size,
+                                canary, owner_num=0):
+        """Foolscap-specific ``allocate_buckets()`` API."""
+        alreadygot, bucketwriters = self._allocate_buckets(
+            storage_index, renew_secret, cancel_secret, sharenums, allocated_size,
+            owner_num=owner_num,
+        )
+        # Abort BucketWriters if disconnection happens.
+        for bw in bucketwriters.values():
+            disconnect_marker = canary.notifyOnDisconnect(bw.disconnected)
+            self._bucket_writer_disconnect_markers[bw] = (canary, disconnect_marker)
         return alreadygot, bucketwriters
 
     def _iter_share_files(self, storage_index):
@@ -383,7 +412,10 @@ class StorageServer(service.MultiService, Referenceable):
     def bucket_writer_closed(self, bw, consumed_size):
         if self.stats_provider:
             self.stats_provider.count('storage_server.bytes_added', consumed_size)
-        del self._active_writers[bw]
+        del self._bucket_writers[bw.incominghome]
+        if bw in self._bucket_writer_disconnect_markers:
+            canary, disconnect_marker = self._bucket_writer_disconnect_markers.pop(bw)
+            canary.dontNotifyOnDisconnect(disconnect_marker)
 
     def _get_bucket_shares(self, storage_index):
         """Return a list of (shnum, pathname) tuples for files that hold
