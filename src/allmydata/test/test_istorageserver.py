@@ -680,6 +680,70 @@ class IStorageServerMutableAPIsTestsMixin(object):
         )
         self.assertEqual(reads, {})
 
+    @inlineCallbacks
+    def test_slot_readv(self):
+        """
+        Data written with ``IStorageServer.slot_testv_and_readv_and_writev()``
+        can be read using ``IStorageServer.slot_readv()``.  Reads can't go past
+        the end of the data.
+        """
+        secrets = self.new_secrets()
+        storage_index = new_storage_index()
+        (written, _) = yield self.staraw(
+            storage_index,
+            secrets,
+            tw_vectors={
+                0: ([], [(0, b"abcdefg")], 7),
+                1: ([], [(0, b"0123"), (4, b"456")], 7),
+                # This will never get read from, just here to show we only read
+                # from shares explicitly requested by slot_readv:
+                2: ([], [(0, b"XYZW")], 4),
+            },
+            r_vector=[],
+        )
+        self.assertEqual(written, True)
+
+        reads = yield self.storage_server.slot_readv(
+            storage_index,
+            shares=[0, 1],
+            # Whole thing, partial, going beyond the edge, completely outside
+            # range:
+            readv=[(0, 7), (2, 3), (6, 8), (100, 10)],
+        )
+        self.assertEqual(
+            reads,
+            {0: [b"abcdefg", b"cde", b"g", b""], 1: [b"0123456", b"234", b"6", b""]},
+        )
+
+    @inlineCallbacks
+    def test_slot_readv_no_shares(self):
+        """
+        With no shares given, ``IStorageServer.slot_readv()`` reads from all shares.
+        """
+        secrets = self.new_secrets()
+        storage_index = new_storage_index()
+        (written, _) = yield self.staraw(
+            storage_index,
+            secrets,
+            tw_vectors={
+                0: ([], [(0, b"abcdefg")], 7),
+                1: ([], [(0, b"0123456")], 7),
+                2: ([], [(0, b"9876543")], 7),
+            },
+            r_vector=[],
+        )
+        self.assertEqual(written, True)
+
+        reads = yield self.storage_server.slot_readv(
+            storage_index,
+            shares=[],
+            readv=[(0, 7)],
+        )
+        self.assertEqual(
+            reads,
+            {0: [b"abcdefg"], 1: [b"0123456"], 2: [b"9876543"]},
+        )
+
 
 class _FoolscapMixin(SystemTestMixin):
     """Run tests on Foolscap version of ``IStorageServer."""
