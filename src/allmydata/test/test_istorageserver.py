@@ -130,17 +130,16 @@ class IStorageServerImmutableAPIsTestsMixin(object):
         self.assertEqual(set(allocated2.keys()), {4})
 
     @inlineCallbacks
-    def test_disconnection(self):
+    def abort_or_disconnect_half_way(self, abort_or_disconnect):
         """
-        If we disconnect in the middle of writing to a bucket, all data is
-        wiped, and it's even possible to write different data to the bucket.
+        If we disconnect/abort in the middle of writing to a bucket, all data
+        is wiped, and it's even possible to write different data to the bucket.
 
         (In the real world one shouldn't do that, but writing different data is
         a good way to test that the original data really was wiped.)
 
-        HTTP protocol should skip this test, since disconnection is meaningless
-        concept; this is more about testing implicit contract the Foolscap
-        implementation depends on doesn't change as we refactor things.
+        ``abort_or_disconnect`` is a callback that takes a bucket and aborts up
+        load, or perhaps disconnects the whole connection.
         """
         storage_index, renew_secret, cancel_secret = (
             new_storage_index(),
@@ -159,8 +158,8 @@ class IStorageServerImmutableAPIsTestsMixin(object):
         # Bucket 1 is fully written in one go.
         yield allocated[0].callRemote("write", 0, b"1" * 1024)
 
-        # Disconnect:
-        yield self.disconnect()
+        # Disconnect or abort, depending on the test:
+        yield abort_or_disconnect(allocated[0])
 
         # Write different data with no complaint:
         (_, allocated) = yield self.storage_server.allocate_buckets(
@@ -172,6 +171,20 @@ class IStorageServerImmutableAPIsTestsMixin(object):
             canary=Referenceable(),
         )
         yield allocated[0].callRemote("write", 0, b"2" * 1024)
+
+    def test_disconnection(self):
+        """
+        If we disconnect in the middle of writing to a bucket, all data is
+        wiped, and it's even possible to write different data to the bucket.
+
+        (In the real world one shouldn't do that, but writing different data is
+        a good way to test that the original data really was wiped.)
+
+        HTTP protocol should skip this test, since disconnection is meaningless
+        concept; this is more about testing implicit contract the Foolscap
+        implementation depends on doesn't change as we refactor things.
+        """
+        return self.abort_or_disconnect_half_way(lambda _: self.disconnect())
 
     @inlineCallbacks
     def test_written_shares_are_allocated(self):
@@ -313,46 +326,18 @@ class IStorageServerImmutableAPIsTestsMixin(object):
 
         self.assertEqual((yield buckets[0].callRemote("read", 0, 25)), b"1" * 25)
 
-    @inlineCallbacks
     def test_abort(self):
         """
-        If we call ``abort`` on the ``RIBucketWriter`` disconnect in the middle
-        of writing to a bucket, all data is wiped, and it's even possible to
-        write different data to the bucket.
+        If we call ``abort`` on the ``RIBucketWriter`` to disconnect in the
+        middle of writing to a bucket, all data is wiped, and it's even
+        possible to write different data to the bucket.
 
         (In the real world one probably wouldn't do that, but writing different
         data is a good way to test that the original data really was wiped.)
         """
-        storage_index, renew_secret, cancel_secret = (
-            new_storage_index(),
-            new_secret(),
-            new_secret(),
+        return self.abort_or_disconnect_half_way(
+            lambda bucket: bucket.callRemote("abort")
         )
-        (_, allocated) = yield self.storage_server.allocate_buckets(
-            storage_index,
-            renew_secret,
-            cancel_secret,
-            sharenums={0},
-            allocated_size=1024,
-            canary=Referenceable(),
-        )
-
-        # Bucket 0 is fully written in one go.
-        yield allocated[0].callRemote("write", 0, b"1" * 1024)
-
-        # Abort the upload:
-        yield allocated[0].callRemote("abort")
-
-        # Write different data with no complaint:
-        (_, allocated) = yield self.storage_server.allocate_buckets(
-            storage_index,
-            renew_secret,
-            cancel_secret,
-            sharenums={0},
-            allocated_size=1024,
-            canary=Referenceable(),
-        )
-        yield allocated[0].callRemote("write", 0, b"2" * 1024)
 
     @inlineCallbacks
     def test_get_buckets_skips_unfinished_buckets(self):
