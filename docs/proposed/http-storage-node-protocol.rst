@@ -482,8 +482,8 @@ The response includes ``already-have`` and ``allocated`` for two reasons:
   This might be because a server has become unavailable and a remaining server needs to store more shares for the upload.
   It could also just be that the client's preferred servers have changed.
 
-``PUT /v1/immutable/:storage_index/:share_number``
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+``PATCH /v1/immutable/:storage_index/:share_number``
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 Write data for the indicated share.
 The share number must belong to the storage index.
@@ -529,6 +529,24 @@ The response code:
   Future uploads can start from scratch with no pre-existing upload state stored on the server.
 * If the uploaded has already finished, the response is 405 (Method Not Allowed)
   and no change is made.
+
+
+Discussion
+``````````
+
+``PUT`` verbs are only supposed to be used to replace the whole resource,
+thus the use of ``PATCH``.
+From RFC 7231::
+
+   An origin server that allows PUT on a given target resource MUST send
+   a 400 (Bad Request) response to a PUT request that contains a
+   Content-Range header field (Section 4.2 of [RFC7233]), since the
+   payload is likely to be partial content that has been mistakenly PUT
+   as a full representation.  Partial content updates are possible by
+   targeting a separately identified resource with state that overlaps a
+   portion of the larger resource, or by using a different method that
+   has been specifically defined for partial updates (for example, the
+   PATCH method defined in [RFC5789]).
 
 
 ``POST /v1/immutable/:storage_index/:share_number/corrupt``
@@ -684,19 +702,19 @@ Immutable Data
 
 #. Upload the content for immutable share ``7``::
 
-     PUT /v1/immutable/AAAAAAAAAAAAAAAA/7
+     PATCH /v1/immutable/AAAAAAAAAAAAAAAA/7
      Content-Range: bytes 0-15/48
      <first 16 bytes of share data>
 
      200 OK
 
-     PUT /v1/immutable/AAAAAAAAAAAAAAAA/7
+     PATCH /v1/immutable/AAAAAAAAAAAAAAAA/7
      Content-Range: bytes 16-31/48
      <second 16 bytes of share data>
 
      200 OK
 
-     PUT /v1/immutable/AAAAAAAAAAAAAAAA/7
+     PATCH /v1/immutable/AAAAAAAAAAAAAAAA/7
      Content-Range: bytes 32-47/48
      <final 16 bytes of share data>
 
