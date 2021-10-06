@@ -28,7 +28,7 @@ jobs:
           - 3.9
         include:
           # On macOS don't bother with 3.6-3.8, just to get faster builds.
-          - os: macos-latest
+          - os: macos-10.15
             python-version: 2.7
           - os: macos-latest
             python-version: 3.9
@@ -168,7 +168,7 @@ jobs:
           - 3.9
         include:
           # On macOS don't bother with 3.6, just to get faster builds.
-          - os: macos-latest
+          - os: macos-10.15
             python-version: 2.7
           - os: macos-latest
             python-version: 3.9
@@ -183,7 +183,7 @@ jobs:
       # We have to use an older version of Tor for running integration
       # tests on macOS.
       - name: Install Tor [macOS, ${{ matrix.python-version }} ]
-        if: ${{ matrix.os == 'macos-latest' }}
+        if: ${{ contains(matrix.os, 'macos') }}
         run: |
           brew extract --version 0.4.5.8 tor homebrew/cask
           brew install tor@0.4.5.8
@@ -247,7 +247,7 @@ jobs:
       fail-fast: false
       matrix:
         os:
-          - macos-latest
+          - macos-10.15
           - windows-latest
           - ubuntu-latest
         python-version:
