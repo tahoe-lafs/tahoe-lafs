@@ -12,10 +12,29 @@ RUN cd /root && \
 
 RUN tahoe create-introducer --location=tcp:introducer:3458 --port=tcp:3458 /root/.tahoe-introducer
 RUN timeout 4 tahoe run /root/.tahoe-introducer || true
-RUN tahoe create-node --location=tcp:server:3457 --port=tcp:3457 --introducer=$(cat /root/.tahoe-introducer/private/introducer.furl) /root/.tahoe-server
-RUN tahoe create-client --webport=3456 --introducer=$(cat /root/.tahoe-introducer/private/introducer.furl) --basedir=/root/.tahoe-client --shares-needed=1 --shares-happy=1 --shares-total=1
+RUN tahoe create-node --webport=3459 --location=tcp:server:3457 --port=tcp:3457 --introducer=$(cat /root/.tahoe-introducer/private/introducer.furl) /root/.tahoe-server
+RUN tahoe create-client --webport=3456:interface=0.0.0.0 --introducer=$(cat /root/.tahoe-introducer/private/introducer.furl) --basedir=/root/.tahoe-client --shares-needed=1 --shares-happy=1 --shares-total=1
+
+SHELL ["/bin/bash", "-c"]
+RUN { \
+        echo "[sftpd]" && \
+        echo "enabled = true" && \
+        echo "port = tcp:3460:interface=0.0.0.0" && \
+        echo "host_pubkey_file = private/host_key.pub" && \
+        echo "host_privkey_file = private/host_key" && \
+        echo "accounts.file = private/accounts"; \
+    } >> /root/.tahoe-client/tahoe.cfg && \
+    ssh-keygen -t ed25519 -f /root/.tahoe-client/private/host_key -N "" && \
+    touch /root/.tahoe-client/private/accounts
 
 VOLUME ["/root/.tahoe-client", "/root/.tahoe-server", "/root/.tahoe-introducer"]
-EXPOSE 3456 3457 3458
+
+# 3456 client web
+# 3457 server
+# 3458 introducer
+# 3459 server web
+# 3460 client sftp
+EXPOSE 3456 3457 3458 3459 3460
+
 ENTRYPOINT ["tahoe"]
 CMD []
