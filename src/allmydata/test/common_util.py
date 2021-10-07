@@ -314,6 +314,16 @@ class FakeCanary(object):
     def getPeer(self):
         return "<fake>"
 
+    def disconnected(self):
+        """Disconnect the canary, to be called by test code.
+
+        Can only  happen once.
+        """
+        if self.disconnectors is not None:
+            for (f, args, kwargs) in list(self.disconnectors.values()):
+                f(*args, **kwargs)
+            self.disconnectors = None
+
 
 class ShouldFailMixin(object):
 

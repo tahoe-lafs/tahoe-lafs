@@ -14,6 +14,7 @@ from past.builtins import long
 
 import itertools
 import hashlib
+import re
 from twisted.internet import defer
 from twisted.python.filepath import FilePath
 from twisted.web.resource import Resource
@@ -1550,6 +1551,37 @@ class Statistics(MultiFormatResource):
         stats = self._provider.get_stats()
         req.setHeader("content-type", "text/plain")
         return json.dumps(stats, indent=1) + "\n"
+
+    @render_exception
+    def render_OPENMETRICS(self, req):
+        """
+        Render our stats in `OpenMetrics <https://openmetrics.io/>` format.
+        For example Prometheus and Victoriametrics can parse this.
+        Point the scraper to ``/statistics?t=openmetrics`` (instead of the
+        default ``/metrics``).
+        """
+        req.setHeader("content-type", "application/openmetrics-text; version=1.0.0; charset=utf-8")
+        stats = self._provider.get_stats()
+        ret = []
+
+        def mangle_name(name):
+            return re.sub(
+                u"_(\d\d)_(\d)_percentile",
+                u'{quantile="0.\g<1>\g<2>"}',
+                name.replace(u".", u"_")
+            )
+
+        def mangle_value(val):
+            return str(val) if val is not None else u"NaN"
+
+        for (k, v) in sorted(stats['counters'].items()):
+            ret.append(u"tahoe_counters_%s %s" % (mangle_name(k), mangle_value(v)))
+        for (k, v) in sorted(stats['stats'].items()):
+            ret.append(u"tahoe_stats_%s %s" % (mangle_name(k), mangle_value(v)))
+
+        ret.append(u"# EOF\n")
+
+        return u"\n".join(ret)
 
 class StatisticsElement(Element):
 

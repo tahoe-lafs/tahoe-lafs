@@ -994,11 +994,19 @@ class _StorageServer(object):
             tw_vectors,
             r_vector,
     ):
+        # Match the wire protocol, which requires 4-tuples for test vectors.
+        wire_format_tw_vectors = {
+            key: (
+                [(start, length, b"eq", data) for (start, length, data) in value[0]],
+                value[1],
+                value[2],
+            ) for (key, value) in tw_vectors.items()
+        }
         return self._rref.callRemote(
             "slot_testv_and_readv_and_writev",
             storage_index,
             secrets,
-            tw_vectors,
+            wire_format_tw_vectors,
             r_vector,
         )
 
