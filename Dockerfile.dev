@@ -16,7 +16,7 @@ RUN \
   mkdir /root/.tahoe-introducer; \
   mkdir /root/.tahoe-server;
 RUN /root/tahoe-lafs/venv/bin/tahoe create-introducer --location=tcp:introducer:3458 --port=tcp:3458 /root/.tahoe-introducer
-RUN /root/tahoe-lafs/venv/bin/tahoe start /root/.tahoe-introducer
+RUN timeout 4 /root/tahoe-lafs/venv/bin/tahoe run /root/.tahoe-introducer || true
 RUN /root/tahoe-lafs/venv/bin/tahoe create-node --location=tcp:server:3457 --port=tcp:3457 --introducer=$(cat /root/.tahoe-introducer/private/introducer.furl) /root/.tahoe-server
 RUN /root/tahoe-lafs/venv/bin/tahoe create-client --webport=3456 --introducer=$(cat /root/.tahoe-introducer/private/introducer.furl) --basedir=/root/.tahoe-client --shares-needed=1 --shares-happy=1 --shares-total=1
 VOLUME ["/root/.tahoe-client", "/root/.tahoe-server", "/root/.tahoe-introducer"]
