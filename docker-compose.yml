@@ -15,7 +15,6 @@ services:
     depends_on:
       - "introducer"
       - "server"
-    entrypoint: /root/tahoe-lafs/venv/bin/tahoe
     command: ["run", "/root/.tahoe-client"]
   server:
     build:
@@ -28,10 +27,9 @@ services:
       - ./setup.cfg:/root/tahoe-lafs/setup.cfg
       - ./setup.py:/root/tahoe-lafs/setup.py
     ports:
-      - "127.0.0.1:3457:3457" 
-    depends_on: 
+      - "127.0.0.1:3457:3457"
+    depends_on:
       - "introducer"
-    entrypoint: /root/tahoe-lafs/venv/bin/tahoe
     command: ["run", "/root/.tahoe-server"]
   introducer:
     build:
@@ -44,6 +42,5 @@ services:
       - ./setup.cfg:/root/tahoe-lafs/setup.cfg
       - ./setup.py:/root/tahoe-lafs/setup.py
     ports:
-      - "127.0.0.1:3458:3458" 
-    entrypoint: /root/tahoe-lafs/venv/bin/tahoe
+      - "127.0.0.1:3458:3458"
     command: ["run", "/root/.tahoe-introducer"]
