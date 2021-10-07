@@ -11,7 +11,8 @@ services:
       - ./setup.cfg:/root/tahoe-lafs/setup.cfg
       - ./setup.py:/root/tahoe-lafs/setup.py
     ports:
-      - "127.0.0.1:3456:3456"
+      - "127.0.0.1:3456:3456" # web
+      - "127.0.0.1:3460:3460" # sftp, to use run `docker-compose exec client sh -c 'echo "user password URI:DIR2:..." > /root/.tahoe-client/private/accounts' && docker-compose restart client` first
     depends_on:
       - "introducer"
       - "server"
@@ -27,7 +28,8 @@ services:
       - ./setup.cfg:/root/tahoe-lafs/setup.cfg
       - ./setup.py:/root/tahoe-lafs/setup.py
     ports:
-      - "127.0.0.1:3457:3457"
+      - "127.0.0.1:3457:3457" # tub
+      - "127.0.0.1:3459:3459" # web
     depends_on:
       - "introducer"
     command: ["run", "/root/.tahoe-server"]
