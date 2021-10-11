@@ -91,7 +91,7 @@ from .jsonbytes import (
     AnyBytesJSONEncoder,
     bytes_to_unicode
 )
-
+import json
 
 
 def validateInstanceOf(t):
@@ -315,6 +315,14 @@ class _DestinationParser(object):
 
 _parse_destination_description = _DestinationParser().parse
 
+def is_json_serializable(object):
+    try:
+        json.dumps(object)
+        return True
+    except (TypeError, OverflowError):
+        return False
+
+
 def log_call_deferred(action_type):
     """
     Like ``eliot.log_call`` but for functions which return ``Deferred``.
@@ -325,7 +333,14 @@ def log_call_deferred(action_type):
             # Use the action's context method to avoid ending the action when
             # the `with` block ends.
             kwargs = {k: bytes_to_unicode(True, kw[k]) for k in kw}
-            with start_action(action_type=action_type, args=a, kwargs=kwargs).context():
+            # Remove complex (unserializable) objects from positional args to
+            # prevent eliot from throwing errors when it attempts serialization
+            args = {
+                "arg_" + str(pos): bytes_to_unicode(True, a[pos])
+                for pos in range(len(a))
+                if is_json_serializable(a[pos])
+            }
+            with start_action(action_type=action_type, args=args, kwargs=kwargs).context():
                 # Use addActionFinish so that the action finishes when the
                 # Deferred fires.
                 d = maybeDeferred(f, *a, **kw)
@@ -339,3 +354,5 @@ if PY2:
     capture_logging = eliot_capture_logging
 else:
     capture_logging = partial(eliot_capture_logging, encoder_=AnyBytesJSONEncoder)
+
+

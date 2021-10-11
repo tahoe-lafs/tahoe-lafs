@@ -297,7 +297,7 @@ class LogCallDeferredTests(TestCase):
         self.assertThat(
             f(4), succeeded(Equals(16)))
         msg = logger.messages[0]
-        assertContainsFields(self, msg, {"args": (4,)})
+        assertContainsFields(self, msg, {"args": {'arg_0': 4}})
 
     @capture_logging(
         lambda self, logger:
@@ -328,5 +328,5 @@ class LogCallDeferredTests(TestCase):
             return base ** exp
         self.assertThat(f(10, 2, message="an exponential function"), succeeded(Equals(100)))
         msg = logger.messages[0]
-        assertContainsFields(self, msg, {"args": (10, 2)})
+        assertContainsFields(self, msg, {"args": {'arg_0': 10, 'arg_1': 2}})
         assertContainsFields(self, msg, {"kwargs": {"message": "an exponential function"}})
