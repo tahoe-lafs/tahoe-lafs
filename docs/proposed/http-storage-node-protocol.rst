@@ -482,8 +482,8 @@ The response includes ``already-have`` and ``allocated`` for two reasons:
   This might be because a server has become unavailable and a remaining server needs to store more shares for the upload.
   It could also just be that the client's preferred servers have changed.
 
-``PUT /v1/immutable/:storage_index/:share_number``
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+``PATCH /v1/immutable/:storage_index/:share_number``
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 Write data for the indicated share.
 The share number must belong to the storage index.
@@ -497,11 +497,8 @@ If any one of these requests fails then at most 128KiB of upload work needs to b
 
 The server must recognize when all of the data has been received and mark the share as complete
 (which it can do because it was informed of the size when the storage index was initialized).
-Clients should upload chunks in re-assembly order.
 
 * When a chunk that does not complete the share is successfully uploaded the response is ``OK``.
-* When the chunk that completes the share is successfully uploaded the response is ``CREATED``.
-* If the *Content-Range* for a request covers part of the share that has already been uploaded the response is ``CONFLICT``.
   The response body indicates the range of share data that has yet to be uploaded.
   That is::
 
@@ -513,6 +510,43 @@ Clients should upload chunks in re-assembly order.
       ...
       ]
     }
+
+* When the chunk that completes the share is successfully uploaded the response is ``CREATED``.
+* If the *Content-Range* for a request covers part of the share that has already,
+  and the data does not match already written data,
+  the response is ``CONFLICT``.
+  At this point the only thing to do is abort the upload and start from scratch (see below).
+
+``PUT /v1/immutable/:storage_index/:share_number/abort``
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+This cancels an *in-progress* upload.
+
+The response code:
+
+* When the upload is still in progress and therefore the abort has succeeded,
+  the response is ``OK``.
+  Future uploads can start from scratch with no pre-existing upload state stored on the server.
+* If the uploaded has already finished, the response is 405 (Method Not Allowed)
+  and no change is made.
+
+
+Discussion
+``````````
+
+``PUT`` verbs are only supposed to be used to replace the whole resource,
+thus the use of ``PATCH``.
+From RFC 7231::
+
+   An origin server that allows PUT on a given target resource MUST send
+   a 400 (Bad Request) response to a PUT request that contains a
+   Content-Range header field (Section 4.2 of [RFC7233]), since the
+   payload is likely to be partial content that has been mistakenly PUT
+   as a full representation.  Partial content updates are possible by
+   targeting a separately identified resource with state that overlaps a
+   portion of the larger resource, or by using a different method that
+   has been specifically defined for partial updates (for example, the
+   PATCH method defined in [RFC5789]).
 
 
 ``POST /v1/immutable/:storage_index/:share_number/corrupt``
@@ -600,7 +634,6 @@ For example::
                "test": [{
                    "offset": 3,
                    "size": 5,
-                   "operator": "eq",
                    "specimen": "hello"
                }, ...],
                "write": [{
@@ -625,6 +658,9 @@ For example::
           ...
       }
   }
+
+A test vector or read vector that read beyond the boundaries of existing data will return nothing for any bytes past the end.
+As a result, if there is no data at all, an empty bytestring is returned no matter what the offset or length.
 
 Reading
 ~~~~~~~
@@ -666,19 +702,19 @@ Immutable Data
 
 #. Upload the content for immutable share ``7``::
 
-     PUT /v1/immutable/AAAAAAAAAAAAAAAA/7
+     PATCH /v1/immutable/AAAAAAAAAAAAAAAA/7
      Content-Range: bytes 0-15/48
      <first 16 bytes of share data>
 
      200 OK
 
-     PUT /v1/immutable/AAAAAAAAAAAAAAAA/7
+     PATCH /v1/immutable/AAAAAAAAAAAAAAAA/7
      Content-Range: bytes 16-31/48
      <second 16 bytes of share data>
 
      200 OK
 
-     PUT /v1/immutable/AAAAAAAAAAAAAAAA/7
+     PATCH /v1/immutable/AAAAAAAAAAAAAAAA/7
      Content-Range: bytes 32-47/48
      <final 16 bytes of share data>
 
@@ -701,7 +737,10 @@ Immutable Data
 Mutable Data
 ~~~~~~~~~~~~
 
-1. Create mutable share number ``3`` with ``10`` bytes of data in slot ``BBBBBBBBBBBBBBBB``::
+1. Create mutable share number ``3`` with ``10`` bytes of data in slot ``BBBBBBBBBBBBBBBB``.
+The special test vector of size 1 but empty bytes will only pass
+if there is no existing share,
+otherwise it will read a byte which won't match `b""`::
 
      POST /v1/mutable/BBBBBBBBBBBBBBBB/read-test-write
      {
@@ -715,7 +754,6 @@ Mutable Data
                  "test": [{
                      "offset": 0,
                      "size": 1,
-                     "operator": "eq",
                      "specimen": ""
                  }],
                  "write": [{
@@ -747,8 +785,7 @@ Mutable Data
              3: {
                  "test": [{
                      "offset": 0,
-                     "size": <checkstring size>,
-                     "operator": "eq",
+                     "size": <length of checkstring>,
                      "specimen": "<checkstring>"
                  }],
                  "write": [{

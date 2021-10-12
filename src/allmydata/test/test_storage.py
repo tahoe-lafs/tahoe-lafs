@@ -8,7 +8,7 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
-from future.utils import native_str, PY2, bytes_to_native_str
+from future.utils import native_str, PY2, bytes_to_native_str, bchr
 if PY2:
     from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 from six import ensure_str
@@ -19,12 +19,14 @@ import platform
 import stat
 import struct
 import shutil
-import gc
+from uuid import uuid4
 
 from twisted.trial import unittest
 
 from twisted.internet import defer
 from twisted.internet.task import Clock
+
+from hypothesis import given, strategies
 
 import itertools
 from allmydata import interfaces
@@ -33,7 +35,7 @@ from allmydata.storage.server import StorageServer, DEFAULT_RENEWAL_TIME
 from allmydata.storage.shares import get_share_file
 from allmydata.storage.mutable import MutableShareFile
 from allmydata.storage.immutable import BucketWriter, BucketReader, ShareFile
-from allmydata.storage.common import DataTooLargeError, storage_index_to_dir, \
+from allmydata.storage.common import storage_index_to_dir, \
      UnknownMutableContainerVersionError, UnknownImmutableContainerVersionError, \
      si_b2a, si_a2b
 from allmydata.storage.lease import LeaseInfo
@@ -47,7 +49,9 @@ from allmydata.mutable.layout import MDMFSlotWriteProxy, MDMFSlotReadProxy, \
                                      SIGNATURE_SIZE, \
                                      VERIFICATION_KEY_SIZE, \
                                      SHARE_HASH_CHAIN_SIZE
-from allmydata.interfaces import BadWriteEnablerError
+from allmydata.interfaces import (
+    BadWriteEnablerError, DataTooLargeError, ConflictingWriteError,
+)
 from allmydata.test.no_network import NoNetworkServer
 from allmydata.storage_client import (
     _StorageServer,
@@ -124,8 +128,7 @@ class Bucket(unittest.TestCase):
 
     def test_create(self):
         incoming, final = self.make_workdir("test_create")
-        bw = BucketWriter(self, incoming, final, 200, self.make_lease(),
-                          FakeCanary())
+        bw = BucketWriter(self, incoming, final, 200, self.make_lease())
         bw.remote_write(0, b"a"*25)
         bw.remote_write(25, b"b"*25)
         bw.remote_write(50, b"c"*25)
@@ -134,8 +137,7 @@ class Bucket(unittest.TestCase):
 
     def test_readwrite(self):
         incoming, final = self.make_workdir("test_readwrite")
-        bw = BucketWriter(self, incoming, final, 200, self.make_lease(),
-                          FakeCanary())
+        bw = BucketWriter(self, incoming, final, 200, self.make_lease())
         bw.remote_write(0, b"a"*25)
         bw.remote_write(25, b"b"*25)
         bw.remote_write(50, b"c"*7) # last block may be short
@@ -146,6 +148,88 @@ class Bucket(unittest.TestCase):
         self.failUnlessEqual(br.remote_read(0, 25), b"a"*25)
         self.failUnlessEqual(br.remote_read(25, 25), b"b"*25)
         self.failUnlessEqual(br.remote_read(50, 7), b"c"*7)
+
+    def test_write_past_size_errors(self):
+        """Writing beyond the size of the bucket throws an exception."""
+        for (i, (offset, length)) in enumerate([(0, 201), (10, 191), (202, 34)]):
+            incoming, final = self.make_workdir(
+                "test_write_past_size_errors-{}".format(i)
+            )
+            bw = BucketWriter(self, incoming, final, 200, self.make_lease())
+            with self.assertRaises(DataTooLargeError):
+                bw.remote_write(offset, b"a" * length)
+
+    @given(
+        maybe_overlapping_offset=strategies.integers(min_value=0, max_value=98),
+        maybe_overlapping_length=strategies.integers(min_value=1, max_value=100),
+    )
+    def test_overlapping_writes_ok_if_matching(
+            self, maybe_overlapping_offset, maybe_overlapping_length
+    ):
+        """
+        Writes that overlap with previous writes are OK when the content is the
+        same.
+        """
+        length = 100
+        expected_data = b"".join(bchr(i) for i in range(100))
+        incoming, final = self.make_workdir("overlapping_writes_{}".format(uuid4()))
+        bw = BucketWriter(
+            self, incoming, final, length, self.make_lease(),
+        )
+        # Three writes: 10-19, 30-39, 50-59. This allows for a bunch of holes.
+        bw.remote_write(10, expected_data[10:20])
+        bw.remote_write(30, expected_data[30:40])
+        bw.remote_write(50, expected_data[50:60])
+        # Then, an overlapping write but with matching data:
+        bw.remote_write(
+            maybe_overlapping_offset,
+            expected_data[
+                maybe_overlapping_offset:maybe_overlapping_offset + maybe_overlapping_length
+            ]
+        )
+        # Now fill in the holes:
+        bw.remote_write(0, expected_data[0:10])
+        bw.remote_write(20, expected_data[20:30])
+        bw.remote_write(40, expected_data[40:50])
+        bw.remote_write(60, expected_data[60:])
+        bw.remote_close()
+
+        br = BucketReader(self, bw.finalhome)
+        self.assertEqual(br.remote_read(0, length), expected_data)
+
+
+    @given(
+        maybe_overlapping_offset=strategies.integers(min_value=0, max_value=98),
+        maybe_overlapping_length=strategies.integers(min_value=1, max_value=100),
+    )
+    def test_overlapping_writes_not_ok_if_different(
+            self, maybe_overlapping_offset, maybe_overlapping_length
+    ):
+        """
+        Writes that overlap with previous writes fail with an exception if the
+        contents don't match.
+        """
+        length = 100
+        incoming, final = self.make_workdir("overlapping_writes_{}".format(uuid4()))
+        bw = BucketWriter(
+            self, incoming, final, length, self.make_lease(),
+        )
+        # Three writes: 10-19, 30-39, 50-59. This allows for a bunch of holes.
+        bw.remote_write(10, b"1" * 10)
+        bw.remote_write(30, b"1" * 10)
+        bw.remote_write(50, b"1" * 10)
+        # Then, write something that might overlap with some of them, but
+        # conflicts. Then fill in holes left by first three writes. Conflict is
+        # inevitable.
+        with self.assertRaises(ConflictingWriteError):
+            bw.remote_write(
+                maybe_overlapping_offset,
+                b'X' * min(maybe_overlapping_length, length - maybe_overlapping_offset),
+            )
+            bw.remote_write(0, b"1" * 10)
+            bw.remote_write(20, b"1" * 10)
+            bw.remote_write(40, b"1" * 10)
+            bw.remote_write(60, b"1" * 40)
 
     def test_read_past_end_of_share_data(self):
         # test vector for immutable files (hard-coded contents of an immutable share
@@ -228,8 +312,7 @@ class BucketProxy(unittest.TestCase):
         final = os.path.join(basedir, "bucket")
         fileutil.make_dirs(basedir)
         fileutil.make_dirs(os.path.join(basedir, "tmp"))
-        bw = BucketWriter(self, incoming, final, size, self.make_lease(),
-                          FakeCanary())
+        bw = BucketWriter(self, incoming, final, size, self.make_lease())
         rb = RemoteBucket(bw)
         return bw, rb, final
 
@@ -579,26 +662,24 @@ class Server(unittest.TestCase):
         # the size we request.
         OVERHEAD = 3*4
         LEASE_SIZE = 4+32+32+4
-        canary = FakeCanary(True)
+        canary = FakeCanary()
         already, writers = self.allocate(ss, b"vid1", [0,1,2], 1000, canary)
         self.failUnlessEqual(len(writers), 3)
         # now the StorageServer should have 3000 bytes provisionally
         # allocated, allowing only 2000 more to be claimed
-        self.failUnlessEqual(len(ss._active_writers), 3)
+        self.failUnlessEqual(len(ss._bucket_writers), 3)
 
         # allocating 1001-byte shares only leaves room for one
-        already2, writers2 = self.allocate(ss, b"vid2", [0,1,2], 1001, canary)
+        canary2 = FakeCanary()
+        already2, writers2 = self.allocate(ss, b"vid2", [0,1,2], 1001, canary2)
         self.failUnlessEqual(len(writers2), 1)
-        self.failUnlessEqual(len(ss._active_writers), 4)
+        self.failUnlessEqual(len(ss._bucket_writers), 4)
 
         # we abandon the first set, so their provisional allocation should be
         # returned
+        canary.disconnected()
 
-        del already
-        del writers
-        gc.collect()
-
-        self.failUnlessEqual(len(ss._active_writers), 1)
+        self.failUnlessEqual(len(ss._bucket_writers), 1)
         # now we have a provisional allocation of 1001 bytes
 
         # and we close the second set, so their provisional allocation should
@@ -607,25 +688,21 @@ class Server(unittest.TestCase):
         for bw in writers2.values():
             bw.remote_write(0, b"a"*25)
             bw.remote_close()
-        del already2
-        del writers2
-        del bw
-        self.failUnlessEqual(len(ss._active_writers), 0)
+        self.failUnlessEqual(len(ss._bucket_writers), 0)
 
         # this also changes the amount reported as available by call_get_disk_stats
         allocated = 1001 + OVERHEAD + LEASE_SIZE
 
         # now there should be ALLOCATED=1001+12+72=1085 bytes allocated, and
         # 5000-1085=3915 free, therefore we can fit 39 100byte shares
-        already3, writers3 = self.allocate(ss, b"vid3", list(range(100)), 100, canary)
+        canary3 = FakeCanary()
+        already3, writers3 = self.allocate(ss, b"vid3", list(range(100)), 100, canary3)
         self.failUnlessEqual(len(writers3), 39)
-        self.failUnlessEqual(len(ss._active_writers), 39)
+        self.failUnlessEqual(len(ss._bucket_writers), 39)
 
-        del already3
-        del writers3
-        gc.collect()
+        canary3.disconnected()
 
-        self.failUnlessEqual(len(ss._active_writers), 0)
+        self.failUnlessEqual(len(ss._bucket_writers), 0)
         ss.disownServiceParent()
         del ss
 
@@ -1074,23 +1151,6 @@ class MutableServer(unittest.TestCase):
                                        }))
         self.failUnlessEqual(read(b"si1", [0], [(0,100)]), {0: [data]})
 
-        # as should this one
-        answer = write(b"si1", secrets,
-                       {0: ([(10, 5, b"lt", b"11111"),
-                             ],
-                            [(0, b"x"*100)],
-                            None),
-                        },
-                       [(10,5)],
-                       )
-        self.failUnlessEqual(answer, (False,
-                                      {0: [b"11111"],
-                                       1: [b""],
-                                       2: [b""]},
-                                      ))
-        self.failUnlessEqual(read(b"si1", [0], [(0,100)]), {0: [data]})
-
-
     def test_operators(self):
         # test operators, the data we're comparing is '11111' in all cases.
         # test both fail+pass, reset data after each one.
@@ -1110,63 +1170,6 @@ class MutableServer(unittest.TestCase):
 
         reset()
 
-        #  lt
-        answer = write(b"si1", secrets, {0: ([(10, 5, b"lt", b"11110"),
-                                             ],
-                                            [(0, b"x"*100)],
-                                            None,
-                                            )}, [(10,5)])
-        self.failUnlessEqual(answer, (False, {0: [b"11111"]}))
-        self.failUnlessEqual(read(b"si1", [0], [(0,100)]), {0: [data]})
-        self.failUnlessEqual(read(b"si1", [], [(0,100)]), {0: [data]})
-        reset()
-
-        answer = write(b"si1", secrets, {0: ([(10, 5, b"lt", b"11111"),
-                                             ],
-                                            [(0, b"x"*100)],
-                                            None,
-                                            )}, [(10,5)])
-        self.failUnlessEqual(answer, (False, {0: [b"11111"]}))
-        self.failUnlessEqual(read(b"si1", [0], [(0,100)]), {0: [data]})
-        reset()
-
-        answer = write(b"si1", secrets, {0: ([(10, 5, b"lt", b"11112"),
-                                             ],
-                                            [(0, b"y"*100)],
-                                            None,
-                                            )}, [(10,5)])
-        self.failUnlessEqual(answer, (True, {0: [b"11111"]}))
-        self.failUnlessEqual(read(b"si1", [0], [(0,100)]), {0: [b"y"*100]})
-        reset()
-
-        #  le
-        answer = write(b"si1", secrets, {0: ([(10, 5, b"le", b"11110"),
-                                             ],
-                                            [(0, b"x"*100)],
-                                            None,
-                                            )}, [(10,5)])
-        self.failUnlessEqual(answer, (False, {0: [b"11111"]}))
-        self.failUnlessEqual(read(b"si1", [0], [(0,100)]), {0: [data]})
-        reset()
-
-        answer = write(b"si1", secrets, {0: ([(10, 5, b"le", b"11111"),
-                                             ],
-                                            [(0, b"y"*100)],
-                                            None,
-                                            )}, [(10,5)])
-        self.failUnlessEqual(answer, (True, {0: [b"11111"]}))
-        self.failUnlessEqual(read(b"si1", [0], [(0,100)]), {0: [b"y"*100]})
-        reset()
-
-        answer = write(b"si1", secrets, {0: ([(10, 5, b"le", b"11112"),
-                                             ],
-                                            [(0, b"y"*100)],
-                                            None,
-                                            )}, [(10,5)])
-        self.failUnlessEqual(answer, (True, {0: [b"11111"]}))
-        self.failUnlessEqual(read(b"si1", [0], [(0,100)]), {0: [b"y"*100]})
-        reset()
-
         #  eq
         answer = write(b"si1", secrets, {0: ([(10, 5, b"eq", b"11112"),
                                              ],
@@ -1184,81 +1187,6 @@ class MutableServer(unittest.TestCase):
                                             )}, [(10,5)])
         self.failUnlessEqual(answer, (True, {0: [b"11111"]}))
         self.failUnlessEqual(read(b"si1", [0], [(0,100)]), {0: [b"y"*100]})
-        reset()
-
-        #  ne
-        answer = write(b"si1", secrets, {0: ([(10, 5, b"ne", b"11111"),
-                                             ],
-                                            [(0, b"x"*100)],
-                                            None,
-                                            )}, [(10,5)])
-        self.failUnlessEqual(answer, (False, {0: [b"11111"]}))
-        self.failUnlessEqual(read(b"si1", [0], [(0,100)]), {0: [data]})
-        reset()
-
-        answer = write(b"si1", secrets, {0: ([(10, 5, b"ne", b"11112"),
-                                             ],
-                                            [(0, b"y"*100)],
-                                            None,
-                                            )}, [(10,5)])
-        self.failUnlessEqual(answer, (True, {0: [b"11111"]}))
-        self.failUnlessEqual(read(b"si1", [0], [(0,100)]), {0: [b"y"*100]})
-        reset()
-
-        #  ge
-        answer = write(b"si1", secrets, {0: ([(10, 5, b"ge", b"11110"),
-                                             ],
-                                            [(0, b"y"*100)],
-                                            None,
-                                            )}, [(10,5)])
-        self.failUnlessEqual(answer, (True, {0: [b"11111"]}))
-        self.failUnlessEqual(read(b"si1", [0], [(0,100)]), {0: [b"y"*100]})
-        reset()
-
-        answer = write(b"si1", secrets, {0: ([(10, 5, b"ge", b"11111"),
-                                             ],
-                                            [(0, b"y"*100)],
-                                            None,
-                                            )}, [(10,5)])
-        self.failUnlessEqual(answer, (True, {0: [b"11111"]}))
-        self.failUnlessEqual(read(b"si1", [0], [(0,100)]), {0: [b"y"*100]})
-        reset()
-
-        answer = write(b"si1", secrets, {0: ([(10, 5, b"ge", b"11112"),
-                                             ],
-                                            [(0, b"y"*100)],
-                                            None,
-                                            )}, [(10,5)])
-        self.failUnlessEqual(answer, (False, {0: [b"11111"]}))
-        self.failUnlessEqual(read(b"si1", [0], [(0,100)]), {0: [data]})
-        reset()
-
-        #  gt
-        answer = write(b"si1", secrets, {0: ([(10, 5, b"gt", b"11110"),
-                                             ],
-                                            [(0, b"y"*100)],
-                                            None,
-                                            )}, [(10,5)])
-        self.failUnlessEqual(answer, (True, {0: [b"11111"]}))
-        self.failUnlessEqual(read(b"si1", [0], [(0,100)]), {0: [b"y"*100]})
-        reset()
-
-        answer = write(b"si1", secrets, {0: ([(10, 5, b"gt", b"11111"),
-                                             ],
-                                            [(0, b"x"*100)],
-                                            None,
-                                            )}, [(10,5)])
-        self.failUnlessEqual(answer, (False, {0: [b"11111"]}))
-        self.failUnlessEqual(read(b"si1", [0], [(0,100)]), {0: [data]})
-        reset()
-
-        answer = write(b"si1", secrets, {0: ([(10, 5, b"gt", b"11112"),
-                                             ],
-                                            [(0, b"x"*100)],
-                                            None,
-                                            )}, [(10,5)])
-        self.failUnlessEqual(answer, (False, {0: [b"11111"]}))
-        self.failUnlessEqual(read(b"si1", [0], [(0,100)]), {0: [data]})
         reset()
 
         # finally, test some operators against empty shares
