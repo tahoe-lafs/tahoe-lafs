@@ -335,11 +335,7 @@ def log_call_deferred(action_type):
             kwargs = {k: bytes_to_unicode(True, kw[k]) for k in kw}
             # Remove complex (unserializable) objects from positional args to
             # prevent eliot from throwing errors when it attempts serialization
-            args = {
-                "arg_" + str(pos): bytes_to_unicode(True, a[pos])
-                for pos in range(len(a))
-                if is_json_serializable(a[pos])
-            }
+            args = tuple([a[pos] for pos in range(len(a)) if is_json_serializable(a[pos])])
             with start_action(action_type=action_type, args=args, kwargs=kwargs).context():
                 # Use addActionFinish so that the action finishes when the
                 # Deferred fires.
