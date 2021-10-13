@@ -3,8 +3,8 @@ requires = ["flit_core >=3.2,<4"]
 build-backend = "flit_core.buildapi"
 
 [project]
+dynamic = ["version"]
 name = "tahoe-lafs" # also set in __init__.py
-version = "1.15.1"
 description = "secure, decentralized, fault-tolerant file store"
 readme = "README.rst"
 license = { file = "COPYING.GPL" }

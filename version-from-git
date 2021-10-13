@@ -1,4 +1,6 @@
 import os
+import sys
+import subprocess
 
 GIT_VERSION_HEADER = '''
 ### automatically managed version information block
@@ -6,10 +8,10 @@ GIT_VERSION_HEADER = '''
 '''
 
 GIT_VERSION_BODY = '''
-__version__ = {version}
-__normalized_version__ = {normalized}
-__full_version__ = {full}
-__branch__ = {branch}
+__version__ = {normalized!r}
+__raw_version__ = {version!r}
+__full_version__ = {full!r}
+__branch__ = {branch!r}
 '''
 
 GIT_VERSION_FOOTER = '''
@@ -58,7 +60,7 @@ def versions_from_git(tag_prefix, source_dir):
     stdout = stdout.decode("ascii")
     if not stdout.startswith(tag_prefix):
         print("Warning: tag %r doesn't start with prefix %r." % (stdout, tag_prefix))
-        return {}
+        return None
     version = stdout[len(tag_prefix):]
     pieces = version.split("-")
     if len(pieces) == 1:
@@ -69,7 +71,7 @@ def versions_from_git(tag_prefix, source_dir):
     stdout = run_command(["git", "rev-parse", "HEAD"], cwd=source_dir)
     if stdout is None:
         # run_command already complained.
-        return {}
+        return None
     full = stdout.decode("ascii").strip()
     if version.endswith("-dirty"):
         full += "-dirty"
@@ -83,58 +85,6 @@ def versions_from_git(tag_prefix, source_dir):
     return {"version": version, "normalized": normalized_version,
             "full": full, "branch": branch}
 
-# setup.cfg has an [aliases] section which runs "update_version" before many
-# commands (like "build" and "sdist") that need to know our package version
-# ahead of time. If you add different commands (or if we forgot some), you
-# may need to add it to setup.cfg and configure it to run update_version
-# before your command.
-
-class UpdateVersion(Command):
-    description = "update _version.py from revision-control metadata"
-    user_options = install.install.user_options
-
-    def initialize_options(self):
-        pass
-    def finalize_options(self):
-        pass
-    def run(self):
-        global version
-        verstr = version
-        if os.path.isdir(os.path.join(basedir, ".git")):
-            verstr = self.try_from_git()
-
-        if verstr:
-            self.distribution.metadata.version = verstr
-        else:
-            print("""\
-********************************************************************
-Warning: no version information found. This may cause tests to fail.
-********************************************************************
-""")
-
-    def try_from_git(self):
-        # If we change the release tag names, we must change this too
-        versions = versions_from_git("tahoe-lafs-")
-
-        # setup.py might be run by either py2 or py3 (when run by tox, which
-        # uses py3 on modern debian/ubuntu distros). We want this generated
-        # file to contain native strings on both (str=bytes in py2,
-        # str=unicode in py3)
-        if versions:
-            body = GIT_VERSION_BODY % {
-                "pkgname": self.distribution.get_name(),
-                "version": versions["version"],
-                "normalized": versions["normalized"],
-                "full": versions["full"],
-                "branch": versions["branch"],
-                }
-            f = open(VERSION_PY_FILENAME, "wb")
-            f.write(body.encode("ascii"))
-            f.close()
-            print("Wrote normalized version %r into '%s'" % (versions["normalized"], VERSION_PY_FILENAME))
-
-        return versions.get("normalized", None)
-
 def substitute_version(versions, template):
     prefix, the_rest = template.split(GIT_VERSION_HEADER)
     ignored, suffix = the_rest.split(GIT_VERSION_FOOTER)
@@ -142,8 +92,8 @@ def substitute_version(versions, template):
     return u"".join([
         prefix,
         GIT_VERSION_HEADER,
-        GIT_VERSION_BODY.format(versions),
-        GIT_VERSIONF_FOOTER,
+        GIT_VERSION_BODY.format(**versions),
+        GIT_VERSION_FOOTER,
         suffix,
     ])
 
@@ -153,13 +103,13 @@ def main():
     if versions is None:
         raise SystemExit(1)
 
-    import allmydata
-    with open(allmydata.__init__, "rt") as f:
+    init_path = "src/allmydata/__init__.py"
+    with open(init_path, "rt") as f:
         current = f.read()
 
     modified = substitute_version(versions, current)
 
-    with open(allmydata.__init__, "wt") as f:
+    with open(init_path, "wt") as f:
         f.write(modified)
 
 main()
