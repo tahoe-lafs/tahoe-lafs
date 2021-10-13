@@ -103,6 +103,10 @@ def main():
     if versions is None:
         raise SystemExit(1)
 
+    # Flit can *only* read a dynamic version string from the package's
+    # docstring.  As a result, we have to write the version we determined to
+    # the top-level `__init__.py`.  We'll try not to clobber everything else
+    # that's there...
     init_path = "src/allmydata/__init__.py"
     with open(init_path, "rt") as f:
         current = f.read()
