@@ -1,0 +1,165 @@
+import os
+
+GIT_VERSION_HEADER = '''
+### automatically managed version information block
+### This section is generated from git metadata by version-from-git.
+'''
+
+GIT_VERSION_BODY = '''
+__version__ = {version}
+__normalized_version__ = {normalized}
+__full_version__ = {full}
+__branch__ = {branch}
+'''
+
+GIT_VERSION_FOOTER = '''
+### end automatically managed version information block
+'''
+
+def run_command(args, cwd=None):
+    use_shell = sys.platform == "win32"
+    try:
+        p = subprocess.Popen(args, stdout=subprocess.PIPE, cwd=cwd, shell=use_shell)
+    except EnvironmentError as e:  # if this gives a SyntaxError, note that Tahoe-LAFS requires Python 2.7+
+        print("Warning: unable to run %r." % (" ".join(args),))
+        print(e)
+        return None
+    stdout = p.communicate()[0].strip()
+    if p.returncode != 0:
+        print("Warning: %r returned error code %r." % (" ".join(args), p.returncode))
+        return None
+    return stdout
+
+def versions_from_git(tag_prefix, source_dir):
+    # This runs 'git' from the directory that contains this file. That either
+    # means someone ran a setup.py command (and this code is in
+    # versioneer.py, thus the containing directory is the root of the source
+    # tree), or someone ran a project-specific entry point (and this code is
+    # in _version.py, thus the containing directory is somewhere deeper in
+    # the source tree). This only gets called if the git-archive 'subst'
+    # variables were *not* expanded, and _version.py hasn't already been
+    # rewritten with a short version string, meaning we're inside a checked
+    # out source tree.
+
+    # versions_from_git (as copied from python-versioneer) returns strings
+    # like "1.9.0-25-gb73aba9-dirty", which means we're in a tree with
+    # uncommited changes (-dirty), the latest checkin is revision b73aba9,
+    # the most recent tag was 1.9.0, and b73aba9 has 25 commits that weren't
+    # in 1.9.0 . The narrow-minded NormalizedVersion parser that takes our
+    # output (meant to enable sorting of version strings) refuses most of
+    # that. Tahoe uses a function named suggest_normalized_version() that can
+    # handle "1.9.0.post25", so dumb down our output to match.
+    stdout = run_command(["git", "describe", "--tags", "--dirty", "--always"],
+                         cwd=source_dir)
+    if stdout is None:
+        # run_command already complained on stderr.
+        return None
+
+    stdout = stdout.decode("ascii")
+    if not stdout.startswith(tag_prefix):
+        print("Warning: tag %r doesn't start with prefix %r." % (stdout, tag_prefix))
+        return {}
+    version = stdout[len(tag_prefix):]
+    pieces = version.split("-")
+    if len(pieces) == 1:
+        normalized_version = pieces[0]
+    else:
+        normalized_version = "%s.post%s" % (pieces[0], pieces[1])
+
+    stdout = run_command(["git", "rev-parse", "HEAD"], cwd=source_dir)
+    if stdout is None:
+        # run_command already complained.
+        return {}
+    full = stdout.decode("ascii").strip()
+    if version.endswith("-dirty"):
+        full += "-dirty"
+        normalized_version += ".dev0"
+
+    # Thanks to Jistanidiot at <http://stackoverflow.com/questions/6245570/get-current-branch-name>.
+    stdout = run_command(["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=source_dir)
+    branch = (stdout or b"unknown").decode("ascii").strip()
+
+    # this returns native strings (bytes on py2, unicode on py3)
+    return {"version": version, "normalized": normalized_version,
+            "full": full, "branch": branch}
+
+# setup.cfg has an [aliases] section which runs "update_version" before many
+# commands (like "build" and "sdist") that need to know our package version
+# ahead of time. If you add different commands (or if we forgot some), you
+# may need to add it to setup.cfg and configure it to run update_version
+# before your command.
+
+class UpdateVersion(Command):
+    description = "update _version.py from revision-control metadata"
+    user_options = install.install.user_options
+
+    def initialize_options(self):
+        pass
+    def finalize_options(self):
+        pass
+    def run(self):
+        global version
+        verstr = version
+        if os.path.isdir(os.path.join(basedir, ".git")):
+            verstr = self.try_from_git()
+
+        if verstr:
+            self.distribution.metadata.version = verstr
+        else:
+            print("""\
+********************************************************************
+Warning: no version information found. This may cause tests to fail.
+********************************************************************
+""")
+
+    def try_from_git(self):
+        # If we change the release tag names, we must change this too
+        versions = versions_from_git("tahoe-lafs-")
+
+        # setup.py might be run by either py2 or py3 (when run by tox, which
+        # uses py3 on modern debian/ubuntu distros). We want this generated
+        # file to contain native strings on both (str=bytes in py2,
+        # str=unicode in py3)
+        if versions:
+            body = GIT_VERSION_BODY % {
+                "pkgname": self.distribution.get_name(),
+                "version": versions["version"],
+                "normalized": versions["normalized"],
+                "full": versions["full"],
+                "branch": versions["branch"],
+                }
+            f = open(VERSION_PY_FILENAME, "wb")
+            f.write(body.encode("ascii"))
+            f.close()
+            print("Wrote normalized version %r into '%s'" % (versions["normalized"], VERSION_PY_FILENAME))
+
+        return versions.get("normalized", None)
+
+def substitute_version(versions, template):
+    prefix, the_rest = template.split(GIT_VERSION_HEADER)
+    ignored, suffix = the_rest.split(GIT_VERSION_FOOTER)
+
+    return u"".join([
+        prefix,
+        GIT_VERSION_HEADER,
+        GIT_VERSION_BODY.format(versions),
+        GIT_VERSIONF_FOOTER,
+        suffix,
+    ])
+
+def main():
+    source_dir = os.path.dirname(os.path.abspath(__file__))
+    versions = versions_from_git("tahoe-lafs-", source_dir)
+    if versions is None:
+        raise SystemExit(1)
+
+    import allmydata
+    with open(allmydata.__init__, "rt") as f:
+        current = f.read()
+
+    modified = substitute_version(versions, current)
+
+    with open(allmydata.__init__, "wt") as f:
+        f.write(modified)
+
+main()
