@@ -91,8 +91,6 @@ def main(target):
         for filename in filenames:
             if not filename.endswith('.py'):
                 continue
-            if filename in ('setup.py',):
-                continue
             if '-' in filename:
                 # a script like update-documentation.py
                 continue
