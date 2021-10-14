@@ -47,9 +47,7 @@ Shares should be uploaded with the same nodeid list as this tool used when
 constructing the files.
 
 Also note that this tool uses the Tahoe codebase, so it should be run on a
-system where Tahoe is installed, or in a source tree with setup.py like this:
-
- setup.py run_with_pythonpath -p -c 'misc/make-canary-files.py ARGS..'
+system where Tahoe is installed.
 """
 
 from past.builtins import cmp
@@ -151,5 +149,3 @@ for target in nodes:
 print("done")
 print("%d attempts total, avg %d per target, max %d" % \
       (sum(attempts), 1.0* sum(attempts) / len(nodes), max(attempts)))
-
-
