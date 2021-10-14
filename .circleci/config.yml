@@ -58,6 +58,8 @@ workflows:
           {}
       - "codechecks3":
           {}
+      - "build-release-artifacts":
+          {}
       - "pyinstaller":
           {}
       - "deprecations":
@@ -180,6 +182,24 @@ jobs:
           name: "Static-ish code checks"
           command: |
             ~/.local/bin/tox -e codechecks3
+
+  build-release-artifacts:
+    docker:
+      - <<: *DOCKERHUB_AUTH
+        image: "circleci/python:3"
+
+    steps:
+      - "checkout"
+
+      - run:
+          name: "Install tox"
+          command: |
+            pip install --user tox
+
+      - run:
+          name: "Build release artifacts"
+          command: |
+            ~/.local/bin/tox -e tarballs
 
   pyinstaller:
     docker:
