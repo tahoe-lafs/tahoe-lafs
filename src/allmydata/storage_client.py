@@ -1017,7 +1017,7 @@ class _StorageServer(object):
             shnum,
             reason,
     ):
-        self._rref.callRemote(
+        return self._rref.callRemote(
             "advise_corrupt_share",
             share_type,
             storage_index,
