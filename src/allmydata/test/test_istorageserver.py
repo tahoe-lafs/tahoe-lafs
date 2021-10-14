@@ -20,7 +20,7 @@ if PY2:
 
 from random import Random
 
-from twisted.internet.defer import inlineCallbacks
+from twisted.internet.defer import inlineCallbacks, returnValue
 
 from foolscap.api import Referenceable, RemoteException
 
@@ -405,12 +405,8 @@ class IStorageServerImmutableAPIsTestsMixin(object):
             )
 
     @inlineCallbacks
-    def test_bucket_advise_corrupt_share(self):
-        """
-        Calling ``advise_corrupt_share()`` on a bucket returned by
-        ``IStorageServer.get_buckets()`` does not result in error (other
-        behavior is opaque at this level of abstraction).
-        """
+    def create_share(self):
+        """Create a share, return the storage index."""
         storage_index = new_storage_index()
         (_, allocated) = yield self.storage_server.allocate_buckets(
             storage_index,
@@ -423,9 +419,30 @@ class IStorageServerImmutableAPIsTestsMixin(object):
 
         yield allocated[0].callRemote("write", 0, b"0123456789")
         yield allocated[0].callRemote("close")
+        returnValue(storage_index)
 
+    @inlineCallbacks
+    def test_bucket_advise_corrupt_share(self):
+        """
+        Calling ``advise_corrupt_share()`` on a bucket returned by
+        ``IStorageServer.get_buckets()`` does not result in error (other
+        behavior is opaque at this level of abstraction).
+        """
+        storage_index = yield self.create_share()
         buckets = yield self.storage_server.get_buckets(storage_index)
         yield buckets[0].callRemote("advise_corrupt_share", b"OH NO")
+
+    @inlineCallbacks
+    def test_advise_corrupt_share(self):
+        """
+        Calling ``advise_corrupt_share()`` on an immutable share does not
+        result in error (other behavior is opaque at this level of
+        abstraction).
+        """
+        storage_index = yield self.create_share()
+        yield self.storage_server.advise_corrupt_share(
+            b"immutable", storage_index, 0, b"ono"
+        )
 
 
 class IStorageServerMutableAPIsTestsMixin(object):
@@ -778,6 +795,29 @@ class IStorageServerMutableAPIsTestsMixin(object):
         self.assertEqual(
             reads,
             {0: [b"abcdefg"], 1: [b"0123456"], 2: [b"9876543"]},
+        )
+
+    @inlineCallbacks
+    def test_advise_corrupt_share(self):
+        """
+        Calling ``advise_corrupt_share()`` on a mutable share does not
+        result in error (other behavior is opaque at this level of
+        abstraction).
+        """
+        secrets = self.new_secrets()
+        storage_index = new_storage_index()
+        (written, _) = yield self.staraw(
+            storage_index,
+            secrets,
+            tw_vectors={
+                0: ([], [(0, b"abcdefg")], 7),
+            },
+            r_vector=[],
+        )
+        self.assertEqual(written, True)
+
+        yield self.storage_server.advise_corrupt_share(
+            b"mutable", storage_index, 0, b"ono"
         )
 
 
