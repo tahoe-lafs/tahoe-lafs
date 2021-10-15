@@ -39,7 +39,6 @@ from allmydata.introducer.common import unsign_from_foolscap, \
 from allmydata.node import read_config
 from allmydata.node import create_node_dir
 from allmydata.node import create_connection_handlers
-from allmydata.node import create_control_tub
 from allmydata.node import create_tub_options
 from allmydata.node import create_main_tub
 
@@ -88,7 +87,7 @@ def create_introducer(basedir=u"."):
             config, tub_options, default_connection_handlers,
             foolscap_connection_handlers, i2p_provider, tor_provider,
         )
-        control_tub = create_control_tub()
+        control_tub = None
 
         node = _IntroducerNode(
             config,
