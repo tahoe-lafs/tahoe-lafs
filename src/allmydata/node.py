@@ -919,18 +919,6 @@ def create_main_tub(config, tub_options,
     return tub
 
 
-def create_control_tub():
-    """
-    Creates a Foolscap Tub for use by the control port. This is a
-    localhost-only ephemeral Tub, with no control over the listening
-    port or location
-    """
-    control_tub = Tub()
-    portnum = iputil.listenOnUnused(control_tub)
-    log.msg("Control Tub location set to 127.0.0.1:%s" % (portnum,))
-    return control_tub
-
-
 class Node(service.MultiService):
     """
     This class implements common functionality of both Client nodes and Introducer nodes.
@@ -966,10 +954,6 @@ class Node(service.MultiService):
             self.tub.setServiceParent(self)
         else:
             self.nodeid = self.short_nodeid = None
-
-        self.control_tub = control_tub
-        if self.control_tub is not None:
-            self.control_tub.setServiceParent(self)
 
         self.log("Node constructed. " + __full_version__)
         iputil.increase_rlimits()
