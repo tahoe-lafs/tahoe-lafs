@@ -142,31 +142,6 @@ count-lines:
 # src/allmydata/test/bench_dirnode.py
 
 
-# The check-speed and check-grid targets are disabled, since they depend upon
-# the pre-located $(TAHOE) executable that was removed when we switched to
-# tox. They will eventually be resurrected as dedicated tox environments.
-
-# The check-speed target uses a pre-established client node to run a canned
-# set of performance tests against a test network that is also
-# pre-established (probably on a remote machine). Provide it with the path to
-# a local directory where this client node has been created (and populated
-# with the necessary FURLs of the test network). This target will start that
-# client with the current code and then run the tests. Afterwards it will
-# stop the client.
-#
-# The 'sleep 5' is in there to give the new client a chance to connect to its
-# storageservers, since check_speed.py has no good way of doing that itself.
-
-##.PHONY: check-speed
-##check-speed: .built
-##	if [ -z '$(TESTCLIENTDIR)' ]; then exit 1; fi
-##	@echo "stopping any leftover client code"
-##	-$(TAHOE) stop $(TESTCLIENTDIR)
-##	$(TAHOE) start $(TESTCLIENTDIR)
-##	sleep 5
-##	$(TAHOE) @src/allmydata/test/check_speed.py $(TESTCLIENTDIR)
-##	$(TAHOE) stop $(TESTCLIENTDIR)
-
 # The check-grid target also uses a pre-established client node, along with a
 # long-term directory that contains some well-known files. See the docstring
 # in src/allmydata/test/check_grid.py to see how to set this up.
@@ -195,12 +170,11 @@ test-clean:
 # Use 'make distclean' instead to delete all generated files.
 .PHONY: clean
 clean:
-	rm -rf build _trial_temp _test_memory .built
+	rm -rf build _trial_temp .built
 	rm -f `find src *.egg -name '*.so' -or -name '*.pyc'`
 	rm -rf support dist
 	rm -rf `ls -d *.egg | grep -vEe"setuptools-|setuptools_darcs-|darcsver-"`
 	rm -rf *.pyc
-	rm -f bin/tahoe bin/tahoe.pyscript
 	rm -f *.pkg
 
 .PHONY: distclean
