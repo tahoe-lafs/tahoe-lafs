@@ -17,8 +17,7 @@ from __future__ import unicode_literals
 
 # This should be useful for tests which want to examine and/or manipulate the
 # uploaded shares, checker/verifier/repairer tests, etc. The clients have no
-# Tubs, so it is not useful for tests that involve a Helper or the
-# control.furl .
+# Tubs, so it is not useful for tests that involve a Helper.
 
 from future.utils import PY2
 if PY2:
@@ -274,8 +273,6 @@ class _NoNetworkClient(_Client):  # type: ignore  # tahoe-lafs/ticket/3573
         pass
     def init_introducer_client(self):
         pass
-    def create_control_tub(self):
-        pass
     def create_log_tub(self):
         pass
     def setup_logging(self):
@@ -284,8 +281,6 @@ class _NoNetworkClient(_Client):  # type: ignore  # tahoe-lafs/ticket/3573
         service.MultiService.startService(self)
     def stopService(self):
         return service.MultiService.stopService(self)
-    def init_control(self):
-        pass
     def init_helper(self):
         pass
     def init_key_gen(self):
