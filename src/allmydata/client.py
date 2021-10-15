@@ -282,7 +282,6 @@ def create_client_from_config(config, _client_factory=None, _introducer_factory=
         config, tub_options, default_connection_handlers,
         foolscap_connection_handlers, i2p_provider, tor_provider,
     )
-    control_tub = None
 
     introducer_clients = create_introducer_clients(config, main_tub, _introducer_factory)
     storage_broker = create_storage_farm_broker(
@@ -293,7 +292,6 @@ def create_client_from_config(config, _client_factory=None, _introducer_factory=
     client = _client_factory(
         config,
         main_tub,
-        control_tub,
         i2p_provider,
         tor_provider,
         introducer_clients,
@@ -630,12 +628,12 @@ class _Client(node.Node, pollmixin.PollMixin):
                                    "max_segment_size": DEFAULT_MAX_SEGMENT_SIZE,
                                    }
 
-    def __init__(self, config, main_tub, control_tub, i2p_provider, tor_provider, introducer_clients,
+    def __init__(self, config, main_tub, i2p_provider, tor_provider, introducer_clients,
                  storage_farm_broker):
         """
         Use :func:`allmydata.client.create_client` to instantiate one of these.
         """
-        node.Node.__init__(self, config, main_tub, control_tub, i2p_provider, tor_provider)
+        node.Node.__init__(self, config, main_tub, i2p_provider, tor_provider)
 
         self.started_timestamp = time.time()
         self.logSource = "Client"

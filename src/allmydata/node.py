@@ -926,7 +926,7 @@ class Node(service.MultiService):
     NODETYPE = "unknown NODETYPE"
     CERTFILE = "node.pem"
 
-    def __init__(self, config, main_tub, control_tub, i2p_provider, tor_provider):
+    def __init__(self, config, main_tub, i2p_provider, tor_provider):
         """
         Initialize the node with the given configuration. Its base directory
         is the current directory by default.

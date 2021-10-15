@@ -250,7 +250,6 @@ def create_no_network_client(basedir):
     client = _NoNetworkClient(
         config,
         main_tub=None,
-        control_tub=None,
         i2p_provider=None,
         tor_provider=None,
         introducer_clients=[],
