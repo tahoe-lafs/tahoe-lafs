@@ -209,8 +209,11 @@ class ShareFile(object):
     def add_lease(self, lease_info):
         with open(self.home, 'rb+') as f:
             num_leases = self._read_num_leases(f)
+            # Before we write the new lease record, make sure we can encode
+            # the new lease count.
+            new_lease_count = struct.pack(self._lease_count_format, num_leases + 1)
             self._write_lease_record(f, num_leases, lease_info)
-            self._write_num_leases(f, num_leases+1)
+            self._write_encoded_num_leases(f, new_lease_count)
 
     def renew_lease(self, renew_secret, new_expire_time):
         for i,lease in enumerate(self.get_leases()):
