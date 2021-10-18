@@ -56,7 +56,7 @@ class IStorageServerSharedAPIsTestsMixin(object):
     """
     Tests for ``IStorageServer``'s shared APIs.
 
-    ``self.storage_server`` is expected to provide ``IStorageServer``.
+    ``self.storage_client`` is expected to provide ``IStorageServer``.
     """
 
     @inlineCallbacks
@@ -65,7 +65,7 @@ class IStorageServerSharedAPIsTestsMixin(object):
         ``IStorageServer`` returns a dictionary where the key is an expected
         protocol version.
         """
-        result = yield self.storage_server.get_version()
+        result = yield self.storage_client.get_version()
         self.assertIsInstance(result, dict)
         self.assertIn(b"http://allmydata.org/tahoe/protocols/storage/v1", result)
 
@@ -74,10 +74,10 @@ class IStorageServerImmutableAPIsTestsMixin(object):
     """
     Tests for ``IStorageServer``'s immutable APIs.
 
-    ``self.storage_server`` is expected to provide ``IStorageServer``.
+    ``self.storage_client`` is expected to provide ``IStorageServer``.
 
     ``self.disconnect()`` should disconnect and then reconnect, creating a new
-    ``self.storage_server``.  Some implementations may wish to skip tests using
+    ``self.storage_client``.  Some implementations may wish to skip tests using
     this; HTTP has no notion of disconnection.
     """
 
@@ -87,7 +87,7 @@ class IStorageServerImmutableAPIsTestsMixin(object):
         allocate_buckets() with a new storage index returns the matching
         shares.
         """
-        (already_got, allocated) = yield self.storage_server.allocate_buckets(
+        (already_got, allocated) = yield self.storage_client.allocate_buckets(
             new_storage_index(),
             renew_secret=new_secret(),
             cancel_secret=new_secret(),
@@ -110,7 +110,7 @@ class IStorageServerImmutableAPIsTestsMixin(object):
             new_secret(),
             new_secret(),
         )
-        (already_got, allocated) = yield self.storage_server.allocate_buckets(
+        (already_got, allocated) = yield self.storage_client.allocate_buckets(
             storage_index,
             renew_secret,
             cancel_secret,
@@ -118,7 +118,7 @@ class IStorageServerImmutableAPIsTestsMixin(object):
             allocated_size=1024,
             canary=Referenceable(),
         )
-        (already_got2, allocated2) = yield self.storage_server.allocate_buckets(
+        (already_got2, allocated2) = yield self.storage_client.allocate_buckets(
             storage_index,
             renew_secret,
             cancel_secret,
@@ -146,7 +146,7 @@ class IStorageServerImmutableAPIsTestsMixin(object):
             new_secret(),
             new_secret(),
         )
-        (_, allocated) = yield self.storage_server.allocate_buckets(
+        (_, allocated) = yield self.storage_client.allocate_buckets(
             storage_index,
             renew_secret,
             cancel_secret,
@@ -162,7 +162,7 @@ class IStorageServerImmutableAPIsTestsMixin(object):
         yield abort_or_disconnect(allocated[0])
 
         # Write different data with no complaint:
-        (_, allocated) = yield self.storage_server.allocate_buckets(
+        (_, allocated) = yield self.storage_client.allocate_buckets(
             storage_index,
             renew_secret,
             cancel_secret,
@@ -198,7 +198,7 @@ class IStorageServerImmutableAPIsTestsMixin(object):
             new_secret(),
             new_secret(),
         )
-        (_, allocated) = yield self.storage_server.allocate_buckets(
+        (_, allocated) = yield self.storage_client.allocate_buckets(
             storage_index,
             renew_secret,
             cancel_secret,
@@ -219,7 +219,7 @@ class IStorageServerImmutableAPIsTestsMixin(object):
         # Bucket 0 has partial write.
         yield allocated[0].callRemote("write", 0, b"1" * 512)
 
-        (already_got, _) = yield self.storage_server.allocate_buckets(
+        (already_got, _) = yield self.storage_client.allocate_buckets(
             storage_index,
             renew_secret,
             cancel_secret,
@@ -242,7 +242,7 @@ class IStorageServerImmutableAPIsTestsMixin(object):
             new_secret(),
             new_secret(),
         )
-        (_, allocated) = yield self.storage_server.allocate_buckets(
+        (_, allocated) = yield self.storage_client.allocate_buckets(
             storage_index,
             renew_secret,
             cancel_secret,
@@ -261,7 +261,7 @@ class IStorageServerImmutableAPIsTestsMixin(object):
         yield allocated[2].callRemote("write", 0, b"3" * 512)
         yield allocated[2].callRemote("close")
 
-        buckets = yield self.storage_server.get_buckets(storage_index)
+        buckets = yield self.storage_client.get_buckets(storage_index)
         self.assertEqual(set(buckets.keys()), {1, 2})
 
         self.assertEqual(
@@ -282,7 +282,7 @@ class IStorageServerImmutableAPIsTestsMixin(object):
             new_secret(),
             new_secret(),
         )
-        (_, allocated) = yield self.storage_server.allocate_buckets(
+        (_, allocated) = yield self.storage_client.allocate_buckets(
             storage_index,
             renew_secret,
             cancel_secret,
@@ -307,7 +307,7 @@ class IStorageServerImmutableAPIsTestsMixin(object):
             new_secret(),
             new_secret(),
         )
-        (_, allocated) = yield self.storage_server.allocate_buckets(
+        (_, allocated) = yield self.storage_client.allocate_buckets(
             storage_index,
             renew_secret,
             cancel_secret,
@@ -321,7 +321,7 @@ class IStorageServerImmutableAPIsTestsMixin(object):
         yield allocated[0].callRemote("write", 5, b"1" * 20)
         yield allocated[0].callRemote("close")
 
-        buckets = yield self.storage_server.get_buckets(storage_index)
+        buckets = yield self.storage_client.get_buckets(storage_index)
         self.assertEqual(set(buckets.keys()), {0})
 
         self.assertEqual((yield buckets[0].callRemote("read", 0, 25)), b"1" * 25)
@@ -346,7 +346,7 @@ class IStorageServerImmutableAPIsTestsMixin(object):
         ``IStorageServer.get_buckets()`` implementations.
         """
         storage_index = new_storage_index()
-        (_, allocated) = yield self.storage_server.allocate_buckets(
+        (_, allocated) = yield self.storage_client.allocate_buckets(
             storage_index,
             renew_secret=new_secret(),
             cancel_secret=new_secret(),
@@ -362,7 +362,7 @@ class IStorageServerImmutableAPIsTestsMixin(object):
         # Bucket 2 is partially written
         yield allocated[2].callRemote("write", 0, b"1" * 5)
 
-        buckets = yield self.storage_server.get_buckets(storage_index)
+        buckets = yield self.storage_client.get_buckets(storage_index)
         self.assertEqual(set(buckets.keys()), {1})
 
     @inlineCallbacks
@@ -375,7 +375,7 @@ class IStorageServerImmutableAPIsTestsMixin(object):
         length = 256 * 17
 
         storage_index = new_storage_index()
-        (_, allocated) = yield self.storage_server.allocate_buckets(
+        (_, allocated) = yield self.storage_client.allocate_buckets(
             storage_index,
             renew_secret=new_secret(),
             cancel_secret=new_secret(),
@@ -388,7 +388,7 @@ class IStorageServerImmutableAPIsTestsMixin(object):
         yield allocated[0].callRemote("write", 0, total_data)
         yield allocated[0].callRemote("close")
 
-        buckets = yield self.storage_server.get_buckets(storage_index)
+        buckets = yield self.storage_client.get_buckets(storage_index)
         bucket = buckets[0]
         for start, to_read in [
             (0, 250),  # fraction
@@ -408,7 +408,7 @@ class IStorageServerImmutableAPIsTestsMixin(object):
     def create_share(self):
         """Create a share, return the storage index."""
         storage_index = new_storage_index()
-        (_, allocated) = yield self.storage_server.allocate_buckets(
+        (_, allocated) = yield self.storage_client.allocate_buckets(
             storage_index,
             renew_secret=new_secret(),
             cancel_secret=new_secret(),
@@ -429,7 +429,7 @@ class IStorageServerImmutableAPIsTestsMixin(object):
         behavior is opaque at this level of abstraction).
         """
         storage_index = yield self.create_share()
-        buckets = yield self.storage_server.get_buckets(storage_index)
+        buckets = yield self.storage_client.get_buckets(storage_index)
         yield buckets[0].callRemote("advise_corrupt_share", b"OH NO")
 
     @inlineCallbacks
@@ -440,7 +440,7 @@ class IStorageServerImmutableAPIsTestsMixin(object):
         abstraction).
         """
         storage_index = yield self.create_share()
-        yield self.storage_server.advise_corrupt_share(
+        yield self.storage_client.advise_corrupt_share(
             b"immutable", storage_index, 0, b"ono"
         )
 
@@ -453,7 +453,7 @@ class IStorageServerMutableAPIsTestsMixin(object):
     """
     Tests for ``IStorageServer``'s mutable APIs.
 
-    ``self.storage_server`` is expected to provide ``IStorageServer``.
+    ``self.storage_client`` is expected to provide ``IStorageServer``.
 
     ``STARAW`` is short for ``slot_testv_and_readv_and_writev``.
     """
@@ -464,7 +464,7 @@ class IStorageServerMutableAPIsTestsMixin(object):
 
     def staraw(self, *args, **kwargs):
         """Like ``slot_testv_and_readv_and_writev``, but less typing."""
-        return self.storage_server.slot_testv_and_readv_and_writev(*args, **kwargs)
+        return self.storage_client.slot_testv_and_readv_and_writev(*args, **kwargs)
 
     @inlineCallbacks
     def test_STARAW_reads_after_write(self):
@@ -760,7 +760,7 @@ class IStorageServerMutableAPIsTestsMixin(object):
         )
         self.assertEqual(written, True)
 
-        reads = yield self.storage_server.slot_readv(
+        reads = yield self.storage_client.slot_readv(
             storage_index,
             shares=[0, 1],
             # Whole thing, partial, going beyond the edge, completely outside
@@ -791,7 +791,7 @@ class IStorageServerMutableAPIsTestsMixin(object):
         )
         self.assertEqual(written, True)
 
-        reads = yield self.storage_server.slot_readv(
+        reads = yield self.storage_client.slot_readv(
             storage_index,
             shares=[],
             readv=[(0, 7)],
@@ -820,7 +820,7 @@ class IStorageServerMutableAPIsTestsMixin(object):
         )
         self.assertEqual(written, True)
 
-        yield self.storage_server.advise_corrupt_share(
+        yield self.storage_client.advise_corrupt_share(
             b"mutable", storage_index, 0, b"ono"
         )
 
@@ -843,8 +843,8 @@ class _FoolscapMixin(SystemTestMixin):
         self.basedir = "test_istorageserver/" + self.id()
         yield SystemTestMixin.setUp(self)
         yield self.set_up_nodes(1)
-        self.storage_server = self._get_native_server().get_storage_server()
-        self.assertTrue(IStorageServer.providedBy(self.storage_server))
+        self.storage_client = self._get_native_server().get_storage_server()
+        self.assertTrue(IStorageServer.providedBy(self.storage_client))
 
     @inlineCallbacks
     def tearDown(self):
@@ -856,10 +856,10 @@ class _FoolscapMixin(SystemTestMixin):
         """
         Disconnect and then reconnect with a new ``IStorageServer``.
         """
-        current = self.storage_server
+        current = self.storage_client
         yield self.bounce_client(0)
-        self.storage_server = self._get_native_server().get_storage_server()
-        assert self.storage_server is not current
+        self.storage_client = self._get_native_server().get_storage_server()
+        assert self.storage_client is not current
 
 
 class FoolscapSharedAPIsTests(
