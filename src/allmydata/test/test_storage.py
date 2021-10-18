@@ -19,6 +19,7 @@ import platform
 import stat
 import struct
 import shutil
+from functools import partial
 from uuid import uuid4
 
 from twisted.trial import unittest
@@ -3009,8 +3010,8 @@ class Stats(unittest.TestCase):
 class ShareFileTests(unittest.TestCase):
     """Tests for allmydata.storage.immutable.ShareFile."""
 
-    def get_sharefile(self):
-        sf = ShareFile(self.mktemp(), max_size=1000, create=True)
+    def get_sharefile(self, **kwargs):
+        sf = ShareFile(self.mktemp(), max_size=1000, create=True, **kwargs)
         sf.write_share_data(0, b"abc")
         sf.write_share_data(2, b"DEF")
         # Should be b'abDEF' now.
@@ -3039,3 +3040,57 @@ class ShareFileTests(unittest.TestCase):
         sf = self.get_sharefile()
         with self.assertRaises(IndexError):
             sf.cancel_lease(b"garbage")
+
+    def test_long_lease_count_format(self):
+        """
+        ``ShareFile.__init__`` raises ``ValueError`` if the lease count format
+        given is longer than one character.
+        """
+        with self.assertRaises(ValueError):
+            self.get_sharefile(lease_count_format="BB")
+
+    def test_large_lease_count_format(self):
+        """
+        ``ShareFile.__init__`` raises ``ValueError`` if the lease count format
+        encodes to a size larger than 8 bytes.
+        """
+        with self.assertRaises(ValueError):
+            self.get_sharefile(lease_count_format="Q")
+
+    def test_avoid_lease_overflow(self):
+        """
+        If the share file already has the maximum number of leases supported then
+        ``ShareFile.add_lease`` raises ``struct.error`` and makes no changes
+        to the share file contents.
+        """
+        make_lease = partial(
+            LeaseInfo,
+            renew_secret=b"r" * 32,
+            cancel_secret=b"c" * 32,
+            expiration_time=2 ** 31,
+        )
+        # Make it a little easier to reach the condition by limiting the
+        # number of leases to only 255.
+        sf = self.get_sharefile(lease_count_format="B")
+
+        # Add the leases.
+        for i in range(2 ** 8 - 1):
+            lease = make_lease(owner_num=i)
+            sf.add_lease(lease)
+
+        # Capture the state of the share file at this point so we can
+        # determine whether the next operation modifies it or not.
+        with open(sf.home, "rb") as f:
+            before_data = f.read()
+
+        # It is not possible to add a 256th lease.
+        lease = make_lease(owner_num=256)
+        with self.assertRaises(struct.error):
+            sf.add_lease(lease)
+
+        # Compare the share file state to what we captured earlier.  Any
+        # change is a bug.
+        with open(sf.home, "rb") as f:
+            after_data = f.read()
+
+        self.assertEqual(before_data, after_data)
