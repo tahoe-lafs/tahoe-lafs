@@ -19,15 +19,16 @@ if PY2:
     # fmt: on
 
 from random import Random
+import time
 
 from twisted.internet.defer import inlineCallbacks, returnValue
 
 from foolscap.api import Referenceable, RemoteException
 
-from allmydata.interfaces import IStorageServer
+from allmydata.interfaces import IStorageServer  # really, IStorageClient
 from .common_system import SystemTestMixin
 from .common import AsyncTestCase
-
+from allmydata.storage.server import StorageServer  # not a IStorageServer!!
 
 # Use random generator with known seed, so results are reproducible if tests
 # are run in the same order.
@@ -79,6 +80,9 @@ class IStorageServerImmutableAPIsTestsMixin(object):
     ``self.disconnect()`` should disconnect and then reconnect, creating a new
     ``self.storage_client``.  Some implementations may wish to skip tests using
     this; HTTP has no notion of disconnection.
+
+    ``self.server`` is expected to be the corresponding
+    ``allmydata.storage.server.StorageServer`` instance.
     """
 
     @inlineCallbacks
@@ -444,7 +448,17 @@ class IStorageServerImmutableAPIsTestsMixin(object):
             b"immutable", storage_index, 0, b"ono"
         )
 
-    # TODO allocate_buckets creates lease
+    @inlineCallbacks
+    def test_allocate_buckets_creates_lease(self):
+        """
+        When buckets are created using ``allocate_buckets()``, a lease is
+        created once writing is done.
+        """
+        storage_index = yield self.create_share()
+        [lease] = self.server.get_leases(storage_index)
+        # Lease expires in 31 days.
+        assert lease.get_expiration_time() - time.time() > (31 * 24 * 60 * 60 - 10)
+
     # TODO add_lease renews lease if existing storage index and secret
     # TODO add_lease creates new lease if new secret
 
@@ -454,6 +468,9 @@ class IStorageServerMutableAPIsTestsMixin(object):
     Tests for ``IStorageServer``'s mutable APIs.
 
     ``self.storage_client`` is expected to provide ``IStorageServer``.
+
+    ``self.server`` is expected to be the corresponding
+    ``allmydata.storage.server.StorageServer`` instance.
 
     ``STARAW`` is short for ``slot_testv_and_readv_and_writev``.
     """
@@ -845,6 +862,12 @@ class _FoolscapMixin(SystemTestMixin):
         yield self.set_up_nodes(1)
         self.storage_client = self._get_native_server().get_storage_server()
         self.assertTrue(IStorageServer.providedBy(self.storage_client))
+        self.server = None
+        for s in self.clients[0].services:
+            if isinstance(s, StorageServer):
+                self.server = s
+                break
+        assert self.server is not None, "Couldn't find StorageServer"
 
     @inlineCallbacks
     def tearDown(self):
