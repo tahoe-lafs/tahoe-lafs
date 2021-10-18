@@ -444,6 +444,10 @@ class IStorageServerImmutableAPIsTestsMixin(object):
             b"immutable", storage_index, 0, b"ono"
         )
 
+    # TODO allocate_buckets creates lease
+    # TODO add_lease renews lease if existing storage index and secret
+    # TODO add_lease creates new lease if new secret
+
 
 class IStorageServerMutableAPIsTestsMixin(object):
     """
@@ -819,6 +823,12 @@ class IStorageServerMutableAPIsTestsMixin(object):
         yield self.storage_server.advise_corrupt_share(
             b"mutable", storage_index, 0, b"ono"
         )
+
+    # TODO STARAW creates lease for new data
+    # TODO STARAW renews lease if same secret is used on existing data
+    # TODO STARAW creates new lease for existing data if new secret is given
+    # TODO add_lease renews lease if existing storage index and secret
+    # TODO add_lease creates new lease if new secret
 
 
 class _FoolscapMixin(SystemTestMixin):
