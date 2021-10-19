@@ -460,7 +460,9 @@ class IStorageServerImmutableAPIsTestsMixin(object):
         storage_index, _, _ = yield self.create_share()
         [lease] = self.server.get_leases(storage_index)
         # Lease expires in 31 days.
-        assert lease.get_expiration_time() - self.fake_time() > (31 * 24 * 60 * 60 - 10)
+        self.assertTrue(
+            lease.get_expiration_time() - self.fake_time() > (31 * 24 * 60 * 60 - 10)
+        )
 
     @inlineCallbacks
     def test_add_lease_renewal(self):
@@ -858,12 +860,8 @@ class IStorageServerMutableAPIsTestsMixin(object):
         )
 
     @inlineCallbacks
-    def test_advise_corrupt_share(self):
-        """
-        Calling ``advise_corrupt_share()`` on a mutable share does not
-        result in error (other behavior is opaque at this level of
-        abstraction).
-        """
+    def create_slot(self):
+        """Create a slot with sharenum 0."""
         secrets = self.new_secrets()
         storage_index = new_storage_index()
         (written, _) = yield self.staraw(
@@ -875,16 +873,128 @@ class IStorageServerMutableAPIsTestsMixin(object):
             r_vector=[],
         )
         self.assertEqual(written, True)
+        returnValue((secrets, storage_index))
+
+    @inlineCallbacks
+    def test_advise_corrupt_share(self):
+        """
+        Calling ``advise_corrupt_share()`` on a mutable share does not
+        result in error (other behavior is opaque at this level of
+        abstraction).
+        """
+        secrets, storage_index = yield self.create_slot()
 
         yield self.storage_client.advise_corrupt_share(
             b"mutable", storage_index, 0, b"ono"
         )
 
-    # TODO STARAW creates lease for new data
-    # TODO STARAW renews lease if same secret is used on existing data
-    # TODO STARAW creates new lease for existing data if new secret is given
-    # TODO add_lease renews lease if existing storage index and secret
-    # TODO add_lease creates new lease if new secret
+    @inlineCallbacks
+    def test_STARAW_create_lease(self):
+        """
+        When STARAW creates a new slot, it also creates a lease.
+        """
+        _, storage_index = yield self.create_slot()
+        [lease] = self.server.get_slot_leases(storage_index)
+        # Lease expires in 31 days.
+        self.assertTrue(
+            lease.get_expiration_time() - self.fake_time() > (31 * 24 * 60 * 60 - 10)
+        )
+
+    @inlineCallbacks
+    def test_STARAW_renews_lease(self):
+        """
+        When STARAW is run on an existing slot with same renewal secret, it
+        renews the lease.
+        """
+        secrets, storage_index = yield self.create_slot()
+        [lease] = self.server.get_slot_leases(storage_index)
+        initial_expire = lease.get_expiration_time()
+
+        # Time passes...
+        self.fake_sleep(17)
+
+        # We do another write:
+        (written, _) = yield self.staraw(
+            storage_index,
+            secrets,
+            tw_vectors={
+                0: ([], [(0, b"1234567")], 7),
+            },
+            r_vector=[],
+        )
+        self.assertEqual(written, True)
+
+        # The lease has been renewed:
+        [lease] = self.server.get_slot_leases(storage_index)
+        self.assertEqual(lease.get_expiration_time() - initial_expire, 17)
+
+    @inlineCallbacks
+    def test_STARAW_new_lease(self):
+        """
+        When STARAW is run with a new renewal secret on an existing slot, it
+        adds a new lease.
+        """
+        secrets, storage_index = yield self.create_slot()
+        [lease] = self.server.get_slot_leases(storage_index)
+        initial_expire = lease.get_expiration_time()
+
+        # Time passes...
+        self.fake_sleep(19)
+
+        # We do another write:
+        (written, _) = yield self.staraw(
+            storage_index,
+            (secrets[0], new_secret(), new_secret()),
+            tw_vectors={
+                0: ([], [(0, b"1234567")], 7),
+            },
+            r_vector=[],
+        )
+        self.assertEqual(written, True)
+
+        # A new lease was added:
+        [lease1, lease2] = self.server.get_slot_leases(storage_index)
+        self.assertEqual(lease1.get_expiration_time(), initial_expire)
+        self.assertEqual(lease2.get_expiration_time() - initial_expire, 19)
+
+    @inlineCallbacks
+    def test_add_lease_renewal(self):
+        """
+        If the lease secret is reused, ``add_lease()`` extends the existing
+        lease.
+        """
+        secrets, storage_index = yield self.create_slot()
+        [lease] = self.server.get_slot_leases(storage_index)
+        initial_expiration_time = lease.get_expiration_time()
+
+        # Time passes:
+        self.fake_sleep(178)
+
+        # We renew the lease:
+        yield self.storage_client.add_lease(storage_index, secrets[1], secrets[2])
+        [lease] = self.server.get_slot_leases(storage_index)
+        new_expiration_time = lease.get_expiration_time()
+        self.assertEqual(new_expiration_time - initial_expiration_time, 178)
+
+    @inlineCallbacks
+    def test_add_new_lease(self):
+        """
+        If a new lease secret is used, ``add_lease()`` creates a new lease.
+        """
+        secrets, storage_index = yield self.create_slot()
+        [lease] = self.server.get_slot_leases(storage_index)
+        initial_expiration_time = lease.get_expiration_time()
+
+        # Time passes:
+        self.fake_sleep(167)
+
+        # We create a new lease:
+        renew_secret = new_secret()
+        cancel_secret = new_secret()
+        yield self.storage_client.add_lease(storage_index, renew_secret, cancel_secret)
+        [lease1, lease2] = self.server.get_slot_leases(storage_index)
+        self.assertEqual(lease1.get_expiration_time(), initial_expiration_time)
+        self.assertEqual(lease2.get_expiration_time() - initial_expiration_time, 167)
 
 
 class _FoolscapMixin(SystemTestMixin):
