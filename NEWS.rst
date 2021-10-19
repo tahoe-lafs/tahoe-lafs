@@ -59,7 +59,6 @@ Configuration Changes
 Documentation Changes
 ---------------------
 
--  (`#3659 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3659>`_)
 - Documentation now has its own towncrier category. (`#3664 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3664>`_)
 - `tox -e docs` will treat warnings about docs as errors. (`#3666 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3666>`_)
 - The visibility of the Tahoe-LAFS logo has been improved for "dark" themed viewing. (`#3677 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3677>`_)
@@ -75,6 +74,11 @@ Documentation Changes
 - The Great Black Swamp proposed specification now has a simplified interface for reading data from immutable shares. (`#3777 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3777>`_)
 - tahoe-dev mailing list is now at tahoe-dev@lists.tahoe-lafs.org. (`#3782 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3782>`_)
 - The Great Black Swamp specification now describes the required authorization scheme. (`#3785 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3785>`_)
+- The "Great Black Swamp" proposed specification has been expanded to include two lease management APIs. (`#3037 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3037>`_)
+- The specification section of the Tahoe-LAFS documentation now includes explicit discussion of the security properties of Foolscap "fURLs" on which it depends. (`#3503 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3503>`_)
+- The README, revised by Viktoriia with feedback from the team, is now more focused on the developer community and provides more information about Tahoe-LAFS, why it's important, and how someone can use it or start contributing to it. (`#3545 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3545>`_)
+- The "Great Black Swamp" proposed specification has been changed use ``v=1`` as the URL version identifier. (`#3644 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3644>`_)
+- You can run `make livehtml` in docs directory to invoke sphinx-autobuild. (`#3663 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3663>`_)
 
 
 Removed Features
@@ -90,11 +94,6 @@ Removed Features
 Other Changes
 -------------
 
-- The "Great Black Swamp" proposed specification has been expanded to include two lease management APIs. (`#3037 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3037>`_)
-- The specification section of the Tahoe-LAFS documentation now includes explicit discussion of the security properties of Foolscap "fURLs" on which it depends. (`#3503 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3503>`_)
-- The README, revised by Viktoriia with feedback from the team, is now more focused on the developer community and provides more information about Tahoe-LAFS, why it's important, and how someone can use it or start contributing to it. (`#3545 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3545>`_)
-- The "Great Black Swamp" proposed specification has been changed use ``v=1`` as the URL version identifier. (`#3644 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3644>`_)
-- You can run `make livehtml` in docs directory to invoke sphinx-autobuild. (`#3663 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3663>`_)
 - Refactored test_introducer in web tests to use custom base test cases (`#3757 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3757>`_)
 
 
