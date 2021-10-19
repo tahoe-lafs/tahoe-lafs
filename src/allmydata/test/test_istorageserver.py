@@ -19,7 +19,6 @@ if PY2:
     # fmt: on
 
 from random import Random
-import time
 
 from twisted.internet.defer import inlineCallbacks, returnValue
 
@@ -82,7 +81,9 @@ class IStorageServerImmutableAPIsTestsMixin(object):
     this; HTTP has no notion of disconnection.
 
     ``self.server`` is expected to be the corresponding
-    ``allmydata.storage.server.StorageServer`` instance.
+    ``allmydata.storage.server.StorageServer`` instance.  Time should be
+    instrumented, such that ``self.fake_time()`` and ``self.fake_sleep()``
+    return and advance the server time, respectively.
     """
 
     @inlineCallbacks
@@ -412,10 +413,12 @@ class IStorageServerImmutableAPIsTestsMixin(object):
     def create_share(self):
         """Create a share, return the storage index."""
         storage_index = new_storage_index()
+        renew_secret = new_secret()
+        cancel_secret = new_secret()
         (_, allocated) = yield self.storage_client.allocate_buckets(
             storage_index,
-            renew_secret=new_secret(),
-            cancel_secret=new_secret(),
+            renew_secret=renew_secret,
+            cancel_secret=cancel_secret,
             sharenums=set(range(1)),
             allocated_size=10,
             canary=Referenceable(),
@@ -423,7 +426,7 @@ class IStorageServerImmutableAPIsTestsMixin(object):
 
         yield allocated[0].callRemote("write", 0, b"0123456789")
         yield allocated[0].callRemote("close")
-        returnValue(storage_index)
+        returnValue((storage_index, renew_secret, cancel_secret))
 
     @inlineCallbacks
     def test_bucket_advise_corrupt_share(self):
@@ -432,7 +435,7 @@ class IStorageServerImmutableAPIsTestsMixin(object):
         ``IStorageServer.get_buckets()`` does not result in error (other
         behavior is opaque at this level of abstraction).
         """
-        storage_index = yield self.create_share()
+        storage_index, _, _ = yield self.create_share()
         buckets = yield self.storage_client.get_buckets(storage_index)
         yield buckets[0].callRemote("advise_corrupt_share", b"OH NO")
 
@@ -443,7 +446,7 @@ class IStorageServerImmutableAPIsTestsMixin(object):
         result in error (other behavior is opaque at this level of
         abstraction).
         """
-        storage_index = yield self.create_share()
+        storage_index, _, _ = yield self.create_share()
         yield self.storage_client.advise_corrupt_share(
             b"immutable", storage_index, 0, b"ono"
         )
@@ -454,13 +457,49 @@ class IStorageServerImmutableAPIsTestsMixin(object):
         When buckets are created using ``allocate_buckets()``, a lease is
         created once writing is done.
         """
-        storage_index = yield self.create_share()
+        storage_index, _, _ = yield self.create_share()
         [lease] = self.server.get_leases(storage_index)
         # Lease expires in 31 days.
-        assert lease.get_expiration_time() - time.time() > (31 * 24 * 60 * 60 - 10)
+        assert lease.get_expiration_time() - self.fake_time() > (31 * 24 * 60 * 60 - 10)
 
-    # TODO add_lease renews lease if existing storage index and secret
-    # TODO add_lease creates new lease if new secret
+    @inlineCallbacks
+    def test_add_lease_renewal(self):
+        """
+        If the lease secret is reused, ``add_lease()`` extends the existing
+        lease.
+        """
+        storage_index, renew_secret, cancel_secret = yield self.create_share()
+        [lease] = self.server.get_leases(storage_index)
+        initial_expiration_time = lease.get_expiration_time()
+
+        # Time passes:
+        self.fake_sleep(178)
+
+        # We renew the lease:
+        yield self.storage_client.add_lease(storage_index, renew_secret, cancel_secret)
+        [lease] = self.server.get_leases(storage_index)
+        new_expiration_time = lease.get_expiration_time()
+        self.assertEqual(new_expiration_time - initial_expiration_time, 178)
+
+    @inlineCallbacks
+    def test_add_new_lease(self):
+        """
+        If a new lease secret is used, ``add_lease()`` creates a new lease.
+        """
+        storage_index, _, _ = yield self.create_share()
+        [lease] = self.server.get_leases(storage_index)
+        initial_expiration_time = lease.get_expiration_time()
+
+        # Time passes:
+        self.fake_sleep(167)
+
+        # We create a new lease:
+        renew_secret = new_secret()
+        cancel_secret = new_secret()
+        yield self.storage_client.add_lease(storage_index, renew_secret, cancel_secret)
+        [lease1, lease2] = self.server.get_leases(storage_index)
+        self.assertEqual(lease1.get_expiration_time(), initial_expiration_time)
+        self.assertEqual(lease2.get_expiration_time() - initial_expiration_time, 167)
 
 
 class IStorageServerMutableAPIsTestsMixin(object):
@@ -868,6 +907,16 @@ class _FoolscapMixin(SystemTestMixin):
                 self.server = s
                 break
         assert self.server is not None, "Couldn't find StorageServer"
+        self._current_time = 123456
+        self.server._get_current_time = self.fake_time
+
+    def fake_time(self):
+        """Return the current fake, test-controlled, time."""
+        return self._current_time
+
+    def fake_sleep(self, seconds):
+        """Advance the fake time by the given number of seconds."""
+        self._current_time += seconds
 
     @inlineCallbacks
     def tearDown(self):
