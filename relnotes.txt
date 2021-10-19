@@ -32,7 +32,7 @@ and FTP support.
 There are several dependency changes that will be interesting for
 distribution maintainers.
 
-As well 196 bugs have been fixed since the last release.
+In all, 240 issues have been fixed since the last release.
 
 Please see ``NEWS.rst`` for a more complete list of changes.
 
