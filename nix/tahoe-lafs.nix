@@ -72,10 +72,6 @@ python.pkgs.buildPythonPackage rec {
     rm src/allmydata/test/test_connections.py
     rm src/allmydata/test/cli/test_create.py
 
-    # Since we're deleting files, this complains they're missing. For now Nix
-    # is Python 2-only, anyway, so these tests don't add anything yet.
-    rm src/allmydata/test/test_python3.py
-
     # Generate _version.py ourselves since we can't rely on the Python code
     # extracting the information from the .git directory we excluded.
     cat > src/allmydata/_version.py <<EOF
@@ -101,7 +97,7 @@ EOF
     setuptoolsTrial pyasn1 zope_interface
     service-identity pyyaml magic-wormhole treq
     eliot autobahn cryptography netifaces setuptools
-    future pyutil distro configparser
+    future pyutil distro configparser collections-extended
   ];
 
   checkInputs = with python.pkgs; [
@@ -111,6 +107,7 @@ EOF
     beautifulsoup4
     html5lib
     tenacity
+    prometheus_client
   ];
 
   checkPhase = ''

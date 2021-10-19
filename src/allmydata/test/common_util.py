@@ -15,6 +15,9 @@ import os
 import sys
 import time
 import signal
+from functools import (
+    partial,
+)
 from random import randrange
 if PY2:
     from StringIO import StringIO
@@ -98,7 +101,7 @@ def run_cli_native(verb, *args, **kwargs):
         args=args,
         nodeargs=nodeargs,
     )
-    argv = nodeargs + [verb] + list(args)
+    argv = ["tahoe"] + nodeargs + [verb] + list(args)
     stdin = kwargs.get("stdin", "")
     if PY2:
         # The original behavior, the Python 2 behavior, is to accept either
@@ -128,10 +131,20 @@ def run_cli_native(verb, *args, **kwargs):
         stdout = TextIOWrapper(BytesIO(), encoding)
         stderr = TextIOWrapper(BytesIO(), encoding)
     d = defer.succeed(argv)
-    d.addCallback(runner.parse_or_exit_with_explanation, stdout=stdout)
-    d.addCallback(runner.dispatch,
-                  stdin=stdin,
-                  stdout=stdout, stderr=stderr)
+    d.addCallback(
+        partial(
+            runner.parse_or_exit,
+            runner.Options(),
+        ),
+        stdout=stdout,
+        stderr=stderr,
+    )
+    d.addCallback(
+        runner.dispatch,
+        stdin=stdin,
+        stdout=stdout,
+        stderr=stderr,
+    )
     def _done(rc, stdout=stdout, stderr=stderr):
         if return_bytes and PY3:
             stdout = stdout.buffer
@@ -300,6 +313,16 @@ class FakeCanary(object):
         return None
     def getPeer(self):
         return "<fake>"
+
+    def disconnected(self):
+        """Disconnect the canary, to be called by test code.
+
+        Can only  happen once.
+        """
+        if self.disconnectors is not None:
+            for (f, args, kwargs) in list(self.disconnectors.values()):
+                f(*args, **kwargs)
+            self.disconnectors = None
 
 
 class ShouldFailMixin(object):

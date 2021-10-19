@@ -28,7 +28,7 @@ jobs:
           - 3.9
         include:
           # On macOS don't bother with 3.6-3.8, just to get faster builds.
-          - os: macos-latest
+          - os: macos-10.15
             python-version: 2.7
           - os: macos-latest
             python-version: 3.9
@@ -76,12 +76,17 @@ jobs:
       - name: Run tox for corresponding Python version
         run: python -m tox
 
-      - name: Upload eliot.log in case of failure
+      - name: Upload eliot.log
         uses: actions/upload-artifact@v1
-        if: failure()
         with:
           name: eliot.log
           path: eliot.log
+
+      - name: Upload trial log
+        uses: actions/upload-artifact@v1
+        with:
+          name: test.log
+          path: _trial_temp/test.log
 
       # Upload this job's coverage data to Coveralls.  While there is a GitHub
       # Action for this, as of Jan 2021 it does not support Python coverage
@@ -136,7 +141,7 @@ jobs:
   # See notes about parallel builds on GitHub Actions at
   # https://coveralls-python.readthedocs.io/en/latest/usage/configuration.html
   finish-coverage-report:
-    needs: 
+    needs:
       - "coverage"
     runs-on: "ubuntu-latest"
     container: "python:3-slim"
@@ -163,7 +168,7 @@ jobs:
           - 3.9
         include:
           # On macOS don't bother with 3.6, just to get faster builds.
-          - os: macos-latest
+          - os: macos-10.15
             python-version: 2.7
           - os: macos-latest
             python-version: 3.9
@@ -173,12 +178,12 @@ jobs:
       - name: Install Tor [Ubuntu]
         if: matrix.os == 'ubuntu-latest'
         run: sudo apt install tor
-        
+
       # TODO: See https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3744.
       # We have to use an older version of Tor for running integration
       # tests on macOS.
       - name: Install Tor [macOS, ${{ matrix.python-version }} ]
-        if: ${{ matrix.os == 'macos-latest' }}
+        if: ${{ contains(matrix.os, 'macos') }}
         run: |
           brew extract --version 0.4.5.8 tor homebrew/cask
           brew install tor@0.4.5.8
@@ -242,7 +247,7 @@ jobs:
       fail-fast: false
       matrix:
         os:
-          - macos-latest
+          - macos-10.15
           - windows-latest
           - ubuntu-latest
         python-version:

@@ -13,6 +13,11 @@
     ]
 
     [[tool.towncrier.type]]
+        directory = "security"
+        name = "Security-related Changes"
+        showcontent = true
+
+    [[tool.towncrier.type]]
         directory = "incompat"
         name = "Backwards Incompatible Changes"
         showcontent = true

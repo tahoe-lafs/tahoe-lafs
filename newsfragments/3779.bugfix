@@ -1,0 +1,1 @@
+Fixed bug where share corruption events were not logged on storage servers running on Windows.

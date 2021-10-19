@@ -137,6 +137,9 @@ install_requires = [
 
     # Backported configparser for Python 2:
     "configparser ; python_version < '3.0'",
+
+    # For the RangeMap datastructure.
+    "collections-extended",
 ]
 
 setup_requires = [
@@ -359,7 +362,7 @@ setup(name="tahoe-lafs", # also set in __init__.py
       description='secure, decentralized, fault-tolerant file store',
       long_description=open('README.rst', 'r', encoding='utf-8').read(),
       author='the Tahoe-LAFS project',
-      author_email='tahoe-dev@tahoe-lafs.org',
+      author_email='tahoe-dev@lists.tahoe-lafs.org',
       url='https://tahoe-lafs.org/',
       license='GNU GPL', # see README.rst -- there is an alternative licence
       cmdclass={"update_version": UpdateVersion,
@@ -404,6 +407,8 @@ setup(name="tahoe-lafs", # also set in __init__.py
               "tenacity",
               "paramiko",
               "pytest-timeout",
+              # Does our OpenMetrics endpoint adhere to the spec:
+              "prometheus-client == 0.11.0",
           ] + tor_requires + i2p_requires,
           "tor": tor_requires,
           "i2p": i2p_requires,

@@ -1,0 +1,1 @@
+When uploading an immutable, overlapping writes that include conflicting data are rejected. In practice, this likely didn't happen in real-world usage.
