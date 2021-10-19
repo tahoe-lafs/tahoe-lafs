@@ -43,8 +43,9 @@ readers, so the top-level sections are organized based on the likely
 needs of those almost-distinct groups.  We have:
 
   (a) New and experienced users of Tahoe-LAFS, who mainly need an
-      operating manual to the software.  Sections on "Introduction"
-      and "Using Tahoe-LAFS" will be the most useful to them.
+      operating manual to the software.  Notes under the section
+      titled "Getting Started with Tahoe-LAFS" will be the most useful
+      to them.
 
   (b) Project contributors, both new and experienced.  This group
       includes developers, issue reporters, and documentation writers.

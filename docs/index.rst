@@ -16,13 +16,9 @@ preserving your privacy and security.
 
 .. toctree::
    :maxdepth: 1
-   :caption: Introduction
+   :caption: Getting Started with Tahoe-LAFS
 
    about-tahoe
-
-.. toctree::
-   :maxdepth: 1
-   :caption: Using Tahoe-LAFS
 
    Installation/install-tahoe
    Installation/install-on-windows
