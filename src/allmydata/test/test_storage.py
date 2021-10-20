@@ -60,8 +60,15 @@ from allmydata.test.no_network import NoNetworkServer
 from allmydata.storage_client import (
     _StorageServer,
 )
-from .common import LoggingServiceParent, ShouldFailMixin
+from .common import (
+    LoggingServiceParent,
+    ShouldFailMixin,
+    FakeDisk,
+)
 from .common_util import FakeCanary
+from .common_storage import (
+    upload_immutable,
+)
 from .strategies import (
     offsets,
     lengths,
@@ -650,6 +657,32 @@ class Server(unittest.TestCase):
         already,writers = self.allocate(ss, b"disconnect", [0,1,2], 75)
         self.failUnlessEqual(already, set())
         self.failUnlessEqual(set(writers.keys()), set([0,1,2]))
+
+    def test_reserved_space_immutable_lease(self):
+        """
+        If there is not enough available space to store an additional lease then
+        ``remote_add_lease`` fails with ``NoSpace`` when an attempt is made to
+        use it to create a new lease.
+        """
+        disk = FakeDisk(total=1024, used=0)
+        self.patch(fileutil, "get_disk_stats", disk.get_disk_stats)
+
+        ss = self.create("test_reserved_space_immutable_lease")
+
+        storage_index = b"x" * 16
+        renew_secret = b"r" * 32
+        cancel_secret = b"c" * 32
+        shares = {0: b"y" * 500}
+        upload_immutable(ss, storage_index, renew_secret, cancel_secret, shares)
+
+        # use up all the available space
+        disk.use(disk.available)
+
+        # Different secrets to produce a different lease, not a renewal.
+        renew_secret = b"R" * 32
+        cancel_secret = b"C" * 32
+        with self.assertRaises(interfaces.NoSpace):
+            ss.remote_add_lease(storage_index, renew_secret, cancel_secret)
 
     def test_reserved_space(self):
         reserved = 10000
