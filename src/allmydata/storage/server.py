@@ -618,7 +618,7 @@ class StorageServer(service.MultiService, Referenceable):
         :param LeaseInfo lease_info: The lease to put on the shares.
         """
         for share in shares:
-            share.add_or_renew_lease(lease_info)
+            share.add_or_renew_lease(self.get_available_space(), lease_info)
 
     def slot_testv_and_readv_and_writev(  # type: ignore # warner/foolscap#78
             self,
