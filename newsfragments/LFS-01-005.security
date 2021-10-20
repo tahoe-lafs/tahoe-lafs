@@ -1,0 +1,3 @@
+The storage server implementation now respects the ``reserved_space`` configuration value when writing lease information.
+Previously, new leases could be created and written to disk even when the storage server had less remaining space than the configured reserve space value.
+Now this operation will fail with an exception and the lease will not be created.
