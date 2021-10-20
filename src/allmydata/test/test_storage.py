@@ -117,6 +117,29 @@ class FakeStatsProvider(object):
     def register_producer(self, producer):
         pass
 
+
+class LeaseInfoTests(unittest.TestCase):
+    """
+    Tests for ``LeaseInfo``.
+    """
+    @given(
+        strategies.tuples(
+            strategies.integers(min_value=0, max_value=2 ** 31 - 1),
+            strategies.binary(min_size=32, max_size=32),
+            strategies.binary(min_size=32, max_size=32),
+            strategies.integers(min_value=0, max_value=2 ** 31 - 1),
+            strategies.binary(min_size=20, max_size=20),
+        ),
+    )
+    def test_immutable_size(self, initializer_args):
+        """
+        ``LeaseInfo.immutable_size`` returns the length of the result of
+        ``LeaseInfo.to_immutable_data``.
+        """
+        info = LeaseInfo(*initializer_args)
+        self.assertEqual(len(info.to_immutable_data()), info.immutable_size())
+
+
 class Bucket(unittest.TestCase):
     def make_workdir(self, name):
         basedir = os.path.join("storage", "Bucket", name)
