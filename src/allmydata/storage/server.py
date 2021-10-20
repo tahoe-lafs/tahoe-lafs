@@ -286,7 +286,7 @@ class StorageServer(service.MultiService, Referenceable):
         # to a particular owner.
         start = self._get_current_time()
         self.count("allocate")
-        alreadygot = set()
+        alreadygot = {}
         bucketwriters = {} # k: shnum, v: BucketWriter
         si_dir = storage_index_to_dir(storage_index)
         si_s = si_b2a(storage_index)
@@ -318,9 +318,8 @@ class StorageServer(service.MultiService, Referenceable):
         # leases for all of them: if they want us to hold shares for this
         # file, they'll want us to hold leases for this file.
         for (shnum, fn) in self._get_bucket_shares(storage_index):
-            alreadygot.add(shnum)
-            sf = ShareFile(fn)
-            sf.add_or_renew_lease(lease_info)
+            alreadygot[shnum] = ShareFile(fn)
+        self._add_or_renew_leases(alreadygot.values(), lease_info)
 
         for shnum in sharenums:
             incominghome = os.path.join(self.incomingdir, si_dir, "%d" % shnum)
@@ -352,7 +351,7 @@ class StorageServer(service.MultiService, Referenceable):
             fileutil.make_dirs(os.path.join(self.sharedir, si_dir))
 
         self.add_latency("allocate", self._get_current_time() - start)
-        return alreadygot, bucketwriters
+        return set(alreadygot), bucketwriters
 
     def remote_allocate_buckets(self, storage_index,
                                 renew_secret, cancel_secret,
@@ -392,8 +391,10 @@ class StorageServer(service.MultiService, Referenceable):
         lease_info = LeaseInfo(owner_num,
                                renew_secret, cancel_secret,
                                new_expire_time, self.my_nodeid)
-        for sf in self._iter_share_files(storage_index):
-            sf.add_or_renew_lease(lease_info)
+        self._add_or_renew_leases(
+            self._iter_share_files(storage_index),
+            lease_info,
+        )
         self.add_latency("add-lease", self._get_current_time() - start)
         return None
 
@@ -611,12 +612,12 @@ class StorageServer(service.MultiService, Referenceable):
         """
         Put the given lease onto the given shares.
 
-        :param dict[int, MutableShareFile] shares: The shares to put the lease
-            onto.
+        :param Iterable[Union[MutableShareFile, ShareFile]] shares: The shares
+            to put the lease onto.
 
         :param LeaseInfo lease_info: The lease to put on the shares.
         """
-        for share in six.viewvalues(shares):
+        for share in shares:
             share.add_or_renew_lease(lease_info)
 
     def slot_testv_and_readv_and_writev(  # type: ignore # warner/foolscap#78
@@ -675,7 +676,7 @@ class StorageServer(service.MultiService, Referenceable):
             )
             if renew_leases:
                 lease_info = self._make_lease_info(renew_secret, cancel_secret)
-                self._add_or_renew_leases(remaining_shares, lease_info)
+                self._add_or_renew_leases(remaining_shares.values(), lease_info)
 
         # all done
         self.add_latency("writev", self._get_current_time() - start)
