@@ -151,10 +151,10 @@ solely as a labor of love by volunteers. Thank you very much
 to the team of "hackers in the public interest" who make
 Tahoe-LAFS possible.
 
-fenn-cs
+fenn-cs + meejah
 on behalf of the Tahoe-LAFS team
 
-September 16, 2021
+October 19, 2021
 Planet Earth
 
 
