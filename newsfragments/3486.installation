@@ -1,1 +1,0 @@
-Tahoe-LAFS now requires the `netifaces` Python package and no longer requires the external `ip`, `ifconfig`, or `route.exe` executables.
