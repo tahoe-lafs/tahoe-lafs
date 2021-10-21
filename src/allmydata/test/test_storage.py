@@ -140,11 +140,18 @@ class LeaseInfoTests(SyncTestCase):
         """
         ``LeaseInfo.immutable_size`` returns the length of the result of
         ``LeaseInfo.to_immutable_data``.
+
+        ``LeaseInfo.mutable_size`` returns the length of the result of
+        ``LeaseInfo.to_mutable_data``.
         """
         info = LeaseInfo(*initializer_args)
         self.expectThat(
             info.to_immutable_data(),
             HasLength(info.immutable_size()),
+        )
+        self.expectThat(
+            info.to_mutable_data(),
+            HasLength(info.mutable_size()),
         )
 
 

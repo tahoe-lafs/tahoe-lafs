@@ -16,6 +16,9 @@ import struct, time
 # struct format for representation of a lease in an immutable share
 IMMUTABLE_FORMAT = ">L32s32sL"
 
+# struct format for representation of a lease in a mutable share
+MUTABLE_FORMAT = ">LL32s32s20s"
+
 class LeaseInfo(object):
     def __init__(self, owner_num=None, renew_secret=None, cancel_secret=None,
                  expiration_time=None, nodeid=None):
@@ -53,6 +56,13 @@ class LeaseInfo(object):
         """
         return struct.calcsize(IMMUTABLE_FORMAT)
 
+    def mutable_size(self):
+        """
+        :return int: The size, in bytes, of the representation of this lease in a
+            mutable share file.
+        """
+        return struct.calcsize(MUTABLE_FORMAT)
+
     def to_immutable_data(self):
         return struct.pack(IMMUTABLE_FORMAT,
                            self.owner_num,
@@ -60,7 +70,7 @@ class LeaseInfo(object):
                            int(self.expiration_time))
 
     def to_mutable_data(self):
-        return struct.pack(">LL32s32s20s",
+        return struct.pack(MUTABLE_FORMAT,
                            self.owner_num,
                            int(self.expiration_time),
                            self.renew_secret, self.cancel_secret,
@@ -70,5 +80,5 @@ class LeaseInfo(object):
         (self.owner_num,
          self.expiration_time,
          self.renew_secret, self.cancel_secret,
-         self.nodeid) = struct.unpack(">LL32s32s20s", data)
+         self.nodeid) = struct.unpack(MUTABLE_FORMAT, data)
         return self
