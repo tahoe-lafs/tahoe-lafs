@@ -25,6 +25,10 @@ import shutil
 from functools import partial
 from uuid import uuid4
 
+from testtools.matchers import (
+    HasLength,
+)
+
 from twisted.trial import unittest
 
 from twisted.internet import defer
@@ -64,6 +68,7 @@ from .common import (
     LoggingServiceParent,
     ShouldFailMixin,
     FakeDisk,
+    SyncTestCase,
 )
 from .common_util import FakeCanary
 from .common_storage import (
@@ -118,7 +123,7 @@ class FakeStatsProvider(object):
         pass
 
 
-class LeaseInfoTests(unittest.TestCase):
+class LeaseInfoTests(SyncTestCase):
     """
     Tests for ``LeaseInfo``.
     """
@@ -137,7 +142,10 @@ class LeaseInfoTests(unittest.TestCase):
         ``LeaseInfo.to_immutable_data``.
         """
         info = LeaseInfo(*initializer_args)
-        self.assertEqual(len(info.to_immutable_data()), info.immutable_size())
+        self.expectThat(
+            info.to_immutable_data(),
+            HasLength(info.immutable_size()),
+        )
 
 
 class Bucket(unittest.TestCase):
