@@ -31,3 +31,35 @@ def upload_immutable(storage_server, storage_index, renew_secret, cancel_secret,
     for shnum, writer in writers.items():
         writer.remote_write(0, shares[shnum])
         writer.remote_close()
+
+
+def upload_mutable(storage_server, storage_index, secrets, shares):
+    """
+    Synchronously upload some mutable shares to a ``StorageServer``.
+
+    :param allmydata.storage.server.StorageServer storage_server: The storage
+        server object to use to perform the upload.
+
+    :param bytes storage_index: The storage index for the immutable shares.
+
+    :param secrets: A three-tuple of a write enabler, renew secret, and cancel
+        secret.
+
+    :param dict[int, bytes] shares: A mapping from share numbers to share data
+        to upload.
+
+    :return: ``None``
+    """
+    test_and_write_vectors = {
+        sharenum: ([], [(0, data)], None)
+        for sharenum, data
+        in shares.items()
+    }
+    read_vector = []
+
+    storage_server.remote_slot_testv_and_readv_and_writev(
+        storage_index,
+        secrets,
+        test_and_write_vectors,
+        read_vector,
+    )

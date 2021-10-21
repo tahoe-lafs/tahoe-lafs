@@ -73,6 +73,7 @@ from .common import (
 from .common_util import FakeCanary
 from .common_storage import (
     upload_immutable,
+    upload_mutable,
 )
 from .strategies import (
     offsets,
@@ -698,9 +699,9 @@ class Server(unittest.TestCase):
 
     def test_reserved_space_immutable_lease(self):
         """
-        If there is not enough available space to store an additional lease then
-        ``remote_add_lease`` fails with ``NoSpace`` when an attempt is made to
-        use it to create a new lease.
+        If there is not enough available space to store an additional lease on an
+        immutable share then ``remote_add_lease`` fails with ``NoSpace`` when
+        an attempt is made to use it to create a new lease.
         """
         disk = FakeDisk(total=1024, used=0)
         self.patch(fileutil, "get_disk_stats", disk.get_disk_stats)
@@ -721,6 +722,46 @@ class Server(unittest.TestCase):
         cancel_secret = b"C" * 32
         with self.assertRaises(interfaces.NoSpace):
             ss.remote_add_lease(storage_index, renew_secret, cancel_secret)
+
+    def test_reserved_space_mutable_lease(self):
+        """
+        If there is not enough available space to store an additional lease on a
+        mutable share then ``remote_add_lease`` fails with ``NoSpace`` when an
+        attempt is made to use it to create a new lease.
+        """
+        disk = FakeDisk(total=1024, used=0)
+        self.patch(fileutil, "get_disk_stats", disk.get_disk_stats)
+
+        ss = self.create("test_reserved_space_mutable_lease")
+
+        renew_secrets = iter(
+            "{}{}".format("r" * 31, i).encode("ascii")
+            for i
+            in range(5)
+        )
+
+        storage_index = b"x" * 16
+        write_enabler = b"w" * 32
+        cancel_secret = b"c" * 32
+        secrets = (write_enabler, next(renew_secrets), cancel_secret)
+        shares = {0: b"y" * 500}
+        upload_mutable(ss, storage_index, secrets, shares)
+
+        # use up all the available space
+        disk.use(disk.available)
+
+        # The upload created one lease.  There is room for three more leases
+        # in the share header.  Even if we're out of disk space, on a boring
+        # enough filesystem we can write these.
+        for i in range(3):
+            ss.remote_add_lease(storage_index, next(renew_secrets), cancel_secret)
+
+        # Having used all of the space for leases in the header, we would have
+        # to allocate storage for the next lease.  Since there is no space
+        # available, this must fail instead.
+        with self.assertRaises(interfaces.NoSpace):
+            ss.remote_add_lease(storage_index, next(renew_secrets), cancel_secret)
+
 
     def test_reserved_space(self):
         reserved = 10000
