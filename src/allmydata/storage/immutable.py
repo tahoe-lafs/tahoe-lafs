@@ -106,7 +106,30 @@ class ShareFile(object):
     sharetype = "immutable"
 
     def __init__(self, filename, max_size=None, create=False, lease_count_format="L"):
-        """ If max_size is not None then I won't allow more than max_size to be written to me. If create=True and max_size must not be None. """
+        """
+        Initialize a ``ShareFile``.
+
+        :param Optional[int] max_size: If given, the maximum number of bytes
+           that this ``ShareFile`` will accept to be stored. ``write`` will
+           accept in total.
+
+        :param bool create: If ``True``, create the file (and fail if it
+            exists already).  ``max_size`` must not be ``None`` in this case.
+            If ``False``, open an existing file for reading.
+
+        :param str lease_count_format: A format character to use to encode and
+            decode the number of leases in the share file.  There are only 4
+            bytes available in the file so the format must be 4 bytes or
+            smaller.  If different formats are used at different times with
+            the same share file, the result will likely be nonsense.
+
+            This parameter is intended for the test suite to use to be able to
+            exercise values near the maximum encodeable value without having
+            to create billions of leases.
+
+        :raise ValueError: If the encoding of ``lease_count_format`` is too
+            large or if it is not a single format character.
+        """
         precondition((max_size is not None) or (not create), max_size, create)
 
         self._lease_count_format = _fix_lease_count_format(lease_count_format)
