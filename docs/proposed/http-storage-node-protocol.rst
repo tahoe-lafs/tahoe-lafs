@@ -451,12 +451,15 @@ Details of the buckets to create are encoded in the request body.
 For example::
 
   {"renew-secret": "efgh", "cancel-secret": "ijkl",
+   "upload-secret": "xyzf",
    "share-numbers": [1, 7, ...], "allocated-size": 12345}
 
 The response body includes encoded information about the created buckets.
 For example::
 
   {"already-have": [1, ...], "allocated": [7, ...]}
+
+The session secret is an opaque _byte_ string.
 
 Discussion
 ``````````
@@ -482,6 +485,13 @@ The response includes ``already-have`` and ``allocated`` for two reasons:
   This might be because a server has become unavailable and a remaining server needs to store more shares for the upload.
   It could also just be that the client's preferred servers have changed.
 
+Regarding upload secrets,
+the goal is for uploading and aborting (see next sections) to be authenticated by more than just the storage index.
+In the future, we will want to generate them in a way that allows resuming/canceling when the client has issues.
+In the short term, they can just be a random byte string.
+The key security constraint is that each upload to each server has its own, unique upload key,
+tied to uploading that particular storage index to this particular server.
+
 ``PATCH /v1/immutable/:storage_index/:share_number``
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
@@ -497,6 +507,12 @@ If any one of these requests fails then at most 128KiB of upload work needs to b
 
 The server must recognize when all of the data has been received and mark the share as complete
 (which it can do because it was informed of the size when the storage index was initialized).
+
+The request body looks this, with data and upload secret being bytes::
+
+    { "upload-secret": "xyzf", "data": "thedata" }
+
+Responses:
 
 * When a chunk that does not complete the share is successfully uploaded the response is ``OK``.
   The response body indicates the range of share data that has yet to be uploaded.
@@ -521,6 +537,10 @@ The server must recognize when all of the data has been received and mark the sh
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 This cancels an *in-progress* upload.
+
+The request body looks this::
+
+    { "upload-secret": "xyzf" }
 
 The response code:
 
@@ -695,6 +715,7 @@ Immutable Data
 
      POST /v1/immutable/AAAAAAAAAAAAAAAA
      {"renew-secret": "efgh", "cancel-secret": "ijkl",
+      "upload-secret": "xyzf",
       "share-numbers": [1, 7], "allocated-size": 48}
 
      200 OK
@@ -704,25 +725,29 @@ Immutable Data
 
      PATCH /v1/immutable/AAAAAAAAAAAAAAAA/7
      Content-Range: bytes 0-15/48
-     <first 16 bytes of share data>
+
+     {"upload-secret": b"xyzf", "data": "first 16 bytes!!"
 
      200 OK
 
      PATCH /v1/immutable/AAAAAAAAAAAAAAAA/7
      Content-Range: bytes 16-31/48
-     <second 16 bytes of share data>
+
+     {"upload-secret": "xyzf", "data": "second 16 bytes!"
 
      200 OK
 
      PATCH /v1/immutable/AAAAAAAAAAAAAAAA/7
      Content-Range: bytes 32-47/48
-     <final 16 bytes of share data>
+
+     {"upload-secret": "xyzf", "data": "final 16 bytes!!"
 
      201 CREATED
 
 #. Download the content of the previously uploaded immutable share ``7``::
 
-     GET /v1/immutable/AAAAAAAAAAAAAAAA?share=7&offset=0&size=48
+     GET /v1/immutable/AAAAAAAAAAAAAAAA?share=7
+     Range: bytes=0-47
 
      200 OK
      <complete 48 bytes of previously uploaded data>
