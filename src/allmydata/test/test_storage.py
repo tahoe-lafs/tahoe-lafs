@@ -1006,6 +1006,27 @@ class Server(unittest.TestCase):
         self.failUnlessEqual(set(b.keys()), set([0,1,2]))
         self.failUnlessEqual(b[0].remote_read(0, 25), b"\x00" * 25)
 
+    def test_reserved_space_advise_corruption(self):
+        """
+        If there is no available space then ``remote_advise_corrupt_share`` does
+        not write a corruption report.
+        """
+        disk = FakeDisk(total=1024, used=1024)
+        self.patch(fileutil, "get_disk_stats", disk.get_disk_stats)
+
+        workdir = self.workdir("test_reserved_space_advise_corruption")
+        ss = StorageServer(workdir, b"\x00" * 20, discard_storage=True)
+        ss.setServiceParent(self.sparent)
+
+        si0_s = base32.b2a(b"si0")
+        ss.remote_advise_corrupt_share(b"immutable", b"si0", 0,
+                                       b"This share smells funny.\n")
+
+        self.assertEqual(
+            [],
+            os.listdir(ss.corruption_advisory_dir),
+        )
+
     def test_advise_corruption(self):
         workdir = self.workdir("test_advise_corruption")
         ss = StorageServer(workdir, b"\x00" * 20, discard_storage=True)

@@ -737,24 +737,80 @@ class StorageServer(service.MultiService, Referenceable):
         # protocol backwards compatibility reasons.
         assert isinstance(share_type, bytes)
         assert isinstance(reason, bytes), "%r is not bytes" % (reason,)
-        fileutil.make_dirs(self.corruption_advisory_dir)
-        now = time_format.iso_utc(sep="T")
+
         si_s = si_b2a(storage_index)
-        # windows can't handle colons in the filename
-        fn = os.path.join(
-            self.corruption_advisory_dir,
-            ("%s--%s-%d" % (now, str(si_s, "utf-8"), shnum)).replace(":","")
-        )
-        with open(fn, "w") as f:
-            f.write("report: Share Corruption\n")
-            f.write("type: %s\n" % bytes_to_native_str(share_type))
-            f.write("storage_index: %s\n" % bytes_to_native_str(si_s))
-            f.write("share_number: %d\n" % shnum)
-            f.write("\n")
-            f.write(bytes_to_native_str(reason))
-            f.write("\n")
+
         log.msg(format=("client claims corruption in (%(share_type)s) " +
                         "%(si)s-%(shnum)d: %(reason)s"),
                 share_type=share_type, si=si_s, shnum=shnum, reason=reason,
                 level=log.SCARY, umid="SGx2fA")
+
+        fileutil.make_dirs(self.corruption_advisory_dir)
+        now = time_format.iso_utc(sep="T")
+
+        report = render_corruption_report(share_type, si_s, shnum, reason)
+        if len(report) > self.get_available_space():
+            return None
+
+        report_path = get_corruption_report_path(
+            self.corruption_advisory_dir,
+            now,
+            si_s,
+            shnum,
+        )
+        with open(report_path, "w") as f:
+            f.write(report)
+
         return None
+
+CORRUPTION_REPORT_FORMAT = """\
+report: Share Corruption
+type: {type}
+storage_index: {storage_index}
+share_number: {share_number}
+
+{reason}
+
+"""
+
+def render_corruption_report(share_type, si_s, shnum, reason):
+    """
+    Create a string that explains a corruption report using freeform text.
+
+    :param bytes share_type: The type of the share which the report is about.
+
+    :param bytes si_s: The encoded representation of the storage index which
+        the report is about.
+
+    :param int shnum: The share number which the report is about.
+
+    :param bytes reason: The reason given by the client for the corruption
+        report.
+    """
+    return CORRUPTION_REPORT_FORMAT.format(
+        type=bytes_to_native_str(share_type),
+        storage_index=bytes_to_native_str(si_s),
+        share_number=shnum,
+        reason=bytes_to_native_str(reason),
+    )
+
+def get_corruption_report_path(base_dir, now, si_s, shnum):
+    """
+    Determine the path to which a certain corruption report should be written.
+
+    :param str base_dir: The directory beneath which to construct the path.
+
+    :param str now: The time of the report.
+
+    :param str si_s: The encoded representation of the storage index which the
+        report is about.
+
+    :param int shnum: The share number which the report is about.
+
+    :return str: A path to which the report can be written.
+    """
+    # windows can't handle colons in the filename
+    return os.path.join(
+        base_dir,
+        ("%s--%s-%d" % (now, str(si_s, "utf-8"), shnum)).replace(":","")
+    )
