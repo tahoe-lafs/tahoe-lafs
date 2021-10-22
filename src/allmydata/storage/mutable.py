@@ -120,6 +120,7 @@ class MutableShareFile(object):
 
     def _read_share_data(self, f, offset, length):
         precondition(offset >= 0)
+        precondition(length >= 0)
         data_length = self._read_data_length(f)
         if offset+length > data_length:
             # reads beyond the end of the data are truncated. Reads that
@@ -454,4 +455,3 @@ def create_mutable_sharefile(filename, my_nodeid, write_enabler, parent):
     ms.create(my_nodeid, write_enabler)
     del ms
     return MutableShareFile(filename, parent)
-

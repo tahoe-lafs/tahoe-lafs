@@ -13,6 +13,9 @@ if PY2:
     from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 from six import ensure_str
 
+from io import (
+    BytesIO,
+)
 import time
 import os.path
 import platform
@@ -59,6 +62,10 @@ from allmydata.storage_client import (
 )
 from .common import LoggingServiceParent, ShouldFailMixin
 from .common_util import FakeCanary
+from .strategies import (
+    offsets,
+    lengths,
+)
 
 
 class UtilTests(unittest.TestCase):
@@ -3094,3 +3101,113 @@ class ShareFileTests(unittest.TestCase):
             after_data = f.read()
 
         self.assertEqual(before_data, after_data)
+
+
+class MutableShareFileTests(unittest.TestCase):
+    """
+    Tests for allmydata.storage.mutable.MutableShareFile.
+    """
+    def get_sharefile(self):
+        return MutableShareFile(self.mktemp())
+
+    @given(
+        nodeid=strategies.just(b"x" * 20),
+        write_enabler=strategies.just(b"y" * 32),
+        datav=strategies.lists(
+            # Limit the max size of these so we don't write *crazy* amounts of
+            # data to disk.
+            strategies.tuples(offsets(), strategies.binary(max_size=2 ** 8)),
+            max_size=2 ** 8,
+        ),
+        new_length=offsets(),
+    )
+    def test_readv_reads_share_data(self, nodeid, write_enabler, datav, new_length):
+        """
+        ``MutableShareFile.readv`` returns bytes from the share data portion
+        of the share file.
+        """
+        sf = self.get_sharefile()
+        sf.create(my_nodeid=nodeid, write_enabler=write_enabler)
+        sf.writev(datav=datav, new_length=new_length)
+
+        # Apply all of the writes to a simple in-memory buffer so we can
+        # resolve the final state of the share data.  In particular, this
+        # helps deal with overlapping writes which otherwise make it tricky to
+        # figure out what data to expect to be able to read back.
+        buf = BytesIO()
+        for (offset, data) in datav:
+            buf.seek(offset)
+            buf.write(data)
+        buf.truncate(new_length)
+
+        # Using that buffer, determine the expected result of a readv for all
+        # of the data just written.
+        def read_from_buf(offset, length):
+            buf.seek(offset)
+            return buf.read(length)
+        expected_data = list(
+            read_from_buf(offset, len(data))
+            for (offset, data)
+            in datav
+        )
+
+        # Perform a read that gives back all of the data written to the share
+        # file.
+        read_vectors = list((offset, len(data)) for (offset, data) in datav)
+        read_data = sf.readv(read_vectors)
+
+        # Make sure the read reproduces the value we computed using our local
+        # buffer.
+        self.assertEqual(expected_data, read_data)
+
+    @given(
+        nodeid=strategies.just(b"x" * 20),
+        write_enabler=strategies.just(b"y" * 32),
+        readv=strategies.lists(strategies.tuples(offsets(), lengths()), min_size=1),
+        random=strategies.randoms(),
+    )
+    def test_readv_rejects_negative_length(self, nodeid, write_enabler, readv, random):
+        """
+        If a negative length is given to ``MutableShareFile.readv`` in a read
+        vector then ``AssertionError`` is raised.
+        """
+        # Pick a read vector to break with a negative value
+        readv_index = random.randrange(len(readv))
+        # Decide on whether we're breaking offset or length
+        offset_or_length = random.randrange(2)
+
+        # A helper function that will take a valid offset and length and break
+        # one of them.
+        def corrupt(break_length, offset, length):
+            if break_length:
+                # length must not be 0 or flipping the sign does nothing
+                # length must not be negative or flipping the sign *fixes* it
+                assert length > 0
+                return (offset, -length)
+            else:
+                if offset > 0:
+                    # We can break offset just by flipping the sign.
+                    return (-offset, length)
+                else:
+                    # Otherwise it has to be zero.  If it was negative, what's
+                    # going on?
+                    assert offset == 0
+                    # Since we can't just flip the sign on 0 to break things,
+                    # replace a 0 offset with a simple negative value.  All
+                    # other negative values will be tested by the `offset > 0`
+                    # case above.
+                    return (-1, length)
+
+        # Break the read vector very slightly!
+        broken_readv = readv[:]
+        broken_readv[readv_index] = corrupt(
+            offset_or_length,
+            *broken_readv[readv_index]
+        )
+
+        sf = self.get_sharefile()
+        sf.create(my_nodeid=nodeid, write_enabler=write_enabler)
+
+        # A read with a broken read vector is an error.
+        with self.assertRaises(AssertionError):
+            sf.readv(broken_readv)
