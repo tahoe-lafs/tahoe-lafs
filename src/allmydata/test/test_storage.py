@@ -1018,7 +1018,6 @@ class Server(unittest.TestCase):
         ss = StorageServer(workdir, b"\x00" * 20, discard_storage=True)
         ss.setServiceParent(self.sparent)
 
-        si0_s = base32.b2a(b"si0")
         ss.remote_advise_corrupt_share(b"immutable", b"si0", 0,
                                        b"This share smells funny.\n")
 
