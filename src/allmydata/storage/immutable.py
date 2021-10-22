@@ -110,8 +110,7 @@ class ShareFile(object):
         Initialize a ``ShareFile``.
 
         :param Optional[int] max_size: If given, the maximum number of bytes
-           that this ``ShareFile`` will accept to be stored. ``write`` will
-           accept in total.
+           that this ``ShareFile`` will accept to be stored.
 
         :param bool create: If ``True``, create the file (and fail if it
             exists already).  ``max_size`` must not be ``None`` in this case.
