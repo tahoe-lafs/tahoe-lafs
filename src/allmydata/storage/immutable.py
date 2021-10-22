@@ -53,13 +53,86 @@ from allmydata.storage.common import UnknownImmutableContainerVersionError
 # then the value stored in this field will be the actual share data length
 # modulo 2**32.
 
+def _fix_lease_count_format(lease_count_format):
+    """
+    Turn a single character struct format string into a format string suitable
+    for use in encoding and decoding the lease count value inside a share
+    file, if possible.
+
+    :param str lease_count_format: A single character format string like
+        ``"B"`` or ``"L"``.
+
+    :raise ValueError: If the given format string is not suitable for use
+        encoding and decoding a lease count.
+
+    :return str: A complete format string which can safely be used to encode
+        and decode lease counts in a share file.
+    """
+    if len(lease_count_format) != 1:
+        raise ValueError(
+            "Cannot construct ShareFile with lease_count_format={!r}; "
+            "format must accept a single value".format(
+                lease_count_format,
+            ),
+        )
+    # Make it big-endian with standard size so all platforms agree on the
+    # result.
+    fixed = ">" + lease_count_format
+    if struct.calcsize(fixed) > 4:
+        # There is only room for at most 4 bytes in the share file format so
+        # we can't allow any larger formats.
+        raise ValueError(
+            "Cannot construct ShareFile with lease_count_format={!r}; "
+            "size must be smaller than size of '>L'".format(
+                lease_count_format,
+            ),
+        )
+    return fixed
+
+
 class ShareFile(object):
+    """
+    Support interaction with persistent storage of a share.
+
+    :ivar str _lease_count_format: The format string which is used to encode
+        and decode the lease count inside the share file.  As stated in the
+        comment in this module there is room for at most 4 bytes in this part
+        of the file.  A format string that works on fewer bytes is allowed to
+        restrict the number of leases allowed in the share file to a smaller
+        number than could be supported by using the full 4 bytes.  This is
+        mostly of interest for testing.
+    """
     LEASE_SIZE = struct.calcsize(">L32s32sL")
     sharetype = "immutable"
 
-    def __init__(self, filename, max_size=None, create=False):
-        """ If max_size is not None then I won't allow more than max_size to be written to me. If create=True and max_size must not be None. """
+    def __init__(self, filename, max_size=None, create=False, lease_count_format="L"):
+        """
+        Initialize a ``ShareFile``.
+
+        :param Optional[int] max_size: If given, the maximum number of bytes
+           that this ``ShareFile`` will accept to be stored.
+
+        :param bool create: If ``True``, create the file (and fail if it
+            exists already).  ``max_size`` must not be ``None`` in this case.
+            If ``False``, open an existing file for reading.
+
+        :param str lease_count_format: A format character to use to encode and
+            decode the number of leases in the share file.  There are only 4
+            bytes available in the file so the format must be 4 bytes or
+            smaller.  If different formats are used at different times with
+            the same share file, the result will likely be nonsense.
+
+            This parameter is intended for the test suite to use to be able to
+            exercise values near the maximum encodeable value without having
+            to create billions of leases.
+
+        :raise ValueError: If the encoding of ``lease_count_format`` is too
+            large or if it is not a single format character.
+        """
         precondition((max_size is not None) or (not create), max_size, create)
+
+        self._lease_count_format = _fix_lease_count_format(lease_count_format)
+        self._lease_count_size = struct.calcsize(self._lease_count_format)
         self.home = filename
         self._max_size = max_size
         if create:
@@ -126,12 +199,21 @@ class ShareFile(object):
 
     def _read_num_leases(self, f):
         f.seek(0x08)
-        (num_leases,) = struct.unpack(">L", f.read(4))
+        (num_leases,) = struct.unpack(
+            self._lease_count_format,
+            f.read(self._lease_count_size),
+        )
         return num_leases
 
     def _write_num_leases(self, f, num_leases):
+        self._write_encoded_num_leases(
+            f,
+            struct.pack(self._lease_count_format, num_leases),
+        )
+
+    def _write_encoded_num_leases(self, f, encoded_num_leases):
         f.seek(0x08)
-        f.write(struct.pack(">L", num_leases))
+        f.write(encoded_num_leases)
 
     def _truncate_leases(self, f, num_leases):
         f.truncate(self._lease_offset + num_leases * self.LEASE_SIZE)
@@ -149,8 +231,11 @@ class ShareFile(object):
     def add_lease(self, lease_info):
         with open(self.home, 'rb+') as f:
             num_leases = self._read_num_leases(f)
+            # Before we write the new lease record, make sure we can encode
+            # the new lease count.
+            new_lease_count = struct.pack(self._lease_count_format, num_leases + 1)
             self._write_lease_record(f, num_leases, lease_info)
-            self._write_num_leases(f, num_leases+1)
+            self._write_encoded_num_leases(f, new_lease_count)
 
     def renew_lease(self, renew_secret, new_expire_time):
         for i,lease in enumerate(self.get_leases()):
