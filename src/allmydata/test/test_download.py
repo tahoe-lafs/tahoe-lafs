@@ -493,7 +493,7 @@ class DownloadTest(_Base, unittest.TestCase):
         d.addCallback(_done)
         return d
 
-    def test_simultaneous_onefails_onecancelled(self):
+    def test_simul_1fail_1cancel(self):
         # This exercises an mplayer behavior in ticket #1154. I believe that
         # mplayer made two simultaneous webapi GET requests: first one for an
         # index region at the end of the (mp3/video) file, then one for the
