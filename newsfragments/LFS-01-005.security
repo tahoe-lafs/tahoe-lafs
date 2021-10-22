@@ -1,3 +1,4 @@
-The storage server implementation now respects the ``reserved_space`` configuration value when writing lease information.
+The storage server implementation now respects the ``reserved_space`` configuration value when writing lease information and recording corruption advisories.
 Previously, new leases could be created and written to disk even when the storage server had less remaining space than the configured reserve space value.
 Now this operation will fail with an exception and the lease will not be created.
+Similarly, if there is no space available, corruption advisories will be logged but not written to disk.
