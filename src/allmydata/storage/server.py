@@ -15,7 +15,6 @@ else:
     from typing import Dict
 
 import os, re, struct, time
-import six
 
 from foolscap.api import Referenceable
 from foolscap.ipb import IRemoteReference
