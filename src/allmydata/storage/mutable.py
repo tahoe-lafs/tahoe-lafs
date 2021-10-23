@@ -13,7 +13,10 @@ if PY2:
 
 import os, stat, struct
 
-from allmydata.interfaces import BadWriteEnablerError
+from allmydata.interfaces import (
+    BadWriteEnablerError,
+    NoSpace,
+)
 from allmydata.util import idlib, log
 from allmydata.util.assertutil import precondition
 from allmydata.util.hashutil import timing_safe_compare
@@ -289,7 +292,19 @@ class MutableShareFile(object):
             except IndexError:
                 return
 
-    def add_lease(self, lease_info):
+    def add_lease(self, available_space, lease_info):
+        """
+        Add a new lease to this share.
+
+        :param int available_space: The maximum number of bytes of storage to
+            commit in this operation.  If more than this number of bytes is
+            required, raise ``NoSpace`` instead.
+
+        :raise NoSpace: If more than ``available_space`` bytes is required to
+            complete the operation.  In this case, no lease is added.
+
+        :return: ``None``
+        """
         precondition(lease_info.owner_num != 0) # 0 means "no lease here"
         with open(self.home, 'rb+') as f:
             num_lease_slots = self._get_num_lease_slots(f)
@@ -297,6 +312,8 @@ class MutableShareFile(object):
             if empty_slot is not None:
                 self._write_lease_record(f, empty_slot, lease_info)
             else:
+                if lease_info.mutable_size() > available_space:
+                    raise NoSpace()
                 self._write_lease_record(f, num_lease_slots, lease_info)
 
     def renew_lease(self, renew_secret, new_expire_time):
@@ -321,13 +338,13 @@ class MutableShareFile(object):
         msg += " ."
         raise IndexError(msg)
 
-    def add_or_renew_lease(self, lease_info):
+    def add_or_renew_lease(self, available_space, lease_info):
         precondition(lease_info.owner_num != 0) # 0 means "no lease here"
         try:
             self.renew_lease(lease_info.renew_secret,
                              lease_info.expiration_time)
         except IndexError:
-            self.add_lease(lease_info)
+            self.add_lease(available_space, lease_info)
 
     def cancel_lease(self, cancel_secret):
         """Remove any leases with the given cancel_secret. If the last lease

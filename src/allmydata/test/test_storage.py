@@ -25,6 +25,10 @@ import shutil
 from functools import partial
 from uuid import uuid4
 
+from testtools.matchers import (
+    HasLength,
+)
+
 from twisted.trial import unittest
 
 from twisted.internet import defer
@@ -60,8 +64,17 @@ from allmydata.test.no_network import NoNetworkServer
 from allmydata.storage_client import (
     _StorageServer,
 )
-from .common import LoggingServiceParent, ShouldFailMixin
+from .common import (
+    LoggingServiceParent,
+    ShouldFailMixin,
+    FakeDisk,
+    SyncTestCase,
+)
 from .common_util import FakeCanary
+from .common_storage import (
+    upload_immutable,
+    upload_mutable,
+)
 from .strategies import (
     offsets,
     lengths,
@@ -109,6 +122,39 @@ class FakeStatsProvider(object):
         pass
     def register_producer(self, producer):
         pass
+
+
+class LeaseInfoTests(SyncTestCase):
+    """
+    Tests for ``LeaseInfo``.
+    """
+    @given(
+        strategies.tuples(
+            strategies.integers(min_value=0, max_value=2 ** 31 - 1),
+            strategies.binary(min_size=32, max_size=32),
+            strategies.binary(min_size=32, max_size=32),
+            strategies.integers(min_value=0, max_value=2 ** 31 - 1),
+            strategies.binary(min_size=20, max_size=20),
+        ),
+    )
+    def test_immutable_size(self, initializer_args):
+        """
+        ``LeaseInfo.immutable_size`` returns the length of the result of
+        ``LeaseInfo.to_immutable_data``.
+
+        ``LeaseInfo.mutable_size`` returns the length of the result of
+        ``LeaseInfo.to_mutable_data``.
+        """
+        info = LeaseInfo(*initializer_args)
+        self.expectThat(
+            info.to_immutable_data(),
+            HasLength(info.immutable_size()),
+        )
+        self.expectThat(
+            info.to_mutable_data(),
+            HasLength(info.mutable_size()),
+        )
+
 
 class Bucket(unittest.TestCase):
     def make_workdir(self, name):
@@ -651,6 +697,72 @@ class Server(unittest.TestCase):
         self.failUnlessEqual(already, set())
         self.failUnlessEqual(set(writers.keys()), set([0,1,2]))
 
+    def test_reserved_space_immutable_lease(self):
+        """
+        If there is not enough available space to store an additional lease on an
+        immutable share then ``remote_add_lease`` fails with ``NoSpace`` when
+        an attempt is made to use it to create a new lease.
+        """
+        disk = FakeDisk(total=1024, used=0)
+        self.patch(fileutil, "get_disk_stats", disk.get_disk_stats)
+
+        ss = self.create("test_reserved_space_immutable_lease")
+
+        storage_index = b"x" * 16
+        renew_secret = b"r" * 32
+        cancel_secret = b"c" * 32
+        shares = {0: b"y" * 500}
+        upload_immutable(ss, storage_index, renew_secret, cancel_secret, shares)
+
+        # use up all the available space
+        disk.use(disk.available)
+
+        # Different secrets to produce a different lease, not a renewal.
+        renew_secret = b"R" * 32
+        cancel_secret = b"C" * 32
+        with self.assertRaises(interfaces.NoSpace):
+            ss.remote_add_lease(storage_index, renew_secret, cancel_secret)
+
+    def test_reserved_space_mutable_lease(self):
+        """
+        If there is not enough available space to store an additional lease on a
+        mutable share then ``remote_add_lease`` fails with ``NoSpace`` when an
+        attempt is made to use it to create a new lease.
+        """
+        disk = FakeDisk(total=1024, used=0)
+        self.patch(fileutil, "get_disk_stats", disk.get_disk_stats)
+
+        ss = self.create("test_reserved_space_mutable_lease")
+
+        renew_secrets = iter(
+            "{}{}".format("r" * 31, i).encode("ascii")
+            for i
+            in range(5)
+        )
+
+        storage_index = b"x" * 16
+        write_enabler = b"w" * 32
+        cancel_secret = b"c" * 32
+        secrets = (write_enabler, next(renew_secrets), cancel_secret)
+        shares = {0: b"y" * 500}
+        upload_mutable(ss, storage_index, secrets, shares)
+
+        # use up all the available space
+        disk.use(disk.available)
+
+        # The upload created one lease.  There is room for three more leases
+        # in the share header.  Even if we're out of disk space, on a boring
+        # enough filesystem we can write these.
+        for i in range(3):
+            ss.remote_add_lease(storage_index, next(renew_secrets), cancel_secret)
+
+        # Having used all of the space for leases in the header, we would have
+        # to allocate storage for the next lease.  Since there is no space
+        # available, this must fail instead.
+        with self.assertRaises(interfaces.NoSpace):
+            ss.remote_add_lease(storage_index, next(renew_secrets), cancel_secret)
+
+
     def test_reserved_space(self):
         reserved = 10000
         allocated = 0
@@ -893,6 +1005,26 @@ class Server(unittest.TestCase):
         b = ss.remote_get_buckets(b"vid")
         self.failUnlessEqual(set(b.keys()), set([0,1,2]))
         self.failUnlessEqual(b[0].remote_read(0, 25), b"\x00" * 25)
+
+    def test_reserved_space_advise_corruption(self):
+        """
+        If there is no available space then ``remote_advise_corrupt_share`` does
+        not write a corruption report.
+        """
+        disk = FakeDisk(total=1024, used=1024)
+        self.patch(fileutil, "get_disk_stats", disk.get_disk_stats)
+
+        workdir = self.workdir("test_reserved_space_advise_corruption")
+        ss = StorageServer(workdir, b"\x00" * 20, discard_storage=True)
+        ss.setServiceParent(self.sparent)
+
+        ss.remote_advise_corrupt_share(b"immutable", b"si0", 0,
+                                       b"This share smells funny.\n")
+
+        self.assertEqual(
+            [],
+            os.listdir(ss.corruption_advisory_dir),
+        )
 
     def test_advise_corruption(self):
         workdir = self.workdir("test_advise_corruption")

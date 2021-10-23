@@ -15,7 +15,6 @@ else:
     from typing import Dict
 
 import os, re, struct, time
-import six
 
 from foolscap.api import Referenceable
 from foolscap.ipb import IRemoteReference
@@ -286,7 +285,7 @@ class StorageServer(service.MultiService, Referenceable):
         # to a particular owner.
         start = self._get_current_time()
         self.count("allocate")
-        alreadygot = set()
+        alreadygot = {}
         bucketwriters = {} # k: shnum, v: BucketWriter
         si_dir = storage_index_to_dir(storage_index)
         si_s = si_b2a(storage_index)
@@ -318,9 +317,8 @@ class StorageServer(service.MultiService, Referenceable):
         # leases for all of them: if they want us to hold shares for this
         # file, they'll want us to hold leases for this file.
         for (shnum, fn) in self._get_bucket_shares(storage_index):
-            alreadygot.add(shnum)
-            sf = ShareFile(fn)
-            sf.add_or_renew_lease(lease_info)
+            alreadygot[shnum] = ShareFile(fn)
+        self._add_or_renew_leases(alreadygot.values(), lease_info)
 
         for shnum in sharenums:
             incominghome = os.path.join(self.incomingdir, si_dir, "%d" % shnum)
@@ -352,7 +350,7 @@ class StorageServer(service.MultiService, Referenceable):
             fileutil.make_dirs(os.path.join(self.sharedir, si_dir))
 
         self.add_latency("allocate", self._get_current_time() - start)
-        return alreadygot, bucketwriters
+        return set(alreadygot), bucketwriters
 
     def remote_allocate_buckets(self, storage_index,
                                 renew_secret, cancel_secret,
@@ -392,8 +390,10 @@ class StorageServer(service.MultiService, Referenceable):
         lease_info = LeaseInfo(owner_num,
                                renew_secret, cancel_secret,
                                new_expire_time, self.my_nodeid)
-        for sf in self._iter_share_files(storage_index):
-            sf.add_or_renew_lease(lease_info)
+        self._add_or_renew_leases(
+            self._iter_share_files(storage_index),
+            lease_info,
+        )
         self.add_latency("add-lease", self._get_current_time() - start)
         return None
 
@@ -611,13 +611,13 @@ class StorageServer(service.MultiService, Referenceable):
         """
         Put the given lease onto the given shares.
 
-        :param dict[int, MutableShareFile] shares: The shares to put the lease
-            onto.
+        :param Iterable[Union[MutableShareFile, ShareFile]] shares: The shares
+            to put the lease onto.
 
         :param LeaseInfo lease_info: The lease to put on the shares.
         """
-        for share in six.viewvalues(shares):
-            share.add_or_renew_lease(lease_info)
+        for share in shares:
+            share.add_or_renew_lease(self.get_available_space(), lease_info)
 
     def slot_testv_and_readv_and_writev(  # type: ignore # warner/foolscap#78
             self,
@@ -675,7 +675,7 @@ class StorageServer(service.MultiService, Referenceable):
             )
             if renew_leases:
                 lease_info = self._make_lease_info(renew_secret, cancel_secret)
-                self._add_or_renew_leases(remaining_shares, lease_info)
+                self._add_or_renew_leases(remaining_shares.values(), lease_info)
 
         # all done
         self.add_latency("writev", self._get_current_time() - start)
@@ -736,24 +736,80 @@ class StorageServer(service.MultiService, Referenceable):
         # protocol backwards compatibility reasons.
         assert isinstance(share_type, bytes)
         assert isinstance(reason, bytes), "%r is not bytes" % (reason,)
-        fileutil.make_dirs(self.corruption_advisory_dir)
-        now = time_format.iso_utc(sep="T")
+
         si_s = si_b2a(storage_index)
-        # windows can't handle colons in the filename
-        fn = os.path.join(
-            self.corruption_advisory_dir,
-            ("%s--%s-%d" % (now, str(si_s, "utf-8"), shnum)).replace(":","")
-        )
-        with open(fn, "w") as f:
-            f.write("report: Share Corruption\n")
-            f.write("type: %s\n" % bytes_to_native_str(share_type))
-            f.write("storage_index: %s\n" % bytes_to_native_str(si_s))
-            f.write("share_number: %d\n" % shnum)
-            f.write("\n")
-            f.write(bytes_to_native_str(reason))
-            f.write("\n")
+
         log.msg(format=("client claims corruption in (%(share_type)s) " +
                         "%(si)s-%(shnum)d: %(reason)s"),
                 share_type=share_type, si=si_s, shnum=shnum, reason=reason,
                 level=log.SCARY, umid="SGx2fA")
+
+        fileutil.make_dirs(self.corruption_advisory_dir)
+        now = time_format.iso_utc(sep="T")
+
+        report = render_corruption_report(share_type, si_s, shnum, reason)
+        if len(report) > self.get_available_space():
+            return None
+
+        report_path = get_corruption_report_path(
+            self.corruption_advisory_dir,
+            now,
+            si_s,
+            shnum,
+        )
+        with open(report_path, "w") as f:
+            f.write(report)
+
         return None
+
+CORRUPTION_REPORT_FORMAT = """\
+report: Share Corruption
+type: {type}
+storage_index: {storage_index}
+share_number: {share_number}
+
+{reason}
+
+"""
+
+def render_corruption_report(share_type, si_s, shnum, reason):
+    """
+    Create a string that explains a corruption report using freeform text.
+
+    :param bytes share_type: The type of the share which the report is about.
+
+    :param bytes si_s: The encoded representation of the storage index which
+        the report is about.
+
+    :param int shnum: The share number which the report is about.
+
+    :param bytes reason: The reason given by the client for the corruption
+        report.
+    """
+    return CORRUPTION_REPORT_FORMAT.format(
+        type=bytes_to_native_str(share_type),
+        storage_index=bytes_to_native_str(si_s),
+        share_number=shnum,
+        reason=bytes_to_native_str(reason),
+    )
+
+def get_corruption_report_path(base_dir, now, si_s, shnum):
+    """
+    Determine the path to which a certain corruption report should be written.
+
+    :param str base_dir: The directory beneath which to construct the path.
+
+    :param str now: The time of the report.
+
+    :param str si_s: The encoded representation of the storage index which the
+        report is about.
+
+    :param int shnum: The share number which the report is about.
+
+    :return str: A path to which the report can be written.
+    """
+    # windows can't handle colons in the filename
+    return os.path.join(
+        base_dir,
+        ("%s--%s-%d" % (now, str(si_s, "utf-8"), shnum)).replace(":","")
+    )

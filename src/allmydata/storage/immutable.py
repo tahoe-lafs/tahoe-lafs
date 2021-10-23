@@ -21,6 +21,7 @@ from zope.interface import implementer
 from allmydata.interfaces import (
     RIBucketWriter, RIBucketReader, ConflictingWriteError,
     DataTooLargeError,
+    NoSpace,
 )
 from allmydata.util import base32, fileutil, log
 from allmydata.util.assertutil import precondition
@@ -249,13 +250,28 @@ class ShareFile(object):
                 return
         raise IndexError("unable to renew non-existent lease")
 
-    def add_or_renew_lease(self, lease_info):
+    def add_or_renew_lease(self, available_space, lease_info):
+        """
+        Renew an existing lease if possible, otherwise allocate a new one.
+
+        :param int available_space: The maximum number of bytes of storage to
+            commit in this operation.  If more than this number of bytes is
+            required, raise ``NoSpace`` instead.
+
+        :param LeaseInfo lease_info: The details of the lease to renew or add.
+
+        :raise NoSpace: If more than ``available_space`` bytes is required to
+            complete the operation.  In this case, no lease is added.
+
+        :return: ``None``
+        """
         try:
             self.renew_lease(lease_info.renew_secret,
                              lease_info.expiration_time)
         except IndexError:
+            if lease_info.immutable_size() > available_space:
+                raise NoSpace()
             self.add_lease(lease_info)
-
 
     def cancel_lease(self, cancel_secret):
         """Remove a lease with the given cancel_secret. If the last lease is
