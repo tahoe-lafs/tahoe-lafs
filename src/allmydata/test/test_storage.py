@@ -1085,7 +1085,6 @@ class Server(unittest.TestCase):
         upload_immutable(ss, "si0", b"r" * 32, b"c" * 32, {0: b""})
 
         # And try to submit a corruption advisory about a different share
-        si0_s = base32.b2a(b"si0")
         ss.remote_advise_corrupt_share(b"immutable", b"si0", 1,
                                        b"This share smells funny.\n")
 
