@@ -1,0 +1,5 @@
+The lease-checker now uses JSON instead of pickle to serialize its state.
+
+Once you have run this version the lease state files will be stored in JSON
+and an older version of the software won't load them (it simply won't notice
+them so it will appear to have never run).
