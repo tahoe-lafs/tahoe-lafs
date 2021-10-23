@@ -11,15 +11,12 @@ from __future__ import print_function
 
 from future.utils import PY2, PY3
 if PY2:
-    # We don't import bytes, object, dict, and list just in case they're used,
-    # so as not to create brittle pickles with random magic objects.
-    from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, range, str, max, min  # noqa: F401
+    from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min
 
-import os, time, struct
-try:
-    import cPickle as pickle
-except ImportError:
-    import pickle  # type: ignore
+import os
+import time
+import json
+import struct
 from twisted.internet import reactor
 from twisted.application import service
 from allmydata.storage.common import si_b2a
@@ -214,7 +211,7 @@ class ShareCrawler(service.MultiService):
         #                            None if we are sleeping between cycles
         try:
             with open(self.statefile, "rb") as f:
-                state = pickle.load(f)
+                state = json.load(f)
         except Exception:
             state = {"version": 1,
                      "last-cycle-finished": None,
@@ -252,9 +249,7 @@ class ShareCrawler(service.MultiService):
         self.state["last-complete-prefix"] = last_complete_prefix
         tmpfile = self.statefile + ".tmp"
         with open(tmpfile, "wb") as f:
-            # Newer protocols won't work in Python 2; when it is dropped,
-            # protocol v4 can be used (added in Python 3.4).
-            pickle.dump(self.state, f, protocol=2)
+            json.dump(self.state, f)
         fileutil.move_into_place(tmpfile, self.statefile)
 
     def startService(self):
