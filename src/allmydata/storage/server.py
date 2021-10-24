@@ -77,9 +77,9 @@ class StorageServer(service.MultiService, Referenceable):
         sharedir = os.path.join(storedir, "shares")
         fileutil.make_dirs(sharedir)
         self.sharedir = sharedir
-        # we don't actually create the corruption-advisory dir until necessary
         self.corruption_advisory_dir = os.path.join(storedir,
                                                     "corruption-advisories")
+        fileutil.make_dirs(self.corruption_advisory_dir)
         self.reserved_space = int(reserved_space)
         self.no_storage = discard_storage
         self.readonly_storage = readonly_storage
@@ -730,6 +730,21 @@ class StorageServer(service.MultiService, Referenceable):
         self.add_latency("readv", self._get_current_time() - start)
         return datavs
 
+    def _share_exists(self, storage_index, shnum):
+        """
+        Check local share storage to see if a matching share exists.
+
+        :param bytes storage_index: The storage index to inspect.
+        :param int shnum: The share number to check for.
+
+        :return bool: ``True`` if a share with the given number exists at the
+            given storage index, ``False`` otherwise.
+        """
+        for existing_sharenum, ignored in self._get_bucket_shares(storage_index):
+            if existing_sharenum == shnum:
+                return True
+        return False
+
     def remote_advise_corrupt_share(self, share_type, storage_index, shnum,
                                     reason):
         # This is a remote API, I believe, so this has to be bytes for legacy
@@ -739,18 +754,27 @@ class StorageServer(service.MultiService, Referenceable):
 
         si_s = si_b2a(storage_index)
 
+        if not self._share_exists(storage_index, shnum):
+            log.msg(
+                format=(
+                    "discarding client corruption claim for %(si)s/%(shnum)d "
+                    "which I do not have"
+                ),
+                si=si_s,
+                shnum=shnum,
+            )
+            return
+
         log.msg(format=("client claims corruption in (%(share_type)s) " +
                         "%(si)s-%(shnum)d: %(reason)s"),
                 share_type=share_type, si=si_s, shnum=shnum, reason=reason,
                 level=log.SCARY, umid="SGx2fA")
 
-        fileutil.make_dirs(self.corruption_advisory_dir)
-        now = time_format.iso_utc(sep="T")
-
         report = render_corruption_report(share_type, si_s, shnum, reason)
         if len(report) > self.get_available_space():
             return None
 
+        now = time_format.iso_utc(sep="T")
         report_path = get_corruption_report_path(
             self.corruption_advisory_dir,
             now,

@@ -1018,6 +1018,7 @@ class Server(unittest.TestCase):
         ss = StorageServer(workdir, b"\x00" * 20, discard_storage=True)
         ss.setServiceParent(self.sparent)
 
+        upload_immutable(ss, b"si0", b"r" * 32, b"c" * 32, {0: b""})
         ss.remote_advise_corrupt_share(b"immutable", b"si0", 0,
                                        b"This share smells funny.\n")
 
@@ -1032,6 +1033,7 @@ class Server(unittest.TestCase):
         ss.setServiceParent(self.sparent)
 
         si0_s = base32.b2a(b"si0")
+        upload_immutable(ss, b"si0", b"r" * 32, b"c" * 32, {0: b""})
         ss.remote_advise_corrupt_share(b"immutable", b"si0", 0,
                                        b"This share smells funny.\n")
         reportdir = os.path.join(workdir, "corruption-advisories")
@@ -1070,6 +1072,26 @@ class Server(unittest.TestCase):
         self.failUnlessIn(b"share_number: 1", report)
         self.failUnlessIn(b"This share tastes like dust.", report)
 
+    def test_advise_corruption_missing(self):
+        """
+        If a corruption advisory is received for a share that is not present on
+        this server then it is not persisted.
+        """
+        workdir = self.workdir("test_advise_corruption_missing")
+        ss = StorageServer(workdir, b"\x00" * 20, discard_storage=True)
+        ss.setServiceParent(self.sparent)
+
+        # Upload one share for this storage index
+        upload_immutable(ss, b"si0", b"r" * 32, b"c" * 32, {0: b""})
+
+        # And try to submit a corruption advisory about a different share
+        ss.remote_advise_corrupt_share(b"immutable", b"si0", 1,
+                                       b"This share smells funny.\n")
+
+        self.assertEqual(
+            [],
+            os.listdir(ss.corruption_advisory_dir),
+        )
 
 
 class MutableServer(unittest.TestCase):
