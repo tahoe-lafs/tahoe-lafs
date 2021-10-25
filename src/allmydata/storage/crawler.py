@@ -34,7 +34,7 @@ def _convert_pickle_state_to_json(state):
     :return dict: the state in the JSON form
     """
     # ["cycle-to-date"]["corrupt-shares"] from 2-tuple to list
-    # ["leases-per-share-histogram"] gets str keys instead of int
+    # ["cycle-to-date"]["leases-per-share-histogram"] gets str keys instead of int
     # ["cycle-start-finish-times"] from 2-tuple to list
     # ["configured-expiration-mode"] from 4-tuple to list
     # ["history"] keys are strings
@@ -42,12 +42,6 @@ def _convert_pickle_state_to_json(state):
         raise ValueError(
             "Unknown version {version} in pickle state".format(**state)
         )
-
-    def convert_lpsh(value):
-        return {
-            str(k): v
-            for k, v in value.items()
-        }
 
     def convert_cem(value):
         # original is a 4-tuple, with the last element being a 2-tuple
@@ -59,20 +53,28 @@ def _convert_pickle_state_to_json(state):
             list(value[3]),
         ]
 
-    def convert_history(value):
-        print("convert history")
-        print(value)
+    def convert_ctd(value):
+        ctd_converter = {
+            "lease-age-histogram": lambda value: {
+                "{},{}".format(k[0], k[1]): v
+                for k, v in value.items()
+            },
+            "corrupt-shares": lambda value: [
+                list(x)
+                for x in value
+            ],
+        }
         return {
-            str(k): v
-            for k, v in value
+            k: ctd_converter.get(k, lambda z: z)(v)
+            for k, v in value.items()
         }
 
+    # we don't convert "history" here because that's in a separate
+    # file; see expirer.py
     converters = {
-        "cycle-to-date": list,
-        "leases-per-share-histogram": convert_lpsh,
+        "cycle-to-date": convert_ctd,
         "cycle-starte-finish-times": list,
         "configured-expiration-mode": convert_cem,
-        "history": convert_history,
     }
 
     def convert_value(key, value):
@@ -116,10 +118,10 @@ def _maybe_upgrade_pickle_to_json(state_path, convert_pickle):
     import pickle
     with state_path.open("r") as f:
         state = pickle.load(f)
-    state = convert_pickle(state)
+    new_state = convert_pickle(state)
     json_state_path = state_path.siblingExtension(".json")
     with json_state_path.open("w") as f:
-        json.dump(state, f)
+        json.dump(new_state, f)
     # we've written the JSON, delete the pickle
     state_path.remove()
     return json_state_path.path
