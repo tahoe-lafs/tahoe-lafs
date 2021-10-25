@@ -10,11 +10,72 @@ import json
 import time
 import os
 import struct
-from allmydata.storage.crawler import ShareCrawler
+from allmydata.storage.crawler import (
+    ShareCrawler,
+    _maybe_upgrade_pickle_to_json,
+)
 from allmydata.storage.shares import get_share_file
 from allmydata.storage.common import UnknownMutableContainerVersionError, \
      UnknownImmutableContainerVersionError
 from twisted.python import log as twlog
+from twisted.python.filepath import FilePath
+
+
+def _convert_pickle_state_to_json(state):
+    """
+    :param dict state: the pickled state
+
+    :return dict: the state in the JSON form
+    """
+    print("CONVERT", state)
+    for k, v in state.items():
+        print(k, v)
+    if state["version"] != 1:
+        raise ValueError(
+            "Unknown version {version} in pickle state".format(**state)
+        )
+
+    return state
+
+
+class _HistorySerializer(object):
+    """
+    Serialize the 'history' file of the lease-crawler state. This is
+    "storage/history.state" for the pickle or
+    "storage/history.state.json" for the new JSON format.
+    """
+
+    def __init__(self, history_path):
+        self._path = FilePath(
+            _maybe_upgrade_pickle_to_json(
+                FilePath(history_path),
+                _convert_pickle_state_to_json,
+            )
+        )
+        if not self._path.exists():
+            with self._path.open("wb") as f:
+                json.dump({}, f)
+
+    def read(self):
+        """
+        Deserialize the existing data.
+
+        :return dict: the existing history state
+        """
+        assert self._path is not None, "Not initialized"
+        with self._path.open("rb") as f:
+            history = json.load(f)
+        return history
+
+    def write(self, new_history):
+        """
+        Serialize the existing data as JSON.
+        """
+        assert self._path is not None, "Not initialized"
+        with self._path.open("wb") as f:
+            json.dump(new_history, f)
+        return None
+
 
 class LeaseCheckingCrawler(ShareCrawler):
     """I examine the leases on all shares, determining which are still valid
@@ -64,7 +125,8 @@ class LeaseCheckingCrawler(ShareCrawler):
                  override_lease_duration, # used if expiration_mode=="age"
                  cutoff_date, # used if expiration_mode=="cutoff-date"
                  sharetypes):
-        self.historyfile = historyfile
+        self._history_serializer = _HistorySerializer(historyfile)
+        ##self.historyfile = historyfile
         self.expiration_enabled = expiration_enabled
         self.mode = mode
         self.override_lease_duration = None
@@ -91,12 +153,6 @@ class LeaseCheckingCrawler(ShareCrawler):
         # the keys individually
         for k in so_far:
             self.state["cycle-to-date"].setdefault(k, so_far[k])
-
-        # initialize history
-        if not os.path.exists(self.historyfile):
-            history = {} # cyclenum -> dict
-            with open(self.historyfile, "wb") as f:
-                json.dump(history, f)
 
     def create_empty_cycle_dict(self):
         recovered = self.create_empty_recovered_dict()
@@ -315,14 +371,12 @@ class LeaseCheckingCrawler(ShareCrawler):
         # copy() needs to become a deepcopy
         h["space-recovered"] = s["space-recovered"].copy()
 
-        with open(self.historyfile, "rb") as f:
-            history = json.load(f)
+        history = self._history_serializer.read()
         history[str(cycle)] = h
         while len(history) > 10:
             oldcycles = sorted(int(k) for k in history.keys())
             del history[str(oldcycles[0])]
-        with open(self.historyfile, "wb") as f:
-            json.dump(history, f)
+        self._history_serializer.write(history)
 
     def get_state(self):
         """In addition to the crawler state described in
@@ -391,9 +445,7 @@ class LeaseCheckingCrawler(ShareCrawler):
         progress = self.get_progress()
 
         state = ShareCrawler.get_state(self) # does a shallow copy
-        with open(self.historyfile, "rb") as f:
-            history = json.load(f)
-        state["history"] = history
+        state["history"] = self._history_serializer.read()
 
         if not progress["cycle-in-progress"]:
             del state["cycle-to-date"]

@@ -25,14 +25,20 @@ from twisted.trial import unittest
 from twisted.internet import defer
 from twisted.application import service
 from twisted.web.template import flattenString
+from twisted.python.filepath import FilePath
 
 from foolscap.api import fireEventually
 from allmydata.util import fileutil, hashutil, base32, pollmixin
 from allmydata.storage.common import storage_index_to_dir, \
      UnknownMutableContainerVersionError, UnknownImmutableContainerVersionError
 from allmydata.storage.server import StorageServer
-from allmydata.storage.crawler import BucketCountingCrawler
-from allmydata.storage.expirer import LeaseCheckingCrawler
+from allmydata.storage.crawler import (
+    BucketCountingCrawler,
+    _LeaseStateSerializer,
+)
+from allmydata.storage.expirer import (
+    LeaseCheckingCrawler,
+)
 from allmydata.web.storage import (
     StorageStatus,
     StorageStatusElement,

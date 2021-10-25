@@ -19,11 +19,144 @@ import json
 import struct
 from twisted.internet import reactor
 from twisted.application import service
+from twisted.python.filepath import FilePath
 from allmydata.storage.common import si_b2a
 from allmydata.util import fileutil
 
 class TimeSliceExceeded(Exception):
     pass
+
+
+def _convert_pickle_state_to_json(state):
+    """
+    :param dict state: the pickled state
+
+    :return dict: the state in the JSON form
+    """
+    # ["cycle-to-date"]["corrupt-shares"] from 2-tuple to list
+    # ["leases-per-share-histogram"] gets str keys instead of int
+    # ["cycle-start-finish-times"] from 2-tuple to list
+    # ["configured-expiration-mode"] from 4-tuple to list
+    # ["history"] keys are strings
+    if state["version"] != 1:
+        raise ValueError(
+            "Unknown version {version} in pickle state".format(**state)
+        )
+
+    def convert_lpsh(value):
+        return {
+            str(k): v
+            for k, v in value.items()
+        }
+
+    def convert_cem(value):
+        # original is a 4-tuple, with the last element being a 2-tuple
+        # .. convert both to lists
+        return [
+            value[0],
+            value[1],
+            value[2],
+            list(value[3]),
+        ]
+
+    def convert_history(value):
+        print("convert history")
+        print(value)
+        return {
+            str(k): v
+            for k, v in value
+        }
+
+    converters = {
+        "cycle-to-date": list,
+        "leases-per-share-histogram": convert_lpsh,
+        "cycle-starte-finish-times": list,
+        "configured-expiration-mode": convert_cem,
+        "history": convert_history,
+    }
+
+    def convert_value(key, value):
+        converter = converters.get(key, None)
+        if converter is None:
+            return value
+        return converter(value)
+
+    new_state = {
+        k: convert_value(k, v)
+        for k, v in state.items()
+    }
+    return new_state
+
+
+def _maybe_upgrade_pickle_to_json(state_path, convert_pickle):
+    """
+    :param FilePath state_path: the filepath to ensure is json
+
+    :param Callable[dict] convert_pickle: function to change
+        pickle-style state into JSON-style state
+
+    :returns unicode: the local path where the state is stored
+
+    If this state path is JSON, simply return it.
+
+    If this state is pickle, convert to the JSON format and return the
+    JSON path.
+    """
+    if state_path.path.endswith(".json"):
+        return state_path.path
+
+    json_state_path = state_path.siblingExtension(".json")
+
+    # if there's no file there at all, we're done because there's
+    # nothing to upgrade
+    if not state_path.exists():
+        return json_state_path.path
+
+    # upgrade the pickle data to JSON
+    import pickle
+    with state_path.open("r") as f:
+        state = pickle.load(f)
+    state = convert_pickle(state)
+    json_state_path = state_path.siblingExtension(".json")
+    with json_state_path.open("w") as f:
+        json.dump(state, f)
+    # we've written the JSON, delete the pickle
+    state_path.remove()
+    return json_state_path.path
+
+
+class _LeaseStateSerializer(object):
+    """
+    Read and write state for LeaseCheckingCrawler. This understands
+    how to read the legacy pickle format files and upgrade them to the
+    new JSON format (which will occur automatically).
+    """
+
+    def __init__(self, state_path):
+        self._path = FilePath(
+            _maybe_upgrade_pickle_to_json(
+                FilePath(state_path),
+                _convert_pickle_state_to_json,
+            )
+        )
+        # XXX want this to .. load and save the state
+        # - if the state is pickle-only:
+        #   - load it and convert to json format
+        #   - save json
+        #   - delete pickle
+        # - if the state is json, load it
+
+    def load(self):
+        with self._path.open("r") as f:
+            return json.load(f)
+
+    def save(self, data):
+        tmpfile = self._path.siblingExtension(".tmp")
+        with tmpfile.open("wb") as f:
+            json.dump(data, f)
+        fileutil.move_into_place(tmpfile.path, self._path.path)
+        return None
+
 
 class ShareCrawler(service.MultiService):
     """A ShareCrawler subclass is attached to a StorageServer, and
@@ -87,7 +220,7 @@ class ShareCrawler(service.MultiService):
             self.allowed_cpu_percentage = allowed_cpu_percentage
         self.server = server
         self.sharedir = server.sharedir
-        self.statefile = statefile
+        self._state_serializer = _LeaseStateSerializer(statefile)
         self.prefixes = [si_b2a(struct.pack(">H", i << (16-10)))[:2]
                          for i in range(2**10)]
         if PY3:
@@ -210,8 +343,7 @@ class ShareCrawler(service.MultiService):
         #                            of the last bucket to be processed, or
         #                            None if we are sleeping between cycles
         try:
-            with open(self.statefile, "rb") as f:
-                state = json.load(f)
+            state = self._state_serializer.load()
         except Exception:
             state = {"version": 1,
                      "last-cycle-finished": None,
@@ -247,14 +379,11 @@ class ShareCrawler(service.MultiService):
         else:
             last_complete_prefix = self.prefixes[lcpi]
         self.state["last-complete-prefix"] = last_complete_prefix
-        tmpfile = self.statefile + ".tmp"
 
         # Note: we use self.get_state() here because e.g
         # LeaseCheckingCrawler stores non-JSON-able state in
         # self.state() but converts it in self.get_state()
-        with open(tmpfile, "wb") as f:
-            json.dump(self.get_state(), f)
-        fileutil.move_into_place(tmpfile, self.statefile)
+        self._state_serializer.save(self.get_state())
 
     def startService(self):
         # arrange things to look like we were just sleeping, so
