@@ -248,8 +248,12 @@ class ShareCrawler(service.MultiService):
             last_complete_prefix = self.prefixes[lcpi]
         self.state["last-complete-prefix"] = last_complete_prefix
         tmpfile = self.statefile + ".tmp"
+
+        # Note: we use self.get_state() here because e.g
+        # LeaseCheckingCrawler stores non-JSON-able state in
+        # self.state() but converts it in self.get_state()
         with open(tmpfile, "wb") as f:
-            json.dump(self.state, f)
+            json.dump(self.get_state(), f)
         fileutil.move_into_place(tmpfile, self.statefile)
 
     def startService(self):
