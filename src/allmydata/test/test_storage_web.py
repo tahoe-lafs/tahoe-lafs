@@ -1145,6 +1145,22 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin):
         d.addBoth(_cleanup)
         return d
 
+    def test_deserialize_pickle(self):
+        """
+        The crawler can read existing state from the old pickle format
+        """
+        original_pickle = FilePath(__file__).parent().child("data").child("lease_checker.state")
+        test_pickle = FilePath("lease_checker.state")
+        with test_pickle.open("w") as local, original_pickle.open("r") as remote:
+            local.write(remote.read())
+
+        serial = _LeaseStateSerializer(test_pickle.path)
+
+        # the (existing) state file should have been upgraded to JSON
+        self.assertNot(test_pickle.exists())
+        self.assertTrue(test_pickle.siblingExtension(".json").exists())
+
+
 
 class WebStatus(unittest.TestCase, pollmixin.PollMixin):
 
