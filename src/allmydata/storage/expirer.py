@@ -5,10 +5,11 @@ from __future__ import unicode_literals
 
 from future.utils import PY2
 if PY2:
-    # We omit anything that might end up in pickle, just in case.
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, range, str, max, min  # noqa: F401
-
-import time, os, pickle, struct
+    from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+import json
+import time
+import os
+import struct
 from allmydata.storage.crawler import ShareCrawler
 from allmydata.storage.shares import get_share_file
 from allmydata.storage.common import UnknownMutableContainerVersionError, \
@@ -95,9 +96,7 @@ class LeaseCheckingCrawler(ShareCrawler):
         if not os.path.exists(self.historyfile):
             history = {} # cyclenum -> dict
             with open(self.historyfile, "wb") as f:
-                # Newer protocols won't work in Python 2; when it is dropped,
-                # protocol v4 can be used (added in Python 3.4).
-                pickle.dump(history, f, protocol=2)
+                json.dump(history, f)
 
     def create_empty_cycle_dict(self):
         recovered = self.create_empty_recovered_dict()
@@ -142,7 +141,7 @@ class LeaseCheckingCrawler(ShareCrawler):
                     struct.error):
                 twlog.msg("lease-checker error processing %s" % sharefile)
                 twlog.err()
-                which = (storage_index_b32, shnum)
+                which = [storage_index_b32, shnum]
                 self.state["cycle-to-date"]["corrupt-shares"].append(which)
                 wks = (1, 1, 1, "unknown")
             would_keep_shares.append(wks)
@@ -212,7 +211,7 @@ class LeaseCheckingCrawler(ShareCrawler):
                 num_valid_leases_configured += 1
 
         so_far = self.state["cycle-to-date"]
-        self.increment(so_far["leases-per-share-histogram"], num_leases, 1)
+        self.increment(so_far["leases-per-share-histogram"], str(num_leases), 1)
         self.increment_space("examined", s, sharetype)
 
         would_keep_share = [1, 1, 1, sharetype]
@@ -291,12 +290,14 @@ class LeaseCheckingCrawler(ShareCrawler):
 
         start = self.state["current-cycle-start-time"]
         now = time.time()
-        h["cycle-start-finish-times"] = (start, now)
+        h["cycle-start-finish-times"] = [start, now]
         h["expiration-enabled"] = self.expiration_enabled
-        h["configured-expiration-mode"] = (self.mode,
-                                           self.override_lease_duration,
-                                           self.cutoff_date,
-                                           self.sharetypes_to_expire)
+        h["configured-expiration-mode"] = [
+            self.mode,
+            self.override_lease_duration,
+            self.cutoff_date,
+            self.sharetypes_to_expire,
+        ]
 
         s = self.state["cycle-to-date"]
 
@@ -315,15 +316,13 @@ class LeaseCheckingCrawler(ShareCrawler):
         h["space-recovered"] = s["space-recovered"].copy()
 
         with open(self.historyfile, "rb") as f:
-            history = pickle.load(f)
-        history[cycle] = h
+            history = json.load(f)
+        history[str(cycle)] = h
         while len(history) > 10:
-            oldcycles = sorted(history.keys())
-            del history[oldcycles[0]]
+            oldcycles = sorted(int(k) for k in history.keys())
+            del history[str(oldcycles[0])]
         with open(self.historyfile, "wb") as f:
-            # Newer protocols won't work in Python 2; when it is dropped,
-            # protocol v4 can be used (added in Python 3.4).
-            pickle.dump(history, f, protocol=2)
+            json.dump(history, f)
 
     def get_state(self):
         """In addition to the crawler state described in
@@ -393,7 +392,7 @@ class LeaseCheckingCrawler(ShareCrawler):
 
         state = ShareCrawler.get_state(self) # does a shallow copy
         with open(self.historyfile, "rb") as f:
-            history = pickle.load(f)
+            history = json.load(f)
         state["history"] = history
 
         if not progress["cycle-in-progress"]:
@@ -406,10 +405,12 @@ class LeaseCheckingCrawler(ShareCrawler):
         lah = so_far["lease-age-histogram"]
         so_far["lease-age-histogram"] = self.convert_lease_age_histogram(lah)
         so_far["expiration-enabled"] = self.expiration_enabled
-        so_far["configured-expiration-mode"] = (self.mode,
-                                                self.override_lease_duration,
-                                                self.cutoff_date,
-                                                self.sharetypes_to_expire)
+        so_far["configured-expiration-mode"] = [
+            self.mode,
+            self.override_lease_duration,
+            self.cutoff_date,
+            self.sharetypes_to_expire,
+        ]
 
         so_far_sr = so_far["space-recovered"]
         remaining_sr = {}

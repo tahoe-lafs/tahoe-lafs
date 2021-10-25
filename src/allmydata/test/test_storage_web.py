@@ -376,7 +376,7 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin):
             self.failUnlessEqual(type(lah), list)
             self.failUnlessEqual(len(lah), 1)
             self.failUnlessEqual(lah, [ (0.0, DAY, 1) ] )
-            self.failUnlessEqual(so_far["leases-per-share-histogram"], {1: 1})
+            self.failUnlessEqual(so_far["leases-per-share-histogram"], {"1": 1})
             self.failUnlessEqual(so_far["corrupt-shares"], [])
             sr1 = so_far["space-recovered"]
             self.failUnlessEqual(sr1["examined-buckets"], 1)
@@ -427,9 +427,9 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin):
             self.failIf("cycle-to-date" in s)
             self.failIf("estimated-remaining-cycle" in s)
             self.failIf("estimated-current-cycle" in s)
-            last = s["history"][0]
+            last = s["history"]["0"]
             self.failUnlessIn("cycle-start-finish-times", last)
-            self.failUnlessEqual(type(last["cycle-start-finish-times"]), tuple)
+            self.failUnlessEqual(type(last["cycle-start-finish-times"]), list)
             self.failUnlessEqual(last["expiration-enabled"], False)
             self.failUnlessIn("configured-expiration-mode", last)
 
@@ -437,9 +437,9 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin):
             lah = last["lease-age-histogram"]
             self.failUnlessEqual(type(lah), list)
             self.failUnlessEqual(len(lah), 1)
-            self.failUnlessEqual(lah, [ (0.0, DAY, 6) ] )
+            self.failUnlessEqual(lah, [ [0.0, DAY, 6] ] )
 
-            self.failUnlessEqual(last["leases-per-share-histogram"], {1: 2, 2: 2})
+            self.failUnlessEqual(last["leases-per-share-histogram"], {"1": 2, "2": 2})
             self.failUnlessEqual(last["corrupt-shares"], [])
 
             rec = last["space-recovered"]
@@ -587,12 +587,12 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin):
             self.failUnlessEqual(count_leases(mutable_si_3), 1)
 
             s = lc.get_state()
-            last = s["history"][0]
+            last = s["history"]["0"]
 
             self.failUnlessEqual(last["expiration-enabled"], True)
             self.failUnlessEqual(last["configured-expiration-mode"],
-                                 ("age", 2000, None, ("mutable", "immutable")))
-            self.failUnlessEqual(last["leases-per-share-histogram"], {1: 2, 2: 2})
+                                 ["age", 2000, None, ["mutable", "immutable"]])
+            self.failUnlessEqual(last["leases-per-share-histogram"], {"1": 2, "2": 2})
 
             rec = last["space-recovered"]
             self.failUnlessEqual(rec["examined-buckets"], 4)
@@ -731,14 +731,14 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin):
             self.failUnlessEqual(count_leases(mutable_si_3), 1)
 
             s = lc.get_state()
-            last = s["history"][0]
+            last = s["history"]["0"]
 
             self.failUnlessEqual(last["expiration-enabled"], True)
             self.failUnlessEqual(last["configured-expiration-mode"],
-                                 ("cutoff-date", None, then,
-                                  ("mutable", "immutable")))
+                                 ["cutoff-date", None, then,
+                                  ["mutable", "immutable"]])
             self.failUnlessEqual(last["leases-per-share-histogram"],
-                                 {1: 2, 2: 2})
+                                 {"1": 2, "2": 2})
 
             rec = last["space-recovered"]
             self.failUnlessEqual(rec["examined-buckets"], 4)
@@ -924,8 +924,8 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin):
             s = lc.get_state()
             h = s["history"]
             self.failUnlessEqual(len(h), 10)
-            self.failUnlessEqual(max(h.keys()), 15)
-            self.failUnlessEqual(min(h.keys()), 6)
+            self.failUnlessEqual(max(int(k) for k in h.keys()), 15)
+            self.failUnlessEqual(min(int(k) for k in h.keys()), 6)
         d.addCallback(_check)
         return d
 
@@ -1014,7 +1014,7 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin):
 
         def _check(ignored):
             s = lc.get_state()
-            last = s["history"][0]
+            last = s["history"]["0"]
             rec = last["space-recovered"]
             self.failUnlessEqual(rec["configured-buckets"], 4)
             self.failUnlessEqual(rec["configured-shares"], 4)
@@ -1110,7 +1110,7 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin):
 
         def _after_first_cycle(ignored):
             s = lc.get_state()
-            last = s["history"][0]
+            last = s["history"]["0"]
             rec = last["space-recovered"]
             self.failUnlessEqual(rec["examined-buckets"], 5)
             self.failUnlessEqual(rec["examined-shares"], 3)
