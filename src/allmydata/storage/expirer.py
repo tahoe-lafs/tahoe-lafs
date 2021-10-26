@@ -61,7 +61,6 @@ class _HistorySerializer(object):
 
         :return dict: the existing history state
         """
-        assert self._path is not None, "Not initialized"
         with self._path.open("rb") as f:
             history = json.load(f)
         return history
@@ -70,7 +69,6 @@ class _HistorySerializer(object):
         """
         Serialize the existing data as JSON.
         """
-        assert self._path is not None, "Not initialized"
         with self._path.open("wb") as f:
             json.dump(new_history, f)
         return None
