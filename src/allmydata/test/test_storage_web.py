@@ -38,6 +38,7 @@ from allmydata.storage.crawler import (
 )
 from allmydata.storage.expirer import (
     LeaseCheckingCrawler,
+    _HistorySerializer,
 )
 from allmydata.web.storage import (
     StorageStatus,
@@ -1149,6 +1150,7 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin):
         """
         The crawler can read existing state from the old pickle format
         """
+        # this file came from an "in the wild" tahoe version 1.16.0
         original_pickle = FilePath(__file__).parent().child("data").child("lease_checker.state")
         test_pickle = FilePath("lease_checker.state")
         with test_pickle.open("w") as local, original_pickle.open("r") as remote:
@@ -1323,6 +1325,172 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin):
                 },
                 'current-cycle': None,
                 'last-complete-bucket': None,
+            }
+        )
+
+    def test_deserialize_history_pickle(self):
+        """
+        The crawler can read existing history state from the old pickle
+        format
+        """
+        # this file came from an "in the wild" tahoe version 1.16.0
+        original_pickle = FilePath(__file__).parent().child("data").child("lease_checker.history")
+        test_pickle = FilePath("lease_checker.history")
+        with test_pickle.open("w") as local, original_pickle.open("r") as remote:
+            local.write(remote.read())
+
+        serial = _HistorySerializer(test_pickle.path)
+
+        self.maxDiff = None
+        self.assertEqual(
+            serial.load(),
+            {
+                "363": {
+                    'configured-expiration-mode': ['age', None, None, ['immutable', 'mutable']],
+                    'expiration-enabled': False,
+                    'leases-per-share-histogram': {
+                        '1': 39774,
+                    },
+                    'lease-age-histogram': [
+                        [0, 86400, 3125],
+                        [345600, 432000, 4175],
+                        [950400, 1036800, 141],
+                        [1036800, 1123200, 345],
+                        [1123200, 1209600, 81],
+                        [1296000, 1382400, 1832],
+                        [1555200, 1641600, 390],
+                        [1728000, 1814400, 12],
+                        [2073600, 2160000, 84],
+                        [2160000, 2246400, 228],
+                        [2246400, 2332800, 75],
+                        [2592000, 2678400, 644],
+                        [2678400, 2764800, 273],
+                        [2764800, 2851200, 94],
+                        [2851200, 2937600, 97],
+                        [3196800, 3283200, 143],
+                        [3283200, 3369600, 48],
+                        [4147200, 4233600, 374],
+                        [4320000, 4406400, 534],
+                        [5270400, 5356800, 1005],
+                        [6739200, 6825600, 8704],
+                        [6825600, 6912000, 3986],
+                        [6912000, 6998400, 7592],
+                        [6998400, 7084800, 2607],
+                        [7689600, 7776000, 35],
+                        [8035200, 8121600, 33],
+                        [8294400, 8380800, 54],
+                        [8640000, 8726400, 45],
+                        [8726400, 8812800, 27],
+                        [8812800, 8899200, 12],
+                        [9763200, 9849600, 77],
+                        [9849600, 9936000, 91],
+                        [9936000, 10022400, 1210],
+                        [10022400, 10108800, 45],
+                        [10108800, 10195200, 186],
+                        [10368000, 10454400, 113],
+                        [10972800, 11059200, 21],
+                        [11232000, 11318400, 5],
+                        [11318400, 11404800, 19],
+                        [11404800, 11491200, 238],
+                        [11491200, 11577600, 159],
+                        [11750400, 11836800, 1],
+                        [11836800, 11923200, 32],
+                        [11923200, 12009600, 192],
+                        [12009600, 12096000, 222],
+                        [12096000, 12182400, 18],
+                        [12182400, 12268800, 224],
+                        [12268800, 12355200, 9],
+                        [12355200, 12441600, 9],
+                        [12441600, 12528000, 10],
+                        [12528000, 12614400, 6],
+                        [12614400, 12700800, 6],
+                        [12700800, 12787200, 18],
+                        [12787200, 12873600, 6],
+                        [12873600, 12960000, 62],
+                    ],
+                    'cycle-start-finish-times': [1634446505.241972, 1634446666.055401],
+                    'space-recovered': {
+                        'examined-buckets-immutable': 17896,
+                        'configured-buckets-mutable': 0,
+                        'examined-shares-mutable': 2473,
+                        'original-shares-mutable': 1185,
+                        'configured-buckets-immutable': 0,
+                        'original-shares-immutable': 27457,
+                        'original-diskbytes-immutable': 2810982400,
+                        'examined-shares-immutable': 37301,
+                        'original-buckets': 14047,
+                        'actual-shares-immutable': 0,
+                        'configured-shares': 0,
+                        'original-buckets-mutable': 691,
+                        'actual-diskbytes': 4096,
+                        'actual-shares-mutable': 0,
+                        'configured-buckets': 1,
+                        'examined-buckets-unknown': 14,
+                        'actual-sharebytes': 0,
+                        'original-shares': 28642,
+                        'actual-buckets-immutable': 0,
+                        'original-sharebytes': 2695552941,
+                        'examined-sharebytes-immutable': 2754798505,
+                        'actual-shares': 0,
+                        'actual-sharebytes-immutable': 0,
+                        'original-diskbytes': 2818981888,
+                        'configured-diskbytes-mutable': 0,
+                        'configured-sharebytes-immutable': 0,
+                        'configured-shares-mutable': 0,
+                        'actual-diskbytes-immutable': 0,
+                        'configured-diskbytes-immutable': 0,
+                        'original-diskbytes-mutable': 7995392,
+                        'actual-sharebytes-mutable': 0,
+                        'configured-sharebytes': 0,
+                        'examined-shares': 39774,
+                        'actual-diskbytes-mutable': 0,
+                        'actual-buckets': 1,
+                        'original-buckets-immutable': 13355,
+                        'configured-sharebytes-mutable': 0,
+                        'examined-sharebytes': 2763646972,
+                        'original-sharebytes-immutable': 2692076909,
+                        'original-sharebytes-mutable': 3476032,
+                        'actual-buckets-mutable': 0,
+                        'examined-buckets-mutable': 1286,
+                        'configured-shares-immutable': 0,
+                        'examined-diskbytes': 2854801408,
+                        'examined-diskbytes-mutable': 12161024,
+                        'examined-sharebytes-mutable': 8848467,
+                        'examined-buckets': 19197,
+                        'configured-diskbytes': 4096,
+                        'examined-diskbytes-immutable': 2842640384
+                    },
+                    'corrupt-shares': [
+                        ['2dn6xnlnsqwtnapwxfdivpm3s4', 3],
+                        ['2dn6xnlnsqwtnapwxfdivpm3s4', 0],
+                        ['2rrzthwsrrxolevmwdvbdy3rqi', 3],
+                        ['2rrzthwsrrxolevmwdvbdy3rqi', 0],
+                        ['2skfngcto6h7eqmn4uo7ntk3ne', 3],
+                        ['2skfngcto6h7eqmn4uo7ntk3ne', 0],
+                        ['32d5swqpqx2mwix7xmqzvhdwje', 3],
+                        ['32d5swqpqx2mwix7xmqzvhdwje', 0],
+                        ['5mmayp66yflmpon3o6unsnbaca', 3],
+                        ['5mmayp66yflmpon3o6unsnbaca', 0],
+                        ['6ixhpvbtre7fnrl6pehlrlflc4', 3],
+                        ['6ixhpvbtre7fnrl6pehlrlflc4', 0],
+                        ['ewzhvswjsz4vp2bqkb6mi3bz2u', 3],
+                        ['ewzhvswjsz4vp2bqkb6mi3bz2u', 0],
+                        ['fu7pazf6ogavkqj6z4q5qqex3u', 3],
+                        ['fu7pazf6ogavkqj6z4q5qqex3u', 0],
+                        ['hbyjtqvpcimwxiyqbcbbdn2i4a', 3],
+                        ['hbyjtqvpcimwxiyqbcbbdn2i4a', 0],
+                        ['pmcjbdkbjdl26k3e6yja77femq', 3],
+                        ['pmcjbdkbjdl26k3e6yja77femq', 0],
+                        ['r6swof4v2uttbiiqwj5pi32cm4', 3],
+                        ['r6swof4v2uttbiiqwj5pi32cm4', 0],
+                        ['t45v5akoktf53evc2fi6gwnv6y', 3],
+                        ['t45v5akoktf53evc2fi6gwnv6y', 0],
+                        ['y6zb4faar3rdvn3e6pfg4wlotm', 3],
+                        ['y6zb4faar3rdvn3e6pfg4wlotm', 0],
+                        ['z3yghutvqoqbchjao4lndnrh3a', 3],
+                        ['z3yghutvqoqbchjao4lndnrh3a', 0],
+                    ]
+                }
             }
         )
 

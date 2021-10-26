@@ -55,7 +55,7 @@ class _HistorySerializer(object):
             with self._path.open("wb") as f:
                 json.dump({}, f)
 
-    def read(self):
+    def load(self):
         """
         Deserialize the existing data.
 
@@ -65,7 +65,7 @@ class _HistorySerializer(object):
             history = json.load(f)
         return history
 
-    def write(self, new_history):
+    def save(self, new_history):
         """
         Serialize the existing data as JSON.
         """
@@ -368,12 +368,12 @@ class LeaseCheckingCrawler(ShareCrawler):
         # copy() needs to become a deepcopy
         h["space-recovered"] = s["space-recovered"].copy()
 
-        history = self._history_serializer.read()
+        history = self._history_serializer.load()
         history[str(cycle)] = h
         while len(history) > 10:
             oldcycles = sorted(int(k) for k in history.keys())
             del history[str(oldcycles[0])]
-        self._history_serializer.write(history)
+        self._history_serializer.save(history)
 
     def get_state(self):
         """In addition to the crawler state described in
@@ -442,7 +442,7 @@ class LeaseCheckingCrawler(ShareCrawler):
         progress = self.get_progress()
 
         state = ShareCrawler.get_state(self) # does a shallow copy
-        state["history"] = self._history_serializer.read()
+        state["history"] = self._history_serializer.load()
 
         if not progress["cycle-in-progress"]:
             del state["cycle-to-date"]
