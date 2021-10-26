@@ -12,7 +12,7 @@ if PY2:
 
 from zope.interface import implementer
 from twisted.internet import defer
-from twisted.cred import error, checkers, credentials
+from twisted.cred import checkers, credentials
 from twisted.conch.ssh import keys
 from twisted.conch.checkers import SSHPublicKeyChecker, InMemorySSHKeyDB
 

@@ -16,7 +16,6 @@ from hypothesis import (
 from hypothesis.strategies import (
     text,
     characters,
-    tuples,
     lists,
 )
 
