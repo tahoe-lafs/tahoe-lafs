@@ -330,3 +330,27 @@ class LogCallDeferredTests(TestCase):
         msg = logger.messages[0]
         assertContainsFields(self, msg, {"args": (10, 2)})
         assertContainsFields(self, msg, {"kwargs": {"message": "an exponential function"}})
+
+
+    @capture_logging(
+        lambda self, logger:
+        assertHasAction(self, logger, u"the-action", succeeded=True),
+    )
+    def test_keyword_args_dont_overlap_with_start_action(self, logger):
+        """
+        Check that both keyword and positional arguments are logged when using ``log_call_deferred``
+        """
+        @log_call_deferred(action_type=u"the-action")
+        def f(base, exp, kwargs, args):
+            return base ** exp
+        self.assertThat(
+            f(10, 2, kwargs={"kwarg_1": "value_1", "kwarg_2": 2}, args=(1, 2, 3)),
+            succeeded(Equals(100)),
+        )
+        msg = logger.messages[0]
+        assertContainsFields(self, msg, {"args": (10, 2)})
+        assertContainsFields(
+            self,
+            msg,
+            {"kwargs": {"args": [1, 2, 3], "kwargs": {"kwarg_1": "value_1", "kwarg_2": 2}}},
+        )
