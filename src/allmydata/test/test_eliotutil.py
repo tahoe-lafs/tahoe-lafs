@@ -338,7 +338,7 @@ class LogCallDeferredTests(TestCase):
     )
     def test_keyword_args_dont_overlap_with_start_action(self, logger):
         """
-        Check that both keyword and positional arguments are logged when using ``log_call_deferred``
+        Check that kwargs passed to decorated functions don't overlap with params in ``start_action``
         """
         @log_call_deferred(action_type=u"the-action")
         def f(base, exp, kwargs, args):
