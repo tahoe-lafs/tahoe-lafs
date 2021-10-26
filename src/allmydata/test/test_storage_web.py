@@ -1327,6 +1327,11 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin):
                 'last-complete-bucket': None,
             }
         )
+        second_serial = _LeaseStateSerializer(serial._path.path)
+        self.assertEqual(
+            serial.load(),
+            second_serial.load(),
+        )
 
     def test_deserialize_history_pickle(self):
         """
