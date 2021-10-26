@@ -86,10 +86,7 @@ def _convert_pickle_state_to_json(state):
     # ["cycle-to-date"]["leases-per-share-histogram"] gets str keys instead of int
     # ["cycle-start-finish-times"] from 2-tuple to list
     # ["history"] keys are strings
-    if state["version"] != 1:
-        raise ValueError(
-            "Unknown version {version} in pickle state".format(**state)
-        )
+    assert state["version"] == 1, "Only known version is 1"
 
     converters = {
         "cycle-to-date": _convert_cycle_data,
