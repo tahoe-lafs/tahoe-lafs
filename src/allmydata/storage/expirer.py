@@ -23,6 +23,9 @@ from twisted.python.filepath import FilePath
 
 def _convert_pickle_state_to_json(state):
     """
+    Convert a pickle-serialized crawler-history state to the new JSON
+    format.
+
     :param dict state: the pickled state
 
     :return dict: the state in the JSON form
