@@ -27,23 +27,14 @@ class TimeSliceExceeded(Exception):
     pass
 
 
-def _convert_pickle_state_to_json(state):
+def _convert_cycle_data(state):
     """
-    :param dict state: the pickled state
+    :param dict state: cycle-to-date or history-item state
 
     :return dict: the state in the JSON form
     """
-    # ["cycle-to-date"]["corrupt-shares"] from 2-tuple to list
-    # ["cycle-to-date"]["leases-per-share-histogram"] gets str keys instead of int
-    # ["cycle-start-finish-times"] from 2-tuple to list
-    # ["configured-expiration-mode"] from 4-tuple to list
-    # ["history"] keys are strings
-    if state["version"] != 1:
-        raise ValueError(
-            "Unknown version {version} in pickle state".format(**state)
-        )
 
-    def convert_cem(value):
+    def _convert_expiration_mode(value):
         # original is a 4-tuple, with the last element being a 2-tuple
         # .. convert both to lists
         return [
@@ -53,41 +44,60 @@ def _convert_pickle_state_to_json(state):
             list(value[3]),
         ]
 
-    def convert_ctd(value):
-        ctd_converter = {
-            "lease-age-histogram": lambda value: {
+    def _convert_lease_age(value):
+        # if we're in cycle-to-date, this is a dict
+        if isinstance(value, dict):
+            return {
                 "{},{}".format(k[0], k[1]): v
                 for k, v in value.items()
-            },
-            "corrupt-shares": lambda value: [
-                list(x)
-                for x in value
-            ],
-        }
-        return {
-            k: ctd_converter.get(k, lambda z: z)(v)
-            for k, v in value.items()
-        }
+            }
+        # otherwise, it's a history-item and they're 3-tuples
+        return [
+            list(v)
+            for v in value
+        ]
 
-    # we don't convert "history" here because that's in a separate
-    # file; see expirer.py
     converters = {
-        "cycle-to-date": convert_ctd,
-        "cycle-starte-finish-times": list,
-        "configured-expiration-mode": convert_cem,
+        "configured-expiration-mode": _convert_expiration_mode,
+        "cycle-start-finish-times": list,
+        "lease-age-histogram": _convert_lease_age,
+        "corrupt-shares": lambda value: [
+            list(x)
+            for x in value
+        ],
+        "leases-per-share-histogram": lambda value: {
+            str(k): v
+            for k, v in value.items()
+        },
+    }
+    return {
+            k: converters.get(k, lambda z: z)(v)
+            for k, v in state.items()
     }
 
-    def convert_value(key, value):
-        converter = converters.get(key, None)
-        if converter is None:
-            return value
-        return converter(value)
 
-    new_state = {
-        k: convert_value(k, v)
+def _convert_pickle_state_to_json(state):
+    """
+    :param dict state: the pickled state
+
+    :return dict: the state in the JSON form
+    """
+    # ["cycle-to-date"]["corrupt-shares"] from 2-tuple to list
+    # ["cycle-to-date"]["leases-per-share-histogram"] gets str keys instead of int
+    # ["cycle-start-finish-times"] from 2-tuple to list
+    # ["history"] keys are strings
+    if state["version"] != 1:
+        raise ValueError(
+            "Unknown version {version} in pickle state".format(**state)
+        )
+
+    converters = {
+        "cycle-to-date": _convert_cycle_data,
+    }
+    return {
+        k: converters.get(k, lambda x: x)(v)
         for k, v in state.items()
     }
-    return new_state
 
 
 def _maybe_upgrade_pickle_to_json(state_path, convert_pickle):

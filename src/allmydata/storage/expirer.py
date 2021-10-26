@@ -13,6 +13,7 @@ import struct
 from allmydata.storage.crawler import (
     ShareCrawler,
     _maybe_upgrade_pickle_to_json,
+    _convert_cycle_data,
 )
 from allmydata.storage.shares import get_share_file
 from allmydata.storage.common import UnknownMutableContainerVersionError, \
@@ -30,15 +31,10 @@ def _convert_pickle_state_to_json(state):
 
     :return dict: the state in the JSON form
     """
-    print("CONVERT", state)
-    for k, v in state.items():
-        print(k, v)
-    if state["version"] != 1:
-        raise ValueError(
-            "Unknown version {version} in pickle state".format(**state)
-        )
-
-    return state
+    return {
+        str(k): _convert_cycle_data(v)
+        for k, v in state.items()
+    }
 
 
 class _HistorySerializer(object):
