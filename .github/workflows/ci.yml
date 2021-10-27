@@ -6,6 +6,23 @@ on:
       - "master"
   pull_request:
 
+# Control to what degree jobs in this workflow will run concurrently with
+# other instances of themselves.
+#
+# https://docs.github.com/en/actions/learn-github-actions/workflow-syntax-for-github-actions#concurrency
+concurrency:
+  # We want every revision on master to run the workflow completely.
+  # "head_ref" is not set for the "push" event but it is set for the
+  # "pull_request" event.  If it is set then it is the name of the branch and
+  # we can use it to make sure each branch has only one active workflow at a
+  # time.  If it is not set then we can compute a unique string that gives
+  # every master/push workflow its own group.
+  group: "${{ github.head_ref || format('{0}-{1}', github.run_number, github.run_attempt) }}"
+
+  # Then, we say that if a new workflow wants to start in the same group as a
+  # running workflow, the running workflow should be cancelled.
+  cancel-in-progress: true
+
 env:
   # Tell Hypothesis which configuration we want it to use.
   TAHOE_LAFS_HYPOTHESIS_PROFILE: "ci"
