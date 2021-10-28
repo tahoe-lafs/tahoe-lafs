@@ -97,6 +97,12 @@ As a community-driven open source project, Tahoe-LAFS welcomes contributions of 
 
 Before authoring or reviewing a patch, please familiarize yourself with the `Coding Standard <https://tahoe-lafs.org/trac/tahoe-lafs/wiki/CodingStandards>`__ and the `Contributor Code of Conduct <docs/CODE_OF_CONDUCT.md>`__.
 
+🥳 First Contribution?
+----------------------
+
+If you are committing to Tahoe for the very first time, consider adding your name to our contributor list in `CREDITS <CREDITS>`__
+
+
 🤝 Supporters
 --------------
 
