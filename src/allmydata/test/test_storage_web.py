@@ -490,7 +490,7 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin):
         # current lease has), so we have to reach inside it.
         for i,lease in enumerate(sf.get_leases()):
             if lease.renew_secret == renew_secret:
-                lease.expiration_time = new_expire_time
+                lease = lease.renew(new_expire_time)
                 f = open(sf.home, 'rb+')
                 sf._write_lease_record(f, i, lease)
                 f.close()

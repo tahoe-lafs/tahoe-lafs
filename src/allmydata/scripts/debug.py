@@ -170,7 +170,7 @@ def dump_immutable_lease_info(f, out):
     leases = list(f.get_leases())
     if leases:
         for i,lease in enumerate(leases):
-            when = format_expiration_time(lease.expiration_time)
+            when = format_expiration_time(lease.get_expiration_time())
             print(" Lease #%d: owner=%d, expire in %s" \
                   % (i, lease.owner_num, when), file=out)
     else:
@@ -223,7 +223,7 @@ def dump_mutable_share(options):
             print(file=out)
             print(" Lease #%d:" % leasenum, file=out)
             print("  ownerid: %d" % lease.owner_num, file=out)
-            when = format_expiration_time(lease.expiration_time)
+            when = format_expiration_time(lease.get_expiration_time())
             print("  expires in %s" % when, file=out)
             print("  renew_secret: %s" % str(base32.b2a(lease.renew_secret), "utf-8"), file=out)
             print("  cancel_secret: %s" % str(base32.b2a(lease.cancel_secret), "utf-8"), file=out)
@@ -730,7 +730,7 @@ def describe_share(abs_sharefile, si_s, shnum_s, now, out):
         m = MutableShareFile(abs_sharefile)
         WE, nodeid = m._read_write_enabler_and_nodeid(f)
         data_length = m._read_data_length(f)
-        expiration_time = min( [lease.expiration_time
+        expiration_time = min( [lease.get_expiration_time()
                                 for (i,lease) in m._enumerate_leases(f)] )
         expiration = max(0, expiration_time - now)
 
@@ -811,7 +811,7 @@ def describe_share(abs_sharefile, si_s, shnum_s, now, out):
         sf = ShareFile(abs_sharefile)
         bp = ImmediateReadBucketProxy(sf)
 
-        expiration_time = min( [lease.expiration_time
+        expiration_time = min( [lease.get_expiration_time()
                                 for lease in sf.get_leases()] )
         expiration = max(0, expiration_time - now)
 
