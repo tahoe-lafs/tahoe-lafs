@@ -26,11 +26,6 @@ __all__ = [
     "PIPE",
 ]
 
-try:
-    from typing import Tuple, ContextManager
-except ImportError:
-    pass
-
 import sys
 import os, random, struct
 from contextlib import contextmanager
@@ -1221,7 +1216,6 @@ class ConstantAddresses(object):
 
 @contextmanager
 def disable_modules(*names):
-    # type: (Tuple[str]) -> ContextManager
     """
     A context manager which makes modules appear to be missing while it is
     active.
