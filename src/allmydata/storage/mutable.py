@@ -253,7 +253,7 @@ class MutableShareFile(object):
         f.seek(offset)
         assert f.tell() == offset
         data = f.read(self.LEASE_SIZE)
-        lease_info = LeaseInfo().from_mutable_data(data)
+        lease_info = LeaseInfo.from_mutable_data(data)
         if lease_info.owner_num == 0:
             return None
         return lease_info

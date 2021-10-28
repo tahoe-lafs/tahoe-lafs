@@ -144,7 +144,7 @@ class ShareFile(object):
             for i in range(num_leases):
                 data = f.read(self.LEASE_SIZE)
                 if data:
-                    yield LeaseInfo().from_immutable_data(data)
+                    yield LeaseInfo.from_immutable_data(data)
 
     def add_lease(self, lease_info):
         with open(self.home, 'rb+') as f:

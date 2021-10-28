@@ -75,13 +75,22 @@ class LeaseInfo(object):
     def get_age(self):
         return time.time() - self.get_grant_renew_time_time()
 
-    def from_immutable_data(self, data):
-        (self.owner_num,
-         self.renew_secret,
-         self.cancel_secret,
-         self._expiration_time) = struct.unpack(">L32s32sL", data)
-        self.nodeid = None
-        return self
+    @classmethod
+    def from_immutable_data(cls, data):
+        # type: (bytes) -> cls
+        """
+        Create a new instance from the encoded data given.
+
+        :param data: A lease serialized using the immutable-share-file format.
+        """
+        names = [
+            "owner_num",
+            "renew_secret",
+            "cancel_secret",
+            "expiration_time",
+        ]
+        values = struct.unpack(">L32s32sL", data)
+        return cls(nodeid=None, **dict(zip(names, values)))
 
     def to_immutable_data(self):
         return struct.pack(">L32s32sL",
@@ -96,9 +105,20 @@ class LeaseInfo(object):
                            self.renew_secret, self.cancel_secret,
                            self.nodeid)
 
-    def from_mutable_data(self, data):
-        (self.owner_num,
-         self._expiration_time,
-         self.renew_secret, self.cancel_secret,
-         self.nodeid) = struct.unpack(">LL32s32s20s", data)
-        return self
+    @classmethod
+    def from_mutable_data(cls, data):
+        # (bytes) -> cls
+        """
+        Create a new instance from the encoded data given.
+
+        :param data: A lease serialized using the mutable-share-file format.
+        """
+        names = [
+            "owner_num",
+            "expiration_time",
+            "renew_secret",
+            "cancel_secret",
+            "nodeid",
+        ]
+        values = struct.unpack(">LL32s32s20s", data)
+        return cls(**dict(zip(names, values)))
