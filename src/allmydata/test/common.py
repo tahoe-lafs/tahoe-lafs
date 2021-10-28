@@ -26,8 +26,14 @@ __all__ = [
     "PIPE",
 ]
 
+try:
+    from typing import Tuple, ContextManager
+except ImportError:
+    pass
+
 import sys
 import os, random, struct
+from contextlib import contextmanager
 import six
 import tempfile
 from tempfile import mktemp
@@ -1213,6 +1219,25 @@ class ConstantAddresses(object):
             raise Exception("{!r} has no client endpoint.")
         return self._handler
 
+@contextmanager
+def disable_modules(*names):
+    # type: (Tuple[str]) -> ContextManager
+    """
+    A context manager which makes modules appear to be missing while it is
+    active.
+
+    :param *names: The names of the modules to disappear.
+    """
+    missing = object()
+    modules = list(sys.modules.get(n, missing) for n in names)
+    for n in names:
+        sys.modules[n] = None
+    yield
+    for n, original in zip(names, modules):
+        if original is missing:
+            del sys.modules[n]
+        else:
+            sys.modules[n] = original
 
 class _TestCaseMixin(object):
     """
