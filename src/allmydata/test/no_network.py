@@ -25,6 +25,11 @@ if PY2:
 from past.builtins import unicode
 from six import ensure_text
 
+try:
+    from typing import Dict, Callable
+except ImportError:
+    pass
+
 import os
 from base64 import b32encode
 from functools import (
@@ -622,7 +627,7 @@ class GridTestMixin(object):
                     f.write(corruptdata)
 
     def corrupt_all_shares(self, uri, corruptor, debug=False):
-        # type: (bytes, Callable[[bytes, bool], bytes] -> bytes), bool) -> None
+        # type: (bytes, Callable[[bytes, bool], bytes], bool) -> None
         """
         Apply ``corruptor`` to the contents of all share files associated with a
         given capability and replace the share file contents with its result.
@@ -630,7 +635,7 @@ class GridTestMixin(object):
         for (i_shnum, i_serverid, i_sharefile) in self.find_uri_shares(uri):
             with open(i_sharefile, "rb") as f:
                 sharedata = f.read()
-            corruptdata = corruptor(sharedata, debug=debug)
+            corruptdata = corruptor(sharedata, debug)
             with open(i_sharefile, "wb") as f:
                 f.write(corruptdata)
 

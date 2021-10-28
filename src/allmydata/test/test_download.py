@@ -14,6 +14,11 @@ if PY2:
 # a previous run. This asserts that the current code is capable of decoding
 # shares from a previous version.
 
+try:
+    from typing import Any
+except ImportError:
+    pass
+
 import six
 import os
 from twisted.trial import unittest
