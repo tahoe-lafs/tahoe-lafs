@@ -378,7 +378,7 @@ class StorageServer(service.MultiService, Referenceable):
                 # note: if the share has been migrated, the renew_lease()
                 # call will throw an exception, with information to help the
                 # client update the lease.
-            elif header[:4] == struct.pack(">L", 1):
+            elif ShareFile.is_valid_header(header):
                 sf = ShareFile(filename)
             else:
                 continue # non-sharefile

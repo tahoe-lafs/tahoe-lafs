@@ -795,7 +795,7 @@ def describe_share(abs_sharefile, si_s, shnum_s, now, out):
         else:
             print("UNKNOWN mutable %s" % quote_output(abs_sharefile), file=out)
 
-    elif struct.unpack(">L", prefix[:4]) == (1,):
+    elif ShareFile.is_valid_header(prefix):
         # immutable
 
         class ImmediateReadBucketProxy(ReadBucketProxy):

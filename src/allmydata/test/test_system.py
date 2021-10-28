@@ -22,7 +22,7 @@ from twisted.trial import unittest
 from twisted.internet import defer
 
 from allmydata import uri
-from allmydata.storage.mutable import MutableShareFile
+from allmydata.storage.mutable import ShareFile, MutableShareFile
 from allmydata.storage.server import si_a2b
 from allmydata.immutable import offloaded, upload
 from allmydata.immutable.literal import LiteralFileNode
@@ -1290,9 +1290,9 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
                 # are sharefiles here
                 filename = os.path.join(dirpath, filenames[0])
                 # peek at the magic to see if it is a chk share
-                magic = open(filename, "rb").read(4)
-                if magic == b'\x00\x00\x00\x01':
-                    break
+                with open(filename, "rb") as f:
+                    if ShareFile.is_valid_header(f.read(32)):
+                        break
         else:
             self.fail("unable to find any uri_extension files in %r"
                       % self.basedir)

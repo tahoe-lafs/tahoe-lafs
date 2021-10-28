@@ -57,6 +57,21 @@ class ShareFile(object):
     LEASE_SIZE = struct.calcsize(">L32s32sL")
     sharetype = "immutable"
 
+    @classmethod
+    def is_valid_header(cls, header):
+        # (bytes) -> bool
+        """
+        Determine if the given bytes constitute a valid header for this type of
+        container.
+
+        :param header: Some bytes from the beginning of a container.
+
+        :return: ``True`` if the bytes could belong to this container,
+            ``False`` otherwise.
+        """
+        (version,) = struct.unpack(">L", header[:4])
+        return version == 1
+
     def __init__(self, filename, max_size=None, create=False):
         """ If max_size is not None then I won't allow more than max_size to be written to me. If create=True and max_size must not be None. """
         precondition((max_size is not None) or (not create), max_size, create)
