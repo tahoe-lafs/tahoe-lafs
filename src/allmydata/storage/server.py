@@ -373,7 +373,7 @@ class StorageServer(service.MultiService, Referenceable):
         for shnum, filename in self._get_bucket_shares(storage_index):
             with open(filename, 'rb') as f:
                 header = f.read(32)
-            if header[:32] == MutableShareFile.MAGIC:
+            if MutableShareFile.is_valid_header(header):
                 sf = MutableShareFile(filename, self)
                 # note: if the share has been migrated, the renew_lease()
                 # call will throw an exception, with information to help the

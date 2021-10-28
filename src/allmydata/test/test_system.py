@@ -22,7 +22,8 @@ from twisted.trial import unittest
 from twisted.internet import defer
 
 from allmydata import uri
-from allmydata.storage.mutable import ShareFile, MutableShareFile
+from allmydata.storage.mutable import MutableShareFile
+from allmydata.storage.immutable import ShareFile
 from allmydata.storage.server import si_a2b
 from allmydata.immutable import offloaded, upload
 from allmydata.immutable.literal import LiteralFileNode

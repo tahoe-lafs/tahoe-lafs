@@ -59,7 +59,7 @@ class ShareFile(object):
 
     @classmethod
     def is_valid_header(cls, header):
-        # (bytes) -> bool
+        # type: (bytes) -> bool
         """
         Determine if the given bytes constitute a valid header for this type of
         container.
