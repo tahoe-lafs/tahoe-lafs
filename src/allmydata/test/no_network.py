@@ -479,6 +479,18 @@ class GridTestMixin(object):
 
     def set_up_grid(self, num_clients=1, num_servers=10,
                     client_config_hooks={}, oneshare=False):
+        """
+        Create a Tahoe-LAFS storage grid.
+
+        :param num_clients: See ``NoNetworkGrid``
+        :param num_servers: See `NoNetworkGrid``
+        :param client_config_hooks: See ``NoNetworkGrid``
+
+        :param bool oneshare: If ``True`` then the first client node is
+            configured with ``n == k == happy == 1``.
+
+        :return: ``None``
+        """
         # self.basedir must be set
         port_assigner = SameProcessStreamEndpointAssigner()
         port_assigner.setUp()
@@ -557,6 +569,15 @@ class GridTestMixin(object):
         return sorted(shares)
 
     def copy_shares(self, uri):
+        # type: (bytes) -> Dict[bytes, bytes]
+        """
+        Read all of the share files for the given capability from the storage area
+        of the storage servers created by ``set_up_grid``.
+
+        :param bytes uri: A Tahoe-LAFS data capability.
+
+        :return: A ``dict`` mapping share file names to share file contents.
+        """
         shares = {}
         for (shnum, serverid, sharefile) in self.find_uri_shares(uri):
             with open(sharefile, "rb") as f:
@@ -601,6 +622,11 @@ class GridTestMixin(object):
                     f.write(corruptdata)
 
     def corrupt_all_shares(self, uri, corruptor, debug=False):
+        # type: (bytes, Callable[[bytes, bool], bytes] -> bytes), bool) -> None
+        """
+        Apply ``corruptor`` to the contents of all share files associated with a
+        given capability and replace the share file contents with its result.
+        """
         for (i_shnum, i_serverid, i_sharefile) in self.find_uri_shares(uri):
             with open(i_sharefile, "rb") as f:
                 sharedata = f.read()
