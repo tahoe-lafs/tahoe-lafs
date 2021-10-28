@@ -485,17 +485,7 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin):
         return d
 
     def backdate_lease(self, sf, renew_secret, new_expire_time):
-        # ShareFile.renew_lease ignores attempts to back-date a lease (i.e.
-        # "renew" a lease with a new_expire_time that is older than what the
-        # current lease has), so we have to reach inside it.
-        for i,lease in enumerate(sf.get_leases()):
-            if lease.renew_secret == renew_secret:
-                lease = lease.renew(new_expire_time)
-                f = open(sf.home, 'rb+')
-                sf._write_lease_record(f, i, lease)
-                f.close()
-                return
-        raise IndexError("unable to renew non-existent lease")
+        sf.renew_lease(renew_secret, new_expire_time, allow_backdate=True)
 
     def test_expire_age(self):
         basedir = "storage/LeaseCrawler/expire_age"

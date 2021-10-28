@@ -298,13 +298,24 @@ class MutableShareFile(object):
             else:
                 self._write_lease_record(f, num_lease_slots, lease_info)
 
-    def renew_lease(self, renew_secret, new_expire_time):
+    def renew_lease(self, renew_secret, new_expire_time, allow_backdate=False):
+        # type: (bytes, int, bool) -> None
+        """
+        Update the expiration time on an existing lease.
+
+        :param allow_backdate: If ``True`` then allow the new expiration time
+            to be before the current expiration time.  Otherwise, make no
+            change when this is the case.
+
+        :raise IndexError: If there is no lease matching the given renew
+            secret.
+        """
         accepting_nodeids = set()
         with open(self.home, 'rb+') as f:
             for (leasenum,lease) in self._enumerate_leases(f):
                 if timing_safe_compare(lease.renew_secret, renew_secret):
                     # yup. See if we need to update the owner time.
-                    if new_expire_time > lease.get_expiration_time():
+                    if allow_backdate or new_expire_time > lease.get_expiration_time():
                         # yes
                         lease = lease.renew(new_expire_time)
                         self._write_lease_record(f, leasenum, lease)
