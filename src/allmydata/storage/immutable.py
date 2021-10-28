@@ -209,7 +209,7 @@ class ShareFile(object):
         leases = list(self.get_leases())
         num_leases_removed = 0
         for i,lease in enumerate(leases):
-            if timing_safe_compare(lease.cancel_secret, cancel_secret):
+            if lease.is_cancel_secret(cancel_secret):
                 leases[i] = None
                 num_leases_removed += 1
         if not num_leases_removed:

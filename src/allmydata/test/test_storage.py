@@ -3047,3 +3047,22 @@ class ShareFileTests(unittest.TestCase):
         sf.add_lease(lease)
         (loaded_lease,) = sf.get_leases()
         self.assertTrue(loaded_lease.is_renew_secret(renew_secret))
+
+    def test_cancel_secret(self):
+        """
+        A lease loaded from a share file can have its cancel secret verified.
+        """
+        renew_secret = b"r" * 32
+        cancel_secret = b"c" * 32
+        expiration_time = 2 ** 31
+
+        sf = self.get_sharefile()
+        lease = LeaseInfo(
+            owner_num=0,
+            renew_secret=renew_secret,
+            cancel_secret=cancel_secret,
+            expiration_time=expiration_time,
+        )
+        sf.add_lease(lease)
+        (loaded_lease,) = sf.get_leases()
+        self.assertTrue(loaded_lease.is_cancel_secret(cancel_secret))

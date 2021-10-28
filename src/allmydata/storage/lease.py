@@ -80,6 +80,16 @@ class LeaseInfo(object):
         """
         return timing_safe_compare(self.renew_secret, candidate_secret)
 
+    def is_cancel_secret(self, candidate_secret):
+        # type: (bytes) -> bool
+        """
+        Check a string to see if it is the correct cancel secret.
+
+        :return: ``True`` if it is the correct cancel secret, ``False``
+            otherwise.
+        """
+        return timing_safe_compare(self.cancel_secret, candidate_secret)
+
     def get_grant_renew_time_time(self):
         # hack, based upon fixed 31day expiration period
         return self._expiration_time - 31*24*60*60

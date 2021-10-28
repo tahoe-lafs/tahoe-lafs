@@ -371,7 +371,7 @@ class MutableShareFile(object):
         with open(self.home, 'rb+') as f:
             for (leasenum,lease) in self._enumerate_leases(f):
                 accepting_nodeids.add(lease.nodeid)
-                if timing_safe_compare(lease.cancel_secret, cancel_secret):
+                if lease.is_cancel_secret(cancel_secret):
                     self._write_lease_record(f, leasenum, blank_lease)
                     modified += 1
                 else:
