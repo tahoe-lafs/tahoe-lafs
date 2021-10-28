@@ -327,7 +327,7 @@ class MutableShareFile(object):
         accepting_nodeids = set()
         with open(self.home, 'rb+') as f:
             for (leasenum,lease) in self._enumerate_leases(f):
-                if timing_safe_compare(lease.renew_secret, renew_secret):
+                if lease.is_renew_secret(renew_secret):
                     # yup. See if we need to update the owner time.
                     if allow_backdate or new_expire_time > lease.get_expiration_time():
                         # yes

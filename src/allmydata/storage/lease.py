@@ -15,6 +15,8 @@ import struct, time
 
 import attr
 
+from allmydata.util.hashutil import timing_safe_compare
+
 @attr.s(frozen=True)
 class LeaseInfo(object):
     """
@@ -67,6 +69,16 @@ class LeaseInfo(object):
             self,
             _expiration_time=new_expire_time,
         )
+
+    def is_renew_secret(self, candidate_secret):
+        # type: (bytes) -> bool
+        """
+        Check a string to see if it is the correct renew secret.
+
+        :return: ``True`` if it is the correct renew secret, ``False``
+            otherwise.
+        """
+        return timing_safe_compare(self.renew_secret, candidate_secret)
 
     def get_grant_renew_time_time(self):
         # hack, based upon fixed 31day expiration period
