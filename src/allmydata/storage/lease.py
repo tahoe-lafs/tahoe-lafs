@@ -77,7 +77,6 @@ class LeaseInfo(object):
 
     @classmethod
     def from_immutable_data(cls, data):
-        # type: (bytes) -> cls
         """
         Create a new instance from the encoded data given.
 
@@ -107,7 +106,6 @@ class LeaseInfo(object):
 
     @classmethod
     def from_mutable_data(cls, data):
-        # (bytes) -> cls
         """
         Create a new instance from the encoded data given.
 
