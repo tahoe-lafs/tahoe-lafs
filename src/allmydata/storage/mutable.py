@@ -253,7 +253,7 @@ class MutableShareFile(object):
         f.seek(offset)
         assert f.tell() == offset
         data = f.read(self.LEASE_SIZE)
-        lease_info = LeaseInfo().from_mutable_data(data)
+        lease_info = LeaseInfo.from_mutable_data(data)
         if lease_info.owner_num == 0:
             return None
         return lease_info
@@ -304,9 +304,9 @@ class MutableShareFile(object):
             for (leasenum,lease) in self._enumerate_leases(f):
                 if timing_safe_compare(lease.renew_secret, renew_secret):
                     # yup. See if we need to update the owner time.
-                    if new_expire_time > lease.expiration_time:
+                    if new_expire_time > lease.get_expiration_time():
                         # yes
-                        lease.expiration_time = new_expire_time
+                        lease = lease.renew(new_expire_time)
                         self._write_lease_record(f, leasenum, lease)
                     return
                 accepting_nodeids.add(lease.nodeid)
@@ -324,7 +324,7 @@ class MutableShareFile(object):
         precondition(lease_info.owner_num != 0) # 0 means "no lease here"
         try:
             self.renew_lease(lease_info.renew_secret,
-                             lease_info.expiration_time)
+                             lease_info.get_expiration_time())
         except IndexError:
             self.add_lease(lease_info)
 
@@ -454,4 +454,3 @@ def create_mutable_sharefile(filename, my_nodeid, write_enabler, parent):
     ms.create(my_nodeid, write_enabler)
     del ms
     return MutableShareFile(filename, parent)
-

@@ -835,7 +835,7 @@ class Server(unittest.TestCase):
         # Start out with single lease created with bucket:
         renewal_secret, cancel_secret = self.create_bucket_5_shares(ss, b"si0")
         [lease] = ss.get_leases(b"si0")
-        self.assertEqual(lease.expiration_time, 123 + DEFAULT_RENEWAL_TIME)
+        self.assertEqual(lease.get_expiration_time(), 123 + DEFAULT_RENEWAL_TIME)
 
         # Time passes:
         clock.advance(123456)
@@ -843,7 +843,7 @@ class Server(unittest.TestCase):
         # Adding a lease with matching renewal secret just renews it:
         ss.remote_add_lease(b"si0", renewal_secret, cancel_secret)
         [lease] = ss.get_leases(b"si0")
-        self.assertEqual(lease.expiration_time, 123 + 123456 + DEFAULT_RENEWAL_TIME)
+        self.assertEqual(lease.get_expiration_time(), 123 + 123456 + DEFAULT_RENEWAL_TIME)
 
     def test_have_shares(self):
         """By default the StorageServer has no shares."""
@@ -1230,17 +1230,6 @@ class MutableServer(unittest.TestCase):
             self.failUnlessEqual(a.cancel_secret,   b.cancel_secret)
             self.failUnlessEqual(a.nodeid,          b.nodeid)
 
-    def compare_leases(self, leases_a, leases_b):
-        self.failUnlessEqual(len(leases_a), len(leases_b))
-        for i in range(len(leases_a)):
-            a = leases_a[i]
-            b = leases_b[i]
-            self.failUnlessEqual(a.owner_num,       b.owner_num)
-            self.failUnlessEqual(a.renew_secret,    b.renew_secret)
-            self.failUnlessEqual(a.cancel_secret,   b.cancel_secret)
-            self.failUnlessEqual(a.nodeid,          b.nodeid)
-            self.failUnlessEqual(a.expiration_time, b.expiration_time)
-
     def test_leases(self):
         ss = self.create("test_leases")
         def secrets(n):
@@ -1321,11 +1310,11 @@ class MutableServer(unittest.TestCase):
         self.failUnlessIn("I have leases accepted by nodeids:", e_s)
         self.failUnlessIn("nodeids: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' .", e_s)
 
-        self.compare_leases(all_leases, list(s0.get_leases()))
+        self.assertEqual(all_leases, list(s0.get_leases()))
 
         # reading shares should not modify the timestamp
         read(b"si1", [], [(0,200)])
-        self.compare_leases(all_leases, list(s0.get_leases()))
+        self.assertEqual(all_leases, list(s0.get_leases()))
 
         write(b"si1", secrets(0),
               {0: ([], [(200, b"make me bigger")], None)}, [])
@@ -1359,7 +1348,7 @@ class MutableServer(unittest.TestCase):
                                   "shares", storage_index_to_dir(b"si1"))
         s0 = MutableShareFile(os.path.join(bucket_dir, "0"))
         [lease] = s0.get_leases()
-        self.assertEqual(lease.expiration_time, 235 + DEFAULT_RENEWAL_TIME)
+        self.assertEqual(lease.get_expiration_time(), 235 + DEFAULT_RENEWAL_TIME)
 
         # Time passes...
         clock.advance(835)
@@ -1367,7 +1356,7 @@ class MutableServer(unittest.TestCase):
         # Adding a lease renews it:
         ss.remote_add_lease(b"si1", renew_secret, cancel_secret)
         [lease] = s0.get_leases()
-        self.assertEqual(lease.expiration_time,
+        self.assertEqual(lease.get_expiration_time(),
                          235 + 835 + DEFAULT_RENEWAL_TIME)
 
     def test_remove(self):
