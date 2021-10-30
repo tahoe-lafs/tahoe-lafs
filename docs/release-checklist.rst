@@ -50,13 +50,13 @@ previously generated files.
 practice to give it the release name. You MAY also discard this directory once the release
 process is complete.*
 
-- ``cd into the release directory and install dependencies by running ``python -m venv venv && source venv/bin/activate && pip install --editable .[test]````
+- ``cd`` into the release directory and install dependencies by running ``python -m venv venv && source venv/bin/activate && pip install --editable .[test]``
 
 
 Create Branch and Apply Updates
 ```````````````````````````````
 
-- Create a branch for the release/candidate (e.g. `XXXX.release-1.16.0`)
+- Create a branch for the release/candidate (e.g. ``XXXX.release-1.16.0``)
 - run ``tox -e news`` to produce a new NEWS.txt file (this does a commit)
 - create the news for the release
 
@@ -73,7 +73,7 @@ Create Branch and Apply Updates
 
 - update "relnotes.txt"
 
-  - update all mentions of 1.16.0 -> 1.16.x
+  - update all mentions of ``1.16.0`` to new and higher release version for example ``1.16.1``
   - update "previous release" statement and date
   - summarize major changes
   - commit it
