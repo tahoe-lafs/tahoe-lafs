@@ -56,7 +56,7 @@ process is complete.*
 Create Branch and Apply Updates
 ```````````````````````````````
 
-- Create a branch for the release (e.g. `XXXX.release-1.16.0`)
+- Create a branch for the release/candidate (e.g. `XXXX.release-1.16.0`)
 - run ``tox -e news`` to produce a new NEWS.txt file (this does a commit)
 - create the news for the release
 
@@ -92,6 +92,27 @@ Create Branch and Apply Updates
 - Confirm CI runs successfully on all platforms
 
 
+Preparing to Authenticate Release (Setting up GPG)
+``````````````````````````````````````````````````
+*Skip the section if you already have GPG setup.*
+
+In other to keep releases authentic it's required that releases are signed before being
+published. This ensure's that users of Tahoe are able to verify that the version of Tahoe
+they are using is coming from a trusted or at the very least known source.
+
+The authentication is done using the ``GPG`` implementation of ``OpenGPG`` to be able to complete 
+the release steps you would have to download the ``GPG`` software and setup a key(identity).
+
+- `Download <https://www.gnupg.org/download/>`__ and install GPG for your operating system.
+- Generate a key pair using ``gpg --gen-key``. *Some questions would be asked to personalize your key configuration.*
+
+You might take additional steps including:
+
+- Setting up a revocation certificate (Incase you lose your secret key)
+- Backing up your key pair
+- Upload your fingerprint to a keyserver such as `openpgp.org <https://keys.openpgp.org/>`__
+
+
 Create Release Candidate
 ````````````````````````
 
@@ -108,8 +129,10 @@ they will need to evaluate which contributors' signatures they trust.
 - (all steps above are completed)
 - sign the release
 
-  - git tag -s -u 0xE34E62D06D0E69CFCA4179FFBDE0D31D68666A7A -m "release Tahoe-LAFS-1.15.0rc0" tahoe-lafs-1.15.0rc0
-  - (replace the key-id above with your own)
+  - ``git tag -s -u 0xE34E62D06D0E69CFCA4179FFBDE0D31D68666A7A -m "release Tahoe-LAFS-1.16.0rc0" tahoe-lafs-1.16.0rc0``
+
+*Replace the key-id above with your own, which can simply be your email if's attached your fingerprint.*
+*Don't forget to put the correct tag message and name in this example the tag message is "release Tahoe-LAFS-1.16.0rc0" and the tag name is `tahoe-lafs-1.16.0rc0`* 
 
 - build all code locally
   - these should all pass:
@@ -123,8 +146,7 @@ they will need to evaluate which contributors' signatures they trust.
 - build tarballs
 
   - tox -e tarballs
-  - confirm it at least exists:
-  - ls dist/ | grep 1.15.0rc0
+  - Confirm that release tarballs exist by runnig: ``ls dist/ | grep 1.16.0rc0``
 
 - inspect and test the tarballs
 
@@ -133,8 +155,8 @@ they will need to evaluate which contributors' signatures they trust.
 
 - when satisfied, sign the tarballs:
 
-  - gpg --pinentry=loopback --armor --detach-sign dist/tahoe_lafs-1.15.0rc0-py2.py3-none-any.whl
-  - gpg --pinentry=loopback --armor --detach-sign dist/tahoe_lafs-1.15.0rc0.tar.gz
+  - ``gpg --pinentry=loopback --armor --detach-sign dist/tahoe_lafs-1.16.0rc0-py2.py3-none-any.whl``
+  - ``gpg --pinentry=loopback --armor --detach-sign dist/tahoe_lafs-1.16.0rc0.tar.gz``
 
 
 Privileged Contributor
