@@ -746,6 +746,13 @@ def _describe_mutable_share(abs_sharefile, f, now, si_s, out):
 
     if share_type == "SDMF":
         f.seek(m.DATA_OFFSET)
+
+        # Read at least the mutable header length, if possible.  If there's
+        # less data than that in the share, don't try to read more (we won't
+        # be able to unpack the header in this case but we surely don't want
+        # to try to unpack bytes *following* the data section as if they were
+        # header data).  Rather than 2000 we could use HEADER_LENGTH from
+        # allmydata/mutable/layout.py, probably.
         data = f.read(min(data_length, 2000))
 
         try:
@@ -810,8 +817,8 @@ def _describe_immutable_share(abs_sharefile, now, si_s, out):
     sf = ShareFile(abs_sharefile)
     bp = ImmediateReadBucketProxy(sf)
 
-    expiration_time = min( [lease.get_expiration_time()
-                            for lease in sf.get_leases()] )
+    expiration_time = min(lease.get_expiration_time()
+                          for lease in sf.get_leases())
     expiration = max(0, expiration_time - now)
 
     UEB_data = call(bp.get_uri_extension)
@@ -934,9 +941,10 @@ def corrupt_share(options):
         if MutableShareFile.is_valid_header(prefix):
             # mutable
             m = MutableShareFile(fn)
-            f = open(fn, "rb")
-            f.seek(m.DATA_OFFSET)
-            data = f.read(2000)
+            with open(fn, "rb") as f:
+                f.seek(m.DATA_OFFSET)
+                # Read enough data to get a mutable header to unpack.
+                data = f.read(2000)
             # make sure this slot contains an SMDF share
             assert data[0:1] == b"\x00", "non-SDMF mutable shares not supported"
             f.close()
