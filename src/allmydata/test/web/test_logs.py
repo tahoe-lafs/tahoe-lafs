@@ -54,9 +54,7 @@ from ...web.logs import (
     TokenAuthenticatedWebSocketServerProtocol,
 )
 
-from ...util.eliotutil import (
-    log_call_deferred
-)
+from eliot import log_call
 
 class StreamingEliotLogsTests(SyncTestCase):
     """
@@ -110,7 +108,7 @@ class TestStreamingLogs(AsyncTestCase):
             messages.append(json.loads(msg))
         proto.on("message", got_message)
 
-        @log_call_deferred(action_type=u"test:cli:some-exciting-action")
+        @log_call(action_type=u"test:cli:some-exciting-action")
         def do_a_thing(arguments):
             pass
 
@@ -121,7 +119,7 @@ class TestStreamingLogs(AsyncTestCase):
 
         self.assertThat(len(messages), Equals(3))
         self.assertThat(messages[0]["action_type"], Equals("test:cli:some-exciting-action"))
-        self.assertThat(messages[0]["kwargs"]["arguments"],
+        self.assertThat(messages[0]["arguments"],
                          Equals(["hello", "good-\\xff-day", 123, {"a": 35}, [None]]))
         self.assertThat(messages[1]["action_type"], Equals("test:cli:some-exciting-action"))
         self.assertThat("started", Equals(messages[0]["action_status"]))
