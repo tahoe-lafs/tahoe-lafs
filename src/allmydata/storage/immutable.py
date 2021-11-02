@@ -144,7 +144,7 @@ class ShareFile(object):
             for i in range(num_leases):
                 data = f.read(self.LEASE_SIZE)
                 if data:
-                    yield LeaseInfo().from_immutable_data(data)
+                    yield LeaseInfo.from_immutable_data(data)
 
     def add_lease(self, lease_info):
         with open(self.home, 'rb+') as f:
@@ -152,13 +152,24 @@ class ShareFile(object):
             self._write_lease_record(f, num_leases, lease_info)
             self._write_num_leases(f, num_leases+1)
 
-    def renew_lease(self, renew_secret, new_expire_time):
+    def renew_lease(self, renew_secret, new_expire_time, allow_backdate=False):
+        # type: (bytes, int, bool) -> None
+        """
+        Update the expiration time on an existing lease.
+
+        :param allow_backdate: If ``True`` then allow the new expiration time
+            to be before the current expiration time.  Otherwise, make no
+            change when this is the case.
+
+        :raise IndexError: If there is no lease matching the given renew
+            secret.
+        """
         for i,lease in enumerate(self.get_leases()):
             if timing_safe_compare(lease.renew_secret, renew_secret):
                 # yup. See if we need to update the owner time.
-                if new_expire_time > lease.expiration_time:
+                if allow_backdate or new_expire_time > lease.get_expiration_time():
                     # yes
-                    lease.expiration_time = new_expire_time
+                    lease = lease.renew(new_expire_time)
                     with open(self.home, 'rb+') as f:
                         self._write_lease_record(f, i, lease)
                 return
@@ -167,7 +178,7 @@ class ShareFile(object):
     def add_or_renew_lease(self, lease_info):
         try:
             self.renew_lease(lease_info.renew_secret,
-                             lease_info.expiration_time)
+                             lease_info.get_expiration_time())
         except IndexError:
             self.add_lease(lease_info)
 

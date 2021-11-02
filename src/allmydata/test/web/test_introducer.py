@@ -211,7 +211,7 @@ class IntroducerRootTests(SyncTestCase):
         main_tub = Tub()
         main_tub.listenOn(b"tcp:0")
         main_tub.setLocation(b"tcp:127.0.0.1:1")
-        introducer_node = _IntroducerNode(config, main_tub, None, None, None)
+        introducer_node = _IntroducerNode(config, main_tub, None, None)
 
         introducer_service = introducer_node.getServiceNamed("introducer")
         for n in range(2):
