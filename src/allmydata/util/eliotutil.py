@@ -87,11 +87,7 @@ from twisted.internet.defer import (
 )
 from twisted.application.service import Service
 
-from .jsonbytes import (
-    AnyBytesJSONEncoder,
-    bytes_to_unicode
-)
-import json
+from .jsonbytes import AnyBytesJSONEncoder
 
 
 def validateInstanceOf(t):
@@ -315,14 +311,6 @@ class _DestinationParser(object):
 
 _parse_destination_description = _DestinationParser().parse
 
-def is_json_serializable(object):
-    try:
-        json.dumps(object)
-        return True
-    except (TypeError, OverflowError):
-        return False
-
-
 def log_call_deferred(action_type):
     """
     Like ``eliot.log_call`` but for functions which return ``Deferred``.
@@ -332,11 +320,7 @@ def log_call_deferred(action_type):
         def logged_f(*a, **kw):
             # Use the action's context method to avoid ending the action when
             # the `with` block ends.
-            kwargs = {k: bytes_to_unicode(True, kw[k]) for k in kw}
-            # Remove complex (unserializable) objects from positional args to
-            # prevent eliot from throwing errors when it attempts serialization
-            args = tuple(arg if is_json_serializable(arg) else str(arg) for arg in a)
-            with start_action(action_type=action_type, args=args, kwargs=kwargs).context():
+            with start_action(action_type=action_type).context():
                 # Use addActionFinish so that the action finishes when the
                 # Deferred fires.
                 d = maybeDeferred(f, *a, **kw)
@@ -350,5 +334,3 @@ if PY2:
     capture_logging = eliot_capture_logging
 else:
     capture_logging = partial(eliot_capture_logging, encoder_=AnyBytesJSONEncoder)
-
-
