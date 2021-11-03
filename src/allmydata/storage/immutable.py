@@ -24,7 +24,6 @@ from allmydata.interfaces import (
 )
 from allmydata.util import base32, fileutil, log
 from allmydata.util.assertutil import precondition
-from allmydata.util.hashutil import timing_safe_compare
 from allmydata.storage.lease import LeaseInfo
 from allmydata.storage.common import UnknownImmutableContainerVersionError
 
