@@ -82,10 +82,6 @@ def _convert_pickle_state_to_json(state):
 
     :return dict: the state in the JSON form
     """
-    # ["cycle-to-date"]["corrupt-shares"] from 2-tuple to list
-    # ["cycle-to-date"]["leases-per-share-histogram"] gets str keys instead of int
-    # ["cycle-start-finish-times"] from 2-tuple to list
-    # ["history"] keys are strings
     assert state["version"] == 1, "Only known version is 1"
 
     converters = {
@@ -123,12 +119,12 @@ def _maybe_upgrade_pickle_to_json(state_path, convert_pickle):
 
     # upgrade the pickle data to JSON
     import pickle
-    with state_path.open("r") as f:
+    with state_path.open("rb") as f:
         state = pickle.load(f)
     new_state = convert_pickle(state)
-    json_state_path = state_path.siblingExtension(".json")
-    with json_state_path.open("w") as f:
+    with json_state_path.open("wb") as f:
         json.dump(new_state, f)
+
     # we've written the JSON, delete the pickle
     state_path.remove()
     return json_state_path.path
@@ -148,15 +144,9 @@ class _LeaseStateSerializer(object):
                 _convert_pickle_state_to_json,
             )
         )
-        # XXX want this to .. load and save the state
-        # - if the state is pickle-only:
-        #   - load it and convert to json format
-        #   - save json
-        #   - delete pickle
-        # - if the state is json, load it
 
     def load(self):
-        with self._path.open("r") as f:
+        with self._path.open("rb") as f:
             return json.load(f)
 
     def save(self, data):
@@ -388,10 +378,6 @@ class ShareCrawler(service.MultiService):
         else:
             last_complete_prefix = self.prefixes[lcpi]
         self.state["last-complete-prefix"] = last_complete_prefix
-
-        # Note: we use self.get_state() here because e.g
-        # LeaseCheckingCrawler stores non-JSON-able state in
-        # self.state() but converts it in self.get_state()
         self._state_serializer.save(self.get_state())
 
     def startService(self):

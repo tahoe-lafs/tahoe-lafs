@@ -123,7 +123,6 @@ class LeaseCheckingCrawler(ShareCrawler):
                  cutoff_date, # used if expiration_mode=="cutoff-date"
                  sharetypes):
         self._history_serializer = _HistorySerializer(historyfile)
-        ##self.historyfile = historyfile
         self.expiration_enabled = expiration_enabled
         self.mode = mode
         self.override_lease_duration = None
