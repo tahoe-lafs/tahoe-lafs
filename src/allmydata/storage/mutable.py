@@ -67,6 +67,20 @@ class MutableShareFile(object):
     MAX_SIZE = MAX_MUTABLE_SHARE_SIZE
     # TODO: decide upon a policy for max share size
 
+    @classmethod
+    def is_valid_header(cls, header):
+        # type: (bytes) -> bool
+        """
+        Determine if the given bytes constitute a valid header for this type of
+        container.
+
+        :param header: Some bytes from the beginning of a container.
+
+        :return: ``True`` if the bytes could belong to this container,
+            ``False`` otherwise.
+        """
+        return header.startswith(cls.MAGIC)
+
     def __init__(self, filename, parent=None):
         self.home = filename
         if os.path.exists(self.home):
@@ -77,7 +91,7 @@ class MutableShareFile(object):
              write_enabler_nodeid, write_enabler,
              data_length, extra_least_offset) = \
              struct.unpack(">32s20s32sQQ", data)
-            if magic != self.MAGIC:
+            if not self.is_valid_header(data):
                 msg = "sharefile %s had magic '%r' but we wanted '%r'" % \
                       (filename, magic, self.MAGIC)
                 raise UnknownMutableContainerVersionError(msg)
@@ -388,7 +402,7 @@ class MutableShareFile(object):
          write_enabler_nodeid, write_enabler,
          data_length, extra_least_offset) = \
          struct.unpack(">32s20s32sQQ", data)
-        assert magic == self.MAGIC
+        assert self.is_valid_header(data)
         return (write_enabler, write_enabler_nodeid)
 
     def readv(self, readv):
