@@ -3066,3 +3066,64 @@ class ShareFileTests(unittest.TestCase):
         sf.add_lease(lease)
         (loaded_lease,) = sf.get_leases()
         self.assertTrue(loaded_lease.is_cancel_secret(cancel_secret))
+
+
+class LeaseInfoTests(unittest.TestCase):
+    """
+    Tests for ``allmydata.storage.lease.LeaseInfo``.
+    """
+    def test_is_renew_secret(self):
+        """
+        ``LeaseInfo.is_renew_secret`` returns ``True`` if the value given is the
+        renew secret.
+        """
+        renew_secret = b"r" * 32
+        cancel_secret = b"c" * 32
+        lease = LeaseInfo(
+            owner_num=1,
+            renew_secret=renew_secret,
+            cancel_secret=cancel_secret,
+        )
+        self.assertTrue(lease.is_renew_secret(renew_secret))
+
+    def test_is_not_renew_secret(self):
+        """
+        ``LeaseInfo.is_renew_secret`` returns ``False`` if the value given is not
+        the renew secret.
+        """
+        renew_secret = b"r" * 32
+        cancel_secret = b"c" * 32
+        lease = LeaseInfo(
+            owner_num=1,
+            renew_secret=renew_secret,
+            cancel_secret=cancel_secret,
+        )
+        self.assertFalse(lease.is_renew_secret(cancel_secret))
+
+    def test_is_cancel_secret(self):
+        """
+        ``LeaseInfo.is_cancel_secret`` returns ``True`` if the value given is the
+        cancel secret.
+        """
+        renew_secret = b"r" * 32
+        cancel_secret = b"c" * 32
+        lease = LeaseInfo(
+            owner_num=1,
+            renew_secret=renew_secret,
+            cancel_secret=cancel_secret,
+        )
+        self.assertTrue(lease.is_cancel_secret(cancel_secret))
+
+    def test_is_not_cancel_secret(self):
+        """
+        ``LeaseInfo.is_cancel_secret`` returns ``False`` if the value given is not
+        the cancel secret.
+        """
+        renew_secret = b"r" * 32
+        cancel_secret = b"c" * 32
+        lease = LeaseInfo(
+            owner_num=1,
+            renew_secret=renew_secret,
+            cancel_secret=cancel_secret,
+        )
+        self.assertFalse(lease.is_cancel_secret(renew_secret))
