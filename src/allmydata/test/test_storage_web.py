@@ -1151,7 +1151,7 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin):
         The crawler can read existing state from the old pickle format
         """
         # this file came from an "in the wild" tahoe version 1.16.0
-        original_pickle = FilePath(__file__).parent().child("data").child("lease_checker.state")
+        original_pickle = FilePath(__file__).parent().child("data").child("lease_checker.state.txt")
         test_pickle = FilePath("lease_checker.state")
         with test_pickle.open("w") as local, original_pickle.open("r") as remote:
             local.write(remote.read())
@@ -1339,7 +1339,7 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin):
         format
         """
         # this file came from an "in the wild" tahoe version 1.16.0
-        original_pickle = FilePath(__file__).parent().child("data").child("lease_checker.history")
+        original_pickle = FilePath(__file__).parent().child("data").child("lease_checker.history.txt")
         test_pickle = FilePath("lease_checker.history")
         with test_pickle.open("w") as local, original_pickle.open("r") as remote:
             local.write(remote.read())
