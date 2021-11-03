@@ -133,6 +133,7 @@ from subprocess import (
 )
 
 TEST_RSA_KEY_SIZE = 522
+TEST_RSA_KEY_SIZE = 2048
 
 EMPTY_CLIENT_CONFIG = config_from_string(
     "/dev/null",
