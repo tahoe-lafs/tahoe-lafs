@@ -16,11 +16,16 @@ from allmydata.util import base32
 # Backwards compatibility.
 from allmydata.interfaces import DataTooLargeError  # noqa: F401
 
-class UnknownMutableContainerVersionError(Exception):
-    pass
-class UnknownImmutableContainerVersionError(Exception):
+class UnknownContainerVersionError(Exception):
+    def __init__(self, filename, version):
+        self.filename = filename
+        self.version = version
+
+class UnknownMutableContainerVersionError(UnknownContainerVersionError):
     pass
 
+class UnknownImmutableContainerVersionError(UnknownContainerVersionError):
+    pass
 
 def si_b2a(storageindex):
     return base32.b2a(storageindex)

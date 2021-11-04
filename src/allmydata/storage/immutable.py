@@ -174,9 +174,7 @@ class ShareFile(object):
                 filesize = os.path.getsize(self.home)
                 (version, unused, num_leases) = struct.unpack(">LLL", f.read(0xc))
             if version != 1:
-                msg = "sharefile %s had version %d but we wanted 1" % \
-                      (filename, version)
-                raise UnknownImmutableContainerVersionError(msg)
+                raise UnknownImmutableContainerVersionError(filename, version)
             self._num_leases = num_leases
             self._lease_offset = filesize - (num_leases * self.LEASE_SIZE)
         self._data_offset = 0xc
