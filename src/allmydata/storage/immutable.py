@@ -25,7 +25,6 @@ from allmydata.interfaces import (
 )
 from allmydata.util import base32, fileutil, log
 from allmydata.util.assertutil import precondition
-from allmydata.util.hashutil import timing_safe_compare
 from allmydata.storage.lease import LeaseInfo
 from allmydata.storage.common import UnknownImmutableContainerVersionError
 
@@ -106,6 +105,21 @@ class ShareFile(object):
     LEASE_SIZE = struct.calcsize(">L32s32sL")
     sharetype = "immutable"
 
+    @classmethod
+    def is_valid_header(cls, header):
+        # type: (bytes) -> bool
+        """
+        Determine if the given bytes constitute a valid header for this type of
+        container.
+
+        :param header: Some bytes from the beginning of a container.
+
+        :return: ``True`` if the bytes could belong to this container,
+            ``False`` otherwise.
+        """
+        (version,) = struct.unpack(">L", header[:4])
+        return version == 1
+
     def __init__(self, filename, max_size=None, create=False, lease_count_format="L"):
         """
         Initialize a ``ShareFile``.
@@ -130,6 +144,7 @@ class ShareFile(object):
         :raise ValueError: If the encoding of ``lease_count_format`` is too
             large or if it is not a single format character.
         """
+
         precondition((max_size is not None) or (not create), max_size, create)
 
         self._lease_count_format = _fix_lease_count_format(lease_count_format)
@@ -227,7 +242,7 @@ class ShareFile(object):
             for i in range(num_leases):
                 data = f.read(self.LEASE_SIZE)
                 if data:
-                    yield LeaseInfo().from_immutable_data(data)
+                    yield LeaseInfo.from_immutable_data(data)
 
     def add_lease(self, lease_info):
         with open(self.home, 'rb+') as f:
@@ -238,13 +253,24 @@ class ShareFile(object):
             self._write_lease_record(f, num_leases, lease_info)
             self._write_encoded_num_leases(f, new_lease_count)
 
-    def renew_lease(self, renew_secret, new_expire_time):
+    def renew_lease(self, renew_secret, new_expire_time, allow_backdate=False):
+        # type: (bytes, int, bool) -> None
+        """
+        Update the expiration time on an existing lease.
+
+        :param allow_backdate: If ``True`` then allow the new expiration time
+            to be before the current expiration time.  Otherwise, make no
+            change when this is the case.
+
+        :raise IndexError: If there is no lease matching the given renew
+            secret.
+        """
         for i,lease in enumerate(self.get_leases()):
-            if timing_safe_compare(lease.renew_secret, renew_secret):
+            if lease.is_renew_secret(renew_secret):
                 # yup. See if we need to update the owner time.
-                if new_expire_time > lease.expiration_time:
+                if allow_backdate or new_expire_time > lease.get_expiration_time():
                     # yes
-                    lease.expiration_time = new_expire_time
+                    lease = lease.renew(new_expire_time)
                     with open(self.home, 'rb+') as f:
                         self._write_lease_record(f, i, lease)
                 return
@@ -267,7 +293,7 @@ class ShareFile(object):
         """
         try:
             self.renew_lease(lease_info.renew_secret,
-                             lease_info.expiration_time)
+                             lease_info.get_expiration_time())
         except IndexError:
             if lease_info.immutable_size() > available_space:
                 raise NoSpace()
@@ -284,7 +310,7 @@ class ShareFile(object):
         leases = list(self.get_leases())
         num_leases_removed = 0
         for i,lease in enumerate(leases):
-            if timing_safe_compare(lease.cancel_secret, cancel_secret):
+            if lease.is_cancel_secret(cancel_secret):
                 leases[i] = None
                 num_leases_removed += 1
         if not num_leases_removed:

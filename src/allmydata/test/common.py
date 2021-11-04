@@ -1105,7 +1105,7 @@ def _corrupt_offset_of_uri_extension_to_force_short_read(data, debug=False):
 
 def _corrupt_mutable_share_data(data, debug=False):
     prefix = data[:32]
-    assert prefix == MutableShareFile.MAGIC, "This function is designed to corrupt mutable shares of v1, and the magic number doesn't look right: %r vs %r" % (prefix, MutableShareFile.MAGIC)
+    assert MutableShareFile.is_valid_header(prefix), "This function is designed to corrupt mutable shares of v1, and the magic number doesn't look right: %r vs %r" % (prefix, MutableShareFile.MAGIC)
     data_offset = MutableShareFile.DATA_OFFSET
     sharetype = data[data_offset:data_offset+1]
     assert sharetype == b"\x00", "non-SDMF mutable shares not supported"

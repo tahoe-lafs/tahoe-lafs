@@ -14,6 +14,11 @@ if PY2:
 # a previous run. This asserts that the current code is capable of decoding
 # shares from a previous version.
 
+try:
+    from typing import Any
+except ImportError:
+    pass
+
 import six
 import os
 from twisted.trial import unittest
@@ -951,12 +956,52 @@ class Corruption(_Base, unittest.TestCase):
         self.corrupt_shares_numbered(imm_uri, [2], _corruptor)
 
     def _corrupt_set(self, ign, imm_uri, which, newvalue):
+        # type: (Any, bytes, int, int) -> None
+        """
+        Replace a single byte share file number 2 for the given capability with a
+        new byte.
+
+        :param imm_uri: Corrupt share number 2 belonging to this capability.
+        :param which: The byte position to replace.
+        :param newvalue: The new byte value to set in the share.
+        """
         log.msg("corrupt %d" % which)
         def _corruptor(s, debug=False):
             return s[:which] + bchr(newvalue) + s[which+1:]
         self.corrupt_shares_numbered(imm_uri, [2], _corruptor)
 
     def test_each_byte(self):
+        """
+        Test share selection behavior of the downloader in the face of certain
+        kinds of data corruption.
+
+        1. upload a small share to the no-network grid
+        2. read all of the resulting share files out of the no-network storage servers
+        3. for each of
+
+           a. each byte of the share file version field
+           b. each byte of the immutable share version field
+           c. each byte of the immutable share data offset field
+           d. the most significant byte of the block_shares offset field
+           e. one of the bytes of one of the merkle trees
+           f. one of the bytes of the share hashes list
+
+           i. flip the least significant bit in all of the the share files
+           ii. perform the download/check/restore process
+
+        4. add 2 ** 24 to the share file version number
+        5. perform the download/check/restore process
+
+        6. add 2 ** 24 to the share version number
+        7. perform the download/check/restore process
+
+        The download/check/restore process is:
+
+        1. attempt to download the data
+        2. assert that the recovered plaintext is correct
+        3. assert that only the "correct" share numbers were used to reconstruct the plaintext
+        4. restore all of the share files to their pristine condition
+        """
         # Setting catalog_detection=True performs an exhaustive test of the
         # Downloader's response to corruption in the lsb of each byte of the
         # 2070-byte share, with two goals: make sure we tolerate all forms of
@@ -1145,8 +1190,18 @@ class Corruption(_Base, unittest.TestCase):
         return d
 
     def _corrupt_flip_all(self, ign, imm_uri, which):
+        # type: (Any, bytes, int) -> None
+        """
+        Flip the least significant bit at a given byte position in all share files
+        for the given capability.
+        """
         def _corruptor(s, debug=False):
-            return s[:which] + bchr(ord(s[which:which+1])^0x01) + s[which+1:]
+            # type: (bytes, bool) -> bytes
+            before_corruption = s[:which]
+            after_corruption = s[which+1:]
+            original_byte = s[which:which+1]
+            corrupt_byte = bchr(ord(original_byte) ^ 0x01)
+            return b"".join([before_corruption, corrupt_byte, after_corruption])
         self.corrupt_all_shares(imm_uri, _corruptor)
 
 class DownloadV2(_Base, unittest.TestCase):

@@ -124,38 +124,6 @@ class FakeStatsProvider(object):
         pass
 
 
-class LeaseInfoTests(SyncTestCase):
-    """
-    Tests for ``LeaseInfo``.
-    """
-    @given(
-        strategies.tuples(
-            strategies.integers(min_value=0, max_value=2 ** 31 - 1),
-            strategies.binary(min_size=32, max_size=32),
-            strategies.binary(min_size=32, max_size=32),
-            strategies.integers(min_value=0, max_value=2 ** 31 - 1),
-            strategies.binary(min_size=20, max_size=20),
-        ),
-    )
-    def test_immutable_size(self, initializer_args):
-        """
-        ``LeaseInfo.immutable_size`` returns the length of the result of
-        ``LeaseInfo.to_immutable_data``.
-
-        ``LeaseInfo.mutable_size`` returns the length of the result of
-        ``LeaseInfo.to_mutable_data``.
-        """
-        info = LeaseInfo(*initializer_args)
-        self.expectThat(
-            info.to_immutable_data(),
-            HasLength(info.immutable_size()),
-        )
-        self.expectThat(
-            info.to_mutable_data(),
-            HasLength(info.mutable_size()),
-        )
-
-
 class Bucket(unittest.TestCase):
     def make_workdir(self, name):
         basedir = os.path.join("storage", "Bucket", name)
@@ -875,28 +843,28 @@ class Server(unittest.TestCase):
 
         # Create a bucket:
         rs0, cs0 = self.create_bucket_5_shares(ss, b"si0")
-        leases = list(ss.get_leases(b"si0"))
-        self.failUnlessEqual(len(leases), 1)
-        self.failUnlessEqual(set([l.renew_secret for l in leases]), set([rs0]))
+        (lease,) = ss.get_leases(b"si0")
+        self.assertTrue(lease.is_renew_secret(rs0))
 
         rs1, cs1 = self.create_bucket_5_shares(ss, b"si1")
 
         # take out a second lease on si1
         rs2, cs2 = self.create_bucket_5_shares(ss, b"si1", 5, 0)
-        leases = list(ss.get_leases(b"si1"))
-        self.failUnlessEqual(len(leases), 2)
-        self.failUnlessEqual(set([l.renew_secret for l in leases]), set([rs1, rs2]))
+        (lease1, lease2) = ss.get_leases(b"si1")
+        self.assertTrue(lease1.is_renew_secret(rs1))
+        self.assertTrue(lease2.is_renew_secret(rs2))
 
         # and a third lease, using add-lease
         rs2a,cs2a = (hashutil.my_renewal_secret_hash(b"%d" % next(self._lease_secret)),
                      hashutil.my_cancel_secret_hash(b"%d" % next(self._lease_secret)))
         ss.remote_add_lease(b"si1", rs2a, cs2a)
-        leases = list(ss.get_leases(b"si1"))
-        self.failUnlessEqual(len(leases), 3)
-        self.failUnlessEqual(set([l.renew_secret for l in leases]), set([rs1, rs2, rs2a]))
+        (lease1, lease2, lease3) = ss.get_leases(b"si1")
+        self.assertTrue(lease1.is_renew_secret(rs1))
+        self.assertTrue(lease2.is_renew_secret(rs2))
+        self.assertTrue(lease3.is_renew_secret(rs2a))
 
         # add-lease on a missing storage index is silently ignored
-        self.failUnlessEqual(ss.remote_add_lease(b"si18", b"", b""), None)
+        self.assertIsNone(ss.remote_add_lease(b"si18", b"", b""))
 
         # check that si0 is readable
         readers = ss.remote_get_buckets(b"si0")
@@ -955,7 +923,7 @@ class Server(unittest.TestCase):
         # Start out with single lease created with bucket:
         renewal_secret, cancel_secret = self.create_bucket_5_shares(ss, b"si0")
         [lease] = ss.get_leases(b"si0")
-        self.assertEqual(lease.expiration_time, 123 + DEFAULT_RENEWAL_TIME)
+        self.assertEqual(lease.get_expiration_time(), 123 + DEFAULT_RENEWAL_TIME)
 
         # Time passes:
         clock.advance(123456)
@@ -963,7 +931,7 @@ class Server(unittest.TestCase):
         # Adding a lease with matching renewal secret just renews it:
         ss.remote_add_lease(b"si0", renewal_secret, cancel_secret)
         [lease] = ss.get_leases(b"si0")
-        self.assertEqual(lease.expiration_time, 123 + 123456 + DEFAULT_RENEWAL_TIME)
+        self.assertEqual(lease.get_expiration_time(), 123 + 123456 + DEFAULT_RENEWAL_TIME)
 
     def test_have_shares(self):
         """By default the StorageServer has no shares."""
@@ -1392,17 +1360,6 @@ class MutableServer(unittest.TestCase):
             self.failUnlessEqual(a.cancel_secret,   b.cancel_secret)
             self.failUnlessEqual(a.nodeid,          b.nodeid)
 
-    def compare_leases(self, leases_a, leases_b):
-        self.failUnlessEqual(len(leases_a), len(leases_b))
-        for i in range(len(leases_a)):
-            a = leases_a[i]
-            b = leases_b[i]
-            self.failUnlessEqual(a.owner_num,       b.owner_num)
-            self.failUnlessEqual(a.renew_secret,    b.renew_secret)
-            self.failUnlessEqual(a.cancel_secret,   b.cancel_secret)
-            self.failUnlessEqual(a.nodeid,          b.nodeid)
-            self.failUnlessEqual(a.expiration_time, b.expiration_time)
-
     def test_leases(self):
         ss = self.create("test_leases")
         def secrets(n):
@@ -1483,11 +1440,11 @@ class MutableServer(unittest.TestCase):
         self.failUnlessIn("I have leases accepted by nodeids:", e_s)
         self.failUnlessIn("nodeids: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' .", e_s)
 
-        self.compare_leases(all_leases, list(s0.get_leases()))
+        self.assertEqual(all_leases, list(s0.get_leases()))
 
         # reading shares should not modify the timestamp
         read(b"si1", [], [(0,200)])
-        self.compare_leases(all_leases, list(s0.get_leases()))
+        self.assertEqual(all_leases, list(s0.get_leases()))
 
         write(b"si1", secrets(0),
               {0: ([], [(200, b"make me bigger")], None)}, [])
@@ -1521,7 +1478,7 @@ class MutableServer(unittest.TestCase):
                                   "shares", storage_index_to_dir(b"si1"))
         s0 = MutableShareFile(os.path.join(bucket_dir, "0"))
         [lease] = s0.get_leases()
-        self.assertEqual(lease.expiration_time, 235 + DEFAULT_RENEWAL_TIME)
+        self.assertEqual(lease.get_expiration_time(), 235 + DEFAULT_RENEWAL_TIME)
 
         # Time passes...
         clock.advance(835)
@@ -1529,7 +1486,7 @@ class MutableServer(unittest.TestCase):
         # Adding a lease renews it:
         ss.remote_add_lease(b"si1", renew_secret, cancel_secret)
         [lease] = s0.get_leases()
-        self.assertEqual(lease.expiration_time,
+        self.assertEqual(lease.get_expiration_time(),
                          235 + 835 + DEFAULT_RENEWAL_TIME)
 
     def test_remove(self):
@@ -3256,6 +3213,46 @@ class ShareFileTests(unittest.TestCase):
 
         self.assertEqual(before_data, after_data)
 
+    def test_renew_secret(self):
+        """
+        A lease loaded from an immutable share file can have its renew secret
+        verified.
+        """
+        renew_secret = b"r" * 32
+        cancel_secret = b"c" * 32
+        expiration_time = 2 ** 31
+
+        sf = self.get_sharefile()
+        lease = LeaseInfo(
+            owner_num=0,
+            renew_secret=renew_secret,
+            cancel_secret=cancel_secret,
+            expiration_time=expiration_time,
+        )
+        sf.add_lease(lease)
+        (loaded_lease,) = sf.get_leases()
+        self.assertTrue(loaded_lease.is_renew_secret(renew_secret))
+
+    def test_cancel_secret(self):
+        """
+        A lease loaded from an immutable share file can have its cancel secret
+        verified.
+        """
+        renew_secret = b"r" * 32
+        cancel_secret = b"c" * 32
+        expiration_time = 2 ** 31
+
+        sf = self.get_sharefile()
+        lease = LeaseInfo(
+            owner_num=0,
+            renew_secret=renew_secret,
+            cancel_secret=cancel_secret,
+            expiration_time=expiration_time,
+        )
+        sf.add_lease(lease)
+        (loaded_lease,) = sf.get_leases()
+        self.assertTrue(loaded_lease.is_cancel_secret(cancel_secret))
+
 
 class MutableShareFileTests(unittest.TestCase):
     """
@@ -3365,3 +3362,91 @@ class MutableShareFileTests(unittest.TestCase):
         # A read with a broken read vector is an error.
         with self.assertRaises(AssertionError):
             sf.readv(broken_readv)
+
+
+class LeaseInfoTests(SyncTestCase):
+    """
+    Tests for ``allmydata.storage.lease.LeaseInfo``.
+    """
+    def test_is_renew_secret(self):
+        """
+        ``LeaseInfo.is_renew_secret`` returns ``True`` if the value given is the
+        renew secret.
+        """
+        renew_secret = b"r" * 32
+        cancel_secret = b"c" * 32
+        lease = LeaseInfo(
+            owner_num=1,
+            renew_secret=renew_secret,
+            cancel_secret=cancel_secret,
+        )
+        self.assertTrue(lease.is_renew_secret(renew_secret))
+
+    def test_is_not_renew_secret(self):
+        """
+        ``LeaseInfo.is_renew_secret`` returns ``False`` if the value given is not
+        the renew secret.
+        """
+        renew_secret = b"r" * 32
+        cancel_secret = b"c" * 32
+        lease = LeaseInfo(
+            owner_num=1,
+            renew_secret=renew_secret,
+            cancel_secret=cancel_secret,
+        )
+        self.assertFalse(lease.is_renew_secret(cancel_secret))
+
+    def test_is_cancel_secret(self):
+        """
+        ``LeaseInfo.is_cancel_secret`` returns ``True`` if the value given is the
+        cancel secret.
+        """
+        renew_secret = b"r" * 32
+        cancel_secret = b"c" * 32
+        lease = LeaseInfo(
+            owner_num=1,
+            renew_secret=renew_secret,
+            cancel_secret=cancel_secret,
+        )
+        self.assertTrue(lease.is_cancel_secret(cancel_secret))
+
+    def test_is_not_cancel_secret(self):
+        """
+        ``LeaseInfo.is_cancel_secret`` returns ``False`` if the value given is not
+        the cancel secret.
+        """
+        renew_secret = b"r" * 32
+        cancel_secret = b"c" * 32
+        lease = LeaseInfo(
+            owner_num=1,
+            renew_secret=renew_secret,
+            cancel_secret=cancel_secret,
+        )
+        self.assertFalse(lease.is_cancel_secret(renew_secret))
+
+    @given(
+        strategies.tuples(
+            strategies.integers(min_value=0, max_value=2 ** 31 - 1),
+            strategies.binary(min_size=32, max_size=32),
+            strategies.binary(min_size=32, max_size=32),
+            strategies.integers(min_value=0, max_value=2 ** 31 - 1),
+            strategies.binary(min_size=20, max_size=20),
+        ),
+    )
+    def test_immutable_size(self, initializer_args):
+        """
+        ``LeaseInfo.immutable_size`` returns the length of the result of
+        ``LeaseInfo.to_immutable_data``.
+
+        ``LeaseInfo.mutable_size`` returns the length of the result of
+        ``LeaseInfo.to_mutable_data``.
+        """
+        info = LeaseInfo(*initializer_args)
+        self.expectThat(
+            info.to_immutable_data(),
+            HasLength(info.immutable_size()),
+        )
+        self.expectThat(
+            info.to_mutable_data(),
+            HasLength(info.mutable_size()),
+        )
