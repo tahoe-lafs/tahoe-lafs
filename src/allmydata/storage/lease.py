@@ -15,6 +15,11 @@ import struct, time
 
 import attr
 
+from zope.interface import (
+    Interface,
+    implementer,
+)
+
 from allmydata.util.hashutil import timing_safe_compare
 
 # struct format for representation of a lease in an immutable share
@@ -23,6 +28,84 @@ IMMUTABLE_FORMAT = ">L32s32sL"
 # struct format for representation of a lease in a mutable share
 MUTABLE_FORMAT = ">LL32s32s20s"
 
+
+class ILeaseInfo(Interface):
+    """
+    Represent a marker attached to a share that indicates that share should be
+    retained for some amount of time.
+
+    Typically clients will create and renew leases on their shares as a way to
+    inform storage servers that there is still interest in those shares.  A
+    share may have more than one lease.  If all leases on a share have
+    expiration times in the past then the storage server may take this as a
+    strong hint that no one is interested in the share anymore and therefore
+    the share may be deleted to reclaim the space.
+    """
+    def renew(new_expire_time):
+        """
+        Create a new ``ILeaseInfo`` with the given expiration time.
+
+        :param Union[int, float] new_expire_time: The expiration time the new
+            ``ILeaseInfo`` will have.
+
+        :return: The new ``ILeaseInfo`` provider with the new expiration time.
+        """
+
+    def get_expiration_time():
+        """
+        :return Union[int, float]: this lease's expiration time
+        """
+
+    def get_grant_renew_time_time():
+        """
+        :return Union[int, float]: a guess about the last time this lease was
+            renewed
+        """
+
+    def get_age():
+        """
+        :return Union[int, float]: a guess about how long it has been since this
+            lease was renewed
+        """
+
+    def to_immutable_data():
+        """
+        :return bytes: a serialized representation of this lease suitable for
+            inclusion in an immutable container
+        """
+
+    def to_mutable_data():
+        """
+        :return bytes: a serialized representation of this lease suitable for
+            inclusion in a mutable container
+        """
+
+    def immutable_size():
+        """
+        :return int: the size of the serialized representation of this lease in an
+            immutable container
+        """
+
+    def mutable_size():
+        """
+        :return int: the size of the serialized representation of this lease in a
+            mutable container
+        """
+
+    def is_renew_secret(candidate_secret):
+        """
+        :return bool: ``True`` if the given byte string is this lease's renew
+            secret, ``False`` otherwise
+        """
+
+    def is_cancel_secret(candidate_secret):
+        """
+        :return bool: ``True`` if the given byte string is this lease's cancel
+            secret, ``False`` otherwise
+        """
+
+
+@implementer(ILeaseInfo)
 @attr.s(frozen=True)
 class LeaseInfo(object):
     """
