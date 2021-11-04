@@ -24,7 +24,6 @@ from allmydata.interfaces import (
 )
 from allmydata.util import base32, fileutil, log
 from allmydata.util.assertutil import precondition
-from allmydata.util.hashutil import timing_safe_compare
 from allmydata.storage.lease import LeaseInfo
 from allmydata.storage.common import UnknownImmutableContainerVersionError
 
@@ -180,7 +179,7 @@ class ShareFile(object):
             secret.
         """
         for i,lease in enumerate(self.get_leases()):
-            if timing_safe_compare(lease.renew_secret, renew_secret):
+            if lease.is_renew_secret(renew_secret):
                 # yup. See if we need to update the owner time.
                 if allow_backdate or new_expire_time > lease.get_expiration_time():
                     # yes
@@ -209,7 +208,7 @@ class ShareFile(object):
         leases = list(self.get_leases())
         num_leases_removed = 0
         for i,lease in enumerate(leases):
-            if timing_safe_compare(lease.cancel_secret, cancel_secret):
+            if lease.is_cancel_secret(cancel_secret):
                 leases[i] = None
                 num_leases_removed += 1
         if not num_leases_removed:

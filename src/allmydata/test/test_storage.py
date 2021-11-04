@@ -755,28 +755,28 @@ class Server(unittest.TestCase):
 
         # Create a bucket:
         rs0, cs0 = self.create_bucket_5_shares(ss, b"si0")
-        leases = list(ss.get_leases(b"si0"))
-        self.failUnlessEqual(len(leases), 1)
-        self.failUnlessEqual(set([l.renew_secret for l in leases]), set([rs0]))
+        (lease,) = ss.get_leases(b"si0")
+        self.assertTrue(lease.is_renew_secret(rs0))
 
         rs1, cs1 = self.create_bucket_5_shares(ss, b"si1")
 
         # take out a second lease on si1
         rs2, cs2 = self.create_bucket_5_shares(ss, b"si1", 5, 0)
-        leases = list(ss.get_leases(b"si1"))
-        self.failUnlessEqual(len(leases), 2)
-        self.failUnlessEqual(set([l.renew_secret for l in leases]), set([rs1, rs2]))
+        (lease1, lease2) = ss.get_leases(b"si1")
+        self.assertTrue(lease1.is_renew_secret(rs1))
+        self.assertTrue(lease2.is_renew_secret(rs2))
 
         # and a third lease, using add-lease
         rs2a,cs2a = (hashutil.my_renewal_secret_hash(b"%d" % next(self._lease_secret)),
                      hashutil.my_cancel_secret_hash(b"%d" % next(self._lease_secret)))
         ss.remote_add_lease(b"si1", rs2a, cs2a)
-        leases = list(ss.get_leases(b"si1"))
-        self.failUnlessEqual(len(leases), 3)
-        self.failUnlessEqual(set([l.renew_secret for l in leases]), set([rs1, rs2, rs2a]))
+        (lease1, lease2, lease3) = ss.get_leases(b"si1")
+        self.assertTrue(lease1.is_renew_secret(rs1))
+        self.assertTrue(lease2.is_renew_secret(rs2))
+        self.assertTrue(lease3.is_renew_secret(rs2a))
 
         # add-lease on a missing storage index is silently ignored
-        self.failUnlessEqual(ss.remote_add_lease(b"si18", b"", b""), None)
+        self.assertIsNone(ss.remote_add_lease(b"si18", b"", b""))
 
         # check that si0 is readable
         readers = ss.remote_get_buckets(b"si0")
@@ -3028,3 +3028,102 @@ class ShareFileTests(unittest.TestCase):
         sf = self.get_sharefile()
         with self.assertRaises(IndexError):
             sf.cancel_lease(b"garbage")
+
+    def test_renew_secret(self):
+        """
+        A lease loaded from a share file can have its renew secret verified.
+        """
+        renew_secret = b"r" * 32
+        cancel_secret = b"c" * 32
+        expiration_time = 2 ** 31
+
+        sf = self.get_sharefile()
+        lease = LeaseInfo(
+            owner_num=0,
+            renew_secret=renew_secret,
+            cancel_secret=cancel_secret,
+            expiration_time=expiration_time,
+        )
+        sf.add_lease(lease)
+        (loaded_lease,) = sf.get_leases()
+        self.assertTrue(loaded_lease.is_renew_secret(renew_secret))
+
+    def test_cancel_secret(self):
+        """
+        A lease loaded from a share file can have its cancel secret verified.
+        """
+        renew_secret = b"r" * 32
+        cancel_secret = b"c" * 32
+        expiration_time = 2 ** 31
+
+        sf = self.get_sharefile()
+        lease = LeaseInfo(
+            owner_num=0,
+            renew_secret=renew_secret,
+            cancel_secret=cancel_secret,
+            expiration_time=expiration_time,
+        )
+        sf.add_lease(lease)
+        (loaded_lease,) = sf.get_leases()
+        self.assertTrue(loaded_lease.is_cancel_secret(cancel_secret))
+
+
+class LeaseInfoTests(unittest.TestCase):
+    """
+    Tests for ``allmydata.storage.lease.LeaseInfo``.
+    """
+    def test_is_renew_secret(self):
+        """
+        ``LeaseInfo.is_renew_secret`` returns ``True`` if the value given is the
+        renew secret.
+        """
+        renew_secret = b"r" * 32
+        cancel_secret = b"c" * 32
+        lease = LeaseInfo(
+            owner_num=1,
+            renew_secret=renew_secret,
+            cancel_secret=cancel_secret,
+        )
+        self.assertTrue(lease.is_renew_secret(renew_secret))
+
+    def test_is_not_renew_secret(self):
+        """
+        ``LeaseInfo.is_renew_secret`` returns ``False`` if the value given is not
+        the renew secret.
+        """
+        renew_secret = b"r" * 32
+        cancel_secret = b"c" * 32
+        lease = LeaseInfo(
+            owner_num=1,
+            renew_secret=renew_secret,
+            cancel_secret=cancel_secret,
+        )
+        self.assertFalse(lease.is_renew_secret(cancel_secret))
+
+    def test_is_cancel_secret(self):
+        """
+        ``LeaseInfo.is_cancel_secret`` returns ``True`` if the value given is the
+        cancel secret.
+        """
+        renew_secret = b"r" * 32
+        cancel_secret = b"c" * 32
+        lease = LeaseInfo(
+            owner_num=1,
+            renew_secret=renew_secret,
+            cancel_secret=cancel_secret,
+        )
+        self.assertTrue(lease.is_cancel_secret(cancel_secret))
+
+    def test_is_not_cancel_secret(self):
+        """
+        ``LeaseInfo.is_cancel_secret`` returns ``False`` if the value given is not
+        the cancel secret.
+        """
+        renew_secret = b"r" * 32
+        cancel_secret = b"c" * 32
+        lease = LeaseInfo(
+            owner_num=1,
+            renew_secret=renew_secret,
+            cancel_secret=cancel_secret,
+        )
+        self.assertFalse(lease.is_cancel_secret(renew_secret))
