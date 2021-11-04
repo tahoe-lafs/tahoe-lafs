@@ -25,8 +25,13 @@ from allmydata.interfaces import (
 )
 from allmydata.util import base32, fileutil, log
 from allmydata.util.assertutil import precondition
-from allmydata.storage.lease import LeaseInfo
 from allmydata.storage.common import UnknownImmutableContainerVersionError
+
+from .immutable_schema import (
+    NEWEST_SCHEMA_VERSION,
+    schema_from_version,
+)
+
 
 # each share file (in storage/shares/$SI/$SHNUM) contains lease information
 # and share data. The share data is accessed by RIBucketWriter.write and
@@ -118,9 +123,16 @@ class ShareFile(object):
             ``False`` otherwise.
         """
         (version,) = struct.unpack(">L", header[:4])
-        return version == 1
+        return schema_from_version(version) is not None
 
-    def __init__(self, filename, max_size=None, create=False, lease_count_format="L"):
+    def __init__(
+            self,
+            filename,
+            max_size=None,
+            create=False,
+            lease_count_format="L",
+            schema=NEWEST_SCHEMA_VERSION,
+    ):
         """
         Initialize a ``ShareFile``.
 
@@ -156,24 +168,17 @@ class ShareFile(object):
             # it. Also construct the metadata.
             assert not os.path.exists(self.home)
             fileutil.make_dirs(os.path.dirname(self.home))
-            # The second field -- the four-byte share data length -- is no
-            # longer used as of Tahoe v1.3.0, but we continue to write it in
-            # there in case someone downgrades a storage server from >=
-            # Tahoe-1.3.0 to < Tahoe-1.3.0, or moves a share file from one
-            # server to another, etc. We do saturation -- a share data length
-            # larger than 2**32-1 (what can fit into the field) is marked as
-            # the largest length that can fit into the field. That way, even
-            # if this does happen, the old < v1.3.0 server will still allow
-            # clients to read the first part of the share.
+            self._schema = schema
             with open(self.home, 'wb') as f:
-                f.write(struct.pack(">LLL", 1, min(2**32-1, max_size), 0))
+                f.write(self._schema.header(max_size))
             self._lease_offset = max_size + 0x0c
             self._num_leases = 0
         else:
             with open(self.home, 'rb') as f:
                 filesize = os.path.getsize(self.home)
                 (version, unused, num_leases) = struct.unpack(">LLL", f.read(0xc))
-            if version != 1:
+            self._schema = schema_from_version(version)
+            if self._schema is None:
                 raise UnknownImmutableContainerVersionError(filename, version)
             self._num_leases = num_leases
             self._lease_offset = filesize - (num_leases * self.LEASE_SIZE)
@@ -209,7 +214,7 @@ class ShareFile(object):
         offset = self._lease_offset + lease_number * self.LEASE_SIZE
         f.seek(offset)
         assert f.tell() == offset
-        f.write(lease_info.to_immutable_data())
+        f.write(self._schema.serialize_lease(lease_info))
 
     def _read_num_leases(self, f):
         f.seek(0x08)
@@ -240,7 +245,7 @@ class ShareFile(object):
             for i in range(num_leases):
                 data = f.read(self.LEASE_SIZE)
                 if data:
-                    yield LeaseInfo.from_immutable_data(data)
+                    yield self._schema.unserialize_lease(data)
 
     def add_lease(self, lease_info):
         with open(self.home, 'rb+') as f:
