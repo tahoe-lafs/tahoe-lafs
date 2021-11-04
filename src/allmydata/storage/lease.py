@@ -20,6 +20,10 @@ from zope.interface import (
     implementer,
 )
 
+from twisted.python.components import (
+    proxyForInterface,
+)
+
 from allmydata.util.hashutil import timing_safe_compare
 
 # struct format for representation of a lease in an immutable share
@@ -245,3 +249,81 @@ class LeaseInfo(object):
         ]
         values = struct.unpack(">LL32s32s20s", data)
         return cls(**dict(zip(names, values)))
+
+
+@attr.s(frozen=True)
+class HashedLeaseInfo(proxyForInterface(ILeaseInfo, "_lease_info")):
+    """
+    A ``HashedLeaseInfo`` wraps lease information in which the secrets have
+    been hashed.
+    """
+    _lease_info = attr.ib()
+    _hash = attr.ib()
+
+    def is_renew_secret(self, candidate_secret):
+        """
+        Hash the candidate secret and compare the result to the stored hashed
+        secret.
+        """
+        return super(HashedLeaseInfo, self).is_renew_secret(self._hash(candidate_secret))
+
+    def is_cancel_secret(self, candidate_secret):
+        """
+        Hash the candidate secret and compare the result to the stored hashed
+        secret.
+        """
+        if  isinstance(candidate_secret, _HashedCancelSecret):
+            # Someone read it off of this object in this project - probably
+            # the lease crawler - and is just trying to use it to identify
+            # which lease it wants to operate on.  Avoid re-hashing the value.
+            #
+            # It is important that this codepath is only availably internally
+            # for this process to talk to itself.  If it were to be exposed to
+            # clients over the network, they could just provide the hashed
+            # value to avoid having to ever learn the original value.
+            hashed_candidate = candidate_secret.hashed_value
+        else:
+            # It is not yet hashed so hash it.
+            hashed_candidate = self._hash(candidate_secret)
+
+        return super(HashedLeaseInfo, self).is_cancel_secret(hashed_candidate)
+
+    @property
+    def owner_num(self):
+        return self._lease_info.owner_num
+
+    @property
+    def cancel_secret(self):
+        """
+        Give back an opaque wrapper around the hashed cancel secret which can
+        later be presented for a succesful equality comparison.
+        """
+        # We don't *have* the cancel secret.  We hashed it and threw away the
+        # original.  That's good.  It does mean that some code that runs
+        # in-process with the storage service (LeaseCheckingCrawler) runs into
+        # some difficulty.  That code wants to cancel leases and does so using
+        # the same interface that faces storage clients (or would face them,
+        # if lease cancellation were exposed).
+        #
+        # Since it can't use the hashed secret to cancel a lease (that's the
+        # point of the hashing) and we don't have the unhashed secret to give
+        # it, instead we give it a marker that `cancel_lease` will recognize.
+        # On recognizing it, if the hashed value given matches the hashed
+        # value stored it is considered a match and the lease can be
+        # cancelled.
+        #
+        # This isn't great.  Maybe the internal and external consumers of
+        # cancellation should use different interfaces.
+        return _HashedCancelSecret(self._lease_info.cancel_secret)
+
+
+@attr.s(frozen=True)
+class _HashedCancelSecret(object):
+    """
+    ``_HashedCancelSecret`` is a marker type for an already-hashed lease
+    cancel secret that lets internal lease cancellers bypass the hash-based
+    protection that's imposed on external lease cancellers.
+
+    :ivar bytes hashed_value: The already-hashed secret.
+    """
+    hashed_value = attr.ib()

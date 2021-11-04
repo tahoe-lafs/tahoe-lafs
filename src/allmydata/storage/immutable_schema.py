@@ -13,8 +13,14 @@ if PY2:
 
 import struct
 
+import attr
+
+from nacl.hash import blake2b
+from nacl.encoding import RawEncoder
+
 from .lease import (
     LeaseInfo,
+    HashedLeaseInfo,
 )
 
 def _header(version, max_size):
@@ -22,10 +28,10 @@ def _header(version, max_size):
     """
     Construct the header for an immutable container.
 
-    :param version: The container version to include the in header.
-    :param max_size: The maximum data size the container will hold.
+    :param version: the container version to include the in header
+    :param max_size: the maximum data size the container will hold
 
-    :return: Some bytes to write at the beginning of the container.
+    :return: some bytes to write at the beginning of the container
     """
     # The second field -- the four-byte share data length -- is no longer
     # used as of Tahoe v1.3.0, but we continue to write it in there in
@@ -37,6 +43,97 @@ def _header(version, max_size):
     # < v1.3.0 server will still allow clients to read the first part of
     # the share.
     return struct.pack(">LLL", version, min(2**32 - 1, max_size), 0)
+
+
+class _V2(object):
+    """
+    Implement encoding and decoding for v2 of the immutable container.
+    """
+    version = 2
+
+    @classmethod
+    def _hash_secret(cls, secret):
+        # type: (bytes) -> bytes
+        """
+        Hash a lease secret for storage.
+        """
+        return blake2b(secret, digest_size=32, encoder=RawEncoder())
+
+    @classmethod
+    def _hash_lease_info(cls, lease_info):
+        # type: (LeaseInfo) -> HashedLeaseInfo
+        """
+        Hash the cleartext lease info secrets into a ``HashedLeaseInfo``.
+        """
+        if not isinstance(lease_info, LeaseInfo):
+            # Provide a little safety against misuse, especially an attempt to
+            # re-hash an already-hashed lease info which is represented as a
+            # different type.
+            raise TypeError(
+                "Can only hash LeaseInfo, not {!r}".format(lease_info),
+            )
+
+        # Hash the cleartext secrets in the lease info and wrap the result in
+        # a new type.
+        return HashedLeaseInfo(
+            attr.assoc(
+                lease_info,
+                renew_secret=cls._hash_secret(lease_info.renew_secret),
+                cancel_secret=cls._hash_secret(lease_info.cancel_secret),
+            ),
+            cls._hash_secret,
+        )
+
+    @classmethod
+    def header(cls, max_size):
+        # type: (int) -> bytes
+        """
+        Construct a container header.
+
+        :param max_size: the maximum size the container can hold
+
+        :return: the header bytes
+        """
+        return _header(cls.version, max_size)
+
+    @classmethod
+    def serialize_lease(cls, lease):
+        # type: (Union[LeaseInfo, HashedLeaseInfo]) -> bytes
+        """
+        Serialize a lease to be written to a v2 container.
+
+        :param lease: the lease to serialize
+
+        :return: the serialized bytes
+        """
+        if isinstance(lease, LeaseInfo):
+            # v2 of the immutable schema stores lease secrets hashed.  If
+            # we're given a LeaseInfo then it holds plaintext secrets.  Hash
+            # them before trying to serialize.
+            lease = cls._hash_lease_info(lease)
+        if isinstance(lease, HashedLeaseInfo):
+            return lease.to_immutable_data()
+        raise ValueError(
+            "ShareFile v2 schema cannot represent lease {!r}".format(
+                lease,
+            ),
+        )
+
+    @classmethod
+    def unserialize_lease(cls, data):
+        # type: (bytes) -> HashedLeaseInfo
+        """
+        Unserialize some bytes from a v2 container.
+
+        :param data: the bytes from the container
+
+        :return: the ``HashedLeaseInfo`` the bytes represent
+        """
+        # In v2 of the immutable schema lease secrets are stored hashed.  Wrap
+        # a LeaseInfo in a HashedLeaseInfo so it can supply the correct
+        # interpretation for those values.
+        return HashedLeaseInfo(LeaseInfo.from_immutable_data(data), cls._hash_secret)
+
 
 class _V1(object):
     """
@@ -66,7 +163,7 @@ class _V1(object):
         return LeaseInfo.from_immutable_data(data)
 
 
-ALL_SCHEMAS = {_V1}
+ALL_SCHEMAS = {_V2, _V1}
 ALL_SCHEMA_VERSIONS = {schema.version for schema in ALL_SCHEMAS}
 NEWEST_SCHEMA_VERSION = max(ALL_SCHEMAS, key=lambda schema: schema.version)
 

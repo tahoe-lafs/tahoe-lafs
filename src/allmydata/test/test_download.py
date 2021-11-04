@@ -1113,9 +1113,17 @@ class Corruption(_Base, unittest.TestCase):
                 d.addCallback(_download, imm_uri, i, expected)
                 d.addCallback(lambda ign: self.restore_all_shares(self.shares))
                 d.addCallback(fireEventually)
-            corrupt_values = [(3, 2, "no-sh2"),
-                              (15, 2, "need-4th"), # share looks v2
-                              ]
+            corrupt_values = [
+                # Make the container version for share number 2 look
+                # unsupported.  If you add support for immutable share file
+                # version number much past 16 million then you will have to
+                # update this test.  Also maybe you have other problems.
+                (1, 255, "no-sh2"),
+                # Make the immutable share number 2 (not the container, the
+                # thing inside the container) look unsupported.  Ditto the
+                # above about version numbers in the ballpark of 16 million.
+                (13, 255, "need-4th"),
+            ]
             for i,newvalue,expected in corrupt_values:
                 d.addCallback(self._corrupt_set, imm_uri, i, newvalue)
                 d.addCallback(_download, imm_uri, i, expected)
