@@ -24,7 +24,10 @@ from allmydata.storage.lease import LeaseInfo
 from allmydata.storage.common import UnknownMutableContainerVersionError, \
      DataTooLargeError
 from allmydata.mutable.layout import MAX_MUTABLE_SHARE_SIZE
-
+from .mutable_schema import (
+    NEWEST_SCHEMA_VERSION,
+    schema_from_header,
+)
 
 # the MutableShareFile is like the ShareFile, but used for mutable data. It
 # has a different layout. See docs/mutable.txt for more details.
@@ -64,9 +67,6 @@ class MutableShareFile(object):
     # our sharefiles share with a recognizable string, plus some random
     # binary data to reduce the chance that a regular text file will look
     # like a sharefile.
-    MAGIC = b"Tahoe mutable container v1\n" + b"\x75\x09\x44\x03\x8e"
-    assert len(MAGIC) == 32
-    assert isinstance(MAGIC, bytes)
     MAX_SIZE = MAX_MUTABLE_SHARE_SIZE
     # TODO: decide upon a policy for max share size
 
@@ -82,20 +82,19 @@ class MutableShareFile(object):
         :return: ``True`` if the bytes could belong to this container,
             ``False`` otherwise.
         """
-        return header.startswith(cls.MAGIC)
+        return schema_from_header(header) is not None
 
-    def __init__(self, filename, parent=None):
+    def __init__(self, filename, parent=None, schema=NEWEST_SCHEMA_VERSION):
         self.home = filename
         if os.path.exists(self.home):
             # we don't cache anything, just check the magic
             with open(self.home, 'rb') as f:
-                data = f.read(self.HEADER_SIZE)
-            (magic,
-             write_enabler_nodeid, write_enabler,
-             data_length, extra_least_offset) = \
-             struct.unpack(">32s20s32sQQ", data)
-            if not self.is_valid_header(data):
-                raise UnknownMutableContainerVersionError(filename, magic)
+                header = f.read(self.HEADER_SIZE)
+            self._schema = schema_from_header(header)
+            if self._schema is None:
+                raise UnknownMutableContainerVersionError(filename, header)
+        else:
+            self._schema = schema
         self.parent = parent # for logging
 
     def log(self, *args, **kwargs):
@@ -103,23 +102,8 @@ class MutableShareFile(object):
 
     def create(self, my_nodeid, write_enabler):
         assert not os.path.exists(self.home)
-        data_length = 0
-        extra_lease_offset = (self.HEADER_SIZE
-                              + 4 * self.LEASE_SIZE
-                              + data_length)
-        assert extra_lease_offset == self.DATA_OFFSET # true at creation
-        num_extra_leases = 0
         with open(self.home, 'wb') as f:
-            header = struct.pack(
-                ">32s20s32sQQ",
-                self.MAGIC, my_nodeid, write_enabler,
-                data_length, extra_lease_offset,
-            )
-            leases = (b"\x00" * self.LEASE_SIZE) * 4
-            f.write(header + leases)
-            # data goes here, empty after creation
-            f.write(struct.pack(">L", num_extra_leases))
-            # extra leases go here, none at creation
+            f.write(self._schema.header(my_nodeid, write_enabler))
 
     def unlink(self):
         os.unlink(self.home)
@@ -252,7 +236,7 @@ class MutableShareFile(object):
                       + (lease_number-4)*self.LEASE_SIZE)
         f.seek(offset)
         assert f.tell() == offset
-        f.write(lease_info.to_mutable_data())
+        f.write(self._schema.serialize_lease(lease_info))
 
     def _read_lease_record(self, f, lease_number):
         # returns a LeaseInfo instance, or None
@@ -269,7 +253,7 @@ class MutableShareFile(object):
         f.seek(offset)
         assert f.tell() == offset
         data = f.read(self.LEASE_SIZE)
-        lease_info = LeaseInfo.from_mutable_data(data)
+        lease_info = self._schema.unserialize_lease(data)
         if lease_info.owner_num == 0:
             return None
         return lease_info
