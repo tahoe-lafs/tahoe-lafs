@@ -29,7 +29,7 @@ from .lease import (
 )
 
 def _header(version, max_size):
-    # (int, int) -> bytes
+    # type: (int, int) -> bytes
     """
     Construct the header for an immutable container.
 
