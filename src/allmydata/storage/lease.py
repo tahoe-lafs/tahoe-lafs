@@ -252,7 +252,7 @@ class LeaseInfo(object):
 
 
 @attr.s(frozen=True)
-class HashedLeaseInfo(proxyForInterface(ILeaseInfo, "_lease_info")):
+class HashedLeaseInfo(proxyForInterface(ILeaseInfo, "_lease_info")): # type: ignore # unsupported dynamic base class
     """
     A ``HashedLeaseInfo`` wraps lease information in which the secrets have
     been hashed.

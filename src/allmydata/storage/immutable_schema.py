@@ -169,8 +169,8 @@ class _V1(object):
 
 
 ALL_SCHEMAS = {_V2, _V1}
-ALL_SCHEMA_VERSIONS = {schema.version for schema in ALL_SCHEMAS}
-NEWEST_SCHEMA_VERSION = max(ALL_SCHEMAS, key=lambda schema: schema.version)
+ALL_SCHEMA_VERSIONS = {schema.version for schema in ALL_SCHEMAS} # type: ignore
+NEWEST_SCHEMA_VERSION = max(ALL_SCHEMAS, key=lambda schema: schema.version) # type: ignore
 
 def schema_from_version(version):
     # (int) -> Optional[type]
