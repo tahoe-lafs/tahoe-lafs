@@ -13,6 +13,11 @@ if PY2:
 
 import struct
 
+try:
+    from typing import Union
+except ImportError:
+    pass
+
 import attr
 
 from nacl.hash import blake2b
