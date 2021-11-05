@@ -56,6 +56,7 @@ from eliot.testing import (
     capture_logging,
     assertHasAction,
     swap_logger,
+    assertContainsFields,
 )
 
 from twisted.internet.defer import (
@@ -280,4 +281,76 @@ class LogCallDeferredTests(TestCase):
                     IsInstance(Result),
                 ),
             ),
+        )
+
+    @capture_logging(
+        lambda self, logger:
+        assertHasAction(self, logger, u"the-action", succeeded=True),
+    )
+    def test_gets_positional_arguments(self, logger):
+        """
+        Check that positional arguments are logged when using ``log_call_deferred``
+        """
+        @log_call_deferred(action_type=u"the-action")
+        def f(a):
+            return a ** 2
+        self.assertThat(
+            f(4), succeeded(Equals(16)))
+        msg = logger.messages[0]
+        assertContainsFields(self, msg, {"args": (4,)})
+
+    @capture_logging(
+        lambda self, logger:
+        assertHasAction(self, logger, u"the-action", succeeded=True),
+    )
+    def test_gets_keyword_arguments(self, logger):
+        """
+        Check that keyword arguments are logged when using ``log_call_deferred``
+        """
+        @log_call_deferred(action_type=u"the-action")
+        def f(base, exp):
+            return base ** exp
+        self.assertThat(f(exp=2,base=10), succeeded(Equals(100)))
+        msg = logger.messages[0]
+        assertContainsFields(self, msg, {"kwargs": {"base": 10, "exp": 2}})
+
+
+    @capture_logging(
+        lambda self, logger:
+        assertHasAction(self, logger, u"the-action", succeeded=True),
+    )
+    def test_gets_keyword_and_positional_arguments(self, logger):
+        """
+        Check that both keyword and positional arguments are logged when using ``log_call_deferred``
+        """
+        @log_call_deferred(action_type=u"the-action")
+        def f(base, exp, message):
+            return base ** exp
+        self.assertThat(f(10, 2, message="an exponential function"), succeeded(Equals(100)))
+        msg = logger.messages[0]
+        assertContainsFields(self, msg, {"args": (10, 2)})
+        assertContainsFields(self, msg, {"kwargs": {"message": "an exponential function"}})
+
+
+    @capture_logging(
+        lambda self, logger:
+        assertHasAction(self, logger, u"the-action", succeeded=True),
+    )
+    def test_keyword_args_dont_overlap_with_start_action(self, logger):
+        """
+        Check that kwargs passed to decorated functions don't overlap with params in ``start_action``
+        """
+        @log_call_deferred(action_type=u"the-action")
+        def f(base, exp, kwargs, args):
+            return base ** exp
+        self.assertThat(
+            f(10, 2, kwargs={"kwarg_1": "value_1", "kwarg_2": 2}, args=(1, 2, 3)),
+            succeeded(Equals(100)),
+        )
+        msg = logger.messages[0]
+        assertContainsFields(self, msg, {"args": (10, 2)})
+        assertContainsFields(
+            self,
+            msg,
+            {"kwargs": {"args": (1, 2, 3), "kwargs": {"kwarg_1": "value_1", "kwarg_2": 2}}},
         )
