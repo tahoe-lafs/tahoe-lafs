@@ -1361,14 +1361,21 @@ class MutableServer(unittest.TestCase):
                                       2: [b"2"*10]})
 
     def compare_leases_without_timestamps(self, leases_a, leases_b):
-        self.failUnlessEqual(len(leases_a), len(leases_b))
-        for i in range(len(leases_a)):
-            a = leases_a[i]
-            b = leases_b[i]
-            self.failUnlessEqual(a.owner_num,       b.owner_num)
-            self.failUnlessEqual(a.renew_secret,    b.renew_secret)
-            self.failUnlessEqual(a.cancel_secret,   b.cancel_secret)
-            self.failUnlessEqual(a.nodeid,          b.nodeid)
+        for a, b in zip(leases_a, leases_b):
+            # The leases aren't always of the same type (though of course
+            # corresponding elements in the two lists should be of the same
+            # type as each other) so it's inconvenient to just reach in and
+            # normalize the expiration timestamp.  We don't want to call
+            # `renew` on both objects to normalize the expiration timestamp in
+            # case `renew` is broken and gives us back equal outputs from
+            # non-equal inputs (expiration timestamp aside).  It seems
+            # reasonably safe to use `renew` to make _one_ of the timestamps
+            # equal to the other though.
+            self.assertEqual(
+                a.renew(b.get_expiration_time()),
+                b,
+            )
+        self.assertEqual(len(leases_a), len(leases_b))
 
     def test_leases(self):
         ss = self.create("test_leases")
