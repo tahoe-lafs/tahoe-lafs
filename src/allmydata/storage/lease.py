@@ -287,6 +287,13 @@ class HashedLeaseInfo(proxyForInterface(ILeaseInfo, "_lease_info")): # type: ign
     _lease_info = attr.ib()
     _hash = attr.ib()
 
+    def renew(self, new_expire_time):
+        # Preserve the HashedLeaseInfo wrapper around the renewed LeaseInfo.
+        return attr.assoc(
+            self,
+            _lease_info=super(HashedLeaseInfo, self).renew(new_expire_time),
+        )
+
     def is_renew_secret(self, candidate_secret):
         # type: (bytes) -> bool
         """
