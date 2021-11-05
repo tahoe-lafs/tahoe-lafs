@@ -13,22 +13,17 @@ if PY2:
 
 import struct
 
-try:
-    from typing import Union
-except ImportError:
-    pass
-
 import attr
-
-from nacl.hash import blake2b
-from nacl.encoding import RawEncoder
 
 from ..util.hashutil import (
     tagged_hash,
 )
 from .lease import (
     LeaseInfo,
-    HashedLeaseInfo,
+)
+from .lease_schema import (
+    v1_mutable,
+    v2_mutable,
 )
 
 def _magic(version):
@@ -94,168 +89,49 @@ def _header(magic, extra_lease_offset, nodeid, write_enabler):
     ])
 
 
-class _V2(object):
+_HEADER_FORMAT = ">32s20s32sQQ"
+
+# This size excludes leases
+_HEADER_SIZE = struct.calcsize(_HEADER_FORMAT)
+
+_EXTRA_LEASE_OFFSET = _HEADER_SIZE + 4 * LeaseInfo().mutable_size()
+
+
+@attr.s(frozen=True)
+class _Schema(object):
     """
-    Implement encoding and decoding for v2 of the mutable container.
+    Implement encoding and decoding for the mutable container.
+
+    :ivar int version: the version number of the schema this object supports
+
+    :ivar lease_serializer: an object that is responsible for lease
+        serialization and unserialization
     """
-    version = 2
-    _MAGIC = _magic(version)
-
-    _HEADER_FORMAT = ">32s20s32sQQ"
-
-    # This size excludes leases
-    _HEADER_SIZE = struct.calcsize(_HEADER_FORMAT)
-
-    _EXTRA_LEASE_OFFSET = _HEADER_SIZE + 4 * LeaseInfo().mutable_size()
+    version = attr.ib()
+    lease_serializer = attr.ib()
+    _magic = attr.ib()
 
     @classmethod
-    def _hash_secret(cls, secret):
-        # type: (bytes) -> bytes
-        """
-        Hash a lease secret for storage.
-        """
-        return blake2b(secret, digest_size=32, encoder=RawEncoder())
+    def for_version(cls, version, lease_serializer):
+        return cls(version, lease_serializer, magic=_magic(version))
 
-    @classmethod
-    def _hash_lease_info(cls, lease_info):
-        # type: (LeaseInfo) -> HashedLeaseInfo
-        """
-        Hash the cleartext lease info secrets into a ``HashedLeaseInfo``.
-        """
-        if not isinstance(lease_info, LeaseInfo):
-            # Provide a little safety against misuse, especially an attempt to
-            # re-hash an already-hashed lease info which is represented as a
-            # different type.
-            raise TypeError(
-                "Can only hash LeaseInfo, not {!r}".format(lease_info),
-            )
-
-        # Hash the cleartext secrets in the lease info and wrap the result in
-        # a new type.
-        return HashedLeaseInfo(
-            attr.assoc(
-                lease_info,
-                renew_secret=cls._hash_secret(lease_info.renew_secret),
-                cancel_secret=cls._hash_secret(lease_info.cancel_secret),
-            ),
-            cls._hash_secret,
-        )
-
-    @classmethod
-    def magic_matches(cls, candidate_magic):
+    def magic_matches(self, candidate_magic):
         # type: (bytes) -> bool
         """
         Return ``True`` if a candidate string matches the expected magic string
         from a mutable container header, ``False`` otherwise.
         """
-        return candidate_magic[:len(cls._MAGIC)] == cls._MAGIC
+        return candidate_magic[:len(self._magic)] == self._magic
 
-    @classmethod
-    def header(cls, nodeid, write_enabler):
-        return _header(cls._MAGIC, cls._EXTRA_LEASE_OFFSET, nodeid, write_enabler)
+    def header(self, nodeid, write_enabler):
+        return _header(self._magic, _EXTRA_LEASE_OFFSET, nodeid, write_enabler)
 
-    @classmethod
-    def serialize_lease(cls, lease):
-        # type: (Union[LeaseInfo, HashedLeaseInfo]) -> bytes
-        """
-        Serialize a lease to be written to a v2 container.
-
-        :param lease: the lease to serialize
-
-        :return: the serialized bytes
-        """
-        if isinstance(lease, LeaseInfo):
-            # v2 of the mutable schema stores lease secrets hashed.  If we're
-            # given a LeaseInfo then it holds plaintext secrets.  Hash them
-            # before trying to serialize.
-            lease = cls._hash_lease_info(lease)
-        if isinstance(lease, HashedLeaseInfo):
-            return lease.to_mutable_data()
-        raise ValueError(
-            "MutableShareFile v2 schema cannot represent lease {!r}".format(
-                lease,
-            ),
-        )
-
-    @classmethod
-    def unserialize_lease(cls, data):
-        # type: (bytes) -> HashedLeaseInfo
-        """
-        Unserialize some bytes from a v2 container.
-
-        :param data: the bytes from the container
-
-        :return: the ``HashedLeaseInfo`` the bytes represent
-        """
-        # In v2 of the immutable schema lease secrets are stored hashed.  Wrap
-        # a LeaseInfo in a HashedLeaseInfo so it can supply the correct
-        # interpretation for those values.
-        lease = LeaseInfo.from_mutable_data(data)
-        return HashedLeaseInfo(lease, cls._hash_secret)
-
-
-class _V1(object):
-    """
-    Implement encoding and decoding for v1 of the mutable container.
-    """
-    version = 1
-    _MAGIC = _magic(version)
-
-    _HEADER_FORMAT = ">32s20s32sQQ"
-
-    # This size excludes leases
-    _HEADER_SIZE = struct.calcsize(_HEADER_FORMAT)
-
-    _EXTRA_LEASE_OFFSET = _HEADER_SIZE + 4 * LeaseInfo().mutable_size()
-
-    @classmethod
-    def magic_matches(cls, candidate_magic):
-        # type: (bytes) -> bool
-        """
-        Return ``True`` if a candidate string matches the expected magic string
-        from a mutable container header, ``False`` otherwise.
-        """
-        return candidate_magic[:len(cls._MAGIC)] == cls._MAGIC
-
-    @classmethod
-    def header(cls, nodeid, write_enabler):
-        return _header(cls._MAGIC, cls._EXTRA_LEASE_OFFSET, nodeid, write_enabler)
-
-
-    @classmethod
-    def serialize_lease(cls, lease_info):
-        # type: (LeaseInfo) -> bytes
-        """
-        Serialize a lease to be written to a v1 container.
-
-        :param lease: the lease to serialize
-
-        :return: the serialized bytes
-        """
-        if isinstance(lease, LeaseInfo):
-            return lease_info.to_mutable_data()
-        raise ValueError(
-            "MutableShareFile v1 schema only supports LeaseInfo, not {!r}".format(
-                lease,
-            ),
-        )
-
-    @classmethod
-    def unserialize_lease(cls, data):
-        # type: (bytes) -> LeaseInfo
-        """
-        Unserialize some bytes from a v1 container.
-
-        :param data: the bytes from the container
-
-        :return: the ``LeaseInfo`` the bytes represent
-        """
-        return LeaseInfo.from_mutable_data(data)
-
-
-ALL_SCHEMAS = {_V2, _V1}
-ALL_SCHEMA_VERSIONS = {schema.version for schema in ALL_SCHEMAS} # type: ignore
-NEWEST_SCHEMA_VERSION = max(ALL_SCHEMAS, key=lambda schema: schema.version) # type: ignore
+ALL_SCHEMAS = {
+    _Schema.for_version(version=2, lease_serializer=v2_mutable),
+    _Schema.for_version(version=1, lease_serializer=v1_mutable),
+}
+ALL_SCHEMA_VERSIONS = {schema.version for schema in ALL_SCHEMAS}
+NEWEST_SCHEMA_VERSION = max(ALL_SCHEMAS, key=lambda schema: schema.version)
 
 def schema_from_header(header):
     # (int) -> Optional[type]

@@ -236,7 +236,7 @@ class MutableShareFile(object):
                       + (lease_number-4)*self.LEASE_SIZE)
         f.seek(offset)
         assert f.tell() == offset
-        f.write(self._schema.serialize_lease(lease_info))
+        f.write(self._schema.lease_serializer.serialize(lease_info))
 
     def _read_lease_record(self, f, lease_number):
         # returns a LeaseInfo instance, or None
@@ -253,7 +253,7 @@ class MutableShareFile(object):
         f.seek(offset)
         assert f.tell() == offset
         data = f.read(self.LEASE_SIZE)
-        lease_info = self._schema.unserialize_lease(data)
+        lease_info = self._schema.lease_serializer.unserialize(data)
         if lease_info.owner_num == 0:
             return None
         return lease_info

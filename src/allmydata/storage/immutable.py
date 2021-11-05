@@ -231,7 +231,7 @@ class ShareFile(object):
         offset = self._lease_offset + lease_number * self.LEASE_SIZE
         f.seek(offset)
         assert f.tell() == offset
-        f.write(self._schema.serialize_lease(lease_info))
+        f.write(self._schema.lease_serializer.serialize(lease_info))
 
     def _read_num_leases(self, f):
         f.seek(0x08)
@@ -262,7 +262,7 @@ class ShareFile(object):
             for i in range(num_leases):
                 data = f.read(self.LEASE_SIZE)
                 if data:
-                    yield self._schema.unserialize_lease(data)
+                    yield self._schema.lease_serializer.unserialize(data)
 
     def add_lease(self, lease_info):
         with open(self.home, 'rb+') as f:

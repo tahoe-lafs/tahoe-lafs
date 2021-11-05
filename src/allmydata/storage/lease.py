@@ -230,7 +230,7 @@ class LeaseInfo(object):
             "cancel_secret",
             "expiration_time",
         ]
-        values = struct.unpack(">L32s32sL", data)
+        values = struct.unpack(IMMUTABLE_FORMAT, data)
         return cls(nodeid=None, **dict(zip(names, values)))
 
     def immutable_size(self):
@@ -274,7 +274,7 @@ class LeaseInfo(object):
             "cancel_secret",
             "nodeid",
         ]
-        values = struct.unpack(">LL32s32s20s", data)
+        values = struct.unpack(MUTABLE_FORMAT, data)
         return cls(**dict(zip(names, values)))
 
 
