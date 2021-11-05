@@ -187,7 +187,7 @@ class LeaseInfo(object):
         return timing_safe_compare(self.renew_secret, candidate_secret)
 
     def present_renew_secret(self):
-        # type: () -> bytes
+        # type: () -> str
         """
         Return the renew secret, base32-encoded.
         """
@@ -204,7 +204,7 @@ class LeaseInfo(object):
         return timing_safe_compare(self.cancel_secret, candidate_secret)
 
     def present_cancel_secret(self):
-        # type: () -> bytes
+        # type: () -> str
         """
         Return the cancel secret, base32-encoded.
         """
@@ -288,6 +288,7 @@ class HashedLeaseInfo(proxyForInterface(ILeaseInfo, "_lease_info")): # type: ign
     _hash = attr.ib()
 
     def is_renew_secret(self, candidate_secret):
+        # type: (bytes) -> bool
         """
         Hash the candidate secret and compare the result to the stored hashed
         secret.
@@ -295,12 +296,14 @@ class HashedLeaseInfo(proxyForInterface(ILeaseInfo, "_lease_info")): # type: ign
         return super(HashedLeaseInfo, self).is_renew_secret(self._hash(candidate_secret))
 
     def present_renew_secret(self):
+        # type: () -> str
         """
         Present the hash of the secret with a marker indicating it is a hash.
         """
         return u"hash:" + super(HashedLeaseInfo, self).present_renew_secret()
 
     def is_cancel_secret(self, candidate_secret):
+        # type: (bytes) -> bool
         """
         Hash the candidate secret and compare the result to the stored hashed
         secret.
@@ -322,6 +325,7 @@ class HashedLeaseInfo(proxyForInterface(ILeaseInfo, "_lease_info")): # type: ign
         return super(HashedLeaseInfo, self).is_cancel_secret(hashed_candidate)
 
     def present_cancel_secret(self):
+        # type: () -> str
         """
         Present the hash of the secret with a marker indicating it is a hash.
         """
