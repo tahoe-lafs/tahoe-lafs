@@ -30,7 +30,6 @@ zope.interface-*.egg
 
 /src/allmydata/test/plugins/dropin.cache
 /_trial_temp*
-/_test_memory/
 /tmp*
 /*.patch
 /dist/

@@ -12,7 +12,7 @@ if PY2:
     from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, dict, list, object, range, max, min, str  # noqa: F401
 
 from past.builtins import chr as byteschr, long
-from six import ensure_text, ensure_str
+from six import ensure_text
 
 import os, re, sys, time, json
 
@@ -23,6 +23,7 @@ from twisted.internet import defer
 
 from allmydata import uri
 from allmydata.storage.mutable import MutableShareFile
+from allmydata.storage.immutable import ShareFile
 from allmydata.storage.server import si_a2b
 from allmydata.immutable import offloaded, upload
 from allmydata.immutable.literal import LiteralFileNode
@@ -780,7 +781,6 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         d.addCallback(self._check_publish_private)
         d.addCallback(self.log, "did _check_publish_private")
         d.addCallback(self._test_web)
-        d.addCallback(self._test_control)
         d.addCallback(self._test_cli)
         # P now has four top-level children:
         # P/personal/sekrit data
@@ -1291,9 +1291,9 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
                 # are sharefiles here
                 filename = os.path.join(dirpath, filenames[0])
                 # peek at the magic to see if it is a chk share
-                magic = open(filename, "rb").read(4)
-                if magic == b'\x00\x00\x00\x01':
-                    break
+                with open(filename, "rb") as f:
+                    if ShareFile.is_valid_header(f.read(32)):
+                        break
         else:
             self.fail("unable to find any uri_extension files in %r"
                       % self.basedir)
@@ -1342,25 +1342,6 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
                     for line in descriptions
                     if line.startswith("CHK %s " % storage_index_s)]
         self.failUnlessEqual(len(matching), 10)
-
-    def _test_control(self, res):
-        # exercise the remote-control-the-client foolscap interfaces in
-        # allmydata.control (mostly used for performance tests)
-        c0 = self.clients[0]
-        control_furl_file = c0.config.get_private_path("control.furl")
-        control_furl = ensure_str(open(control_furl_file, "r").read().strip())
-        # it doesn't really matter which Tub we use to connect to the client,
-        # so let's just use our IntroducerNode's
-        d = self.introducer.tub.getReference(control_furl)
-        d.addCallback(self._test_control2, control_furl_file)
-        return d
-    def _test_control2(self, rref, filename):
-        d = defer.succeed(None)
-        d.addCallback(lambda res: rref.callRemote("speed_test", 1, 200, False))
-        if sys.platform in ("linux2", "linux3"):
-            d.addCallback(lambda res: rref.callRemote("get_memory_usage"))
-        d.addCallback(lambda res: rref.callRemote("measure_peer_response_time"))
-        return d
 
     def _test_cli(self, res):
         # run various CLI commands (in a thread, since they use blocking

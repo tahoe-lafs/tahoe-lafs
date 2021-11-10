@@ -267,8 +267,12 @@ class UseNode(object):
     node_config = attr.ib(default=attr.Factory(dict))
 
     config = attr.ib(default=None)
+    reactor = attr.ib(default=None)
 
     def setUp(self):
+        self.assigner = SameProcessStreamEndpointAssigner()
+        self.assigner.setUp()
+
         def format_config_items(config):
             return "\n".join(
                 " = ".join((key, value))
@@ -292,6 +296,23 @@ class UseNode(object):
             "default",
             self.introducer_furl,
         )
+
+        node_config = self.node_config.copy()
+        if "tub.port" not in node_config:
+            if "tub.location" in node_config:
+                raise ValueError(
+                    "UseNode fixture does not support specifying tub.location "
+                    "without tub.port"
+                )
+
+            # Don't use the normal port auto-assignment logic.  It produces
+            # collisions and makes tests fail spuriously.
+            tub_location, tub_endpoint = self.assigner.assign(self.reactor)
+            node_config.update({
+                "tub.port": tub_endpoint,
+                "tub.location": tub_location,
+            })
+
         self.config = config_from_string(
             self.basedir.asTextMode().path,
             "tub.port",
@@ -304,7 +325,7 @@ storage.plugins = {storage_plugin}
 {plugin_config_section}
 """.format(
     storage_plugin=self.storage_plugin,
-    node_config=format_config_items(self.node_config),
+    node_config=format_config_items(node_config),
     plugin_config_section=plugin_config_section,
 )
         )
@@ -316,7 +337,7 @@ storage.plugins = {storage_plugin}
         )
 
     def cleanUp(self):
-        pass
+        self.assigner.tearDown()
 
 
     def getDetails(self):
@@ -1068,7 +1089,7 @@ def _corrupt_offset_of_uri_extension_to_force_short_read(data, debug=False):
 
 def _corrupt_mutable_share_data(data, debug=False):
     prefix = data[:32]
-    assert prefix == MutableShareFile.MAGIC, "This function is designed to corrupt mutable shares of v1, and the magic number doesn't look right: %r vs %r" % (prefix, MutableShareFile.MAGIC)
+    assert MutableShareFile.is_valid_header(prefix), "This function is designed to corrupt mutable shares of v1, and the magic number doesn't look right: %r vs %r" % (prefix, MutableShareFile.MAGIC)
     data_offset = MutableShareFile.DATA_OFFSET
     sharetype = data[data_offset:data_offset+1]
     assert sharetype == b"\x00", "non-SDMF mutable shares not supported"

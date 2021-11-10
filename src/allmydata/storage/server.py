@@ -14,7 +14,7 @@ if PY2:
 else:
     from typing import Dict
 
-import os, re, struct, time
+import os, re, time
 import six
 
 from foolscap.api import Referenceable
@@ -373,12 +373,12 @@ class StorageServer(service.MultiService, Referenceable):
         for shnum, filename in self._get_bucket_shares(storage_index):
             with open(filename, 'rb') as f:
                 header = f.read(32)
-            if header[:32] == MutableShareFile.MAGIC:
+            if MutableShareFile.is_valid_header(header):
                 sf = MutableShareFile(filename, self)
                 # note: if the share has been migrated, the renew_lease()
                 # call will throw an exception, with information to help the
                 # client update the lease.
-            elif header[:4] == struct.pack(">L", 1):
+            elif ShareFile.is_valid_header(header):
                 sf = ShareFile(filename)
             else:
                 continue # non-sharefile

@@ -40,7 +40,6 @@ from allmydata.storage.server import StorageServer
 from allmydata import storage_client
 from allmydata.immutable.upload import Uploader
 from allmydata.immutable.offloaded import Helper
-from allmydata.control import ControlServer
 from allmydata.introducer.client import IntroducerClient
 from allmydata.util import (
     hashutil, base32, pollmixin, log, idlib,
@@ -283,7 +282,6 @@ def create_client_from_config(config, _client_factory=None, _introducer_factory=
         config, tub_options, default_connection_handlers,
         foolscap_connection_handlers, i2p_provider, tor_provider,
     )
-    control_tub = node.create_control_tub()
 
     introducer_clients = create_introducer_clients(config, main_tub, _introducer_factory)
     storage_broker = create_storage_farm_broker(
@@ -294,7 +292,6 @@ def create_client_from_config(config, _client_factory=None, _introducer_factory=
     client = _client_factory(
         config,
         main_tub,
-        control_tub,
         i2p_provider,
         tor_provider,
         introducer_clients,
@@ -631,12 +628,12 @@ class _Client(node.Node, pollmixin.PollMixin):
                                    "max_segment_size": DEFAULT_MAX_SEGMENT_SIZE,
                                    }
 
-    def __init__(self, config, main_tub, control_tub, i2p_provider, tor_provider, introducer_clients,
+    def __init__(self, config, main_tub, i2p_provider, tor_provider, introducer_clients,
                  storage_farm_broker):
         """
         Use :func:`allmydata.client.create_client` to instantiate one of these.
         """
-        node.Node.__init__(self, config, main_tub, control_tub, i2p_provider, tor_provider)
+        node.Node.__init__(self, config, main_tub, i2p_provider, tor_provider)
 
         self.started_timestamp = time.time()
         self.logSource = "Client"
@@ -648,7 +645,6 @@ class _Client(node.Node, pollmixin.PollMixin):
         self.init_stats_provider()
         self.init_secrets()
         self.init_node_key()
-        self.init_control()
         self._key_generator = KeyGenerator()
         key_gen_furl = config.get_config("client", "key_generator.furl", None)
         if key_gen_furl:
@@ -984,12 +980,6 @@ class _Client(node.Node, pollmixin.PollMixin):
 
     def get_history(self):
         return self.history
-
-    def init_control(self):
-        c = ControlServer()
-        c.setServiceParent(self)
-        control_url = self.control_tub.registerReference(c)
-        self.config.write_private_config("control.furl", control_url + "\n")
 
     def init_helper(self):
         self.helper = Helper(self.config.get_config_path("helper"),
