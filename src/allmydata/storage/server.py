@@ -617,10 +617,8 @@ class StorageServer(service.MultiService, Referenceable):
             else:
                 if sharenum not in shares:
                     # allocate a new share
-                    allocated_size = 2000 # arbitrary, really
                     share = self._allocate_slot_share(bucketdir, secrets,
                                                       sharenum,
-                                                      allocated_size,
                                                       owner_num=0)
                     shares[sharenum] = share
                 shares[sharenum].writev(datav, new_length)
@@ -726,7 +724,7 @@ class StorageServer(service.MultiService, Referenceable):
         )
 
     def _allocate_slot_share(self, bucketdir, secrets, sharenum,
-                             allocated_size, owner_num=0):
+                             owner_num=0):
         (write_enabler, renew_secret, cancel_secret) = secrets
         my_nodeid = self.my_nodeid
         fileutil.make_dirs(bucketdir)
