@@ -57,8 +57,22 @@ DEFAULT_RENEWAL_TIME = 31 * 24 * 60 * 60
 
 @implementer(RIStorageServer, IStatsProducer)
 class StorageServer(service.MultiService, Referenceable):
+    """
+    A filesystem-based implementation of ``RIStorageServer``.
+
+    :ivar bool _implicit_bucket_lease_renewal: If and only if this is ``True``
+        then ``allocate_buckets`` will renew leases on existing shares
+        associated with the storage index it operates on.
+
+    :ivar bool _implicit_slot_lease_renewal: If and only if this is ``True``
+        then ``slot_testv_and_readv_and_writev`` will renew leases on shares
+        associated with the slot it operates on.
+    """
     name = 'storage'
     LeaseCheckerClass = LeaseCheckingCrawler
+
+    _implicit_bucket_lease_renewal = True
+    _implicit_slot_lease_renewal = True
 
     def __init__(self, storedir, nodeid, reserved_space=0,
                  discard_storage=False, readonly_storage=False,
@@ -134,6 +148,29 @@ class StorageServer(service.MultiService, Referenceable):
 
     def __repr__(self):
         return "<StorageServer %s>" % (idlib.shortnodeid_b2a(self.my_nodeid),)
+
+    def set_implicit_bucket_lease_renewal(self, enabled):
+        # type: (bool) -> None
+        """
+        Control the behavior of implicit lease renewal by *allocate_buckets*.
+
+        :param enabled: If and only if ``True`` then future *allocate_buckets*
+            calls will renew leases on shares that already exist in the bucket.
+        """
+        self._implicit_bucket_lease_renewal = enabled
+
+    def set_implicit_slot_lease_renewal(self, enabled):
+        # type: (bool) -> None
+        """
+        Control the behavior of implicit lease renewal by
+        *slot_testv_and_readv_and_writev*.
+
+        :param enabled: If and only if ``True`` then future
+            *slot_testv_and_readv_and_writev* calls will renew leases on
+            shares that still exist in the slot after the writev is applied
+            and which were touched by the writev.
+        """
+        self._implicit_slot_lease_renewal = enabled
 
     def have_shares(self):
         # quick test to decide if we need to commit to an implicit
@@ -319,8 +356,9 @@ class StorageServer(service.MultiService, Referenceable):
         # file, they'll want us to hold leases for this file.
         for (shnum, fn) in self._get_bucket_shares(storage_index):
             alreadygot.add(shnum)
-            sf = ShareFile(fn)
-            sf.add_or_renew_lease(lease_info)
+            if self._implicit_bucket_lease_renewal:
+                sf = ShareFile(fn)
+                sf.add_or_renew_lease(lease_info)
 
         for shnum in sharenums:
             incominghome = os.path.join(self.incomingdir, si_dir, "%d" % shnum)
@@ -625,14 +663,9 @@ class StorageServer(service.MultiService, Referenceable):
             secrets,
             test_and_write_vectors,
             read_vector,
-            renew_leases,
     ):
         """
         Read data from shares and conditionally write some data to them.
-
-        :param bool renew_leases: If and only if this is ``True`` and the test
-            vectors pass then shares in this slot will also have an updated
-            lease applied to them.
 
         See ``allmydata.interfaces.RIStorageServer`` for details about other
         parameters and return value.
@@ -673,7 +706,7 @@ class StorageServer(service.MultiService, Referenceable):
                 test_and_write_vectors,
                 shares,
             )
-            if renew_leases:
+            if self._implicit_slot_lease_renewal:
                 lease_info = self._make_lease_info(renew_secret, cancel_secret)
                 self._add_or_renew_leases(remaining_shares, lease_info)
 
@@ -690,7 +723,6 @@ class StorageServer(service.MultiService, Referenceable):
             secrets,
             test_and_write_vectors,
             read_vector,
-            renew_leases=True,
         )
 
     def _allocate_slot_share(self, bucketdir, secrets, sharenum,

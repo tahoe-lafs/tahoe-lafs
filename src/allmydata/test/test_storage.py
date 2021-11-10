@@ -608,6 +608,61 @@ class Server(unittest.TestCase):
         for i,wb in writers.items():
             wb.remote_abort()
 
+    def test_allocate_without_lease_renewal(self):
+        """
+        ``remote_allocate_buckets`` does not renew leases on existing shares if
+        ``set_implicit_bucket_lease_renewal(False)`` is called first.
+        """
+        first_lease = 456
+        second_lease = 543
+        storage_index = b"allocate"
+
+        clock = Clock()
+        clock.advance(first_lease)
+        ss = self.create(
+            "test_allocate_without_lease_renewal",
+            get_current_time=clock.seconds,
+        )
+        ss.set_implicit_bucket_lease_renewal(False)
+
+        # Put a share on there
+        already, writers = self.allocate(ss, storage_index, [0], 1)
+        (writer,) = writers.values()
+        writer.remote_write(0, b"x")
+        writer.remote_close()
+
+        # It should have a lease granted at the current time.
+        shares = dict(ss._get_bucket_shares(storage_index))
+        self.assertEqual(
+            [first_lease],
+            list(
+                lease.get_grant_renew_time_time()
+                for lease
+                in ShareFile(shares[0]).get_leases()
+            ),
+        )
+
+        # Let some time pass so we can tell if the lease on share 0 is
+        # renewed.
+        clock.advance(second_lease)
+
+        # Put another share on there.
+        already, writers = self.allocate(ss, storage_index, [1], 1)
+        (writer,) = writers.values()
+        writer.remote_write(0, b"x")
+        writer.remote_close()
+
+        # The first share's lease expiration time is unchanged.
+        shares = dict(ss._get_bucket_shares(storage_index))
+        self.assertEqual(
+            [first_lease],
+            list(
+                lease.get_grant_renew_time_time()
+                for lease
+                in ShareFile(shares[0]).get_leases()
+            ),
+        )
+
     def test_bad_container_version(self):
         ss = self.create("test_bad_container_version")
         a,w = self.allocate(ss, b"si1", [0], 10)
@@ -1408,9 +1463,10 @@ class MutableServer(unittest.TestCase):
     def test_writev_without_renew_lease(self):
         """
         The helper method ``slot_testv_and_readv_and_writev`` does not renew
-        leases if ``False`` is passed for the ``renew_leases`` parameter.
+        leases if ``set_implicit_bucket_lease_renewal(False)`` is called first.
         """
         ss = self.create("test_writev_without_renew_lease")
+        ss.set_implicit_slot_lease_renewal(False)
 
         storage_index = b"si2"
         secrets = (
@@ -1429,7 +1485,6 @@ class MutableServer(unittest.TestCase):
                 sharenum: ([], datav, None),
             },
             read_vector=[],
-            renew_leases=False,
         )
         leases = list(ss.get_slot_leases(storage_index))
         self.assertEqual([], leases)
