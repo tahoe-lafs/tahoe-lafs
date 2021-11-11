@@ -670,7 +670,7 @@ there is no separate "create this storage index" operation as there is for the i
 The request must include ``X-Tahoe-Authorization`` headers with write enabler and lease secrets::
 
     X-Tahoe-Authorization: write-enabler <base64 write enabler secret>
-    X-Tahoe-Authorization: lease-lease-cancel-secret <base64-lease-lease-cancel-secret>
+    X-Tahoe-Authorization: lease-cancel-secret <base64-lease-cancel-secret>
     X-Tahoe-Authorization: lease-renew-secret <base64-lease-renew-secret>
 
 The request body includes test, read, and write vectors for the operation.
