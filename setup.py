@@ -144,6 +144,7 @@ install_requires = [
     # HTTP server and client
     "klein",
     "treq",
+    "cbor2"
 ]
 
 setup_requires = [
