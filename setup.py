@@ -140,6 +140,10 @@ install_requires = [
 
     # For the RangeMap datastructure.
     "collections-extended",
+
+    # HTTP server and client
+    "klein",
+    "treq",
 ]
 
 setup_requires = [
@@ -397,7 +401,6 @@ setup(name="tahoe-lafs", # also set in __init__.py
               # Python 2.7.
               "decorator < 5",
               "hypothesis >= 3.6.1",
-              "treq",
               "towncrier",
               "testtools",
               "fixtures",
