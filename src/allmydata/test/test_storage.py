@@ -615,8 +615,8 @@ class Server(unittest.TestCase):
 
     def test_allocate_without_lease_renewal(self):
         """
-        ``remote_allocate_buckets`` does not renew leases on existing shares if
-        ``renew_leases`` is ``False``.
+        ``StorageServer._allocate_buckets`` does not renew leases on existing
+        shares if ``renew_leases`` is ``False``.
         """
         first_lease = 456
         second_lease = 543
