@@ -1496,7 +1496,7 @@ class MutableServer(unittest.TestCase):
     def test_writev_without_renew_lease(self):
         """
         The helper method ``slot_testv_and_readv_and_writev`` does not renew
-        leases if ``renew_leases```` is ``False``.
+        leases if ``False`` is passed for the ``renew_leases`` parameter.
         """
         ss = self.create("test_writev_without_renew_lease")
 
