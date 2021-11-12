@@ -21,7 +21,7 @@ class HTTPTests(TestCase):
     def setUp(self):
         self.storage_server = StorageServer(self.mktemp(), b"\x00" * 20)
         # TODO what should the swissnum _actually_ be?
-        self._http_server = HTTPServer(self._storage_server, b"abcd")
+        self._http_server = HTTPServer(self.storage_server, b"abcd")
         self.client = StorageClient(
             DecodedURL.from_text("http://example.com"),
             b"abcd",

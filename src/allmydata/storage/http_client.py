@@ -2,18 +2,23 @@
 HTTP client that talks to the HTTP storage server.
 """
 
-# Make sure to import Python version:
-from cbor2.encoder import loads
-from cbor2.decoder import loads
+# TODO Make sure to import Python version?
+from cbor2 import loads, dumps
 
-from twisted.internet.defer import inlineCallbacks, returnValue
+from twisted.internet.defer import inlineCallbacks, returnValue, fail
 from hyperlink import DecodedURL
 import treq
 
 
+class ClientException(Exception):
+    """An unexpected error."""
+
+
 def _decode_cbor(response):
     """Given HTTP response, return decoded CBOR body."""
-    return treq.content(response).addCallback(loads)
+    if response.code > 199 and response.code < 300:
+        return treq.content(response).addCallback(loads)
+    return fail(ClientException(response.code, response.phrase))
 
 
 class StorageClient(object):
@@ -32,5 +37,6 @@ class StorageClient(object):
         Return the version metadata for the server.
         """
         url = self._base_url.child("v1", "version")
-        response = _decode_cbor((yield self._treq.get(url)))
-        returnValue(response)
+        response = yield self._treq.get(url)
+        decoded_response = yield _decode_cbor(response)
+        returnValue(decoded_response)
