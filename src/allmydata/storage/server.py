@@ -635,12 +635,13 @@ class StorageServer(service.MultiService, Referenceable):
         """
         Read data from shares and conditionally write some data to them.
 
+        :param bool renew_leases: If and only if this is ``True`` and the test
+            vectors pass then shares mentioned in ``test_and_write_vectors``
+            that still exist after the changes are made will also have an
+            updated lease applied to them.
+
         See ``allmydata.interfaces.RIStorageServer`` for details about other
         parameters and return value.
-
-        :param bool renew_leases: If and only if this is ``True`` then renew
-            leases on all shares mentioned in ``test_and_write_vectors` that
-            still exist after the changes are made.
         """
         start = self._get_current_time()
         self.count("writev")
