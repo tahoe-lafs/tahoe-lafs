@@ -639,8 +639,9 @@ class StorageServer(service.MultiService, Referenceable):
 
         :param bool renew_leases: If and only if this is ``True`` and the test
             vectors pass then shares mentioned in ``test_and_write_vectors``
-            that still exist after the changes are made will also have an
-            updated lease applied to them.
+            that still exist after the changes are made will also have a
+            secret-matching lease renewed (or, if none match, a new lease
+            added).
 
         See ``allmydata.interfaces.RIStorageServer`` for details about other
         parameters and return value.
