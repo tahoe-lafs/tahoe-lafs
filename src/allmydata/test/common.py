@@ -1220,8 +1220,13 @@ def disable_modules(*names):
     A context manager which makes modules appear to be missing while it is
     active.
 
-    :param *names: The names of the modules to disappear.
+    :param *names: The names of the modules to disappear.  Only top-level
+        modules are supported (that is, "." is not allowed in any names).
+        This is an implementation shortcoming which could be lifted if
+        desired.
     """
+    if any("." in name for name in names):
+        raise ValueError("Names containing '.' are not supported.")
     missing = object()
     modules = list(sys.modules.get(n, missing) for n in names)
     for n in names:
