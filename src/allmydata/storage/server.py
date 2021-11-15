@@ -284,8 +284,10 @@ class StorageServer(service.MultiService, Referenceable):
         """
         Generic bucket allocation API.
 
-        :param bool renew_leases: If and only if this is ``True`` then
-            renew leases on existing shares in this bucket.
+        :param bool renew_leases: If and only if this is ``True`` then renew a
+            secret-matching lease on (or, if none match, add a new lease to)
+            existing shares in this bucket.  Any *new* shares are given a new
+            lease regardless.
         """
         # owner_num is not for clients to set, but rather it should be
         # curried into the PersonalStorageServer instance that is dedicated
