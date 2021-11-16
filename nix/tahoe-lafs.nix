@@ -95,7 +95,7 @@ EOF
   propagatedBuildInputs = with python.pkgs; [
     twisted foolscap zfec appdirs
     setuptoolsTrial pyasn1 zope_interface
-    service-identity pyyaml magic-wormhole treq
+    service-identity pyyaml magic-wormhole
     eliot autobahn cryptography netifaces setuptools
     future pyutil distro configparser collections-extended
   ];
