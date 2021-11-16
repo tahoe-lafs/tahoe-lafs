@@ -20,7 +20,7 @@ else:
 import base64
 
 # TODO Make sure to import Python version?
-from cbor2 import loads, dumps
+from cbor2 import loads
 
 
 from twisted.web.http_headers import Headers

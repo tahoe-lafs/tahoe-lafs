@@ -20,7 +20,7 @@ from klein import Klein
 from twisted.web import http
 
 # TODO Make sure to use pure Python versions?
-from cbor2 import loads, dumps
+from cbor2 import dumps
 
 from .server import StorageServer
 from .http_client import swissnum_auth_header
