@@ -287,7 +287,7 @@ class LogCallDeferredTests(TestCase):
         lambda self, logger:
         assertHasAction(self, logger, u"the-action", succeeded=True),
     )
-    def test_gets_positional_arguments(self, logger):
+    def test_gets_args(self, logger):
         """
         Check that positional arguments are logged when using ``log_call_deferred``
         """
@@ -303,7 +303,7 @@ class LogCallDeferredTests(TestCase):
         lambda self, logger:
         assertHasAction(self, logger, u"the-action", succeeded=True),
     )
-    def test_gets_keyword_arguments(self, logger):
+    def test_gets_kwargs(self, logger):
         """
         Check that keyword arguments are logged when using ``log_call_deferred``
         """
@@ -319,7 +319,7 @@ class LogCallDeferredTests(TestCase):
         lambda self, logger:
         assertHasAction(self, logger, u"the-action", succeeded=True),
     )
-    def test_gets_keyword_and_positional_arguments(self, logger):
+    def test_gets_kwargs_and_args(self, logger):
         """
         Check that both keyword and positional arguments are logged when using ``log_call_deferred``
         """
@@ -336,9 +336,9 @@ class LogCallDeferredTests(TestCase):
         lambda self, logger:
         assertHasAction(self, logger, u"the-action", succeeded=True),
     )
-    def test_keyword_args_dont_overlap_with_start_action(self, logger):
+    def test_kwargs_dont_repeat_in_start_action(self, logger):
         """
-        Check that kwargs passed to decorated functions don't overlap with params in ``start_action``
+        Check that kwargs passed to ``log_call_deferred`` don't repeat in ``start_action``
         """
         @log_call_deferred(action_type=u"the-action")
         def f(base, exp, kwargs, args):
