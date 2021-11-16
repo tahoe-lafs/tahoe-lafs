@@ -4,7 +4,7 @@
 , setuptools, setuptoolsTrial, pyasn1, zope_interface
 , service-identity, pyyaml, magic-wormhole, treq, appdirs
 , beautifulsoup4, eliot, autobahn, cryptography, netifaces
-, html5lib, pyutil, distro, configparser, klein, treq, cbor2
+, html5lib, pyutil, distro, configparser, klein, cbor2
 }:
 python.pkgs.buildPythonPackage rec {
   # Most of the time this is not exactly the release version (eg 1.16.0).
