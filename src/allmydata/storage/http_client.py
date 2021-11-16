@@ -2,6 +2,21 @@
 HTTP client that talks to the HTTP storage server.
 """
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+
+if PY2:
+    # fmt: off
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+    # fmt: on
+else:
+    from typing import Union
+    from treq.testing import StubTreq
+
 import base64
 
 # TODO Make sure to import Python version?
@@ -35,7 +50,9 @@ class StorageClient(object):
     HTTP client that talks to the HTTP storage server.
     """
 
-    def __init__(self, url: DecodedURL, swissnum, treq=treq):
+    def __init__(
+        self, url, swissnum, treq=treq
+    ):  # type: (DecodedURL, bytes, Union[treq,StubTreq]) -> None
         self._base_url = url
         self._swissnum = swissnum
         self._treq = treq

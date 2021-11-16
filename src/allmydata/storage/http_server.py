@@ -2,6 +2,18 @@
 HTTP server for storage.
 """
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+
+if PY2:
+    # fmt: off
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+    # fmt: on
+
 from functools import wraps
 
 from klein import Klein
@@ -61,12 +73,14 @@ class HTTPServer(object):
 
     _app = Klein()
 
-    def __init__(self, storage_server: StorageServer, swissnum):
+    def __init__(
+        self, storage_server, swissnum
+    ):  # type: (StorageServer, bytes) -> None
         self._storage_server = storage_server
         self._swissnum = swissnum
 
     def get_resource(self):
-        """Return twisted.web Resource for this object."""
+        """Return twisted.web ``Resource`` for this object."""
         return self._app.resource()
 
     def _cbor(self, request, data):
