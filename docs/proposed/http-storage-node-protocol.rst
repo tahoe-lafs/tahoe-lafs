@@ -780,7 +780,7 @@ Immutable Data
      PUT /v1/lease/AAAAAAAAAAAAAAAA
      Authorization: Tahoe-LAFS nurl-swissnum
      X-Tahoe-Authorization: lease-cancel-secret jjkl
-     X-Tahoe-Authorization: upload-secret xyzf
+     X-Tahoe-Authorization: lease-renew-secret efgh
 
      204 NO CONTENT
 
