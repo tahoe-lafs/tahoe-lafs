@@ -25,7 +25,7 @@ def _decode_cbor(response):
     return fail(ClientException(response.code, response.phrase))
 
 
-def swissnum_auth_header(swissnum):
+def swissnum_auth_header(swissnum):  # type: (bytes) -> bytes
     """Return value for ``Authentication`` header."""
     return b"Tahoe-LAFS " + base64.encodestring(swissnum).strip()
 
@@ -40,7 +40,7 @@ class StorageClient(object):
         self._swissnum = swissnum
         self._treq = treq
 
-    def _get_headers(self):
+    def _get_headers(self):  # type: () -> Headers
         """Return the basic headers to be used by default."""
         headers = Headers()
         headers.addRawHeader(
