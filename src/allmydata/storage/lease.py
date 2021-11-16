@@ -260,6 +260,10 @@ class HashedLeaseInfo(proxyForInterface(ILeaseInfo, "_lease_info")): # type: ign
     _lease_info = attr.ib()
     _hash = attr.ib()
 
+    # proxyForInterface will take care of forwarding all methods on ILeaseInfo
+    # to `_lease_info`.  Here we override a few of those methods to adjust
+    # their behavior to make them suitable for use with hashed secrets.
+
     def is_renew_secret(self, candidate_secret):
         """
         Hash the candidate secret and compare the result to the stored hashed
