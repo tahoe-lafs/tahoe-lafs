@@ -57,8 +57,6 @@ def _route(app, *route_args, **route_kwargs):
 class HTTPServer(object):
     """
     A HTTP interface to the storage server.
-
-    TODO returning CBOR should set CBOR content-type
     """
 
     _app = Klein()
@@ -71,6 +69,12 @@ class HTTPServer(object):
         """Return twisted.web Resource for this object."""
         return self._app.resource()
 
+    def _cbor(self, request, data):
+        """Return CBOR-encoded data."""
+        request.setHeader("Content-Type", "application/cbor")
+        # TODO if data is big, maybe want to use a temporary file eventually...
+        return dumps(data)
+
     @_route(_app, "/v1/version", methods=["GET"])
     def version(self, request, authorization):
-        return dumps(self._storage_server.remote_get_version())
+        return self._cbor(request, self._storage_server.remote_get_version())
