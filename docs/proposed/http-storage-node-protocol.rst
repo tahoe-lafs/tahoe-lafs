@@ -400,8 +400,8 @@ Either renew or create a new lease on the bucket addressed by ``storage_index``.
 The renew secret and cancellation secret should be included as ``X-Tahoe-Authorization`` headers.
 For example::
 
-    X-Tahoe-Authorization: lease-renew-secret <base64 lease-renew-secret>
-    X-Tahoe-Authorization: lease-cancel-secret <base64 lease-cancel-secret>
+    X-Tahoe-Authorization: lease-renew-secret <base64-lease-renew-secret>
+    X-Tahoe-Authorization: lease-cancel-secret <base64-lease-cancel-secret>
 
 If the ``lease-renew-secret`` value matches an existing lease
 then the expiration time of that lease will be changed to 31 days after the time of this operation.
@@ -457,7 +457,6 @@ For example::
   {"share-numbers": [1, 7, ...], "allocated-size": 12345}
 
 The request must include ``X-Tahoe-Authorization`` HTTP headers that set the various secrets—upload, lease renewal, lease cancellation—that will be later used to authorize various operations.
-Typically this is a header sent by the server, but in Tahoe-LAFS keys are set by the client, so may as well reuse it.
 For example::
 
    X-Tahoe-Authorization: lease-renew-secret <base64-lease-renew-secret>
@@ -499,7 +498,7 @@ Regarding upload secrets,
 the goal is for uploading and aborting (see next sections) to be authenticated by more than just the storage index.
 In the future, we may want to generate them in a way that allows resuming/canceling when the client has issues.
 In the short term, they can just be a random byte string.
-The key security constraint is that each upload to each server has its own, unique upload key,
+The primary security constraint is that each upload to each server has its own unique upload key,
 tied to uploading that particular storage index to this particular server.
 
 Rejected designs for upload secrets:
@@ -527,7 +526,7 @@ The server must recognize when all of the data has been received and mark the sh
 
 The request must include a ``X-Tahoe-Authorization`` header that includes the upload secret::
 
-    X-Tahoe-Authorization: upload-secret <base64ed-upload-secret>
+    X-Tahoe-Authorization: upload-secret <base64-upload-secret>
 
 Responses:
 
@@ -557,7 +556,7 @@ This cancels an *in-progress* upload.
 
 The request must include a ``X-Tahoe-Authorization`` header that includes the upload secret::
 
-    X-Tahoe-Authorization: upload-secret <base64ed-upload-secret>
+    X-Tahoe-Authorization: upload-secret <base64-upload-secret>
 
 The response code:
 
@@ -658,7 +657,7 @@ there is no separate "create this storage index" operation as there is for the i
 
 The request must include ``X-Tahoe-Authorization`` headers with write enabler and lease secrets::
 
-    X-Tahoe-Authorization: write-enabler <base64 write enabler secret>
+    X-Tahoe-Authorization: write-enabler <base64-write-enabler-secret>
     X-Tahoe-Authorization: lease-cancel-secret <base64-lease-cancel-secret>
     X-Tahoe-Authorization: lease-renew-secret <base64-lease-renew-secret>
 
