@@ -272,7 +272,7 @@ class HashedLeaseInfo(proxyForInterface(ILeaseInfo, "_lease_info")): # type: ign
         Hash the candidate secret and compare the result to the stored hashed
         secret.
         """
-        if  isinstance(candidate_secret, _HashedCancelSecret):
+        if isinstance(candidate_secret, _HashedCancelSecret):
             # Someone read it off of this object in this project - probably
             # the lease crawler - and is just trying to use it to identify
             # which lease it wants to operate on.  Avoid re-hashing the value.
