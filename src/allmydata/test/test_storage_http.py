@@ -10,7 +10,7 @@ from hyperlink import DecodedURL
 
 from ..storage.server import StorageServer
 from ..storage.http_server import HTTPServer
-from ..storage.http_client import StorageClient
+from ..storage.http_client import StorageClient, ClientException
 
 
 class HTTPTests(TestCase):
@@ -23,10 +23,25 @@ class HTTPTests(TestCase):
         # TODO what should the swissnum _actually_ be?
         self._http_server = HTTPServer(self.storage_server, b"abcd")
         self.client = StorageClient(
-            DecodedURL.from_text("http://example.com"),
+            DecodedURL.from_text("http://127.0.0.1"),
             b"abcd",
             treq=StubTreq(self._http_server.get_resource()),
         )
+
+    @inlineCallbacks
+    def test_bad_authentication(self):
+        """
+        If the wrong swissnum is used, an ``Unauthorized`` response code is
+        returned.
+        """
+        client = StorageClient(
+            DecodedURL.from_text("http://127.0.0.1"),
+            b"something wrong",
+            treq=StubTreq(self._http_server.get_resource()),
+        )
+        with self.assertRaises(ClientException) as e:
+            yield client.get_version()
+        self.assertEqual(e.exception.args[0], 401)
 
     @inlineCallbacks
     def test_version(self):

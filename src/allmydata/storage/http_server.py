@@ -11,6 +11,7 @@ from twisted.web import http
 from cbor2 import loads, dumps
 
 from .server import StorageServer
+from .http_client import swissnum_auth_header
 
 
 def _authorization_decorator(f):
@@ -21,11 +22,10 @@ def _authorization_decorator(f):
 
     @wraps(f)
     def route(self, request, *args, **kwargs):
-        if (
-            request.requestHeaders.getRawHeaders("Authorization", [None])[0]
-            != self._swissnum
+        if request.requestHeaders.getRawHeaders("Authorization", [None])[0] != str(
+            swissnum_auth_header(self._swissnum), "ascii"
         ):
-            request.setResponseCode(http.NOT_ALLOWED)
+            request.setResponseCode(http.UNAUTHORIZED)
             return b""
         # authorization = request.requestHeaders.getRawHeaders("X-Tahoe-Authorization", [])
         # For now, just a placeholder:

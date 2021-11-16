@@ -2,9 +2,13 @@
 HTTP client that talks to the HTTP storage server.
 """
 
+import base64
+
 # TODO Make sure to import Python version?
 from cbor2 import loads, dumps
 
+
+from twisted.web.http_headers import Headers
 from twisted.internet.defer import inlineCallbacks, returnValue, fail
 from hyperlink import DecodedURL
 import treq
@@ -21,6 +25,11 @@ def _decode_cbor(response):
     return fail(ClientException(response.code, response.phrase))
 
 
+def swissnum_auth_header(swissnum):
+    """Return value for ``Authentication`` header."""
+    return b"Tahoe-LAFS " + base64.encodestring(swissnum).strip()
+
+
 class StorageClient(object):
     """
     HTTP client that talks to the HTTP storage server.
@@ -31,12 +40,21 @@ class StorageClient(object):
         self._swissnum = swissnum
         self._treq = treq
 
+    def _get_headers(self):
+        """Return the basic headers to be used by default."""
+        headers = Headers()
+        headers.addRawHeader(
+            "Authorization",
+            swissnum_auth_header(self._swissnum),
+        )
+        return headers
+
     @inlineCallbacks
     def get_version(self):
         """
         Return the version metadata for the server.
         """
-        url = self._base_url.child("v1", "version")
-        response = yield self._treq.get(url)
+        url = self._base_url.click("/v1/version")
+        response = yield self._treq.get(url, headers=self._get_headers())
         decoded_response = yield _decode_cbor(response)
         returnValue(decoded_response)
