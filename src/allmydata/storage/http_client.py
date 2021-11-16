@@ -42,7 +42,7 @@ def _decode_cbor(response):
 
 def swissnum_auth_header(swissnum):  # type: (bytes) -> bytes
     """Return value for ``Authentication`` header."""
-    return b"Tahoe-LAFS " + base64.encodestring(swissnum).strip()
+    return b"Tahoe-LAFS " + base64.b64encode(swissnum).strip()
 
 
 class StorageClient(object):
