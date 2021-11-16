@@ -651,6 +651,7 @@ class Server(unittest.TestCase):
                                   ss.remote_get_buckets, b"si1")
         self.assertEqual(e.filename, fn)
         self.assertEqual(e.version, 0)
+        self.assertIn("had unexpected version 0", str(e))
 
     def test_disconnect(self):
         # simulate a disconnection
@@ -1136,6 +1137,8 @@ class MutableServer(unittest.TestCase):
                                   read, b"si1", [0], [(0,10)])
         self.assertEqual(e.filename, fn)
         self.assertTrue(e.version.startswith(b"BAD MAGIC"))
+        self.assertIn("had unexpected version", str(e))
+        self.assertIn("BAD MAGIC", str(e))
 
     def test_container_size(self):
         ss = self.create("test_container_size")
