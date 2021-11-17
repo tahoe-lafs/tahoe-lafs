@@ -96,8 +96,14 @@ class FakeStorage(object):
         shares[shnum] = f.getvalue()
 
 
+# This doesn't actually implement the whole interface, but adding a commented
+# interface implementation annotation for grepping purposes.
+#@implementer(RIStorageServer)
 class FakeStorageServer(object):
-
+    """
+    A fake Foolscap remote object, implemented by overriding callRemote() to
+    call local methods.
+    """
     def __init__(self, peerid, storage):
         self.peerid = peerid
         self.storage = storage
@@ -143,7 +149,7 @@ class FakeStorageServer(object):
         readv = {}
         for shnum, (testv, writev, new_length) in list(tw_vectors.items()):
             for (offset, length, op, specimen) in testv:
-                assert op in (b"le", b"eq", b"ge")
+                assert op == b"eq"
             # TODO: this isn't right, the read is controlled by read_vector,
             # not by testv
             readv[shnum] = [ specimen

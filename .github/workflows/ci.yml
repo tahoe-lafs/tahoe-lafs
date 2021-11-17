@@ -6,6 +6,23 @@ on:
       - "master"
   pull_request:
 
+# Control to what degree jobs in this workflow will run concurrently with
+# other instances of themselves.
+#
+# https://docs.github.com/en/actions/learn-github-actions/workflow-syntax-for-github-actions#concurrency
+concurrency:
+  # We want every revision on master to run the workflow completely.
+  # "head_ref" is not set for the "push" event but it is set for the
+  # "pull_request" event.  If it is set then it is the name of the branch and
+  # we can use it to make sure each branch has only one active workflow at a
+  # time.  If it is not set then we can compute a unique string that gives
+  # every master/push workflow its own group.
+  group: "${{ github.head_ref || format('{0}-{1}', github.run_number, github.run_attempt) }}"
+
+  # Then, we say that if a new workflow wants to start in the same group as a
+  # running workflow, the running workflow should be cancelled.
+  cancel-in-progress: true
+
 env:
   # Tell Hypothesis which configuration we want it to use.
   TAHOE_LAFS_HYPOTHESIS_PROFILE: "ci"
@@ -28,7 +45,7 @@ jobs:
           - 3.9
         include:
           # On macOS don't bother with 3.6-3.8, just to get faster builds.
-          - os: macos-latest
+          - os: macos-10.15
             python-version: 2.7
           - os: macos-latest
             python-version: 3.9
@@ -76,12 +93,17 @@ jobs:
       - name: Run tox for corresponding Python version
         run: python -m tox
 
-      - name: Upload eliot.log in case of failure
+      - name: Upload eliot.log
         uses: actions/upload-artifact@v1
-        if: failure()
         with:
           name: eliot.log
           path: eliot.log
+
+      - name: Upload trial log
+        uses: actions/upload-artifact@v1
+        with:
+          name: test.log
+          path: _trial_temp/test.log
 
       # Upload this job's coverage data to Coveralls.  While there is a GitHub
       # Action for this, as of Jan 2021 it does not support Python coverage
@@ -136,7 +158,7 @@ jobs:
   # See notes about parallel builds on GitHub Actions at
   # https://coveralls-python.readthedocs.io/en/latest/usage/configuration.html
   finish-coverage-report:
-    needs: 
+    needs:
       - "coverage"
     runs-on: "ubuntu-latest"
     container: "python:3-slim"
@@ -163,7 +185,7 @@ jobs:
           - 3.9
         include:
           # On macOS don't bother with 3.6, just to get faster builds.
-          - os: macos-latest
+          - os: macos-10.15
             python-version: 2.7
           - os: macos-latest
             python-version: 3.9
@@ -173,12 +195,12 @@ jobs:
       - name: Install Tor [Ubuntu]
         if: matrix.os == 'ubuntu-latest'
         run: sudo apt install tor
-        
+
       # TODO: See https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3744.
       # We have to use an older version of Tor for running integration
       # tests on macOS.
       - name: Install Tor [macOS, ${{ matrix.python-version }} ]
-        if: ${{ matrix.os == 'macos-latest' }}
+        if: ${{ contains(matrix.os, 'macos') }}
         run: |
           brew extract --version 0.4.5.8 tor homebrew/cask
           brew install tor@0.4.5.8
@@ -242,7 +264,7 @@ jobs:
       fail-fast: false
       matrix:
         os:
-          - macos-latest
+          - macos-10.15
           - windows-latest
           - ubuntu-latest
         python-version:

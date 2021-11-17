@@ -42,6 +42,9 @@ workflows:
       - "nixos-19-09":
           {}
 
+      - "nixos-21-05":
+          {}
+
       # Test against PyPy 2.7
       - "pypy27-buster":
           {}
@@ -271,6 +274,11 @@ jobs:
           # in the project source checkout.
           path: "/tmp/project/_trial_temp/test.log"
 
+      - store_artifacts: &STORE_ELIOT_LOG
+          # Despite passing --workdir /tmp to tox above, it still runs trial
+          # in the project source checkout.
+          path: "/tmp/project/eliot.log"
+
       - store_artifacts: &STORE_OTHER_ARTIFACTS
           # Store any other artifacts, too.  This is handy to allow other jobs
           # sharing most of the definition of this one to be able to
@@ -413,6 +421,7 @@ jobs:
       - run: *RUN_TESTS
       - store_test_results: *STORE_TEST_RESULTS
       - store_artifacts: *STORE_TEST_LOG
+      - store_artifacts: *STORE_ELIOT_LOG
       - store_artifacts: *STORE_OTHER_ARTIFACTS
       - run: *SUBMIT_COVERAGE
 
@@ -432,8 +441,7 @@ jobs:
         image: "tahoelafsci/fedora:29-py"
         user: "nobody"
 
-
-  nixos-19-09:
+  nixos-19-09: &NIXOS
     docker:
       # Run in a highly Nix-capable environment.
       - <<: *DOCKERHUB_AUTH
@@ -441,6 +449,7 @@ jobs:
 
     environment:
       NIX_PATH: "nixpkgs=https://github.com/NixOS/nixpkgs-channels/archive/nixos-19.09-small.tar.gz"
+      SOURCE: "nix/"
 
     steps:
       - "checkout"
@@ -457,7 +466,17 @@ jobs:
             # build a couple simple little dependencies that don't take
             # advantage of multiple cores and we get a little speedup by doing
             # them in parallel.
-            nix-build --cores 3 --max-jobs 2 nix/
+            nix-build --cores 3 --max-jobs 2 "$SOURCE"
+
+  nixos-21-05:
+    <<: *NIXOS
+
+    environment:
+      # Note this doesn't look more similar to the 19.09 NIX_PATH URL because
+      # there was some internal shuffling by the NixOS project about how they
+      # publish stable revisions.
+      NIX_PATH: "nixpkgs=https://github.com/NixOS/nixpkgs/archive/d32b07e6df276d78e3640eb43882b80c9b2b3459.tar.gz"
+      SOURCE: "nix/py3.nix"
 
   typechecks:
     docker:

@@ -1,8 +1,0 @@
-(The below text is no longer valid: netifaces has released a 64-bit
-Python 2.7 wheel for Windows.  Ticket #3733 made the switch in CI.  We
-should be able to test and run Tahoe-LAFS without needing vcpython27
-now.)
-
-Tahoe-LAFS CI now runs tests only on 32-bit Windows. Microsoft has
-removed vcpython27 compiler downloads from their site, and Tahoe-LAFS
-needs vcpython27 to build and install netifaces on 64-bit Windows.

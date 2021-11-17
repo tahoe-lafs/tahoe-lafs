@@ -7,7 +7,7 @@
 , html5lib, pyutil, distro, configparser
 }:
 python.pkgs.buildPythonPackage rec {
-  # Most of the time this is not exactly the release version (eg 1.15.1).
+  # Most of the time this is not exactly the release version (eg 1.16.0).
   # Give it a `post` component to make it look newer than the release version
   # and we'll bump this up at the time of each release.
   #
@@ -20,7 +20,7 @@ python.pkgs.buildPythonPackage rec {
   # is not a reproducable artifact (in the sense of "reproducable builds") so
   # it is excluded from the source tree by default.  When it is included, the
   # package tends to be frequently spuriously rebuilt.
-  version = "1.15.1.post1";
+  version = "1.16.0.post1";
   name = "tahoe-lafs-${version}";
   src = lib.cleanSourceWith {
     src = ../.;
@@ -97,7 +97,7 @@ EOF
     setuptoolsTrial pyasn1 zope_interface
     service-identity pyyaml magic-wormhole treq
     eliot autobahn cryptography netifaces setuptools
-    future pyutil distro configparser
+    future pyutil distro configparser collections-extended
   ];
 
   checkInputs = with python.pkgs; [
@@ -107,6 +107,7 @@ EOF
     beautifulsoup4
     html5lib
     tenacity
+    prometheus_client
   ];
 
   checkPhase = ''

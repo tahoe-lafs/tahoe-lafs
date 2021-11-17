@@ -120,10 +120,8 @@ they will need to evaluate which contributors' signatures they trust.
 
 - when satisfied, sign the tarballs:
 
-  - gpg --pinentry=loopback --armor --detach-sign dist/tahoe_lafs-1.15.0rc0-py2-none-any.whl
-  - gpg --pinentry=loopback --armor --detach-sign dist/tahoe_lafs-1.15.0rc0.tar.bz2
+  - gpg --pinentry=loopback --armor --detach-sign dist/tahoe_lafs-1.15.0rc0-py2.py3-none-any.whl
   - gpg --pinentry=loopback --armor --detach-sign dist/tahoe_lafs-1.15.0rc0.tar.gz
-  - gpg --pinentry=loopback --armor --detach-sign dist/tahoe_lafs-1.15.0rc0.zip
 
 
 Privileged Contributor
@@ -178,8 +176,8 @@ Announcing the Release Candidate
 ````````````````````````````````
 
 The release-candidate should be announced by posting to the
-mailing-list (tahoe-dev@tahoe-lafs.org). For example:
-https://tahoe-lafs.org/pipermail/tahoe-dev/2020-October/009995.html
+mailing-list (tahoe-dev@lists.tahoe-lafs.org). For example:
+https://lists.tahoe-lafs.org/pipermail/tahoe-dev/2020-October/009978.html
 
 
 Is The Release Done Yet?

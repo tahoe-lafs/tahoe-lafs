@@ -1,1 +1,0 @@
-Use netifaces 0.11.0 wheel package from PyPI.org if you use 64-bit Python 2.7 on Windows.  VCPython27 downloads are no longer available at Microsoft's website, which has made building Python 2.7 wheel packages of Python libraries with C extensions (such as netifaces) on Windows difficult.
