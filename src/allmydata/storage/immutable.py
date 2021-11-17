@@ -233,7 +233,7 @@ class ShareFile(object):
 @implementer(RIBucketWriter)
 class BucketWriter(Referenceable):  # type: ignore # warner/foolscap#78
 
-    def __init__(self, ss, incominghome, finalhome, max_size, lease_info):
+    def __init__(self, ss, incominghome, finalhome, max_size, lease_info, clock):
         self.ss = ss
         self.incominghome = incominghome
         self.finalhome = finalhome
@@ -245,12 +245,13 @@ class BucketWriter(Referenceable):  # type: ignore # warner/foolscap#78
         # added by simultaneous uploaders
         self._sharefile.add_lease(lease_info)
         self._already_written = RangeMap()
+        self._clock = clock
 
     def allocated_size(self):
         return self._max_size
 
     def remote_write(self, offset, data):
-        start = time.time()
+        start = self._clock.seconds()
         precondition(not self.closed)
         if self.throw_out_all_data:
             return
@@ -268,12 +269,12 @@ class BucketWriter(Referenceable):  # type: ignore # warner/foolscap#78
         self._sharefile.write_share_data(offset, data)
 
         self._already_written.set(True, offset, end)
-        self.ss.add_latency("write", time.time() - start)
+        self.ss.add_latency("write", self._clock.seconds() - start)
         self.ss.count("write")
 
     def remote_close(self):
         precondition(not self.closed)
-        start = time.time()
+        start = self._clock.seconds()
 
         fileutil.make_dirs(os.path.dirname(self.finalhome))
         fileutil.rename(self.incominghome, self.finalhome)
@@ -306,7 +307,7 @@ class BucketWriter(Referenceable):  # type: ignore # warner/foolscap#78
 
         filelen = os.stat(self.finalhome)[stat.ST_SIZE]
         self.ss.bucket_writer_closed(self, filelen)
-        self.ss.add_latency("close", time.time() - start)
+        self.ss.add_latency("close", self._clock.seconds() - start)
         self.ss.count("close")
 
     def disconnected(self):

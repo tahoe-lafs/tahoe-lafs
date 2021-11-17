@@ -128,7 +128,7 @@ class Bucket(unittest.TestCase):
 
     def test_create(self):
         incoming, final = self.make_workdir("test_create")
-        bw = BucketWriter(self, incoming, final, 200, self.make_lease())
+        bw = BucketWriter(self, incoming, final, 200, self.make_lease(), Clock())
         bw.remote_write(0, b"a"*25)
         bw.remote_write(25, b"b"*25)
         bw.remote_write(50, b"c"*25)
@@ -137,7 +137,7 @@ class Bucket(unittest.TestCase):
 
     def test_readwrite(self):
         incoming, final = self.make_workdir("test_readwrite")
-        bw = BucketWriter(self, incoming, final, 200, self.make_lease())
+        bw = BucketWriter(self, incoming, final, 200, self.make_lease(), Clock())
         bw.remote_write(0, b"a"*25)
         bw.remote_write(25, b"b"*25)
         bw.remote_write(50, b"c"*7) # last block may be short
@@ -155,7 +155,7 @@ class Bucket(unittest.TestCase):
             incoming, final = self.make_workdir(
                 "test_write_past_size_errors-{}".format(i)
             )
-            bw = BucketWriter(self, incoming, final, 200, self.make_lease())
+            bw = BucketWriter(self, incoming, final, 200, self.make_lease(), Clock())
             with self.assertRaises(DataTooLargeError):
                 bw.remote_write(offset, b"a" * length)
 
@@ -174,7 +174,7 @@ class Bucket(unittest.TestCase):
         expected_data = b"".join(bchr(i) for i in range(100))
         incoming, final = self.make_workdir("overlapping_writes_{}".format(uuid4()))
         bw = BucketWriter(
-            self, incoming, final, length, self.make_lease(),
+            self, incoming, final, length, self.make_lease(), Clock()
         )
         # Three writes: 10-19, 30-39, 50-59. This allows for a bunch of holes.
         bw.remote_write(10, expected_data[10:20])
@@ -212,7 +212,7 @@ class Bucket(unittest.TestCase):
         length = 100
         incoming, final = self.make_workdir("overlapping_writes_{}".format(uuid4()))
         bw = BucketWriter(
-            self, incoming, final, length, self.make_lease(),
+            self, incoming, final, length, self.make_lease(), Clock()
         )
         # Three writes: 10-19, 30-39, 50-59. This allows for a bunch of holes.
         bw.remote_write(10, b"1" * 10)
@@ -312,7 +312,7 @@ class BucketProxy(unittest.TestCase):
         final = os.path.join(basedir, "bucket")
         fileutil.make_dirs(basedir)
         fileutil.make_dirs(os.path.join(basedir, "tmp"))
-        bw = BucketWriter(self, incoming, final, size, self.make_lease())
+        bw = BucketWriter(self, incoming, final, size, self.make_lease(), Clock())
         rb = RemoteBucket(bw)
         return bw, rb, final
 

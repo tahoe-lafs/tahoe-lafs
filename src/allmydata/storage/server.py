@@ -347,7 +347,8 @@ class StorageServer(service.MultiService, Referenceable):
             elif (not limited) or (remaining_space >= max_space_per_bucket):
                 # ok! we need to create the new share file.
                 bw = BucketWriter(self, incominghome, finalhome,
-                                  max_space_per_bucket, lease_info)
+                                  max_space_per_bucket, lease_info,
+                                  clock=self._clock)
                 if self.no_storage:
                     bw.throw_out_all_data = True
                 bucketwriters[shnum] = bw
