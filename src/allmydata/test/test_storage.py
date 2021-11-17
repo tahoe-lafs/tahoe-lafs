@@ -23,7 +23,7 @@ from uuid import uuid4
 
 from twisted.trial import unittest
 
-from twisted.internet import defer
+from twisted.internet import defer, reactor
 from twisted.internet.task import Clock
 
 from hypothesis import given, strategies
@@ -438,11 +438,11 @@ class Server(unittest.TestCase):
         basedir = os.path.join("storage", "Server", name)
         return basedir
 
-    def create(self, name, reserved_space=0, klass=StorageServer, get_current_time=time.time):
+    def create(self, name, reserved_space=0, klass=StorageServer, clock=reactor):
         workdir = self.workdir(name)
         ss = klass(workdir, b"\x00" * 20, reserved_space=reserved_space,
                    stats_provider=FakeStatsProvider(),
-                   get_current_time=get_current_time)
+                   clock=clock)
         ss.setServiceParent(self.sparent)
         return ss
 
@@ -626,7 +626,7 @@ class Server(unittest.TestCase):
         clock.advance(first_lease)
         ss = self.create(
             "test_allocate_without_lease_renewal",
-            get_current_time=clock.seconds,
+            clock=clock,
         )
 
         # Put a share on there
@@ -918,7 +918,7 @@ class Server(unittest.TestCase):
         """
         clock = Clock()
         clock.advance(123)
-        ss = self.create("test_immutable_add_lease_renews", get_current_time=clock.seconds)
+        ss = self.create("test_immutable_add_lease_renews", clock=clock)
 
         # Start out with single lease created with bucket:
         renewal_secret, cancel_secret = self.create_bucket_5_shares(ss, b"si0")
@@ -1032,10 +1032,10 @@ class MutableServer(unittest.TestCase):
         basedir = os.path.join("storage", "MutableServer", name)
         return basedir
 
-    def create(self, name, get_current_time=time.time):
+    def create(self, name, clock=reactor):
         workdir = self.workdir(name)
         ss = StorageServer(workdir, b"\x00" * 20,
-                           get_current_time=get_current_time)
+                           clock=clock)
         ss.setServiceParent(self.sparent)
         return ss
 
@@ -1420,7 +1420,7 @@ class MutableServer(unittest.TestCase):
         clock = Clock()
         clock.advance(235)
         ss = self.create("test_mutable_add_lease_renews",
-                         get_current_time=clock.seconds)
+                         clock=clock)
         def secrets(n):
             return ( self.write_enabler(b"we1"),
                      self.renew_secret(b"we1-%d" % n),
