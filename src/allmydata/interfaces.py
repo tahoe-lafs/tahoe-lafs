@@ -3212,8 +3212,8 @@ class IImmutableStorageClientV2(Interface):
     An improved interface for talking to the storage client: immutable APIs.
     """
     def create(storage_index, share_numbers, allocated_size,
-               lease_renew_secret, lease_cancel_secret):
-        # type: (bytes, List[int], int, bytes, bytes) -> Deferred[ImmutableCreateResult]
+               upload_secret, lease_renew_secret, lease_cancel_secret):
+        # type: (bytes, List[int], int, bytes, bytes, bytes) -> Deferred[ImmutableCreateResult]
         """
         Create a new storage index for an immutable.
 
@@ -3227,8 +3227,20 @@ class IImmutableStorageClientV2(Interface):
         storage index failed the result will fire with an exception.
         """
 
-    def write_share_chunk(storage_index, share_number, offset, data):
-        # type: (bytes, int, int, bytes) -> Deferred[bool]
+    def abort_upload(storage_index, share_number, upload_secret):  # type: (bytes, int, bytes) -> Deferred[bool]
+        """
+        Cancel an in-progress upload.
+
+        If result fires with ``True`` that mean cancellation succeeded.
+        Otherwise with ``False`` it means the upload had already been
+        cancelled.
+
+        In practice this means there's no need to really look at the result so
+        long as it's not an error.
+        """
+
+    def write_share_chunk(storage_index, share_number, upload_secret, offset, data):
+        # type: (bytes, int, bytes, int, bytes) -> Deferred[bool]
         """
         Upload a chunk of data for a specific share.
 

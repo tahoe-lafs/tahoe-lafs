@@ -11,9 +11,11 @@ from future.utils import PY2
 if PY2:
     from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
+import os
+
 import attr
 from zope.interface import implementer
-from twisted.internet.defer import inlineCallbacks, returnValue, Deferred, succeed
+from twisted.internet.defer import inlineCallbacks, returnValue, Deferred, succeed, fail
 
 from .interfaces import (
     IStorageClientV2, IStorageServer,
@@ -48,20 +50,24 @@ class _ClientV2BucketWriter(object):
     client = attr.ib(type=IImmutableStorageClientV2)
     storage_index = attr.ib(type=bytes)
     share_number = attr.ib(type=int)
+    upload_secret = attr.ib(type=bytes)
+    finished = attr.ib(type=bool, default=False)
 
-    @inlineCallbacks
     def abort(self):
         # type: () -> Deferred[None]
-        raise NotImplementedError(
-            "Missing from HTTP spec: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3778"
-        )
+        return self.client.abort_upload(
+            self.storage_index, self.share_number, self.upload_secret).addCallback(
+                lambda _: None
+            )
 
     @inlineCallbacks
     def write(self, offset, data):
         # type: (int, bytes) -> Deferred[None]
-        yield self.client.write_share_chunk(
-            self.storage_index, self.share_number, offset, data
+        finished = yield self.client.write_share_chunk(
+            self.storage_index, self.share_number, self.upload_secret, offset, data
         )
+        if finished:
+            self.finished = True
         returnValue(None)
 
     def close(self):
@@ -69,6 +75,8 @@ class _ClientV2BucketWriter(object):
         # much of the share has been written... which might conflict with
         # client logic that expects... zeros in unwritten chunks? Hopefully
         # just a server-side change.
+        if not self.finished:
+            return fail(RuntimeError("You didn't finish writing?!"))
         return succeed(None)
 
 
@@ -123,15 +131,19 @@ class _AdaptStorageClientV2(object):
             self, storage_index, renew_secret, cancel_secret, sharenums,
             allocated_size, canary
     ):
+        upload_secret = os.urandom(20)  # TBD
         result = yield self._immutable_client.create(
-            storage_index, sharenums, allocated_size, renew_secret,
+            storage_index, sharenums, allocated_size, upload_secret, renew_secret,
             cancel_secret
         )
         returnValue(
             result.already_got,
             {
                 share_num: _FakeRemoteReference(_ClientV2BucketWriter(
-                    self._immutable_client, storage_index, share_num
+                    client=self._immutable_client,
+                    storage_index=storage_index,
+                    share_num=share_num,
+                    upload_secret=upload_secret
                 ))
                 for share_num in result.allocated
              }
