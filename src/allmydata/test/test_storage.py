@@ -285,6 +285,22 @@ class Bucket(unittest.TestCase):
         result_of_read = br.remote_read(0, len(share_data)+1)
         self.failUnlessEqual(result_of_read, share_data)
 
+    def test_bucket_expires_if_no_writes_for_30_minutes(self):
+        pass
+
+    def test_bucket_writes_delay_timeout(self):
+        pass
+
+    def test_bucket_finishing_writiing_cancels_timeout(self):
+        pass
+
+    def test_bucket_closing_cancels_timeout(self):
+        pass
+
+    def test_bucket_aborting_cancels_timeout(self):
+        pass
+
+
 class RemoteBucket(object):
 
     def __init__(self, target):
@@ -558,7 +574,6 @@ class Server(unittest.TestCase):
         for writer in writers.values():
             writer.remote_abort()
         self.failUnlessEqual(ss.allocated_size(), 0)
-
 
     def test_allocate(self):
         ss = self.create("test_allocate")
