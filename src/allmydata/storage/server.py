@@ -136,6 +136,12 @@ class StorageServer(service.MultiService, Referenceable):
         # Canaries and disconnect markers for BucketWriters created via Foolscap:
         self._bucket_writer_disconnect_markers = {}  # type: Dict[BucketWriter,(IRemoteReference, object)]
 
+    def stopService(self):
+        # Cancel any in-progress uploads:
+        for bw in list(self._bucket_writers.values()):
+            bw.disconnected()
+        return service.MultiService.stopService(self)
+
     def __repr__(self):
         return "<StorageServer %s>" % (idlib.shortnodeid_b2a(self.my_nodeid),)
 
