@@ -252,9 +252,6 @@ class BucketWriter(Referenceable):  # type: ignore # warner/foolscap#78
         return self._max_size
 
     def remote_write(self, offset, data):
-        self.write(offset, data)
-
-    def write(self, offset, data):
         # Delay the timeout, since we received data:
         self._timeout.reset(30 * 60)
         start = self._clock.seconds()

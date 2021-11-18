@@ -319,7 +319,7 @@ class Bucket(unittest.TestCase):
         # 20 minutes pass, getting close to the timeout...
         clock.advance(29 * 60)
         # .. but we receive a write! So that should delay the timeout.
-        bw.write(0, b"hello")
+        bw.remote_write(0, b"hello")
         self._assert_timeout_only_after_30_minutes(clock, bw)
 
     def test_bucket_closing_cancels_timeout(self):
