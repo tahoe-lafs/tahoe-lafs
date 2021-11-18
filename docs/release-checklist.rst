@@ -139,6 +139,7 @@ they will need to evaluate which contributors' signatures they trust.
 *Don't forget to put the correct tag message and name in this example the tag message is "release Tahoe-LAFS-1.16.0rc0" and the tag name is `tahoe-lafs-1.16.0rc0`* 
 
 - build all code locally
+
   - these should all pass:
 
     - ``tox -e py27,codechecks,docs,integration``
