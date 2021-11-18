@@ -14,7 +14,7 @@ if PY2:
 else:
     from typing import Dict
 
-import os, re, time
+import os, re
 import six
 
 from foolscap.api import Referenceable
