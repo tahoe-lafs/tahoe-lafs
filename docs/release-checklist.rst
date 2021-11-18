@@ -17,7 +17,7 @@ This checklist is based on the original instructions (in old revisions in the fi
 
 
 Any Contributor
-```````````````
+---------------
 
 Anyone who can create normal PRs should be able to complete this
 portion of the release process.
@@ -50,7 +50,11 @@ previously generated files.
 practice to give it the release name. You MAY also discard this directory once the release
 process is complete.*
 
-- ``cd`` into the release directory and install dependencies by running ``python -m venv venv && source venv/bin/activate && pip install --editable .[test]``
+Get into the release directory and install dependencies by running 
+
+- ``cd ../tahoe-release-x.x.x`` (assuming you are still in your original clone)
+- ``python -m venv venv``
+- ``./venv/bin/pip install --editable .[test]``
 
 
 Create Branch and Apply Updates
@@ -137,16 +141,18 @@ they will need to evaluate which contributors' signatures they trust.
 - build all code locally
   - these should all pass:
 
-    - tox -e py27,codechecks,docs,integration
+    - ``tox -e py27,codechecks,docs,integration``
 
   - these can fail (ideally they should not of course):
 
-    - tox -e deprecations,upcoming-deprecations
+    - ``tox -e deprecations,upcoming-deprecations``
 
 - build tarballs
 
   - tox -e tarballs
-  - Confirm that release tarballs exist by runnig: ``ls dist/ | grep 1.16.0rc0``
+  - Confirm that release tarballs exist by runnig: 
+
+    - ``ls dist/ | grep 1.16.0rc0``
 
 - inspect and test the tarballs
 
@@ -160,7 +166,7 @@ they will need to evaluate which contributors' signatures they trust.
 
 
 Privileged Contributor
-``````````````````````
+-----------------------
 
 Steps in this portion require special access to keys or
 infrastructure. For example, **access to tahoe-lafs.org** to upload
