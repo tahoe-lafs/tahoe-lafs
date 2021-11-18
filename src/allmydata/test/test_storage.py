@@ -23,7 +23,7 @@ from uuid import uuid4
 
 from twisted.trial import unittest
 
-from twisted.internet import defer, reactor
+from twisted.internet import defer
 from twisted.internet.task import Clock
 
 from hypothesis import given, strategies
