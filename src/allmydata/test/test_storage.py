@@ -498,7 +498,9 @@ class Server(unittest.TestCase):
         basedir = os.path.join("storage", "Server", name)
         return basedir
 
-    def create(self, name, reserved_space=0, klass=StorageServer, clock=reactor):
+    def create(self, name, reserved_space=0, klass=StorageServer, clock=None):
+        if clock is None:
+            clock = Clock()
         workdir = self.workdir(name)
         ss = klass(workdir, b"\x00" * 20, reserved_space=reserved_space,
                    stats_provider=FakeStatsProvider(),
@@ -1091,8 +1093,10 @@ class MutableServer(unittest.TestCase):
         basedir = os.path.join("storage", "MutableServer", name)
         return basedir
 
-    def create(self, name, clock=reactor):
+    def create(self, name, clock=None):
         workdir = self.workdir(name)
+        if clock is None:
+            clock = Clock()
         ss = StorageServer(workdir, b"\x00" * 20,
                            clock=clock)
         ss.setServiceParent(self.sparent)
