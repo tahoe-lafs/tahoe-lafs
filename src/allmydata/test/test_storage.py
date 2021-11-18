@@ -285,20 +285,64 @@ class Bucket(unittest.TestCase):
         result_of_read = br.remote_read(0, len(share_data)+1)
         self.failUnlessEqual(result_of_read, share_data)
 
+    def _assert_timeout_only_after_30_minutes(self, clock, bw):
+        """
+        The ``BucketWriter`` times out and is closed after 30 minutes, but not
+        sooner.
+        """
+        self.assertFalse(bw.closed)
+        # 29 minutes pass. Everything is fine.
+        for i in range(29):
+            clock.advance(60)
+            self.assertFalse(bw.closed, "Bucket closed after only %d minutes" % (i + 1,))
+        # After the 30th minute, the bucket is closed due to lack of writes.
+        clock.advance(60)
+        self.assertTrue(bw.closed)
+
     def test_bucket_expires_if_no_writes_for_30_minutes(self):
-        pass
+        """
+        If a ``BucketWriter`` receives no writes for 30 minutes, it is removed.
+        """
+        incoming, final = self.make_workdir("test_bucket_expires")
+        clock = Clock()
+        bw = BucketWriter(self, incoming, final, 200, self.make_lease(), clock)
+        self._assert_timeout_only_after_30_minutes(clock, bw)
 
     def test_bucket_writes_delay_timeout(self):
-        pass
-
-    def test_bucket_finishing_writiing_cancels_timeout(self):
-        pass
+        """
+        So long as the ``BucketWriter`` receives writes, the the removal
+        timeout is put off.
+        """
+        incoming, final = self.make_workdir("test_bucket_writes_delay_timeout")
+        clock = Clock()
+        bw = BucketWriter(self, incoming, final, 200, self.make_lease(), clock)
+        # 20 minutes pass, getting close to the timeout...
+        clock.advance(29 * 60)
+        # .. but we receive a write! So that should delay the timeout.
+        bw.write(0, b"hello")
+        self._assert_timeout_only_after_30_minutes(clock, bw)
 
     def test_bucket_closing_cancels_timeout(self):
-        pass
+        """
+        Closing cancels the ``BucketWriter`` timeout.
+        """
+        incoming, final = self.make_workdir("test_bucket_close_timeout")
+        clock = Clock()
+        bw = BucketWriter(self, incoming, final, 10, self.make_lease(), clock)
+        self.assertTrue(clock.getDelayedCalls())
+        bw.close()
+        self.assertFalse(clock.getDelayedCalls())
 
     def test_bucket_aborting_cancels_timeout(self):
-        pass
+        """
+        Closing cancels the ``BucketWriter`` timeout.
+        """
+        incoming, final = self.make_workdir("test_bucket_abort_timeout")
+        clock = Clock()
+        bw = BucketWriter(self, incoming, final, 10, self.make_lease(), clock)
+        self.assertTrue(clock.getDelayedCalls())
+        bw.abort()
+        self.assertFalse(clock.getDelayedCalls())
 
 
 class RemoteBucket(object):
