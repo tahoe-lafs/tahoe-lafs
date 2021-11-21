@@ -468,14 +468,19 @@ class Server(unittest.TestCase):
         sv1 = ver[b'http://allmydata.org/tahoe/protocols/storage/v1']
         self.failUnlessIn(b'available-space', sv1)
 
-    def allocate(self, ss, storage_index, sharenums, size, canary=None):
+    def allocate(self, ss, storage_index, sharenums, size, renew_leases=True):
+        """
+        Call directly into the storage server's allocate_buckets implementation,
+        skipping the Foolscap layer.
+        """
         renew_secret = hashutil.my_renewal_secret_hash(b"%d" % next(self._lease_secret))
         cancel_secret = hashutil.my_cancel_secret_hash(b"%d" % next(self._lease_secret))
-        if not canary:
-            canary = FakeCanary()
-        return ss.remote_allocate_buckets(storage_index,
-                                          renew_secret, cancel_secret,
-                                          sharenums, size, canary)
+        return ss._allocate_buckets(
+            storage_index,
+            renew_secret, cancel_secret,
+            sharenums, size,
+            renew_leases=renew_leases,
+        )
 
     def test_large_share(self):
         syslow = platform.system().lower()
@@ -608,6 +613,64 @@ class Server(unittest.TestCase):
         for i,wb in writers.items():
             wb.remote_abort()
 
+    def test_allocate_without_lease_renewal(self):
+        """
+        ``StorageServer._allocate_buckets`` does not renew leases on existing
+        shares if ``renew_leases`` is ``False``.
+        """
+        first_lease = 456
+        second_lease = 543
+        storage_index = b"allocate"
+
+        clock = Clock()
+        clock.advance(first_lease)
+        ss = self.create(
+            "test_allocate_without_lease_renewal",
+            get_current_time=clock.seconds,
+        )
+
+        # Put a share on there
+        already, writers = self.allocate(
+            ss, storage_index, [0], 1, renew_leases=False,
+        )
+        (writer,) = writers.values()
+        writer.remote_write(0, b"x")
+        writer.remote_close()
+
+        # It should have a lease granted at the current time.
+        shares = dict(ss._get_bucket_shares(storage_index))
+        self.assertEqual(
+            [first_lease],
+            list(
+                lease.get_grant_renew_time_time()
+                for lease
+                in ShareFile(shares[0]).get_leases()
+            ),
+        )
+
+        # Let some time pass so we can tell if the lease on share 0 is
+        # renewed.
+        clock.advance(second_lease)
+
+        # Put another share on there.
+        already, writers = self.allocate(
+            ss, storage_index, [1], 1, renew_leases=False,
+        )
+        (writer,) = writers.values()
+        writer.remote_write(0, b"x")
+        writer.remote_close()
+
+        # The first share's lease expiration time is unchanged.
+        shares = dict(ss._get_bucket_shares(storage_index))
+        self.assertEqual(
+            [first_lease],
+            list(
+                lease.get_grant_renew_time_time()
+                for lease
+                in ShareFile(shares[0]).get_leases()
+            ),
+        )
+
     def test_bad_container_version(self):
         ss = self.create("test_bad_container_version")
         a,w = self.allocate(ss, b"si1", [0], 10)
@@ -629,8 +692,17 @@ class Server(unittest.TestCase):
     def test_disconnect(self):
         # simulate a disconnection
         ss = self.create("test_disconnect")
+        renew_secret = b"r" * 32
+        cancel_secret = b"c" * 32
         canary = FakeCanary()
-        already,writers = self.allocate(ss, b"disconnect", [0,1,2], 75, canary)
+        already,writers = ss.remote_allocate_buckets(
+            b"disconnect",
+            renew_secret,
+            cancel_secret,
+            sharenums=[0,1,2],
+            allocated_size=75,
+            canary=canary,
+        )
         self.failUnlessEqual(already, set())
         self.failUnlessEqual(set(writers.keys()), set([0,1,2]))
         for (f,args,kwargs) in list(canary.disconnectors.values()):
@@ -662,8 +734,17 @@ class Server(unittest.TestCase):
         # the size we request.
         OVERHEAD = 3*4
         LEASE_SIZE = 4+32+32+4
+        renew_secret = b"r" * 32
+        cancel_secret = b"c" * 32
         canary = FakeCanary()
-        already, writers = self.allocate(ss, b"vid1", [0,1,2], 1000, canary)
+        already, writers = ss.remote_allocate_buckets(
+            b"vid1",
+            renew_secret,
+            cancel_secret,
+            sharenums=[0,1,2],
+            allocated_size=1000,
+            canary=canary,
+        )
         self.failUnlessEqual(len(writers), 3)
         # now the StorageServer should have 3000 bytes provisionally
         # allocated, allowing only 2000 more to be claimed
@@ -696,7 +777,14 @@ class Server(unittest.TestCase):
         # now there should be ALLOCATED=1001+12+72=1085 bytes allocated, and
         # 5000-1085=3915 free, therefore we can fit 39 100byte shares
         canary3 = FakeCanary()
-        already3, writers3 = self.allocate(ss, b"vid3", list(range(100)), 100, canary3)
+        already3, writers3 = ss.remote_allocate_buckets(
+            b"vid3",
+            renew_secret,
+            cancel_secret,
+            sharenums=list(range(100)),
+            allocated_size=100,
+            canary=canary3,
+        )
         self.failUnlessEqual(len(writers3), 39)
         self.failUnlessEqual(len(ss._bucket_writers), 39)
 

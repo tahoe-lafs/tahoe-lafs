@@ -57,6 +57,9 @@ DEFAULT_RENEWAL_TIME = 31 * 24 * 60 * 60
 
 @implementer(RIStorageServer, IStatsProducer)
 class StorageServer(service.MultiService, Referenceable):
+    """
+    A filesystem-based implementation of ``RIStorageServer``.
+    """
     name = 'storage'
     LeaseCheckerClass = LeaseCheckingCrawler
 
@@ -277,9 +280,14 @@ class StorageServer(service.MultiService, Referenceable):
     def _allocate_buckets(self, storage_index,
                           renew_secret, cancel_secret,
                           sharenums, allocated_size,
-                          owner_num=0):
+                          owner_num=0, renew_leases=True):
         """
         Generic bucket allocation API.
+
+        :param bool renew_leases: If and only if this is ``True`` then renew a
+            secret-matching lease on (or, if none match, add a new lease to)
+            existing shares in this bucket.  Any *new* shares are given a new
+            lease regardless.
         """
         # owner_num is not for clients to set, but rather it should be
         # curried into the PersonalStorageServer instance that is dedicated
@@ -319,8 +327,9 @@ class StorageServer(service.MultiService, Referenceable):
         # file, they'll want us to hold leases for this file.
         for (shnum, fn) in self._get_bucket_shares(storage_index):
             alreadygot.add(shnum)
-            sf = ShareFile(fn)
-            sf.add_or_renew_lease(lease_info)
+            if renew_leases:
+                sf = ShareFile(fn)
+                sf.add_or_renew_lease(lease_info)
 
         for shnum in sharenums:
             incominghome = os.path.join(self.incomingdir, si_dir, "%d" % shnum)
@@ -361,7 +370,7 @@ class StorageServer(service.MultiService, Referenceable):
         """Foolscap-specific ``allocate_buckets()`` API."""
         alreadygot, bucketwriters = self._allocate_buckets(
             storage_index, renew_secret, cancel_secret, sharenums, allocated_size,
-            owner_num=owner_num,
+            owner_num=owner_num, renew_leases=True,
         )
         # Abort BucketWriters if disconnection happens.
         for bw in bucketwriters.values():
@@ -579,10 +588,8 @@ class StorageServer(service.MultiService, Referenceable):
             else:
                 if sharenum not in shares:
                     # allocate a new share
-                    allocated_size = 2000 # arbitrary, really
                     share = self._allocate_slot_share(bucketdir, secrets,
                                                       sharenum,
-                                                      allocated_size,
                                                       owner_num=0)
                     shares[sharenum] = share
                 shares[sharenum].writev(datav, new_length)
@@ -631,8 +638,10 @@ class StorageServer(service.MultiService, Referenceable):
         Read data from shares and conditionally write some data to them.
 
         :param bool renew_leases: If and only if this is ``True`` and the test
-            vectors pass then shares in this slot will also have an updated
-            lease applied to them.
+            vectors pass then shares mentioned in ``test_and_write_vectors``
+            that still exist after the changes are made will also have a
+            secret-matching lease renewed (or, if none match, a new lease
+            added).
 
         See ``allmydata.interfaces.RIStorageServer`` for details about other
         parameters and return value.
@@ -694,7 +703,7 @@ class StorageServer(service.MultiService, Referenceable):
         )
 
     def _allocate_slot_share(self, bucketdir, secrets, sharenum,
-                             allocated_size, owner_num=0):
+                             owner_num=0):
         (write_enabler, renew_secret, cancel_secret) = secrets
         my_nodeid = self.my_nodeid
         fileutil.make_dirs(bucketdir)
