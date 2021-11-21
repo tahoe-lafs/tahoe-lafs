@@ -33,6 +33,7 @@ from testtools import (
 )
 from testtools.matchers import (
     Is,
+    Contains,
     IsInstance,
     MatchesStructure,
     Equals,
@@ -63,7 +64,7 @@ from twisted.internet.defer import (
     succeed,
 )
 from twisted.internet.task import deferLater
-from twisted.internet import reactor
+from twisted.internet import reactor, defer
 
 from ..util.eliotutil import (
     log_call_deferred,
@@ -330,6 +331,24 @@ class LogCallDeferredTests(TestCase):
         msg = logger.messages[0]
         assertContainsFields(self, msg, {"args": (10, 2)})
         assertContainsFields(self, msg, {"kwargs": {"message": "an exponential function"}})
+
+
+    @capture_logging(
+        lambda self, logger:
+        assertHasAction(self, logger, u"the-action", succeeded=True),
+    )
+    def test_gets_unserializable_kwargs_and_args(self, logger):
+        """
+        Check that both keyword and positional arguments are logged when using ``log_call_deferred``
+        """
+        @log_call_deferred(action_type=u"the-action")
+        def f(base, exp, not_serialiable, unserializable):
+            return base ** exp
+        d = defer.succeed('deferred objects are unserializable')
+        self.assertThat(f(10, 2, d, unserializable=b"good-\xff-day"), succeeded(Equals(100)))
+        msg = logger.messages[0]
+        self.assertThat(msg['args'][2], Contains("deferred objects are unserializable"))
+        assertContainsFields(self, msg, {'kwargs': {'unserializable': "b'good-\\xff-day'"}})
 
 
     @capture_logging(
