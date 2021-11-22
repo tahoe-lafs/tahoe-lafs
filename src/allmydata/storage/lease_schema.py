@@ -28,11 +28,17 @@ from .lease import (
 
 @attr.s(frozen=True)
 class CleartextLeaseSerializer(object):
+    """
+    Serialize and unserialize leases with cleartext secrets.
+    """
     _to_data = attr.ib()
     _from_data = attr.ib()
 
     def serialize(self, lease):
         # type: (LeaseInfo) -> bytes
+        """
+        Represent the given lease as bytes with cleartext secrets.
+        """
         if isinstance(lease, LeaseInfo):
             return self._to_data(lease)
         raise ValueError(
@@ -42,6 +48,9 @@ class CleartextLeaseSerializer(object):
         )
 
     def unserialize(self, data):
+        """
+        Load a lease with cleartext secrets from the given bytes representation.
+        """
         # type: (bytes) -> LeaseInfo
         # In v1 of the immutable schema lease secrets are stored plaintext.
         # So load the data into a plain LeaseInfo which works on plaintext
