@@ -48,10 +48,10 @@ class CleartextLeaseSerializer(object):
         )
 
     def unserialize(self, data):
+        # type: (bytes) -> LeaseInfo
         """
         Load a lease with cleartext secrets from the given bytes representation.
         """
-        # type: (bytes) -> LeaseInfo
         # In v1 of the immutable schema lease secrets are stored plaintext.
         # So load the data into a plain LeaseInfo which works on plaintext
         # secrets.
