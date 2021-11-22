@@ -25,6 +25,7 @@ from twisted.python.components import (
 )
 
 from allmydata.util.hashutil import timing_safe_compare
+from allmydata.util import base32
 
 # struct format for representation of a lease in an immutable share
 IMMUTABLE_FORMAT = ">L32s32sL"
@@ -102,10 +103,22 @@ class ILeaseInfo(Interface):
             secret, ``False`` otherwise
         """
 
+    def present_renew_secret():
+        """
+        :return str: Text which could reasonably be shown to a person representing
+            this lease's renew secret.
+        """
+
     def is_cancel_secret(candidate_secret):
         """
         :return bool: ``True`` if the given byte string is this lease's cancel
             secret, ``False`` otherwise
+        """
+
+    def present_cancel_secret():
+        """
+        :return str: Text which could reasonably be shown to a person representing
+            this lease's cancel secret.
         """
 
 
@@ -173,6 +186,13 @@ class LeaseInfo(object):
         """
         return timing_safe_compare(self.renew_secret, candidate_secret)
 
+    def present_renew_secret(self):
+        # type: () -> str
+        """
+        Return the renew secret, base32-encoded.
+        """
+        return str(base32.b2a(self.renew_secret), "utf-8")
+
     def is_cancel_secret(self, candidate_secret):
         # type: (bytes) -> bool
         """
@@ -182,6 +202,13 @@ class LeaseInfo(object):
             otherwise.
         """
         return timing_safe_compare(self.cancel_secret, candidate_secret)
+
+    def present_cancel_secret(self):
+        # type: () -> str
+        """
+        Return the cancel secret, base32-encoded.
+        """
+        return str(base32.b2a(self.cancel_secret), "utf-8")
 
     def get_grant_renew_time_time(self):
         # hack, based upon fixed 31day expiration period
@@ -203,7 +230,7 @@ class LeaseInfo(object):
             "cancel_secret",
             "expiration_time",
         ]
-        values = struct.unpack(">L32s32sL", data)
+        values = struct.unpack(IMMUTABLE_FORMAT, data)
         return cls(nodeid=None, **dict(zip(names, values)))
 
     def immutable_size(self):
@@ -247,7 +274,7 @@ class LeaseInfo(object):
             "cancel_secret",
             "nodeid",
         ]
-        values = struct.unpack(">LL32s32s20s", data)
+        values = struct.unpack(MUTABLE_FORMAT, data)
         return cls(**dict(zip(names, values)))
 
 
@@ -264,14 +291,30 @@ class HashedLeaseInfo(proxyForInterface(ILeaseInfo, "_lease_info")): # type: ign
     # to `_lease_info`.  Here we override a few of those methods to adjust
     # their behavior to make them suitable for use with hashed secrets.
 
+    def renew(self, new_expire_time):
+        # Preserve the HashedLeaseInfo wrapper around the renewed LeaseInfo.
+        return attr.assoc(
+            self,
+            _lease_info=super(HashedLeaseInfo, self).renew(new_expire_time),
+        )
+
     def is_renew_secret(self, candidate_secret):
+        # type: (bytes) -> bool
         """
         Hash the candidate secret and compare the result to the stored hashed
         secret.
         """
         return super(HashedLeaseInfo, self).is_renew_secret(self._hash(candidate_secret))
 
+    def present_renew_secret(self):
+        # type: () -> str
+        """
+        Present the hash of the secret with a marker indicating it is a hash.
+        """
+        return u"hash:" + super(HashedLeaseInfo, self).present_renew_secret()
+
     def is_cancel_secret(self, candidate_secret):
+        # type: (bytes) -> bool
         """
         Hash the candidate secret and compare the result to the stored hashed
         secret.
@@ -292,9 +335,20 @@ class HashedLeaseInfo(proxyForInterface(ILeaseInfo, "_lease_info")): # type: ign
 
         return super(HashedLeaseInfo, self).is_cancel_secret(hashed_candidate)
 
+    def present_cancel_secret(self):
+        # type: () -> str
+        """
+        Present the hash of the secret with a marker indicating it is a hash.
+        """
+        return u"hash:" + super(HashedLeaseInfo, self).present_cancel_secret()
+
     @property
     def owner_num(self):
         return self._lease_info.owner_num
+
+    @property
+    def nodeid(self):
+        return self._lease_info.nodeid
 
     @property
     def cancel_secret(self):

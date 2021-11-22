@@ -42,9 +42,12 @@ from allmydata.util import fileutil, hashutil, base32
 from allmydata.storage.server import StorageServer, DEFAULT_RENEWAL_TIME
 from allmydata.storage.shares import get_share_file
 from allmydata.storage.mutable import MutableShareFile
+from allmydata.storage.mutable_schema import (
+    ALL_SCHEMAS as ALL_MUTABLE_SCHEMAS,
+)
 from allmydata.storage.immutable import BucketWriter, BucketReader, ShareFile
 from allmydata.storage.immutable_schema import (
-    ALL_SCHEMAS,
+    ALL_SCHEMAS as ALL_IMMUTABLE_SCHEMAS,
 )
 from allmydata.storage.common import storage_index_to_dir, \
      UnknownMutableContainerVersionError, UnknownImmutableContainerVersionError, \
@@ -1361,14 +1364,25 @@ class MutableServer(unittest.TestCase):
                                       2: [b"2"*10]})
 
     def compare_leases_without_timestamps(self, leases_a, leases_b):
-        self.failUnlessEqual(len(leases_a), len(leases_b))
-        for i in range(len(leases_a)):
-            a = leases_a[i]
-            b = leases_b[i]
-            self.failUnlessEqual(a.owner_num,       b.owner_num)
-            self.failUnlessEqual(a.renew_secret,    b.renew_secret)
-            self.failUnlessEqual(a.cancel_secret,   b.cancel_secret)
-            self.failUnlessEqual(a.nodeid,          b.nodeid)
+        """
+        Assert that, except for expiration times, ``leases_a`` contains the same
+        lease information as ``leases_b``.
+        """
+        for a, b in zip(leases_a, leases_b):
+            # The leases aren't always of the same type (though of course
+            # corresponding elements in the two lists should be of the same
+            # type as each other) so it's inconvenient to just reach in and
+            # normalize the expiration timestamp.  We don't want to call
+            # `renew` on both objects to normalize the expiration timestamp in
+            # case `renew` is broken and gives us back equal outputs from
+            # non-equal inputs (expiration timestamp aside).  It seems
+            # reasonably safe to use `renew` to make _one_ of the timestamps
+            # equal to the other though.
+            self.assertEqual(
+                a.renew(b.get_expiration_time()),
+                b,
+            )
+        self.assertEqual(len(leases_a), len(leases_b))
 
     def test_leases(self):
         ss = self.create("test_leases")
@@ -3134,7 +3148,7 @@ class Stats(unittest.TestCase):
         self.failUnless(output["get"]["99_0_percentile"] is None, output)
         self.failUnless(output["get"]["99_9_percentile"] is None, output)
 
-immutable_schemas = strategies.sampled_from(list(ALL_SCHEMAS))
+immutable_schemas = strategies.sampled_from(list(ALL_IMMUTABLE_SCHEMAS))
 
 class ShareFileTests(unittest.TestCase):
     """Tests for allmydata.storage.immutable.ShareFile."""
@@ -3273,15 +3287,17 @@ class ShareFileTests(unittest.TestCase):
         (loaded_lease,) = sf.get_leases()
         self.assertTrue(loaded_lease.is_cancel_secret(cancel_secret))
 
+mutable_schemas = strategies.sampled_from(list(ALL_MUTABLE_SCHEMAS))
 
 class MutableShareFileTests(unittest.TestCase):
     """
     Tests for allmydata.storage.mutable.MutableShareFile.
     """
-    def get_sharefile(self):
-        return MutableShareFile(self.mktemp())
+    def get_sharefile(self, **kwargs):
+        return MutableShareFile(self.mktemp(), **kwargs)
 
     @given(
+        schema=mutable_schemas,
         nodeid=strategies.just(b"x" * 20),
         write_enabler=strategies.just(b"y" * 32),
         datav=strategies.lists(
@@ -3292,12 +3308,12 @@ class MutableShareFileTests(unittest.TestCase):
         ),
         new_length=offsets(),
     )
-    def test_readv_reads_share_data(self, nodeid, write_enabler, datav, new_length):
+    def test_readv_reads_share_data(self, schema, nodeid, write_enabler, datav, new_length):
         """
         ``MutableShareFile.readv`` returns bytes from the share data portion
         of the share file.
         """
-        sf = self.get_sharefile()
+        sf = self.get_sharefile(schema=schema)
         sf.create(my_nodeid=nodeid, write_enabler=write_enabler)
         sf.writev(datav=datav, new_length=new_length)
 
@@ -3332,12 +3348,13 @@ class MutableShareFileTests(unittest.TestCase):
         self.assertEqual(expected_data, read_data)
 
     @given(
+        schema=mutable_schemas,
         nodeid=strategies.just(b"x" * 20),
         write_enabler=strategies.just(b"y" * 32),
         readv=strategies.lists(strategies.tuples(offsets(), lengths()), min_size=1),
         random=strategies.randoms(),
     )
-    def test_readv_rejects_negative_length(self, nodeid, write_enabler, readv, random):
+    def test_readv_rejects_negative_length(self, schema, nodeid, write_enabler, readv, random):
         """
         If a negative length is given to ``MutableShareFile.readv`` in a read
         vector then ``AssertionError`` is raised.
@@ -3376,7 +3393,7 @@ class MutableShareFileTests(unittest.TestCase):
             *broken_readv[readv_index]
         )
 
-        sf = self.get_sharefile()
+        sf = self.get_sharefile(schema=schema)
         sf.create(my_nodeid=nodeid, write_enabler=write_enabler)
 
         # A read with a broken read vector is an error.
