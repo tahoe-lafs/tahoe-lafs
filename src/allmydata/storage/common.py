@@ -21,6 +21,12 @@ class UnknownContainerVersionError(Exception):
         self.filename = filename
         self.version = version
 
+    def __str__(self):
+        return "sharefile {!r} had unexpected version {!r}".format(
+            self.filename,
+            self.version,
+        )
+
 class UnknownMutableContainerVersionError(UnknownContainerVersionError):
     pass
 

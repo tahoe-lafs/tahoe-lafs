@@ -287,6 +287,10 @@ class HashedLeaseInfo(proxyForInterface(ILeaseInfo, "_lease_info")): # type: ign
     _lease_info = attr.ib()
     _hash = attr.ib()
 
+    # proxyForInterface will take care of forwarding all methods on ILeaseInfo
+    # to `_lease_info`.  Here we override a few of those methods to adjust
+    # their behavior to make them suitable for use with hashed secrets.
+
     def renew(self, new_expire_time):
         # Preserve the HashedLeaseInfo wrapper around the renewed LeaseInfo.
         return attr.assoc(
@@ -315,7 +319,7 @@ class HashedLeaseInfo(proxyForInterface(ILeaseInfo, "_lease_info")): # type: ign
         Hash the candidate secret and compare the result to the stored hashed
         secret.
         """
-        if  isinstance(candidate_secret, _HashedCancelSecret):
+        if isinstance(candidate_secret, _HashedCancelSecret):
             # Someone read it off of this object in this project - probably
             # the lease crawler - and is just trying to use it to identify
             # which lease it wants to operate on.  Avoid re-hashing the value.
