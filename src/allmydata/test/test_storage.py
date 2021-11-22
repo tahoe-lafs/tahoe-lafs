@@ -1361,6 +1361,10 @@ class MutableServer(unittest.TestCase):
                                       2: [b"2"*10]})
 
     def compare_leases_without_timestamps(self, leases_a, leases_b):
+        """
+        Assert that, except for expiration times, ``leases_a`` contains the same
+        lease information as ``leases_b``.
+        """
         for a, b in zip(leases_a, leases_b):
             # The leases aren't always of the same type (though of course
             # corresponding elements in the two lists should be of the same
