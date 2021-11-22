@@ -95,9 +95,7 @@ class MutableShareFile(object):
              data_length, extra_least_offset) = \
              struct.unpack(">32s20s32sQQ", data)
             if not self.is_valid_header(data):
-                msg = "sharefile %s had magic '%r' but we wanted '%r'" % \
-                      (filename, magic, self.MAGIC)
-                raise UnknownMutableContainerVersionError(msg)
+                raise UnknownMutableContainerVersionError(filename, magic)
         self.parent = parent # for logging
 
     def log(self, *args, **kwargs):
