@@ -47,7 +47,7 @@ def _authorization_decorator(f):
     return route
 
 
-def _route(app, *route_args, **route_kwargs):
+def _authorized_route(app, *route_args, **route_kwargs):
     """
     Like Klein's @route, but with additional support for checking the
     ``Authorization`` header as well as ``X-Tahoe-Authorization`` headers.  The
@@ -89,6 +89,6 @@ class HTTPServer(object):
         # TODO if data is big, maybe want to use a temporary file eventually...
         return dumps(data)
 
-    @_route(_app, "/v1/version", methods=["GET"])
+    @_authorized_route(_app, "/v1/version", methods=["GET"])
     def version(self, request, authorization):
         return self._cbor(request, self._storage_server.remote_get_version())
