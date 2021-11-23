@@ -128,7 +128,7 @@ class Bucket(unittest.TestCase):
 
     def test_create(self):
         incoming, final = self.make_workdir("test_create")
-        bw = BucketWriter(self, incoming, final, 200, self.make_lease())
+        bw = BucketWriter(self, incoming, final, 200, self.make_lease(), Clock())
         bw.remote_write(0, b"a"*25)
         bw.remote_write(25, b"b"*25)
         bw.remote_write(50, b"c"*25)
@@ -137,7 +137,7 @@ class Bucket(unittest.TestCase):
 
     def test_readwrite(self):
         incoming, final = self.make_workdir("test_readwrite")
-        bw = BucketWriter(self, incoming, final, 200, self.make_lease())
+        bw = BucketWriter(self, incoming, final, 200, self.make_lease(), Clock())
         bw.remote_write(0, b"a"*25)
         bw.remote_write(25, b"b"*25)
         bw.remote_write(50, b"c"*7) # last block may be short
@@ -155,7 +155,7 @@ class Bucket(unittest.TestCase):
             incoming, final = self.make_workdir(
                 "test_write_past_size_errors-{}".format(i)
             )
-            bw = BucketWriter(self, incoming, final, 200, self.make_lease())
+            bw = BucketWriter(self, incoming, final, 200, self.make_lease(), Clock())
             with self.assertRaises(DataTooLargeError):
                 bw.remote_write(offset, b"a" * length)
 
@@ -174,7 +174,7 @@ class Bucket(unittest.TestCase):
         expected_data = b"".join(bchr(i) for i in range(100))
         incoming, final = self.make_workdir("overlapping_writes_{}".format(uuid4()))
         bw = BucketWriter(
-            self, incoming, final, length, self.make_lease(),
+            self, incoming, final, length, self.make_lease(), Clock()
         )
         # Three writes: 10-19, 30-39, 50-59. This allows for a bunch of holes.
         bw.remote_write(10, expected_data[10:20])
@@ -212,7 +212,7 @@ class Bucket(unittest.TestCase):
         length = 100
         incoming, final = self.make_workdir("overlapping_writes_{}".format(uuid4()))
         bw = BucketWriter(
-            self, incoming, final, length, self.make_lease(),
+            self, incoming, final, length, self.make_lease(), Clock()
         )
         # Three writes: 10-19, 30-39, 50-59. This allows for a bunch of holes.
         bw.remote_write(10, b"1" * 10)
@@ -285,6 +285,67 @@ class Bucket(unittest.TestCase):
         result_of_read = br.remote_read(0, len(share_data)+1)
         self.failUnlessEqual(result_of_read, share_data)
 
+    def _assert_timeout_only_after_30_minutes(self, clock, bw):
+        """
+        The ``BucketWriter`` times out and is closed after 30 minutes, but not
+        sooner.
+        """
+        self.assertFalse(bw.closed)
+        # 29 minutes pass. Everything is fine.
+        for i in range(29):
+            clock.advance(60)
+            self.assertFalse(bw.closed, "Bucket closed after only %d minutes" % (i + 1,))
+        # After the 30th minute, the bucket is closed due to lack of writes.
+        clock.advance(60)
+        self.assertTrue(bw.closed)
+
+    def test_bucket_expires_if_no_writes_for_30_minutes(self):
+        """
+        If a ``BucketWriter`` receives no writes for 30 minutes, it is removed.
+        """
+        incoming, final = self.make_workdir("test_bucket_expires")
+        clock = Clock()
+        bw = BucketWriter(self, incoming, final, 200, self.make_lease(), clock)
+        self._assert_timeout_only_after_30_minutes(clock, bw)
+
+    def test_bucket_writes_delay_timeout(self):
+        """
+        So long as the ``BucketWriter`` receives writes, the the removal
+        timeout is put off.
+        """
+        incoming, final = self.make_workdir("test_bucket_writes_delay_timeout")
+        clock = Clock()
+        bw = BucketWriter(self, incoming, final, 200, self.make_lease(), clock)
+        # 29 minutes pass, getting close to the timeout...
+        clock.advance(29 * 60)
+        # .. but we receive a write! So that should delay the timeout again to
+        # another 30 minutes.
+        bw.remote_write(0, b"hello")
+        self._assert_timeout_only_after_30_minutes(clock, bw)
+
+    def test_bucket_closing_cancels_timeout(self):
+        """
+        Closing cancels the ``BucketWriter`` timeout.
+        """
+        incoming, final = self.make_workdir("test_bucket_close_timeout")
+        clock = Clock()
+        bw = BucketWriter(self, incoming, final, 10, self.make_lease(), clock)
+        self.assertTrue(clock.getDelayedCalls())
+        bw.close()
+        self.assertFalse(clock.getDelayedCalls())
+
+    def test_bucket_aborting_cancels_timeout(self):
+        """
+        Closing cancels the ``BucketWriter`` timeout.
+        """
+        incoming, final = self.make_workdir("test_bucket_abort_timeout")
+        clock = Clock()
+        bw = BucketWriter(self, incoming, final, 10, self.make_lease(), clock)
+        self.assertTrue(clock.getDelayedCalls())
+        bw.abort()
+        self.assertFalse(clock.getDelayedCalls())
+
+
 class RemoteBucket(object):
 
     def __init__(self, target):
@@ -312,7 +373,7 @@ class BucketProxy(unittest.TestCase):
         final = os.path.join(basedir, "bucket")
         fileutil.make_dirs(basedir)
         fileutil.make_dirs(os.path.join(basedir, "tmp"))
-        bw = BucketWriter(self, incoming, final, size, self.make_lease())
+        bw = BucketWriter(self, incoming, final, size, self.make_lease(), Clock())
         rb = RemoteBucket(bw)
         return bw, rb, final
 
@@ -438,11 +499,13 @@ class Server(unittest.TestCase):
         basedir = os.path.join("storage", "Server", name)
         return basedir
 
-    def create(self, name, reserved_space=0, klass=StorageServer, get_current_time=time.time):
+    def create(self, name, reserved_space=0, klass=StorageServer, clock=None):
+        if clock is None:
+            clock = Clock()
         workdir = self.workdir(name)
         ss = klass(workdir, b"\x00" * 20, reserved_space=reserved_space,
                    stats_provider=FakeStatsProvider(),
-                   get_current_time=get_current_time)
+                   clock=clock)
         ss.setServiceParent(self.sparent)
         return ss
 
@@ -559,7 +622,6 @@ class Server(unittest.TestCase):
             writer.remote_abort()
         self.failUnlessEqual(ss.allocated_size(), 0)
 
-
     def test_allocate(self):
         ss = self.create("test_allocate")
 
@@ -626,7 +688,7 @@ class Server(unittest.TestCase):
         clock.advance(first_lease)
         ss = self.create(
             "test_allocate_without_lease_renewal",
-            get_current_time=clock.seconds,
+            clock=clock,
         )
 
         # Put a share on there
@@ -918,7 +980,7 @@ class Server(unittest.TestCase):
         """
         clock = Clock()
         clock.advance(123)
-        ss = self.create("test_immutable_add_lease_renews", get_current_time=clock.seconds)
+        ss = self.create("test_immutable_add_lease_renews", clock=clock)
 
         # Start out with single lease created with bucket:
         renewal_secret, cancel_secret = self.create_bucket_5_shares(ss, b"si0")
@@ -1032,10 +1094,12 @@ class MutableServer(unittest.TestCase):
         basedir = os.path.join("storage", "MutableServer", name)
         return basedir
 
-    def create(self, name, get_current_time=time.time):
+    def create(self, name, clock=None):
         workdir = self.workdir(name)
+        if clock is None:
+            clock = Clock()
         ss = StorageServer(workdir, b"\x00" * 20,
-                           get_current_time=get_current_time)
+                           clock=clock)
         ss.setServiceParent(self.sparent)
         return ss
 
@@ -1420,7 +1484,7 @@ class MutableServer(unittest.TestCase):
         clock = Clock()
         clock.advance(235)
         ss = self.create("test_mutable_add_lease_renews",
-                         get_current_time=clock.seconds)
+                         clock=clock)
         def secrets(n):
             return ( self.write_enabler(b"we1"),
                      self.renew_secret(b"we1-%d" % n),

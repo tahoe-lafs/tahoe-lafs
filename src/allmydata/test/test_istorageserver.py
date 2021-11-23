@@ -21,6 +21,7 @@ if PY2:
 from random import Random
 
 from twisted.internet.defer import inlineCallbacks, returnValue
+from twisted.internet.task import Clock
 
 from foolscap.api import Referenceable, RemoteException
 
@@ -1017,16 +1018,17 @@ class _FoolscapMixin(SystemTestMixin):
                 self.server = s
                 break
         assert self.server is not None, "Couldn't find StorageServer"
-        self._current_time = 123456
-        self.server._get_current_time = self.fake_time
+        self._clock = Clock()
+        self._clock.advance(123456)
+        self.server._clock = self._clock
 
     def fake_time(self):
         """Return the current fake, test-controlled, time."""
-        return self._current_time
+        return self._clock.seconds()
 
     def fake_sleep(self, seconds):
         """Advance the fake time by the given number of seconds."""
-        self._current_time += seconds
+        self._clock.advance(seconds)
 
     @inlineCallbacks
     def tearDown(self):
