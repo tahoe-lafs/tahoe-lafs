@@ -98,6 +98,7 @@ EOF
     service-identity pyyaml magic-wormhole
     eliot autobahn cryptography netifaces setuptools
     future pyutil distro configparser collections-extended
+    klein cbor2 treq
   ];
 
   checkInputs = with python.pkgs; [
