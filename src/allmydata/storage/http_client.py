@@ -14,6 +14,8 @@ if PY2:
     from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
     # fmt: on
 else:
+    # typing module not available in Python 2, and we only do type checking in
+    # Python 3 anyway.
     from typing import Union
     from treq.testing import StubTreq
 
