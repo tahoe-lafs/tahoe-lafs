@@ -316,9 +316,10 @@ class Bucket(unittest.TestCase):
         incoming, final = self.make_workdir("test_bucket_writes_delay_timeout")
         clock = Clock()
         bw = BucketWriter(self, incoming, final, 200, self.make_lease(), clock)
-        # 20 minutes pass, getting close to the timeout...
+        # 29 minutes pass, getting close to the timeout...
         clock.advance(29 * 60)
-        # .. but we receive a write! So that should delay the timeout.
+        # .. but we receive a write! So that should delay the timeout again to
+        # another 30 minutes.
         bw.remote_write(0, b"hello")
         self._assert_timeout_only_after_30_minutes(clock, bw)
 
