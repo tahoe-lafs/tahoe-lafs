@@ -146,10 +146,17 @@ class _LeaseStateSerializer(object):
         )
 
     def load(self):
+        """
+        :returns: deserialized JSON state
+        """
         with self._path.open("rb") as f:
             return json.load(f)
 
     def save(self, data):
+        """
+        Serialize the given data as JSON into the state-path
+        :returns: None
+        """
         tmpfile = self._path.siblingExtension(".tmp")
         with tmpfile.open("wb") as f:
             json.dump(data, f)
