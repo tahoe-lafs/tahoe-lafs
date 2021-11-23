@@ -42,7 +42,13 @@ from allmydata.util import fileutil, hashutil, base32
 from allmydata.storage.server import StorageServer, DEFAULT_RENEWAL_TIME
 from allmydata.storage.shares import get_share_file
 from allmydata.storage.mutable import MutableShareFile
+from allmydata.storage.mutable_schema import (
+    ALL_SCHEMAS as ALL_MUTABLE_SCHEMAS,
+)
 from allmydata.storage.immutable import BucketWriter, BucketReader, ShareFile
+from allmydata.storage.immutable_schema import (
+    ALL_SCHEMAS as ALL_IMMUTABLE_SCHEMAS,
+)
 from allmydata.storage.common import storage_index_to_dir, \
      UnknownMutableContainerVersionError, UnknownImmutableContainerVersionError, \
      si_b2a, si_a2b
@@ -646,7 +652,9 @@ class Server(unittest.TestCase):
 
         e = self.failUnlessRaises(UnknownImmutableContainerVersionError,
                                   ss.remote_get_buckets, b"si1")
-        self.failUnlessIn(" had version 0 but we wanted 1", str(e))
+        self.assertEqual(e.filename, fn)
+        self.assertEqual(e.version, 0)
+        self.assertIn("had unexpected version 0", str(e))
 
     def test_disconnect(self):
         # simulate a disconnection
@@ -843,6 +851,9 @@ class Server(unittest.TestCase):
 
         # Create a bucket:
         rs0, cs0 = self.create_bucket_5_shares(ss, b"si0")
+
+        # Upload of an immutable implies creation of a single lease with the
+        # supplied secrets.
         (lease,) = ss.get_leases(b"si0")
         self.assertTrue(lease.is_renew_secret(rs0))
 
@@ -1127,8 +1138,10 @@ class MutableServer(unittest.TestCase):
         read = ss.remote_slot_readv
         e = self.failUnlessRaises(UnknownMutableContainerVersionError,
                                   read, b"si1", [0], [(0,10)])
-        self.failUnlessIn(" had magic ", str(e))
-        self.failUnlessIn(" but we wanted ", str(e))
+        self.assertEqual(e.filename, fn)
+        self.assertTrue(e.version.startswith(b"BAD MAGIC"))
+        self.assertIn("had unexpected version", str(e))
+        self.assertIn("BAD MAGIC", str(e))
 
     def test_container_size(self):
         ss = self.create("test_container_size")
@@ -1351,14 +1364,25 @@ class MutableServer(unittest.TestCase):
                                       2: [b"2"*10]})
 
     def compare_leases_without_timestamps(self, leases_a, leases_b):
-        self.failUnlessEqual(len(leases_a), len(leases_b))
-        for i in range(len(leases_a)):
-            a = leases_a[i]
-            b = leases_b[i]
-            self.failUnlessEqual(a.owner_num,       b.owner_num)
-            self.failUnlessEqual(a.renew_secret,    b.renew_secret)
-            self.failUnlessEqual(a.cancel_secret,   b.cancel_secret)
-            self.failUnlessEqual(a.nodeid,          b.nodeid)
+        """
+        Assert that, except for expiration times, ``leases_a`` contains the same
+        lease information as ``leases_b``.
+        """
+        for a, b in zip(leases_a, leases_b):
+            # The leases aren't always of the same type (though of course
+            # corresponding elements in the two lists should be of the same
+            # type as each other) so it's inconvenient to just reach in and
+            # normalize the expiration timestamp.  We don't want to call
+            # `renew` on both objects to normalize the expiration timestamp in
+            # case `renew` is broken and gives us back equal outputs from
+            # non-equal inputs (expiration timestamp aside).  It seems
+            # reasonably safe to use `renew` to make _one_ of the timestamps
+            # equal to the other though.
+            self.assertEqual(
+                a.renew(b.get_expiration_time()),
+                b,
+            )
+        self.assertEqual(len(leases_a), len(leases_b))
 
     def test_leases(self):
         ss = self.create("test_leases")
@@ -3124,6 +3148,7 @@ class Stats(unittest.TestCase):
         self.failUnless(output["get"]["99_0_percentile"] is None, output)
         self.failUnless(output["get"]["99_9_percentile"] is None, output)
 
+immutable_schemas = strategies.sampled_from(list(ALL_IMMUTABLE_SCHEMAS))
 
 class ShareFileTests(unittest.TestCase):
     """Tests for allmydata.storage.immutable.ShareFile."""
@@ -3135,47 +3160,54 @@ class ShareFileTests(unittest.TestCase):
         # Should be b'abDEF' now.
         return sf
 
-    def test_read_write(self):
+    @given(immutable_schemas)
+    def test_read_write(self, schema):
         """Basic writes can be read."""
-        sf = self.get_sharefile()
+        sf = self.get_sharefile(schema=schema)
         self.assertEqual(sf.read_share_data(0, 3), b"abD")
         self.assertEqual(sf.read_share_data(1, 4), b"bDEF")
 
-    def test_reads_beyond_file_end(self):
+    @given(immutable_schemas)
+    def test_reads_beyond_file_end(self, schema):
         """Reads beyond the file size are truncated."""
-        sf = self.get_sharefile()
+        sf = self.get_sharefile(schema=schema)
         self.assertEqual(sf.read_share_data(0, 10), b"abDEF")
         self.assertEqual(sf.read_share_data(5, 10), b"")
 
-    def test_too_large_write(self):
+    @given(immutable_schemas)
+    def test_too_large_write(self, schema):
         """Can't do write larger than file size."""
-        sf = self.get_sharefile()
+        sf = self.get_sharefile(schema=schema)
         with self.assertRaises(DataTooLargeError):
             sf.write_share_data(0, b"x" * 3000)
 
-    def test_no_leases_cancelled(self):
+    @given(immutable_schemas)
+    def test_no_leases_cancelled(self, schema):
         """If no leases were cancelled, IndexError is raised."""
-        sf = self.get_sharefile()
+        sf = self.get_sharefile(schema=schema)
         with self.assertRaises(IndexError):
             sf.cancel_lease(b"garbage")
 
-    def test_long_lease_count_format(self):
+    @given(immutable_schemas)
+    def test_long_lease_count_format(self, schema):
         """
         ``ShareFile.__init__`` raises ``ValueError`` if the lease count format
         given is longer than one character.
         """
         with self.assertRaises(ValueError):
-            self.get_sharefile(lease_count_format="BB")
+            self.get_sharefile(schema=schema, lease_count_format="BB")
 
-    def test_large_lease_count_format(self):
+    @given(immutable_schemas)
+    def test_large_lease_count_format(self, schema):
         """
         ``ShareFile.__init__`` raises ``ValueError`` if the lease count format
         encodes to a size larger than 8 bytes.
         """
         with self.assertRaises(ValueError):
-            self.get_sharefile(lease_count_format="Q")
+            self.get_sharefile(schema=schema, lease_count_format="Q")
 
-    def test_avoid_lease_overflow(self):
+    @given(immutable_schemas)
+    def test_avoid_lease_overflow(self, schema):
         """
         If the share file already has the maximum number of leases supported then
         ``ShareFile.add_lease`` raises ``struct.error`` and makes no changes
@@ -3189,7 +3221,7 @@ class ShareFileTests(unittest.TestCase):
         )
         # Make it a little easier to reach the condition by limiting the
         # number of leases to only 255.
-        sf = self.get_sharefile(lease_count_format="B")
+        sf = self.get_sharefile(schema=schema, lease_count_format="B")
 
         # Add the leases.
         for i in range(2 ** 8 - 1):
@@ -3213,16 +3245,17 @@ class ShareFileTests(unittest.TestCase):
 
         self.assertEqual(before_data, after_data)
 
-    def test_renew_secret(self):
+    @given(immutable_schemas)
+    def test_renew_secret(self, schema):
         """
-        A lease loaded from an immutable share file can have its renew secret
-        verified.
+        A lease loaded from an immutable share file at any schema version can have
+        its renew secret verified.
         """
         renew_secret = b"r" * 32
         cancel_secret = b"c" * 32
         expiration_time = 2 ** 31
 
-        sf = self.get_sharefile()
+        sf = self.get_sharefile(schema=schema)
         lease = LeaseInfo(
             owner_num=0,
             renew_secret=renew_secret,
@@ -3233,16 +3266,17 @@ class ShareFileTests(unittest.TestCase):
         (loaded_lease,) = sf.get_leases()
         self.assertTrue(loaded_lease.is_renew_secret(renew_secret))
 
-    def test_cancel_secret(self):
+    @given(immutable_schemas)
+    def test_cancel_secret(self, schema):
         """
-        A lease loaded from an immutable share file can have its cancel secret
-        verified.
+        A lease loaded from an immutable share file at any schema version can have
+        its cancel secret verified.
         """
         renew_secret = b"r" * 32
         cancel_secret = b"c" * 32
         expiration_time = 2 ** 31
 
-        sf = self.get_sharefile()
+        sf = self.get_sharefile(schema=schema)
         lease = LeaseInfo(
             owner_num=0,
             renew_secret=renew_secret,
@@ -3253,15 +3287,17 @@ class ShareFileTests(unittest.TestCase):
         (loaded_lease,) = sf.get_leases()
         self.assertTrue(loaded_lease.is_cancel_secret(cancel_secret))
 
+mutable_schemas = strategies.sampled_from(list(ALL_MUTABLE_SCHEMAS))
 
 class MutableShareFileTests(unittest.TestCase):
     """
     Tests for allmydata.storage.mutable.MutableShareFile.
     """
-    def get_sharefile(self):
-        return MutableShareFile(self.mktemp())
+    def get_sharefile(self, **kwargs):
+        return MutableShareFile(self.mktemp(), **kwargs)
 
     @given(
+        schema=mutable_schemas,
         nodeid=strategies.just(b"x" * 20),
         write_enabler=strategies.just(b"y" * 32),
         datav=strategies.lists(
@@ -3272,12 +3308,12 @@ class MutableShareFileTests(unittest.TestCase):
         ),
         new_length=offsets(),
     )
-    def test_readv_reads_share_data(self, nodeid, write_enabler, datav, new_length):
+    def test_readv_reads_share_data(self, schema, nodeid, write_enabler, datav, new_length):
         """
         ``MutableShareFile.readv`` returns bytes from the share data portion
         of the share file.
         """
-        sf = self.get_sharefile()
+        sf = self.get_sharefile(schema=schema)
         sf.create(my_nodeid=nodeid, write_enabler=write_enabler)
         sf.writev(datav=datav, new_length=new_length)
 
@@ -3312,12 +3348,13 @@ class MutableShareFileTests(unittest.TestCase):
         self.assertEqual(expected_data, read_data)
 
     @given(
+        schema=mutable_schemas,
         nodeid=strategies.just(b"x" * 20),
         write_enabler=strategies.just(b"y" * 32),
         readv=strategies.lists(strategies.tuples(offsets(), lengths()), min_size=1),
         random=strategies.randoms(),
     )
-    def test_readv_rejects_negative_length(self, nodeid, write_enabler, readv, random):
+    def test_readv_rejects_negative_length(self, schema, nodeid, write_enabler, readv, random):
         """
         If a negative length is given to ``MutableShareFile.readv`` in a read
         vector then ``AssertionError`` is raised.
@@ -3356,7 +3393,7 @@ class MutableShareFileTests(unittest.TestCase):
             *broken_readv[readv_index]
         )
 
-        sf = self.get_sharefile()
+        sf = self.get_sharefile(schema=schema)
         sf.create(my_nodeid=nodeid, write_enabler=write_enabler)
 
         # A read with a broken read vector is an error.

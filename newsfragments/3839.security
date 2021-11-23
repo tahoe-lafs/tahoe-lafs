@@ -1,0 +1,1 @@
+The storage server now keeps hashes of lease renew and cancel secrets for immutable share files instead of keeping the original secrets.
