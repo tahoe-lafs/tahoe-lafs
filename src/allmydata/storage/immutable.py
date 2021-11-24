@@ -233,7 +233,7 @@ class ShareFile(object):
 @implementer(RIBucketWriter)
 class BucketWriter(Referenceable):  # type: ignore # warner/foolscap#78
 
-    def __init__(self, ss, incominghome, finalhome, max_size, lease_info):
+    def __init__(self, ss, incominghome, finalhome, max_size, lease_info, clock):
         self.ss = ss
         self.incominghome = incominghome
         self.finalhome = finalhome
@@ -245,12 +245,16 @@ class BucketWriter(Referenceable):  # type: ignore # warner/foolscap#78
         # added by simultaneous uploaders
         self._sharefile.add_lease(lease_info)
         self._already_written = RangeMap()
+        self._clock = clock
+        self._timeout = clock.callLater(30 * 60, self._abort_due_to_timeout)
 
     def allocated_size(self):
         return self._max_size
 
     def remote_write(self, offset, data):
-        start = time.time()
+        # Delay the timeout, since we received data:
+        self._timeout.reset(30 * 60)
+        start = self._clock.seconds()
         precondition(not self.closed)
         if self.throw_out_all_data:
             return
@@ -268,12 +272,16 @@ class BucketWriter(Referenceable):  # type: ignore # warner/foolscap#78
         self._sharefile.write_share_data(offset, data)
 
         self._already_written.set(True, offset, end)
-        self.ss.add_latency("write", time.time() - start)
+        self.ss.add_latency("write", self._clock.seconds() - start)
         self.ss.count("write")
 
     def remote_close(self):
+        self.close()
+
+    def close(self):
         precondition(not self.closed)
-        start = time.time()
+        self._timeout.cancel()
+        start = self._clock.seconds()
 
         fileutil.make_dirs(os.path.dirname(self.finalhome))
         fileutil.rename(self.incominghome, self.finalhome)
@@ -306,20 +314,28 @@ class BucketWriter(Referenceable):  # type: ignore # warner/foolscap#78
 
         filelen = os.stat(self.finalhome)[stat.ST_SIZE]
         self.ss.bucket_writer_closed(self, filelen)
-        self.ss.add_latency("close", time.time() - start)
+        self.ss.add_latency("close", self._clock.seconds() - start)
         self.ss.count("close")
 
     def disconnected(self):
         if not self.closed:
-            self._abort()
+            self.abort()
+
+    def _abort_due_to_timeout(self):
+        """
+        Called if we run out of time.
+        """
+        log.msg("storage: aborting sharefile %s due to timeout" % self.incominghome,
+                facility="tahoe.storage", level=log.UNUSUAL)
+        self.abort()
 
     def remote_abort(self):
         log.msg("storage: aborting sharefile %s" % self.incominghome,
                 facility="tahoe.storage", level=log.UNUSUAL)
-        self._abort()
+        self.abort()
         self.ss.count("abort")
 
-    def _abort(self):
+    def abort(self):
         if self.closed:
             return
 
@@ -336,6 +352,10 @@ class BucketWriter(Referenceable):  # type: ignore # warner/foolscap#78
         # use the space it allocated for us earlier.
         self.closed = True
         self.ss.bucket_writer_closed(self, 0)
+
+        # Cancel timeout if it wasn't already cancelled.
+        if self._timeout.active():
+            self._timeout.cancel()
 
 
 @implementer(RIBucketReader)
