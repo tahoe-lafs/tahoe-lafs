@@ -229,7 +229,7 @@ class Repair(AsyncTestCase, PublishMixin, ShouldFailMixin):
             new_versionid = smap.best_recoverable_version()
             self.assertThat(new_versionid[0], Equals(5)) # seqnum 5
             d2 = self._fn.download_version(smap, new_versionid)
-            d2.addCallback(self.assertTrue, expected_contents)
+            d2.addCallback(self.assertEquals, expected_contents)
             return d2
         d.addCallback(_check_smap)
         return d
