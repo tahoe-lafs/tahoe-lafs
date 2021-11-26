@@ -1,1 +1,0 @@
-tahoe backup's --exclude-from has been renamed to --exclude-from-utf-8, and correspondingly requires the file to be UTF-8 encoded.

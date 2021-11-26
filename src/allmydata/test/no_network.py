@@ -17,14 +17,18 @@ from __future__ import unicode_literals
 
 # This should be useful for tests which want to examine and/or manipulate the
 # uploaded shares, checker/verifier/repairer tests, etc. The clients have no
-# Tubs, so it is not useful for tests that involve a Helper or the
-# control.furl .
+# Tubs, so it is not useful for tests that involve a Helper.
 
 from future.utils import PY2
 if PY2:
     from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 from past.builtins import unicode
 from six import ensure_text
+
+try:
+    from typing import Dict, Callable
+except ImportError:
+    pass
 
 import os
 from base64 import b32encode
@@ -251,7 +255,6 @@ def create_no_network_client(basedir):
     client = _NoNetworkClient(
         config,
         main_tub=None,
-        control_tub=None,
         i2p_provider=None,
         tor_provider=None,
         introducer_clients=[],
@@ -274,8 +277,6 @@ class _NoNetworkClient(_Client):  # type: ignore  # tahoe-lafs/ticket/3573
         pass
     def init_introducer_client(self):
         pass
-    def create_control_tub(self):
-        pass
     def create_log_tub(self):
         pass
     def setup_logging(self):
@@ -284,8 +285,6 @@ class _NoNetworkClient(_Client):  # type: ignore  # tahoe-lafs/ticket/3573
         service.MultiService.startService(self)
     def stopService(self):
         return service.MultiService.stopService(self)
-    def init_control(self):
-        pass
     def init_helper(self):
         pass
     def init_key_gen(self):
@@ -485,6 +484,18 @@ class GridTestMixin(object):
 
     def set_up_grid(self, num_clients=1, num_servers=10,
                     client_config_hooks={}, oneshare=False):
+        """
+        Create a Tahoe-LAFS storage grid.
+
+        :param num_clients: See ``NoNetworkGrid``
+        :param num_servers: See `NoNetworkGrid``
+        :param client_config_hooks: See ``NoNetworkGrid``
+
+        :param bool oneshare: If ``True`` then the first client node is
+            configured with ``n == k == happy == 1``.
+
+        :return: ``None``
+        """
         # self.basedir must be set
         port_assigner = SameProcessStreamEndpointAssigner()
         port_assigner.setUp()
@@ -563,6 +574,15 @@ class GridTestMixin(object):
         return sorted(shares)
 
     def copy_shares(self, uri):
+        # type: (bytes) -> Dict[bytes, bytes]
+        """
+        Read all of the share files for the given capability from the storage area
+        of the storage servers created by ``set_up_grid``.
+
+        :param bytes uri: A Tahoe-LAFS data capability.
+
+        :return: A ``dict`` mapping share file names to share file contents.
+        """
         shares = {}
         for (shnum, serverid, sharefile) in self.find_uri_shares(uri):
             with open(sharefile, "rb") as f:
@@ -607,10 +627,15 @@ class GridTestMixin(object):
                     f.write(corruptdata)
 
     def corrupt_all_shares(self, uri, corruptor, debug=False):
+        # type: (bytes, Callable[[bytes, bool], bytes], bool) -> None
+        """
+        Apply ``corruptor`` to the contents of all share files associated with a
+        given capability and replace the share file contents with its result.
+        """
         for (i_shnum, i_serverid, i_sharefile) in self.find_uri_shares(uri):
             with open(i_sharefile, "rb") as f:
                 sharedata = f.read()
-            corruptdata = corruptor(sharedata, debug=debug)
+            corruptdata = corruptor(sharedata, debug)
             with open(i_sharefile, "wb") as f:
                 f.write(corruptdata)
 

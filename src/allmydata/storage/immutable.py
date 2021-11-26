@@ -24,7 +24,6 @@ from allmydata.interfaces import (
 )
 from allmydata.util import base32, fileutil, log
 from allmydata.util.assertutil import precondition
-from allmydata.util.hashutil import timing_safe_compare
 from allmydata.storage.lease import LeaseInfo
 from allmydata.storage.common import UnknownImmutableContainerVersionError
 
@@ -56,6 +55,21 @@ from allmydata.storage.common import UnknownImmutableContainerVersionError
 class ShareFile(object):
     LEASE_SIZE = struct.calcsize(">L32s32sL")
     sharetype = "immutable"
+
+    @classmethod
+    def is_valid_header(cls, header):
+        # type: (bytes) -> bool
+        """
+        Determine if the given bytes constitute a valid header for this type of
+        container.
+
+        :param header: Some bytes from the beginning of a container.
+
+        :return: ``True`` if the bytes could belong to this container,
+            ``False`` otherwise.
+        """
+        (version,) = struct.unpack(">L", header[:4])
+        return version == 1
 
     def __init__(self, filename, max_size=None, create=False):
         """ If max_size is not None then I won't allow more than max_size to be written to me. If create=True and max_size must not be None. """
@@ -144,7 +158,7 @@ class ShareFile(object):
             for i in range(num_leases):
                 data = f.read(self.LEASE_SIZE)
                 if data:
-                    yield LeaseInfo().from_immutable_data(data)
+                    yield LeaseInfo.from_immutable_data(data)
 
     def add_lease(self, lease_info):
         with open(self.home, 'rb+') as f:
@@ -152,13 +166,24 @@ class ShareFile(object):
             self._write_lease_record(f, num_leases, lease_info)
             self._write_num_leases(f, num_leases+1)
 
-    def renew_lease(self, renew_secret, new_expire_time):
+    def renew_lease(self, renew_secret, new_expire_time, allow_backdate=False):
+        # type: (bytes, int, bool) -> None
+        """
+        Update the expiration time on an existing lease.
+
+        :param allow_backdate: If ``True`` then allow the new expiration time
+            to be before the current expiration time.  Otherwise, make no
+            change when this is the case.
+
+        :raise IndexError: If there is no lease matching the given renew
+            secret.
+        """
         for i,lease in enumerate(self.get_leases()):
-            if timing_safe_compare(lease.renew_secret, renew_secret):
+            if lease.is_renew_secret(renew_secret):
                 # yup. See if we need to update the owner time.
-                if new_expire_time > lease.expiration_time:
+                if allow_backdate or new_expire_time > lease.get_expiration_time():
                     # yes
-                    lease.expiration_time = new_expire_time
+                    lease = lease.renew(new_expire_time)
                     with open(self.home, 'rb+') as f:
                         self._write_lease_record(f, i, lease)
                 return
@@ -167,7 +192,7 @@ class ShareFile(object):
     def add_or_renew_lease(self, lease_info):
         try:
             self.renew_lease(lease_info.renew_secret,
-                             lease_info.expiration_time)
+                             lease_info.get_expiration_time())
         except IndexError:
             self.add_lease(lease_info)
 
@@ -183,7 +208,7 @@ class ShareFile(object):
         leases = list(self.get_leases())
         num_leases_removed = 0
         for i,lease in enumerate(leases):
-            if timing_safe_compare(lease.cancel_secret, cancel_secret):
+            if lease.is_cancel_secret(cancel_secret):
                 leases[i] = None
                 num_leases_removed += 1
         if not num_leases_removed:
@@ -208,7 +233,7 @@ class ShareFile(object):
 @implementer(RIBucketWriter)
 class BucketWriter(Referenceable):  # type: ignore # warner/foolscap#78
 
-    def __init__(self, ss, incominghome, finalhome, max_size, lease_info):
+    def __init__(self, ss, incominghome, finalhome, max_size, lease_info, clock):
         self.ss = ss
         self.incominghome = incominghome
         self.finalhome = finalhome
@@ -220,12 +245,16 @@ class BucketWriter(Referenceable):  # type: ignore # warner/foolscap#78
         # added by simultaneous uploaders
         self._sharefile.add_lease(lease_info)
         self._already_written = RangeMap()
+        self._clock = clock
+        self._timeout = clock.callLater(30 * 60, self._abort_due_to_timeout)
 
     def allocated_size(self):
         return self._max_size
 
     def remote_write(self, offset, data):
-        start = time.time()
+        # Delay the timeout, since we received data:
+        self._timeout.reset(30 * 60)
+        start = self._clock.seconds()
         precondition(not self.closed)
         if self.throw_out_all_data:
             return
@@ -243,12 +272,16 @@ class BucketWriter(Referenceable):  # type: ignore # warner/foolscap#78
         self._sharefile.write_share_data(offset, data)
 
         self._already_written.set(True, offset, end)
-        self.ss.add_latency("write", time.time() - start)
+        self.ss.add_latency("write", self._clock.seconds() - start)
         self.ss.count("write")
 
     def remote_close(self):
+        self.close()
+
+    def close(self):
         precondition(not self.closed)
-        start = time.time()
+        self._timeout.cancel()
+        start = self._clock.seconds()
 
         fileutil.make_dirs(os.path.dirname(self.finalhome))
         fileutil.rename(self.incominghome, self.finalhome)
@@ -281,20 +314,28 @@ class BucketWriter(Referenceable):  # type: ignore # warner/foolscap#78
 
         filelen = os.stat(self.finalhome)[stat.ST_SIZE]
         self.ss.bucket_writer_closed(self, filelen)
-        self.ss.add_latency("close", time.time() - start)
+        self.ss.add_latency("close", self._clock.seconds() - start)
         self.ss.count("close")
 
     def disconnected(self):
         if not self.closed:
-            self._abort()
+            self.abort()
+
+    def _abort_due_to_timeout(self):
+        """
+        Called if we run out of time.
+        """
+        log.msg("storage: aborting sharefile %s due to timeout" % self.incominghome,
+                facility="tahoe.storage", level=log.UNUSUAL)
+        self.abort()
 
     def remote_abort(self):
         log.msg("storage: aborting sharefile %s" % self.incominghome,
                 facility="tahoe.storage", level=log.UNUSUAL)
-        self._abort()
+        self.abort()
         self.ss.count("abort")
 
-    def _abort(self):
+    def abort(self):
         if self.closed:
             return
 
@@ -311,6 +352,10 @@ class BucketWriter(Referenceable):  # type: ignore # warner/foolscap#78
         # use the space it allocated for us earlier.
         self.closed = True
         self.ss.bucket_writer_closed(self, 0)
+
+        # Cancel timeout if it wasn't already cancelled.
+        if self._timeout.active():
+            self._timeout.cancel()
 
 
 @implementer(RIBucketReader)

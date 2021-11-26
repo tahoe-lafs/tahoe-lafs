@@ -1,1 +1,0 @@
-`tox -e docs` will treat warnings about docs as errors.
