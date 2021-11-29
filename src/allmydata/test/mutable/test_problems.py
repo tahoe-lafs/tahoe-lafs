@@ -420,7 +420,7 @@ class Problems(GridTestMixin, AsyncTestCase, testutil.ShouldFailMixin):
             return self._node.download_version(servermap, ver)
         d.addCallback(_then)
         d.addCallback(lambda data:
-            self.assertTrue(data, CONTENTS))
+            self.assertEquals(data, CONTENTS))
         return d
 
     def test_1654(self):
