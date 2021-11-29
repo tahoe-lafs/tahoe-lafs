@@ -65,11 +65,11 @@ from twisted.internet.task import deferLater
 from twisted.internet import reactor
 
 from ..util.eliotutil import (
+    eliot_json_encoder,
     log_call_deferred,
     _parse_destination_description,
     _EliotLogging,
 )
-from ..util.jsonbytes import AnyBytesJSONEncoder
 
 from .common import (
     SyncTestCase,
@@ -118,7 +118,7 @@ class ParseDestinationDescriptionTests(SyncTestCase):
         reactor = object()
         self.assertThat(
             _parse_destination_description("file:-")(reactor),
-            Equals(FileDestination(stdout, encoder=AnyBytesJSONEncoder)),
+            Equals(FileDestination(stdout, encoder=eliot_json_encoder)),
         )
 
 

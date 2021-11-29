@@ -87,8 +87,9 @@ from twisted.internet.defer import (
 )
 from twisted.application.service import Service
 
-from .jsonbytes import AnyBytesJSONEncoder
-
+from ._eliot_updates import (
+    eliot_json_encoder,
+)
 
 def validateInstanceOf(t):
     """
@@ -306,7 +307,7 @@ class _DestinationParser(object):
                     rotateLength=rotate_length,
                     maxRotatedFiles=max_rotated_files,
                 )
-        return lambda reactor: FileDestination(get_file(), AnyBytesJSONEncoder)
+        return lambda reactor: FileDestination(get_file(), eliot_json_encoder)
 
 
 _parse_destination_description = _DestinationParser().parse
