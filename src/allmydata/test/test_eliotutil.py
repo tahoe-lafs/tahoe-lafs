@@ -78,6 +78,9 @@ from .common import (
 
 
 class EliotLoggedTestTests(AsyncTestCase):
+    """
+    Tests for the automatic log-related provided by ``EliotLoggedRunTest``.
+    """
     def test_returns_none(self):
         Message.log(hello="world")
 
@@ -95,6 +98,12 @@ class EliotLoggedTestTests(AsyncTestCase):
         # We didn't start an action.  We're not finishing an action.
         return d.result
 
+    def test_logs_non_utf_8_byte(self):
+        """
+        If an Eliot message is emitted that contains a non-UTF-8 byte string then
+        the test nevertheless passes.
+        """
+        Message.log(hello=b"\xFF")
 
 
 class ParseDestinationDescriptionTests(SyncTestCase):
