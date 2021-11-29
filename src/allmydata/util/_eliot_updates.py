@@ -19,10 +19,15 @@ if PY2:
     from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 import json as pyjson
-from functools import partial
+from functools import wraps, partial
 
 from eliot import (
     MemoryLogger as _MemoryLogger,
+)
+
+from eliot.testing import (
+    check_for_errors,
+    swap_logger,
 )
 
 from .jsonbytes import AnyBytesJSONEncoder
@@ -86,3 +91,96 @@ if PY2:
     MemoryLogger = partial(_CustomEncoderMemoryLogger, encoder=eliot_json_encoder)
 else:
     MemoryLogger = partial(_MemoryLogger, encoder=eliot_json_encoder)
+
+def validateLogging(
+    assertion, *assertionArgs, **assertionKwargs
+):
+    """
+    Decorator factory for L{unittest.TestCase} methods to add logging
+    validation.
+
+    1. The decorated test method gets a C{logger} keyword argument, a
+       L{MemoryLogger}.
+    2. All messages logged to this logger will be validated at the end of
+       the test.
+    3. Any unflushed logged tracebacks will cause the test to fail.
+
+    For example:
+
+        from unittest import TestCase
+        from eliot.testing import assertContainsFields, validateLogging
+
+        class MyTests(TestCase):
+            def assertFooLogging(self, logger):
+                assertContainsFields(self, logger.messages[0], {"key": 123})
+
+
+    @param assertion: A callable that will be called with the
+       L{unittest.TestCase} instance, the logger and C{assertionArgs} and
+       C{assertionKwargs} once the actual test has run, allowing for extra
+       logging-related assertions on the effects of the test. Use L{None} if you
+       want the cleanup assertions registered but no custom assertions.
+
+    @param assertionArgs: Additional positional arguments to pass to
+        C{assertion}.
+
+    @param assertionKwargs: Additional keyword arguments to pass to
+        C{assertion}.
+
+    @param encoder_: C{json.JSONEncoder} subclass to use when validating JSON.
+    """
+    encoder_ = assertionKwargs.pop("encoder_", eliot_json_encoder)
+    def decorator(function):
+        @wraps(function)
+        def wrapper(self, *args, **kwargs):
+            skipped = False
+
+            kwargs["logger"] = logger = MemoryLogger(encoder=encoder_)
+            self.addCleanup(check_for_errors, logger)
+            # TestCase runs cleanups in reverse order, and we want this to
+            # run *before* tracebacks are checked:
+            if assertion is not None:
+                self.addCleanup(
+                    lambda: skipped
+                    or assertion(self, logger, *assertionArgs, **assertionKwargs)
+                )
+            try:
+                return function(self, *args, **kwargs)
+            except self.skipException:
+                skipped = True
+                raise
+
+        return wrapper
+
+    return decorator
+
+# PEP 8 variant:
+validate_logging = validateLogging
+
+def capture_logging(
+    assertion, *assertionArgs, **assertionKwargs
+):
+    """
+    Capture and validate all logging that doesn't specify a L{Logger}.
+
+    See L{validate_logging} for details on the rest of its behavior.
+    """
+    encoder_ = assertionKwargs.pop("encoder_", eliot_json_encoder)
+    def decorator(function):
+        @validate_logging(
+            assertion, *assertionArgs, encoder_=encoder_, **assertionKwargs
+        )
+        @wraps(function)
+        def wrapper(self, *args, **kwargs):
+            logger = kwargs["logger"]
+            previous_logger = swap_logger(logger)
+
+            def cleanup():
+                swap_logger(previous_logger)
+
+            self.addCleanup(cleanup)
+            return function(self, *args, **kwargs)
+
+        return wrapper
+
+    return decorator

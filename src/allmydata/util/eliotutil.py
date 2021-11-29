@@ -23,6 +23,7 @@ __all__ = [
     "opt_help_eliot_destinations",
     "validateInstanceOf",
     "validateSetMembership",
+    "capture_logging",
 ]
 
 from future.utils import PY2
@@ -33,7 +34,7 @@ from six import ensure_text
 from sys import (
     stdout,
 )
-from functools import wraps, partial
+from functools import wraps
 from logging import (
     INFO,
     Handler,
@@ -67,8 +68,6 @@ from eliot.twisted import (
     DeferredContext,
     inline_callbacks,
 )
-from eliot.testing import capture_logging as eliot_capture_logging
-
 from twisted.python.usage import (
     UsageError,
 )
@@ -91,6 +90,7 @@ from twisted.application.service import Service
 from ._eliot_updates import (
     MemoryLogger,
     eliot_json_encoder,
+    capture_logging,
 )
 
 def validateInstanceOf(t):
@@ -330,10 +330,3 @@ def log_call_deferred(action_type):
                 return DeferredContext(d).addActionFinish()
         return logged_f
     return decorate_log_call_deferred
-
-# On Python 3, encoding bytes to JSON doesn't work, so we have a custom JSON
-# encoder we want to use when validating messages.
-if PY2:
-    capture_logging = eliot_capture_logging
-else:
-    capture_logging = partial(eliot_capture_logging, encoder_=AnyBytesJSONEncoder)
