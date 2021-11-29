@@ -16,6 +16,7 @@ from __future__ import (
 )
 
 __all__ = [
+    "MemoryLogger",
     "inline_callbacks",
     "eliot_logging_service",
     "opt_eliot_destination",
@@ -88,6 +89,7 @@ from twisted.internet.defer import (
 from twisted.application.service import Service
 
 from ._eliot_updates import (
+    MemoryLogger,
     eliot_json_encoder,
 )
 
