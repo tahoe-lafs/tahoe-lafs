@@ -10,6 +10,8 @@ buildPythonPackage rec {
 
   doCheck = false;
 
+  propagatedBuildInputs = [ attrs hyperlink incremental Tubes Twisted typing_extensions Werkzeug zope.interface ];
+
   meta = with lib; {
     homepage = https://github.com/twisted/klein;
     description = "Nicer web server for Twisted";
