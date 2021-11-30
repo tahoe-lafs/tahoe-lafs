@@ -128,7 +128,7 @@ class Bucket(unittest.TestCase):
 
     def test_create(self):
         incoming, final = self.make_workdir("test_create")
-        bw = BucketWriter(self, incoming, final, 200, self.make_lease())
+        bw = BucketWriter(self, incoming, final, 200, self.make_lease(), Clock())
         bw.remote_write(0, b"a"*25)
         bw.remote_write(25, b"b"*25)
         bw.remote_write(50, b"c"*25)
@@ -137,7 +137,7 @@ class Bucket(unittest.TestCase):
 
     def test_readwrite(self):
         incoming, final = self.make_workdir("test_readwrite")
-        bw = BucketWriter(self, incoming, final, 200, self.make_lease())
+        bw = BucketWriter(self, incoming, final, 200, self.make_lease(), Clock())
         bw.remote_write(0, b"a"*25)
         bw.remote_write(25, b"b"*25)
         bw.remote_write(50, b"c"*7) # last block may be short
@@ -155,7 +155,7 @@ class Bucket(unittest.TestCase):
             incoming, final = self.make_workdir(
                 "test_write_past_size_errors-{}".format(i)
             )
-            bw = BucketWriter(self, incoming, final, 200, self.make_lease())
+            bw = BucketWriter(self, incoming, final, 200, self.make_lease(), Clock())
             with self.assertRaises(DataTooLargeError):
                 bw.remote_write(offset, b"a" * length)
 
@@ -174,7 +174,7 @@ class Bucket(unittest.TestCase):
         expected_data = b"".join(bchr(i) for i in range(100))
         incoming, final = self.make_workdir("overlapping_writes_{}".format(uuid4()))
         bw = BucketWriter(
-            self, incoming, final, length, self.make_lease(),
+            self, incoming, final, length, self.make_lease(), Clock()
         )
         # Three writes: 10-19, 30-39, 50-59. This allows for a bunch of holes.
         bw.remote_write(10, expected_data[10:20])
@@ -212,7 +212,7 @@ class Bucket(unittest.TestCase):
         length = 100
         incoming, final = self.make_workdir("overlapping_writes_{}".format(uuid4()))
         bw = BucketWriter(
-            self, incoming, final, length, self.make_lease(),
+            self, incoming, final, length, self.make_lease(), Clock()
         )
         # Three writes: 10-19, 30-39, 50-59. This allows for a bunch of holes.
         bw.remote_write(10, b"1" * 10)
@@ -285,6 +285,67 @@ class Bucket(unittest.TestCase):
         result_of_read = br.remote_read(0, len(share_data)+1)
         self.failUnlessEqual(result_of_read, share_data)
 
+    def _assert_timeout_only_after_30_minutes(self, clock, bw):
+        """
+        The ``BucketWriter`` times out and is closed after 30 minutes, but not
+        sooner.
+        """
+        self.assertFalse(bw.closed)
+        # 29 minutes pass. Everything is fine.
+        for i in range(29):
+            clock.advance(60)
+            self.assertFalse(bw.closed, "Bucket closed after only %d minutes" % (i + 1,))
+        # After the 30th minute, the bucket is closed due to lack of writes.
+        clock.advance(60)
+        self.assertTrue(bw.closed)
+
+    def test_bucket_expires_if_no_writes_for_30_minutes(self):
+        """
+        If a ``BucketWriter`` receives no writes for 30 minutes, it is removed.
+        """
+        incoming, final = self.make_workdir("test_bucket_expires")
+        clock = Clock()
+        bw = BucketWriter(self, incoming, final, 200, self.make_lease(), clock)
+        self._assert_timeout_only_after_30_minutes(clock, bw)
+
+    def test_bucket_writes_delay_timeout(self):
+        """
+        So long as the ``BucketWriter`` receives writes, the the removal
+        timeout is put off.
+        """
+        incoming, final = self.make_workdir("test_bucket_writes_delay_timeout")
+        clock = Clock()
+        bw = BucketWriter(self, incoming, final, 200, self.make_lease(), clock)
+        # 29 minutes pass, getting close to the timeout...
+        clock.advance(29 * 60)
+        # .. but we receive a write! So that should delay the timeout again to
+        # another 30 minutes.
+        bw.remote_write(0, b"hello")
+        self._assert_timeout_only_after_30_minutes(clock, bw)
+
+    def test_bucket_closing_cancels_timeout(self):
+        """
+        Closing cancels the ``BucketWriter`` timeout.
+        """
+        incoming, final = self.make_workdir("test_bucket_close_timeout")
+        clock = Clock()
+        bw = BucketWriter(self, incoming, final, 10, self.make_lease(), clock)
+        self.assertTrue(clock.getDelayedCalls())
+        bw.close()
+        self.assertFalse(clock.getDelayedCalls())
+
+    def test_bucket_aborting_cancels_timeout(self):
+        """
+        Closing cancels the ``BucketWriter`` timeout.
+        """
+        incoming, final = self.make_workdir("test_bucket_abort_timeout")
+        clock = Clock()
+        bw = BucketWriter(self, incoming, final, 10, self.make_lease(), clock)
+        self.assertTrue(clock.getDelayedCalls())
+        bw.abort()
+        self.assertFalse(clock.getDelayedCalls())
+
+
 class RemoteBucket(object):
 
     def __init__(self, target):
@@ -312,7 +373,7 @@ class BucketProxy(unittest.TestCase):
         final = os.path.join(basedir, "bucket")
         fileutil.make_dirs(basedir)
         fileutil.make_dirs(os.path.join(basedir, "tmp"))
-        bw = BucketWriter(self, incoming, final, size, self.make_lease())
+        bw = BucketWriter(self, incoming, final, size, self.make_lease(), Clock())
         rb = RemoteBucket(bw)
         return bw, rb, final
 
@@ -438,11 +499,13 @@ class Server(unittest.TestCase):
         basedir = os.path.join("storage", "Server", name)
         return basedir
 
-    def create(self, name, reserved_space=0, klass=StorageServer, get_current_time=time.time):
+    def create(self, name, reserved_space=0, klass=StorageServer, clock=None):
+        if clock is None:
+            clock = Clock()
         workdir = self.workdir(name)
         ss = klass(workdir, b"\x00" * 20, reserved_space=reserved_space,
                    stats_provider=FakeStatsProvider(),
-                   get_current_time=get_current_time)
+                   clock=clock)
         ss.setServiceParent(self.sparent)
         return ss
 
@@ -468,14 +531,19 @@ class Server(unittest.TestCase):
         sv1 = ver[b'http://allmydata.org/tahoe/protocols/storage/v1']
         self.failUnlessIn(b'available-space', sv1)
 
-    def allocate(self, ss, storage_index, sharenums, size, canary=None):
+    def allocate(self, ss, storage_index, sharenums, size, renew_leases=True):
+        """
+        Call directly into the storage server's allocate_buckets implementation,
+        skipping the Foolscap layer.
+        """
         renew_secret = hashutil.my_renewal_secret_hash(b"%d" % next(self._lease_secret))
         cancel_secret = hashutil.my_cancel_secret_hash(b"%d" % next(self._lease_secret))
-        if not canary:
-            canary = FakeCanary()
-        return ss.remote_allocate_buckets(storage_index,
-                                          renew_secret, cancel_secret,
-                                          sharenums, size, canary)
+        return ss._allocate_buckets(
+            storage_index,
+            renew_secret, cancel_secret,
+            sharenums, size,
+            renew_leases=renew_leases,
+        )
 
     def test_large_share(self):
         syslow = platform.system().lower()
@@ -554,7 +622,6 @@ class Server(unittest.TestCase):
             writer.remote_abort()
         self.failUnlessEqual(ss.allocated_size(), 0)
 
-
     def test_allocate(self):
         ss = self.create("test_allocate")
 
@@ -608,6 +675,64 @@ class Server(unittest.TestCase):
         for i,wb in writers.items():
             wb.remote_abort()
 
+    def test_allocate_without_lease_renewal(self):
+        """
+        ``StorageServer._allocate_buckets`` does not renew leases on existing
+        shares if ``renew_leases`` is ``False``.
+        """
+        first_lease = 456
+        second_lease = 543
+        storage_index = b"allocate"
+
+        clock = Clock()
+        clock.advance(first_lease)
+        ss = self.create(
+            "test_allocate_without_lease_renewal",
+            clock=clock,
+        )
+
+        # Put a share on there
+        already, writers = self.allocate(
+            ss, storage_index, [0], 1, renew_leases=False,
+        )
+        (writer,) = writers.values()
+        writer.remote_write(0, b"x")
+        writer.remote_close()
+
+        # It should have a lease granted at the current time.
+        shares = dict(ss._get_bucket_shares(storage_index))
+        self.assertEqual(
+            [first_lease],
+            list(
+                lease.get_grant_renew_time_time()
+                for lease
+                in ShareFile(shares[0]).get_leases()
+            ),
+        )
+
+        # Let some time pass so we can tell if the lease on share 0 is
+        # renewed.
+        clock.advance(second_lease)
+
+        # Put another share on there.
+        already, writers = self.allocate(
+            ss, storage_index, [1], 1, renew_leases=False,
+        )
+        (writer,) = writers.values()
+        writer.remote_write(0, b"x")
+        writer.remote_close()
+
+        # The first share's lease expiration time is unchanged.
+        shares = dict(ss._get_bucket_shares(storage_index))
+        self.assertEqual(
+            [first_lease],
+            list(
+                lease.get_grant_renew_time_time()
+                for lease
+                in ShareFile(shares[0]).get_leases()
+            ),
+        )
+
     def test_bad_container_version(self):
         ss = self.create("test_bad_container_version")
         a,w = self.allocate(ss, b"si1", [0], 10)
@@ -629,8 +754,17 @@ class Server(unittest.TestCase):
     def test_disconnect(self):
         # simulate a disconnection
         ss = self.create("test_disconnect")
+        renew_secret = b"r" * 32
+        cancel_secret = b"c" * 32
         canary = FakeCanary()
-        already,writers = self.allocate(ss, b"disconnect", [0,1,2], 75, canary)
+        already,writers = ss.remote_allocate_buckets(
+            b"disconnect",
+            renew_secret,
+            cancel_secret,
+            sharenums=[0,1,2],
+            allocated_size=75,
+            canary=canary,
+        )
         self.failUnlessEqual(already, set())
         self.failUnlessEqual(set(writers.keys()), set([0,1,2]))
         for (f,args,kwargs) in list(canary.disconnectors.values()):
@@ -662,8 +796,17 @@ class Server(unittest.TestCase):
         # the size we request.
         OVERHEAD = 3*4
         LEASE_SIZE = 4+32+32+4
+        renew_secret = b"r" * 32
+        cancel_secret = b"c" * 32
         canary = FakeCanary()
-        already, writers = self.allocate(ss, b"vid1", [0,1,2], 1000, canary)
+        already, writers = ss.remote_allocate_buckets(
+            b"vid1",
+            renew_secret,
+            cancel_secret,
+            sharenums=[0,1,2],
+            allocated_size=1000,
+            canary=canary,
+        )
         self.failUnlessEqual(len(writers), 3)
         # now the StorageServer should have 3000 bytes provisionally
         # allocated, allowing only 2000 more to be claimed
@@ -696,7 +839,14 @@ class Server(unittest.TestCase):
         # now there should be ALLOCATED=1001+12+72=1085 bytes allocated, and
         # 5000-1085=3915 free, therefore we can fit 39 100byte shares
         canary3 = FakeCanary()
-        already3, writers3 = self.allocate(ss, b"vid3", list(range(100)), 100, canary3)
+        already3, writers3 = ss.remote_allocate_buckets(
+            b"vid3",
+            renew_secret,
+            cancel_secret,
+            sharenums=list(range(100)),
+            allocated_size=100,
+            canary=canary3,
+        )
         self.failUnlessEqual(len(writers3), 39)
         self.failUnlessEqual(len(ss._bucket_writers), 39)
 
@@ -755,28 +905,28 @@ class Server(unittest.TestCase):
 
         # Create a bucket:
         rs0, cs0 = self.create_bucket_5_shares(ss, b"si0")
-        leases = list(ss.get_leases(b"si0"))
-        self.failUnlessEqual(len(leases), 1)
-        self.failUnlessEqual(set([l.renew_secret for l in leases]), set([rs0]))
+        (lease,) = ss.get_leases(b"si0")
+        self.assertTrue(lease.is_renew_secret(rs0))
 
         rs1, cs1 = self.create_bucket_5_shares(ss, b"si1")
 
         # take out a second lease on si1
         rs2, cs2 = self.create_bucket_5_shares(ss, b"si1", 5, 0)
-        leases = list(ss.get_leases(b"si1"))
-        self.failUnlessEqual(len(leases), 2)
-        self.failUnlessEqual(set([l.renew_secret for l in leases]), set([rs1, rs2]))
+        (lease1, lease2) = ss.get_leases(b"si1")
+        self.assertTrue(lease1.is_renew_secret(rs1))
+        self.assertTrue(lease2.is_renew_secret(rs2))
 
         # and a third lease, using add-lease
         rs2a,cs2a = (hashutil.my_renewal_secret_hash(b"%d" % next(self._lease_secret)),
                      hashutil.my_cancel_secret_hash(b"%d" % next(self._lease_secret)))
         ss.remote_add_lease(b"si1", rs2a, cs2a)
-        leases = list(ss.get_leases(b"si1"))
-        self.failUnlessEqual(len(leases), 3)
-        self.failUnlessEqual(set([l.renew_secret for l in leases]), set([rs1, rs2, rs2a]))
+        (lease1, lease2, lease3) = ss.get_leases(b"si1")
+        self.assertTrue(lease1.is_renew_secret(rs1))
+        self.assertTrue(lease2.is_renew_secret(rs2))
+        self.assertTrue(lease3.is_renew_secret(rs2a))
 
         # add-lease on a missing storage index is silently ignored
-        self.failUnlessEqual(ss.remote_add_lease(b"si18", b"", b""), None)
+        self.assertIsNone(ss.remote_add_lease(b"si18", b"", b""))
 
         # check that si0 is readable
         readers = ss.remote_get_buckets(b"si0")
@@ -830,12 +980,12 @@ class Server(unittest.TestCase):
         """
         clock = Clock()
         clock.advance(123)
-        ss = self.create("test_immutable_add_lease_renews", get_current_time=clock.seconds)
+        ss = self.create("test_immutable_add_lease_renews", clock=clock)
 
         # Start out with single lease created with bucket:
         renewal_secret, cancel_secret = self.create_bucket_5_shares(ss, b"si0")
         [lease] = ss.get_leases(b"si0")
-        self.assertEqual(lease.expiration_time, 123 + DEFAULT_RENEWAL_TIME)
+        self.assertEqual(lease.get_expiration_time(), 123 + DEFAULT_RENEWAL_TIME)
 
         # Time passes:
         clock.advance(123456)
@@ -843,7 +993,7 @@ class Server(unittest.TestCase):
         # Adding a lease with matching renewal secret just renews it:
         ss.remote_add_lease(b"si0", renewal_secret, cancel_secret)
         [lease] = ss.get_leases(b"si0")
-        self.assertEqual(lease.expiration_time, 123 + 123456 + DEFAULT_RENEWAL_TIME)
+        self.assertEqual(lease.get_expiration_time(), 123 + 123456 + DEFAULT_RENEWAL_TIME)
 
     def test_have_shares(self):
         """By default the StorageServer has no shares."""
@@ -944,10 +1094,12 @@ class MutableServer(unittest.TestCase):
         basedir = os.path.join("storage", "MutableServer", name)
         return basedir
 
-    def create(self, name, get_current_time=time.time):
+    def create(self, name, clock=None):
         workdir = self.workdir(name)
+        if clock is None:
+            clock = Clock()
         ss = StorageServer(workdir, b"\x00" * 20,
-                           get_current_time=get_current_time)
+                           clock=clock)
         ss.setServiceParent(self.sparent)
         return ss
 
@@ -1230,17 +1382,6 @@ class MutableServer(unittest.TestCase):
             self.failUnlessEqual(a.cancel_secret,   b.cancel_secret)
             self.failUnlessEqual(a.nodeid,          b.nodeid)
 
-    def compare_leases(self, leases_a, leases_b):
-        self.failUnlessEqual(len(leases_a), len(leases_b))
-        for i in range(len(leases_a)):
-            a = leases_a[i]
-            b = leases_b[i]
-            self.failUnlessEqual(a.owner_num,       b.owner_num)
-            self.failUnlessEqual(a.renew_secret,    b.renew_secret)
-            self.failUnlessEqual(a.cancel_secret,   b.cancel_secret)
-            self.failUnlessEqual(a.nodeid,          b.nodeid)
-            self.failUnlessEqual(a.expiration_time, b.expiration_time)
-
     def test_leases(self):
         ss = self.create("test_leases")
         def secrets(n):
@@ -1321,11 +1462,11 @@ class MutableServer(unittest.TestCase):
         self.failUnlessIn("I have leases accepted by nodeids:", e_s)
         self.failUnlessIn("nodeids: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' .", e_s)
 
-        self.compare_leases(all_leases, list(s0.get_leases()))
+        self.assertEqual(all_leases, list(s0.get_leases()))
 
         # reading shares should not modify the timestamp
         read(b"si1", [], [(0,200)])
-        self.compare_leases(all_leases, list(s0.get_leases()))
+        self.assertEqual(all_leases, list(s0.get_leases()))
 
         write(b"si1", secrets(0),
               {0: ([], [(200, b"make me bigger")], None)}, [])
@@ -1343,7 +1484,7 @@ class MutableServer(unittest.TestCase):
         clock = Clock()
         clock.advance(235)
         ss = self.create("test_mutable_add_lease_renews",
-                         get_current_time=clock.seconds)
+                         clock=clock)
         def secrets(n):
             return ( self.write_enabler(b"we1"),
                      self.renew_secret(b"we1-%d" % n),
@@ -1359,7 +1500,7 @@ class MutableServer(unittest.TestCase):
                                   "shares", storage_index_to_dir(b"si1"))
         s0 = MutableShareFile(os.path.join(bucket_dir, "0"))
         [lease] = s0.get_leases()
-        self.assertEqual(lease.expiration_time, 235 + DEFAULT_RENEWAL_TIME)
+        self.assertEqual(lease.get_expiration_time(), 235 + DEFAULT_RENEWAL_TIME)
 
         # Time passes...
         clock.advance(835)
@@ -1367,7 +1508,7 @@ class MutableServer(unittest.TestCase):
         # Adding a lease renews it:
         ss.remote_add_lease(b"si1", renew_secret, cancel_secret)
         [lease] = s0.get_leases()
-        self.assertEqual(lease.expiration_time,
+        self.assertEqual(lease.get_expiration_time(),
                          235 + 835 + DEFAULT_RENEWAL_TIME)
 
     def test_remove(self):
@@ -3039,3 +3180,102 @@ class ShareFileTests(unittest.TestCase):
         sf = self.get_sharefile()
         with self.assertRaises(IndexError):
             sf.cancel_lease(b"garbage")
+
+    def test_renew_secret(self):
+        """
+        A lease loaded from a share file can have its renew secret verified.
+        """
+        renew_secret = b"r" * 32
+        cancel_secret = b"c" * 32
+        expiration_time = 2 ** 31
+
+        sf = self.get_sharefile()
+        lease = LeaseInfo(
+            owner_num=0,
+            renew_secret=renew_secret,
+            cancel_secret=cancel_secret,
+            expiration_time=expiration_time,
+        )
+        sf.add_lease(lease)
+        (loaded_lease,) = sf.get_leases()
+        self.assertTrue(loaded_lease.is_renew_secret(renew_secret))
+
+    def test_cancel_secret(self):
+        """
+        A lease loaded from a share file can have its cancel secret verified.
+        """
+        renew_secret = b"r" * 32
+        cancel_secret = b"c" * 32
+        expiration_time = 2 ** 31
+
+        sf = self.get_sharefile()
+        lease = LeaseInfo(
+            owner_num=0,
+            renew_secret=renew_secret,
+            cancel_secret=cancel_secret,
+            expiration_time=expiration_time,
+        )
+        sf.add_lease(lease)
+        (loaded_lease,) = sf.get_leases()
+        self.assertTrue(loaded_lease.is_cancel_secret(cancel_secret))
+
+
+class LeaseInfoTests(unittest.TestCase):
+    """
+    Tests for ``allmydata.storage.lease.LeaseInfo``.
+    """
+    def test_is_renew_secret(self):
+        """
+        ``LeaseInfo.is_renew_secret`` returns ``True`` if the value given is the
+        renew secret.
+        """
+        renew_secret = b"r" * 32
+        cancel_secret = b"c" * 32
+        lease = LeaseInfo(
+            owner_num=1,
+            renew_secret=renew_secret,
+            cancel_secret=cancel_secret,
+        )
+        self.assertTrue(lease.is_renew_secret(renew_secret))
+
+    def test_is_not_renew_secret(self):
+        """
+        ``LeaseInfo.is_renew_secret`` returns ``False`` if the value given is not
+        the renew secret.
+        """
+        renew_secret = b"r" * 32
+        cancel_secret = b"c" * 32
+        lease = LeaseInfo(
+            owner_num=1,
+            renew_secret=renew_secret,
+            cancel_secret=cancel_secret,
+        )
+        self.assertFalse(lease.is_renew_secret(cancel_secret))
+
+    def test_is_cancel_secret(self):
+        """
+        ``LeaseInfo.is_cancel_secret`` returns ``True`` if the value given is the
+        cancel secret.
+        """
+        renew_secret = b"r" * 32
+        cancel_secret = b"c" * 32
+        lease = LeaseInfo(
+            owner_num=1,
+            renew_secret=renew_secret,
+            cancel_secret=cancel_secret,
+        )
+        self.assertTrue(lease.is_cancel_secret(cancel_secret))
+
+    def test_is_not_cancel_secret(self):
+        """
+        ``LeaseInfo.is_cancel_secret`` returns ``False`` if the value given is not
+        the cancel secret.
+        """
+        renew_secret = b"r" * 32
+        cancel_secret = b"c" * 32
+        lease = LeaseInfo(
+            owner_num=1,
+            renew_secret=renew_secret,
+            cancel_secret=cancel_secret,
+        )
+        self.assertFalse(lease.is_cancel_secret(renew_secret))
