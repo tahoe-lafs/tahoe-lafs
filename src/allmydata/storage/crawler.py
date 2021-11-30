@@ -27,6 +27,14 @@ class TimeSliceExceeded(Exception):
     pass
 
 
+class MigratePickleFileError(Exception):
+    """
+    A pickle-format file exists (the FilePath to the file will be the
+    single arg).
+    """
+    pass
+
+
 def _convert_cycle_data(state):
     """
     :param dict state: cycle-to-date or history-item state
