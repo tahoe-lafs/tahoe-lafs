@@ -31,9 +31,6 @@ self: super: {
     packageOverrides = python-self: python-super: {
       # collections-extended is not part of nixpkgs at this time.
       collections-extended = python-super.pythonPackages.callPackage ./collections-extended.nix { };
-
-      # klein is not in nixpkgs 21.05, at least:
-      klein = python-super.pythonPackages.callPackage ./klein.nix { };
     };
   };
 }
