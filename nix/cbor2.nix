@@ -10,7 +10,7 @@ buildPythonPackage rec {
 
   doCheck = false;
 
-  buildInputs = [ setuptools_scm ];
+  propagatedBuildInputs = [ setuptools_scm ];
 
   meta = with lib; {
     homepage = https://github.com/agronholm/cbor2;
