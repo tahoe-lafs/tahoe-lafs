@@ -1,4 +1,4 @@
-{ lib, buildPythonPackage, fetchPypi , setuptools_scm }:
+{ lib, buildPythonPackage, fetchPypi }:
 buildPythonPackage rec {
   pname = "cbor2";
   version = "5.2.0";
@@ -10,7 +10,7 @@ buildPythonPackage rec {
 
   doCheck = false;
 
-  nativeBuildInputs = [ setuptools_scm ];
+  buildInputs = [ setuptools_scm ];
 
   meta = with lib; {
     homepage = https://github.com/agronholm/cbor2;
