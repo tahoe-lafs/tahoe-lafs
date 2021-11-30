@@ -12,6 +12,8 @@ import os
 import struct
 from allmydata.storage.crawler import (
     ShareCrawler,
+    MigratePickleFileError,
+    _confirm_json_format,
     _maybe_upgrade_pickle_to_json,
     _convert_cycle_data,
 )
@@ -40,17 +42,13 @@ def _convert_pickle_state_to_json(state):
 class _HistorySerializer(object):
     """
     Serialize the 'history' file of the lease-crawler state. This is
-    "storage/history.state" for the pickle or
-    "storage/history.state.json" for the new JSON format.
+    "storage/lease_checker.history" for the pickle or
+    "storage/lease_checker.history.json" for the new JSON format.
     """
 
     def __init__(self, history_path):
-        self._path = FilePath(
-            _maybe_upgrade_pickle_to_json(
-                FilePath(history_path),
-                _convert_pickle_state_to_json,
-            )
-        )
+        self._path = _confirm_json_format(FilePath(history_path))
+
         if not self._path.exists():
             with self._path.open("wb") as f:
                 json.dump({}, f)

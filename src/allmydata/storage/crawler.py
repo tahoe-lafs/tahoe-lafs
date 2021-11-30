@@ -108,7 +108,7 @@ def _maybe_upgrade_pickle_to_json(state_path, convert_pickle):
     :param Callable[dict] convert_pickle: function to change
         pickle-style state into JSON-style state
 
-    :returns unicode: the local path where the state is stored
+    :returns FilePath: the local path where the state is stored
 
     If this state path is JSON, simply return it.
 
@@ -116,14 +116,14 @@ def _maybe_upgrade_pickle_to_json(state_path, convert_pickle):
     JSON path.
     """
     if state_path.path.endswith(".json"):
-        return state_path.path
+        return state_path
 
     json_state_path = state_path.siblingExtension(".json")
 
     # if there's no file there at all, we're done because there's
     # nothing to upgrade
     if not state_path.exists():
-        return json_state_path.path
+        return json_state_path
 
     # upgrade the pickle data to JSON
     import pickle
@@ -135,7 +135,23 @@ def _maybe_upgrade_pickle_to_json(state_path, convert_pickle):
 
     # we've written the JSON, delete the pickle
     state_path.remove()
-    return json_state_path.path
+    return json_state_path
+
+
+def _confirm_json_format(fp):
+    """
+    :param FilePath fp: the original (pickle) name of a state file
+
+    This confirms that we do _not_ have the pickle-version of a
+    state-file and _do_ either have nothing, or the JSON version. If
+    the pickle-version exists, an exception is raised.
+
+    :returns FilePath: the JSON name of a state file
+    """
+    jsonfp = fp.siblingExtension(".json")
+    if fp.exists():
+        raise MigratePickleFileError(fp)
+    return jsonfp
 
 
 class _LeaseStateSerializer(object):
@@ -146,12 +162,7 @@ class _LeaseStateSerializer(object):
     """
 
     def __init__(self, state_path):
-        self._path = FilePath(
-            _maybe_upgrade_pickle_to_json(
-                FilePath(state_path),
-                _convert_pickle_state_to_json,
-            )
-        )
+        self._path = _confirm_json_format(FilePath(state_path))
 
     def load(self):
         """
