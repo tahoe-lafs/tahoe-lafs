@@ -4,7 +4,7 @@ buildPythonPackage rec {
   version = "5.2.0";
 
   src = fetchPypi {
-    sha256 = "1mmmncfbsx7cbdalcrsagp9hx7wqfawaz9361gjkmsk3lp6chd5w";
+    sha256 = "1gwlgjl70vlv35cgkcw3cg7b5qsmws36hs4mmh0l9msgagjs4fm3";
     inherit pname version;
   };
 
