@@ -16,8 +16,9 @@ from testtools.matchers import (
     Contains,
 )
 
-from twisted.trial import unittest
-from twisted.python.filepath import FilePath
+from twisted.python.filepath import (
+    FilePath,
+)
 
 from allmydata.scripts.admin import (
     migrate_crawler,
