@@ -19,6 +19,7 @@ import time
 import os.path
 import re
 import json
+from six.moves import StringIO
 
 from twisted.trial import unittest
 
@@ -44,6 +45,13 @@ from allmydata.web.storage import (
     StorageStatus,
     StorageStatusElement,
     remove_prefix
+)
+from allmydata.scripts.admin import (
+    MigrateCrawlerOptions,
+    migrate_crawler,
+)
+from allmydata.scripts.runner import (
+    Options,
 )
 from .common_util import FakeCanary
 
@@ -1152,15 +1160,29 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin):
         """
         # this file came from an "in the wild" tahoe version 1.16.0
         original_pickle = FilePath(__file__).parent().child("data").child("lease_checker.state.txt")
-        test_pickle = FilePath("lease_checker.state")
+        root = FilePath(self.mktemp())
+        storage = root.child("storage")
+        storage.makedirs()
+        test_pickle = storage.child("lease_checker.state")
         with test_pickle.open("w") as local, original_pickle.open("r") as remote:
             local.write(remote.read())
 
-        serial = _LeaseStateSerializer(test_pickle.path)
+        # convert from pickle format to JSON
+        top = Options()
+        top.parseOptions([
+            "admin", "migrate-crawler",
+            "--basedir", storage.parent().path,
+        ])
+        options = top.subOptions
+        while hasattr(options, "subOptions"):
+            options = options.subOptions
+        options.stdout = StringIO()
+        migrate_crawler(options)
 
         # the (existing) state file should have been upgraded to JSON
-        self.assertNot(test_pickle.exists())
+        self.assertFalse(test_pickle.exists())
         self.assertTrue(test_pickle.siblingExtension(".json").exists())
+        serial = _LeaseStateSerializer(test_pickle.path)
 
         self.assertEqual(
             serial.load(),
@@ -1340,9 +1362,24 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin):
         """
         # this file came from an "in the wild" tahoe version 1.16.0
         original_pickle = FilePath(__file__).parent().child("data").child("lease_checker.history.txt")
-        test_pickle = FilePath("lease_checker.history")
+        root = FilePath(self.mktemp())
+        storage = root.child("storage")
+        storage.makedirs()
+        test_pickle = storage.child("lease_checker.history")
         with test_pickle.open("w") as local, original_pickle.open("r") as remote:
             local.write(remote.read())
+
+        # convert from pickle format to JSON
+        top = Options()
+        top.parseOptions([
+            "admin", "migrate-crawler",
+            "--basedir", storage.parent().path,
+        ])
+        options = top.subOptions
+        while hasattr(options, "subOptions"):
+            options = options.subOptions
+        options.stdout = StringIO()
+        migrate_crawler(options)
 
         serial = _HistorySerializer(test_pickle.path)
 

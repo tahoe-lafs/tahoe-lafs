@@ -148,6 +148,8 @@ def _confirm_json_format(fp):
 
     :returns FilePath: the JSON name of a state file
     """
+    if fp.path.endswith(".json"):
+        return fp
     jsonfp = fp.siblingExtension(".json")
     if fp.exists():
         raise MigratePickleFileError(fp)

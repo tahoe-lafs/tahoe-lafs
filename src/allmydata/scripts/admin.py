@@ -93,6 +93,7 @@ class MigrateCrawlerOptions(BasedirOptions):
         )
         return t
 
+
 def migrate_crawler(options):
     out = options.stdout
     storage = FilePath(options['basedir']).child("storage")
@@ -107,12 +108,12 @@ def migrate_crawler(options):
         existed = fp.exists()
         newfp = crawler._maybe_upgrade_pickle_to_json(fp, converter)
         if existed:
-            print("Converted '{}' to '{}'".format(fp.path, newfp.path))
+            print("Converted '{}' to '{}'".format(fp.path, newfp.path), file=out)
         else:
             if newfp.exists():
-                print("Already converted: '{}'".format(newfp.path))
+                print("Already converted: '{}'".format(newfp.path), file=out)
             else:
-                print("Not found: '{}'".format(fp.path))
+                print("Not found: '{}'".format(fp.path), file=out)
 
 
 class AdminCommand(BaseOptions):
