@@ -125,8 +125,7 @@ def _upgrade_pickle_to_json(state_path, convert_pickle):
     with state_path.open("rb") as f:
         state = pickle.load(f)
     new_state = convert_pickle(state)
-    with json_state_path.open("wb") as f:
-        json.dump(new_state, f)
+    _dump_json_to_file(new_state, json_state_path)
 
     # we've written the JSON, delete the pickle
     state_path.remove()
@@ -149,6 +148,18 @@ def _confirm_json_format(fp):
     if fp.exists():
         raise MigratePickleFileError(fp)
     return jsonfp
+
+
+def _dump_json_to_file(js, afile):
+    """
+    Dump the JSON object `js` to the FilePath `afile`
+    """
+    with afile.open("wb") as f:
+        data = json.dumps(js)
+        if PY2:
+            f.write(data)
+        else:
+            f.write(data.encode("utf8"))
 
 
 class _LeaseStateSerializer(object):
@@ -174,8 +185,7 @@ class _LeaseStateSerializer(object):
         :returns: None
         """
         tmpfile = self._path.siblingExtension(".tmp")
-        with tmpfile.open("wb") as f:
-            json.dump(data, f)
+        _dump_json_to_file(data, tmpfile)
         fileutil.move_into_place(tmpfile.path, self._path.path)
         return None
 

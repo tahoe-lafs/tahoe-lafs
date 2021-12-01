@@ -14,6 +14,7 @@ from allmydata.storage.crawler import (
     ShareCrawler,
     _confirm_json_format,
     _convert_cycle_data,
+    _dump_json_to_file,
 )
 from allmydata.storage.shares import get_share_file
 from allmydata.storage.common import UnknownMutableContainerVersionError, \
@@ -48,8 +49,7 @@ class _HistorySerializer(object):
         self._path = _confirm_json_format(FilePath(history_path))
 
         if not self._path.exists():
-            with self._path.open("wb") as f:
-                json.dump({}, f)
+            _dump_json_to_file({}, self._path)
 
     def load(self):
         """
@@ -65,8 +65,7 @@ class _HistorySerializer(object):
         """
         Serialize the existing data as JSON.
         """
-        with self._path.open("wb") as f:
-            json.dump(new_history, f)
+        _dump_json_to_file(new_history, self._path)
         return None
 
 
