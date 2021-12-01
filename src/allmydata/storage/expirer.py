@@ -12,9 +12,7 @@ import os
 import struct
 from allmydata.storage.crawler import (
     ShareCrawler,
-    MigratePickleFileError,
     _confirm_json_format,
-    _maybe_upgrade_pickle_to_json,
     _convert_cycle_data,
 )
 from allmydata.storage.shares import get_share_file

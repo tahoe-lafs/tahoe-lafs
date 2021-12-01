@@ -106,7 +106,7 @@ def migrate_crawler(options):
 
     for fp, converter in conversions:
         existed = fp.exists()
-        newfp = crawler._maybe_upgrade_pickle_to_json(fp, converter)
+        newfp = crawler._upgrade_pickle_to_json(fp, converter)
         if existed:
             print("Converted '{}' to '{}'".format(fp.path, newfp.path), file=out)
         else:

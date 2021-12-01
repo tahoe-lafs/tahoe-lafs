@@ -47,7 +47,6 @@ from allmydata.web.storage import (
     remove_prefix
 )
 from allmydata.scripts.admin import (
-    MigrateCrawlerOptions,
     migrate_crawler,
 )
 from allmydata.scripts.runner import (

@@ -101,7 +101,7 @@ def _convert_pickle_state_to_json(state):
     }
 
 
-def _maybe_upgrade_pickle_to_json(state_path, convert_pickle):
+def _upgrade_pickle_to_json(state_path, convert_pickle):
     """
     :param FilePath state_path: the filepath to ensure is json
 
@@ -110,14 +110,9 @@ def _maybe_upgrade_pickle_to_json(state_path, convert_pickle):
 
     :returns FilePath: the local path where the state is stored
 
-    If this state path is JSON, simply return it.
-
     If this state is pickle, convert to the JSON format and return the
     JSON path.
     """
-    if state_path.path.endswith(".json"):
-        return state_path
-
     json_state_path = state_path.siblingExtension(".json")
 
     # if there's no file there at all, we're done because there's
