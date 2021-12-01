@@ -1168,7 +1168,7 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin):
                 if platform.isWindows():
                     local.write(line.replace("\n", "\r\n"))
                 else:
-                    local.write(line.replace("\n", "\r\n"))
+                    local.write(line)
 
         # convert from pickle format to JSON
         top = Options()
