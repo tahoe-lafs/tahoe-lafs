@@ -22,11 +22,11 @@ import json
 from six.moves import StringIO
 
 from twisted.trial import unittest
-
 from twisted.internet import defer
 from twisted.application import service
 from twisted.web.template import flattenString
 from twisted.python.filepath import FilePath
+from twisted.python.runtime import platform
 
 from foolscap.api import fireEventually
 from allmydata.util import fileutil, hashutil, base32, pollmixin
@@ -1163,8 +1163,12 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin):
         storage = root.child("storage")
         storage.makedirs()
         test_pickle = storage.child("lease_checker.state")
-        with test_pickle.open("wb") as local, original_pickle.open("rb") as remote:
-            local.write(remote.read())
+        with test_pickle.open("w") as local, original_pickle.open("r") as remote:
+            for line in remote.readlines():
+                if platform.isWindows():
+                    local.write(line.replace("\n", "\r\n"))
+                else:
+                    local.write(line.replace("\n", "\r\n"))
 
         # convert from pickle format to JSON
         top = Options()
@@ -1366,7 +1370,11 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin):
         storage.makedirs()
         test_pickle = storage.child("lease_checker.history")
         with test_pickle.open("wb") as local, original_pickle.open("rb") as remote:
-            local.write(remote.read())
+            for line in remote.readlines():
+                if platform.isWindows():
+                    local.write(line.replace("\n", "\r\n"))
+                else:
+                    local.write(line)
 
         # convert from pickle format to JSON
         top = Options()
