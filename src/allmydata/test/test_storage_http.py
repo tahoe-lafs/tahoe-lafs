@@ -14,6 +14,8 @@ if PY2:
     from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
     # fmt: on
 
+from unittest import SkipTest
+
 from twisted.trial.unittest import TestCase
 from twisted.internet.defer import inlineCallbacks
 
@@ -31,6 +33,8 @@ class HTTPTests(TestCase):
     """
 
     def setUp(self):
+        if PY2:
+            raise SkipTest("Not going to bother supporting Python 2")
         self.storage_server = StorageServer(self.mktemp(), b"\x00" * 20)
         # TODO what should the swissnum _actually_ be?
         self._http_server = HTTPServer(self.storage_server, b"abcd")
