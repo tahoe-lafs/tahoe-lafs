@@ -1,4 +1,4 @@
-{ lib, buildPythonPackage, fetchPypi }:
+{ lib, buildPythonPackage, fetchPypi, setuptools_scm }:
 buildPythonPackage rec {
   pname = "cbor2";
   version = "5.2.0";
