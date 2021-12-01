@@ -6,6 +6,15 @@ only changed enough to add Python 2 compatibility.
 Every API in this module (except ``eliot_json_encoder``) should be obsolete as
 soon as we depend on Eliot 1.14 or newer.
 
+When that happens:
+
+* replace ``capture_logging``
+  with ``partial(eliot.testing.capture_logging, encoder_=eliot_json_encoder)``
+* replace ``validateLogging``
+  with ``partial(eliot.testing.validateLogging, encoder_=eliot_json_encoder)``
+* replace ``MemoryLogger``
+  with ``partial(eliot.MemoryLogger, encoder=eliot_json_encoder)``
+
 Ported to Python 3.
 """
 
