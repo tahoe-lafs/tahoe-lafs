@@ -127,6 +127,9 @@ class StorageServer(service.MultiService):
         # Map in-progress filesystem path -> BucketWriter:
         self._bucket_writers = {}  # type: Dict[str,BucketWriter]
 
+        # These callables will be called with BucketWriters that closed:
+        self._call_on_bucket_writer_close = []
+
     def stopService(self):
         # Cancel any in-progress uploads:
         for bw in list(self._bucket_writers.values()):
@@ -405,9 +408,14 @@ class StorageServer(service.MultiService):
         if self.stats_provider:
             self.stats_provider.count('storage_server.bytes_added', consumed_size)
         del self._bucket_writers[bw.incominghome]
-        if bw in self._bucket_writer_disconnect_markers:
-            canary, disconnect_marker = self._bucket_writer_disconnect_markers.pop(bw)
-            canary.dontNotifyOnDisconnect(disconnect_marker)
+        for handler in self._call_on_bucket_writer_close:
+            handler(bw)
+
+    def register_bucket_writer_close_handler(self, handler):
+        """
+        The handler will be called with any ``BucketWriter`` that closes.
+        """
+        self._call_on_bucket_writer_close.append(handler)
 
     def _get_bucket_shares(self, storage_index):
         """Return a list of (shnum, pathname) tuples for files that hold
@@ -755,9 +763,15 @@ class FoolscapStorageServer(Referenceable):  # type: ignore # warner/foolscap#78
         # Canaries and disconnect markers for BucketWriters created via Foolscap:
         self._bucket_writer_disconnect_markers = {}  # type: Dict[BucketWriter,Tuple[IRemoteReference, object]]
 
+        self._server.register_bucket_writer_close_handler(self._bucket_writer_closed)
+
+    def _bucket_writer_closed(self, bw):
+        if bw in self._bucket_writer_disconnect_markers:
+            canary, disconnect_marker = self._bucket_writer_disconnect_markers.pop(bw)
+            canary.dontNotifyOnDisconnect(disconnect_marker)
 
     def remote_get_version(self):
-        return self.get_version()
+        return self._server.get_version()
 
     def remote_allocate_buckets(self, storage_index,
                                 renew_secret, cancel_secret,
@@ -797,7 +811,7 @@ class FoolscapStorageServer(Referenceable):  # type: ignore # warner/foolscap#78
         )
 
     def remote_slot_readv(self, storage_index, shares, readv):
-        return self._server.slot_readv(self, storage_index, shares, readv)
+        return self._server.slot_readv(storage_index, shares, readv)
 
     def remote_advise_corrupt_share(self, share_type, storage_index, shnum,
                                     reason):

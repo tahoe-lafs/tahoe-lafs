@@ -382,7 +382,7 @@ class BucketReader(Referenceable):  # type: ignore # warner/foolscap#78
         return data
 
     def remote_advise_corrupt_share(self, reason):
-        return self.ss.remote_advise_corrupt_share(b"immutable",
-                                                   self.storage_index,
-                                                   self.shnum,
-                                                   reason)
+        return self.ss.advise_corrupt_share(b"immutable",
+                                            self.storage_index,
+                                            self.shnum,
+                                            reason)
