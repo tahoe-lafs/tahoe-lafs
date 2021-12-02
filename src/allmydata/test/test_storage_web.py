@@ -19,6 +19,7 @@ import time
 import os.path
 import re
 import json
+from unittest import skipIf
 from six.moves import StringIO
 
 from twisted.trial import unittest
@@ -1153,6 +1154,7 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin):
         d.addBoth(_cleanup)
         return d
 
+    @skipIf(platform.isWindows())
     def test_deserialize_pickle(self):
         """
         The crawler can read existing state from the old pickle format
@@ -1163,12 +1165,8 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin):
         storage = root.child("storage")
         storage.makedirs()
         test_pickle = storage.child("lease_checker.state")
-        with test_pickle.open("w") as local, original_pickle.open("r") as remote:
-            for line in remote.readlines():
-                if platform.isWindows():
-                    local.write(line.replace("\n", "\r\n"))
-                else:
-                    local.write(line)
+        with test_pickle.open("wb") as local, original_pickle.open("rb") as remote:
+            test_pickle.write(original_pickle.read())
 
         # convert from pickle format to JSON
         top = Options()
@@ -1358,6 +1356,7 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin):
             second_serial.load(),
         )
 
+    @skipIf(platform.isWindows())
     def test_deserialize_history_pickle(self):
         """
         The crawler can read existing history state from the old pickle
@@ -1369,12 +1368,8 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin):
         storage = root.child("storage")
         storage.makedirs()
         test_pickle = storage.child("lease_checker.history")
-        with test_pickle.open("w") as local, original_pickle.open("r") as remote:
-            for line in remote.readlines():
-                if platform.isWindows():
-                    local.write(line.replace("\n", "\r\n"))
-                else:
-                    local.write(line)
+        with test_pickle.open("wb") as local, original_pickle.open("rb") as remote:
+            test_pickle.write(original_pickle.read())
 
         # convert from pickle format to JSON
         top = Options()
