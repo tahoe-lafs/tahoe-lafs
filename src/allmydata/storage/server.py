@@ -57,6 +57,7 @@ DEFAULT_RENEWAL_TIME = 31 * 24 * 60 * 60
 @implementer(RIStorageServer, IStatsProducer)
 class StorageServer(service.MultiService, Referenceable):
     name = 'storage'
+    # only the tests change this to anything else
     LeaseCheckerClass = LeaseCheckingCrawler
 
     def __init__(self, storedir, nodeid, reserved_space=0,
