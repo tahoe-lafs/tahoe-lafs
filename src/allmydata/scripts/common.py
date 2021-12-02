@@ -141,7 +141,9 @@ def write_introducer(basedir, petname, furl):
     """
     if isinstance(furl, bytes):
         furl = furl.decode("utf-8")
-    basedir.child(b"private").child(b"introducers.yaml").setContent(
+    private = basedir.child(b"private")
+    private.makedirs(ignoreExistingDirectory=True)
+    private.child(b"introducers.yaml").setContent(
         safe_dump({
             "introducers": {
                 petname: {

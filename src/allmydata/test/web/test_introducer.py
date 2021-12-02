@@ -83,12 +83,18 @@ def create_introducer_webish(reactor, port_assigner, basedir):
         with the node and its webish service.
     """
     node.create_node_dir(basedir, "testing")
-    _, port_endpoint = port_assigner.assign(reactor)
+    main_tub_location, main_tub_endpoint = port_assigner.assign(reactor)
+    _, web_port_endpoint = port_assigner.assign(reactor)
     with open(join(basedir, "tahoe.cfg"), "w") as f:
         f.write(
             "[node]\n"
-            "tub.location = 127.0.0.1:1\n" +
-            "web.port = {}\n".format(port_endpoint)
+            "tub.port = {main_tub_endpoint}\n"
+            "tub.location = {main_tub_location}\n"
+            "web.port = {web_port_endpoint}\n".format(
+                main_tub_endpoint=main_tub_endpoint,
+                main_tub_location=main_tub_location,
+                web_port_endpoint=web_port_endpoint,
+            )
         )
 
     intro_node = yield create_introducer(basedir)
