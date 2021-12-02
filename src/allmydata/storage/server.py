@@ -33,7 +33,10 @@ from allmydata.storage.lease import LeaseInfo
 from allmydata.storage.mutable import MutableShareFile, EmptyShare, \
      create_mutable_sharefile
 from allmydata.mutable.layout import MAX_MUTABLE_SHARE_SIZE
-from allmydata.storage.immutable import ShareFile, BucketWriter, BucketReader
+from allmydata.storage.immutable import (
+    ShareFile, BucketWriter, BucketReader, FoolscapBucketWriter,
+    FoolscapBucketReader,
+)
 from allmydata.storage.crawler import BucketCountingCrawler
 from allmydata.storage.expirer import LeaseCheckingCrawler
 
@@ -782,10 +785,18 @@ class FoolscapStorageServer(Referenceable):  # type: ignore # warner/foolscap#78
             storage_index, renew_secret, cancel_secret, sharenums, allocated_size,
             owner_num=owner_num, renew_leases=True,
         )
+
         # Abort BucketWriters if disconnection happens.
         for bw in bucketwriters.values():
             disconnect_marker = canary.notifyOnDisconnect(bw.disconnected)
             self._bucket_writer_disconnect_markers[bw] = (canary, disconnect_marker)
+
+        # Wrap BucketWriters with Foolscap adapter:
+        bucketwriters = {
+            k: FoolscapBucketWriter(bw)
+            for (k, bw) in bucketwriters.items()
+        }
+
         return alreadygot, bucketwriters
 
     def remote_add_lease(self, storage_index, renew_secret, cancel_secret,
@@ -796,7 +807,10 @@ class FoolscapStorageServer(Referenceable):  # type: ignore # warner/foolscap#78
         return self._server.renew_lease(storage_index, renew_secret)
 
     def remote_get_buckets(self, storage_index):
-        return self._server.get_buckets(storage_index)
+        return {
+            k: FoolscapBucketReader(bucket)
+            for (k, bucket) in self._server.get_buckets(storage_index).items()
+        }
 
     def remote_slot_testv_and_readv_and_writev(self, storage_index,
                                                secrets,
