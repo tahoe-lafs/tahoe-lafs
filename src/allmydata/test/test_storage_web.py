@@ -1154,7 +1154,7 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin):
         d.addBoth(_cleanup)
         return d
 
-    @skipIf(platform.isWindows())
+    @skipIf(platform.isWindows(), "pickle test-data can't be loaded on windows")
     def test_deserialize_pickle(self):
         """
         The crawler can read existing state from the old pickle format
@@ -1356,7 +1356,7 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin):
             second_serial.load(),
         )
 
-    @skipIf(platform.isWindows())
+    @skipIf(platform.isWindows(), "pickle test-data can't be loaded on windows")
     def test_deserialize_history_pickle(self):
         """
         The crawler can read existing history state from the old pickle
