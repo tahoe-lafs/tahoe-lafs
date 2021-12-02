@@ -63,7 +63,15 @@ class HTTPTests(TestCase):
     def test_version(self):
         """
         The client can return the version.
+
+        We ignore available disk space since that might change across calls.
         """
         version = yield self.client.get_version()
+        version[b"http://allmydata.org/tahoe/protocols/storage/v1"].pop(
+            b"available-space"
+        )
         expected_version = self.storage_server.remote_get_version()
+        expected_version[b"http://allmydata.org/tahoe/protocols/storage/v1"].pop(
+            b"available-space"
+        )
         self.assertEqual(version, expected_version)
