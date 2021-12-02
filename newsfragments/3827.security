@@ -1,0 +1,4 @@
+The SFTP server no longer accepts password-based credentials for authentication.
+Public/private key-based credentials are now the only supported authentication type.
+This removes plaintext password storage from the SFTP credentials file.
+It also removes a possible timing side-channel vulnerability which might have allowed attackers to discover an account's plaintext password.

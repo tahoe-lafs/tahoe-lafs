@@ -16,6 +16,7 @@ from hypothesis.strategies import (
     one_of,
     builds,
     binary,
+    integers,
 )
 
 from ..uri import (
@@ -119,3 +120,17 @@ def dir2_mdmf_capabilities():
         MDMFDirectoryURI,
         mdmf_capabilities(),
     )
+
+def offsets(min_value=0, max_value=2 ** 16):
+    """
+    Build ``int`` values that could be used as valid offsets into a sequence
+    (such as share data in a share file).
+    """
+    return integers(min_value, max_value)
+
+def lengths(min_value=1, max_value=2 ** 16):
+    """
+    Build ``int`` values that could be used as valid lengths of data (such as
+    share data in a share file).
+    """
+    return integers(min_value, max_value)

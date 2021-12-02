@@ -1,0 +1,1 @@
+The introducer server no longer writes the sensitive introducer fURL value to its log at startup time.  Instead it writes the well-known path of the file from which this value can be read.

@@ -1,0 +1,8 @@
+The lease-checker now uses JSON instead of pickle to serialize its state.
+
+tahoe will now refuse to run until you either delete all pickle files or
+migrate them using the new command::
+
+    tahoe admin migrate-crawler
+
+This will migrate all crawler-related pickle files.
