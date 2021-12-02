@@ -1166,7 +1166,7 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin):
         storage.makedirs()
         test_pickle = storage.child("lease_checker.state")
         with test_pickle.open("wb") as local, original_pickle.open("rb") as remote:
-            test_pickle.write(original_pickle.read())
+            local.write(remote.read())
 
         # convert from pickle format to JSON
         top = Options()
@@ -1369,7 +1369,7 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin):
         storage.makedirs()
         test_pickle = storage.child("lease_checker.history")
         with test_pickle.open("wb") as local, original_pickle.open("rb") as remote:
-            test_pickle.write(original_pickle.read())
+            local.write(remote.read())
 
         # convert from pickle format to JSON
         top = Options()
