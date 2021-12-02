@@ -626,7 +626,7 @@ class StorageServer(service.MultiService):
             secrets,
             test_and_write_vectors,
             read_vector,
-            renew_leases,
+            renew_leases=True,
     ):
         """
         Read data from shares and conditionally write some data to them.
