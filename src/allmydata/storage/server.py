@@ -64,6 +64,7 @@ class StorageServer(service.MultiService):
     """
     Implement the business logic for the storage server.
     """
+    name = "storage"
     LeaseCheckerClass = LeaseCheckingCrawler
 
     def __init__(self, storedir, nodeid, reserved_space=0,

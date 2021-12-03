@@ -39,6 +39,7 @@ from allmydata.crypto import aes
 from allmydata.storage.server import (
     si_b2a,
     StorageServer,
+    FoolscapStorageServer,
 )
 from allmydata.storage_client import StorageFarmBroker
 from allmydata.immutable.layout import (
@@ -427,7 +428,7 @@ class CHKCheckerAndUEBFetcherTests(SyncTestCase):
         """
         storage_index = b"a" * 16
         serverid = b"b" * 20
-        storage = StorageServer(self.mktemp(), serverid)
+        storage = FoolscapStorageServer(StorageServer(self.mktemp(), serverid))
         rref_without_ueb = LocalWrapper(storage, fireNow)
         yield write_bad_share(rref_without_ueb, storage_index)
         server_without_ueb = NoNetworkServer(serverid, rref_without_ueb)
@@ -451,7 +452,7 @@ class CHKCheckerAndUEBFetcherTests(SyncTestCase):
         """
         storage_index = b"a" * 16
         serverid = b"b" * 20
-        storage = StorageServer(self.mktemp(), serverid)
+        storage = FoolscapStorageServer(StorageServer(self.mktemp(), serverid))
         rref_with_ueb = LocalWrapper(storage, fireNow)
         ueb = {
             "needed_shares": 2,
@@ -487,7 +488,7 @@ class CHKCheckerAndUEBFetcherTests(SyncTestCase):
             in [b"b", b"c"]
         )
         storages = list(
-            StorageServer(self.mktemp(), serverid)
+            FoolscapStorageServer(StorageServer(self.mktemp(), serverid))
             for serverid
             in serverids
         )

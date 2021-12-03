@@ -65,5 +65,5 @@ class HTTPTests(TestCase):
         The client can return the version.
         """
         version = yield self.client.get_version()
-        expected_version = self.storage_server.remote_get_version()
+        expected_version = self.storage_server.get_version()
         self.assertEqual(version, expected_version)

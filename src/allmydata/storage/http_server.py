@@ -91,4 +91,4 @@ class HTTPServer(object):
 
     @_authorized_route(_app, "/v1/version", methods=["GET"])
     def version(self, request, authorization):
-        return self._cbor(request, self._storage_server.remote_get_version())
+        return self._cbor(request, self._storage_server.get_version())
