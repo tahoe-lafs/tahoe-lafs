@@ -337,7 +337,7 @@ class StorageServer(service.MultiService, Referenceable):
             alreadygot[shnum] = ShareFile(fn)
             if renew_leases:
                 sf = ShareFile(fn)
-                sf.add_or_renew_lease(lease_info)
+                sf.add_or_renew_lease(remaining_space, lease_info)
 
         for shnum in sharenums:
             incominghome = os.path.join(self.incomingdir, si_dir, "%d" % shnum)
@@ -411,7 +411,7 @@ class StorageServer(service.MultiService, Referenceable):
                                renew_secret, cancel_secret,
                                new_expire_time, self.my_nodeid)
         for sf in self._iter_share_files(storage_index):
-            sf.add_or_renew_lease(lease_info)
+            sf.add_or_renew_lease(self.get_available_space(), lease_info)
         self.add_latency("add-lease", self._clock.seconds() - start)
         return None
 
