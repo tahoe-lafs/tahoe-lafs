@@ -5,8 +5,10 @@ User-Visible Changes in Tahoe-LAFS
 ==================================
 
 .. towncrier start line
-Release 1.16.0.post463 (2021-12-05)Release 1.16.0.post463 (2021-12-05)
-'''''''''''''''''''''''''''''''''''
+
+
+Release 1.17.0 (2021-12-06)
+'''''''''''''''''''''''''''
 
 Security-related Changes
 ------------------------
