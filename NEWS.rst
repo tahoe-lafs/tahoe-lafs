@@ -5,6 +5,81 @@ User-Visible Changes in Tahoe-LAFS
 ==================================
 
 .. towncrier start line
+Release 1.16.0.post463 (2021-12-05)Release 1.16.0.post463 (2021-12-05)
+'''''''''''''''''''''''''''''''''''
+
+Security-related Changes
+------------------------
+
+- The introducer server no longer writes the sensitive introducer fURL value to its log at startup time.  Instead it writes the well-known path of the file from which this value can be read. (`#3819 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3819>`_)
+- The storage protocol operation ``add_lease`` now safely rejects an attempt to add a 4,294,967,296th lease to an immutable share.
+  Previously this failed with an error after recording the new lease in the share file, resulting in the share file losing track of a one previous lease. (`#3821 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3821>`_)
+- The storage protocol operation ``readv`` now safely rejects attempts to read negative lengths.
+  Previously these read requests were satisfied with the complete contents of the share file (including trailing metadata) starting from the specified offset. (`#3822 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3822>`_)
+- The storage server implementation now respects the ``reserved_space`` configuration value when writing lease information and recording corruption advisories.
+  Previously, new leases could be created and written to disk even when the storage server had less remaining space than the configured reserve space value.
+  Now this operation will fail with an exception and the lease will not be created.
+  Similarly, if there is no space available, corruption advisories will be logged but not written to disk. (`#3823 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3823>`_)
+- The storage server implementation no longer records corruption advisories about storage indexes for which it holds no shares. (`#3824 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3824>`_)
+- The lease-checker now uses JSON instead of pickle to serialize its state.
+
+  tahoe will now refuse to run until you either delete all pickle files or
+  migrate them using the new command::
+
+      tahoe admin migrate-crawler
+
+  This will migrate all crawler-related pickle files. (`#3825 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3825>`_)
+- The SFTP server no longer accepts password-based credentials for authentication.
+  Public/private key-based credentials are now the only supported authentication type.
+  This removes plaintext password storage from the SFTP credentials file.
+  It also removes a possible timing side-channel vulnerability which might have allowed attackers to discover an account's plaintext password. (`#3827 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3827>`_)
+- The storage server now keeps hashes of lease renew and cancel secrets for immutable share files instead of keeping the original secrets. (`#3839 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3839>`_)
+- The storage server now keeps hashes of lease renew and cancel secrets for mutable share files instead of keeping the original secrets. (`#3841 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3841>`_)
+
+
+Features
+--------
+
+- Tahoe-LAFS releases now have just a .tar.gz source release and a (universal) wheel (`#3735 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3735>`_)
+- tahoe-lafs now provides its statistics also in OpenMetrics format (for Prometheus et. al.) at `/statistics?t=openmetrics`. (`#3786 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3786>`_)
+- If uploading an immutable hasn't had a write for 30 minutes, the storage server will abort the upload. (`#3807 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3807>`_)
+
+
+Bug Fixes
+---------
+
+- When uploading an immutable, overlapping writes that include conflicting data are rejected. In practice, this likely didn't happen in real-world usage. (`#3801 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3801>`_)
+
+
+Dependency/Installation Changes
+-------------------------------
+
+- Tahoe-LAFS now supports running on NixOS 21.05 with Python 3. (`#3808 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3808>`_)
+
+
+Documentation Changes
+---------------------
+
+- The news file for future releases will include a section for changes with a security impact. (`#3815 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3815>`_)
+
+
+Removed Features
+----------------
+
+- The little-used "control port" has been removed from all node types. (`#3814 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3814>`_)
+
+
+Other Changes
+-------------
+
+- Tahoe-LAFS no longer runs its Tor integration test suite on Python 2 due to the increased complexity of obtaining compatible versions of necessary dependencies. (`#3837 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3837>`_)
+
+
+Misc/Other
+----------
+
+- `#3525 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3525>`_, `#3527 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3527>`_, `#3754 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3754>`_, `#3758 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3758>`_, `#3784 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3784>`_, `#3792 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3792>`_, `#3793 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3793>`_, `#3795 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3795>`_, `#3797 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3797>`_, `#3798 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3798>`_, `#3799 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3799>`_, `#3800 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3800>`_, `#3805 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3805>`_, `#3806 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3806>`_, `#3810 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3810>`_, `#3812 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3812>`_, `#3820 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3820>`_, `#3829 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3829>`_, `#3830 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3830>`_, `#3831 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3831>`_, `#3832 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3832>`_, `#3833 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3833>`_, `#3834 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3834>`_, `#3835 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3835>`_, `#3836 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3836>`_, `#3838 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3838>`_, `#3842 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3842>`_, `#3843 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3843>`_, `#3847 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3847>`_
+
 
 Release 1.16.0 (2021-09-17)
 '''''''''''''''''''''''''''

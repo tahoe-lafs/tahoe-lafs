@@ -1,1 +1,0 @@
-The storage server implementation no longer records corruption advisories about storage indexes for which it holds no shares.

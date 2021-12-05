@@ -1,2 +1,0 @@
-The storage protocol operation ``add_lease`` now safely rejects an attempt to add a 4,294,967,296th lease to an immutable share.
-Previously this failed with an error after recording the new lease in the share file, resulting in the share file losing track of a one previous lease.
