@@ -334,9 +334,8 @@ class StorageServer(service.MultiService, Referenceable):
         # file, they'll want us to hold leases for this file.
         for (shnum, fn) in self._get_bucket_shares(storage_index):
             alreadygot[shnum] = ShareFile(fn)
-            if renew_leases:
-                sf = ShareFile(fn)
-                sf.add_or_renew_lease(remaining_space, lease_info)
+        if renew_leases:
+            self._add_or_renew_leases(alreadygot.values(), lease_info)
 
         for shnum in sharenums:
             incominghome = os.path.join(self.incomingdir, si_dir, "%d" % shnum)
@@ -409,8 +408,10 @@ class StorageServer(service.MultiService, Referenceable):
         lease_info = LeaseInfo(owner_num,
                                renew_secret, cancel_secret,
                                new_expire_time, self.my_nodeid)
-        for sf in self._iter_share_files(storage_index):
-            sf.add_or_renew_lease(self.get_available_space(), lease_info)
+        self._add_or_renew_leases(
+            self._iter_share_files(storage_index),
+            lease_info,
+        )
         self.add_latency("add-lease", self._clock.seconds() - start)
         return None
 
