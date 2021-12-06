@@ -4,10 +4,10 @@
 , setuptools, setuptoolsTrial, pyasn1, zope_interface
 , service-identity, pyyaml, magic-wormhole, treq, appdirs
 , beautifulsoup4, eliot, autobahn, cryptography, netifaces
-, html5lib, pyutil, distro, configparser
+, html5lib, pyutil, distro, configparser, klein, cbor2
 }:
 python.pkgs.buildPythonPackage rec {
-  # Most of the time this is not exactly the release version (eg 1.16.0).
+  # Most of the time this is not exactly the release version (eg 1.17.0).
   # Give it a `post` component to make it look newer than the release version
   # and we'll bump this up at the time of each release.
   #
@@ -20,7 +20,7 @@ python.pkgs.buildPythonPackage rec {
   # is not a reproducable artifact (in the sense of "reproducable builds") so
   # it is excluded from the source tree by default.  When it is included, the
   # package tends to be frequently spuriously rebuilt.
-  version = "1.16.0.post1";
+  version = "1.17.0.post1";
   name = "tahoe-lafs-${version}";
   src = lib.cleanSourceWith {
     src = ../.;
@@ -95,9 +95,10 @@ EOF
   propagatedBuildInputs = with python.pkgs; [
     twisted foolscap zfec appdirs
     setuptoolsTrial pyasn1 zope_interface
-    service-identity pyyaml magic-wormhole treq
+    service-identity pyyaml magic-wormhole
     eliot autobahn cryptography netifaces setuptools
     future pyutil distro configparser collections-extended
+    klein cbor2 treq
   ];
 
   checkInputs = with python.pkgs; [

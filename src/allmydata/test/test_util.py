@@ -553,11 +553,6 @@ class JSONBytes(unittest.TestCase):
                 o, cls=jsonbytes.AnyBytesJSONEncoder)),
             expected,
         )
-        self.assertEqual(
-            json.loads(jsonbytes.dumps(o, any_bytes=True)),
-            expected
-        )
-
 
 
 class FakeGetVersion(object):

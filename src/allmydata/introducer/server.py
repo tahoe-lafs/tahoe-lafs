@@ -133,7 +133,7 @@ class _IntroducerNode(node.Node):
             os.rename(old_public_fn, private_fn)
         furl = self.tub.registerReference(introducerservice,
                                           furlFile=private_fn)
-        self.log(" introducer is at %s" % furl, umid="qF2L9A")
+        self.log(" introducer can be found in {!r}".format(private_fn), umid="qF2L9A")
         self.introducer_url = furl # for tests
 
     def init_web(self, webport):

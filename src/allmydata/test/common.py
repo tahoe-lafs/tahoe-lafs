@@ -28,6 +28,7 @@ __all__ = [
 
 import sys
 import os, random, struct
+from contextlib import contextmanager
 import six
 import tempfile
 from tempfile import mktemp
@@ -87,6 +88,7 @@ from allmydata.interfaces import (
     SDMF_VERSION,
     MDMF_VERSION,
     IAddressFamily,
+    NoSpace,
 )
 from allmydata.check_results import CheckResults, CheckAndRepairResults, \
      DeepCheckResults, DeepCheckAndRepairResults
@@ -138,6 +140,42 @@ EMPTY_CLIENT_CONFIG = config_from_string(
     "tub.port",
     ""
 )
+
+@attr.s
+class FakeDisk(object):
+    """
+    Just enough of a disk to be able to report free / used information.
+    """
+    total = attr.ib()
+    used = attr.ib()
+
+    def use(self, num_bytes):
+        """
+        Mark some amount of available bytes as used (and no longer available).
+
+        :param int num_bytes: The number of bytes to use.
+
+        :raise NoSpace: If there are fewer bytes available than ``num_bytes``.
+
+        :return: ``None``
+        """
+        if num_bytes > self.total - self.used:
+            raise NoSpace()
+        self.used += num_bytes
+
+    @property
+    def available(self):
+        return self.total - self.used
+
+    def get_disk_stats(self, whichdir, reserved_space):
+        avail = self.available
+        return {
+            'total': self.total,
+            'free_for_root': avail,
+            'free_for_nonroot': avail,
+            'used': self.used,
+            'avail': avail - reserved_space,
+        }
 
 
 @attr.s
@@ -267,8 +305,12 @@ class UseNode(object):
     node_config = attr.ib(default=attr.Factory(dict))
 
     config = attr.ib(default=None)
+    reactor = attr.ib(default=None)
 
     def setUp(self):
+        self.assigner = SameProcessStreamEndpointAssigner()
+        self.assigner.setUp()
+
         def format_config_items(config):
             return "\n".join(
                 " = ".join((key, value))
@@ -292,6 +334,23 @@ class UseNode(object):
             "default",
             self.introducer_furl,
         )
+
+        node_config = self.node_config.copy()
+        if "tub.port" not in node_config:
+            if "tub.location" in node_config:
+                raise ValueError(
+                    "UseNode fixture does not support specifying tub.location "
+                    "without tub.port"
+                )
+
+            # Don't use the normal port auto-assignment logic.  It produces
+            # collisions and makes tests fail spuriously.
+            tub_location, tub_endpoint = self.assigner.assign(self.reactor)
+            node_config.update({
+                "tub.port": tub_endpoint,
+                "tub.location": tub_location,
+            })
+
         self.config = config_from_string(
             self.basedir.asTextMode().path,
             "tub.port",
@@ -304,7 +363,7 @@ storage.plugins = {storage_plugin}
 {plugin_config_section}
 """.format(
     storage_plugin=self.storage_plugin,
-    node_config=format_config_items(self.node_config),
+    node_config=format_config_items(node_config),
     plugin_config_section=plugin_config_section,
 )
         )
@@ -316,7 +375,7 @@ storage.plugins = {storage_plugin}
         )
 
     def cleanUp(self):
-        pass
+        self.assigner.tearDown()
 
 
     def getDetails(self):
@@ -1068,7 +1127,7 @@ def _corrupt_offset_of_uri_extension_to_force_short_read(data, debug=False):
 
 def _corrupt_mutable_share_data(data, debug=False):
     prefix = data[:32]
-    assert prefix == MutableShareFile.MAGIC, "This function is designed to corrupt mutable shares of v1, and the magic number doesn't look right: %r vs %r" % (prefix, MutableShareFile.MAGIC)
+    assert MutableShareFile.is_valid_header(prefix), "This function is designed to corrupt mutable shares of v1, and the magic number doesn't look right: %r vs %r" % (prefix, MutableShareFile.MAGIC)
     data_offset = MutableShareFile.DATA_OFFSET
     sharetype = data[data_offset:data_offset+1]
     assert sharetype == b"\x00", "non-SDMF mutable shares not supported"
@@ -1213,6 +1272,29 @@ class ConstantAddresses(object):
             raise Exception("{!r} has no client endpoint.")
         return self._handler
 
+@contextmanager
+def disable_modules(*names):
+    """
+    A context manager which makes modules appear to be missing while it is
+    active.
+
+    :param *names: The names of the modules to disappear.  Only top-level
+        modules are supported (that is, "." is not allowed in any names).
+        This is an implementation shortcoming which could be lifted if
+        desired.
+    """
+    if any("." in name for name in names):
+        raise ValueError("Names containing '.' are not supported.")
+    missing = object()
+    modules = list(sys.modules.get(n, missing) for n in names)
+    for n in names:
+        sys.modules[n] = None
+    yield
+    for n, original in zip(names, modules):
+        if original is missing:
+            del sys.modules[n]
+        else:
+            sys.modules[n] = original
 
 class _TestCaseMixin(object):
     """

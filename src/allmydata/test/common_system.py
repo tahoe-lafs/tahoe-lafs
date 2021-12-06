@@ -672,11 +672,14 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
         """
         iv_dir = self.getdir("introducer")
         if not os.path.isdir(iv_dir):
-            _, port_endpoint = self.port_assigner.assign(reactor)
+            _, web_port_endpoint = self.port_assigner.assign(reactor)
+            main_location_hint, main_port_endpoint = self.port_assigner.assign(reactor)
             introducer_config = (
                 u"[node]\n"
                 u"nickname = introducer \N{BLACK SMILING FACE}\n" +
-                u"web.port = {}\n".format(port_endpoint)
+                u"web.port = {}\n".format(web_port_endpoint) +
+                u"tub.port = {}\n".format(main_port_endpoint) +
+                u"tub.location = {}\n".format(main_location_hint)
             ).encode("utf-8")
 
             fileutil.make_dirs(iv_dir)
@@ -764,13 +767,15 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
     def _generate_config(self, which, basedir):
         config = {}
 
-        except1 = set(range(self.numclients)) - {1}
+        allclients = set(range(self.numclients))
+        except1 = allclients - {1}
         feature_matrix = {
             ("client", "nickname"): except1,
 
-            # client 1 has to auto-assign an address.
-            ("node", "tub.port"): except1,
-            ("node", "tub.location"): except1,
+            # Auto-assigning addresses is extremely failure prone and not
+            # amenable to automated testing in _this_ manner.
+            ("node", "tub.port"): allclients,
+            ("node", "tub.location"): allclients,
 
             # client 0 runs a webserver and a helper
             # client 3 runs a webserver but no helper
@@ -852,7 +857,13 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
         # connection-lost code
         basedir = FilePath(self.getdir("client%d" % client_num))
         basedir.makedirs()
-        config = "[client]\n"
+        config = (
+            "[node]\n"
+            "tub.location = {}\n"
+            "tub.port = {}\n"
+            "[client]\n"
+        ).format(*self.port_assigner.assign(reactor))
+
         if helper_furl:
             config += "helper.furl = %s\n" % helper_furl
         basedir.child("tahoe.cfg").setContent(config.encode("utf-8"))

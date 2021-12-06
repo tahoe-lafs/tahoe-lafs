@@ -47,8 +47,8 @@ servers must be configured with a way to first authenticate a user (confirm
 that a prospective client has a legitimate claim to whatever authorities we
 might grant a particular user), and second to decide what directory cap
 should be used as the root directory for a log-in by the authenticated user.
-A username and password can be used; as of Tahoe-LAFS v1.11, RSA or DSA
-public key authentication is also supported.
+As of Tahoe-LAFS v1.17,
+RSA/DSA public key authentication is the only supported mechanism.
 
 Tahoe-LAFS provides two mechanisms to perform this user-to-cap mapping.
 The first (recommended) is a simple flat file with one account per line.
@@ -59,20 +59,14 @@ Creating an Account File
 
 To use the first form, create a file (for example ``BASEDIR/private/accounts``)
 in which each non-comment/non-blank line is a space-separated line of
-(USERNAME, PASSWORD, ROOTCAP), like so::
+(USERNAME, KEY-TYPE, PUBLIC-KEY, ROOTCAP), like so::
 
  % cat BASEDIR/private/accounts
- # This is a password line: username password cap
- alice password URI:DIR2:ioej8xmzrwilg772gzj4fhdg7a:wtiizszzz2rgmczv4wl6bqvbv33ag4kvbr6prz3u6w3geixa6m6a
- bob sekrit URI:DIR2:6bdmeitystckbl9yqlw7g56f4e:serp5ioqxnh34mlbmzwvkp3odehsyrr7eytt5f64we3k9hhcrcja
-
  # This is a public key line: username keytype pubkey cap
  # (Tahoe-LAFS v1.11 or later)
  carol ssh-rsa AAAA... URI:DIR2:ovjy4yhylqlfoqg2vcze36dhde:4d4f47qko2xm5g7osgo2yyidi5m4muyo2vjjy53q4vjju2u55mfa
 
-For public key authentication, the keytype may be either "ssh-rsa" or "ssh-dsa".
-To avoid ambiguity between passwords and public key types, a password cannot
-start with "ssh-".
+The key type may be either "ssh-rsa" or "ssh-dsa".
 
 Now add an ``accounts.file`` directive to your ``tahoe.cfg`` file, as described in
 the next sections.
