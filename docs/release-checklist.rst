@@ -116,8 +116,8 @@ they will need to evaluate which contributors' signatures they trust.
   - ``git tag -s -u 0xE34E62D06D0E69CFCA4179FFBDE0D31D68666A7A -m "release Tahoe-LAFS-1.16.0rc0" tahoe-lafs-1.16.0rc0``
 
 .. note:: 
-    - Replace the key-id above with your own, which can simply be your email if's attached your fingerprint.
-    - Don't forget to put the correct tag message and name in this example the tag message is "release Tahoe-LAFS-1.16.0rc0" and the tag name is `tahoe-lafs-1.16.0rc0` 
+    - Replace the key-id above with your own, which can simply be your email if it's attached to your fingerprint.
+    - Don't forget to put the correct tag message and name. In this example, the tag message is "release Tahoe-LAFS-1.16.0rc0" and the tag name is ``tahoe-lafs-1.16.0rc0`` 
 
 - build all code locally
 
