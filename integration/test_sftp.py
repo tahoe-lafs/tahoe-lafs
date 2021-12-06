@@ -19,6 +19,7 @@ from future.utils import PY2
 if PY2:
     from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
+import os.path
 from posixpath import join
 from stat import S_ISDIR
 
@@ -33,7 +34,7 @@ import pytest
 from .util import generate_ssh_key, run_in_thread
 
 
-def connect_sftp(connect_args={"username": "alice", "password": "password"}):
+def connect_sftp(connect_args):
     """Create an SFTP client."""
     client = SSHClient()
     client.set_missing_host_key_policy(AutoAddPolicy)
@@ -60,24 +61,24 @@ def connect_sftp(connect_args={"username": "alice", "password": "password"}):
 @run_in_thread
 def test_bad_account_password_ssh_key(alice, tmpdir):
     """
-    Can't login with unknown username, wrong password, or wrong SSH pub key.
+    Can't login with unknown username, any password, or wrong SSH pub key.
     """
-    # Wrong password, wrong username:
-    for u, p in [("alice", "wrong"), ("someuser", "password")]:
+    # Any password, wrong username:
+    for u, p in [("alice-key", "wrong"), ("someuser", "password")]:
         with pytest.raises(AuthenticationException):
             connect_sftp(connect_args={
                 "username": u, "password": p,
             })
 
-    another_key = join(str(tmpdir), "ssh_key")
+    another_key = os.path.join(str(tmpdir), "ssh_key")
     generate_ssh_key(another_key)
-    good_key = RSAKey(filename=join(alice.node_dir, "private", "ssh_client_rsa_key"))
+    good_key = RSAKey(filename=os.path.join(alice.node_dir, "private", "ssh_client_rsa_key"))
     bad_key = RSAKey(filename=another_key)
 
     # Wrong key:
     with pytest.raises(AuthenticationException):
         connect_sftp(connect_args={
-            "username": "alice2", "pkey": bad_key,
+            "username": "alice-key", "pkey": bad_key,
         })
 
     # Wrong username:
@@ -86,13 +87,24 @@ def test_bad_account_password_ssh_key(alice, tmpdir):
             "username": "someoneelse", "pkey": good_key,
         })
 
+def sftp_client_key(node):
+    return RSAKey(
+        filename=os.path.join(node.node_dir, "private", "ssh_client_rsa_key"),
+    )
+
+def test_sftp_client_key_exists(alice, alice_sftp_client_key_path):
+    """
+    Weakly validate the sftp client key fixture by asserting that *something*
+    exists at the supposed key path.
+    """
+    assert os.path.exists(alice_sftp_client_key_path)
 
 @run_in_thread
 def test_ssh_key_auth(alice):
     """It's possible to login authenticating with SSH public key."""
-    key = RSAKey(filename=join(alice.node_dir, "private", "ssh_client_rsa_key"))
+    key = sftp_client_key(alice)
     sftp = connect_sftp(connect_args={
-        "username": "alice2", "pkey": key
+        "username": "alice-key", "pkey": key
     })
     assert sftp.listdir() == []
 
@@ -100,7 +112,10 @@ def test_ssh_key_auth(alice):
 @run_in_thread
 def test_read_write_files(alice):
     """It's possible to upload and download files."""
-    sftp = connect_sftp()
+    sftp = connect_sftp(connect_args={
+        "username": "alice-key",
+        "pkey": sftp_client_key(alice),
+    })
     with sftp.file("myfile", "wb") as f:
         f.write(b"abc")
         f.write(b"def")
@@ -117,7 +132,10 @@ def test_directories(alice):
     It's possible to create, list directories, and create and remove files in
     them.
     """
-    sftp = connect_sftp()
+    sftp = connect_sftp(connect_args={
+        "username": "alice-key",
+        "pkey": sftp_client_key(alice),
+    })
     assert sftp.listdir() == []
 
     sftp.mkdir("childdir")
@@ -148,7 +166,10 @@ def test_directories(alice):
 @run_in_thread
 def test_rename(alice):
     """Directories and files can be renamed."""
-    sftp = connect_sftp()
+    sftp = connect_sftp(connect_args={
+        "username": "alice-key",
+        "pkey": sftp_client_key(alice),
+    })
     sftp.mkdir("dir")
 
     filepath = join("dir", "file")

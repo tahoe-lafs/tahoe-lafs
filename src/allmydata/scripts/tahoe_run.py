@@ -27,7 +27,9 @@ from allmydata.scripts.default_nodedir import _default_nodedir
 from allmydata.util.encodingutil import listdir_unicode, quote_local_unicode_path
 from allmydata.util.configutil import UnknownConfigError
 from allmydata.util.deferredutil import HookMixin
-
+from allmydata.storage.crawler import (
+    MigratePickleFileError,
+)
 from allmydata.node import (
     PortAssignmentRequired,
     PrivacyError,
@@ -164,6 +166,18 @@ class DaemonizeTheRealService(Service, HookMixin):
                     self.stderr.write("\ntub.port cannot be 0: you must choose.\n\n")
                 elif reason.check(PrivacyError):
                     self.stderr.write("\n{}\n\n".format(reason.value))
+                elif reason.check(MigratePickleFileError):
+                    self.stderr.write(
+                        "Error\nAt least one 'pickle' format file exists.\n"
+                        "The file is {}\n"
+                        "You must either delete the pickle-format files"
+                        " or migrate them using the command:\n"
+                        "    tahoe admin migrate-crawler --basedir {}\n\n"
+                        .format(
+                            reason.value.args[0].path,
+                            self.basedir,
+                        )
+                    )
                 else:
                     self.stderr.write("\nUnknown error\n")
                     reason.printTraceback(self.stderr)

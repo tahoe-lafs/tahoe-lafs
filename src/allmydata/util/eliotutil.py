@@ -16,12 +16,14 @@ from __future__ import (
 )
 
 __all__ = [
+    "MemoryLogger",
     "inline_callbacks",
     "eliot_logging_service",
     "opt_eliot_destination",
     "opt_help_eliot_destinations",
     "validateInstanceOf",
     "validateSetMembership",
+    "capture_logging",
 ]
 
 from future.utils import PY2
@@ -32,7 +34,7 @@ from six import ensure_text
 from sys import (
     stdout,
 )
-from functools import wraps, partial
+from functools import wraps
 from logging import (
     INFO,
     Handler,
@@ -66,8 +68,6 @@ from eliot.twisted import (
     DeferredContext,
     inline_callbacks,
 )
-from eliot.testing import capture_logging as eliot_capture_logging
-
 from twisted.python.usage import (
     UsageError,
 )
@@ -87,11 +87,12 @@ from twisted.internet.defer import (
 )
 from twisted.application.service import Service
 
-from .jsonbytes import (
-    AnyBytesJSONEncoder,
+from ._eliot_updates import (
+    MemoryLogger,
+    eliot_json_encoder,
+    capture_logging,
 )
 import json
-
 
 def validateInstanceOf(t):
     """
@@ -309,7 +310,7 @@ class _DestinationParser(object):
                     rotateLength=rotate_length,
                     maxRotatedFiles=max_rotated_files,
                 )
-        return lambda reactor: FileDestination(get_file(), AnyBytesJSONEncoder)
+        return lambda reactor: FileDestination(get_file(), eliot_json_encoder)
 
 
 _parse_destination_description = _DestinationParser().parse
@@ -342,12 +343,3 @@ def log_call_deferred(action_type):
                 return DeferredContext(d).addActionFinish()
         return logged_f
     return decorate_log_call_deferred
-
-# On Python 3, encoding bytes to JSON doesn't work, so we have a custom JSON
-# encoder we want to use when validating messages.
-if PY2:
-    capture_logging = eliot_capture_logging
-else:
-    capture_logging = partial(eliot_capture_logging, encoder_=AnyBytesJSONEncoder)
-
-

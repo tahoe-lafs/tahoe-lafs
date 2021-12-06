@@ -27,14 +27,13 @@ from fixtures import (
 )
 from testtools import (
     TestCase,
-)
-from testtools import (
     TestResult,
 )
 from testtools.matchers import (
     Is,
     Contains,
     IsInstance,
+    Not,
     MatchesStructure,
     Equals,
     HasLength,
@@ -67,11 +66,11 @@ from twisted.internet.task import deferLater
 from twisted.internet import reactor, defer
 
 from ..util.eliotutil import (
+    eliot_json_encoder,
     log_call_deferred,
     _parse_destination_description,
     _EliotLogging,
 )
-from ..util.jsonbytes import AnyBytesJSONEncoder
 
 from .common import (
     SyncTestCase,
@@ -79,24 +78,105 @@ from .common import (
 )
 
 
-class EliotLoggedTestTests(AsyncTestCase):
+def passes():
+    """
+    Create a matcher that matches a ``TestCase`` that runs without failures or
+    errors.
+    """
+    def run(case):
+        result = TestResult()
+        case.run(result)
+        return result.wasSuccessful()
+    return AfterPreprocessing(run, Equals(True))
+
+
+class EliotLoggedTestTests(TestCase):
+    """
+    Tests for the automatic log-related provided by ``AsyncTestCase``.
+
+    This class uses ``testtools.TestCase`` because it is inconvenient to nest
+    ``AsyncTestCase`` inside ``AsyncTestCase`` (in particular, Eliot messages
+    emitted by the inner test case get observed by the outer test case and if
+    an inner case emits invalid messages they cause the outer test case to
+    fail).
+    """
+    def test_fails(self):
+        """
+        A test method of an ``AsyncTestCase`` subclass can fail.
+        """
+        class UnderTest(AsyncTestCase):
+            def test_it(self):
+                self.fail("make sure it can fail")
+
+        self.assertThat(UnderTest("test_it"), Not(passes()))
+
+    def test_unserializable_fails(self):
+        """
+        A test method of an ``AsyncTestCase`` subclass that logs an unserializable
+        value with Eliot fails.
+        """
+        class world(object):
+            """
+            an unserializable object
+            """
+
+        class UnderTest(AsyncTestCase):
+            def test_it(self):
+                Message.log(hello=world)
+
+        self.assertThat(UnderTest("test_it"), Not(passes()))
+
+    def test_logs_non_utf_8_byte(self):
+        """
+        A test method of an ``AsyncTestCase`` subclass can log a message that
+        contains a non-UTF-8 byte string and return ``None`` and pass.
+        """
+        class UnderTest(AsyncTestCase):
+            def test_it(self):
+                Message.log(hello=b"\xFF")
+
+        self.assertThat(UnderTest("test_it"), passes())
+
     def test_returns_none(self):
-        Message.log(hello="world")
+        """
+        A test method of an ``AsyncTestCase`` subclass can log a message and
+        return ``None`` and pass.
+        """
+        class UnderTest(AsyncTestCase):
+            def test_it(self):
+                Message.log(hello="world")
+
+        self.assertThat(UnderTest("test_it"), passes())
 
     def test_returns_fired_deferred(self):
-        Message.log(hello="world")
-        return succeed(None)
+        """
+        A test method of an ``AsyncTestCase`` subclass can log a message and
+        return an already-fired ``Deferred`` and pass.
+        """
+        class UnderTest(AsyncTestCase):
+            def test_it(self):
+                Message.log(hello="world")
+                return succeed(None)
+
+        self.assertThat(UnderTest("test_it"), passes())
 
     def test_returns_unfired_deferred(self):
-        Message.log(hello="world")
-        # @eliot_logged_test automatically gives us an action context but it's
-        # still our responsibility to maintain it across stack-busting
-        # operations.
-        d = DeferredContext(deferLater(reactor, 0.0, lambda: None))
-        d.addCallback(lambda ignored: Message.log(goodbye="world"))
-        # We didn't start an action.  We're not finishing an action.
-        return d.result
+        """
+        A test method of an ``AsyncTestCase`` subclass can log a message and
+        return an unfired ``Deferred`` and pass when the ``Deferred`` fires.
+        """
+        class UnderTest(AsyncTestCase):
+            def test_it(self):
+                Message.log(hello="world")
+                # @eliot_logged_test automatically gives us an action context
+                # but it's still our responsibility to maintain it across
+                # stack-busting operations.
+                d = DeferredContext(deferLater(reactor, 0.0, lambda: None))
+                d.addCallback(lambda ignored: Message.log(goodbye="world"))
+                # We didn't start an action.  We're not finishing an action.
+                return d.result
 
+        self.assertThat(UnderTest("test_it"), passes())
 
 
 class ParseDestinationDescriptionTests(SyncTestCase):
@@ -111,7 +191,7 @@ class ParseDestinationDescriptionTests(SyncTestCase):
         reactor = object()
         self.assertThat(
             _parse_destination_description("file:-")(reactor),
-            Equals(FileDestination(stdout, encoder=AnyBytesJSONEncoder)),
+            Equals(FileDestination(stdout, encoder=eliot_json_encoder)),
         )
 
 
