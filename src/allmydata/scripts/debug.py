@@ -230,8 +230,8 @@ def dump_mutable_share(options):
             print("  ownerid: %d" % lease.owner_num, file=out)
             when = format_expiration_time(lease.get_expiration_time())
             print("  expires in %s" % when, file=out)
-            print("  renew_secret: %s" % str(base32.b2a(lease.renew_secret), "utf-8"), file=out)
-            print("  cancel_secret: %s" % str(base32.b2a(lease.cancel_secret), "utf-8"), file=out)
+            print("  renew_secret: %s" % lease.present_renew_secret(), file=out)
+            print("  cancel_secret: %s" % lease.present_cancel_secret(), file=out)
             print("  secrets are for nodeid: %s" % idlib.nodeid_b2a(lease.nodeid), file=out)
     else:
         print("No leases.", file=out)

@@ -13,7 +13,10 @@ if PY2:
 
 import os, stat, struct
 
-from allmydata.interfaces import BadWriteEnablerError
+from allmydata.interfaces import (
+    BadWriteEnablerError,
+    NoSpace,
+)
 from allmydata.util import idlib, log
 from allmydata.util.assertutil import precondition
 from allmydata.util.hashutil import timing_safe_compare
@@ -21,7 +24,10 @@ from allmydata.storage.lease import LeaseInfo
 from allmydata.storage.common import UnknownMutableContainerVersionError, \
      DataTooLargeError
 from allmydata.mutable.layout import MAX_MUTABLE_SHARE_SIZE
-
+from .mutable_schema import (
+    NEWEST_SCHEMA_VERSION,
+    schema_from_header,
+)
 
 # the MutableShareFile is like the ShareFile, but used for mutable data. It
 # has a different layout. See docs/mutable.txt for more details.
@@ -61,9 +67,6 @@ class MutableShareFile(object):
     # our sharefiles share with a recognizable string, plus some random
     # binary data to reduce the chance that a regular text file will look
     # like a sharefile.
-    MAGIC = b"Tahoe mutable container v1\n" + b"\x75\x09\x44\x03\x8e"
-    assert len(MAGIC) == 32
-    assert isinstance(MAGIC, bytes)
     MAX_SIZE = MAX_MUTABLE_SHARE_SIZE
     # TODO: decide upon a policy for max share size
 
@@ -79,22 +82,19 @@ class MutableShareFile(object):
         :return: ``True`` if the bytes could belong to this container,
             ``False`` otherwise.
         """
-        return header.startswith(cls.MAGIC)
+        return schema_from_header(header) is not None
 
-    def __init__(self, filename, parent=None):
+    def __init__(self, filename, parent=None, schema=NEWEST_SCHEMA_VERSION):
         self.home = filename
         if os.path.exists(self.home):
             # we don't cache anything, just check the magic
             with open(self.home, 'rb') as f:
-                data = f.read(self.HEADER_SIZE)
-            (magic,
-             write_enabler_nodeid, write_enabler,
-             data_length, extra_least_offset) = \
-             struct.unpack(">32s20s32sQQ", data)
-            if not self.is_valid_header(data):
-                msg = "sharefile %s had magic '%r' but we wanted '%r'" % \
-                      (filename, magic, self.MAGIC)
-                raise UnknownMutableContainerVersionError(msg)
+                header = f.read(self.HEADER_SIZE)
+            self._schema = schema_from_header(header)
+            if self._schema is None:
+                raise UnknownMutableContainerVersionError(filename, header)
+        else:
+            self._schema = schema
         self.parent = parent # for logging
 
     def log(self, *args, **kwargs):
@@ -102,23 +102,8 @@ class MutableShareFile(object):
 
     def create(self, my_nodeid, write_enabler):
         assert not os.path.exists(self.home)
-        data_length = 0
-        extra_lease_offset = (self.HEADER_SIZE
-                              + 4 * self.LEASE_SIZE
-                              + data_length)
-        assert extra_lease_offset == self.DATA_OFFSET # true at creation
-        num_extra_leases = 0
         with open(self.home, 'wb') as f:
-            header = struct.pack(
-                ">32s20s32sQQ",
-                self.MAGIC, my_nodeid, write_enabler,
-                data_length, extra_lease_offset,
-            )
-            leases = (b"\x00" * self.LEASE_SIZE) * 4
-            f.write(header + leases)
-            # data goes here, empty after creation
-            f.write(struct.pack(">L", num_extra_leases))
-            # extra leases go here, none at creation
+            f.write(self._schema.header(my_nodeid, write_enabler))
 
     def unlink(self):
         os.unlink(self.home)
@@ -134,6 +119,7 @@ class MutableShareFile(object):
 
     def _read_share_data(self, f, offset, length):
         precondition(offset >= 0)
+        precondition(length >= 0)
         data_length = self._read_data_length(f)
         if offset+length > data_length:
             # reads beyond the end of the data are truncated. Reads that
@@ -250,7 +236,7 @@ class MutableShareFile(object):
                       + (lease_number-4)*self.LEASE_SIZE)
         f.seek(offset)
         assert f.tell() == offset
-        f.write(lease_info.to_mutable_data())
+        f.write(self._schema.lease_serializer.serialize(lease_info))
 
     def _read_lease_record(self, f, lease_number):
         # returns a LeaseInfo instance, or None
@@ -267,7 +253,7 @@ class MutableShareFile(object):
         f.seek(offset)
         assert f.tell() == offset
         data = f.read(self.LEASE_SIZE)
-        lease_info = LeaseInfo.from_mutable_data(data)
+        lease_info = self._schema.lease_serializer.unserialize(data)
         if lease_info.owner_num == 0:
             return None
         return lease_info
@@ -302,7 +288,19 @@ class MutableShareFile(object):
             except IndexError:
                 return
 
-    def add_lease(self, lease_info):
+    def add_lease(self, available_space, lease_info):
+        """
+        Add a new lease to this share.
+
+        :param int available_space: The maximum number of bytes of storage to
+            commit in this operation.  If more than this number of bytes is
+            required, raise ``NoSpace`` instead.
+
+        :raise NoSpace: If more than ``available_space`` bytes is required to
+            complete the operation.  In this case, no lease is added.
+
+        :return: ``None``
+        """
         precondition(lease_info.owner_num != 0) # 0 means "no lease here"
         with open(self.home, 'rb+') as f:
             num_lease_slots = self._get_num_lease_slots(f)
@@ -310,6 +308,8 @@ class MutableShareFile(object):
             if empty_slot is not None:
                 self._write_lease_record(f, empty_slot, lease_info)
             else:
+                if lease_info.mutable_size() > available_space:
+                    raise NoSpace()
                 self._write_lease_record(f, num_lease_slots, lease_info)
 
     def renew_lease(self, renew_secret, new_expire_time, allow_backdate=False):
@@ -345,13 +345,13 @@ class MutableShareFile(object):
         msg += " ."
         raise IndexError(msg)
 
-    def add_or_renew_lease(self, lease_info):
+    def add_or_renew_lease(self, available_space, lease_info):
         precondition(lease_info.owner_num != 0) # 0 means "no lease here"
         try:
             self.renew_lease(lease_info.renew_secret,
                              lease_info.get_expiration_time())
         except IndexError:
-            self.add_lease(lease_info)
+            self.add_lease(available_space, lease_info)
 
     def cancel_lease(self, cancel_secret):
         """Remove any leases with the given cancel_secret. If the last lease
