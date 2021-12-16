@@ -19,7 +19,7 @@ else:
     from typing import Union
     from treq.testing import StubTreq
 
-import base64
+from base64 import b64encode
 
 # TODO Make sure to import Python version?
 from cbor2 import loads
@@ -44,7 +44,7 @@ def _decode_cbor(response):
 
 def swissnum_auth_header(swissnum):  # type: (bytes) -> bytes
     """Return value for ``Authentication`` header."""
-    return b"Tahoe-LAFS " + base64.b64encode(swissnum).strip()
+    return b"Tahoe-LAFS " + b64encode(swissnum).strip()
 
 
 class StorageClient(object):
@@ -68,12 +68,25 @@ class StorageClient(object):
         )
         return headers
 
+    def _request(self, method, url, secrets, **kwargs):
+        """
+        Like ``treq.request()``, but additional argument of secrets mapping
+        ``http_server.Secret`` to the bytes value of the secret.
+        """
+        headers = self._get_headers()
+        for key, value in secrets.items():
+            headers.addRawHeader(
+                "X-Tahoe-Authorization",
+                b"{} {}".format(key.value.encode("ascii"), b64encode(value).strip())
+            )
+        return self._treq.request(method, url, headers=headers, **kwargs)
+
     @inlineCallbacks
     def get_version(self):
         """
         Return the version metadata for the server.
         """
         url = self._base_url.click("/v1/version")
-        response = yield self._treq.get(url, headers=self._get_headers())
+        response = yield self._request("GET", url, {})
         decoded_response = yield _decode_cbor(response)
         returnValue(decoded_response)
