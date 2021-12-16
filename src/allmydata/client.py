@@ -36,7 +36,7 @@ from twisted.python.filepath import FilePath
 import allmydata
 from allmydata.crypto import rsa, ed25519
 from allmydata.crypto.util import remove_prefix
-from allmydata.storage.server import StorageServer
+from allmydata.storage.server import StorageServer, FoolscapStorageServer
 from allmydata import storage_client
 from allmydata.immutable.upload import Uploader
 from allmydata.immutable.offloaded import Helper
@@ -834,7 +834,7 @@ class _Client(node.Node, pollmixin.PollMixin):
 
         if anonymous_storage_enabled(self.config):
             furl_file = self.config.get_private_path("storage.furl").encode(get_filesystem_encoding())
-            furl = self.tub.registerReference(ss, furlFile=furl_file)
+            furl = self.tub.registerReference(FoolscapStorageServer(ss), furlFile=furl_file)
             announcement["anonymous-storage-FURL"] = furl
 
         enabled_storage_servers = self._enable_storage_servers(

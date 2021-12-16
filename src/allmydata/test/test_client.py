@@ -601,7 +601,7 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
                            "enabled = true\n")
         c = yield client.create_client(basedir)
         ss = c.getServiceNamed("storage")
-        verdict = ss.remote_get_version()
+        verdict = ss.get_version()
         self.failUnlessReallyEqual(verdict[b"application-version"],
                                    allmydata.__full_version__.encode("ascii"))
         self.failIfEqual(str(allmydata.__version__), "unknown")

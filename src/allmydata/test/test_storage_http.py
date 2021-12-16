@@ -74,7 +74,7 @@ class HTTPTests(TestCase):
         version[b"http://allmydata.org/tahoe/protocols/storage/v1"].pop(
             b"maximum-immutable-share-size"
         )
-        expected_version = self.storage_server.remote_get_version()
+        expected_version = self.storage_server.get_version()
         expected_version[b"http://allmydata.org/tahoe/protocols/storage/v1"].pop(
             b"available-space"
         )
