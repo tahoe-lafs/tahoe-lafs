@@ -119,8 +119,8 @@ class TestApp(object):
 
     @_authorized_route(_app, {Secrets.UPLOAD}, "/upload_secret", methods=["GET"])
     def validate_upload_secret(self, request, authorization):
-        if authorization == {Secrets.UPLOAD: b"abc"}:
-            return "OK"
+        if authorization == {Secrets.UPLOAD: b"MAGIC"}:
+            return "GOOD SECRET"
         else:
             return "BAD: {}".format(authorization)
 
@@ -151,9 +151,10 @@ class RoutingTests(TestCase):
 
         # With secret, we're good.
         response = yield self.client._request(
-            "GET", "http://127.0.0.1/upload_secret", {Secrets.UPLOAD: b"abc"}
+            "GET", "http://127.0.0.1/upload_secret", {Secrets.UPLOAD: b"MAGIC"}
         )
         self.assertEqual(response.code, 200)
+        self.assertEqual((yield response.content()), b"GOOD SECRET")
 
 
 def setup_http_test(self):
