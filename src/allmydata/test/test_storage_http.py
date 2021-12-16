@@ -143,8 +143,6 @@ class RoutingTests(TestCase):
         The requirement for secrets is enforced; if they are not given, a 400
         response code is returned.
         """
-        secret = b"abc"
-
         # Without secret, get a 400 error.
         response = yield self.client._request(
             "GET", "http://127.0.0.1/upload_secret", {}
