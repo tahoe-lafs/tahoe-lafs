@@ -15,6 +15,7 @@ if PY2:
     # fmt: on
 
 from unittest import SkipTest
+from base64 import b64encode
 
 from twisted.trial.unittest import TestCase
 from twisted.internet.defer import inlineCallbacks
@@ -23,8 +24,78 @@ from treq.testing import StubTreq
 from hyperlink import DecodedURL
 
 from ..storage.server import StorageServer
-from ..storage.http_server import HTTPServer
+from ..storage.http_server import HTTPServer, _extract_secrets, Secrets, ClientSecretsException
 from ..storage.http_client import StorageClient, ClientException
+
+
+class ExtractSecretsTests(TestCase):
+    """
+    Tests for ``_extract_secrets``.
+    """
+    def test_extract_secrets(self):
+        """
+        ``_extract_secrets()`` returns a dictionary with the extracted secrets
+        if the input secrets match the required secrets.
+        """
+        secret1 = b"\xFF\x11ZEBRa"
+        secret2 = b"\x34\xF2lalalalalala"
+        lease_secret = "lease-renew-secret " + str(b64encode(secret1), "ascii").strip()
+        upload_secret = "upload-secret " + str(b64encode(secret2), "ascii").strip()
+
+        # No secrets needed, none given:
+        self.assertEqual(_extract_secrets([], set()), {})
+
+        # One secret:
+        self.assertEqual(
+            _extract_secrets([lease_secret],
+                             {Secrets.LEASE_RENEW}),
+            {Secrets.LEASE_RENEW: secret1}
+        )
+
+        # Two secrets:
+        self.assertEqual(
+            _extract_secrets([upload_secret, lease_secret],
+                             {Secrets.LEASE_RENEW, Secrets.UPLOAD}),
+            {Secrets.LEASE_RENEW: secret1, Secrets.UPLOAD: secret2}
+        )
+
+    def test_wrong_number_of_secrets(self):
+        """
+        If the wrong number of secrets are passed to ``_extract_secrets``, a
+        ``ClientSecretsException`` is raised.
+        """
+        secret1 = b"\xFF\x11ZEBRa"
+        lease_secret = "lease-renew-secret " + str(b64encode(secret1), "ascii").strip()
+
+        # Missing secret:
+        with self.assertRaises(ClientSecretsException):
+            _extract_secrets([], {Secrets.LEASE_RENEW})
+
+        # Wrong secret:
+        with self.assertRaises(ClientSecretsException):
+            _extract_secrets([lease_secret], {Secrets.UPLOAD})
+
+        # Extra secret:
+        with self.assertRaises(ClientSecretsException):
+            _extract_secrets([lease_secret], {})
+
+    def test_bad_secrets(self):
+        """
+        Bad inputs to ``_extract_secrets`` result in
+        ``ClientSecretsException``.
+        """
+
+        # Missing value.
+        with self.assertRaises(ClientSecretsException):
+            _extract_secrets(["lease-renew-secret"], {Secrets.LEASE_RENEW})
+
+        # Garbage prefix
+        with self.assertRaises(ClientSecretsException):
+            _extract_secrets(["FOO eA=="], {})
+
+        # Not base64.
+        with self.assertRaises(ClientSecretsException):
+            _extract_secrets(["lease-renew-secret x"], {Secrets.LEASE_RENEW})
 
 
 class HTTPTests(TestCase):

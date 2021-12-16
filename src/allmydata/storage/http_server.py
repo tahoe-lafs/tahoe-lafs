@@ -13,8 +13,12 @@ if PY2:
     # fmt: off
     from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
     # fmt: on
+else:
+    from typing import Dict, List, Set
 
 from functools import wraps
+from enum import Enum
+from base64 import b64decode
 
 from klein import Klein
 from twisted.web import http
@@ -24,6 +28,40 @@ from cbor2 import dumps
 
 from .server import StorageServer
 from .http_client import swissnum_auth_header
+
+
+class Secrets(Enum):
+    """Different kinds of secrets the client may send."""
+    LEASE_RENEW = "lease-renew-secret"
+    LEASE_CANCEL = "lease-cancel-secret"
+    UPLOAD = "upload-secret"
+
+
+class ClientSecretsException(Exception):
+    """The client did not send the appropriate secrets."""
+
+
+def _extract_secrets(header_values, required_secrets):  # type: (List[str], Set[Secrets]) -> Dict[Secrets, bytes]
+    """
+    Given list of values of ``X-Tahoe-Authorization`` headers, and required
+    secrets, return dictionary mapping secrets to decoded values.
+
+    If too few secrets were given, or too many, a ``ClientSecretsException`` is
+    raised.
+    """
+    key_to_enum = {e.value: e for e in Secrets}
+    result = {}
+    try:
+        for header_value in header_values:
+            key, value = header_value.strip().split(" ", 1)
+            result[key_to_enum[key]] = b64decode(value)
+    except (ValueError, KeyError) as e:
+        raise ClientSecretsException("Bad header value(s): {}".format(header_values))
+    if result.keys() != required_secrets:
+        raise ClientSecretsException(
+            "Expected {} secrets, got {}".format(required_secrets, result.keys())
+        )
+    return result
 
 
 def _authorization_decorator(f):
