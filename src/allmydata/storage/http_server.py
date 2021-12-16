@@ -49,14 +49,16 @@ def _extract_secrets(header_values, required_secrets):  # type: (List[str], Set[
     If too few secrets were given, or too many, a ``ClientSecretsException`` is
     raised.
     """
-    key_to_enum = {e.value: e for e in Secrets}
+    string_key_to_enum = {e.value: e for e in Secrets}
     result = {}
     try:
         for header_value in header_values:
-            key, value = header_value.strip().split(" ", 1)
-            # TODO enforce secret is 32 bytes long for lease secrets. dunno
-            # about upload secret.
-            result[key_to_enum[key]] = b64decode(value)
+            string_key, string_value = header_value.strip().split(" ", 1)
+            key = string_key_to_enum[string_key]
+            value = b64decode(string_value)
+            if key in (Secrets.LEASE_CANCEL, Secrets.LEASE_RENEW) and len(value) != 32:
+                raise ClientSecretsException("Lease secrets must be 32 bytes long")
+            result[key] = value
     except (ValueError, KeyError):
         raise ClientSecretsException("Bad header value(s): {}".format(header_values))
     if result.keys() != required_secrets:

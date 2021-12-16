@@ -41,8 +41,8 @@ class ExtractSecretsTests(TestCase):
         ``_extract_secrets()`` returns a dictionary with the extracted secrets
         if the input secrets match the required secrets.
         """
-        secret1 = b"\xFF\x11ZEBRa"
-        secret2 = b"\x34\xF2lalalalalala"
+        secret1 = b"\xFF" * 32
+        secret2 = b"\x34" * 32
         lease_secret = "lease-renew-secret " + str(b64encode(secret1), "ascii").strip()
         upload_secret = "upload-secret " + str(b64encode(secret2), "ascii").strip()
 
@@ -100,6 +100,12 @@ class ExtractSecretsTests(TestCase):
         # Not base64.
         with self.assertRaises(ClientSecretsException):
             _extract_secrets(["lease-renew-secret x"], {Secrets.LEASE_RENEW})
+
+        # Wrong length lease secrets (must be 32 bytes long).
+        with self.assertRaises(ClientSecretsException):
+            _extract_secrets(["lease-renew-secret eA=="], {Secrets.LEASE_RENEW})
+        with self.assertRaises(ClientSecretsException):
+            _extract_secrets(["lease-upload-secret eA=="], {Secrets.LEASE_RENEW})
 
 
 SWISSNUM_FOR_TEST = b"abcd"
