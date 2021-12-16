@@ -369,6 +369,19 @@ The authentication *type* used is ``Tahoe-LAFS``.
 The swissnum from the NURL used to locate the storage service is used as the *credentials*.
 If credentials are not presented or the swissnum is not associated with a storage service then no storage processing is performed and the request receives an ``401 UNAUTHORIZED`` response.
 
+There are also, for some endpoints, secrets sent via ``X-Tahoe-Authorization`` headers.
+If these are:
+
+1. Missing.
+2. The wrong length.
+3. Not the expected kind of secret.
+4. They are otherwise unparseable before they are actually semantically used.
+
+the server will respond with ``400 BAD REQUEST``.
+401 is not used because this isn't an authorization problem, this is a "you sent garbage and should know better" bug.
+
+If authorization using the secret fails, then a ``401 UNAUTHORIZED`` response should be sent.
+
 General
 ~~~~~~~
 
