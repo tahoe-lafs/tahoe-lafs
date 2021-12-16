@@ -147,7 +147,7 @@ class RoutingTests(TestCase):
 
         # With secret, we're good.
         response = yield self.client._request(
-            "GET", "http://127.0.0.1/upload_secret", {Secrets.UPLOAD, b"abc"}
+            "GET", "http://127.0.0.1/upload_secret", {Secrets.UPLOAD: b"abc"}
         )
         self.assertEqual(response.code, 200)
 

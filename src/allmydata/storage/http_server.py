@@ -54,8 +54,10 @@ def _extract_secrets(header_values, required_secrets):  # type: (List[str], Set[
     try:
         for header_value in header_values:
             key, value = header_value.strip().split(" ", 1)
+            # TODO enforce secret is 32 bytes long for lease secrets. dunno
+            # about upload secret.
             result[key_to_enum[key]] = b64decode(value)
-    except (ValueError, KeyError) as e:
+    except (ValueError, KeyError):
         raise ClientSecretsException("Bad header value(s): {}".format(header_values))
     if result.keys() != required_secrets:
         raise ClientSecretsException(
@@ -64,38 +66,45 @@ def _extract_secrets(header_values, required_secrets):  # type: (List[str], Set[
     return result
 
 
-def _authorization_decorator(f):
+def _authorization_decorator(required_secrets):
     """
     Check the ``Authorization`` header, and (TODO: in later revision of code)
     extract ``X-Tahoe-Authorization`` headers and pass them in.
     """
+    def decorator(f):
+        @wraps(f)
+        def route(self, request, *args, **kwargs):
+            if request.requestHeaders.getRawHeaders("Authorization", [None])[0] != str(
+                swissnum_auth_header(self._swissnum), "ascii"
+            ):
+                request.setResponseCode(http.UNAUTHORIZED)
+                return b""
+            authorization = request.requestHeaders.getRawHeaders("X-Tahoe-Authorization", [])
+            try:
+                secrets = _extract_secrets(authorization, required_secrets)
+            except ClientSecretsException:
+                request.setResponseCode(400)
+                return b""
+            return f(self, request, secrets, *args, **kwargs)
 
-    @wraps(f)
-    def route(self, request, *args, **kwargs):
-        if request.requestHeaders.getRawHeaders("Authorization", [None])[0] != str(
-            swissnum_auth_header(self._swissnum), "ascii"
-        ):
-            request.setResponseCode(http.UNAUTHORIZED)
-            return b""
-        # authorization = request.requestHeaders.getRawHeaders("X-Tahoe-Authorization", [])
-        # For now, just a placeholder:
-        authorization = None
-        return f(self, request, authorization, *args, **kwargs)
+        return route
 
-    return route
+    return decorator
 
 
-def _authorized_route(app, *route_args, **route_kwargs):
+def _authorized_route(app, required_secrets, *route_args, **route_kwargs):
     """
     Like Klein's @route, but with additional support for checking the
     ``Authorization`` header as well as ``X-Tahoe-Authorization`` headers.  The
-    latter will (TODO: in later revision of code) get passed in as second
-    argument to wrapped functions.
+    latter will get passed in as second argument to wrapped functions, a
+    dictionary mapping a ``Secret`` value to the uploaded secret.
+
+    :param required_secrets: Set of required ``Secret`` types.
     """
 
     def decorator(f):
         @app.route(*route_args, **route_kwargs)
-        @_authorization_decorator
+        @_authorization_decorator(required_secrets)
         def handle_route(*args, **kwargs):
             return f(*args, **kwargs)
 
@@ -127,6 +136,10 @@ class HTTPServer(object):
         # TODO if data is big, maybe want to use a temporary file eventually...
         return dumps(data)
 
-    @_authorized_route(_app, "/v1/version", methods=["GET"])
+
+    ##### Generic APIs #####
+
+    @_authorized_route(_app, set(), "/v1/version", methods=["GET"])
     def version(self, request, authorization):
+        """Return version information."""
         return self._cbor(request, self._storage_server.get_version())

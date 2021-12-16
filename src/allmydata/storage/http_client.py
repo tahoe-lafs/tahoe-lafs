@@ -77,7 +77,7 @@ class StorageClient(object):
         for key, value in secrets.items():
             headers.addRawHeader(
                 "X-Tahoe-Authorization",
-                b"{} {}".format(key.value.encode("ascii"), b64encode(value).strip())
+                b"%s %s" % (key.value.encode("ascii"), b64encode(value).strip())
             )
         return self._treq.request(method, url, headers=headers, **kwargs)
 
