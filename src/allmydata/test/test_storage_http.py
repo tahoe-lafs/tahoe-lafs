@@ -36,6 +36,10 @@ class ExtractSecretsTests(TestCase):
     """
     Tests for ``_extract_secrets``.
     """
+    def setUp(self):
+        if PY2:
+            raise SkipTest("Not going to bother supporting Python 2")
+
     def test_extract_secrets(self):
         """
         ``_extract_secrets()`` returns a dictionary with the extracted secrets
@@ -130,6 +134,8 @@ class RoutingTests(TestCase):
     Tests for the HTTP routing infrastructure.
     """
     def setUp(self):
+        if PY2:
+            raise SkipTest("Not going to bother supporting Python 2")
         self._http_server = TestApp()
         self.client = StorageClient(
         DecodedURL.from_text("http://127.0.0.1"),
