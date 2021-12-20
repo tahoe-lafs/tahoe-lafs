@@ -74,8 +74,8 @@ def _extract_secrets(
 
 def _authorization_decorator(required_secrets):
     """
-    Check the ``Authorization`` header, and (TODO: in later revision of code)
-    extract ``X-Tahoe-Authorization`` headers and pass them in.
+    Check the ``Authorization`` header, and extract ``X-Tahoe-Authorization``
+    headers and pass them in.
     """
 
     def decorator(f):
