@@ -28,10 +28,12 @@ from cbor2 import dumps
 
 from .server import StorageServer
 from .http_client import swissnum_auth_header
+from ..util.hashutil import timing_safe_compare
 
 
 class Secrets(Enum):
     """Different kinds of secrets the client may send."""
+
     LEASE_RENEW = "lease-renew-secret"
     LEASE_CANCEL = "lease-cancel-secret"
     UPLOAD = "upload-secret"
@@ -41,7 +43,9 @@ class ClientSecretsException(Exception):
     """The client did not send the appropriate secrets."""
 
 
-def _extract_secrets(header_values, required_secrets):  # type: (List[str], Set[Secrets]) -> Dict[Secrets, bytes]
+def _extract_secrets(
+    header_values, required_secrets
+):  # type: (List[str], Set[Secrets]) -> Dict[Secrets, bytes]
     """
     Given list of values of ``X-Tahoe-Authorization`` headers, and required
     secrets, return dictionary mapping secrets to decoded values.
@@ -73,15 +77,21 @@ def _authorization_decorator(required_secrets):
     Check the ``Authorization`` header, and (TODO: in later revision of code)
     extract ``X-Tahoe-Authorization`` headers and pass them in.
     """
+
     def decorator(f):
         @wraps(f)
         def route(self, request, *args, **kwargs):
-            if request.requestHeaders.getRawHeaders("Authorization", [None])[0] != str(
-                swissnum_auth_header(self._swissnum), "ascii"
+            if not timing_safe_compare(
+                request.requestHeaders.getRawHeaders("Authorization", [None])[0].encode(
+                    "utf-8"
+                ),
+                swissnum_auth_header(self._swissnum),
             ):
                 request.setResponseCode(http.UNAUTHORIZED)
                 return b""
-            authorization = request.requestHeaders.getRawHeaders("X-Tahoe-Authorization", [])
+            authorization = request.requestHeaders.getRawHeaders(
+                "X-Tahoe-Authorization", []
+            )
             try:
                 secrets = _extract_secrets(authorization, required_secrets)
             except ClientSecretsException:
@@ -137,7 +147,6 @@ class HTTPServer(object):
         request.setHeader("Content-Type", "application/cbor")
         # TODO if data is big, maybe want to use a temporary file eventually...
         return dumps(data)
-
 
     ##### Generic APIs #####
 
