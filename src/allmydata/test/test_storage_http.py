@@ -19,6 +19,7 @@ from base64 import b64encode
 
 from twisted.internet.defer import inlineCallbacks
 
+from hypothesis import given, strategies as st
 from fixtures import Fixture, TempDir
 from treq.testing import StubTreq
 from klein import Klein
@@ -46,32 +47,22 @@ class ExtractSecretsTests(SyncTestCase):
             raise SkipTest("Not going to bother supporting Python 2")
         super(ExtractSecretsTests, self).setUp()
 
-    def test_extract_secrets(self):
+    @given(secret_types=st.sets(st.sampled_from(Secrets)))
+    def test_extract_secrets(self, secret_types):
         """
         ``_extract_secrets()`` returns a dictionary with the extracted secrets
         if the input secrets match the required secrets.
         """
-        secret1 = b"\xFF" * 32
-        secret2 = b"\x34" * 32
-        lease_secret = "lease-renew-secret " + str(b64encode(secret1), "ascii").strip()
-        upload_secret = "upload-secret " + str(b64encode(secret2), "ascii").strip()
+        secrets = {s: bytes([i] * 32) for (i, s) in enumerate(secret_types)}
+        headers = [
+            "{} {}".format(
+                secret_type.value, str(b64encode(secrets[secret_type]), "ascii").strip()
+            )
+            for secret_type in secret_types
+        ]
 
         # No secrets needed, none given:
-        self.assertEqual(_extract_secrets([], set()), {})
-
-        # One secret:
-        self.assertEqual(
-            _extract_secrets([lease_secret], {Secrets.LEASE_RENEW}),
-            {Secrets.LEASE_RENEW: secret1},
-        )
-
-        # Two secrets:
-        self.assertEqual(
-            _extract_secrets(
-                [upload_secret, lease_secret], {Secrets.LEASE_RENEW, Secrets.UPLOAD}
-            ),
-            {Secrets.LEASE_RENEW: secret1, Secrets.UPLOAD: secret2},
-        )
+        self.assertEqual(_extract_secrets(headers, secret_types), secrets)
 
     def test_wrong_number_of_secrets(self):
         """
