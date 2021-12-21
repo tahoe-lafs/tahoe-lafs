@@ -47,13 +47,25 @@ class ExtractSecretsTests(SyncTestCase):
             raise SkipTest("Not going to bother supporting Python 2")
         super(ExtractSecretsTests, self).setUp()
 
-    @given(secret_types=st.sets(st.sampled_from(Secrets)))
-    def test_extract_secrets(self, secret_types):
+    @given(
+        params=st.sets(st.sampled_from(Secrets)).flatmap(
+            lambda secret_types: st.tuples(
+                st.just(secret_types),
+                st.lists(
+                    st.binary(min_size=32, max_size=32),
+                    min_size=len(secret_types),
+                    max_size=len(secret_types),
+                ),
+            )
+        )
+    )
+    def test_extract_secrets(self, params):
         """
         ``_extract_secrets()`` returns a dictionary with the extracted secrets
         if the input secrets match the required secrets.
         """
-        secrets = {s: bytes([i] * 32) for (i, s) in enumerate(secret_types)}
+        secret_types, secrets = params
+        secrets = {t: s for (t, s) in zip(secret_types, secrets)}
         headers = [
             "{} {}".format(
                 secret_type.value, str(b64encode(secrets[secret_type]), "ascii").strip()
