@@ -17,28 +17,34 @@ if PY2:
 from unittest import SkipTest
 from base64 import b64encode
 
-from twisted.trial.unittest import TestCase
 from twisted.internet.defer import inlineCallbacks
 
+from fixtures import Fixture, TempDir
 from treq.testing import StubTreq
 from klein import Klein
 from hyperlink import DecodedURL
 
+from .common import AsyncTestCase, SyncTestCase
 from ..storage.server import StorageServer
 from ..storage.http_server import (
-    HTTPServer, _extract_secrets, Secrets, ClientSecretsException,
+    HTTPServer,
+    _extract_secrets,
+    Secrets,
+    ClientSecretsException,
     _authorized_route,
 )
 from ..storage.http_client import StorageClient, ClientException
 
 
-class ExtractSecretsTests(TestCase):
+class ExtractSecretsTests(SyncTestCase):
     """
     Tests for ``_extract_secrets``.
     """
+
     def setUp(self):
         if PY2:
             raise SkipTest("Not going to bother supporting Python 2")
+        super(ExtractSecretsTests, self).setUp()
 
     def test_extract_secrets(self):
         """
@@ -55,16 +61,16 @@ class ExtractSecretsTests(TestCase):
 
         # One secret:
         self.assertEqual(
-            _extract_secrets([lease_secret],
-                             {Secrets.LEASE_RENEW}),
-            {Secrets.LEASE_RENEW: secret1}
+            _extract_secrets([lease_secret], {Secrets.LEASE_RENEW}),
+            {Secrets.LEASE_RENEW: secret1},
         )
 
         # Two secrets:
         self.assertEqual(
-            _extract_secrets([upload_secret, lease_secret],
-                             {Secrets.LEASE_RENEW, Secrets.UPLOAD}),
-            {Secrets.LEASE_RENEW: secret1, Secrets.UPLOAD: secret2}
+            _extract_secrets(
+                [upload_secret, lease_secret], {Secrets.LEASE_RENEW, Secrets.UPLOAD}
+            ),
+            {Secrets.LEASE_RENEW: secret1, Secrets.UPLOAD: secret2},
         )
 
     def test_wrong_number_of_secrets(self):
@@ -129,19 +135,23 @@ class TestApp(object):
             return "BAD: {}".format(authorization)
 
 
-class RoutingTests(TestCase):
+class RoutingTests(AsyncTestCase):
     """
     Tests for the HTTP routing infrastructure.
     """
+
     def setUp(self):
         if PY2:
             raise SkipTest("Not going to bother supporting Python 2")
+        super(RoutingTests, self).setUp()
+        # Could be a fixture, but will only be used in this test class so not
+        # going to bother:
         self._http_server = TestApp()
         self.client = StorageClient(
-        DecodedURL.from_text("http://127.0.0.1"),
-        SWISSNUM_FOR_TEST,
-        treq=StubTreq(self._http_server._app.resource()),
-    )
+            DecodedURL.from_text("http://127.0.0.1"),
+            SWISSNUM_FOR_TEST,
+            treq=StubTreq(self._http_server._app.resource()),
+        )
 
     @inlineCallbacks
     def test_authorization_enforcement(self):
@@ -163,30 +173,35 @@ class RoutingTests(TestCase):
         self.assertEqual((yield response.content()), b"GOOD SECRET")
 
 
-def setup_http_test(self):
+class HttpTestFixture(Fixture):
     """
-    Setup HTTP tests; call from ``setUp``.
+    Setup HTTP tests' infrastructure, the storage server and corresponding
+    client.
     """
-    if PY2:
-        raise SkipTest("Not going to bother supporting Python 2")
-    self.storage_server = StorageServer(self.mktemp(), b"\x00" * 20)
-    # TODO what should the swissnum _actually_ be?
-    self._http_server = HTTPServer(self.storage_server, SWISSNUM_FOR_TEST)
-    self.client = StorageClient(
-        DecodedURL.from_text("http://127.0.0.1"),
-        SWISSNUM_FOR_TEST,
-        treq=StubTreq(self._http_server.get_resource()),
-    )
+
+    def _setUp(self):
+        self.tempdir = self.useFixture(TempDir())
+        self.storage_server = StorageServer(self.tempdir.path, b"\x00" * 20)
+        # TODO what should the swissnum _actually_ be?
+        self.http_server = HTTPServer(self.storage_server, SWISSNUM_FOR_TEST)
+        self.client = StorageClient(
+            DecodedURL.from_text("http://127.0.0.1"),
+            SWISSNUM_FOR_TEST,
+            treq=StubTreq(self.http_server.get_resource()),
+        )
 
 
-class GenericHTTPAPITests(TestCase):
+class GenericHTTPAPITests(AsyncTestCase):
     """
     Tests of HTTP client talking to the HTTP server, for generic HTTP API
     endpoints and concerns.
     """
 
     def setUp(self):
-        setup_http_test(self)
+        if PY2:
+            raise SkipTest("Not going to bother supporting Python 2")
+        super(GenericHTTPAPITests, self).setUp()
+        self.http = self.useFixture(HttpTestFixture())
 
     @inlineCallbacks
     def test_bad_authentication(self):
@@ -197,7 +212,7 @@ class GenericHTTPAPITests(TestCase):
         client = StorageClient(
             DecodedURL.from_text("http://127.0.0.1"),
             b"something wrong",
-            treq=StubTreq(self._http_server.get_resource()),
+            treq=StubTreq(self.http.http_server.get_resource()),
         )
         with self.assertRaises(ClientException) as e:
             yield client.get_version()
@@ -211,14 +226,14 @@ class GenericHTTPAPITests(TestCase):
         We ignore available disk space and max immutable share size, since that
         might change across calls.
         """
-        version = yield self.client.get_version()
+        version = yield self.http.client.get_version()
         version[b"http://allmydata.org/tahoe/protocols/storage/v1"].pop(
             b"available-space"
         )
         version[b"http://allmydata.org/tahoe/protocols/storage/v1"].pop(
             b"maximum-immutable-share-size"
         )
-        expected_version = self.storage_server.get_version()
+        expected_version = self.http.storage_server.get_version()
         expected_version[b"http://allmydata.org/tahoe/protocols/storage/v1"].pop(
             b"available-space"
         )
