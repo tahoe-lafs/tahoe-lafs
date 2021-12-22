@@ -14,7 +14,6 @@ if PY2:
     from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
     # fmt: on
 
-from unittest import SkipTest
 from base64 import b64encode
 
 from twisted.internet.defer import inlineCallbacks
@@ -73,7 +72,7 @@ class ExtractSecretsTests(SyncTestCase):
 
     def setUp(self):
         if PY2:
-            raise SkipTest("Not going to bother supporting Python 2")
+            self.skipTest("Not going to bother supporting Python 2")
         super(ExtractSecretsTests, self).setUp()
 
     @given(secrets_to_send=SECRETS_STRATEGY)
@@ -165,7 +164,7 @@ class RoutingTests(AsyncTestCase):
 
     def setUp(self):
         if PY2:
-            raise SkipTest("Not going to bother supporting Python 2")
+            self.skipTest("Not going to bother supporting Python 2")
         super(RoutingTests, self).setUp()
         # Could be a fixture, but will only be used in this test class so not
         # going to bother:
@@ -222,7 +221,7 @@ class GenericHTTPAPITests(AsyncTestCase):
 
     def setUp(self):
         if PY2:
-            raise SkipTest("Not going to bother supporting Python 2")
+            self.skipTest("Not going to bother supporting Python 2")
         super(GenericHTTPAPITests, self).setUp()
         self.http = self.useFixture(HttpTestFixture())
 
