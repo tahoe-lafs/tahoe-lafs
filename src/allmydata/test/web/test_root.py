@@ -11,6 +11,7 @@ if PY2:
     from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 import time
+import json
 
 from urllib.parse import (
     quote,
@@ -24,14 +25,23 @@ from twisted.web.template import Tag
 from twisted.web.test.requesthelper import DummyRequest
 from twisted.application import service
 from testtools.twistedsupport import succeeded
-from twisted.internet.defer import inlineCallbacks
+from twisted.internet.defer import (
+    inlineCallbacks,
+    succeed,
+)
 
 from ...storage_client import (
     NativeStorageServer,
     StorageFarmBroker,
 )
-from ...web.root import RootElement
+from ...web.root import (
+    RootElement,
+    Root,
+)
 from ...util.connection_status import ConnectionStatus
+from ...crypto.ed25519 import (
+    create_signing_keypair,
+)
 from allmydata.web.root import URIHandler
 from allmydata.client import _Client
 
@@ -47,6 +57,7 @@ from ..common import (
 
 from ..common import (
     SyncTestCase,
+    AsyncTestCase,
 )
 
 from testtools.matchers import (
@@ -138,3 +149,76 @@ class RenderServiceRow(SyncTestCase):
 
         self.assertThat(item.slotData.get("version"), Equals(""))
         self.assertThat(item.slotData.get("nickname"), Equals(""))
+
+
+class RenderRoot(AsyncTestCase):
+
+    @inlineCallbacks
+    def test_root_json(self):
+        """
+        """
+        ann = {
+            "anonymous-storage-FURL": "pb://w2hqnbaa25yw4qgcvghl5psa3srpfgw3@tcp:127.0.0.1:51309/vucto2z4fxment3vfxbqecblbf6zyp6x",
+            "permutation-seed-base32": "w2hqnbaa25yw4qgcvghl5psa3srpfgw3",
+        }
+        srv = NativeStorageServer(b"server_id", ann, None, {}, EMPTY_CLIENT_CONFIG)
+        srv.get_connection_status = lambda: ConnectionStatus(False, "summary", {}, 0, 0)
+
+        class FakeClient(_Client):
+            history = []
+            stats_provider = object()
+            nickname = ""
+            nodeid = b"asdf"
+            _node_public_key = create_signing_keypair()[1]
+            introducer_clients = []
+            helper = None
+
+            def __init__(self):
+                service.MultiService.__init__(self)
+                self.storage_broker = StorageFarmBroker(
+                    permute_peers=True,
+                    tub_maker=None,
+                    node_config=EMPTY_CLIENT_CONFIG,
+                )
+                self.storage_broker.test_add_server(b"test-srv", srv)
+
+        root = Root(FakeClient(), now_fn=time.time)
+
+        lines = []
+
+        req = DummyRequest(b"")
+        req.fields = {}
+        req.args = {
+            "t": ["json"],
+        }
+
+        # for some reason, DummyRequest is already finished when we
+        # try to add a notifyFinish handler, so override that
+        # behavior.
+
+        def nop():
+            return succeed(None)
+        req.notifyFinish = nop
+        req.write = lines.append
+
+        yield root.render(req)
+
+        raw_js = b"".join(lines).decode("utf8")
+        self.assertThat(
+            json.loads(raw_js),
+            Equals({
+                "introducers": {
+                    "statuses": []
+                },
+                "servers": [
+                    {
+                        "connection_status": "summary",
+                        "nodeid": "server_id",
+                        "last_received_data": 0,
+                        "version": None,
+                        "available_space": None,
+                        "nickname": ""
+                    }
+                ]
+            })
+        )
