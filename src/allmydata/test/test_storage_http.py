@@ -102,29 +102,43 @@ class ExtractSecretsTests(SyncTestCase):
         with self.assertRaises(ClientSecretsException):
             _extract_secrets(headers, secrets_to_require)
 
-    def test_bad_secrets(self):
+    def test_bad_secret_missing_value(self):
         """
-        Bad inputs to ``_extract_secrets`` result in
+        Missing value in ``_extract_secrets`` result in
         ``ClientSecretsException``.
         """
-
-        # Missing value.
         with self.assertRaises(ClientSecretsException):
             _extract_secrets(["lease-renew-secret"], {Secrets.LEASE_RENEW})
 
-        # Garbage prefix
+    def test_bad_secret_unknown_prefix(self):
+        """
+        Missing value in ``_extract_secrets`` result in
+        ``ClientSecretsException``.
+        """
         with self.assertRaises(ClientSecretsException):
             _extract_secrets(["FOO eA=="], {})
 
-        # Not base64.
+    def test_bad_secret_not_base64(self):
+        """
+        A non-base64 value in ``_extract_secrets`` result in
+        ``ClientSecretsException``.
+        """
         with self.assertRaises(ClientSecretsException):
             _extract_secrets(["lease-renew-secret x"], {Secrets.LEASE_RENEW})
 
-        # Wrong length lease secrets (must be 32 bytes long).
+    def test_bad_secret_wrong_length_lease_renew(self):
+        """
+        Lease renewal secrets must be 32-bytes long.
+        """
         with self.assertRaises(ClientSecretsException):
             _extract_secrets(["lease-renew-secret eA=="], {Secrets.LEASE_RENEW})
+
+    def test_bad_secret_wrong_length_lease_cancel(self):
+        """
+        Lease cancel secrets must be 32-bytes long.
+        """
         with self.assertRaises(ClientSecretsException):
-            _extract_secrets(["lease-upload-secret eA=="], {Secrets.LEASE_RENEW})
+            _extract_secrets(["lease-cancel-secret eA=="], {Secrets.LEASE_RENEW})
 
 
 SWISSNUM_FOR_TEST = b"abcd"
