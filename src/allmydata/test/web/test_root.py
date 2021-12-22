@@ -189,7 +189,7 @@ class RenderRoot(AsyncTestCase):
         req = DummyRequest(b"")
         req.fields = {}
         req.args = {
-            "t": ["json"],
+            b"t": [b"json"],
         }
 
         # for some reason, DummyRequest is already finished when we
