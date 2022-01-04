@@ -483,6 +483,13 @@ For example::
 
 The upload secret is an opaque _byte_ string.
 
+Handling repeat calls:
+
+* If the same API call is repeated with the same upload secret, the response is the same and no change is made to server state.
+  This is necessary to ensure retries work in the face of lost responses from the server.
+* If the API calls is with a different upload secret, this implies a new client, perhaps because the old client died.
+  In this case, all relevant in-progress uploads are canceled, and then the command is handled as usual.
+
 Discussion
 ``````````
 
