@@ -22,12 +22,14 @@ from base64 import b64decode
 
 from klein import Klein
 from twisted.web import http
+import attr
 
 # TODO Make sure to use pure Python versions?
-from cbor2 import dumps
+from cbor2 import dumps, loads
 
 from .server import StorageServer
 from .http_client import swissnum_auth_header
+from .immutable import BucketWriter
 from ..util.hashutil import timing_safe_compare
 
 
@@ -125,6 +127,19 @@ def _authorized_route(app, required_secrets, *route_args, **route_kwargs):
     return decorator
 
 
+@attr.s
+class StorageIndexUploads(object):
+    """
+    In-progress upload to storage index.
+    """
+
+    # Map share number to BucketWriter
+    shares = attr.ib()  # type: Dict[int,BucketWriter]
+
+    # The upload key.
+    upload_key = attr.ib()  # type: bytes
+
+
 class HTTPServer(object):
     """
     A HTTP interface to the storage server.
@@ -137,6 +152,8 @@ class HTTPServer(object):
     ):  # type: (StorageServer, bytes) -> None
         self._storage_server = storage_server
         self._swissnum = swissnum
+        # Maps storage index to StorageIndexUploads:
+        self._uploads = {}  # type: Dict[bytes,StorageIndexUploads]
 
     def get_resource(self):
         """Return twisted.web ``Resource`` for this object."""
@@ -154,3 +171,33 @@ class HTTPServer(object):
     def version(self, request, authorization):
         """Return version information."""
         return self._cbor(request, self._storage_server.get_version())
+
+    ##### Immutable APIs #####
+
+    @_authorized_route(
+        _app,
+        {Secrets.LEASE_RENEW, Secrets.LEASE_CANCEL, Secrets.UPLOAD},
+        "/v1/immutable/<string:storage_index>",
+        methods=["POST"],
+    )
+    def allocate_buckets(self, request, authorization, storage_index):
+        """Allocate buckets."""
+        info = loads(request.content.read())
+        upload_key = authorization[Secrets.UPLOAD]
+
+        if storage_index in self._uploads:
+            # Pre-existing upload.
+            in_progress = self._uploads[storage_index]
+            if in_progress.upload_key == upload_key:
+                # Same session.
+                # TODO add BucketWriters only for new shares
+                pass
+            else:
+                # New session.
+                # TODO cancel all existing BucketWriters, then do
+                # self._storage_server.allocate_buckets() with given inputs.
+                pass
+        else:
+            # New upload.
+            # TODO self._storage_server.allocate_buckets() with given inputs.
+            # TODO add results to self._uploads.
