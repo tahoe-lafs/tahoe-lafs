@@ -24,13 +24,15 @@ from base64 import b64encode
 import attr
 
 # TODO Make sure to import Python version?
-from cbor2 import loads
+from cbor2 import loads, dumps
 
 
 from twisted.web.http_headers import Headers
 from twisted.internet.defer import inlineCallbacks, returnValue, fail, Deferred
 from hyperlink import DecodedURL
 import treq
+
+from .http_common import swissnum_auth_header, Secrets
 
 
 class ClientException(Exception):
@@ -44,11 +46,6 @@ def _decode_cbor(response):
     return fail(ClientException(response.code, response.phrase))
 
 
-def swissnum_auth_header(swissnum):  # type: (bytes) -> bytes
-    """Return value for ``Authentication`` header."""
-    return b"Tahoe-LAFS " + b64encode(swissnum).strip()
-
-
 @attr.s
 class ImmutableCreateResult(object):
     """Result of creating a storage index for an immutable."""
@@ -57,12 +54,75 @@ class ImmutableCreateResult(object):
     allocated = attr.ib(type=Set[int])
 
 
+class StorageClient(object):
+    """
+    HTTP client that talks to the HTTP storage server.
+    """
+
+    def __init__(
+        self, url, swissnum, treq=treq
+    ):  # type: (DecodedURL, bytes, Union[treq,StubTreq]) -> None
+        self._base_url = url
+        self._swissnum = swissnum
+        self._treq = treq
+
+    def _url(self, path):
+        """Get a URL relative to the base URL."""
+        return self._base_url.click(path)
+
+    def _get_headers(self):  # type: () -> Headers
+        """Return the basic headers to be used by default."""
+        headers = Headers()
+        headers.addRawHeader(
+            "Authorization",
+            swissnum_auth_header(self._swissnum),
+        )
+        return headers
+
+    def _request(
+        self,
+        method,
+        url,
+        lease_renewal_secret=None,
+        lease_cancel_secret=None,
+        upload_secret=None,
+        **kwargs
+    ):
+        """
+        Like ``treq.request()``, but with optional secrets that get translated
+        into corresponding HTTP headers.
+        """
+        headers = self._get_headers()
+        for secret, value in [
+            (Secrets.LEASE_RENEW, lease_renewal_secret),
+            (Secrets.LEASE_CANCEL, lease_cancel_secret),
+            (Secrets.UPLOAD, upload_secret),
+        ]:
+            if value is None:
+                continue
+            headers.addRawHeader(
+                "X-Tahoe-Authorization",
+                b"%s %s" % (secret.value.encode("ascii"), b64encode(value).strip()),
+            )
+        return self._treq.request(method, url, headers=headers, **kwargs)
+
+    @inlineCallbacks
+    def get_version(self):
+        """
+        Return the version metadata for the server.
+        """
+        url = self._url("/v1/version")
+        response = yield self._request("GET", url, {})
+        decoded_response = yield _decode_cbor(response)
+        returnValue(decoded_response)
+
+
 class StorageClientImmutables(object):
     """
     APIs for interacting with immutables.
     """
 
-    def __init__(self, client):  # type: (StorageClient) -> None
+    def __init__(self, client: StorageClient):#  # type: (StorageClient) -> None
         self._client = client
 
     @inlineCallbacks
@@ -87,6 +147,11 @@ class StorageClientImmutables(object):
         Result fires when creating the storage index succeeded, if creating the
         storage index failed the result will fire with an exception.
         """
+        url = self._client._url("/v1/immutable/" + str(storage_index, "ascii"))
+        message = dumps(
+            {"share-numbers": share_numbers, "allocated-size": allocated_size}
+        )
+        self._client._request("POST", )
 
     @inlineCallbacks
     def write_share_chunk(
@@ -121,48 +186,3 @@ class StorageClientImmutables(object):
         the HTTP protocol will be simplified, see
         https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3777
         """
-
-
-class StorageClient(object):
-    """
-    HTTP client that talks to the HTTP storage server.
-    """
-
-    def __init__(
-        self, url, swissnum, treq=treq
-    ):  # type: (DecodedURL, bytes, Union[treq,StubTreq]) -> None
-        self._base_url = url
-        self._swissnum = swissnum
-        self._treq = treq
-
-    def _get_headers(self):  # type: () -> Headers
-        """Return the basic headers to be used by default."""
-        headers = Headers()
-        headers.addRawHeader(
-            "Authorization",
-            swissnum_auth_header(self._swissnum),
-        )
-        return headers
-
-    def _request(self, method, url, secrets, **kwargs):
-        """
-        Like ``treq.request()``, but additional argument of secrets mapping
-        ``http_server.Secret`` to the bytes value of the secret.
-        """
-        headers = self._get_headers()
-        for key, value in secrets.items():
-            headers.addRawHeader(
-                "X-Tahoe-Authorization",
-                b"%s %s" % (key.value.encode("ascii"), b64encode(value).strip()),
-            )
-        return self._treq.request(method, url, headers=headers, **kwargs)
-
-    @inlineCallbacks
-    def get_version(self):
-        """
-        Return the version metadata for the server.
-        """
-        url = self._base_url.click("/v1/version")
-        response = yield self._request("GET", url, {})
-        decoded_response = yield _decode_cbor(response)
-        returnValue(decoded_response)

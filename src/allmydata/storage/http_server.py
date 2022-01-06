@@ -17,7 +17,6 @@ else:
     from typing import Dict, List, Set
 
 from functools import wraps
-from enum import Enum
 from base64 import b64decode
 
 from klein import Klein
@@ -28,17 +27,9 @@ import attr
 from cbor2 import dumps, loads
 
 from .server import StorageServer
-from .http_client import swissnum_auth_header
+from .http_common import swissnum_auth_header, Secrets
 from .immutable import BucketWriter
 from ..util.hashutil import timing_safe_compare
-
-
-class Secrets(Enum):
-    """Different kinds of secrets the client may send."""
-
-    LEASE_RENEW = "lease-renew-secret"
-    LEASE_CANCEL = "lease-cancel-secret"
-    UPLOAD = "upload-secret"
 
 
 class ClientSecretsException(Exception):
@@ -201,3 +192,4 @@ class HTTPServer(object):
             # New upload.
             # TODO self._storage_server.allocate_buckets() with given inputs.
             # TODO add results to self._uploads.
+            pass
