@@ -115,7 +115,7 @@ class TahoeLAFSRequest(Request, object):
             self.args = parse_qs(argstring, 1)
 
         content_type = (self.requestHeaders.getRawHeaders("content-type") or [""])[0]
-        if self.method == b'POST' and content_type.split(";")[0] == "multipart/form-data":
+        if self.method == b'POST' and content_type.split(";")[0] in ("multipart/form-data", "application/x-www-form-urlencoded"):
             # We use FieldStorage here because it performs better than
             # cgi.parse_multipart(self.content, pdict) which is what
             # twisted.web.http.Request uses.
