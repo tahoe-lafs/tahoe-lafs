@@ -5,6 +5,20 @@ User-Visible Changes in Tahoe-LAFS
 ==================================
 
 .. towncrier start line
+Release 1.17.0.post55 (2022-01-07)Release 1.17.0.post55 (2022-01-07)
+''''''''''''''''''''''''''''''''''
+
+Bug Fixes
+---------
+
+-  (`#3852 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3852>`_)
+- Fixed regression on Python 3 where JSON HTTP POSTs failed to be processed. (`#3854 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3854>`_)
+
+
+Misc/Other
+----------
+
+- `#3848 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3848>`_, `#3849 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3849>`_, `#3850 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3850>`_, `#3856 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3856>`_
 
 
 Release 1.17.0 (2021-12-06)

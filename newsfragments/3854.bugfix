@@ -1,1 +1,0 @@
-Fixed regression on Python 3 where JSON HTTP POSTs failed to be processed.
