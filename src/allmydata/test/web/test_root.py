@@ -215,29 +215,28 @@ class RenderRoot(AsyncTestCase):
         yield root.render(req)
 
         raw_js = b"".join(lines).decode("utf8")
-        self.assertThat(
-            json.loads(raw_js),
-            Equals({
-                "introducers": {
-                    "statuses": []
-                },
-                "servers": [
-                    {
-                        "connection_status": "summary0",
-                        "nodeid": "server_id0",
-                        "last_received_data": 0,
-                        "version": None,
-                        "available_space": None,
-                        "nickname": ""
-                    },
-                    {
-                        "connection_status": "summary1",
-                        "nodeid": "server_id1",
-                        "last_received_data": 0,
-                        "version": None,
-                        "available_space": 12345,
-                        "nickname": ""
-                    }
-                ]
-            })
+        js = json.loads(raw_js)
+        servers = js["servers"]
+        self.assertEquals(len(servers), 2)
+        self.assertIn(
+            {
+                "connection_status": "summary0",
+                "nodeid": "server_id0",
+                "last_received_data": 0,
+                "version": None,
+                "available_space": None,
+                "nickname": ""
+            },
+            servers
+        )
+        self.assertIn(
+            {
+                "connection_status": "summary1",
+                "nodeid": "server_id1",
+                "last_received_data": 0,
+                "version": None,
+                "available_space": 12345,
+                "nickname": ""
+            },
+            servers
         )
