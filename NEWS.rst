@@ -11,7 +11,7 @@ Release 1.17.0.post55 (2022-01-07)Release 1.17.0.post55 (2022-01-07)
 Bug Fixes
 ---------
 
--  (`#3852 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3852>`_)
+- Fixed regression on Python 3 causing the JSON version of the Welcome page to sometimes produce a 500 error (`#3852 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3852>`_)
 - Fixed regression on Python 3 where JSON HTTP POSTs failed to be processed. (`#3854 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3854>`_)
 
 
