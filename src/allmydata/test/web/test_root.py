@@ -166,8 +166,13 @@ class RenderRoot(AsyncTestCase):
             "anonymous-storage-FURL": "pb://w2hqnbaa25yw4qgcvghl5psa3srpfgw3@tcp:127.0.0.1:51309/vucto2z4fxment3vfxbqecblbf6zyp6x",
             "permutation-seed-base32": "w2hqnbaa25yw4qgcvghl5psa3srpfgw3",
         }
-        srv = NativeStorageServer(b"server_id", ann, None, {}, EMPTY_CLIENT_CONFIG)
-        srv.get_connection_status = lambda: ConnectionStatus(False, "summary", {}, 0, 0)
+        srv0 = NativeStorageServer(b"server_id0", ann, None, {}, EMPTY_CLIENT_CONFIG)
+        srv0.get_connection_status = lambda: ConnectionStatus(False, "summary0", {}, 0, 0)
+
+        srv1 = NativeStorageServer(b"server_id1", ann, None, {}, EMPTY_CLIENT_CONFIG)
+        srv1.get_connection_status = lambda: ConnectionStatus(False, "summary1", {}, 0, 0)
+        # arrange for this server to have some valid available space
+        srv1.get_available_space = lambda: 12345
 
         class FakeClient(_Client):
             history = []
@@ -185,7 +190,8 @@ class RenderRoot(AsyncTestCase):
                     tub_maker=None,
                     node_config=EMPTY_CLIENT_CONFIG,
                 )
-                self.storage_broker.test_add_server(b"test-srv", srv)
+                self.storage_broker.test_add_server(b"test-srv0", srv0)
+                self.storage_broker.test_add_server(b"test-srv1", srv1)
 
         root = Root(FakeClient(), now_fn=time.time)
 
@@ -217,11 +223,19 @@ class RenderRoot(AsyncTestCase):
                 },
                 "servers": [
                     {
-                        "connection_status": "summary",
-                        "nodeid": "server_id",
+                        "connection_status": "summary0",
+                        "nodeid": "server_id0",
                         "last_received_data": 0,
                         "version": None,
                         "available_space": None,
+                        "nickname": ""
+                    },
+                    {
+                        "connection_status": "summary1",
+                        "nodeid": "server_id1",
+                        "last_received_data": 0,
+                        "version": None,
+                        "available_space": 12345,
                         "nickname": ""
                     }
                 ]
