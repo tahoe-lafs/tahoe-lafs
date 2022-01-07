@@ -16,7 +16,7 @@ if PY2:
 else:
     # typing module not available in Python 2, and we only do type checking in
     # Python 3 anyway.
-    from typing import Union, Set, List
+    from typing import Union, Set, List, Optional
     from treq.testing import StubTreq
 
 from base64 import b64encode
@@ -28,6 +28,7 @@ from cbor2 import loads, dumps
 
 
 from twisted.web.http_headers import Headers
+from twisted.web import http
 from twisted.internet.defer import inlineCallbacks, returnValue, fail, Deferred
 from hyperlink import DecodedURL
 import treq
@@ -70,9 +71,10 @@ class StorageClient(object):
         """Get a URL relative to the base URL."""
         return self._base_url.click(path)
 
-    def _get_headers(self):  # type: () -> Headers
+    def _get_headers(self, headers):  # type: (Optional[Headers]) -> Headers
         """Return the basic headers to be used by default."""
-        headers = Headers()
+        if headers is None:
+            headers = Headers()
         headers.addRawHeader(
             "Authorization",
             swissnum_auth_header(self._swissnum),
@@ -86,13 +88,14 @@ class StorageClient(object):
         lease_renewal_secret=None,
         lease_cancel_secret=None,
         upload_secret=None,
+        headers=None,
         **kwargs
     ):
         """
         Like ``treq.request()``, but with optional secrets that get translated
         into corresponding HTTP headers.
         """
-        headers = self._get_headers()
+        headers = self._get_headers(headers)
         for secret, value in [
             (Secrets.LEASE_RENEW, lease_renewal_secret),
             (Secrets.LEASE_CANCEL, lease_cancel_secret),
@@ -122,7 +125,7 @@ class StorageClientImmutables(object):
     APIs for interacting with immutables.
     """
 
-    def __init__(self, client: StorageClient):#  # type: (StorageClient) -> None
+    def __init__(self, client: StorageClient):  #  # type: (StorageClient) -> None
         self._client = client
 
     @inlineCallbacks
@@ -138,11 +141,12 @@ class StorageClientImmutables(object):
         """
         Create a new storage index for an immutable.
 
-        TODO retry internally on failure, to ensure the operation fully
-        succeeded.  If sufficient number of failures occurred, the result may
-        fire with an error, but there's no expectation that user code needs to
-        have a recovery codepath; it will most likely just report an error to
-        the user.
+        TODO https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3857 retry
+        internally on failure, to ensure the operation fully succeeded.  If
+        sufficient number of failures occurred, the result may fire with an
+        error, but there's no expectation that user code needs to have a
+        recovery codepath; it will most likely just report an error to the
+        user.
 
         Result fires when creating the storage index succeeded, if creating the
         storage index failed the result will fire with an exception.
@@ -151,7 +155,22 @@ class StorageClientImmutables(object):
         message = dumps(
             {"share-numbers": share_numbers, "allocated-size": allocated_size}
         )
-        self._client._request("POST", )
+        response = yield self._client._request(
+            "POST",
+            url,
+            lease_renew_secret=lease_renew_secret,
+            lease_cancel_secret=lease_cancel_secret,
+            upload_secret=upload_secret,
+            data=message,
+            headers=Headers({"content-type": "application/cbor"}),
+        )
+        decoded_response = yield _decode_cbor(response)
+        returnValue(
+            ImmutableCreateResult(
+                already_have=decoded_response["already-have"],
+                allocated=decoded_response["allocated"],
+            )
+        )
 
     @inlineCallbacks
     def write_share_chunk(
@@ -160,14 +179,45 @@ class StorageClientImmutables(object):
         """
         Upload a chunk of data for a specific share.
 
-        TODO The implementation should retry failed uploads transparently a number
-        of times, so that if a failure percolates up, the caller can assume the
+        TODO https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3857 The
+        implementation should retry failed uploads transparently a number of
+        times, so that if a failure percolates up, the caller can assume the
         failure isn't a short-term blip.
 
         Result fires when the upload succeeded, with a boolean indicating
         whether the _complete_ share (i.e. all chunks, not just this one) has
         been uploaded.
         """
+        url = self._client._url(
+            "/v1/immutable/{}/{}".format(str(storage_index, "ascii"), share_number)
+        )
+        response = yield self._client._request(
+            "POST",
+            url,
+            upload_secret=upload_secret,
+            data=data,
+            headers=Headers(
+                {
+                    # The range is inclusive, thus the '- 1'. '*' means "length
+                    # unknown", which isn't technically true but adding it just
+                    # makes things slightly harder for calling API.
+                    "content-range": "bytes {}-{}/*".format(
+                        offset, offset + len(data) - 1
+                    )
+                }
+            ),
+        )
+
+        if response.code == http.OK:
+            # Upload is still unfinished.
+            returnValue(False)
+        elif response.code == http.CREATED:
+            # Upload is done!
+            returnValue(True)
+        else:
+            raise ClientException(
+                response.code,
+            )
 
     @inlineCallbacks
     def read_share_chunk(
@@ -176,9 +226,10 @@ class StorageClientImmutables(object):
         """
         Download a chunk of data from a share.
 
-        TODO Failed downloads should be transparently retried and redownloaded
-        by the implementation a few times so that if a failure percolates up,
-        the caller can assume the failure isn't a short-term blip.
+        TODO https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3857 Failed
+        downloads should be transparently retried and redownloaded by the
+        implementation a few times so that if a failure percolates up, the
+        caller can assume the failure isn't a short-term blip.
 
         NOTE: the underlying HTTP protocol is much more flexible than this API,
         so a future refactor may expand this in order to simplify the calling
@@ -186,3 +237,22 @@ class StorageClientImmutables(object):
         the HTTP protocol will be simplified, see
         https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3777
         """
+        url = self._client._url(
+            "/v1/immutable/{}/{}".format(str(storage_index, "ascii"), share_number)
+        )
+        response = yield self._client._request(
+            "GET",
+            url,
+            headers=Headers(
+                {
+                    # The range is inclusive, thus the -1.
+                    "range": "bytes={}-{}".format(offset, offset + length - 1)
+                }
+            ),
+        )
+        if response.code == 200:
+            returnValue(response.content.read())
+        else:
+            raise ClientException(
+                response.code,
+            )
