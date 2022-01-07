@@ -156,6 +156,11 @@ class RenderRoot(AsyncTestCase):
     @inlineCallbacks
     def test_root_json(self):
         """
+        The 'welcome' / root page renders properly with ?t=json when some
+        servers show None for available_space while others show a
+        valid int
+
+        See also https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3852
         """
         ann = {
             "anonymous-storage-FURL": "pb://w2hqnbaa25yw4qgcvghl5psa3srpfgw3@tcp:127.0.0.1:51309/vucto2z4fxment3vfxbqecblbf6zyp6x",
