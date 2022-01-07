@@ -90,10 +90,11 @@ class TahoeLAFSRequestTests(SyncTestCase):
         """
         self._fields_test(b"GET", {}, b"", Equals(None))
 
-    def test_form_fields(self):
+    def test_form_fields_if_filename_set(self):
         """
         When a ``POST`` request is received, form fields are parsed into
-        ``TahoeLAFSRequest.fields``.
+        ``TahoeLAFSRequest.fields`` and the body is bytes (presuming ``filename``
+        is set).
         """
         form_data, boundary = multipart_formdata([
             [param(u"name", u"foo"),
@@ -120,6 +121,49 @@ class TahoeLAFSRequestTests(SyncTestCase):
                 }),
             ),
         )
+
+    def test_form_fields_if_name_is_file(self):
+        """
+        When a ``POST`` request is received, form fields are parsed into
+        ``TahoeLAFSRequest.fields`` and the body is bytes when ``name``
+        is set to ``"file"``.
+        """
+        form_data, boundary = multipart_formdata([
+            [param(u"name", u"foo"),
+             body(u"bar"),
+            ],
+            [param(u"name", u"file"),
+             body(u"some file contents"),
+            ],
+        ])
+        self._fields_test(
+            b"POST",
+            {b"content-type": b"multipart/form-data; boundary=" + bytes(boundary, 'ascii')},
+            form_data.encode("ascii"),
+            AfterPreprocessing(
+                lambda fs: {
+                    k: fs.getvalue(k)
+                    for k
+                    in fs.keys()
+                },
+                Equals({
+                    "foo": "bar",
+                    "file": b"some file contents",
+                }),
+            ),
+        )
+
+    def test_form_fields_require_correct_mime_type(self):
+        """
+        The body of a ``POST`` is not parsed into fields if its mime type is
+        not ``multipart/form-data``.
+
+        Reproducer for https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3854
+        """
+        data = u'{"lalala": "lolo"}'
+        data = data.encode("utf-8")
+        self._fields_test(b"POST", {"content-type": "application/json"},
+                          data, Equals(None))
 
 
 class TahoeLAFSSiteTests(SyncTestCase):
