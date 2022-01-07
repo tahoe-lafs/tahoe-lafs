@@ -409,7 +409,9 @@ setup(name="tahoe-lafs", # also set in __init__.py
               "html5lib",
               "junitxml",
               "tenacity",
-              "paramiko",
+              # Pin old version until
+              # https://github.com/paramiko/paramiko/issues/1961 is fixed.
+              "paramiko < 2.9",
               "pytest-timeout",
               # Does our OpenMetrics endpoint adhere to the spec:
               "prometheus-client == 0.11.0",
