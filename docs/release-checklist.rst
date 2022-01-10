@@ -157,7 +157,8 @@ need to be uploaded to https://tahoe-lafs.org in `~source/downloads`
 
 - secure-copy all release artifacts to the download area on the
   tahoe-lafs.org host machine. `~source/downloads` on there maps to
-  https://tahoe-lafs.org/downloads/ on the Web.
+  https://tahoe-lafs.org/downloads/ on the Web:
+
     - scp dist/*1.15.0* username@tahoe-lafs.org:/home/source/downloads
 
 - the following developers have access to do this:
