@@ -106,6 +106,11 @@ they will need to evaluate which contributors' signatures they trust.
 
     - tox -e deprecations,upcoming-deprecations
 
+- clone to a clean, local checkout (to avoid extra files being included in the release)
+
+    - cd /tmp
+    - git clone /home/meejah/src/tahoe-lafs
+
 - build tarballs
 
   - tox -e tarballs
