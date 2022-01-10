@@ -166,6 +166,10 @@ need to be uploaded to https://tahoe-lafs.org in `~source/downloads`
   - meejah
   - warner
 
+Push the signed tag to the main repository:
+
+- git push origin_push tahoe-lafs-1.17.1
+
 For the actual release, the tarball and signature files need to be
 uploaded to PyPI as well.
 
