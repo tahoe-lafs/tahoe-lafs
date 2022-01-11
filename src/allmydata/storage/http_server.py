@@ -193,3 +193,31 @@ class HTTPServer(object):
             # TODO self._storage_server.allocate_buckets() with given inputs.
             # TODO add results to self._uploads.
             pass
+
+    @_authorized_route(
+        _app,
+        {Secrets.UPLOAD}, "/v1/immutable/<string:storage_index>/<int:share_number>", methods=["PATCH"]
+    )
+    def write_share_data(self, request, authorization, storage_index, share_number):
+        """Write data to an in-progress immutable upload."""
+        # TODO parse the content-range header to get offset for writing
+        # TODO basic checks on validity of offset
+        # TODO basic check that body isn't infinite. require content-length? if so, needs t be in protocol spec.
+        data = request.content.read()
+        # TODO write to bucket at that offset.
+
+        # TODO check if it conflicts with existing data (probably underlying code already handles that) if so, CONFLICT.
+
+        # TODO if it finished writing altogether, 201 CREATED. Otherwise 200 OK.
+
+    @_authorized_route(
+        _app, set(), "/v1/immutable/<string:storage_index>/<int:share_number>", methods=["GET"]
+    )
+    def read_share_chunk(self, request, authorization, storage_index, share_number):
+        """Read a chunk for an already uploaded immutable."""
+        # TODO read offset and length from Range header
+        # TODO basic checks on validity
+        # TODO lookup the share
+        # TODO if not found, 404
+        # TODO otherwise, return data from that offset
+
