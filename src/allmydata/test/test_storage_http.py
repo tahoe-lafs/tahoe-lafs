@@ -15,6 +15,7 @@ if PY2:
     # fmt: on
 
 from base64 import b64encode
+from os import urandom
 
 from twisted.internet.defer import inlineCallbacks
 
@@ -33,7 +34,12 @@ from ..storage.http_server import (
     ClientSecretsException,
     _authorized_route,
 )
-from ..storage.http_client import StorageClient, ClientException
+from ..storage.http_client import (
+    StorageClient,
+    ClientException,
+    StorageClientImmutables,
+    ImmutableCreateResult,
+)
 
 
 def _post_process(params):
@@ -270,12 +276,73 @@ class ImmutableHTTPAPITests(AsyncTestCase):
     Tests for immutable upload/download APIs.
     """
 
+    def setUp(self):
+        if PY2:
+            self.skipTest("Not going to bother supporting Python 2")
+        super(ImmutableHTTPAPITests, self).setUp()
+        self.http = self.useFixture(HttpTestFixture())
+
+    @inlineCallbacks
     def test_upload_can_be_downloaded(self):
         """
         A single share can be uploaded in (possibly overlapping) chunks, and
         then a random chunk can be downloaded, and it will match the original
         file.
+
+        We don't exercise the full variation of overlapping chunks because
+        that's already done in test_storage.py.
         """
+        length = 100
+        expected_data = b"".join(bytes([i]) for i in range(100))
+
+        im_client = StorageClientImmutables(self.http.client)
+
+        # Create a upload:
+        upload_secret = urandom(32)
+        lease_secret = urandom(32)
+        storage_index = b"".join(bytes([i]) for i in range(16))
+        created = yield im_client.create(
+            storage_index, [1], 100, upload_secret, lease_secret, lease_secret
+        )
+        self.assertEqual(
+            created, ImmutableCreateResult(already_have=set(), allocated={1})
+        )
+
+        # Three writes: 10-19, 30-39, 50-59. This allows for a bunch of holes.
+        def write(offset, length):
+            return im_client.write_share_chunk(
+                storage_index,
+                1,
+                upload_secret,
+                offset,
+                expected_data[offset : offset + length],
+            )
+
+        finished = yield write(10, 10)
+        self.assertFalse(finished)
+        finished = yield write(30, 10)
+        self.assertFalse(finished)
+        finished = yield write(50, 10)
+        self.assertFalse(finished)
+
+        # Then, an overlapping write with matching data (15-35):
+        finished = yield write(15, 20)
+        self.assertFalse(finished)
+
+        # Now fill in the holes:
+        finished = yield write(0, 10)
+        self.assertFalse(finished)
+        finished = yield write(40, 10)
+        self.assertFalse(finished)
+        finished = yield write(60, 40)
+        self.assertTrue(finished)
+
+        # We can now read:
+        for offset, length in [(0, 100), (10, 19), (99, 0), (49, 200)]:
+            downloaded = yield im_client.read_share_chunk(
+                storage_index, 1, upload_secret, offset, length
+            )
+            self.assertEqual(downloaded, expected_data[offset : offset + length])
 
     def test_multiple_shares_uploaded_to_different_place(self):
         """
