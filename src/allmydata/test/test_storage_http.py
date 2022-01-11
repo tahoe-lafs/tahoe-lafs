@@ -263,3 +263,72 @@ class GenericHTTPAPITests(AsyncTestCase):
             b"maximum-immutable-share-size"
         )
         self.assertEqual(version, expected_version)
+
+
+class ImmutableHTTPAPITests(AsyncTestCase):
+    """
+    Tests for immutable upload/download APIs.
+    """
+
+    def test_upload_can_be_downloaded(self):
+        """
+        A single share can be uploaded in (possibly overlapping) chunks, and
+        then a random chunk can be downloaded, and it will match the original
+        file.
+        """
+
+    def test_multiple_shares_uploaded_to_different_place(self):
+        """
+        If a storage index has multiple shares, uploads to different shares are
+        stored separately and can be downloaded separately.
+        """
+
+    def test_bucket_allocated_with_new_shares(self):
+        """
+        If some shares already exist, allocating shares indicates only the new
+        ones were created.
+        """
+
+    def test_bucket_allocation_new_upload_key(self):
+        """
+        If a bucket was allocated with one upload key, and a different upload
+        key is used to allocate the bucket again, the previous download is
+        cancelled.
+        """
+
+    def test_upload_with_wrong_upload_key_fails(self):
+        """
+        Uploading with a key that doesn't match the one used to allocate the
+        bucket will fail.
+        """
+
+    def test_upload_offset_cannot_be_negative(self):
+        """
+        A negative upload offset will be rejected.
+        """
+
+    def test_mismatching_upload_fails(self):
+        """
+        If an uploaded chunk conflicts with an already uploaded chunk, a
+        CONFLICT error is returned.
+        """
+
+    def test_read_of_wrong_storage_index_fails(self):
+        """
+        Reading from unknown storage index results in 404.
+        """
+
+    def test_read_of_wrong_share_number_fails(self):
+        """
+        Reading from unknown storage index results in 404.
+        """
+
+    def test_read_with_negative_offset_fails(self):
+        """
+        The offset for reads cannot be negative.
+        """
+
+    def test_read_with_negative_length_fails(self):
+        """
+        The length for reads cannot be negative.
+        """
