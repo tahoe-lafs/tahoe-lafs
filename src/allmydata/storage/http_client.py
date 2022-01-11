@@ -85,7 +85,7 @@ class StorageClient(object):
         self,
         method,
         url,
-        lease_renewal_secret=None,
+        lease_renew_secret=None,
         lease_cancel_secret=None,
         upload_secret=None,
         headers=None,
@@ -97,7 +97,7 @@ class StorageClient(object):
         """
         headers = self._get_headers(headers)
         for secret, value in [
-            (Secrets.LEASE_RENEW, lease_renewal_secret),
+            (Secrets.LEASE_RENEW, lease_renew_secret),
             (Secrets.LEASE_CANCEL, lease_cancel_secret),
             (Secrets.UPLOAD, upload_secret),
         ]:
@@ -162,7 +162,7 @@ class StorageClientImmutables(object):
             lease_cancel_secret=lease_cancel_secret,
             upload_secret=upload_secret,
             data=message,
-            headers=Headers({"content-type": "application/cbor"}),
+            headers=Headers({"content-type": ["application/cbor"]}),
         )
         decoded_response = yield _decode_cbor(response)
         returnValue(
@@ -201,9 +201,9 @@ class StorageClientImmutables(object):
                     # The range is inclusive, thus the '- 1'. '*' means "length
                     # unknown", which isn't technically true but adding it just
                     # makes things slightly harder for calling API.
-                    "content-range": "bytes {}-{}/*".format(
-                        offset, offset + len(data) - 1
-                    )
+                    "content-range": [
+                        "bytes {}-{}/*".format(offset, offset + len(data) - 1)
+                    ]
                 }
             ),
         )
@@ -245,8 +245,8 @@ class StorageClientImmutables(object):
             url,
             headers=Headers(
                 {
-                    # The range is inclusive, thus the -1.
-                    "range": "bytes={}-{}".format(offset, offset + length - 1)
+                    # The range is inclusive.
+                    "range": ["bytes={}-{}".format(offset, offset + length)]
                 }
             ),
         )
