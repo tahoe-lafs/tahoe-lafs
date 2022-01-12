@@ -115,7 +115,7 @@ class StorageClient(object):
         Return the version metadata for the server.
         """
         url = self._url("/v1/version")
-        response = yield self._request("GET", url, {})
+        response = yield self._request("GET", url)
         decoded_response = yield _decode_cbor(response)
         returnValue(decoded_response)
 
