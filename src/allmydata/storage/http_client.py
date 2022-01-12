@@ -34,6 +34,12 @@ from hyperlink import DecodedURL
 import treq
 
 from .http_common import swissnum_auth_header, Secrets
+from .common import si_b2a
+
+
+def _encode_si(si):  # type: (bytes) -> str
+    """Encode the storage index into Unicode string."""
+    return str(si_b2a(si), "ascii")
 
 
 class ClientException(Exception):
@@ -151,7 +157,7 @@ class StorageClientImmutables(object):
         Result fires when creating the storage index succeeded, if creating the
         storage index failed the result will fire with an exception.
         """
-        url = self._client._url("/v1/immutable/" + str(storage_index, "ascii"))
+        url = self._client._url("/v1/immutable/" + _encode_si(storage_index))
         message = dumps(
             {"share-numbers": share_numbers, "allocated-size": allocated_size}
         )
@@ -189,7 +195,7 @@ class StorageClientImmutables(object):
         been uploaded.
         """
         url = self._client._url(
-            "/v1/immutable/{}/{}".format(str(storage_index, "ascii"), share_number)
+            "/v1/immutable/{}/{}".format(_encode_si(storage_index), share_number)
         )
         response = yield self._client._request(
             "POST",
@@ -238,7 +244,7 @@ class StorageClientImmutables(object):
         https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3777
         """
         url = self._client._url(
-            "/v1/immutable/{}/{}".format(str(storage_index, "ascii"), share_number)
+            "/v1/immutable/{}/{}".format(_encode_si(storage_index), share_number)
         )
         response = yield self._client._request(
             "GET",

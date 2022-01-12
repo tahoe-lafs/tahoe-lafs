@@ -28,6 +28,7 @@ from cbor2 import dumps, loads
 
 from .server import StorageServer
 from .http_common import swissnum_auth_header, Secrets
+from .common import si_a2b
 from .immutable import BucketWriter
 from ..util.hashutil import timing_safe_compare
 
@@ -174,6 +175,7 @@ class HTTPServer(object):
     )
     def allocate_buckets(self, request, authorization, storage_index):
         """Allocate buckets."""
+        storage_index = si_a2b(storage_index.encode("ascii"))
         info = loads(request.content.read())
         upload_key = authorization[Secrets.UPLOAD]
 
@@ -191,13 +193,29 @@ class HTTPServer(object):
                 pass
         else:
             # New upload.
-            # TODO self._storage_server.allocate_buckets() with given inputs.
-            # TODO add results to self._uploads.
-            pass
+            already_got, sharenum_to_bucket = self._storage_server.allocate_buckets(
+                storage_index,
+                renew_secret=authorization[Secrets.LEASE_RENEW],
+                cancel_secret=authorization[Secrets.LEASE_CANCEL],
+                sharenums=info["share-numbers"],
+                allocated_size=info["allocated-size"],
+            )
+            self._uploads[storage_index] = StorageIndexUploads(
+                shares=sharenum_to_bucket, upload_key=authorization[Secrets.UPLOAD]
+            )
+            return self._cbor(
+                request,
+                {
+                    "already-have": set(already_got),
+                    "allocated": set(sharenum_to_bucket),
+                },
+            )
 
     @_authorized_route(
         _app,
-        {Secrets.UPLOAD}, "/v1/immutable/<string:storage_index>/<int:share_number>", methods=["PATCH"]
+        {Secrets.UPLOAD},
+        "/v1/immutable/<string:storage_index>/<int:share_number>",
+        methods=["PATCH"],
     )
     def write_share_data(self, request, authorization, storage_index, share_number):
         """Write data to an in-progress immutable upload."""
@@ -212,7 +230,10 @@ class HTTPServer(object):
         # TODO if it finished writing altogether, 201 CREATED. Otherwise 200 OK.
 
     @_authorized_route(
-        _app, set(), "/v1/immutable/<string:storage_index>/<int:share_number>", methods=["GET"]
+        _app,
+        set(),
+        "/v1/immutable/<string:storage_index>/<int:share_number>",
+        methods=["GET"],
     )
     def read_share_chunk(self, request, authorization, storage_index, share_number):
         """Read a chunk for an already uploaded immutable."""
@@ -221,4 +242,3 @@ class HTTPServer(object):
         # TODO lookup the share
         # TODO if not found, 404
         # TODO otherwise, return data from that offset
-

@@ -382,6 +382,11 @@ the server will respond with ``400 BAD REQUEST``.
 
 If authorization using the secret fails, then a ``401 UNAUTHORIZED`` response should be sent.
 
+Encoding
+~~~~~~~~
+
+* ``storage_index`` should be base32 encoded (RFC3548) in URLs.
+
 General
 ~~~~~~~
 
