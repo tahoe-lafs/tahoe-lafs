@@ -72,13 +72,14 @@ class RoutingTests(AsyncTestCase):
         """
         # Without secret, get a 400 error.
         response = yield self.client._request(
-            "GET", "http://127.0.0.1/upload_secret", {}
+            "GET",
+            "http://127.0.0.1/upload_secret",
         )
         self.assertEqual(response.code, 400)
 
         # With secret, we're good.
         response = yield self.client._request(
-            "GET", "http://127.0.0.1/upload_secret", {Secrets.UPLOAD: b"MAGIC"}
+            "GET", "http://127.0.0.1/upload_secret", upload_secret=b"MAGIC"
         )
         self.assertEqual(response.code, 200)
         self.assertEqual((yield response.content()), b"GOOD SECRET")
