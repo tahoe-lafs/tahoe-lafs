@@ -110,6 +110,7 @@ def _authorized_route(app, required_secrets, *route_args, **route_kwargs):
     def decorator(f):
         @app.route(*route_args, **route_kwargs)
         @_authorization_decorator(required_secrets)
+        @wraps(f)
         def handle_route(*args, **kwargs):
             return f(*args, **kwargs)
 
