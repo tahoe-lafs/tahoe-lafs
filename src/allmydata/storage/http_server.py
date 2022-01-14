@@ -219,15 +219,35 @@ class HTTPServer(object):
     )
     def write_share_data(self, request, authorization, storage_index, share_number):
         """Write data to an in-progress immutable upload."""
-        # TODO parse the content-range header to get offset for writing
-        # TODO basic checks on validity of offset
-        # TODO basic check that body isn't infinite. require content-length? if so, needs t be in protocol spec.
+        storage_index = si_a2b(storage_index.encode("ascii"))
+        content_range = request.getHeader("content-range")
+        if content_range is None:
+            offset = 0
+        else:
+            offset = int(content_range.split()[1].split("-")[0])
+
+        # TODO basic checks on validity of start, offset, and content-range in general. also of share_number.
+        # TODO basic check that body isn't infinite. require content-length? or maybe we should require content-range (it's optional now)? if so, needs to be rflected in protocol spec.
+
         data = request.content.read()
-        # TODO write to bucket at that offset.
+        try:
+            bucket = self._uploads[storage_index].shares[share_number]
+        except (KeyError, IndexError):
+            # TODO return 404
+            raise
 
-        # TODO check if it conflicts with existing data (probably underlying code already handles that) if so, CONFLICT.
+        finished = bucket.write(offset, data)
 
-        # TODO if it finished writing altogether, 201 CREATED. Otherwise 200 OK.
+        # TODO if raises ConflictingWriteError, return HTTP CONFLICT code.
+
+        if finished:
+            request.setResponseCode(http.CREATED)
+        else:
+            request.setResponseCode(http.OK)
+
+        # TODO spec says we should return missing ranges. but client doesn't
+        # actually use them? So is it actually useful?
+        return b""
 
     @_authorized_route(
         _app,

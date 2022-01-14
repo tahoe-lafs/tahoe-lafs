@@ -13,7 +13,7 @@ if PY2:
 
 import os, stat, struct, time
 
-from collections_extended import RangeMap
+from collections_extended import RangeMap, MappedRange
 
 from foolscap.api import Referenceable
 
@@ -375,7 +375,10 @@ class BucketWriter(object):
     def allocated_size(self):
         return self._max_size
 
-    def write(self, offset, data):
+    def write(self, offset, data):  # type: (int, bytes) -> bool
+        """
+        Write data at given offset, return whether the upload is complete.
+        """
         # Delay the timeout, since we received data:
         self._timeout.reset(30 * 60)
         start = self._clock.seconds()
@@ -398,6 +401,10 @@ class BucketWriter(object):
         self._already_written.set(True, offset, end)
         self.ss.add_latency("write", self._clock.seconds() - start)
         self.ss.count("write")
+
+        # Return whether the whole thing has been written.
+        # TODO needs property test
+        return self._already_written.ranges() == [MappedRange(0, self._max_size, True)]
 
     def close(self):
         precondition(not self.closed)

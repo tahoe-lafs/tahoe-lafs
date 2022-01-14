@@ -198,7 +198,7 @@ class StorageClientImmutables(object):
             "/v1/immutable/{}/{}".format(_encode_si(storage_index), share_number)
         )
         response = yield self._client._request(
-            "POST",
+            "PATCH",
             url,
             upload_secret=upload_secret,
             data=data,
