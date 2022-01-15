@@ -13,6 +13,7 @@ if PY2:
     from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 from six import ensure_str
 
+from array import array
 from io import (
     BytesIO,
 )
@@ -34,7 +35,7 @@ from twisted.trial import unittest
 from twisted.internet import defer
 from twisted.internet.task import Clock
 
-from hypothesis import given, strategies
+from hypothesis import given, strategies, example
 
 import itertools
 from allmydata import interfaces
@@ -230,7 +231,6 @@ class Bucket(unittest.TestCase):
         br = BucketReader(self, bw.finalhome)
         self.assertEqual(br.read(0, length), expected_data)
 
-
     @given(
         maybe_overlapping_offset=strategies.integers(min_value=0, max_value=98),
         maybe_overlapping_length=strategies.integers(min_value=1, max_value=100),
@@ -263,6 +263,35 @@ class Bucket(unittest.TestCase):
             bw.write(20, b"1" * 10)
             bw.write(40, b"1" * 10)
             bw.write(60, b"1" * 40)
+
+    @given(
+        offsets=strategies.lists(
+            strategies.integers(min_value=0, max_value=99),
+            min_size=20,
+            max_size=20
+        ),
+    )
+    @example(offsets=[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 10, 40, 70])
+    def test_writes_return_when_finished(
+            self, offsets
+    ):
+        """
+        The ``BucketWriter.write()`` return true if and only if the maximum
+        size has been reached via potentially overlapping writes.
+        """
+        length = 100
+        incoming, final = self.make_workdir("overlapping_writes_{}".format(uuid4()))
+        bw = BucketWriter(
+            self, incoming, final, length, self.make_lease(), Clock()
+        )
+        local_written = [0] * 100
+        for offset in offsets:
+            length = min(30, 100 - offset)
+            data = b"1" * length
+            for i in range(offset, offset+length):
+                local_written[i] = 1
+            finished = bw.write(offset, data)
+            self.assertEqual(finished, sum(local_written) == 100)
 
     def test_read_past_end_of_share_data(self):
         # test vector for immutable files (hard-coded contents of an immutable share

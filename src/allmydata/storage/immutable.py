@@ -13,7 +13,7 @@ if PY2:
 
 import os, stat, struct, time
 
-from collections_extended import RangeMap, MappedRange
+from collections_extended import RangeMap
 
 from foolscap.api import Referenceable
 
@@ -402,9 +402,13 @@ class BucketWriter(object):
         self.ss.add_latency("write", self._clock.seconds() - start)
         self.ss.count("write")
 
-        # Return whether the whole thing has been written.
-        # TODO needs property test
-        return self._already_written.ranges() == [MappedRange(0, self._max_size, True)]
+        # Return whether the whole thing has been written. See
+        # https://github.com/mlenzen/collections-extended/issues/169 for why
+        # it's done this way.
+        print([tuple(mr) for mr in self._already_written.ranges()])
+        return [tuple(mr) for mr in self._already_written.ranges()] == [
+            (0, self._max_size, True)
+        ]
 
     def close(self):
         precondition(not self.closed)
