@@ -384,7 +384,7 @@ class BucketWriter(object):
         start = self._clock.seconds()
         precondition(not self.closed)
         if self.throw_out_all_data:
-            return
+            return False
 
         # Make sure we're not conflicting with existing data:
         end = offset + len(data)
