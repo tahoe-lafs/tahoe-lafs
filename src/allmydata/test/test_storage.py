@@ -279,10 +279,9 @@ class Bucket(unittest.TestCase):
         The ``BucketWriter.write()`` return true if and only if the maximum
         size has been reached via potentially overlapping writes.
         """
-        length = 100
         incoming, final = self.make_workdir("overlapping_writes_{}".format(uuid4()))
         bw = BucketWriter(
-            self, incoming, final, length, self.make_lease(), Clock()
+            self, incoming, final, 100, self.make_lease(), Clock()
         )
         local_written = [0] * 100
         for offset in offsets:

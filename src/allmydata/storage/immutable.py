@@ -403,12 +403,10 @@ class BucketWriter(object):
         self.ss.count("write")
 
         # Return whether the whole thing has been written. See
-        # https://github.com/mlenzen/collections-extended/issues/169 for why
+        # https://github.com/mlenzen/collections-extended/issues/169 and
+        # https://github.com/mlenzen/collections-extended/issues/172 for why
         # it's done this way.
-        print([tuple(mr) for mr in self._already_written.ranges()])
-        return [tuple(mr) for mr in self._already_written.ranges()] == [
-            (0, self._max_size, True)
-        ]
+        return sum([mr.stop - mr.start for mr in self._already_written.ranges()]) == self._max_size
 
     def close(self):
         precondition(not self.closed)
