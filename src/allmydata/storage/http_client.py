@@ -252,12 +252,13 @@ class StorageClientImmutables(object):
             headers=Headers(
                 {
                     # The range is inclusive.
-                    "range": ["bytes={}-{}".format(offset, offset + length)]
+                    "range": ["bytes={}-{}".format(offset, offset + length - 1)]
                 }
             ),
         )
         if response.code == 200:
-            returnValue(response.content.read())
+            body = yield response.content()
+            returnValue(body)
         else:
             raise ClientException(
                 response.code,

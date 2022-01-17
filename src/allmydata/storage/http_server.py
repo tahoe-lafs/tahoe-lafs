@@ -241,6 +241,7 @@ class HTTPServer(object):
         # TODO if raises ConflictingWriteError, return HTTP CONFLICT code.
 
         if finished:
+            bucket.close()
             request.setResponseCode(http.CREATED)
         else:
             request.setResponseCode(http.OK)
@@ -257,8 +258,22 @@ class HTTPServer(object):
     )
     def read_share_chunk(self, request, authorization, storage_index, share_number):
         """Read a chunk for an already uploaded immutable."""
-        # TODO read offset and length from Range header
         # TODO basic checks on validity
-        # TODO lookup the share
+        storage_index = si_a2b(storage_index.encode("ascii"))
+        range_header = request.getHeader("range")
+        if range_header is None:
+            offset = 0
+            inclusive_end = None
+        else:
+            parts = range_header.split("=")[1].split("-")
+            offset = int(parts[0])  # TODO make sure valid
+            if len(parts) > 0:
+                inclusive_end = int(parts[1])  # TODO make sure valid
+            else:
+                inclusive_end = None
+
+        assert inclusive_end != None  # TODO support this case
+
         # TODO if not found, 404
-        # TODO otherwise, return data from that offset
+        bucket = self._storage_server.get_buckets(storage_index)[share_number]
+        return bucket.read(offset, inclusive_end - offset + 1)
