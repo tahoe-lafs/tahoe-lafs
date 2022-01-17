@@ -13,6 +13,11 @@ if PY2:
     # fmt: off
     from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
     # fmt: on
+    from collections import defaultdict
+
+    Optional = Set = defaultdict(
+        lambda: None
+    )  # some garbage to just make this module import
 else:
     # typing module not available in Python 2, and we only do type checking in
     # Python 3 anyway.
@@ -131,7 +136,7 @@ class StorageClientImmutables(object):
     APIs for interacting with immutables.
     """
 
-    def __init__(self, client: StorageClient):  #  # type: (StorageClient) -> None
+    def __init__(self, client):  # type: (StorageClient) -> None
         self._client = client
 
     @inlineCallbacks
