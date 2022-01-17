@@ -494,7 +494,7 @@ class FoolscapBucketWriter(Referenceable):  # type: ignore # warner/foolscap#78
         self._bucket_writer = bucket_writer
 
     def remote_write(self, offset, data):
-        return self._bucket_writer.write(offset, data)
+        self._bucket_writer.write(offset, data)
 
     def remote_close(self):
         return self._bucket_writer.close()
