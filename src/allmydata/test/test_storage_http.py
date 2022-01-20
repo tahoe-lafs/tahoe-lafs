@@ -17,8 +17,6 @@ if PY2:
 from base64 import b64encode
 from os import urandom
 
-from twisted.internet.defer import inlineCallbacks
-
 from hypothesis import assume, given, strategies as st
 from fixtures import Fixture, TempDir
 from treq.testing import StubTreq
@@ -164,6 +162,23 @@ class TestApp(object):
             return "BAD: {}".format(authorization)
 
 
+def result_of(d):
+    """
+    Synchronously extract the result of a Deferred.
+    """
+    result = []
+    error = []
+    d.addCallbacks(result.append, error.append)
+    if result:
+        return result[0]
+    if error:
+        error[0].raiseException()
+    raise RuntimeError(
+        "We expected given Deferred to have result already, but it wasn't. "
+        + "This is probably a test design issue."
+    )
+
+
 class RoutingTests(SyncTestCase):
     """
     Tests for the HTTP routing infrastructure.
@@ -182,25 +197,28 @@ class RoutingTests(SyncTestCase):
             treq=StubTreq(self._http_server._app.resource()),
         )
 
-    @inlineCallbacks
     def test_authorization_enforcement(self):
         """
         The requirement for secrets is enforced; if they are not given, a 400
         response code is returned.
         """
         # Without secret, get a 400 error.
-        response = yield self.client._request(
-            "GET",
-            "http://127.0.0.1/upload_secret",
+        response = result_of(
+            self.client._request(
+                "GET",
+                "http://127.0.0.1/upload_secret",
+            )
         )
         self.assertEqual(response.code, 400)
 
         # With secret, we're good.
-        response = yield self.client._request(
-            "GET", "http://127.0.0.1/upload_secret", upload_secret=b"MAGIC"
+        response = result_of(
+            self.client._request(
+                "GET", "http://127.0.0.1/upload_secret", upload_secret=b"MAGIC"
+            )
         )
         self.assertEqual(response.code, 200)
-        self.assertEqual((yield response.content()), b"GOOD SECRET")
+        self.assertEqual(result_of(response.content()), b"GOOD SECRET")
 
 
 class HttpTestFixture(Fixture):
@@ -232,7 +250,6 @@ class GenericHTTPAPITests(SyncTestCase):
         super(GenericHTTPAPITests, self).setUp()
         self.http = self.useFixture(HttpTestFixture())
 
-    @inlineCallbacks
     def test_bad_authentication(self):
         """
         If the wrong swissnum is used, an ``Unauthorized`` response code is
@@ -244,10 +261,9 @@ class GenericHTTPAPITests(SyncTestCase):
             treq=StubTreq(self.http.http_server.get_resource()),
         )
         with self.assertRaises(ClientException) as e:
-            yield client.get_version()
+            result_of(client.get_version())
         self.assertEqual(e.exception.args[0], 401)
 
-    @inlineCallbacks
     def test_version(self):
         """
         The client can return the version.
@@ -255,7 +271,7 @@ class GenericHTTPAPITests(SyncTestCase):
         We ignore available disk space and max immutable share size, since that
         might change across calls.
         """
-        version = yield self.http.client.get_version()
+        version = result_of(self.http.client.get_version())
         version[b"http://allmydata.org/tahoe/protocols/storage/v1"].pop(
             b"available-space"
         )
@@ -283,7 +299,6 @@ class ImmutableHTTPAPITests(SyncTestCase):
         super(ImmutableHTTPAPITests, self).setUp()
         self.http = self.useFixture(HttpTestFixture())
 
-    @inlineCallbacks
     def test_upload_can_be_downloaded(self):
         """
         A single share can be uploaded in (possibly overlapping) chunks, and
@@ -302,8 +317,10 @@ class ImmutableHTTPAPITests(SyncTestCase):
         upload_secret = urandom(32)
         lease_secret = urandom(32)
         storage_index = b"".join(bytes([i]) for i in range(16))
-        created = yield im_client.create(
-            storage_index, {1}, 100, upload_secret, lease_secret, lease_secret
+        created = result_of(
+            im_client.create(
+                storage_index, {1}, 100, upload_secret, lease_secret, lease_secret
+            )
         )
         self.assertEqual(
             created, ImmutableCreateResult(already_have=set(), allocated={1})
@@ -319,29 +336,29 @@ class ImmutableHTTPAPITests(SyncTestCase):
                 expected_data[offset : offset + length],
             )
 
-        finished = yield write(10, 10)
+        finished = result_of(write(10, 10))
         self.assertFalse(finished)
-        finished = yield write(30, 10)
+        finished = result_of(write(30, 10))
         self.assertFalse(finished)
-        finished = yield write(50, 10)
+        finished = result_of(write(50, 10))
         self.assertFalse(finished)
 
         # Then, an overlapping write with matching data (15-35):
-        finished = yield write(15, 20)
+        finished = result_of(write(15, 20))
         self.assertFalse(finished)
 
         # Now fill in the holes:
-        finished = yield write(0, 10)
+        finished = result_of(write(0, 10))
         self.assertFalse(finished)
-        finished = yield write(40, 10)
+        finished = result_of(write(40, 10))
         self.assertFalse(finished)
-        finished = yield write(60, 40)
+        finished = result_of(write(60, 40))
         self.assertTrue(finished)
 
         # We can now read:
         for offset, length in [(0, 100), (10, 19), (99, 1), (49, 200)]:
-            downloaded = yield im_client.read_share_chunk(
-                storage_index, 1, offset, length
+            downloaded = result_of(
+                im_client.read_share_chunk(storage_index, 1, offset, length)
             )
             self.assertEqual(downloaded, expected_data[offset : offset + length])
 
