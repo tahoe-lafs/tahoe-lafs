@@ -223,9 +223,10 @@ class HTTPServer(object):
         storage_index = si_a2b(storage_index.encode("ascii"))
         content_range = parse_content_range_header(request.getHeader("content-range"))
         # TODO in https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3860
-        # 1. Malformed header should result in error
-        # 2. Non-bytes unit should result in error
+        # 1. Malformed header should result in error 416
+        # 2. Non-bytes unit should result in error 416
         # 3. Missing header means full upload in one request
+        # 4. Impossible range should resul tin error 416
         offset = content_range.start
 
         # TODO basic checks on validity of start, offset, and content-range in general. also of share_number.
