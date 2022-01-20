@@ -155,6 +155,8 @@ class HTTPServer(object):
 
     def _cbor(self, request, data):
         """Return CBOR-encoded data."""
+        # TODO Might want to optionally send JSON someday, based on Accept
+        # headers, see https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3861
         request.setHeader("Content-Type", "application/cbor")
         # TODO if data is big, maybe want to use a temporary file eventually...
         return dumps(data)
