@@ -187,9 +187,7 @@ class HTTPServer(object):
                 # TODO add BucketWriters only for new shares
                 pass
             else:
-                # New session.
-                # TODO cancel all existing BucketWriters, then do
-                # self._storage_server.allocate_buckets() with given inputs.
+                # TODO Fail, since the secret doesnt match.
                 pass
         else:
             # New upload.
