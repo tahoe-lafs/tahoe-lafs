@@ -640,7 +640,7 @@ For example::
 
 Read a contiguous sequence of bytes from one share in one bucket.
 The response body is the raw share data (i.e., ``application/octet-stream``).
-The ``Range`` header may be used to request exactly one ``bytes`` range.
+The ``Range`` header may be used to request exactly one ``bytes`` range, in which case the response code will be 206 (partial content).
 Interpretation and response behavior is as specified in RFC 7233 § 4.1.
 Multiple ranges in a single request are *not* supported.
 

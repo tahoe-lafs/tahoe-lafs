@@ -261,7 +261,7 @@ class StorageClientImmutables(object):
                 }
             ),
         )
-        if response.code == 200:
+        if response.code == http.PARTIAL_CONTENT:
             body = yield response.content()
             returnValue(body)
         else:

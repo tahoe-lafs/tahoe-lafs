@@ -22,6 +22,7 @@ from base64 import b64decode
 from klein import Klein
 from twisted.web import http
 import attr
+from werkzeug.http import parse_range_header, parse_content_range_header
 
 # TODO Make sure to use pure Python versions?
 from cbor2 import dumps, loads
@@ -218,11 +219,12 @@ class HTTPServer(object):
     def write_share_data(self, request, authorization, storage_index, share_number):
         """Write data to an in-progress immutable upload."""
         storage_index = si_a2b(storage_index.encode("ascii"))
-        content_range = request.getHeader("content-range")
-        if content_range is None:
-            offset = 0
-        else:
-            offset = int(content_range.split()[1].split("-")[0])
+        content_range = parse_content_range_header(request.getHeader("content-range"))
+        # TODO in https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3860
+        # 1. Malformed header should result in error
+        # 2. Non-bytes unit should result in error
+        # 3. Missing header means full upload in one request
+        offset = content_range.start
 
         # TODO basic checks on validity of start, offset, and content-range in general. also of share_number.
         # TODO basic check that body isn't infinite. require content-length? or maybe we should require content-range (it's optional now)? if so, needs to be rflected in protocol spec.
@@ -256,22 +258,21 @@ class HTTPServer(object):
     )
     def read_share_chunk(self, request, authorization, storage_index, share_number):
         """Read a chunk for an already uploaded immutable."""
-        # TODO basic checks on validity
+        # TODO in https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3860
+        # 1. basic checks on validity on storage index, share number
+        # 2. missing range header should have response code 200 and return whole thing
+        # 3. malformed range header should result in error? or return everything?
+        # 4. non-bytes range results in error
+        # 5. ranges make sense semantically (positive, etc.)
+        # 6. multiple ranges fails with error
+        # 7. missing end of range means "to the end of share"
         storage_index = si_a2b(storage_index.encode("ascii"))
-        range_header = request.getHeader("range")
-        if range_header is None:
-            offset = 0
-            inclusive_end = None
-        else:
-            parts = range_header.split("=")[1].split("-")
-            offset = int(parts[0])  # TODO make sure valid
-            if len(parts) > 0:
-                inclusive_end = int(parts[1])  # TODO make sure valid
-            else:
-                inclusive_end = None
-
-        assert inclusive_end != None  # TODO support this case
+        range_header = parse_range_header(request.getHeader("range"))
+        offset, end = range_header.ranges[0]
+        assert end != None  # TODO support this case
 
         # TODO if not found, 404
         bucket = self._storage_server.get_buckets(storage_index)[share_number]
-        return bucket.read(offset, inclusive_end - offset + 1)
+        data = bucket.read(offset, end - offset)
+        request.setResponseCode(http.PARTIAL_CONTENT)
+        return data

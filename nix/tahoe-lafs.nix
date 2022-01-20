@@ -4,7 +4,7 @@
 , setuptools, setuptoolsTrial, pyasn1, zope_interface
 , service-identity, pyyaml, magic-wormhole, treq, appdirs
 , beautifulsoup4, eliot, autobahn, cryptography, netifaces
-, html5lib, pyutil, distro, configparser, klein, cbor2
+, html5lib, pyutil, distro, configparser, klein, werkzeug, cbor2
 }:
 python.pkgs.buildPythonPackage rec {
   # Most of the time this is not exactly the release version (eg 1.17.0).
@@ -98,7 +98,7 @@ EOF
     service-identity pyyaml magic-wormhole
     eliot autobahn cryptography netifaces setuptools
     future pyutil distro configparser collections-extended
-    klein cbor2 treq
+    klein werkzeug cbor2 treq
   ];
 
   checkInputs = with python.pkgs; [

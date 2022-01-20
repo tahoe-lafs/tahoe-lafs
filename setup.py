@@ -143,6 +143,7 @@ install_requires = [
 
     # HTTP server and client
     "klein",
+    "werkzeug",
     "treq",
     "cbor2"
 ]

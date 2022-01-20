@@ -339,7 +339,7 @@ class ImmutableHTTPAPITests(AsyncTestCase):
         self.assertTrue(finished)
 
         # We can now read:
-        for offset, length in [(0, 100), (10, 19), (99, 0), (49, 200)]:
+        for offset, length in [(0, 100), (10, 19), (99, 1), (49, 200)]:
             downloaded = yield im_client.read_share_chunk(
                 storage_index, 1, offset, length
             )
