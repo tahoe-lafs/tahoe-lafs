@@ -278,4 +278,10 @@ class HTTPServer(object):
         bucket = self._storage_server.get_buckets(storage_index)[share_number]
         data = bucket.read(offset, end - offset)
         request.setResponseCode(http.PARTIAL_CONTENT)
+        # TODO set content-range on response. We we need to expand the
+        # BucketReader interface to return share's length.
+        #
+        # request.setHeader(
+        #    "content-range", range_header.make_content_range(share_length).to_header()
+        # )
         return data
