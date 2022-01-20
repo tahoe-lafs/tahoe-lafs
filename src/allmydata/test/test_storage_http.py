@@ -25,7 +25,7 @@ from treq.testing import StubTreq
 from klein import Klein
 from hyperlink import DecodedURL
 
-from .common import AsyncTestCase, SyncTestCase
+from .common import SyncTestCase
 from ..storage.server import StorageServer
 from ..storage.http_server import (
     HTTPServer,
@@ -164,7 +164,7 @@ class TestApp(object):
             return "BAD: {}".format(authorization)
 
 
-class RoutingTests(AsyncTestCase):
+class RoutingTests(SyncTestCase):
     """
     Tests for the HTTP routing infrastructure.
     """
@@ -220,7 +220,7 @@ class HttpTestFixture(Fixture):
         )
 
 
-class GenericHTTPAPITests(AsyncTestCase):
+class GenericHTTPAPITests(SyncTestCase):
     """
     Tests of HTTP client talking to the HTTP server, for generic HTTP API
     endpoints and concerns.
@@ -272,7 +272,7 @@ class GenericHTTPAPITests(AsyncTestCase):
         self.assertEqual(version, expected_version)
 
 
-class ImmutableHTTPAPITests(AsyncTestCase):
+class ImmutableHTTPAPITests(SyncTestCase):
     """
     Tests for immutable upload/download APIs.
     """
