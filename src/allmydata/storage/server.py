@@ -353,6 +353,9 @@ class StorageServer(service.MultiService):
                                   max_space_per_bucket, lease_info,
                                   clock=self._clock)
                 if self.no_storage:
+                    # Really this should be done by having a separate class for
+                    # this situation; see
+                    # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3862
                     bw.throw_out_all_data = True
                 bucketwriters[shnum] = bw
                 self._bucket_writers[incominghome] = bw
