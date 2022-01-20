@@ -210,8 +210,10 @@ class StorageClientImmutables(object):
             headers=Headers(
                 {
                     # The range is inclusive, thus the '- 1'. '*' means "length
-                    # unknown", which isn't technically true but adding it just
-                    # makes things slightly harder for calling API.
+                    # unknown", which isn't technically true but it's not clear
+                    # there's any value in passing it in. The server has to
+                    # handle this case anyway, and requiring share length means
+                    # a bit more work for the calling API with no benefit.
                     "content-range": [
                         "bytes {}-{}/*".format(offset, offset + len(data) - 1)
                     ]
