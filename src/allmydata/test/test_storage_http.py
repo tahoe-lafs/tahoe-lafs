@@ -303,7 +303,7 @@ class ImmutableHTTPAPITests(SyncTestCase):
         lease_secret = urandom(32)
         storage_index = b"".join(bytes([i]) for i in range(16))
         created = yield im_client.create(
-            storage_index, [1], 100, upload_secret, lease_secret, lease_secret
+            storage_index, {1}, 100, upload_secret, lease_secret, lease_secret
         )
         self.assertEqual(
             created, ImmutableCreateResult(already_have=set(), allocated={1})

@@ -21,7 +21,7 @@ if PY2:
 else:
     # typing module not available in Python 2, and we only do type checking in
     # Python 3 anyway.
-    from typing import Union, Set, List, Optional
+    from typing import Union, Set, Optional
     from treq.testing import StubTreq
 
 from base64 import b64encode
@@ -148,7 +148,7 @@ class StorageClientImmutables(object):
         upload_secret,
         lease_renew_secret,
         lease_cancel_secret,
-    ):  # type: (bytes, List[int], int, bytes, bytes, bytes) -> Deferred[ImmutableCreateResult]
+    ):  # type: (bytes, Set[int], int, bytes, bytes, bytes) -> Deferred[ImmutableCreateResult]
         """
         Create a new storage index for an immutable.
 
