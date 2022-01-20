@@ -349,12 +349,16 @@ class ImmutableHTTPAPITests(AsyncTestCase):
         """
         If a storage index has multiple shares, uploads to different shares are
         stored separately and can be downloaded separately.
+
+        TBD in https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3860
         """
 
     def test_bucket_allocated_with_new_shares(self):
         """
         If some shares already exist, allocating shares indicates only the new
         ones were created.
+
+        TBD in https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3860
         """
 
     def test_bucket_allocation_new_upload_key(self):
@@ -362,41 +366,57 @@ class ImmutableHTTPAPITests(AsyncTestCase):
         If a bucket was allocated with one upload key, and a different upload
         key is used to allocate the bucket again, the previous download is
         cancelled.
+
+        TBD in https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3860
         """
 
     def test_upload_with_wrong_upload_key_fails(self):
         """
         Uploading with a key that doesn't match the one used to allocate the
         bucket will fail.
+
+        TBD in https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3860
         """
 
     def test_upload_offset_cannot_be_negative(self):
         """
         A negative upload offset will be rejected.
+
+        TBD in https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3860
         """
 
     def test_mismatching_upload_fails(self):
         """
         If an uploaded chunk conflicts with an already uploaded chunk, a
         CONFLICT error is returned.
+
+        TBD in https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3860
         """
 
     def test_read_of_wrong_storage_index_fails(self):
         """
         Reading from unknown storage index results in 404.
+
+        TBD in https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3860
         """
 
     def test_read_of_wrong_share_number_fails(self):
         """
         Reading from unknown storage index results in 404.
+
+        TBD in https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3860
         """
 
     def test_read_with_negative_offset_fails(self):
         """
         The offset for reads cannot be negative.
+
+        TBD in https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3860
         """
 
     def test_read_with_negative_length_fails(self):
         """
         The length for reads cannot be negative.
+
+        TBD in https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3860
         """
