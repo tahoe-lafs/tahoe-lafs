@@ -187,7 +187,8 @@ class HTTPServer(object):
             in_progress = self._uploads[storage_index]
             if in_progress.upload_key == upload_key:
                 # Same session.
-                # TODO add BucketWriters only for new shares
+                # TODO add BucketWriters only for new shares that don't already have buckets; see the HTTP spec for details.
+                # The backend code may already implement this logic.
                 pass
             else:
                 # TODO Fail, since the secret doesnt match.
