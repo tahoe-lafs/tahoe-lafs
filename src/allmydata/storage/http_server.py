@@ -131,7 +131,7 @@ class StorageIndexUploads(object):
     shares = attr.ib()  # type: Dict[int,BucketWriter]
 
     # The upload key.
-    upload_key = attr.ib()  # type: bytes
+    upload_secret = attr.ib()  # type: bytes
 
 
 class HTTPServer(object):
@@ -180,12 +180,12 @@ class HTTPServer(object):
         """Allocate buckets."""
         storage_index = si_a2b(storage_index.encode("ascii"))
         info = loads(request.content.read())
-        upload_key = authorization[Secrets.UPLOAD]
+        upload_secret = authorization[Secrets.UPLOAD]
 
         if storage_index in self._uploads:
             # Pre-existing upload.
             in_progress = self._uploads[storage_index]
-            if in_progress.upload_key == upload_key:
+            if timing_safe_compare(in_progress.upload_secret, upload_secret):
                 # Same session.
                 # TODO add BucketWriters only for new shares that don't already have buckets; see the HTTP spec for details.
                 # The backend code may already implement this logic.
@@ -203,7 +203,7 @@ class HTTPServer(object):
                 allocated_size=info["allocated-size"],
             )
             self._uploads[storage_index] = StorageIndexUploads(
-                shares=sharenum_to_bucket, upload_key=authorization[Secrets.UPLOAD]
+                shares=sharenum_to_bucket, upload_secret=authorization[Secrets.UPLOAD]
             )
             return self._cbor(
                 request,
