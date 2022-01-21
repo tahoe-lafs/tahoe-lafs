@@ -22,6 +22,7 @@ from fixtures import Fixture, TempDir
 from treq.testing import StubTreq
 from klein import Klein
 from hyperlink import DecodedURL
+from collections_extended import RangeMap
 
 from .common import SyncTestCase
 from ..storage.server import StorageServer
@@ -37,6 +38,7 @@ from ..storage.http_client import (
     ClientException,
     StorageClientImmutables,
     ImmutableCreateResult,
+    UploadProgress,
 )
 
 
@@ -326,8 +328,12 @@ class ImmutableHTTPAPITests(SyncTestCase):
             created, ImmutableCreateResult(already_have=set(), allocated={1})
         )
 
+        remaining = RangeMap()
+        remaining.set(True, 0, 100)
+
         # Three writes: 10-19, 30-39, 50-59. This allows for a bunch of holes.
         def write(offset, length):
+            remaining.empty(offset, offset + length)
             return im_client.write_share_chunk(
                 storage_index,
                 1,
@@ -336,24 +342,38 @@ class ImmutableHTTPAPITests(SyncTestCase):
                 expected_data[offset : offset + length],
             )
 
-        finished = result_of(write(10, 10))
-        self.assertFalse(finished)
-        finished = result_of(write(30, 10))
-        self.assertFalse(finished)
-        finished = result_of(write(50, 10))
-        self.assertFalse(finished)
+        upload_progress = result_of(write(10, 10))
+        self.assertEqual(
+            upload_progress, UploadProgress(finished=False, required=remaining)
+        )
+        upload_progress = result_of(write(30, 10))
+        self.assertEqual(
+            upload_progress, UploadProgress(finished=False, required=remaining)
+        )
+        upload_progress = result_of(write(50, 10))
+        self.assertEqual(
+            upload_progress, UploadProgress(finished=False, required=remaining)
+        )
 
         # Then, an overlapping write with matching data (15-35):
-        finished = result_of(write(15, 20))
-        self.assertFalse(finished)
+        upload_progress = result_of(write(15, 20))
+        self.assertEqual(
+            upload_progress, UploadProgress(finished=False, required=remaining)
+        )
 
         # Now fill in the holes:
-        finished = result_of(write(0, 10))
-        self.assertFalse(finished)
-        finished = result_of(write(40, 10))
-        self.assertFalse(finished)
-        finished = result_of(write(60, 40))
-        self.assertTrue(finished)
+        upload_progress = result_of(write(0, 10))
+        self.assertEqual(
+            upload_progress, UploadProgress(finished=False, required=remaining)
+        )
+        upload_progress = result_of(write(40, 10))
+        self.assertEqual(
+            upload_progress, UploadProgress(finished=False, required=remaining)
+        )
+        upload_progress = result_of(write(60, 40))
+        self.assertEqual(
+            upload_progress, UploadProgress(finished=False, required=RangeMap())
+        )
 
         # We can now read:
         for offset, length in [(0, 100), (10, 19), (99, 1), (49, 200)]:

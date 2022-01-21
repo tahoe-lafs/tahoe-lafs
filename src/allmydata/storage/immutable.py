@@ -372,6 +372,16 @@ class BucketWriter(object):
         self._clock = clock
         self._timeout = clock.callLater(30 * 60, self._abort_due_to_timeout)
 
+    def required_ranges(self):  # type: () -> RangeMap
+        """
+        Return which ranges still need to be written.
+        """
+        result = RangeMap()
+        result.set(True, 0, self._max_size)
+        for start, end, _ in self._already_written.ranges():
+            result.delete(start, end)
+        return result
+
     def allocated_size(self):
         return self._max_size
 

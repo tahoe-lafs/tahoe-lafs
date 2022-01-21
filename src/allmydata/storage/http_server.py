@@ -23,6 +23,7 @@ from klein import Klein
 from twisted.web import http
 import attr
 from werkzeug.http import parse_range_header, parse_content_range_header
+from collections_extended import RangeMap
 
 # TODO Make sure to use pure Python versions?
 from cbor2 import dumps, loads
@@ -250,9 +251,10 @@ class HTTPServer(object):
         else:
             request.setResponseCode(http.OK)
 
-        # TODO spec says we should return missing ranges. but client doesn't
-        # actually use them? So is it actually useful?
-        return b""
+        required = []
+        for start, end, _ in bucket.required_ranges().ranges():
+            required.append({"begin": start, "end": end})
+        return self._cbor(request, {"required": required})
 
     @_authorized_route(
         _app,

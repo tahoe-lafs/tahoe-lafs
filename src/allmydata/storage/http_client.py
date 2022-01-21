@@ -30,7 +30,7 @@ import attr
 
 # TODO Make sure to import Python version?
 from cbor2 import loads, dumps
-
+from collections_extended import RangeMap
 from werkzeug.datastructures import Range, ContentRange
 from twisted.web.http_headers import Headers
 from twisted.web import http
@@ -131,6 +131,17 @@ class StorageClient(object):
         returnValue(decoded_response)
 
 
+@attr.s
+class UploadProgress(object):
+    """
+    Progress of immutable upload, per the server.
+    """
+    # True when upload has finished.
+    finished = attr.ib(type=bool)
+    # Remaining ranges to upload.
+    required = attr.ib(type=RangeMap)
+
+
 class StorageClientImmutables(object):
     """
     APIs for interacting with immutables.
@@ -186,7 +197,7 @@ class StorageClientImmutables(object):
     @inlineCallbacks
     def write_share_chunk(
         self, storage_index, share_number, upload_secret, offset, data
-    ):  # type: (bytes, int, bytes, int, bytes) -> Deferred[bool]
+    ):  # type: (bytes, int, bytes, int, bytes) -> Deferred[UploadProgress]
         """
         Upload a chunk of data for a specific share.
 
@@ -218,14 +229,19 @@ class StorageClientImmutables(object):
 
         if response.code == http.OK:
             # Upload is still unfinished.
-            returnValue(False)
+            finished = False
         elif response.code == http.CREATED:
             # Upload is done!
-            returnValue(True)
+            finished = True
         else:
             raise ClientException(
                 response.code,
             )
+        body = loads((yield response.content()))
+        remaining = RangeMap()
+        for chunk in body["required"]:
+            remaining.set(True, chunk["begin"], chunk["end"])
+        returnValue(UploadProgress(finished=finished, required=remaining))
 
     @inlineCallbacks
     def read_share_chunk(

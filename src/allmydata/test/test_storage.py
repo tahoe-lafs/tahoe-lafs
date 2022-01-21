@@ -276,7 +276,8 @@ class Bucket(unittest.TestCase):
     ):
         """
         The ``BucketWriter.write()`` return true if and only if the maximum
-        size has been reached via potentially overlapping writes.
+        size has been reached via potentially overlapping writes.  The
+        remaining ranges can be checked via ``BucketWriter.required_ranges()``.
         """
         incoming, final = self.make_workdir("overlapping_writes_{}".format(uuid4()))
         bw = BucketWriter(
@@ -290,6 +291,9 @@ class Bucket(unittest.TestCase):
                 local_written[i] = 1
             finished = bw.write(offset, data)
             self.assertEqual(finished, sum(local_written) == 100)
+            required_ranges = bw.required_ranges()
+            for i in range(0, 100):
+                self.assertEqual(local_written[i] == 1, required_ranges.get(i) is None)
 
     def test_read_past_end_of_share_data(self):
         # test vector for immutable files (hard-coded contents of an immutable share
