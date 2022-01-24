@@ -37,8 +37,8 @@ test-py3-all-diff: ../../.tox/make-test-py3-all.diff
 # `$ make .tox/make-test-py3-all.diff`
 $(foreach side,old new,../../.tox/make-test-py3-all-$(side).log):
 	cd "../../"
-	tox --develop --notest -e py36-coverage
-	(make VIRTUAL_ENV=./.tox/py36-coverage TEST_SUITE=allmydata \
+	tox --develop --notest -e py37-coverage
+	(make VIRTUAL_ENV=./.tox/py37-coverage TEST_SUITE=allmydata \
 		test-venv-coverage || true) | \
 		sed -E 's/\([0-9]+\.[0-9]{3} secs\)/(#.### secs)/' | \
 		tee "./misc/python3/$(@)"

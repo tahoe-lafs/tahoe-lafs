@@ -49,8 +49,8 @@ workflows:
       - "pypy27-buster":
           {}
 
-      # Just one Python 3.6 configuration while the port is in-progress.
-      - "python36":
+      # Test against Python 3:
+      - "python37":
           {}
 
       # Other assorted tasks and configurations
@@ -118,7 +118,7 @@ workflows:
           <<: *DOCKERHUB_CONTEXT
       - "build-image-pypy27-buster":
           <<: *DOCKERHUB_CONTEXT
-      - "build-image-python36-ubuntu":
+      - "build-image-python37-ubuntu":
           <<: *DOCKERHUB_CONTEXT
 
 
@@ -379,7 +379,7 @@ jobs:
         user: "nobody"
 
 
-  python36:
+  python37:
     <<: *UBUNTU_18_04
     docker:
       - <<: *DOCKERHUB_AUTH
@@ -392,7 +392,7 @@ jobs:
       # this reporter on Python 3.  So drop that and just specify the
       # reporter.
       TAHOE_LAFS_TRIAL_ARGS: "--reporter=subunitv2-file"
-      TAHOE_LAFS_TOX_ENVIRONMENT: "py36"
+      TAHOE_LAFS_TOX_ENVIRONMENT: "py37"
 
 
   ubuntu-20-04:
@@ -577,7 +577,7 @@ jobs:
       PYTHON_VERSION: "2.7"
 
 
-  build-image-python36-ubuntu:
+  build-image-python37-ubuntu:
     <<: *BUILD_IMAGE
 
     environment:
