@@ -383,7 +383,7 @@ jobs:
     <<: *UBUNTU_18_04
     docker:
       - <<: *DOCKERHUB_AUTH
-        image: "tahoelafsci/ubuntu:18.04-py3"
+        image: "tahoelafsci/ubuntu:18.04-py3.7"
         user: "nobody"
 
     environment:
@@ -583,7 +583,7 @@ jobs:
     environment:
       DISTRO: "ubuntu"
       TAG: "18.04"
-      PYTHON_VERSION: "3"
+      PYTHON_VERSION: "3.7"
 
 
   build-image-ubuntu-20-04:
