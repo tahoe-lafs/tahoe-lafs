@@ -28,15 +28,15 @@ To install Tahoe-LAFS on Windows:
 3. Open the installer by double-clicking it. Select the **Add Python to PATH** check-box, then click **Install Now**.
 
 4. Start PowerShell and enter the following command to verify python installation::
-   
+
     python --version
 
 5. Enter the following command to install Tahoe-LAFS::
-   
+
     pip install tahoe-lafs
 
 6. Verify installation by checking for the version::
-   
+
     tahoe --version
 
 If you want to hack on Tahoe's source code, you can install Tahoe in a ``virtualenv`` on your Windows Machine. To learn more, see :doc:`install-on-windows`.
@@ -56,13 +56,13 @@ If you are working on MacOS or a Linux distribution which does not have Tahoe-LA
    * **pip**: Most python installations already include `pip`. However, if your installation does not, see `pip installation <https://pip.pypa.io/en/stable/installing/>`_.
 
 2. Install Tahoe-LAFS using pip::
-   
+
     pip install tahoe-lafs
 
 3. Verify installation by checking for the version::
-   
+
     tahoe --version
 
-If you are looking to hack on the source code or run pre-release code, we recommend you install Tahoe-LAFS on a `virtualenv` instance. To learn more, see :doc:`install-on-linux`.    
+If you are looking to hack on the source code or run pre-release code, we recommend you install Tahoe-LAFS on a `virtualenv` instance. To learn more, see :doc:`install-on-linux`.
 
 You can always write to the `tahoe-dev mailing list <https://lists.tahoe-lafs.org/mailman/listinfo/tahoe-dev>`_ or chat on the `Libera.chat IRC <irc://irc.libera.chat/%23tahoe-lafs>`_ if you are not able to get Tahoe-LAFS up and running on your deployment.

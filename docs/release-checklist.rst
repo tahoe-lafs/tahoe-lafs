@@ -88,7 +88,6 @@ Create Branch and Apply Updates
   - change the value given for `version` from `OLD.post1` to `NEW.post1`
 
 - update "docs/known_issues.rst" if appropriate
-- update "docs/Installation/install-tahoe.rst" references to the new release
 - Push the branch to github
 - Create a (draft) PR; this should trigger CI (note that github
   doesn't let you create a PR without some changes on the branch so
@@ -128,6 +127,11 @@ they will need to evaluate which contributors' signatures they trust.
   - these can fail (ideally they should not of course):
 
     - ``tox -e deprecations,upcoming-deprecations``
+
+- clone to a clean, local checkout (to avoid extra files being included in the release)
+
+    - cd /tmp
+    - git clone /home/meejah/src/tahoe-lafs
 
 - build tarballs
 
@@ -176,13 +180,19 @@ need to be uploaded to https://tahoe-lafs.org in `~source/downloads`
 
 - secure-copy all release artifacts to the download area on the
   tahoe-lafs.org host machine. `~source/downloads` on there maps to
-  https://tahoe-lafs.org/downloads/ on the Web.
-- scp dist/*1.15.0* username@tahoe-lafs.org:/home/source/downloads
+  https://tahoe-lafs.org/downloads/ on the Web:
+
+    - scp dist/*1.15.0* username@tahoe-lafs.org:/home/source/downloads
+
 - the following developers have access to do this:
 
   - exarkun
   - meejah
   - warner
+
+Push the signed tag to the main repository:
+
+- git push origin tahoe-lafs-1.17.1
 
 For the actual release, the tarball and signature files need to be
 uploaded to PyPI as well.

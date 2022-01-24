@@ -352,8 +352,10 @@ class ShareFile(object):
         return space_freed
 
 
-@implementer(RIBucketWriter)
-class BucketWriter(Referenceable):  # type: ignore # warner/foolscap#78
+class BucketWriter(object):
+    """
+    Keep track of the process of writing to a ShareFile.
+    """
 
     def __init__(self, ss, incominghome, finalhome, max_size, lease_info, clock):
         self.ss = ss
@@ -373,7 +375,7 @@ class BucketWriter(Referenceable):  # type: ignore # warner/foolscap#78
     def allocated_size(self):
         return self._max_size
 
-    def remote_write(self, offset, data):
+    def write(self, offset, data):
         # Delay the timeout, since we received data:
         self._timeout.reset(30 * 60)
         start = self._clock.seconds()
@@ -396,9 +398,6 @@ class BucketWriter(Referenceable):  # type: ignore # warner/foolscap#78
         self._already_written.set(True, offset, end)
         self.ss.add_latency("write", self._clock.seconds() - start)
         self.ss.count("write")
-
-    def remote_close(self):
-        self.close()
 
     def close(self):
         precondition(not self.closed)
@@ -451,13 +450,10 @@ class BucketWriter(Referenceable):  # type: ignore # warner/foolscap#78
                 facility="tahoe.storage", level=log.UNUSUAL)
         self.abort()
 
-    def remote_abort(self):
+    def abort(self):
         log.msg("storage: aborting sharefile %s" % self.incominghome,
                 facility="tahoe.storage", level=log.UNUSUAL)
-        self.abort()
         self.ss.count("abort")
-
-    def abort(self):
         if self.closed:
             return
 
@@ -480,8 +476,28 @@ class BucketWriter(Referenceable):  # type: ignore # warner/foolscap#78
             self._timeout.cancel()
 
 
-@implementer(RIBucketReader)
-class BucketReader(Referenceable):  # type: ignore # warner/foolscap#78
+@implementer(RIBucketWriter)
+class FoolscapBucketWriter(Referenceable):  # type: ignore # warner/foolscap#78
+    """
+    Foolscap-specific BucketWriter.
+    """
+    def __init__(self, bucket_writer):
+        self._bucket_writer = bucket_writer
+
+    def remote_write(self, offset, data):
+        return self._bucket_writer.write(offset, data)
+
+    def remote_close(self):
+        return self._bucket_writer.close()
+
+    def remote_abort(self):
+        return self._bucket_writer.abort()
+
+
+class BucketReader(object):
+    """
+    Manage the process for reading from a ``ShareFile``.
+    """
 
     def __init__(self, ss, sharefname, storage_index=None, shnum=None):
         self.ss = ss
@@ -496,15 +512,31 @@ class BucketReader(Referenceable):  # type: ignore # warner/foolscap#78
                                ),
                                self.shnum)
 
-    def remote_read(self, offset, length):
+    def read(self, offset, length):
         start = time.time()
         data = self._share_file.read_share_data(offset, length)
         self.ss.add_latency("read", time.time() - start)
         self.ss.count("read")
         return data
 
+    def advise_corrupt_share(self, reason):
+        return self.ss.advise_corrupt_share(b"immutable",
+                                            self.storage_index,
+                                            self.shnum,
+                                            reason)
+
+
+@implementer(RIBucketReader)
+class FoolscapBucketReader(Referenceable):  # type: ignore # warner/foolscap#78
+    """
+    Foolscap wrapper for ``BucketReader``
+    """
+
+    def __init__(self, bucket_reader):
+        self._bucket_reader = bucket_reader
+
+    def remote_read(self, offset, length):
+        return self._bucket_reader.read(offset, length)
+
     def remote_advise_corrupt_share(self, reason):
-        return self.ss.remote_advise_corrupt_share(b"immutable",
-                                                   self.storage_index,
-                                                   self.shnum,
-                                                   reason)
+        return self._bucket_reader.advise_corrupt_share(reason)
