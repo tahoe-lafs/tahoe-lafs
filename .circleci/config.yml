@@ -511,7 +511,9 @@ jobs:
     # https://circleci.com/blog/how-to-build-a-docker-image-on-circleci-2-0/
     docker:
       - <<: *DOCKERHUB_AUTH
-        image: "docker:20.10"
+        # CircleCI build images; https://github.com/CircleCI-Public/cimg-base
+        # for details.
+        image: "cimg/base:2022.01"
 
     environment:
       DISTRO: "tahoelafsci/<DISTRO>:foo-py2"
