@@ -372,7 +372,7 @@ class ImmutableHTTPAPITests(SyncTestCase):
         )
         upload_progress = result_of(write(60, 40))
         self.assertEqual(
-            upload_progress, UploadProgress(finished=False, required=RangeMap())
+            upload_progress, UploadProgress(finished=True, required=RangeMap())
         )
 
         # We can now read:
