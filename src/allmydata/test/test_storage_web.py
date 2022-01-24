@@ -53,7 +53,6 @@ from allmydata.scripts.admin import (
 from allmydata.scripts.runner import (
     Options,
 )
-from .common_util import FakeCanary
 
 from .common_web import (
     render,
@@ -304,28 +303,27 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin):
         mutable_si_3, rs3, cs3, we3 = make_mutable(b"\x03" * 16)
         rs3a, cs3a = make_extra_lease(mutable_si_3, 1)
         sharenums = [0]
-        canary = FakeCanary()
         # note: 'tahoe debug dump-share' will not handle this file, since the
         # inner contents are not a valid CHK share
         data = b"\xff" * 1000
 
-        a,w = ss.remote_allocate_buckets(immutable_si_0, rs0, cs0, sharenums,
-                                         1000, canary)
-        w[0].remote_write(0, data)
-        w[0].remote_close()
+        a,w = ss.allocate_buckets(immutable_si_0, rs0, cs0, sharenums,
+                                  1000)
+        w[0].write(0, data)
+        w[0].close()
 
-        a,w = ss.remote_allocate_buckets(immutable_si_1, rs1, cs1, sharenums,
-                                         1000, canary)
-        w[0].remote_write(0, data)
-        w[0].remote_close()
-        ss.remote_add_lease(immutable_si_1, rs1a, cs1a)
+        a,w = ss.allocate_buckets(immutable_si_1, rs1, cs1, sharenums,
+                                  1000)
+        w[0].write(0, data)
+        w[0].close()
+        ss.add_lease(immutable_si_1, rs1a, cs1a)
 
-        writev = ss.remote_slot_testv_and_readv_and_writev
+        writev = ss.slot_testv_and_readv_and_writev
         writev(mutable_si_2, (we2, rs2, cs2),
                {0: ([], [(0,data)], len(data))}, [])
         writev(mutable_si_3, (we3, rs3, cs3),
                {0: ([], [(0,data)], len(data))}, [])
-        ss.remote_add_lease(mutable_si_3, rs3a, cs3a)
+        ss.add_lease(mutable_si_3, rs3a, cs3a)
 
         self.sis = [immutable_si_0, immutable_si_1, mutable_si_2, mutable_si_3]
         self.renew_secrets = [rs0, rs1, rs1a, rs2, rs3, rs3a]

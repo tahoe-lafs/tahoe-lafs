@@ -50,7 +50,9 @@ from allmydata.util.assertutil import _assert
 
 from allmydata import uri as tahoe_uri
 from allmydata.client import _Client
-from allmydata.storage.server import StorageServer, storage_index_to_dir
+from allmydata.storage.server import (
+    StorageServer, storage_index_to_dir, FoolscapStorageServer,
+)
 from allmydata.util import fileutil, idlib, hashutil
 from allmydata.util.hashutil import permute_server_hash
 from allmydata.util.fileutil import abspath_expanduser_unicode
@@ -417,7 +419,7 @@ class NoNetworkGrid(service.MultiService):
         ss.setServiceParent(middleman)
         serverid = ss.my_nodeid
         self.servers_by_number[i] = ss
-        wrapper = wrap_storage_server(ss)
+        wrapper = wrap_storage_server(FoolscapStorageServer(ss))
         self.wrappers_by_id[serverid] = wrapper
         self.proxies_by_id[serverid] = NoNetworkServer(serverid, wrapper)
         self.rebuild_serverlist()

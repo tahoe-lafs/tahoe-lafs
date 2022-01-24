@@ -1,8 +1,4 @@
 
-from .common_util import (
-    FakeCanary,
-)
-
 def upload_immutable(storage_server, storage_index, renew_secret, cancel_secret, shares):
     """
     Synchronously upload some immutable shares to a ``StorageServer``.
@@ -20,17 +16,16 @@ def upload_immutable(storage_server, storage_index, renew_secret, cancel_secret,
 
     :return: ``None``
     """
-    already, writers = storage_server.remote_allocate_buckets(
+    already, writers = storage_server.allocate_buckets(
         storage_index,
         renew_secret,
         cancel_secret,
         shares.keys(),
         len(next(iter(shares.values()))),
-        canary=FakeCanary(),
     )
     for shnum, writer in writers.items():
-        writer.remote_write(0, shares[shnum])
-        writer.remote_close()
+        writer.write(0, shares[shnum])
+        writer.close()
 
 
 def upload_mutable(storage_server, storage_index, secrets, shares):
@@ -57,7 +52,7 @@ def upload_mutable(storage_server, storage_index, secrets, shares):
     }
     read_vector = []
 
-    storage_server.remote_slot_testv_and_readv_and_writev(
+    storage_server.slot_testv_and_readv_and_writev(
         storage_index,
         secrets,
         test_and_write_vectors,
