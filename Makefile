@@ -35,7 +35,7 @@ test: .tox/create-venvs.log
 # Run codechecks first since it takes the least time to report issues early.
 	tox --develop -e codechecks
 # Run all the test environments in parallel to reduce run-time
-	tox --develop -p auto -e 'py27,py36,pypy27'
+	tox --develop -p auto -e 'py27,py37,pypy27'
 .PHONY: test-venv-coverage
 ## Run all tests with coverage collection and reporting.
 test-venv-coverage:
@@ -51,7 +51,7 @@ test-venv-coverage:
 .PHONY: test-py3-all
 ## Run all tests under Python 3
 test-py3-all: .tox/create-venvs.log
-	tox --develop -e py36 allmydata
+	tox --develop -e py37 allmydata
 
 # This is necessary only if you want to automatically produce a new
 # _version.py file from the current git history (without doing a build).

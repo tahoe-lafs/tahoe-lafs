@@ -49,8 +49,8 @@ workflows:
       - "pypy27-buster":
           {}
 
-      # Just one Python 3.6 configuration while the port is in-progress.
-      - "python36":
+      # Test against Python 3:
+      - "python37":
           {}
 
       # Other assorted tasks and configurations
@@ -118,7 +118,7 @@ workflows:
           <<: *DOCKERHUB_CONTEXT
       - "build-image-pypy27-buster":
           <<: *DOCKERHUB_CONTEXT
-      - "build-image-python36-ubuntu":
+      - "build-image-python37-ubuntu":
           <<: *DOCKERHUB_CONTEXT
 
 
@@ -379,11 +379,11 @@ jobs:
         user: "nobody"
 
 
-  python36:
+  python37:
     <<: *UBUNTU_18_04
     docker:
       - <<: *DOCKERHUB_AUTH
-        image: "tahoelafsci/ubuntu:18.04-py3"
+        image: "tahoelafsci/ubuntu:18.04-py3.7"
         user: "nobody"
 
     environment:
@@ -392,7 +392,7 @@ jobs:
       # this reporter on Python 3.  So drop that and just specify the
       # reporter.
       TAHOE_LAFS_TRIAL_ARGS: "--reporter=subunitv2-file"
-      TAHOE_LAFS_TOX_ENVIRONMENT: "py36"
+      TAHOE_LAFS_TOX_ENVIRONMENT: "py37"
 
 
   ubuntu-20-04:
@@ -511,7 +511,9 @@ jobs:
     # https://circleci.com/blog/how-to-build-a-docker-image-on-circleci-2-0/
     docker:
       - <<: *DOCKERHUB_AUTH
-        image: "docker:17.05.0-ce-git"
+        # CircleCI build images; https://github.com/CircleCI-Public/cimg-base
+        # for details.
+        image: "cimg/base:2022.01"
 
     environment:
       DISTRO: "tahoelafsci/<DISTRO>:foo-py2"
@@ -577,13 +579,13 @@ jobs:
       PYTHON_VERSION: "2.7"
 
 
-  build-image-python36-ubuntu:
+  build-image-python37-ubuntu:
     <<: *BUILD_IMAGE
 
     environment:
       DISTRO: "ubuntu"
       TAG: "18.04"
-      PYTHON_VERSION: "3"
+      PYTHON_VERSION: "3.7"
 
 
   build-image-ubuntu-20-04:
