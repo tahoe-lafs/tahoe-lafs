@@ -1,14 +1,27 @@
 let
   sources = import nix/sources.nix;
 in
-{ pkgsVersion ? "nixpkgs-21.11"
-, pkgs ? import sources.${pkgsVersion} { }
-, pypiData ? sources.pypi-deps-db
-, pythonVersion ? "python37"
-, mach-nix ? import sources.mach-nix {
+{
+  pkgsVersion ? "nixpkgs-21.11" # a string which choses a nixpkgs from the
+                                # niv-managed sources data
+
+, pkgs ? import sources.${pkgsVersion} { } # nixpkgs itself
+
+, pypiData ? sources.pypi-deps-db # the pypi package database snapshot to use
+                                  # for dependency resolution
+
+, pythonVersion ? "python37" # a string chosing the python derivation from
+                             # nixpkgs to target
+
+, extras ? [] # a list of strings identifying tahoe-lafs extras, the
+              # dependencies of which the resulting package will also depend
+              # on
+
+, mach-nix ? import sources.mach-nix { # the mach-nix package to use to build
+                                       # the tahoe-lafs package
     inherit pkgs pypiData;
     python = pythonVersion;
-  }
+}
 }:
 # The project name, version, and most other metadata are automatically
 # extracted from the source.  Some requirements are not properly extracted
@@ -21,6 +34,9 @@ mach-nix.buildPythonPackage {
   # files, nix's own `result` symlink, etc) as possible to avoid needing to
   # re-build when files that make no difference to the package have changed.
   src = pkgs.lib.cleanSource ./.;
+
+  # Select whichever package extras were requested.
+  inherit extras;
 
   # Define some extra requirements that mach-nix does not automatically detect
   # from inspection of the source.  We typically don't need to put version
