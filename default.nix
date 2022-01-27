@@ -43,6 +43,9 @@ mach-nix.buildPythonPackage {
     pyrsistent
   '';
 
+  # Specify where mach-nix should find packages for our Python dependencies.
+  # There are some reasonable defaults so we only need to specify certain
+  # packages where the default configuration runs into some issue.
   providers = {
     # Through zfec 1.5.5 the wheel has an incorrect runtime dependency
     # declared on argparse, not available for recent versions of Python 3.
