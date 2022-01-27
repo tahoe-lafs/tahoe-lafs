@@ -39,11 +39,11 @@ workflows:
       - "centos-8":
           {}
 
-      - "nixos-21-05":
-          {}
+      - "nixos":
+          nixpkgs: "21.05"
 
-      - "nixos-21-11":
-          {}
+      - "nixos":
+          nixpkgs: "21.11"
 
       # Test against PyPy 2.7
       - "pypy27-buster":
@@ -441,16 +441,24 @@ jobs:
         image: "tahoelafsci/fedora:29-py"
         user: "nobody"
 
-  nixos-21-05: &NIXOS
+  nixos:
+    parameters:
+      nixpkgs:
+        description: >-
+          Reference the name of a niv-managed nixpkgs source (see `niv show`
+          and nix/sources.json)
+        type: "string"
+
     docker:
       # Run in a highly Nix-capable environment.
       - <<: *DOCKERHUB_AUTH
         image: "nixos/nix:2.3.16"
 
     environment:
-      # Reference the name of a niv-managed nixpkgs source (see `niv show` and
-      # nix/sources.json)
-      NIXPKGS: "21.05"
+      # CACHIX_AUTH_TOKEN is manually set in the CircleCI web UI and
+      # allows us to push to CACHIX_NAME.  We only need this set for
+      # `cachix use` in this step.
+      CACHIX_NAME: "tahoe-lafs-opensource"
 
     steps:
       - "run":
@@ -460,7 +468,7 @@ jobs:
           name: "Install Basic Dependencies"
           command: |
             nix-env \
-              --file https://github.com/nixos/nixpkgs/archive/nixos-${NIXPKGS}.tar.gz \
+              --file https://github.com/nixos/nixpkgs/archive/nixos-<<parameters.nixpkgs>>.tar.gz \
               --install \
               -A openssh cachix bash
 
@@ -468,11 +476,6 @@ jobs:
 
       - run:
           name: "Cachix setup"
-          environment:
-            # CACHIX_AUTH_TOKEN is manually set in the CircleCI web UI and
-            # allows us to push to CACHIX_NAME.  We only need this set for
-            # `cachix use` in this step.
-            CACHIX_NAME: "tahoe-lafs-opensource"
           # Record the store paths that exist before we did much.  There's no
           # reason to cache these, they're either in the image or have to be
           # retrieved before we can use cachix to restore from cache.
@@ -489,7 +492,7 @@ jobs:
               --run 'python setup.py update_version'
 
       - "run":
-          name: "Build and Test"
+          name: "Build"
           command: |
             # CircleCI build environment looks like it has a zillion and a
             # half cores.  Don't let Nix autodetect this high core count
@@ -501,7 +504,13 @@ jobs:
             # build a couple simple little dependencies that don't take
             # advantage of multiple cores and we get a little speedup by doing
             # them in parallel.
-            nix-build --cores 3 --max-jobs 2 --argstr pkgsVersion "nixpkgs-$NIXPKGS"
+            nix-build --cores 3 --max-jobs 2 --argstr pkgsVersion "nixpkgs-<<parameters.nixpkgs>>"
+
+      - "run":
+          name: "Test"
+          command: |
+            # Let it go somewhat wild for the test suite itself
+            nix-build --cores 8 --argstr pkgsVersion "nixpkgs-<<parameters.nixpkgs>>" tests.nix
 
       - run:
           # Send any new store objects to cachix.
@@ -522,12 +531,6 @@ jobs:
               # https://docs.cachix.org/continuous-integration-setup/circleci.html
               bash -c "comm -13 <(sort /tmp/store-path-pre-build | grep -v '\.drv$') <(nix path-info --all | grep -v '\.drv$' | sort) | cachix push $CACHIX_NAME"
             fi
-
-  nixos-21-11:
-    <<: *NIXOS
-
-    environment:
-      NIXPKGS: "21.11"
 
   typechecks:
     docker:
