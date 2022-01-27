@@ -456,7 +456,7 @@ jobs:
       - "checkout"
       - "run":
           # The Nix package doesn't know how to do this part, unfortunately.
-          name: "Generation version"
+          name: "Generate version"
           command: >-
             nix-shell .circleci/python.nix
               --argstr pkgsVersion "$NIXPKGS"
