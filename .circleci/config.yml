@@ -451,19 +451,32 @@ jobs:
       # Reference the name of a niv-managed nixpkgs source (see `niv show` and
       # nix/sources.json)
       NIXPKGS: "21.05"
+      # CACHIX_AUTH_TOKEN is manually set in the CircleCI web UI and allows us
+      # to push to CACHIX_NAME.
+      CACHIX_NAME: "tahoe-lafs-opensource"
 
     steps:
       - "run":
           # The nixos/nix image does not include ssh.  Install it so the
-          # `checkout` step will succeed.
+          # `checkout` step will succeed.  We also want cachix for
+          # Nix-friendly caching.
           name: "Install Basic Dependencies"
           command: |
             nix-env \
               --file https://github.com/nixos/nixpkgs/archive/nixos-${NIXPKGS}.tar.gz \
               --install \
-              -A openssh
+              -A openssh cachix bash
 
       - "checkout"
+
+      - run:
+          name: "Cachix setup"
+          # Record the store paths that exist before we did much.  There's no
+          # reason to cache these, they're either in the image or have to be
+          # retrieved before we can use cachix to restore from cache.
+          command: |
+            cachix use "${CACHIX_NAME}"
+            nix path-info --all > /tmp/store-path-pre-build
 
       - "run":
           # The Nix package doesn't know how to do this part, unfortunately.
@@ -487,6 +500,26 @@ jobs:
             # advantage of multiple cores and we get a little speedup by doing
             # them in parallel.
             nix-build --cores 3 --max-jobs 2 --argstr pkgsVersion "nixpkgs-$NIXPKGS"
+
+      - run:
+          # Send any new store objects to cachix.
+          name: "Push to Cachix"
+          when: "always"
+          command: |
+            # Cribbed from
+            # https://circleci.com/blog/managing-secrets-when-you-have-pull-requests-from-outside-contributors/
+            if [ -n "$CIRCLE_PR_NUMBER" ]; then
+              # I'm sure you're thinking "CIRCLE_PR_NUMBER must just be the
+              # number of the PR being built".  Sorry, dear reader, you have
+              # guessed poorly.  It is also conditionally set based on whether
+              # this is a PR from a fork or not.
+              #
+              # https://circleci.com/docs/2.0/env-vars/#built-in-environment-variables
+              echo "Skipping Cachix push for forked PR."
+            else
+              # https://docs.cachix.org/continuous-integration-setup/circleci.html
+              bash -c "comm -13 <(sort /tmp/store-path-pre-build | grep -v '\.drv$') <(nix path-info --all | grep -v '\.drv$' | sort) | cachix push $CACHIX_NAME"
+            fi
 
   nixos-21-11:
     <<: *NIXOS
