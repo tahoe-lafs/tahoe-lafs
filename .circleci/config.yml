@@ -450,17 +450,16 @@ jobs:
     environment:
       # Reference the name of a niv-managed nixpkgs source (see `niv show` and
       # nix/sources.json)
-      NIXPKGS: "nixpkgs-21.05"
+      NIXPKGS: "21.05"
 
     steps:
       - "run":
           name: "Install Basic Dependencies"
           command: |
             nix-env \
-              -f .circleci/env.nix \
-              --argstr pkgsVersion "$NIXPKGS" \
+              -I nixpkgs=https://github.com/nixos/nixpkgs/archive/nixos-${NIXPKGS}.tar.gz\
               --install \
-              -A ssh python3
+              -A git openssh python3
 
       - "checkout"
 
@@ -483,13 +482,13 @@ jobs:
             # build a couple simple little dependencies that don't take
             # advantage of multiple cores and we get a little speedup by doing
             # them in parallel.
-            nix-build --cores 3 --max-jobs 2 --argstr pkgsVersion "$NIXPKGS"
+            nix-build --cores 3 --max-jobs 2 --argstr pkgsVersion "nixpkgs-$NIXPKGS"
 
   nixos-21-11:
     <<: *NIXOS
 
     environment:
-      NIXPKGS: "nixpkgs-21.11"
+      NIXPKGS: "21.11"
 
   typechecks:
     docker:
