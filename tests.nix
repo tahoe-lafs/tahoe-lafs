@@ -29,4 +29,14 @@ in
 # Make a derivation that runs the unit test suite.
 pkgs.runCommand "tahoe-lafs-tests" { } ''
   ${python-env}/bin/python -m twisted.trial -j $NIX_BUILD_CORES allmydata
+
+  # It's not cool to put the whole _trial_temp into $out because it has weird
+  # files in it we don't want in the store.  Plus, even all of the less weird
+  # files are mostly just trash that's not meaningful if the test suite passes
+  # (which is the only way we get $out anyway).
+  #
+  # The build log itself is typically available from `nix-store --read-log` so
+  # we don't need to record that either.
+  echo "passed" >$out
+
 ''
