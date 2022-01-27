@@ -445,7 +445,7 @@ jobs:
     docker:
       # Run in a highly Nix-capable environment.
       - <<: *DOCKERHUB_AUTH
-        image: "nixorg/nix:circleci"
+        image: "nixos/nix:2.3.16"
 
     environment:
       # Reference the name of a niv-managed nixpkgs source (see `niv show` and
