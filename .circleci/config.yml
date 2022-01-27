@@ -454,12 +454,14 @@ jobs:
 
     steps:
       - "run":
+          # The nixos/nix image does not include ssh.  Install it so the
+          # `checkout` step will succeed.
           name: "Install Basic Dependencies"
           command: |
             nix-env \
               --file https://github.com/nixos/nixpkgs/archive/nixos-${NIXPKGS}.tar.gz \
               --install \
-              -A git openssh
+              -A openssh
 
       - "checkout"
 
