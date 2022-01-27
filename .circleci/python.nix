@@ -2,7 +2,8 @@
 let
   sources = import ../nix/sources.nix;
 in
-{ pkgs ? import sources."nixpkgs-21.11" { }
+{ pkgsVersion
+, pkgs ? import sources.${pkgsVersion} { }
 }:
 pkgs.mkShell {
   buildInputs = [
