@@ -39,10 +39,10 @@ workflows:
       - "centos-8":
           {}
 
-      - "nixos-19-09":
+      - "nixos-21-05":
           {}
 
-      - "nixos-21-05":
+      - "nixos-21-11":
           {}
 
       # Test against PyPy 2.7
@@ -441,15 +441,16 @@ jobs:
         image: "tahoelafsci/fedora:29-py"
         user: "nobody"
 
-  nixos-19-09: &NIXOS
+  nixos-21.05: &NIXOS
     docker:
       # Run in a highly Nix-capable environment.
       - <<: *DOCKERHUB_AUTH
         image: "nixorg/nix:circleci"
 
     environment:
-      NIX_PATH: "nixpkgs=https://github.com/NixOS/nixpkgs-channels/archive/nixos-19.09-small.tar.gz"
-      SOURCE: "nix/"
+      # Reference the name of a niv-managed nixpkgs source (see `niv show` and
+      # nix/sources.json)
+      NIXPKGS: "nixpkgs-21.05"
 
     steps:
       - "checkout"
@@ -466,17 +467,13 @@ jobs:
             # build a couple simple little dependencies that don't take
             # advantage of multiple cores and we get a little speedup by doing
             # them in parallel.
-            nix-build --cores 3 --max-jobs 2 "$SOURCE"
+            nix-build --cores 3 --max-jobs 2 --argstr pkgsVersion "$NIXPKGS"
 
-  nixos-21-05:
+  nixos-21-11:
     <<: *NIXOS
 
     environment:
-      # Note this doesn't look more similar to the 19.09 NIX_PATH URL because
-      # there was some internal shuffling by the NixOS project about how they
-      # publish stable revisions.
-      NIX_PATH: "nixpkgs=https://github.com/NixOS/nixpkgs/archive/d32b07e6df276d78e3640eb43882b80c9b2b3459.tar.gz"
-      SOURCE: "nix/py3.nix"
+      NIXPKGS: "nixpkgs-21.11"
 
   typechecks:
     docker:
