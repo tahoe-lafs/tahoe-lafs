@@ -459,7 +459,7 @@ jobs:
             nix-env \
               -I nixpkgs=https://github.com/nixos/nixpkgs/archive/nixos-${NIXPKGS}.tar.gz\
               --install \
-              -A git openssh python3
+              -A nixos.git nixos.openssh nixos.python3
 
       - "checkout"
 
