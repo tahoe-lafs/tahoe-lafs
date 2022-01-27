@@ -459,7 +459,7 @@ jobs:
             nix-env \
               --file https://github.com/nixos/nixpkgs/archive/nixos-${NIXPKGS}.tar.gz \
               --install \
-              -A git openssh 'python3.withPackages (ps: [ ps.setuptools ])'
+              -A git openssh
 
       - "checkout"
 
@@ -467,7 +467,9 @@ jobs:
           # The Nix package doesn't know how to do this part, unfortunately.
           name: "Generate version"
           command: |
-            python setup.py update_version
+            nix-shell \
+              -p 'python3.withPackages (ps: [ ps.setuptools ])' \
+              --run 'python setup.py update_version'
 
       - "run":
           name: "Build and Test"
