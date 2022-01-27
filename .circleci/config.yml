@@ -451,9 +451,6 @@ jobs:
       # Reference the name of a niv-managed nixpkgs source (see `niv show` and
       # nix/sources.json)
       NIXPKGS: "21.05"
-      # CACHIX_AUTH_TOKEN is manually set in the CircleCI web UI and allows us
-      # to push to CACHIX_NAME.
-      CACHIX_NAME: "tahoe-lafs-opensource"
 
     steps:
       - "run":
@@ -471,6 +468,11 @@ jobs:
 
       - run:
           name: "Cachix setup"
+          environment:
+            # CACHIX_AUTH_TOKEN is manually set in the CircleCI web UI and
+            # allows us to push to CACHIX_NAME.  We only need this set for
+            # `cachix use` in this step.
+            CACHIX_NAME: "tahoe-lafs-opensource"
           # Record the store paths that exist before we did much.  There's no
           # reason to cache these, they're either in the image or have to be
           # retrieved before we can use cachix to restore from cache.
