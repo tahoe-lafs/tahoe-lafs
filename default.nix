@@ -80,6 +80,10 @@ mach-nix.buildPythonPackage {
         sha256 = "1md9i2fx1ya7mgcj9j01z58hs3q9pj4ch5is5b5kq4v86cf6x33x";
       })
     ];
-  };
 
+    # Remove a click-default-group patch for a test suite problem which no
+    # longer applies because the project apparently no longer has a test suite
+    # in its source distribution.
+    click-default-group.patches = [];
+  };
 }
