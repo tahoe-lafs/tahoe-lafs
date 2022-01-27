@@ -455,6 +455,12 @@ jobs:
     steps:
       - "checkout"
       - "run":
+          name: "Generation version"
+          command: |
+            # The Nix package doesn't know how to do this part, unfortunately.
+            nix-shell -p python --run 'python setup.py update_version'
+
+      - "run":
           name: "Build and Test"
           command: |
             # CircleCI build environment looks like it has a zillion and a
