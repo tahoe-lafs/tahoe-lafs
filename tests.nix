@@ -16,9 +16,15 @@ let
   tahoe-lafs = import ./. (args // { extras = [ "test" ]; });
 
   # Put it into a Python environment.
-  python-env = pkgs.${pythonVersion}.withPackages (ps: [
-    tahoe-lafs
-  ]);
+  python-env = mach-nix.mkPython {
+    inherit (tahoe-lafs.meta.mach-nix) providers _;
+    packagesExtra = [ tahoe-lafs ];
+    requirements = ''
+    # txi2p-tahoe is another dependency with an environment marker that
+    # mach-nix doesn't automatically pick up.
+    txi2p-tahoe
+    '';
+  };
 in
 # Make a derivation that runs the unit test suite.
 pkgs.runCommand "tahoe-lafs-tests" { } ''

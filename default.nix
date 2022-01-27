@@ -28,7 +28,7 @@ in
 # and those cases are handled below.  The version can only be extracted if
 # `setup.py update_version` has been run (this is not at all ideal but it
 # seems difficult to fix) - so for now just be sure to run that first.
-mach-nix.buildPythonPackage {
+mach-nix.buildPythonPackage rec {
   # Define the location of the Tahoe-LAFS source to be packaged.  Clean up all
   # as many of the non-source files (eg the `.git` directory, `~` backup
   # files, nix's own `result` symlink, etc) as possible to avoid needing to
@@ -85,5 +85,9 @@ mach-nix.buildPythonPackage {
     # longer applies because the project apparently no longer has a test suite
     # in its source distribution.
     click-default-group.patches = [];
+  };
+
+  passthru.meta.mach-nix = {
+    inherit providers _;
   };
 }
