@@ -453,14 +453,22 @@ jobs:
       NIXPKGS: "nixpkgs-21.05"
 
     steps:
+      - "run":
+          name: "Install Basic Dependencies"
+          command: |
+            nix-env \
+              -f .circleci/env.nix \
+              --argstr pkgsVersion "$NIXPKGS" \
+              --install \
+              -A ssh python3
+
       - "checkout"
+
       - "run":
           # The Nix package doesn't know how to do this part, unfortunately.
           name: "Generate version"
           command: |
-            nix-shell .circleci/python.nix \
-              --argstr pkgsVersion "$NIXPKGS" \
-              --run 'python setup.py update_version'
+            python setup.py update_version
 
       - "run":
           name: "Build and Test"

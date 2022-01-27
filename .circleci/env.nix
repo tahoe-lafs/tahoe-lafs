@@ -5,10 +5,9 @@ in
 { pkgsVersion
 , pkgs ? import sources.${pkgsVersion} { }
 }:
-pkgs.mkShell {
-  buildInputs = [
-    (pkgs.python3.withPackages (ps: [
-      ps.setuptools
-    ]))
-  ];
+{
+  ssh = pkgs.openssh;
+  python = pkgs.python3.withPackages (ps: [
+    ps.setuptools
+  ]);
 }
