@@ -40,9 +40,11 @@ workflows:
           {}
 
       - "nixos":
+          name: "NixOS 21.05"
           nixpkgs: "21.05"
 
       - "nixos":
+          name: "NixOS 21.11"
           nixpkgs: "21.11"
 
       # Test against PyPy 2.7
