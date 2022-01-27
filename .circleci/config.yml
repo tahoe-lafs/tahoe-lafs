@@ -441,7 +441,7 @@ jobs:
         image: "tahoelafsci/fedora:29-py"
         user: "nobody"
 
-  nixos-21.05: &NIXOS
+  nixos-21-05: &NIXOS
     docker:
       # Run in a highly Nix-capable environment.
       - <<: *DOCKERHUB_AUTH
