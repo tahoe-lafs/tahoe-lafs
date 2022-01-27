@@ -457,9 +457,9 @@ jobs:
           name: "Install Basic Dependencies"
           command: |
             nix-env \
-              -I nixpkgs=https://github.com/nixos/nixpkgs/archive/nixos-${NIXPKGS}.tar.gz\
+              --file https://github.com/nixos/nixpkgs/archive/nixos-${NIXPKGS}.tar.gz \
               --install \
-              -A nixos.git nixos.openssh nixos.python3
+              -A git openssh python3
 
       - "checkout"
 
