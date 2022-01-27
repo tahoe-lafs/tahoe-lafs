@@ -455,9 +455,9 @@ jobs:
     steps:
       - "checkout"
       - "run":
+          # The Nix package doesn't know how to do this part, unfortunately.
           name: "Generation version"
           command: >-
-            # The Nix package doesn't know how to do this part, unfortunately.
             nix-shell .circleci/python.nix
               --argstr pkgsVersion "$NIXPKGS"
               --run 'python setup.py update_version'
