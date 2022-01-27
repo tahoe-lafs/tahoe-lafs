@@ -458,7 +458,7 @@ jobs:
           name: "Generation version"
           command: |
             # The Nix package doesn't know how to do this part, unfortunately.
-            nix-shell -p python --run 'python setup.py update_version'
+            nix-shell .circleci/python.nix --run 'python setup.py update_version'
 
       - "run":
           name: "Build and Test"
