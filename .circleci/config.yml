@@ -457,9 +457,9 @@ jobs:
       - "run":
           # The Nix package doesn't know how to do this part, unfortunately.
           name: "Generate version"
-          command: >-
-            nix-shell .circleci/python.nix
-              --argstr pkgsVersion "$NIXPKGS"
+          command: |
+            nix-shell .circleci/python.nix \
+              --argstr pkgsVersion "$NIXPKGS" \
               --run 'python setup.py update_version'
 
       - "run":
