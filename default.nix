@@ -13,9 +13,12 @@ in
 , pythonVersion ? "python37" # a string chosing the python derivation from
                              # nixpkgs to target
 
-, extras ? [] # a list of strings identifying tahoe-lafs extras, the
-              # dependencies of which the resulting package will also depend
-              # on
+, extras ? [ "tor" "i2p" ] # a list of strings identifying tahoe-lafs extras,
+                           # the dependencies of which the resulting package
+                           # will also depend on.  Include all of the runtime
+                           # extras by default because the incremental cost of
+                           # including them is a lot smaller than the cost of
+                           # re-building the whole thing to add them.
 
 , mach-nix ? import sources.mach-nix { # the mach-nix package to use to build
                                        # the tahoe-lafs package
