@@ -530,7 +530,24 @@ jobs:
               # https://circleci.com/docs/2.0/env-vars/#built-in-environment-variables
               echo "Skipping Cachix push for forked PR."
             else
+              # If this *isn't* a build from a fork then we have the Cachix
+              # write key in our environment and we can push any new objects
+              # to Cachix.
+              #
+              # To decide what to push, we inspect the list of store objects
+              # that existed before and after we did most of our work.  Any
+              # that are new after the work is probably a useful thing to have
+              # around so push it to the cache.  We exclude all derivation
+              # objects (.drv files) because they're cheap to reconstruct and
+              # by the time you know their cache key you've already done all
+              # the work anyway.
+              #
+              # This shell expression for finding the objects and pushing them
+              # was from the Cachix docs:
+              #
               # https://docs.cachix.org/continuous-integration-setup/circleci.html
+              #
+              # but they seem to have removed it now.
               bash -c "comm -13 <(sort /tmp/store-path-pre-build | grep -v '\.drv$') <(nix path-info --all | grep -v '\.drv$' | sort) | cachix push $CACHIX_NAME"
             fi
 
