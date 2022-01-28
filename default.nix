@@ -2,7 +2,7 @@ let
   sources = import nix/sources.nix;
 in
 {
-  pkgsVersion ? "nixpkgs-21.11" # a string which choses a nixpkgs from the
+  pkgsVersion ? "nixpkgs-21.11" # a string which chooses a nixpkgs from the
                                 # niv-managed sources data
 
 , pkgs ? import sources.${pkgsVersion} { } # nixpkgs itself
@@ -10,7 +10,7 @@ in
 , pypiData ? sources.pypi-deps-db # the pypi package database snapshot to use
                                   # for dependency resolution
 
-, pythonVersion ? "python37" # a string chosing the python derivation from
+, pythonVersion ? "python37" # a string choosing the python derivation from
                              # nixpkgs to target
 
 , extras ? [ "tor" "i2p" ] # a list of strings identifying tahoe-lafs extras,
