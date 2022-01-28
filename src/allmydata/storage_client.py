@@ -75,6 +75,7 @@ from allmydata.util.observer import ObserverList
 from allmydata.util.rrefutil import add_version_to_remote_reference
 from allmydata.util.hashutil import permute_server_hash
 from allmydata.util.dictutil import BytesKeyDict, UnicodeKeyDict
+from allmydata.storage.http_client import StorageClient
 
 
 # who is responsible for de-duplication?
@@ -1024,3 +1025,40 @@ class _StorageServer(object):
             shnum,
             reason,
         ).addErrback(log.err, "Error from remote call to advise_corrupt_share")
+
+
+# WORK IN PROGRESS, for now it doesn't actually implement whole thing.
+@implementer(IStorageServer)  # type: ignore
+@attr.s
+class _HTTPStorageServer(object):
+    """
+    Talk to remote storage server over HTTP.
+    """
+    _http_client = attr.ib(type=StorageClient)
+
+    @staticmethod
+    def from_http_client(http_client):  # type: (StorageClient) -> _HTTPStorageServer
+        """
+        Create an ``IStorageServer`` from a HTTP ``StorageClient``.
+        """
+        return _HTTPStorageServer(_http_client=http_client)
+
+    def get_version(self):
+        return self._http_client.get_version()
+
+    def allocate_buckets(
+            self,
+            storage_index,
+            renew_secret,
+            cancel_secret,
+            sharenums,
+            allocated_size,
+            canary,
+    ):
+        pass
+
+    def get_buckets(
+            self,
+            storage_index,
+    ):
+        pass
