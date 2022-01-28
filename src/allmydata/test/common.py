@@ -28,6 +28,7 @@ __all__ = [
 
 import sys
 import os, random, struct
+from contextlib import contextmanager
 import six
 import tempfile
 from tempfile import mktemp
@@ -87,6 +88,7 @@ from allmydata.interfaces import (
     SDMF_VERSION,
     MDMF_VERSION,
     IAddressFamily,
+    NoSpace,
 )
 from allmydata.check_results import CheckResults, CheckAndRepairResults, \
      DeepCheckResults, DeepCheckAndRepairResults
@@ -138,6 +140,42 @@ EMPTY_CLIENT_CONFIG = config_from_string(
     "tub.port",
     ""
 )
+
+@attr.s
+class FakeDisk(object):
+    """
+    Just enough of a disk to be able to report free / used information.
+    """
+    total = attr.ib()
+    used = attr.ib()
+
+    def use(self, num_bytes):
+        """
+        Mark some amount of available bytes as used (and no longer available).
+
+        :param int num_bytes: The number of bytes to use.
+
+        :raise NoSpace: If there are fewer bytes available than ``num_bytes``.
+
+        :return: ``None``
+        """
+        if num_bytes > self.total - self.used:
+            raise NoSpace()
+        self.used += num_bytes
+
+    @property
+    def available(self):
+        return self.total - self.used
+
+    def get_disk_stats(self, whichdir, reserved_space):
+        avail = self.available
+        return {
+            'total': self.total,
+            'free_for_root': avail,
+            'free_for_nonroot': avail,
+            'used': self.used,
+            'avail': avail - reserved_space,
+        }
 
 
 @attr.s
@@ -1234,6 +1272,29 @@ class ConstantAddresses(object):
             raise Exception("{!r} has no client endpoint.")
         return self._handler
 
+@contextmanager
+def disable_modules(*names):
+    """
+    A context manager which makes modules appear to be missing while it is
+    active.
+
+    :param *names: The names of the modules to disappear.  Only top-level
+        modules are supported (that is, "." is not allowed in any names).
+        This is an implementation shortcoming which could be lifted if
+        desired.
+    """
+    if any("." in name for name in names):
+        raise ValueError("Names containing '.' are not supported.")
+    missing = object()
+    modules = list(sys.modules.get(n, missing) for n in names)
+    for n in names:
+        sys.modules[n] = None
+    yield
+    for n, original in zip(names, modules):
+        if original is missing:
+            del sys.modules[n]
+        else:
+            sys.modules[n] = original
 
 class _TestCaseMixin(object):
     """

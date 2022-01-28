@@ -297,14 +297,12 @@ class Root(MultiFormatResource):
         }
         return json.dumps(result, indent=1) + "\n"
 
-
     def _describe_known_servers(self, broker):
-        return sorted(list(
+        return list(
             self._describe_server(server)
             for server
             in broker.get_known_servers()
-        ), key=lambda o: sorted(o.items()))
-
+        )
 
     def _describe_server(self, server):
         status = server.get_connection_status()

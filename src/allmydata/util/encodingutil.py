@@ -320,6 +320,9 @@ def quote_output(s, quotemarks=True, quote_newlines=None, encoding=None):
         # Although the problem is that doesn't work in Python 3.6, only 3.7 or
         # later... For now not thinking about it, just returning unicode since
         # that is the right thing to do on Python 3.
+        #
+        # Now that Python 3.7 is the minimum, this can in theory be done:
+        # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3866
         result = result.decode(encoding)
     return result
 

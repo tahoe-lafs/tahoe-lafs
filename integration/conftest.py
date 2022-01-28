@@ -353,10 +353,23 @@ def storage_nodes(reactor, temp_dir, introducer, introducer_furl, flog_gatherer,
         nodes.append(process)
     return nodes
 
+@pytest.fixture(scope="session")
+def alice_sftp_client_key_path(temp_dir):
+    # The client SSH key path is typically going to be somewhere else (~/.ssh,
+    # typically), but for convenience sake for testing we'll put it inside node.
+    return join(temp_dir, "alice", "private", "ssh_client_rsa_key")
 
 @pytest.fixture(scope='session')
 @log_call(action_type=u"integration:alice", include_args=[], include_result=False)
-def alice(reactor, temp_dir, introducer_furl, flog_gatherer, storage_nodes, request):
+def alice(
+        reactor,
+        temp_dir,
+        introducer_furl,
+        flog_gatherer,
+        storage_nodes,
+        alice_sftp_client_key_path,
+        request,
+):
     process = pytest_twisted.blockon(
         _create_node(
             reactor, request, temp_dir, introducer_furl, flog_gatherer, "alice",
@@ -387,19 +400,13 @@ accounts.file = {accounts_path}
 """.format(ssh_key_path=host_ssh_key_path, accounts_path=accounts_path))
     generate_ssh_key(host_ssh_key_path)
 
-    # 3. Add a SFTP access file with username/password and SSH key auth.
-
-    # The client SSH key path is typically going to be somewhere else (~/.ssh,
-    # typically), but for convenience sake for testing we'll put it inside node.
-    client_ssh_key_path = join(process.node_dir, "private", "ssh_client_rsa_key")
-    generate_ssh_key(client_ssh_key_path)
+    # 3. Add a SFTP access file with an SSH key for auth.
+    generate_ssh_key(alice_sftp_client_key_path)
     # Pub key format is "ssh-rsa <thekey> <username>". We want the key.
-    ssh_public_key = open(client_ssh_key_path + ".pub").read().strip().split()[1]
+    ssh_public_key = open(alice_sftp_client_key_path + ".pub").read().strip().split()[1]
     with open(accounts_path, "w") as f:
         f.write("""\
-alice password {rwcap}
-
-alice2 ssh-rsa {ssh_public_key} {rwcap}
+alice-key ssh-rsa {ssh_public_key} {rwcap}
 """.format(rwcap=rwcap, ssh_public_key=ssh_public_key))
 
     # 4. Restart the node with new SFTP config.

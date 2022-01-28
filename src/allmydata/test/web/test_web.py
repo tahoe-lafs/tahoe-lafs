@@ -820,29 +820,37 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         """
         d = self.GET("/?t=json")
         def _check(res):
+            """
+            Check that the results are correct.
+            We can't depend on the order of servers in the output
+            """
             decoded = json.loads(res)
-            expected = {
-                u'introducers': {
-                    u'statuses': [],
+            self.assertEqual(decoded['introducers'], {u'statuses': []})
+            actual_servers = decoded[u"servers"]
+            self.assertEquals(len(actual_servers), 2)
+            self.assertIn(
+                {
+                    u"nodeid": u'other_nodeid',
+                    u'available_space': 123456,
+                    u'connection_status': u'summary',
+                    u'last_received_data': 30,
+                    u'nickname': u'other_nickname \u263b',
+                    u'version': u'1.0',
                 },
-                u'servers': sorted([
-                    {u"nodeid": u'other_nodeid',
-                     u'available_space': 123456,
-                     u'connection_status': u'summary',
-                     u'last_received_data': 30,
-                     u'nickname': u'other_nickname \u263b',
-                     u'version': u'1.0',
-                    },
-                    {u"nodeid": u'disconnected_nodeid',
-                     u'available_space': 123456,
-                     u'connection_status': u'summary',
-                     u'last_received_data': 35,
-                     u'nickname': u'disconnected_nickname \u263b',
-                     u'version': u'1.0',
-                    },
-                ], key=lambda o: sorted(o.items())),
-            }
-            self.assertEqual(expected, decoded)
+                actual_servers
+            )
+            self.assertIn(
+                {
+                    u"nodeid": u'disconnected_nodeid',
+                    u'available_space': 123456,
+                    u'connection_status': u'summary',
+                    u'last_received_data': 35,
+                    u'nickname': u'disconnected_nickname \u263b',
+                    u'version': u'1.0',
+                },
+                actual_servers
+            )
+
         d.addCallback(_check)
         return d
 

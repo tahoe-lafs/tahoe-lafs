@@ -12,10 +12,9 @@ if PY2:
     # strings. Omit bytes so we don't leak future's custom bytes.
     from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, pow, round, super, dict, list, object, range, str, max, min  # noqa: F401
 else:
-    from typing import Dict
+    from typing import Dict, Tuple
 
 import os, re
-import six
 
 from foolscap.api import Referenceable
 from foolscap.ipb import IRemoteReference
@@ -33,7 +32,10 @@ from allmydata.storage.lease import LeaseInfo
 from allmydata.storage.mutable import MutableShareFile, EmptyShare, \
      create_mutable_sharefile
 from allmydata.mutable.layout import MAX_MUTABLE_SHARE_SIZE
-from allmydata.storage.immutable import ShareFile, BucketWriter, BucketReader
+from allmydata.storage.immutable import (
+    ShareFile, BucketWriter, BucketReader, FoolscapBucketWriter,
+    FoolscapBucketReader,
+)
 from allmydata.storage.crawler import BucketCountingCrawler
 from allmydata.storage.expirer import LeaseCheckingCrawler
 
@@ -56,12 +58,13 @@ NUM_RE=re.compile("^[0-9]+$")
 DEFAULT_RENEWAL_TIME = 31 * 24 * 60 * 60
 
 
-@implementer(RIStorageServer, IStatsProducer)
-class StorageServer(service.MultiService, Referenceable):
+@implementer(IStatsProducer)
+class StorageServer(service.MultiService):
     """
-    A filesystem-based implementation of ``RIStorageServer``.
+    Implement the business logic for the storage server.
     """
     name = 'storage'
+    # only the tests change this to anything else
     LeaseCheckerClass = LeaseCheckingCrawler
 
     def __init__(self, storedir, nodeid, reserved_space=0,
@@ -82,9 +85,9 @@ class StorageServer(service.MultiService, Referenceable):
         sharedir = os.path.join(storedir, "shares")
         fileutil.make_dirs(sharedir)
         self.sharedir = sharedir
-        # we don't actually create the corruption-advisory dir until necessary
         self.corruption_advisory_dir = os.path.join(storedir,
                                                     "corruption-advisories")
+        fileutil.make_dirs(self.corruption_advisory_dir)
         self.reserved_space = int(reserved_space)
         self.no_storage = discard_storage
         self.readonly_storage = readonly_storage
@@ -125,16 +128,11 @@ class StorageServer(service.MultiService, Referenceable):
         self.lease_checker.setServiceParent(self)
         self._clock = clock
 
-        # Currently being-written Bucketwriters. For Foolscap, lifetime is tied
-        # to connection: when disconnection happens, the BucketWriters are
-        # removed. For HTTP, this makes no sense, so there will be
-        # timeout-based cleanup; see
-        # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3807.
-
         # Map in-progress filesystem path -> BucketWriter:
         self._bucket_writers = {}  # type: Dict[str,BucketWriter]
-        # Canaries and disconnect markers for BucketWriters created via Foolscap:
-        self._bucket_writer_disconnect_markers = {}  # type: Dict[BucketWriter,(IRemoteReference, object)]
+
+        # These callables will be called with BucketWriters that closed:
+        self._call_on_bucket_writer_close = []
 
     def stopService(self):
         # Cancel any in-progress uploads:
@@ -263,7 +261,7 @@ class StorageServer(service.MultiService, Referenceable):
             space += bw.allocated_size()
         return space
 
-    def remote_get_version(self):
+    def get_version(self):
         remaining_space = self.get_available_space()
         if remaining_space is None:
             # We're on a platform that has no API to get disk stats.
@@ -284,7 +282,7 @@ class StorageServer(service.MultiService, Referenceable):
                     }
         return version
 
-    def _allocate_buckets(self, storage_index,
+    def allocate_buckets(self, storage_index,
                           renew_secret, cancel_secret,
                           sharenums, allocated_size,
                           owner_num=0, renew_leases=True):
@@ -301,7 +299,7 @@ class StorageServer(service.MultiService, Referenceable):
         # to a particular owner.
         start = self._clock.seconds()
         self.count("allocate")
-        alreadygot = set()
+        alreadygot = {}
         bucketwriters = {} # k: shnum, v: BucketWriter
         si_dir = storage_index_to_dir(storage_index)
         si_s = si_b2a(storage_index)
@@ -333,10 +331,9 @@ class StorageServer(service.MultiService, Referenceable):
         # leases for all of them: if they want us to hold shares for this
         # file, they'll want us to hold leases for this file.
         for (shnum, fn) in self._get_bucket_shares(storage_index):
-            alreadygot.add(shnum)
-            if renew_leases:
-                sf = ShareFile(fn)
-                sf.add_or_renew_lease(lease_info)
+            alreadygot[shnum] = ShareFile(fn)
+        if renew_leases:
+            self._add_or_renew_leases(alreadygot.values(), lease_info)
 
         for shnum in sharenums:
             incominghome = os.path.join(self.incomingdir, si_dir, "%d" % shnum)
@@ -369,22 +366,7 @@ class StorageServer(service.MultiService, Referenceable):
             fileutil.make_dirs(os.path.join(self.sharedir, si_dir))
 
         self.add_latency("allocate", self._clock.seconds() - start)
-        return alreadygot, bucketwriters
-
-    def remote_allocate_buckets(self, storage_index,
-                                renew_secret, cancel_secret,
-                                sharenums, allocated_size,
-                                canary, owner_num=0):
-        """Foolscap-specific ``allocate_buckets()`` API."""
-        alreadygot, bucketwriters = self._allocate_buckets(
-            storage_index, renew_secret, cancel_secret, sharenums, allocated_size,
-            owner_num=owner_num, renew_leases=True,
-        )
-        # Abort BucketWriters if disconnection happens.
-        for bw in bucketwriters.values():
-            disconnect_marker = canary.notifyOnDisconnect(bw.disconnected)
-            self._bucket_writer_disconnect_markers[bw] = (canary, disconnect_marker)
-        return alreadygot, bucketwriters
+        return set(alreadygot), bucketwriters
 
     def _iter_share_files(self, storage_index):
         for shnum, filename in self._get_bucket_shares(storage_index):
@@ -401,20 +383,21 @@ class StorageServer(service.MultiService, Referenceable):
                 continue # non-sharefile
             yield sf
 
-    def remote_add_lease(self, storage_index, renew_secret, cancel_secret,
-                         owner_num=1):
+    def add_lease(self, storage_index, renew_secret, cancel_secret, owner_num=1):
         start = self._clock.seconds()
         self.count("add-lease")
         new_expire_time = self._clock.seconds() + DEFAULT_RENEWAL_TIME
         lease_info = LeaseInfo(owner_num,
                                renew_secret, cancel_secret,
                                new_expire_time, self.my_nodeid)
-        for sf in self._iter_share_files(storage_index):
-            sf.add_or_renew_lease(lease_info)
+        self._add_or_renew_leases(
+            self._iter_share_files(storage_index),
+            lease_info,
+        )
         self.add_latency("add-lease", self._clock.seconds() - start)
         return None
 
-    def remote_renew_lease(self, storage_index, renew_secret):
+    def renew_lease(self, storage_index, renew_secret):
         start = self._clock.seconds()
         self.count("renew")
         new_expire_time = self._clock.seconds() + DEFAULT_RENEWAL_TIME
@@ -430,9 +413,14 @@ class StorageServer(service.MultiService, Referenceable):
         if self.stats_provider:
             self.stats_provider.count('storage_server.bytes_added', consumed_size)
         del self._bucket_writers[bw.incominghome]
-        if bw in self._bucket_writer_disconnect_markers:
-            canary, disconnect_marker = self._bucket_writer_disconnect_markers.pop(bw)
-            canary.dontNotifyOnDisconnect(disconnect_marker)
+        for handler in self._call_on_bucket_writer_close:
+            handler(bw)
+
+    def register_bucket_writer_close_handler(self, handler):
+        """
+        The handler will be called with any ``BucketWriter`` that closes.
+        """
+        self._call_on_bucket_writer_close.append(handler)
 
     def _get_bucket_shares(self, storage_index):
         """Return a list of (shnum, pathname) tuples for files that hold
@@ -448,7 +436,7 @@ class StorageServer(service.MultiService, Referenceable):
             # Commonly caused by there being no buckets at all.
             pass
 
-    def remote_get_buckets(self, storage_index):
+    def get_buckets(self, storage_index):
         start = self._clock.seconds()
         self.count("get")
         si_s = si_b2a(storage_index)
@@ -626,13 +614,13 @@ class StorageServer(service.MultiService, Referenceable):
         """
         Put the given lease onto the given shares.
 
-        :param dict[int, MutableShareFile] shares: The shares to put the lease
-            onto.
+        :param Iterable[Union[MutableShareFile, ShareFile]] shares: The shares
+            to put the lease onto.
 
         :param LeaseInfo lease_info: The lease to put on the shares.
         """
-        for share in six.viewvalues(shares):
-            share.add_or_renew_lease(lease_info)
+        for share in shares:
+            share.add_or_renew_lease(self.get_available_space(), lease_info)
 
     def slot_testv_and_readv_and_writev(  # type: ignore # warner/foolscap#78
             self,
@@ -640,7 +628,7 @@ class StorageServer(service.MultiService, Referenceable):
             secrets,
             test_and_write_vectors,
             read_vector,
-            renew_leases,
+            renew_leases=True,
     ):
         """
         Read data from shares and conditionally write some data to them.
@@ -692,23 +680,11 @@ class StorageServer(service.MultiService, Referenceable):
             )
             if renew_leases:
                 lease_info = self._make_lease_info(renew_secret, cancel_secret)
-                self._add_or_renew_leases(remaining_shares, lease_info)
+                self._add_or_renew_leases(remaining_shares.values(), lease_info)
 
         # all done
         self.add_latency("writev", self._clock.seconds() - start)
         return (testv_is_good, read_data)
-
-    def remote_slot_testv_and_readv_and_writev(self, storage_index,
-                                               secrets,
-                                               test_and_write_vectors,
-                                               read_vector):
-        return self.slot_testv_and_readv_and_writev(
-            storage_index,
-            secrets,
-            test_and_write_vectors,
-            read_vector,
-            renew_leases=True,
-        )
 
     def _allocate_slot_share(self, bucketdir, secrets, sharenum,
                              owner_num=0):
@@ -720,7 +696,7 @@ class StorageServer(service.MultiService, Referenceable):
                                          self)
         return share
 
-    def remote_slot_readv(self, storage_index, shares, readv):
+    def slot_readv(self, storage_index, shares, readv):
         start = self._clock.seconds()
         self.count("readv")
         si_s = si_b2a(storage_index)
@@ -747,30 +723,194 @@ class StorageServer(service.MultiService, Referenceable):
         self.add_latency("readv", self._clock.seconds() - start)
         return datavs
 
-    def remote_advise_corrupt_share(self, share_type, storage_index, shnum,
-                                    reason):
+    def _share_exists(self, storage_index, shnum):
+        """
+        Check local share storage to see if a matching share exists.
+
+        :param bytes storage_index: The storage index to inspect.
+        :param int shnum: The share number to check for.
+
+        :return bool: ``True`` if a share with the given number exists at the
+            given storage index, ``False`` otherwise.
+        """
+        for existing_sharenum, ignored in self._get_bucket_shares(storage_index):
+            if existing_sharenum == shnum:
+                return True
+        return False
+
+    def advise_corrupt_share(self, share_type, storage_index, shnum,
+                             reason):
         # This is a remote API, I believe, so this has to be bytes for legacy
         # protocol backwards compatibility reasons.
         assert isinstance(share_type, bytes)
         assert isinstance(reason, bytes), "%r is not bytes" % (reason,)
-        fileutil.make_dirs(self.corruption_advisory_dir)
-        now = time_format.iso_utc(sep="T")
+
         si_s = si_b2a(storage_index)
-        # windows can't handle colons in the filename
-        fn = os.path.join(
-            self.corruption_advisory_dir,
-            ("%s--%s-%d" % (now, str(si_s, "utf-8"), shnum)).replace(":","")
-        )
-        with open(fn, "w") as f:
-            f.write("report: Share Corruption\n")
-            f.write("type: %s\n" % bytes_to_native_str(share_type))
-            f.write("storage_index: %s\n" % bytes_to_native_str(si_s))
-            f.write("share_number: %d\n" % shnum)
-            f.write("\n")
-            f.write(bytes_to_native_str(reason))
-            f.write("\n")
+
+        if not self._share_exists(storage_index, shnum):
+            log.msg(
+                format=(
+                    "discarding client corruption claim for %(si)s/%(shnum)d "
+                    "which I do not have"
+                ),
+                si=si_s,
+                shnum=shnum,
+            )
+            return
+
         log.msg(format=("client claims corruption in (%(share_type)s) " +
                         "%(si)s-%(shnum)d: %(reason)s"),
                 share_type=share_type, si=si_s, shnum=shnum, reason=reason,
                 level=log.SCARY, umid="SGx2fA")
+
+        report = render_corruption_report(share_type, si_s, shnum, reason)
+        if len(report) > self.get_available_space():
+            return None
+
+        now = time_format.iso_utc(sep="T")
+        report_path = get_corruption_report_path(
+            self.corruption_advisory_dir,
+            now,
+            si_s,
+            shnum,
+        )
+        with open(report_path, "w") as f:
+            f.write(report)
+
         return None
+
+
+@implementer(RIStorageServer)
+class FoolscapStorageServer(Referenceable):  # type: ignore # warner/foolscap#78
+    """
+    A filesystem-based implementation of ``RIStorageServer``.
+
+    For Foolscap, BucketWriter lifetime is tied to connection: when
+    disconnection happens, the BucketWriters are removed.
+    """
+    name = 'storage'
+
+    def __init__(self, storage_server):  # type: (StorageServer) -> None
+        self._server = storage_server
+
+        # Canaries and disconnect markers for BucketWriters created via Foolscap:
+        self._bucket_writer_disconnect_markers = {}  # type: Dict[BucketWriter,Tuple[IRemoteReference, object]]
+
+        self._server.register_bucket_writer_close_handler(self._bucket_writer_closed)
+
+    def _bucket_writer_closed(self, bw):
+        if bw in self._bucket_writer_disconnect_markers:
+            canary, disconnect_marker = self._bucket_writer_disconnect_markers.pop(bw)
+            canary.dontNotifyOnDisconnect(disconnect_marker)
+
+    def remote_get_version(self):
+        return self._server.get_version()
+
+    def remote_allocate_buckets(self, storage_index,
+                                renew_secret, cancel_secret,
+                                sharenums, allocated_size,
+                                canary, owner_num=0):
+        """Foolscap-specific ``allocate_buckets()`` API."""
+        alreadygot, bucketwriters = self._server.allocate_buckets(
+            storage_index, renew_secret, cancel_secret, sharenums, allocated_size,
+            owner_num=owner_num, renew_leases=True,
+        )
+
+        # Abort BucketWriters if disconnection happens.
+        for bw in bucketwriters.values():
+            disconnect_marker = canary.notifyOnDisconnect(bw.disconnected)
+            self._bucket_writer_disconnect_markers[bw] = (canary, disconnect_marker)
+
+        # Wrap BucketWriters with Foolscap adapter:
+        bucketwriters = {
+            k: FoolscapBucketWriter(bw)
+            for (k, bw) in bucketwriters.items()
+        }
+
+        return alreadygot, bucketwriters
+
+    def remote_add_lease(self, storage_index, renew_secret, cancel_secret,
+                         owner_num=1):
+        return self._server.add_lease(storage_index, renew_secret, cancel_secret)
+
+    def remote_renew_lease(self, storage_index, renew_secret):
+        return self._server.renew_lease(storage_index, renew_secret)
+
+    def remote_get_buckets(self, storage_index):
+        return {
+            k: FoolscapBucketReader(bucket)
+            for (k, bucket) in self._server.get_buckets(storage_index).items()
+        }
+
+    def remote_slot_testv_and_readv_and_writev(self, storage_index,
+                                               secrets,
+                                               test_and_write_vectors,
+                                               read_vector):
+        return self._server.slot_testv_and_readv_and_writev(
+            storage_index,
+            secrets,
+            test_and_write_vectors,
+            read_vector,
+            renew_leases=True,
+        )
+
+    def remote_slot_readv(self, storage_index, shares, readv):
+        return self._server.slot_readv(storage_index, shares, readv)
+
+    def remote_advise_corrupt_share(self, share_type, storage_index, shnum,
+                                    reason):
+        return self._server.advise_corrupt_share(share_type, storage_index, shnum,
+                                                 reason)
+
+
+CORRUPTION_REPORT_FORMAT = """\
+report: Share Corruption
+type: {type}
+storage_index: {storage_index}
+share_number: {share_number}
+
+{reason}
+
+"""
+
+def render_corruption_report(share_type, si_s, shnum, reason):
+    """
+    Create a string that explains a corruption report using freeform text.
+
+    :param bytes share_type: The type of the share which the report is about.
+
+    :param bytes si_s: The encoded representation of the storage index which
+        the report is about.
+
+    :param int shnum: The share number which the report is about.
+
+    :param bytes reason: The reason given by the client for the corruption
+        report.
+    """
+    return CORRUPTION_REPORT_FORMAT.format(
+        type=bytes_to_native_str(share_type),
+        storage_index=bytes_to_native_str(si_s),
+        share_number=shnum,
+        reason=bytes_to_native_str(reason),
+    )
+
+def get_corruption_report_path(base_dir, now, si_s, shnum):
+    """
+    Determine the path to which a certain corruption report should be written.
+
+    :param str base_dir: The directory beneath which to construct the path.
+
+    :param str now: The time of the report.
+
+    :param str si_s: The encoded representation of the storage index which the
+        report is about.
+
+    :param int shnum: The share number which the report is about.
+
+    :return str: A path to which the report can be written.
+    """
+    # windows can't handle colons in the filename
+    return os.path.join(
+        base_dir,
+        ("%s--%s-%d" % (now, str(si_s, "utf-8"), shnum)).replace(":","")
+    )
