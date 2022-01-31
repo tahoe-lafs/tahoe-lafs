@@ -11,7 +11,8 @@ if PY2:
     from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 import os, base64
-from twisted.trial import unittest
+from ..common import AsyncTestCase
+from testtools.matchers import HasLength
 from twisted.internet import defer
 from foolscap.logging import log
 from allmydata import uri
@@ -61,7 +62,7 @@ class FirstServerGetsDeleted(object):
             return (True, {})
         return retval
 
-class Problems(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
+class Problems(GridTestMixin, AsyncTestCase, testutil.ShouldFailMixin):
     def do_publish_surprise(self, version):
         self.basedir = "mutable/Problems/test_publish_surprise_%s" % version
         self.set_up_grid()
@@ -198,8 +199,8 @@ class Problems(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
         def _overwritten_again(smap):
             # Make sure that all shares were updated by making sure that
             # there aren't any other versions in the sharemap.
-            self.failUnlessEqual(len(smap.recoverable_versions()), 1)
-            self.failUnlessEqual(len(smap.unrecoverable_versions()), 0)
+            self.assertThat(smap.recoverable_versions(), HasLength(1))
+            self.assertThat(smap.unrecoverable_versions(), HasLength(0))
         d.addCallback(_overwritten_again)
         return d
 
@@ -240,7 +241,7 @@ class Problems(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
         # that ought to work
         def _got_node(n):
             d = n.download_best_version()
-            d.addCallback(lambda res: self.failUnlessEqual(res, b"contents 1"))
+            d.addCallback(lambda res: self.assertEquals(res, b"contents 1"))
             # now break the second peer
             def _break_peer1(res):
                 self.g.break_server(self.server1.get_serverid())
@@ -248,7 +249,7 @@ class Problems(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
             d.addCallback(lambda res: n.overwrite(MutableData(b"contents 2")))
             # that ought to work too
             d.addCallback(lambda res: n.download_best_version())
-            d.addCallback(lambda res: self.failUnlessEqual(res, b"contents 2"))
+            d.addCallback(lambda res: self.assertEquals(res, b"contents 2"))
             def _explain_error(f):
                 print(f)
                 if f.check(NotEnoughServersError):
@@ -280,7 +281,7 @@ class Problems(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
         d = nm.create_mutable_file(MutableData(b"contents 1"))
         def _created(n):
             d = n.download_best_version()
-            d.addCallback(lambda res: self.failUnlessEqual(res, b"contents 1"))
+            d.addCallback(lambda res: self.assertEquals(res, b"contents 1"))
             # now break one of the remaining servers
             def _break_second_server(res):
                 self.g.break_server(peerids[1])
@@ -288,7 +289,7 @@ class Problems(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
             d.addCallback(lambda res: n.overwrite(MutableData(b"contents 2")))
             # that ought to work too
             d.addCallback(lambda res: n.download_best_version())
-            d.addCallback(lambda res: self.failUnlessEqual(res, b"contents 2"))
+            d.addCallback(lambda res: self.assertEquals(res, b"contents 2"))
             return d
         d.addCallback(_created)
         return d
@@ -419,7 +420,7 @@ class Problems(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
             return self._node.download_version(servermap, ver)
         d.addCallback(_then)
         d.addCallback(lambda data:
-            self.failUnlessEqual(data, CONTENTS))
+            self.assertEquals(data, CONTENTS))
         return d
 
     def test_1654(self):
