@@ -39,11 +39,13 @@ workflows:
       - "centos-8":
           {}
 
-      - "nixos-19-09":
-          {}
+      - "nixos":
+          name: "NixOS 21.05"
+          nixpkgs: "21.05"
 
-      - "nixos-21-05":
-          {}
+      - "nixos":
+          name: "NixOS 21.11"
+          nixpkgs: "21.11"
 
       # Test against PyPy 2.7
       - "pypy27-buster":
@@ -441,20 +443,58 @@ jobs:
         image: "tahoelafsci/fedora:29-py"
         user: "nobody"
 
-  nixos-19-09: &NIXOS
+  nixos:
+    parameters:
+      nixpkgs:
+        description: >-
+          Reference the name of a niv-managed nixpkgs source (see `niv show`
+          and nix/sources.json)
+        type: "string"
+
     docker:
       # Run in a highly Nix-capable environment.
       - <<: *DOCKERHUB_AUTH
-        image: "nixorg/nix:circleci"
+        image: "nixos/nix:2.3.16"
 
     environment:
-      NIX_PATH: "nixpkgs=https://github.com/NixOS/nixpkgs-channels/archive/nixos-19.09-small.tar.gz"
-      SOURCE: "nix/"
+      # CACHIX_AUTH_TOKEN is manually set in the CircleCI web UI and
+      # allows us to push to CACHIX_NAME.  We only need this set for
+      # `cachix use` in this step.
+      CACHIX_NAME: "tahoe-lafs-opensource"
 
     steps:
-      - "checkout"
       - "run":
-          name: "Build and Test"
+          # The nixos/nix image does not include ssh.  Install it so the
+          # `checkout` step will succeed.  We also want cachix for
+          # Nix-friendly caching.
+          name: "Install Basic Dependencies"
+          command: |
+            nix-env \
+              --file https://github.com/nixos/nixpkgs/archive/nixos-<<parameters.nixpkgs>>.tar.gz \
+              --install \
+              -A openssh cachix bash
+
+      - "checkout"
+
+      - run:
+          name: "Cachix setup"
+          # Record the store paths that exist before we did much.  There's no
+          # reason to cache these, they're either in the image or have to be
+          # retrieved before we can use cachix to restore from cache.
+          command: |
+            cachix use "${CACHIX_NAME}"
+            nix path-info --all > /tmp/store-path-pre-build
+
+      - "run":
+          # The Nix package doesn't know how to do this part, unfortunately.
+          name: "Generate version"
+          command: |
+            nix-shell \
+              -p 'python3.withPackages (ps: [ ps.setuptools ])' \
+              --run 'python setup.py update_version'
+
+      - "run":
+          name: "Build"
           command: |
             # CircleCI build environment looks like it has a zillion and a
             # half cores.  Don't let Nix autodetect this high core count
@@ -466,17 +506,50 @@ jobs:
             # build a couple simple little dependencies that don't take
             # advantage of multiple cores and we get a little speedup by doing
             # them in parallel.
-            nix-build --cores 3 --max-jobs 2 "$SOURCE"
+            nix-build --cores 3 --max-jobs 2 --argstr pkgsVersion "nixpkgs-<<parameters.nixpkgs>>"
 
-  nixos-21-05:
-    <<: *NIXOS
+      - "run":
+          name: "Test"
+          command: |
+            # Let it go somewhat wild for the test suite itself
+            nix-build --cores 8 --argstr pkgsVersion "nixpkgs-<<parameters.nixpkgs>>" tests.nix
 
-    environment:
-      # Note this doesn't look more similar to the 19.09 NIX_PATH URL because
-      # there was some internal shuffling by the NixOS project about how they
-      # publish stable revisions.
-      NIX_PATH: "nixpkgs=https://github.com/NixOS/nixpkgs/archive/d32b07e6df276d78e3640eb43882b80c9b2b3459.tar.gz"
-      SOURCE: "nix/py3.nix"
+      - run:
+          # Send any new store objects to cachix.
+          name: "Push to Cachix"
+          when: "always"
+          command: |
+            # Cribbed from
+            # https://circleci.com/blog/managing-secrets-when-you-have-pull-requests-from-outside-contributors/
+            if [ -n "$CIRCLE_PR_NUMBER" ]; then
+              # I'm sure you're thinking "CIRCLE_PR_NUMBER must just be the
+              # number of the PR being built".  Sorry, dear reader, you have
+              # guessed poorly.  It is also conditionally set based on whether
+              # this is a PR from a fork or not.
+              #
+              # https://circleci.com/docs/2.0/env-vars/#built-in-environment-variables
+              echo "Skipping Cachix push for forked PR."
+            else
+              # If this *isn't* a build from a fork then we have the Cachix
+              # write key in our environment and we can push any new objects
+              # to Cachix.
+              #
+              # To decide what to push, we inspect the list of store objects
+              # that existed before and after we did most of our work.  Any
+              # that are new after the work is probably a useful thing to have
+              # around so push it to the cache.  We exclude all derivation
+              # objects (.drv files) because they're cheap to reconstruct and
+              # by the time you know their cache key you've already done all
+              # the work anyway.
+              #
+              # This shell expression for finding the objects and pushing them
+              # was from the Cachix docs:
+              #
+              # https://docs.cachix.org/continuous-integration-setup/circleci.html
+              #
+              # but they seem to have removed it now.
+              bash -c "comm -13 <(sort /tmp/store-path-pre-build | grep -v '\.drv$') <(nix path-info --all | grep -v '\.drv$' | sort) | cachix push $CACHIX_NAME"
+            fi
 
   typechecks:
     docker:

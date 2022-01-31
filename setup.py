@@ -138,11 +138,15 @@ install_requires = [
     # Backported configparser for Python 2:
     "configparser ; python_version < '3.0'",
 
-    # For the RangeMap datastructure.
-    "collections-extended",
+    # For the RangeMap datastructure. Need 2.0.2 at least for bugfixes. Python
+    # 2 doesn't actually need this, since HTTP storage protocol isn't supported
+    # there, so we just pick whatever version so that code imports.
+    "collections-extended >= 2.0.2 ; python_version > '3.0'",
+    "collections-extended ; python_version < '3.0'",
 
     # HTTP server and client
     "klein",
+    "werkzeug",
     "treq",
     "cbor2"
 ]
