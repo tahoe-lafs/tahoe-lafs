@@ -26,8 +26,9 @@ from twisted.internet.defer import inlineCallbacks, returnValue
 from twisted.internet.task import Clock
 from twisted.internet import reactor
 from twisted.web.server import Site
+from twisted.web.client import HTTPConnectionPool
 from hyperlink import DecodedURL
-from treq.api import get_global_pool as get_treq_pool
+from treq.api import set_global_pool as set_treq_pool
 
 from foolscap.api import Referenceable, RemoteException
 
@@ -1078,6 +1079,7 @@ class _HTTPMixin(_SharedMixin):
     """Run tests on the HTTP version of ``IStorageServer``."""
 
     def _get_istorage_server(self):
+        set_treq_pool(HTTPConnectionPool(reactor, persistent=False))
         swissnum = b"1234"
         self._http_storage_server = HTTPServer(self.server, swissnum)
         self._port_number = allocate_tcp_port()
@@ -1095,8 +1097,7 @@ class _HTTPMixin(_SharedMixin):
     @inlineCallbacks
     def tearDown(self):
         yield _SharedMixin.tearDown(self)
-        self._listening_port.stopListening()
-        yield get_treq_pool().closeCachedConnections()
+        yield self._listening_port.stopListening()
 
 
 class FoolscapSharedAPIsTests(
