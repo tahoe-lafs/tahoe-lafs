@@ -40,7 +40,7 @@ if PY2:
 from six import ensure_text
 
 import re, time, hashlib
-
+from os import urandom
 # On Python 2 this will be the backport.
 from configparser import NoSectionError
 
@@ -75,7 +75,7 @@ from allmydata.util.observer import ObserverList
 from allmydata.util.rrefutil import add_version_to_remote_reference
 from allmydata.util.hashutil import permute_server_hash
 from allmydata.util.dictutil import BytesKeyDict, UnicodeKeyDict
-from allmydata.storage.http_client import StorageClient
+from allmydata.storage.http_client import StorageClient, StorageClientImmutables
 
 
 # who is responsible for de-duplication?
@@ -1027,6 +1027,48 @@ class _StorageServer(object):
         ).addErrback(log.err, "Error from remote call to advise_corrupt_share")
 
 
+
+@attr.s
+class _FakeRemoteReference(object):
+    """
+    Emulate a Foolscap RemoteReference, calling a local object instead.
+    """
+    local_object = attr.ib(type=object)
+
+    def callRemote(self, action, *args, **kwargs):
+        return getattr(self.local_object, action)(*args, **kwargs)
+
+
+@attr.s
+class _HTTPBucketWriter(object):
+    """
+    Emulate a ``RIBucketWriter``.
+    """
+    client = attr.ib(type=StorageClientImmutables)
+    storage_index = attr.ib(type=bytes)
+    share_number = attr.ib(type=int)
+    upload_secret = attr.ib(type=bytes)
+    finished = attr.ib(type=bool, default=False)
+
+    def abort(self):
+        pass  # TODO in later ticket
+
+    @defer.inlineCallbacks
+    def write(self, offset, data):
+        result = yield self.client.write_share_chunk(
+            self.storage_index, self.share_number, self.upload_secret, offset, data
+        )
+        if result.finished:
+            self.finished = True
+        defer.returnValue(None)
+
+    def close(self):
+        # A no-op in HTTP protocol.
+        if not self.finished:
+            return defer.fail(RuntimeError("You didn't finish writing?!"))
+        return defer.succeed(None)
+
+
 # WORK IN PROGRESS, for now it doesn't actually implement whole thing.
 @implementer(IStorageServer)  # type: ignore
 @attr.s
@@ -1041,11 +1083,12 @@ class _HTTPStorageServer(object):
         """
         Create an ``IStorageServer`` from a HTTP ``StorageClient``.
         """
-        return _HTTPStorageServer(_http_client=http_client)
+        return _HTTPStorageServer(http_client=http_client)
 
     def get_version(self):
         return self._http_client.get_version()
 
+    @defer.inlineCallbacks
     def allocate_buckets(
             self,
             storage_index,
@@ -1055,7 +1098,24 @@ class _HTTPStorageServer(object):
             allocated_size,
             canary,
     ):
-        pass
+        upload_secret = urandom(20)
+        immutable_client = StorageClientImmutables(self._http_client)
+        result = immutable_client.create(
+            storage_index, sharenums, allocated_size, upload_secret, renew_secret,
+            cancel_secret
+        )
+        result = yield result
+        defer.returnValue(
+            (result.already_have, {
+                 share_num: _FakeRemoteReference(_HTTPBucketWriter(
+                     client=immutable_client,
+                     storage_index=storage_index,
+                     share_number=share_num,
+                     upload_secret=upload_secret
+                 ))
+                 for share_num in result.allocated
+            })
+        )
 
     def get_buckets(
             self,

@@ -39,6 +39,7 @@ from allmydata.storage.server import StorageServer  # not a IStorageServer!!
 from allmydata.storage.http_server import HTTPServer
 from allmydata.storage.http_client import StorageClient
 from allmydata.util.iputil import allocate_tcp_port
+from allmydata.storage_client import _HTTPStorageServer
 
 
 # Use random generator with known seed, so results are reproducible if tests
@@ -1084,12 +1085,15 @@ class _HTTPMixin(_SharedMixin):
         self._http_storage_server = HTTPServer(self.server, swissnum)
         self._port_number = allocate_tcp_port()
         self._listening_port = reactor.listenTCP(
-            self._port_number, Site(self._http_storage_server.get_resource()),
-            interface="127.0.0.1"
+            self._port_number,
+            Site(self._http_storage_server.get_resource()),
+            interface="127.0.0.1",
         )
-        return StorageClient(
-            DecodedURL.from_text("http://127.0.0.1:{}".format(self._port_number)),
-            swissnum
+        return _HTTPStorageServer.from_http_client(
+            StorageClient(
+                DecodedURL.from_text("http://127.0.0.1:{}".format(self._port_number)),
+                swissnum,
+            )
         )
         # Eventually should also:
         #  self.assertTrue(IStorageServer.providedBy(client))
@@ -1116,6 +1120,12 @@ class FoolscapImmutableAPIsTests(
     _FoolscapMixin, IStorageServerImmutableAPIsTestsMixin, AsyncTestCase
 ):
     """Foolscap-specific tests for immutable ``IStorageServer`` APIs."""
+
+
+class HTTPImmutableAPIsTests(
+    _HTTPMixin, IStorageServerImmutableAPIsTestsMixin, AsyncTestCase
+):
+    """HTTP-specific tests for immutable ``IStorageServer`` APIs."""
 
 
 class FoolscapMutableAPIsTests(
