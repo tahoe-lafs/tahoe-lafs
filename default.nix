@@ -73,12 +73,13 @@ mach-nix.buildPythonPackage rec {
     # file.  Tell it about them here.
     setuptools_rust
 
-    # mach-nix does not yet parse environment markers correctly.  It misses
-    # all of our requirements which have an environment marker.  Duplicate them
-    # here.
+    # mach-nix does not yet parse environment markers (e.g. "python > '3.0'")
+    # correctly. It misses all of our requirements which have an environment marker.
+    # Duplicate them here.
     foolscap
     eliot
     pyrsistent
+    collections-extended
   '';
 
   # Specify where mach-nix should find packages for our Python dependencies.
