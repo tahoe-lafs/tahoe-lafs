@@ -630,8 +630,8 @@ Reading
 ``GET /v1/immutable/:storage_index/shares``
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-Retrieve a list indicating all shares available for the indicated storage index.
-For example::
+Retrieve a list (semantically, a set) indicating all shares available for the
+indicated storage index. For example::
 
   [1, 5]
 

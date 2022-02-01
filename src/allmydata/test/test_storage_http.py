@@ -382,6 +382,37 @@ class ImmutableHTTPAPITests(SyncTestCase):
             )
             self.assertEqual(downloaded, expected_data[offset : offset + length])
 
+    def test_list_shares(self):
+        """
+        Once a share is finished uploading, it's possible to list it.
+        """
+        im_client = StorageClientImmutables(self.http.client)
+        upload_secret = urandom(32)
+        lease_secret = urandom(32)
+        storage_index = b"".join(bytes([i]) for i in range(16))
+        result_of(
+            im_client.create(
+                storage_index, {1, 2, 3}, 10, upload_secret, lease_secret, lease_secret
+            )
+        )
+
+        # Initially there are no shares:
+        self.assertEqual(result_of(im_client.list_shares(storage_index)), set())
+
+        # Upload shares 1 and 3:
+        for share_number in [1, 3]:
+            progress = result_of(im_client.write_share_chunk(
+                    storage_index,
+                    share_number,
+                    upload_secret,
+                    0,
+                    b"0123456789",
+            ))
+            self.assertTrue(progress.finished)
+
+        # Now shares 1 and 3 exist:
+        self.assertEqual(result_of(im_client.list_shares(storage_index)), {1, 3})
+
     def test_multiple_shares_uploaded_to_different_place(self):
         """
         If a storage index has multiple shares, uploads to different shares are
