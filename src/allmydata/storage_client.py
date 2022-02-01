@@ -1042,7 +1042,7 @@ class _FakeRemoteReference(object):
 @attr.s
 class _HTTPBucketWriter(object):
     """
-    Emulate a ``RIBucketWriter``.
+    Emulate a ``RIBucketWriter``, but use HTTP protocol underneath.
     """
     client = attr.ib(type=StorageClientImmutables)
     storage_index = attr.ib(type=bytes)
@@ -1067,6 +1067,25 @@ class _HTTPBucketWriter(object):
         if not self.finished:
             return defer.fail(RuntimeError("You didn't finish writing?!"))
         return defer.succeed(None)
+
+
+
+@attr.s
+class _HTTPBucketReader(object):
+    """
+    Emulate a ``RIBucketReader``.
+    """
+    client = attr.ib(type=StorageClientImmutables)
+    storage_index = attr.ib(type=bytes)
+    share_number = attr.ib(type=int)
+
+    def read(self, offset, length):
+        return self.client.read_share_chunk(
+            self.storage_index, self.share_number, offset, length
+        )
+
+    def advise_corrupt_share(self, reason):
+       pass  # TODO in later ticket
 
 
 # WORK IN PROGRESS, for now it doesn't actually implement whole thing.
@@ -1117,8 +1136,18 @@ class _HTTPStorageServer(object):
             })
         )
 
+    @defer.inlineCallbacks
     def get_buckets(
             self,
             storage_index,
     ):
-        pass
+        immutable_client = StorageClientImmutables(self._http_client)
+        share_numbers = yield immutable_client.list_shares(
+            storage_index
+        )
+        defer.returnValue({
+            share_num: _FakeRemoteReference(_HTTPBucketReader(
+                immutable_client, storage_index, share_num
+            ))
+            for share_num in share_numbers
+        })
