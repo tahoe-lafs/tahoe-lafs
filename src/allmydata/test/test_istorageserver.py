@@ -1,6 +1,8 @@
 """
 Tests for the ``IStorageServer`` interface.
 
+Keep in mind that ``IStorageServer`` is actually the storage _client_ interface.
+
 Note that for performance, in the future we might want the same node to be
 reused across tests, so each test should be careful to generate unique storage
 indexes.
@@ -17,11 +19,19 @@ if PY2:
     # fmt: off
     from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
     # fmt: on
+else:
+    from typing import Set
 
 from random import Random
+from unittest import SkipTest
 
 from twisted.internet.defer import inlineCallbacks, returnValue
 from twisted.internet.task import Clock
+from twisted.internet import reactor
+from twisted.web.server import Site
+from twisted.web.client import HTTPConnectionPool
+from hyperlink import DecodedURL
+from treq.api import set_global_pool as set_treq_pool
 
 from foolscap.api import Referenceable, RemoteException
 
@@ -29,6 +39,11 @@ from allmydata.interfaces import IStorageServer  # really, IStorageClient
 from .common_system import SystemTestMixin
 from .common import AsyncTestCase
 from allmydata.storage.server import StorageServer  # not a IStorageServer!!
+from allmydata.storage.http_server import HTTPServer
+from allmydata.storage.http_client import StorageClient
+from allmydata.util.iputil import allocate_tcp_port
+from allmydata.storage_client import _HTTPStorageServer
+
 
 # Use random generator with known seed, so results are reproducible if tests
 # are run in the same order.
@@ -998,20 +1013,25 @@ class IStorageServerMutableAPIsTestsMixin(object):
         self.assertEqual(lease2.get_expiration_time() - initial_expiration_time, 167)
 
 
-class _FoolscapMixin(SystemTestMixin):
-    """Run tests on Foolscap version of ``IStorageServer."""
+class _SharedMixin(SystemTestMixin):
+    """Base class for Foolscap and HTTP mixins."""
 
-    def _get_native_server(self):
-        return next(iter(self.clients[0].storage_broker.get_known_servers()))
+    SKIP_TESTS = set()  # type: Set[str]
+
+    def _get_istorage_server(self):
+        raise NotImplementedError("implement in subclass")
 
     @inlineCallbacks
     def setUp(self):
+        if self._testMethodName in self.SKIP_TESTS:
+            raise SkipTest(
+                "Test {} is still not supported".format(self._testMethodName)
+            )
+
         AsyncTestCase.setUp(self)
         self.basedir = "test_istorageserver/" + self.id()
         yield SystemTestMixin.setUp(self)
         yield self.set_up_nodes(1)
-        self.storage_client = self._get_native_server().get_storage_server()
-        self.assertTrue(IStorageServer.providedBy(self.storage_client))
         self.server = None
         for s in self.clients[0].services:
             if isinstance(s, StorageServer):
@@ -1021,6 +1041,7 @@ class _FoolscapMixin(SystemTestMixin):
         self._clock = Clock()
         self._clock.advance(123456)
         self.server._clock = self._clock
+        self.storage_client = self._get_istorage_server()
 
     def fake_time(self):
         """Return the current fake, test-controlled, time."""
@@ -1040,10 +1061,57 @@ class _FoolscapMixin(SystemTestMixin):
         """
         Disconnect and then reconnect with a new ``IStorageServer``.
         """
+        raise NotImplementedError("implement in subclass")
+
+
+class _FoolscapMixin(_SharedMixin):
+    """Run tests on Foolscap version of ``IStorageServer``."""
+
+    def _get_native_server(self):
+        return next(iter(self.clients[0].storage_broker.get_known_servers()))
+
+    def _get_istorage_server(self):
+        client = self._get_native_server().get_storage_server()
+        self.assertTrue(IStorageServer.providedBy(client))
+        return client
+
+    @inlineCallbacks
+    def disconnect(self):
+        """
+        Disconnect and then reconnect with a new ``IStorageServer``.
+        """
         current = self.storage_client
         yield self.bounce_client(0)
         self.storage_client = self._get_native_server().get_storage_server()
         assert self.storage_client is not current
+
+
+class _HTTPMixin(_SharedMixin):
+    """Run tests on the HTTP version of ``IStorageServer``."""
+
+    def _get_istorage_server(self):
+        set_treq_pool(HTTPConnectionPool(reactor, persistent=False))
+        swissnum = b"1234"
+        self._http_storage_server = HTTPServer(self.server, swissnum)
+        self._port_number = allocate_tcp_port()
+        self._listening_port = reactor.listenTCP(
+            self._port_number,
+            Site(self._http_storage_server.get_resource()),
+            interface="127.0.0.1",
+        )
+        return _HTTPStorageServer.from_http_client(
+            StorageClient(
+                DecodedURL.from_text("http://127.0.0.1:{}".format(self._port_number)),
+                swissnum,
+            )
+        )
+        # Eventually should also:
+        #  self.assertTrue(IStorageServer.providedBy(client))
+
+    @inlineCallbacks
+    def tearDown(self):
+        yield _SharedMixin.tearDown(self)
+        yield self._listening_port.stopListening()
 
 
 class FoolscapSharedAPIsTests(
@@ -1052,10 +1120,39 @@ class FoolscapSharedAPIsTests(
     """Foolscap-specific tests for shared ``IStorageServer`` APIs."""
 
 
+class HTTPSharedAPIsTests(
+    _HTTPMixin, IStorageServerSharedAPIsTestsMixin, AsyncTestCase
+):
+    """HTTP-specific tests for shared ``IStorageServer`` APIs."""
+
+
 class FoolscapImmutableAPIsTests(
     _FoolscapMixin, IStorageServerImmutableAPIsTestsMixin, AsyncTestCase
 ):
     """Foolscap-specific tests for immutable ``IStorageServer`` APIs."""
+
+
+class HTTPImmutableAPIsTests(
+    _HTTPMixin, IStorageServerImmutableAPIsTestsMixin, AsyncTestCase
+):
+    """HTTP-specific tests for immutable ``IStorageServer`` APIs."""
+
+    # These will start passing in future PRs as HTTP protocol is implemented.
+    SKIP_TESTS = {
+        "test_abort",
+        "test_add_lease_renewal",
+        "test_add_new_lease",
+        "test_advise_corrupt_share",
+        "test_allocate_buckets_repeat",
+        "test_bucket_advise_corrupt_share",
+        "test_disconnection",
+        "test_get_buckets_skips_unfinished_buckets",
+        "test_matching_overlapping_writes",
+        "test_non_matching_overlapping_writes",
+        "test_read_bucket_at_offset",
+        "test_written_shares_are_readable",
+        "test_written_shares_are_allocated",
+    }
 
 
 class FoolscapMutableAPIsTests(
