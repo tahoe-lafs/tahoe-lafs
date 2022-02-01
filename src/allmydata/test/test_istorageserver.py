@@ -19,6 +19,8 @@ if PY2:
     # fmt: off
     from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
     # fmt: on
+else:
+    from typing import Set
 
 from random import Random
 from unittest import SkipTest
@@ -1014,7 +1016,7 @@ class IStorageServerMutableAPIsTestsMixin(object):
 class _SharedMixin(SystemTestMixin):
     """Base class for Foolscap and HTTP mixins."""
 
-    SKIP_TESTS = set()
+    SKIP_TESTS = set()  # type: Set[str]
 
     def _get_istorage_server(self):
         raise NotImplementedError("implement in subclass")
