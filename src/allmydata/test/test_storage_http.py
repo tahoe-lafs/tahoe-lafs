@@ -413,6 +413,14 @@ class ImmutableHTTPAPITests(SyncTestCase):
         # Now shares 1 and 3 exist:
         self.assertEqual(result_of(im_client.list_shares(storage_index)), {1, 3})
 
+    def test_list_shares_unknown_storage_index(self):
+        """
+        Listing unknown storage index's shares results in empty list of shares.
+        """
+        im_client = StorageClientImmutables(self.http.client)
+        storage_index = b"".join(bytes([i]) for i in range(16))
+        self.assertEqual(result_of(im_client.list_shares(storage_index)), set())
+
     def test_multiple_shares_uploaded_to_different_place(self):
         """
         If a storage index has multiple shares, uploads to different shares are

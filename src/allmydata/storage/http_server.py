@@ -266,8 +266,6 @@ class HTTPServer(object):
         List shares for the given storage index.
         """
         storage_index = si_a2b(storage_index.encode("ascii"))
-
-        # TODO in future ticket, handle KeyError as 404
         share_numbers = list(self._storage_server.get_buckets(storage_index).keys())
         return self._cbor(request, share_numbers)
 
