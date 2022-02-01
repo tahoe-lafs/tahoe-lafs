@@ -21,6 +21,7 @@ if PY2:
     # fmt: on
 
 from random import Random
+from unittest import SkipTest
 
 from twisted.internet.defer import inlineCallbacks, returnValue
 from twisted.internet.task import Clock
@@ -1013,11 +1014,18 @@ class IStorageServerMutableAPIsTestsMixin(object):
 class _SharedMixin(SystemTestMixin):
     """Base class for Foolscap and HTTP mixins."""
 
+    SKIP_TESTS = set()
+
     def _get_istorage_server(self):
         raise NotImplementedError("implement in subclass")
 
     @inlineCallbacks
     def setUp(self):
+        if self._testMethodName in self.SKIP_TESTS:
+            raise SkipTest(
+                "Test {} is still not supported".format(self._testMethodName)
+            )
+
         AsyncTestCase.setUp(self)
         self.basedir = "test_istorageserver/" + self.id()
         yield SystemTestMixin.setUp(self)
@@ -1126,6 +1134,23 @@ class HTTPImmutableAPIsTests(
     _HTTPMixin, IStorageServerImmutableAPIsTestsMixin, AsyncTestCase
 ):
     """HTTP-specific tests for immutable ``IStorageServer`` APIs."""
+
+    # These will start passing in future PRs as HTTP protocol is implemented.
+    SKIP_TESTS = {
+        "test_abort",
+        "test_add_lease_renewal",
+        "test_add_new_lease",
+        "test_advise_corrupt_share",
+        "test_allocate_buckets_repeat",
+        "test_bucket_advise_corrupt_share",
+        "test_disconnection",
+        "test_get_buckets_skips_unfinished_buckets",
+        "test_matching_overlapping_writes",
+        "test_non_matching_overlapping_writes",
+        "test_read_bucket_at_offset",
+        "test_written_shares_are_readable",
+        "test_written_shares_are_allocated",
+    }
 
 
 class FoolscapMutableAPIsTests(
