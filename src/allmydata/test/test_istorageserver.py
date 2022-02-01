@@ -1089,6 +1089,11 @@ class _FoolscapMixin(_SharedMixin):
 class _HTTPMixin(_SharedMixin):
     """Run tests on the HTTP version of ``IStorageServer``."""
 
+    def setUp(self):
+        if PY2:
+            self.skipTest("Not going to bother supporting Python 2")
+        return _SharedMixin.setUp(self)
+
     def _get_istorage_server(self):
         set_treq_pool(HTTPConnectionPool(reactor, persistent=False))
         swissnum = b"1234"
