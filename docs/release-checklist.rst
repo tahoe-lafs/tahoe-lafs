@@ -53,16 +53,16 @@ previously generated files.
 
 Get into the release directory and install dependencies by running 
 
-- ``cd ../tahoe-release-x.x.x`` (assuming you are still in your original clone)
-- ``python -m venv venv``
-- ``./venv/bin/pip install --editable .[test]``
+- cd ../tahoe-release-x.x.x (assuming you are still in your original clone)
+- python -m venv venv
+- ./venv/bin/pip install --editable .[test]
 
 
 Create Branch and Apply Updates
 ```````````````````````````````
 
 - Create a branch for the release/candidate (e.g. ``XXXX.release-1.16.0``)
-- run ``tox -e news`` to produce a new NEWS.txt file (this does a commit)
+- run tox -e news to produce a new NEWS.txt file (this does a commit)
 - create the news for the release
 
   - newsfragments/<ticket number>.minor
@@ -112,7 +112,7 @@ they will need to evaluate which contributors' signatures they trust.
 - (all steps above are completed)
 - sign the release
 
-  - ``git tag -s -u 0xE34E62D06D0E69CFCA4179FFBDE0D31D68666A7A -m "release Tahoe-LAFS-1.16.0rc0" tahoe-lafs-1.16.0rc0``
+  - git tag -s -u 0xE34E62D06D0E69CFCA4179FFBDE0D31D68666A7A -m "release Tahoe-LAFS-1.16.0rc0" tahoe-lafs-1.16.0rc0
 
 .. note:: 
     - Replace the key-id above with your own, which can simply be your email if it's attached to your fingerprint.
@@ -122,11 +122,11 @@ they will need to evaluate which contributors' signatures they trust.
 
   - these should all pass:
 
-    - ``tox -e py27,codechecks,docs,integration``
+    - tox -e py27,codechecks,docs,integration
 
   - these can fail (ideally they should not of course):
 
-    - ``tox -e deprecations,upcoming-deprecations``
+    - tox -e deprecations,upcoming-deprecations
 
 - clone to a clean, local checkout (to avoid extra files being included in the release)
 
@@ -138,7 +138,7 @@ they will need to evaluate which contributors' signatures they trust.
   - tox -e tarballs
   - Confirm that release tarballs exist by runnig: 
 
-    - ``ls dist/ | grep 1.16.0rc0``
+    - ls dist/ | grep 1.16.0rc0
 
 - inspect and test the tarballs
 
@@ -147,8 +147,8 @@ they will need to evaluate which contributors' signatures they trust.
 
 - when satisfied, sign the tarballs:
 
-  - ``gpg --pinentry=loopback --armor --detach-sign dist/tahoe_lafs-1.16.0rc0-py2.py3-none-any.whl``
-  - ``gpg --pinentry=loopback --armor --detach-sign dist/tahoe_lafs-1.16.0rc0.tar.gz``
+  - gpg --pinentry=loopback --armor --detach-sign dist/tahoe_lafs-1.16.0rc0-py2.py3-none-any.whl
+  - gpg --pinentry=loopback --armor --detach-sign dist/tahoe_lafs-1.16.0rc0.tar.gz
 
 
 Privileged Contributor
