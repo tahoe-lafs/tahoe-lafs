@@ -24,6 +24,7 @@ from klein import Klein
 from hyperlink import DecodedURL
 from collections_extended import RangeMap
 from twisted.internet.task import Clock
+from twisted.web import http
 
 from .common import SyncTestCase
 from ..storage.server import StorageServer
@@ -385,6 +386,55 @@ class ImmutableHTTPAPITests(SyncTestCase):
                 im_client.read_share_chunk(storage_index, 1, offset, length)
             )
             self.assertEqual(downloaded, expected_data[offset : offset + length])
+
+    def test_allocate_buckets_second_time_wrong_upload_key(self):
+        """
+        If allocate buckets endpoint is called second time with wrong upload
+        key on the same shares, the result is an error.
+        """
+        im_client = StorageClientImmutables(self.http.client)
+
+        # Create a upload:
+        upload_secret = urandom(32)
+        lease_secret = urandom(32)
+        storage_index = b"".join(bytes([i]) for i in range(16))
+        result_of(
+            im_client.create(
+                storage_index, {1, 2, 3}, 100, upload_secret, lease_secret, lease_secret
+            )
+        )
+        with self.assertRaises(ClientException) as e:
+            result_of(
+                im_client.create(
+                    storage_index, {2, 3}, 100, b"x" * 32, lease_secret, lease_secret
+                )
+            )
+        self.assertEqual(e.exception.args[0], http.UNAUTHORIZED)
+
+    def test_allocate_buckets_second_time_different_shares(self):
+        """
+        If allocate buckets endpoint is called second time with different
+        upload key on different shares, that creates the buckets.
+        """
+        im_client = StorageClientImmutables(self.http.client)
+
+        # Create a upload:
+        upload_secret = urandom(32)
+        lease_secret = urandom(32)
+        storage_index = b"".join(bytes([i]) for i in range(16))
+        result_of(
+            im_client.create(
+                storage_index, {1, 2, 3}, 100, upload_secret, lease_secret, lease_secret
+            )
+        )
+
+        # Add same shares:
+        created2 = result_of(
+            im_client.create(
+                storage_index, {4, 6}, 100, b"x" * 2, lease_secret, lease_secret
+            )
+        )
+        self.assertEqual(created2.allocated, {4, 6})
 
     def test_list_shares(self):
         """
