@@ -23,6 +23,7 @@ from treq.testing import StubTreq
 from klein import Klein
 from hyperlink import DecodedURL
 from collections_extended import RangeMap
+from twisted.internet.task import Clock
 
 from .common import SyncTestCase
 from ..storage.server import StorageServer
@@ -230,8 +231,11 @@ class HttpTestFixture(Fixture):
     """
 
     def _setUp(self):
+        self.clock = Clock()
         self.tempdir = self.useFixture(TempDir())
-        self.storage_server = StorageServer(self.tempdir.path, b"\x00" * 20)
+        self.storage_server = StorageServer(
+            self.tempdir.path, b"\x00" * 20, clock=self.clock
+        )
         self.http_server = HTTPServer(self.storage_server, SWISSNUM_FOR_TEST)
         self.client = StorageClient(
             DecodedURL.from_text("http://127.0.0.1"),
@@ -401,13 +405,15 @@ class ImmutableHTTPAPITests(SyncTestCase):
 
         # Upload shares 1 and 3:
         for share_number in [1, 3]:
-            progress = result_of(im_client.write_share_chunk(
+            progress = result_of(
+                im_client.write_share_chunk(
                     storage_index,
                     share_number,
                     upload_secret,
                     0,
                     b"0123456789",
-            ))
+                )
+            )
             self.assertTrue(progress.finished)
 
         # Now shares 1 and 3 exist:
