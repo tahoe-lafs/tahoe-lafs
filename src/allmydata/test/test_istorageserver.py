@@ -1148,13 +1148,10 @@ class HTTPImmutableAPIsTests(
         "test_add_lease_renewal",
         "test_add_new_lease",
         "test_advise_corrupt_share",
-        "test_allocate_buckets_repeat",
         "test_bucket_advise_corrupt_share",
         "test_disconnection",
-        "test_get_buckets_skips_unfinished_buckets",
         "test_matching_overlapping_writes",
         "test_non_matching_overlapping_writes",
-        "test_written_shares_are_allocated",
     }
 
 
