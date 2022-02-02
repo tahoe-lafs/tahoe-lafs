@@ -39,12 +39,11 @@ jobs:
           - ubuntu-latest
         python-version:
           - 2.7
-          - 3.6
           - 3.7
           - 3.8
           - 3.9
         include:
-          # On macOS don't bother with 3.6-3.8, just to get faster builds.
+          # On macOS don't bother with 3.7-3.8, just to get faster builds.
           - os: macos-10.15
             python-version: 2.7
           - os: macos-latest
@@ -181,10 +180,10 @@ jobs:
           - ubuntu-latest
         python-version:
           - 2.7
-          - 3.6
+          - 3.7
           - 3.9
         include:
-          # On macOS don't bother with 3.6, just to get faster builds.
+          # On macOS don't bother with 3.7, just to get faster builds.
           - os: macos-10.15
             python-version: 2.7
           - os: macos-latest

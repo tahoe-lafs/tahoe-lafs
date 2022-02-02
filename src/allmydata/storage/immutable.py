@@ -372,16 +372,29 @@ class BucketWriter(object):
         self._clock = clock
         self._timeout = clock.callLater(30 * 60, self._abort_due_to_timeout)
 
+    def required_ranges(self):  # type: () -> RangeMap
+        """
+        Return which ranges still need to be written.
+        """
+        result = RangeMap()
+        result.set(True, 0, self._max_size)
+        for start, end, _ in self._already_written.ranges():
+            result.delete(start, end)
+        return result
+
     def allocated_size(self):
         return self._max_size
 
-    def write(self, offset, data):
+    def write(self, offset, data):  # type: (int, bytes) -> bool
+        """
+        Write data at given offset, return whether the upload is complete.
+        """
         # Delay the timeout, since we received data:
         self._timeout.reset(30 * 60)
         start = self._clock.seconds()
         precondition(not self.closed)
         if self.throw_out_all_data:
-            return
+            return False
 
         # Make sure we're not conflicting with existing data:
         end = offset + len(data)
@@ -398,6 +411,12 @@ class BucketWriter(object):
         self._already_written.set(True, offset, end)
         self.ss.add_latency("write", self._clock.seconds() - start)
         self.ss.count("write")
+
+        # Return whether the whole thing has been written. See
+        # https://github.com/mlenzen/collections-extended/issues/169 and
+        # https://github.com/mlenzen/collections-extended/issues/172 for why
+        # it's done this way.
+        return sum([mr.stop - mr.start for mr in self._already_written.ranges()]) == self._max_size
 
     def close(self):
         precondition(not self.closed)
@@ -485,7 +504,7 @@ class FoolscapBucketWriter(Referenceable):  # type: ignore # warner/foolscap#78
         self._bucket_writer = bucket_writer
 
     def remote_write(self, offset, data):
-        return self._bucket_writer.write(offset, data)
+        self._bucket_writer.write(offset, data)
 
     def remote_close(self):
         return self._bucket_writer.close()

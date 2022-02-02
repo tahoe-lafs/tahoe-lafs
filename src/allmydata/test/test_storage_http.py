@@ -15,16 +15,16 @@ if PY2:
     # fmt: on
 
 from base64 import b64encode
-
-from twisted.internet.defer import inlineCallbacks
+from os import urandom
 
 from hypothesis import assume, given, strategies as st
 from fixtures import Fixture, TempDir
 from treq.testing import StubTreq
 from klein import Klein
 from hyperlink import DecodedURL
+from collections_extended import RangeMap
 
-from .common import AsyncTestCase, SyncTestCase
+from .common import SyncTestCase
 from ..storage.server import StorageServer
 from ..storage.http_server import (
     HTTPServer,
@@ -33,7 +33,13 @@ from ..storage.http_server import (
     ClientSecretsException,
     _authorized_route,
 )
-from ..storage.http_client import StorageClient, ClientException
+from ..storage.http_client import (
+    StorageClient,
+    ClientException,
+    StorageClientImmutables,
+    ImmutableCreateResult,
+    UploadProgress,
+)
 
 
 def _post_process(params):
@@ -140,6 +146,7 @@ class ExtractSecretsTests(SyncTestCase):
             _extract_secrets(["lease-cancel-secret eA=="], {Secrets.LEASE_RENEW})
 
 
+# TODO should be actual swissnum
 SWISSNUM_FOR_TEST = b"abcd"
 
 
@@ -157,7 +164,24 @@ class TestApp(object):
             return "BAD: {}".format(authorization)
 
 
-class RoutingTests(AsyncTestCase):
+def result_of(d):
+    """
+    Synchronously extract the result of a Deferred.
+    """
+    result = []
+    error = []
+    d.addCallbacks(result.append, error.append)
+    if result:
+        return result[0]
+    if error:
+        error[0].raiseException()
+    raise RuntimeError(
+        "We expected given Deferred to have result already, but it wasn't. "
+        + "This is probably a test design issue."
+    )
+
+
+class RoutingTests(SyncTestCase):
     """
     Tests for the HTTP routing infrastructure.
     """
@@ -175,24 +199,28 @@ class RoutingTests(AsyncTestCase):
             treq=StubTreq(self._http_server._app.resource()),
         )
 
-    @inlineCallbacks
     def test_authorization_enforcement(self):
         """
         The requirement for secrets is enforced; if they are not given, a 400
         response code is returned.
         """
         # Without secret, get a 400 error.
-        response = yield self.client._request(
-            "GET", "http://127.0.0.1/upload_secret", {}
+        response = result_of(
+            self.client._request(
+                "GET",
+                "http://127.0.0.1/upload_secret",
+            )
         )
         self.assertEqual(response.code, 400)
 
         # With secret, we're good.
-        response = yield self.client._request(
-            "GET", "http://127.0.0.1/upload_secret", {Secrets.UPLOAD: b"MAGIC"}
+        response = result_of(
+            self.client._request(
+                "GET", "http://127.0.0.1/upload_secret", upload_secret=b"MAGIC"
+            )
         )
         self.assertEqual(response.code, 200)
-        self.assertEqual((yield response.content()), b"GOOD SECRET")
+        self.assertEqual(result_of(response.content()), b"GOOD SECRET")
 
 
 class HttpTestFixture(Fixture):
@@ -204,7 +232,6 @@ class HttpTestFixture(Fixture):
     def _setUp(self):
         self.tempdir = self.useFixture(TempDir())
         self.storage_server = StorageServer(self.tempdir.path, b"\x00" * 20)
-        # TODO what should the swissnum _actually_ be?
         self.http_server = HTTPServer(self.storage_server, SWISSNUM_FOR_TEST)
         self.client = StorageClient(
             DecodedURL.from_text("http://127.0.0.1"),
@@ -213,7 +240,7 @@ class HttpTestFixture(Fixture):
         )
 
 
-class GenericHTTPAPITests(AsyncTestCase):
+class GenericHTTPAPITests(SyncTestCase):
     """
     Tests of HTTP client talking to the HTTP server, for generic HTTP API
     endpoints and concerns.
@@ -225,7 +252,6 @@ class GenericHTTPAPITests(AsyncTestCase):
         super(GenericHTTPAPITests, self).setUp()
         self.http = self.useFixture(HttpTestFixture())
 
-    @inlineCallbacks
     def test_bad_authentication(self):
         """
         If the wrong swissnum is used, an ``Unauthorized`` response code is
@@ -237,10 +263,9 @@ class GenericHTTPAPITests(AsyncTestCase):
             treq=StubTreq(self.http.http_server.get_resource()),
         )
         with self.assertRaises(ClientException) as e:
-            yield client.get_version()
+            result_of(client.get_version())
         self.assertEqual(e.exception.args[0], 401)
 
-    @inlineCallbacks
     def test_version(self):
         """
         The client can return the version.
@@ -248,7 +273,7 @@ class GenericHTTPAPITests(AsyncTestCase):
         We ignore available disk space and max immutable share size, since that
         might change across calls.
         """
-        version = yield self.http.client.get_version()
+        version = result_of(self.http.client.get_version())
         version[b"http://allmydata.org/tahoe/protocols/storage/v1"].pop(
             b"available-space"
         )
@@ -263,3 +288,171 @@ class GenericHTTPAPITests(AsyncTestCase):
             b"maximum-immutable-share-size"
         )
         self.assertEqual(version, expected_version)
+
+
+class ImmutableHTTPAPITests(SyncTestCase):
+    """
+    Tests for immutable upload/download APIs.
+    """
+
+    def setUp(self):
+        if PY2:
+            self.skipTest("Not going to bother supporting Python 2")
+        super(ImmutableHTTPAPITests, self).setUp()
+        self.http = self.useFixture(HttpTestFixture())
+
+    def test_upload_can_be_downloaded(self):
+        """
+        A single share can be uploaded in (possibly overlapping) chunks, and
+        then a random chunk can be downloaded, and it will match the original
+        file.
+
+        We don't exercise the full variation of overlapping chunks because
+        that's already done in test_storage.py.
+        """
+        length = 100
+        expected_data = b"".join(bytes([i]) for i in range(100))
+
+        im_client = StorageClientImmutables(self.http.client)
+
+        # Create a upload:
+        upload_secret = urandom(32)
+        lease_secret = urandom(32)
+        storage_index = b"".join(bytes([i]) for i in range(16))
+        created = result_of(
+            im_client.create(
+                storage_index, {1}, 100, upload_secret, lease_secret, lease_secret
+            )
+        )
+        self.assertEqual(
+            created, ImmutableCreateResult(already_have=set(), allocated={1})
+        )
+
+        remaining = RangeMap()
+        remaining.set(True, 0, 100)
+
+        # Three writes: 10-19, 30-39, 50-59. This allows for a bunch of holes.
+        def write(offset, length):
+            remaining.empty(offset, offset + length)
+            return im_client.write_share_chunk(
+                storage_index,
+                1,
+                upload_secret,
+                offset,
+                expected_data[offset : offset + length],
+            )
+
+        upload_progress = result_of(write(10, 10))
+        self.assertEqual(
+            upload_progress, UploadProgress(finished=False, required=remaining)
+        )
+        upload_progress = result_of(write(30, 10))
+        self.assertEqual(
+            upload_progress, UploadProgress(finished=False, required=remaining)
+        )
+        upload_progress = result_of(write(50, 10))
+        self.assertEqual(
+            upload_progress, UploadProgress(finished=False, required=remaining)
+        )
+
+        # Then, an overlapping write with matching data (15-35):
+        upload_progress = result_of(write(15, 20))
+        self.assertEqual(
+            upload_progress, UploadProgress(finished=False, required=remaining)
+        )
+
+        # Now fill in the holes:
+        upload_progress = result_of(write(0, 10))
+        self.assertEqual(
+            upload_progress, UploadProgress(finished=False, required=remaining)
+        )
+        upload_progress = result_of(write(40, 10))
+        self.assertEqual(
+            upload_progress, UploadProgress(finished=False, required=remaining)
+        )
+        upload_progress = result_of(write(60, 40))
+        self.assertEqual(
+            upload_progress, UploadProgress(finished=True, required=RangeMap())
+        )
+
+        # We can now read:
+        for offset, length in [(0, 100), (10, 19), (99, 1), (49, 200)]:
+            downloaded = result_of(
+                im_client.read_share_chunk(storage_index, 1, offset, length)
+            )
+            self.assertEqual(downloaded, expected_data[offset : offset + length])
+
+    def test_multiple_shares_uploaded_to_different_place(self):
+        """
+        If a storage index has multiple shares, uploads to different shares are
+        stored separately and can be downloaded separately.
+
+        TBD in https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3860
+        """
+
+    def test_bucket_allocated_with_new_shares(self):
+        """
+        If some shares already exist, allocating shares indicates only the new
+        ones were created.
+
+        TBD in https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3860
+        """
+
+    def test_bucket_allocation_new_upload_secret(self):
+        """
+        If a bucket was allocated with one upload secret, and a different upload
+        key is used to allocate the bucket again, the second allocation fails.
+
+        TBD in https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3860
+        """
+
+    def test_upload_with_wrong_upload_secret_fails(self):
+        """
+        Uploading with a key that doesn't match the one used to allocate the
+        bucket will fail.
+
+        TBD in https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3860
+        """
+
+    def test_upload_offset_cannot_be_negative(self):
+        """
+        A negative upload offset will be rejected.
+
+        TBD in https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3860
+        """
+
+    def test_mismatching_upload_fails(self):
+        """
+        If an uploaded chunk conflicts with an already uploaded chunk, a
+        CONFLICT error is returned.
+
+        TBD in https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3860
+        """
+
+    def test_read_of_wrong_storage_index_fails(self):
+        """
+        Reading from unknown storage index results in 404.
+
+        TBD in https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3860
+        """
+
+    def test_read_of_wrong_share_number_fails(self):
+        """
+        Reading from unknown storage index results in 404.
+
+        TBD in https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3860
+        """
+
+    def test_read_with_negative_offset_fails(self):
+        """
+        The offset for reads cannot be negative.
+
+        TBD in https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3860
+        """
+
+    def test_read_with_negative_length_fails(self):
+        """
+        The length for reads cannot be negative.
+
+        TBD in https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3860
+        """

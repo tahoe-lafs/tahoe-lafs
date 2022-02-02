@@ -12,11 +12,13 @@ if PY2:
 
 import os
 from io import BytesIO
-from twisted.trial import unittest
+from ..common import SyncTestCase
 from allmydata.mutable.publish import MutableFileHandle
 
-class FileHandle(unittest.TestCase):
+
+class FileHandle(SyncTestCase):
     def setUp(self):
+        super(FileHandle, self).setUp()
         self.test_data = b"Test Data" * 50000
         self.sio = BytesIO(self.test_data)
         self.uploadable = MutableFileHandle(self.sio)

@@ -382,6 +382,11 @@ the server will respond with ``400 BAD REQUEST``.
 
 If authorization using the secret fails, then a ``401 UNAUTHORIZED`` response should be sent.
 
+Encoding
+~~~~~~~~
+
+* ``storage_index`` should be base32 encoded (RFC3548) in URLs.
+
 General
 ~~~~~~~
 
@@ -482,6 +487,14 @@ For example::
   {"already-have": [1, ...], "allocated": [7, ...]}
 
 The upload secret is an opaque _byte_ string.
+
+Handling repeat calls:
+
+* If the same API call is repeated with the same upload secret, the response is the same and no change is made to server state.
+  This is necessary to ensure retries work in the face of lost responses from the server.
+* If the API calls is with a different upload secret, this implies a new client, perhaps because the old client died.
+  In order to prevent storage servers from being able to mess with each other, this API call will fail, because the secret doesn't match.
+  The use case of restarting upload from scratch if the client dies can be implemented by having the client persist the upload secret.
 
 Discussion
 ``````````
@@ -627,7 +640,7 @@ For example::
 
 Read a contiguous sequence of bytes from one share in one bucket.
 The response body is the raw share data (i.e., ``application/octet-stream``).
-The ``Range`` header may be used to request exactly one ``bytes`` range.
+The ``Range`` header may be used to request exactly one ``bytes`` range, in which case the response code will be 206 (partial content).
 Interpretation and response behavior is as specified in RFC 7233 § 4.1.
 Multiple ranges in a single request are *not* supported.
 
