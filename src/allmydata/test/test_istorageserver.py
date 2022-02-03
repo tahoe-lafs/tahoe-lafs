@@ -30,9 +30,9 @@ from twisted.internet.task import Clock
 from twisted.internet import reactor
 from twisted.internet.endpoints import serverFromString
 from twisted.web.server import Site
-from twisted.web.client import HTTPConnectionPool
+from twisted.web.client import Agent, HTTPConnectionPool
 from hyperlink import DecodedURL
-from treq.api import set_global_pool as set_treq_pool
+from treq.client import HTTPClient
 
 from foolscap.api import Referenceable, RemoteException
 
@@ -1101,24 +1101,29 @@ class _HTTPMixin(_SharedMixin):
 
     @inlineCallbacks
     def _get_istorage_server(self):
-        set_treq_pool(HTTPConnectionPool(reactor, persistent=False))
         swissnum = b"1234"
-        self._http_storage_server = HTTPServer(self.server, swissnum)
+        http_storage_server = HTTPServer(self.server, swissnum)
 
         # Listen on randomly assigned port:
         tcp_address, endpoint_string = self._port_assigner.assign(reactor)
         _, host, port = tcp_address.split(":")
         port = int(port)
         endpoint = serverFromString(reactor, endpoint_string)
-        self._listening_port = yield endpoint.listen(
-            Site(self._http_storage_server.get_resource())
+        listening_port = yield endpoint.listen(Site(http_storage_server.get_resource()))
+        self.addCleanup(listening_port.stopListening)
+
+        # Create HTTP client with non-persistent connections, so we don't leak
+        # state across tests:
+        treq_client = HTTPClient(
+            Agent(reactor, HTTPConnectionPool(reactor, persistent=False))
         )
-        self.addCleanup(self._listening_port.stopListening)
+
         returnValue(
             _HTTPStorageServer.from_http_client(
                 StorageClient(
                     DecodedURL().replace(scheme="http", host=host, port=port),
                     swissnum,
+                    treq=treq_client,
                 )
             )
         )
