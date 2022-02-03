@@ -1113,6 +1113,7 @@ class _HTTPMixin(_SharedMixin):
         self._listening_port = yield endpoint.listen(
             Site(self._http_storage_server.get_resource())
         )
+        self.addCleanup(self._listening_port.stopListening)
         returnValue(
             _HTTPStorageServer.from_http_client(
                 StorageClient(
@@ -1123,11 +1124,6 @@ class _HTTPMixin(_SharedMixin):
         )
         # Eventually should also:
         #  self.assertTrue(IStorageServer.providedBy(client))
-
-    @inlineCallbacks
-    def tearDown(self):
-        yield _SharedMixin.tearDown(self)
-        yield self._listening_port.stopListening()
 
 
 class FoolscapSharedAPIsTests(
