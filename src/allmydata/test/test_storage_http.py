@@ -25,6 +25,8 @@ from hyperlink import DecodedURL
 from collections_extended import RangeMap
 from twisted.internet.task import Clock
 from twisted.web import http
+from werkzeug import routing
+from werkzeug.exceptions import NotFound as WNotFound
 
 from .common import SyncTestCase
 from ..storage.server import StorageServer
@@ -34,6 +36,7 @@ from ..storage.http_server import (
     Secrets,
     ClientSecretsException,
     _authorized_route,
+    StorageIndexConverter,
 )
 from ..storage.http_client import (
     StorageClient,
@@ -42,6 +45,7 @@ from ..storage.http_client import (
     ImmutableCreateResult,
     UploadProgress,
 )
+from ..storage.common import si_b2a
 
 
 def _post_process(params):
@@ -146,6 +150,47 @@ class ExtractSecretsTests(SyncTestCase):
         """
         with self.assertRaises(ClientSecretsException):
             _extract_secrets(["lease-cancel-secret eA=="], {Secrets.LEASE_RENEW})
+
+
+class RouteConverterTests(SyncTestCase):
+    """Tests for custom werkzeug path segment converters."""
+
+    adapter = routing.Map(
+        [
+            routing.Rule(
+                "/<storage_index:storage_index>/", endpoint="si", methods=["GET"]
+            )
+        ],
+        converters={"storage_index": StorageIndexConverter},
+    ).bind("example.com", "/")
+
+    @given(storage_index=st.binary(min_size=16, max_size=16))
+    def test_good_storage_index_is_parsed(self, storage_index):
+        """
+        A valid storage index is accepted and parsed back out by
+        StorageIndexConverter.
+        """
+        self.assertEqual(
+            self.adapter.match(
+                "/{}/".format(str(si_b2a(storage_index), "ascii")), method="GET"
+            ),
+            ("si", {"storage_index": storage_index}),
+        )
+
+    def test_long_storage_index_is_not_parsed(self):
+        """An overly long storage_index string is not parsed."""
+        with self.assertRaises(WNotFound):
+            self.adapter.match("/{}/".format("a" * 27), method="GET")
+
+    def test_short_storage_index_is_not_parsed(self):
+        """An overly short storage_index string is not parsed."""
+        with self.assertRaises(WNotFound):
+            self.adapter.match("/{}/".format("a" * 25), method="GET")
+
+    def test_bad_characters_storage_index_is_not_parsed(self):
+        """An overly short storage_index string is not parsed."""
+        with self.assertRaises(WNotFound):
+            self.adapter.match("/{}_/".format("a" * 25), method="GET")
 
 
 # TODO should be actual swissnum
