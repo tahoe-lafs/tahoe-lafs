@@ -29,6 +29,7 @@ Contents:
    contributing
    CODE_OF_CONDUCT
    release-checklist
+   gpg-setup
 
    servers
    helper

@@ -25,23 +25,23 @@ else:
 from random import Random
 from unittest import SkipTest
 
-from twisted.internet.defer import inlineCallbacks, returnValue
+from twisted.internet.defer import inlineCallbacks, returnValue, succeed
 from twisted.internet.task import Clock
 from twisted.internet import reactor
+from twisted.internet.endpoints import serverFromString
 from twisted.web.server import Site
-from twisted.web.client import HTTPConnectionPool
+from twisted.web.client import Agent, HTTPConnectionPool
 from hyperlink import DecodedURL
-from treq.api import set_global_pool as set_treq_pool
+from treq.client import HTTPClient
 
 from foolscap.api import Referenceable, RemoteException
 
 from allmydata.interfaces import IStorageServer  # really, IStorageClient
 from .common_system import SystemTestMixin
-from .common import AsyncTestCase
+from .common import AsyncTestCase, SameProcessStreamEndpointAssigner
 from allmydata.storage.server import StorageServer  # not a IStorageServer!!
 from allmydata.storage.http_server import HTTPServer
 from allmydata.storage.http_client import StorageClient
-from allmydata.util.iputil import allocate_tcp_port
 from allmydata.storage_client import _HTTPStorageServer
 
 
@@ -1029,6 +1029,11 @@ class _SharedMixin(SystemTestMixin):
             )
 
         AsyncTestCase.setUp(self)
+
+        self._port_assigner = SameProcessStreamEndpointAssigner()
+        self._port_assigner.setUp()
+        self.addCleanup(self._port_assigner.tearDown)
+
         self.basedir = "test_istorageserver/" + self.id()
         yield SystemTestMixin.setUp(self)
         yield self.set_up_nodes(1)
@@ -1041,7 +1046,7 @@ class _SharedMixin(SystemTestMixin):
         self._clock = Clock()
         self._clock.advance(123456)
         self.server._clock = self._clock
-        self.storage_client = self._get_istorage_server()
+        self.storage_client = yield self._get_istorage_server()
 
     def fake_time(self):
         """Return the current fake, test-controlled, time."""
@@ -1073,7 +1078,7 @@ class _FoolscapMixin(_SharedMixin):
     def _get_istorage_server(self):
         client = self._get_native_server().get_storage_server()
         self.assertTrue(IStorageServer.providedBy(client))
-        return client
+        return succeed(client)
 
     @inlineCallbacks
     def disconnect(self):
@@ -1094,29 +1099,36 @@ class _HTTPMixin(_SharedMixin):
             self.skipTest("Not going to bother supporting Python 2")
         return _SharedMixin.setUp(self)
 
+    @inlineCallbacks
     def _get_istorage_server(self):
-        set_treq_pool(HTTPConnectionPool(reactor, persistent=False))
         swissnum = b"1234"
-        self._http_storage_server = HTTPServer(self.server, swissnum)
-        self._port_number = allocate_tcp_port()
-        self._listening_port = reactor.listenTCP(
-            self._port_number,
-            Site(self._http_storage_server.get_resource()),
-            interface="127.0.0.1",
+        http_storage_server = HTTPServer(self.server, swissnum)
+
+        # Listen on randomly assigned port:
+        tcp_address, endpoint_string = self._port_assigner.assign(reactor)
+        _, host, port = tcp_address.split(":")
+        port = int(port)
+        endpoint = serverFromString(reactor, endpoint_string)
+        listening_port = yield endpoint.listen(Site(http_storage_server.get_resource()))
+        self.addCleanup(listening_port.stopListening)
+
+        # Create HTTP client with non-persistent connections, so we don't leak
+        # state across tests:
+        treq_client = HTTPClient(
+            Agent(reactor, HTTPConnectionPool(reactor, persistent=False))
         )
-        return _HTTPStorageServer.from_http_client(
-            StorageClient(
-                DecodedURL.from_text("http://127.0.0.1:{}".format(self._port_number)),
-                swissnum,
+
+        returnValue(
+            _HTTPStorageServer.from_http_client(
+                StorageClient(
+                    DecodedURL().replace(scheme="http", host=host, port=port),
+                    swissnum,
+                    treq=treq_client,
+                )
             )
         )
         # Eventually should also:
         #  self.assertTrue(IStorageServer.providedBy(client))
-
-    @inlineCallbacks
-    def tearDown(self):
-        yield _SharedMixin.tearDown(self)
-        yield self._listening_port.stopListening()
 
 
 class FoolscapSharedAPIsTests(
