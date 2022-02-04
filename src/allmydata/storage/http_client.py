@@ -238,7 +238,7 @@ class StorageClientImmutables(object):
             raise ClientException(
                 response.code,
             )
-        body = loads((yield response.content()))
+        body = yield _decode_cbor(response)
         remaining = RangeMap()
         for chunk in body["required"]:
             remaining.set(True, chunk["begin"], chunk["end"])
@@ -293,8 +293,8 @@ class StorageClientImmutables(object):
             url,
         )
         if response.code == http.OK:
-            body = yield response.content()
-            returnValue(set(loads(body)))
+            body = yield _decode_cbor(response)
+            returnValue(set(body))
         else:
             raise ClientException(
                 response.code,
