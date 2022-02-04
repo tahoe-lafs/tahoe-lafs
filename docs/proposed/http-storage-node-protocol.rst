@@ -635,8 +635,7 @@ indicated storage index. For example::
 
   [1, 5]
 
-An unknown storage index results in empty list, so that lack of existence of
-storage index is not leaked.
+An unknown storage index results in an empty list.
 
 ``GET /v1/immutable/:storage_index/:share_number``
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
