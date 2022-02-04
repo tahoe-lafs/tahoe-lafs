@@ -1073,7 +1073,7 @@ class _HTTPBucketWriter(object):
 @attr.s
 class _HTTPBucketReader(object):
     """
-    Emulate a ``RIBucketReader``.
+    Emulate a ``RIBucketReader``, but use HTTP protocol underneath.
     """
     client = attr.ib(type=StorageClientImmutables)
     storage_index = attr.ib(type=bytes)
