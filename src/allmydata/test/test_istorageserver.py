@@ -1166,8 +1166,6 @@ class HTTPImmutableAPIsTests(
         "test_get_buckets_skips_unfinished_buckets",
         "test_matching_overlapping_writes",
         "test_non_matching_overlapping_writes",
-        "test_read_bucket_at_offset",
-        "test_written_shares_are_readable",
         "test_written_shares_are_allocated",
     }
 

@@ -258,6 +258,20 @@ class HTTPServer(object):
     @_authorized_route(
         _app,
         set(),
+        "/v1/immutable/<string:storage_index>/shares",
+        methods=["GET"],
+    )
+    def list_shares(self, request, authorization, storage_index):
+        """
+        List shares for the given storage index.
+        """
+        storage_index = si_a2b(storage_index.encode("ascii"))
+        share_numbers = list(self._storage_server.get_buckets(storage_index).keys())
+        return self._cbor(request, share_numbers)
+
+    @_authorized_route(
+        _app,
+        set(),
         "/v1/immutable/<string:storage_index>/<int:share_number>",
         methods=["GET"],
     )

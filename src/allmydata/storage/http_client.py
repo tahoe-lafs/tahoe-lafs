@@ -136,6 +136,7 @@ class UploadProgress(object):
     """
     Progress of immutable upload, per the server.
     """
+
     # True when upload has finished.
     finished = attr.ib(type=bool)
     # Remaining ranges to upload.
@@ -221,7 +222,7 @@ class StorageClientImmutables(object):
             headers=Headers(
                 {
                     "content-range": [
-                        ContentRange("bytes", offset, offset+len(data)).to_header()
+                        ContentRange("bytes", offset, offset + len(data)).to_header()
                     ]
                 }
             ),
@@ -237,7 +238,7 @@ class StorageClientImmutables(object):
             raise ClientException(
                 response.code,
             )
-        body = loads((yield response.content()))
+        body = yield _decode_cbor(response)
         remaining = RangeMap()
         for chunk in body["required"]:
             remaining.set(True, chunk["begin"], chunk["end"])
@@ -268,16 +269,32 @@ class StorageClientImmutables(object):
             "GET",
             url,
             headers=Headers(
-                {
-                    "range": [
-                        Range("bytes", [(offset, offset + length)]).to_header()
-                    ]
-                }
+                {"range": [Range("bytes", [(offset, offset + length)]).to_header()]}
             ),
         )
         if response.code == http.PARTIAL_CONTENT:
             body = yield response.content()
             returnValue(body)
+        else:
+            raise ClientException(
+                response.code,
+            )
+
+    @inlineCallbacks
+    def list_shares(self, storage_index):  # type: (bytes,) -> Deferred[Set[int]]
+        """
+        Return the set of shares for a given storage index.
+        """
+        url = self._client._url(
+            "/v1/immutable/{}/shares".format(_encode_si(storage_index))
+        )
+        response = yield self._client._request(
+            "GET",
+            url,
+        )
+        if response.code == http.OK:
+            body = yield _decode_cbor(response)
+            returnValue(set(body))
         else:
             raise ClientException(
                 response.code,
