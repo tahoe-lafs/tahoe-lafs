@@ -44,6 +44,7 @@ from ..storage.http_client import (
     StorageClientImmutables,
     ImmutableCreateResult,
     UploadProgress,
+    StorageClientGeneral,
 )
 from ..storage.common import si_b2a
 
@@ -253,7 +254,7 @@ class RoutingTests(SyncTestCase):
         """
         # Without secret, get a 400 error.
         response = result_of(
-            self.client._request(
+            self.client.request(
                 "GET",
                 "http://127.0.0.1/upload_secret",
             )
@@ -262,7 +263,7 @@ class RoutingTests(SyncTestCase):
 
         # With secret, we're good.
         response = result_of(
-            self.client._request(
+            self.client.request(
                 "GET", "http://127.0.0.1/upload_secret", upload_secret=b"MAGIC"
             )
         )
@@ -307,10 +308,12 @@ class GenericHTTPAPITests(SyncTestCase):
         If the wrong swissnum is used, an ``Unauthorized`` response code is
         returned.
         """
-        client = StorageClient(
-            DecodedURL.from_text("http://127.0.0.1"),
-            b"something wrong",
-            treq=StubTreq(self.http.http_server.get_resource()),
+        client = StorageClientGeneral(
+            StorageClient(
+                DecodedURL.from_text("http://127.0.0.1"),
+                b"something wrong",
+                treq=StubTreq(self.http.http_server.get_resource()),
+            )
         )
         with self.assertRaises(ClientException) as e:
             result_of(client.get_version())
@@ -323,7 +326,8 @@ class GenericHTTPAPITests(SyncTestCase):
         We ignore available disk space and max immutable share size, since that
         might change across calls.
         """
-        version = result_of(self.http.client.get_version())
+        client = StorageClientGeneral(self.http.client)
+        version = result_of(client.get_version())
         version[b"http://allmydata.org/tahoe/protocols/storage/v1"].pop(
             b"available-space"
         )

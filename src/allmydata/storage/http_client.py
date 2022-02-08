@@ -68,7 +68,7 @@ class ImmutableCreateResult(object):
 
 class StorageClient(object):
     """
-    HTTP client that talks to the HTTP storage server.
+    Low-level HTTP client that talks to the HTTP storage server.
     """
 
     def __init__(
@@ -78,7 +78,7 @@ class StorageClient(object):
         self._swissnum = swissnum
         self._treq = treq
 
-    def _url(self, path):
+    def relative_url(self, path):
         """Get a URL relative to the base URL."""
         return self._base_url.click(path)
 
@@ -92,7 +92,7 @@ class StorageClient(object):
         )
         return headers
 
-    def _request(
+    def request(
         self,
         method,
         url,
@@ -120,13 +120,22 @@ class StorageClient(object):
             )
         return self._treq.request(method, url, headers=headers, **kwargs)
 
+
+class StorageClientGeneral(object):
+    """
+    High-level HTTP APIs that aren't immutable- or mutable-specific.
+    """
+
+    def __init__(self, client):  # type: (StorageClient) -> None
+        self._client = client
+
     @inlineCallbacks
     def get_version(self):
         """
         Return the version metadata for the server.
         """
-        url = self._url("/v1/version")
-        response = yield self._request("GET", url)
+        url = self._client.relative_url("/v1/version")
+        response = yield self._client.request("GET", url)
         decoded_response = yield _decode_cbor(response)
         returnValue(decoded_response)
 
@@ -174,11 +183,11 @@ class StorageClientImmutables(object):
         Result fires when creating the storage index succeeded, if creating the
         storage index failed the result will fire with an exception.
         """
-        url = self._client._url("/v1/immutable/" + _encode_si(storage_index))
+        url = self._client.relative_url("/v1/immutable/" + _encode_si(storage_index))
         message = dumps(
             {"share-numbers": share_numbers, "allocated-size": allocated_size}
         )
-        response = yield self._client._request(
+        response = yield self._client.request(
             "POST",
             url,
             lease_renew_secret=lease_renew_secret,
@@ -211,10 +220,10 @@ class StorageClientImmutables(object):
         whether the _complete_ share (i.e. all chunks, not just this one) has
         been uploaded.
         """
-        url = self._client._url(
+        url = self._client.relative_url(
             "/v1/immutable/{}/{}".format(_encode_si(storage_index), share_number)
         )
-        response = yield self._client._request(
+        response = yield self._client.request(
             "PATCH",
             url,
             upload_secret=upload_secret,
@@ -262,10 +271,10 @@ class StorageClientImmutables(object):
         the HTTP protocol will be simplified, see
         https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3777
         """
-        url = self._client._url(
+        url = self._client.relative_url(
             "/v1/immutable/{}/{}".format(_encode_si(storage_index), share_number)
         )
-        response = yield self._client._request(
+        response = yield self._client.request(
             "GET",
             url,
             headers=Headers(
@@ -285,10 +294,10 @@ class StorageClientImmutables(object):
         """
         Return the set of shares for a given storage index.
         """
-        url = self._client._url(
+        url = self._client.relative_url(
             "/v1/immutable/{}/shares".format(_encode_si(storage_index))
         )
-        response = yield self._client._request(
+        response = yield self._client.request(
             "GET",
             url,
         )
