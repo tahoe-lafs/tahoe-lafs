@@ -25,6 +25,7 @@ from hyperlink import DecodedURL
 from collections_extended import RangeMap
 from twisted.internet.task import Clock
 from twisted.web import http
+from twisted.web.http_headers import Headers
 from werkzeug import routing
 from werkzeug.exceptions import NotFound as WNotFound
 
@@ -291,6 +292,24 @@ class HttpTestFixture(Fixture):
         )
 
 
+class StorageClientWithHeadersOverride(object):
+    """Wrap ``StorageClient`` and override sent headers."""
+
+    def __init__(self, storage_client, add_headers):
+        self.storage_client = storage_client
+        self.add_headers = add_headers
+
+    def __getattr__(self, attr):
+        return getattr(self.storage_client, attr)
+
+    def request(self, *args, headers=None, **kwargs):
+        if headers is None:
+            headers = Headers()
+        for key, value in self.add_headers.items():
+            headers.setRawHeaders(key, [value])
+        return self.storage_client.request(*args, headers=headers, **kwargs)
+
+
 class GenericHTTPAPITests(SyncTestCase):
     """
     Tests of HTTP client talking to the HTTP server, for generic HTTP API
@@ -517,6 +536,44 @@ class ImmutableHTTPAPITests(SyncTestCase):
 
         # Now shares 1 and 3 exist:
         self.assertEqual(result_of(im_client.list_shares(storage_index)), {1, 3})
+
+    def test_upload_bad_content_range(self):
+        """
+        Malformed or invalid Content-Range headers to the immutable upload
+        endpoint result in a 416 error.
+        """
+        im_client = StorageClientImmutables(self.http.client)
+        upload_secret = urandom(32)
+        lease_secret = urandom(32)
+        storage_index = b"0" * 16
+        result_of(
+            im_client.create(
+                storage_index, {1}, 10, upload_secret, lease_secret, lease_secret
+            )
+        )
+
+        def check_invalid(bad_content_range_value):
+            client = StorageClientImmutables(
+                StorageClientWithHeadersOverride(
+                    self.http.client, {"content-range": bad_content_range_value}
+                )
+            )
+            with self.assertRaises(ClientException) as e:
+                result_of(
+                    client.write_share_chunk(
+                        storage_index,
+                        1,
+                        upload_secret,
+                        0,
+                        b"0123456789",
+                    )
+                )
+            self.assertEqual(e.exception.code, http.REQUESTED_RANGE_NOT_SATISFIABLE)
+
+        check_invalid("not a valid content-range header at all")
+        check_invalid("bytes -1-9/10")
+        check_invalid("bytes 0--9/10")
+        check_invalid("teapots 0-9/10")
 
     def test_list_shares_unknown_storage_index(self):
         """

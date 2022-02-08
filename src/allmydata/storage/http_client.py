@@ -48,7 +48,11 @@ def _encode_si(si):  # type: (bytes) -> str
 
 
 class ClientException(Exception):
-    """An unexpected error."""
+    """An unexpected response code from the server."""
+
+    def __init__(self, code, *additional_args):
+        Exception.__init__(self, code, *additional_args)
+        self.code = code
 
 
 def _decode_cbor(response):

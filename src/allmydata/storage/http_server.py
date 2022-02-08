@@ -239,14 +239,14 @@ class HTTPServer(object):
     def write_share_data(self, request, authorization, storage_index, share_number):
         """Write data to an in-progress immutable upload."""
         content_range = parse_content_range_header(request.getHeader("content-range"))
-        # TODO in https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3860
-        # 1. Malformed header should result in error 416
-        # 2. Non-bytes unit should result in error 416
-        # 3. Missing header means full upload in one request
-        # 4. Impossible range should resul tin error 416
+        if content_range is None or content_range.units != "bytes":
+            # TODO Missing header means full upload in one request
+            request.setResponseCode(http.REQUESTED_RANGE_NOT_SATISFIABLE)
+            return b""
+        
         offset = content_range.start
 
-        # TODO basic checks on validity of start, offset, and content-range in general.
+        
         # TODO basic check that body isn't infinite. require content-length? or maybe we should require content-range (it's optional now)? if so, needs to be rflected in protocol spec.
 
         data = request.content.read()
