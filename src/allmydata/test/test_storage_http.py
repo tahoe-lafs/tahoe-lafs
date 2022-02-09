@@ -615,13 +615,6 @@ class ImmutableHTTPAPITests(SyncTestCase):
         TBD in https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3860
         """
 
-    def test_upload_offset_cannot_be_negative(self):
-        """
-        A negative upload offset will be rejected.
-
-        TBD in https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3860
-        """
-
     def test_mismatching_upload_fails(self):
         """
         If an uploaded chunk conflicts with an already uploaded chunk, a
