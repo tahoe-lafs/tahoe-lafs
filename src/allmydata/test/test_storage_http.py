@@ -626,9 +626,32 @@ class ImmutableHTTPAPITests(SyncTestCase):
         """
         If an uploaded chunk conflicts with an already uploaded chunk, a
         CONFLICT error is returned.
-
-        TBD in https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3860
         """
+        (upload_secret, _, storage_index, created) = self.create_upload({1}, 100)
+
+        # Write:
+        result_of(
+            self.im_client.write_share_chunk(
+                storage_index,
+                1,
+                upload_secret,
+                0,
+                b"0" * 10,
+            )
+        )
+
+        # Conflicting write:
+        with self.assertRaises(ClientException) as e:
+            result_of(
+                self.im_client.write_share_chunk(
+                    storage_index,
+                    1,
+                    upload_secret,
+                    0,
+                    b"0123456789",
+                )
+            )
+            self.assertEqual(e.exception.code, http.NOT_FOUND)
 
     def test_read_of_wrong_storage_index_fails(self):
         """

@@ -31,7 +31,7 @@ from cbor2 import dumps, loads
 from .server import StorageServer
 from .http_common import swissnum_auth_header, Secrets
 from .common import si_a2b
-from .immutable import BucketWriter
+from .immutable import BucketWriter, ConflictingWriteError
 from ..util.hashutil import timing_safe_compare
 from ..util.base32 import rfc3548_alphabet
 
@@ -253,9 +253,11 @@ class HTTPServer(object):
             request.setResponseCode(http.NOT_FOUND)
             return b""
 
-        finished = bucket.write(offset, data)
-
-        # TODO if raises ConflictingWriteError, return HTTP CONFLICT code.
+        try:
+            finished = bucket.write(offset, data)
+        except ConflictingWriteError:
+            request.setResponseCode(http.CONFLICT)
+            return b""
 
         if finished:
             bucket.close()
