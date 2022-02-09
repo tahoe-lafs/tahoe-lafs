@@ -250,8 +250,8 @@ class HTTPServer(object):
         try:
             bucket = self._uploads[storage_index].shares[share_number]
         except (KeyError, IndexError):
-            # TODO return 404
-            raise
+            request.setResponseCode(http.NOT_FOUND)
+            return b""
 
         finished = bucket.write(offset, data)
 
