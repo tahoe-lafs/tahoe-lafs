@@ -594,9 +594,34 @@ class ImmutableHTTPAPITests(SyncTestCase):
         """
         If a storage index has multiple shares, uploads to different shares are
         stored separately and can be downloaded separately.
-
-        TBD in https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3860
         """
+        (upload_secret, _, storage_index, _) = self.create_upload({1, 2}, 10)
+        result_of(
+            self.im_client.write_share_chunk(
+                storage_index,
+                1,
+                upload_secret,
+                0,
+                b"1" * 10,
+            )
+        )
+        result_of(
+            self.im_client.write_share_chunk(
+                storage_index,
+                2,
+                upload_secret,
+                0,
+                b"2" * 10,
+            )
+        )
+        self.assertEqual(
+            result_of(self.im_client.read_share_chunk(storage_index, 1, 0, 10)),
+            b"1" * 10,
+        )
+        self.assertEqual(
+            result_of(self.im_client.read_share_chunk(storage_index, 2, 0, 10)),
+            b"2" * 10,
+        )
 
     def test_bucket_allocated_with_new_shares(self):
         """
