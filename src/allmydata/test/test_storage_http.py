@@ -373,6 +373,28 @@ class ImmutableHTTPAPITests(SyncTestCase):
             self.skipTest("Not going to bother supporting Python 2")
         super(ImmutableHTTPAPITests, self).setUp()
         self.http = self.useFixture(HttpTestFixture())
+        self.im_client = StorageClientImmutables(self.http.client)
+
+    def create_upload(self, share_numbers, length):
+        """
+        Create a write bucket on server, return:
+
+            (upload_secret, lease_secret, storage_index, result)
+        """
+        upload_secret = urandom(32)
+        lease_secret = urandom(32)
+        storage_index = urandom(16)
+        created = result_of(
+            self.im_client.create(
+                storage_index,
+                share_numbers,
+                length,
+                upload_secret,
+                lease_secret,
+                lease_secret,
+            )
+        )
+        return (upload_secret, lease_secret, storage_index, created)
 
     def test_upload_can_be_downloaded(self):
         """
@@ -386,17 +408,8 @@ class ImmutableHTTPAPITests(SyncTestCase):
         length = 100
         expected_data = b"".join(bytes([i]) for i in range(100))
 
-        im_client = StorageClientImmutables(self.http.client)
-
         # Create a upload:
-        upload_secret = urandom(32)
-        lease_secret = urandom(32)
-        storage_index = b"".join(bytes([i]) for i in range(16))
-        created = result_of(
-            im_client.create(
-                storage_index, {1}, 100, upload_secret, lease_secret, lease_secret
-            )
-        )
+        (upload_secret, _, storage_index, created) = self.create_upload({1}, 100)
         self.assertEqual(
             created, ImmutableCreateResult(already_have=set(), allocated={1})
         )
@@ -407,7 +420,7 @@ class ImmutableHTTPAPITests(SyncTestCase):
         # Three writes: 10-19, 30-39, 50-59. This allows for a bunch of holes.
         def write(offset, length):
             remaining.empty(offset, offset + length)
-            return im_client.write_share_chunk(
+            return self.im_client.write_share_chunk(
                 storage_index,
                 1,
                 upload_secret,
@@ -451,7 +464,7 @@ class ImmutableHTTPAPITests(SyncTestCase):
         # We can now read:
         for offset, length in [(0, 100), (10, 19), (99, 1), (49, 200)]:
             downloaded = result_of(
-                im_client.read_share_chunk(storage_index, 1, offset, length)
+                self.im_client.read_share_chunk(storage_index, 1, offset, length)
             )
             self.assertEqual(downloaded, expected_data[offset : offset + length])
 
@@ -460,20 +473,13 @@ class ImmutableHTTPAPITests(SyncTestCase):
         If allocate buckets endpoint is called second time with wrong upload
         key on the same shares, the result is an error.
         """
-        im_client = StorageClientImmutables(self.http.client)
-
         # Create a upload:
-        upload_secret = urandom(32)
-        lease_secret = urandom(32)
-        storage_index = b"".join(bytes([i]) for i in range(16))
-        result_of(
-            im_client.create(
-                storage_index, {1, 2, 3}, 100, upload_secret, lease_secret, lease_secret
-            )
+        (upload_secret, lease_secret, storage_index, _) = self.create_upload(
+            {1, 2, 3}, 100
         )
         with self.assertRaises(ClientException) as e:
             result_of(
-                im_client.create(
+                self.im_client.create(
                     storage_index, {2, 3}, 100, b"x" * 32, lease_secret, lease_secret
                 )
             )
@@ -484,21 +490,14 @@ class ImmutableHTTPAPITests(SyncTestCase):
         If allocate buckets endpoint is called second time with different
         upload key on different shares, that creates the buckets.
         """
-        im_client = StorageClientImmutables(self.http.client)
-
         # Create a upload:
-        upload_secret = urandom(32)
-        lease_secret = urandom(32)
-        storage_index = b"".join(bytes([i]) for i in range(16))
-        result_of(
-            im_client.create(
-                storage_index, {1, 2, 3}, 100, upload_secret, lease_secret, lease_secret
-            )
+        (upload_secret, lease_secret, storage_index, created) = self.create_upload(
+            {1, 2, 3}, 100
         )
 
         # Add same shares:
         created2 = result_of(
-            im_client.create(
+            self.im_client.create(
                 storage_index, {4, 6}, 100, b"x" * 2, lease_secret, lease_secret
             )
         )
@@ -508,23 +507,15 @@ class ImmutableHTTPAPITests(SyncTestCase):
         """
         Once a share is finished uploading, it's possible to list it.
         """
-        im_client = StorageClientImmutables(self.http.client)
-        upload_secret = urandom(32)
-        lease_secret = urandom(32)
-        storage_index = b"".join(bytes([i]) for i in range(16))
-        result_of(
-            im_client.create(
-                storage_index, {1, 2, 3}, 10, upload_secret, lease_secret, lease_secret
-            )
-        )
+        (upload_secret, _, storage_index, created) = self.create_upload({1, 2, 3}, 10)
 
         # Initially there are no shares:
-        self.assertEqual(result_of(im_client.list_shares(storage_index)), set())
+        self.assertEqual(result_of(self.im_client.list_shares(storage_index)), set())
 
         # Upload shares 1 and 3:
         for share_number in [1, 3]:
             progress = result_of(
-                im_client.write_share_chunk(
+                self.im_client.write_share_chunk(
                     storage_index,
                     share_number,
                     upload_secret,
@@ -535,22 +526,14 @@ class ImmutableHTTPAPITests(SyncTestCase):
             self.assertTrue(progress.finished)
 
         # Now shares 1 and 3 exist:
-        self.assertEqual(result_of(im_client.list_shares(storage_index)), {1, 3})
+        self.assertEqual(result_of(self.im_client.list_shares(storage_index)), {1, 3})
 
     def test_upload_bad_content_range(self):
         """
         Malformed or invalid Content-Range headers to the immutable upload
         endpoint result in a 416 error.
         """
-        im_client = StorageClientImmutables(self.http.client)
-        upload_secret = urandom(32)
-        lease_secret = urandom(32)
-        storage_index = b"0" * 16
-        result_of(
-            im_client.create(
-                storage_index, {1}, 10, upload_secret, lease_secret, lease_secret
-            )
-        )
+        (upload_secret, _, storage_index, created) = self.create_upload({1}, 10)
 
         def check_invalid(bad_content_range_value):
             client = StorageClientImmutables(
@@ -579,29 +562,20 @@ class ImmutableHTTPAPITests(SyncTestCase):
         """
         Listing unknown storage index's shares results in empty list of shares.
         """
-        im_client = StorageClientImmutables(self.http.client)
         storage_index = b"".join(bytes([i]) for i in range(16))
-        self.assertEqual(result_of(im_client.list_shares(storage_index)), set())
+        self.assertEqual(result_of(self.im_client.list_shares(storage_index)), set())
 
     def test_upload_non_existent_storage_index(self):
         """
         Uploading to a non-existent storage index or share number results in
         404.
         """
-        im_client = StorageClientImmutables(self.http.client)
-        upload_secret = urandom(32)
-        lease_secret = urandom(32)
-        storage_index = b"".join(bytes([i]) for i in range(16))
-        result_of(
-            im_client.create(
-                storage_index, {1}, 10, upload_secret, lease_secret, lease_secret
-            )
-        )
+        (upload_secret, _, storage_index, _) = self.create_upload({1}, 10)
 
         def unknown_check(storage_index, share_number):
             with self.assertRaises(ClientException) as e:
                 result_of(
-                    im_client.write_share_chunk(
+                    self.im_client.write_share_chunk(
                         storage_index,
                         share_number,
                         upload_secret,
