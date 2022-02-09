@@ -240,16 +240,13 @@ class HTTPServer(object):
         """Write data to an in-progress immutable upload."""
         content_range = parse_content_range_header(request.getHeader("content-range"))
         if content_range is None or content_range.units != "bytes":
-            # TODO Missing header means full upload in one request
             request.setResponseCode(http.REQUESTED_RANGE_NOT_SATISFIABLE)
             return b""
-        
+
         offset = content_range.start
 
-        
-        # TODO basic check that body isn't infinite. require content-length? or maybe we should require content-range (it's optional now)? if so, needs to be rflected in protocol spec.
-
-        data = request.content.read()
+        # TODO limit memory usage
+        data = request.content.read(content_range.stop - content_range.start + 1)
         try:
             bucket = self._uploads[storage_index].shares[share_number]
         except (KeyError, IndexError):

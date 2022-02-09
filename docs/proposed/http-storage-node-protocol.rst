@@ -540,7 +540,7 @@ Rejected designs for upload secrets:
 Write data for the indicated share.
 The share number must belong to the storage index.
 The request body is the raw share data (i.e., ``application/octet-stream``).
-*Content-Range* requests are encouraged for large transfers to allow partially complete uploads to be resumed.
+*Content-Range* requests are required; for large transfers this allows partially complete uploads to be resumed.
 For example,
 a 1MiB share can be divided in to eight separate 128KiB chunks.
 Each chunk can be uploaded in a separate request.
