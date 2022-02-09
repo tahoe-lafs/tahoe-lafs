@@ -302,8 +302,13 @@ class HTTPServer(object):
         offset, end = range_header.ranges[0]
         assert end != None  # TODO support this case
 
-        # TODO if not found, 404
-        bucket = self._storage_server.get_buckets(storage_index)[share_number]
+        try:
+            bucket = self._storage_server.get_buckets(storage_index)[share_number]
+        except KeyError:
+            request.setResponseCode(http.NOT_FOUND)
+            return b""
+
+        # TODO limit memory usage
         data = bucket.read(offset, end - offset)
         request.setResponseCode(http.PARTIAL_CONTENT)
         # TODO set content-range on response. We we need to expand the

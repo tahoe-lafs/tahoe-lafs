@@ -654,19 +654,52 @@ class ImmutableHTTPAPITests(SyncTestCase):
             )
             self.assertEqual(e.exception.code, http.NOT_FOUND)
 
+    def upload(self, share_number):
+        """
+        Create a share, return (storage_index).
+        """
+        (upload_secret, _, storage_index, _) = self.create_upload({share_number}, 26)
+        result_of(
+            self.im_client.write_share_chunk(
+                storage_index,
+                share_number,
+                upload_secret,
+                0,
+                b"abcdefghijklmnopqrstuvwxyz",
+            )
+        )
+        return storage_index
+
     def test_read_of_wrong_storage_index_fails(self):
         """
         Reading from unknown storage index results in 404.
-
-        TBD in https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3860
         """
+        with self.assertRaises(ClientException) as e:
+            result_of(
+                self.im_client.read_share_chunk(
+                    b"1" * 16,
+                    1,
+                    0,
+                    10,
+                )
+            )
+        self.assertEqual(e.exception.code, http.NOT_FOUND)
 
     def test_read_of_wrong_share_number_fails(self):
         """
         Reading from unknown storage index results in 404.
-
-        TBD in https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3860
         """
+        storage_index = self.upload(1)
+        with self.assertRaises(ClientException) as e:
+            result_of(
+                self.im_client.read_share_chunk(
+                    storage_index,
+                    7,  # different share number
+                    0,
+                    10,
+                )
+            )
+        self.assertEqual(e.exception.code, http.NOT_FOUND)
 
     def test_read_with_negative_offset_fails(self):
         """
