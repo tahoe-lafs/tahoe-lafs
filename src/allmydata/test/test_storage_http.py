@@ -623,30 +623,6 @@ class ImmutableHTTPAPITests(SyncTestCase):
             b"2" * 10,
         )
 
-    def test_bucket_allocated_with_new_shares(self):
-        """
-        If some shares already exist, allocating shares indicates only the new
-        ones were created.
-
-        TBD in https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3860
-        """
-
-    def test_bucket_allocation_new_upload_secret(self):
-        """
-        If a bucket was allocated with one upload secret, and a different upload
-        key is used to allocate the bucket again, the second allocation fails.
-
-        TBD in https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3860
-        """
-
-    def test_upload_with_wrong_upload_secret_fails(self):
-        """
-        Uploading with a key that doesn't match the one used to allocate the
-        bucket will fail.
-
-        TBD in https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3860
-        """
-
     def test_mismatching_upload_fails(self):
         """
         If an uploaded chunk conflicts with an already uploaded chunk, a
