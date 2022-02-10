@@ -329,8 +329,11 @@ class HTTPServer(object):
         data = bucket.read(offset, end - offset)
 
         request.setResponseCode(http.PARTIAL_CONTENT)
-        request.setHeader(
-            "content-range",
-            ContentRange("bytes", offset, offset + len(data)).to_header(),
-        )
+        if len(data):
+            # For empty bodies the content-range header makes no sense since
+            # the end of the range is inclusive.
+            request.setHeader(
+                "content-range",
+                ContentRange("bytes", offset, offset + len(data)).to_header(),
+            )
         return data
