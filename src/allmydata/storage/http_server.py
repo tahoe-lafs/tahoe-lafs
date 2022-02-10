@@ -24,6 +24,7 @@ from twisted.web import http
 import attr
 from werkzeug.http import parse_range_header, parse_content_range_header
 from werkzeug.routing import BaseConverter
+from werkzeug.datastructures import ContentRange
 
 # TODO Make sure to use pure Python versions?
 from cbor2 import dumps, loads
@@ -323,11 +324,10 @@ class HTTPServer(object):
 
         # TODO limit memory usage
         data = bucket.read(offset, end - offset)
+
         request.setResponseCode(http.PARTIAL_CONTENT)
-        # TODO set content-range on response. We we need to expand the
-        # BucketReader interface to return share's length.
-        #
-        # request.setHeader(
-        #    "content-range", range_header.make_content_range(share_length).to_header()
-        # )
+        request.setHeader(
+            "content-range",
+            ContentRange("bytes", offset, offset + len(data)).to_header(),
+        )
         return data

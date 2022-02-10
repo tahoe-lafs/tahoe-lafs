@@ -760,3 +760,30 @@ class ImmutableHTTPAPITests(SyncTestCase):
         )
         self.assertEqual(response.code, http.OK)
         self.assertEqual(result_of(response.content()), uploaded_data)
+
+    def test_validate_content_range_response_to_read(self):
+        """
+        The server responds to ranged reads with an appropriate Content-Range
+        header.
+        """
+        storage_index, _ = self.upload(1, 26)
+
+        def check_range(requested_range, expected_response):
+            headers = Headers()
+            headers.setRawHeaders("range", [requested_range])
+            response = result_of(
+                self.http.client.request(
+                    "GET",
+                    self.http.client.relative_url(
+                        "/v1/immutable/{}/1".format(_encode_si(storage_index))
+                    ),
+                    headers=headers,
+                )
+            )
+            self.assertEqual(
+                response.headers.getRawHeaders("content-range"), [expected_response]
+            )
+
+        check_range("bytes=0-10", "bytes 0-10/*")
+        # Can't go beyond the end of the immutable!
+        check_range("bytes=10-100", "bytes 10-25/*")
