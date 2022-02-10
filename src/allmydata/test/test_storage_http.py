@@ -46,6 +46,7 @@ from ..storage.http_client import (
     ImmutableCreateResult,
     UploadProgress,
     StorageClientGeneral,
+    _encode_si,
 )
 from ..storage.common import si_b2a
 
@@ -654,21 +655,26 @@ class ImmutableHTTPAPITests(SyncTestCase):
             )
             self.assertEqual(e.exception.code, http.NOT_FOUND)
 
-    def upload(self, share_number):
+    def upload(self, share_number, data_length=26):
         """
-        Create a share, return (storage_index).
+        Create a share, return (storage_index, uploaded_data).
         """
-        (upload_secret, _, storage_index, _) = self.create_upload({share_number}, 26)
+        uploaded_data = (b"abcdefghijklmnopqrstuvwxyz" * ((data_length // 26) + 1))[
+            :data_length
+        ]
+        (upload_secret, _, storage_index, _) = self.create_upload(
+            {share_number}, data_length
+        )
         result_of(
             self.im_client.write_share_chunk(
                 storage_index,
                 share_number,
                 upload_secret,
                 0,
-                b"abcdefghijklmnopqrstuvwxyz",
+                uploaded_data,
             )
         )
-        return storage_index
+        return storage_index, uploaded_data
 
     def test_read_of_wrong_storage_index_fails(self):
         """
@@ -689,7 +695,7 @@ class ImmutableHTTPAPITests(SyncTestCase):
         """
         Reading from unknown storage index results in 404.
         """
-        storage_index = self.upload(1)
+        storage_index, _ = self.upload(1)
         with self.assertRaises(ClientException) as e:
             result_of(
                 self.im_client.read_share_chunk(
@@ -706,7 +712,7 @@ class ImmutableHTTPAPITests(SyncTestCase):
         Malformed or unsupported Range headers result in 416 (requested range
         not satisfiable) error.
         """
-        storage_index = self.upload(1)
+        storage_index, _ = self.upload(1)
 
         def check_bad_range(bad_range_value):
             client = StorageClientImmutables(
@@ -738,3 +744,19 @@ class ImmutableHTTPAPITests(SyncTestCase):
         # semantically valid under HTTP.
         check_bad_range("bytes=0-")
 
+    @given(data_length=st.integers(min_value=1, max_value=300000))
+    def test_read_with_no_range(self, data_length):
+        """
+        A read with no range returns the whole immutable.
+        """
+        storage_index, uploaded_data = self.upload(1, data_length)
+        response = result_of(
+            self.http.client.request(
+                "GET",
+                self.http.client.relative_url(
+                    "/v1/immutable/{}/1".format(_encode_si(storage_index))
+                ),
+            )
+        )
+        self.assertEqual(response.code, http.OK)
+        self.assertEqual(result_of(response.content()), uploaded_data)

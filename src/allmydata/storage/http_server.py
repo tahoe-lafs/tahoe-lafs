@@ -291,8 +291,24 @@ class HTTPServer(object):
     )
     def read_share_chunk(self, request, authorization, storage_index, share_number):
         """Read a chunk for an already uploaded immutable."""
-        # 2. missing range header should have response code 200 and return whole thing
-        # 7. missing end of range means "to the end of share"
+        try:
+            bucket = self._storage_server.get_buckets(storage_index)[share_number]
+        except KeyError:
+            request.setResponseCode(http.NOT_FOUND)
+            return b""
+
+        if request.getHeader("range") is None:
+            # Return the whole thing.
+            start = 0
+            while True:
+                # TODO should probably yield to event loop occasionally...
+                data = bucket.read(start, start + 65536)
+                if not data:
+                    request.finish()
+                    return
+                request.write(data)
+                start += len(data)
+
         range_header = parse_range_header(request.getHeader("range"))
         if (
             range_header is None
@@ -304,12 +320,6 @@ class HTTPServer(object):
             return b""
 
         offset, end = range_header.ranges[0]
-
-        try:
-            bucket = self._storage_server.get_buckets(storage_index)[share_number]
-        except KeyError:
-            request.setResponseCode(http.NOT_FOUND)
-            return b""
 
         # TODO limit memory usage
         data = bucket.read(offset, end - offset)
