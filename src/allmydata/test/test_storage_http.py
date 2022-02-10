@@ -703,14 +703,38 @@ class ImmutableHTTPAPITests(SyncTestCase):
 
     def test_read_with_negative_offset_fails(self):
         """
-        The offset for reads cannot be negative.
-
-        TBD in https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3860
+        Malformed or unsupported Range headers result in 416 (requested range
+        not satisfiable) error.
         """
+        storage_index = self.upload(1)
 
-    def test_read_with_negative_length_fails(self):
-        """
-        The length for reads cannot be negative.
+        def check_bad_range(bad_range_value):
+            client = StorageClientImmutables(
+                StorageClientWithHeadersOverride(
+                    self.http.client, {"range": bad_range_value}
+                )
+            )
 
-        TBD in https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3860
-        """
+            with self.assertRaises(ClientException) as e:
+                result_of(
+                    client.read_share_chunk(
+                        storage_index,
+                        1,
+                        0,
+                        10,
+                    )
+                )
+            self.assertEqual(e.exception.code, http.REQUESTED_RANGE_NOT_SATISFIABLE)
+
+        check_bad_range("molluscs=0-9")
+        check_bad_range("bytes=-2-9")
+        check_bad_range("bytes=0--10")
+        check_bad_range("bytes=-300-")
+        check_bad_range("bytes=")
+        # Multiple ranges are currently unsupported, even if they're
+        # semantically valid under HTTP:
+        check_bad_range("bytes=0-5, 6-7")
+        # Ranges without an end are currently unsupported, even if they're
+        # semantically valid under HTTP.
+        check_bad_range("bytes=0-")
+

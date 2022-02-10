@@ -291,16 +291,19 @@ class HTTPServer(object):
     )
     def read_share_chunk(self, request, authorization, storage_index, share_number):
         """Read a chunk for an already uploaded immutable."""
-        # TODO in https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3860
         # 2. missing range header should have response code 200 and return whole thing
-        # 3. malformed range header should result in error? or return everything?
-        # 4. non-bytes range results in error
-        # 5. ranges make sense semantically (positive, etc.)
-        # 6. multiple ranges fails with error
         # 7. missing end of range means "to the end of share"
         range_header = parse_range_header(request.getHeader("range"))
+        if (
+            range_header is None
+            or range_header.units != "bytes"
+            or len(range_header.ranges) > 1  # more than one range
+            or range_header.ranges[0][1] is None  # range without end
+        ):
+            request.setResponseCode(http.REQUESTED_RANGE_NOT_SATISFIABLE)
+            return b""
+
         offset, end = range_header.ranges[0]
-        assert end != None  # TODO support this case
 
         try:
             bucket = self._storage_server.get_buckets(storage_index)[share_number]
