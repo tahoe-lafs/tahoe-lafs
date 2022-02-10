@@ -247,6 +247,7 @@ class HTTPServer(object):
         offset = content_range.start
 
         # TODO limit memory usage
+        # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3872
         data = request.content.read(content_range.stop - content_range.start + 1)
         try:
             bucket = self._uploads[storage_index].shares[share_number]
@@ -303,6 +304,7 @@ class HTTPServer(object):
             start = 0
             while True:
                 # TODO should probably yield to event loop occasionally...
+                # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3872
                 data = bucket.read(start, start + 65536)
                 if not data:
                     request.finish()
@@ -323,6 +325,7 @@ class HTTPServer(object):
         offset, end = range_header.ranges[0]
 
         # TODO limit memory usage
+        # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3872
         data = bucket.read(offset, end - offset)
 
         request.setResponseCode(http.PARTIAL_CONTENT)
