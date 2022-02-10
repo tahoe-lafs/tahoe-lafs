@@ -75,7 +75,9 @@ from allmydata.util.observer import ObserverList
 from allmydata.util.rrefutil import add_version_to_remote_reference
 from allmydata.util.hashutil import permute_server_hash
 from allmydata.util.dictutil import BytesKeyDict, UnicodeKeyDict
-from allmydata.storage.http_client import StorageClient, StorageClientImmutables
+from allmydata.storage.http_client import (
+    StorageClient, StorageClientImmutables, StorageClientGeneral,
+)
 
 
 # who is responsible for de-duplication?
@@ -1108,7 +1110,7 @@ class _HTTPStorageServer(object):
         return _HTTPStorageServer(http_client=http_client, upload_secret=urandom(20))
 
     def get_version(self):
-        return self._http_client.get_version()
+        return StorageClientGeneral(self._http_client).get_version()
 
     @defer.inlineCallbacks
     def allocate_buckets(
