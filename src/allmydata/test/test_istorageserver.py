@@ -1162,8 +1162,6 @@ class HTTPImmutableAPIsTests(
         "test_advise_corrupt_share",
         "test_bucket_advise_corrupt_share",
         "test_disconnection",
-        "test_matching_overlapping_writes",
-        "test_non_matching_overlapping_writes",
     }
 
 

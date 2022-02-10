@@ -58,7 +58,7 @@ from twisted.plugin import (
 from eliot import (
     log_call,
 )
-from foolscap.api import eventually
+from foolscap.api import eventually, RemoteException
 from foolscap.reconnector import (
     ReconnectionInfo,
 )
@@ -77,6 +77,7 @@ from allmydata.util.hashutil import permute_server_hash
 from allmydata.util.dictutil import BytesKeyDict, UnicodeKeyDict
 from allmydata.storage.http_client import (
     StorageClient, StorageClientImmutables, StorageClientGeneral,
+    ClientException as HTTPClientException,
 )
 
 
@@ -1037,8 +1038,13 @@ class _FakeRemoteReference(object):
     """
     local_object = attr.ib(type=object)
 
+    @defer.inlineCallbacks
     def callRemote(self, action, *args, **kwargs):
-        return getattr(self.local_object, action)(*args, **kwargs)
+        try:
+            result = yield getattr(self.local_object, action)(*args, **kwargs)
+            return result
+        except HTTPClientException as e:
+            raise RemoteException(e.args)
 
 
 @attr.s
