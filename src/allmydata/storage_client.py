@@ -1042,7 +1042,7 @@ class _FakeRemoteReference(object):
     def callRemote(self, action, *args, **kwargs):
         try:
             result = yield getattr(self.local_object, action)(*args, **kwargs)
-            return result
+            defer.returnValue(result)
         except HTTPClientException as e:
             raise RemoteException(e.args)
 
