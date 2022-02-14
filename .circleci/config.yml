@@ -43,10 +43,6 @@ workflows:
       #- "pypy27-buster":
       #    {}
 
-      # Test against Python 3:
-      - "python37":
-          {}
-
       # Other assorted tasks and configurations
       - "lint":
           {}
@@ -361,8 +357,8 @@ jobs:
       - run: *SETUP_VIRTUALENV
       - run: *RUN_TESTS
 
-  python37:
-    <<: *UBUNTU_18_04
+  ubuntu-18-04: &UBUNTU_18_04
+    <<: *DEBIAN
     docker:
       - <<: *DOCKERHUB_AUTH
         image: "tahoelafsci/ubuntu:18.04-py3.7"
