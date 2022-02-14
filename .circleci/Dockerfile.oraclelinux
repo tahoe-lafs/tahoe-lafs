@@ -1,5 +1,5 @@
 ARG TAG
-FROM centos:${TAG}
+FROM oraclelinux:${TAG}
 ARG PYTHON_VERSION
 
 ENV WHEELHOUSE_PATH /tmp/wheelhouse
