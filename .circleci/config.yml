@@ -44,8 +44,6 @@ workflows:
       #    {}
 
       # Other assorted tasks and configurations
-      - "lint":
-          {}
       - "codechecks3":
           {}
       - "pyinstaller":
@@ -129,24 +127,6 @@ jobs:
             # space, though, or the CircleCI yaml schema validator gets angry.
             # Since this job is never scheduled this step is never run so the
             # actual value here is irrelevant.
-
-  lint:
-    docker:
-      - <<: *DOCKERHUB_AUTH
-        image: "cimg/python:3.9"
-
-    steps:
-      - "checkout"
-
-      - run:
-          name: "Install tox"
-          command: |
-            pip install --user tox
-
-      - run:
-          name: "Static-ish code checks"
-          command: |
-            ~/.local/bin/tox -e codechecks
 
   codechecks3:
     docker:
@@ -368,7 +348,8 @@ jobs:
       - <<: *DOCKERHUB_AUTH
         image: "tahoelafsci/ubuntu:20.04"
         user: "nobody"
-
+    environment:
+      TAHOE_LAFS_TOX_ENVIRONMENT: "py39"
 
   oraclelinux-8: &RHEL_DERIV
     docker:
@@ -376,7 +357,9 @@ jobs:
         image: "tahoelafsci/oraclelinux:8-py3.8"
         user: "nobody"
 
-    environment: *UTF_8_ENVIRONMENT
+    environment:
+      <<: *UTF_8_ENVIRONMENT
+      TAHOE_LAFS_TOX_ENVIRONMENT: "py38"
 
     # pip cannot install packages if the working directory is not readable.
     # We want to run a lot of steps as nobody instead of as root.
