@@ -396,7 +396,7 @@ jobs:
     <<: *RHEL_DERIV
     docker:
       - <<: *DOCKERHUB_AUTH
-        image: "tahoelafsci/fedora:35-py3.9"
+        image: "tahoelafsci/fedora:35-py3"
         user: "nobody"
 
   nixos:
@@ -621,7 +621,7 @@ jobs:
     environment:
       DISTRO: "fedora"
       TAG: "35"
-      PYTHON_VERSION: "3.9"
+      PYTHON_VERSION: "3"
 
   # build-image-pypy27-buster:
   #   <<: *BUILD_IMAGE
