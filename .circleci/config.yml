@@ -346,7 +346,7 @@ jobs:
     <<: *DEBIAN
     docker:
       - <<: *DOCKERHUB_AUTH
-        image: "tahoelafsci/ubuntu:20.04"
+        image: "tahoelafsci/ubuntu:20.04-py3.9"
         user: "nobody"
     environment:
       TAHOE_LAFS_TOX_ENVIRONMENT: "py39"
