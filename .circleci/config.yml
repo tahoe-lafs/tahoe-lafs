@@ -279,15 +279,6 @@ jobs:
               /tmp/venv/bin/codecov
             fi
 
-
-  debian-10:
-    <<: *DEBIAN
-    docker:
-      - <<: *DOCKERHUB_AUTH
-        image: "tahoelafsci/debian:10-py3.7"
-        user: "nobody"
-
-
   debian-11:
     <<: *DEBIAN
     docker:
