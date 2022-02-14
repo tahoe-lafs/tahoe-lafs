@@ -105,8 +105,6 @@ workflows:
       # Restore later as PyPy38
       #- "build-image-pypy27-buster":
       #    <<: *DOCKERHUB_CONTEXT
-      - "build-image-python37-ubuntu":
-          <<: *DOCKERHUB_CONTEXT
 
 
 jobs:
@@ -609,7 +607,7 @@ jobs:
       PYTHON_VERSION: "3.9"
 
 
-  build-image-oracelinux:
+  build-image-oraclelinux-8:
     <<: *BUILD_IMAGE
 
     environment:
