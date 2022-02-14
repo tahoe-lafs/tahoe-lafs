@@ -372,7 +372,7 @@ jobs:
         user: "nobody"
 
 
-  oracelinux-8: &RHEL_DERIV
+  oraclelinux-8: &RHEL_DERIV
     docker:
       - <<: *DOCKERHUB_AUTH
         image: "tahoelafsci/oraclelinux:8-py3.8"
