@@ -264,6 +264,7 @@ jobs:
         image: "tahoelafsci/debian:11-py3.9"
         user: "nobody"
     environment:
+      <<: *UTF_8_ENVIRONMENT
       TAHOE_LAFS_TOX_ENVIRONMENT: "py39"
 
   # Restore later using PyPy3.8
@@ -349,6 +350,7 @@ jobs:
         image: "tahoelafsci/ubuntu:20.04-py3.9"
         user: "nobody"
     environment:
+      <<: *UTF_8_ENVIRONMENT
       TAHOE_LAFS_TOX_ENVIRONMENT: "py39"
 
   oraclelinux-8: &RHEL_DERIV
