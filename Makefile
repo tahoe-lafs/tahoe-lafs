@@ -33,7 +33,7 @@ default:
 ## Run all tests and code reports
 test: .tox/create-venvs.log
 # Run codechecks first since it takes the least time to report issues early.
-	tox --develop -e codechecks3
+	tox --develop -e codechecks
 # Run all the test environments in parallel to reduce run-time
 	tox --develop -p auto -e 'py37'
 .PHONY: test-venv-coverage

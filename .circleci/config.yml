@@ -44,7 +44,7 @@ workflows:
       #    {}
 
       # Other assorted tasks and configurations
-      - "codechecks3":
+      - "codechecks":
           {}
       - "pyinstaller":
           {}
@@ -128,7 +128,7 @@ jobs:
             # Since this job is never scheduled this step is never run so the
             # actual value here is irrelevant.
 
-  codechecks3:
+  codechecks:
     docker:
       - <<: *DOCKERHUB_AUTH
         image: "cimg/python:3.9"
@@ -144,7 +144,7 @@ jobs:
       - run:
           name: "Static-ish code checks"
           command: |
-            ~/.local/bin/tox -e codechecks3
+            ~/.local/bin/tox -e codechecks
 
   pyinstaller:
     docker:
