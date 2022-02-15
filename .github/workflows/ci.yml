@@ -170,15 +170,10 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         run: sudo apt install tor
 
-      # TODO: See https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3744.
-      # We have to use an older version of Tor for running integration
-      # tests on macOS.
       - name: Install Tor [macOS, ${{ matrix.python-version }} ]
         if: ${{ contains(matrix.os, 'macos') }}
         run: |
-          brew extract --version 0.4.5.8 tor homebrew/cask
-          brew install tor@0.4.5.8
-          brew link --overwrite tor@0.4.5.8
+          brew install tor
 
       - name: Install Tor [Windows]
         if: matrix.os == 'windows-latest'
