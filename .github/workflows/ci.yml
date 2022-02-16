@@ -176,9 +176,9 @@ jobs:
       - name: Install Tor [macOS, ${{ matrix.python-version }} ]
         if: ${{ contains(matrix.os, 'macos') }}
         run: |
-          brew extract --version 0.4.2.7 tor homebrew/cask
-          brew install tor@0.4.2.7
-          brew link --overwrite tor@0.4.2.7
+          brew extract --version 0.4.6.9 tor homebrew/cask
+          brew install tor@0.4.6.9
+          brew link --overwrite tor@0.4.6.9
 
       - name: Install Tor [Windows]
         if: matrix.os == 'windows-latest'
