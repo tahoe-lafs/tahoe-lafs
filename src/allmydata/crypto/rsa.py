@@ -81,13 +81,9 @@ def create_signing_keypair_from_string(private_key_der):
         raise ValueError(
             "Private Key did not decode to an RSA key"
         )
-    if priv_key.key_size < 2048:
+    if priv_key.key_size != 2048:
         raise ValueError(
-            "Private Key is smaller than 2048 bits"
-        )
-    if priv_key.key_size > (2048 * 8):
-        raise ValueError(
-            "Private Key is unreasonably large"
+            "Private Key must be 2048 bits"
         )
     return priv_key, priv_key.public_key()
 
