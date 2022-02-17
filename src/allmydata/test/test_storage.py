@@ -34,15 +34,26 @@ from twisted.trial import unittest
 from twisted.internet import defer
 from twisted.internet.task import Clock
 
-from hypothesis import given, strategies
+from hypothesis import given, strategies, example
 
 import itertools
 from allmydata import interfaces
 from allmydata.util import fileutil, hashutil, base32
-from allmydata.storage.server import StorageServer, DEFAULT_RENEWAL_TIME
+from allmydata.storage.server import (
+    StorageServer, DEFAULT_RENEWAL_TIME, FoolscapStorageServer,
+)
 from allmydata.storage.shares import get_share_file
 from allmydata.storage.mutable import MutableShareFile
-from allmydata.storage.immutable import BucketWriter, BucketReader, ShareFile
+from allmydata.storage.mutable_schema import (
+    ALL_SCHEMAS as ALL_MUTABLE_SCHEMAS,
+)
+from allmydata.storage.immutable import (
+    BucketWriter, BucketReader, ShareFile, FoolscapBucketWriter,
+    FoolscapBucketReader,
+)
+from allmydata.storage.immutable_schema import (
+    ALL_SCHEMAS as ALL_IMMUTABLE_SCHEMAS,
+)
 from allmydata.storage.common import storage_index_to_dir, \
      UnknownMutableContainerVersionError, UnknownImmutableContainerVersionError, \
      si_b2a, si_a2b
@@ -124,38 +135,6 @@ class FakeStatsProvider(object):
         pass
 
 
-class LeaseInfoTests(SyncTestCase):
-    """
-    Tests for ``LeaseInfo``.
-    """
-    @given(
-        strategies.tuples(
-            strategies.integers(min_value=0, max_value=2 ** 31 - 1),
-            strategies.binary(min_size=32, max_size=32),
-            strategies.binary(min_size=32, max_size=32),
-            strategies.integers(min_value=0, max_value=2 ** 31 - 1),
-            strategies.binary(min_size=20, max_size=20),
-        ),
-    )
-    def test_immutable_size(self, initializer_args):
-        """
-        ``LeaseInfo.immutable_size`` returns the length of the result of
-        ``LeaseInfo.to_immutable_data``.
-
-        ``LeaseInfo.mutable_size`` returns the length of the result of
-        ``LeaseInfo.to_mutable_data``.
-        """
-        info = LeaseInfo(*initializer_args)
-        self.expectThat(
-            info.to_immutable_data(),
-            HasLength(info.immutable_size()),
-        )
-        self.expectThat(
-            info.to_mutable_data(),
-            HasLength(info.mutable_size()),
-        )
-
-
 class Bucket(unittest.TestCase):
     def make_workdir(self, name):
         basedir = os.path.join("storage", "Bucket", name)
@@ -182,26 +161,26 @@ class Bucket(unittest.TestCase):
 
     def test_create(self):
         incoming, final = self.make_workdir("test_create")
-        bw = BucketWriter(self, incoming, final, 200, self.make_lease())
-        bw.remote_write(0, b"a"*25)
-        bw.remote_write(25, b"b"*25)
-        bw.remote_write(50, b"c"*25)
-        bw.remote_write(75, b"d"*7)
-        bw.remote_close()
+        bw = BucketWriter(self, incoming, final, 200, self.make_lease(), Clock())
+        bw.write(0, b"a"*25)
+        bw.write(25, b"b"*25)
+        bw.write(50, b"c"*25)
+        bw.write(75, b"d"*7)
+        bw.close()
 
     def test_readwrite(self):
         incoming, final = self.make_workdir("test_readwrite")
-        bw = BucketWriter(self, incoming, final, 200, self.make_lease())
-        bw.remote_write(0, b"a"*25)
-        bw.remote_write(25, b"b"*25)
-        bw.remote_write(50, b"c"*7) # last block may be short
-        bw.remote_close()
+        bw = BucketWriter(self, incoming, final, 200, self.make_lease(), Clock())
+        bw.write(0, b"a"*25)
+        bw.write(25, b"b"*25)
+        bw.write(50, b"c"*7) # last block may be short
+        bw.close()
 
         # now read from it
         br = BucketReader(self, bw.finalhome)
-        self.failUnlessEqual(br.remote_read(0, 25), b"a"*25)
-        self.failUnlessEqual(br.remote_read(25, 25), b"b"*25)
-        self.failUnlessEqual(br.remote_read(50, 7), b"c"*7)
+        self.failUnlessEqual(br.read(0, 25), b"a"*25)
+        self.failUnlessEqual(br.read(25, 25), b"b"*25)
+        self.failUnlessEqual(br.read(50, 7), b"c"*7)
 
     def test_write_past_size_errors(self):
         """Writing beyond the size of the bucket throws an exception."""
@@ -209,9 +188,9 @@ class Bucket(unittest.TestCase):
             incoming, final = self.make_workdir(
                 "test_write_past_size_errors-{}".format(i)
             )
-            bw = BucketWriter(self, incoming, final, 200, self.make_lease())
+            bw = BucketWriter(self, incoming, final, 200, self.make_lease(), Clock())
             with self.assertRaises(DataTooLargeError):
-                bw.remote_write(offset, b"a" * length)
+                bw.write(offset, b"a" * length)
 
     @given(
         maybe_overlapping_offset=strategies.integers(min_value=0, max_value=98),
@@ -228,29 +207,28 @@ class Bucket(unittest.TestCase):
         expected_data = b"".join(bchr(i) for i in range(100))
         incoming, final = self.make_workdir("overlapping_writes_{}".format(uuid4()))
         bw = BucketWriter(
-            self, incoming, final, length, self.make_lease(),
+            self, incoming, final, length, self.make_lease(), Clock()
         )
         # Three writes: 10-19, 30-39, 50-59. This allows for a bunch of holes.
-        bw.remote_write(10, expected_data[10:20])
-        bw.remote_write(30, expected_data[30:40])
-        bw.remote_write(50, expected_data[50:60])
+        bw.write(10, expected_data[10:20])
+        bw.write(30, expected_data[30:40])
+        bw.write(50, expected_data[50:60])
         # Then, an overlapping write but with matching data:
-        bw.remote_write(
+        bw.write(
             maybe_overlapping_offset,
             expected_data[
                 maybe_overlapping_offset:maybe_overlapping_offset + maybe_overlapping_length
             ]
         )
         # Now fill in the holes:
-        bw.remote_write(0, expected_data[0:10])
-        bw.remote_write(20, expected_data[20:30])
-        bw.remote_write(40, expected_data[40:50])
-        bw.remote_write(60, expected_data[60:])
-        bw.remote_close()
+        bw.write(0, expected_data[0:10])
+        bw.write(20, expected_data[20:30])
+        bw.write(40, expected_data[40:50])
+        bw.write(60, expected_data[60:])
+        bw.close()
 
         br = BucketReader(self, bw.finalhome)
-        self.assertEqual(br.remote_read(0, length), expected_data)
-
+        self.assertEqual(br.read(0, length), expected_data)
 
     @given(
         maybe_overlapping_offset=strategies.integers(min_value=0, max_value=98),
@@ -266,24 +244,56 @@ class Bucket(unittest.TestCase):
         length = 100
         incoming, final = self.make_workdir("overlapping_writes_{}".format(uuid4()))
         bw = BucketWriter(
-            self, incoming, final, length, self.make_lease(),
+            self, incoming, final, length, self.make_lease(), Clock()
         )
         # Three writes: 10-19, 30-39, 50-59. This allows for a bunch of holes.
-        bw.remote_write(10, b"1" * 10)
-        bw.remote_write(30, b"1" * 10)
-        bw.remote_write(50, b"1" * 10)
+        bw.write(10, b"1" * 10)
+        bw.write(30, b"1" * 10)
+        bw.write(50, b"1" * 10)
         # Then, write something that might overlap with some of them, but
         # conflicts. Then fill in holes left by first three writes. Conflict is
         # inevitable.
         with self.assertRaises(ConflictingWriteError):
-            bw.remote_write(
+            bw.write(
                 maybe_overlapping_offset,
                 b'X' * min(maybe_overlapping_length, length - maybe_overlapping_offset),
             )
-            bw.remote_write(0, b"1" * 10)
-            bw.remote_write(20, b"1" * 10)
-            bw.remote_write(40, b"1" * 10)
-            bw.remote_write(60, b"1" * 40)
+            bw.write(0, b"1" * 10)
+            bw.write(20, b"1" * 10)
+            bw.write(40, b"1" * 10)
+            bw.write(60, b"1" * 40)
+
+    @given(
+        offsets=strategies.lists(
+            strategies.integers(min_value=0, max_value=99),
+            min_size=20,
+            max_size=20
+        ),
+    )
+    @example(offsets=[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 10, 40, 70])
+    def test_writes_return_when_finished(
+            self, offsets
+    ):
+        """
+        The ``BucketWriter.write()`` return true if and only if the maximum
+        size has been reached via potentially overlapping writes.  The
+        remaining ranges can be checked via ``BucketWriter.required_ranges()``.
+        """
+        incoming, final = self.make_workdir("overlapping_writes_{}".format(uuid4()))
+        bw = BucketWriter(
+            self, incoming, final, 100, self.make_lease(), Clock()
+        )
+        local_written = [0] * 100
+        for offset in offsets:
+            length = min(30, 100 - offset)
+            data = b"1" * length
+            for i in range(offset, offset+length):
+                local_written[i] = 1
+            finished = bw.write(offset, data)
+            self.assertEqual(finished, sum(local_written) == 100)
+            required_ranges = bw.required_ranges()
+            for i in range(0, 100):
+                self.assertEqual(local_written[i] == 1, required_ranges.get(i) is None)
 
     def test_read_past_end_of_share_data(self):
         # test vector for immutable files (hard-coded contents of an immutable share
@@ -328,16 +338,77 @@ class Bucket(unittest.TestCase):
         # Now read from it.
         br = BucketReader(mockstorageserver, final)
 
-        self.failUnlessEqual(br.remote_read(0, len(share_data)), share_data)
+        self.failUnlessEqual(br.read(0, len(share_data)), share_data)
 
         # Read past the end of share data to get the cancel secret.
         read_length = len(share_data) + len(ownernumber) + len(renewsecret) + len(cancelsecret)
 
-        result_of_read = br.remote_read(0, read_length)
+        result_of_read = br.read(0, read_length)
         self.failUnlessEqual(result_of_read, share_data)
 
-        result_of_read = br.remote_read(0, len(share_data)+1)
+        result_of_read = br.read(0, len(share_data)+1)
         self.failUnlessEqual(result_of_read, share_data)
+
+    def _assert_timeout_only_after_30_minutes(self, clock, bw):
+        """
+        The ``BucketWriter`` times out and is closed after 30 minutes, but not
+        sooner.
+        """
+        self.assertFalse(bw.closed)
+        # 29 minutes pass. Everything is fine.
+        for i in range(29):
+            clock.advance(60)
+            self.assertFalse(bw.closed, "Bucket closed after only %d minutes" % (i + 1,))
+        # After the 30th minute, the bucket is closed due to lack of writes.
+        clock.advance(60)
+        self.assertTrue(bw.closed)
+
+    def test_bucket_expires_if_no_writes_for_30_minutes(self):
+        """
+        If a ``BucketWriter`` receives no writes for 30 minutes, it is removed.
+        """
+        incoming, final = self.make_workdir("test_bucket_expires")
+        clock = Clock()
+        bw = BucketWriter(self, incoming, final, 200, self.make_lease(), clock)
+        self._assert_timeout_only_after_30_minutes(clock, bw)
+
+    def test_bucket_writes_delay_timeout(self):
+        """
+        So long as the ``BucketWriter`` receives writes, the the removal
+        timeout is put off.
+        """
+        incoming, final = self.make_workdir("test_bucket_writes_delay_timeout")
+        clock = Clock()
+        bw = BucketWriter(self, incoming, final, 200, self.make_lease(), clock)
+        # 29 minutes pass, getting close to the timeout...
+        clock.advance(29 * 60)
+        # .. but we receive a write! So that should delay the timeout again to
+        # another 30 minutes.
+        bw.write(0, b"hello")
+        self._assert_timeout_only_after_30_minutes(clock, bw)
+
+    def test_bucket_closing_cancels_timeout(self):
+        """
+        Closing cancels the ``BucketWriter`` timeout.
+        """
+        incoming, final = self.make_workdir("test_bucket_close_timeout")
+        clock = Clock()
+        bw = BucketWriter(self, incoming, final, 10, self.make_lease(), clock)
+        self.assertTrue(clock.getDelayedCalls())
+        bw.close()
+        self.assertFalse(clock.getDelayedCalls())
+
+    def test_bucket_aborting_cancels_timeout(self):
+        """
+        Closing cancels the ``BucketWriter`` timeout.
+        """
+        incoming, final = self.make_workdir("test_bucket_abort_timeout")
+        clock = Clock()
+        bw = BucketWriter(self, incoming, final, 10, self.make_lease(), clock)
+        self.assertTrue(clock.getDelayedCalls())
+        bw.abort()
+        self.assertFalse(clock.getDelayedCalls())
+
 
 class RemoteBucket(object):
 
@@ -366,8 +437,8 @@ class BucketProxy(unittest.TestCase):
         final = os.path.join(basedir, "bucket")
         fileutil.make_dirs(basedir)
         fileutil.make_dirs(os.path.join(basedir, "tmp"))
-        bw = BucketWriter(self, incoming, final, size, self.make_lease())
-        rb = RemoteBucket(bw)
+        bw = BucketWriter(self, incoming, final, size, self.make_lease(), Clock())
+        rb = RemoteBucket(FoolscapBucketWriter(bw))
         return bw, rb, final
 
     def make_lease(self):
@@ -439,7 +510,7 @@ class BucketProxy(unittest.TestCase):
         # now read everything back
         def _start_reading(res):
             br = BucketReader(self, sharefname)
-            rb = RemoteBucket(br)
+            rb = RemoteBucket(FoolscapBucketReader(br))
             server = NoNetworkServer(b"abc", None)
             rbp = rbp_class(rb, server, storage_index=b"")
             self.failUnlessIn("to peer", repr(rbp))
@@ -492,11 +563,13 @@ class Server(unittest.TestCase):
         basedir = os.path.join("storage", "Server", name)
         return basedir
 
-    def create(self, name, reserved_space=0, klass=StorageServer, get_current_time=time.time):
+    def create(self, name, reserved_space=0, klass=StorageServer, clock=None):
+        if clock is None:
+            clock = Clock()
         workdir = self.workdir(name)
         ss = klass(workdir, b"\x00" * 20, reserved_space=reserved_space,
                    stats_provider=FakeStatsProvider(),
-                   get_current_time=get_current_time)
+                   clock=clock)
         ss.setServiceParent(self.sparent)
         return ss
 
@@ -505,31 +578,38 @@ class Server(unittest.TestCase):
 
     def test_declares_fixed_1528(self):
         ss = self.create("test_declares_fixed_1528")
-        ver = ss.remote_get_version()
+        ver = ss.get_version()
         sv1 = ver[b'http://allmydata.org/tahoe/protocols/storage/v1']
         self.failUnless(sv1.get(b'prevents-read-past-end-of-share-data'), sv1)
 
     def test_declares_maximum_share_sizes(self):
         ss = self.create("test_declares_maximum_share_sizes")
-        ver = ss.remote_get_version()
+        ver = ss.get_version()
         sv1 = ver[b'http://allmydata.org/tahoe/protocols/storage/v1']
         self.failUnlessIn(b'maximum-immutable-share-size', sv1)
         self.failUnlessIn(b'maximum-mutable-share-size', sv1)
 
     def test_declares_available_space(self):
         ss = self.create("test_declares_available_space")
-        ver = ss.remote_get_version()
+        ver = ss.get_version()
         sv1 = ver[b'http://allmydata.org/tahoe/protocols/storage/v1']
         self.failUnlessIn(b'available-space', sv1)
 
-    def allocate(self, ss, storage_index, sharenums, size, canary=None):
+    def allocate(self, ss, storage_index, sharenums, size, renew_leases=True):
+        """
+        Call directly into the storage server's allocate_buckets implementation,
+        skipping the Foolscap layer.
+        """
         renew_secret = hashutil.my_renewal_secret_hash(b"%d" % next(self._lease_secret))
         cancel_secret = hashutil.my_cancel_secret_hash(b"%d" % next(self._lease_secret))
-        if not canary:
-            canary = FakeCanary()
-        return ss.remote_allocate_buckets(storage_index,
-                                          renew_secret, cancel_secret,
-                                          sharenums, size, canary)
+        if isinstance(ss, FoolscapStorageServer):
+            ss = ss._server
+        return ss.allocate_buckets(
+            storage_index,
+            renew_secret, cancel_secret,
+            sharenums, size,
+            renew_leases=renew_leases,
+        )
 
     def test_large_share(self):
         syslow = platform.system().lower()
@@ -548,12 +628,12 @@ class Server(unittest.TestCase):
 
         shnum, bucket = list(writers.items())[0]
         # This test is going to hammer your filesystem if it doesn't make a sparse file for this.  :-(
-        bucket.remote_write(2**32, b"ab")
-        bucket.remote_close()
+        bucket.write(2**32, b"ab")
+        bucket.close()
 
-        readers = ss.remote_get_buckets(b"allocate")
+        readers = ss.get_buckets(b"allocate")
         reader = readers[shnum]
-        self.failUnlessEqual(reader.remote_read(2**32, 2), b"ab")
+        self.failUnlessEqual(reader.read(2**32, 2), b"ab")
 
     def test_dont_overfill_dirs(self):
         """
@@ -564,8 +644,8 @@ class Server(unittest.TestCase):
         ss = self.create("test_dont_overfill_dirs")
         already, writers = self.allocate(ss, b"storageindex", [0], 10)
         for i, wb in writers.items():
-            wb.remote_write(0, b"%10d" % i)
-            wb.remote_close()
+            wb.write(0, b"%10d" % i)
+            wb.close()
         storedir = os.path.join(self.workdir("test_dont_overfill_dirs"),
                                 "shares")
         children_of_storedir = set(os.listdir(storedir))
@@ -574,8 +654,8 @@ class Server(unittest.TestCase):
         # chars the same as the first storageindex.
         already, writers = self.allocate(ss, b"storageindey", [0], 10)
         for i, wb in writers.items():
-            wb.remote_write(0, b"%10d" % i)
-            wb.remote_close()
+            wb.write(0, b"%10d" % i)
+            wb.close()
         storedir = os.path.join(self.workdir("test_dont_overfill_dirs"),
                                 "shares")
         new_children_of_storedir = set(os.listdir(storedir))
@@ -585,8 +665,8 @@ class Server(unittest.TestCase):
         ss = self.create("test_remove_incoming")
         already, writers = self.allocate(ss, b"vid", list(range(3)), 10)
         for i,wb in writers.items():
-            wb.remote_write(0, b"%10d" % i)
-            wb.remote_close()
+            wb.write(0, b"%10d" % i)
+            wb.close()
         incoming_share_dir = wb.incominghome
         incoming_bucket_dir = os.path.dirname(incoming_share_dir)
         incoming_prefix_dir = os.path.dirname(incoming_bucket_dir)
@@ -605,33 +685,32 @@ class Server(unittest.TestCase):
 
         # Now abort the writers.
         for writer in writers.values():
-            writer.remote_abort()
+            writer.abort()
         self.failUnlessEqual(ss.allocated_size(), 0)
-
 
     def test_allocate(self):
         ss = self.create("test_allocate")
 
-        self.failUnlessEqual(ss.remote_get_buckets(b"allocate"), {})
+        self.failUnlessEqual(ss.get_buckets(b"allocate"), {})
 
         already,writers = self.allocate(ss, b"allocate", [0,1,2], 75)
         self.failUnlessEqual(already, set())
         self.failUnlessEqual(set(writers.keys()), set([0,1,2]))
 
         # while the buckets are open, they should not count as readable
-        self.failUnlessEqual(ss.remote_get_buckets(b"allocate"), {})
+        self.failUnlessEqual(ss.get_buckets(b"allocate"), {})
 
         # close the buckets
         for i,wb in writers.items():
-            wb.remote_write(0, b"%25d" % i)
-            wb.remote_close()
+            wb.write(0, b"%25d" % i)
+            wb.close()
             # aborting a bucket that was already closed is a no-op
-            wb.remote_abort()
+            wb.abort()
 
         # now they should be readable
-        b = ss.remote_get_buckets(b"allocate")
+        b = ss.get_buckets(b"allocate")
         self.failUnlessEqual(set(b.keys()), set([0,1,2]))
-        self.failUnlessEqual(b[0].remote_read(0, 25), b"%25d" % 0)
+        self.failUnlessEqual(b[0].read(0, 25), b"%25d" % 0)
         b_str = str(b[0])
         self.failUnlessIn("BucketReader", b_str)
         self.failUnlessIn("mfwgy33dmf2g 0", b_str)
@@ -652,21 +731,79 @@ class Server(unittest.TestCase):
 
         # aborting the writes should remove the tempfiles
         for i,wb in writers2.items():
-            wb.remote_abort()
+            wb.abort()
         already2,writers2 = self.allocate(ss, b"allocate", [2,3,4,5], 75)
         self.failUnlessEqual(already2, set([0,1,2]))
         self.failUnlessEqual(set(writers2.keys()), set([5]))
 
         for i,wb in writers2.items():
-            wb.remote_abort()
+            wb.abort()
         for i,wb in writers.items():
-            wb.remote_abort()
+            wb.abort()
+
+    def test_allocate_without_lease_renewal(self):
+        """
+        ``StorageServer._allocate_buckets`` does not renew leases on existing
+        shares if ``renew_leases`` is ``False``.
+        """
+        first_lease = 456
+        second_lease = 543
+        storage_index = b"allocate"
+
+        clock = Clock()
+        clock.advance(first_lease)
+        ss = self.create(
+            "test_allocate_without_lease_renewal",
+            clock=clock,
+        )
+
+        # Put a share on there
+        already, writers = self.allocate(
+            ss, storage_index, [0], 1, renew_leases=False,
+        )
+        (writer,) = writers.values()
+        writer.write(0, b"x")
+        writer.close()
+
+        # It should have a lease granted at the current time.
+        shares = dict(ss._get_bucket_shares(storage_index))
+        self.assertEqual(
+            [first_lease],
+            list(
+                lease.get_grant_renew_time_time()
+                for lease
+                in ShareFile(shares[0]).get_leases()
+            ),
+        )
+
+        # Let some time pass so we can tell if the lease on share 0 is
+        # renewed.
+        clock.advance(second_lease)
+
+        # Put another share on there.
+        already, writers = self.allocate(
+            ss, storage_index, [1], 1, renew_leases=False,
+        )
+        (writer,) = writers.values()
+        writer.write(0, b"x")
+        writer.close()
+
+        # The first share's lease expiration time is unchanged.
+        shares = dict(ss._get_bucket_shares(storage_index))
+        self.assertEqual(
+            [first_lease],
+            list(
+                lease.get_grant_renew_time_time()
+                for lease
+                in ShareFile(shares[0]).get_leases()
+            ),
+        )
 
     def test_bad_container_version(self):
         ss = self.create("test_bad_container_version")
         a,w = self.allocate(ss, b"si1", [0], 10)
-        w[0].remote_write(0, b"\xff"*10)
-        w[0].remote_close()
+        w[0].write(0, b"\xff"*10)
+        w[0].close()
 
         fn = os.path.join(ss.sharedir, storage_index_to_dir(b"si1"), "0")
         f = open(fn, "rb+")
@@ -674,17 +811,28 @@ class Server(unittest.TestCase):
         f.write(struct.pack(">L", 0)) # this is invalid: minimum used is v1
         f.close()
 
-        ss.remote_get_buckets(b"allocate")
+        ss.get_buckets(b"allocate")
 
         e = self.failUnlessRaises(UnknownImmutableContainerVersionError,
-                                  ss.remote_get_buckets, b"si1")
-        self.failUnlessIn(" had version 0 but we wanted 1", str(e))
+                                  ss.get_buckets, b"si1")
+        self.assertEqual(e.filename, fn)
+        self.assertEqual(e.version, 0)
+        self.assertIn("had unexpected version 0", str(e))
 
     def test_disconnect(self):
         # simulate a disconnection
-        ss = self.create("test_disconnect")
+        ss = FoolscapStorageServer(self.create("test_disconnect"))
+        renew_secret = b"r" * 32
+        cancel_secret = b"c" * 32
         canary = FakeCanary()
-        already,writers = self.allocate(ss, b"disconnect", [0,1,2], 75, canary)
+        already,writers = ss.remote_allocate_buckets(
+            b"disconnect",
+            renew_secret,
+            cancel_secret,
+            sharenums=[0,1,2],
+            allocated_size=75,
+            canary=canary,
+        )
         self.failUnlessEqual(already, set())
         self.failUnlessEqual(set(writers.keys()), set([0,1,2]))
         for (f,args,kwargs) in list(canary.disconnectors.values()):
@@ -721,7 +869,7 @@ class Server(unittest.TestCase):
         renew_secret = b"R" * 32
         cancel_secret = b"C" * 32
         with self.assertRaises(interfaces.NoSpace):
-            ss.remote_add_lease(storage_index, renew_secret, cancel_secret)
+            ss.add_lease(storage_index, renew_secret, cancel_secret)
 
     def test_reserved_space_mutable_lease(self):
         """
@@ -754,13 +902,13 @@ class Server(unittest.TestCase):
         # in the share header.  Even if we're out of disk space, on a boring
         # enough filesystem we can write these.
         for i in range(3):
-            ss.remote_add_lease(storage_index, next(renew_secrets), cancel_secret)
+            ss.add_lease(storage_index, next(renew_secrets), cancel_secret)
 
         # Having used all of the space for leases in the header, we would have
         # to allocate storage for the next lease.  Since there is no space
         # available, this must fail instead.
         with self.assertRaises(interfaces.NoSpace):
-            ss.remote_add_lease(storage_index, next(renew_secrets), cancel_secret)
+            ss.add_lease(storage_index, next(renew_secrets), cancel_secret)
 
 
     def test_reserved_space(self):
@@ -775,40 +923,49 @@ class Server(unittest.TestCase):
             }
         self.patch(fileutil, 'get_disk_stats', call_get_disk_stats)
 
-        ss = self.create("test_reserved_space", reserved_space=reserved)
+        ss = FoolscapStorageServer(self.create("test_reserved_space", reserved_space=reserved))
         # 15k available, 10k reserved, leaves 5k for shares
 
         # a newly created and filled share incurs this much overhead, beyond
         # the size we request.
         OVERHEAD = 3*4
         LEASE_SIZE = 4+32+32+4
+        renew_secret = b"r" * 32
+        cancel_secret = b"c" * 32
         canary = FakeCanary()
-        already, writers = self.allocate(ss, b"vid1", [0,1,2], 1000, canary)
+        already, writers = ss.remote_allocate_buckets(
+            b"vid1",
+            renew_secret,
+            cancel_secret,
+            sharenums=[0,1,2],
+            allocated_size=1000,
+            canary=canary,
+        )
         self.failUnlessEqual(len(writers), 3)
         # now the StorageServer should have 3000 bytes provisionally
         # allocated, allowing only 2000 more to be claimed
-        self.failUnlessEqual(len(ss._bucket_writers), 3)
+        self.failUnlessEqual(len(ss._server._bucket_writers), 3)
 
         # allocating 1001-byte shares only leaves room for one
         canary2 = FakeCanary()
         already2, writers2 = self.allocate(ss, b"vid2", [0,1,2], 1001, canary2)
         self.failUnlessEqual(len(writers2), 1)
-        self.failUnlessEqual(len(ss._bucket_writers), 4)
+        self.failUnlessEqual(len(ss._server._bucket_writers), 4)
 
         # we abandon the first set, so their provisional allocation should be
         # returned
         canary.disconnected()
 
-        self.failUnlessEqual(len(ss._bucket_writers), 1)
+        self.failUnlessEqual(len(ss._server._bucket_writers), 1)
         # now we have a provisional allocation of 1001 bytes
 
         # and we close the second set, so their provisional allocation should
         # become real, long-term allocation, and grows to include the
         # overhead.
         for bw in writers2.values():
-            bw.remote_write(0, b"a"*25)
-            bw.remote_close()
-        self.failUnlessEqual(len(ss._bucket_writers), 0)
+            bw.write(0, b"a"*25)
+            bw.close()
+        self.failUnlessEqual(len(ss._server._bucket_writers), 0)
 
         # this also changes the amount reported as available by call_get_disk_stats
         allocated = 1001 + OVERHEAD + LEASE_SIZE
@@ -816,14 +973,21 @@ class Server(unittest.TestCase):
         # now there should be ALLOCATED=1001+12+72=1085 bytes allocated, and
         # 5000-1085=3915 free, therefore we can fit 39 100byte shares
         canary3 = FakeCanary()
-        already3, writers3 = self.allocate(ss, b"vid3", list(range(100)), 100, canary3)
+        already3, writers3 = ss.remote_allocate_buckets(
+            b"vid3",
+            renew_secret,
+            cancel_secret,
+            sharenums=list(range(100)),
+            allocated_size=100,
+            canary=canary3,
+        )
         self.failUnlessEqual(len(writers3), 39)
-        self.failUnlessEqual(len(ss._bucket_writers), 39)
+        self.failUnlessEqual(len(ss._server._bucket_writers), 39)
 
         canary3.disconnected()
 
-        self.failUnlessEqual(len(ss._bucket_writers), 0)
-        ss.disownServiceParent()
+        self.failUnlessEqual(len(ss._server._bucket_writers), 0)
+        ss._server.disownServiceParent()
         del ss
 
     def test_seek(self):
@@ -852,91 +1016,92 @@ class Server(unittest.TestCase):
         Given a StorageServer, create a bucket with 5 shares and return renewal
         and cancellation secrets.
         """
-        canary = FakeCanary()
         sharenums = list(range(5))
         size = 100
 
         # Creating a bucket also creates a lease:
         rs, cs  = (hashutil.my_renewal_secret_hash(b"%d" % next(self._lease_secret)),
                    hashutil.my_cancel_secret_hash(b"%d" % next(self._lease_secret)))
-        already, writers = ss.remote_allocate_buckets(storage_index, rs, cs,
-                                                      sharenums, size, canary)
+        already, writers = ss.allocate_buckets(storage_index, rs, cs,
+                                               sharenums, size)
         self.failUnlessEqual(len(already), expected_already)
         self.failUnlessEqual(len(writers), expected_writers)
         for wb in writers.values():
-            wb.remote_close()
+            wb.close()
         return rs, cs
 
     def test_leases(self):
         ss = self.create("test_leases")
-        canary = FakeCanary()
         sharenums = list(range(5))
         size = 100
 
         # Create a bucket:
         rs0, cs0 = self.create_bucket_5_shares(ss, b"si0")
-        leases = list(ss.get_leases(b"si0"))
-        self.failUnlessEqual(len(leases), 1)
-        self.failUnlessEqual(set([l.renew_secret for l in leases]), set([rs0]))
+
+        # Upload of an immutable implies creation of a single lease with the
+        # supplied secrets.
+        (lease,) = ss.get_leases(b"si0")
+        self.assertTrue(lease.is_renew_secret(rs0))
 
         rs1, cs1 = self.create_bucket_5_shares(ss, b"si1")
 
         # take out a second lease on si1
         rs2, cs2 = self.create_bucket_5_shares(ss, b"si1", 5, 0)
-        leases = list(ss.get_leases(b"si1"))
-        self.failUnlessEqual(len(leases), 2)
-        self.failUnlessEqual(set([l.renew_secret for l in leases]), set([rs1, rs2]))
+        (lease1, lease2) = ss.get_leases(b"si1")
+        self.assertTrue(lease1.is_renew_secret(rs1))
+        self.assertTrue(lease2.is_renew_secret(rs2))
 
         # and a third lease, using add-lease
         rs2a,cs2a = (hashutil.my_renewal_secret_hash(b"%d" % next(self._lease_secret)),
                      hashutil.my_cancel_secret_hash(b"%d" % next(self._lease_secret)))
-        ss.remote_add_lease(b"si1", rs2a, cs2a)
-        leases = list(ss.get_leases(b"si1"))
-        self.failUnlessEqual(len(leases), 3)
-        self.failUnlessEqual(set([l.renew_secret for l in leases]), set([rs1, rs2, rs2a]))
+        ss.add_lease(b"si1", rs2a, cs2a)
+        (lease1, lease2, lease3) = ss.get_leases(b"si1")
+        self.assertTrue(lease1.is_renew_secret(rs1))
+        self.assertTrue(lease2.is_renew_secret(rs2))
+        self.assertTrue(lease3.is_renew_secret(rs2a))
 
         # add-lease on a missing storage index is silently ignored
-        self.failUnlessEqual(ss.remote_add_lease(b"si18", b"", b""), None)
+        self.assertIsNone(ss.add_lease(b"si18", b"", b""))
 
         # check that si0 is readable
-        readers = ss.remote_get_buckets(b"si0")
+        readers = ss.get_buckets(b"si0")
         self.failUnlessEqual(len(readers), 5)
 
         # renew the first lease. Only the proper renew_secret should work
-        ss.remote_renew_lease(b"si0", rs0)
-        self.failUnlessRaises(IndexError, ss.remote_renew_lease, b"si0", cs0)
-        self.failUnlessRaises(IndexError, ss.remote_renew_lease, b"si0", rs1)
+        ss.renew_lease(b"si0", rs0)
+        self.failUnlessRaises(IndexError, ss.renew_lease, b"si0", cs0)
+        self.failUnlessRaises(IndexError, ss.renew_lease, b"si0", rs1)
 
         # check that si0 is still readable
-        readers = ss.remote_get_buckets(b"si0")
+        readers = ss.get_buckets(b"si0")
         self.failUnlessEqual(len(readers), 5)
 
         # There is no such method as remote_cancel_lease for now -- see
         # ticket #1528.
-        self.failIf(hasattr(ss, 'remote_cancel_lease'), \
-                        "ss should not have a 'remote_cancel_lease' method/attribute")
+        self.failIf(hasattr(FoolscapStorageServer(ss), 'remote_cancel_lease'), \
+                    "ss should not have a 'remote_cancel_lease' method/attribute")
 
         # test overlapping uploads
         rs3,cs3 = (hashutil.my_renewal_secret_hash(b"%d" % next(self._lease_secret)),
                    hashutil.my_cancel_secret_hash(b"%d" % next(self._lease_secret)))
         rs4,cs4 = (hashutil.my_renewal_secret_hash(b"%d" % next(self._lease_secret)),
                    hashutil.my_cancel_secret_hash(b"%d" % next(self._lease_secret)))
-        already,writers = ss.remote_allocate_buckets(b"si3", rs3, cs3,
-                                                     sharenums, size, canary)
+        already,writers = ss.allocate_buckets(b"si3", rs3, cs3,
+                                              sharenums, size)
         self.failUnlessEqual(len(already), 0)
         self.failUnlessEqual(len(writers), 5)
-        already2,writers2 = ss.remote_allocate_buckets(b"si3", rs4, cs4,
-                                                       sharenums, size, canary)
+        already2,writers2 = ss.allocate_buckets(b"si3", rs4, cs4,
+                                                sharenums, size)
         self.failUnlessEqual(len(already2), 0)
         self.failUnlessEqual(len(writers2), 0)
         for wb in writers.values():
-            wb.remote_close()
+            wb.close()
 
         leases = list(ss.get_leases(b"si3"))
         self.failUnlessEqual(len(leases), 1)
 
-        already3,writers3 = ss.remote_allocate_buckets(b"si3", rs4, cs4,
-                                                       sharenums, size, canary)
+        already3,writers3 = ss.allocate_buckets(b"si3", rs4, cs4,
+                                                sharenums, size)
         self.failUnlessEqual(len(already3), 5)
         self.failUnlessEqual(len(writers3), 0)
 
@@ -950,20 +1115,20 @@ class Server(unittest.TestCase):
         """
         clock = Clock()
         clock.advance(123)
-        ss = self.create("test_immutable_add_lease_renews", get_current_time=clock.seconds)
+        ss = self.create("test_immutable_add_lease_renews", clock=clock)
 
         # Start out with single lease created with bucket:
         renewal_secret, cancel_secret = self.create_bucket_5_shares(ss, b"si0")
         [lease] = ss.get_leases(b"si0")
-        self.assertEqual(lease.expiration_time, 123 + DEFAULT_RENEWAL_TIME)
+        self.assertEqual(lease.get_expiration_time(), 123 + DEFAULT_RENEWAL_TIME)
 
         # Time passes:
         clock.advance(123456)
 
         # Adding a lease with matching renewal secret just renews it:
-        ss.remote_add_lease(b"si0", renewal_secret, cancel_secret)
+        ss.add_lease(b"si0", renewal_secret, cancel_secret)
         [lease] = ss.get_leases(b"si0")
-        self.assertEqual(lease.expiration_time, 123 + 123456 + DEFAULT_RENEWAL_TIME)
+        self.assertEqual(lease.get_expiration_time(), 123 + 123456 + DEFAULT_RENEWAL_TIME)
 
     def test_have_shares(self):
         """By default the StorageServer has no shares."""
@@ -997,14 +1162,14 @@ class Server(unittest.TestCase):
         self.failUnlessEqual(already, set())
         self.failUnlessEqual(set(writers.keys()), set([0,1,2]))
         for i,wb in writers.items():
-            wb.remote_write(0, b"%25d" % i)
-            wb.remote_close()
+            wb.write(0, b"%25d" % i)
+            wb.close()
         # since we discard the data, the shares should be present but sparse.
         # Since we write with some seeks, the data we read back will be all
         # zeros.
-        b = ss.remote_get_buckets(b"vid")
+        b = ss.get_buckets(b"vid")
         self.failUnlessEqual(set(b.keys()), set([0,1,2]))
-        self.failUnlessEqual(b[0].remote_read(0, 25), b"\x00" * 25)
+        self.failUnlessEqual(b[0].read(0, 25), b"\x00" * 25)
 
     def test_reserved_space_advise_corruption(self):
         """
@@ -1019,8 +1184,8 @@ class Server(unittest.TestCase):
         ss.setServiceParent(self.sparent)
 
         upload_immutable(ss, b"si0", b"r" * 32, b"c" * 32, {0: b""})
-        ss.remote_advise_corrupt_share(b"immutable", b"si0", 0,
-                                       b"This share smells funny.\n")
+        ss.advise_corrupt_share(b"immutable", b"si0", 0,
+                                b"This share smells funny.\n")
 
         self.assertEqual(
             [],
@@ -1034,8 +1199,8 @@ class Server(unittest.TestCase):
 
         si0_s = base32.b2a(b"si0")
         upload_immutable(ss, b"si0", b"r" * 32, b"c" * 32, {0: b""})
-        ss.remote_advise_corrupt_share(b"immutable", b"si0", 0,
-                                       b"This share smells funny.\n")
+        ss.advise_corrupt_share(b"immutable", b"si0", 0,
+                                b"This share smells funny.\n")
         reportdir = os.path.join(workdir, "corruption-advisories")
         reports = os.listdir(reportdir)
         self.failUnlessEqual(len(reports), 1)
@@ -1054,12 +1219,12 @@ class Server(unittest.TestCase):
         already,writers = self.allocate(ss, b"si1", [1], 75)
         self.failUnlessEqual(already, set())
         self.failUnlessEqual(set(writers.keys()), set([1]))
-        writers[1].remote_write(0, b"data")
-        writers[1].remote_close()
+        writers[1].write(0, b"data")
+        writers[1].close()
 
-        b = ss.remote_get_buckets(b"si1")
+        b = ss.get_buckets(b"si1")
         self.failUnlessEqual(set(b.keys()), set([1]))
-        b[1].remote_advise_corrupt_share(b"This share tastes like dust.\n")
+        b[1].advise_corrupt_share(b"This share tastes like dust.\n")
 
         reports = os.listdir(reportdir)
         self.failUnlessEqual(len(reports), 2)
@@ -1085,8 +1250,8 @@ class Server(unittest.TestCase):
         upload_immutable(ss, b"si0", b"r" * 32, b"c" * 32, {0: b""})
 
         # And try to submit a corruption advisory about a different share
-        ss.remote_advise_corrupt_share(b"immutable", b"si0", 1,
-                                       b"This share smells funny.\n")
+        ss.advise_corrupt_share(b"immutable", b"si0", 1,
+                                b"This share smells funny.\n")
 
         self.assertEqual(
             [],
@@ -1106,10 +1271,12 @@ class MutableServer(unittest.TestCase):
         basedir = os.path.join("storage", "MutableServer", name)
         return basedir
 
-    def create(self, name, get_current_time=time.time):
+    def create(self, name, clock=None):
         workdir = self.workdir(name)
+        if clock is None:
+            clock = Clock()
         ss = StorageServer(workdir, b"\x00" * 20,
-                           get_current_time=get_current_time)
+                           clock=clock)
         ss.setServiceParent(self.sparent)
         return ss
 
@@ -1135,7 +1302,7 @@ class MutableServer(unittest.TestCase):
         write_enabler = self.write_enabler(we_tag)
         renew_secret = self.renew_secret(lease_tag)
         cancel_secret = self.cancel_secret(lease_tag)
-        rstaraw = ss.remote_slot_testv_and_readv_and_writev
+        rstaraw = ss.slot_testv_and_readv_and_writev
         testandwritev = dict( [ (shnum, ([], [], None) )
                          for shnum in sharenums ] )
         readv = []
@@ -1156,18 +1323,20 @@ class MutableServer(unittest.TestCase):
         f.seek(0)
         f.write(b"BAD MAGIC")
         f.close()
-        read = ss.remote_slot_readv
+        read = ss.slot_readv
         e = self.failUnlessRaises(UnknownMutableContainerVersionError,
                                   read, b"si1", [0], [(0,10)])
-        self.failUnlessIn(" had magic ", str(e))
-        self.failUnlessIn(" but we wanted ", str(e))
+        self.assertEqual(e.filename, fn)
+        self.assertTrue(e.version.startswith(b"BAD MAGIC"))
+        self.assertIn("had unexpected version", str(e))
+        self.assertIn("BAD MAGIC", str(e))
 
     def test_container_size(self):
         ss = self.create("test_container_size")
         self.allocate(ss, b"si1", b"we1", next(self._lease_secret),
                       set([0,1,2]), 100)
-        read = ss.remote_slot_readv
-        rstaraw = ss.remote_slot_testv_and_readv_and_writev
+        read = ss.slot_readv
+        rstaraw = ss.slot_testv_and_readv_and_writev
         secrets = ( self.write_enabler(b"we1"),
                     self.renew_secret(b"we1"),
                     self.cancel_secret(b"we1") )
@@ -1247,7 +1416,7 @@ class MutableServer(unittest.TestCase):
 
         # Also see if the server explicitly declares that it supports this
         # feature.
-        ver = ss.remote_get_version()
+        ver = ss.get_version()
         storage_v1_ver = ver[b"http://allmydata.org/tahoe/protocols/storage/v1"]
         self.failUnless(storage_v1_ver.get(b"fills-holes-with-zero-bytes"))
 
@@ -1265,7 +1434,7 @@ class MutableServer(unittest.TestCase):
         self.allocate(ss, b"si1", b"we1", next(self._lease_secret),
                       set([0,1,2]), 100)
 
-        read = ss.remote_slot_readv
+        read = ss.slot_readv
         self.failUnlessEqual(read(b"si1", [0], [(0, 10)]),
                              {0: [b""]})
         self.failUnlessEqual(read(b"si1", [], [(0, 10)]),
@@ -1278,7 +1447,7 @@ class MutableServer(unittest.TestCase):
                     self.renew_secret(b"we1"),
                     self.cancel_secret(b"we1") )
         data = b"".join([ (b"%d" % i) * 10 for i in range(10) ])
-        write = ss.remote_slot_testv_and_readv_and_writev
+        write = ss.slot_testv_and_readv_and_writev
         answer = write(b"si1", secrets,
                        {0: ([], [(0,data)], None)},
                        [])
@@ -1288,7 +1457,7 @@ class MutableServer(unittest.TestCase):
                              {0: [b"00000000001111111111"]})
         self.failUnlessEqual(read(b"si1", [0], [(95,10)]),
                              {0: [b"99999"]})
-        #self.failUnlessEqual(s0.remote_get_length(), 100)
+        #self.failUnlessEqual(s0.get_length(), 100)
 
         bad_secrets = (b"bad write enabler", secrets[1], secrets[2])
         f = self.failUnlessRaises(BadWriteEnablerError,
@@ -1322,8 +1491,8 @@ class MutableServer(unittest.TestCase):
                     self.renew_secret(b"we1"),
                     self.cancel_secret(b"we1") )
         data = b"".join([ (b"%d" % i) * 10 for i in range(10) ])
-        write = ss.remote_slot_testv_and_readv_and_writev
-        read = ss.remote_slot_readv
+        write = ss.slot_testv_and_readv_and_writev
+        read = ss.slot_readv
 
         def reset():
             write(b"si1", secrets,
@@ -1367,8 +1536,8 @@ class MutableServer(unittest.TestCase):
                     self.renew_secret(b"we1"),
                     self.cancel_secret(b"we1") )
         data = b"".join([ (b"%d" % i) * 10 for i in range(10) ])
-        write = ss.remote_slot_testv_and_readv_and_writev
-        read = ss.remote_slot_readv
+        write = ss.slot_testv_and_readv_and_writev
+        read = ss.slot_readv
         data = [(b"%d" % i) * 100 for i in range(3)]
         rc = write(b"si1", secrets,
                    {0: ([], [(0,data[0])], None),
@@ -1383,25 +1552,25 @@ class MutableServer(unittest.TestCase):
                                       2: [b"2"*10]})
 
     def compare_leases_without_timestamps(self, leases_a, leases_b):
-        self.failUnlessEqual(len(leases_a), len(leases_b))
-        for i in range(len(leases_a)):
-            a = leases_a[i]
-            b = leases_b[i]
-            self.failUnlessEqual(a.owner_num,       b.owner_num)
-            self.failUnlessEqual(a.renew_secret,    b.renew_secret)
-            self.failUnlessEqual(a.cancel_secret,   b.cancel_secret)
-            self.failUnlessEqual(a.nodeid,          b.nodeid)
-
-    def compare_leases(self, leases_a, leases_b):
-        self.failUnlessEqual(len(leases_a), len(leases_b))
-        for i in range(len(leases_a)):
-            a = leases_a[i]
-            b = leases_b[i]
-            self.failUnlessEqual(a.owner_num,       b.owner_num)
-            self.failUnlessEqual(a.renew_secret,    b.renew_secret)
-            self.failUnlessEqual(a.cancel_secret,   b.cancel_secret)
-            self.failUnlessEqual(a.nodeid,          b.nodeid)
-            self.failUnlessEqual(a.expiration_time, b.expiration_time)
+        """
+        Assert that, except for expiration times, ``leases_a`` contains the same
+        lease information as ``leases_b``.
+        """
+        for a, b in zip(leases_a, leases_b):
+            # The leases aren't always of the same type (though of course
+            # corresponding elements in the two lists should be of the same
+            # type as each other) so it's inconvenient to just reach in and
+            # normalize the expiration timestamp.  We don't want to call
+            # `renew` on both objects to normalize the expiration timestamp in
+            # case `renew` is broken and gives us back equal outputs from
+            # non-equal inputs (expiration timestamp aside).  It seems
+            # reasonably safe to use `renew` to make _one_ of the timestamps
+            # equal to the other though.
+            self.assertEqual(
+                a.renew(b.get_expiration_time()),
+                b,
+            )
+        self.assertEqual(len(leases_a), len(leases_b))
 
     def test_leases(self):
         ss = self.create("test_leases")
@@ -1410,8 +1579,8 @@ class MutableServer(unittest.TestCase):
                      self.renew_secret(b"we1-%d" % n),
                      self.cancel_secret(b"we1-%d" % n) )
         data = b"".join([ (b"%d" % i) * 10 for i in range(10) ])
-        write = ss.remote_slot_testv_and_readv_and_writev
-        read = ss.remote_slot_readv
+        write = ss.slot_testv_and_readv_and_writev
+        read = ss.slot_readv
         rc = write(b"si1", secrets(0), {0: ([], [(0,data)], None)}, [])
         self.failUnlessEqual(rc, (True, {}))
 
@@ -1427,7 +1596,7 @@ class MutableServer(unittest.TestCase):
         self.failUnlessEqual(len(list(s0.get_leases())), 1)
 
         # add-lease on a missing storage index is silently ignored
-        self.failUnlessEqual(ss.remote_add_lease(b"si18", b"", b""), None)
+        self.failUnlessEqual(ss.add_lease(b"si18", b"", b""), None)
 
         # re-allocate the slots and use the same secrets, that should update
         # the lease
@@ -1435,7 +1604,7 @@ class MutableServer(unittest.TestCase):
         self.failUnlessEqual(len(list(s0.get_leases())), 1)
 
         # renew it directly
-        ss.remote_renew_lease(b"si1", secrets(0)[1])
+        ss.renew_lease(b"si1", secrets(0)[1])
         self.failUnlessEqual(len(list(s0.get_leases())), 1)
 
         # now allocate them with a bunch of different secrets, to trigger the
@@ -1443,7 +1612,7 @@ class MutableServer(unittest.TestCase):
         write(b"si1", secrets(1), {0: ([], [(0,data)], None)}, [])
         self.failUnlessEqual(len(list(s0.get_leases())), 2)
         secrets2 = secrets(2)
-        ss.remote_add_lease(b"si1", secrets2[1], secrets2[2])
+        ss.add_lease(b"si1", secrets2[1], secrets2[2])
         self.failUnlessEqual(len(list(s0.get_leases())), 3)
         write(b"si1", secrets(3), {0: ([], [(0,data)], None)}, [])
         write(b"si1", secrets(4), {0: ([], [(0,data)], None)}, [])
@@ -1461,11 +1630,11 @@ class MutableServer(unittest.TestCase):
         # read back the leases, make sure they're still intact.
         self.compare_leases_without_timestamps(all_leases, list(s0.get_leases()))
 
-        ss.remote_renew_lease(b"si1", secrets(0)[1])
-        ss.remote_renew_lease(b"si1", secrets(1)[1])
-        ss.remote_renew_lease(b"si1", secrets(2)[1])
-        ss.remote_renew_lease(b"si1", secrets(3)[1])
-        ss.remote_renew_lease(b"si1", secrets(4)[1])
+        ss.renew_lease(b"si1", secrets(0)[1])
+        ss.renew_lease(b"si1", secrets(1)[1])
+        ss.renew_lease(b"si1", secrets(2)[1])
+        ss.renew_lease(b"si1", secrets(3)[1])
+        ss.renew_lease(b"si1", secrets(4)[1])
         self.compare_leases_without_timestamps(all_leases, list(s0.get_leases()))
         # get a new copy of the leases, with the current timestamps. Reading
         # data and failing to renew/cancel leases should leave the timestamps
@@ -1476,18 +1645,18 @@ class MutableServer(unittest.TestCase):
         # examine the exception thus raised, make sure the old nodeid is
         # present, to provide for share migration
         e = self.failUnlessRaises(IndexError,
-                                  ss.remote_renew_lease, b"si1",
+                                  ss.renew_lease, b"si1",
                                   secrets(20)[1])
         e_s = str(e)
         self.failUnlessIn("Unable to renew non-existent lease", e_s)
         self.failUnlessIn("I have leases accepted by nodeids:", e_s)
         self.failUnlessIn("nodeids: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' .", e_s)
 
-        self.compare_leases(all_leases, list(s0.get_leases()))
+        self.assertEqual(all_leases, list(s0.get_leases()))
 
         # reading shares should not modify the timestamp
         read(b"si1", [], [(0,200)])
-        self.compare_leases(all_leases, list(s0.get_leases()))
+        self.assertEqual(all_leases, list(s0.get_leases()))
 
         write(b"si1", secrets(0),
               {0: ([], [(200, b"make me bigger")], None)}, [])
@@ -1505,13 +1674,13 @@ class MutableServer(unittest.TestCase):
         clock = Clock()
         clock.advance(235)
         ss = self.create("test_mutable_add_lease_renews",
-                         get_current_time=clock.seconds)
+                         clock=clock)
         def secrets(n):
             return ( self.write_enabler(b"we1"),
                      self.renew_secret(b"we1-%d" % n),
                      self.cancel_secret(b"we1-%d" % n) )
         data = b"".join([ (b"%d" % i) * 10 for i in range(10) ])
-        write = ss.remote_slot_testv_and_readv_and_writev
+        write = ss.slot_testv_and_readv_and_writev
         write_enabler, renew_secret, cancel_secret = secrets(0)
         rc = write(b"si1", (write_enabler, renew_secret, cancel_secret),
                    {0: ([], [(0,data)], None)}, [])
@@ -1521,23 +1690,23 @@ class MutableServer(unittest.TestCase):
                                   "shares", storage_index_to_dir(b"si1"))
         s0 = MutableShareFile(os.path.join(bucket_dir, "0"))
         [lease] = s0.get_leases()
-        self.assertEqual(lease.expiration_time, 235 + DEFAULT_RENEWAL_TIME)
+        self.assertEqual(lease.get_expiration_time(), 235 + DEFAULT_RENEWAL_TIME)
 
         # Time passes...
         clock.advance(835)
 
         # Adding a lease renews it:
-        ss.remote_add_lease(b"si1", renew_secret, cancel_secret)
+        ss.add_lease(b"si1", renew_secret, cancel_secret)
         [lease] = s0.get_leases()
-        self.assertEqual(lease.expiration_time,
+        self.assertEqual(lease.get_expiration_time(),
                          235 + 835 + DEFAULT_RENEWAL_TIME)
 
     def test_remove(self):
         ss = self.create("test_remove")
         self.allocate(ss, b"si1", b"we1", next(self._lease_secret),
                       set([0,1,2]), 100)
-        readv = ss.remote_slot_readv
-        writev = ss.remote_slot_testv_and_readv_and_writev
+        readv = ss.slot_readv
+        writev = ss.slot_testv_and_readv_and_writev
         secrets = ( self.write_enabler(b"we1"),
                     self.renew_secret(b"we1"),
                     self.cancel_secret(b"we1") )
@@ -1641,7 +1810,7 @@ class MutableServer(unittest.TestCase):
         # We don't even need to create any shares to exercise this
         # functionality.  Just go straight to sending a truncate-to-zero
         # write.
-        testv_is_good, read_data = ss.remote_slot_testv_and_readv_and_writev(
+        testv_is_good, read_data = ss.slot_testv_and_readv_and_writev(
             storage_index=storage_index,
             secrets=secrets,
             test_and_write_vectors={
@@ -1659,7 +1828,7 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
         self.sparent = LoggingServiceParent()
         self._lease_secret = itertools.count()
         self.ss = self.create("MDMFProxies storage test server")
-        self.rref = RemoteBucket(self.ss)
+        self.rref = RemoteBucket(FoolscapStorageServer(self.ss))
         self.storage_server = _StorageServer(lambda: self.rref)
         self.secrets = (self.write_enabler(b"we_secret"),
                         self.renew_secret(b"renew_secret"),
@@ -1826,7 +1995,7 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
         If tail_segment=True, then I will write a share that has a
         smaller tail segment than other segments.
         """
-        write = self.ss.remote_slot_testv_and_readv_and_writev
+        write = self.ss.slot_testv_and_readv_and_writev
         data = self.build_test_mdmf_share(tail_segment, empty)
         # Finally, we write the whole thing to the storage server in one
         # pass.
@@ -1894,7 +2063,7 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
                                    empty=False):
         # Some tests need SDMF shares to verify that we can still
         # read them. This method writes one, which resembles but is not
-        write = self.ss.remote_slot_testv_and_readv_and_writev
+        write = self.ss.slot_testv_and_readv_and_writev
         share = self.build_test_sdmf_share(empty)
         testvs = [(0, 1, b"eq", b"")]
         tws = {}
@@ -2226,7 +2395,7 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
         # blocks.
         mw = self._make_new_mw(b"si1", 0)
         # Test writing some blocks.
-        read = self.ss.remote_slot_readv
+        read = self.ss.slot_readv
         expected_private_key_offset = struct.calcsize(MDMFHEADER)
         expected_sharedata_offset = struct.calcsize(MDMFHEADER) + \
                                     PRIVATE_KEY_SIZE + \
@@ -3017,7 +3186,7 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
         d = sdmfr.finish_publishing()
         def _then(ignored):
             self.failUnlessEqual(self.rref.write_count, 1)
-            read = self.ss.remote_slot_readv
+            read = self.ss.slot_readv
             self.failUnlessEqual(read(b"si1", [0], [(0, len(data))]),
                                  {0: [data]})
         d.addCallback(_then)
@@ -3074,7 +3243,7 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
             sdmfw.finish_publishing())
         def _then_again(results):
             self.failUnless(results[0])
-            read = self.ss.remote_slot_readv
+            read = self.ss.slot_readv
             self.failUnlessEqual(read(b"si1", [0], [(1, 8)]),
                                  {0: [struct.pack(">Q", 1)]})
             self.failUnlessEqual(read(b"si1", [0], [(9, len(data) - 9)]),
@@ -3167,6 +3336,7 @@ class Stats(unittest.TestCase):
         self.failUnless(output["get"]["99_0_percentile"] is None, output)
         self.failUnless(output["get"]["99_9_percentile"] is None, output)
 
+immutable_schemas = strategies.sampled_from(list(ALL_IMMUTABLE_SCHEMAS))
 
 class ShareFileTests(unittest.TestCase):
     """Tests for allmydata.storage.immutable.ShareFile."""
@@ -3178,47 +3348,54 @@ class ShareFileTests(unittest.TestCase):
         # Should be b'abDEF' now.
         return sf
 
-    def test_read_write(self):
+    @given(immutable_schemas)
+    def test_read_write(self, schema):
         """Basic writes can be read."""
-        sf = self.get_sharefile()
+        sf = self.get_sharefile(schema=schema)
         self.assertEqual(sf.read_share_data(0, 3), b"abD")
         self.assertEqual(sf.read_share_data(1, 4), b"bDEF")
 
-    def test_reads_beyond_file_end(self):
+    @given(immutable_schemas)
+    def test_reads_beyond_file_end(self, schema):
         """Reads beyond the file size are truncated."""
-        sf = self.get_sharefile()
+        sf = self.get_sharefile(schema=schema)
         self.assertEqual(sf.read_share_data(0, 10), b"abDEF")
         self.assertEqual(sf.read_share_data(5, 10), b"")
 
-    def test_too_large_write(self):
+    @given(immutable_schemas)
+    def test_too_large_write(self, schema):
         """Can't do write larger than file size."""
-        sf = self.get_sharefile()
+        sf = self.get_sharefile(schema=schema)
         with self.assertRaises(DataTooLargeError):
             sf.write_share_data(0, b"x" * 3000)
 
-    def test_no_leases_cancelled(self):
+    @given(immutable_schemas)
+    def test_no_leases_cancelled(self, schema):
         """If no leases were cancelled, IndexError is raised."""
-        sf = self.get_sharefile()
+        sf = self.get_sharefile(schema=schema)
         with self.assertRaises(IndexError):
             sf.cancel_lease(b"garbage")
 
-    def test_long_lease_count_format(self):
+    @given(immutable_schemas)
+    def test_long_lease_count_format(self, schema):
         """
         ``ShareFile.__init__`` raises ``ValueError`` if the lease count format
         given is longer than one character.
         """
         with self.assertRaises(ValueError):
-            self.get_sharefile(lease_count_format="BB")
+            self.get_sharefile(schema=schema, lease_count_format="BB")
 
-    def test_large_lease_count_format(self):
+    @given(immutable_schemas)
+    def test_large_lease_count_format(self, schema):
         """
         ``ShareFile.__init__`` raises ``ValueError`` if the lease count format
         encodes to a size larger than 8 bytes.
         """
         with self.assertRaises(ValueError):
-            self.get_sharefile(lease_count_format="Q")
+            self.get_sharefile(schema=schema, lease_count_format="Q")
 
-    def test_avoid_lease_overflow(self):
+    @given(immutable_schemas)
+    def test_avoid_lease_overflow(self, schema):
         """
         If the share file already has the maximum number of leases supported then
         ``ShareFile.add_lease`` raises ``struct.error`` and makes no changes
@@ -3232,7 +3409,7 @@ class ShareFileTests(unittest.TestCase):
         )
         # Make it a little easier to reach the condition by limiting the
         # number of leases to only 255.
-        sf = self.get_sharefile(lease_count_format="B")
+        sf = self.get_sharefile(schema=schema, lease_count_format="B")
 
         # Add the leases.
         for i in range(2 ** 8 - 1):
@@ -3256,15 +3433,59 @@ class ShareFileTests(unittest.TestCase):
 
         self.assertEqual(before_data, after_data)
 
+    @given(immutable_schemas)
+    def test_renew_secret(self, schema):
+        """
+        A lease loaded from an immutable share file at any schema version can have
+        its renew secret verified.
+        """
+        renew_secret = b"r" * 32
+        cancel_secret = b"c" * 32
+        expiration_time = 2 ** 31
+
+        sf = self.get_sharefile(schema=schema)
+        lease = LeaseInfo(
+            owner_num=0,
+            renew_secret=renew_secret,
+            cancel_secret=cancel_secret,
+            expiration_time=expiration_time,
+        )
+        sf.add_lease(lease)
+        (loaded_lease,) = sf.get_leases()
+        self.assertTrue(loaded_lease.is_renew_secret(renew_secret))
+
+    @given(immutable_schemas)
+    def test_cancel_secret(self, schema):
+        """
+        A lease loaded from an immutable share file at any schema version can have
+        its cancel secret verified.
+        """
+        renew_secret = b"r" * 32
+        cancel_secret = b"c" * 32
+        expiration_time = 2 ** 31
+
+        sf = self.get_sharefile(schema=schema)
+        lease = LeaseInfo(
+            owner_num=0,
+            renew_secret=renew_secret,
+            cancel_secret=cancel_secret,
+            expiration_time=expiration_time,
+        )
+        sf.add_lease(lease)
+        (loaded_lease,) = sf.get_leases()
+        self.assertTrue(loaded_lease.is_cancel_secret(cancel_secret))
+
+mutable_schemas = strategies.sampled_from(list(ALL_MUTABLE_SCHEMAS))
 
 class MutableShareFileTests(unittest.TestCase):
     """
     Tests for allmydata.storage.mutable.MutableShareFile.
     """
-    def get_sharefile(self):
-        return MutableShareFile(self.mktemp())
+    def get_sharefile(self, **kwargs):
+        return MutableShareFile(self.mktemp(), **kwargs)
 
     @given(
+        schema=mutable_schemas,
         nodeid=strategies.just(b"x" * 20),
         write_enabler=strategies.just(b"y" * 32),
         datav=strategies.lists(
@@ -3275,12 +3496,12 @@ class MutableShareFileTests(unittest.TestCase):
         ),
         new_length=offsets(),
     )
-    def test_readv_reads_share_data(self, nodeid, write_enabler, datav, new_length):
+    def test_readv_reads_share_data(self, schema, nodeid, write_enabler, datav, new_length):
         """
         ``MutableShareFile.readv`` returns bytes from the share data portion
         of the share file.
         """
-        sf = self.get_sharefile()
+        sf = self.get_sharefile(schema=schema)
         sf.create(my_nodeid=nodeid, write_enabler=write_enabler)
         sf.writev(datav=datav, new_length=new_length)
 
@@ -3315,12 +3536,13 @@ class MutableShareFileTests(unittest.TestCase):
         self.assertEqual(expected_data, read_data)
 
     @given(
+        schema=mutable_schemas,
         nodeid=strategies.just(b"x" * 20),
         write_enabler=strategies.just(b"y" * 32),
         readv=strategies.lists(strategies.tuples(offsets(), lengths()), min_size=1),
         random=strategies.randoms(),
     )
-    def test_readv_rejects_negative_length(self, nodeid, write_enabler, readv, random):
+    def test_readv_rejects_negative_length(self, schema, nodeid, write_enabler, readv, random):
         """
         If a negative length is given to ``MutableShareFile.readv`` in a read
         vector then ``AssertionError`` is raised.
@@ -3359,9 +3581,97 @@ class MutableShareFileTests(unittest.TestCase):
             *broken_readv[readv_index]
         )
 
-        sf = self.get_sharefile()
+        sf = self.get_sharefile(schema=schema)
         sf.create(my_nodeid=nodeid, write_enabler=write_enabler)
 
         # A read with a broken read vector is an error.
         with self.assertRaises(AssertionError):
             sf.readv(broken_readv)
+
+
+class LeaseInfoTests(SyncTestCase):
+    """
+    Tests for ``allmydata.storage.lease.LeaseInfo``.
+    """
+    def test_is_renew_secret(self):
+        """
+        ``LeaseInfo.is_renew_secret`` returns ``True`` if the value given is the
+        renew secret.
+        """
+        renew_secret = b"r" * 32
+        cancel_secret = b"c" * 32
+        lease = LeaseInfo(
+            owner_num=1,
+            renew_secret=renew_secret,
+            cancel_secret=cancel_secret,
+        )
+        self.assertTrue(lease.is_renew_secret(renew_secret))
+
+    def test_is_not_renew_secret(self):
+        """
+        ``LeaseInfo.is_renew_secret`` returns ``False`` if the value given is not
+        the renew secret.
+        """
+        renew_secret = b"r" * 32
+        cancel_secret = b"c" * 32
+        lease = LeaseInfo(
+            owner_num=1,
+            renew_secret=renew_secret,
+            cancel_secret=cancel_secret,
+        )
+        self.assertFalse(lease.is_renew_secret(cancel_secret))
+
+    def test_is_cancel_secret(self):
+        """
+        ``LeaseInfo.is_cancel_secret`` returns ``True`` if the value given is the
+        cancel secret.
+        """
+        renew_secret = b"r" * 32
+        cancel_secret = b"c" * 32
+        lease = LeaseInfo(
+            owner_num=1,
+            renew_secret=renew_secret,
+            cancel_secret=cancel_secret,
+        )
+        self.assertTrue(lease.is_cancel_secret(cancel_secret))
+
+    def test_is_not_cancel_secret(self):
+        """
+        ``LeaseInfo.is_cancel_secret`` returns ``False`` if the value given is not
+        the cancel secret.
+        """
+        renew_secret = b"r" * 32
+        cancel_secret = b"c" * 32
+        lease = LeaseInfo(
+            owner_num=1,
+            renew_secret=renew_secret,
+            cancel_secret=cancel_secret,
+        )
+        self.assertFalse(lease.is_cancel_secret(renew_secret))
+
+    @given(
+        strategies.tuples(
+            strategies.integers(min_value=0, max_value=2 ** 31 - 1),
+            strategies.binary(min_size=32, max_size=32),
+            strategies.binary(min_size=32, max_size=32),
+            strategies.integers(min_value=0, max_value=2 ** 31 - 1),
+            strategies.binary(min_size=20, max_size=20),
+        ),
+    )
+    def test_immutable_size(self, initializer_args):
+        """
+        ``LeaseInfo.immutable_size`` returns the length of the result of
+        ``LeaseInfo.to_immutable_data``.
+
+        ``LeaseInfo.mutable_size`` returns the length of the result of
+        ``LeaseInfo.to_mutable_data``.
+        """
+        info = LeaseInfo(*initializer_args)
+        self.expectThat(
+            info.to_immutable_data(),
+            HasLength(info.immutable_size()),
+        )
+        self.expectThat(
+            info.to_mutable_data(),
+            HasLength(info.mutable_size()),
+        )

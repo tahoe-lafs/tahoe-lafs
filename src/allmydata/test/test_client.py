@@ -89,6 +89,7 @@ from .common import (
     UseTestPlugins,
     MemoryIntroducerClient,
     get_published_announcements,
+    UseNode,
 )
 from .matchers import (
     MatchesSameElements,
@@ -600,7 +601,7 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
                            "enabled = true\n")
         c = yield client.create_client(basedir)
         ss = c.getServiceNamed("storage")
-        verdict = ss.remote_get_version()
+        verdict = ss.get_version()
         self.failUnlessReallyEqual(verdict[b"application-version"],
                                    allmydata.__full_version__.encode("ascii"))
         self.failIfEqual(str(allmydata.__version__), "unknown")
@@ -953,13 +954,14 @@ class Run(unittest.TestCase, testutil.StallMixin):
 
     @defer.inlineCallbacks
     def test_reloadable(self):
-        basedir = FilePath("test_client.Run.test_reloadable")
-        private = basedir.child("private")
-        private.makedirs()
+        from twisted.internet import reactor
+
         dummy = "pb://wl74cyahejagspqgy4x5ukrvfnevlknt@127.0.0.1:58889/bogus"
-        write_introducer(basedir, "someintroducer", dummy)
-        basedir.child("tahoe.cfg").setContent(BASECONFIG. encode("ascii"))
-        c1 = yield client.create_client(basedir.path)
+        fixture = UseNode(None, None, FilePath(self.mktemp()), dummy, reactor=reactor)
+        fixture.setUp()
+        self.addCleanup(fixture.cleanUp)
+
+        c1 = yield fixture.create_node()
         c1.setServiceParent(self.sparent)
 
         # delay to let the service start up completely. I'm not entirely sure
@@ -981,7 +983,7 @@ class Run(unittest.TestCase, testutil.StallMixin):
         # also change _check_exit_trigger to use it instead of a raw
         # reactor.stop, also instrument the shutdown event in an
         # attribute that we can check.)
-        c2 = yield client.create_client(basedir.path)
+        c2 = yield fixture.create_node()
         c2.setServiceParent(self.sparent)
         yield c2.disownServiceParent()
 

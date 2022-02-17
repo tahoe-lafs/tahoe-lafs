@@ -138,8 +138,17 @@ install_requires = [
     # Backported configparser for Python 2:
     "configparser ; python_version < '3.0'",
 
-    # For the RangeMap datastructure.
-    "collections-extended",
+    # For the RangeMap datastructure. Need 2.0.2 at least for bugfixes. Python
+    # 2 doesn't actually need this, since HTTP storage protocol isn't supported
+    # there, so we just pick whatever version so that code imports.
+    "collections-extended >= 2.0.2 ; python_version > '3.0'",
+    "collections-extended ; python_version < '3.0'",
+
+    # HTTP server and client
+    "klein",
+    "werkzeug",
+    "treq",
+    "cbor2"
 ]
 
 setup_requires = [
@@ -371,9 +380,8 @@ setup(name="tahoe-lafs", # also set in __init__.py
       package_dir = {'':'src'},
       packages=find_packages('src') + ['allmydata.test.plugins'],
       classifiers=trove_classifiers,
-      # We support Python 2.7, and we're working on support for 3.6 (the
-      # highest version that PyPy currently supports).
-      python_requires=">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*, !=3.5.*",
+      # We support Python 2.7, and Python 3.7 or later.
+      python_requires=">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*, !=3.5.*, !=3.6.*",
       install_requires=install_requires,
       extras_require={
           # Duplicate the Twisted pywin32 dependency here.  See
@@ -397,7 +405,6 @@ setup(name="tahoe-lafs", # also set in __init__.py
               # Python 2.7.
               "decorator < 5",
               "hypothesis >= 3.6.1",
-              "treq",
               "towncrier",
               "testtools",
               "fixtures",
@@ -405,7 +412,9 @@ setup(name="tahoe-lafs", # also set in __init__.py
               "html5lib",
               "junitxml",
               "tenacity",
-              "paramiko",
+              # Pin old version until
+              # https://github.com/paramiko/paramiko/issues/1961 is fixed.
+              "paramiko < 2.9",
               "pytest-timeout",
               # Does our OpenMetrics endpoint adhere to the spec:
               "prometheus-client == 0.11.0",

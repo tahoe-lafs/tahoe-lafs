@@ -1,2 +1,0 @@
-The storage protocol operation ``readv`` now safely rejects attempts to read negative lengths.
-Previously these read requests were satisfied with the complete contents of the share file (including trailing metadata) starting from the specified offset.
