@@ -216,6 +216,11 @@ jobs:
         run: python misc/build_helpers/show-tool-versions.py
 
       - name: Run "Python 3 integration tests"
+        env:
+          # On macOS this is necessary to ensure unix socket paths for tor
+          # aren't too long. On Windows tox won't pass it through so it has no
+          # effect. On Linux it doesn't make a difference one way or another.
+          TMPDIR: "/tmp"
         run: tox -e integration
 
       - name: Upload eliot.log in case of failure
