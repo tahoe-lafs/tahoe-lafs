@@ -176,9 +176,7 @@ jobs:
       - name: Install Tor [macOS, ${{ matrix.python-version }} ]
         if: ${{ contains(matrix.os, 'macos') }}
         run: |
-          brew extract --version 0.4.6.9 tor homebrew/cask
-          brew install tor@0.4.6.9
-          brew link --overwrite tor@0.4.6.9
+          brew install tor
 
       - name: Install Tor [Windows]
         if: matrix.os == 'windows-latest'
@@ -218,7 +216,7 @@ jobs:
         run: python misc/build_helpers/show-tool-versions.py
 
       - name: Run "Python 3 integration tests"
-        run: tox -e integration3
+        run: tox -e integration
 
       - name: Upload eliot.log in case of failure
         uses: actions/upload-artifact@v1
