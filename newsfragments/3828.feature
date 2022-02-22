@@ -1,4 +1,4 @@
-Mutables' RSA keys are spec'd at 2048 bits
+The implementation of SDMF and MDMF (mutables) now requires RSA keys to be exactly 2048 bits, aligning them with the specification.
 
 Some code existed to allow tests to shorten this and it's
 conceptually possible a modified client produced mutables
