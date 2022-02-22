@@ -122,7 +122,7 @@ they will need to evaluate which contributors' signatures they trust.
 
   - these should all pass:
 
-    - tox -e py27,codechecks,docs,integration
+    - tox -e py37,codechecks,docs,integration
 
   - these can fail (ideally they should not of course):
 

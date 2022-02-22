@@ -462,10 +462,8 @@ def chutney(reactor, temp_dir):
     )
     pytest_twisted.blockon(proto.done)
 
-    # XXX: Here we reset Chutney to the last revision known to work
-    # with Python 2, as a workaround for Chutney moving to Python 3.
-    # When this is no longer necessary, we will have to drop this and
-    # add '--depth=1' back to the above 'git clone' subprocess.
+    # XXX: Here we reset Chutney to a specific revision known to work,
+    # since there are no stability guarantees or releases yet.
     proto = _DumpOutputProtocol(None)
     reactor.spawnProcess(
         proto,
@@ -473,7 +471,7 @@ def chutney(reactor, temp_dir):
         (
             'git', '-C', chutney_dir,
             'reset', '--hard',
-            '99bd06c7554b9113af8c0877b6eca4ceb95dcbaa'
+            'c825cba0bcd813c644c6ac069deeb7347d3200ee'
         ),
         env=environ,
     )
