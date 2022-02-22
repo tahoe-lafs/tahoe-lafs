@@ -11,7 +11,10 @@ import struct
 import sys
 
 
-if not hasattr(sys, 'real_prefix'):
+try:
+    import allmydata
+    del allmydata
+except ImportError:
     sys.exit("Please run inside a virtualenv with Tahoe-LAFS installed.")
 
 

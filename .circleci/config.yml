@@ -15,28 +15,20 @@ workflows:
   ci:
     jobs:
       # Start with jobs testing various platforms.
-      - "debian-9":
-          {}
       - "debian-10":
+          {}
+      - "debian-11":
           requires:
-            - "debian-9"
+            - "debian-10"
 
       - "ubuntu-20-04":
           {}
       - "ubuntu-18-04":
           requires:
             - "ubuntu-20-04"
-      - "ubuntu-16-04":
-          requires:
-            - "ubuntu-20-04"
 
-      - "fedora-29":
-          {}
-      - "fedora-28":
-          requires:
-            - "fedora-29"
-
-      - "centos-8":
+      # Equivalent to RHEL 8; CentOS 8 is dead.
+      - "oraclelinux-8":
           {}
 
       - "nixos":
@@ -47,18 +39,12 @@ workflows:
           name: "NixOS 21.11"
           nixpkgs: "21.11"
 
-      # Test against PyPy 2.7
-      - "pypy27-buster":
-          {}
-
-      # Test against Python 3:
-      - "python37":
-          {}
+      # Eventually, test against PyPy 3.8
+      #- "pypy27-buster":
+      #    {}
 
       # Other assorted tasks and configurations
-      - "lint":
-          {}
-      - "codechecks3":
+      - "codechecks":
           {}
       - "pyinstaller":
           {}
@@ -74,7 +60,7 @@ workflows:
           requires:
             # If the unit test suite doesn't pass, don't bother running the
             # integration tests.
-            - "debian-9"
+            - "debian-10"
 
       - "typechecks":
           {}
@@ -104,24 +90,19 @@ workflows:
       #  https://app.circleci.com/settings/organization/github/tahoe-lafs/contexts
       - "build-image-debian-10": &DOCKERHUB_CONTEXT
           context: "dockerhub-auth"
-      - "build-image-debian-9":
-          <<: *DOCKERHUB_CONTEXT
-      - "build-image-ubuntu-16-04":
+      - "build-image-debian-11":
           <<: *DOCKERHUB_CONTEXT
       - "build-image-ubuntu-18-04":
           <<: *DOCKERHUB_CONTEXT
       - "build-image-ubuntu-20-04":
           <<: *DOCKERHUB_CONTEXT
-      - "build-image-fedora-28":
+      - "build-image-fedora-35":
           <<: *DOCKERHUB_CONTEXT
-      - "build-image-fedora-29":
+      - "build-image-oraclelinux-8":
           <<: *DOCKERHUB_CONTEXT
-      - "build-image-centos-8":
-          <<: *DOCKERHUB_CONTEXT
-      - "build-image-pypy27-buster":
-          <<: *DOCKERHUB_CONTEXT
-      - "build-image-python37-ubuntu":
-          <<: *DOCKERHUB_CONTEXT
+      # Restore later as PyPy38
+      #- "build-image-pypy27-buster":
+      #    <<: *DOCKERHUB_CONTEXT
 
 
 jobs:
@@ -147,10 +128,10 @@ jobs:
             # Since this job is never scheduled this step is never run so the
             # actual value here is irrelevant.
 
-  lint:
+  codechecks:
     docker:
       - <<: *DOCKERHUB_AUTH
-        image: "circleci/python:2"
+        image: "cimg/python:3.9"
 
     steps:
       - "checkout"
@@ -165,28 +146,10 @@ jobs:
           command: |
             ~/.local/bin/tox -e codechecks
 
-  codechecks3:
-    docker:
-      - <<: *DOCKERHUB_AUTH
-        image: "circleci/python:3"
-
-    steps:
-      - "checkout"
-
-      - run:
-          name: "Install tox"
-          command: |
-            pip install --user tox
-
-      - run:
-          name: "Static-ish code checks"
-          command: |
-            ~/.local/bin/tox -e codechecks3
-
   pyinstaller:
     docker:
       - <<: *DOCKERHUB_AUTH
-        image: "circleci/python:2"
+        image: "cimg/python:3.9"
 
     steps:
       - "checkout"
@@ -209,10 +172,10 @@ jobs:
           command: |
             dist/Tahoe-LAFS/tahoe --version
 
-  debian-9: &DEBIAN
+  debian-10: &DEBIAN
     docker:
       - <<: *DOCKERHUB_AUTH
-        image: "tahoelafsci/debian:9-py2.7"
+        image: "tahoelafsci/debian:10-py3.7"
         user: "nobody"
 
     environment: &UTF_8_ENVIRONMENT
@@ -226,7 +189,7 @@ jobs:
       # filenames and argv).
       LANG: "en_US.UTF-8"
       # Select a tox environment to run for this job.
-      TAHOE_LAFS_TOX_ENVIRONMENT: "py27"
+      TAHOE_LAFS_TOX_ENVIRONMENT: "py37"
       # Additional arguments to pass to tox.
       TAHOE_LAFS_TOX_ARGS: ""
       # The path in which test artifacts will be placed.
@@ -294,29 +257,29 @@ jobs:
               /tmp/venv/bin/codecov
             fi
 
-
-  debian-10:
+  debian-11:
     <<: *DEBIAN
     docker:
       - <<: *DOCKERHUB_AUTH
-        image: "tahoelafsci/debian:10-py2.7"
+        image: "tahoelafsci/debian:11-py3.9"
         user: "nobody"
-
-
-  pypy27-buster:
-    <<: *DEBIAN
-    docker:
-      - <<: *DOCKERHUB_AUTH
-        image: "tahoelafsci/pypy:buster-py2"
-        user: "nobody"
-
     environment:
       <<: *UTF_8_ENVIRONMENT
-      # We don't do coverage since it makes PyPy far too slow:
-      TAHOE_LAFS_TOX_ENVIRONMENT: "pypy27"
-      # Since we didn't collect it, don't upload it.
-      UPLOAD_COVERAGE: ""
+      TAHOE_LAFS_TOX_ENVIRONMENT: "py39"
 
+  # Restore later using PyPy3.8
+  # pypy27-buster:
+  #   <<: *DEBIAN
+  #   docker:
+  #     - <<: *DOCKERHUB_AUTH
+  #       image: "tahoelafsci/pypy:buster-py2"
+  #       user: "nobody"
+  #   environment:
+  #     <<: *UTF_8_ENVIRONMENT
+  #     # We don't do coverage since it makes PyPy far too slow:
+  #     TAHOE_LAFS_TOX_ENVIRONMENT: "pypy27"
+  #     # Since we didn't collect it, don't upload it.
+  #     UPLOAD_COVERAGE: ""
 
   c-locale:
     <<: *DEBIAN
@@ -364,25 +327,8 @@ jobs:
       - run: *SETUP_VIRTUALENV
       - run: *RUN_TESTS
 
-
-  ubuntu-16-04:
-    <<: *DEBIAN
-    docker:
-      - <<: *DOCKERHUB_AUTH
-        image: "tahoelafsci/ubuntu:16.04-py2.7"
-        user: "nobody"
-
-
   ubuntu-18-04: &UBUNTU_18_04
     <<: *DEBIAN
-    docker:
-      - <<: *DOCKERHUB_AUTH
-        image: "tahoelafsci/ubuntu:18.04-py2.7"
-        user: "nobody"
-
-
-  python37:
-    <<: *UBUNTU_18_04
     docker:
       - <<: *DOCKERHUB_AUTH
         image: "tahoelafsci/ubuntu:18.04-py3.7"
@@ -401,17 +347,21 @@ jobs:
     <<: *DEBIAN
     docker:
       - <<: *DOCKERHUB_AUTH
-        image: "tahoelafsci/ubuntu:20.04"
+        image: "tahoelafsci/ubuntu:20.04-py3.9"
         user: "nobody"
+    environment:
+      <<: *UTF_8_ENVIRONMENT
+      TAHOE_LAFS_TOX_ENVIRONMENT: "py39"
 
-
-  centos-8: &RHEL_DERIV
+  oraclelinux-8: &RHEL_DERIV
     docker:
       - <<: *DOCKERHUB_AUTH
-        image: "tahoelafsci/centos:8-py2"
+        image: "tahoelafsci/oraclelinux:8-py3.8"
         user: "nobody"
 
-    environment: *UTF_8_ENVIRONMENT
+    environment:
+      <<: *UTF_8_ENVIRONMENT
+      TAHOE_LAFS_TOX_ENVIRONMENT: "py38"
 
     # pip cannot install packages if the working directory is not readable.
     # We want to run a lot of steps as nobody instead of as root.
@@ -427,20 +377,11 @@ jobs:
       - store_artifacts: *STORE_OTHER_ARTIFACTS
       - run: *SUBMIT_COVERAGE
 
-
-  fedora-28:
+  fedora-35:
     <<: *RHEL_DERIV
     docker:
       - <<: *DOCKERHUB_AUTH
-        image: "tahoelafsci/fedora:28-py"
-        user: "nobody"
-
-
-  fedora-29:
-    <<: *RHEL_DERIV
-    docker:
-      - <<: *DOCKERHUB_AUTH
-        image: "tahoelafsci/fedora:29-py"
+        image: "tahoelafsci/fedora:35-py3"
         user: "nobody"
 
   nixos:
@@ -554,7 +495,7 @@ jobs:
   typechecks:
     docker:
       - <<: *DOCKERHUB_AUTH
-        image: "tahoelafsci/ubuntu:18.04-py3"
+        image: "tahoelafsci/ubuntu:18.04-py3.7"
 
     steps:
       - "checkout"
@@ -566,7 +507,7 @@ jobs:
   docs:
     docker:
       - <<: *DOCKERHUB_AUTH
-        image: "tahoelafsci/ubuntu:18.04-py3"
+        image: "tahoelafsci/ubuntu:18.04-py3.7"
 
     steps:
       - "checkout"
@@ -589,13 +530,14 @@ jobs:
         image: "cimg/base:2022.01"
 
     environment:
-      DISTRO: "tahoelafsci/<DISTRO>:foo-py2"
-      TAG: "tahoelafsci/distro:<TAG>-py2"
+      DISTRO: "tahoelafsci/<DISTRO>:foo-py3.9"
+      TAG: "tahoelafsci/distro:<TAG>-py3.9"
       PYTHON_VERSION: "tahoelafsci/distro:tag-py<PYTHON_VERSION}"
 
     steps:
       - "checkout"
-      - "setup_remote_docker"
+      - setup_remote_docker:
+          version: "20.10.11"
       - run:
           name: "Log in to Dockerhub"
           command: |
@@ -622,37 +564,18 @@ jobs:
     environment:
       DISTRO: "debian"
       TAG: "10"
-      PYTHON_VERSION: "2.7"
+      PYTHON_VERSION: "3.7"
 
 
-  build-image-debian-9:
+  build-image-debian-11:
     <<: *BUILD_IMAGE
 
     environment:
       DISTRO: "debian"
-      TAG: "9"
-      PYTHON_VERSION: "2.7"
-
-
-  build-image-ubuntu-16-04:
-    <<: *BUILD_IMAGE
-
-    environment:
-      DISTRO: "ubuntu"
-      TAG: "16.04"
-      PYTHON_VERSION: "2.7"
-
+      TAG: "11"
+      PYTHON_VERSION: "3.9"
 
   build-image-ubuntu-18-04:
-    <<: *BUILD_IMAGE
-
-    environment:
-      DISTRO: "ubuntu"
-      TAG: "18.04"
-      PYTHON_VERSION: "2.7"
-
-
-  build-image-python37-ubuntu:
     <<: *BUILD_IMAGE
 
     environment:
@@ -667,43 +590,32 @@ jobs:
     environment:
       DISTRO: "ubuntu"
       TAG: "20.04"
-      PYTHON_VERSION: "2.7"
+      PYTHON_VERSION: "3.9"
 
 
-  build-image-centos-8:
+  build-image-oraclelinux-8:
     <<: *BUILD_IMAGE
 
     environment:
-      DISTRO: "centos"
+      DISTRO: "oraclelinux"
       TAG: "8"
-      PYTHON_VERSION: "2"
+      PYTHON_VERSION: "3.8"
 
-
-  build-image-fedora-28:
+  build-image-fedora-35:
     <<: *BUILD_IMAGE
 
     environment:
       DISTRO: "fedora"
-      TAG: "28"
-      # The default on Fedora (this version anyway) is still Python 2.
-      PYTHON_VERSION: ""
+      TAG: "35"
+      PYTHON_VERSION: "3"
 
+  # build-image-pypy27-buster:
+  #   <<: *BUILD_IMAGE
 
-  build-image-fedora-29:
-    <<: *BUILD_IMAGE
-
-    environment:
-      DISTRO: "fedora"
-      TAG: "29"
-
-
-  build-image-pypy27-buster:
-    <<: *BUILD_IMAGE
-
-    environment:
-      DISTRO: "pypy"
-      TAG: "buster"
-      # We only have Python 2 for PyPy right now so there's no support for
-      # setting up PyPy 3 in the image building toolchain.  This value is just
-      # for constructing the right Docker image tag.
-      PYTHON_VERSION: "2"
+  #   environment:
+  #     DISTRO: "pypy"
+  #     TAG: "buster"
+  #     # We only have Python 2 for PyPy right now so there's no support for
+  #     # setting up PyPy 3 in the image building toolchain.  This value is just
+  #     # for constructing the right Docker image tag.
+  #     PYTHON_VERSION: "2"
