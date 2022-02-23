@@ -42,17 +42,18 @@ jobs:
           - 3.8
           - 3.9
           - 3.10
-          - pypy-3.7
-          - pypy-3.8
         include:
           # On macOS don't bother with 3.7-3.8, just to get faster builds.
           - os: macos-latest
             python-version: 3.9
           - os: macos-latest
-            python-version: pypy3.8
-          - os: macos-latest
             python-version: 3.10
-
+          # We only support PyPy on Linux at the moment.
+          - os: ubuntu-latest
+            python-version: pypy-3.7
+          - os: ubuntu-latest
+            python-version: pypy-3.8
+    
     steps:
       # See https://github.com/actions/checkout. A fetch-depth of 0
       # fetches all tags and branches.
