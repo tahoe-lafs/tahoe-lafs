@@ -41,10 +41,14 @@ jobs:
           - 3.7
           - 3.8
           - 3.9
+          - pypy-3.7
+          - pypy-3.8
         include:
           # On macOS don't bother with 3.7-3.8, just to get faster builds.
           - os: macos-latest
             python-version: 3.9
+          - os: macos-latest
+            python-version: pypy3.8
 
     steps:
       # See https://github.com/actions/checkout. A fetch-depth of 0
