@@ -203,10 +203,10 @@ class BinTahoe(common_util.SignalMixin, unittest.TestCase):
         # but on Windows we parse the whole command line string ourselves so
         # we have to have our own implementation of skipping these options.
 
-        # -t is a harmless option that warns about tabs so we can add it
+        # -B is a harmless option that prevents writing bytecode so we can add it
         # without impacting other behavior noticably.
-        out, err, returncode = run_bintahoe([u"--version"], python_options=[u"-t"])
-        self.assertEqual(returncode, 0)
+        out, err, returncode = run_bintahoe([u"--version"], python_options=[u"-B"])
+        self.assertEqual(returncode, 0, f"Out:\n{out}\nErr:\n{err}")
         self.assertTrue(out.startswith(allmydata.__appname__ + '/'))
 
     def test_help_eliot_destinations(self):

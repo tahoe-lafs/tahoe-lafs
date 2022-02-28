@@ -366,8 +366,8 @@ setup(name="tahoe-lafs", # also set in __init__.py
       package_dir = {'':'src'},
       packages=find_packages('src') + ['allmydata.test.plugins'],
       classifiers=trove_classifiers,
-      # We support Python 3.7 or later. 3.10 is not supported quite yet.
-      python_requires=">=3.7, <3.10",
+      # We support Python 3.7 or later. 3.11 is not supported yet.
+      python_requires=">=3.7, <3.11",
       install_requires=install_requires,
       extras_require={
           # Duplicate the Twisted pywin32 dependency here.  See
