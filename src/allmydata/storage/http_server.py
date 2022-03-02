@@ -7,28 +7,27 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
-from future.utils import PY2
-
-if PY2:
-    # fmt: off
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
-    # fmt: on
-else:
-    from typing import Dict, List, Set
-
+from typing import Dict, List, Set, Tuple, Optional
+from pathlib import Path
 from functools import wraps
 from base64 import b64decode
 
 from klein import Klein
 from twisted.web import http
+from twisted.internet.interfaces import IListeningPort
+from twisted.internet.defer import Deferred
+from twisted.internet.endpoints import quoteStringArgument, serverFromString
+from twisted.web.server import Site
 import attr
 from werkzeug.http import parse_range_header, parse_content_range_header
+from hyperlink import DecodedURL
+from cryptography.x509 import load_pem_x509_certificate
 
 # TODO Make sure to use pure Python versions?
 from cbor2 import dumps, loads
 
 from .server import StorageServer
-from .http_common import swissnum_auth_header, Secrets
+from .http_common import swissnum_auth_header, Secrets, get_spki_hash
 from .common import si_a2b
 from .immutable import BucketWriter
 from ..util.hashutil import timing_safe_compare
@@ -301,3 +300,43 @@ class HTTPServer(object):
         #    "content-range", range_header.make_content_range(share_length).to_header()
         # )
         return data
+
+
+def listen_tls(
+    server: HTTPServer,
+    hostname: str,
+    port: int,
+    private_key_path: Path,
+    cert_path: Path,
+    interface: Optional[str],
+) -> Deferred[Tuple[DecodedURL, IListeningPort]]:
+    """
+    Start a HTTPS storage server on the given port, return the fURL and the
+    listening port.
+
+    The hostname is the external IP or hostname clients will connect to; it
+    does not modify what interfaces the server listens on.  To set the
+    listening interface, use the ``interface`` argument.
+    """
+    endpoint_string = "ssl:privateKey={}:certKey={}:port={}".format(
+        quoteStringArgument(str(private_key_path)),
+        quoteStringArgument(str(cert_path)),
+        port,
+    )
+    if interface is not None:
+        endpoint_string += ":interface={}".format(quoteStringArgument(interface))
+    endpoint = serverFromString(endpoint_string)
+
+    def build_furl(listening_port: IListeningPort) -> DecodedURL:
+        furl = DecodedURL()
+        furl.fragment = "v=1"  # HTTP-based
+        furl.host = hostname
+        furl.port = listening_port.getHost().port
+        furl.path = (server._swissnum,)
+        furl.user = get_spki_hash(load_pem_x509_certificate(cert_path.read_bytes()))
+        furl.scheme = "pb"
+        return furl
+
+    return endpoint.listen(Site(server.get_resource())).addCallback(
+        lambda listening_port: (build_furl(listening_port), listening_port)
+    )
