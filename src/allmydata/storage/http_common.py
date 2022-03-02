@@ -1,15 +1,12 @@
 """
 Common HTTP infrastructure for the storge server.
 """
-from future.utils import PY2
-
-if PY2:
-    # fmt: off
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
-    # fmt: on
-
 from enum import Enum
 from base64 import b64encode
+from hashlib import sha256
+
+from cryptography.x509 import Certificate
+from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
 
 
 def swissnum_auth_header(swissnum):  # type: (bytes) -> bytes
@@ -23,3 +20,14 @@ class Secrets(Enum):
     LEASE_RENEW = "lease-renew-secret"
     LEASE_CANCEL = "lease-cancel-secret"
     UPLOAD = "upload-secret"
+
+
+def get_spki_hash(certificate: Certificate) -> bytes:
+    """
+    Get the public key hash, as per RFC 7469: base64 of sha256 of the public
+    key encoded in DER + Subject Public Key Info format.
+    """
+    public_key_bytes = certificate.public_key().public_bytes(
+        Encoding.DER, PublicFormat.SubjectPublicKeyInfo
+    )
+    return b64encode(sha256(public_key_bytes).digest()).strip()
