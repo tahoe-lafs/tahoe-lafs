@@ -58,7 +58,7 @@ from twisted.plugin import (
 from eliot import (
     log_call,
 )
-from foolscap.api import eventually
+from foolscap.api import eventually, RemoteException
 from foolscap.reconnector import (
     ReconnectionInfo,
 )
@@ -75,7 +75,10 @@ from allmydata.util.observer import ObserverList
 from allmydata.util.rrefutil import add_version_to_remote_reference
 from allmydata.util.hashutil import permute_server_hash
 from allmydata.util.dictutil import BytesKeyDict, UnicodeKeyDict
-from allmydata.storage.http_client import StorageClient, StorageClientImmutables
+from allmydata.storage.http_client import (
+    StorageClient, StorageClientImmutables, StorageClientGeneral,
+    ClientException as HTTPClientException,
+)
 
 
 # who is responsible for de-duplication?
@@ -1035,8 +1038,13 @@ class _FakeRemoteReference(object):
     """
     local_object = attr.ib(type=object)
 
+    @defer.inlineCallbacks
     def callRemote(self, action, *args, **kwargs):
-        return getattr(self.local_object, action)(*args, **kwargs)
+        try:
+            result = yield getattr(self.local_object, action)(*args, **kwargs)
+            defer.returnValue(result)
+        except HTTPClientException as e:
+            raise RemoteException(e.args)
 
 
 @attr.s
@@ -1094,18 +1102,21 @@ class _HTTPBucketReader(object):
 class _HTTPStorageServer(object):
     """
     Talk to remote storage server over HTTP.
+
+    The same upload key is used for all communication.
     """
     _http_client = attr.ib(type=StorageClient)
+    _upload_secret = attr.ib(type=bytes)
 
     @staticmethod
     def from_http_client(http_client):  # type: (StorageClient) -> _HTTPStorageServer
         """
         Create an ``IStorageServer`` from a HTTP ``StorageClient``.
         """
-        return _HTTPStorageServer(http_client=http_client)
+        return _HTTPStorageServer(http_client=http_client, upload_secret=urandom(20))
 
     def get_version(self):
-        return self._http_client.get_version()
+        return StorageClientGeneral(self._http_client).get_version()
 
     @defer.inlineCallbacks
     def allocate_buckets(
@@ -1117,10 +1128,9 @@ class _HTTPStorageServer(object):
             allocated_size,
             canary,
     ):
-        upload_secret = urandom(20)
         immutable_client = StorageClientImmutables(self._http_client)
         result = immutable_client.create(
-            storage_index, sharenums, allocated_size, upload_secret, renew_secret,
+            storage_index, sharenums, allocated_size, self._upload_secret, renew_secret,
             cancel_secret
         )
         result = yield result
@@ -1130,7 +1140,7 @@ class _HTTPStorageServer(object):
                      client=immutable_client,
                      storage_index=storage_index,
                      share_number=share_num,
-                     upload_secret=upload_secret
+                     upload_secret=self._upload_secret
                  ))
                  for share_num in result.allocated
             })

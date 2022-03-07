@@ -18,11 +18,14 @@ else:
 
 from functools import wraps
 from base64 import b64decode
+import binascii
 
 from klein import Klein
 from twisted.web import http
 import attr
 from werkzeug.http import parse_range_header, parse_content_range_header
+from werkzeug.routing import BaseConverter, ValidationError
+from werkzeug.datastructures import ContentRange
 
 # TODO Make sure to use pure Python versions?
 from cbor2 import dumps, loads
@@ -30,8 +33,9 @@ from cbor2 import dumps, loads
 from .server import StorageServer
 from .http_common import swissnum_auth_header, Secrets
 from .common import si_a2b
-from .immutable import BucketWriter
+from .immutable import BucketWriter, ConflictingWriteError
 from ..util.hashutil import timing_safe_compare
+from ..util.base32 import rfc3548_alphabet
 
 
 class ClientSecretsException(Exception):
@@ -128,10 +132,27 @@ class StorageIndexUploads(object):
     """
 
     # Map share number to BucketWriter
-    shares = attr.ib()  # type: Dict[int,BucketWriter]
+    shares = attr.ib(factory=dict)  # type: Dict[int,BucketWriter]
 
-    # The upload key.
-    upload_secret = attr.ib()  # type: bytes
+    # Map share number to the upload secret (different shares might have
+    # different upload secrets).
+    upload_secrets = attr.ib(factory=dict)  # type: Dict[int,bytes]
+
+    def add_upload(self, share_number, upload_secret, bucket):
+        self.shares[share_number] = bucket
+        self.upload_secrets[share_number] = upload_secret
+
+
+class StorageIndexConverter(BaseConverter):
+    """Parser/validator for storage index URL path segments."""
+
+    regex = "[" + str(rfc3548_alphabet, "ascii") + "]{26}"
+
+    def to_python(self, value):
+        try:
+            return si_a2b(value.encode("ascii"))
+        except (AssertionError, binascii.Error, ValueError):
+            raise ValidationError("Invalid storage index")
 
 
 class HTTPServer(object):
@@ -140,6 +161,7 @@ class HTTPServer(object):
     """
 
     _app = Klein()
+    _app.url_map.converters["storage_index"] = StorageIndexConverter
 
     def __init__(
         self, storage_server, swissnum
@@ -173,76 +195,75 @@ class HTTPServer(object):
     @_authorized_route(
         _app,
         {Secrets.LEASE_RENEW, Secrets.LEASE_CANCEL, Secrets.UPLOAD},
-        "/v1/immutable/<string:storage_index>",
+        "/v1/immutable/<storage_index:storage_index>",
         methods=["POST"],
     )
     def allocate_buckets(self, request, authorization, storage_index):
         """Allocate buckets."""
-        storage_index = si_a2b(storage_index.encode("ascii"))
-        info = loads(request.content.read())
         upload_secret = authorization[Secrets.UPLOAD]
+        info = loads(request.content.read())
 
         if storage_index in self._uploads:
-            # Pre-existing upload.
-            in_progress = self._uploads[storage_index]
-            if timing_safe_compare(in_progress.upload_secret, upload_secret):
-                # Same session.
-                # TODO add BucketWriters only for new shares that don't already have buckets; see the HTTP spec for details.
-                # The backend code may already implement this logic.
-                pass
-            else:
-                # TODO Fail, since the secret doesnt match.
-                pass
-        else:
-            # New upload.
-            already_got, sharenum_to_bucket = self._storage_server.allocate_buckets(
-                storage_index,
-                renew_secret=authorization[Secrets.LEASE_RENEW],
-                cancel_secret=authorization[Secrets.LEASE_CANCEL],
-                sharenums=info["share-numbers"],
-                allocated_size=info["allocated-size"],
-            )
-            self._uploads[storage_index] = StorageIndexUploads(
-                shares=sharenum_to_bucket, upload_secret=authorization[Secrets.UPLOAD]
-            )
-            return self._cbor(
-                request,
-                {
-                    "already-have": set(already_got),
-                    "allocated": set(sharenum_to_bucket),
-                },
-            )
+            for share_number in info["share-numbers"]:
+                in_progress = self._uploads[storage_index]
+                # For pre-existing upload, make sure password matches.
+                if (
+                    share_number in in_progress.upload_secrets
+                    and not timing_safe_compare(
+                        in_progress.upload_secrets[share_number], upload_secret
+                    )
+                ):
+                    request.setResponseCode(http.UNAUTHORIZED)
+                    return b""
+
+        already_got, sharenum_to_bucket = self._storage_server.allocate_buckets(
+            storage_index,
+            renew_secret=authorization[Secrets.LEASE_RENEW],
+            cancel_secret=authorization[Secrets.LEASE_CANCEL],
+            sharenums=info["share-numbers"],
+            allocated_size=info["allocated-size"],
+        )
+        uploads = self._uploads.setdefault(storage_index, StorageIndexUploads())
+        for share_number, bucket in sharenum_to_bucket.items():
+            uploads.add_upload(share_number, upload_secret, bucket)
+
+        return self._cbor(
+            request,
+            {
+                "already-have": set(already_got),
+                "allocated": set(sharenum_to_bucket),
+            },
+        )
 
     @_authorized_route(
         _app,
         {Secrets.UPLOAD},
-        "/v1/immutable/<string:storage_index>/<int:share_number>",
+        "/v1/immutable/<storage_index:storage_index>/<int(signed=False):share_number>",
         methods=["PATCH"],
     )
     def write_share_data(self, request, authorization, storage_index, share_number):
         """Write data to an in-progress immutable upload."""
-        storage_index = si_a2b(storage_index.encode("ascii"))
         content_range = parse_content_range_header(request.getHeader("content-range"))
-        # TODO in https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3860
-        # 1. Malformed header should result in error 416
-        # 2. Non-bytes unit should result in error 416
-        # 3. Missing header means full upload in one request
-        # 4. Impossible range should resul tin error 416
+        if content_range is None or content_range.units != "bytes":
+            request.setResponseCode(http.REQUESTED_RANGE_NOT_SATISFIABLE)
+            return b""
+
         offset = content_range.start
 
-        # TODO basic checks on validity of start, offset, and content-range in general. also of share_number.
-        # TODO basic check that body isn't infinite. require content-length? or maybe we should require content-range (it's optional now)? if so, needs to be rflected in protocol spec.
-
-        data = request.content.read()
+        # TODO limit memory usage
+        # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3872
+        data = request.content.read(content_range.stop - content_range.start + 1)
         try:
             bucket = self._uploads[storage_index].shares[share_number]
         except (KeyError, IndexError):
-            # TODO return 404
-            raise
+            request.setResponseCode(http.NOT_FOUND)
+            return b""
 
-        finished = bucket.write(offset, data)
-
-        # TODO if raises ConflictingWriteError, return HTTP CONFLICT code.
+        try:
+            finished = bucket.write(offset, data)
+        except ConflictingWriteError:
+            request.setResponseCode(http.CONFLICT)
+            return b""
 
         if finished:
             bucket.close()
@@ -258,46 +279,65 @@ class HTTPServer(object):
     @_authorized_route(
         _app,
         set(),
-        "/v1/immutable/<string:storage_index>/shares",
+        "/v1/immutable/<storage_index:storage_index>/shares",
         methods=["GET"],
     )
     def list_shares(self, request, authorization, storage_index):
         """
         List shares for the given storage index.
         """
-        storage_index = si_a2b(storage_index.encode("ascii"))
         share_numbers = list(self._storage_server.get_buckets(storage_index).keys())
         return self._cbor(request, share_numbers)
 
     @_authorized_route(
         _app,
         set(),
-        "/v1/immutable/<string:storage_index>/<int:share_number>",
+        "/v1/immutable/<storage_index:storage_index>/<int(signed=False):share_number>",
         methods=["GET"],
     )
     def read_share_chunk(self, request, authorization, storage_index, share_number):
         """Read a chunk for an already uploaded immutable."""
-        # TODO in https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3860
-        # 1. basic checks on validity on storage index, share number
-        # 2. missing range header should have response code 200 and return whole thing
-        # 3. malformed range header should result in error? or return everything?
-        # 4. non-bytes range results in error
-        # 5. ranges make sense semantically (positive, etc.)
-        # 6. multiple ranges fails with error
-        # 7. missing end of range means "to the end of share"
-        storage_index = si_a2b(storage_index.encode("ascii"))
-        range_header = parse_range_header(request.getHeader("range"))
-        offset, end = range_header.ranges[0]
-        assert end != None  # TODO support this case
+        try:
+            bucket = self._storage_server.get_buckets(storage_index)[share_number]
+        except KeyError:
+            request.setResponseCode(http.NOT_FOUND)
+            return b""
 
-        # TODO if not found, 404
-        bucket = self._storage_server.get_buckets(storage_index)[share_number]
+        if request.getHeader("range") is None:
+            # Return the whole thing.
+            start = 0
+            while True:
+                # TODO should probably yield to event loop occasionally...
+                # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3872
+                data = bucket.read(start, start + 65536)
+                if not data:
+                    request.finish()
+                    return
+                request.write(data)
+                start += len(data)
+
+        range_header = parse_range_header(request.getHeader("range"))
+        if (
+            range_header is None
+            or range_header.units != "bytes"
+            or len(range_header.ranges) > 1  # more than one range
+            or range_header.ranges[0][1] is None  # range without end
+        ):
+            request.setResponseCode(http.REQUESTED_RANGE_NOT_SATISFIABLE)
+            return b""
+
+        offset, end = range_header.ranges[0]
+
+        # TODO limit memory usage
+        # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3872
         data = bucket.read(offset, end - offset)
+
         request.setResponseCode(http.PARTIAL_CONTENT)
-        # TODO set content-range on response. We we need to expand the
-        # BucketReader interface to return share's length.
-        #
-        # request.setHeader(
-        #    "content-range", range_header.make_content_range(share_length).to_header()
-        # )
+        if len(data):
+            # For empty bodies the content-range header makes no sense since
+            # the end of the range is inclusive.
+            request.setHeader(
+                "content-range",
+                ContentRange("bytes", offset, offset + len(data)).to_header(),
+            )
         return data
