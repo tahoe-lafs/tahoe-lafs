@@ -1102,18 +1102,15 @@ class _HTTPBucketReader(object):
 class _HTTPStorageServer(object):
     """
     Talk to remote storage server over HTTP.
-
-    The same upload key is used for all communication.
     """
     _http_client = attr.ib(type=StorageClient)
-    _upload_secret = attr.ib(type=bytes)
 
     @staticmethod
     def from_http_client(http_client):  # type: (StorageClient) -> _HTTPStorageServer
         """
         Create an ``IStorageServer`` from a HTTP ``StorageClient``.
         """
-        return _HTTPStorageServer(http_client=http_client, upload_secret=urandom(20))
+        return _HTTPStorageServer(http_client=http_client)
 
     def get_version(self):
         return StorageClientGeneral(self._http_client).get_version()
@@ -1128,9 +1125,10 @@ class _HTTPStorageServer(object):
             allocated_size,
             canary,
     ):
+        upload_secret = urandom(20)
         immutable_client = StorageClientImmutables(self._http_client)
         result = immutable_client.create(
-            storage_index, sharenums, allocated_size, self._upload_secret, renew_secret,
+            storage_index, sharenums, allocated_size, upload_secret, renew_secret,
             cancel_secret
         )
         result = yield result
@@ -1140,7 +1138,7 @@ class _HTTPStorageServer(object):
                      client=immutable_client,
                      storage_index=storage_index,
                      share_number=share_num,
-                     upload_secret=self._upload_secret
+                     upload_secret=upload_secret
                  ))
                  for share_num in result.allocated
             })

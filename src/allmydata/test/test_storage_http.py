@@ -474,40 +474,76 @@ class ImmutableHTTPAPITests(SyncTestCase):
             )
             self.assertEqual(downloaded, expected_data[offset : offset + length])
 
-    def test_allocate_buckets_second_time_wrong_upload_key(self):
-        """
-        If allocate buckets endpoint is called second time with wrong upload
-        key on the same shares, the result is an error.
-        """
-        # Create a upload:
-        (upload_secret, lease_secret, storage_index, _) = self.create_upload(
-            {1, 2, 3}, 100
-        )
-        with self.assertRaises(ClientException) as e:
-            result_of(
-                self.imm_client.create(
-                    storage_index, {2, 3}, 100, b"x" * 32, lease_secret, lease_secret
-                )
-            )
-        self.assertEqual(e.exception.args[0], http.UNAUTHORIZED)
-
     def test_allocate_buckets_second_time_different_shares(self):
         """
         If allocate buckets endpoint is called second time with different
-        upload key on different shares, that creates the buckets.
+        upload key on potentially different shares, that creates the buckets on
+        those shares that are different.
         """
         # Create a upload:
         (upload_secret, lease_secret, storage_index, created) = self.create_upload(
             {1, 2, 3}, 100
         )
 
-        # Add same shares:
+        # Write half of share 1
+        result_of(
+            self.imm_client.write_share_chunk(
+                storage_index,
+                1,
+                upload_secret,
+                0,
+                b"a" * 50,
+            )
+        )
+
+        # Add same shares with a different upload key share 1 overlaps with
+        # existing shares, this call shouldn't overwrite the existing
+        # work-in-progress.
+        upload_secret2 = b"x" * 2
         created2 = result_of(
             self.imm_client.create(
-                storage_index, {4, 6}, 100, b"x" * 2, lease_secret, lease_secret
+                storage_index,
+                {1, 4, 6},
+                100,
+                upload_secret2,
+                lease_secret,
+                lease_secret,
             )
         )
         self.assertEqual(created2.allocated, {4, 6})
+
+        # Write second half of share 1
+        self.assertTrue(
+            result_of(
+                self.imm_client.write_share_chunk(
+                    storage_index,
+                    1,
+                    upload_secret,
+                    50,
+                    b"b" * 50,
+                )
+            ).finished
+        )
+
+        # The upload of share 1 succeeded, demonstrating that second create()
+        # call didn't overwrite work-in-progress.
+        downloaded = result_of(
+            self.imm_client.read_share_chunk(storage_index, 1, 0, 100)
+        )
+        self.assertEqual(downloaded, b"a" * 50 + b"b" * 50)
+
+        # We can successfully upload the shares created with the second upload secret.
+        self.assertTrue(
+            result_of(
+                self.imm_client.write_share_chunk(
+                    storage_index,
+                    4,
+                    upload_secret2,
+                    0,
+                    b"x" * 100,
+                )
+            ).finished
+        )
 
     def test_list_shares(self):
         """

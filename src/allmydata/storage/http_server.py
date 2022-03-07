@@ -203,18 +203,13 @@ class HTTPServer(object):
         upload_secret = authorization[Secrets.UPLOAD]
         info = loads(request.content.read())
 
-        if storage_index in self._uploads:
-            for share_number in info["share-numbers"]:
-                in_progress = self._uploads[storage_index]
-                # For pre-existing upload, make sure password matches.
-                if (
-                    share_number in in_progress.upload_secrets
-                    and not timing_safe_compare(
-                        in_progress.upload_secrets[share_number], upload_secret
-                    )
-                ):
-                    request.setResponseCode(http.UNAUTHORIZED)
-                    return b""
+        # We do NOT validate the upload secret for existing bucket uploads.
+        # Another upload may be happening in parallel, with a different upload
+        # key. That's fine! If a client tries to _write_ to that upload, they
+        # need to have an upload key. That does mean we leak the existence of
+        # these parallel uploads, but if you know storage index you can
+        # download them once upload finishes, so it's not a big deal to leak
+        # that information.
 
         already_got, sharenum_to_bucket = self._storage_server.allocate_buckets(
             storage_index,
