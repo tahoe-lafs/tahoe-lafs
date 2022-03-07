@@ -18,12 +18,13 @@ else:
 
 from functools import wraps
 from base64 import b64decode
+import binascii
 
 from klein import Klein
 from twisted.web import http
 import attr
 from werkzeug.http import parse_range_header, parse_content_range_header
-from werkzeug.routing import BaseConverter
+from werkzeug.routing import BaseConverter, ValidationError
 from werkzeug.datastructures import ContentRange
 
 # TODO Make sure to use pure Python versions?
@@ -148,7 +149,10 @@ class StorageIndexConverter(BaseConverter):
     regex = "[" + str(rfc3548_alphabet, "ascii") + "]{26}"
 
     def to_python(self, value):
-        return si_a2b(value.encode("ascii"))
+        try:
+            return si_a2b(value.encode("ascii"))
+        except (AssertionError, binascii.Error, ValueError):
+            raise ValidationError("Invalid storage index")
 
 
 class HTTPServer(object):

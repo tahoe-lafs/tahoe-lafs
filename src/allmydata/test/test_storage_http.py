@@ -191,9 +191,14 @@ class RouteConverterTests(SyncTestCase):
             self.adapter.match("/{}/".format("a" * 25), method="GET")
 
     def test_bad_characters_storage_index_is_not_parsed(self):
-        """An overly short storage_index string is not parsed."""
+        """A storage_index string with bad characters is not parsed."""
         with self.assertRaises(WNotFound):
             self.adapter.match("/{}_/".format("a" * 25), method="GET")
+
+    def test_invalid_storage_index_is_not_parsed(self):
+        """An invalid storage_index string is not parsed."""
+        with self.assertRaises(WNotFound):
+            self.adapter.match("/nomd2a65ylxjbqzsw7gcfh4ivr/", method="GET")
 
 
 # TODO should be actual swissnum
