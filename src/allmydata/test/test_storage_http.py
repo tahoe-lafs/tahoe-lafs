@@ -374,7 +374,7 @@ class ImmutableHTTPAPITests(SyncTestCase):
             self.skipTest("Not going to bother supporting Python 2")
         super(ImmutableHTTPAPITests, self).setUp()
         self.http = self.useFixture(HttpTestFixture())
-        self.im_client = StorageClientImmutables(self.http.client)
+        self.imm_client = StorageClientImmutables(self.http.client)
 
     def create_upload(self, share_numbers, length):
         """
@@ -386,7 +386,7 @@ class ImmutableHTTPAPITests(SyncTestCase):
         lease_secret = urandom(32)
         storage_index = urandom(16)
         created = result_of(
-            self.im_client.create(
+            self.imm_client.create(
                 storage_index,
                 share_numbers,
                 length,
@@ -407,7 +407,7 @@ class ImmutableHTTPAPITests(SyncTestCase):
         that's already done in test_storage.py.
         """
         length = 100
-        expected_data = b"".join(bytes([i]) for i in range(100))
+        expected_data = bytes(range(100))
 
         # Create a upload:
         (upload_secret, _, storage_index, created) = self.create_upload({1}, 100)
@@ -421,7 +421,7 @@ class ImmutableHTTPAPITests(SyncTestCase):
         # Three writes: 10-19, 30-39, 50-59. This allows for a bunch of holes.
         def write(offset, length):
             remaining.empty(offset, offset + length)
-            return self.im_client.write_share_chunk(
+            return self.imm_client.write_share_chunk(
                 storage_index,
                 1,
                 upload_secret,
@@ -465,7 +465,7 @@ class ImmutableHTTPAPITests(SyncTestCase):
         # We can now read:
         for offset, length in [(0, 100), (10, 19), (99, 1), (49, 200)]:
             downloaded = result_of(
-                self.im_client.read_share_chunk(storage_index, 1, offset, length)
+                self.imm_client.read_share_chunk(storage_index, 1, offset, length)
             )
             self.assertEqual(downloaded, expected_data[offset : offset + length])
 
@@ -480,7 +480,7 @@ class ImmutableHTTPAPITests(SyncTestCase):
         )
         with self.assertRaises(ClientException) as e:
             result_of(
-                self.im_client.create(
+                self.imm_client.create(
                     storage_index, {2, 3}, 100, b"x" * 32, lease_secret, lease_secret
                 )
             )
@@ -498,7 +498,7 @@ class ImmutableHTTPAPITests(SyncTestCase):
 
         # Add same shares:
         created2 = result_of(
-            self.im_client.create(
+            self.imm_client.create(
                 storage_index, {4, 6}, 100, b"x" * 2, lease_secret, lease_secret
             )
         )
@@ -511,12 +511,12 @@ class ImmutableHTTPAPITests(SyncTestCase):
         (upload_secret, _, storage_index, created) = self.create_upload({1, 2, 3}, 10)
 
         # Initially there are no shares:
-        self.assertEqual(result_of(self.im_client.list_shares(storage_index)), set())
+        self.assertEqual(result_of(self.imm_client.list_shares(storage_index)), set())
 
         # Upload shares 1 and 3:
         for share_number in [1, 3]:
             progress = result_of(
-                self.im_client.write_share_chunk(
+                self.imm_client.write_share_chunk(
                     storage_index,
                     share_number,
                     upload_secret,
@@ -527,7 +527,7 @@ class ImmutableHTTPAPITests(SyncTestCase):
             self.assertTrue(progress.finished)
 
         # Now shares 1 and 3 exist:
-        self.assertEqual(result_of(self.im_client.list_shares(storage_index)), {1, 3})
+        self.assertEqual(result_of(self.imm_client.list_shares(storage_index)), {1, 3})
 
     def test_upload_bad_content_range(self):
         """
@@ -563,8 +563,8 @@ class ImmutableHTTPAPITests(SyncTestCase):
         """
         Listing unknown storage index's shares results in empty list of shares.
         """
-        storage_index = b"".join(bytes([i]) for i in range(16))
-        self.assertEqual(result_of(self.im_client.list_shares(storage_index)), set())
+        storage_index = bytes(range(16))
+        self.assertEqual(result_of(self.imm_client.list_shares(storage_index)), set())
 
     def test_upload_non_existent_storage_index(self):
         """
@@ -576,7 +576,7 @@ class ImmutableHTTPAPITests(SyncTestCase):
         def unknown_check(storage_index, share_number):
             with self.assertRaises(ClientException) as e:
                 result_of(
-                    self.im_client.write_share_chunk(
+                    self.imm_client.write_share_chunk(
                         storage_index,
                         share_number,
                         upload_secret,
@@ -598,7 +598,7 @@ class ImmutableHTTPAPITests(SyncTestCase):
         """
         (upload_secret, _, storage_index, _) = self.create_upload({1, 2}, 10)
         result_of(
-            self.im_client.write_share_chunk(
+            self.imm_client.write_share_chunk(
                 storage_index,
                 1,
                 upload_secret,
@@ -607,7 +607,7 @@ class ImmutableHTTPAPITests(SyncTestCase):
             )
         )
         result_of(
-            self.im_client.write_share_chunk(
+            self.imm_client.write_share_chunk(
                 storage_index,
                 2,
                 upload_secret,
@@ -616,11 +616,11 @@ class ImmutableHTTPAPITests(SyncTestCase):
             )
         )
         self.assertEqual(
-            result_of(self.im_client.read_share_chunk(storage_index, 1, 0, 10)),
+            result_of(self.imm_client.read_share_chunk(storage_index, 1, 0, 10)),
             b"1" * 10,
         )
         self.assertEqual(
-            result_of(self.im_client.read_share_chunk(storage_index, 2, 0, 10)),
+            result_of(self.imm_client.read_share_chunk(storage_index, 2, 0, 10)),
             b"2" * 10,
         )
 
@@ -633,7 +633,7 @@ class ImmutableHTTPAPITests(SyncTestCase):
 
         # Write:
         result_of(
-            self.im_client.write_share_chunk(
+            self.imm_client.write_share_chunk(
                 storage_index,
                 1,
                 upload_secret,
@@ -645,7 +645,7 @@ class ImmutableHTTPAPITests(SyncTestCase):
         # Conflicting write:
         with self.assertRaises(ClientException) as e:
             result_of(
-                self.im_client.write_share_chunk(
+                self.imm_client.write_share_chunk(
                     storage_index,
                     1,
                     upload_secret,
@@ -666,7 +666,7 @@ class ImmutableHTTPAPITests(SyncTestCase):
             {share_number}, data_length
         )
         result_of(
-            self.im_client.write_share_chunk(
+            self.imm_client.write_share_chunk(
                 storage_index,
                 share_number,
                 upload_secret,
@@ -682,7 +682,7 @@ class ImmutableHTTPAPITests(SyncTestCase):
         """
         with self.assertRaises(ClientException) as e:
             result_of(
-                self.im_client.read_share_chunk(
+                self.imm_client.read_share_chunk(
                     b"1" * 16,
                     1,
                     0,
@@ -698,7 +698,7 @@ class ImmutableHTTPAPITests(SyncTestCase):
         storage_index, _ = self.upload(1)
         with self.assertRaises(ClientException) as e:
             result_of(
-                self.im_client.read_share_chunk(
+                self.imm_client.read_share_chunk(
                     storage_index,
                     7,  # different share number
                     0,
@@ -732,9 +732,12 @@ class ImmutableHTTPAPITests(SyncTestCase):
                 )
             self.assertEqual(e.exception.code, http.REQUESTED_RANGE_NOT_SATISFIABLE)
 
+        # Bad unit
         check_bad_range("molluscs=0-9")
+        # Negative offsets
         check_bad_range("bytes=-2-9")
         check_bad_range("bytes=0--10")
+        # Negative offset no endpoint
         check_bad_range("bytes=-300-")
         check_bad_range("bytes=")
         # Multiple ranges are currently unsupported, even if they're
