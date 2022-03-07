@@ -133,7 +133,7 @@ class StorageIndexUploads(object):
     # Map share number to BucketWriter
     shares = attr.ib(factory=dict)  # type: Dict[int,BucketWriter]
 
-    # Mape share number to the upload secret (different shares might have
+    # Map share number to the upload secret (different shares might have
     # different upload secrets).
     upload_secrets = attr.ib(factory=dict)  # type: Dict[int,bytes]
 
