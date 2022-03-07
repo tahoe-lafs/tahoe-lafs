@@ -7,22 +7,7 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
-from future.utils import PY2
-
-if PY2:
-    # fmt: off
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
-    # fmt: on
-    from collections import defaultdict
-
-    Optional = Set = defaultdict(
-        lambda: None
-    )  # some garbage to just make this module import
-else:
-    # typing module not available in Python 2, and we only do type checking in
-    # Python 3 anyway.
-    from typing import Union, Set, Optional
-    from treq.testing import StubTreq
+from typing import Union, Set, Optional
 
 from base64 import b64encode
 
@@ -37,6 +22,8 @@ from twisted.web import http
 from twisted.internet.defer import inlineCallbacks, returnValue, fail, Deferred
 from hyperlink import DecodedURL
 import treq
+from treq.client import HTTPClient
+from treq.testing import StubTreq
 
 from .http_common import swissnum_auth_header, Secrets
 from .common import si_b2a
@@ -73,11 +60,26 @@ class StorageClient(object):
 
     def __init__(
         self, url, swissnum, treq=treq
-    ):  # type: (DecodedURL, bytes, Union[treq,StubTreq]) -> None
+    ):  # type: (DecodedURL, bytes, Union[treq,StubTreq,HTTPClient]) -> None
+        """
+        The URL is a HTTPS URL ("http://...").  To construct from a furl, use
+        ``StorageClient.from_furl()``.
+        """
+        assert url.to_text().startswith("https://")
         self._base_url = url
         self._swissnum = swissnum
         self._treq = treq
 
+    @classmethod
+    def from_furl(cls, furl: DecodedURL) -> "StorageClient":
+        """
+        Create a ``StorageClient`` for the given furl.
+        """
+        assert furl.fragment == "v=1"
+        assert furl.scheme == "pb"
+        swissnum = furl.path[0].encode("ascii")
+        certificate_hash = furl.user.encode("ascii")
+        
     def _url(self, path):
         """Get a URL relative to the base URL."""
         return self._base_url.click(path)

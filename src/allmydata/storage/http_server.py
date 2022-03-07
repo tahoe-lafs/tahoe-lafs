@@ -303,6 +303,7 @@ class HTTPServer(object):
 
 
 def listen_tls(
+    reactor,
     server: HTTPServer,
     hostname: str,
     port: int,
@@ -325,7 +326,7 @@ def listen_tls(
     )
     if interface is not None:
         endpoint_string += ":interface={}".format(quoteStringArgument(interface))
-    endpoint = serverFromString(endpoint_string)
+    endpoint = serverFromString(reactor, endpoint_string)
 
     def build_furl(listening_port: IListeningPort) -> DecodedURL:
         furl = DecodedURL()
