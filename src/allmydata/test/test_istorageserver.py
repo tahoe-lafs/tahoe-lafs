@@ -176,8 +176,9 @@ class IStorageServerImmutableAPIsTestsMixin(object):
             canary=Referenceable(),
         )
 
-        # Bucket 1 is fully written in one go.
-        yield allocated[0].callRemote("write", 0, b"1" * 1024)
+        # Bucket 1 get some data written (but not all, or HTTP implicitly
+        # finishes the upload)
+        yield allocated[0].callRemote("write", 0, b"1" * 1023)
 
         # Disconnect or abort, depending on the test:
         yield abort_or_disconnect(allocated[0])
@@ -1156,7 +1157,6 @@ class HTTPImmutableAPIsTests(
 
     # These will start passing in future PRs as HTTP protocol is implemented.
     SKIP_TESTS = {
-        "test_abort",
         "test_add_lease_renewal",
         "test_add_new_lease",
         "test_advise_corrupt_share",

@@ -1059,7 +1059,8 @@ class _HTTPBucketWriter(object):
     finished = attr.ib(type=bool, default=False)
 
     def abort(self):
-        pass  # TODO in later ticket
+        return self.client.abort_upload(self.storage_index, self.share_number,
+                                        self.upload_secret)
 
     @defer.inlineCallbacks
     def write(self, offset, data):

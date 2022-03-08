@@ -306,6 +306,33 @@ class HTTPServer(object):
     @_authorized_route(
         _app,
         {Secrets.UPLOAD},
+        "/v1/immutable/<storage_index:storage_index>/<int(signed=False):share_number>/abort",
+        methods=["PUT"],
+    )
+    def abort_share_upload(self, request, authorization, storage_index, share_number):
+        """Abort an in-progress immutable share upload."""
+        try:
+            bucket = self._uploads.get_write_bucket(
+                storage_index, share_number, authorization[Secrets.UPLOAD]
+            )
+        except _HTTPError:
+            # TODO 3877 If 404, check if this was already uploaded, in which case return 405
+            # TODO 3877 write tests for 404 cases?
+            raise
+
+        # TODO 3877 test for checking upload secret
+
+        # Abort the upload:
+        bucket.abort()
+        # Stop tracking the bucket, so we can create a new one later if a
+        # client requests it:
+        self._uploads.remove_write_bucket(storage_index, share_number)
+
+        return b""
+
+    @_authorized_route(
+        _app,
+        {Secrets.UPLOAD},
         "/v1/immutable/<storage_index:storage_index>/<int(signed=False):share_number>",
         methods=["PATCH"],
     )

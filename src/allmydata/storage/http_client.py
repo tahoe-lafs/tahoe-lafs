@@ -161,7 +161,7 @@ class StorageClientImmutables(object):
     APIs for interacting with immutables.
     """
 
-    def __init__(self, client):  # type: (StorageClient) -> None
+    def __init__(self, client: StorageClient):
         self._client = client
 
     @inlineCallbacks
@@ -207,6 +207,27 @@ class StorageClientImmutables(object):
                 allocated=decoded_response["allocated"],
             )
         )
+
+    @inlineCallbacks
+    def abort_upload(
+        self, storage_index: bytes, share_number: int, upload_secret: bytes
+    ) -> Deferred[None]:
+        """Abort the upload."""
+        url = self._client.relative_url(
+            "/v1/immutable/{}/{}/abort".format(_encode_si(storage_index), share_number)
+        )
+        response = yield self._client.request(
+            "PUT",
+            url,
+            upload_secret=upload_secret,
+        )
+
+        if response.code == http.OK:
+            return
+        else:
+            raise ClientException(
+                response.code,
+            )
 
     @inlineCallbacks
     def write_share_chunk(
