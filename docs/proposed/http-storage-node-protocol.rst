@@ -493,8 +493,8 @@ Handling repeat calls:
 * If the same API call is repeated with the same upload secret, the response is the same and no change is made to server state.
   This is necessary to ensure retries work in the face of lost responses from the server.
 * If the API calls is with a different upload secret, this implies a new client, perhaps because the old client died.
-  In order to prevent storage servers from being able to mess with each other, this API call will fail, because the secret doesn't match.
-  The use case of restarting upload from scratch if the client dies can be implemented by having the client persist the upload secret.
+  Or it may happen because the client wants to upload a different share number than a previous client.
+  New shares will be created, existing shares will be unchanged, regardless of whether the upload secret matches or not.
 
 Discussion
 ``````````
