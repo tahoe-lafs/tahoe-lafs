@@ -891,3 +891,71 @@ class ImmutableHTTPAPITests(SyncTestCase):
                 b"ABC",
             )
         )
+
+    def test_unknown_aborts(self):
+        """
+        Aborting aborts with unknown storage index or share number will 404.
+        """
+        (upload_secret, _, storage_index, _) = self.create_upload({1}, 100)
+
+        for si, num in [(storage_index, 3), (b"x" * 16, 1)]:
+            with assert_fails_with_http_code(self, http.NOT_FOUND):
+                result_of(self.imm_client.abort_upload(si, num, upload_secret))
+
+    def test_unauthorized_abort(self):
+        """
+        An abort with the wrong key will return an unauthorized error, and will
+        not abort the upload.
+        """
+        (upload_secret, _, storage_index, _) = self.create_upload({1}, 100)
+
+        # Failed to abort becaues wrong upload secret:
+        with assert_fails_with_http_code(self, http.UNAUTHORIZED):
+            result_of(
+                self.imm_client.abort_upload(storage_index, 1, upload_secret + b"X")
+            )
+
+        # We can still write to it:
+        result_of(
+            self.imm_client.write_share_chunk(
+                storage_index,
+                1,
+                upload_secret,
+                0,
+                b"ABC",
+            )
+        )
+
+    def test_too_late_abort(self):
+        """
+        An abort of an already-fully-uploaded immutable will result in 405
+        error and will not affect the immutable.
+        """
+        uploaded_data = b"123"
+        (upload_secret, _, storage_index, _) = self.create_upload({0}, 3)
+        result_of(
+            self.imm_client.write_share_chunk(
+                storage_index,
+                0,
+                upload_secret,
+                0,
+                uploaded_data,
+            )
+        )
+
+        # Can't abort, we finished upload:
+        with assert_fails_with_http_code(self, http.NOT_ALLOWED):
+            result_of(self.imm_client.abort_upload(storage_index, 0, upload_secret))
+
+        # Abort didn't prevent reading:
+        self.assertEqual(
+            uploaded_data,
+            result_of(
+                self.imm_client.read_share_chunk(
+                    storage_index,
+                    0,
+                    0,
+                    3,
+                )
+            ),
+        )

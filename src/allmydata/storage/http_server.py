@@ -311,12 +311,18 @@ class HTTPServer(object):
             bucket = self._uploads.get_write_bucket(
                 storage_index, share_number, authorization[Secrets.UPLOAD]
             )
-        except _HTTPError:
-            # TODO 3877 If 404, check if this was already uploaded, in which case return 405
-            # TODO 3877 write tests for 404 cases?
+        except _HTTPError as e:
+            if e.code == http.NOT_FOUND:
+                # It may be we've already uploaded this, in which case error
+                # should be method not allowed (405).
+                try:
+                    self._storage_server.get_buckets(storage_index)[share_number]
+                except KeyError:
+                    pass
+                else:
+                    # Already uploaded, so we can't abort.
+                    raise _HTTPError(http.NOT_ALLOWED)
             raise
-
-        # TODO 3877 test for checking upload secret
 
         # Abort the upload; this should close it which will eventually result
         # in self._uploads.remove_write_bucket() being called.
