@@ -1151,8 +1151,6 @@ class HTTPImmutableAPIsTests(
 
     # These will start passing in future PRs as HTTP protocol is implemented.
     SKIP_TESTS = {
-        "test_add_lease_renewal",
-        "test_add_new_lease",
         "test_advise_corrupt_share",
         "test_bucket_advise_corrupt_share",
     }

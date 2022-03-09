@@ -1160,3 +1160,14 @@ class _HTTPStorageServer(object):
             ))
             for share_num in share_numbers
         })
+
+    def add_lease(
+        self,
+        storage_index,
+        renew_secret,
+        cancel_secret,
+    ):
+        immutable_client = StorageClientImmutables(self._http_client)
+        return immutable_client.add_or_renew_lease(
+            storage_index, renew_secret, cancel_secret
+        )

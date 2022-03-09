@@ -434,3 +434,27 @@ class HTTPServer(object):
                 ContentRange("bytes", offset, offset + len(data)).to_header(),
             )
         return data
+
+    @_authorized_route(
+        _app,
+        {Secrets.LEASE_RENEW, Secrets.LEASE_CANCEL},
+        "/v1/lease/<storage_index:storage_index>",
+        methods=["PUT"],
+    )
+    def add_or_renew_lease(self, request, authorization, storage_index):
+        """Update the lease for an immutable share."""
+        # TODO 3879 write direct test for success case
+
+        # Checking of the renewal secret is done by the backend.
+        try:
+            self._storage_server.add_lease(
+                storage_index,
+                authorization[Secrets.LEASE_RENEW],
+                authorization[Secrets.LEASE_CANCEL],
+            )
+        except IndexError:
+            # TODO 3879 write test for this case
+            raise
+
+        request.setResponseCode(http.NO_CONTENT)
+        return b""
