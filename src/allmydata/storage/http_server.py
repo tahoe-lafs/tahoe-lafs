@@ -182,10 +182,7 @@ class UploadsInProgress(object):
         If the given upload doesn't exist at all, nothing happens.
         """
         if storage_index in self._uploads:
-            try:
-                in_progress = self._uploads[storage_index]
-            except KeyError:
-                return
+            in_progress = self._uploads[storage_index]
             # For pre-existing upload, make sure password matches.
             if share_number in in_progress.upload_secrets and not timing_safe_compare(
                 in_progress.upload_secrets[share_number], upload_secret
