@@ -15,6 +15,7 @@ if PY2:
     # fmt: on
 
 from base64 import b64encode
+from contextlib import contextmanager
 from os import urandom
 
 from hypothesis import assume, given, strategies as st
@@ -316,6 +317,20 @@ class StorageClientWithHeadersOverride(object):
         return self.storage_client.request(*args, headers=headers, **kwargs)
 
 
+@contextmanager
+def assert_fails_with_http_code(test_case: SyncTestCase, code: int):
+    """
+    Context manager that asserts the code fails with the given HTTP response
+    code.
+    """
+    with test_case.assertRaises(ClientException) as e:
+        try:
+            yield
+        finally:
+            pass
+    test_case.assertEqual(e.exception.code, code)
+
+
 class GenericHTTPAPITests(SyncTestCase):
     """
     Tests of HTTP client talking to the HTTP server, for generic HTTP API
@@ -340,9 +355,8 @@ class GenericHTTPAPITests(SyncTestCase):
                 treq=StubTreq(self.http.http_server.get_resource()),
             )
         )
-        with self.assertRaises(ClientException) as e:
+        with assert_fails_with_http_code(self, http.UNAUTHORIZED):
             result_of(client.get_version())
-        self.assertEqual(e.exception.args[0], 401)
 
     def test_version(self):
         """
@@ -477,7 +491,7 @@ class ImmutableHTTPAPITests(SyncTestCase):
     def test_write_with_wrong_upload_key(self):
         """A write with the wrong upload key fails."""
         (upload_secret, _, storage_index, _) = self.create_upload({1}, 100)
-        with self.assertRaises(ClientException) as e:
+        with assert_fails_with_http_code(self, http.UNAUTHORIZED):
             result_of(
                 self.imm_client.write_share_chunk(
                     storage_index,
@@ -487,7 +501,6 @@ class ImmutableHTTPAPITests(SyncTestCase):
                     b"123",
                 )
             )
-        self.assertEqual(e.exception.args[0], http.UNAUTHORIZED)
 
     def test_allocate_buckets_second_time_wrong_upload_key(self):
         """
@@ -498,13 +511,12 @@ class ImmutableHTTPAPITests(SyncTestCase):
         (upload_secret, lease_secret, storage_index, _) = self.create_upload(
             {1, 2, 3}, 100
         )
-        with self.assertRaises(ClientException) as e:
+        with assert_fails_with_http_code(self, http.UNAUTHORIZED):
             result_of(
                 self.imm_client.create(
                     storage_index, {2, 3}, 100, b"x" * 32, lease_secret, lease_secret
                 )
             )
-        self.assertEqual(e.exception.args[0], http.UNAUTHORIZED)
 
     def test_allocate_buckets_second_time_different_shares(self):
         """
@@ -562,7 +574,9 @@ class ImmutableHTTPAPITests(SyncTestCase):
                     self.http.client, {"content-range": bad_content_range_value}
                 )
             )
-            with self.assertRaises(ClientException) as e:
+            with assert_fails_with_http_code(
+                self, http.REQUESTED_RANGE_NOT_SATISFIABLE
+            ):
                 result_of(
                     client.write_share_chunk(
                         storage_index,
@@ -572,7 +586,6 @@ class ImmutableHTTPAPITests(SyncTestCase):
                         b"0123456789",
                     )
                 )
-            self.assertEqual(e.exception.code, http.REQUESTED_RANGE_NOT_SATISFIABLE)
 
         check_invalid("not a valid content-range header at all")
         check_invalid("bytes -1-9/10")
@@ -594,7 +607,7 @@ class ImmutableHTTPAPITests(SyncTestCase):
         (upload_secret, _, storage_index, _) = self.create_upload({1}, 10)
 
         def unknown_check(storage_index, share_number):
-            with self.assertRaises(ClientException) as e:
+            with assert_fails_with_http_code(self, http.NOT_FOUND):
                 result_of(
                     self.imm_client.write_share_chunk(
                         storage_index,
@@ -604,7 +617,6 @@ class ImmutableHTTPAPITests(SyncTestCase):
                         b"0123456789",
                     )
                 )
-            self.assertEqual(e.exception.code, http.NOT_FOUND)
 
         # Wrong share number:
         unknown_check(storage_index, 7)
@@ -663,7 +675,7 @@ class ImmutableHTTPAPITests(SyncTestCase):
         )
 
         # Conflicting write:
-        with self.assertRaises(ClientException) as e:
+        with assert_fails_with_http_code(self, http.CONFLICT):
             result_of(
                 self.imm_client.write_share_chunk(
                     storage_index,
@@ -673,7 +685,6 @@ class ImmutableHTTPAPITests(SyncTestCase):
                     b"0123456789",
                 )
             )
-            self.assertEqual(e.exception.code, http.NOT_FOUND)
 
     def upload(self, share_number, data_length=26):
         """
@@ -700,7 +711,7 @@ class ImmutableHTTPAPITests(SyncTestCase):
         """
         Reading from unknown storage index results in 404.
         """
-        with self.assertRaises(ClientException) as e:
+        with assert_fails_with_http_code(self, http.NOT_FOUND):
             result_of(
                 self.imm_client.read_share_chunk(
                     b"1" * 16,
@@ -709,14 +720,13 @@ class ImmutableHTTPAPITests(SyncTestCase):
                     10,
                 )
             )
-        self.assertEqual(e.exception.code, http.NOT_FOUND)
 
     def test_read_of_wrong_share_number_fails(self):
         """
         Reading from unknown storage index results in 404.
         """
         storage_index, _ = self.upload(1)
-        with self.assertRaises(ClientException) as e:
+        with assert_fails_with_http_code(self, http.NOT_FOUND):
             result_of(
                 self.imm_client.read_share_chunk(
                     storage_index,
@@ -725,7 +735,6 @@ class ImmutableHTTPAPITests(SyncTestCase):
                     10,
                 )
             )
-        self.assertEqual(e.exception.code, http.NOT_FOUND)
 
     def test_read_with_negative_offset_fails(self):
         """
@@ -741,7 +750,9 @@ class ImmutableHTTPAPITests(SyncTestCase):
                 )
             )
 
-            with self.assertRaises(ClientException) as e:
+            with assert_fails_with_http_code(
+                self, http.REQUESTED_RANGE_NOT_SATISFIABLE
+            ):
                 result_of(
                     client.read_share_chunk(
                         storage_index,
@@ -750,7 +761,6 @@ class ImmutableHTTPAPITests(SyncTestCase):
                         10,
                     )
                 )
-            self.assertEqual(e.exception.code, http.REQUESTED_RANGE_NOT_SATISFIABLE)
 
         # Bad unit
         check_bad_range("molluscs=0-9")
