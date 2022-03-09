@@ -194,20 +194,6 @@ class IStorageServerImmutableAPIsTestsMixin(object):
         )
         yield allocated[0].callRemote("write", 0, b"2" * 1024)
 
-    def test_disconnection(self):
-        """
-        If we disconnect in the middle of writing to a bucket, all data is
-        wiped, and it's even possible to write different data to the bucket.
-
-        (In the real world one shouldn't do that, but writing different data is
-        a good way to test that the original data really was wiped.)
-
-        HTTP protocol should skip this test, since disconnection is meaningless
-        concept; this is more about testing implicit contract the Foolscap
-        implementation depends on doesn't change as we refactor things.
-        """
-        return self.abort_or_disconnect_half_way(lambda _: self.disconnect())
-
     @inlineCallbacks
     def test_written_shares_are_allocated(self):
         """
@@ -1062,13 +1048,6 @@ class _SharedMixin(SystemTestMixin):
         AsyncTestCase.tearDown(self)
         yield SystemTestMixin.tearDown(self)
 
-    @inlineCallbacks
-    def disconnect(self):
-        """
-        Disconnect and then reconnect with a new ``IStorageServer``.
-        """
-        raise NotImplementedError("implement in subclass")
-
 
 class _FoolscapMixin(_SharedMixin):
     """Run tests on Foolscap version of ``IStorageServer``."""
@@ -1080,16 +1059,6 @@ class _FoolscapMixin(_SharedMixin):
         client = self._get_native_server().get_storage_server()
         self.assertTrue(IStorageServer.providedBy(client))
         return succeed(client)
-
-    @inlineCallbacks
-    def disconnect(self):
-        """
-        Disconnect and then reconnect with a new ``IStorageServer``.
-        """
-        current = self.storage_client
-        yield self.bounce_client(0)
-        self.storage_client = self._get_native_server().get_storage_server()
-        assert self.storage_client is not current
 
 
 class _HTTPMixin(_SharedMixin):
@@ -1149,6 +1118,31 @@ class FoolscapImmutableAPIsTests(
 ):
     """Foolscap-specific tests for immutable ``IStorageServer`` APIs."""
 
+    def test_disconnection(self):
+        """
+        If we disconnect in the middle of writing to a bucket, all data is
+        wiped, and it's even possible to write different data to the bucket.
+
+        (In the real world one shouldn't do that, but writing different data is
+        a good way to test that the original data really was wiped.)
+
+        HTTP protocol doesn't need this test, since disconnection is a
+        meaningless concept; this is more about testing the implicit contract
+        the Foolscap implementation depends on doesn't change as we refactor
+        things.
+        """
+        return self.abort_or_disconnect_half_way(lambda _: self.disconnect())
+
+    @inlineCallbacks
+    def disconnect(self):
+        """
+        Disconnect and then reconnect with a new ``IStorageServer``.
+        """
+        current = self.storage_client
+        yield self.bounce_client(0)
+        self.storage_client = self._get_native_server().get_storage_server()
+        assert self.storage_client is not current
+
 
 class HTTPImmutableAPIsTests(
     _HTTPMixin, IStorageServerImmutableAPIsTestsMixin, AsyncTestCase
@@ -1161,7 +1155,6 @@ class HTTPImmutableAPIsTests(
         "test_add_new_lease",
         "test_advise_corrupt_share",
         "test_bucket_advise_corrupt_share",
-        "test_disconnection",
     }
 
 
