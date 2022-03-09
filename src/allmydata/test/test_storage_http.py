@@ -813,8 +813,30 @@ class ImmutableHTTPAPITests(SyncTestCase):
 
     def test_timed_out_upload_allows_reupload(self):
         """
-        If an in-progress upload times out, it is cancelled, allowing a new
-        upload to occur.
+        If an in-progress upload times out, it is cancelled altogether,
+        allowing a new upload to occur.
+        """
+        self._test_abort_or_timed_out_upload_to_existing_storage_index(
+            lambda **kwargs: self.http.clock.advance(30 * 60 + 1)
+        )
+
+    def test_abort_upload_allows_reupload(self):
+        """
+        If an in-progress upload is aborted, it is cancelled altogether,
+        allowing a new upload to occur.
+        """
+
+        def abort(storage_index, share_number, upload_secret):
+            return result_of(
+                self.imm_client.abort_upload(storage_index, share_number, upload_secret)
+            )
+
+        self._test_abort_or_timed_out_upload_to_existing_storage_index(abort)
+
+    def _test_abort_or_timed_out_upload_to_existing_storage_index(self, cancel_upload):
+        """Start uploading to an existing storage index that then times out or aborts.
+
+        Re-uploading should work.
         """
         # Start an upload:
         (upload_secret, _, storage_index, _) = self.create_upload({1}, 100)
@@ -828,8 +850,10 @@ class ImmutableHTTPAPITests(SyncTestCase):
             )
         )
 
-        # Now, time passes, the in-progress upload should disappear...
-        self.http.clock.advance(30 * 60 + 1)
+        # Now, the upload is cancelled somehow:
+        cancel_upload(
+            storage_index=storage_index, upload_secret=upload_secret, share_number=1
+        )
 
         # Now we can create a new share with the same storage index without
         # complaint:
