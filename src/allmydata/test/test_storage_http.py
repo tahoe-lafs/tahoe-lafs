@@ -934,7 +934,8 @@ class ImmutableHTTPAPITests(SyncTestCase):
 
     def test_unknown_aborts(self):
         """
-        Aborting aborts with unknown storage index or share number will 404.
+        Aborting uploads with an unknown storage index or share number will
+        result 404 HTTP response code.
         """
         (upload_secret, _, storage_index, _) = self.create_upload({1}, 100)
 
