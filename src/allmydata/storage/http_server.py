@@ -2,19 +2,7 @@
 HTTP server for storage.
 """
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
-from future.utils import PY2
-
-if PY2:
-    # fmt: off
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
-    # fmt: on
-else:
-    from typing import Dict, List, Set
+from typing import Dict, List, Set, Tuple
 
 from functools import wraps
 from base64 import b64decode
@@ -148,6 +136,9 @@ class UploadsInProgress(object):
     # Map storage index to corresponding uploads-in-progress
     _uploads = attr.ib(type=Dict[bytes, StorageIndexUploads], factory=dict)
 
+    # Map BucketWriter to (storage index, share number)
+    _bucketwriters = attr.ib(type=Dict[BucketWriter, Tuple[bytes, int]], factory=dict)
+
     def add_write_bucket(
         self,
         storage_index: bytes,
@@ -155,13 +146,11 @@ class UploadsInProgress(object):
         upload_secret: bytes,
         bucket: BucketWriter,
     ):
-        """Add a new ``BucketWriter`` to be tracked.
-
-        TODO 3877 how does a timed-out BucketWriter get removed?!
-        """
+        """Add a new ``BucketWriter`` to be tracked."""
         si_uploads = self._uploads.setdefault(storage_index, StorageIndexUploads())
         si_uploads.shares[share_number] = bucket
         si_uploads.upload_secrets[share_number] = upload_secret
+        self._bucketwriters[bucket] = (storage_index, share_number)
 
     def get_write_bucket(
         self, storage_index: bytes, share_number: int, upload_secret: bytes
@@ -173,8 +162,9 @@ class UploadsInProgress(object):
         except (KeyError, IndexError):
             raise _HTTPError(http.NOT_FOUND)
 
-    def remove_write_bucket(self, storage_index: bytes, share_number: int):
+    def remove_write_bucket(self, bucket: BucketWriter):
         """Stop tracking the given ``BucketWriter``."""
+        storage_index, share_number = self._bucketwriters.pop(bucket)
         uploads_index = self._uploads[storage_index]
         uploads_index.shares.pop(share_number)
         uploads_index.upload_secrets.pop(share_number)
@@ -245,6 +235,12 @@ class HTTPServer(object):
         self._swissnum = swissnum
         # Maps storage index to StorageIndexUploads:
         self._uploads = UploadsInProgress()
+
+        # When an upload finishes successfully, gets aborted, or times out,
+        # make sure it gets removed from our tracking datastructure:
+        self._storage_server.register_bucket_writer_close_handler(
+            self._uploads.remove_write_bucket
+        )
 
     def get_resource(self):
         """Return twisted.web ``Resource`` for this object."""
@@ -322,11 +318,9 @@ class HTTPServer(object):
 
         # TODO 3877 test for checking upload secret
 
-        # Abort the upload:
+        # Abort the upload; this should close it which will eventually result
+        # in self._uploads.remove_write_bucket() being called.
         bucket.abort()
-        # Stop tracking the bucket, so we can create a new one later if a
-        # client requests it:
-        self._uploads.remove_write_bucket(storage_index, share_number)
 
         return b""
 

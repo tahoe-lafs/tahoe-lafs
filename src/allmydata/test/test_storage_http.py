@@ -810,3 +810,50 @@ class ImmutableHTTPAPITests(SyncTestCase):
         check_range("bytes=0-10", "bytes 0-10/*")
         # Can't go beyond the end of the immutable!
         check_range("bytes=10-100", "bytes 10-25/*")
+
+    def test_timed_out_upload_allows_reupload(self):
+        """
+        If an in-progress upload times out, it is cancelled, allowing a new
+        upload to occur.
+        """
+        # Start an upload:
+        (upload_secret, _, storage_index, _) = self.create_upload({1}, 100)
+        result_of(
+            self.imm_client.write_share_chunk(
+                storage_index,
+                1,
+                upload_secret,
+                0,
+                b"123",
+            )
+        )
+
+        # Now, time passes, the in-progress upload should disappear...
+        self.http.clock.advance(30 * 60 + 1)
+
+        # Now we can create a new share with the same storage index without
+        # complaint:
+        upload_secret = urandom(32)
+        lease_secret = urandom(32)
+        created = result_of(
+            self.imm_client.create(
+                storage_index,
+                {1},
+                100,
+                upload_secret,
+                lease_secret,
+                lease_secret,
+            )
+        )
+        self.assertEqual(created.allocated, {1})
+
+        # And write to it, too:
+        result_of(
+            self.imm_client.write_share_chunk(
+                storage_index,
+                1,
+                upload_secret,
+                0,
+                b"ABC",
+            )
+        )
