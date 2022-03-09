@@ -443,18 +443,15 @@ class HTTPServer(object):
     )
     def add_or_renew_lease(self, request, authorization, storage_index):
         """Update the lease for an immutable share."""
-        # TODO 3879 write direct test for success case
+        if not self._storage_server.get_buckets(storage_index):
+            raise _HTTPError(http.NOT_FOUND)
 
         # Checking of the renewal secret is done by the backend.
-        try:
-            self._storage_server.add_lease(
-                storage_index,
-                authorization[Secrets.LEASE_RENEW],
-                authorization[Secrets.LEASE_CANCEL],
-            )
-        except IndexError:
-            # TODO 3879 write test for this case
-            raise
+        self._storage_server.add_lease(
+            storage_index,
+            authorization[Secrets.LEASE_RENEW],
+            authorization[Secrets.LEASE_CANCEL],
+        )
 
         request.setResponseCode(http.NO_CONTENT)
         return b""

@@ -1000,3 +1000,58 @@ class ImmutableHTTPAPITests(SyncTestCase):
                 )
             ),
         )
+
+    def test_lease_renew_and_add(self):
+        """
+        It's possible the renew the lease on an uploaded immutable, by using
+        the same renewal secret, or add a new lease by choosing a different
+        renewal secret.
+        """
+        # Create immutable:
+        (upload_secret, lease_secret, storage_index, _) = self.create_upload({0}, 100)
+        result_of(
+            self.imm_client.write_share_chunk(
+                storage_index,
+                0,
+                upload_secret,
+                0,
+                b"A" * 100,
+            )
+        )
+
+        [lease] = self.http.storage_server.get_leases(storage_index)
+        initial_expiration_time = lease.get_expiration_time()
+
+        # Time passes:
+        self.http.clock.advance(167)
+
+        # We renew the lease:
+        result_of(
+            self.imm_client.add_or_renew_lease(
+                storage_index, lease_secret, lease_secret
+            )
+        )
+
+        # More time passes:
+        self.http.clock.advance(10)
+
+        # We create a new lease:
+        lease_secret2 = urandom(32)
+        result_of(
+            self.imm_client.add_or_renew_lease(
+                storage_index, lease_secret2, lease_secret2
+            )
+        )
+
+        [lease1, lease2] = self.http.storage_server.get_leases(storage_index)
+        self.assertEqual(lease1.get_expiration_time(), initial_expiration_time + 167)
+        self.assertEqual(lease2.get_expiration_time(), initial_expiration_time + 177)
+
+    def test_lease_on_unknown_storage_index(self):
+        """
+        An attempt to renew an unknown storage index will result in a HTTP 404.
+        """
+        storage_index = urandom(16)
+        secret = b"A" * 32
+        with assert_fails_with_http_code(self, http.NOT_FOUND):
+            result_of(self.imm_client.add_or_renew_lease(storage_index, secret, secret))
