@@ -474,6 +474,21 @@ class ImmutableHTTPAPITests(SyncTestCase):
             )
             self.assertEqual(downloaded, expected_data[offset : offset + length])
 
+    def test_write_with_wrong_upload_key(self):
+        """A write with the wrong upload key fails."""
+        (upload_secret, _, storage_index, _) = self.create_upload({1}, 100)
+        with self.assertRaises(ClientException) as e:
+            result_of(
+                self.imm_client.write_share_chunk(
+                    storage_index,
+                    1,
+                    upload_secret + b"X",
+                    0,
+                    b"123",
+                )
+            )
+        self.assertEqual(e.exception.args[0], http.UNAUTHORIZED)
+
     def test_allocate_buckets_second_time_wrong_upload_key(self):
         """
         If allocate buckets endpoint is called second time with wrong upload

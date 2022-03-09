@@ -167,8 +167,8 @@ class UploadsInProgress(object):
         self, storage_index: bytes, share_number: int, upload_secret: bytes
     ) -> BucketWriter:
         """Get the given in-progress immutable share upload."""
+        self.validate_upload_secret(storage_index, share_number, upload_secret)
         try:
-            # TODO 3877 check the upload secret matches given one
             return self._uploads[storage_index].shares[share_number]
         except (KeyError, IndexError):
             raise _HTTPError(http.NOT_FOUND)
@@ -344,8 +344,6 @@ class HTTPServer(object):
             return b""
 
         offset = content_range.start
-
-        # TODO 3877 test for checking upload secret
 
         # TODO limit memory usage
         # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3872
