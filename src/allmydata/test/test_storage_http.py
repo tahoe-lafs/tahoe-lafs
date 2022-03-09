@@ -15,6 +15,7 @@ if PY2:
     # fmt: on
 
 from base64 import b64encode
+from contextlib import contextmanager
 from os import urandom
 
 from hypothesis import assume, given, strategies as st
@@ -316,6 +317,20 @@ class StorageClientWithHeadersOverride(object):
         return self.storage_client.request(*args, headers=headers, **kwargs)
 
 
+@contextmanager
+def assert_fails_with_http_code(test_case: SyncTestCase, code: int):
+    """
+    Context manager that asserts the code fails with the given HTTP response
+    code.
+    """
+    with test_case.assertRaises(ClientException) as e:
+        try:
+            yield
+        finally:
+            pass
+    test_case.assertEqual(e.exception.code, code)
+
+
 class GenericHTTPAPITests(SyncTestCase):
     """
     Tests of HTTP client talking to the HTTP server, for generic HTTP API
@@ -340,9 +355,8 @@ class GenericHTTPAPITests(SyncTestCase):
                 treq=StubTreq(self.http.http_server.get_resource()),
             )
         )
-        with self.assertRaises(ClientException) as e:
+        with assert_fails_with_http_code(self, http.UNAUTHORIZED):
             result_of(client.get_version())
-        self.assertEqual(e.exception.args[0], 401)
 
     def test_version(self):
         """
@@ -474,6 +488,23 @@ class ImmutableHTTPAPITests(SyncTestCase):
             )
             self.assertEqual(downloaded, expected_data[offset : offset + length])
 
+    def test_write_with_wrong_upload_key(self):
+        """
+        A write with an upload key that is different than the original upload
+        key will fail.
+        """
+        (upload_secret, _, storage_index, _) = self.create_upload({1}, 100)
+        with assert_fails_with_http_code(self, http.UNAUTHORIZED):
+            result_of(
+                self.imm_client.write_share_chunk(
+                    storage_index,
+                    1,
+                    upload_secret + b"X",
+                    0,
+                    b"123",
+                )
+            )
+
     def test_allocate_buckets_second_time_different_shares(self):
         """
         If allocate buckets endpoint is called second time with different
@@ -583,7 +614,9 @@ class ImmutableHTTPAPITests(SyncTestCase):
                     self.http.client, {"content-range": bad_content_range_value}
                 )
             )
-            with self.assertRaises(ClientException) as e:
+            with assert_fails_with_http_code(
+                self, http.REQUESTED_RANGE_NOT_SATISFIABLE
+            ):
                 result_of(
                     client.write_share_chunk(
                         storage_index,
@@ -593,7 +626,6 @@ class ImmutableHTTPAPITests(SyncTestCase):
                         b"0123456789",
                     )
                 )
-            self.assertEqual(e.exception.code, http.REQUESTED_RANGE_NOT_SATISFIABLE)
 
         check_invalid("not a valid content-range header at all")
         check_invalid("bytes -1-9/10")
@@ -615,7 +647,7 @@ class ImmutableHTTPAPITests(SyncTestCase):
         (upload_secret, _, storage_index, _) = self.create_upload({1}, 10)
 
         def unknown_check(storage_index, share_number):
-            with self.assertRaises(ClientException) as e:
+            with assert_fails_with_http_code(self, http.NOT_FOUND):
                 result_of(
                     self.imm_client.write_share_chunk(
                         storage_index,
@@ -625,7 +657,6 @@ class ImmutableHTTPAPITests(SyncTestCase):
                         b"0123456789",
                     )
                 )
-            self.assertEqual(e.exception.code, http.NOT_FOUND)
 
         # Wrong share number:
         unknown_check(storage_index, 7)
@@ -684,7 +715,7 @@ class ImmutableHTTPAPITests(SyncTestCase):
         )
 
         # Conflicting write:
-        with self.assertRaises(ClientException) as e:
+        with assert_fails_with_http_code(self, http.CONFLICT):
             result_of(
                 self.imm_client.write_share_chunk(
                     storage_index,
@@ -694,7 +725,6 @@ class ImmutableHTTPAPITests(SyncTestCase):
                     b"0123456789",
                 )
             )
-            self.assertEqual(e.exception.code, http.NOT_FOUND)
 
     def upload(self, share_number, data_length=26):
         """
@@ -721,7 +751,7 @@ class ImmutableHTTPAPITests(SyncTestCase):
         """
         Reading from unknown storage index results in 404.
         """
-        with self.assertRaises(ClientException) as e:
+        with assert_fails_with_http_code(self, http.NOT_FOUND):
             result_of(
                 self.imm_client.read_share_chunk(
                     b"1" * 16,
@@ -730,14 +760,13 @@ class ImmutableHTTPAPITests(SyncTestCase):
                     10,
                 )
             )
-        self.assertEqual(e.exception.code, http.NOT_FOUND)
 
     def test_read_of_wrong_share_number_fails(self):
         """
         Reading from unknown storage index results in 404.
         """
         storage_index, _ = self.upload(1)
-        with self.assertRaises(ClientException) as e:
+        with assert_fails_with_http_code(self, http.NOT_FOUND):
             result_of(
                 self.imm_client.read_share_chunk(
                     storage_index,
@@ -746,7 +775,6 @@ class ImmutableHTTPAPITests(SyncTestCase):
                     10,
                 )
             )
-        self.assertEqual(e.exception.code, http.NOT_FOUND)
 
     def test_read_with_negative_offset_fails(self):
         """
@@ -762,7 +790,9 @@ class ImmutableHTTPAPITests(SyncTestCase):
                 )
             )
 
-            with self.assertRaises(ClientException) as e:
+            with assert_fails_with_http_code(
+                self, http.REQUESTED_RANGE_NOT_SATISFIABLE
+            ):
                 result_of(
                     client.read_share_chunk(
                         storage_index,
@@ -771,7 +801,6 @@ class ImmutableHTTPAPITests(SyncTestCase):
                         10,
                     )
                 )
-            self.assertEqual(e.exception.code, http.REQUESTED_RANGE_NOT_SATISFIABLE)
 
         # Bad unit
         check_bad_range("molluscs=0-9")
@@ -831,3 +860,143 @@ class ImmutableHTTPAPITests(SyncTestCase):
         check_range("bytes=0-10", "bytes 0-10/*")
         # Can't go beyond the end of the immutable!
         check_range("bytes=10-100", "bytes 10-25/*")
+
+    def test_timed_out_upload_allows_reupload(self):
+        """
+        If an in-progress upload times out, it is cancelled altogether,
+        allowing a new upload to occur.
+        """
+        self._test_abort_or_timed_out_upload_to_existing_storage_index(
+            lambda **kwargs: self.http.clock.advance(30 * 60 + 1)
+        )
+
+    def test_abort_upload_allows_reupload(self):
+        """
+        If an in-progress upload is aborted, it is cancelled altogether,
+        allowing a new upload to occur.
+        """
+
+        def abort(storage_index, share_number, upload_secret):
+            return result_of(
+                self.imm_client.abort_upload(storage_index, share_number, upload_secret)
+            )
+
+        self._test_abort_or_timed_out_upload_to_existing_storage_index(abort)
+
+    def _test_abort_or_timed_out_upload_to_existing_storage_index(self, cancel_upload):
+        """Start uploading to an existing storage index that then times out or aborts.
+
+        Re-uploading should work.
+        """
+        # Start an upload:
+        (upload_secret, _, storage_index, _) = self.create_upload({1}, 100)
+        result_of(
+            self.imm_client.write_share_chunk(
+                storage_index,
+                1,
+                upload_secret,
+                0,
+                b"123",
+            )
+        )
+
+        # Now, the upload is cancelled somehow:
+        cancel_upload(
+            storage_index=storage_index, upload_secret=upload_secret, share_number=1
+        )
+
+        # Now we can create a new share with the same storage index without
+        # complaint:
+        upload_secret = urandom(32)
+        lease_secret = urandom(32)
+        created = result_of(
+            self.imm_client.create(
+                storage_index,
+                {1},
+                100,
+                upload_secret,
+                lease_secret,
+                lease_secret,
+            )
+        )
+        self.assertEqual(created.allocated, {1})
+
+        # And write to it, too:
+        result_of(
+            self.imm_client.write_share_chunk(
+                storage_index,
+                1,
+                upload_secret,
+                0,
+                b"ABC",
+            )
+        )
+
+    def test_unknown_aborts(self):
+        """
+        Aborting uploads with an unknown storage index or share number will
+        result 404 HTTP response code.
+        """
+        (upload_secret, _, storage_index, _) = self.create_upload({1}, 100)
+
+        for si, num in [(storage_index, 3), (b"x" * 16, 1)]:
+            with assert_fails_with_http_code(self, http.NOT_FOUND):
+                result_of(self.imm_client.abort_upload(si, num, upload_secret))
+
+    def test_unauthorized_abort(self):
+        """
+        An abort with the wrong key will return an unauthorized error, and will
+        not abort the upload.
+        """
+        (upload_secret, _, storage_index, _) = self.create_upload({1}, 100)
+
+        # Failed to abort becaues wrong upload secret:
+        with assert_fails_with_http_code(self, http.UNAUTHORIZED):
+            result_of(
+                self.imm_client.abort_upload(storage_index, 1, upload_secret + b"X")
+            )
+
+        # We can still write to it:
+        result_of(
+            self.imm_client.write_share_chunk(
+                storage_index,
+                1,
+                upload_secret,
+                0,
+                b"ABC",
+            )
+        )
+
+    def test_too_late_abort(self):
+        """
+        An abort of an already-fully-uploaded immutable will result in 405
+        error and will not affect the immutable.
+        """
+        uploaded_data = b"123"
+        (upload_secret, _, storage_index, _) = self.create_upload({0}, 3)
+        result_of(
+            self.imm_client.write_share_chunk(
+                storage_index,
+                0,
+                upload_secret,
+                0,
+                uploaded_data,
+            )
+        )
+
+        # Can't abort, we finished upload:
+        with assert_fails_with_http_code(self, http.NOT_ALLOWED):
+            result_of(self.imm_client.abort_upload(storage_index, 0, upload_secret))
+
+        # Abort didn't prevent reading:
+        self.assertEqual(
+            uploaded_data,
+            result_of(
+                self.imm_client.read_share_chunk(
+                    storage_index,
+                    0,
+                    0,
+                    3,
+                )
+            ),
+        )
