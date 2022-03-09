@@ -489,7 +489,10 @@ class ImmutableHTTPAPITests(SyncTestCase):
             self.assertEqual(downloaded, expected_data[offset : offset + length])
 
     def test_write_with_wrong_upload_key(self):
-        """A write with the wrong upload key fails."""
+        """
+        A write with an upload key that is different than the original upload
+        key will fail.
+        """
         (upload_secret, _, storage_index, _) = self.create_upload({1}, 100)
         with assert_fails_with_http_code(self, http.UNAUTHORIZED):
             result_of(
