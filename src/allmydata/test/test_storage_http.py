@@ -1055,3 +1055,35 @@ class ImmutableHTTPAPITests(SyncTestCase):
         secret = b"A" * 32
         with assert_fails_with_http_code(self, http.NOT_FOUND):
             result_of(self.imm_client.add_or_renew_lease(storage_index, secret, secret))
+
+    def test_advise_corrupt_share(self):
+        """
+        Advising share was corrupted succeeds from HTTP client's perspective,
+        and calls appropriate method on server.
+        """
+        corrupted = []
+        self.http.storage_server.advise_corrupt_share = lambda *args: corrupted.append(
+            args
+        )
+
+        storage_index, _ = self.upload(13)
+        reason = "OHNO \u1235"
+        result_of(self.imm_client.advise_corrupt_share(storage_index, 13, reason))
+
+        self.assertEqual(
+            corrupted, [(b"immutable", storage_index, 13, reason.encode("utf-8"))]
+        )
+
+    def test_advise_corrupt_share_unknown(self):
+        """
+        Advising an unknown share was corrupted results in 404.
+        """
+        storage_index, _ = self.upload(13)
+        reason = "OHNO \u1235"
+        result_of(self.imm_client.advise_corrupt_share(storage_index, 13, reason))
+
+        for (si, share_number) in [(storage_index, 11), (urandom(16), 13)]:
+            with assert_fails_with_http_code(self, http.NOT_FOUND):
+                result_of(
+                    self.imm_client.advise_corrupt_share(si, share_number, reason)
+                )
