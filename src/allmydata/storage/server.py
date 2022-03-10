@@ -778,7 +778,7 @@ class StorageServer(service.MultiService):
             si_s,
             shnum,
         )
-        with open(report_path, "w") as f:
+        with open(report_path, "w", encoding="utf-8") as f:
             f.write(report)
 
         return None
