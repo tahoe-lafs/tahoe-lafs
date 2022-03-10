@@ -455,3 +455,22 @@ class HTTPServer(object):
 
         request.setResponseCode(http.NO_CONTENT)
         return b""
+
+    @_authorized_route(
+        _app,
+        set(),
+        "/v1/immutable/<storage_index:storage_index>/<int(signed=False):share_number>/corrupt",
+        methods=["POST"],
+    )
+    def advise_corrupt_share(self, request, authorization, storage_index, share_number):
+        """Indicate that given share is corrupt, with a text reason."""
+        # TODO 3879 test success path
+        try:
+            bucket = self._storage_server.get_buckets(storage_index)[share_number]
+        except KeyError:
+            # TODO 3879 test this path
+            raise _HTTPError(http.NOT_FOUND)
+
+        info = loads(request.content.read())
+        bucket.advise_corrupt_share(info["reason"].encode("utf-8"))
+        return b""

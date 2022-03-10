@@ -354,3 +354,31 @@ class StorageClientImmutables(object):
             return
         else:
             raise ClientException(response.code)
+
+    @inlineCallbacks
+    def advise_corrupt_share(
+        self,
+        storage_index: bytes,
+        share_number: int,
+        reason: str,
+    ):
+        """Indicate a share has been corrupted, with a human-readable message."""
+        assert isinstance(reason, str)
+        url = self._client.relative_url(
+            "/v1/immutable/{}/{}/corrupt".format(
+                _encode_si(storage_index), share_number
+            )
+        )
+        message = dumps({"reason": reason})
+        response = yield self._client.request(
+            "POST",
+            url,
+            data=message,
+            headers=Headers({"content-type": ["application/cbor"]}),
+        )
+        if response.code == http.OK:
+            return
+        else:
+            raise ClientException(
+                response.code,
+            )

@@ -1149,12 +1149,6 @@ class HTTPImmutableAPIsTests(
 ):
     """HTTP-specific tests for immutable ``IStorageServer`` APIs."""
 
-    # These will start passing in future PRs as HTTP protocol is implemented.
-    SKIP_TESTS = {
-        "test_advise_corrupt_share",
-        "test_bucket_advise_corrupt_share",
-    }
-
 
 class FoolscapMutableAPIsTests(
     _FoolscapMixin, IStorageServerMutableAPIsTestsMixin, AsyncTestCase

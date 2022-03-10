@@ -615,7 +615,7 @@ From RFC 7231::
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 Advise the server the data read from the indicated share was corrupt.
-The request body includes an human-meaningful string with details about the corruption.
+The request body includes an human-meaningful (Unicode) string with details about the corruption.
 It also includes potentially important details about the share.
 
 For example::
@@ -623,6 +623,8 @@ For example::
   {"reason": "expected hash abcd, got hash efgh"}
 
 .. share-type, storage-index, and share-number are inferred from the URL
+
+The response code is OK, or 404 not found if the share couldn't be found.
 
 Reading
 ~~~~~~~
