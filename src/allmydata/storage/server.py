@@ -743,8 +743,9 @@ class StorageServer(service.MultiService):
 
     def advise_corrupt_share(self, share_type, storage_index, shnum,
                              reason):
-        # This is a remote API, I believe, so this has to be bytes for legacy
-        # protocol backwards compatibility reasons.
+        # Previously this had to be bytes for legacy protocol backwards
+        # compatibility reasons. Now that Foolscap layer has been abstracted
+        # out, we can probably refactor this to be unicode...
         assert isinstance(share_type, bytes)
         assert isinstance(reason, bytes), "%r is not bytes" % (reason,)
 
@@ -777,7 +778,7 @@ class StorageServer(service.MultiService):
             si_s,
             shnum,
         )
-        with open(report_path, "w") as f:
+        with open(report_path, "w", encoding="utf-8") as f:
             f.write(report)
 
         return None

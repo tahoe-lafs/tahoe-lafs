@@ -1000,3 +1000,90 @@ class ImmutableHTTPAPITests(SyncTestCase):
                 )
             ),
         )
+
+    def test_lease_renew_and_add(self):
+        """
+        It's possible the renew the lease on an uploaded immutable, by using
+        the same renewal secret, or add a new lease by choosing a different
+        renewal secret.
+        """
+        # Create immutable:
+        (upload_secret, lease_secret, storage_index, _) = self.create_upload({0}, 100)
+        result_of(
+            self.imm_client.write_share_chunk(
+                storage_index,
+                0,
+                upload_secret,
+                0,
+                b"A" * 100,
+            )
+        )
+
+        [lease] = self.http.storage_server.get_leases(storage_index)
+        initial_expiration_time = lease.get_expiration_time()
+
+        # Time passes:
+        self.http.clock.advance(167)
+
+        # We renew the lease:
+        result_of(
+            self.imm_client.add_or_renew_lease(
+                storage_index, lease_secret, lease_secret
+            )
+        )
+
+        # More time passes:
+        self.http.clock.advance(10)
+
+        # We create a new lease:
+        lease_secret2 = urandom(32)
+        result_of(
+            self.imm_client.add_or_renew_lease(
+                storage_index, lease_secret2, lease_secret2
+            )
+        )
+
+        [lease1, lease2] = self.http.storage_server.get_leases(storage_index)
+        self.assertEqual(lease1.get_expiration_time(), initial_expiration_time + 167)
+        self.assertEqual(lease2.get_expiration_time(), initial_expiration_time + 177)
+
+    def test_lease_on_unknown_storage_index(self):
+        """
+        An attempt to renew an unknown storage index will result in a HTTP 404.
+        """
+        storage_index = urandom(16)
+        secret = b"A" * 32
+        with assert_fails_with_http_code(self, http.NOT_FOUND):
+            result_of(self.imm_client.add_or_renew_lease(storage_index, secret, secret))
+
+    def test_advise_corrupt_share(self):
+        """
+        Advising share was corrupted succeeds from HTTP client's perspective,
+        and calls appropriate method on server.
+        """
+        corrupted = []
+        self.http.storage_server.advise_corrupt_share = lambda *args: corrupted.append(
+            args
+        )
+
+        storage_index, _ = self.upload(13)
+        reason = "OHNO \u1235"
+        result_of(self.imm_client.advise_corrupt_share(storage_index, 13, reason))
+
+        self.assertEqual(
+            corrupted, [(b"immutable", storage_index, 13, reason.encode("utf-8"))]
+        )
+
+    def test_advise_corrupt_share_unknown(self):
+        """
+        Advising an unknown share was corrupted results in 404.
+        """
+        storage_index, _ = self.upload(13)
+        reason = "OHNO \u1235"
+        result_of(self.imm_client.advise_corrupt_share(storage_index, 13, reason))
+
+        for (si, share_number) in [(storage_index, 11), (urandom(16), 13)]:
+            with assert_fails_with_http_code(self, http.NOT_FOUND):
+                result_of(
+                    self.imm_client.advise_corrupt_share(si, share_number, reason)
+                )

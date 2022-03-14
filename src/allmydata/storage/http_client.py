@@ -310,9 +310,7 @@ class StorageClientImmutables(object):
             body = yield response.content()
             returnValue(body)
         else:
-            raise ClientException(
-                response.code,
-            )
+            raise ClientException(response.code)
 
     @inlineCallbacks
     def list_shares(self, storage_index):  # type: (bytes,) -> Deferred[Set[int]]
@@ -329,6 +327,57 @@ class StorageClientImmutables(object):
         if response.code == http.OK:
             body = yield _decode_cbor(response)
             returnValue(set(body))
+        else:
+            raise ClientException(response.code)
+
+    @inlineCallbacks
+    def add_or_renew_lease(
+        self, storage_index: bytes, renew_secret: bytes, cancel_secret: bytes
+    ):
+        """
+        Add or renew a lease.
+
+        If the renewal secret matches an existing lease, it is renewed.
+        Otherwise a new lease is added.
+        """
+        url = self._client.relative_url(
+            "/v1/lease/{}".format(_encode_si(storage_index))
+        )
+        response = yield self._client.request(
+            "PUT",
+            url,
+            lease_renew_secret=renew_secret,
+            lease_cancel_secret=cancel_secret,
+        )
+
+        if response.code == http.NO_CONTENT:
+            return
+        else:
+            raise ClientException(response.code)
+
+    @inlineCallbacks
+    def advise_corrupt_share(
+        self,
+        storage_index: bytes,
+        share_number: int,
+        reason: str,
+    ):
+        """Indicate a share has been corrupted, with a human-readable message."""
+        assert isinstance(reason, str)
+        url = self._client.relative_url(
+            "/v1/immutable/{}/{}/corrupt".format(
+                _encode_si(storage_index), share_number
+            )
+        )
+        message = dumps({"reason": reason})
+        response = yield self._client.request(
+            "POST",
+            url,
+            data=message,
+            headers=Headers({"content-type": ["application/cbor"]}),
+        )
+        if response.code == http.OK:
+            return
         else:
             raise ClientException(
                 response.code,

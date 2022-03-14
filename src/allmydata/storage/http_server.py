@@ -434,3 +434,41 @@ class HTTPServer(object):
                 ContentRange("bytes", offset, offset + len(data)).to_header(),
             )
         return data
+
+    @_authorized_route(
+        _app,
+        {Secrets.LEASE_RENEW, Secrets.LEASE_CANCEL},
+        "/v1/lease/<storage_index:storage_index>",
+        methods=["PUT"],
+    )
+    def add_or_renew_lease(self, request, authorization, storage_index):
+        """Update the lease for an immutable share."""
+        if not self._storage_server.get_buckets(storage_index):
+            raise _HTTPError(http.NOT_FOUND)
+
+        # Checking of the renewal secret is done by the backend.
+        self._storage_server.add_lease(
+            storage_index,
+            authorization[Secrets.LEASE_RENEW],
+            authorization[Secrets.LEASE_CANCEL],
+        )
+
+        request.setResponseCode(http.NO_CONTENT)
+        return b""
+
+    @_authorized_route(
+        _app,
+        set(),
+        "/v1/immutable/<storage_index:storage_index>/<int(signed=False):share_number>/corrupt",
+        methods=["POST"],
+    )
+    def advise_corrupt_share(self, request, authorization, storage_index, share_number):
+        """Indicate that given share is corrupt, with a text reason."""
+        try:
+            bucket = self._storage_server.get_buckets(storage_index)[share_number]
+        except KeyError:
+            raise _HTTPError(http.NOT_FOUND)
+
+        info = loads(request.content.read())
+        bucket.advise_corrupt_share(info["reason"].encode("utf-8"))
+        return b""
