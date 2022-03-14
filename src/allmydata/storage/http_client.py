@@ -99,6 +99,8 @@ class StorageClient(object):
         into corresponding HTTP headers.
         """
         headers = self._get_headers(headers)
+
+        # Add secrets:
         for secret, value in [
             (Secrets.LEASE_RENEW, lease_renew_secret),
             (Secrets.LEASE_CANCEL, lease_cancel_secret),
@@ -110,6 +112,10 @@ class StorageClient(object):
                 "X-Tahoe-Authorization",
                 b"%s %s" % (secret.value.encode("ascii"), b64encode(value).strip()),
             )
+
+        # Note we can accept CBOR:
+        headers.addRawHeader("Accept", CBOR_MIME_TYPE)
+
         return self._treq.request(method, url, headers=headers, **kwargs)
 
 
