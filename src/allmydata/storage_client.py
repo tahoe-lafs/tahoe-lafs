@@ -77,7 +77,7 @@ from allmydata.util.hashutil import permute_server_hash
 from allmydata.util.dictutil import BytesKeyDict, UnicodeKeyDict
 from allmydata.storage.http_client import (
     StorageClient, StorageClientImmutables, StorageClientGeneral,
-    ClientException as HTTPClientException,
+    ClientException as HTTPClientException
 )
 
 
@@ -1094,7 +1094,10 @@ class _HTTPBucketReader(object):
         )
 
     def advise_corrupt_share(self, reason):
-       pass  # TODO in later ticket
+       return self.client.advise_corrupt_share(
+           self.storage_index, self.share_number,
+           str(reason, "utf-8", errors="backslashreplace")
+       )
 
 
 # WORK IN PROGRESS, for now it doesn't actually implement whole thing.
@@ -1124,7 +1127,7 @@ class _HTTPStorageServer(object):
             cancel_secret,
             sharenums,
             allocated_size,
-            canary,
+            canary
     ):
         upload_secret = urandom(20)
         immutable_client = StorageClientImmutables(self._http_client)
@@ -1148,7 +1151,7 @@ class _HTTPStorageServer(object):
     @defer.inlineCallbacks
     def get_buckets(
             self,
-            storage_index,
+            storage_index
     ):
         immutable_client = StorageClientImmutables(self._http_client)
         share_numbers = yield immutable_client.list_shares(
@@ -1160,3 +1163,29 @@ class _HTTPStorageServer(object):
             ))
             for share_num in share_numbers
         })
+
+    def add_lease(
+        self,
+        storage_index,
+        renew_secret,
+        cancel_secret
+    ):
+        immutable_client = StorageClientImmutables(self._http_client)
+        return immutable_client.add_or_renew_lease(
+            storage_index, renew_secret, cancel_secret
+        )
+
+    def advise_corrupt_share(
+        self,
+        share_type,
+        storage_index,
+        shnum,
+        reason: bytes
+    ):
+        if share_type == b"immutable":
+            imm_client = StorageClientImmutables(self._http_client)
+            return imm_client.advise_corrupt_share(
+                storage_index, shnum, str(reason, "utf-8", errors="backslashreplace")
+            )
+        else:
+            raise NotImplementedError()  # future tickets
