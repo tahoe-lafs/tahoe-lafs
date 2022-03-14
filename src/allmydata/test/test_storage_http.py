@@ -49,7 +49,27 @@ from ..storage.http_client import (
     StorageClientGeneral,
     _encode_si,
 )
+from ..storage.http_common import get_content_type
 from ..storage.common import si_b2a
+
+
+class HTTPUtilities(SyncTestCase):
+    """Tests for HTTP common utilities."""
+
+    def test_get_content_type(self):
+        """``get_content_type()`` extracts the content-type from the header."""
+
+        def assert_header_values_result(values, expected_content_type):
+            headers = Headers()
+            if values:
+                headers.setRawHeaders("Content-Type", values)
+            content_type = get_content_type(headers)
+            self.assertEqual(content_type, expected_content_type)
+
+        assert_header_values_result(["text/html"], "text/html")
+        assert_header_values_result([], None)
+        assert_header_values_result(["text/plain", "application/json"], "text/plain")
+        assert_header_values_result(["text/html;encoding=utf-8"], "text/html")
 
 
 def _post_process(params):

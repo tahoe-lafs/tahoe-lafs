@@ -13,14 +13,13 @@ import attr
 from cbor2 import loads, dumps
 from collections_extended import RangeMap
 from werkzeug.datastructures import Range, ContentRange
-from werkzeug.http import parse_options_header
 from twisted.web.http_headers import Headers
 from twisted.web import http
 from twisted.internet.defer import inlineCallbacks, returnValue, fail, Deferred
 from hyperlink import DecodedURL
 import treq
 
-from .http_common import swissnum_auth_header, Secrets
+from .http_common import swissnum_auth_header, Secrets, get_content_type
 from .common import si_b2a
 
 
@@ -40,9 +39,7 @@ class ClientException(Exception):
 def _decode_cbor(response):
     """Given HTTP response, return decoded CBOR body."""
     if response.code > 199 and response.code < 300:
-        content_type = parse_options_header(
-            (response.headers.getRawHeaders("content-type") or [None])[0]
-        )[0]
+        content_type = get_content_type(response.headers)
         if content_type == "application/cbor":
             # TODO limit memory usage
             # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3872
