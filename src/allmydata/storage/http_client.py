@@ -92,11 +92,15 @@ class StorageClient(object):
         lease_cancel_secret=None,
         upload_secret=None,
         headers=None,
+        message_to_serialize=None,
         **kwargs
     ):
         """
         Like ``treq.request()``, but with optional secrets that get translated
         into corresponding HTTP headers.
+
+        If ``message_to_serialize`` is set, it will be serialized (by default
+        with CBOR) and set as the request body.
         """
         headers = self._get_headers(headers)
 
@@ -115,6 +119,13 @@ class StorageClient(object):
 
         # Note we can accept CBOR:
         headers.addRawHeader("Accept", CBOR_MIME_TYPE)
+
+        # If there's a request message, serialize it and set the Content-Type
+        # header:
+        if message_to_serialize is not None:
+            assert "data" not in kwargs
+            kwargs["data"] = dumps(message_to_serialize)
+            headers.addRawHeader("Content-Type", CBOR_MIME_TYPE)
 
         return self._treq.request(method, url, headers=headers, **kwargs)
 
@@ -182,17 +193,15 @@ class StorageClientImmutables(object):
         storage index failed the result will fire with an exception.
         """
         url = self._client.relative_url("/v1/immutable/" + _encode_si(storage_index))
-        message = dumps(
-            {"share-numbers": share_numbers, "allocated-size": allocated_size}
-        )
+        message = {"share-numbers": share_numbers, "allocated-size": allocated_size}
+
         response = yield self._client.request(
             "POST",
             url,
             lease_renew_secret=lease_renew_secret,
             lease_cancel_secret=lease_cancel_secret,
             upload_secret=upload_secret,
-            data=message,
-            headers=Headers({"content-type": [CBOR_MIME_TYPE]}),
+            message_to_serialize=message,
         )
         decoded_response = yield _decode_cbor(response)
         returnValue(
@@ -363,13 +372,8 @@ class StorageClientImmutables(object):
                 _encode_si(storage_index), share_number
             )
         )
-        message = dumps({"reason": reason})
-        response = yield self._client.request(
-            "POST",
-            url,
-            data=message,
-            headers=Headers({"content-type": [CBOR_MIME_TYPE]}),
-        )
+        message = {"reason": reason}
+        response = yield self._client.request("POST", url, message_to_serialize=message)
         if response.code == http.OK:
             return
         else:
