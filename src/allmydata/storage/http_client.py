@@ -58,8 +58,14 @@ class ClientException(Exception):
 def _decode_cbor(response):
     """Given HTTP response, return decoded CBOR body."""
     if response.code > 199 and response.code < 300:
-        return treq.content(response).addCallback(loads)
-    return fail(ClientException(response.code, response.phrase))
+        if response.headers.getRawHeaders("content-type") == ["application/cbor"]:
+            # TODO limit memory usage
+            # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3872
+            return treq.content(response).addCallback(loads)
+        else:
+            raise ClientException(-1, "Server didn't send CBOR")
+    else:
+        return fail(ClientException(response.code, response.phrase))
 
 
 @attr.s
