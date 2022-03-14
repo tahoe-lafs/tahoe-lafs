@@ -19,7 +19,7 @@ from twisted.internet.defer import inlineCallbacks, returnValue, fail, Deferred
 from hyperlink import DecodedURL
 import treq
 
-from .http_common import swissnum_auth_header, Secrets, get_content_type
+from .http_common import swissnum_auth_header, Secrets, get_content_type, CBOR_MIME_TYPE
 from .common import si_b2a
 
 
@@ -40,7 +40,7 @@ def _decode_cbor(response):
     """Given HTTP response, return decoded CBOR body."""
     if response.code > 199 and response.code < 300:
         content_type = get_content_type(response.headers)
-        if content_type == "application/cbor":
+        if content_type == CBOR_MIME_TYPE:
             # TODO limit memory usage
             # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3872
             return treq.content(response).addCallback(loads)
@@ -186,7 +186,7 @@ class StorageClientImmutables(object):
             lease_cancel_secret=lease_cancel_secret,
             upload_secret=upload_secret,
             data=message,
-            headers=Headers({"content-type": ["application/cbor"]}),
+            headers=Headers({"content-type": [CBOR_MIME_TYPE]}),
         )
         decoded_response = yield _decode_cbor(response)
         returnValue(
@@ -362,7 +362,7 @@ class StorageClientImmutables(object):
             "POST",
             url,
             data=message,
-            headers=Headers({"content-type": ["application/cbor"]}),
+            headers=Headers({"content-type": [CBOR_MIME_TYPE]}),
         )
         if response.code == http.OK:
             return

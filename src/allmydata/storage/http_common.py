@@ -9,6 +9,8 @@ from typing import Optional
 from werkzeug.http import parse_options_header
 from twisted.web.http_headers import Headers
 
+CBOR_MIME_TYPE = "application/cbor"
+
 
 def get_content_type(headers: Headers) -> Optional[str]:
     """

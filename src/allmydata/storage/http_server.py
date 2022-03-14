@@ -23,7 +23,7 @@ from werkzeug.datastructures import ContentRange
 from cbor2 import dumps, loads
 
 from .server import StorageServer
-from .http_common import swissnum_auth_header, Secrets, get_content_type
+from .http_common import swissnum_auth_header, Secrets, get_content_type, CBOR_MIME_TYPE
 from .common import si_a2b
 from .immutable import BucketWriter, ConflictingWriteError
 from ..util.hashutil import timing_safe_compare
@@ -254,11 +254,12 @@ class HTTPServer(object):
 
         Also sets the appropriate ``Content-Type`` header on the response.
         """
-        cbor_mime = "application/cbor"
-        accept_headers = request.requestHeaders.getRawHeaders("accept") or [cbor_mime]
+        accept_headers = request.requestHeaders.getRawHeaders("accept") or [
+            CBOR_MIME_TYPE
+        ]
         accept = parse_accept_header(accept_headers[0])
-        if accept.best == cbor_mime:
-            request.setHeader("Content-Type", cbor_mime)
+        if accept.best == CBOR_MIME_TYPE:
+            request.setHeader("Content-Type", CBOR_MIME_TYPE)
             # TODO if data is big, maybe want to use a temporary file eventually...
             # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3872
             return dumps(data)
@@ -272,7 +273,7 @@ class HTTPServer(object):
         Read encoded request body data, decoding it with CBOR by default.
         """
         content_type = get_content_type(request.requestHeaders)
-        if content_type == "application/cbor":
+        if content_type == CBOR_MIME_TYPE:
             # TODO limit memory usage, client could send arbitrarily large data...
             # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3872
             return loads(request.content.read())
