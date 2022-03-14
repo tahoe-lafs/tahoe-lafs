@@ -11,7 +11,11 @@ import binascii
 from klein import Klein
 from twisted.web import http
 import attr
-from werkzeug.http import parse_range_header, parse_content_range_header
+from werkzeug.http import (
+    parse_range_header,
+    parse_content_range_header,
+    parse_accept_header,
+)
 from werkzeug.routing import BaseConverter, ValidationError
 from werkzeug.datastructures import ContentRange
 
@@ -243,20 +247,27 @@ class HTTPServer(object):
         """Return twisted.web ``Resource`` for this object."""
         return self._app.resource()
 
-    def _cbor(self, request, data):
-        """Return CBOR-encoded data."""
-        # TODO Might want to optionally send JSON someday, based on Accept
-        # headers, see https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3861
-        request.setHeader("Content-Type", "application/cbor")
-        # TODO if data is big, maybe want to use a temporary file eventually...
-        return dumps(data)
+    def _send_encoded(self, request, data):
+        """Return encoded data, by default using CBOR."""
+        cbor_mime = "application/cbor"
+        accept_headers = request.requestHeaders.getRawHeaders("accept") or [cbor_mime]
+        accept = parse_accept_header(accept_headers[0])
+        if accept.best == cbor_mime:
+            request.setHeader("Content-Type", cbor_mime)
+            # TODO if data is big, maybe want to use a temporary file eventually...
+            # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3872
+            return dumps(data)
+        else:
+            # TODO Might want to optionally send JSON someday:
+            # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3861
+            raise _HTTPError(http.NOT_ACCEPTABLE)
 
     ##### Generic APIs #####
 
     @_authorized_route(_app, set(), "/v1/version", methods=["GET"])
     def version(self, request, authorization):
         """Return version information."""
-        return self._cbor(request, self._storage_server.get_version())
+        return self._send_encoded(request, self._storage_server.get_version())
 
     ##### Immutable APIs #####
 
@@ -291,7 +302,7 @@ class HTTPServer(object):
                 storage_index, share_number, upload_secret, bucket
             )
 
-        return self._cbor(
+        return self._send_encoded(
             request,
             {
                 "already-have": set(already_got),
@@ -367,7 +378,7 @@ class HTTPServer(object):
         required = []
         for start, end, _ in bucket.required_ranges().ranges():
             required.append({"begin": start, "end": end})
-        return self._cbor(request, {"required": required})
+        return self._send_encoded(request, {"required": required})
 
     @_authorized_route(
         _app,
@@ -380,7 +391,7 @@ class HTTPServer(object):
         List shares for the given storage index.
         """
         share_numbers = list(self._storage_server.get_buckets(storage_index).keys())
-        return self._cbor(request, share_numbers)
+        return self._send_encoded(request, share_numbers)
 
     @_authorized_route(
         _app,

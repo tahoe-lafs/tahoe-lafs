@@ -358,6 +358,17 @@ class GenericHTTPAPITests(SyncTestCase):
         with assert_fails_with_http_code(self, http.UNAUTHORIZED):
             result_of(client.get_version())
 
+    def test_unsupported_mime_type(self):
+        """
+        The client can request mime types other than CBOR, and if they are
+        unsupported a NOT ACCEPTABLE (406) error will be returned.
+        """
+        client = StorageClientGeneral(
+            StorageClientWithHeadersOverride(self.http.client, {"accept": "image/gif"})
+        )
+        with assert_fails_with_http_code(self, http.NOT_ACCEPTABLE):
+            result_of(client.get_version())
+
     def test_version(self):
         """
         The client can return the version.
