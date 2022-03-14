@@ -249,7 +249,10 @@ class HTTPServer(object):
 
     def _send_encoded(self, request, data):
         """
-        Return encoded data as the HTTP body response, by default using CBOR.
+        Return encoded data suitable for writing as the HTTP body response, by
+        default using CBOR.
+
+        Also sets the appropriate ``Content-Type`` header on the response.
         """
         cbor_mime = "application/cbor"
         accept_headers = request.requestHeaders.getRawHeaders("accept") or [cbor_mime]
