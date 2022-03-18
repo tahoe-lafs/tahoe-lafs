@@ -2,7 +2,7 @@
 HTTP server for storage.
 """
 
-from typing import Dict, List, Set, Tuple
+from typing import Dict, List, Set, Tuple, Any
 
 from functools import wraps
 from base64 import b64decode
@@ -11,7 +11,11 @@ import binascii
 from klein import Klein
 from twisted.web import http
 import attr
-from werkzeug.http import parse_range_header, parse_content_range_header
+from werkzeug.http import (
+    parse_range_header,
+    parse_content_range_header,
+    parse_accept_header,
+)
 from werkzeug.routing import BaseConverter, ValidationError
 from werkzeug.datastructures import ContentRange
 
@@ -19,7 +23,7 @@ from werkzeug.datastructures import ContentRange
 from cbor2 import dumps, loads
 
 from .server import StorageServer
-from .http_common import swissnum_auth_header, Secrets
+from .http_common import swissnum_auth_header, Secrets, get_content_type, CBOR_MIME_TYPE
 from .common import si_a2b
 from .immutable import BucketWriter, ConflictingWriteError
 from ..util.hashutil import timing_safe_compare
@@ -243,20 +247,45 @@ class HTTPServer(object):
         """Return twisted.web ``Resource`` for this object."""
         return self._app.resource()
 
-    def _cbor(self, request, data):
-        """Return CBOR-encoded data."""
-        # TODO Might want to optionally send JSON someday, based on Accept
-        # headers, see https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3861
-        request.setHeader("Content-Type", "application/cbor")
-        # TODO if data is big, maybe want to use a temporary file eventually...
-        return dumps(data)
+    def _send_encoded(self, request, data):
+        """
+        Return encoded data suitable for writing as the HTTP body response, by
+        default using CBOR.
+
+        Also sets the appropriate ``Content-Type`` header on the response.
+        """
+        accept_headers = request.requestHeaders.getRawHeaders("accept") or [
+            CBOR_MIME_TYPE
+        ]
+        accept = parse_accept_header(accept_headers[0])
+        if accept.best == CBOR_MIME_TYPE:
+            request.setHeader("Content-Type", CBOR_MIME_TYPE)
+            # TODO if data is big, maybe want to use a temporary file eventually...
+            # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3872
+            return dumps(data)
+        else:
+            # TODO Might want to optionally send JSON someday:
+            # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3861
+            raise _HTTPError(http.NOT_ACCEPTABLE)
+
+    def _read_encoded(self, request) -> Any:
+        """
+        Read encoded request body data, decoding it with CBOR by default.
+        """
+        content_type = get_content_type(request.requestHeaders)
+        if content_type == CBOR_MIME_TYPE:
+            # TODO limit memory usage, client could send arbitrarily large data...
+            # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3872
+            return loads(request.content.read())
+        else:
+            raise _HTTPError(http.UNSUPPORTED_MEDIA_TYPE)
 
     ##### Generic APIs #####
 
     @_authorized_route(_app, set(), "/v1/version", methods=["GET"])
     def version(self, request, authorization):
         """Return version information."""
-        return self._cbor(request, self._storage_server.get_version())
+        return self._send_encoded(request, self._storage_server.get_version())
 
     ##### Immutable APIs #####
 
@@ -269,7 +298,7 @@ class HTTPServer(object):
     def allocate_buckets(self, request, authorization, storage_index):
         """Allocate buckets."""
         upload_secret = authorization[Secrets.UPLOAD]
-        info = loads(request.content.read())
+        info = self._read_encoded(request)
 
         # We do NOT validate the upload secret for existing bucket uploads.
         # Another upload may be happening in parallel, with a different upload
@@ -291,7 +320,7 @@ class HTTPServer(object):
                 storage_index, share_number, upload_secret, bucket
             )
 
-        return self._cbor(
+        return self._send_encoded(
             request,
             {
                 "already-have": set(already_got),
@@ -367,7 +396,7 @@ class HTTPServer(object):
         required = []
         for start, end, _ in bucket.required_ranges().ranges():
             required.append({"begin": start, "end": end})
-        return self._cbor(request, {"required": required})
+        return self._send_encoded(request, {"required": required})
 
     @_authorized_route(
         _app,
@@ -380,7 +409,7 @@ class HTTPServer(object):
         List shares for the given storage index.
         """
         share_numbers = list(self._storage_server.get_buckets(storage_index).keys())
-        return self._cbor(request, share_numbers)
+        return self._send_encoded(request, share_numbers)
 
     @_authorized_route(
         _app,
@@ -469,6 +498,6 @@ class HTTPServer(object):
         except KeyError:
             raise _HTTPError(http.NOT_FOUND)
 
-        info = loads(request.content.read())
+        info = self._read_encoded(request)
         bucket.advise_corrupt_share(info["reason"].encode("utf-8"))
         return b""

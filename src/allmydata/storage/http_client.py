@@ -2,27 +2,8 @@
 HTTP client that talks to the HTTP storage server.
 """
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
-from future.utils import PY2
-
-if PY2:
-    # fmt: off
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
-    # fmt: on
-    from collections import defaultdict
-
-    Optional = Set = defaultdict(
-        lambda: None
-    )  # some garbage to just make this module import
-else:
-    # typing module not available in Python 2, and we only do type checking in
-    # Python 3 anyway.
-    from typing import Union, Set, Optional
-    from treq.testing import StubTreq
+from typing import Union, Set, Optional
+from treq.testing import StubTreq
 
 from base64 import b64encode
 
@@ -38,7 +19,7 @@ from twisted.internet.defer import inlineCallbacks, returnValue, fail, Deferred
 from hyperlink import DecodedURL
 import treq
 
-from .http_common import swissnum_auth_header, Secrets
+from .http_common import swissnum_auth_header, Secrets, get_content_type, CBOR_MIME_TYPE
 from .common import si_b2a
 
 
@@ -58,8 +39,15 @@ class ClientException(Exception):
 def _decode_cbor(response):
     """Given HTTP response, return decoded CBOR body."""
     if response.code > 199 and response.code < 300:
-        return treq.content(response).addCallback(loads)
-    return fail(ClientException(response.code, response.phrase))
+        content_type = get_content_type(response.headers)
+        if content_type == CBOR_MIME_TYPE:
+            # TODO limit memory usage
+            # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3872
+            return treq.content(response).addCallback(loads)
+        else:
+            raise ClientException(-1, "Server didn't send CBOR")
+    else:
+        return fail(ClientException(response.code, response.phrase))
 
 
 @attr.s
@@ -104,13 +92,19 @@ class StorageClient(object):
         lease_cancel_secret=None,
         upload_secret=None,
         headers=None,
+        message_to_serialize=None,
         **kwargs
     ):
         """
         Like ``treq.request()``, but with optional secrets that get translated
         into corresponding HTTP headers.
+
+        If ``message_to_serialize`` is set, it will be serialized (by default
+        with CBOR) and set as the request body.
         """
         headers = self._get_headers(headers)
+
+        # Add secrets:
         for secret, value in [
             (Secrets.LEASE_RENEW, lease_renew_secret),
             (Secrets.LEASE_CANCEL, lease_cancel_secret),
@@ -122,6 +116,21 @@ class StorageClient(object):
                 "X-Tahoe-Authorization",
                 b"%s %s" % (secret.value.encode("ascii"), b64encode(value).strip()),
             )
+
+        # Note we can accept CBOR:
+        headers.addRawHeader("Accept", CBOR_MIME_TYPE)
+
+        # If there's a request message, serialize it and set the Content-Type
+        # header:
+        if message_to_serialize is not None:
+            if "data" in kwargs:
+                raise TypeError(
+                    "Can't use both `message_to_serialize` and `data` "
+                    "as keyword arguments at the same time"
+                )
+            kwargs["data"] = dumps(message_to_serialize)
+            headers.addRawHeader("Content-Type", CBOR_MIME_TYPE)
+
         return self._treq.request(method, url, headers=headers, **kwargs)
 
 
@@ -188,17 +197,15 @@ class StorageClientImmutables(object):
         storage index failed the result will fire with an exception.
         """
         url = self._client.relative_url("/v1/immutable/" + _encode_si(storage_index))
-        message = dumps(
-            {"share-numbers": share_numbers, "allocated-size": allocated_size}
-        )
+        message = {"share-numbers": share_numbers, "allocated-size": allocated_size}
+
         response = yield self._client.request(
             "POST",
             url,
             lease_renew_secret=lease_renew_secret,
             lease_cancel_secret=lease_cancel_secret,
             upload_secret=upload_secret,
-            data=message,
-            headers=Headers({"content-type": ["application/cbor"]}),
+            message_to_serialize=message,
         )
         decoded_response = yield _decode_cbor(response)
         returnValue(
@@ -369,13 +376,8 @@ class StorageClientImmutables(object):
                 _encode_si(storage_index), share_number
             )
         )
-        message = dumps({"reason": reason})
-        response = yield self._client.request(
-            "POST",
-            url,
-            data=message,
-            headers=Headers({"content-type": ["application/cbor"]}),
-        )
+        message = {"reason": reason}
+        response = yield self._client.request("POST", url, message_to_serialize=message)
         if response.code == http.OK:
             return
         else:

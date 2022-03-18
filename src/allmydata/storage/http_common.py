@@ -1,15 +1,26 @@
 """
 Common HTTP infrastructure for the storge server.
 """
-from future.utils import PY2
-
-if PY2:
-    # fmt: off
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
-    # fmt: on
 
 from enum import Enum
 from base64 import b64encode
+from typing import Optional
+
+from werkzeug.http import parse_options_header
+from twisted.web.http_headers import Headers
+
+CBOR_MIME_TYPE = "application/cbor"
+
+
+def get_content_type(headers: Headers) -> Optional[str]:
+    """
+    Get the content type from the HTTP ``Content-Type`` header.
+
+    Returns ``None`` if no content-type was set.
+    """
+    values = headers.getRawHeaders("content-type") or [None]
+    content_type = parse_options_header(values[0])[0] or None
+    return content_type
 
 
 def swissnum_auth_header(swissnum):  # type: (bytes) -> bytes
