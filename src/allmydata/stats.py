@@ -16,8 +16,9 @@ from allmydata.interfaces import IStatsProducer
 
 @implementer(IStatsProducer)
 class CPUUsageMonitor(service.MultiService):
-    HISTORY_LENGTH = 15
-    POLL_INTERVAL = 60  # type: float
+    HISTORY_LENGTH: int = 15
+    POLL_INTERVAL: float = 60
+    initial_cpu: float = 0.0
 
     def __init__(self):
         service.MultiService.__init__(self)
@@ -26,7 +27,6 @@ class CPUUsageMonitor(service.MultiService):
         # rest of the program will be run by the child process, after twistd
         # forks. Instead, set self.initial_cpu as soon as the reactor starts
         # up.
-        self.initial_cpu = 0.0 # just in case
         eventually(self._set_initial_cpu)
         self.samples: list[tuple[float, float]] = deque([], self.HISTORY_LENGTH)
         # we provide 1min, 5min, and 15min moving averages
