@@ -123,7 +123,11 @@ class StorageClient(object):
         # If there's a request message, serialize it and set the Content-Type
         # header:
         if message_to_serialize is not None:
-            assert "data" not in kwargs
+            if "data" in kwargs:
+                raise TypeError(
+                    "Can't use both `message_to_serialize` and `data` "
+                    "as keyword arguments at the same time"
+                )
             kwargs["data"] = dumps(message_to_serialize)
             headers.addRawHeader("Content-Type", CBOR_MIME_TYPE)
 
