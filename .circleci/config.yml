@@ -398,6 +398,7 @@ jobs:
         image: "nixos/nix:2.3.16"
 
     environment:
+      <<: *UTF_8_ENVIRONMENT
       # CACHIX_AUTH_TOKEN is manually set in the CircleCI web UI and
       # allows us to push to CACHIX_NAME.  We only need this set for
       # `cachix use` in this step.
