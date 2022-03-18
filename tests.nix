@@ -73,6 +73,7 @@ let
 in
 # Make a derivation that runs the unit test suite.
 pkgs.runCommand "tahoe-lafs-tests" { } ''
+  export TAHOE_LAFS_HYPOTHESIS_PROFILE=ci
   ${python-env}/bin/python -m twisted.trial -j $NIX_BUILD_CORES allmydata
 
   # It's not cool to put the whole _trial_temp into $out because it has weird
