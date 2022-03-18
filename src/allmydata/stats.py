@@ -1,6 +1,8 @@
 """
 Ported to Python 3.
 """
+
+from collections import deque
 from time import process_time
 import time
 
@@ -26,7 +28,7 @@ class CPUUsageMonitor(service.MultiService):
         # up.
         self.initial_cpu = 0.0 # just in case
         eventually(self._set_initial_cpu)
-        self.samples = []
+        self.samples: list[tuple[float, float]] = deque([], self.HISTORY_LENGTH)
         # we provide 1min, 5min, and 15min moving averages
         TimerService(self.POLL_INTERVAL, self.check).setServiceParent(self)
 
@@ -37,8 +39,6 @@ class CPUUsageMonitor(service.MultiService):
         now_wall = time.time()
         now_cpu = process_time()
         self.samples.append( (now_wall, now_cpu) )
-        while len(self.samples) > self.HISTORY_LENGTH+1:
-            self.samples.pop(0)
 
     def _average_N_minutes(self, size):
         if len(self.samples) < size+1:
