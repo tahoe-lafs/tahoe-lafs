@@ -9,7 +9,6 @@ import time
 from twisted.application import service
 from twisted.application.internet import TimerService
 from zope.interface import implementer
-from foolscap.api import eventually
 
 from allmydata.util import log, dictutil
 from allmydata.interfaces import IStatsProducer
@@ -22,18 +21,13 @@ class CPUUsageMonitor(service.MultiService):
 
     def __init__(self):
         service.MultiService.__init__(self)
-        # we don't use process_time() here, because the constructor is run by
-        # the twistd parent process (as it loads the .tac file), whereas the
-        # rest of the program will be run by the child process, after twistd
-        # forks. Instead, set self.initial_cpu as soon as the reactor starts
-        # up.
-        eventually(self._set_initial_cpu)
         self.samples: list[tuple[float, float]] = deque([], self.HISTORY_LENGTH)
         # we provide 1min, 5min, and 15min moving averages
         TimerService(self.POLL_INTERVAL, self.check).setServiceParent(self)
 
-    def _set_initial_cpu(self):
+    def startService(self):
         self.initial_cpu = process_time()
+        return super().startService()
 
     def check(self):
         now_wall = time.time()
