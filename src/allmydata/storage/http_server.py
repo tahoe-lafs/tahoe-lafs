@@ -534,6 +534,8 @@ def listen_tls(
     The hostname is the external IP or hostname clients will connect to; it
     does not modify what interfaces the server listens on.  To set the
     listening interface, use the ``interface`` argument.
+
+    Port can be 0 to choose a random port.
     """
     endpoint_string = "ssl:privateKey={}:certKey={}:port={}".format(
         quoteStringArgument(str(private_key_path)),
@@ -545,13 +547,19 @@ def listen_tls(
     endpoint = serverFromString(reactor, endpoint_string)
 
     def build_furl(listening_port: IListeningPort) -> DecodedURL:
-        furl = DecodedURL()
-        furl.fragment = "v=1"  # HTTP-based
-        furl.host = hostname
-        furl.port = listening_port.getHost().port
-        furl.path = (server._swissnum,)
-        furl.user = get_spki_hash(load_pem_x509_certificate(cert_path.read_bytes()))
-        furl.scheme = "pb"
+        furl = DecodedURL().replace(
+            fragment="v=1",  # HTTP-based
+            host=hostname,
+            port=listening_port.getHost().port,
+            path=(str(server._swissnum, "ascii"),),
+            userinfo=[
+                str(
+                    get_spki_hash(load_pem_x509_certificate(cert_path.read_bytes())),
+                    "ascii",
+                )
+            ],
+            scheme="pb",
+        )
         return furl
 
     return endpoint.listen(Site(server.get_resource())).addCallback(

@@ -3,7 +3,6 @@ HTTP client that talks to the HTTP storage server.
 """
 
 from typing import Union, Set, Optional
-from treq.testing import StubTreq
 
 from base64 import b64encode
 
@@ -77,7 +76,7 @@ class StorageClient(object):
         self._treq = treq
 
     @classmethod
-    def from_furl(cls, furl: DecodedURL) -> "StorageClient":
+    def from_furl(cls, furl: DecodedURL, treq=treq) -> "StorageClient":
         """
         Create a ``StorageClient`` for the given furl.
         """
@@ -85,6 +84,9 @@ class StorageClient(object):
         assert furl.scheme == "pb"
         swissnum = furl.path[0].encode("ascii")
         certificate_hash = furl.user.encode("ascii")
+
+        https_url = DecodedURL().replace(scheme="https", host=furl.host, port=furl.port)
+        return cls(https_url, swissnum, treq)
 
     def relative_url(self, path):
         """Get a URL relative to the base URL."""

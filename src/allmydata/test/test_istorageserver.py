@@ -24,12 +24,11 @@ else:
 
 from random import Random
 from unittest import SkipTest
+from pathlib import Path
 
 from twisted.internet.defer import inlineCallbacks, returnValue, succeed
 from twisted.internet.task import Clock
 from twisted.internet import reactor
-from twisted.internet.endpoints import serverFromString
-from twisted.web.server import Site
 from twisted.web.client import Agent, HTTPConnectionPool
 from hyperlink import DecodedURL
 from treq.client import HTTPClient
@@ -40,7 +39,7 @@ from allmydata.interfaces import IStorageServer  # really, IStorageClient
 from .common_system import SystemTestMixin
 from .common import AsyncTestCase, SameProcessStreamEndpointAssigner
 from allmydata.storage.server import StorageServer  # not a IStorageServer!!
-from allmydata.storage.http_server import HTTPServer
+from allmydata.storage.http_server import HTTPServer, listen_tls
 from allmydata.storage.http_client import StorageClient
 from allmydata.storage_client import _HTTPStorageServer
 
@@ -1074,27 +1073,29 @@ class _HTTPMixin(_SharedMixin):
         swissnum = b"1234"
         http_storage_server = HTTPServer(self.server, swissnum)
 
-        # Listen on randomly assigned port:
-        tcp_address, endpoint_string = self._port_assigner.assign(reactor)
-        _, host, port = tcp_address.split(":")
-        port = int(port)
-        endpoint = serverFromString(reactor, endpoint_string)
-        listening_port = yield endpoint.listen(Site(http_storage_server.get_resource()))
+        # Listen on randomly assigned port, using self-signed cert we generated
+        # manually:
+        certs_dir = Path(__file__).parent / "certs"
+        furl, listening_port = yield listen_tls(
+            reactor,
+            http_storage_server,
+            "127.0.0.1",
+            0,
+            certs_dir / "private.key",
+            certs_dir / "domain.crt",
+            interface="127.0.0.1",
+        )
         self.addCleanup(listening_port.stopListening)
 
         # Create HTTP client with non-persistent connections, so we don't leak
         # state across tests:
         treq_client = HTTPClient(
-            Agent(reactor, HTTPConnectionPool(reactor, persistent=False))
+            Agent(reactor, pool=HTTPConnectionPool(reactor, persistent=False))
         )
 
         returnValue(
             _HTTPStorageServer.from_http_client(
-                StorageClient(
-                    DecodedURL().replace(scheme="http", host=host, port=port),
-                    swissnum,
-                    treq=treq_client,
-                )
+                StorageClient.from_furl(furl, treq_client)
             )
         )
         # Eventually should also:

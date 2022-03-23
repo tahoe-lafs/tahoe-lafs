@@ -48,4 +48,4 @@ def get_spki_hash(certificate: Certificate) -> bytes:
     public_key_bytes = certificate.public_key().public_bytes(
         Encoding.DER, PublicFormat.SubjectPublicKeyInfo
     )
-    return b64encode(sha256(public_key_bytes).digest()).strip()
+    return b64encode(sha256(public_key_bytes).digest()).strip().rstrip(b"=")
