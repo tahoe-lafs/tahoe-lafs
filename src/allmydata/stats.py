@@ -5,6 +5,7 @@ Ported to Python 3.
 from collections import deque
 from time import process_time
 import time
+from typing import Deque, Tuple
 
 from twisted.application import service
 from twisted.application.internet import TimerService
@@ -21,7 +22,7 @@ class CPUUsageMonitor(service.MultiService):
 
     def __init__(self):
         service.MultiService.__init__(self)
-        self.samples: list[tuple[float, float]] = deque([], self.HISTORY_LENGTH + 1)
+        self.samples: Deque[Tuple[float, float]] = deque([], self.HISTORY_LENGTH + 1)
         # we provide 1min, 5min, and 15min moving averages
         TimerService(self.POLL_INTERVAL, self.check).setServiceParent(self)
 
