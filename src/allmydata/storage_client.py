@@ -58,7 +58,7 @@ from twisted.plugin import (
 from eliot import (
     log_call,
 )
-from foolscap.api import eventually
+from foolscap.api import eventually, RemoteException
 from foolscap.reconnector import (
     ReconnectionInfo,
 )
@@ -75,7 +75,10 @@ from allmydata.util.observer import ObserverList
 from allmydata.util.rrefutil import add_version_to_remote_reference
 from allmydata.util.hashutil import permute_server_hash
 from allmydata.util.dictutil import BytesKeyDict, UnicodeKeyDict
-from allmydata.storage.http_client import StorageClient, StorageClientImmutables
+from allmydata.storage.http_client import (
+    StorageClient, StorageClientImmutables, StorageClientGeneral,
+    ClientException as HTTPClientException
+)
 
 
 # who is responsible for de-duplication?
@@ -1035,8 +1038,13 @@ class _FakeRemoteReference(object):
     """
     local_object = attr.ib(type=object)
 
+    @defer.inlineCallbacks
     def callRemote(self, action, *args, **kwargs):
-        return getattr(self.local_object, action)(*args, **kwargs)
+        try:
+            result = yield getattr(self.local_object, action)(*args, **kwargs)
+            defer.returnValue(result)
+        except HTTPClientException as e:
+            raise RemoteException(e.args)
 
 
 @attr.s
@@ -1051,7 +1059,8 @@ class _HTTPBucketWriter(object):
     finished = attr.ib(type=bool, default=False)
 
     def abort(self):
-        pass  # TODO in later ticket
+        return self.client.abort_upload(self.storage_index, self.share_number,
+                                        self.upload_secret)
 
     @defer.inlineCallbacks
     def write(self, offset, data):
@@ -1085,7 +1094,10 @@ class _HTTPBucketReader(object):
         )
 
     def advise_corrupt_share(self, reason):
-       pass  # TODO in later ticket
+       return self.client.advise_corrupt_share(
+           self.storage_index, self.share_number,
+           str(reason, "utf-8", errors="backslashreplace")
+       )
 
 
 # WORK IN PROGRESS, for now it doesn't actually implement whole thing.
@@ -1105,7 +1117,7 @@ class _HTTPStorageServer(object):
         return _HTTPStorageServer(http_client=http_client)
 
     def get_version(self):
-        return self._http_client.get_version()
+        return StorageClientGeneral(self._http_client).get_version()
 
     @defer.inlineCallbacks
     def allocate_buckets(
@@ -1115,7 +1127,7 @@ class _HTTPStorageServer(object):
             cancel_secret,
             sharenums,
             allocated_size,
-            canary,
+            canary
     ):
         upload_secret = urandom(20)
         immutable_client = StorageClientImmutables(self._http_client)
@@ -1139,7 +1151,7 @@ class _HTTPStorageServer(object):
     @defer.inlineCallbacks
     def get_buckets(
             self,
-            storage_index,
+            storage_index
     ):
         immutable_client = StorageClientImmutables(self._http_client)
         share_numbers = yield immutable_client.list_shares(
@@ -1151,3 +1163,29 @@ class _HTTPStorageServer(object):
             ))
             for share_num in share_numbers
         })
+
+    def add_lease(
+        self,
+        storage_index,
+        renew_secret,
+        cancel_secret
+    ):
+        immutable_client = StorageClientImmutables(self._http_client)
+        return immutable_client.add_or_renew_lease(
+            storage_index, renew_secret, cancel_secret
+        )
+
+    def advise_corrupt_share(
+        self,
+        share_type,
+        storage_index,
+        shnum,
+        reason: bytes
+    ):
+        if share_type == b"immutable":
+            imm_client = StorageClientImmutables(self._http_client)
+            return imm_client.advise_corrupt_share(
+                storage_index, shnum, str(reason, "utf-8", errors="backslashreplace")
+            )
+        else:
+            raise NotImplementedError()  # future tickets

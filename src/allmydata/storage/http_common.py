@@ -1,12 +1,30 @@
 """
 Common HTTP infrastructure for the storge server.
 """
+
 from enum import Enum
 from base64 import b64encode
 from hashlib import sha256
+from typing import Optional
 
 from cryptography.x509 import Certificate
 from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
+
+from werkzeug.http import parse_options_header
+from twisted.web.http_headers import Headers
+
+CBOR_MIME_TYPE = "application/cbor"
+
+
+def get_content_type(headers: Headers) -> Optional[str]:
+    """
+    Get the content type from the HTTP ``Content-Type`` header.
+
+    Returns ``None`` if no content-type was set.
+    """
+    values = headers.getRawHeaders("content-type") or [None]
+    content_type = parse_options_header(values[0])[0] or None
+    return content_type
 
 
 def swissnum_auth_header(swissnum):  # type: (bytes) -> bytes

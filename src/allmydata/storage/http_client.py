@@ -2,12 +2,8 @@
 HTTP client that talks to the HTTP storage server.
 """
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
 from typing import Union, Set, Optional
+from treq.testing import StubTreq
 
 from base64 import b64encode
 
@@ -25,7 +21,7 @@ import treq
 from treq.client import HTTPClient
 from treq.testing import StubTreq
 
-from .http_common import swissnum_auth_header, Secrets
+from .http_common import swissnum_auth_header, Secrets, get_content_type, CBOR_MIME_TYPE
 from .common import si_b2a
 
 
@@ -35,14 +31,25 @@ def _encode_si(si):  # type: (bytes) -> str
 
 
 class ClientException(Exception):
-    """An unexpected error."""
+    """An unexpected response code from the server."""
+
+    def __init__(self, code, *additional_args):
+        Exception.__init__(self, code, *additional_args)
+        self.code = code
 
 
 def _decode_cbor(response):
     """Given HTTP response, return decoded CBOR body."""
     if response.code > 199 and response.code < 300:
-        return treq.content(response).addCallback(loads)
-    return fail(ClientException(response.code, response.phrase))
+        content_type = get_content_type(response.headers)
+        if content_type == CBOR_MIME_TYPE:
+            # TODO limit memory usage
+            # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3872
+            return treq.content(response).addCallback(loads)
+        else:
+            raise ClientException(-1, "Server didn't send CBOR")
+    else:
+        return fail(ClientException(response.code, response.phrase))
 
 
 @attr.s
@@ -55,17 +62,16 @@ class ImmutableCreateResult(object):
 
 class StorageClient(object):
     """
-    HTTP client that talks to the HTTP storage server.
+    Low-level HTTP client that talks to the HTTP storage server.
     """
 
     def __init__(
         self, url, swissnum, treq=treq
     ):  # type: (DecodedURL, bytes, Union[treq,StubTreq,HTTPClient]) -> None
         """
-        The URL is a HTTPS URL ("http://...").  To construct from a furl, use
+        The URL is a HTTPS URL ("https://...").  To construct from a furl, use
         ``StorageClient.from_furl()``.
         """
-        assert url.to_text().startswith("https://")
         self._base_url = url
         self._swissnum = swissnum
         self._treq = treq
@@ -79,8 +85,8 @@ class StorageClient(object):
         assert furl.scheme == "pb"
         swissnum = furl.path[0].encode("ascii")
         certificate_hash = furl.user.encode("ascii")
-        
-    def _url(self, path):
+
+    def relative_url(self, path):
         """Get a URL relative to the base URL."""
         return self._base_url.click(path)
 
@@ -94,7 +100,7 @@ class StorageClient(object):
         )
         return headers
 
-    def _request(
+    def request(
         self,
         method,
         url,
@@ -102,13 +108,19 @@ class StorageClient(object):
         lease_cancel_secret=None,
         upload_secret=None,
         headers=None,
+        message_to_serialize=None,
         **kwargs
     ):
         """
         Like ``treq.request()``, but with optional secrets that get translated
         into corresponding HTTP headers.
+
+        If ``message_to_serialize`` is set, it will be serialized (by default
+        with CBOR) and set as the request body.
         """
         headers = self._get_headers(headers)
+
+        # Add secrets:
         for secret, value in [
             (Secrets.LEASE_RENEW, lease_renew_secret),
             (Secrets.LEASE_CANCEL, lease_cancel_secret),
@@ -120,15 +132,39 @@ class StorageClient(object):
                 "X-Tahoe-Authorization",
                 b"%s %s" % (secret.value.encode("ascii"), b64encode(value).strip()),
             )
+
+        # Note we can accept CBOR:
+        headers.addRawHeader("Accept", CBOR_MIME_TYPE)
+
+        # If there's a request message, serialize it and set the Content-Type
+        # header:
+        if message_to_serialize is not None:
+            if "data" in kwargs:
+                raise TypeError(
+                    "Can't use both `message_to_serialize` and `data` "
+                    "as keyword arguments at the same time"
+                )
+            kwargs["data"] = dumps(message_to_serialize)
+            headers.addRawHeader("Content-Type", CBOR_MIME_TYPE)
+
         return self._treq.request(method, url, headers=headers, **kwargs)
+
+
+class StorageClientGeneral(object):
+    """
+    High-level HTTP APIs that aren't immutable- or mutable-specific.
+    """
+
+    def __init__(self, client):  # type: (StorageClient) -> None
+        self._client = client
 
     @inlineCallbacks
     def get_version(self):
         """
         Return the version metadata for the server.
         """
-        url = self._url("/v1/version")
-        response = yield self._request("GET", url)
+        url = self._client.relative_url("/v1/version")
+        response = yield self._client.request("GET", url)
         decoded_response = yield _decode_cbor(response)
         returnValue(decoded_response)
 
@@ -150,7 +186,7 @@ class StorageClientImmutables(object):
     APIs for interacting with immutables.
     """
 
-    def __init__(self, client):  # type: (StorageClient) -> None
+    def __init__(self, client: StorageClient):
         self._client = client
 
     @inlineCallbacks
@@ -176,18 +212,16 @@ class StorageClientImmutables(object):
         Result fires when creating the storage index succeeded, if creating the
         storage index failed the result will fire with an exception.
         """
-        url = self._client._url("/v1/immutable/" + _encode_si(storage_index))
-        message = dumps(
-            {"share-numbers": share_numbers, "allocated-size": allocated_size}
-        )
-        response = yield self._client._request(
+        url = self._client.relative_url("/v1/immutable/" + _encode_si(storage_index))
+        message = {"share-numbers": share_numbers, "allocated-size": allocated_size}
+
+        response = yield self._client.request(
             "POST",
             url,
             lease_renew_secret=lease_renew_secret,
             lease_cancel_secret=lease_cancel_secret,
             upload_secret=upload_secret,
-            data=message,
-            headers=Headers({"content-type": ["application/cbor"]}),
+            message_to_serialize=message,
         )
         decoded_response = yield _decode_cbor(response)
         returnValue(
@@ -196,6 +230,27 @@ class StorageClientImmutables(object):
                 allocated=decoded_response["allocated"],
             )
         )
+
+    @inlineCallbacks
+    def abort_upload(
+        self, storage_index: bytes, share_number: int, upload_secret: bytes
+    ) -> Deferred[None]:
+        """Abort the upload."""
+        url = self._client.relative_url(
+            "/v1/immutable/{}/{}/abort".format(_encode_si(storage_index), share_number)
+        )
+        response = yield self._client.request(
+            "PUT",
+            url,
+            upload_secret=upload_secret,
+        )
+
+        if response.code == http.OK:
+            return
+        else:
+            raise ClientException(
+                response.code,
+            )
 
     @inlineCallbacks
     def write_share_chunk(
@@ -213,10 +268,10 @@ class StorageClientImmutables(object):
         whether the _complete_ share (i.e. all chunks, not just this one) has
         been uploaded.
         """
-        url = self._client._url(
+        url = self._client.relative_url(
             "/v1/immutable/{}/{}".format(_encode_si(storage_index), share_number)
         )
-        response = yield self._client._request(
+        response = yield self._client.request(
             "PATCH",
             url,
             upload_secret=upload_secret,
@@ -264,10 +319,10 @@ class StorageClientImmutables(object):
         the HTTP protocol will be simplified, see
         https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3777
         """
-        url = self._client._url(
+        url = self._client.relative_url(
             "/v1/immutable/{}/{}".format(_encode_si(storage_index), share_number)
         )
-        response = yield self._client._request(
+        response = yield self._client.request(
             "GET",
             url,
             headers=Headers(
@@ -278,25 +333,69 @@ class StorageClientImmutables(object):
             body = yield response.content()
             returnValue(body)
         else:
-            raise ClientException(
-                response.code,
-            )
+            raise ClientException(response.code)
 
     @inlineCallbacks
     def list_shares(self, storage_index):  # type: (bytes,) -> Deferred[Set[int]]
         """
         Return the set of shares for a given storage index.
         """
-        url = self._client._url(
+        url = self._client.relative_url(
             "/v1/immutable/{}/shares".format(_encode_si(storage_index))
         )
-        response = yield self._client._request(
+        response = yield self._client.request(
             "GET",
             url,
         )
         if response.code == http.OK:
             body = yield _decode_cbor(response)
             returnValue(set(body))
+        else:
+            raise ClientException(response.code)
+
+    @inlineCallbacks
+    def add_or_renew_lease(
+        self, storage_index: bytes, renew_secret: bytes, cancel_secret: bytes
+    ):
+        """
+        Add or renew a lease.
+
+        If the renewal secret matches an existing lease, it is renewed.
+        Otherwise a new lease is added.
+        """
+        url = self._client.relative_url(
+            "/v1/lease/{}".format(_encode_si(storage_index))
+        )
+        response = yield self._client.request(
+            "PUT",
+            url,
+            lease_renew_secret=renew_secret,
+            lease_cancel_secret=cancel_secret,
+        )
+
+        if response.code == http.NO_CONTENT:
+            return
+        else:
+            raise ClientException(response.code)
+
+    @inlineCallbacks
+    def advise_corrupt_share(
+        self,
+        storage_index: bytes,
+        share_number: int,
+        reason: str,
+    ):
+        """Indicate a share has been corrupted, with a human-readable message."""
+        assert isinstance(reason, str)
+        url = self._client.relative_url(
+            "/v1/immutable/{}/{}/corrupt".format(
+                _encode_si(storage_index), share_number
+            )
+        )
+        message = {"reason": reason}
+        response = yield self._client.request("POST", url, message_to_serialize=message)
+        if response.code == http.OK:
+            return
         else:
             raise ClientException(
                 response.code,
