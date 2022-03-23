@@ -14,13 +14,26 @@ from collections_extended import RangeMap
 from werkzeug.datastructures import Range, ContentRange
 from twisted.web.http_headers import Headers
 from twisted.web import http
+from twisted.web.iweb import IPolicyForHTTPS
 from twisted.internet.defer import inlineCallbacks, returnValue, fail, Deferred
+from twisted.internet.interfaces import IOpenSSLClientConnectionCreator
+from twisted.internet.ssl import CertificateOptions
+from twisted.internet import reactor
+from twisted.web.client import Agent, HTTPConnectionPool
+from zope.interface import implementer
 from hyperlink import DecodedURL
 import treq
 from treq.client import HTTPClient
 from treq.testing import StubTreq
+from OpenSSL import SSL
 
-from .http_common import swissnum_auth_header, Secrets, get_content_type, CBOR_MIME_TYPE
+from .http_common import (
+    swissnum_auth_header,
+    Secrets,
+    get_content_type,
+    CBOR_MIME_TYPE,
+    get_spki_hash,
+)
 from .common import si_b2a
 
 
@@ -59,6 +72,86 @@ class ImmutableCreateResult(object):
     allocated = attr.ib(type=Set[int])
 
 
+class _TLSContextFactory(CertificateOptions):
+    """
+    Create a context that validates the way Tahoe-LAFS wants to: based on a
+    pinned certificate hash, rather than a certificate authority.
+
+    Originally implemented as part of Foolscap.
+    """
+
+    def getContext(self, expected_spki_hash: bytes) -> SSL.Context:
+        def always_validate(conn, cert, errno, depth, preverify_ok):
+            # This function is called to validate the certificate received by
+            # the other end. OpenSSL calls it multiple times, each time it
+            # see something funny, to ask if it should proceed.
+
+            # We do not care about certificate authorities or revocation
+            # lists, we just want to know that the certificate has a valid
+            # signature and follow the chain back to one which is
+            # self-signed. We need to protect against forged signatures, but
+            # not the usual TLS concerns about invalid CAs or revoked
+            # certificates.
+
+            # these constants are from openssl-0.9.7g/crypto/x509/x509_vfy.h
+            # and do not appear to be exposed by pyopenssl. Ick.
+            things_are_ok = (
+                0,  # X509_V_OK
+                9,  # X509_V_ERR_CERT_NOT_YET_VALID
+                10,  # X509_V_ERR_CERT_HAS_EXPIRED
+                18,  # X509_V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT
+                19,  # X509_V_ERR_SELF_SIGNED_CERT_IN_CHAIN
+            )
+            # TODO can we do this once instead of multiple times?
+            if (
+                errno in things_are_ok
+                and get_spki_hash(cert.to_cryptography()) == expected_spki_hash
+            ):
+                return 1
+            # TODO: log the details of the error, because otherwise they get
+            # lost in the PyOpenSSL exception that will eventually be raised
+            # (possibly OpenSSL.SSL.Error: certificate verify failed)
+
+            # I think that X509_V_ERR_CERT_SIGNATURE_FAILURE is the most
+            # obvious sign of hostile attack.
+            return 0
+
+        ctx = CertificateOptions.getContext(self)
+
+        # VERIFY_PEER means we ask the the other end for their certificate.
+        ctx.set_verify(SSL.VERIFY_PEER, always_validate)
+        return ctx
+
+
+@implementer(IPolicyForHTTPS)
+@implementer(IOpenSSLClientConnectionCreator)
+@attr.s
+class _StorageClientHTTPSPolicy:
+    """
+    A HTTPS policy that:
+
+    1. Makes sure the SPKI hash of the certificate matches a known hash (NEEDS TEST).
+    2. The certificate hasn't expired. (NEEDS TEST)
+    3. The server has a private key that matches the certificate (NEEDS TEST).
+
+    I.e. pinning-based validation.
+    """
+
+    expected_spki_hash = attr.ib(type=bytes)
+
+    # IPolicyForHTTPS
+    def creatorForNetloc(self, hostname, port):
+        return self
+
+    # IOpenSSLClientConnectionCreator
+    def clientConnectionForTLS(self, tlsProtocol):
+        connection = SSL.Connection(
+            _TLSContextFactory().getContext(self.expected_spki_hash), None
+        )
+        connection.set_app_data(tlsProtocol)
+        return connection
+
+
 class StorageClient(object):
     """
     Low-level HTTP client that talks to the HTTP storage server.
@@ -76,17 +169,27 @@ class StorageClient(object):
         self._treq = treq
 
     @classmethod
-    def from_furl(cls, furl: DecodedURL, treq=treq) -> "StorageClient":
+    def from_furl(cls, furl: DecodedURL, persistent: bool = True) -> "StorageClient":
         """
         Create a ``StorageClient`` for the given furl.
+
+        ``persistent`` indicates whether to use persistent HTTP connections.
         """
         assert furl.fragment == "v=1"
         assert furl.scheme == "pb"
         swissnum = furl.path[0].encode("ascii")
         certificate_hash = furl.user.encode("ascii")
 
+        treq_client = HTTPClient(
+            Agent(
+                reactor,
+                _StorageClientHTTPSPolicy(expected_spki_hash=certificate_hash),
+                pool=HTTPConnectionPool(reactor, persistent=persistent),
+            )
+        )
+
         https_url = DecodedURL().replace(scheme="https", host=furl.host, port=furl.port)
-        return cls(https_url, swissnum, treq)
+        return cls(https_url, swissnum, treq_client)
 
     def relative_url(self, path):
         """Get a URL relative to the base URL."""

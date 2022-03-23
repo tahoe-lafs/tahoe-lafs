@@ -29,9 +29,6 @@ from pathlib import Path
 from twisted.internet.defer import inlineCallbacks, returnValue, succeed
 from twisted.internet.task import Clock
 from twisted.internet import reactor
-from twisted.web.client import Agent, HTTPConnectionPool
-from hyperlink import DecodedURL
-from treq.client import HTTPClient
 
 from foolscap.api import Referenceable, RemoteException
 
@@ -1089,15 +1086,12 @@ class _HTTPMixin(_SharedMixin):
 
         # Create HTTP client with non-persistent connections, so we don't leak
         # state across tests:
-        treq_client = HTTPClient(
-            Agent(reactor, pool=HTTPConnectionPool(reactor, persistent=False))
-        )
-
         returnValue(
             _HTTPStorageServer.from_http_client(
-                StorageClient.from_furl(furl, treq_client)
+                StorageClient.from_furl(furl, persistent=False)
             )
         )
+
         # Eventually should also:
         #  self.assertTrue(IStorageServer.providedBy(client))
 
