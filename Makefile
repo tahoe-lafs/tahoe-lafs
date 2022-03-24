@@ -17,7 +17,7 @@ PYTHON=python
 export PYTHON
 PYFLAKES=flake8
 export PYFLAKES
-VIRTUAL_ENV=./.tox/py27
+VIRTUAL_ENV=./.tox/py37
 SOURCES=src/allmydata static misc setup.py
 APPNAME=tahoe-lafs
 TEST_SUITE=allmydata
@@ -35,7 +35,7 @@ test: .tox/create-venvs.log
 # Run codechecks first since it takes the least time to report issues early.
 	tox --develop -e codechecks
 # Run all the test environments in parallel to reduce run-time
-	tox --develop -p auto -e 'py27,py37,pypy27'
+	tox --develop -p auto -e 'py37'
 .PHONY: test-venv-coverage
 ## Run all tests with coverage collection and reporting.
 test-venv-coverage:
@@ -136,7 +136,7 @@ count-lines:
 # Here is a list of testing tools that can be run with 'python' from a
 # virtualenv in which Tahoe has been installed. There used to be Makefile
 # targets for each, but the exact path to a suitable python is now up to the
-# developer. But as a hint, after running 'tox', ./.tox/py27/bin/python will
+# developer. But as a hint, after running 'tox', ./.tox/py37/bin/python will
 # probably work.
 
 # src/allmydata/test/bench_dirnode.py

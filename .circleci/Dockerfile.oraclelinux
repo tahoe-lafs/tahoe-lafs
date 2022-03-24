@@ -1,5 +1,5 @@
 ARG TAG
-FROM centos:${TAG}
+FROM oraclelinux:${TAG}
 ARG PYTHON_VERSION
 
 ENV WHEELHOUSE_PATH /tmp/wheelhouse
@@ -13,7 +13,6 @@ RUN yum install --assumeyes \
     sudo \
     make automake gcc gcc-c++ \
     python${PYTHON_VERSION} \
-    python${PYTHON_VERSION}-devel \
     libffi-devel \
     openssl-devel \
     libyaml \

@@ -493,8 +493,8 @@ Handling repeat calls:
 * If the same API call is repeated with the same upload secret, the response is the same and no change is made to server state.
   This is necessary to ensure retries work in the face of lost responses from the server.
 * If the API calls is with a different upload secret, this implies a new client, perhaps because the old client died.
-  In order to prevent storage servers from being able to mess with each other, this API call will fail, because the secret doesn't match.
-  The use case of restarting upload from scratch if the client dies can be implemented by having the client persist the upload secret.
+  Or it may happen because the client wants to upload a different share number than a previous client.
+  New shares will be created, existing shares will be unchanged, regardless of whether the upload secret matches or not.
 
 Discussion
 ``````````
@@ -540,7 +540,7 @@ Rejected designs for upload secrets:
 Write data for the indicated share.
 The share number must belong to the storage index.
 The request body is the raw share data (i.e., ``application/octet-stream``).
-*Content-Range* requests are encouraged for large transfers to allow partially complete uploads to be resumed.
+*Content-Range* requests are required; for large transfers this allows partially complete uploads to be resumed.
 For example,
 a 1MiB share can be divided in to eight separate 128KiB chunks.
 Each chunk can be uploaded in a separate request.
@@ -614,15 +614,18 @@ From RFC 7231::
 ``POST /v1/immutable/:storage_index/:share_number/corrupt``
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-Advise the server the data read from the indicated share was corrupt.
-The request body includes an human-meaningful string with details about the corruption.
-It also includes potentially important details about the share.
+Advise the server the data read from the indicated share was corrupt. The
+request body includes an human-meaningful text string with details about the
+corruption. It also includes potentially important details about the share.
 
 For example::
 
-  {"reason": "expected hash abcd, got hash efgh"}
+  {"reason": u"expected hash abcd, got hash efgh"}
 
 .. share-type, storage-index, and share-number are inferred from the URL
+
+The response code is OK (200) by default, or NOT FOUND (404) if the share
+couldn't be found.
 
 Reading
 ~~~~~~~
@@ -644,7 +647,7 @@ Read a contiguous sequence of bytes from one share in one bucket.
 The response body is the raw share data (i.e., ``application/octet-stream``).
 The ``Range`` header may be used to request exactly one ``bytes`` range, in which case the response code will be 206 (partial content).
 Interpretation and response behavior is as specified in RFC 7233 § 4.1.
-Multiple ranges in a single request are *not* supported.
+Multiple ranges in a single request are *not* supported; open-ended ranges are also not supported.
 
 Discussion
 ``````````

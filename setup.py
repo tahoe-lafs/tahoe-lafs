@@ -55,8 +55,7 @@ install_requires = [
     # * foolscap >= 0.12.6 has an i2p.sam_endpoint() that takes kwargs
     # * foolscap 0.13.2 drops i2p support completely
     # * foolscap >= 21.7 is necessary for Python 3 with i2p support.
-    "foolscap == 0.13.1 ; python_version < '3.0'",
-    "foolscap >= 21.7.0 ; python_version > '3.0'",
+    "foolscap >= 21.7.0",
 
     # * cryptography 2.6 introduced some ed25519 APIs we rely on.  Note that
     #   Twisted[conch] also depends on cryptography and Twisted[tls]
@@ -106,16 +105,10 @@ install_requires = [
     # for 'tahoe invite' and 'tahoe join'
     "magic-wormhole >= 0.10.2",
 
-    # Eliot is contemplating dropping Python 2 support.  Stick to a version we
-    # know works on Python 2.7.
-    "eliot ~= 1.7 ; python_version < '3.0'",
-    # On Python 3, we want a new enough version to support custom JSON encoders.
-    "eliot >= 1.13.0 ; python_version > '3.0'",
+    # We want a new enough version to support custom JSON encoders.
+    "eliot >= 1.13.0",
 
-    # Pyrsistent 0.17.0 (which we use by way of Eliot) has dropped
-    # Python 2 entirely; stick to the version known to work for us.
-    "pyrsistent < 0.17.0 ; python_version < '3.0'",
-    "pyrsistent ; python_version > '3.0'",
+    "pyrsistent",
 
     # A great way to define types of values.
     "attrs >= 18.2.0",
@@ -135,14 +128,8 @@ install_requires = [
     # Linux distribution detection:
     "distro >= 1.4.0",
 
-    # Backported configparser for Python 2:
-    "configparser ; python_version < '3.0'",
-
-    # For the RangeMap datastructure. Need 2.0.2 at least for bugfixes. Python
-    # 2 doesn't actually need this, since HTTP storage protocol isn't supported
-    # there, so we just pick whatever version so that code imports.
-    "collections-extended >= 2.0.2 ; python_version > '3.0'",
-    "collections-extended ; python_version < '3.0'",
+    # For the RangeMap datastructure. Need 2.0.2 at least for bugfixes.
+    "collections-extended >= 2.0.2",
 
     # HTTP server and client
     "klein",
@@ -201,8 +188,7 @@ trove_classifiers=[
     "Natural Language :: English",
     "Programming Language :: C",
     "Programming Language :: Python",
-    "Programming Language :: Python :: 2",
-    "Programming Language :: Python :: 2.7",
+    "Programming Language :: Python :: 3",
     "Topic :: Utilities",
     "Topic :: System :: Systems Administration",
     "Topic :: System :: Filesystems",
@@ -229,7 +215,7 @@ def run_command(args, cwd=None):
     use_shell = sys.platform == "win32"
     try:
         p = subprocess.Popen(args, stdout=subprocess.PIPE, cwd=cwd, shell=use_shell)
-    except EnvironmentError as e:  # if this gives a SyntaxError, note that Tahoe-LAFS requires Python 2.7+
+    except EnvironmentError as e:  # if this gives a SyntaxError, note that Tahoe-LAFS requires Python 3.7+
         print("Warning: unable to run %r." % (" ".join(args),))
         print(e)
         return None
@@ -380,8 +366,8 @@ setup(name="tahoe-lafs", # also set in __init__.py
       package_dir = {'':'src'},
       packages=find_packages('src') + ['allmydata.test.plugins'],
       classifiers=trove_classifiers,
-      # We support Python 2.7, and Python 3.7 or later.
-      python_requires=">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*, !=3.5.*, !=3.6.*",
+      # We support Python 3.7 or later. 3.11 is not supported yet.
+      python_requires=">=3.7, <3.11",
       install_requires=install_requires,
       extras_require={
           # Duplicate the Twisted pywin32 dependency here.  See
@@ -400,10 +386,6 @@ setup(name="tahoe-lafs", # also set in __init__.py
               "tox",
               "pytest",
               "pytest-twisted",
-              # XXX: decorator isn't a direct dependency, but pytest-twisted
-              # depends on decorator, and decorator 5.x isn't compatible with
-              # Python 2.7.
-              "decorator < 5",
               "hypothesis >= 3.6.1",
               "towncrier",
               "testtools",
