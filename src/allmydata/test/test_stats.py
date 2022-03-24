@@ -17,7 +17,7 @@ from allmydata.util import pollmixin
 import allmydata.test.common_util as testutil
 
 class FasterMonitor(CPUUsageMonitor):
-    POLL_INTERVAL = 0.1
+    POLL_INTERVAL = 0.01
 
 
 class CPUUsage(unittest.TestCase, pollmixin.PollMixin, testutil.StallMixin):
@@ -36,9 +36,9 @@ class CPUUsage(unittest.TestCase, pollmixin.PollMixin, testutil.StallMixin):
         def _poller():
             return bool(len(m.samples) == m.HISTORY_LENGTH+1)
         d = self.poll(_poller)
-        # pause one more second, to make sure that the history-trimming code
-        # is exercised
-        d.addCallback(self.stall, 1.0)
+        # pause a couple more intervals, to make sure that the history-trimming
+        # code is exercised
+        d.addCallback(self.stall, FasterMonitor.POLL_INTERVAL * 2)
         def _check(res):
             s = m.get_stats()
             self.failUnless("cpu_monitor.1min_avg" in s)
