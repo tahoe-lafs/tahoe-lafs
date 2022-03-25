@@ -90,15 +90,6 @@ class PinningHTTPSValidation(AsyncTestCase):
     https://cryptography.io/en/latest/x509/tutorial/#creating-a-self-signed-certificate
     """
 
-    # NEEDED TESTS
-    #
-    # Failure cases:
-    # DONE Self-signed cert has wrong hash. Cert+private key match each other.
-    # Self-signed cert has correct hash, is valid, but expired.
-    # Anonymous server, without certificate.
-    # Cert has correct hash, but is not self-signed.
-    # Certificate that isn't valid yet (i.e. from the future)? Or is that silly.
-
     def to_file(self, key_or_cert) -> str:
         """
         Write the given key or cert to a temporary file on disk, return the
@@ -224,7 +215,8 @@ class PinningHTTPSValidation(AsyncTestCase):
     async def test_server_certificate_expired(self):
         """
         If the server's certificate has expired, the request to the server
-        fails even if the hash matches the one the client expects.
+        succeeds if the hash matches the one the client expects; expiration has
+        no effect.
         """
         private_key = self.generate_private_key()
         certificate = self.generate_certificate(private_key, expires_days=-10)
@@ -232,5 +224,9 @@ class PinningHTTPSValidation(AsyncTestCase):
         async with self.listen(
             self.to_file(private_key), self.to_file(certificate)
         ) as url:
-            with self.assertRaises(ResponseNeverReceived):
-                await self.request(url, certificate)
+            response = await self.request(url, certificate)
+            self.assertEqual(await response.content(), b"YOYODYNE")
+
+    # TODO an obvious attack is a private key that doesn't match the
+    # certificate... but OpenSSL (quite rightly) won't let you listen with that
+    # so I don't know how to test that!

@@ -81,7 +81,11 @@ class _TLSContextFactory(CertificateOptions):
     Originally implemented as part of Foolscap.
     """
 
-    def getContext(self, expected_spki_hash: bytes) -> SSL.Context:
+    def __init__(self, expected_spki_hash: bytes):
+        self.expected_spki_hash = expected_spki_hash
+        CertificateOptions.__init__(self)
+
+    def getContext(self) -> SSL.Context:
         def always_validate(conn, cert, errno, depth, preverify_ok):
             # This function is called to validate the certificate received by
             # the other end. OpenSSL calls it multiple times, each time it
@@ -105,15 +109,12 @@ class _TLSContextFactory(CertificateOptions):
             )
             # TODO can we do this once instead of multiple times?
             if errno in things_are_ok and timing_safe_compare(
-                get_spki_hash(cert.to_cryptography()), expected_spki_hash
+                get_spki_hash(cert.to_cryptography()), self.expected_spki_hash
             ):
                 return 1
             # TODO: log the details of the error, because otherwise they get
             # lost in the PyOpenSSL exception that will eventually be raised
             # (possibly OpenSSL.SSL.Error: certificate verify failed)
-
-            # I think that X509_V_ERR_CERT_SIGNATURE_FAILURE is the most
-            # obvious sign of hostile attack.
             return 0
 
         ctx = CertificateOptions.getContext(self)
@@ -128,13 +129,8 @@ class _TLSContextFactory(CertificateOptions):
 @attr.s
 class _StorageClientHTTPSPolicy:
     """
-    A HTTPS policy that:
-
-    1. Makes sure the SPKI hash of the certificate matches a known hash (NEEDS TEST).
-    2. The certificate hasn't expired. (NEEDS TEST)
-    3. The server has a private key that matches the certificate (NEEDS TEST).
-
-    I.e. pinning-based validation.
+    A HTTPS policy that ensures the SPKI hash of the public key matches a known
+    hash, i.e. pinning-based validation.
     """
 
     expected_spki_hash = attr.ib(type=bytes)
@@ -146,7 +142,7 @@ class _StorageClientHTTPSPolicy:
     # IOpenSSLClientConnectionCreator
     def clientConnectionForTLS(self, tlsProtocol):
         connection = SSL.Connection(
-            _TLSContextFactory().getContext(self.expected_spki_hash), None
+            _TLSContextFactory(self.expected_spki_hash).getContext(), None
         )
         connection.set_app_data(tlsProtocol)
         return connection
