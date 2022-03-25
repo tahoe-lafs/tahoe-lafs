@@ -21,7 +21,7 @@ from twisted.internet.defer import Deferred
 from twisted.internet.task import deferLater
 from twisted.web.server import Site
 from twisted.web.static import Data
-from twisted.web.client import Agent, HTTPConnectionPool
+from twisted.web.client import Agent, HTTPConnectionPool, ResponseNeverReceived
 from treq.client import HTTPClient
 
 from .common import SyncTestCase, AsyncTestCase
@@ -92,11 +92,8 @@ class PinningHTTPSValidation(AsyncTestCase):
 
     # NEEDED TESTS
     #
-    # Success case
-    #
     # Failure cases:
-    # Self-signed cert has wrong hash. Cert+private key match each other.
-    # Self-signed cert has correct hash, but doesn't match private key, so is invalid cert.
+    # DONE Self-signed cert has wrong hash. Cert+private key match each other.
     # Self-signed cert has correct hash, is valid, but expired.
     # Anonymous server, without certificate.
     # Cert has correct hash, but is not self-signed.
@@ -124,21 +121,22 @@ class PinningHTTPSValidation(AsyncTestCase):
         """Create a RSA private key."""
         return rsa.generate_private_key(public_exponent=65537, key_size=2048)
 
-    def generate_certificate(self, private_key, expires_days: int):
+    def generate_certificate(
+        self, private_key, expires_days: int = 10, org_name: str = "Yoyodyne"
+    ):
         """Generate a certificate from a RSA private key."""
         subject = issuer = x509.Name(
-            [x509.NameAttribute(NameOID.ORGANIZATION_NAME, "Yoyodyne")]
+            [x509.NameAttribute(NameOID.ORGANIZATION_NAME, org_name)]
         )
+        expires = datetime.datetime.utcnow() + datetime.timedelta(days=expires_days)
         return (
             x509.CertificateBuilder()
             .subject_name(subject)
             .issuer_name(issuer)
             .public_key(private_key.public_key())
             .serial_number(x509.random_serial_number())
-            .not_valid_before(datetime.datetime.utcnow())
-            .not_valid_after(
-                datetime.datetime.utcnow() + datetime.timedelta(days=expires_days)
-            )
+            .not_valid_before(min(datetime.datetime.utcnow(), expires))
+            .not_valid_after(expires)
             .add_extension(
                 x509.SubjectAlternativeName([x509.DNSName("localhost")]),
                 critical=False,
@@ -198,9 +196,41 @@ class PinningHTTPSValidation(AsyncTestCase):
         connect to the server.
         """
         private_key = self.generate_private_key()
-        certificate = self.generate_certificate(private_key, 10)
+        certificate = self.generate_certificate(private_key)
         async with self.listen(
             self.to_file(private_key), self.to_file(certificate)
         ) as url:
             response = await self.request(url, certificate)
             self.assertEqual(await response.content(), b"YOYODYNE")
+
+    @async_to_deferred
+    async def test_server_certificate_has_wrong_hash(self):
+        """
+        If the server's certificate hash doesn't match the hash the client
+        expects, the request to the server fails.
+        """
+        private_key1 = self.generate_private_key()
+        certificate1 = self.generate_certificate(private_key1)
+        private_key2 = self.generate_private_key()
+        certificate2 = self.generate_certificate(private_key2)
+
+        async with self.listen(
+            self.to_file(private_key1), self.to_file(certificate1)
+        ) as url:
+            with self.assertRaises(ResponseNeverReceived):
+                await self.request(url, certificate2)
+
+    @async_to_deferred
+    async def test_server_certificate_expired(self):
+        """
+        If the server's certificate has expired, the request to the server
+        fails even if the hash matches the one the client expects.
+        """
+        private_key = self.generate_private_key()
+        certificate = self.generate_certificate(private_key, expires_days=-10)
+
+        async with self.listen(
+            self.to_file(private_key), self.to_file(certificate)
+        ) as url:
+            with self.assertRaises(ResponseNeverReceived):
+                await self.request(url, certificate)
