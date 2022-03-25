@@ -35,6 +35,7 @@ from .http_common import (
     get_spki_hash,
 )
 from .common import si_b2a
+from ..util.hashutil import timing_safe_compare
 
 
 def _encode_si(si):  # type: (bytes) -> str
@@ -103,9 +104,8 @@ class _TLSContextFactory(CertificateOptions):
                 19,  # X509_V_ERR_SELF_SIGNED_CERT_IN_CHAIN
             )
             # TODO can we do this once instead of multiple times?
-            if (
-                errno in things_are_ok
-                and get_spki_hash(cert.to_cryptography()) == expected_spki_hash
+            if errno in things_are_ok and timing_safe_compare(
+                get_spki_hash(cert.to_cryptography()), expected_spki_hash
             ):
                 return 1
             # TODO: log the details of the error, because otherwise they get
