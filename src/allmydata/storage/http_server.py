@@ -552,12 +552,12 @@ def listen_tls(
             host=hostname,
             port=listening_port.getHost().port,
             path=(str(server._swissnum, "ascii"),),
-            userinfo=[
+            userinfo=(
                 str(
                     get_spki_hash(load_pem_x509_certificate(cert_path.read_bytes())),
                     "ascii",
-                )
-            ],
+                ),
+            ),
             scheme="pb",
         )
         return furl

@@ -137,7 +137,7 @@ class PinningHTTPSValidation(AsyncTestCase):
         )
 
     @asynccontextmanager
-    async def listen(self, private_key_path, cert_path) -> str:
+    async def listen(self, private_key_path, cert_path):
         """
         Context manager that runs a HTTPS server with the given private key
         and certificate.
