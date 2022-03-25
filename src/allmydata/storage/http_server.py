@@ -548,7 +548,7 @@ def listen_tls(
 
     def build_furl(listening_port: IListeningPort) -> DecodedURL:
         furl = DecodedURL().replace(
-            fragment="v=1",  # HTTP-based
+            fragment="v=1",  # how we know this furl is HTTP-based
             host=hostname,
             port=listening_port.getHost().port,
             path=(str(server._swissnum, "ascii"),),
