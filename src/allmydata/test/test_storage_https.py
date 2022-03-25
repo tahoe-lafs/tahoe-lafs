@@ -18,6 +18,7 @@ from cryptography.hazmat.primitives import serialization, hashes
 from twisted.internet.endpoints import quoteStringArgument, serverFromString
 from twisted.internet import reactor
 from twisted.internet.defer import Deferred
+from twisted.internet.task import deferLater
 from twisted.web.server import Site
 from twisted.web.static import Data
 from twisted.web.client import Agent, HTTPConnectionPool
@@ -168,6 +169,9 @@ class PinningHTTPSValidation(AsyncTestCase):
             yield f"https://127.0.0.1:{listening_port.getHost().port}/"
         finally:
             await listening_port.stopListening()
+            # Make sure all server connections are closed :( No idea why this
+            # is necessary when it's not for IStorageServer HTTPS tests.
+            await deferLater(reactor, 0.001)
 
     def request(self, url: str, expected_certificate: x509.Certificate):
         """
