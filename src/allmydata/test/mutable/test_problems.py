@@ -26,7 +26,6 @@ from allmydata.mutable.common import \
      NotEnoughServersError
 from allmydata.mutable.publish import MutableData
 from allmydata.storage.common import storage_index_to_dir
-from ..common import TEST_RSA_KEY_SIZE
 from ..no_network import GridTestMixin
 from .. import common_util as testutil
 from ..common_util import DevNullDictionary
@@ -219,7 +218,7 @@ class Problems(GridTestMixin, AsyncTestCase, testutil.ShouldFailMixin):
         # use #467 static-server-selection to disable permutation and force
         # the choice of server for share[0].
 
-        d = nm.key_generator.generate(TEST_RSA_KEY_SIZE)
+        d = nm.key_generator.generate()
         def _got_key(keypair):
             (pubkey, privkey) = keypair
             nm.key_generator = SameKeyGenerator(pubkey, privkey)

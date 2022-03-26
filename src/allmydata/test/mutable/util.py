@@ -25,7 +25,6 @@ from allmydata.storage_client import StorageFarmBroker
 from allmydata.mutable.layout import MDMFSlotReadProxy
 from allmydata.mutable.publish import MutableData
 from ..common import (
-    TEST_RSA_KEY_SIZE,
     EMPTY_CLIENT_CONFIG,
 )
 
@@ -287,7 +286,7 @@ def make_storagebroker_with_peers(peers):
     return storage_broker
 
 
-def make_nodemaker(s=None, num_peers=10, keysize=TEST_RSA_KEY_SIZE):
+def make_nodemaker(s=None, num_peers=10):
     """
     Make a ``NodeMaker`` connected to some number of fake storage servers.
 
@@ -298,20 +297,20 @@ def make_nodemaker(s=None, num_peers=10, keysize=TEST_RSA_KEY_SIZE):
         the node maker.
     """
     storage_broker = make_storagebroker(s, num_peers)
-    return make_nodemaker_with_storage_broker(storage_broker, keysize)
+    return make_nodemaker_with_storage_broker(storage_broker)
 
 
-def make_nodemaker_with_peers(peers, keysize=TEST_RSA_KEY_SIZE):
+def make_nodemaker_with_peers(peers):
     """
     Make a ``NodeMaker`` connected to the given storage servers.
 
     :param list peers: The storage servers to associate with the node maker.
     """
     storage_broker = make_storagebroker_with_peers(peers)
-    return make_nodemaker_with_storage_broker(storage_broker, keysize)
+    return make_nodemaker_with_storage_broker(storage_broker)
 
 
-def make_nodemaker_with_storage_broker(storage_broker, keysize):
+def make_nodemaker_with_storage_broker(storage_broker):
     """
     Make a ``NodeMaker`` using the given storage broker.
 
@@ -319,8 +318,6 @@ def make_nodemaker_with_storage_broker(storage_broker, keysize):
     """
     sh = client.SecretHolder(b"lease secret", b"convergence secret")
     keygen = client.KeyGenerator()
-    if keysize:
-        keygen.set_default_keysize(keysize)
     nodemaker = NodeMaker(storage_broker, sh, None,
                           None, None,
                           {"k": 3, "n": 10}, SDMF_VERSION, keygen)
