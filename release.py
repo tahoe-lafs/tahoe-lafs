@@ -13,6 +13,7 @@ import sys
 import subprocess
 import argparse
 import datetime
+import pathlib
 
 
 class bcolors:
@@ -49,8 +50,8 @@ BRANCH = "{ticket}.release-{tag}".format(
     ticket=TICKET, tag=TAG
 )  # looks like XXXX.release-1.16.0
 RELEASE_TITLE = "Release {tag} ({date})".format(tag=TAG, date=TODAY)
-RELEASE_FOLDER = "../tahoe-release-{0}".format(TAG)
-RELEASE_PROGRESS = "../.tahoe-release-{0}-progress".format(TAG)
+RELEASE_FOLDER = pathlib.Path("../tahoe-release-{0}".format(TAG))
+RELEASE_PROGRESS = pathlib.Path("../.tahoe-release-{0}-progress".format(TAG))
 CONTINUE_INSTRUCTION = (
     bcolors.BOLD
     + "Instruction : run ./venv/bin/python release.py --ignore-deps --tag {tag} --ticket {ticket} --sign {sign} --fin".format(
@@ -81,8 +82,21 @@ def check_dependencies():
         sys.exit(1)
 
 
+def step_complete(step):
+    return args.retry and os.path.isfile(RELEASE_PROGRESS.joinpath(step))
+
+
+def mkfile(path):
+    with open(path, "w") as f:
+        pass
+
+
+def record_step(step):
+    mkfile(RELEASE_PROGRESS.joinpath(step))
+
+
 def start_release():
-    if args.retry and os.path.isfile(RELEASE_PROGRESS + "/clone_complete"):
+    if step_complete("clone_complete"):
         print(f"{bcolors.OKCYAN}Skipping clone step...{bcolors.ENDC}")
     else:
         try:
@@ -95,14 +109,12 @@ def start_release():
                 ],
                 check=True,
             )
-            subprocess.run(["touch", RELEASE_PROGRESS + "/clone_complete"], check=True)
+            record_step("clone_complete")
         except Exception as e:
             print(f"{bcolors.FAIL}INFO: Failed to clone! :(...{bcolors.ENDC}")
             print(f"{bcolors.FAIL} {e} {bcolors.ENDC}")
     os.chdir(RELEASE_FOLDER)
-    if args.retry and os.path.isfile(
-        RELEASE_PROGRESS + "/install_deps_on_venv_complete"
-    ):
+    if step_complete("install_deps_on_venv_complete"):
         print(
             f"{bcolors.OKCYAN}Skipping venv setup and dependency installation...{bcolors.ENDC}"
         )
@@ -112,54 +124,45 @@ def start_release():
             subprocess.run(
                 ["./venv/bin/pip", "install", "--editable", ".[test]"], check=True
             )
-            subprocess.run(
-                ["touch", RELEASE_PROGRESS + "/install_deps_on_venv_complete"],
-                check=True,
-            )
+            record_step("install_deps_on_venv_complete")
         except Exception as e:
             print(
                 f"{bcolors.FAIL}INFO: Failed to install virtualenv and and dependencies clone! :(...{bcolors.ENDC}"
             )
             print(f"{bcolors.FAIL} {e} {bcolors.ENDC}")
-    if args.retry and os.path.isfile(RELEASE_PROGRESS + "/branch_complete"):
+    if step_complete("branch_complete"):
         print(f"{bcolors.OKCYAN}Skipping create release branch...{bcolors.ENDC}")
     else:
         try:
             subprocess.run(["git", "branch", BRANCH], check=True)
-            subprocess.run(
-                ["touch", RELEASE_PROGRESS + "/branch_complete"],
-                check=True,
-            )
+            record_step("branch_complete")
         except Exception as e:
             print(
                 f"{bcolors.FAIL}INFO: Failed to clean release branch! :(...{bcolors.ENDC}"
             )
             print(f"{bcolors.FAIL} {e} {bcolors.ENDC}")
     subprocess.run(["git", "checkout", BRANCH])
-    if args.retry and os.path.isfile(RELEASE_PROGRESS + "/tox_news_complete"):
+    if step_complete("tox_news_complete"):
         print(f"{bcolors.OKCYAN}Skipping news generation...{bcolors.ENDC}")
     else:
         try:
             subprocess.run(["./venv/bin/tox", "-e", "news"], check=True)
+            record_step("tox_news_complete")
         except Exception as e:
             print(f"{bcolors.FAIL}INFO: Failed to generate news! :(...{bcolors.ENDC}")
             print(f"{bcolors.FAIL} {e} {bcolors.ENDC}")
-    if args.retry and os.path.isfile(RELEASE_PROGRESS + "/newsfragment_complete"):
+    if step_complete("newsfragment_complete"):
         print(f"{bcolors.OKCYAN}Skipping add news fragment...{bcolors.ENDC}")
     else:
         try:
-            subprocess.run(
-                ["touch", "newsfragments/{ticket}.minor".format(ticket=TICKET)],
-                check=True,
-            )
+            mkfile("newsfragments/{ticket}.minor".format(ticket=TICKET))
+            record_step("newsfragment_complete")
         except Exception as e:
             print(
                 f"{bcolors.FAIL}INFO: Failed to add newsfragment file! :(...{bcolors.ENDC}"
             )
             print(f"{bcolors.FAIL} {e} {bcolors.ENDC}")
-    if args.retry and os.path.isfile(
-        RELEASE_PROGRESS + "/commit_newsfragment_complete"
-    ):
+    if step_complete("commit_newsfragment_complete"):
         print(f"{bcolors.OKCYAN}Skipping commit fragment...{bcolors.ENDC}")
     else:
         try:
@@ -168,17 +171,14 @@ def start_release():
                 ["git", "commit", "-s", "-m", "tahoe-lafs-{tag} news".format(tag=TAG)],
                 check=True,
             )
+            record_step("commit_newsfragment_complete")
         except Exception as e:
             print(
                 f"{bcolors.FAIL}INFO: Failed to commit newsfragment! :(...{bcolors.ENDC}"
             )
             print(f"{bcolors.FAIL} {e} {bcolors.ENDC}")
     updated_content = None
-    LINE = ""
-    for i in range(0, len(RELEASE_TITLE)):
-        LINE += "="
-        i += 1
-    LINE = "\n" + LINE
+    LINE = "=" * len(RELEASE_TITLE)
     with open("NEWS.rst", "r") as f:
         content = f.read()
         updated_content = re.sub(
@@ -188,8 +188,8 @@ def start_release():
         )
     with open("updated_news.rst", "w") as f:
         f.write(updated_content)
-    subprocess.run(["mv", "updated_news.rst", "NEWS.rst"])
-    print(f"{bcolors.OKGREEN}First release step complete.{bcolors.ENDC}")
+    shutil.move("updated_news.rst", "NEWS.rst")
+    print(f"{bcolors.OKGREEN}First set of release steps completed! :).{bcolors.ENDC}")
     print(f"{bcolors.OKBLUE}Instruction: Please review News.rst{bcolors.ENDC}")
     print(
         f'{bcolors.OKBLUE}Instruction: Update "docs/known_issues.rst" (if neccesary){bcolors.ENDC}'
@@ -205,13 +205,52 @@ def start_release():
 
 def complete_release():
     os.chdir(RELEASE_FOLDER)
-    subprocess.run(["git", "push", "origin", BRANCH])
-    SIGNING_KEY = args.sign
-    subprocess.run(
-        ["git", "tag", "-s", "-u", SIGNING_KEY, "-m", RELEASE_TITLE.lower(), TAG]
-    )
-    subprocess.run(["./venv/bin/tox", "-e", "py37,codechecks,docs,integration"])
-    subprocess.run(["./venv/bin/tox", "-e", "deprecations,upcoming-deprecations"])
+    if step_complete("push_branch"):
+        print(f"{bcolors.OKCYAN}Skipping push release branch...{bcolors.ENDC}")
+    else:
+        try:
+            subprocess.run(["git", "push", "origin", BRANCH])
+            record_step("push_branch")
+        except Exception as e:
+            print(
+                f"{bcolors.FAIL}INFO: Failed to push release branch :(...{bcolors.ENDC}"
+            )
+            print(f"{bcolors.FAIL} {e} {bcolors.ENDC}")
+    if step_complete("sign_tag"):
+        print(f"{bcolors.OKCYAN}Skipping sign release tag...{bcolors.ENDC}")
+    else:
+        try:
+            SIGNING_KEY = args.sign
+            subprocess.run(
+                [
+                    "git",
+                    "tag",
+                    "-s",
+                    "-u",
+                    SIGNING_KEY,
+                    "-m",
+                    RELEASE_TITLE.lower(),
+                    TAG,
+                ]
+            )
+            record_step("sign_tag")
+        except Exception as e:
+            print(f"{bcolors.FAIL}INFO: Failed to sign release tag:(...{bcolors.ENDC}")
+            print(f"{bcolors.FAIL} {e} {bcolors.ENDC}")
+    if step_complete("build_artifacts"):
+        print(f"{bcolors.OKCYAN}Skipping build artifacts...{bcolors.ENDC}")
+    else:
+        try:
+            subprocess.run(["./venv/bin/tox", "-e", "py37,codechecks,docs,integration"])
+            subprocess.run(
+                ["./venv/bin/tox", "-e", "deprecations,upcoming-deprecations"]
+            )
+            record_step("build_artifacts")
+        except Exception as e:
+            print(
+                f"{bcolors.FAIL}INFO: Failed build release artifacts:(...{bcolors.ENDC}"
+            )
+            print(f"{bcolors.FAIL} {e} {bcolors.ENDC}")
     print(f"{bcolors.OKGREEN}Cleaning working files...{bcolors.ENDC}")
     clean()
     print(f"{bcolors.OKGREEN}Release complete...{bcolors.ENDC}")

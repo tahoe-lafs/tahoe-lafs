@@ -16,6 +16,19 @@ This checklist is based on the original instructions (in old revisions in the fi
 `docs/how_to_make_a_tahoe-lafs_release.org`).
 
 
+Automated releases
+==================
+
+It's possible to automatically complete the instructions in this document by running the `release script <../release.py>`__
+
+Usage :
+ - `python release.py --help` => Help menu
+ - `python release.py --tag 1.18.0 --ticket 3549 --clean --ignore-deps` => Make release `1.18.0` with ticket number `3549`, skip dependency checks (`--ignore-deps`), clean old release files (--clean)
+
+
+--------------------------------------------------
+
+
 Any Contributor
 ===============
 
