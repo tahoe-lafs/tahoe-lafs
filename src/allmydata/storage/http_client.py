@@ -26,6 +26,7 @@ import treq
 from treq.client import HTTPClient
 from treq.testing import StubTreq
 from OpenSSL import SSL
+from cryptography.hazmat.bindings.openssl.binding import Binding
 
 from .http_common import (
     swissnum_auth_header,
@@ -36,6 +37,8 @@ from .http_common import (
 )
 from .common import si_b2a
 from ..util.hashutil import timing_safe_compare
+
+_OPENSSL = Binding().lib
 
 
 def _encode_si(si):  # type: (bytes) -> str
@@ -88,8 +91,8 @@ class _TLSContextFactory(CertificateOptions):
     def getContext(self) -> SSL.Context:
         def always_validate(conn, cert, errno, depth, preverify_ok):
             # This function is called to validate the certificate received by
-            # the other end. OpenSSL calls it multiple times, each time it
-            # see something funny, to ask if it should proceed.
+            # the other end. OpenSSL calls it multiple times, for each errno
+            # for each certificate.
 
             # We do not care about certificate authorities or revocation
             # lists, we just want to know that the certificate has a valid
@@ -97,15 +100,12 @@ class _TLSContextFactory(CertificateOptions):
             # self-signed. We need to protect against forged signatures, but
             # not the usual TLS concerns about invalid CAs or revoked
             # certificates.
-
-            # these constants are from openssl-0.9.7g/crypto/x509/x509_vfy.h
-            # and do not appear to be exposed by pyopenssl. Ick.
             things_are_ok = (
-                0,  # X509_V_OK
-                9,  # X509_V_ERR_CERT_NOT_YET_VALID
-                10,  # X509_V_ERR_CERT_HAS_EXPIRED
-                18,  # X509_V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT
-                19,  # X509_V_ERR_SELF_SIGNED_CERT_IN_CHAIN
+                _OPENSSL.X509_V_OK,
+                _OPENSSL.X509_V_ERR_CERT_NOT_YET_VALID,
+                _OPENSSL.X509_V_ERR_CERT_HAS_EXPIRED,
+                _OPENSSL.X509_V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT,
+                _OPENSSL.X509_V_ERR_SELF_SIGNED_CERT_IN_CHAIN,
             )
             # TODO can we do this once instead of multiple times?
             if errno in things_are_ok and timing_safe_compare(
