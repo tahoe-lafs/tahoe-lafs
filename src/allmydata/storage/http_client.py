@@ -141,11 +141,9 @@ class _StorageClientHTTPSPolicy:
 
     # IOpenSSLClientConnectionCreator
     def clientConnectionForTLS(self, tlsProtocol):
-        connection = SSL.Connection(
+        return SSL.Connection(
             _TLSContextFactory(self.expected_spki_hash).getContext(), None
         )
-        connection.set_app_data(tlsProtocol)
-        return connection
 
 
 class StorageClient(object):
