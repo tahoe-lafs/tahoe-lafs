@@ -528,7 +528,7 @@ def listen_tls(
     interface: Optional[str],
 ) -> Deferred[Tuple[DecodedURL, IListeningPort]]:
     """
-    Start a HTTPS storage server on the given port, return the fURL and the
+    Start a HTTPS storage server on the given port, return the NURL and the
     listening port.
 
     The hostname is the external IP or hostname clients will connect to; it
@@ -546,9 +546,9 @@ def listen_tls(
         endpoint_string += ":interface={}".format(quoteStringArgument(interface))
     endpoint = serverFromString(reactor, endpoint_string)
 
-    def build_furl(listening_port: IListeningPort) -> DecodedURL:
-        furl = DecodedURL().replace(
-            fragment="v=1",  # how we know this furl is HTTP-based
+    def build_nurl(listening_port: IListeningPort) -> DecodedURL:
+        nurl = DecodedURL().replace(
+            fragment="v=1",  # how we know this NURL is HTTP-based (i.e. not Foolscap)
             host=hostname,
             port=listening_port.getHost().port,
             path=(str(server._swissnum, "ascii"),),
@@ -560,8 +560,8 @@ def listen_tls(
             ),
             scheme="pb",
         )
-        return furl
+        return nurl
 
     return endpoint.listen(Site(server.get_resource())).addCallback(
-        lambda listening_port: (build_furl(listening_port), listening_port)
+        lambda listening_port: (build_nurl(listening_port), listening_port)
     )

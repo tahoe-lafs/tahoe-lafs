@@ -29,8 +29,8 @@ from ..storage.http_common import get_spki_hash
 from ..storage.http_client import _StorageClientHTTPSPolicy
 
 
-class HTTPSFurlTests(SyncTestCase):
-    """Tests for HTTPS furls."""
+class HTTPSNurlTests(SyncTestCase):
+    """Tests for HTTPS NURLs."""
 
     def test_spki_hash(self):
         """The output of ``get_spki_hash()`` matches the semantics of RFC 7469.

@@ -1073,7 +1073,7 @@ class _HTTPMixin(_SharedMixin):
         # Listen on randomly assigned port, using self-signed cert we generated
         # manually:
         certs_dir = Path(__file__).parent / "certs"
-        furl, listening_port = yield listen_tls(
+        nurl, listening_port = yield listen_tls(
             reactor,
             http_storage_server,
             "127.0.0.1",
@@ -1088,7 +1088,7 @@ class _HTTPMixin(_SharedMixin):
         # state across tests:
         returnValue(
             _HTTPStorageServer.from_http_client(
-                StorageClient.from_furl(furl, persistent=False)
+                StorageClient.from_nurl(nurl, persistent=False)
             )
         )
 

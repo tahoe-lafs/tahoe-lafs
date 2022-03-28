@@ -155,24 +155,24 @@ class StorageClient(object):
         self, url, swissnum, treq=treq
     ):  # type: (DecodedURL, bytes, Union[treq,StubTreq,HTTPClient]) -> None
         """
-        The URL is a HTTPS URL ("https://...").  To construct from a furl, use
-        ``StorageClient.from_furl()``.
+        The URL is a HTTPS URL ("https://...").  To construct from a NURL, use
+        ``StorageClient.from_nurl()``.
         """
         self._base_url = url
         self._swissnum = swissnum
         self._treq = treq
 
     @classmethod
-    def from_furl(cls, furl: DecodedURL, persistent: bool = True) -> "StorageClient":
+    def from_nurl(cls, nurl: DecodedURL, persistent: bool = True) -> "StorageClient":
         """
-        Create a ``StorageClient`` for the given furl.
+        Create a ``StorageClient`` for the given NURL.
 
         ``persistent`` indicates whether to use persistent HTTP connections.
         """
-        assert furl.fragment == "v=1"
-        assert furl.scheme == "pb"
-        swissnum = furl.path[0].encode("ascii")
-        certificate_hash = furl.user.encode("ascii")
+        assert nurl.fragment == "v=1"
+        assert nurl.scheme == "pb"
+        swissnum = nurl.path[0].encode("ascii")
+        certificate_hash = nurl.user.encode("ascii")
 
         treq_client = HTTPClient(
             Agent(
@@ -182,7 +182,7 @@ class StorageClient(object):
             )
         )
 
-        https_url = DecodedURL().replace(scheme="https", host=furl.host, port=furl.port)
+        https_url = DecodedURL().replace(scheme="https", host=nurl.host, port=nurl.port)
         return cls(https_url, swissnum, treq_client)
 
     def relative_url(self, path):
