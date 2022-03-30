@@ -1078,6 +1078,10 @@ class _HTTPMixin(_SharedMixin):
             http_storage_server,
             "127.0.0.1",
             0,
+            # This is just a self-signed certificate with randomly generated
+            # private key; nothing at all special about it. You can regenerate
+            # with code in allmydata.test.test_storage_https or with openssl
+            # CLI, with no meaningful change to the test.
             certs_dir / "private.key",
             certs_dir / "domain.crt",
             interface="127.0.0.1",

@@ -410,6 +410,7 @@ setup(name="tahoe-lafs", # also set in __init__.py
                                       "static/css/*.css",
                                       ],
                     "allmydata": ["ported-modules.txt"],
+                    "allmydata.test": ["certs/*"]
                     },
       include_package_data=True,
       setup_requires=setup_requires,
