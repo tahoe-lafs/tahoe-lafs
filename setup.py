@@ -119,9 +119,6 @@ install_requires = [
     # Support for Python 3 transition
     "future >= 0.18.2",
 
-    # Discover local network configuration
-    "netifaces",
-
     # Utility code:
     "pyutil >= 3.3.0",
 

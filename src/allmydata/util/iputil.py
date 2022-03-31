@@ -19,7 +19,7 @@ from zope.interface import implementer
 
 import attr
 
-from netifaces import (
+from .netifaces import (
     interfaces,
     ifaddresses,
 )
