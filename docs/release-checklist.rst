@@ -25,6 +25,8 @@ Usage :
  - `python release.py --help` => Help menu
  - `python release.py --tag 1.18.0 --ticket 3549 --clean --ignore-deps` => Make release `1.18.0` with ticket number `3549`, skip dependency checks (`--ignore-deps`), clean old release files (--clean)
 
+ **NB** : You might want to push the release branch to a fork, in such a case please set the `--repo` flag.
+
 
 --------------------------------------------------
 

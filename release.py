@@ -38,6 +38,11 @@ parser.add_argument(
 parser.add_argument("--fin", action="store_true", help="Finish release proccess")
 parser.add_argument("--sign", type=str, help="Signing key")
 parser.add_argument("--ticket", type=int, help="Ticket number", required=True)
+parser.add_argument(
+    "--repo",
+    type=str,
+    help="Destination repo (fork), example: git@github.com:meejah/tahoe-lafs.git",
+)
 parser.add_argument("--retry", action="store_true", help="Retry release")
 parser.add_argument("--tag", type=str, help="Release tag", required=True)
 args = parser.parse_args()
@@ -200,6 +205,9 @@ def start_release():
     print(
         f"{bcolors.OKBLUE}Instruction: Make sure your github username, password and gpg passphrase are ready for the next step."
     )
+    print(
+        f"{bcolors.OKBLUE}Instruction: If your intention IS NOT to push to \"origin (git@github.com:tahoe-lafs/tahoe-lafs.git)\", please add and set the '--repo' (example : --repo git@github.com:meejah/tahoe-lafs.git) flag to release complete command before executing"
+    )
     print(CONTINUE_INSTRUCTION)
 
 
@@ -209,7 +217,8 @@ def complete_release():
         print(f"{bcolors.OKCYAN}Skipping push release branch...{bcolors.ENDC}")
     else:
         try:
-            subprocess.run(["git", "push", "origin", BRANCH])
+            REPO = args.repo if args.repo else "origin"
+            subprocess.run(["git", "push", REPO, BRANCH])
             record_step("push_branch")
         except Exception as e:
             print(
