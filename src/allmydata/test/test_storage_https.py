@@ -134,12 +134,17 @@ class PinningHTTPSValidation(AsyncTestCase):
         return rsa.generate_private_key(public_exponent=65537, key_size=2048)
 
     def generate_certificate(
-        self, private_key, expires_days: int = 10, org_name: str = "Yoyodyne"
+        self,
+        private_key,
+        expires_days: int = 10,
+        valid_in_days: int = 0,
+        org_name: str = "Yoyodyne",
     ):
         """Generate a certificate from a RSA private key."""
         subject = issuer = x509.Name(
             [x509.NameAttribute(NameOID.ORGANIZATION_NAME, org_name)]
         )
+        starts = datetime.datetime.utcnow() + datetime.timedelta(days=valid_in_days)
         expires = datetime.datetime.utcnow() + datetime.timedelta(days=expires_days)
         return (
             x509.CertificateBuilder()
@@ -147,7 +152,7 @@ class PinningHTTPSValidation(AsyncTestCase):
             .issuer_name(issuer)
             .public_key(private_key.public_key())
             .serial_number(x509.random_serial_number())
-            .not_valid_before(min(datetime.datetime.utcnow(), expires))
+            .not_valid_before(min(starts, expires))
             .not_valid_after(expires)
             .add_extension(
                 x509.SubjectAlternativeName([x509.DNSName("localhost")]),
@@ -246,6 +251,25 @@ class PinningHTTPSValidation(AsyncTestCase):
             response = await self.request(url, certificate)
             self.assertEqual(await response.content(), b"YOYODYNE")
 
-    # TODO an obvious attack is a private key that doesn't match the
+    @async_to_deferred
+    async def test_server_certificate_not_valid_yet(self):
+        """
+        If the server's certificate is only valid starting in The Future, the
+        request to the server succeeds if the hash matches the one the client
+        expects; start time has no effect.
+        """
+        private_key = self.generate_private_key()
+        certificate = self.generate_certificate(
+            private_key, expires_days=10, valid_in_days=5
+        )
+
+        async with self.listen(
+            self.private_key_to_file(private_key), self.cert_to_file(certificate)
+        ) as url:
+            response = await self.request(url, certificate)
+            self.assertEqual(await response.content(), b"YOYODYNE")
+
+    # A potential attack to test is a private key that doesn't match the
     # certificate... but OpenSSL (quite rightly) won't let you listen with that
-    # so I don't know how to test that!
+    # so I don't know how to test that! See
+    # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3884
