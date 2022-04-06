@@ -184,7 +184,7 @@ class PinningHTTPSValidation(AsyncTestCase):
             await listening_port.stopListening()
             # Make sure all server connections are closed :( No idea why this
             # is necessary when it's not for IStorageServer HTTPS tests.
-            await deferLater(reactor, 0.001)
+            await deferLater(reactor, 0.01)
 
     def request(self, url: str, expected_certificate: x509.Certificate):
         """
