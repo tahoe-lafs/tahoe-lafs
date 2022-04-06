@@ -42,7 +42,7 @@ class HTTPSNurlTests(SyncTestCase):
                 openssl asn1parse -noout -inform pem -out public.key
             openssl dgst -sha256 -binary public.key | openssl enc -base64
         """
-        expected_hash = b"JIj6ezHkdSBlHhrnezAgIC/mrVQHy4KAFyL+8ZNPGPM"
+        expected_hash = b"JIj6ezHkdSBlHhrnezAgIC_mrVQHy4KAFyL-8ZNPGPM"
         certificate_text = b"""\
 -----BEGIN CERTIFICATE-----
 MIIDWTCCAkECFCf+I+3oEhTfqt+6ruH4qQ4Wst1DMA0GCSqGSIb3DQEBCwUAMGkx
