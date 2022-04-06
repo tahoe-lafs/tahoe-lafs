@@ -100,23 +100,34 @@ class PinningHTTPSValidation(AsyncTestCase):
         self.addCleanup(self._port_assigner.tearDown)
         return AsyncTestCase.setUp(self)
 
-    def to_file(self, key_or_cert) -> FilePath:
+    def _temp_file_with_data(self, data: bytes) -> FilePath:
         """
-        Write the given key or cert to a temporary file on disk, return the
-        path.
+        Write data to temporary file, return its path.
         """
         path = self.mktemp()
         with open(path, "wb") as f:
-            if isinstance(key_or_cert, x509.Certificate):
-                data = key_or_cert.public_bytes(serialization.Encoding.PEM)
-            else:
-                data = key_or_cert.private_bytes(
-                    encoding=serialization.Encoding.PEM,
-                    format=serialization.PrivateFormat.TraditionalOpenSSL,
-                    encryption_algorithm=serialization.NoEncryption(),
-                )
             f.write(data)
         return FilePath(path)
+
+    def cert_to_file(self, cert) -> FilePath:
+        """
+        Write the given certificate to a temporary file on disk, return the
+        path.
+        """
+        return self._temp_file_with_data(cert.public_bytes(serialization.Encoding.PEM))
+
+    def private_key_to_file(self, private_key) -> FilePath:
+        """
+        Write the given key to a temporary file on disk, return the
+        path.
+        """
+        return self._temp_file_with_data(
+            private_key.private_bytes(
+                encoding=serialization.Encoding.PEM,
+                format=serialization.PrivateFormat.TraditionalOpenSSL,
+                encryption_algorithm=serialization.NoEncryption(),
+            )
+        )
 
     def generate_private_key(self):
         """Create a RSA private key."""
@@ -197,7 +208,7 @@ class PinningHTTPSValidation(AsyncTestCase):
         private_key = self.generate_private_key()
         certificate = self.generate_certificate(private_key)
         async with self.listen(
-            self.to_file(private_key), self.to_file(certificate)
+            self.private_key_to_file(private_key), self.cert_to_file(certificate)
         ) as url:
             response = await self.request(url, certificate)
             self.assertEqual(await response.content(), b"YOYODYNE")
@@ -214,7 +225,7 @@ class PinningHTTPSValidation(AsyncTestCase):
         certificate2 = self.generate_certificate(private_key2)
 
         async with self.listen(
-            self.to_file(private_key1), self.to_file(certificate1)
+            self.private_key_to_file(private_key1), self.cert_to_file(certificate1)
         ) as url:
             with self.assertRaises(ResponseNeverReceived):
                 await self.request(url, certificate2)
@@ -230,7 +241,7 @@ class PinningHTTPSValidation(AsyncTestCase):
         certificate = self.generate_certificate(private_key, expires_days=-10)
 
         async with self.listen(
-            self.to_file(private_key), self.to_file(certificate)
+            self.private_key_to_file(private_key), self.cert_to_file(certificate)
         ) as url:
             response = await self.request(url, certificate)
             self.assertEqual(await response.content(), b"YOYODYNE")
