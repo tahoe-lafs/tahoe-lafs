@@ -14,12 +14,12 @@ from typing import Set
 
 from random import Random
 from unittest import SkipTest
-from pathlib import Path
 
 from twisted.internet.defer import inlineCallbacks, returnValue, succeed
 from twisted.internet.task import Clock
 from twisted.internet import reactor
 from twisted.internet.endpoints import serverFromString
+from twisted.python.filepath import FilePath
 from foolscap.api import Referenceable, RemoteException
 
 from allmydata.interfaces import IStorageServer  # really, IStorageClient
@@ -1059,7 +1059,7 @@ class _HTTPMixin(_SharedMixin):
 
         # Listen on randomly assigned port, using self-signed cert we generated
         # manually:
-        certs_dir = Path(__file__).parent / "certs"
+        certs_dir = FilePath(__file__).parent().child("certs")
         _, endpoint_string = self._port_assigner.assign(reactor)
         nurl, listening_port = yield listen_tls(
             http_storage_server,
@@ -1069,8 +1069,8 @@ class _HTTPMixin(_SharedMixin):
             # private key; nothing at all special about it. You can regenerate
             # with code in allmydata.test.test_storage_https or with openssl
             # CLI, with no meaningful change to the test.
-            certs_dir / "private.key",
-            certs_dir / "domain.crt",
+            certs_dir.child("private.key"),
+            certs_dir.child("domain.crt"),
         )
         self.addCleanup(listening_port.stopListening)
 

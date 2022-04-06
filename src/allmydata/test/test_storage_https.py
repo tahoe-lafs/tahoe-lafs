@@ -15,18 +15,20 @@ from cryptography.x509.oid import NameOID
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives import serialization, hashes
 
-from twisted.internet.endpoints import quoteStringArgument, serverFromString
+from twisted.internet.endpoints import serverFromString
 from twisted.internet import reactor
 from twisted.internet.defer import Deferred
 from twisted.internet.task import deferLater
 from twisted.web.server import Site
 from twisted.web.static import Data
 from twisted.web.client import Agent, HTTPConnectionPool, ResponseNeverReceived
+from twisted.python.filepath import FilePath
 from treq.client import HTTPClient
 
-from .common import SyncTestCase, AsyncTestCase
+from .common import SyncTestCase, AsyncTestCase, SameProcessStreamEndpointAssigner
 from ..storage.http_common import get_spki_hash
 from ..storage.http_client import _StorageClientHTTPSPolicy
+from ..storage.http_server import _TLSEndpointWrapper
 
 
 class HTTPSNurlTests(SyncTestCase):
@@ -90,7 +92,13 @@ class PinningHTTPSValidation(AsyncTestCase):
     https://cryptography.io/en/latest/x509/tutorial/#creating-a-self-signed-certificate
     """
 
-    def to_file(self, key_or_cert) -> str:
+    def setUp(self):
+        self._port_assigner = SameProcessStreamEndpointAssigner()
+        self._port_assigner.setUp()
+        self.addCleanup(self._port_assigner.tearDown)
+        return AsyncTestCase.setUp(self)
+
+    def to_file(self, key_or_cert) -> FilePath:
         """
         Write the given key or cert to a temporary file on disk, return the
         path.
@@ -106,7 +114,7 @@ class PinningHTTPSValidation(AsyncTestCase):
                     encryption_algorithm=serialization.NoEncryption(),
                 )
             f.write(data)
-        return path
+        return FilePath(path)
 
     def generate_private_key(self):
         """Create a RSA private key."""
@@ -137,19 +145,17 @@ class PinningHTTPSValidation(AsyncTestCase):
         )
 
     @asynccontextmanager
-    async def listen(self, private_key_path, cert_path):
+    async def listen(self, private_key_path: FilePath, cert_path: FilePath):
         """
         Context manager that runs a HTTPS server with the given private key
         and certificate.
 
         Returns a URL that will connect to the server.
         """
-        endpoint = serverFromString(
-            reactor,
-            "ssl:privateKey={}:certKey={}:port=0:interface=127.0.0.1".format(
-                quoteStringArgument(str(private_key_path)),
-                quoteStringArgument(str(cert_path)),
-            ),
+        location_hint, endpoint_string = self._port_assigner.assign(reactor)
+        underlying_endpoint = serverFromString(reactor, endpoint_string)
+        endpoint = _TLSEndpointWrapper.from_paths(
+            underlying_endpoint, private_key_path, cert_path
         )
         root = Data(b"YOYODYNE", "text/plain")
         root.isLeaf = True
