@@ -1092,7 +1092,7 @@ class _HTTPMixin(_SharedMixin):
         # state across tests:
         returnValue(
             _HTTPStorageServer.from_http_client(
-                StorageClient.from_nurl(nurl, persistent=False)
+                StorageClient.from_nurl(nurl, reactor, persistent=False)
             )
         )
 

@@ -18,7 +18,6 @@ from twisted.web.iweb import IPolicyForHTTPS
 from twisted.internet.defer import inlineCallbacks, returnValue, fail, Deferred
 from twisted.internet.interfaces import IOpenSSLClientConnectionCreator
 from twisted.internet.ssl import CertificateOptions
-from twisted.internet import reactor
 from twisted.web.client import Agent, HTTPConnectionPool
 from zope.interface import implementer
 from hyperlink import DecodedURL
@@ -163,7 +162,7 @@ class StorageClient(object):
         self._treq = treq
 
     @classmethod
-    def from_nurl(cls, nurl: DecodedURL, persistent: bool = True) -> "StorageClient":
+    def from_nurl(cls, nurl: DecodedURL, reactor, persistent: bool = True) -> "StorageClient":
         """
         Create a ``StorageClient`` for the given NURL.
 
