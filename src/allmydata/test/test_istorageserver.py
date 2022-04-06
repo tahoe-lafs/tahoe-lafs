@@ -8,19 +8,9 @@ reused across tests, so each test should be careful to generate unique storage
 indexes.
 """
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
+from future.utils import bchr
 
-from future.utils import PY2, bchr
-
-if PY2:
-    # fmt: off
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
-    # fmt: on
-else:
-    from typing import Set
+from typing import Set
 
 from random import Random
 from unittest import SkipTest
@@ -29,7 +19,7 @@ from pathlib import Path
 from twisted.internet.defer import inlineCallbacks, returnValue, succeed
 from twisted.internet.task import Clock
 from twisted.internet import reactor
-
+from twisted.internet.endpoints import serverFromString
 from foolscap.api import Referenceable, RemoteException
 
 from allmydata.interfaces import IStorageServer  # really, IStorageClient
@@ -1013,10 +1003,6 @@ class _SharedMixin(SystemTestMixin):
 
         AsyncTestCase.setUp(self)
 
-        self._port_assigner = SameProcessStreamEndpointAssigner()
-        self._port_assigner.setUp()
-        self.addCleanup(self._port_assigner.tearDown)
-
         self.basedir = "test_istorageserver/" + self.id()
         yield SystemTestMixin.setUp(self)
         yield self.set_up_nodes(1)
@@ -1061,8 +1047,9 @@ class _HTTPMixin(_SharedMixin):
     """Run tests on the HTTP version of ``IStorageServer``."""
 
     def setUp(self):
-        if PY2:
-            self.skipTest("Not going to bother supporting Python 2")
+        self._port_assigner = SameProcessStreamEndpointAssigner()
+        self._port_assigner.setUp()
+        self.addCleanup(self._port_assigner.tearDown)
         return _SharedMixin.setUp(self)
 
     @inlineCallbacks
@@ -1073,18 +1060,17 @@ class _HTTPMixin(_SharedMixin):
         # Listen on randomly assigned port, using self-signed cert we generated
         # manually:
         certs_dir = Path(__file__).parent / "certs"
+        _, endpoint_string = self._port_assigner.assign(reactor)
         nurl, listening_port = yield listen_tls(
-            reactor,
             http_storage_server,
             "127.0.0.1",
-            0,
+            serverFromString(reactor, endpoint_string),
             # This is just a self-signed certificate with randomly generated
             # private key; nothing at all special about it. You can regenerate
             # with code in allmydata.test.test_storage_https or with openssl
             # CLI, with no meaningful change to the test.
             certs_dir / "private.key",
             certs_dir / "domain.crt",
-            interface="127.0.0.1",
         )
         self.addCleanup(listening_port.stopListening)
 

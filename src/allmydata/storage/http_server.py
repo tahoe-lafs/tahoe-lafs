@@ -2,19 +2,21 @@
 HTTP server for storage.
 """
 
-from typing import Dict, List, Set, Tuple, Any, Optional
+from typing import Dict, List, Set, Tuple, Any
 from pathlib import Path
 
 from functools import wraps
 from base64 import b64decode
 import binascii
 
+from zope.interface import implementer
 from klein import Klein
 from twisted.web import http
-from twisted.internet.interfaces import IListeningPort
+from twisted.internet.interfaces import IListeningPort, IStreamServerEndpoint
 from twisted.internet.defer import Deferred
-from twisted.internet.endpoints import quoteStringArgument, serverFromString
+from twisted.internet.ssl import CertificateOptions, Certificate, PrivateCertificate
 from twisted.web.server import Site
+from twisted.protocols.tls import TLSMemoryBIOFactory
 import attr
 from werkzeug.http import (
     parse_range_header,
@@ -518,33 +520,48 @@ class HTTPServer(object):
         return b""
 
 
+@implementer(IStreamServerEndpoint)
+@attr.s
+class _TLSEndpointWrapper(object):
+    """
+    Wrap an existing endpoint with the storage TLS policy.  This is useful
+    because not all Tahoe-LAFS endpoints might be plain TCP+TLS, for example
+    there's Tor and i2p.
+    """
+
+    endpoint = attr.ib(type=IStreamServerEndpoint)
+    context_factory = attr.ib(type=CertificateOptions)
+
+    def listen(self, factory):
+        return self.endpoint.listen(
+            TLSMemoryBIOFactory(self.context_factory, False, factory)
+        )
+
+
 def listen_tls(
-    reactor,
     server: HTTPServer,
     hostname: str,
-    port: int,
+    endpoint: IStreamServerEndpoint,
     private_key_path: Path,
     cert_path: Path,
-    interface: Optional[str],
 ) -> Deferred[Tuple[DecodedURL, IListeningPort]]:
     """
     Start a HTTPS storage server on the given port, return the NURL and the
     listening port.
 
-    The hostname is the external IP or hostname clients will connect to; it
-    does not modify what interfaces the server listens on.  To set the
-    listening interface, use the ``interface`` argument.
+    The hostname is the external IP or hostname clients will connect to, used
+    to constrtuct the NURL; it does not modify what interfaces the server
+    listens on.
 
-    Port can be 0 to choose a random port.
+    This will likely need to be updated eventually to handle Tor/i2p.
     """
-    endpoint_string = "ssl:privateKey={}:certKey={}:port={}".format(
-        quoteStringArgument(str(private_key_path)),
-        quoteStringArgument(str(cert_path)),
-        port,
+    certificate = Certificate.loadPEM(cert_path.read_bytes()).original
+    private_key = PrivateCertificate.loadPEM(
+        cert_path.read_bytes() + b"\n" + private_key_path.read_bytes()
+    ).privateKey.original
+    endpoint = _TLSEndpointWrapper(
+        endpoint, CertificateOptions(privateKey=private_key, certificate=certificate)
     )
-    if interface is not None:
-        endpoint_string += ":interface={}".format(quoteStringArgument(interface))
-    endpoint = serverFromString(reactor, endpoint_string)
 
     def build_nurl(listening_port: IListeningPort) -> DecodedURL:
         nurl = DecodedURL().replace(
