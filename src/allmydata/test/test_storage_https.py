@@ -74,6 +74,8 @@ ox5zO3LrQmQw11OaIAs2/kviKAoKTFFxeyYcpS5RuKNDZfHQCXlLwt9bySxG
 def async_to_deferred(f):
     """
     Wrap an async function to return a Deferred instead.
+
+    Maybe solution to https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3886
     """
 
     @wraps(f)
