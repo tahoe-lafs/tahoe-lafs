@@ -25,6 +25,12 @@ from foolscap.api import Referenceable, RemoteException
 from allmydata.interfaces import IStorageServer  # really, IStorageClient
 from .common_system import SystemTestMixin
 from .common import AsyncTestCase, SameProcessStreamEndpointAssigner
+from .certs import (
+    generate_certificate,
+    generate_private_key,
+    private_key_to_file,
+    cert_to_file,
+)
 from allmydata.storage.server import StorageServer  # not a IStorageServer!!
 from allmydata.storage.http_server import HTTPServer, listen_tls
 from allmydata.storage.http_client import StorageClient
@@ -1057,20 +1063,16 @@ class _HTTPMixin(_SharedMixin):
         swissnum = b"1234"
         http_storage_server = HTTPServer(self.server, swissnum)
 
-        # Listen on randomly assigned port, using self-signed cert we generated
-        # manually:
-        certs_dir = FilePath(__file__).parent().child("certs")
+        # Listen on randomly assigned port, using self-signed cert:
+        private_key = generate_private_key()
+        certificate = generate_certificate(private_key)
         _, endpoint_string = self._port_assigner.assign(reactor)
         nurl, listening_port = yield listen_tls(
             http_storage_server,
             "127.0.0.1",
             serverFromString(reactor, endpoint_string),
-            # This is just a self-signed certificate with randomly generated
-            # private key; nothing at all special about it. You can regenerate
-            # with code in allmydata.test.test_storage_https or with openssl
-            # CLI, with no meaningful change to the test.
-            certs_dir.child("private.key"),
-            certs_dir.child("domain.crt"),
+            private_key_to_file(FilePath(self.mktemp()), private_key),
+            cert_to_file(FilePath(self.mktemp()), certificate),
         )
         self.addCleanup(listening_port.stopListening)
 

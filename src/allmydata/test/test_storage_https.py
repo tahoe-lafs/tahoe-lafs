@@ -6,14 +6,10 @@ server authentication logic, which may one day apply outside of HTTP Storage
 Protocol.
 """
 
-import datetime
 from functools import wraps
 from contextlib import asynccontextmanager
 
 from cryptography import x509
-from cryptography.x509.oid import NameOID
-from cryptography.hazmat.primitives.asymmetric import rsa
-from cryptography.hazmat.primitives import serialization, hashes
 
 from twisted.internet.endpoints import serverFromString
 from twisted.internet import reactor
@@ -26,6 +22,12 @@ from twisted.python.filepath import FilePath
 from treq.client import HTTPClient
 
 from .common import SyncTestCase, AsyncTestCase, SameProcessStreamEndpointAssigner
+from .certs import (
+    generate_certificate,
+    generate_private_key,
+    private_key_to_file,
+    cert_to_file,
+)
 from ..storage.http_common import get_spki_hash
 from ..storage.http_client import _StorageClientHTTPSPolicy
 from ..storage.http_server import _TLSEndpointWrapper
@@ -100,68 +102,6 @@ class PinningHTTPSValidation(AsyncTestCase):
         self.addCleanup(self._port_assigner.tearDown)
         return AsyncTestCase.setUp(self)
 
-    def _temp_file_with_data(self, data: bytes) -> FilePath:
-        """
-        Write data to temporary file, return its path.
-        """
-        path = self.mktemp()
-        with open(path, "wb") as f:
-            f.write(data)
-        return FilePath(path)
-
-    def cert_to_file(self, cert) -> FilePath:
-        """
-        Write the given certificate to a temporary file on disk, return the
-        path.
-        """
-        return self._temp_file_with_data(cert.public_bytes(serialization.Encoding.PEM))
-
-    def private_key_to_file(self, private_key) -> FilePath:
-        """
-        Write the given key to a temporary file on disk, return the
-        path.
-        """
-        return self._temp_file_with_data(
-            private_key.private_bytes(
-                encoding=serialization.Encoding.PEM,
-                format=serialization.PrivateFormat.TraditionalOpenSSL,
-                encryption_algorithm=serialization.NoEncryption(),
-            )
-        )
-
-    def generate_private_key(self):
-        """Create a RSA private key."""
-        return rsa.generate_private_key(public_exponent=65537, key_size=2048)
-
-    def generate_certificate(
-        self,
-        private_key,
-        expires_days: int = 10,
-        valid_in_days: int = 0,
-        org_name: str = "Yoyodyne",
-    ):
-        """Generate a certificate from a RSA private key."""
-        subject = issuer = x509.Name(
-            [x509.NameAttribute(NameOID.ORGANIZATION_NAME, org_name)]
-        )
-        starts = datetime.datetime.utcnow() + datetime.timedelta(days=valid_in_days)
-        expires = datetime.datetime.utcnow() + datetime.timedelta(days=expires_days)
-        return (
-            x509.CertificateBuilder()
-            .subject_name(subject)
-            .issuer_name(issuer)
-            .public_key(private_key.public_key())
-            .serial_number(x509.random_serial_number())
-            .not_valid_before(min(starts, expires))
-            .not_valid_after(expires)
-            .add_extension(
-                x509.SubjectAlternativeName([x509.DNSName("localhost")]),
-                critical=False,
-                # Sign our certificate with our private key
-            )
-            .sign(private_key, hashes.SHA256())
-        )
-
     @asynccontextmanager
     async def listen(self, private_key_path: FilePath, cert_path: FilePath):
         """
@@ -210,10 +150,11 @@ class PinningHTTPSValidation(AsyncTestCase):
         If all conditions are met, a TLS client using the Tahoe-LAFS policy can
         connect to the server.
         """
-        private_key = self.generate_private_key()
-        certificate = self.generate_certificate(private_key)
+        private_key = generate_private_key()
+        certificate = generate_certificate(private_key)
         async with self.listen(
-            self.private_key_to_file(private_key), self.cert_to_file(certificate)
+            private_key_to_file(FilePath(self.mktemp()), private_key),
+            cert_to_file(FilePath(self.mktemp()), certificate),
         ) as url:
             response = await self.request(url, certificate)
             self.assertEqual(await response.content(), b"YOYODYNE")
@@ -224,13 +165,14 @@ class PinningHTTPSValidation(AsyncTestCase):
         If the server's certificate hash doesn't match the hash the client
         expects, the request to the server fails.
         """
-        private_key1 = self.generate_private_key()
-        certificate1 = self.generate_certificate(private_key1)
-        private_key2 = self.generate_private_key()
-        certificate2 = self.generate_certificate(private_key2)
+        private_key1 = generate_private_key()
+        certificate1 = generate_certificate(private_key1)
+        private_key2 = generate_private_key()
+        certificate2 = generate_certificate(private_key2)
 
         async with self.listen(
-            self.private_key_to_file(private_key1), self.cert_to_file(certificate1)
+            private_key_to_file(FilePath(self.mktemp()), private_key1),
+            cert_to_file(FilePath(self.mktemp()), certificate1),
         ) as url:
             with self.assertRaises(ResponseNeverReceived):
                 await self.request(url, certificate2)
@@ -242,11 +184,12 @@ class PinningHTTPSValidation(AsyncTestCase):
         succeeds if the hash matches the one the client expects; expiration has
         no effect.
         """
-        private_key = self.generate_private_key()
-        certificate = self.generate_certificate(private_key, expires_days=-10)
+        private_key = generate_private_key()
+        certificate = generate_certificate(private_key, expires_days=-10)
 
         async with self.listen(
-            self.private_key_to_file(private_key), self.cert_to_file(certificate)
+            private_key_to_file(FilePath(self.mktemp()), private_key),
+            cert_to_file(FilePath(self.mktemp()), certificate),
         ) as url:
             response = await self.request(url, certificate)
             self.assertEqual(await response.content(), b"YOYODYNE")
@@ -258,13 +201,14 @@ class PinningHTTPSValidation(AsyncTestCase):
         request to the server succeeds if the hash matches the one the client
         expects; start time has no effect.
         """
-        private_key = self.generate_private_key()
-        certificate = self.generate_certificate(
+        private_key = generate_private_key()
+        certificate = generate_certificate(
             private_key, expires_days=10, valid_in_days=5
         )
 
         async with self.listen(
-            self.private_key_to_file(private_key), self.cert_to_file(certificate)
+            private_key_to_file(FilePath(self.mktemp()), private_key),
+            cert_to_file(FilePath(self.mktemp()), certificate),
         ) as url:
             response = await self.request(url, certificate)
             self.assertEqual(await response.content(), b"YOYODYNE")
