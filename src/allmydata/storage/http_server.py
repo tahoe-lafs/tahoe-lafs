@@ -86,8 +86,8 @@ def _authorization_decorator(required_secrets):
             try:
                 secrets = _extract_secrets(authorization, required_secrets)
             except ClientSecretsException:
-                request.setResponseCode(400)
-                return b""
+                request.setResponseCode(http.BAD_REQUEST)
+                return b"Missing required secrets"
             return f(self, request, secrets, *args, **kwargs)
 
         return route
