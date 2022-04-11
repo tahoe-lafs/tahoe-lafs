@@ -413,6 +413,36 @@ class GenericHTTPAPITests(SyncTestCase):
         )
         self.assertEqual(version, expected_version)
 
+    def test_schema_validation(self):
+        """
+        Ensure that schema validation is happening: invalid CBOR should result
+        in bad request response code (error 400).
+
+        We don't bother checking every single request, the API on the
+        server-side is designed to require a schema, so it validates
+        everywhere.  But we check at least one to ensure we get correct
+        response code on bad input, so we know validation happened.
+        """
+        upload_secret = urandom(32)
+        lease_secret = urandom(32)
+        storage_index = urandom(16)
+        url = self.http.client.relative_url(
+            "/v1/immutable/" + _encode_si(storage_index)
+        )
+        message = {"bad-message": "missing expected keys"}
+
+        response = result_of(
+            self.http.client.request(
+                "POST",
+                url,
+                lease_renew_secret=lease_secret,
+                lease_cancel_secret=lease_secret,
+                upload_secret=upload_secret,
+                message_to_serialize=message,
+            )
+        )
+        self.assertEqual(response.code, http.BAD_REQUEST)
+
 
 class ImmutableHTTPAPITests(SyncTestCase):
     """

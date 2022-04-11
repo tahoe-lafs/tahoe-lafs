@@ -135,7 +135,8 @@ install_requires = [
     "klein",
     "werkzeug",
     "treq",
-    "cbor2"
+    "cbor2",
+    "pycddl",
 ]
 
 setup_requires = [

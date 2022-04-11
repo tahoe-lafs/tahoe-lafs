@@ -47,7 +47,9 @@ def _decode_cbor(response):
         else:
             raise ClientException(-1, "Server didn't send CBOR")
     else:
-        return fail(ClientException(response.code, response.phrase))
+        return treq.content(response).addCallback(
+            lambda data: fail(ClientException(response.code, response.phrase, data))
+        )
 
 
 @attr.s
