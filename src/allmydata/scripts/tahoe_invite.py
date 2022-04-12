@@ -42,8 +42,6 @@ class InviteOptions(usage.Options):
         self['nick'] = args[0].strip()
 
 
-wormhole = None
-
 @defer.inlineCallbacks
 def _send_config_via_wormhole(options, config):
     out = options.stdout
