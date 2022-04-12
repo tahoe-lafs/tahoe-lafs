@@ -137,8 +137,7 @@ class Invite(GridTestMixin, CLITestMixin, unittest.TestCase):
             intro_dir,
         )
 
-    async def _invite_success(self, extra_args=(), tahoe_config=None):
-        # type: (Sequence[bytes], Optional[bytes]) -> defer.Deferred
+    async def _invite_success(self, extra_args: Sequence[bytes] = (), tahoe_config: Optional[byte] = None) -> str:
         """
         Exercise an expected-success case of ``tahoe invite``.
 
