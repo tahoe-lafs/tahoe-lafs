@@ -436,7 +436,7 @@ class HTTPServer(object):
         """
         List shares for the given storage index.
         """
-        share_numbers = list(self._storage_server.get_buckets(storage_index).keys())
+        share_numbers = set(self._storage_server.get_buckets(storage_index).keys())
         return self._send_encoded(request, share_numbers)
 
     @_authorized_route(

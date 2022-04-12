@@ -39,8 +39,9 @@ class ClientException(Exception):
 
 # Schemas for server responses.
 #
-# TODO usage of sets is inconsistent. Either use everywhere (and document in
-# spec document) or use nowhere.
+# Tags are of the form #6.nnn, where the number is documented at
+# https://www.iana.org/assignments/cbor-tags/cbor-tags.xhtml. Notably, #6.258
+# indicates a set.
 _SCHEMAS = {
     "get_version": Schema(
         """
@@ -74,7 +75,7 @@ _SCHEMAS = {
     ),
     "list_shares": Schema(
         """
-    message = [* uint]
+    message = #6.258([* uint])
     """
     ),
 }
