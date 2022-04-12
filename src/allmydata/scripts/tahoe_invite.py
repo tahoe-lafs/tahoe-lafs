@@ -18,8 +18,6 @@ except ImportError:
 from twisted.python import usage
 from twisted.internet import defer, reactor
 
-from wormhole import wormhole
-
 from allmydata.util.encodingutil import argv_to_abspath
 from allmydata.util import jsonbytes as json
 from allmydata.scripts.common import get_default_nodedir, get_introducer_furl
@@ -44,13 +42,15 @@ class InviteOptions(usage.Options):
         self['nick'] = args[0].strip()
 
 
+wormhole = None
+
 @defer.inlineCallbacks
 def _send_config_via_wormhole(options, config):
     out = options.stdout
     err = options.stderr
     relay_url = options.parent['wormhole-server']
     print("Connecting to '{}'...".format(relay_url), file=out)
-    wh = wormhole.create(
+    wh = options.parent.wormhole.create(
         appid=options.parent['wormhole-invite-appid'],
         relay_url=relay_url,
         reactor=reactor,

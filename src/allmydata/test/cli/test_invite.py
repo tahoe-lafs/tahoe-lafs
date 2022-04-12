@@ -2,62 +2,21 @@
 Tests for ``tahoe invite``.
 """
 
-import os
-import mock
 import json
+import os
 from os.path import join
 from typing import Optional, Sequence
 
-from twisted.trial import unittest
 from twisted.internet import defer
+from twisted.trial import unittest
+
+from ...client import read_config
+from ...scripts import runner
+from ...util.jsonbytes import dumps_bytes
 from ..common_util import run_cli
 from ..no_network import GridTestMixin
 from .common import CLITestMixin
-from ...client import (
-    read_config,
-)
-
-class _FakeWormhole(object):
-
-    def __init__(self, outgoing_messages):
-        self.messages = []
-        for o in outgoing_messages:
-            assert isinstance(o, bytes)
-        self._outgoing = outgoing_messages
-
-    def get_code(self):
-        return defer.succeed(u"6-alarmist-tuba")
-
-    def set_code(self, code):
-        self._code = code
-
-    def get_welcome(self):
-        return defer.succeed(
-            {
-                u"welcome": {},
-            }
-        )
-
-    def allocate_code(self):
-        return None
-
-    def send_message(self, msg):
-        assert isinstance(msg, bytes)
-        self.messages.append(msg)
-
-    def get_message(self):
-        return defer.succeed(self._outgoing.pop(0))
-
-    def close(self):
-        return defer.succeed(None)
-
-
-def _create_fake_wormhole(outgoing_messages):
-    outgoing_messages = [
-        m.encode("utf-8") if isinstance(m, str) else m
-        for m in outgoing_messages
-    ]
-    return _FakeWormhole(outgoing_messages)
+from .wormholetesting import MemoryWormholeServer, memory_server
 
 
 class Join(GridTestMixin, CLITestMixin, unittest.TestCase):
@@ -74,41 +33,52 @@ class Join(GridTestMixin, CLITestMixin, unittest.TestCase):
         successfully join after an invite
         """
         node_dir = self.mktemp()
+        server = MemoryWormholeServer()
+        options = runner.Options()
+        options.wormhole = server
+        reactor = object()
 
-        with mock.patch('allmydata.scripts.create_node.wormhole') as w:
-            fake_wh = _create_fake_wormhole([
-                json.dumps({u"abilities": {u"server-v1": {}}}),
-                json.dumps({
-                    u"shares-needed": 1,
-                    u"shares-happy": 1,
-                    u"shares-total": 1,
-                    u"nickname": u"somethinghopefullyunique",
-                    u"introducer": u"pb://foo",
-                }),
-            ])
-            w.create = mock.Mock(return_value=fake_wh)
+        wormhole = server.create(
+            "tahoe-lafs.org/invite",
+            "ws://wormhole.tahoe-lafs.org:4000/v1",
+            reactor,
+        )
+        code = yield wormhole.get_code()
+        messages = [
+            {u"abilities": {u"server-v1": {}}},
+            {
+                u"shares-needed": 1,
+                u"shares-happy": 1,
+                u"shares-total": 1,
+                u"nickname": u"somethinghopefullyunique",
+                u"introducer": u"pb://foo",
+            },
+        ]
+        for msg in messages:
+            wormhole.send_message(dumps_bytes(msg))
 
-            rc, out, err = yield run_cli(
-                "create-client",
-                "--join", "1-abysmal-ant",
-                node_dir,
-            )
+        rc, out, err = yield run_cli(
+            "create-client",
+            "--join", code,
+            node_dir,
+            options=options,
+        )
 
-            self.assertEqual(0, rc)
+        self.assertEqual(0, rc)
 
-            config = read_config(node_dir, u"")
-            self.assertIn(
-                "pb://foo",
-                set(
-                    furl
-                    for (furl, cache)
-                    in config.get_introducer_configuration().values()
-                ),
-            )
+        config = read_config(node_dir, u"")
+        self.assertIn(
+            "pb://foo",
+            set(
+                furl
+                for (furl, cache)
+                in config.get_introducer_configuration().values()
+            ),
+        )
 
-            with open(join(node_dir, 'tahoe.cfg'), 'r') as f:
-                config = f.read()
-            self.assertIn(u"somethinghopefullyunique", config)
+        with open(join(node_dir, 'tahoe.cfg'), 'r') as f:
+            config = f.read()
+        self.assertIn(u"somethinghopefullyunique", config)
 
     @defer.inlineCallbacks
     def test_create_node_illegal_option(self):
@@ -116,30 +86,41 @@ class Join(GridTestMixin, CLITestMixin, unittest.TestCase):
         Server sends JSON with unknown/illegal key
         """
         node_dir = self.mktemp()
+        server = MemoryWormholeServer()
+        options = runner.Options()
+        options.wormhole = server
+        reactor = object()
 
-        with mock.patch('allmydata.scripts.create_node.wormhole') as w:
-            fake_wh = _create_fake_wormhole([
-                json.dumps({u"abilities": {u"server-v1": {}}}),
-                json.dumps({
-                    u"shares-needed": 1,
-                    u"shares-happy": 1,
-                    u"shares-total": 1,
-                    u"nickname": u"somethinghopefullyunique",
-                    u"introducer": u"pb://foo",
-                    u"something-else": u"not allowed",
-                }),
-            ])
-            w.create = mock.Mock(return_value=fake_wh)
+        wormhole = server.create(
+            "tahoe-lafs.org/invite",
+            "ws://wormhole.tahoe-lafs.org:4000/v1",
+            reactor,
+        )
+        code = yield wormhole.get_code()
+        messages = [
+            {u"abilities": {u"server-v1": {}}},
+            {
+                u"shares-needed": 1,
+                u"shares-happy": 1,
+                u"shares-total": 1,
+                u"nickname": u"somethinghopefullyunique",
+                u"introducer": u"pb://foo",
+                u"something-else": u"not allowed",
+            },
+        ]
+        for msg in messages:
+            wormhole.send_message(dumps_bytes(msg))
 
-            rc, out, err = yield run_cli(
-                "create-client",
-                "--join", "1-abysmal-ant",
-                node_dir,
-            )
+        rc, out, err = yield run_cli(
+            "create-client",
+            "--join", code,
+            node_dir,
+            options=options,
+        )
 
-            # should still succeed -- just ignores the not-whitelisted
-            # "something-else" option
-            self.assertEqual(0, rc)
+        # should still succeed -- just ignores the not-whitelisted
+        # "something-else" option
+        self.assertEqual(0, rc)
 
 
 class Invite(GridTestMixin, CLITestMixin, unittest.TestCase):
@@ -156,7 +137,7 @@ class Invite(GridTestMixin, CLITestMixin, unittest.TestCase):
             intro_dir,
         )
 
-    def _invite_success(self, extra_args=(), tahoe_config=None):
+    async def _invite_success(self, extra_args=(), tahoe_config=None):
         # type: (Sequence[bytes], Optional[bytes]) -> defer.Deferred
         """
         Exercise an expected-success case of ``tahoe invite``.
@@ -178,53 +159,82 @@ class Invite(GridTestMixin, CLITestMixin, unittest.TestCase):
             with open(join(intro_dir, "tahoe.cfg"), "wb") as fobj_cfg:
                 fobj_cfg.write(tahoe_config)
 
-        with mock.patch('allmydata.scripts.tahoe_invite.wormhole') as w:
-            fake_wh = _create_fake_wormhole([
-                json.dumps({u"abilities": {u"client-v1": {}}}),
-            ])
-            w.create = mock.Mock(return_value=fake_wh)
+        wormhole_server, helper = memory_server()
+        options = runner.Options()
+        options.wormhole = wormhole_server
+        reactor = object()
 
-            extra_args = tuple(extra_args)
-
-            d = run_cli(
+        async def server():
+            # Run the server side of the invitation process using the CLI.
+            rc, out, err = await run_cli(
                 "-d", intro_dir,
                 "invite",
-                *(extra_args + ("foo",))
+                *tuple(extra_args) + ("foo",),
+                options=options,
             )
 
-            def done(result):
-                rc, out, err = result
-                self.assertEqual(2, len(fake_wh.messages))
-                self.assertEqual(
-                    json.loads(fake_wh.messages[0]),
+        async def client():
+            # Run the client side of the invitation by manually pumping a
+            # message through the wormhole.
+
+            # First, wait for the server to create the wormhole at all.
+            wormhole = await helper.wait_for_wormhole(
+                "tahoe-lafs.org/invite",
+                "ws://wormhole.tahoe-lafs.org:4000/v1",
+            )
+            # Then read out its code and open the other side of the wormhole.
+            code = await wormhole.when_code()
+            other_end = wormhole_server.create(
+                "tahoe-lafs.org/invite",
+                "ws://wormhole.tahoe-lafs.org:4000/v1",
+                reactor,
+            )
+            other_end.set_code(code)
+
+            # Send a proper client abilities message.
+            other_end.send_message(dumps_bytes({u"abilities": {u"client-v1": {}}}))
+
+            # Check the server's messages.  First, it should announce its
+            # abilities correctly.
+            server_abilities = json.loads(await other_end.when_received())
+            self.assertEqual(
+                server_abilities,
+                {
+                    "abilities":
                     {
-                        "abilities":
-                        {
-                            "server-v1": {}
-                        },
+                        "server-v1": {}
                     },
-                )
-                invite = json.loads(fake_wh.messages[1])
-                self.assertEqual(
-                    invite["nickname"], "foo",
-                )
-                self.assertEqual(
-                    invite["introducer"], "pb://fooblam",
-                )
-                return invite
-            d.addCallback(done)
-            return d
+                },
+            )
+
+            # Second, it should have an invitation with a nickname and
+            # introducer furl.
+            invite = json.loads(await other_end.when_received())
+            self.assertEqual(
+                invite["nickname"], "foo",
+            )
+            self.assertEqual(
+                invite["introducer"], "pb://fooblam",
+            )
+            return invite
+
+        invite, _ = await defer.gatherResults(map(
+            defer.Deferred.fromCoroutine,
+            [client(), server()],
+        ))
+        return invite
+
 
     @defer.inlineCallbacks
     def test_invite_success(self):
         """
         successfully send an invite
         """
-        invite = yield self._invite_success((
+        invite = yield defer.Deferred.fromCoroutine(self._invite_success((
             "--shares-needed", "1",
             "--shares-happy", "2",
             "--shares-total", "3",
-        ))
+        )))
         self.assertEqual(
             invite["shares-needed"], "1",
         )
@@ -241,12 +251,12 @@ class Invite(GridTestMixin, CLITestMixin, unittest.TestCase):
         If ``--shares-{needed,happy,total}`` are not given on the command line
         then the invitation is generated using the configured values.
         """
-        invite = yield self._invite_success(tahoe_config=b"""
+        invite = yield defer.Deferred.fromCoroutine(self._invite_success(tahoe_config=b"""
 [client]
 shares.needed = 2
 shares.happy = 4
 shares.total = 6
-""")
+"""))
         self.assertEqual(
             invite["shares-needed"], "2",
         )
@@ -265,22 +275,20 @@ shares.total = 6
         """
         intro_dir = os.path.join(self.basedir, "introducer")
 
-        with mock.patch('allmydata.scripts.tahoe_invite.wormhole') as w:
-            fake_wh = _create_fake_wormhole([
-                json.dumps({u"abilities": {u"client-v1": {}}}),
-            ])
-            w.create = mock.Mock(return_value=fake_wh)
+        options = runner.Options()
+        options.wormhole = None
 
-            rc, out, err = yield run_cli(
-                "-d", intro_dir,
-                "invite",
-                "--shares-needed", "1",
-                "--shares-happy", "1",
-                "--shares-total", "1",
-                "foo",
-            )
-            self.assertNotEqual(rc, 0)
-            self.assertIn(u"Can't find introducer FURL", out + err)
+        rc, out, err = yield run_cli(
+            "-d", intro_dir,
+            "invite",
+            "--shares-needed", "1",
+            "--shares-happy", "1",
+            "--shares-total", "1",
+            "foo",
+            options=options,
+        )
+        self.assertNotEqual(rc, 0)
+        self.assertIn(u"Can't find introducer FURL", out + err)
 
     @defer.inlineCallbacks
     def test_invite_wrong_client_abilities(self):
@@ -294,22 +302,50 @@ shares.total = 6
         with open(join(priv_dir, "introducer.furl"), "w") as f:
             f.write("pb://fooblam\n")
 
-        with mock.patch('allmydata.scripts.tahoe_invite.wormhole') as w:
-            fake_wh = _create_fake_wormhole([
-                json.dumps({u"abilities": {u"client-v9000": {}}}),
-            ])
-            w.create = mock.Mock(return_value=fake_wh)
+        wormhole_server, helper = memory_server()
+        options = runner.Options()
+        options.wormhole = wormhole_server
+        reactor = object()
 
-            rc, out, err = yield run_cli(
+        async def server():
+            rc, out, err = await run_cli(
                 "-d", intro_dir,
                 "invite",
                 "--shares-needed", "1",
                 "--shares-happy", "1",
                 "--shares-total", "1",
                 "foo",
+                options=options,
             )
             self.assertNotEqual(rc, 0)
             self.assertIn(u"No 'client-v1' in abilities", out + err)
+
+        async def client():
+            # Run the client side of the invitation by manually pumping a
+            # message through the wormhole.
+
+            # First, wait for the server to create the wormhole at all.
+            wormhole = await helper.wait_for_wormhole(
+                "tahoe-lafs.org/invite",
+                "ws://wormhole.tahoe-lafs.org:4000/v1",
+            )
+            # Then read out its code and open the other side of the wormhole.
+            code = await wormhole.when_code()
+            other_end = wormhole_server.create(
+                "tahoe-lafs.org/invite",
+                "ws://wormhole.tahoe-lafs.org:4000/v1",
+                reactor,
+            )
+            other_end.set_code(code)
+
+            # Send some surprising client abilities.
+            other_end.send_message(dumps_bytes({u"abilities": {u"client-v9000": {}}}))
+
+        yield defer.gatherResults(map(
+            defer.Deferred.fromCoroutine,
+            [client(), server()],
+        ))
+
 
     @defer.inlineCallbacks
     def test_invite_no_client_abilities(self):
@@ -323,22 +359,51 @@ shares.total = 6
         with open(join(priv_dir, "introducer.furl"), "w") as f:
             f.write("pb://fooblam\n")
 
-        with mock.patch('allmydata.scripts.tahoe_invite.wormhole') as w:
-            fake_wh = _create_fake_wormhole([
-                json.dumps({}),
-            ])
-            w.create = mock.Mock(return_value=fake_wh)
+        wormhole_server, helper = memory_server()
+        options = runner.Options()
+        options.wormhole = wormhole_server
+        reactor = object()
 
-            rc, out, err = yield run_cli(
+        async def server():
+            # Run the server side of the invitation process using the CLI.
+            rc, out, err = await run_cli(
                 "-d", intro_dir,
                 "invite",
                 "--shares-needed", "1",
                 "--shares-happy", "1",
                 "--shares-total", "1",
                 "foo",
+                options=options,
             )
             self.assertNotEqual(rc, 0)
             self.assertIn(u"No 'abilities' from client", out + err)
+
+        async def client():
+            # Run the client side of the invitation by manually pumping a
+            # message through the wormhole.
+
+            # First, wait for the server to create the wormhole at all.
+            wormhole = await helper.wait_for_wormhole(
+                "tahoe-lafs.org/invite",
+                "ws://wormhole.tahoe-lafs.org:4000/v1",
+            )
+            # Then read out its code and open the other side of the wormhole.
+            code = await wormhole.when_code()
+            other_end = wormhole_server.create(
+                "tahoe-lafs.org/invite",
+                "ws://wormhole.tahoe-lafs.org:4000/v1",
+                reactor,
+            )
+            other_end.set_code(code)
+
+            # Send a no-abilities message through to the server.
+            other_end.send_message(dumps_bytes({}))
+
+        yield defer.gatherResults(map(
+            defer.Deferred.fromCoroutine,
+            [client(), server()],
+        ))
+
 
     @defer.inlineCallbacks
     def test_invite_wrong_server_abilities(self):
@@ -352,26 +417,38 @@ shares.total = 6
         with open(join(priv_dir, "introducer.furl"), "w") as f:
             f.write("pb://fooblam\n")
 
-        with mock.patch('allmydata.scripts.create_node.wormhole') as w:
-            fake_wh = _create_fake_wormhole([
-                json.dumps({u"abilities": {u"server-v9000": {}}}),
-                json.dumps({
-                    "shares-needed": "1",
-                    "shares-total": "1",
-                    "shares-happy": "1",
-                    "nickname": "foo",
-                    "introducer": "pb://fooblam",
-                }),
-            ])
-            w.create = mock.Mock(return_value=fake_wh)
+        wormhole_server = MemoryWormholeServer()
+        options = runner.Options()
+        options.wormhole = wormhole_server
+        reactor = object()
 
-            rc, out, err = yield run_cli(
-                "create-client",
-                "--join", "1-alarmist-tuba",
-                "foo",
-            )
-            self.assertNotEqual(rc, 0)
-            self.assertIn("Expected 'server-v1' in server abilities", out + err)
+        wormhole = wormhole_server.create(
+            "tahoe-lafs.org/invite",
+            "ws://wormhole.tahoe-lafs.org:4000/v1",
+            reactor,
+        )
+        code = yield wormhole.get_code()
+        messages = [
+            {u"abilities": {u"server-v9000": {}}},
+            {
+                "shares-needed": "1",
+                "shares-total": "1",
+                "shares-happy": "1",
+                "nickname": "foo",
+                "introducer": "pb://fooblam",
+            },
+        ]
+        for msg in messages:
+            wormhole.send_message(dumps_bytes(msg))
+
+        rc, out, err = yield run_cli(
+            "create-client",
+            "--join", code,
+            "foo",
+            options=options,
+        )
+        self.assertNotEqual(rc, 0)
+        self.assertIn("Expected 'server-v1' in server abilities", out + err)
 
     @defer.inlineCallbacks
     def test_invite_no_server_abilities(self):
@@ -385,26 +462,38 @@ shares.total = 6
         with open(join(priv_dir, "introducer.furl"), "w") as f:
             f.write("pb://fooblam\n")
 
-        with mock.patch('allmydata.scripts.create_node.wormhole') as w:
-            fake_wh = _create_fake_wormhole([
-                json.dumps({}),
-                json.dumps({
-                    "shares-needed": "1",
-                    "shares-total": "1",
-                    "shares-happy": "1",
-                    "nickname": "bar",
-                    "introducer": "pb://fooblam",
-                }),
-            ])
-            w.create = mock.Mock(return_value=fake_wh)
+        server = MemoryWormholeServer()
+        options = runner.Options()
+        options.wormhole = server
+        reactor = object()
 
-            rc, out, err = yield run_cli(
-                "create-client",
-                "--join", "1-alarmist-tuba",
-                "bar",
-            )
-            self.assertNotEqual(rc, 0)
-            self.assertIn("Expected 'abilities' in server introduction", out + err)
+        wormhole = server.create(
+            "tahoe-lafs.org/invite",
+            "ws://wormhole.tahoe-lafs.org:4000/v1",
+            reactor,
+        )
+        code = yield wormhole.get_code()
+        messages = [
+            {},
+            {
+                "shares-needed": "1",
+                "shares-total": "1",
+                "shares-happy": "1",
+                "nickname": "bar",
+                "introducer": "pb://fooblam",
+            },
+        ]
+        for msg in messages:
+            wormhole.send_message(dumps_bytes(msg))
+
+        rc, out, err = yield run_cli(
+            "create-client",
+            "--join", code,
+            "bar",
+            options=options,
+        )
+        self.assertNotEqual(rc, 0)
+        self.assertIn("Expected 'abilities' in server introduction", out + err)
 
     @defer.inlineCallbacks
     def test_invite_no_nick(self):
@@ -413,13 +502,16 @@ shares.total = 6
         """
         intro_dir = os.path.join(self.basedir, "introducer")
 
-        with mock.patch('allmydata.scripts.tahoe_invite.wormhole'):
-            rc, out, err = yield run_cli(
-                "-d", intro_dir,
-                "invite",
-                "--shares-needed", "1",
-                "--shares-happy", "1",
-                "--shares-total", "1",
-            )
-            self.assertTrue(rc)
-            self.assertIn(u"Provide a single argument", out + err)
+        options = runner.Options()
+        options.wormhole = None
+
+        rc, out, err = yield run_cli(
+            "-d", intro_dir,
+            "invite",
+            "--shares-needed", "1",
+            "--shares-happy", "1",
+            "--shares-total", "1",
+            options=options,
+        )
+        self.assertTrue(rc)
+        self.assertIn(u"Provide a single argument", out + err)
