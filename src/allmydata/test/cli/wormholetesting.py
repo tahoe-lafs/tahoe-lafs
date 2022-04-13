@@ -32,7 +32,7 @@ For example::
 
 from __future__ import annotations
 
-from typing import Iterator, Optional, Sequence
+from typing import Iterator, Optional, Sequence, Tuple
 from collections.abc import Awaitable
 from inspect import getargspec
 from itertools import count
@@ -48,7 +48,7 @@ WormholeCode = str
 WormholeMessage = bytes
 AppId = str
 RelayURL = str
-ApplicationKey = tuple[RelayURL, AppId]
+ApplicationKey = Tuple[RelayURL, AppId]
 
 @define
 class MemoryWormholeServer(object):
