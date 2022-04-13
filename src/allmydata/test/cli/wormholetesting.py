@@ -32,7 +32,7 @@ For example::
 
 from __future__ import annotations
 
-from typing import Iterator, Optional, Sequence, Tuple
+from typing import Iterator, Optional, List, Tuple
 from collections.abc import Awaitable
 from inspect import getargspec
 from itertools import count
@@ -158,7 +158,7 @@ class _WormholeApp(object):
     appid/relay_url scope.
     """
     wormholes: dict[WormholeCode, IWormhole] = field(default=Factory(dict))
-    _waiting: dict[WormholeCode, Sequence[Deferred]] = field(default=Factory(dict))
+    _waiting: dict[WormholeCode, List[Deferred]] = field(default=Factory(dict))
     _counter: Iterator[int] = field(default=Factory(count))
 
     def allocate_code(self, wormhole: IWormhole, code: Optional[WormholeCode]) -> WormholeCode:
@@ -244,7 +244,7 @@ class _MemoryWormhole(object):
             )
         self._code = self._view.allocate_code(self, None)
         waiters = self._waiting_for_code
-        self._waiting_for_code = None
+        self._waiting_for_code = []
         for d in waiters:
             d.callback(self._code)
 
