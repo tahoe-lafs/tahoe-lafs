@@ -8,7 +8,7 @@ import json
 import os
 from functools import partial
 from os.path import join
-from typing import Awaitable, Callable, Optional, Sequence, TypeVar
+from typing import Awaitable, Callable, Optional, Sequence, TypeVar, Union
 
 from twisted.internet import defer
 from twisted.trial import unittest
@@ -20,6 +20,12 @@ from ..common_util import run_cli
 from ..no_network import GridTestMixin
 from .common import CLITestMixin
 from .wormholetesting import IWormhole, MemoryWormholeServer, memory_server
+
+# Logically:
+#   JSONable = dict[str, Union[JSONable, None, int, float, str, list[JSONable]]]
+#
+# But practically:
+JSONable = Union[dict, None, int, float, str, list]
 
 
 async def open_wormhole() -> tuple[Callable, IWormhole, str]:
@@ -48,7 +54,42 @@ async def open_wormhole() -> tuple[Callable, IWormhole, str]:
     return (partial(run_cli, options=options), wormhole, code)
 
 
-def send_messages(wormhole: IWormhole, messages: list[dict]) -> None:
+def make_simple_peer(
+        reactor,
+        server: MemoryWormholeServer,
+        helper: TestingHelper,
+        messages: Sequence[JSONable],
+) -> Callable[[], Awaitable[IWormhole]]:
+    """
+    Make a wormhole peer that just sends the given messages.
+
+    The returned function returns an awaitable that fires with the peer's end
+    of the wormhole.
+    """
+    async def peer() -> IWormhole:
+        # Run the client side of the invitation by manually pumping a
+        # message through the wormhole.
+
+        # First, wait for the server to create the wormhole at all.
+        wormhole = await helper.wait_for_wormhole(
+            "tahoe-lafs.org/invite",
+            "ws://wormhole.tahoe-lafs.org:4000/v1",
+        )
+        # Then read out its code and open the other side of the wormhole.
+        code = await wormhole.when_code()
+        other_end = server.create(
+            "tahoe-lafs.org/invite",
+            "ws://wormhole.tahoe-lafs.org:4000/v1",
+            reactor,
+        )
+        other_end.set_code(code)
+        send_messages(other_end, messages)
+        return other_end
+
+    return peer
+
+
+def send_messages(wormhole: IWormhole, messages: Sequence[JSONable]) -> None:
     """
     Send a list of message through a wormhole.
     """
@@ -200,54 +241,33 @@ class Invite(GridTestMixin, CLITestMixin, unittest.TestCase):
                 options=options,
             )
 
-        async def client():
-            # Run the client side of the invitation by manually pumping a
-            # message through the wormhole.
+        # Send a proper client abilities message.
+        client = make_simple_peer(reactor, wormhole_server, helper, [{u"abilities": {u"client-v1": {}}}])
+        other_end, _ = await concurrently(client, server)
 
-            # First, wait for the server to create the wormhole at all.
-            wormhole = await helper.wait_for_wormhole(
-                "tahoe-lafs.org/invite",
-                "ws://wormhole.tahoe-lafs.org:4000/v1",
-            )
-            # Then read out its code and open the other side of the wormhole.
-            code = await wormhole.when_code()
-            other_end = wormhole_server.create(
-                "tahoe-lafs.org/invite",
-                "ws://wormhole.tahoe-lafs.org:4000/v1",
-                reactor,
-            )
-            other_end.set_code(code)
-
-            # Send a proper client abilities message.
-            other_end.send_message(dumps_bytes({u"abilities": {u"client-v1": {}}}))
-
-            # Check the server's messages.  First, it should announce its
-            # abilities correctly.
-            server_abilities = json.loads(await other_end.when_received())
-            self.assertEqual(
-                server_abilities,
+        # Check the server's messages.  First, it should announce its
+        # abilities correctly.
+        server_abilities = json.loads(await other_end.when_received())
+        self.assertEqual(
+            server_abilities,
+            {
+                "abilities":
                 {
-                    "abilities":
-                    {
-                        "server-v1": {}
-                    },
+                    "server-v1": {}
                 },
-            )
+            },
+        )
 
-            # Second, it should have an invitation with a nickname and
-            # introducer furl.
-            invite = json.loads(await other_end.when_received())
-            self.assertEqual(
-                invite["nickname"], "foo",
-            )
-            self.assertEqual(
-                invite["introducer"], "pb://fooblam",
-            )
-            return invite
-
-        invite, _ = await concurrently(client, server)
+        # Second, it should have an invitation with a nickname and introducer
+        # furl.
+        invite = json.loads(await other_end.when_received())
+        self.assertEqual(
+            invite["nickname"], "foo",
+        )
+        self.assertEqual(
+            invite["introducer"], "pb://fooblam",
+        )
         return invite
-
 
     @defer.inlineCallbacks
     def test_invite_success(self):
@@ -344,29 +364,9 @@ shares.total = 6
             self.assertNotEqual(rc, 0)
             self.assertIn(u"No 'client-v1' in abilities", out + err)
 
-        async def client():
-            # Run the client side of the invitation by manually pumping a
-            # message through the wormhole.
-
-            # First, wait for the server to create the wormhole at all.
-            wormhole = await helper.wait_for_wormhole(
-                "tahoe-lafs.org/invite",
-                "ws://wormhole.tahoe-lafs.org:4000/v1",
-            )
-            # Then read out its code and open the other side of the wormhole.
-            code = await wormhole.when_code()
-            other_end = wormhole_server.create(
-                "tahoe-lafs.org/invite",
-                "ws://wormhole.tahoe-lafs.org:4000/v1",
-                reactor,
-            )
-            other_end.set_code(code)
-
-            # Send some surprising client abilities.
-            other_end.send_message(dumps_bytes({u"abilities": {u"client-v9000": {}}}))
-
+        # Send some surprising client abilities.
+        client = make_simple_peer(reactor, wormhole_server, helper, [{u"abilities": {u"client-v9000": {}}}])
         yield concurrently(client, server)
-
 
     @defer.inlineCallbacks
     def test_invite_no_client_abilities(self):
@@ -399,27 +399,8 @@ shares.total = 6
             self.assertNotEqual(rc, 0)
             self.assertIn(u"No 'abilities' from client", out + err)
 
-        async def client():
-            # Run the client side of the invitation by manually pumping a
-            # message through the wormhole.
-
-            # First, wait for the server to create the wormhole at all.
-            wormhole = await helper.wait_for_wormhole(
-                "tahoe-lafs.org/invite",
-                "ws://wormhole.tahoe-lafs.org:4000/v1",
-            )
-            # Then read out its code and open the other side of the wormhole.
-            code = await wormhole.when_code()
-            other_end = wormhole_server.create(
-                "tahoe-lafs.org/invite",
-                "ws://wormhole.tahoe-lafs.org:4000/v1",
-                reactor,
-            )
-            other_end.set_code(code)
-
-            # Send a no-abilities message through to the server.
-            other_end.send_message(dumps_bytes({}))
-
+        # Send a no-abilities message through to the server.
+        client = make_simple_peer(reactor, wormhole_server, helper, [{}])
         yield concurrently(client, server)
 
 
