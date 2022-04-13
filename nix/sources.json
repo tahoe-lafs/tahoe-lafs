@@ -41,10 +41,10 @@
         "homepage": "",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "6c4b9f1a2fd761e2d384ef86cff0d208ca27fdca",
-        "sha256": "1yl5gj0mzczhl1j8sl8iqpwa1jzsgr12fdszw9rq13cdig2a2r5f",
+        "rev": "838eefb4f93f2306d4614aafb9b2375f315d917f",
+        "sha256": "1bm8cmh1wx4h8b4fhbs75hjci3gcrpi7k1m1pmiy3nc0gjim9vkg",
         "type": "tarball",
-        "url": "https://github.com/nixos/nixpkgs/archive/6c4b9f1a2fd761e2d384ef86cff0d208ca27fdca.tar.gz",
+        "url": "https://github.com/NixOS/nixpkgs/archive/838eefb4f93f2306d4614aafb9b2375f315d917f.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "pypi-deps-db": {

@@ -86,24 +86,10 @@ mach-nix.buildPythonPackage rec {
   # There are some reasonable defaults so we only need to specify certain
   # packages where the default configuration runs into some issue.
   providers = {
-    # Through zfec 1.5.5 the wheel has an incorrect runtime dependency
-    # declared on argparse, not available for recent versions of Python 3.
-    # Force mach-nix to use the sdist instead.  This allows us to apply a
-    # patch that removes the offending declaration.
-    zfec = "sdist";
   };
 
   # Define certain overrides to the way Python dependencies are built.
   _ = {
-    # Apply the argparse declaration fix to zfec sdist.
-    zfec.patches = with pkgs; [
-      (fetchpatch {
-        name = "fix-argparse.patch";
-        url = "https://github.com/tahoe-lafs/zfec/commit/c3e736a72cccf44b8e1fb7d6c276400204c6bc1e.patch";
-        sha256 = "1md9i2fx1ya7mgcj9j01z58hs3q9pj4ch5is5b5kq4v86cf6x33x";
-      })
-    ];
-
     # Remove a click-default-group patch for a test suite problem which no
     # longer applies because the project apparently no longer has a test suite
     # in its source distribution.
