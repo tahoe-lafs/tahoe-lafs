@@ -41,10 +41,10 @@
         "homepage": "",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "6c4b9f1a2fd761e2d384ef86cff0d208ca27fdca",
-        "sha256": "1yl5gj0mzczhl1j8sl8iqpwa1jzsgr12fdszw9rq13cdig2a2r5f",
+        "rev": "838eefb4f93f2306d4614aafb9b2375f315d917f",
+        "sha256": "1bm8cmh1wx4h8b4fhbs75hjci3gcrpi7k1m1pmiy3nc0gjim9vkg",
         "type": "tarball",
-        "url": "https://github.com/nixos/nixpkgs/archive/6c4b9f1a2fd761e2d384ef86cff0d208ca27fdca.tar.gz",
+        "url": "https://github.com/NixOS/nixpkgs/archive/838eefb4f93f2306d4614aafb9b2375f315d917f.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "pypi-deps-db": {
@@ -53,10 +53,10 @@
         "homepage": "",
         "owner": "DavHau",
         "repo": "pypi-deps-db",
-        "rev": "0f6de8bf1f186c275af862ec9667abb95aae8542",
-        "sha256": "1ygw9pywyl4p25hx761d1sbwl3qjhm630fa36gdf6b649im4mx8y",
+        "rev": "76b8f1e44a8ec051b853494bcf3cc8453a294a6a",
+        "sha256": "18fgqyh4z578jjhk26n1xi2cw2l98vrqp962rgz9a6wa5yh1nm4x",
         "type": "tarball",
-        "url": "https://github.com/DavHau/pypi-deps-db/archive/0f6de8bf1f186c275af862ec9667abb95aae8542.tar.gz",
+        "url": "https://github.com/DavHau/pypi-deps-db/archive/76b8f1e44a8ec051b853494bcf3cc8453a294a6a.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     }
 }
