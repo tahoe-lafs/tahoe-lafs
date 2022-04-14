@@ -35,10 +35,10 @@ Glossary
      (the storage service is an example of such an object)
 
    NURL
-     a self-authenticating URL-like string almost exactly like a fURL but without being tied to Foolscap
+     a self-authenticating URL-like string almost exactly like a NURL but without being tied to Foolscap
 
    swissnum
-     a short random string which is part of a fURL and which acts as a shared secret to authorize clients to use a storage service
+     a short random string which is part of a fURL/NURL and which acts as a shared secret to authorize clients to use a storage service
 
    lease
      state associated with a share informing a storage server of the duration of storage desired by a client
@@ -211,15 +211,15 @@ To further clarify, consider this example.
 Alice operates a storage node.
 Alice generates a key pair and secures it properly.
 Alice generates a self-signed storage node certificate with the key pair.
-Alice's storage node announces (to an introducer) a fURL containing (among other information) the SPKI hash.
+Alice's storage node announces (to an introducer) a NURL containing (among other information) the SPKI hash.
 Imagine the SPKI hash is ``i5xb...``.
-This results in a fURL of ``pb://i5xb...@example.com:443/g3m5...#v=1``.
+This results in a NURL of ``pb://i5xb...@example.com:443/g3m5...#v=1``.
 Bob creates a client node pointed at the same introducer.
 Bob's client node receives the announcement from Alice's storage node
 (indirected through the introducer).
 
-Bob's client node recognizes the fURL as referring to an HTTP-dialect server due to the ``v=1`` fragment.
-Bob's client node can now perform a TLS handshake with a server at the address in the fURL location hints
+Bob's client node recognizes the NURL as referring to an HTTP-dialect server due to the ``v=1`` fragment.
+Bob's client node can now perform a TLS handshake with a server at the address in the NURL location hints
 (``example.com:443`` in this example).
 Following the above described validation procedures,
 Bob's client node can determine whether it has reached Alice's storage node or not.
@@ -230,7 +230,7 @@ Additionally,
 by continuing to interact using TLS,
 Bob's client and Alice's storage node are assured of both **message authentication** and **message confidentiality**.
 
-Bob's client further inspects the fURL for the *swissnum*.
+Bob's client further inspects the NURL for the *swissnum*.
 When Bob's client issues HTTP requests to Alice's storage node it includes the *swissnum* in its requests.
 **Storage authorization** has been achieved.
 
@@ -266,8 +266,8 @@ Generation of a new certificate allows for certain non-optimal conditions to be 
 * The ``commonName`` of ``newpb_thingy`` may be changed to a more descriptive value.
 * A ``notValidAfter`` field with a timestamp in the past may be updated.
 
-Storage nodes will announce a new fURL for this new HTTP-based server.
-This fURL will be announced alongside their existing Foolscap-based server's fURL.
+Storage nodes will announce a new NURL for this new HTTP-based server.
+This NURL will be announced alongside their existing Foolscap-based server's fURL.
 Such an announcement will resemble this::
 
   {
@@ -312,7 +312,7 @@ The follow sequence of events is likely:
 #. The client uses the information in its cache to open a Foolscap connection to the storage server.
 
 Ideally,
-the client would not rely on an update from the introducer to give it the GBS fURL for the updated storage server.
+the client would not rely on an update from the introducer to give it the GBS NURL for the updated storage server.
 Therefore,
 when an updated client connects to a storage server using Foolscap,
 it should request the server's version information.

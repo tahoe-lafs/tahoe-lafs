@@ -8,8 +8,16 @@ from functools import wraps
 from base64 import b64decode
 import binascii
 
+from zope.interface import implementer
 from klein import Klein
 from twisted.web import http
+from twisted.internet.interfaces import IListeningPort, IStreamServerEndpoint
+from twisted.internet.defer import Deferred
+from twisted.internet.ssl import CertificateOptions, Certificate, PrivateCertificate
+from twisted.web.server import Site
+from twisted.protocols.tls import TLSMemoryBIOFactory
+from twisted.python.filepath import FilePath
+
 import attr
 from werkzeug.http import (
     parse_range_header,
@@ -18,12 +26,22 @@ from werkzeug.http import (
 )
 from werkzeug.routing import BaseConverter, ValidationError
 from werkzeug.datastructures import ContentRange
+from hyperlink import DecodedURL
+from cryptography.x509 import load_pem_x509_certificate
+
 
 # TODO Make sure to use pure Python versions?
 from cbor2 import dumps, loads
 from pycddl import Schema, ValidationError as CDDLValidationError
 from .server import StorageServer
-from .http_common import swissnum_auth_header, Secrets, get_content_type, CBOR_MIME_TYPE
+from .http_common import (
+    swissnum_auth_header,
+    Secrets,
+    get_content_type,
+    CBOR_MIME_TYPE,
+    get_spki_hash,
+)
+
 from .common import si_a2b
 from .immutable import BucketWriter, ConflictingWriteError
 from ..util.hashutil import timing_safe_compare
@@ -529,3 +547,78 @@ class HTTPServer(object):
         info = self._read_encoded(request, _SCHEMAS["advise_corrupt_share"])
         bucket.advise_corrupt_share(info["reason"].encode("utf-8"))
         return b""
+
+
+@implementer(IStreamServerEndpoint)
+@attr.s
+class _TLSEndpointWrapper(object):
+    """
+    Wrap an existing endpoint with the server-side storage TLS policy.  This is
+    useful because not all Tahoe-LAFS endpoints might be plain TCP+TLS, for
+    example there's Tor and i2p.
+    """
+
+    endpoint = attr.ib(type=IStreamServerEndpoint)
+    context_factory = attr.ib(type=CertificateOptions)
+
+    @classmethod
+    def from_paths(
+        cls, endpoint, private_key_path: FilePath, cert_path: FilePath
+    ) -> "_TLSEndpointWrapper":
+        """
+        Create an endpoint with the given private key and certificate paths on
+        the filesystem.
+        """
+        certificate = Certificate.loadPEM(cert_path.getContent()).original
+        private_key = PrivateCertificate.loadPEM(
+            cert_path.getContent() + b"\n" + private_key_path.getContent()
+        ).privateKey.original
+        certificate_options = CertificateOptions(
+            privateKey=private_key, certificate=certificate
+        )
+        return cls(endpoint=endpoint, context_factory=certificate_options)
+
+    def listen(self, factory):
+        return self.endpoint.listen(
+            TLSMemoryBIOFactory(self.context_factory, False, factory)
+        )
+
+
+def listen_tls(
+    server: HTTPServer,
+    hostname: str,
+    endpoint: IStreamServerEndpoint,
+    private_key_path: FilePath,
+    cert_path: FilePath,
+) -> Deferred[Tuple[DecodedURL, IListeningPort]]:
+    """
+    Start a HTTPS storage server on the given port, return the NURL and the
+    listening port.
+
+    The hostname is the external IP or hostname clients will connect to, used
+    to constrtuct the NURL; it does not modify what interfaces the server
+    listens on.
+
+    This will likely need to be updated eventually to handle Tor/i2p.
+    """
+    endpoint = _TLSEndpointWrapper.from_paths(endpoint, private_key_path, cert_path)
+
+    def build_nurl(listening_port: IListeningPort) -> DecodedURL:
+        nurl = DecodedURL().replace(
+            fragment="v=1",  # how we know this NURL is HTTP-based (i.e. not Foolscap)
+            host=hostname,
+            port=listening_port.getHost().port,
+            path=(str(server._swissnum, "ascii"),),
+            userinfo=(
+                str(
+                    get_spki_hash(load_pem_x509_certificate(cert_path.getContent())),
+                    "ascii",
+                ),
+            ),
+            scheme="pb",
+        )
+        return nurl
+
+    return endpoint.listen(Site(server.get_resource())).addCallback(
+        lambda listening_port: (build_nurl(listening_port), listening_port)
+    )

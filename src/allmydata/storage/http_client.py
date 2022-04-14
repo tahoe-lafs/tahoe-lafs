@@ -2,8 +2,9 @@
 HTTP client that talks to the HTTP storage server.
 """
 
+from __future__ import annotations
+
 from typing import Union, Set, Optional
-from treq.testing import StubTreq
 
 from base64 import b64encode
 
@@ -16,12 +17,30 @@ from collections_extended import RangeMap
 from werkzeug.datastructures import Range, ContentRange
 from twisted.web.http_headers import Headers
 from twisted.web import http
+from twisted.web.iweb import IPolicyForHTTPS
 from twisted.internet.defer import inlineCallbacks, returnValue, fail, Deferred
+from twisted.internet.interfaces import IOpenSSLClientConnectionCreator
+from twisted.internet.ssl import CertificateOptions
+from twisted.web.client import Agent, HTTPConnectionPool
+from zope.interface import implementer
 from hyperlink import DecodedURL
 import treq
+from treq.client import HTTPClient
+from treq.testing import StubTreq
+from OpenSSL import SSL
+from cryptography.hazmat.bindings.openssl.binding import Binding
 
-from .http_common import swissnum_auth_header, Secrets, get_content_type, CBOR_MIME_TYPE
+from .http_common import (
+    swissnum_auth_header,
+    Secrets,
+    get_content_type,
+    CBOR_MIME_TYPE,
+    get_spki_hash,
+)
 from .common import si_b2a
+from ..util.hashutil import timing_safe_compare
+
+_OPENSSL = Binding().lib
 
 
 def _encode_si(si):  # type: (bytes) -> str
@@ -110,6 +129,97 @@ class ImmutableCreateResult(object):
     allocated = attr.ib(type=Set[int])
 
 
+class _TLSContextFactory(CertificateOptions):
+    """
+    Create a context that validates the way Tahoe-LAFS wants to: based on a
+    pinned certificate hash, rather than a certificate authority.
+
+    Originally implemented as part of Foolscap.  To comply with the license,
+    here's the original licensing terms:
+
+    Copyright (c) 2006-2008 Brian Warner
+
+    Permission is hereby granted, free of charge, to any person obtaining a
+    copy of this software and associated documentation files (the "Software"),
+    to deal in the Software without restriction, including without limitation
+    the rights to use, copy, modify, merge, publish, distribute, sublicense,
+    and/or sell copies of the Software, and to permit persons to whom the
+    Software is furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in
+    all copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+    THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+    FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+    DEALINGS IN THE SOFTWARE.
+    """
+
+    def __init__(self, expected_spki_hash: bytes):
+        self.expected_spki_hash = expected_spki_hash
+        CertificateOptions.__init__(self)
+
+    def getContext(self) -> SSL.Context:
+        def always_validate(conn, cert, errno, depth, preverify_ok):
+            # This function is called to validate the certificate received by
+            # the other end. OpenSSL calls it multiple times, for each errno
+            # for each certificate.
+
+            # We do not care about certificate authorities or revocation
+            # lists, we just want to know that the certificate has a valid
+            # signature and follow the chain back to one which is
+            # self-signed. We need to protect against forged signatures, but
+            # not the usual TLS concerns about invalid CAs or revoked
+            # certificates.
+            things_are_ok = (
+                _OPENSSL.X509_V_OK,
+                _OPENSSL.X509_V_ERR_CERT_NOT_YET_VALID,
+                _OPENSSL.X509_V_ERR_CERT_HAS_EXPIRED,
+                _OPENSSL.X509_V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT,
+                _OPENSSL.X509_V_ERR_SELF_SIGNED_CERT_IN_CHAIN,
+            )
+            # TODO can we do this once instead of multiple times?
+            if errno in things_are_ok and timing_safe_compare(
+                get_spki_hash(cert.to_cryptography()), self.expected_spki_hash
+            ):
+                return 1
+            # TODO: log the details of the error, because otherwise they get
+            # lost in the PyOpenSSL exception that will eventually be raised
+            # (possibly OpenSSL.SSL.Error: certificate verify failed)
+            return 0
+
+        ctx = CertificateOptions.getContext(self)
+
+        # VERIFY_PEER means we ask the the other end for their certificate.
+        ctx.set_verify(SSL.VERIFY_PEER, always_validate)
+        return ctx
+
+
+@implementer(IPolicyForHTTPS)
+@implementer(IOpenSSLClientConnectionCreator)
+@attr.s
+class _StorageClientHTTPSPolicy:
+    """
+    A HTTPS policy that ensures the SPKI hash of the public key matches a known
+    hash, i.e. pinning-based validation.
+    """
+
+    expected_spki_hash = attr.ib(type=bytes)
+
+    # IPolicyForHTTPS
+    def creatorForNetloc(self, hostname, port):
+        return self
+
+    # IOpenSSLClientConnectionCreator
+    def clientConnectionForTLS(self, tlsProtocol):
+        return SSL.Connection(
+            _TLSContextFactory(self.expected_spki_hash).getContext(), None
+        )
+
+
 class StorageClient(object):
     """
     Low-level HTTP client that talks to the HTTP storage server.
@@ -117,10 +227,37 @@ class StorageClient(object):
 
     def __init__(
         self, url, swissnum, treq=treq
-    ):  # type: (DecodedURL, bytes, Union[treq,StubTreq]) -> None
+    ):  # type: (DecodedURL, bytes, Union[treq,StubTreq,HTTPClient]) -> None
+        """
+        The URL is a HTTPS URL ("https://...").  To construct from a NURL, use
+        ``StorageClient.from_nurl()``.
+        """
         self._base_url = url
         self._swissnum = swissnum
         self._treq = treq
+
+    @classmethod
+    def from_nurl(cls, nurl: DecodedURL, reactor, persistent: bool = True) -> StorageClient:
+        """
+        Create a ``StorageClient`` for the given NURL.
+
+        ``persistent`` indicates whether to use persistent HTTP connections.
+        """
+        assert nurl.fragment == "v=1"
+        assert nurl.scheme == "pb"
+        swissnum = nurl.path[0].encode("ascii")
+        certificate_hash = nurl.user.encode("ascii")
+
+        treq_client = HTTPClient(
+            Agent(
+                reactor,
+                _StorageClientHTTPSPolicy(expected_spki_hash=certificate_hash),
+                pool=HTTPConnectionPool(reactor, persistent=persistent),
+            )
+        )
+
+        https_url = DecodedURL().replace(scheme="https", host=nurl.host, port=nurl.port)
+        return cls(https_url, swissnum, treq_client)
 
     def relative_url(self, path):
         """Get a URL relative to the base URL."""
