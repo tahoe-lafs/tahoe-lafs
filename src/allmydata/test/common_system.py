@@ -34,7 +34,6 @@ from twisted.python.filepath import (
 )
 
 from .common import (
-    TEST_RSA_KEY_SIZE,
     SameProcessStreamEndpointAssigner,
 )
 
@@ -736,7 +735,6 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
         c = yield client.create_client(basedirs[0])
         c.setServiceParent(self.sparent)
         self.clients.append(c)
-        c.set_default_mutable_keysize(TEST_RSA_KEY_SIZE)
 
         with open(os.path.join(basedirs[0],"private","helper.furl"), "r") as f:
             helper_furl = f.read()
@@ -754,7 +752,6 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
             c = yield client.create_client(basedirs[i])
             c.setServiceParent(self.sparent)
             self.clients.append(c)
-            c.set_default_mutable_keysize(TEST_RSA_KEY_SIZE)
         log.msg("STARTING")
         yield self.wait_for_connections()
         log.msg("CONNECTED")
@@ -838,7 +835,6 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
         def _stopped(res):
             new_c = yield client.create_client(self.getdir("client%d" % num))
             self.clients[num] = new_c
-            new_c.set_default_mutable_keysize(TEST_RSA_KEY_SIZE)
             new_c.setServiceParent(self.sparent)
         d.addCallback(_stopped)
         d.addCallback(lambda res: self.wait_for_connections())
@@ -877,7 +873,6 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
 
         c = yield client.create_client(basedir.path)
         self.clients.append(c)
-        c.set_default_mutable_keysize(TEST_RSA_KEY_SIZE)
         self.numclients += 1
         if add_to_sparent:
             c.setServiceParent(self.sparent)

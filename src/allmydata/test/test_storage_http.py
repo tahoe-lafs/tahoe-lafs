@@ -18,6 +18,8 @@ from base64 import b64encode
 from contextlib import contextmanager
 from os import urandom
 
+from cbor2 import dumps
+from pycddl import ValidationError as CDDLValidationError
 from hypothesis import assume, given, strategies as st
 from fixtures import Fixture, TempDir
 from treq.testing import StubTreq
@@ -31,7 +33,7 @@ from werkzeug import routing
 from werkzeug.exceptions import NotFound as WNotFound
 
 from .common import SyncTestCase
-from ..storage.http_common import get_content_type
+from ..storage.http_common import get_content_type, CBOR_MIME_TYPE
 from ..storage.common import si_b2a
 from ..storage.server import StorageServer
 from ..storage.http_server import (
@@ -239,6 +241,12 @@ class TestApp(object):
         else:
             return "BAD: {}".format(authorization)
 
+    @_authorized_route(_app, set(), "/v1/version", methods=["GET"])
+    def bad_version(self, request, authorization):
+        """Return version result that violates the expected schema."""
+        request.setHeader("content-type", CBOR_MIME_TYPE)
+        return dumps({"garbage": 123})
+
 
 def result_of(d):
     """
@@ -257,15 +265,15 @@ def result_of(d):
     )
 
 
-class RoutingTests(SyncTestCase):
+class CustomHTTPServerTests(SyncTestCase):
     """
-    Tests for the HTTP routing infrastructure.
+    Tests that use a custom HTTP server.
     """
 
     def setUp(self):
         if PY2:
             self.skipTest("Not going to bother supporting Python 2")
-        super(RoutingTests, self).setUp()
+        super(CustomHTTPServerTests, self).setUp()
         # Could be a fixture, but will only be used in this test class so not
         # going to bother:
         self._http_server = TestApp()
@@ -277,8 +285,8 @@ class RoutingTests(SyncTestCase):
 
     def test_authorization_enforcement(self):
         """
-        The requirement for secrets is enforced; if they are not given, a 400
-        response code is returned.
+        The requirement for secrets is enforced by the ``_authorized_route``
+        decorator; if they are not given, a 400 response code is returned.
         """
         # Without secret, get a 400 error.
         response = result_of(
@@ -297,6 +305,14 @@ class RoutingTests(SyncTestCase):
         )
         self.assertEqual(response.code, 200)
         self.assertEqual(result_of(response.content()), b"GOOD SECRET")
+
+    def test_client_side_schema_validation(self):
+        """
+        The client validates returned CBOR message against a schema.
+        """
+        client = StorageClientGeneral(self.client)
+        with self.assertRaises(CDDLValidationError):
+            result_of(client.get_version())
 
 
 class HttpTestFixture(Fixture):
@@ -412,6 +428,36 @@ class GenericHTTPAPITests(SyncTestCase):
             b"maximum-immutable-share-size"
         )
         self.assertEqual(version, expected_version)
+
+    def test_server_side_schema_validation(self):
+        """
+        Ensure that schema validation is happening: invalid CBOR should result
+        in bad request response code (error 400).
+
+        We don't bother checking every single request, the API on the
+        server-side is designed to require a schema, so it validates
+        everywhere.  But we check at least one to ensure we get correct
+        response code on bad input, so we know validation happened.
+        """
+        upload_secret = urandom(32)
+        lease_secret = urandom(32)
+        storage_index = urandom(16)
+        url = self.http.client.relative_url(
+            "/v1/immutable/" + _encode_si(storage_index)
+        )
+        message = {"bad-message": "missing expected keys"}
+
+        response = result_of(
+            self.http.client.request(
+                "POST",
+                url,
+                lease_renew_secret=lease_secret,
+                lease_cancel_secret=lease_secret,
+                upload_secret=upload_secret,
+                message_to_serialize=message,
+            )
+        )
+        self.assertEqual(response.code, http.BAD_REQUEST)
 
 
 class ImmutableHTTPAPITests(SyncTestCase):

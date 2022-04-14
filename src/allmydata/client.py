@@ -168,29 +168,12 @@ class SecretHolder(object):
 
 class KeyGenerator(object):
     """I create RSA keys for mutable files. Each call to generate() returns a
-    single keypair. The keysize is specified first by the keysize= argument
-    to generate(), then with a default set by set_default_keysize(), then
-    with a built-in default of 2048 bits."""
-    def __init__(self):
-        self.default_keysize = 2048
+    single keypair."""
 
-    def set_default_keysize(self, keysize):
-        """Call this to override the size of the RSA keys created for new
-        mutable files which don't otherwise specify a size. This will affect
-        all subsequent calls to generate() without a keysize= argument. The
-        default size is 2048 bits. Test cases should call this method once
-        during setup, to cause me to create smaller keys, so the unit tests
-        run faster."""
-        self.default_keysize = keysize
-
-    def generate(self, keysize=None):
+    def generate(self):
         """I return a Deferred that fires with a (verifyingkey, signingkey)
-        pair. I accept a keysize in bits (2048 bit keys are standard, smaller
-        keys are used for testing). If you do not provide a keysize, I will
-        use my default, which is set by a call to set_default_keysize(). If
-        set_default_keysize() has never been called, I will create 2048 bit
-        keys."""
-        keysize = keysize or self.default_keysize
+        pair. The returned key will be 2048 bit"""
+        keysize = 2048
         # RSA key generation for a 2048 bit key takes between 0.8 and 3.2
         # secs
         signer, verifier = rsa.create_signing_keypair(keysize)
@@ -993,9 +976,6 @@ class _Client(node.Node, pollmixin.PollMixin):
         helper_furlfile = self.config.get_private_path("helper.furl").encode(get_filesystem_encoding())
         self.tub.registerReference(self.helper, furlFile=helper_furlfile)
 
-    def set_default_mutable_keysize(self, keysize):
-        self._key_generator.set_default_keysize(keysize)
-
     def _get_tempdir(self):
         """
         Determine the path to the directory where temporary files for this node
@@ -1096,8 +1076,8 @@ class _Client(node.Node, pollmixin.PollMixin):
     def create_immutable_dirnode(self, children, convergence=None):
         return self.nodemaker.create_immutable_directory(children, convergence)
 
-    def create_mutable_file(self, contents=None, keysize=None, version=None):
-        return self.nodemaker.create_mutable_file(contents, keysize,
+    def create_mutable_file(self, contents=None, version=None):
+        return self.nodemaker.create_mutable_file(contents,
                                                   version=version)
 
     def upload(self, uploadable, reactor=None):

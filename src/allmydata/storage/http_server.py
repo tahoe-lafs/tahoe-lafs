@@ -32,7 +32,7 @@ from cryptography.x509 import load_pem_x509_certificate
 
 # TODO Make sure to use pure Python versions?
 from cbor2 import dumps, loads
-
+from pycddl import Schema, ValidationError as CDDLValidationError
 from .server import StorageServer
 from .http_common import (
     swissnum_auth_header,
@@ -104,8 +104,8 @@ def _authorization_decorator(required_secrets):
             try:
                 secrets = _extract_secrets(authorization, required_secrets)
             except ClientSecretsException:
-                request.setResponseCode(400)
-                return b""
+                request.setResponseCode(http.BAD_REQUEST)
+                return b"Missing required secrets"
             return f(self, request, secrets, *args, **kwargs)
 
         return route
@@ -233,6 +233,25 @@ class _HTTPError(Exception):
         self.code = code
 
 
+# CDDL schemas.
+#
+# Tags are of the form #6.nnn, where the number is documented at
+# https://www.iana.org/assignments/cbor-tags/cbor-tags.xhtml. Notably, #6.258
+# indicates a set.
+_SCHEMAS = {
+    "allocate_buckets": Schema("""
+    message = {
+      share-numbers: #6.258([* uint])
+      allocated-size: uint
+    }
+    """),
+    "advise_corrupt_share": Schema("""
+    message = {
+      reason: tstr
+    }
+    """)
+}
+
 class HTTPServer(object):
     """
     A HTTP interface to the storage server.
@@ -246,6 +265,12 @@ class HTTPServer(object):
         """Handle ``_HTTPError`` exceptions."""
         request.setResponseCode(failure.value.code)
         return b""
+
+    @_app.handle_errors(CDDLValidationError)
+    def _cddl_validation_error(self, request, failure):
+        """Handle CDDL validation errors."""
+        request.setResponseCode(http.BAD_REQUEST)
+        return str(failure.value).encode("utf-8")
 
     def __init__(
         self, storage_server, swissnum
@@ -286,7 +311,7 @@ class HTTPServer(object):
             # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3861
             raise _HTTPError(http.NOT_ACCEPTABLE)
 
-    def _read_encoded(self, request) -> Any:
+    def _read_encoded(self, request, schema: Schema) -> Any:
         """
         Read encoded request body data, decoding it with CBOR by default.
         """
@@ -294,7 +319,10 @@ class HTTPServer(object):
         if content_type == CBOR_MIME_TYPE:
             # TODO limit memory usage, client could send arbitrarily large data...
             # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3872
-            return loads(request.content.read())
+            message = request.content.read()
+            schema.validate_cbor(message)
+            result = loads(message)
+            return result
         else:
             raise _HTTPError(http.UNSUPPORTED_MEDIA_TYPE)
 
@@ -316,7 +344,7 @@ class HTTPServer(object):
     def allocate_buckets(self, request, authorization, storage_index):
         """Allocate buckets."""
         upload_secret = authorization[Secrets.UPLOAD]
-        info = self._read_encoded(request)
+        info = self._read_encoded(request, _SCHEMAS["allocate_buckets"])
 
         # We do NOT validate the upload secret for existing bucket uploads.
         # Another upload may be happening in parallel, with a different upload
@@ -426,7 +454,7 @@ class HTTPServer(object):
         """
         List shares for the given storage index.
         """
-        share_numbers = list(self._storage_server.get_buckets(storage_index).keys())
+        share_numbers = set(self._storage_server.get_buckets(storage_index).keys())
         return self._send_encoded(request, share_numbers)
 
     @_authorized_route(
@@ -516,7 +544,7 @@ class HTTPServer(object):
         except KeyError:
             raise _HTTPError(http.NOT_FOUND)
 
-        info = self._read_encoded(request)
+        info = self._read_encoded(request, _SCHEMAS["advise_corrupt_share"])
         bucket.advise_corrupt_share(info["reason"].encode("utf-8"))
         return b""
 

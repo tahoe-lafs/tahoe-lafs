@@ -10,6 +10,7 @@ import attr
 
 # TODO Make sure to import Python version?
 from cbor2 import loads, dumps
+from pycddl import Schema
 from collections_extended import RangeMap
 from werkzeug.datastructures import Range, ContentRange
 from twisted.web.http_headers import Headers
@@ -53,18 +54,69 @@ class ClientException(Exception):
         self.code = code
 
 
-def _decode_cbor(response):
+# Schemas for server responses.
+#
+# Tags are of the form #6.nnn, where the number is documented at
+# https://www.iana.org/assignments/cbor-tags/cbor-tags.xhtml. Notably, #6.258
+# indicates a set.
+_SCHEMAS = {
+    "get_version": Schema(
+        """
+        message = {'http://allmydata.org/tahoe/protocols/storage/v1' => {
+                 'maximum-immutable-share-size' => uint
+                 'maximum-mutable-share-size' => uint
+                 'available-space' => uint
+                 'tolerates-immutable-read-overrun' => bool
+                 'delete-mutable-shares-with-zero-length-writev' => bool
+                 'fills-holes-with-zero-bytes' => bool
+                 'prevents-read-past-end-of-share-data' => bool
+                 }
+                 'application-version' => bstr
+              }
+    """
+    ),
+    "allocate_buckets": Schema(
+        """
+    message = {
+      already-have: #6.258([* uint])
+      allocated: #6.258([* uint])
+    }
+    """
+    ),
+    "immutable_write_share_chunk": Schema(
+        """
+    message = {
+      required: [* {begin: uint, end: uint}]
+    }
+    """
+    ),
+    "list_shares": Schema(
+        """
+    message = #6.258([* uint])
+    """
+    ),
+}
+
+
+def _decode_cbor(response, schema: Schema):
     """Given HTTP response, return decoded CBOR body."""
+
+    def got_content(data):
+        schema.validate_cbor(data)
+        return loads(data)
+
     if response.code > 199 and response.code < 300:
         content_type = get_content_type(response.headers)
         if content_type == CBOR_MIME_TYPE:
             # TODO limit memory usage
             # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3872
-            return treq.content(response).addCallback(loads)
+            return treq.content(response).addCallback(got_content)
         else:
             raise ClientException(-1, "Server didn't send CBOR")
     else:
-        return fail(ClientException(response.code, response.phrase))
+        return treq.content(response).addCallback(
+            lambda data: fail(ClientException(response.code, response.phrase, data))
+        )
 
 
 @attr.s
@@ -263,7 +315,7 @@ class StorageClientGeneral(object):
         """
         url = self._client.relative_url("/v1/version")
         response = yield self._client.request("GET", url)
-        decoded_response = yield _decode_cbor(response)
+        decoded_response = yield _decode_cbor(response, _SCHEMAS["get_version"])
         returnValue(decoded_response)
 
 
@@ -321,7 +373,7 @@ class StorageClientImmutables(object):
             upload_secret=upload_secret,
             message_to_serialize=message,
         )
-        decoded_response = yield _decode_cbor(response)
+        decoded_response = yield _decode_cbor(response, _SCHEMAS["allocate_buckets"])
         returnValue(
             ImmutableCreateResult(
                 already_have=decoded_response["already-have"],
@@ -393,7 +445,7 @@ class StorageClientImmutables(object):
             raise ClientException(
                 response.code,
             )
-        body = yield _decode_cbor(response)
+        body = yield _decode_cbor(response, _SCHEMAS["immutable_write_share_chunk"])
         remaining = RangeMap()
         for chunk in body["required"]:
             remaining.set(True, chunk["begin"], chunk["end"])
@@ -446,7 +498,7 @@ class StorageClientImmutables(object):
             url,
         )
         if response.code == http.OK:
-            body = yield _decode_cbor(response)
+            body = yield _decode_cbor(response, _SCHEMAS["list_shares"])
             returnValue(set(body))
         else:
             raise ClientException(response.code)

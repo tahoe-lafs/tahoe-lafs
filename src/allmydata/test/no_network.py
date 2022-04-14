@@ -61,7 +61,6 @@ from allmydata.storage_client import (
     _StorageServer,
 )
 from .common import (
-    TEST_RSA_KEY_SIZE,
     SameProcessStreamEndpointAssigner,
 )
 
@@ -393,7 +392,6 @@ class NoNetworkGrid(service.MultiService):
 
         if not c:
             c = yield create_no_network_client(clientdir)
-            c.set_default_mutable_keysize(TEST_RSA_KEY_SIZE)
 
         c.nodeid = clientid
         c.short_nodeid = b32encode(clientid).lower()[:8]
