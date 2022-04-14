@@ -2,6 +2,8 @@
 HTTP client that talks to the HTTP storage server.
 """
 
+from __future__ import annotations
+
 from typing import Union, Set, Optional
 
 from base64 import b64encode
@@ -214,7 +216,7 @@ class StorageClient(object):
         self._treq = treq
 
     @classmethod
-    def from_nurl(cls, nurl: DecodedURL, reactor, persistent: bool = True) -> "StorageClient":
+    def from_nurl(cls, nurl: DecodedURL, reactor, persistent: bool = True) -> StorageClient:
         """
         Create a ``StorageClient`` for the given NURL.
 
