@@ -2,18 +2,6 @@
 Tests for HTTP storage client + server.
 """
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
-from future.utils import PY2
-
-if PY2:
-    # fmt: off
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
-    # fmt: on
-
 from base64 import b64encode
 from contextlib import contextmanager
 from os import urandom
@@ -107,11 +95,6 @@ class ExtractSecretsTests(SyncTestCase):
     """
     Tests for ``_extract_secrets``.
     """
-
-    def setUp(self):
-        if PY2:
-            self.skipTest("Not going to bother supporting Python 2")
-        super(ExtractSecretsTests, self).setUp()
 
     @given(secrets_to_send=SECRETS_STRATEGY)
     def test_extract_secrets(self, secrets_to_send):
@@ -271,8 +254,6 @@ class CustomHTTPServerTests(SyncTestCase):
     """
 
     def setUp(self):
-        if PY2:
-            self.skipTest("Not going to bother supporting Python 2")
         super(CustomHTTPServerTests, self).setUp()
         # Could be a fixture, but will only be used in this test class so not
         # going to bother:
@@ -374,8 +355,6 @@ class GenericHTTPAPITests(SyncTestCase):
     """
 
     def setUp(self):
-        if PY2:
-            self.skipTest("Not going to bother supporting Python 2")
         super(GenericHTTPAPITests, self).setUp()
         self.http = self.useFixture(HttpTestFixture())
 
@@ -466,8 +445,6 @@ class ImmutableHTTPAPITests(SyncTestCase):
     """
 
     def setUp(self):
-        if PY2:
-            self.skipTest("Not going to bother supporting Python 2")
         super(ImmutableHTTPAPITests, self).setUp()
         self.http = self.useFixture(HttpTestFixture())
         self.imm_client = StorageClientImmutables(self.http.client)
