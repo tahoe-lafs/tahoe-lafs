@@ -8,7 +8,7 @@ from typing import Union, Set, Optional
 
 from base64 import b64encode
 
-import attr
+from attrs import define
 
 # TODO Make sure to import Python version?
 from cbor2 import loads, dumps
@@ -121,12 +121,12 @@ def _decode_cbor(response, schema: Schema):
         )
 
 
-@attr.s
+@define
 class ImmutableCreateResult(object):
     """Result of creating a storage index for an immutable."""
 
-    already_have = attr.ib(type=Set[int])
-    allocated = attr.ib(type=Set[int])
+    already_have: Set[int]
+    allocated: Set[int]
 
 
 class _TLSContextFactory(CertificateOptions):
@@ -200,14 +200,14 @@ class _TLSContextFactory(CertificateOptions):
 
 @implementer(IPolicyForHTTPS)
 @implementer(IOpenSSLClientConnectionCreator)
-@attr.s
+@define
 class _StorageClientHTTPSPolicy:
     """
     A HTTPS policy that ensures the SPKI hash of the public key matches a known
     hash, i.e. pinning-based validation.
     """
 
-    expected_spki_hash = attr.ib(type=bytes)
+    expected_spki_hash: bytes
 
     # IPolicyForHTTPS
     def creatorForNetloc(self, hostname, port):
@@ -220,24 +220,22 @@ class _StorageClientHTTPSPolicy:
         )
 
 
+@define
 class StorageClient(object):
     """
     Low-level HTTP client that talks to the HTTP storage server.
     """
 
-    def __init__(
-        self, url, swissnum, treq=treq
-    ):  # type: (DecodedURL, bytes, Union[treq,StubTreq,HTTPClient]) -> None
-        """
-        The URL is a HTTPS URL ("https://...").  To construct from a NURL, use
-        ``StorageClient.from_nurl()``.
-        """
-        self._base_url = url
-        self._swissnum = swissnum
-        self._treq = treq
+    # The URL is a HTTPS URL ("https://...").  To construct from a NURL, use
+    # ``StorageClient.from_nurl()``.
+    _base_url: DecodedURL
+    _swissnum: bytes
+    _treq: Union[treq, StubTreq, HTTPClient]
 
     @classmethod
-    def from_nurl(cls, nurl: DecodedURL, reactor, persistent: bool = True) -> StorageClient:
+    def from_nurl(
+        cls, nurl: DecodedURL, reactor, persistent: bool = True
+    ) -> StorageClient:
         """
         Create a ``StorageClient`` for the given NURL.
 
@@ -342,25 +340,25 @@ class StorageClientGeneral(object):
         returnValue(decoded_response)
 
 
-@attr.s
+@define
 class UploadProgress(object):
     """
     Progress of immutable upload, per the server.
     """
 
     # True when upload has finished.
-    finished = attr.ib(type=bool)
+    finished: bool
     # Remaining ranges to upload.
-    required = attr.ib(type=RangeMap)
+    required: RangeMap
 
 
+@define
 class StorageClientImmutables(object):
     """
     APIs for interacting with immutables.
     """
 
-    def __init__(self, client: StorageClient):
-        self._client = client
+    _client: StorageClient
 
     @inlineCallbacks
     def create(
