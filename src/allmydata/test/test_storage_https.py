@@ -6,14 +6,12 @@ server authentication logic, which may one day apply outside of HTTP Storage
 Protocol.
 """
 
-from functools import wraps
 from contextlib import asynccontextmanager
 
 from cryptography import x509
 
 from twisted.internet.endpoints import serverFromString
 from twisted.internet import reactor
-from twisted.internet.defer import Deferred
 from twisted.internet.task import deferLater
 from twisted.web.server import Site
 from twisted.web.static import Data
@@ -31,6 +29,7 @@ from .certs import (
 from ..storage.http_common import get_spki_hash
 from ..storage.http_client import _StorageClientHTTPSPolicy
 from ..storage.http_server import _TLSEndpointWrapper
+from ..util.deferredutil import async_to_deferred
 
 
 class HTTPSNurlTests(SyncTestCase):
@@ -71,20 +70,6 @@ ox5zO3LrQmQw11OaIAs2/kviKAoKTFFxeyYcpS5RuKNDZfHQCXlLwt9bySxG
 """
         certificate = x509.load_pem_x509_certificate(certificate_text)
         self.assertEqual(get_spki_hash(certificate), expected_hash)
-
-
-def async_to_deferred(f):
-    """
-    Wrap an async function to return a Deferred instead.
-
-    Maybe solution to https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3886
-    """
-
-    @wraps(f)
-    def not_async(*args, **kwargs):
-        return Deferred.fromCoroutine(f(*args, **kwargs))
-
-    return not_async
 
 
 class PinningHTTPSValidation(AsyncTestCase):
