@@ -239,18 +239,38 @@ class _HTTPError(Exception):
 # https://www.iana.org/assignments/cbor-tags/cbor-tags.xhtml. Notably, #6.258
 # indicates a set.
 _SCHEMAS = {
-    "allocate_buckets": Schema("""
-    message = {
+    "allocate_buckets": Schema(
+        """
+    request = {
       share-numbers: #6.258([* uint])
       allocated-size: uint
     }
-    """),
-    "advise_corrupt_share": Schema("""
-    message = {
+    """
+    ),
+    "advise_corrupt_share": Schema(
+        """
+    request = {
       reason: tstr
     }
-    """)
+    """
+    ),
+    "mutable_read_test_write": Schema(
+        """
+        request = {
+            "test-write-vectors": {
+                * share_number: {
+                    "test": [* {"offset": uint, "size": uint, "specimen": bstr}]
+                    "write": [* {"offset": uint, "data": bstr}]
+                    "new-length": uint
+                }
+            }
+            "read-vector": [* {"offset": uint, "size": uint}]
+        }
+        share_number = uint
+        """
+    ),
 }
+
 
 class HTTPServer(object):
     """
@@ -537,7 +557,9 @@ class HTTPServer(object):
         "/v1/immutable/<storage_index:storage_index>/<int(signed=False):share_number>/corrupt",
         methods=["POST"],
     )
-    def advise_corrupt_share(self, request, authorization, storage_index, share_number):
+    def advise_corrupt_share_immutable(
+        self, request, authorization, storage_index, share_number
+    ):
         """Indicate that given share is corrupt, with a text reason."""
         try:
             bucket = self._storage_server.get_buckets(storage_index)[share_number]
@@ -547,6 +569,30 @@ class HTTPServer(object):
         info = self._read_encoded(request, _SCHEMAS["advise_corrupt_share"])
         bucket.advise_corrupt_share(info["reason"].encode("utf-8"))
         return b""
+
+    ##### Immutable APIs #####
+
+    @_authorized_route(
+        _app,
+        {Secrets.LEASE_RENEW, Secrets.LEASE_CANCEL, Secrets.WRITE_ENABLER},
+        "/v1/mutable/<storage_index:storage_index>/read-test-write",
+        methods=["POST"],
+    )
+    def mutable_read_test_write(self, request, authorization, storage_index):
+        """Read/test/write combined operation for mutables."""
+        rtw_request = self._read_encoded(request, _SCHEMAS["mutable_read_test_write"])
+        secrets = (
+            authorization[Secrets.WRITE_ENABLER],
+            authorization[Secrets.LEASE_RENEW],
+            authorization[Secrets.LEASE_CANCEL],
+        )
+        success, read_data = self._storage_server.slot_testv_and_readv_and_writev(
+            storage_index,
+            secrets,
+            rtw_request["test-write-vectors"],
+            rtw_request["read-vectors"],
+        )
+        return self._send_encoded(request, {"success": success, "data": read_data})
 
 
 @implementer(IStreamServerEndpoint)
