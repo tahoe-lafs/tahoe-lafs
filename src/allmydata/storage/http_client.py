@@ -5,10 +5,10 @@ HTTP client that talks to the HTTP storage server.
 from __future__ import annotations
 
 from typing import Union, Set, Optional
-
+from enum import Enum
 from base64 import b64encode
 
-from attrs import define
+from attrs import define, field
 
 # TODO Make sure to import Python version?
 from cbor2 import loads, dumps
@@ -39,6 +39,7 @@ from .http_common import (
 )
 from .common import si_b2a
 from ..util.hashutil import timing_safe_compare
+from ..util.deferredutil import async_to_deferred
 
 _OPENSSL = Binding().lib
 
@@ -64,7 +65,7 @@ class ClientException(Exception):
 _SCHEMAS = {
     "get_version": Schema(
         """
-        message = {'http://allmydata.org/tahoe/protocols/storage/v1' => {
+        response = {'http://allmydata.org/tahoe/protocols/storage/v1' => {
                  'maximum-immutable-share-size' => uint
                  'maximum-mutable-share-size' => uint
                  'available-space' => uint
@@ -79,7 +80,7 @@ _SCHEMAS = {
     ),
     "allocate_buckets": Schema(
         """
-    message = {
+    response = {
       already-have: #6.258([* uint])
       allocated: #6.258([* uint])
     }
@@ -87,15 +88,24 @@ _SCHEMAS = {
     ),
     "immutable_write_share_chunk": Schema(
         """
-    message = {
+    response = {
       required: [* {begin: uint, end: uint}]
     }
     """
     ),
     "list_shares": Schema(
         """
-    message = #6.258([* uint])
+    response = #6.258([* uint])
     """
+    ),
+    "mutable_read_test_write": Schema(
+        """
+        response = {
+          "success": bool,
+          "data": [* share_number: [* bstr]]
+        }
+        share_number = uint
+        """
     ),
 }
 
@@ -571,3 +581,115 @@ class StorageClientImmutables(object):
             raise ClientException(
                 response.code,
             )
+
+
+@define
+class WriteVector:
+    """Data to write to a chunk."""
+
+    offset: int
+    data: bytes
+
+
+class TestVectorOperator(Enum):
+    """Possible operators for test vectors."""
+
+    LT = b"lt"
+    LE = b"le"
+    EQ = b"eq"
+    NE = b"ne"
+    GE = b"ge"
+    GT = b"gt"
+
+
+@define
+class TestVector:
+    """Checks to make on a chunk before writing to it."""
+
+    offset: int
+    size: int
+    operator: TestVectorOperator = field(default=TestVectorOperator.EQ)
+    specimen: bytes
+
+
+@define
+class ReadVector:
+    """
+    Reads to do on chunks, as part of a read/test/write operation.
+    """
+
+    offset: int
+    size: int
+
+
+@define
+class TestWriteVectors:
+    """Test and write vectors for a specific share."""
+
+    test_vectors: list[TestVector]
+    write_vectors: list[WriteVector]
+    new_length: Optional[int] = field(default=None)
+
+
+@define
+class ReadTestWriteResult:
+    """Result of sending read-test-write vectors."""
+
+    success: bool
+    # Map share numbers to reads corresponding to the request's list of
+    # ReadVectors:
+    reads: dict[int, list[bytes]]
+
+
+@define
+class StorageClientMutables:
+    """
+    APIs for interacting with mutables.
+    """
+
+    _client: StorageClient
+
+    @async_to_deferred
+    async def read_test_write_chunks(
+        storage_index: bytes,
+        write_enabled_secret: bytes,
+        lease_renew_secret: bytes,
+        lease_cancel_secret: bytes,
+        testwrite_vectors: dict[int, TestWriteVectors],
+        read_vector: list[ReadVector],
+    ) -> ReadTestWriteResult:
+        """
+        Read, test, and possibly write chunks to a particular mutable storage
+        index.
+
+        Reads are done before writes.
+
+        Given a mapping between share numbers and test/write vectors, the tests
+        are done and if they are valid the writes are done.
+        """
+        pass
+
+    @async_to_deferred
+    async def read_share_chunk(
+        self,
+        storage_index: bytes,
+        share_number: int,
+        # TODO is this really optional?
+        # TODO if yes, test non-optional variants
+        offset: Optional[int],
+        length: Optional[int],
+    ) -> bytes:
+        """
+        Download a chunk of data from a share.
+
+        TODO https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3857 Failed
+        downloads should be transparently retried and redownloaded by the
+        implementation a few times so that if a failure percolates up, the
+        caller can assume the failure isn't a short-term blip.
+
+        NOTE: the underlying HTTP protocol is much more flexible than this API,
+        so a future refactor may expand this in order to simplify the calling
+        code and perhaps download data more efficiently.  But then again maybe
+        the HTTP protocol will be simplified, see
+        https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3777
+        """

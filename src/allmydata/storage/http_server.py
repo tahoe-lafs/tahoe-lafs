@@ -261,7 +261,7 @@ _SCHEMAS = {
                 * share_number: {
                     "test": [* {"offset": uint, "size": uint, "specimen": bstr}]
                     "write": [* {"offset": uint, "data": bstr}]
-                    "new-length": uint
+                    "new-length": (uint // null)
                 }
             }
             "read-vector": [* {"offset": uint, "size": uint}]
