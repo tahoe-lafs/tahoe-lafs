@@ -8,7 +8,7 @@ from typing import Union, Set, Optional
 from enum import Enum
 from base64 import b64encode
 
-from attrs import define, field
+from attrs import define, field, asdict
 
 # TODO Make sure to import Python version?
 from cbor2 import loads, dumps
@@ -288,6 +288,7 @@ class StorageClient(object):
         lease_renew_secret=None,
         lease_cancel_secret=None,
         upload_secret=None,
+        write_enabler_secret=None,
         headers=None,
         message_to_serialize=None,
         **kwargs
@@ -306,6 +307,7 @@ class StorageClient(object):
             (Secrets.LEASE_RENEW, lease_renew_secret),
             (Secrets.LEASE_CANCEL, lease_cancel_secret),
             (Secrets.UPLOAD, upload_secret),
+            (Secrets.WRITE_ENABLER, write_enabler_secret),
         ]:
             if value is None:
                 continue
@@ -651,8 +653,9 @@ class StorageClientMutables:
 
     @async_to_deferred
     async def read_test_write_chunks(
+        self,
         storage_index: bytes,
-        write_enabled_secret: bytes,
+        write_enabler_secret: bytes,
         lease_renew_secret: bytes,
         lease_cancel_secret: bytes,
         testwrite_vectors: dict[int, TestWriteVectors],
@@ -667,7 +670,31 @@ class StorageClientMutables:
         Given a mapping between share numbers and test/write vectors, the tests
         are done and if they are valid the writes are done.
         """
-        pass
+        # TODO unit test all the things
+        url = self._client.relative_url(
+            "/v1/mutable/{}/read-test-write".format(_encode_si(storage_index))
+        )
+        message = {
+            "test-write-vectors": {
+                share_number: asdict(twv)
+                for (share_number, twv) in testwrite_vectors.items()
+            },
+            "read-vector": [asdict(r) for r in read_vector],
+        }
+        response = yield self._client.request(
+            "POST",
+            url,
+            write_enabler_secret=write_enabler_secret,
+            lease_renew_secret=lease_renew_secret,
+            lease_cancel_secret=lease_cancel_secret,
+            message_to_serialize=message,
+        )
+        if response.code == http.OK:
+            return _decode_cbor(response, _SCHEMAS["mutable_test_read_write"])
+        else:
+            raise ClientException(
+                response.code,
+            )
 
     @async_to_deferred
     async def read_share_chunk(
