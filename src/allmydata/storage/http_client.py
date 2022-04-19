@@ -364,6 +364,46 @@ class UploadProgress(object):
     required: RangeMap
 
 
+@inlineCallbacks
+def read_share_chunk(
+    client: StorageClient,
+    share_type: str,
+    storage_index: bytes,
+    share_number: int,
+    offset: int,
+    length: int,
+) -> Deferred[bytes]:
+    """
+    Download a chunk of data from a share.
+
+    TODO https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3857 Failed
+    downloads should be transparently retried and redownloaded by the
+    implementation a few times so that if a failure percolates up, the
+    caller can assume the failure isn't a short-term blip.
+
+    NOTE: the underlying HTTP protocol is much more flexible than this API,
+    so a future refactor may expand this in order to simplify the calling
+    code and perhaps download data more efficiently.  But then again maybe
+    the HTTP protocol will be simplified, see
+    https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3777
+    """
+    url = client.relative_url(
+        "/v1/{}/{}/{}".format(share_type, _encode_si(storage_index), share_number)
+    )
+    response = yield client.request(
+        "GET",
+        url,
+        headers=Headers(
+            {"range": [Range("bytes", [(offset, offset + length)]).to_header()]}
+        ),
+    )
+    if response.code == http.PARTIAL_CONTENT:
+        body = yield response.content()
+        returnValue(body)
+    else:
+        raise ClientException(response.code)
+
+
 @define
 class StorageClientImmutables(object):
     """
@@ -484,39 +524,15 @@ class StorageClientImmutables(object):
             remaining.set(True, chunk["begin"], chunk["end"])
         returnValue(UploadProgress(finished=finished, required=remaining))
 
-    @inlineCallbacks
     def read_share_chunk(
         self, storage_index, share_number, offset, length
     ):  # type: (bytes, int, int, int) -> Deferred[bytes]
         """
         Download a chunk of data from a share.
-
-        TODO https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3857 Failed
-        downloads should be transparently retried and redownloaded by the
-        implementation a few times so that if a failure percolates up, the
-        caller can assume the failure isn't a short-term blip.
-
-        NOTE: the underlying HTTP protocol is much more flexible than this API,
-        so a future refactor may expand this in order to simplify the calling
-        code and perhaps download data more efficiently.  But then again maybe
-        the HTTP protocol will be simplified, see
-        https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3777
         """
-        url = self._client.relative_url(
-            "/v1/immutable/{}/{}".format(_encode_si(storage_index), share_number)
+        return read_share_chunk(
+            self._client, "immutable", storage_index, share_number, offset, length
         )
-        response = yield self._client.request(
-            "GET",
-            url,
-            headers=Headers(
-                {"range": [Range("bytes", [(offset, offset + length)]).to_header()]}
-            ),
-        )
-        if response.code == http.PARTIAL_CONTENT:
-            body = yield response.content()
-            returnValue(body)
-        else:
-            raise ClientException(response.code)
 
     @inlineCallbacks
     def list_shares(self, storage_index):  # type: (bytes,) -> Deferred[Set[int]]
@@ -610,7 +626,7 @@ class TestVector:
 
     offset: int
     size: int
-    operator: TestVectorOperator = field(default=TestVectorOperator.EQ)
+    operator: TestVectorOperator
     specimen: bytes
 
 
@@ -631,6 +647,14 @@ class TestWriteVectors:
     test_vectors: list[TestVector]
     write_vectors: list[WriteVector]
     new_length: Optional[int] = field(default=None)
+
+    def asdict(self) -> dict:
+        """Return dictionary suitable for sending over CBOR."""
+        d = asdict(self)
+        d["test"] = d.pop("test_vectors")
+        d["write"] = d.pop("write_vectors")
+        d["new-length"] = d.pop("new_length")
+        return d
 
 
 @define
@@ -676,12 +700,12 @@ class StorageClientMutables:
         )
         message = {
             "test-write-vectors": {
-                share_number: asdict(twv)
+                share_number: twv.asdict()
                 for (share_number, twv) in testwrite_vectors.items()
             },
             "read-vector": [asdict(r) for r in read_vector],
         }
-        response = yield self._client.request(
+        response = await self._client.request(
             "POST",
             url,
             write_enabler_secret=write_enabler_secret,
@@ -692,31 +716,20 @@ class StorageClientMutables:
         if response.code == http.OK:
             return _decode_cbor(response, _SCHEMAS["mutable_test_read_write"])
         else:
-            raise ClientException(
-                response.code,
-            )
+            raise ClientException(response.code, (await response.content()))
 
     @async_to_deferred
     async def read_share_chunk(
         self,
         storage_index: bytes,
         share_number: int,
-        # TODO is this really optional?
-        # TODO if yes, test non-optional variants
-        offset: Optional[int],
-        length: Optional[int],
+        offset: int,
+        length: int,
     ) -> bytes:
         """
         Download a chunk of data from a share.
-
-        TODO https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3857 Failed
-        downloads should be transparently retried and redownloaded by the
-        implementation a few times so that if a failure percolates up, the
-        caller can assume the failure isn't a short-term blip.
-
-        NOTE: the underlying HTTP protocol is much more flexible than this API,
-        so a future refactor may expand this in order to simplify the calling
-        code and perhaps download data more efficiently.  But then again maybe
-        the HTTP protocol will be simplified, see
-        https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3777
         """
+        # TODO unit test all the things
+        return read_share_chunk(
+            self._client, "mutable", storage_index, share_number, offset, length
+        )

@@ -1140,4 +1140,10 @@ class HTTPImmutableAPIsTests(
 class FoolscapMutableAPIsTests(
     _FoolscapMixin, IStorageServerMutableAPIsTestsMixin, AsyncTestCase
 ):
-    """Foolscap-specific tests for immutable ``IStorageServer`` APIs."""
+    """Foolscap-specific tests for mutable ``IStorageServer`` APIs."""
+
+
+class HTTPMutableAPIsTests(
+    _HTTPMixin, IStorageServerMutableAPIsTestsMixin, AsyncTestCase
+):
+    """HTTP-specific tests for mutable ``IStorageServer`` APIs."""

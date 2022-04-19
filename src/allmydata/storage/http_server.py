@@ -261,7 +261,7 @@ _SCHEMAS = {
                 * share_number: {
                     "test": [* {"offset": uint, "size": uint, "specimen": bstr}]
                     "write": [* {"offset": uint, "data": bstr}]
-                    "new-length": (uint // null)
+                    "new-length": uint // null
                 }
             }
             "read-vector": [* {"offset": uint, "size": uint}]
@@ -590,7 +590,7 @@ class HTTPServer(object):
             storage_index,
             secrets,
             rtw_request["test-write-vectors"],
-            rtw_request["read-vectors"],
+            rtw_request["read-vector"],
         )
         return self._send_encoded(request, {"success": success, "data": read_data})
 
