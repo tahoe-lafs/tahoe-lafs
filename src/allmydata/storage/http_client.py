@@ -5,7 +5,6 @@ HTTP client that talks to the HTTP storage server.
 from __future__ import annotations
 
 from typing import Union, Set, Optional
-from enum import Enum
 from base64 import b64encode
 
 from attrs import define, field, asdict
