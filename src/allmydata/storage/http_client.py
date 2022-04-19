@@ -102,7 +102,7 @@ _SCHEMAS = {
         """
         response = {
           "success": bool,
-          "data": [* share_number: [* bstr]]
+          "data": {* share_number: [* bstr]}
         }
         share_number = uint
         """
@@ -609,24 +609,12 @@ class WriteVector:
     data: bytes
 
 
-class TestVectorOperator(Enum):
-    """Possible operators for test vectors."""
-
-    LT = b"lt"
-    LE = b"le"
-    EQ = b"eq"
-    NE = b"ne"
-    GE = b"ge"
-    GT = b"gt"
-
-
 @define
 class TestVector:
     """Checks to make on a chunk before writing to it."""
 
     offset: int
     size: int
-    operator: TestVectorOperator
     specimen: bytes
 
 
@@ -714,12 +702,12 @@ class StorageClientMutables:
             message_to_serialize=message,
         )
         if response.code == http.OK:
-            return _decode_cbor(response, _SCHEMAS["mutable_test_read_write"])
+            result = await _decode_cbor(response, _SCHEMAS["mutable_read_test_write"])
+            return ReadTestWriteResult(success=result["success"], reads=result["data"])
         else:
             raise ClientException(response.code, (await response.content()))
 
-    @async_to_deferred
-    async def read_share_chunk(
+    def read_share_chunk(
         self,
         storage_index: bytes,
         share_number: int,

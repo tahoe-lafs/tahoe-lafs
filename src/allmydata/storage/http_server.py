@@ -589,8 +589,15 @@ class HTTPServer(object):
         success, read_data = self._storage_server.slot_testv_and_readv_and_writev(
             storage_index,
             secrets,
-            rtw_request["test-write-vectors"],
-            rtw_request["read-vector"],
+            {
+                k: (
+                    [(d["offset"], d["size"], b"eq", d["specimen"]) for d in v["test"]],
+                    [(d["offset"], d["data"]) for d in v["write"]],
+                    v["new-length"],
+                )
+                for (k, v) in rtw_request["test-write-vectors"].items()
+            },
+            [(d["offset"], d["size"]) for d in rtw_request["read-vector"]],
         )
         return self._send_encoded(request, {"success": success, "data": read_data})
 

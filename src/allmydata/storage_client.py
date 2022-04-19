@@ -78,7 +78,7 @@ from allmydata.util.dictutil import BytesKeyDict, UnicodeKeyDict
 from allmydata.storage.http_client import (
     StorageClient, StorageClientImmutables, StorageClientGeneral,
     ClientException as HTTPClientException, StorageClientMutables,
-    ReadVector, TestWriteVectors, WriteVector, TestVector, TestVectorOperator
+    ReadVector, TestWriteVectors, WriteVector, TestVector
 )
 
 
@@ -1221,8 +1221,8 @@ class _HTTPStorageServer(object):
         client_tw_vectors = {}
         for share_num, (test_vector, data_vector, new_length) in tw_vectors.items():
             client_test_vectors = [
-                TestVector(offset=offset, size=size, operator=TestVectorOperator[op], specimen=specimen)
-                for (offset, size, op, specimen) in test_vector
+                TestVector(offset=offset, size=size, specimen=specimen)
+                for (offset, size, specimen) in test_vector
             ]
             client_write_vectors = [
                 WriteVector(offset=offset, data=data) for (offset, data) in data_vector
