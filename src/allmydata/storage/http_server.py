@@ -580,6 +580,7 @@ class HTTPServer(object):
     )
     def mutable_read_test_write(self, request, authorization, storage_index):
         """Read/test/write combined operation for mutables."""
+        # TODO unit tests
         rtw_request = self._read_encoded(request, _SCHEMAS["mutable_read_test_write"])
         secrets = (
             authorization[Secrets.WRITE_ENABLER],
