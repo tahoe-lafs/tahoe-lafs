@@ -601,6 +601,49 @@ class HTTPServer(object):
         )
         return self._send_encoded(request, {"success": success, "data": read_data})
 
+    @_authorized_route(
+        _app,
+        set(),
+        "/v1/mutable/<storage_index:storage_index>/<int(signed=False):share_number>",
+        methods=["GET"],
+    )
+    def read_mutable_chunk(self, request, authorization, storage_index, share_number):
+        """Read a chunk from a mutable."""
+        if request.getHeader("range") is None:
+            # TODO in follow-up ticket
+            raise NotImplementedError()
+
+        # TODO reduce duplication with immutable reads?
+        # TODO unit tests, perhaps shared if possible
+        range_header = parse_range_header(request.getHeader("range"))
+        if (
+            range_header is None
+            or range_header.units != "bytes"
+            or len(range_header.ranges) > 1  # more than one range
+            or range_header.ranges[0][1] is None  # range without end
+        ):
+            request.setResponseCode(http.REQUESTED_RANGE_NOT_SATISFIABLE)
+            return b""
+
+        offset, end = range_header.ranges[0]
+
+        # TODO limit memory usage
+        # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3872
+        data = self._storage_server.slot_readv(
+            storage_index, [share_number], [(offset, end - offset)]
+        )[share_number][0]
+
+        # TODO reduce duplication?
+        request.setResponseCode(http.PARTIAL_CONTENT)
+        if len(data):
+            # For empty bodies the content-range header makes no sense since
+            # the end of the range is inclusive.
+            request.setHeader(
+                "content-range",
+                ContentRange("bytes", offset, offset + len(data)).to_header(),
+            )
+        return data
+
 
 @implementer(IStreamServerEndpoint)
 @attr.s

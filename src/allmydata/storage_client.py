@@ -1195,18 +1195,17 @@ class _HTTPStorageServer(object):
     def slot_readv(self, storage_index, shares, readv):
         mutable_client = StorageClientMutables(self._http_client)
         reads = {}
+        # TODO if shares list is empty, that means list all shares, so we need
+        # to do a query to get that.
+        assert shares  # TODO replace with call to list shares
         for share_number in shares:
             share_reads = reads[share_number] = []
             for (offset, length) in readv:
-                d = mutable_client.read_share_chunk(
+                r = yield mutable_client.read_share_chunk(
                     storage_index, share_number, offset, length
                 )
-                share_reads.append(d)
-        result = {
-            share_number: [(yield d) for d in share_reads]
-            for (share_number, reads) in reads.items()
-        }
-        defer.returnValue(result)
+                share_reads.append(r)
+        defer.returnValue(reads)
 
     @defer.inlineCallbacks
     def slot_testv_and_readv_and_writev(
