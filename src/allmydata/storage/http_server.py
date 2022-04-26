@@ -8,6 +8,7 @@ from functools import wraps
 from base64 import b64decode
 import binascii
 
+from eliot import start_action
 from zope.interface import implementer
 from klein import Klein
 from twisted.web import http
@@ -83,8 +84,9 @@ def _extract_secrets(
 
 def _authorization_decorator(required_secrets):
     """
-    Check the ``Authorization`` header, and extract ``X-Tahoe-Authorization``
-    headers and pass them in.
+    1. Check the ``Authorization`` header matches server swissnum.
+    2. Extract ``X-Tahoe-Authorization`` headers and pass them in.
+    3. Log the request and response.
     """
 
     def decorator(f):
@@ -106,7 +108,22 @@ def _authorization_decorator(required_secrets):
             except ClientSecretsException:
                 request.setResponseCode(http.BAD_REQUEST)
                 return b"Missing required secrets"
-            return f(self, request, secrets, *args, **kwargs)
+            with start_action(
+                action_type="allmydata:storage:http-server:request",
+                method=request.method,
+                path=request.path,
+            ) as ctx:
+                try:
+                    result = f(self, request, secrets, *args, **kwargs)
+                except _HTTPError as e:
+                    # This isn't an error necessarily for logging purposes,
+                    # it's an implementation detail, an easier way to set
+                    # response codes.
+                    ctx.add_success_fields(response_code=e.code)
+                    ctx.finish()
+                    raise
+                ctx.add_success_fields(response_code=request.code)
+                return result
 
         return route
 
@@ -239,18 +256,23 @@ class _HTTPError(Exception):
 # https://www.iana.org/assignments/cbor-tags/cbor-tags.xhtml. Notably, #6.258
 # indicates a set.
 _SCHEMAS = {
-    "allocate_buckets": Schema("""
+    "allocate_buckets": Schema(
+        """
     message = {
       share-numbers: #6.258([* uint])
       allocated-size: uint
     }
-    """),
-    "advise_corrupt_share": Schema("""
+    """
+    ),
+    "advise_corrupt_share": Schema(
+        """
     message = {
       reason: tstr
     }
-    """)
+    """
+    ),
 }
+
 
 class HTTPServer(object):
     """
