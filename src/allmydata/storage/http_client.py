@@ -4,10 +4,10 @@ HTTP client that talks to the HTTP storage server.
 
 from __future__ import annotations
 
-from typing import Union, Set, Optional
+from typing import Union, Optional, Sequence, Mapping
 from base64 import b64encode
 
-from attrs import define, field, asdict
+from attrs import define, asdict, frozen
 
 # TODO Make sure to import Python version?
 from cbor2 import loads, dumps
@@ -134,8 +134,8 @@ def _decode_cbor(response, schema: Schema):
 class ImmutableCreateResult(object):
     """Result of creating a storage index for an immutable."""
 
-    already_have: Set[int]
-    allocated: Set[int]
+    already_have: set[int]
+    allocated: set[int]
 
 
 class _TLSContextFactory(CertificateOptions):
@@ -420,7 +420,7 @@ class StorageClientImmutables(object):
         upload_secret,
         lease_renew_secret,
         lease_cancel_secret,
-    ):  # type: (bytes, Set[int], int, bytes, bytes, bytes) -> Deferred[ImmutableCreateResult]
+    ):  # type: (bytes, set[int], int, bytes, bytes, bytes) -> Deferred[ImmutableCreateResult]
         """
         Create a new storage index for an immutable.
 
@@ -534,7 +534,7 @@ class StorageClientImmutables(object):
         )
 
     @inlineCallbacks
-    def list_shares(self, storage_index):  # type: (bytes,) -> Deferred[Set[int]]
+    def list_shares(self, storage_index):  # type: (bytes,) -> Deferred[set[int]]
         """
         Return the set of shares for a given storage index.
         """
@@ -600,7 +600,7 @@ class StorageClientImmutables(object):
             )
 
 
-@define
+@frozen
 class WriteVector:
     """Data to write to a chunk."""
 
@@ -608,7 +608,7 @@ class WriteVector:
     data: bytes
 
 
-@define
+@frozen
 class TestVector:
     """Checks to make on a chunk before writing to it."""
 
@@ -617,7 +617,7 @@ class TestVector:
     specimen: bytes
 
 
-@define
+@frozen
 class ReadVector:
     """
     Reads to do on chunks, as part of a read/test/write operation.
@@ -627,13 +627,13 @@ class ReadVector:
     size: int
 
 
-@define
+@frozen
 class TestWriteVectors:
     """Test and write vectors for a specific share."""
 
-    test_vectors: list[TestVector]
-    write_vectors: list[WriteVector]
-    new_length: Optional[int] = field(default=None)
+    test_vectors: Sequence[TestVector]
+    write_vectors: Sequence[WriteVector]
+    new_length: Optional[int] = None
 
     def asdict(self) -> dict:
         """Return dictionary suitable for sending over CBOR."""
@@ -644,17 +644,17 @@ class TestWriteVectors:
         return d
 
 
-@define
+@frozen
 class ReadTestWriteResult:
     """Result of sending read-test-write vectors."""
 
     success: bool
     # Map share numbers to reads corresponding to the request's list of
     # ReadVectors:
-    reads: dict[int, list[bytes]]
+    reads: Mapping[int, Sequence[bytes]]
 
 
-@define
+@frozen
 class StorageClientMutables:
     """
     APIs for interacting with mutables.
