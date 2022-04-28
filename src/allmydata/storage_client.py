@@ -1197,7 +1197,7 @@ class _HTTPStorageServer(object):
         reads = {}
         # TODO if shares list is empty, that means list all shares, so we need
         # to do a query to get that.
-        assert shares  # TODO replace with call to list shares
+        assert shares  # TODO replace with call to list shares if and only if it's empty
         for share_number in shares:
             share_reads = reads[share_number] = []
             for (offset, length) in readv:
