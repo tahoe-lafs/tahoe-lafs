@@ -570,7 +570,7 @@ class HTTPServer(object):
         bucket.advise_corrupt_share(info["reason"].encode("utf-8"))
         return b""
 
-    ##### Immutable APIs #####
+    ##### Mutable APIs #####
 
     @_authorized_route(
         _app,
