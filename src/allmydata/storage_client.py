@@ -1194,18 +1194,29 @@ class _HTTPStorageServer(object):
     @defer.inlineCallbacks
     def slot_readv(self, storage_index, shares, readv):
         mutable_client = StorageClientMutables(self._http_client)
+        pending_reads = {}
         reads = {}
         # TODO if shares list is empty, that means list all shares, so we need
         # to do a query to get that.
         assert shares  # TODO replace with call to list shares if and only if it's empty
+
+        # Start all the queries in parallel:
         for share_number in shares:
-            share_reads = reads[share_number] = []
-            for (offset, length) in readv:
-                r = yield mutable_client.read_share_chunk(
-                    storage_index, share_number, offset, length
-                )
-                share_reads.append(r)
-        defer.returnValue(reads)
+            share_reads = defer.gatherResults(
+                [
+                    mutable_client.read_share_chunk(
+                        storage_index, share_number, offset, length
+                    )
+                    for (offset, length) in readv
+                ]
+            )
+            pending_reads[share_number] = share_reads
+
+        # Wait for all the queries to finish:
+        for share_number, pending_result in pending_reads.items():
+            reads[share_number] = yield pending_result
+
+        return reads
 
     @defer.inlineCallbacks
     def slot_testv_and_readv_and_writev(
@@ -1239,4 +1250,4 @@ class _HTTPStorageServer(object):
             storage_index, we_secret, lr_secret, lc_secret, client_tw_vectors,
             client_read_vectors,
         )
-        defer.returnValue((client_result.success, client_result.reads))
+        return (client_result.success, client_result.reads)
