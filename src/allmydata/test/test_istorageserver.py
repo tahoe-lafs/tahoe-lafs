@@ -1140,4 +1140,19 @@ class HTTPImmutableAPIsTests(
 class FoolscapMutableAPIsTests(
     _FoolscapMixin, IStorageServerMutableAPIsTestsMixin, AsyncTestCase
 ):
-    """Foolscap-specific tests for immutable ``IStorageServer`` APIs."""
+    """Foolscap-specific tests for mutable ``IStorageServer`` APIs."""
+
+
+class HTTPMutableAPIsTests(
+    _HTTPMixin, IStorageServerMutableAPIsTestsMixin, AsyncTestCase
+):
+    """HTTP-specific tests for mutable ``IStorageServer`` APIs."""
+
+    # TODO will be implemented in later tickets
+    SKIP_TESTS = {
+        "test_STARAW_write_enabler_must_match",
+        "test_add_lease_renewal",
+        "test_add_new_lease",
+        "test_advise_corrupt_share",
+        "test_slot_readv_no_shares",
+    }

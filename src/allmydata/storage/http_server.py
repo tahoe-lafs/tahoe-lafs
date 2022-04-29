@@ -239,18 +239,38 @@ class _HTTPError(Exception):
 # https://www.iana.org/assignments/cbor-tags/cbor-tags.xhtml. Notably, #6.258
 # indicates a set.
 _SCHEMAS = {
-    "allocate_buckets": Schema("""
-    message = {
+    "allocate_buckets": Schema(
+        """
+    request = {
       share-numbers: #6.258([* uint])
       allocated-size: uint
     }
-    """),
-    "advise_corrupt_share": Schema("""
-    message = {
+    """
+    ),
+    "advise_corrupt_share": Schema(
+        """
+    request = {
       reason: tstr
     }
-    """)
+    """
+    ),
+    "mutable_read_test_write": Schema(
+        """
+        request = {
+            "test-write-vectors": {
+                * share_number: {
+                    "test": [* {"offset": uint, "size": uint, "specimen": bstr}]
+                    "write": [* {"offset": uint, "data": bstr}]
+                    "new-length": uint // null
+                }
+            }
+            "read-vector": [* {"offset": uint, "size": uint}]
+        }
+        share_number = uint
+        """
+    ),
 }
+
 
 class HTTPServer(object):
     """
@@ -537,7 +557,9 @@ class HTTPServer(object):
         "/v1/immutable/<storage_index:storage_index>/<int(signed=False):share_number>/corrupt",
         methods=["POST"],
     )
-    def advise_corrupt_share(self, request, authorization, storage_index, share_number):
+    def advise_corrupt_share_immutable(
+        self, request, authorization, storage_index, share_number
+    ):
         """Indicate that given share is corrupt, with a text reason."""
         try:
             bucket = self._storage_server.get_buckets(storage_index)[share_number]
@@ -547,6 +569,81 @@ class HTTPServer(object):
         info = self._read_encoded(request, _SCHEMAS["advise_corrupt_share"])
         bucket.advise_corrupt_share(info["reason"].encode("utf-8"))
         return b""
+
+    ##### Mutable APIs #####
+
+    @_authorized_route(
+        _app,
+        {Secrets.LEASE_RENEW, Secrets.LEASE_CANCEL, Secrets.WRITE_ENABLER},
+        "/v1/mutable/<storage_index:storage_index>/read-test-write",
+        methods=["POST"],
+    )
+    def mutable_read_test_write(self, request, authorization, storage_index):
+        """Read/test/write combined operation for mutables."""
+        # TODO unit tests
+        rtw_request = self._read_encoded(request, _SCHEMAS["mutable_read_test_write"])
+        secrets = (
+            authorization[Secrets.WRITE_ENABLER],
+            authorization[Secrets.LEASE_RENEW],
+            authorization[Secrets.LEASE_CANCEL],
+        )
+        success, read_data = self._storage_server.slot_testv_and_readv_and_writev(
+            storage_index,
+            secrets,
+            {
+                k: (
+                    [(d["offset"], d["size"], b"eq", d["specimen"]) for d in v["test"]],
+                    [(d["offset"], d["data"]) for d in v["write"]],
+                    v["new-length"],
+                )
+                for (k, v) in rtw_request["test-write-vectors"].items()
+            },
+            [(d["offset"], d["size"]) for d in rtw_request["read-vector"]],
+        )
+        return self._send_encoded(request, {"success": success, "data": read_data})
+
+    @_authorized_route(
+        _app,
+        set(),
+        "/v1/mutable/<storage_index:storage_index>/<int(signed=False):share_number>",
+        methods=["GET"],
+    )
+    def read_mutable_chunk(self, request, authorization, storage_index, share_number):
+        """Read a chunk from a mutable."""
+        if request.getHeader("range") is None:
+            # TODO in follow-up ticket
+            raise NotImplementedError()
+
+        # TODO reduce duplication with immutable reads?
+        # TODO unit tests, perhaps shared if possible
+        range_header = parse_range_header(request.getHeader("range"))
+        if (
+            range_header is None
+            or range_header.units != "bytes"
+            or len(range_header.ranges) > 1  # more than one range
+            or range_header.ranges[0][1] is None  # range without end
+        ):
+            request.setResponseCode(http.REQUESTED_RANGE_NOT_SATISFIABLE)
+            return b""
+
+        offset, end = range_header.ranges[0]
+
+        # TODO limit memory usage
+        # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3872
+        data = self._storage_server.slot_readv(
+            storage_index, [share_number], [(offset, end - offset)]
+        )[share_number][0]
+
+        # TODO reduce duplication?
+        request.setResponseCode(http.PARTIAL_CONTENT)
+        if len(data):
+            # For empty bodies the content-range header makes no sense since
+            # the end of the range is inclusive.
+            request.setHeader(
+                "content-range",
+                ContentRange("bytes", offset, offset + len(data)).to_header(),
+            )
+        return data
 
 
 @implementer(IStreamServerEndpoint)
