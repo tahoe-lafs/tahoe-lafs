@@ -129,3 +129,31 @@ class UntilTests(unittest.TestCase):
         self.assertEqual([1], counter)
         r1.callback(None)
         self.assertEqual([2], counter)
+
+
+class AsyncToDeferred(unittest.TestCase):
+    """Tests for ``deferredutil.async_to_deferred.``"""
+
+    def test_async_to_deferred_success(self):
+        """
+        Normal results from a ``@async_to_deferred``-wrapped function get
+        turned into a ``Deferred`` with that value.
+        """
+        @deferredutil.async_to_deferred
+        async def f(x, y):
+            return x + y
+
+        result = f(1, y=2)
+        self.assertEqual(self.successResultOf(result), 3)
+
+    def test_async_to_deferred_exception(self):
+        """
+        Exceptions from a ``@async_to_deferred``-wrapped function get
+        turned into a ``Deferred`` with that value.
+        """
+        @deferredutil.async_to_deferred
+        async def f(x, y):
+            return x/y
+
+        result = f(1, 0)
+        self.assertIsInstance(self.failureResultOf(result).value, ZeroDivisionError)

@@ -38,6 +38,7 @@ class Secrets(Enum):
     LEASE_RENEW = "lease-renew-secret"
     LEASE_CANCEL = "lease-cancel-secret"
     UPLOAD = "upload-secret"
+    WRITE_ENABLER = "write-enabler"
 
 
 def get_spki_hash(certificate: Certificate) -> bytes:

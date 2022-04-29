@@ -4,11 +4,10 @@ HTTP client that talks to the HTTP storage server.
 
 from __future__ import annotations
 
-from typing import Union, Set, Optional
-
+from typing import Union, Optional, Sequence, Mapping
 from base64 import b64encode
 
-import attr
+from attrs import define, asdict, frozen
 
 # TODO Make sure to import Python version?
 from cbor2 import loads, dumps
@@ -39,6 +38,7 @@ from .http_common import (
 )
 from .common import si_b2a
 from ..util.hashutil import timing_safe_compare
+from ..util.deferredutil import async_to_deferred
 
 _OPENSSL = Binding().lib
 
@@ -64,7 +64,7 @@ class ClientException(Exception):
 _SCHEMAS = {
     "get_version": Schema(
         """
-        message = {'http://allmydata.org/tahoe/protocols/storage/v1' => {
+        response = {'http://allmydata.org/tahoe/protocols/storage/v1' => {
                  'maximum-immutable-share-size' => uint
                  'maximum-mutable-share-size' => uint
                  'available-space' => uint
@@ -79,7 +79,7 @@ _SCHEMAS = {
     ),
     "allocate_buckets": Schema(
         """
-    message = {
+    response = {
       already-have: #6.258([* uint])
       allocated: #6.258([* uint])
     }
@@ -87,15 +87,24 @@ _SCHEMAS = {
     ),
     "immutable_write_share_chunk": Schema(
         """
-    message = {
+    response = {
       required: [* {begin: uint, end: uint}]
     }
     """
     ),
     "list_shares": Schema(
         """
-    message = #6.258([* uint])
+    response = #6.258([* uint])
     """
+    ),
+    "mutable_read_test_write": Schema(
+        """
+        response = {
+          "success": bool,
+          "data": {* share_number: [* bstr]}
+        }
+        share_number = uint
+        """
     ),
 }
 
@@ -121,12 +130,12 @@ def _decode_cbor(response, schema: Schema):
         )
 
 
-@attr.s
+@define
 class ImmutableCreateResult(object):
     """Result of creating a storage index for an immutable."""
 
-    already_have = attr.ib(type=Set[int])
-    allocated = attr.ib(type=Set[int])
+    already_have: set[int]
+    allocated: set[int]
 
 
 class _TLSContextFactory(CertificateOptions):
@@ -200,14 +209,14 @@ class _TLSContextFactory(CertificateOptions):
 
 @implementer(IPolicyForHTTPS)
 @implementer(IOpenSSLClientConnectionCreator)
-@attr.s
+@define
 class _StorageClientHTTPSPolicy:
     """
     A HTTPS policy that ensures the SPKI hash of the public key matches a known
     hash, i.e. pinning-based validation.
     """
 
-    expected_spki_hash = attr.ib(type=bytes)
+    expected_spki_hash: bytes
 
     # IPolicyForHTTPS
     def creatorForNetloc(self, hostname, port):
@@ -220,24 +229,22 @@ class _StorageClientHTTPSPolicy:
         )
 
 
+@define
 class StorageClient(object):
     """
     Low-level HTTP client that talks to the HTTP storage server.
     """
 
-    def __init__(
-        self, url, swissnum, treq=treq
-    ):  # type: (DecodedURL, bytes, Union[treq,StubTreq,HTTPClient]) -> None
-        """
-        The URL is a HTTPS URL ("https://...").  To construct from a NURL, use
-        ``StorageClient.from_nurl()``.
-        """
-        self._base_url = url
-        self._swissnum = swissnum
-        self._treq = treq
+    # The URL is a HTTPS URL ("https://...").  To construct from a NURL, use
+    # ``StorageClient.from_nurl()``.
+    _base_url: DecodedURL
+    _swissnum: bytes
+    _treq: Union[treq, StubTreq, HTTPClient]
 
     @classmethod
-    def from_nurl(cls, nurl: DecodedURL, reactor, persistent: bool = True) -> StorageClient:
+    def from_nurl(
+        cls, nurl: DecodedURL, reactor, persistent: bool = True
+    ) -> StorageClient:
         """
         Create a ``StorageClient`` for the given NURL.
 
@@ -280,6 +287,7 @@ class StorageClient(object):
         lease_renew_secret=None,
         lease_cancel_secret=None,
         upload_secret=None,
+        write_enabler_secret=None,
         headers=None,
         message_to_serialize=None,
         **kwargs
@@ -298,6 +306,7 @@ class StorageClient(object):
             (Secrets.LEASE_RENEW, lease_renew_secret),
             (Secrets.LEASE_CANCEL, lease_cancel_secret),
             (Secrets.UPLOAD, upload_secret),
+            (Secrets.WRITE_ENABLER, write_enabler_secret),
         ]:
             if value is None:
                 continue
@@ -342,25 +351,65 @@ class StorageClientGeneral(object):
         returnValue(decoded_response)
 
 
-@attr.s
+@define
 class UploadProgress(object):
     """
     Progress of immutable upload, per the server.
     """
 
     # True when upload has finished.
-    finished = attr.ib(type=bool)
+    finished: bool
     # Remaining ranges to upload.
-    required = attr.ib(type=RangeMap)
+    required: RangeMap
 
 
+@inlineCallbacks
+def read_share_chunk(
+    client: StorageClient,
+    share_type: str,
+    storage_index: bytes,
+    share_number: int,
+    offset: int,
+    length: int,
+) -> Deferred[bytes]:
+    """
+    Download a chunk of data from a share.
+
+    TODO https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3857 Failed
+    downloads should be transparently retried and redownloaded by the
+    implementation a few times so that if a failure percolates up, the
+    caller can assume the failure isn't a short-term blip.
+
+    NOTE: the underlying HTTP protocol is much more flexible than this API,
+    so a future refactor may expand this in order to simplify the calling
+    code and perhaps download data more efficiently.  But then again maybe
+    the HTTP protocol will be simplified, see
+    https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3777
+    """
+    url = client.relative_url(
+        "/v1/{}/{}/{}".format(share_type, _encode_si(storage_index), share_number)
+    )
+    response = yield client.request(
+        "GET",
+        url,
+        headers=Headers(
+            {"range": [Range("bytes", [(offset, offset + length)]).to_header()]}
+        ),
+    )
+    if response.code == http.PARTIAL_CONTENT:
+        body = yield response.content()
+        returnValue(body)
+    else:
+        raise ClientException(response.code)
+
+
+@define
 class StorageClientImmutables(object):
     """
     APIs for interacting with immutables.
     """
 
-    def __init__(self, client: StorageClient):
-        self._client = client
+    _client: StorageClient
 
     @inlineCallbacks
     def create(
@@ -371,7 +420,7 @@ class StorageClientImmutables(object):
         upload_secret,
         lease_renew_secret,
         lease_cancel_secret,
-    ):  # type: (bytes, Set[int], int, bytes, bytes, bytes) -> Deferred[ImmutableCreateResult]
+    ):  # type: (bytes, set[int], int, bytes, bytes, bytes) -> Deferred[ImmutableCreateResult]
         """
         Create a new storage index for an immutable.
 
@@ -474,42 +523,18 @@ class StorageClientImmutables(object):
             remaining.set(True, chunk["begin"], chunk["end"])
         returnValue(UploadProgress(finished=finished, required=remaining))
 
-    @inlineCallbacks
     def read_share_chunk(
         self, storage_index, share_number, offset, length
     ):  # type: (bytes, int, int, int) -> Deferred[bytes]
         """
         Download a chunk of data from a share.
-
-        TODO https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3857 Failed
-        downloads should be transparently retried and redownloaded by the
-        implementation a few times so that if a failure percolates up, the
-        caller can assume the failure isn't a short-term blip.
-
-        NOTE: the underlying HTTP protocol is much more flexible than this API,
-        so a future refactor may expand this in order to simplify the calling
-        code and perhaps download data more efficiently.  But then again maybe
-        the HTTP protocol will be simplified, see
-        https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3777
         """
-        url = self._client.relative_url(
-            "/v1/immutable/{}/{}".format(_encode_si(storage_index), share_number)
+        return read_share_chunk(
+            self._client, "immutable", storage_index, share_number, offset, length
         )
-        response = yield self._client.request(
-            "GET",
-            url,
-            headers=Headers(
-                {"range": [Range("bytes", [(offset, offset + length)]).to_header()]}
-            ),
-        )
-        if response.code == http.PARTIAL_CONTENT:
-            body = yield response.content()
-            returnValue(body)
-        else:
-            raise ClientException(response.code)
 
     @inlineCallbacks
-    def list_shares(self, storage_index):  # type: (bytes,) -> Deferred[Set[int]]
+    def list_shares(self, storage_index):  # type: (bytes,) -> Deferred[set[int]]
         """
         Return the set of shares for a given storage index.
         """
@@ -573,3 +598,125 @@ class StorageClientImmutables(object):
             raise ClientException(
                 response.code,
             )
+
+
+@frozen
+class WriteVector:
+    """Data to write to a chunk."""
+
+    offset: int
+    data: bytes
+
+
+@frozen
+class TestVector:
+    """Checks to make on a chunk before writing to it."""
+
+    offset: int
+    size: int
+    specimen: bytes
+
+
+@frozen
+class ReadVector:
+    """
+    Reads to do on chunks, as part of a read/test/write operation.
+    """
+
+    offset: int
+    size: int
+
+
+@frozen
+class TestWriteVectors:
+    """Test and write vectors for a specific share."""
+
+    test_vectors: Sequence[TestVector]
+    write_vectors: Sequence[WriteVector]
+    new_length: Optional[int] = None
+
+    def asdict(self) -> dict:
+        """Return dictionary suitable for sending over CBOR."""
+        d = asdict(self)
+        d["test"] = d.pop("test_vectors")
+        d["write"] = d.pop("write_vectors")
+        d["new-length"] = d.pop("new_length")
+        return d
+
+
+@frozen
+class ReadTestWriteResult:
+    """Result of sending read-test-write vectors."""
+
+    success: bool
+    # Map share numbers to reads corresponding to the request's list of
+    # ReadVectors:
+    reads: Mapping[int, Sequence[bytes]]
+
+
+@frozen
+class StorageClientMutables:
+    """
+    APIs for interacting with mutables.
+    """
+
+    _client: StorageClient
+
+    @async_to_deferred
+    async def read_test_write_chunks(
+        self,
+        storage_index: bytes,
+        write_enabler_secret: bytes,
+        lease_renew_secret: bytes,
+        lease_cancel_secret: bytes,
+        testwrite_vectors: dict[int, TestWriteVectors],
+        read_vector: list[ReadVector],
+    ) -> ReadTestWriteResult:
+        """
+        Read, test, and possibly write chunks to a particular mutable storage
+        index.
+
+        Reads are done before writes.
+
+        Given a mapping between share numbers and test/write vectors, the tests
+        are done and if they are valid the writes are done.
+        """
+        # TODO unit test all the things
+        url = self._client.relative_url(
+            "/v1/mutable/{}/read-test-write".format(_encode_si(storage_index))
+        )
+        message = {
+            "test-write-vectors": {
+                share_number: twv.asdict()
+                for (share_number, twv) in testwrite_vectors.items()
+            },
+            "read-vector": [asdict(r) for r in read_vector],
+        }
+        response = await self._client.request(
+            "POST",
+            url,
+            write_enabler_secret=write_enabler_secret,
+            lease_renew_secret=lease_renew_secret,
+            lease_cancel_secret=lease_cancel_secret,
+            message_to_serialize=message,
+        )
+        if response.code == http.OK:
+            result = await _decode_cbor(response, _SCHEMAS["mutable_read_test_write"])
+            return ReadTestWriteResult(success=result["success"], reads=result["data"])
+        else:
+            raise ClientException(response.code, (await response.content()))
+
+    def read_share_chunk(
+        self,
+        storage_index: bytes,
+        share_number: int,
+        offset: int,
+        length: int,
+    ) -> bytes:
+        """
+        Download a chunk of data from a share.
+        """
+        # TODO unit test all the things
+        return read_share_chunk(
+            self._client, "mutable", storage_index, share_number, offset, length
+        )

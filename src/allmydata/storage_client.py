@@ -77,7 +77,8 @@ from allmydata.util.hashutil import permute_server_hash
 from allmydata.util.dictutil import BytesKeyDict, UnicodeKeyDict
 from allmydata.storage.http_client import (
     StorageClient, StorageClientImmutables, StorageClientGeneral,
-    ClientException as HTTPClientException
+    ClientException as HTTPClientException, StorageClientMutables,
+    ReadVector, TestWriteVectors, WriteVector, TestVector
 )
 
 
@@ -1189,3 +1190,64 @@ class _HTTPStorageServer(object):
             )
         else:
             raise NotImplementedError()  # future tickets
+
+    @defer.inlineCallbacks
+    def slot_readv(self, storage_index, shares, readv):
+        mutable_client = StorageClientMutables(self._http_client)
+        pending_reads = {}
+        reads = {}
+        # TODO if shares list is empty, that means list all shares, so we need
+        # to do a query to get that.
+        assert shares  # TODO replace with call to list shares if and only if it's empty
+
+        # Start all the queries in parallel:
+        for share_number in shares:
+            share_reads = defer.gatherResults(
+                [
+                    mutable_client.read_share_chunk(
+                        storage_index, share_number, offset, length
+                    )
+                    for (offset, length) in readv
+                ]
+            )
+            pending_reads[share_number] = share_reads
+
+        # Wait for all the queries to finish:
+        for share_number, pending_result in pending_reads.items():
+            reads[share_number] = yield pending_result
+
+        return reads
+
+    @defer.inlineCallbacks
+    def slot_testv_and_readv_and_writev(
+            self,
+            storage_index,
+            secrets,
+            tw_vectors,
+            r_vector,
+    ):
+        mutable_client = StorageClientMutables(self._http_client)
+        we_secret, lr_secret, lc_secret = secrets
+        client_tw_vectors = {}
+        for share_num, (test_vector, data_vector, new_length) in tw_vectors.items():
+            client_test_vectors = [
+                TestVector(offset=offset, size=size, specimen=specimen)
+                for (offset, size, specimen) in test_vector
+            ]
+            client_write_vectors = [
+                WriteVector(offset=offset, data=data) for (offset, data) in data_vector
+            ]
+            client_tw_vectors[share_num] = TestWriteVectors(
+                test_vectors=client_test_vectors,
+                write_vectors=client_write_vectors,
+                new_length=new_length
+            )
+        client_read_vectors = [
+            ReadVector(offset=offset, size=size)
+            for (offset, size) in r_vector
+        ]
+        client_result = yield mutable_client.read_test_write_chunks(
+            storage_index, we_secret, lr_secret, lc_secret, client_tw_vectors,
+            client_read_vectors,
+        )
+        return (client_result.success, client_result.reads)
