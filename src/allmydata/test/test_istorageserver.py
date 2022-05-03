@@ -8,19 +8,9 @@ reused across tests, so each test should be careful to generate unique storage
 indexes.
 """
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
+from future.utils import bchr
 
-from future.utils import PY2, bchr
-
-if PY2:
-    # fmt: off
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
-    # fmt: on
-else:
-    from typing import Set
+from typing import Set
 
 from random import Random
 from unittest import SkipTest
@@ -29,18 +19,20 @@ from twisted.internet.defer import inlineCallbacks, returnValue, succeed
 from twisted.internet.task import Clock
 from twisted.internet import reactor
 from twisted.internet.endpoints import serverFromString
-from twisted.web.server import Site
-from twisted.web.client import Agent, HTTPConnectionPool
-from hyperlink import DecodedURL
-from treq.client import HTTPClient
-
+from twisted.python.filepath import FilePath
 from foolscap.api import Referenceable, RemoteException
 
 from allmydata.interfaces import IStorageServer  # really, IStorageClient
 from .common_system import SystemTestMixin
 from .common import AsyncTestCase, SameProcessStreamEndpointAssigner
+from .certs import (
+    generate_certificate,
+    generate_private_key,
+    private_key_to_file,
+    cert_to_file,
+)
 from allmydata.storage.server import StorageServer  # not a IStorageServer!!
-from allmydata.storage.http_server import HTTPServer
+from allmydata.storage.http_server import HTTPServer, listen_tls
 from allmydata.storage.http_client import StorageClient
 from allmydata.storage_client import _HTTPStorageServer
 
@@ -176,8 +168,9 @@ class IStorageServerImmutableAPIsTestsMixin(object):
             canary=Referenceable(),
         )
 
-        # Bucket 1 is fully written in one go.
-        yield allocated[0].callRemote("write", 0, b"1" * 1024)
+        # Bucket 1 get some data written (but not all, or HTTP implicitly
+        # finishes the upload)
+        yield allocated[0].callRemote("write", 0, b"1" * 1023)
 
         # Disconnect or abort, depending on the test:
         yield abort_or_disconnect(allocated[0])
@@ -192,20 +185,6 @@ class IStorageServerImmutableAPIsTestsMixin(object):
             canary=Referenceable(),
         )
         yield allocated[0].callRemote("write", 0, b"2" * 1024)
-
-    def test_disconnection(self):
-        """
-        If we disconnect in the middle of writing to a bucket, all data is
-        wiped, and it's even possible to write different data to the bucket.
-
-        (In the real world one shouldn't do that, but writing different data is
-        a good way to test that the original data really was wiped.)
-
-        HTTP protocol should skip this test, since disconnection is meaningless
-        concept; this is more about testing implicit contract the Foolscap
-        implementation depends on doesn't change as we refactor things.
-        """
-        return self.abort_or_disconnect_half_way(lambda _: self.disconnect())
 
     @inlineCallbacks
     def test_written_shares_are_allocated(self):
@@ -1030,10 +1009,6 @@ class _SharedMixin(SystemTestMixin):
 
         AsyncTestCase.setUp(self)
 
-        self._port_assigner = SameProcessStreamEndpointAssigner()
-        self._port_assigner.setUp()
-        self.addCleanup(self._port_assigner.tearDown)
-
         self.basedir = "test_istorageserver/" + self.id()
         yield SystemTestMixin.setUp(self)
         yield self.set_up_nodes(1)
@@ -1061,13 +1036,6 @@ class _SharedMixin(SystemTestMixin):
         AsyncTestCase.tearDown(self)
         yield SystemTestMixin.tearDown(self)
 
-    @inlineCallbacks
-    def disconnect(self):
-        """
-        Disconnect and then reconnect with a new ``IStorageServer``.
-        """
-        raise NotImplementedError("implement in subclass")
-
 
 class _FoolscapMixin(_SharedMixin):
     """Run tests on Foolscap version of ``IStorageServer``."""
@@ -1080,23 +1048,14 @@ class _FoolscapMixin(_SharedMixin):
         self.assertTrue(IStorageServer.providedBy(client))
         return succeed(client)
 
-    @inlineCallbacks
-    def disconnect(self):
-        """
-        Disconnect and then reconnect with a new ``IStorageServer``.
-        """
-        current = self.storage_client
-        yield self.bounce_client(0)
-        self.storage_client = self._get_native_server().get_storage_server()
-        assert self.storage_client is not current
-
 
 class _HTTPMixin(_SharedMixin):
     """Run tests on the HTTP version of ``IStorageServer``."""
 
     def setUp(self):
-        if PY2:
-            self.skipTest("Not going to bother supporting Python 2")
+        self._port_assigner = SameProcessStreamEndpointAssigner()
+        self._port_assigner.setUp()
+        self.addCleanup(self._port_assigner.tearDown)
         return _SharedMixin.setUp(self)
 
     @inlineCallbacks
@@ -1104,29 +1063,27 @@ class _HTTPMixin(_SharedMixin):
         swissnum = b"1234"
         http_storage_server = HTTPServer(self.server, swissnum)
 
-        # Listen on randomly assigned port:
-        tcp_address, endpoint_string = self._port_assigner.assign(reactor)
-        _, host, port = tcp_address.split(":")
-        port = int(port)
-        endpoint = serverFromString(reactor, endpoint_string)
-        listening_port = yield endpoint.listen(Site(http_storage_server.get_resource()))
+        # Listen on randomly assigned port, using self-signed cert:
+        private_key = generate_private_key()
+        certificate = generate_certificate(private_key)
+        _, endpoint_string = self._port_assigner.assign(reactor)
+        nurl, listening_port = yield listen_tls(
+            http_storage_server,
+            "127.0.0.1",
+            serverFromString(reactor, endpoint_string),
+            private_key_to_file(FilePath(self.mktemp()), private_key),
+            cert_to_file(FilePath(self.mktemp()), certificate),
+        )
         self.addCleanup(listening_port.stopListening)
 
         # Create HTTP client with non-persistent connections, so we don't leak
         # state across tests:
-        treq_client = HTTPClient(
-            Agent(reactor, HTTPConnectionPool(reactor, persistent=False))
-        )
-
         returnValue(
             _HTTPStorageServer.from_http_client(
-                StorageClient(
-                    DecodedURL().replace(scheme="http", host=host, port=port),
-                    swissnum,
-                    treq=treq_client,
-                )
+                StorageClient.from_nurl(nurl, reactor, persistent=False)
             )
         )
+
         # Eventually should also:
         #  self.assertTrue(IStorageServer.providedBy(client))
 
@@ -1148,29 +1105,54 @@ class FoolscapImmutableAPIsTests(
 ):
     """Foolscap-specific tests for immutable ``IStorageServer`` APIs."""
 
+    def test_disconnection(self):
+        """
+        If we disconnect in the middle of writing to a bucket, all data is
+        wiped, and it's even possible to write different data to the bucket.
+
+        (In the real world one shouldn't do that, but writing different data is
+        a good way to test that the original data really was wiped.)
+
+        HTTP protocol doesn't need this test, since disconnection is a
+        meaningless concept; this is more about testing the implicit contract
+        the Foolscap implementation depends on doesn't change as we refactor
+        things.
+        """
+        return self.abort_or_disconnect_half_way(lambda _: self.disconnect())
+
+    @inlineCallbacks
+    def disconnect(self):
+        """
+        Disconnect and then reconnect with a new ``IStorageServer``.
+        """
+        current = self.storage_client
+        yield self.bounce_client(0)
+        self.storage_client = self._get_native_server().get_storage_server()
+        assert self.storage_client is not current
+
 
 class HTTPImmutableAPIsTests(
     _HTTPMixin, IStorageServerImmutableAPIsTestsMixin, AsyncTestCase
 ):
     """HTTP-specific tests for immutable ``IStorageServer`` APIs."""
 
-    # These will start passing in future PRs as HTTP protocol is implemented.
-    SKIP_TESTS = {
-        "test_abort",
-        "test_add_lease_renewal",
-        "test_add_new_lease",
-        "test_advise_corrupt_share",
-        "test_allocate_buckets_repeat",
-        "test_bucket_advise_corrupt_share",
-        "test_disconnection",
-        "test_get_buckets_skips_unfinished_buckets",
-        "test_matching_overlapping_writes",
-        "test_non_matching_overlapping_writes",
-        "test_written_shares_are_allocated",
-    }
-
 
 class FoolscapMutableAPIsTests(
     _FoolscapMixin, IStorageServerMutableAPIsTestsMixin, AsyncTestCase
 ):
-    """Foolscap-specific tests for immutable ``IStorageServer`` APIs."""
+    """Foolscap-specific tests for mutable ``IStorageServer`` APIs."""
+
+
+class HTTPMutableAPIsTests(
+    _HTTPMixin, IStorageServerMutableAPIsTestsMixin, AsyncTestCase
+):
+    """HTTP-specific tests for mutable ``IStorageServer`` APIs."""
+
+    # TODO will be implemented in later tickets
+    SKIP_TESTS = {
+        "test_STARAW_write_enabler_must_match",
+        "test_add_lease_renewal",
+        "test_add_new_lease",
+        "test_advise_corrupt_share",
+        "test_slot_readv_no_shares",
+    }

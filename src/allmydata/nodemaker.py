@@ -126,12 +126,12 @@ class NodeMaker(object):
             return self._create_dirnode(filenode)
         return None
 
-    def create_mutable_file(self, contents=None, keysize=None, version=None):
+    def create_mutable_file(self, contents=None, version=None):
         if version is None:
             version = self.mutable_file_default
         n = MutableFileNode(self.storage_broker, self.secret_holder,
                             self.default_encoding_parameters, self.history)
-        d = self.key_generator.generate(keysize)
+        d = self.key_generator.generate()
         d.addCallback(n.create_with_keys, contents, version=version)
         d.addCallback(lambda res: n)
         return d

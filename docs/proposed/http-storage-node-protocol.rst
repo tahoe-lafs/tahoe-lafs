@@ -35,10 +35,10 @@ Glossary
      (the storage service is an example of such an object)
 
    NURL
-     a self-authenticating URL-like string almost exactly like a fURL but without being tied to Foolscap
+     a self-authenticating URL-like string almost exactly like a NURL but without being tied to Foolscap
 
    swissnum
-     a short random string which is part of a fURL and which acts as a shared secret to authorize clients to use a storage service
+     a short random string which is part of a fURL/NURL and which acts as a shared secret to authorize clients to use a storage service
 
    lease
      state associated with a share informing a storage server of the duration of storage desired by a client
@@ -211,15 +211,15 @@ To further clarify, consider this example.
 Alice operates a storage node.
 Alice generates a key pair and secures it properly.
 Alice generates a self-signed storage node certificate with the key pair.
-Alice's storage node announces (to an introducer) a fURL containing (among other information) the SPKI hash.
+Alice's storage node announces (to an introducer) a NURL containing (among other information) the SPKI hash.
 Imagine the SPKI hash is ``i5xb...``.
-This results in a fURL of ``pb://i5xb...@example.com:443/g3m5...#v=1``.
+This results in a NURL of ``pb://i5xb...@example.com:443/g3m5...#v=1``.
 Bob creates a client node pointed at the same introducer.
 Bob's client node receives the announcement from Alice's storage node
 (indirected through the introducer).
 
-Bob's client node recognizes the fURL as referring to an HTTP-dialect server due to the ``v=1`` fragment.
-Bob's client node can now perform a TLS handshake with a server at the address in the fURL location hints
+Bob's client node recognizes the NURL as referring to an HTTP-dialect server due to the ``v=1`` fragment.
+Bob's client node can now perform a TLS handshake with a server at the address in the NURL location hints
 (``example.com:443`` in this example).
 Following the above described validation procedures,
 Bob's client node can determine whether it has reached Alice's storage node or not.
@@ -230,7 +230,7 @@ Additionally,
 by continuing to interact using TLS,
 Bob's client and Alice's storage node are assured of both **message authentication** and **message confidentiality**.
 
-Bob's client further inspects the fURL for the *swissnum*.
+Bob's client further inspects the NURL for the *swissnum*.
 When Bob's client issues HTTP requests to Alice's storage node it includes the *swissnum* in its requests.
 **Storage authorization** has been achieved.
 
@@ -266,8 +266,8 @@ Generation of a new certificate allows for certain non-optimal conditions to be 
 * The ``commonName`` of ``newpb_thingy`` may be changed to a more descriptive value.
 * A ``notValidAfter`` field with a timestamp in the past may be updated.
 
-Storage nodes will announce a new fURL for this new HTTP-based server.
-This fURL will be announced alongside their existing Foolscap-based server's fURL.
+Storage nodes will announce a new NURL for this new HTTP-based server.
+This NURL will be announced alongside their existing Foolscap-based server's fURL.
 Such an announcement will resemble this::
 
   {
@@ -312,7 +312,7 @@ The follow sequence of events is likely:
 #. The client uses the information in its cache to open a Foolscap connection to the storage server.
 
 Ideally,
-the client would not rely on an update from the introducer to give it the GBS fURL for the updated storage server.
+the client would not rely on an update from the introducer to give it the GBS NURL for the updated storage server.
 Therefore,
 when an updated client connects to a storage server using Foolscap,
 it should request the server's version information.
@@ -349,6 +349,9 @@ JSON is used throughout for the examples presented here.
 Because of the simple types used throughout
 and the equivalence described in `RFC 7049`_
 these examples should be representative regardless of which of these two encodings is chosen.
+
+For CBOR messages, any sequence that is semantically a set (i.e. no repeated values allowed, order doesn't matter, and elements are hashable in Python) should be sent as a set.
+Tag 6.258 is used to indicate sets in CBOR; see `the CBOR registry <https://www.iana.org/assignments/cbor-tags/cbor-tags.xhtml>`_ for more details.
 
 HTTP Design
 ~~~~~~~~~~~
@@ -493,8 +496,8 @@ Handling repeat calls:
 * If the same API call is repeated with the same upload secret, the response is the same and no change is made to server state.
   This is necessary to ensure retries work in the face of lost responses from the server.
 * If the API calls is with a different upload secret, this implies a new client, perhaps because the old client died.
-  In order to prevent storage servers from being able to mess with each other, this API call will fail, because the secret doesn't match.
-  The use case of restarting upload from scratch if the client dies can be implemented by having the client persist the upload secret.
+  Or it may happen because the client wants to upload a different share number than a previous client.
+  New shares will be created, existing shares will be unchanged, regardless of whether the upload secret matches or not.
 
 Discussion
 ``````````
@@ -540,7 +543,7 @@ Rejected designs for upload secrets:
 Write data for the indicated share.
 The share number must belong to the storage index.
 The request body is the raw share data (i.e., ``application/octet-stream``).
-*Content-Range* requests are encouraged for large transfers to allow partially complete uploads to be resumed.
+*Content-Range* requests are required; for large transfers this allows partially complete uploads to be resumed.
 For example,
 a 1MiB share can be divided in to eight separate 128KiB chunks.
 Each chunk can be uploaded in a separate request.
@@ -614,15 +617,18 @@ From RFC 7231::
 ``POST /v1/immutable/:storage_index/:share_number/corrupt``
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-Advise the server the data read from the indicated share was corrupt.
-The request body includes an human-meaningful string with details about the corruption.
-It also includes potentially important details about the share.
+Advise the server the data read from the indicated share was corrupt. The
+request body includes an human-meaningful text string with details about the
+corruption. It also includes potentially important details about the share.
 
 For example::
 
-  {"reason": "expected hash abcd, got hash efgh"}
+  {"reason": u"expected hash abcd, got hash efgh"}
 
 .. share-type, storage-index, and share-number are inferred from the URL
+
+The response code is OK (200) by default, or NOT FOUND (404) if the share
+couldn't be found.
 
 Reading
 ~~~~~~~
@@ -644,7 +650,7 @@ Read a contiguous sequence of bytes from one share in one bucket.
 The response body is the raw share data (i.e., ``application/octet-stream``).
 The ``Range`` header may be used to request exactly one ``bytes`` range, in which case the response code will be 206 (partial content).
 Interpretation and response behavior is as specified in RFC 7233 § 4.1.
-Multiple ranges in a single request are *not* supported.
+Multiple ranges in a single request are *not* supported; open-ended ranges are also not supported.
 
 Discussion
 ``````````
@@ -737,11 +743,15 @@ For example::
 
   [1, 5]
 
-``GET /v1/mutable/:storage_index?share=:s0&share=:sN&offset=:o1&size=:z0&offset=:oN&size=:zN``
+``GET /v1/mutable/:storage_index/:share_number``
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-Read data from the indicated mutable shares.
-Just like ``GET /v1/mutable/:storage_index``.
+Read data from the indicated mutable shares, just like ``GET /v1/immutable/:storage_index``
+
+The ``Range`` header may be used to request exactly one ``bytes`` range, in which case the response code will be 206 (partial content).
+Interpretation and response behavior is as specified in RFC 7233 § 4.1.
+Multiple ranges in a single request are *not* supported; open-ended ranges are also not supported.
+
 
 ``POST /v1/mutable/:storage_index/:share_number/corrupt``
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!

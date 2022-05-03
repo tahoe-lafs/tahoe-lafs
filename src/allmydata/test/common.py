@@ -133,8 +133,6 @@ from subprocess import (
     PIPE,
 )
 
-TEST_RSA_KEY_SIZE = 522
-
 EMPTY_CLIENT_CONFIG = config_from_string(
     "/dev/null",
     "tub.port",

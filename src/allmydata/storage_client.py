@@ -58,7 +58,7 @@ from twisted.plugin import (
 from eliot import (
     log_call,
 )
-from foolscap.api import eventually
+from foolscap.api import eventually, RemoteException
 from foolscap.reconnector import (
     ReconnectionInfo,
 )
@@ -75,7 +75,11 @@ from allmydata.util.observer import ObserverList
 from allmydata.util.rrefutil import add_version_to_remote_reference
 from allmydata.util.hashutil import permute_server_hash
 from allmydata.util.dictutil import BytesKeyDict, UnicodeKeyDict
-from allmydata.storage.http_client import StorageClient, StorageClientImmutables
+from allmydata.storage.http_client import (
+    StorageClient, StorageClientImmutables, StorageClientGeneral,
+    ClientException as HTTPClientException, StorageClientMutables,
+    ReadVector, TestWriteVectors, WriteVector, TestVector
+)
 
 
 # who is responsible for de-duplication?
@@ -1035,8 +1039,13 @@ class _FakeRemoteReference(object):
     """
     local_object = attr.ib(type=object)
 
+    @defer.inlineCallbacks
     def callRemote(self, action, *args, **kwargs):
-        return getattr(self.local_object, action)(*args, **kwargs)
+        try:
+            result = yield getattr(self.local_object, action)(*args, **kwargs)
+            defer.returnValue(result)
+        except HTTPClientException as e:
+            raise RemoteException(e.args)
 
 
 @attr.s
@@ -1051,7 +1060,8 @@ class _HTTPBucketWriter(object):
     finished = attr.ib(type=bool, default=False)
 
     def abort(self):
-        pass  # TODO in later ticket
+        return self.client.abort_upload(self.storage_index, self.share_number,
+                                        self.upload_secret)
 
     @defer.inlineCallbacks
     def write(self, offset, data):
@@ -1085,7 +1095,10 @@ class _HTTPBucketReader(object):
         )
 
     def advise_corrupt_share(self, reason):
-       pass  # TODO in later ticket
+       return self.client.advise_corrupt_share(
+           self.storage_index, self.share_number,
+           str(reason, "utf-8", errors="backslashreplace")
+       )
 
 
 # WORK IN PROGRESS, for now it doesn't actually implement whole thing.
@@ -1105,7 +1118,7 @@ class _HTTPStorageServer(object):
         return _HTTPStorageServer(http_client=http_client)
 
     def get_version(self):
-        return self._http_client.get_version()
+        return StorageClientGeneral(self._http_client).get_version()
 
     @defer.inlineCallbacks
     def allocate_buckets(
@@ -1115,7 +1128,7 @@ class _HTTPStorageServer(object):
             cancel_secret,
             sharenums,
             allocated_size,
-            canary,
+            canary
     ):
         upload_secret = urandom(20)
         immutable_client = StorageClientImmutables(self._http_client)
@@ -1139,7 +1152,7 @@ class _HTTPStorageServer(object):
     @defer.inlineCallbacks
     def get_buckets(
             self,
-            storage_index,
+            storage_index
     ):
         immutable_client = StorageClientImmutables(self._http_client)
         share_numbers = yield immutable_client.list_shares(
@@ -1151,3 +1164,90 @@ class _HTTPStorageServer(object):
             ))
             for share_num in share_numbers
         })
+
+    def add_lease(
+        self,
+        storage_index,
+        renew_secret,
+        cancel_secret
+    ):
+        immutable_client = StorageClientImmutables(self._http_client)
+        return immutable_client.add_or_renew_lease(
+            storage_index, renew_secret, cancel_secret
+        )
+
+    def advise_corrupt_share(
+        self,
+        share_type,
+        storage_index,
+        shnum,
+        reason: bytes
+    ):
+        if share_type == b"immutable":
+            imm_client = StorageClientImmutables(self._http_client)
+            return imm_client.advise_corrupt_share(
+                storage_index, shnum, str(reason, "utf-8", errors="backslashreplace")
+            )
+        else:
+            raise NotImplementedError()  # future tickets
+
+    @defer.inlineCallbacks
+    def slot_readv(self, storage_index, shares, readv):
+        mutable_client = StorageClientMutables(self._http_client)
+        pending_reads = {}
+        reads = {}
+        # TODO if shares list is empty, that means list all shares, so we need
+        # to do a query to get that.
+        assert shares  # TODO replace with call to list shares if and only if it's empty
+
+        # Start all the queries in parallel:
+        for share_number in shares:
+            share_reads = defer.gatherResults(
+                [
+                    mutable_client.read_share_chunk(
+                        storage_index, share_number, offset, length
+                    )
+                    for (offset, length) in readv
+                ]
+            )
+            pending_reads[share_number] = share_reads
+
+        # Wait for all the queries to finish:
+        for share_number, pending_result in pending_reads.items():
+            reads[share_number] = yield pending_result
+
+        return reads
+
+    @defer.inlineCallbacks
+    def slot_testv_and_readv_and_writev(
+            self,
+            storage_index,
+            secrets,
+            tw_vectors,
+            r_vector,
+    ):
+        mutable_client = StorageClientMutables(self._http_client)
+        we_secret, lr_secret, lc_secret = secrets
+        client_tw_vectors = {}
+        for share_num, (test_vector, data_vector, new_length) in tw_vectors.items():
+            client_test_vectors = [
+                TestVector(offset=offset, size=size, specimen=specimen)
+                for (offset, size, specimen) in test_vector
+            ]
+            client_write_vectors = [
+                WriteVector(offset=offset, data=data) for (offset, data) in data_vector
+            ]
+            client_tw_vectors[share_num] = TestWriteVectors(
+                test_vectors=client_test_vectors,
+                write_vectors=client_write_vectors,
+                new_length=new_length
+            )
+        client_read_vectors = [
+            ReadVector(offset=offset, size=size)
+            for (offset, size) in r_vector
+        ]
+        client_result = yield mutable_client.read_test_write_chunks(
+            storage_index, we_secret, lr_secret, lc_secret, client_tw_vectors,
+            client_read_vectors,
+        )
+        return (client_result.success, client_result.reads)

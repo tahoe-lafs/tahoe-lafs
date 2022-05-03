@@ -37,9 +37,6 @@ from allmydata.util.assertutil import precondition
 from allmydata.util.encodingutil import listdir_unicode, argv_to_unicode, quote_local_unicode_path, get_io_encoding
 from allmydata.util import fileutil, i2p_provider, iputil, tor_provider, jsonbytes as json
 
-from wormhole import wormhole
-
-
 dummy_tac = """
 import sys
 print("Nodes created by Tahoe-LAFS v1.11.0 or later cannot be run by")
@@ -377,7 +374,7 @@ def _get_config_via_wormhole(config):
     relay_url = config.parent['wormhole-server']
     print("Connecting to '{}'".format(relay_url), file=out)
 
-    wh = wormhole.create(
+    wh = config.parent.wormhole.create(
         appid=config.parent['wormhole-invite-appid'],
         relay_url=relay_url,
         reactor=reactor,

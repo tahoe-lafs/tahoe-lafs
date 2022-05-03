@@ -58,10 +58,16 @@ process_control_commands = [
 
 
 class Options(usage.Options):
+    """
+    :ivar wormhole: An object exposing the magic-wormhole API (mainly a test
+        hook).
+    """
     # unit tests can override these to point at StringIO instances
     stdin = sys.stdin
     stdout = sys.stdout
     stderr = sys.stderr
+
+    from wormhole import wormhole
 
     subCommands = (     create_node.subCommands
                     +   admin.subCommands

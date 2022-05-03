@@ -4,24 +4,13 @@ Utilities for working with Twisted Deferreds.
 Ported to Python 3.
 """
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
-from future.utils import PY2
-if PY2:
-    from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
-
 import time
+from functools import wraps
 
-try:
-    from typing import (
-        Callable,
-        Any,
-    )
-except ImportError:
-    pass
+from typing import (
+    Callable,
+    Any,
+)
 
 from foolscap.api import eventually
 from eliot.twisted import (
@@ -231,3 +220,17 @@ def until(
         yield action()
         if condition():
             break
+
+
+def async_to_deferred(f):
+    """
+    Wrap an async function to return a Deferred instead.
+
+    Maybe solution to https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3886
+    """
+
+    @wraps(f)
+    def not_async(*args, **kwargs):
+        return defer.Deferred.fromCoroutine(f(*args, **kwargs))
+
+    return not_async
