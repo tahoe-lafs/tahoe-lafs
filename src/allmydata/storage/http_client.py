@@ -4,6 +4,7 @@ HTTP client that talks to the HTTP storage server.
 
 from __future__ import annotations
 
+from eliot import start_action, register_exception_extractor
 from typing import Union, Optional, Sequence, Mapping
 from base64 import b64encode
 
@@ -54,6 +55,8 @@ class ClientException(Exception):
     def __init__(self, code, *additional_args):
         Exception.__init__(self, code, *additional_args)
         self.code = code
+
+register_exception_extractor(ClientException, lambda e: {"response_code": e.code})
 
 
 # Schemas for server responses.
@@ -280,6 +283,7 @@ class StorageClient(object):
         )
         return headers
 
+    @inlineCallbacks
     def request(
         self,
         method,
@@ -299,37 +303,40 @@ class StorageClient(object):
         If ``message_to_serialize`` is set, it will be serialized (by default
         with CBOR) and set as the request body.
         """
-        headers = self._get_headers(headers)
+        with start_action(action_type="allmydata:storage:http-client:request", method=method, url=str(url)) as ctx:
+            headers = self._get_headers(headers)
 
-        # Add secrets:
-        for secret, value in [
-            (Secrets.LEASE_RENEW, lease_renew_secret),
-            (Secrets.LEASE_CANCEL, lease_cancel_secret),
-            (Secrets.UPLOAD, upload_secret),
-            (Secrets.WRITE_ENABLER, write_enabler_secret),
-        ]:
-            if value is None:
-                continue
-            headers.addRawHeader(
-                "X-Tahoe-Authorization",
-                b"%s %s" % (secret.value.encode("ascii"), b64encode(value).strip()),
-            )
-
-        # Note we can accept CBOR:
-        headers.addRawHeader("Accept", CBOR_MIME_TYPE)
-
-        # If there's a request message, serialize it and set the Content-Type
-        # header:
-        if message_to_serialize is not None:
-            if "data" in kwargs:
-                raise TypeError(
-                    "Can't use both `message_to_serialize` and `data` "
-                    "as keyword arguments at the same time"
+            # Add secrets:
+            for secret, value in [
+                (Secrets.LEASE_RENEW, lease_renew_secret),
+                (Secrets.LEASE_CANCEL, lease_cancel_secret),
+                (Secrets.UPLOAD, upload_secret),
+                (Secrets.WRITE_ENABLER, write_enabler_secret),
+            ]:
+                if value is None:
+                    continue
+                headers.addRawHeader(
+                    "X-Tahoe-Authorization",
+                    b"%s %s" % (secret.value.encode("ascii"), b64encode(value).strip()),
                 )
-            kwargs["data"] = dumps(message_to_serialize)
-            headers.addRawHeader("Content-Type", CBOR_MIME_TYPE)
 
-        return self._treq.request(method, url, headers=headers, **kwargs)
+            # Note we can accept CBOR:
+            headers.addRawHeader("Accept", CBOR_MIME_TYPE)
+
+            # If there's a request message, serialize it and set the Content-Type
+            # header:
+            if message_to_serialize is not None:
+                if "data" in kwargs:
+                    raise TypeError(
+                        "Can't use both `message_to_serialize` and `data` "
+                        "as keyword arguments at the same time"
+                    )
+                kwargs["data"] = dumps(message_to_serialize)
+                headers.addRawHeader("Content-Type", CBOR_MIME_TYPE)
+
+            response = yield self._treq.request(method, url, headers=headers, **kwargs)
+            ctx.add_success_fields(response_code=response.code)
+            return response
 
 
 class StorageClientGeneral(object):
@@ -538,18 +545,19 @@ class StorageClientImmutables(object):
         """
         Return the set of shares for a given storage index.
         """
-        url = self._client.relative_url(
-            "/v1/immutable/{}/shares".format(_encode_si(storage_index))
-        )
-        response = yield self._client.request(
-            "GET",
-            url,
-        )
-        if response.code == http.OK:
-            body = yield _decode_cbor(response, _SCHEMAS["list_shares"])
-            returnValue(set(body))
-        else:
-            raise ClientException(response.code)
+        with start_action(action_type="allmydata:storage:http-client:immutable:list-shares", storage_index=storage_index) as ctx:
+            url = self._client.relative_url(
+                "/v1/immutable/{}/shares".format(_encode_si(storage_index))
+            )
+            response = yield self._client.request(
+                "GET",
+                url,
+            )
+            if response.code == http.OK:
+                body = yield _decode_cbor(response, _SCHEMAS["list_shares"])
+                return set(body)
+            else:
+                raise ClientException(response.code)
 
     @inlineCallbacks
     def add_or_renew_lease(
