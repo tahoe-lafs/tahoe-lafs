@@ -380,16 +380,14 @@ def read_share_chunk(
     """
     Download a chunk of data from a share.
 
-    TODO https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3857 Failed
-    downloads should be transparently retried and redownloaded by the
-    implementation a few times so that if a failure percolates up, the
-    caller can assume the failure isn't a short-term blip.
+    TODO https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3857 Failed downloads
+    should be transparently retried and redownloaded by the implementation a
+    few times so that if a failure percolates up, the caller can assume the
+    failure isn't a short-term blip.
 
-    NOTE: the underlying HTTP protocol is much more flexible than this API,
-    so a future refactor may expand this in order to simplify the calling
-    code and perhaps download data more efficiently.  But then again maybe
-    the HTTP protocol will be simplified, see
-    https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3777
+    NOTE: the underlying HTTP protocol is somewhat more flexible than this API,
+    insofar as it doesn't always require a range.  In practice a range is
+    always provided by the current callers.
     """
     url = client.relative_url(
         "/v1/{}/{}/{}".format(share_type, _encode_si(storage_index), share_number)
@@ -717,7 +715,7 @@ class StorageClientMutables:
         share_number: int,
         offset: int,
         length: int,
-    ) -> bytes:
+    ) -> Deferred[bytes]:
         """
         Download a chunk of data from a share.
         """
