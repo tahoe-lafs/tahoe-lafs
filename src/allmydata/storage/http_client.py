@@ -706,6 +706,12 @@ class StorageClientMutables:
         if response.code == http.OK:
             result = await _decode_cbor(response, _SCHEMAS["mutable_read_test_write"])
             return ReadTestWriteResult(success=result["success"], reads=result["data"])
+        elif response.code == http.UNAUTHORIZED:
+            # TODO mabye we can fix this to be nicer at some point? Custom
+            # exception?
+            from foolscap.api import RemoteException
+
+            raise RemoteException("Authorization failed")
         else:
             raise ClientException(response.code, (await response.content()))
 
