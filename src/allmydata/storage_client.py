@@ -1196,9 +1196,10 @@ class _HTTPStorageServer(object):
         mutable_client = StorageClientMutables(self._http_client)
         pending_reads = {}
         reads = {}
-        # TODO if shares list is empty, that means list all shares, so we need
+        # If shares list is empty, that means list all shares, so we need
         # to do a query to get that.
-        assert shares  # TODO replace with call to list shares if and only if it's empty
+        if not shares:
+            shares = yield mutable_client.list_shares(storage_index)
 
         # Start all the queries in parallel:
         for share_number in shares:

@@ -645,6 +645,20 @@ class HTTPServer(object):
             )
         return data
 
+    @_authorized_route(
+        _app,
+        set(),
+        "/v1/mutable/<storage_index:storage_index>/shares",
+        methods=["GET"],
+    )
+    def list_mutable_shares(self, request, authorization, storage_index):
+        """List mutable shares for a storage index."""
+        try:
+            shares = self._storage_server.list_mutable_shares(storage_index)
+        except KeyError:
+            raise _HTTPError(http.NOT_FOUND)
+        return self._send_encoded(request, shares)
+
 
 @implementer(IStreamServerEndpoint)
 @attr.s

@@ -1154,5 +1154,4 @@ class HTTPMutableAPIsTests(
         "test_add_lease_renewal",
         "test_add_new_lease",
         "test_advise_corrupt_share",
-        "test_slot_readv_no_shares",
     }

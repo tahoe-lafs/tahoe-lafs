@@ -106,6 +106,11 @@ _SCHEMAS = {
         share_number = uint
         """
     ),
+    "mutable_list_shares": Schema(
+        """
+        response = #6.258([* uint])
+        """
+    ),
 }
 
 
@@ -720,3 +725,18 @@ class StorageClientMutables:
         return read_share_chunk(
             self._client, "mutable", storage_index, share_number, offset, length
         )
+
+    @async_to_deferred
+    async def list_shares(self, storage_index: bytes) -> set[int]:
+        """
+        List the share numbers for a given storage index.
+        """
+        # TODO unit test all the things
+        url = self._client.relative_url(
+            "/v1/mutable/{}/shares".format(_encode_si(storage_index))
+        )
+        response = await self._client.request("GET", url)
+        if response.code == http.OK:
+            return await _decode_cbor(response, _SCHEMAS["mutable_list_shares"])
+        else:
+            raise ClientException(response.code)

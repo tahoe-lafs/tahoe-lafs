@@ -738,7 +738,7 @@ Reading
 ``GET /v1/mutable/:storage_index/shares``
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-Retrieve a list indicating all shares available for the indicated storage index.
+Retrieve a set indicating all shares available for the indicated storage index.
 For example::
 
   [1, 5]

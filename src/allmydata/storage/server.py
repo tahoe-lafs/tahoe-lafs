@@ -1,18 +1,9 @@
 """
 Ported to Python 3.
 """
-from __future__ import division
-from __future__ import absolute_import
-from __future__ import print_function
-from __future__ import unicode_literals
-
-from future.utils import bytes_to_native_str, PY2
-if PY2:
-    # Omit open() to get native behavior where open("w") always accepts native
-    # strings. Omit bytes so we don't leak future's custom bytes.
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, pow, round, super, dict, list, object, range, str, max, min  # noqa: F401
-else:
-    from typing import Dict, Tuple
+from __future__ import annotations
+from future.utils import bytes_to_native_str
+from typing import Dict, Tuple
 
 import os, re
 
@@ -698,6 +689,25 @@ class StorageServer(service.MultiService):
         share = create_mutable_sharefile(filename, my_nodeid, write_enabler,
                                          self)
         return share
+
+    def list_mutable_shares(self, storage_index) -> set[int]:
+        """List all share numbers for the given mutable.
+
+        Raises ``KeyError`` if the storage index is not known.
+        """
+        # TODO unit test
+        si_dir = storage_index_to_dir(storage_index)
+        # shares exist if there is a file for them
+        bucketdir = os.path.join(self.sharedir, si_dir)
+        if not os.path.isdir(bucketdir):
+            raise KeyError("Not found")
+        result = set()
+        for sharenum_s in os.listdir(bucketdir):
+            try:
+                result.add(int(sharenum_s))
+            except ValueError:
+                continue
+        return result
 
     def slot_readv(self, storage_index, shares, readv):
         start = self._clock.seconds()
