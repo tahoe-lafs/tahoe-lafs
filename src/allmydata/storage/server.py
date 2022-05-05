@@ -695,7 +695,6 @@ class StorageServer(service.MultiService):
 
         Raises ``KeyError`` if the storage index is not known.
         """
-        # TODO unit test
         si_dir = storage_index_to_dir(storage_index)
         # shares exist if there is a file for them
         bucketdir = os.path.join(self.sharedir, si_dir)
