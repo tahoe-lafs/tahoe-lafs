@@ -50,6 +50,7 @@ from zope.interface import (
     Interface,
     implementer,
 )
+from twisted.web import http
 from twisted.internet import defer
 from twisted.application import service
 from twisted.plugin import (
@@ -78,7 +79,7 @@ from allmydata.util.dictutil import BytesKeyDict, UnicodeKeyDict
 from allmydata.storage.http_client import (
     StorageClient, StorageClientImmutables, StorageClientGeneral,
     ClientException as HTTPClientException, StorageClientMutables,
-    ReadVector, TestWriteVectors, WriteVector, TestVector
+    ReadVector, TestWriteVectors, WriteVector, TestVector, ClientException
 )
 
 
@@ -1247,8 +1248,13 @@ class _HTTPStorageServer(object):
             ReadVector(offset=offset, size=size)
             for (offset, size) in r_vector
         ]
-        client_result = yield mutable_client.read_test_write_chunks(
-            storage_index, we_secret, lr_secret, lc_secret, client_tw_vectors,
-            client_read_vectors,
-        )
+        try:
+            client_result = yield mutable_client.read_test_write_chunks(
+                storage_index, we_secret, lr_secret, lc_secret, client_tw_vectors,
+                client_read_vectors,
+            )
+        except ClientException as e:
+            if e.code == http.UNAUTHORIZED:
+                raise RemoteException("Unauthorized write, possibly you passed the wrong write enabler?")
+            raise
         return (client_result.success, client_result.reads)
