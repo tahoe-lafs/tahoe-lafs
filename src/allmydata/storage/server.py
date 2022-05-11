@@ -690,7 +690,7 @@ class StorageServer(service.MultiService):
                                          self)
         return share
 
-    def list_mutable_shares(self, storage_index) -> set[int]:
+    def enumerate_mutable_shares(self, storage_index) -> set[int]:
         """List all share numbers for the given mutable.
 
         Raises ``KeyError`` if the storage index is not known.
