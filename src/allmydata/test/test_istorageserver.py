@@ -460,6 +460,21 @@ class IStorageServerImmutableAPIsTestsMixin(object):
         )
 
     @inlineCallbacks
+    def test_add_lease_non_existent(self):
+        """
+        If the storage index doesn't exist, adding the lease silently does nothing.
+        """
+        storage_index = new_storage_index()
+        self.assertEqual(list(self.server.get_leases(storage_index)), [])
+
+        renew_secret = new_secret()
+        cancel_secret = new_secret()
+
+        # Add a lease:
+        yield self.storage_client.add_lease(storage_index, renew_secret, cancel_secret)
+        self.assertEqual(list(self.server.get_leases(storage_index)), [])
+
+    @inlineCallbacks
     def test_add_lease_renewal(self):
         """
         If the lease secret is reused, ``add_lease()`` extends the existing

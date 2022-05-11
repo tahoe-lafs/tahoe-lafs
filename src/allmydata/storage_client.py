@@ -76,6 +76,7 @@ from allmydata.util.observer import ObserverList
 from allmydata.util.rrefutil import add_version_to_remote_reference
 from allmydata.util.hashutil import permute_server_hash
 from allmydata.util.dictutil import BytesKeyDict, UnicodeKeyDict
+from allmydata.util.deferredutil import async_to_deferred
 from allmydata.storage.http_client import (
     StorageClient, StorageClientImmutables, StorageClientGeneral,
     ClientException as HTTPClientException, StorageClientMutables,
@@ -1166,16 +1167,23 @@ class _HTTPStorageServer(object):
             for share_num in share_numbers
         })
 
-    def add_lease(
+    @async_to_deferred
+    async def add_lease(
         self,
         storage_index,
         renew_secret,
         cancel_secret
     ):
         immutable_client = StorageClientImmutables(self._http_client)
-        return immutable_client.add_or_renew_lease(
-            storage_index, renew_secret, cancel_secret
-        )
+        try:
+            await immutable_client.add_or_renew_lease(
+                storage_index, renew_secret, cancel_secret
+            )
+        except ClientException as e:
+            if e.code == http.NOT_FOUND:
+                # Silently do nothing, as is the case for the Foolscap client
+                return
+            raise
 
     def advise_corrupt_share(
         self,
