@@ -691,15 +691,12 @@ class StorageServer(service.MultiService):
         return share
 
     def enumerate_mutable_shares(self, storage_index: bytes) -> set[int]:
-        """List all share numbers for the given mutable.
-
-        Raises ``KeyError`` if the storage index is not known.
-        """
+        """Return all share numbers for the given mutable."""
         si_dir = storage_index_to_dir(storage_index)
         # shares exist if there is a file for them
         bucketdir = os.path.join(self.sharedir, si_dir)
         if not os.path.isdir(bucketdir):
-            raise KeyError("Not found")
+            return set()
         result = set()
         for sharenum_s in os.listdir(bucketdir):
             try:
