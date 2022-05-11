@@ -539,7 +539,7 @@ class HTTPServer(object):
     )
     def add_or_renew_lease(self, request, authorization, storage_index):
         """Update the lease for an immutable share."""
-        if not self._storage_server.get_buckets(storage_index):
+        if not list(self._storage_server._get_bucket_shares(storage_index)):
             raise _HTTPError(http.NOT_FOUND)
 
         # Checking of the renewal secret is done by the backend.

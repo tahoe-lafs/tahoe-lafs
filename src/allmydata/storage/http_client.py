@@ -355,6 +355,31 @@ class StorageClientGeneral(object):
         decoded_response = yield _decode_cbor(response, _SCHEMAS["get_version"])
         returnValue(decoded_response)
 
+    @inlineCallbacks
+    def add_or_renew_lease(
+        self, storage_index: bytes, renew_secret: bytes, cancel_secret: bytes
+    ):
+        """
+        Add or renew a lease.
+
+        If the renewal secret matches an existing lease, it is renewed.
+        Otherwise a new lease is added.
+        """
+        url = self._client.relative_url(
+            "/v1/lease/{}".format(_encode_si(storage_index))
+        )
+        response = yield self._client.request(
+            "PUT",
+            url,
+            lease_renew_secret=renew_secret,
+            lease_cancel_secret=cancel_secret,
+        )
+
+        if response.code == http.NO_CONTENT:
+            return
+        else:
+            raise ClientException(response.code)
+
 
 @define
 class UploadProgress(object):
@@ -575,31 +600,6 @@ class StorageClientImmutables(object):
         if response.code == http.OK:
             body = yield _decode_cbor(response, _SCHEMAS["list_shares"])
             returnValue(set(body))
-        else:
-            raise ClientException(response.code)
-
-    @inlineCallbacks
-    def add_or_renew_lease(
-        self, storage_index: bytes, renew_secret: bytes, cancel_secret: bytes
-    ):
-        """
-        Add or renew a lease.
-
-        If the renewal secret matches an existing lease, it is renewed.
-        Otherwise a new lease is added.
-        """
-        url = self._client.relative_url(
-            "/v1/lease/{}".format(_encode_si(storage_index))
-        )
-        response = yield self._client.request(
-            "PUT",
-            url,
-            lease_renew_secret=renew_secret,
-            lease_cancel_secret=cancel_secret,
-        )
-
-        if response.code == http.NO_CONTENT:
-            return
         else:
             raise ClientException(response.code)
 
