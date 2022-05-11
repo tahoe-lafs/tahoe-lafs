@@ -855,6 +855,22 @@ class IStorageServerMutableAPIsTestsMixin(object):
         )
 
     @inlineCallbacks
+    def test_slot_readv_unknown_storage_index(self):
+        """
+        With unknown storage index, ``IStorageServer.slot_readv()`` TODO.
+        """
+        storage_index = new_storage_index()
+        reads = yield self.storage_client.slot_readv(
+            storage_index,
+            shares=[],
+            readv=[(0, 7)],
+        )
+        self.assertEqual(
+            reads,
+            {},
+        )
+
+    @inlineCallbacks
     def create_slot(self):
         """Create a slot with sharenum 0."""
         secrets = self.new_secrets()

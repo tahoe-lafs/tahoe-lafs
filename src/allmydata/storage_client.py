@@ -1200,7 +1200,13 @@ class _HTTPStorageServer(object):
         # If shares list is empty, that means list all shares, so we need
         # to do a query to get that.
         if not shares:
-            shares = yield mutable_client.list_shares(storage_index)
+            try:
+                shares = yield mutable_client.list_shares(storage_index)
+            except ClientException as e:
+                if e.code == http.NOT_FOUND:
+                    shares = set()
+                else:
+                    raise
 
         # Start all the queries in parallel:
         for share_number in shares:
