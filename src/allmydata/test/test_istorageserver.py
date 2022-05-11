@@ -872,7 +872,8 @@ class IStorageServerMutableAPIsTestsMixin(object):
     @inlineCallbacks
     def test_slot_readv_unknown_storage_index(self):
         """
-        With unknown storage index, ``IStorageServer.slot_readv()`` TODO.
+        With unknown storage index, ``IStorageServer.slot_readv()`` returns
+        empty dict.
         """
         storage_index = new_storage_index()
         reads = yield self.storage_client.slot_readv(
