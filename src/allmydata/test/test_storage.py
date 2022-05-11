@@ -1315,29 +1315,29 @@ class MutableServer(unittest.TestCase):
         self.failUnless(isinstance(readv_data, dict))
         self.failUnlessEqual(len(readv_data), 0)
 
-    def test_list_mutable_shares(self):
+    def test_enumerate_mutable_shares(self):
         """
-        ``StorageServer.list_mutable_shares()`` returns a set of share numbers
-        for the given storage index, or raises ``KeyError`` if it does not exist at all.
+        ``StorageServer.enumerate_mutable_shares()`` returns a set of share
+        numbers for the given storage index, or an empty set if it does not
+        exist at all.
         """
-        ss = self.create("test_list_mutable_shares")
+        ss = self.create("test_enumerate_mutable_shares")
 
         # Initially, nothing exists:
-        with self.assertRaises(KeyError):
-            ss.list_mutable_shares(b"si1")
+        empty = ss.enumerate_mutable_shares(b"si1")
 
         self.allocate(ss, b"si1", b"we1", b"le1", [0, 1, 4, 2], 12)
-        shares0_1_2_4 = ss.list_mutable_shares(b"si1")
+        shares0_1_2_4 = ss.enumerate_mutable_shares(b"si1")
 
         # Remove share 2, by setting size to 0:
         secrets = (self.write_enabler(b"we1"),
                    self.renew_secret(b"le1"),
                    self.cancel_secret(b"le1"))
         ss.slot_testv_and_readv_and_writev(b"si1", secrets, {2: ([], [], 0)}, [])
-        shares0_1_4 = ss.list_mutable_shares(b"si1")
+        shares0_1_4 = ss.enumerate_mutable_shares(b"si1")
         self.assertEqual(
-            (shares0_1_2_4, shares0_1_4),
-            ({0, 1, 2, 4}, {0, 1, 4})
+            (empty, shares0_1_2_4, shares0_1_4),
+            (set(), {0, 1, 2, 4}, {0, 1, 4})
         )
 
     def test_bad_magic(self):
