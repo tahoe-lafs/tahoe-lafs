@@ -1152,5 +1152,4 @@ class HTTPMutableAPIsTests(
     SKIP_TESTS = {
         "test_add_lease_renewal",
         "test_add_new_lease",
-        "test_advise_corrupt_share",
     }

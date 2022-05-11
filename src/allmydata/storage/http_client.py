@@ -406,6 +406,30 @@ def read_share_chunk(
         raise ClientException(response.code)
 
 
+@async_to_deferred
+async def advise_corrupt_share(
+    client: StorageClient,
+    share_type: str,
+    storage_index: bytes,
+    share_number: int,
+    reason: str,
+):
+    assert isinstance(reason, str)
+    url = client.relative_url(
+        "/v1/{}/{}/{}/corrupt".format(
+            share_type, _encode_si(storage_index), share_number
+        )
+    )
+    message = {"reason": reason}
+    response = await client.request("POST", url, message_to_serialize=message)
+    if response.code == http.OK:
+        return
+    else:
+        raise ClientException(
+            response.code,
+        )
+
+
 @define
 class StorageClientImmutables(object):
     """
@@ -579,7 +603,6 @@ class StorageClientImmutables(object):
         else:
             raise ClientException(response.code)
 
-    @inlineCallbacks
     def advise_corrupt_share(
         self,
         storage_index: bytes,
@@ -587,20 +610,9 @@ class StorageClientImmutables(object):
         reason: str,
     ):
         """Indicate a share has been corrupted, with a human-readable message."""
-        assert isinstance(reason, str)
-        url = self._client.relative_url(
-            "/v1/immutable/{}/{}/corrupt".format(
-                _encode_si(storage_index), share_number
-            )
+        return advise_corrupt_share(
+            self._client, "immutable", storage_index, share_number, reason
         )
-        message = {"reason": reason}
-        response = yield self._client.request("POST", url, message_to_serialize=message)
-        if response.code == http.OK:
-            return
-        else:
-            raise ClientException(
-                response.code,
-            )
 
 
 @frozen
@@ -738,3 +750,14 @@ class StorageClientMutables:
             return await _decode_cbor(response, _SCHEMAS["mutable_list_shares"])
         else:
             raise ClientException(response.code)
+
+    def advise_corrupt_share(
+        self,
+        storage_index: bytes,
+        share_number: int,
+        reason: str,
+    ):
+        """Indicate a share has been corrupted, with a human-readable message."""
+        return advise_corrupt_share(
+            self._client, "mutable", storage_index, share_number, reason
+        )

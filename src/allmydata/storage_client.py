@@ -1185,12 +1185,14 @@ class _HTTPStorageServer(object):
         reason: bytes
     ):
         if share_type == b"immutable":
-            imm_client = StorageClientImmutables(self._http_client)
-            return imm_client.advise_corrupt_share(
-                storage_index, shnum, str(reason, "utf-8", errors="backslashreplace")
-            )
+            client = StorageClientImmutables(self._http_client)
+        elif share_type == b"mutable":
+            client = StorageClientMutables(self._http_client)
         else:
-            raise NotImplementedError()  # future tickets
+            raise ValueError("Unknown share type")
+        return client.advise_corrupt_share(
+            storage_index, shnum, str(reason, "utf-8", errors="backslashreplace")
+        )
 
     @defer.inlineCallbacks
     def slot_readv(self, storage_index, shares, readv):

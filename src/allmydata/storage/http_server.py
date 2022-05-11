@@ -666,6 +666,26 @@ class HTTPServer(object):
             raise _HTTPError(http.NOT_FOUND)
         return self._send_encoded(request, shares)
 
+    @_authorized_route(
+        _app,
+        set(),
+        "/v1/mutable/<storage_index:storage_index>/<int(signed=False):share_number>/corrupt",
+        methods=["POST"],
+    )
+    def advise_corrupt_share_mutable(
+        self, request, authorization, storage_index, share_number
+    ):
+        """Indicate that given share is corrupt, with a text reason."""
+        # TODO unit test all the paths
+        if not self._storage_server._share_exists(storage_index, share_number):
+            raise _HTTPError(http.NOT_FOUND)
+
+        info = self._read_encoded(request, _SCHEMAS["advise_corrupt_share"])
+        self._storage_server.advise_corrupt_share(
+            b"mutable", storage_index, share_number, info["reason"].encode("utf-8")
+        )
+        return b""
+
 
 @implementer(IStreamServerEndpoint)
 @attr.s
