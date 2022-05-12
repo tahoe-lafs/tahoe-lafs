@@ -1174,9 +1174,9 @@ class _HTTPStorageServer(object):
         renew_secret,
         cancel_secret
     ):
-        immutable_client = StorageClientGeneral(self._http_client)
+        client = StorageClientGeneral(self._http_client)
         try:
-            await immutable_client.add_or_renew_lease(
+            await client.add_or_renew_lease(
                 storage_index, renew_secret, cancel_secret
             )
         except ClientException as e:
