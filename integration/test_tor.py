@@ -21,7 +21,8 @@ from . import util
 from twisted.python.filepath import (
     FilePath,
 )
-
+from twisted.internet.task import deferLater
+from twisted.internet import reactor
 from allmydata.test.common import (
     write_introducer,
 )
@@ -68,6 +69,9 @@ def test_onion_service_storage(reactor, request, temp_dir, flog_gatherer, tor_ne
     cap = proto.output.getvalue().strip().split()[-1]
     print("TEH CAP!", cap)
 
+    # For some reason a wait is needed, or sometimes the get fails...
+    yield deferLater(reactor, 2, lambda: None)
+    
     proto = util._CollectOutputProtocol(capture_stderr=False)
     reactor.spawnProcess(
         proto,
