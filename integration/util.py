@@ -482,14 +482,15 @@ def web_post(tahoe, uri_fragment, **kwargs):
     return resp.content
 
 
-def await_client_ready(tahoe, timeout=10, liveness=60*2):
+def await_client_ready(tahoe, timeout=10, liveness=60*2, minimum_number_of_servers=1):
     """
     Uses the status API to wait for a client-type node (in `tahoe`, a
     `TahoeProcess` instance usually from a fixture e.g. `alice`) to be
     'ready'. A client is deemed ready if:
 
       - it answers `http://<node_url>/statistics/?t=json/`
-      - there is at least one storage-server connected
+      - there is at least one storage-server connected (configurable via
+        ``minimum_number_of_servers``)
       - every storage-server has a "last_received_data" and it is
         within the last `liveness` seconds
 
@@ -506,8 +507,8 @@ def await_client_ready(tahoe, timeout=10, liveness=60*2):
             time.sleep(1)
             continue
 
-        if len(js['servers']) == 0:
-            print("waiting because no servers at all")
+        if len(js['servers']) < minimum_number_of_servers:
+            print("waiting because insufficient servers")
             time.sleep(1)
             continue
         server_times = [

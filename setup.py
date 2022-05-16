@@ -114,7 +114,7 @@ install_requires = [
     "attrs >= 18.2.0",
 
     # WebSocket library for twisted and asyncio
-    "autobahn >= 19.5.2",
+    "autobahn < 22.4.1",  # remove this when https://github.com/crossbario/autobahn-python/issues/1566 is fixed
 
     # Support for Python 3 transition
     "future >= 0.18.2",
