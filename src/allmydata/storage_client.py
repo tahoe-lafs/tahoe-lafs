@@ -5,10 +5,6 @@ the foolscap-based server implemented in src/allmydata/storage/*.py .
 
 Ported to Python 3.
 """
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
 
 # roadmap:
 #
@@ -34,14 +30,10 @@ from __future__ import unicode_literals
 #
 # 6: implement other sorts of IStorageClient classes: S3, etc
 
-from future.utils import PY2
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 from six import ensure_text
-
+from typing import Union
 import re, time, hashlib
 from os import urandom
-# On Python 2 this will be the backport.
 from configparser import NoSectionError
 
 import attr
@@ -1193,7 +1185,7 @@ class _HTTPStorageServer(object):
         reason: bytes
     ):
         if share_type == b"immutable":
-            client = StorageClientImmutables(self._http_client)
+            client : Union[StorageClientImmutables, StorageClientMutables] = StorageClientImmutables(self._http_client)
         elif share_type == b"mutable":
             client = StorageClientMutables(self._http_client)
         else:
