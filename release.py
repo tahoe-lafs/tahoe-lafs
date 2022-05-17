@@ -202,7 +202,7 @@ def start_release():
         content = f.read()
         updated_content = re.sub(
             r"\.\.\stowncrier start line\n(Release\s(\d+\.\d+\.\d)(\.)post\d+\s\(\d{4}-\d{02}-\d{02}\))+(\n\'+)",
-            RELEASE_TITLE + LINE,
+            RELEASE_TITLE + "\n" + LINE,
             content,
         )
     with open("updated_news.rst", "w") as f:
