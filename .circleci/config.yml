@@ -88,16 +88,16 @@ workflows:
       #  https://app.circleci.com/settings/organization/github/tahoe-lafs/contexts
       - "build-image-debian-10": &DOCKERHUB_CONTEXT
           context: "dockerhub-auth"
-      - "build-image-debian-11":
-          <<: *DOCKERHUB_CONTEXT
-      - "build-image-ubuntu-18-04":
-          <<: *DOCKERHUB_CONTEXT
-      - "build-image-ubuntu-20-04":
-          <<: *DOCKERHUB_CONTEXT
-      - "build-image-fedora-35":
-          <<: *DOCKERHUB_CONTEXT
-      - "build-image-oraclelinux-8":
-          <<: *DOCKERHUB_CONTEXT
+      # - "build-image-debian-11":
+      #     <<: *DOCKERHUB_CONTEXT
+      # - "build-image-ubuntu-18-04":
+      #     <<: *DOCKERHUB_CONTEXT
+      # - "build-image-ubuntu-20-04":
+      #     <<: *DOCKERHUB_CONTEXT
+      # - "build-image-fedora-35":
+      #     <<: *DOCKERHUB_CONTEXT
+      # - "build-image-oraclelinux-8":
+      #     <<: *DOCKERHUB_CONTEXT
       # Restore later as PyPy38
       #- "build-image-pypy27-buster":
       #    <<: *DOCKERHUB_CONTEXT
