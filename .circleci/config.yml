@@ -67,14 +67,14 @@ workflows:
   images:
     # Build the Docker images used by the ci jobs.  This makes the ci jobs
     # faster and takes various spurious failures out of the critical path.
-    # triggers:
-    #   # Build once a day
-    #   - schedule:
-    #       cron: "0 0 * * *"
-    #       filters:
-    #         branches:
-    #           only:
-    #             - "master"
+    triggers:
+      # Build once a day
+      - schedule:
+          cron: "0 0 * * *"
+          filters:
+            branches:
+              only:
+                - "master"
 
     jobs:
       # Every job that pushes a Docker image from Docker Hub needs to provide
@@ -89,14 +89,14 @@ workflows:
           context: "dockerhub-auth"
       - "build-image-debian-11":
           <<: *DOCKERHUB_CONTEXT
-      # - "build-image-ubuntu-18-04":
-      #     <<: *DOCKERHUB_CONTEXT
-      # - "build-image-ubuntu-20-04":
-      #     <<: *DOCKERHUB_CONTEXT
-      # - "build-image-fedora-35":
-      #     <<: *DOCKERHUB_CONTEXT
-      # - "build-image-oraclelinux-8":
-      #     <<: *DOCKERHUB_CONTEXT
+      - "build-image-ubuntu-18-04":
+          <<: *DOCKERHUB_CONTEXT
+      - "build-image-ubuntu-20-04":
+          <<: *DOCKERHUB_CONTEXT
+      - "build-image-fedora-35":
+          <<: *DOCKERHUB_CONTEXT
+      - "build-image-oraclelinux-8":
+          <<: *DOCKERHUB_CONTEXT
       # Restore later as PyPy38
       #- "build-image-pypy27-buster":
       #    <<: *DOCKERHUB_CONTEXT
