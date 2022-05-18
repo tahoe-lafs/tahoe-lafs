@@ -667,6 +667,9 @@ def _storage_from_foolscap_plugin(node_config, config, announcement, get_rref):
 
     :param allmydata.node._Config node_config: The node configuration to
         pass to the plugin.
+
+    :param dict announcement: The storage announcement for the storage
+        server we should build
     """
     plugins = {
         plugin.name: plugin
@@ -687,7 +690,8 @@ def _storage_from_foolscap_plugin(node_config, config, announcement, get_rref):
                     option,
                     get_rref,
                 )
-    raise AnnouncementNotMatched()
+    plugin_names = ", ".join(sorted(list(config.storage_plugins.keys())))
+    raise AnnouncementNotMatched(plugin_names)
 
 
 @implementer(IServer)
@@ -761,9 +765,8 @@ class NativeStorageServer(service.MultiService):
                 # able to get the most up-to-date value.
                 self.get_rref,
             )
-        except AnnouncementNotMatched:
-            # Nope.
-            pass
+        except AnnouncementNotMatched as e:
+            print('No plugin for storage-server "{nickname}" from plugins: {plugins}'.format(nickname=ann.get("nickname", "<unknown>"), plugins=e.args[0]))
         else:
             return _FoolscapStorage.from_announcement(
                 self._server_id,
