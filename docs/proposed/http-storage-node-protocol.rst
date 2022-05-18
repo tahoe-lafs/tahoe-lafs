@@ -350,8 +350,10 @@ Because of the simple types used throughout
 and the equivalence described in `RFC 7049`_
 these examples should be representative regardless of which of these two encodings is chosen.
 
+The one exception is sets.
 For CBOR messages, any sequence that is semantically a set (i.e. no repeated values allowed, order doesn't matter, and elements are hashable in Python) should be sent as a set.
 Tag 6.258 is used to indicate sets in CBOR; see `the CBOR registry <https://www.iana.org/assignments/cbor-tags/cbor-tags.xhtml>`_ for more details.
+Sets will be represented as JSON lists in examples because JSON doesn't support sets.
 
 HTTP Design
 ~~~~~~~~~~~
@@ -738,8 +740,8 @@ Reading
 ``GET /v1/mutable/:storage_index/shares``
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-Retrieve a list indicating all shares available for the indicated storage index.
-For example::
+Retrieve a set indicating all shares available for the indicated storage index.
+For example (this is shown as list, since it will be list for JSON, but will be set for CBOR)::
 
   [1, 5]
 

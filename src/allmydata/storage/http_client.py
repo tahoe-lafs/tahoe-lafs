@@ -106,6 +106,11 @@ _SCHEMAS = {
         share_number = uint
         """
     ),
+    "mutable_list_shares": Schema(
+        """
+        response = #6.258([* uint])
+        """
+    ),
 }
 
 
@@ -375,16 +380,14 @@ def read_share_chunk(
     """
     Download a chunk of data from a share.
 
-    TODO https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3857 Failed
-    downloads should be transparently retried and redownloaded by the
-    implementation a few times so that if a failure percolates up, the
-    caller can assume the failure isn't a short-term blip.
+    TODO https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3857 Failed downloads
+    should be transparently retried and redownloaded by the implementation a
+    few times so that if a failure percolates up, the caller can assume the
+    failure isn't a short-term blip.
 
-    NOTE: the underlying HTTP protocol is much more flexible than this API,
-    so a future refactor may expand this in order to simplify the calling
-    code and perhaps download data more efficiently.  But then again maybe
-    the HTTP protocol will be simplified, see
-    https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3777
+    NOTE: the underlying HTTP protocol is somewhat more flexible than this API,
+    insofar as it doesn't always require a range.  In practice a range is
+    always provided by the current callers.
     """
     url = client.relative_url(
         "/v1/{}/{}/{}".format(share_type, _encode_si(storage_index), share_number)
@@ -712,7 +715,7 @@ class StorageClientMutables:
         share_number: int,
         offset: int,
         length: int,
-    ) -> bytes:
+    ) -> Deferred[bytes]:
         """
         Download a chunk of data from a share.
         """
@@ -720,3 +723,18 @@ class StorageClientMutables:
         return read_share_chunk(
             self._client, "mutable", storage_index, share_number, offset, length
         )
+
+    @async_to_deferred
+    async def list_shares(self, storage_index: bytes) -> set[int]:
+        """
+        List the share numbers for a given storage index.
+        """
+        # TODO unit test all the things
+        url = self._client.relative_url(
+            "/v1/mutable/{}/shares".format(_encode_si(storage_index))
+        )
+        response = await self._client.request("GET", url)
+        if response.code == http.OK:
+            return await _decode_cbor(response, _SCHEMAS["mutable_list_shares"])
+        else:
+            raise ClientException(response.code)

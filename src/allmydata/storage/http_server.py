@@ -46,6 +46,7 @@ from .common import si_a2b
 from .immutable import BucketWriter, ConflictingWriteError
 from ..util.hashutil import timing_safe_compare
 from ..util.base32 import rfc3548_alphabet
+from allmydata.interfaces import BadWriteEnablerError
 
 
 class ClientSecretsException(Exception):
@@ -587,19 +588,25 @@ class HTTPServer(object):
             authorization[Secrets.LEASE_RENEW],
             authorization[Secrets.LEASE_CANCEL],
         )
-        success, read_data = self._storage_server.slot_testv_and_readv_and_writev(
-            storage_index,
-            secrets,
-            {
-                k: (
-                    [(d["offset"], d["size"], b"eq", d["specimen"]) for d in v["test"]],
-                    [(d["offset"], d["data"]) for d in v["write"]],
-                    v["new-length"],
-                )
-                for (k, v) in rtw_request["test-write-vectors"].items()
-            },
-            [(d["offset"], d["size"]) for d in rtw_request["read-vector"]],
-        )
+        try:
+            success, read_data = self._storage_server.slot_testv_and_readv_and_writev(
+                storage_index,
+                secrets,
+                {
+                    k: (
+                        [
+                            (d["offset"], d["size"], b"eq", d["specimen"])
+                            for d in v["test"]
+                        ],
+                        [(d["offset"], d["data"]) for d in v["write"]],
+                        v["new-length"],
+                    )
+                    for (k, v) in rtw_request["test-write-vectors"].items()
+                },
+                [(d["offset"], d["size"]) for d in rtw_request["read-vector"]],
+            )
+        except BadWriteEnablerError:
+            raise _HTTPError(http.UNAUTHORIZED)
         return self._send_encoded(request, {"success": success, "data": read_data})
 
     @_authorized_route(
@@ -644,6 +651,17 @@ class HTTPServer(object):
                 ContentRange("bytes", offset, offset + len(data)).to_header(),
             )
         return data
+
+    @_authorized_route(
+        _app,
+        set(),
+        "/v1/mutable/<storage_index:storage_index>/shares",
+        methods=["GET"],
+    )
+    def enumerate_mutable_shares(self, request, authorization, storage_index):
+        """List mutable shares for a storage index."""
+        shares = self._storage_server.enumerate_mutable_shares(storage_index)
+        return self._send_encoded(request, shares)
 
 
 @implementer(IStreamServerEndpoint)
