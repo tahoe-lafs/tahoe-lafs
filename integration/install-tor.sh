@@ -791,4 +791,4 @@ keSPmmDrjl8cySCNsMo=
 EOF
 
 ${SUDO} apt-get --quiet update
-${SUDO} apt-get --quiet --yes install tor=0.4.4.5 deb.torproject.org-keyring
+${SUDO} apt-get --quiet --yes install tor=0.3.5.16-1 deb.torproject.org-keyring
