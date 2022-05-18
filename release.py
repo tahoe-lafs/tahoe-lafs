@@ -193,7 +193,10 @@ def start_release():
         print(f"{bcolors.OKCYAN}Skipping commit fragment...{bcolors.ENDC}")
     else:
         try:
-            subprocess.run(["git", "add", "."], check=True)
+            subprocess.run(
+                ["git", "add", "newsfragments/{ticket}.minor".format(ticket=TICKET)],
+                check=True,
+            )
             subprocess.run(
                 ["git", "commit", "-s", "-m", "tahoe-lafs-{tag} news".format(tag=TAG)],
                 check=True,
