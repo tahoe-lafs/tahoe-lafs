@@ -57,7 +57,7 @@ BRANCH = "{ticket}.release-{tag}".format(
 )  # looks like XXXX.release-1.18.0
 RELEASE_TITLE = "Release {tag} ({date})".format(tag=TAG, date=TODAY)
 RELEASE_FOLDER = pathlib.Path("../tahoe-release-{0}".format(TAG))
-RELEASE_PROGRESS = pathlib.Path("../.tahoe-release-{0}-progress".format(TAG))
+RELEASE_PROGRESS = RELEASE_FOLDER.joinpath(".release-progress")
 CONTINUE_INSTRUCTION = (
     bcolors.BOLD
     + "Instruction : run {path}/venv/bin/python release.py --ignore-deps --tag {tag} --ticket {ticket} --sign {sign} --repo {repo} --fin".format(
@@ -225,23 +225,26 @@ def start_release():
         f"{bcolors.OKBLUE}Instruction: Move (cd) into the  release folder : {RELEASE_FOLDER}.{bcolors.ENDC}"
     )
     print(
-        f"{bcolors.OKBLUE}Instruction: Please review News.rst (in release folder) {bcolors.ENDC}"
+        f"{bcolors.OKBLUE}Instruction: Please review {RELEASE_FOLDER.joinpath('NEWS.rst')} {bcolors.ENDC}"
     )
     print(
-        f'{bcolors.OKBLUE}Instruction: Update "docs/known_issues.rst" (if necessary){bcolors.ENDC}'
+        f"{bcolors.OKBLUE}Instruction: Update 'docs/known_issues.rst' (if necessary){bcolors.ENDC}"
     )
     print(
-        f'{bcolors.OKBLUE}Instruction: If any, commit changes to NEWS.rst and  "docs/known_issues.rst" {bcolors.ENDC}'
+        f"{bcolors.OKBLUE}Instruction: If any, commit changes to {RELEASE_FOLDER.joinpath('NEWS.rst')} and 'docs/known_issues.rst' {bcolors.ENDC}"
     )
-    print(
-        f"{bcolors.OKBLUE}Instruction: If your intention IS NOT to push to \"origin (git@github.com:tahoe-lafs/tahoe-lafs.git)\", please add and set the '--repo' (example : --repo git@github.com:meejah/tahoe-lafs.git) flag to release complete command before executing"
-    )
-    print(
-        f"{bcolors.OKBLUE}Instruction: If you did not provide your signing key via the '--sign' flag (example : --sign XXXXXXXXSAMPLEYKEYXXXXXXXXX), you would need add it to command printed below"
-    )
-    print(
-        f"{bcolors.OKBLUE}Instruction: If your '--repo' remote is not using the ssh protocol you would have to type in your github username/password, keep it near."
-    )
+    if not args.repo:
+        print(
+            f"{bcolors.OKBLUE}Instruction: If your intention IS NOT to push to \"origin (git@github.com:tahoe-lafs/tahoe-lafs.git)\", please add and set the '--repo' (example : --repo git@github.com:meejah/tahoe-lafs.git) flag to release complete command before executing"
+        )
+    if not args.sign:
+        print(
+            f"{bcolors.OKBLUE}Instruction: Modify the continue instruction and include your signing key via the '--sign' flag (example : --sign XXXXXXXXSAMPLEKEYXXXXXXXXX)"
+        )
+    if args.repo and ("http:" in args.repo or "https:" in args.repo):
+        print(
+            f"{bcolors.OKBLUE}Instruction: You would have to type in your github username/password, keep it near."
+        )
     print(
         f"{bcolors.OKBLUE}Instruction: Make sure your gpg passphrase is ready for the next step."
     )
@@ -325,7 +328,7 @@ def complete_release():
             sys.exit(1)
     if step_complete("sign_tarballs"):
         print(
-            f"{bcolors.OKCYAN}Skipping build tarballs, using old tarballs...{bcolors.ENDC}"
+            f"{bcolors.OKCYAN}Skipping sign tarballs, using old tarballs...{bcolors.ENDC}"
         )
     else:
         try:
