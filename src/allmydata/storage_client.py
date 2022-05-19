@@ -52,6 +52,7 @@ from zope.interface import (
 )
 from twisted.internet import defer
 from twisted.application import service
+from twisted.logger import Logger
 from twisted.plugin import (
     getPlugins,
 )
@@ -720,6 +721,7 @@ class NativeStorageServer(service.MultiService):
           }),
         "application-version": "unknown: no get_version()",
         })
+    log = Logger()
 
     def __init__(self, server_id, ann, tub_maker, handler_overrides, node_config, config=StorageClientConfig()):
         service.MultiService.__init__(self)
@@ -766,7 +768,11 @@ class NativeStorageServer(service.MultiService):
                 self.get_rref,
             )
         except AnnouncementNotMatched as e:
-            print('No plugin for storage-server "{nickname}" from plugins: {plugins}'.format(nickname=ann.get("nickname", "<unknown>"), plugins=e.args[0]))
+            self.log.error(
+                'No plugin for storage-server "{nickname}" from plugins: {plugins}',
+                nickname=ann.get("nickname", "<unknown>"),
+                plugins=e.args[0],
+            )
         else:
             return _FoolscapStorage.from_announcement(
                 self._server_id,
