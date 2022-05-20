@@ -2,6 +2,7 @@
 HTTP server for storage.
 """
 
+from __future__ import annotations
 from typing import Dict, List, Set, Tuple, Any
 
 from functools import wraps
@@ -273,6 +274,28 @@ _SCHEMAS = {
 }
 
 
+# TODO unit tests? or rely on higher-level tests
+def parse_range(request) -> tuple[int, int]:
+    """
+    Parse the subset of ``Range`` headers we support: bytes only, only a single
+    range, the end must be explicitly specified.  Raises a
+    ``_HTTPError(http.REQUESTED_RANGE_NOT_SATISFIABLE)`` if parsing is not
+    possible or the header isn't set.
+
+    Returns tuple of (start_offset, end_offset).
+    """
+    range_header = parse_range_header(request.getHeader("range"))
+    if (
+        range_header is None
+        or range_header.units != "bytes"
+        or len(range_header.ranges) > 1  # more than one range
+        or range_header.ranges[0][1] is None  # range without end
+    ):
+        raise _HTTPError(http.REQUESTED_RANGE_NOT_SATISFIABLE)
+
+    return range_header.ranges[0]
+
+
 class HTTPServer(object):
     """
     A HTTP interface to the storage server.
@@ -505,17 +528,7 @@ class HTTPServer(object):
                 request.write(data)
                 start += len(data)
 
-        range_header = parse_range_header(request.getHeader("range"))
-        if (
-            range_header is None
-            or range_header.units != "bytes"
-            or len(range_header.ranges) > 1  # more than one range
-            or range_header.ranges[0][1] is None  # range without end
-        ):
-            request.setResponseCode(http.REQUESTED_RANGE_NOT_SATISFIABLE)
-            return b""
-
-        offset, end = range_header.ranges[0]
+        offset, end = parse_range(request)
 
         # TODO limit memory usage
         # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3872
@@ -617,23 +630,7 @@ class HTTPServer(object):
     )
     def read_mutable_chunk(self, request, authorization, storage_index, share_number):
         """Read a chunk from a mutable."""
-        if request.getHeader("range") is None:
-            # TODO in follow-up ticket
-            raise NotImplementedError()
-
-        # TODO reduce duplication with immutable reads?
-        # TODO unit tests, perhaps shared if possible
-        range_header = parse_range_header(request.getHeader("range"))
-        if (
-            range_header is None
-            or range_header.units != "bytes"
-            or len(range_header.ranges) > 1  # more than one range
-            or range_header.ranges[0][1] is None  # range without end
-        ):
-            request.setResponseCode(http.REQUESTED_RANGE_NOT_SATISFIABLE)
-            return b""
-
-        offset, end = range_header.ranges[0]
+        offset, end = parse_range(request)
 
         # TODO limit memory usage
         # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3872
