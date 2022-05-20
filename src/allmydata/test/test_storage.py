@@ -766,7 +766,7 @@ class Server(unittest.TestCase):
         writer.close()
 
         # It should have a lease granted at the current time.
-        shares = dict(ss._get_bucket_shares(storage_index))
+        shares = dict(ss.get_shares(storage_index))
         self.assertEqual(
             [first_lease],
             list(
@@ -789,7 +789,7 @@ class Server(unittest.TestCase):
         writer.close()
 
         # The first share's lease expiration time is unchanged.
-        shares = dict(ss._get_bucket_shares(storage_index))
+        shares = dict(ss.get_shares(storage_index))
         self.assertEqual(
             [first_lease],
             list(

@@ -538,8 +538,8 @@ class HTTPServer(object):
         methods=["PUT"],
     )
     def add_or_renew_lease(self, request, authorization, storage_index):
-        """Update the lease for an immutable share."""
-        if not list(self._storage_server._get_bucket_shares(storage_index)):
+        """Update the lease for an immutable or mutable share."""
+        if not list(self._storage_server.get_shares(storage_index)):
             raise _HTTPError(http.NOT_FOUND)
 
         # Checking of the renewal secret is done by the backend.
@@ -674,7 +674,9 @@ class HTTPServer(object):
     ):
         """Indicate that given share is corrupt, with a text reason."""
         # TODO unit test all the paths
-        if not self._storage_server._share_exists(storage_index, share_number):
+        if share_number not in {
+            shnum for (shnum, _) in self._storage_server.get_shares(storage_index)
+        }:
             raise _HTTPError(http.NOT_FOUND)
 
         info = self._read_encoded(request, _SCHEMAS["advise_corrupt_share"])
