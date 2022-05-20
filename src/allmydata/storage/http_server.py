@@ -538,8 +538,8 @@ class HTTPServer(object):
         methods=["PUT"],
     )
     def add_or_renew_lease(self, request, authorization, storage_index):
-        """Update the lease for an immutable share."""
-        if not self._storage_server.get_buckets(storage_index):
+        """Update the lease for an immutable or mutable share."""
+        if not list(self._storage_server.get_shares(storage_index)):
             raise _HTTPError(http.NOT_FOUND)
 
         # Checking of the renewal secret is done by the backend.
@@ -662,6 +662,28 @@ class HTTPServer(object):
         """List mutable shares for a storage index."""
         shares = self._storage_server.enumerate_mutable_shares(storage_index)
         return self._send_encoded(request, shares)
+
+    @_authorized_route(
+        _app,
+        set(),
+        "/v1/mutable/<storage_index:storage_index>/<int(signed=False):share_number>/corrupt",
+        methods=["POST"],
+    )
+    def advise_corrupt_share_mutable(
+        self, request, authorization, storage_index, share_number
+    ):
+        """Indicate that given share is corrupt, with a text reason."""
+        # TODO unit test all the paths
+        if share_number not in {
+            shnum for (shnum, _) in self._storage_server.get_shares(storage_index)
+        }:
+            raise _HTTPError(http.NOT_FOUND)
+
+        info = self._read_encoded(request, _SCHEMAS["advise_corrupt_share"])
+        self._storage_server.advise_corrupt_share(
+            b"mutable", storage_index, share_number, info["reason"].encode("utf-8")
+        )
+        return b""
 
 
 @implementer(IStreamServerEndpoint)
