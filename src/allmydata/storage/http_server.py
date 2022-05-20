@@ -3,7 +3,7 @@ HTTP server for storage.
 """
 
 from __future__ import annotations
-from typing import Dict, List, Set, Tuple, Any
+from typing import Dict, List, Set, Tuple, Any, Callable
 
 from functools import wraps
 from base64 import b64decode
@@ -275,14 +275,20 @@ _SCHEMAS = {
 
 
 # TODO unit tests? or rely on higher-level tests
-def parse_range(request) -> tuple[int, int]:
+def read_range(request, read_data: Callable[int, int, bytes]) -> bytes:
     """
-    Parse the subset of ``Range`` headers we support: bytes only, only a single
-    range, the end must be explicitly specified.  Raises a
-    ``_HTTPError(http.REQUESTED_RANGE_NOT_SATISFIABLE)`` if parsing is not
-    possible or the header isn't set.
+    Parse the ``Range`` header, read appropriately, return as result.
 
-    Returns tuple of (start_offset, end_offset).
+    Only parses a subset of ``Range`` headers that we support: must be set,
+    bytes only, only a single range, the end must be explicitly specified.
+    Raises a ``_HTTPError(http.REQUESTED_RANGE_NOT_SATISFIABLE)`` if parsing is
+    not possible or the header isn't set.
+
+    Returns the bytes to return from the request handler, and sets appropriate
+    response headers.
+
+    Takes a function that will do the actual reading given the start offset and
+    a length to read.
     """
     range_header = parse_range_header(request.getHeader("range"))
     if (
@@ -293,7 +299,21 @@ def parse_range(request) -> tuple[int, int]:
     ):
         raise _HTTPError(http.REQUESTED_RANGE_NOT_SATISFIABLE)
 
-    return range_header.ranges[0]
+    offset, end = range_header.ranges[0]
+
+    # TODO limit memory usage
+    # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3872
+    data = read_data(offset, end - offset)
+
+    request.setResponseCode(http.PARTIAL_CONTENT)
+    if len(data):
+        # For empty bodies the content-range header makes no sense since
+        # the end of the range is inclusive.
+        request.setHeader(
+            "content-range",
+            ContentRange("bytes", offset, offset + len(data)).to_header(),
+        )
+    return data
 
 
 class HTTPServer(object):
@@ -528,21 +548,7 @@ class HTTPServer(object):
                 request.write(data)
                 start += len(data)
 
-        offset, end = parse_range(request)
-
-        # TODO limit memory usage
-        # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3872
-        data = bucket.read(offset, end - offset)
-
-        request.setResponseCode(http.PARTIAL_CONTENT)
-        if len(data):
-            # For empty bodies the content-range header makes no sense since
-            # the end of the range is inclusive.
-            request.setHeader(
-                "content-range",
-                ContentRange("bytes", offset, offset + len(data)).to_header(),
-            )
-        return data
+        return read_range(request, bucket.read)
 
     @_authorized_route(
         _app,
@@ -630,24 +636,15 @@ class HTTPServer(object):
     )
     def read_mutable_chunk(self, request, authorization, storage_index, share_number):
         """Read a chunk from a mutable."""
-        offset, end = parse_range(request)
+        if request.getHeader("range") is None:
+            raise NotImplementedError()  # should be able to move shared implementation into read_range()...
 
-        # TODO limit memory usage
-        # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3872
-        data = self._storage_server.slot_readv(
-            storage_index, [share_number], [(offset, end - offset)]
-        )[share_number][0]
+        def read_data(offset, length):
+            return self._storage_server.slot_readv(
+                storage_index, [share_number], [(offset, length)]
+            )[share_number][0]
 
-        # TODO reduce duplication?
-        request.setResponseCode(http.PARTIAL_CONTENT)
-        if len(data):
-            # For empty bodies the content-range header makes no sense since
-            # the end of the range is inclusive.
-            request.setHeader(
-                "content-range",
-                ContentRange("bytes", offset, offset + len(data)).to_header(),
-            )
-        return data
+        return read_range(request, read_data)
 
     @_authorized_route(
         _app,
