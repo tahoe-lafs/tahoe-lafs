@@ -416,7 +416,7 @@ class StorageServer(service.MultiService):
         """
         self._call_on_bucket_writer_close.append(handler)
 
-    def get_shares(self, storage_index) -> Iterable[(int, str)]:
+    def get_shares(self, storage_index) -> Iterable[tuple[int, str]]:
         """
         Return an iterable of (shnum, pathname) tuples for files that hold
         shares for this storage_index. In each tuple, 'shnum' will always be

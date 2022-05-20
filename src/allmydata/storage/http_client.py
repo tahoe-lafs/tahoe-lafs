@@ -358,7 +358,7 @@ class StorageClientGeneral(object):
     @inlineCallbacks
     def add_or_renew_lease(
         self, storage_index: bytes, renew_secret: bytes, cancel_secret: bytes
-    ):
+    ) -> Deferred[None]:
         """
         Add or renew a lease.
 
