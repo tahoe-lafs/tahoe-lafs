@@ -448,6 +448,7 @@ class ImmutableHTTPAPITests(SyncTestCase):
         super(ImmutableHTTPAPITests, self).setUp()
         self.http = self.useFixture(HttpTestFixture())
         self.imm_client = StorageClientImmutables(self.http.client)
+        self.general_client = StorageClientGeneral(self.http.client)
 
     def create_upload(self, share_numbers, length):
         """
@@ -1081,7 +1082,7 @@ class ImmutableHTTPAPITests(SyncTestCase):
 
         # We renew the lease:
         result_of(
-            self.imm_client.add_or_renew_lease(
+            self.general_client.add_or_renew_lease(
                 storage_index, lease_secret, lease_secret
             )
         )
@@ -1092,7 +1093,7 @@ class ImmutableHTTPAPITests(SyncTestCase):
         # We create a new lease:
         lease_secret2 = urandom(32)
         result_of(
-            self.imm_client.add_or_renew_lease(
+            self.general_client.add_or_renew_lease(
                 storage_index, lease_secret2, lease_secret2
             )
         )
@@ -1108,7 +1109,7 @@ class ImmutableHTTPAPITests(SyncTestCase):
         storage_index = urandom(16)
         secret = b"A" * 32
         with assert_fails_with_http_code(self, http.NOT_FOUND):
-            result_of(self.imm_client.add_or_renew_lease(storage_index, secret, secret))
+            result_of(self.general_client.add_or_renew_lease(storage_index, secret, secret))
 
     def test_advise_corrupt_share(self):
         """
