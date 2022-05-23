@@ -1,16 +1,29 @@
+"""
+Ported to Python 3.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+
 from twisted.trial import unittest
 from allmydata.web import status, common
+from allmydata.dirnode import ONLY_FILES
 from ..common import ShouldFailMixin
 from .. import common_util as testutil
 
 class Util(ShouldFailMixin, testutil.ReallyEqualMixin, unittest.TestCase):
 
     def test_parse_replace_arg(self):
-        self.failUnlessReallyEqual(common.parse_replace_arg("true"), True)
-        self.failUnlessReallyEqual(common.parse_replace_arg("false"), False)
-        self.failUnlessReallyEqual(common.parse_replace_arg("only-files"),
-                                   "only-files")
-        self.failUnlessRaises(common.WebError, common.parse_replace_arg, "only_fles")
+        self.failUnlessReallyEqual(common.parse_replace_arg(b"true"), True)
+        self.failUnlessReallyEqual(common.parse_replace_arg(b"false"), False)
+        self.failUnlessReallyEqual(common.parse_replace_arg(b"only-files"),
+                                   ONLY_FILES)
+        self.failUnlessRaises(common.WebError, common.parse_replace_arg, b"only_fles")
 
     def test_abbreviate_time(self):
         self.failUnlessReallyEqual(common.abbreviate_time(None), "")

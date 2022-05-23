@@ -1,3 +1,14 @@
+"""
+Ported to Python 3.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 import time, os
 from pkg_resources import resource_filename
@@ -5,8 +16,7 @@ from twisted.web.template import Element, XMLFile, renderElement, renderer
 from twisted.python.filepath import FilePath
 from twisted.web import static
 import allmydata
-import json
-from allmydata.util import idlib
+from allmydata.util import idlib, jsonbytes as json
 from allmydata.web.common import (
     render_time,
     MultiFormatResource,
@@ -27,10 +37,10 @@ class IntroducerRoot(MultiFormatResource):
         self.introducer_node = introducer_node
         self.introducer_service = introducer_node.getServiceNamed("introducer")
         # necessary as a root Resource
-        self.putChild("", self)
+        self.putChild(b"", self)
         static_dir = resource_filename("allmydata.web", "static")
         for filen in os.listdir(static_dir):
-            self.putChild(filen, static.File(os.path.join(static_dir, filen)))
+            self.putChild(filen.encode("utf-8"), static.File(os.path.join(static_dir, filen)))
 
     def _create_element(self):
         """
@@ -67,7 +77,7 @@ class IntroducerRoot(MultiFormatResource):
             announcement_summary[service_name] += 1
         res[u"announcement_summary"] = announcement_summary
 
-        return json.dumps(res, indent=1) + b"\n"
+        return (json.dumps(res, indent=1) + "\n").encode("utf-8")
 
 
 class IntroducerRootElement(Element):

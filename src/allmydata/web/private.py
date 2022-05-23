@@ -1,10 +1,14 @@
+"""
+Ported to Python 3.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
 
-from __future__ import (
-    print_function,
-    unicode_literals,
-    absolute_import,
-    division,
-)
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 import attr
 
@@ -61,7 +65,16 @@ class IToken(ICredentials):
         pass
 
 
-@implementer(IToken)
+# Workaround for Shoobx/mypy-zope#26, where without suitable
+# stubs for twisted classes (ICredentials), IToken does not
+# appear to be an Interface. The proper fix appears to be to
+# create stubs for twisted
+# (https://twistedmatrix.com/trac/ticket/9717). For now,
+# bypassing the inline decorator syntax works around the issue.
+_itoken_impl = implementer(IToken)
+
+
+@_itoken_impl
 @attr.s
 class Token(object):
     proposed_token = attr.ib(type=bytes)

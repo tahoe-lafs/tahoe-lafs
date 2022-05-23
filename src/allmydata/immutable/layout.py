@@ -15,7 +15,7 @@ from zope.interface import implementer
 from twisted.internet import defer
 from allmydata.interfaces import IStorageBucketWriter, IStorageBucketReader, \
      FileTooLargeError, HASH_SIZE
-from allmydata.util import mathutil, observer, pipeline
+from allmydata.util import mathutil, observer, pipeline, log
 from allmydata.util.assertutil import precondition
 from allmydata.storage.server import si_b2a
 
@@ -175,7 +175,7 @@ class WriteBucketProxy(object):
         self._offset_data = offset_data
 
     def __repr__(self):
-        return "<WriteBucketProxy for node %s>" % self._server.get_name()
+        return "<WriteBucketProxy for node %r>" % self._server.get_name()
 
     def put_header(self):
         return self._write(0, self._offset_data)
@@ -254,8 +254,7 @@ class WriteBucketProxy(object):
         return d
 
     def abort(self):
-        return self._rref.callRemoteOnly("abort")
-
+        return self._rref.callRemote("abort").addErrback(log.err, "Error from remote call to abort an immutable write bucket")
 
     def get_servername(self):
         return self._server.get_name()
@@ -317,7 +316,7 @@ class ReadBucketProxy(object):
         return self._server.get_serverid()
 
     def __repr__(self):
-        return "<ReadBucketProxy %s to peer [%s] SI %s>" % \
+        return "<ReadBucketProxy %r to peer [%r] SI %r>" % \
                (id(self), self._server.get_name(), si_b2a(self._storage_index))
 
     def _start_if_needed(self):

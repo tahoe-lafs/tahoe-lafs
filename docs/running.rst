@@ -10,7 +10,7 @@ Introduction
 
 This is how to run a Tahoe-LAFS client or a complete Tahoe-LAFS grid.
 First you have to install the Tahoe-LAFS software, as documented in
-:doc:`INSTALL`.
+:doc:`Installing Tahoe-LAFS <../Installation/install-tahoe>`.
 
 The ``tahoe`` program in your virtualenv's ``bin`` directory is used to
 create, start, and stop nodes. Each node lives in a separate base
@@ -81,9 +81,7 @@ does not offer its disk space to other nodes. To configure other behavior,
 use “``tahoe create-node``” or see :doc:`configuration`.
 
 The “``tahoe run``” command above will run the node in the foreground.
-On Unix, you can run it in the background instead by using the
-“``tahoe start``” command. To stop a node started in this way, use
-“``tahoe stop``”. ``tahoe --help`` gives a summary of all commands.
+``tahoe --help`` gives a summary of all commands.
 
 
 Running a Server or Introducer
@@ -99,12 +97,10 @@ and ``--location`` arguments.
 To construct an introducer, create a new base directory for it (the name
 of the directory is up to you), ``cd`` into it, and run “``tahoe
 create-introducer --hostname=example.net .``” (but using the hostname of
-your VPS). Now run the introducer using “``tahoe start .``”. After it
+your VPS). Now run the introducer using “``tahoe run .``”. After it
 starts, it will write a file named ``introducer.furl`` into the
 ``private/`` subdirectory of that base directory. This file contains the
 URL the other nodes must use in order to connect to this introducer.
-(Note that “``tahoe run .``” doesn't work for introducers, this is a
-known issue: `#937`_.)
 
 You can distribute your Introducer fURL securely to new clients by using
 the ``tahoe invite`` command. This will prepare some JSON to send to the
@@ -211,10 +207,10 @@ create a new directory and lose the capability to it, then you cannot
 access that directory ever again.
 
 
-The SFTP and FTP frontends
---------------------------
+The SFTP frontend
+-----------------
 
-You can access your Tahoe-LAFS grid via any SFTP_ or FTP_ client. See
+You can access your Tahoe-LAFS grid via any SFTP_ client. See
 :doc:`frontends/FTP-and-SFTP` for how to set this up. On most Unix
 platforms, you can also use SFTP to plug Tahoe-LAFS into your computer's
 local filesystem via ``sshfs``, but see the `FAQ about performance
@@ -224,7 +220,6 @@ The SftpFrontend_ page on the wiki has more information about using SFTP with
 Tahoe-LAFS.
 
 .. _SFTP:  https://en.wikipedia.org/wiki/SSH_file_transfer_protocol
-.. _FTP: https://en.wikipedia.org/wiki/File_Transfer_Protocol
 .. _FAQ about performance problems: https://tahoe-lafs.org/trac/tahoe-lafs/wiki/FAQ#Q23_FUSE
 .. _SftpFrontend: https://tahoe-lafs.org/trac/tahoe-lafs/wiki/SftpFrontend
 
@@ -240,10 +235,10 @@ Socialize
 =========
 
 You can chat with other users of and hackers of this software on the
-#tahoe-lafs IRC channel at ``irc.freenode.net``, or on the `tahoe-dev mailing
+#tahoe-lafs IRC channel at ``irc.libera.chat``, or on the `tahoe-dev mailing
 list`_.
 
-.. _tahoe-dev mailing list: https://tahoe-lafs.org/cgi-bin/mailman/listinfo/tahoe-dev
+.. _tahoe-dev mailing list: https://lists.tahoe-lafs.org/mailman/listinfo/tahoe-dev
 
 
 Complain

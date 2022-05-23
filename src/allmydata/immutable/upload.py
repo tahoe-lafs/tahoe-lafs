@@ -11,20 +11,32 @@ from future.utils import PY2, native_str
 if PY2:
     from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 from past.builtins import long, unicode
+from six import ensure_str
+
+try:
+    from typing import List
+except ImportError:
+    pass
 
 import os, time, weakref, itertools
+
+import attr
+
 from zope.interface import implementer
 from twisted.python import failure
 from twisted.internet import defer
 from twisted.application import service
-from foolscap.api import Referenceable, Copyable, RemoteCopy, fireEventually
+from foolscap.api import Referenceable, Copyable, RemoteCopy
 
 from allmydata.crypto import aes
 from allmydata.util.hashutil import file_renewal_secret_hash, \
      file_cancel_secret_hash, bucket_renewal_secret_hash, \
      bucket_cancel_secret_hash, plaintext_hasher, \
      storage_index_hash, plaintext_segment_hasher, convergence_hasher
-from allmydata.util.deferredutil import timeout_call
+from allmydata.util.deferredutil import (
+    timeout_call,
+    until,
+)
 from allmydata import hashtree, uri
 from allmydata.storage.server import si_b2a
 from allmydata.immutable import encode
@@ -36,7 +48,7 @@ from allmydata.util.rrefutil import add_version_to_remote_reference
 from allmydata.interfaces import IUploadable, IUploader, IUploadResults, \
      IEncryptedUploadable, RIEncryptedUploadable, IUploadStatus, \
      NoServersError, InsufficientVersionError, UploadUnhappinessError, \
-     DEFAULT_MAX_SEGMENT_SIZE, IProgress, IPeerSelector
+     DEFAULT_MAX_SEGMENT_SIZE, IPeerSelector
 from allmydata.immutable import layout
 
 from io import BytesIO
@@ -266,7 +278,7 @@ class ServerTracker(object):
         self.cancel_secret = bucket_cancel_secret
 
     def __repr__(self):
-        return ("<ServerTracker for server %s and SI %s>"
+        return ("<ServerTracker for server %r and SI %r>"
                 % (self._server.get_name(), si_b2a(self.storage_index)[:5]))
 
     def get_server(self):
@@ -326,7 +338,7 @@ class ServerTracker(object):
 
 
 def str_shareloc(shnum, bucketwriter):
-    return "%s: %s" % (shnum, bucketwriter.get_servername(),)
+    return "%s: %s" % (shnum, ensure_str(bucketwriter.get_servername()),)
 
 
 @implementer(IPeerSelector)
@@ -385,6 +397,9 @@ class PeerSelector(object):
         )
         return self.happiness_mappings
 
+    def add_peers(self, peerids=None):
+        raise NotImplementedError
+
 
 class _QueryStatistics(object):
 
@@ -422,7 +437,7 @@ class Tahoe2ServerSelector(log.PrefixingLogMixin):
         self._reactor = reactor
 
     def __repr__(self):
-        return "<Tahoe2ServerSelector for upload %s>" % self.upload_id
+        return "<Tahoe2ServerSelector for upload %r>" % self.upload_id
 
     def _create_trackers(self, candidate_servers, allocated_size,
                          file_renewal_secret, file_cancel_secret, create_server_tracker):
@@ -575,7 +590,7 @@ class Tahoe2ServerSelector(log.PrefixingLogMixin):
             d = timeout_call(self._reactor, tracker.ask_about_existing_shares(), 15)
             d.addBoth(self._handle_existing_response, tracker)
             ds.append(d)
-            self.log("asking server %s for any existing shares" %
+            self.log("asking server %r for any existing shares" %
                      (tracker.get_name(),), level=log.NOISY)
 
         for tracker in write_trackers:
@@ -590,7 +605,7 @@ class Tahoe2ServerSelector(log.PrefixingLogMixin):
             d.addErrback(timed_out, tracker)
             d.addBoth(self._handle_existing_write_response, tracker, set())
             ds.append(d)
-            self.log("asking server %s for any existing shares" %
+            self.log("asking server %r for any existing shares" %
                      (tracker.get_name(),), level=log.NOISY)
 
         trackers = set(write_trackers) | set(readonly_trackers)
@@ -734,7 +749,7 @@ class Tahoe2ServerSelector(log.PrefixingLogMixin):
             buckets = res
             if buckets:
                 self.serverids_with_shares.add(serverid)
-            self.log("response to get_buckets() from server %s: alreadygot=%s"
+            self.log("response to get_buckets() from server %r: alreadygot=%s"
                     % (tracker.get_name(), tuple(sorted(buckets))),
                     level=log.NOISY)
             for bucket in buckets:
@@ -803,7 +818,7 @@ class Tahoe2ServerSelector(log.PrefixingLogMixin):
                     self.homeless_shares.remove(shnum)
 
         if self._status:
-            self._status.set_status("Contacting Servers [%s] (first query),"
+            self._status.set_status("Contacting Servers [%r] (first query),"
                                     " %d shares left.."
                                     % (tracker.get_name(),
                                        len(self.homeless_shares)))
@@ -830,7 +845,7 @@ class Tahoe2ServerSelector(log.PrefixingLogMixin):
 
         else:
             (alreadygot, allocated) = res
-            self.log("response to allocate_buckets() from server %s: alreadygot=%s, allocated=%s"
+            self.log("response to allocate_buckets() from server %r: alreadygot=%s, allocated=%s"
                     % (tracker.get_name(),
                        tuple(sorted(alreadygot)), tuple(sorted(allocated))),
                     level=log.NOISY)
@@ -896,13 +911,45 @@ class Tahoe2ServerSelector(log.PrefixingLogMixin):
         raise UploadUnhappinessError(msg)
 
 
+@attr.s
+class _Accum(object):
+    """
+    Accumulate up to some known amount of ciphertext.
+
+    :ivar remaining: The number of bytes still expected.
+    :ivar ciphertext: The bytes accumulated so far.
+    """
+    remaining = attr.ib(validator=attr.validators.instance_of(int)) # type: int
+    ciphertext = attr.ib(default=attr.Factory(list))                # type: List[bytes]
+
+    def extend(self,
+               size,           # type: int
+               ciphertext,     # type: List[bytes]
+    ):
+        """
+        Accumulate some more ciphertext.
+
+        :param size: The amount of data the new ciphertext represents towards
+            the goal.  This may be more than the actual size of the given
+            ciphertext if the source has run out of data.
+
+        :param ciphertext: The new ciphertext to accumulate.
+        """
+        self.remaining -= size
+        self.ciphertext.extend(ciphertext)
+
+
 @implementer(IEncryptedUploadable)
 class EncryptAnUploadable(object):
     """This is a wrapper that takes an IUploadable and provides
     IEncryptedUploadable."""
     CHUNKSIZE = 50*1024
 
-    def __init__(self, original, log_parent=None, progress=None):
+    def __init__(self, original, log_parent=None, chunk_size=None):
+        """
+        :param chunk_size: The number of bytes to read from the uploadable at a
+            time, or None for some default.
+        """
         precondition(original.default_params_set,
                      "set_default_encoding_parameters not called on %r before wrapping with EncryptAnUploadable" % (original,))
         self.original = IUploadable(original)
@@ -915,7 +962,8 @@ class EncryptAnUploadable(object):
         self._file_size = None
         self._ciphertext_bytes_read = 0
         self._status = None
-        self._progress = progress
+        if chunk_size is not None:
+            self.CHUNKSIZE = chunk_size
 
     def set_upload_status(self, upload_status):
         self._status = IUploadStatus(upload_status)
@@ -936,8 +984,6 @@ class EncryptAnUploadable(object):
             self._file_size = size
             if self._status:
                 self._status.set_size(size)
-            if self._progress:
-                self._progress.set_progress_total(size)
             return size
         d.addCallback(_got_size)
         return d
@@ -1022,47 +1068,53 @@ class EncryptAnUploadable(object):
         # and size
         d.addCallback(lambda ignored: self.get_size())
         d.addCallback(lambda ignored: self._get_encryptor())
-        # then fetch and encrypt the plaintext. The unusual structure here
-        # (passing a Deferred *into* a function) is needed to avoid
-        # overflowing the stack: Deferreds don't optimize out tail recursion.
-        # We also pass in a list, to which _read_encrypted will append
-        # ciphertext.
-        ciphertext = []
-        d2 = defer.Deferred()
-        d.addCallback(lambda ignored:
-                      self._read_encrypted(length, ciphertext, hash_only, d2))
-        d.addCallback(lambda ignored: d2)
+
+        accum = _Accum(length)
+
+        def action():
+            """
+            Read some bytes into the accumulator.
+            """
+            return self._read_encrypted(accum, hash_only)
+
+        def condition():
+            """
+            Check to see if the accumulator has all the data.
+            """
+            return accum.remaining == 0
+
+        d.addCallback(lambda ignored: until(action, condition))
+        d.addCallback(lambda ignored: accum.ciphertext)
         return d
 
-    def _read_encrypted(self, remaining, ciphertext, hash_only, fire_when_done):
-        if not remaining:
-            fire_when_done.callback(ciphertext)
-            return None
+    def _read_encrypted(self,
+                        ciphertext_accum,  # type: _Accum
+                        hash_only,         # type: bool
+    ):
+        # type: (...) -> defer.Deferred
+        """
+        Read the next chunk of plaintext, encrypt it, and extend the accumulator
+        with the resulting ciphertext.
+        """
         # tolerate large length= values without consuming a lot of RAM by
         # reading just a chunk (say 50kB) at a time. This only really matters
         # when hash_only==True (i.e. resuming an interrupted upload), since
         # that's the case where we will be skipping over a lot of data.
-        size = min(remaining, self.CHUNKSIZE)
-        remaining = remaining - size
+        size = min(ciphertext_accum.remaining, self.CHUNKSIZE)
+
         # read a chunk of plaintext..
         d = defer.maybeDeferred(self.original.read, size)
-        # N.B.: if read() is synchronous, then since everything else is
-        # actually synchronous too, we'd blow the stack unless we stall for a
-        # tick. Once you accept a Deferred from IUploadable.read(), you must
-        # be prepared to have it fire immediately too.
-        d.addCallback(fireEventually)
         def _good(plaintext):
             # and encrypt it..
             # o/' over the fields we go, hashing all the way, sHA! sHA! sHA! o/'
             ct = self._hash_and_encrypt_plaintext(plaintext, hash_only)
-            ciphertext.extend(ct)
-            self._read_encrypted(remaining, ciphertext, hash_only,
-                                 fire_when_done)
-        def _err(why):
-            fire_when_done.errback(why)
+            # Intentionally tell the accumulator about the expected size, not
+            # the actual size.  If we run out of data we still want remaining
+            # to drop otherwise it will never reach 0 and the loop will never
+            # end.
+            ciphertext_accum.extend(size, ct)
         d.addCallback(_good)
-        d.addErrback(_err)
-        return None
+        return d
 
     def _hash_and_encrypt_plaintext(self, data, hash_only):
         assert isinstance(data, (tuple, list)), type(data)
@@ -1174,7 +1226,7 @@ class UploadStatus(object):
 
 class CHKUploader(object):
 
-    def __init__(self, storage_broker, secret_holder, progress=None, reactor=None):
+    def __init__(self, storage_broker, secret_holder, reactor=None):
         # server_selector needs storage_broker and secret_holder
         self._storage_broker = storage_broker
         self._secret_holder = secret_holder
@@ -1184,7 +1236,6 @@ class CHKUploader(object):
         self._upload_status = UploadStatus()
         self._upload_status.set_helper(False)
         self._upload_status.set_active(True)
-        self._progress = progress
         self._reactor = reactor
 
         # locate_all_shareholders() will create the following attribute:
@@ -1239,7 +1290,6 @@ class CHKUploader(object):
         self._encoder = encode.Encoder(
             self._log_number,
             self._upload_status,
-            progress=self._progress,
         )
         # this just returns itself
         yield self._encoder.set_encrypted_uploadable(eu)
@@ -1259,7 +1309,7 @@ class CHKUploader(object):
         storage_index = encoder.get_param("storage_index")
         self._storage_index = storage_index
         upload_id = si_b2a(storage_index)[:5]
-        self.log("using storage index %s" % upload_id)
+        self.log("using storage index %r" % upload_id)
         server_selector = Tahoe2ServerSelector(
             upload_id,
             self._log_number,
@@ -1373,13 +1423,12 @@ def read_this_many_bytes(uploadable, size, prepend_data=[]):
 
 class LiteralUploader(object):
 
-    def __init__(self, progress=None):
+    def __init__(self):
         self._status = s = UploadStatus()
         s.set_storage_index(None)
         s.set_helper(False)
         s.set_progress(0, 1.0)
         s.set_active(False)
-        self._progress = progress
 
     def start(self, uploadable):
         uploadable = IUploadable(uploadable)
@@ -1387,8 +1436,6 @@ class LiteralUploader(object):
         def _got_size(size):
             self._size = size
             self._status.set_size(size)
-            if self._progress:
-                self._progress.set_progress_total(size)
             return read_this_many_bytes(uploadable, size)
         d.addCallback(_got_size)
         d.addCallback(lambda data: uri.LiteralFileURI(b"".join(data)))
@@ -1412,8 +1459,6 @@ class LiteralUploader(object):
         self._status.set_progress(1, 1.0)
         self._status.set_progress(2, 1.0)
         self._status.set_results(ur)
-        if self._progress:
-            self._progress.set_progress(self._size)
         return ur
 
     def close(self):
@@ -1423,7 +1468,7 @@ class LiteralUploader(object):
         return self._status
 
 @implementer(RIEncryptedUploadable)
-class RemoteEncryptedUploadable(Referenceable):
+class RemoteEncryptedUploadable(Referenceable):  # type: ignore # warner/foolscap#78
 
     def __init__(self, encrypted_uploadable, upload_status):
         self._eu = IEncryptedUploadable(encrypted_uploadable)
@@ -1812,20 +1857,19 @@ class Uploader(service.MultiService, log.PrefixingLogMixin):
     name = "uploader"
     URI_LIT_SIZE_THRESHOLD = 55
 
-    def __init__(self, helper_furl=None, stats_provider=None, history=None, progress=None):
+    def __init__(self, helper_furl=None, stats_provider=None, history=None):
         self._helper_furl = helper_furl
         self.stats_provider = stats_provider
         self._history = history
         self._helper = None
         self._all_uploads = weakref.WeakKeyDictionary() # for debugging
-        self._progress = progress
         log.PrefixingLogMixin.__init__(self, facility="tahoe.immutable.upload")
         service.MultiService.__init__(self)
 
     def startService(self):
         service.MultiService.startService(self)
         if self._helper_furl:
-            self.parent.tub.connectTo(self._helper_furl,
+            self.parent.tub.connectTo(ensure_str(self._helper_furl),
                                       self._got_helper)
 
     def _got_helper(self, helper):
@@ -1852,13 +1896,12 @@ class Uploader(service.MultiService, log.PrefixingLogMixin):
         return (self._helper_furl, bool(self._helper))
 
 
-    def upload(self, uploadable, progress=None, reactor=None):
+    def upload(self, uploadable, reactor=None):
         """
         Returns a Deferred that will fire with the UploadResults instance.
         """
         assert self.parent
         assert self.running
-        assert progress is None or IProgress.providedBy(progress)
 
         uploadable = IUploadable(uploadable)
         d = uploadable.get_size()
@@ -1867,15 +1910,13 @@ class Uploader(service.MultiService, log.PrefixingLogMixin):
             precondition(isinstance(default_params, dict), default_params)
             precondition("max_segment_size" in default_params, default_params)
             uploadable.set_default_encoding_parameters(default_params)
-            if progress:
-                progress.set_progress_total(size)
 
             if self.stats_provider:
                 self.stats_provider.count('uploader.files_uploaded', 1)
                 self.stats_provider.count('uploader.bytes_uploaded', size)
 
             if size <= self.URI_LIT_SIZE_THRESHOLD:
-                uploader = LiteralUploader(progress=progress)
+                uploader = LiteralUploader()
                 return uploader.start(uploadable)
             else:
                 eu = EncryptAnUploadable(uploadable, self._parentmsgid)
@@ -1888,7 +1929,7 @@ class Uploader(service.MultiService, log.PrefixingLogMixin):
                 else:
                     storage_broker = self.parent.get_storage_broker()
                     secret_holder = self.parent._secret_holder
-                    uploader = CHKUploader(storage_broker, secret_holder, progress=progress, reactor=reactor)
+                    uploader = CHKUploader(storage_broker, secret_holder, reactor=reactor)
                     d2.addCallback(lambda x: uploader.start(eu))
 
                 self._all_uploads[uploader] = None

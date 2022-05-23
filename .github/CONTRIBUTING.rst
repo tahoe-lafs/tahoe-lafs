@@ -17,4 +17,10 @@ Examples of contributions include:
 * `Patch reviews <https://tahoe-lafs.org/trac/tahoe-lafs/wiki/PatchReviewProcess>`_
 
 Before authoring or reviewing a patch,
-please familiarize yourself with the `coding standard <https://tahoe-lafs.org/trac/tahoe-lafs/wiki/CodingStandards>`_.
+please familiarize yourself with the `Coding Standards <https://tahoe-lafs.org/trac/tahoe-lafs/wiki/CodingStandards>`_ and the `Contributor Code of Conduct <../docs/CODE_OF_CONDUCT.md>`_.
+
+
+🥳 First Contribution?
+======================
+
+If you are committing to Tahoe for the very first time, consider adding your name to our contributor list in `CREDITS <../CREDITS>`__

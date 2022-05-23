@@ -203,3 +203,64 @@ N: meejah
 E: meejah@meejah.ca
 P: 0xC2602803128069A7, 9D5A 2BD5 688E CB88 9DEB  CD3F C260 2803 1280 69A7
 D: various bug-fixes and features
+
+N: Chad Whitacre
+E: chad@zetaweb.com
+D: Python3 porting
+
+N: Itamar Turner-Trauring
+E: itamar@pythonspeed.com
+D: Python3 porting
+
+N: Jason R. Coombs
+E: jaraco@jaraco.com
+D: Python3 porting
+
+N: Maciej Fijalkowski
+E: fijall@gmail.com
+D: Python3 porting
+
+N: Ross Patterson
+E: me@rpatterson.net
+D: Python3 porting
+
+N: Sajith Sasidharan
+E: sajith@hcoop.net
+D: Python3 porting
+
+N: Pete Fein
+E: pete@snake.dev
+D: Python3 porting
+
+N: Viktoriia Savchuk
+W: https://twitter.com/viktoriiasvchk
+D: Developer community focused improvements on the README file.
+
+N: Lukas Pirl
+E: tahoe@lukas-pirl.de
+W: http://lukas-pirl.de
+D: Buildslaves (Debian, Fedora, CentOS; 2016-2021)
+
+N: Anxhelo Lushka
+E: anxhelo1995@gmail.com
+D: Web site design and updates
+
+N: Fon E. Noel
+E: fenn25.fn@gmail.com
+D: bug-fixes and refactoring
+
+N: Jehad Baeth
+E: jehad@leastauthority.com
+D: Documentation improvement
+
+N: May-Lee Sia
+E: mayleesia@gmail.com
+D: Community-manager and documentation improvements
+
+N: Yash Nayani
+E: yashaswi.nram@gmail.com
+D: Installation Guide improvements
+
+N: Florian Sesser
+E: florian@private.storage
+D: OpenMetrics support

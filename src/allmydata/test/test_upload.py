@@ -14,6 +14,17 @@ if PY2:
 
 import os, shutil
 from io import BytesIO
+from base64 import (
+    b64encode,
+)
+
+from hypothesis import (
+    given,
+)
+from hypothesis.strategies import (
+    just,
+    integers,
+)
 
 from twisted.trial import unittest
 from twisted.python.failure import Failure
@@ -111,7 +122,15 @@ class SetDEPMixin(object):
              }
         self.node.encoding_params = p
 
+
+# This doesn't actually implement the whole interface, but adding a commented
+# interface implementation annotation for grepping purposes.
+#@implementer(RIStorageServer)
 class FakeStorageServer(object):
+    """
+    A fake Foolscap remote object, implemented by overriding callRemote() to
+    call local methods.
+    """
     def __init__(self, mode, reactor=None):
         self.mode = mode
         self.allocated = []
@@ -239,7 +258,7 @@ class FakeClient(object):
             node_config=EMPTY_CLIENT_CONFIG,
         )
         for (serverid, rref) in servers:
-            ann = {"anonymous-storage-FURL": b"pb://%s@nowhere/fake" % base32.b2a(serverid),
+            ann = {"anonymous-storage-FURL": "pb://%s@nowhere/fake" % str(base32.b2a(serverid), "ascii"),
                    "permutation-seed-base32": base32.b2a(serverid) }
             self.storage_broker.test_add_rref(serverid, rref, ann)
         self.last_servers = [s[1] for s in servers]
@@ -875,6 +894,34 @@ def is_happy_enough(servertoshnums, h, k):
             if len(shnums) < k:
                 return False
     return True
+
+
+class FileHandleTests(unittest.TestCase):
+    """
+    Tests for ``FileHandle``.
+    """
+    def test_get_encryption_key_convergent(self):
+        """
+        When ``FileHandle`` is initialized with a convergence secret,
+        ``FileHandle.get_encryption_key`` returns a deterministic result that
+        is a function of that secret.
+        """
+        secret = b"\x42" * 16
+        handle = upload.FileHandle(BytesIO(b"hello world"), secret)
+        handle.set_default_encoding_parameters({
+            "k": 3,
+            "happy": 5,
+            "n": 10,
+            # Remember this is the *max* segment size.  In reality, the data
+            # size is much smaller so the actual segment size incorporated
+            # into the encryption key is also smaller.
+            "max_segment_size": 128 * 1024,
+        })
+
+        self.assertEqual(
+            b64encode(self.successResultOf(handle.get_encryption_key())),
+            b"oBcuR/wKdCgCV2GKKXqiNg==",
+        )
 
 
 class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
@@ -2028,6 +2075,91 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         f.write("\n")
         f.close()
         return None
+
+
+class EncryptAnUploadableTests(unittest.TestCase):
+    """
+    Tests for ``EncryptAnUploadable``.
+    """
+    def test_same_length(self):
+        """
+        ``EncryptAnUploadable.read_encrypted`` returns ciphertext of the same
+        length as the underlying plaintext.
+        """
+        plaintext = b"hello world"
+        uploadable = upload.FileHandle(BytesIO(plaintext), None)
+        uploadable.set_default_encoding_parameters({
+            # These values shouldn't matter.
+            "k": 3,
+            "happy": 5,
+            "n": 10,
+            "max_segment_size": 128 * 1024,
+        })
+        encrypter = upload.EncryptAnUploadable(uploadable)
+        ciphertext = b"".join(self.successResultOf(encrypter.read_encrypted(1024, False)))
+        self.assertEqual(len(ciphertext), len(plaintext))
+
+    @given(just(b"hello world"), integers(min_value=0, max_value=len(b"hello world")))
+    def test_known_result(self, plaintext, split_at):
+        """
+        ``EncryptAnUploadable.read_encrypted`` returns a known-correct ciphertext
+        string for certain inputs.  The ciphertext is independent of the read
+        sizes.
+        """
+        convergence = b"\x42" * 16
+        uploadable = upload.FileHandle(BytesIO(plaintext), convergence)
+        uploadable.set_default_encoding_parameters({
+            # The convergence key is a function of k, n, and max_segment_size
+            # (among other things).  The value for happy doesn't matter
+            # though.
+            "k": 3,
+            "happy": 5,
+            "n": 10,
+            "max_segment_size": 128 * 1024,
+        })
+        encrypter = upload.EncryptAnUploadable(uploadable)
+        def read(n):
+            return b"".join(self.successResultOf(encrypter.read_encrypted(n, False)))
+
+        # Read the string in one or two pieces to make sure underlying state
+        # is maintained properly.
+        first = read(split_at)
+        second = read(len(plaintext) - split_at)
+        third = read(1)
+        ciphertext = first + second + third
+
+        self.assertEqual(
+            b"Jd2LHCRXozwrEJc=",
+            b64encode(ciphertext),
+        )
+
+    def test_large_read(self):
+        """
+        ``EncryptAnUploadable.read_encrypted`` succeeds even when the requested
+        data length is much larger than the chunk size.
+        """
+        convergence = b"\x42" * 16
+        # 4kB of plaintext
+        plaintext = b"\xde\xad\xbe\xef" * 1024
+        uploadable = upload.FileHandle(BytesIO(plaintext), convergence)
+        uploadable.set_default_encoding_parameters({
+            "k": 3,
+            "happy": 5,
+            "n": 10,
+            "max_segment_size": 128 * 1024,
+        })
+        # Make the chunk size very small so we don't have to operate on a huge
+        # amount of data to exercise the relevant codepath.
+        encrypter = upload.EncryptAnUploadable(uploadable, chunk_size=1)
+        d = encrypter.read_encrypted(len(plaintext), False)
+        ciphertext = self.successResultOf(d)
+        self.assertEqual(
+            list(map(len, ciphertext)),
+            # Chunk size was specified as 1 above so we will get the whole
+            # plaintext in one byte chunks.
+            [1] * len(plaintext),
+        )
+
 
 # TODO:
 #  upload with exactly 75 servers (shares_of_happiness)

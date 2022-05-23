@@ -1,34 +1,60 @@
 """
 Tools aimed at the interaction between tests and Eliot.
+
+Ported to Python 3.
 """
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
 
 # Python 2 compatibility
 # Can't use `builtins.str` because it's not JSON encodable:
 # `exceptions.TypeError: <class 'future.types.newstr.newstr'> is not JSON-encodeable`
 from past.builtins import unicode as str
-from future.utils import PY3
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, max, min  # noqa: F401
+
+from six import ensure_text
 
 __all__ = [
     "RUN_TEST",
     "EliotLoggedRunTest",
-    "eliot_logged_test",
 ]
 
+try:
+    from typing import Callable
+except ImportError:
+    pass
+
 from functools import (
-    wraps,
     partial,
+    wraps,
 )
 
 import attr
 
+from zope.interface import (
+    implementer,
+)
+
 from eliot import (
     ActionType,
     Field,
+    ILogger,
 )
-from eliot.testing import capture_logging
+from eliot.testing import (
+    swap_logger,
+    check_for_errors,
+)
 
-from twisted.internet.defer import (
-    maybeDeferred,
+from twisted.python.monkey import (
+    MonkeyPatcher,
+)
+
+from ..util.eliotutil import (
+    MemoryLogger,
 )
 
 _NAME = Field.for_types(
@@ -43,86 +69,6 @@ RUN_TEST = ActionType(
     [],
     u"A test is run.",
 )
-
-
-def eliot_logged_test(f):
-    """
-    Decorate a test method to run in a dedicated Eliot action context.
-
-    The action will finish after the test is done (after the returned Deferred
-    fires, if a Deferred is returned).  It will note the name of the test
-    being run.
-
-    All messages emitted by the test will be validated.  They will still be
-    delivered to the global logger.
-    """
-    # A convenient, mutable container into which nested functions can write
-    # state to be shared among them.
-    class storage(object):
-        pass
-
-    @wraps(f)
-    def run_and_republish(self, *a, **kw):
-        # Unfortunately the only way to get at the global/default logger...
-        # This import is delayed here so that we get the *current* default
-        # logger at the time the decorated function is run.
-        from eliot._output import _DEFAULT_LOGGER as default_logger
-
-        def republish():
-            # This is called as a cleanup function after capture_logging has
-            # restored the global/default logger to its original state.  We
-            # can now emit messages that go to whatever global destinations
-            # are installed.
-
-            # storage.logger.serialize() seems like it would make more sense
-            # than storage.logger.messages here.  However, serialize()
-            # explodes, seemingly as a result of double-serializing the logged
-            # messages.  I don't understand this.
-            for msg in storage.logger.messages:
-                default_logger.write(msg)
-
-            # And now that we've re-published all of the test's messages, we
-            # can finish the test's action.
-            storage.action.finish()
-
-        @capture_logging(None)
-        def run(self, logger):
-            # Record the MemoryLogger for later message extraction.
-            storage.logger = logger
-            # Give the test access to the logger as well.  It would be just
-            # fine to pass this as a keyword argument to `f` but implementing
-            # that now will give me conflict headaches so I'm not doing it.
-            self.eliot_logger = logger
-            return f(self, *a, **kw)
-
-        # Arrange for all messages written to the memory logger that
-        # `capture_logging` installs to be re-written to the global/default
-        # logger so they might end up in a log file somewhere, if someone
-        # wants.  This has to be done in a cleanup function (or later) because
-        # capture_logging restores the original logger in a cleanup function.
-        # We install our cleanup function here, before we call run, so that it
-        # runs *after* the cleanup function capture_logging installs (cleanup
-        # functions are a stack).
-        self.addCleanup(republish)
-
-        # Begin an action that should comprise all messages from the decorated
-        # test method.
-        with RUN_TEST(name=self.id()).context() as action:
-            # When the test method Deferred fires, the RUN_TEST action is
-            # done.  However, we won't have re-published the MemoryLogger
-            # messages into the global/default logger when this Deferred
-            # fires.  So we need to delay finishing the action until that has
-            # happened.  Record the action so we can do that.
-            storage.action = action
-
-            # Support both Deferred-returning and non-Deferred-returning
-            # tests.
-            d = maybeDeferred(run, self)
-
-            # Let the test runner do its thing.
-            return d
-
-    return run_and_republish
 
 
 @attr.s
@@ -163,13 +109,91 @@ class EliotLoggedRunTest(object):
     def id(self):
         return self.case.id()
 
-    @eliot_logged_test
-    def run(self, result=None):
-        # Workaround for https://github.com/itamarst/eliot/issues/456
-        if PY3:
-            self.case.eliot_logger._validate_message = lambda *args, **kwargs: None
-        return self._run_tests_with_factory(
-            self.case,
-            self.handlers,
-            self.last_resort,
-        ).run(result)
+    def run(self, result):
+        """
+        Run the test case in the context of a distinct Eliot action.
+
+        The action will finish after the test is done.  It will note the name of
+        the test being run.
+
+        All messages emitted by the test will be validated.  They will still be
+        delivered to the global logger.
+        """
+        # The idea here is to decorate the test method itself so that all of
+        # the extra logic happens at the point where test/application logic is
+        # expected to be.  This `run` method is more like test infrastructure
+        # and things do not go well when we add too much extra behavior here.
+        # For example, exceptions raised here often just kill the whole
+        # runner.
+        patcher = MonkeyPatcher()
+
+        # So, grab the test method.
+        name = self.case._testMethodName
+        original = getattr(self.case, name)
+        decorated = with_logging(ensure_text(self.case.id()), original)
+        patcher.addPatch(self.case, name, decorated)
+        try:
+            # Patch it in
+            patcher.patch()
+            # Then use the rest of the machinery to run it.
+            return self._run_tests_with_factory(
+                self.case,
+                self.handlers,
+                self.last_resort,
+            ).run(result)
+        finally:
+            # Clean up the patching for idempotency or something.
+            patcher.restore()
+
+
+def with_logging(
+        test_id,      # type: str
+        test_method,  # type: Callable
+):
+    """
+    Decorate a test method with additional log-related behaviors.
+
+    1. The test method will run in a distinct Eliot action.
+    2. Typed log messages will be validated.
+    3. Logged tracebacks will be added as errors.
+
+    :param test_id: The full identifier of the test being decorated.
+    :param test_method: The method itself.
+    """
+    @wraps(test_method)
+    def run_with_logging(*args, **kwargs):
+        validating_logger = MemoryLogger()
+        original = swap_logger(None)
+        try:
+            swap_logger(_TwoLoggers(original, validating_logger))
+            with RUN_TEST(name=test_id):
+                try:
+                    return test_method(*args, **kwargs)
+                finally:
+                    check_for_errors(validating_logger)
+        finally:
+            swap_logger(original)
+    return run_with_logging
+
+
+@implementer(ILogger)
+class _TwoLoggers(object):
+    """
+    Log to two loggers.
+
+    A single logger can have multiple destinations so this isn't typically a
+    useful thing to do.  However, MemoryLogger has inline validation instead
+    of destinations.  That means this *is* useful to simultaneously write to
+    the normal places and validate all written log messages.
+    """
+    def __init__(self, a, b):
+        """
+        :param ILogger a: One logger
+        :param ILogger b: Another logger
+        """
+        self._a = a # type: ILogger
+        self._b = b # type: ILogger
+
+    def write(self, dictionary, serializer=None):
+        self._a.write(dictionary, serializer)
+        self._b.write(dictionary, serializer)

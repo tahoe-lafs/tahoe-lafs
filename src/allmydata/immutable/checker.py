@@ -1,3 +1,15 @@
+"""
+Ported to Python 3.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+
 from zope.interface import implementer
 from twisted.internet import defer
 from foolscap.api import DeadReferenceError, RemoteException
@@ -55,12 +67,12 @@ class ValidatedExtendedURIProxy(object):
         self.crypttext_hash = None
 
     def __str__(self):
-        return "<%s %s>" % (self.__class__.__name__, self._verifycap.to_string())
+        return "<%s %r>" % (self.__class__.__name__, self._verifycap.to_string())
 
     def _check_integrity(self, data):
         h = uri_extension_hash(data)
         if h != self._verifycap.uri_extension_hash:
-            msg = ("The copy of uri_extension we received from %s was bad: wanted %s, got %s" %
+            msg = ("The copy of uri_extension we received from %s was bad: wanted %r, got %r" %
                    (self._readbucketproxy,
                     base32.b2a(self._verifycap.uri_extension_hash),
                     base32.b2a(h)))
@@ -222,7 +234,7 @@ class ValidatedReadBucketProxy(log.PrefixingLogMixin):
         UEB"""
         precondition(share_hash_tree[0] is not None, share_hash_tree)
         prefix = "%d-%s-%s" % (sharenum, bucket,
-                               base32.b2a(share_hash_tree[0][:8])[:12])
+                               str(base32.b2a(share_hash_tree[0][:8])[:12], "ascii"))
         log.PrefixingLogMixin.__init__(self,
                                        facility="tahoe.immutable.download",
                                        prefix=prefix)
@@ -415,7 +427,7 @@ class ValidatedReadBucketProxy(log.PrefixingLogMixin):
                 received from the remote peer were bad.""")
             self.log(" have candidate_share_hash: %s" % bool(candidate_share_hash))
             self.log(" block length: %d" % len(blockdata))
-            self.log(" block hash: %s" % base32.b2a_or_none(blockhash))
+            self.log(" block hash: %r" % base32.b2a_or_none(blockhash))
             if len(blockdata) < 100:
                 self.log(" block data: %r" % (blockdata,))
             else:
@@ -465,7 +477,7 @@ class Checker(log.PrefixingLogMixin):
                  monitor):
         assert precondition(isinstance(verifycap, CHKFileVerifierURI), verifycap, type(verifycap))
 
-        prefix = "%s" % base32.b2a(verifycap.get_storage_index()[:8])[:12]
+        prefix = str(base32.b2a(verifycap.get_storage_index()[:8])[:12], "utf-8")
         log.PrefixingLogMixin.__init__(self, facility="tahoe.immutable.checker", prefix=prefix)
 
         self._verifycap = verifycap

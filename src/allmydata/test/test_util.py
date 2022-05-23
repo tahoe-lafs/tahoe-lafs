@@ -17,15 +17,17 @@ import yaml
 import json
 
 from twisted.trial import unittest
+from foolscap.api import Violation, RemoteException
 
 from allmydata.util import idlib, mathutil
 from allmydata.util import fileutil
 from allmydata.util import jsonbytes
 from allmydata.util import pollmixin
 from allmydata.util import yamlutil
+from allmydata.util import rrefutil
 from allmydata.util.fileutil import EncryptedTemporaryFile
 from allmydata.test.common_util import ReallyEqualMixin
-
+from .no_network import fireNow, LocalWrapper
 
 if six.PY3:
     long = int
@@ -33,7 +35,9 @@ if six.PY3:
 
 class IDLib(unittest.TestCase):
     def test_nodeid_b2a(self):
-        self.failUnlessEqual(idlib.nodeid_b2a(b"\x00"*20), "a"*32)
+        result = idlib.nodeid_b2a(b"\x00"*20)
+        self.assertEqual(result, "a"*32)
+        self.assertIsInstance(result, str)
 
 
 class MyList(list):
@@ -478,7 +482,12 @@ class EqButNotIs(object):
 
 class YAML(unittest.TestCase):
     def test_convert(self):
-        data = yaml.safe_dump(["str", u"unicode", u"\u1234nicode"])
+        """
+        Unicode and (ASCII) native strings get roundtripped to Unicode strings.
+        """
+        data = yaml.safe_dump(
+            [six.ensure_str("str"), u"unicode", u"\u1234nicode"]
+        )
         back = yamlutil.safe_load(data)
         self.assertIsInstance(back[0], str)
         self.assertIsInstance(back[1], str)
@@ -486,26 +495,96 @@ class YAML(unittest.TestCase):
 
 
 class JSONBytes(unittest.TestCase):
-    """Tests for BytesJSONEncoder."""
+    """Tests for jsonbytes module."""
 
     def test_encode_bytes(self):
-        """BytesJSONEncoder can encode bytes."""
+        """jsonbytes.dumps() encodes bytes.
+
+        Bytes are presumed to be UTF-8 encoded.
+        """
+        snowman = u"def\N{SNOWMAN}\uFF00"
         data = {
-            b"hello": [1, b"cd"],
+            b"hello": [1, b"cd", {b"abc": [123, snowman.encode("utf-8")]}],
         }
         expected = {
-            u"hello": [1, u"cd"],
+            u"hello": [1, u"cd", {u"abc": [123, snowman]}],
         }
         # Bytes get passed through as if they were UTF-8 Unicode:
         encoded = jsonbytes.dumps(data)
         self.assertEqual(json.loads(encoded), expected)
         self.assertEqual(jsonbytes.loads(encoded), expected)
 
-
     def test_encode_unicode(self):
-        """BytesJSONEncoder encodes Unicode string as usual."""
+        """jsonbytes.dumps() encodes Unicode string as usual."""
         expected = {
             u"hello": [1, u"cd"],
         }
         encoded = jsonbytes.dumps(expected)
         self.assertEqual(json.loads(encoded), expected)
+
+    def test_dumps_bytes(self):
+        """jsonbytes.dumps_bytes always returns bytes."""
+        x = {u"def\N{SNOWMAN}\uFF00": 123}
+        encoded = jsonbytes.dumps_bytes(x)
+        self.assertIsInstance(encoded, bytes)
+        self.assertEqual(json.loads(encoded), x)
+
+    def test_any_bytes_unsupported_by_default(self):
+        """By default non-UTF-8 bytes raise error."""
+        bytestring = b"abc\xff\x00"
+        with self.assertRaises(UnicodeDecodeError):
+            jsonbytes.dumps(bytestring)
+        with self.assertRaises(UnicodeDecodeError):
+            jsonbytes.dumps_bytes(bytestring)
+        with self.assertRaises(UnicodeDecodeError):
+            json.dumps(bytestring, cls=jsonbytes.UTF8BytesJSONEncoder)
+
+    def test_any_bytes(self):
+        """If any_bytes is True, non-UTF-8 bytes don't break encoding."""
+        bytestring = b"abc\xff\xff123"
+        o = {bytestring: bytestring}
+        expected = {"abc\\xff\\xff123": "abc\\xff\\xff123"}
+        self.assertEqual(
+            json.loads(jsonbytes.dumps(o, any_bytes=True)),
+            expected,
+        )
+        self.assertEqual(
+            json.loads(json.dumps(
+                o, cls=jsonbytes.AnyBytesJSONEncoder)),
+            expected,
+        )
+
+
+class FakeGetVersion(object):
+    """Emulate an object with a get_version."""
+
+    def __init__(self, result):
+        self.result = result
+
+    def remote_get_version(self):
+        if isinstance(self.result, Exception):
+            raise self.result
+        return self.result
+
+
+class RrefUtilTests(unittest.TestCase):
+    """Tests for rrefutil."""
+
+    def test_version_returned(self):
+        """If get_version() succeeded, it is set on the rref."""
+        rref = LocalWrapper(FakeGetVersion(12345), fireNow)
+        result = self.successResultOf(
+            rrefutil.add_version_to_remote_reference(rref, "default")
+        )
+        self.assertEqual(result.version, 12345)
+        self.assertIdentical(result, rref)
+
+    def test_exceptions(self):
+        """If get_version() failed, default version is set on the rref."""
+        for exception in (Violation(), RemoteException(ValueError())):
+            rref = LocalWrapper(FakeGetVersion(exception), fireNow)
+            result = self.successResultOf(
+                rrefutil.add_version_to_remote_reference(rref, "Default")
+            )
+            self.assertEqual(result.version, "Default")
+            self.assertIdentical(result, rref)

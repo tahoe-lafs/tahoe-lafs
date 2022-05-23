@@ -1,7 +1,25 @@
-from __future__ import print_function
+# Ported to Python 3
 
+from __future__ import print_function
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+
+import io
 import os
-import json
+
+try:
+    from allmydata.scripts.types_ import (
+        SubCommands,
+        Parameters,
+        Flags,
+    )
+except ImportError:
+    pass
 
 from twisted.internet import reactor, defer
 from twisted.python.usage import UsageError
@@ -17,10 +35,7 @@ from allmydata.scripts.common import (
 from allmydata.scripts.default_nodedir import _default_nodedir
 from allmydata.util.assertutil import precondition
 from allmydata.util.encodingutil import listdir_unicode, argv_to_unicode, quote_local_unicode_path, get_io_encoding
-from allmydata.util import fileutil, i2p_provider, iputil, tor_provider
-
-from wormhole import wormhole
-
+from allmydata.util import fileutil, i2p_provider, iputil, tor_provider, jsonbytes as json
 
 dummy_tac = """
 import sys
@@ -42,29 +57,29 @@ WHERE_OPTS = [
      "Hostname to automatically set --location/--port when --listen=tcp"),
     ("listen", None, "tcp",
      "Comma-separated list of listener types (tcp,tor,i2p,none)."),
-]
+] # type: Parameters
 
 TOR_OPTS = [
     ("tor-control-port", None, None,
      "Tor's control port endpoint descriptor string (e.g. tcp:127.0.0.1:9051 or unix:/var/run/tor/control)"),
     ("tor-executable", None, None,
      "The 'tor' executable to run (default is to search $PATH)."),
-]
+] # type: Parameters
 
 TOR_FLAGS = [
     ("tor-launch", None, "Launch a tor instead of connecting to a tor control port."),
-]
+] # type: Flags
 
 I2P_OPTS = [
     ("i2p-sam-port", None, None,
      "I2P's SAM API port endpoint descriptor string (e.g. tcp:127.0.0.1:7656)"),
     ("i2p-executable", None, None,
      "(future) The 'i2prouter' executable to run (default is to search $PATH)."),
-]
+] # type: Parameters
 
 I2P_FLAGS = [
     ("i2p-launch", None, "(future) Launch an I2P router instead of connecting to a SAM API port."),
-]
+] # type: Flags
 
 def validate_where_options(o):
     if o['listen'] == "none":
@@ -170,7 +185,7 @@ class CreateClientOptions(_CreateBaseOptions):
         ("shares-happy", None, 7, "How many servers new files must be placed on."),
         ("shares-total", None, 10, "Total shares required for uploaded files."),
         ("join", None, None, "Join a grid with the given Invite Code."),
-        ]
+        ] # type: Parameters
 
     # This is overridden in order to ensure we get a "Wrong number of
     # arguments." error when more than one argument is given.
@@ -220,7 +235,7 @@ class CreateIntroducerOptions(NoDefaultBasedirOptions):
 @defer.inlineCallbacks
 def write_node_config(c, config):
     # this is shared between clients and introducers
-    c.write("# -*- mode: conf; coding: utf-8 -*-\n")
+    c.write("# -*- mode: conf; coding: {c.encoding} -*-\n".format(c=c))
     c.write("\n")
     c.write("# This file controls the configuration of the Tahoe node that\n")
     c.write("# lives in this directory. It is only read at node startup.\n")
@@ -239,7 +254,7 @@ def write_node_config(c, config):
 
     c.write("[node]\n")
     nickname = argv_to_unicode(config.get("nickname") or "")
-    c.write("nickname = %s\n" % (nickname.encode('utf-8'),))
+    c.write("nickname = %s\n" % (nickname,))
     if config["hide-ip"]:
         c.write("reveal-IP-address = false\n")
     else:
@@ -249,7 +264,7 @@ def write_node_config(c, config):
     webport = argv_to_unicode(config.get("webport") or "none")
     if webport.lower() == "none":
         webport = ""
-    c.write("web.port = %s\n" % (webport.encode('utf-8'),))
+    c.write("web.port = %s\n" % (webport,))
     c.write("web.static = public_html\n")
 
     listeners = config['listen'].split(",")
@@ -274,15 +289,14 @@ def write_node_config(c, config):
             tub_locations.append(i2p_location)
         if "tcp" in listeners:
             if config["port"]: # --port/--location are a pair
-                tub_ports.append(config["port"].encode('utf-8'))
-                tub_locations.append(config["location"].encode('utf-8'))
+                tub_ports.append(config["port"])
+                tub_locations.append(config["location"])
             else:
                 assert "hostname" in config
                 hostname = config["hostname"]
                 new_port = iputil.allocate_tcp_port()
                 tub_ports.append("tcp:%s" % new_port)
-                tub_locations.append("tcp:%s:%s" % (hostname.encode('utf-8'),
-                                                    new_port))
+                tub_locations.append("tcp:%s:%s" % (hostname, new_port))
         c.write("tub.port = %s\n" % ",".join(tub_ports))
         c.write("tub.location = %s\n" % ",".join(tub_locations))
     c.write("\n")
@@ -296,13 +310,13 @@ def write_node_config(c, config):
 
     if tor_config:
         c.write("[tor]\n")
-        for key, value in tor_config.items():
+        for key, value in list(tor_config.items()):
             c.write("%s = %s\n" % (key, value))
         c.write("\n")
 
     if i2p_config:
         c.write("[i2p]\n")
-        for key, value in i2p_config.items():
+        for key, value in list(i2p_config.items()):
             c.write("%s = %s\n" % (key, value))
         c.write("\n")
 
@@ -318,7 +332,6 @@ def write_client_config(c, config):
 
     c.write("[client]\n")
     c.write("helper.furl =\n")
-    c.write("#stats_gatherer.furl =\n")
     c.write("\n")
     c.write("# Encoding parameters this client will use for newly-uploaded files\n")
     c.write("# This can be changed at any time: the encoding is saved in\n")
@@ -361,12 +374,12 @@ def _get_config_via_wormhole(config):
     relay_url = config.parent['wormhole-server']
     print("Connecting to '{}'".format(relay_url), file=out)
 
-    wh = wormhole.create(
+    wh = config.parent.wormhole.create(
         appid=config.parent['wormhole-invite-appid'],
         relay_url=relay_url,
         reactor=reactor,
     )
-    code = unicode(config['join'])
+    code = str(config['join'])
     wh.set_code(code)
     yield wh.get_welcome()
     print("Connected to wormhole server", file=out)
@@ -376,7 +389,7 @@ def _get_config_via_wormhole(config):
             "client-v1": {},
         }
     }
-    wh.send_message(json.dumps(intro))
+    wh.send_message(json.dumps_bytes(intro))
 
     server_intro = yield wh.get_message()
     server_intro = json.loads(server_intro)
@@ -398,7 +411,7 @@ def create_node(config):
     err = config.stderr
     basedir = config['basedir']
     # This should always be called with an absolute Unicode basedir.
-    precondition(isinstance(basedir, unicode), basedir)
+    precondition(isinstance(basedir, str), basedir)
 
     if os.path.exists(basedir):
         if listdir_unicode(basedir):
@@ -433,17 +446,19 @@ def create_node(config):
             v = remote_config.get(k, None)
             if v is not None:
                 # we're faking usually argv-supplied options :/
-                if isinstance(v, unicode):
+                v_orig = v
+                if isinstance(v, str):
                     v = v.encode(get_io_encoding())
                 config[k] = v
                 if k not in sensitive_keys:
                     if k not in ['shares-happy', 'shares-total', 'shares-needed']:
-                        print("  {}: {}".format(k, v), file=out)
+                        print("  {}: {}".format(k, v_orig), file=out)
                 else:
                     print("  {}: [sensitive data; see tahoe.cfg]".format(k), file=out)
 
     fileutil.make_dirs(os.path.join(basedir, "private"), 0o700)
-    with open(os.path.join(basedir, "tahoe.cfg"), "w") as c:
+    cfg_name = os.path.join(basedir, "tahoe.cfg")
+    with io.open(cfg_name, "w", encoding='utf-8') as c:
         yield write_node_config(c, config)
         write_client_config(c, config)
 
@@ -471,7 +486,7 @@ def create_introducer(config):
     err = config.stderr
     basedir = config['basedir']
     # This should always be called with an absolute Unicode basedir.
-    precondition(isinstance(basedir, unicode), basedir)
+    precondition(isinstance(basedir, str), basedir)
 
     if os.path.exists(basedir):
         if listdir_unicode(basedir):
@@ -485,7 +500,8 @@ def create_introducer(config):
     write_tac(basedir, "introducer")
 
     fileutil.make_dirs(os.path.join(basedir, "private"), 0o700)
-    with open(os.path.join(basedir, "tahoe.cfg"), "w") as c:
+    cfg_name = os.path.join(basedir, "tahoe.cfg")
+    with io.open(cfg_name, "w", encoding='utf-8') as c:
         yield write_node_config(c, config)
 
     print("Introducer created in %s" % quote_local_unicode_path(basedir), file=out)
@@ -493,10 +509,10 @@ def create_introducer(config):
 
 
 subCommands = [
-    ["create-node", None, CreateNodeOptions, "Create a node that acts as a client, server or both."],
-    ["create-client", None, CreateClientOptions, "Create a client node (with storage initially disabled)."],
-    ["create-introducer", None, CreateIntroducerOptions, "Create an introducer node."],
-]
+    ("create-node", None, CreateNodeOptions, "Create a node that acts as a client, server or both."),
+    ("create-client", None, CreateClientOptions, "Create a client node (with storage initially disabled)."),
+    ("create-introducer", None, CreateIntroducerOptions, "Create an introducer node."),
+]  # type: SubCommands
 
 dispatch = {
     "create-node": create_node,

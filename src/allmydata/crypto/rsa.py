@@ -77,6 +77,14 @@ def create_signing_keypair_from_string(private_key_der):
         password=None,
         backend=default_backend(),
     )
+    if not isinstance(priv_key, rsa.RSAPrivateKey):
+        raise ValueError(
+            "Private Key did not decode to an RSA key"
+        )
+    if priv_key.key_size != 2048:
+        raise ValueError(
+            "Private Key must be 2048 bits"
+        )
     return priv_key, priv_key.public_key()
 
 

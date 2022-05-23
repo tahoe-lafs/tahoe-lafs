@@ -1,11 +1,28 @@
+"""
+Ported to Python 3.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+
 import json
 from os.path import join
 
 from bs4 import BeautifulSoup
 
-from twisted.trial import unittest
 from twisted.internet import reactor
 from twisted.internet import defer
+from testtools.twistedsupport import succeeded
+
+from ..common import (
+    SyncTestCase,
+    AsyncTestCase,
+)
 
 from foolscap.api import (
     fireEventually,
@@ -41,6 +58,11 @@ from ..common_web import (
     render,
 )
 
+from testtools.matchers import (
+    Equals,
+    AfterPreprocessing,
+)
+
 
 @defer.inlineCallbacks
 def create_introducer_webish(reactor, port_assigner, basedir):
@@ -61,12 +83,18 @@ def create_introducer_webish(reactor, port_assigner, basedir):
         with the node and its webish service.
     """
     node.create_node_dir(basedir, "testing")
-    _, port_endpoint = port_assigner.assign(reactor)
+    main_tub_location, main_tub_endpoint = port_assigner.assign(reactor)
+    _, web_port_endpoint = port_assigner.assign(reactor)
     with open(join(basedir, "tahoe.cfg"), "w") as f:
         f.write(
             "[node]\n"
-            "tub.location = 127.0.0.1:1\n" +
-            "web.port = {}\n".format(port_endpoint)
+            "tub.port = {main_tub_endpoint}\n"
+            "tub.location = {main_tub_location}\n"
+            "web.port = {web_port_endpoint}\n".format(
+                main_tub_endpoint=main_tub_endpoint,
+                main_tub_location=main_tub_location,
+                web_port_endpoint=web_port_endpoint,
+            )
         )
 
     intro_node = yield create_introducer(basedir)
@@ -74,11 +102,10 @@ def create_introducer_webish(reactor, port_assigner, basedir):
 
     yield fireEventually(None)
     intro_node.startService()
-
     defer.returnValue((intro_node, ws))
 
 
-class IntroducerWeb(unittest.TestCase):
+class IntroducerWeb(AsyncTestCase):
     """
     Tests for web-facing functionality of an introducer node.
     """
@@ -90,6 +117,7 @@ class IntroducerWeb(unittest.TestCase):
         # Anything using Foolscap leaves some timer trash in the reactor that
         # we have to arrange to have cleaned up.
         self.addCleanup(lambda: flushEventualQueue(None))
+        return super(IntroducerWeb, self).setUp()
 
     @defer.inlineCallbacks
     def test_welcome(self):
@@ -175,7 +203,7 @@ class IntroducerWeb(unittest.TestCase):
         self.assertEqual(data["announcement_summary"], {})
 
 
-class IntroducerRootTests(unittest.TestCase):
+class IntroducerRootTests(SyncTestCase):
     """
     Tests for ``IntroducerRoot``.
     """
@@ -189,7 +217,7 @@ class IntroducerRootTests(unittest.TestCase):
         main_tub = Tub()
         main_tub.listenOn(b"tcp:0")
         main_tub.setLocation(b"tcp:127.0.0.1:1")
-        introducer_node = _IntroducerNode(config, main_tub, None, None, None)
+        introducer_node = _IntroducerNode(config, main_tub, None, None)
 
         introducer_service = introducer_node.getServiceNamed("introducer")
         for n in range(2):
@@ -211,15 +239,11 @@ class IntroducerRootTests(unittest.TestCase):
         )
 
         resource = IntroducerRoot(introducer_node)
-        response = json.loads(
-            self.successResultOf(
-                render(resource, {"t": [b"json"]}),
-            ),
-        )
-        self.assertEqual(
+        response = render(resource, {b"t": [b"json"]})
+        expected = {
+            u"subscription_summary": {"arbitrary": 2},
+            u"announcement_summary": {"arbitrary": 1},
+        }
+        self.assertThat(
             response,
-            {
-                u"subscription_summary": {"arbitrary": 2},
-                u"announcement_summary": {"arbitrary": 1},
-            },
-        )
+            succeeded(AfterPreprocessing(json.loads, Equals(expected))))

@@ -1,13 +1,36 @@
+"""
+Ported to Python 3.
+"""
+from __future__ import unicode_literals
+from __future__ import absolute_import
+from __future__ import division
 from __future__ import print_function
 
-# do not import any allmydata modules at this level. Do that from inside
-# individual functions instead.
+from future.utils import PY2, bchr
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+
+try:
+    from allmydata.scripts.types_ import SubCommands
+except ImportError:
+    pass
+
 import struct, time, os, sys
+
 from twisted.python import usage, failure
 from twisted.internet import defer
 from foolscap.logging import cli as foolscap_cli
-from allmydata.scripts.common import BaseOptions
 
+from allmydata.scripts.common import BaseOptions
+from allmydata import uri
+from allmydata.storage.mutable import MutableShareFile
+from allmydata.storage.immutable import ShareFile
+from allmydata.mutable.layout import unpack_share
+from allmydata.mutable.layout import MDMFSlotReadProxy
+from allmydata.mutable.common import NeedMoreDataError
+from allmydata.immutable.layout import ReadBucketProxy
+from allmydata.util import base32
+from allmydata.util.encodingutil import quote_output
 
 class DumpOptions(BaseOptions):
     def getSynopsis(self):
@@ -40,13 +63,11 @@ def dump_share(options):
     # check the version, to see if we have a mutable or immutable share
     print("share filename: %s" % quote_output(options['filename']), file=out)
 
-    f = open(options['filename'], "rb")
-    prefix = f.read(32)
-    f.close()
-    if prefix == MutableShareFile.MAGIC:
-        return dump_mutable_share(options)
-    # otherwise assume it's immutable
-    return dump_immutable_share(options)
+    with open(options['filename'], "rb") as f:
+        if MutableShareFile.is_valid_header(f.read(32)):
+            return dump_mutable_share(options)
+        # otherwise assume it's immutable
+        return dump_immutable_share(options)
 
 def dump_immutable_share(options):
     from allmydata.storage.immutable import ShareFile
@@ -83,27 +104,34 @@ def dump_immutable_chk_share(f, out, options):
              "crypttext_hash", "crypttext_root_hash",
              "share_root_hash", "UEB_hash")
     display_keys = {"size": "file_size"}
+
+    def to_string(v):
+        if isinstance(v, bytes):
+            return str(v, "utf-8")
+        else:
+            return str(v)
+
     for k in keys1:
         if k in unpacked:
             dk = display_keys.get(k, k)
-            print("%20s: %s" % (dk, unpacked[k]), file=out)
+            print("%20s: %s" % (dk, to_string(unpacked[k])), file=out)
     print(file=out)
     for k in keys2:
         if k in unpacked:
             dk = display_keys.get(k, k)
-            print("%20s: %s" % (dk, unpacked[k]), file=out)
+            print("%20s: %s" % (dk, to_string(unpacked[k])), file=out)
     print(file=out)
     for k in keys3:
         if k in unpacked:
             dk = display_keys.get(k, k)
-            print("%20s: %s" % (dk, unpacked[k]), file=out)
+            print("%20s: %s" % (dk, to_string(unpacked[k])), file=out)
 
     leftover = set(unpacked.keys()) - set(keys1 + keys2 + keys3)
     if leftover:
         print(file=out)
         print("LEFTOVER:", file=out)
         for k in sorted(leftover):
-            print("%20s: %s" % (k, unpacked[k]), file=out)
+            print("%20s: %s" % (k, to_string(unpacked[k])), file=out)
 
     # the storage index isn't stored in the share itself, so we depend upon
     # knowing the parent directory name to get it
@@ -147,7 +175,7 @@ def dump_immutable_lease_info(f, out):
     leases = list(f.get_leases())
     if leases:
         for i,lease in enumerate(leases):
-            when = format_expiration_time(lease.expiration_time)
+            when = format_expiration_time(lease.get_expiration_time())
             print(" Lease #%d: owner=%d, expire in %s" \
                   % (i, lease.owner_num, when), file=out)
     else:
@@ -158,9 +186,9 @@ def format_expiration_time(expiration_time):
     remains = expiration_time - now
     when = "%ds" % remains
     if remains > 24*3600:
-        when += " (%d days)" % (remains / (24*3600))
+        when += " (%d days)" % (remains // (24*3600))
     elif remains > 3600:
-        when += " (%d hours)" % (remains / 3600)
+        when += " (%d hours)" % (remains // 3600)
     return when
 
 
@@ -190,7 +218,7 @@ def dump_mutable_share(options):
     print(file=out)
     print("Mutable slot found:", file=out)
     print(" share_type: %s" % share_type, file=out)
-    print(" write_enabler: %s" % base32.b2a(WE), file=out)
+    print(" write_enabler: %s" % str(base32.b2a(WE), "utf-8"), file=out)
     print(" WE for nodeid: %s" % idlib.nodeid_b2a(nodeid), file=out)
     print(" num_extra_leases: %d" % num_extra_leases, file=out)
     print(" container_size: %d" % container_size, file=out)
@@ -200,10 +228,10 @@ def dump_mutable_share(options):
             print(file=out)
             print(" Lease #%d:" % leasenum, file=out)
             print("  ownerid: %d" % lease.owner_num, file=out)
-            when = format_expiration_time(lease.expiration_time)
+            when = format_expiration_time(lease.get_expiration_time())
             print("  expires in %s" % when, file=out)
-            print("  renew_secret: %s" % base32.b2a(lease.renew_secret), file=out)
-            print("  cancel_secret: %s" % base32.b2a(lease.cancel_secret), file=out)
+            print("  renew_secret: %s" % lease.present_renew_secret(), file=out)
+            print("  cancel_secret: %s" % lease.present_cancel_secret(), file=out)
             print("  secrets are for nodeid: %s" % idlib.nodeid_b2a(lease.nodeid), file=out)
     else:
         print("No leases.", file=out)
@@ -251,8 +279,8 @@ def dump_SDMF_share(m, length, options):
 
     print(" SDMF contents:", file=out)
     print("  seqnum: %d" % seqnum, file=out)
-    print("  root_hash: %s" % base32.b2a(root_hash), file=out)
-    print("  IV: %s" % base32.b2a(IV), file=out)
+    print("  root_hash: %s" % str(base32.b2a(root_hash), "utf-8"), file=out)
+    print("  IV: %s" % str(base32.b2a(IV), "utf-8"), file=out)
     print("  required_shares: %d" % k, file=out)
     print("  total_shares: %d" % N, file=out)
     print("  segsize: %d" % segsize, file=out)
@@ -345,7 +373,7 @@ def dump_MDMF_share(m, length, options):
 
     print(" MDMF contents:", file=out)
     print("  seqnum: %d" % seqnum, file=out)
-    print("  root_hash: %s" % base32.b2a(root_hash), file=out)
+    print("  root_hash: %s" % str(base32.b2a(root_hash), "utf-8"), file=out)
     #print("  IV: %s" % base32.b2a(IV), file=out)
     print("  required_shares: %d" % k, file=out)
     print("  total_shares: %d" % N, file=out)
@@ -437,7 +465,7 @@ def dump_cap(options):
     from allmydata import uri
     from allmydata.util import base32
     from base64 import b32decode
-    import urlparse, urllib
+    from urllib.parse import unquote, urlparse
 
     out = options.stdout
     cap = options.cap
@@ -446,18 +474,18 @@ def dump_cap(options):
         nodeid = b32decode(options['nodeid'].upper())
     secret = None
     if options['client-secret']:
-        secret = base32.a2b(options['client-secret'])
+        secret = base32.a2b(options['client-secret'].encode("ascii"))
     elif options['client-dir']:
         secretfile = os.path.join(options['client-dir'], "private", "secret")
         try:
-            secret = base32.a2b(open(secretfile, "r").read().strip())
+            secret = base32.a2b(open(secretfile, "rb").read().strip())
         except EnvironmentError:
             pass
 
     if cap.startswith("http"):
-        scheme, netloc, path, params, query, fragment = urlparse.urlparse(cap)
+        scheme, netloc, path, params, query, fragment = urlparse(cap)
         assert path.startswith("/uri/")
-        cap = urllib.unquote(path[len("/uri/"):])
+        cap = unquote(path[len("/uri/"):])
 
     u = uri.from_string(cap)
 
@@ -470,19 +498,19 @@ def _dump_secrets(storage_index, secret, nodeid, out):
 
     if secret:
         crs = hashutil.my_renewal_secret_hash(secret)
-        print(" client renewal secret:", base32.b2a(crs), file=out)
+        print(" client renewal secret:", str(base32.b2a(crs), "ascii"), file=out)
         frs = hashutil.file_renewal_secret_hash(crs, storage_index)
-        print(" file renewal secret:", base32.b2a(frs), file=out)
+        print(" file renewal secret:", str(base32.b2a(frs), "ascii"), file=out)
         if nodeid:
             renew = hashutil.bucket_renewal_secret_hash(frs, nodeid)
-            print(" lease renewal secret:", base32.b2a(renew), file=out)
+            print(" lease renewal secret:", str(base32.b2a(renew), "ascii"), file=out)
         ccs = hashutil.my_cancel_secret_hash(secret)
-        print(" client cancel secret:", base32.b2a(ccs), file=out)
+        print(" client cancel secret:", str(base32.b2a(ccs), "ascii"), file=out)
         fcs = hashutil.file_cancel_secret_hash(ccs, storage_index)
-        print(" file cancel secret:", base32.b2a(fcs), file=out)
+        print(" file cancel secret:", str(base32.b2a(fcs), "ascii"), file=out)
         if nodeid:
             cancel = hashutil.bucket_cancel_secret_hash(fcs, nodeid)
-            print(" lease cancel secret:", base32.b2a(cancel), file=out)
+            print(" lease cancel secret:", str(base32.b2a(cancel), "ascii"), file=out)
 
 def dump_uri_instance(u, nodeid, secret, out, show_header=True):
     from allmydata import uri
@@ -493,19 +521,19 @@ def dump_uri_instance(u, nodeid, secret, out, show_header=True):
     if isinstance(u, uri.CHKFileURI):
         if show_header:
             print("CHK File:", file=out)
-        print(" key:", base32.b2a(u.key), file=out)
-        print(" UEB hash:", base32.b2a(u.uri_extension_hash), file=out)
+        print(" key:", str(base32.b2a(u.key), "ascii"), file=out)
+        print(" UEB hash:", str(base32.b2a(u.uri_extension_hash), "ascii"), file=out)
         print(" size:", u.size, file=out)
         print(" k/N: %d/%d" % (u.needed_shares, u.total_shares), file=out)
-        print(" storage index:", si_b2a(u.get_storage_index()), file=out)
+        print(" storage index:", str(si_b2a(u.get_storage_index()), "ascii"), file=out)
         _dump_secrets(u.get_storage_index(), secret, nodeid, out)
     elif isinstance(u, uri.CHKFileVerifierURI):
         if show_header:
             print("CHK Verifier URI:", file=out)
-        print(" UEB hash:", base32.b2a(u.uri_extension_hash), file=out)
+        print(" UEB hash:", str(base32.b2a(u.uri_extension_hash), "ascii"), file=out)
         print(" size:", u.size, file=out)
         print(" k/N: %d/%d" % (u.needed_shares, u.total_shares), file=out)
-        print(" storage index:", si_b2a(u.get_storage_index()), file=out)
+        print(" storage index:", str(si_b2a(u.get_storage_index()), "ascii"), file=out)
 
     elif isinstance(u, uri.LiteralFileURI):
         if show_header:
@@ -515,52 +543,52 @@ def dump_uri_instance(u, nodeid, secret, out, show_header=True):
     elif isinstance(u, uri.WriteableSSKFileURI): # SDMF
         if show_header:
             print("SDMF Writeable URI:", file=out)
-        print(" writekey:", base32.b2a(u.writekey), file=out)
-        print(" readkey:", base32.b2a(u.readkey), file=out)
-        print(" storage index:", si_b2a(u.get_storage_index()), file=out)
-        print(" fingerprint:", base32.b2a(u.fingerprint), file=out)
+        print(" writekey:", str(base32.b2a(u.writekey), "ascii"), file=out)
+        print(" readkey:", str(base32.b2a(u.readkey), "ascii"), file=out)
+        print(" storage index:", str(si_b2a(u.get_storage_index()), "ascii"), file=out)
+        print(" fingerprint:", str(base32.b2a(u.fingerprint), "ascii"), file=out)
         print(file=out)
         if nodeid:
             we = hashutil.ssk_write_enabler_hash(u.writekey, nodeid)
-            print(" write_enabler:", base32.b2a(we), file=out)
+            print(" write_enabler:", str(base32.b2a(we), "ascii"), file=out)
             print(file=out)
         _dump_secrets(u.get_storage_index(), secret, nodeid, out)
     elif isinstance(u, uri.ReadonlySSKFileURI):
         if show_header:
             print("SDMF Read-only URI:", file=out)
-        print(" readkey:", base32.b2a(u.readkey), file=out)
-        print(" storage index:", si_b2a(u.get_storage_index()), file=out)
-        print(" fingerprint:", base32.b2a(u.fingerprint), file=out)
+        print(" readkey:", str(base32.b2a(u.readkey), "ascii"), file=out)
+        print(" storage index:", str(si_b2a(u.get_storage_index()), "ascii"), file=out)
+        print(" fingerprint:", str(base32.b2a(u.fingerprint), "ascii"), file=out)
     elif isinstance(u, uri.SSKVerifierURI):
         if show_header:
             print("SDMF Verifier URI:", file=out)
-        print(" storage index:", si_b2a(u.get_storage_index()), file=out)
-        print(" fingerprint:", base32.b2a(u.fingerprint), file=out)
+        print(" storage index:", str(si_b2a(u.get_storage_index()), "ascii"), file=out)
+        print(" fingerprint:", str(base32.b2a(u.fingerprint), "ascii"), file=out)
 
     elif isinstance(u, uri.WriteableMDMFFileURI): # MDMF
         if show_header:
             print("MDMF Writeable URI:", file=out)
-        print(" writekey:", base32.b2a(u.writekey), file=out)
-        print(" readkey:", base32.b2a(u.readkey), file=out)
-        print(" storage index:", si_b2a(u.get_storage_index()), file=out)
-        print(" fingerprint:", base32.b2a(u.fingerprint), file=out)
+        print(" writekey:", str(base32.b2a(u.writekey), "ascii"), file=out)
+        print(" readkey:", str(base32.b2a(u.readkey), "ascii"), file=out)
+        print(" storage index:", str(si_b2a(u.get_storage_index()), "ascii"), file=out)
+        print(" fingerprint:", str(base32.b2a(u.fingerprint), "ascii"), file=out)
         print(file=out)
         if nodeid:
             we = hashutil.ssk_write_enabler_hash(u.writekey, nodeid)
-            print(" write_enabler:", base32.b2a(we), file=out)
+            print(" write_enabler:", str(base32.b2a(we), "ascii"), file=out)
             print(file=out)
         _dump_secrets(u.get_storage_index(), secret, nodeid, out)
     elif isinstance(u, uri.ReadonlyMDMFFileURI):
         if show_header:
             print("MDMF Read-only URI:", file=out)
-        print(" readkey:", base32.b2a(u.readkey), file=out)
-        print(" storage index:", si_b2a(u.get_storage_index()), file=out)
-        print(" fingerprint:", base32.b2a(u.fingerprint), file=out)
+        print(" readkey:", str(base32.b2a(u.readkey), "ascii"), file=out)
+        print(" storage index:", str(si_b2a(u.get_storage_index()), "ascii"), file=out)
+        print(" fingerprint:", str(base32.b2a(u.fingerprint), "ascii"), file=out)
     elif isinstance(u, uri.MDMFVerifierURI):
         if show_header:
             print("MDMF Verifier URI:", file=out)
-        print(" storage index:", si_b2a(u.get_storage_index()), file=out)
-        print(" fingerprint:", base32.b2a(u.fingerprint), file=out)
+        print(" storage index:", str(si_b2a(u.get_storage_index()), "ascii"), file=out)
+        print(" fingerprint:", str(base32.b2a(u.fingerprint), "ascii"), file=out)
 
 
     elif isinstance(u, uri.ImmutableDirectoryURI): # CHK-based directory
@@ -608,7 +636,7 @@ class FindSharesOptions(BaseOptions):
     def parseArgs(self, storage_index_s, *nodedirs):
         from allmydata.util.encodingutil import argv_to_abspath
         self.si_s = storage_index_s
-        self.nodedirs = map(argv_to_abspath, nodedirs)
+        self.nodedirs = list(map(argv_to_abspath, nodedirs))
 
     description = """
 Locate all shares for the given storage index. This command looks through one
@@ -638,7 +666,7 @@ def find_shares(options):
     from allmydata.util.encodingutil import listdir_unicode, quote_local_unicode_path
 
     out = options.stdout
-    sharedir = storage_index_to_dir(si_a2b(options.si_s))
+    sharedir = storage_index_to_dir(si_a2b(options.si_s.encode("utf-8")))
     for d in options.nodedirs:
         d = os.path.join(d, "storage", "shares", sharedir)
         if os.path.exists(d):
@@ -651,7 +679,7 @@ def find_shares(options):
 class CatalogSharesOptions(BaseOptions):
     def parseArgs(self, *nodedirs):
         from allmydata.util.encodingutil import argv_to_abspath
-        self.nodedirs = map(argv_to_abspath, nodedirs)
+        self.nodedirs = list(map(argv_to_abspath, nodedirs))
         if not nodedirs:
             raise usage.UsageError("must specify at least one node directory")
 
@@ -689,125 +717,122 @@ def call(c, *args, **kwargs):
     return results[0]
 
 def describe_share(abs_sharefile, si_s, shnum_s, now, out):
-    from allmydata import uri
-    from allmydata.storage.mutable import MutableShareFile
-    from allmydata.storage.immutable import ShareFile
-    from allmydata.mutable.layout import unpack_share
-    from allmydata.mutable.common import NeedMoreDataError
-    from allmydata.immutable.layout import ReadBucketProxy
-    from allmydata.util import base32
-    from allmydata.util.encodingutil import quote_output
-    import struct
-
-    f = open(abs_sharefile, "rb")
-    prefix = f.read(32)
-
-    if prefix == MutableShareFile.MAGIC:
-        # mutable share
-        m = MutableShareFile(abs_sharefile)
-        WE, nodeid = m._read_write_enabler_and_nodeid(f)
-        data_length = m._read_data_length(f)
-        expiration_time = min( [lease.expiration_time
-                                for (i,lease) in m._enumerate_leases(f)] )
-        expiration = max(0, expiration_time - now)
-
-        share_type = "unknown"
-        f.seek(m.DATA_OFFSET)
-        version = f.read(1)
-        if version == b"\x00":
-            # this slot contains an SMDF share
-            share_type = "SDMF"
-        elif version == b"\x01":
-            share_type = "MDMF"
-
-        if share_type == "SDMF":
-            f.seek(m.DATA_OFFSET)
-            data = f.read(min(data_length, 2000))
-
-            try:
-                pieces = unpack_share(data)
-            except NeedMoreDataError as e:
-                # retry once with the larger size
-                size = e.needed_bytes
-                f.seek(m.DATA_OFFSET)
-                data = f.read(min(data_length, size))
-                pieces = unpack_share(data)
-            (seqnum, root_hash, IV, k, N, segsize, datalen,
-             pubkey, signature, share_hash_chain, block_hash_tree,
-             share_data, enc_privkey) = pieces
-
-            print("SDMF %s %d/%d %d #%d:%s %d %s" % \
-                  (si_s, k, N, datalen,
-                   seqnum, base32.b2a(root_hash),
-                   expiration, quote_output(abs_sharefile)), file=out)
-        elif share_type == "MDMF":
-            from allmydata.mutable.layout import MDMFSlotReadProxy
-            fake_shnum = 0
-            # TODO: factor this out with dump_MDMF_share()
-            class ShareDumper(MDMFSlotReadProxy):
-                def _read(self, readvs, force_remote=False, queue=False):
-                    data = []
-                    for (where,length) in readvs:
-                        f.seek(m.DATA_OFFSET+where)
-                        data.append(f.read(length))
-                    return defer.succeed({fake_shnum: data})
-
-            p = ShareDumper(None, "fake-si", fake_shnum)
-            def extract(func):
-                stash = []
-                # these methods return Deferreds, but we happen to know that
-                # they run synchronously when not actually talking to a
-                # remote server
-                d = func()
-                d.addCallback(stash.append)
-                return stash[0]
-
-            verinfo = extract(p.get_verinfo)
-            (seqnum, root_hash, salt_to_use, segsize, datalen, k, N, prefix,
-             offsets) = verinfo
-            print("MDMF %s %d/%d %d #%d:%s %d %s" % \
-                  (si_s, k, N, datalen,
-                   seqnum, base32.b2a(root_hash),
-                   expiration, quote_output(abs_sharefile)), file=out)
+    with open(abs_sharefile, "rb") as f:
+        prefix = f.read(32)
+        if MutableShareFile.is_valid_header(prefix):
+            _describe_mutable_share(abs_sharefile, f, now, si_s, out)
+        elif ShareFile.is_valid_header(prefix):
+            _describe_immutable_share(abs_sharefile, now, si_s, out)
         else:
-            print("UNKNOWN mutable %s" % quote_output(abs_sharefile), file=out)
+            print("UNKNOWN really-unknown %s" % quote_output(abs_sharefile), file=out)
 
-    elif struct.unpack(">L", prefix[:4]) == (1,):
-        # immutable
+def _describe_mutable_share(abs_sharefile, f, now, si_s, out):
+    # mutable share
+    m = MutableShareFile(abs_sharefile)
+    WE, nodeid = m._read_write_enabler_and_nodeid(f)
+    data_length = m._read_data_length(f)
+    expiration_time = min( [lease.get_expiration_time()
+                            for (i,lease) in m._enumerate_leases(f)] )
+    expiration = max(0, expiration_time - now)
 
-        class ImmediateReadBucketProxy(ReadBucketProxy):
-            def __init__(self, sf):
-                self.sf = sf
-                ReadBucketProxy.__init__(self, None, None, "")
-            def __repr__(self):
-                return "<ImmediateReadBucketProxy>"
-            def _read(self, offset, size):
-                return defer.succeed(sf.read_share_data(offset, size))
+    share_type = "unknown"
+    f.seek(m.DATA_OFFSET)
+    version = f.read(1)
+    if version == b"\x00":
+        # this slot contains an SMDF share
+        share_type = "SDMF"
+    elif version == b"\x01":
+        share_type = "MDMF"
 
-        # use a ReadBucketProxy to parse the bucket and find the uri extension
-        sf = ShareFile(abs_sharefile)
-        bp = ImmediateReadBucketProxy(sf)
+    if share_type == "SDMF":
+        f.seek(m.DATA_OFFSET)
 
-        expiration_time = min( [lease.expiration_time
-                                for lease in sf.get_leases()] )
-        expiration = max(0, expiration_time - now)
+        # Read at least the mutable header length, if possible.  If there's
+        # less data than that in the share, don't try to read more (we won't
+        # be able to unpack the header in this case but we surely don't want
+        # to try to unpack bytes *following* the data section as if they were
+        # header data).  Rather than 2000 we could use HEADER_LENGTH from
+        # allmydata/mutable/layout.py, probably.
+        data = f.read(min(data_length, 2000))
 
-        UEB_data = call(bp.get_uri_extension)
-        unpacked = uri.unpack_extension_readable(UEB_data)
+        try:
+            pieces = unpack_share(data)
+        except NeedMoreDataError as e:
+            # retry once with the larger size
+            size = e.needed_bytes
+            f.seek(m.DATA_OFFSET)
+            data = f.read(min(data_length, size))
+            pieces = unpack_share(data)
+        (seqnum, root_hash, IV, k, N, segsize, datalen,
+         pubkey, signature, share_hash_chain, block_hash_tree,
+         share_data, enc_privkey) = pieces
 
-        k = unpacked["needed_shares"]
-        N = unpacked["total_shares"]
-        filesize = unpacked["size"]
-        ueb_hash = unpacked["UEB_hash"]
+        print("SDMF %s %d/%d %d #%d:%s %d %s" % \
+              (si_s, k, N, datalen,
+               seqnum, str(base32.b2a(root_hash), "utf-8"),
+               expiration, quote_output(abs_sharefile)), file=out)
+    elif share_type == "MDMF":
+        fake_shnum = 0
+        # TODO: factor this out with dump_MDMF_share()
+        class ShareDumper(MDMFSlotReadProxy):
+            def _read(self, readvs, force_remote=False, queue=False):
+                data = []
+                for (where,length) in readvs:
+                    f.seek(m.DATA_OFFSET+where)
+                    data.append(f.read(length))
+                return defer.succeed({fake_shnum: data})
 
-        print("CHK %s %d/%d %d %s %d %s" % (si_s, k, N, filesize,
-                                                   ueb_hash, expiration,
-                                                   quote_output(abs_sharefile)), file=out)
+        p = ShareDumper(None, "fake-si", fake_shnum)
+        def extract(func):
+            stash = []
+            # these methods return Deferreds, but we happen to know that
+            # they run synchronously when not actually talking to a
+            # remote server
+            d = func()
+            d.addCallback(stash.append)
+            return stash[0]
 
+        verinfo = extract(p.get_verinfo)
+        (seqnum, root_hash, salt_to_use, segsize, datalen, k, N, prefix,
+         offsets) = verinfo
+        print("MDMF %s %d/%d %d #%d:%s %d %s" % \
+              (si_s, k, N, datalen,
+               seqnum, str(base32.b2a(root_hash), "utf-8"),
+               expiration, quote_output(abs_sharefile)), file=out)
     else:
-        print("UNKNOWN really-unknown %s" % quote_output(abs_sharefile), file=out)
+        print("UNKNOWN mutable %s" % quote_output(abs_sharefile), file=out)
 
-    f.close()
+
+def _describe_immutable_share(abs_sharefile, now, si_s, out):
+    class ImmediateReadBucketProxy(ReadBucketProxy):
+        def __init__(self, sf):
+            self.sf = sf
+            ReadBucketProxy.__init__(self, None, None, "")
+        def __repr__(self):
+            return "<ImmediateReadBucketProxy>"
+        def _read(self, offset, size):
+            return defer.succeed(sf.read_share_data(offset, size))
+
+    # use a ReadBucketProxy to parse the bucket and find the uri extension
+    sf = ShareFile(abs_sharefile)
+    bp = ImmediateReadBucketProxy(sf)
+
+    expiration_time = min(lease.get_expiration_time()
+                          for lease in sf.get_leases())
+    expiration = max(0, expiration_time - now)
+
+    UEB_data = call(bp.get_uri_extension)
+    unpacked = uri.unpack_extension_readable(UEB_data)
+
+    k = unpacked["needed_shares"]
+    N = unpacked["total_shares"]
+    filesize = unpacked["size"]
+    ueb_hash = unpacked["UEB_hash"]
+
+    print("CHK %s %d/%d %d %s %d %s" % (si_s, k, N, filesize,
+                                        str(ueb_hash, "utf-8"), expiration,
+                                        quote_output(abs_sharefile)), file=out)
+
 
 def catalog_shares(options):
     from allmydata.util.encodingutil import listdir_unicode, quote_output
@@ -905,39 +930,40 @@ def corrupt_share(options):
         f = open(fn, "rb+")
         f.seek(offset)
         d = f.read(1)
-        d = chr(ord(d) ^ 0x01)
+        d = bchr(ord(d) ^ 0x01)
         f.seek(offset)
         f.write(d)
         f.close()
 
-    f = open(fn, "rb")
-    prefix = f.read(32)
-    f.close()
-    if prefix == MutableShareFile.MAGIC:
-        # mutable
-        m = MutableShareFile(fn)
-        f = open(fn, "rb")
-        f.seek(m.DATA_OFFSET)
-        data = f.read(2000)
-        # make sure this slot contains an SMDF share
-        assert data[0] == b"\x00", "non-SDMF mutable shares not supported"
-        f.close()
+    with open(fn, "rb") as f:
+        prefix = f.read(32)
 
-        (version, ig_seqnum, ig_roothash, ig_IV, ig_k, ig_N, ig_segsize,
-         ig_datalen, offsets) = unpack_header(data)
+        if MutableShareFile.is_valid_header(prefix):
+            # mutable
+            m = MutableShareFile(fn)
+            with open(fn, "rb") as f:
+                f.seek(m.DATA_OFFSET)
+                # Read enough data to get a mutable header to unpack.
+                data = f.read(2000)
+            # make sure this slot contains an SMDF share
+            assert data[0:1] == b"\x00", "non-SDMF mutable shares not supported"
+            f.close()
 
-        assert version == 0, "we only handle v0 SDMF files"
-        start = m.DATA_OFFSET + offsets["share_data"]
-        end = m.DATA_OFFSET + offsets["enc_privkey"]
-        flip_bit(start, end)
-    else:
-        # otherwise assume it's immutable
-        f = ShareFile(fn)
-        bp = ReadBucketProxy(None, None, '')
-        offsets = bp._parse_offsets(f.read_share_data(0, 0x24))
-        start = f._data_offset + offsets["data"]
-        end = f._data_offset + offsets["plaintext_hash_tree"]
-        flip_bit(start, end)
+            (version, ig_seqnum, ig_roothash, ig_IV, ig_k, ig_N, ig_segsize,
+             ig_datalen, offsets) = unpack_header(data)
+
+            assert version == 0, "we only handle v0 SDMF files"
+            start = m.DATA_OFFSET + offsets["share_data"]
+            end = m.DATA_OFFSET + offsets["enc_privkey"]
+            flip_bit(start, end)
+        else:
+            # otherwise assume it's immutable
+            f = ShareFile(fn)
+            bp = ReadBucketProxy(None, None, '')
+            offsets = bp._parse_offsets(f.read_share_data(0, 0x24))
+            start = f._data_offset + offsets["data"]
+            end = f._data_offset + offsets["plaintext_hash_tree"]
+            flip_bit(start, end)
 
 
 
@@ -975,7 +1001,7 @@ def fixOptionsClass(args):
 class FlogtoolOptions(foolscap_cli.Options):
     def __init__(self):
         super(FlogtoolOptions, self).__init__()
-        self.subCommands = map(fixOptionsClass, self.subCommands)
+        self.subCommands = list(map(fixOptionsClass, self.subCommands))
 
     def getSynopsis(self):
         return "Usage: tahoe [global-options] debug flogtool COMMAND [flogtool-options]"
@@ -1051,8 +1077,8 @@ def do_debug(options):
 
 
 subCommands = [
-    ["debug", None, DebugCommand, "debug subcommands: use 'tahoe debug' for a list."],
-    ]
+    ("debug", None, DebugCommand, "debug subcommands: use 'tahoe debug' for a list."),
+    ]  # type: SubCommands
 
 dispatch = {
     "debug": do_debug,

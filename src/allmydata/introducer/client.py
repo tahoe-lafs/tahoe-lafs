@@ -1,10 +1,22 @@
-from past.builtins import unicode, long
-from six import ensure_text
+"""
+Ported to Python 3.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+from past.builtins import long
+
+from six import ensure_text, ensure_str
 
 import time
 from zope.interface import implementer
 from twisted.application import service
-from foolscap.api import Referenceable, eventually
+from foolscap.api import Referenceable
 from allmydata.interfaces import InsufficientVersionError
 from allmydata.introducer.interfaces import IIntroducerClient, \
      RIIntroducerSubscriberClient_v2
@@ -12,6 +24,9 @@ from allmydata.introducer.common import sign_to_foolscap, unsign_from_foolscap,\
      get_tubid_string_from_ann
 from allmydata.util import log, yamlutil, connection_status
 from allmydata.util.rrefutil import add_version_to_remote_reference
+from allmydata.util.observer import (
+    ObserverList,
+)
 from allmydata.crypto.error import BadSignature
 from allmydata.util.assertutil import precondition
 
@@ -27,11 +42,9 @@ class IntroducerClient(service.Service, Referenceable):
                  nickname, my_version, oldest_supported,
                  sequencer, cache_filepath):
         self._tub = tub
-        if isinstance(introducer_furl, unicode):
-            introducer_furl = introducer_furl.encode("utf-8")
         self.introducer_furl = introducer_furl
 
-        assert type(nickname) is unicode
+        assert isinstance(nickname, str)
         self._nickname = nickname
         self._my_version = my_version
         self._oldest_supported = oldest_supported
@@ -52,8 +65,7 @@ class IntroducerClient(service.Service, Referenceable):
         self._publisher = None
         self._since = None
 
-        self._local_subscribers = [] # (servicename,cb,args,kwargs) tuples
-        self._subscribed_service_names = set()
+        self._local_subscribers = {} # {servicename: ObserverList}
         self._subscriptions = set() # requests we've actually sent
 
         # _inbound_announcements remembers one announcement per
@@ -84,7 +96,7 @@ class IntroducerClient(service.Service, Referenceable):
     def startService(self):
         service.Service.startService(self)
         self._introducer_error = None
-        rc = self._tub.connectTo(self.introducer_furl, self._got_introducer)
+        rc = self._tub.connectTo(ensure_str(self.introducer_furl), self._got_introducer)
         self._introducer_reconnector = rc
         def connect_failed(failure):
             self.log("Initial Introducer connection failed: perhaps it's down",
@@ -114,7 +126,7 @@ class IntroducerClient(service.Service, Referenceable):
 
     def _save_announcements(self):
         announcements = []
-        for _, value in self._inbound_announcements.items():
+        for value in self._inbound_announcements.values():
             ann, key_s, time_stamp = value
             # On Python 2, bytes strings are encoded into YAML Unicode strings.
             # On Python 3, bytes are encoded as YAML bytes. To minimize
@@ -125,7 +137,7 @@ class IntroducerClient(service.Service, Referenceable):
                 }
             announcements.append(server_params)
         announcement_cache_yaml = yamlutil.safe_dump(announcements)
-        if isinstance(announcement_cache_yaml, unicode):
+        if isinstance(announcement_cache_yaml, str):
             announcement_cache_yaml = announcement_cache_yaml.encode("utf-8")
         self._cache_filepath.setContent(announcement_cache_yaml)
 
@@ -166,22 +178,22 @@ class IntroducerClient(service.Service, Referenceable):
             kwargs["facility"] = "tahoe.introducer.client"
         return log.msg(*args, **kwargs)
 
-    def subscribe_to(self, service_name, cb, *args, **kwargs):
-        self._local_subscribers.append( (service_name,cb,args,kwargs) )
-        self._subscribed_service_names.add(service_name)
+    def subscribe_to(self, service_name, callback, *args, **kwargs):
+        obs = self._local_subscribers.setdefault(service_name, ObserverList())
+        obs.subscribe(lambda key_s, ann: callback(key_s, ann, *args, **kwargs))
         self._maybe_subscribe()
-        for index,(ann,key_s,when) in self._inbound_announcements.items():
+        for index,(ann,key_s,when) in list(self._inbound_announcements.items()):
             precondition(isinstance(key_s, bytes), key_s)
             servicename = index[0]
             if servicename == service_name:
-                eventually(cb, key_s, ann, *args, **kwargs)
+                obs.notify(key_s, ann)
 
     def _maybe_subscribe(self):
         if not self._publisher:
             self.log("want to subscribe, but no introducer yet",
                      level=log.NOISY)
             return
-        for service_name in self._subscribed_service_names:
+        for service_name in self._local_subscribers:
             if service_name in self._subscriptions:
                 continue
             self._subscriptions.add(service_name)
@@ -215,7 +227,7 @@ class IntroducerClient(service.Service, Referenceable):
         self._outbound_announcements[service_name] = ann_d
 
         # publish all announcements with the new seqnum and nonce
-        for service_name,ann_d in self._outbound_announcements.items():
+        for service_name,ann_d in list(self._outbound_announcements.items()):
             ann_d["seqnum"] = current_seqnum
             ann_d["nonce"] = current_nonce
             ann_t = sign_to_foolscap(ann_d, signing_key)
@@ -227,7 +239,7 @@ class IntroducerClient(service.Service, Referenceable):
             self.log("want to publish, but no introducer yet", level=log.NOISY)
             return
         # this re-publishes everything. The Introducer ignores duplicates
-        for ann_t in self._published_announcements.values():
+        for ann_t in list(self._published_announcements.values()):
             self._debug_counts["outbound_message"] += 1
             self._debug_outstanding += 1
             d = self._publisher.callRemote("publish_v2", ann_t, self._canary)
@@ -260,14 +272,14 @@ class IntroducerClient(service.Service, Referenceable):
         precondition(isinstance(key_s, bytes), key_s)
         self._debug_counts["inbound_announcement"] += 1
         service_name = str(ann["service-name"])
-        if service_name not in self._subscribed_service_names:
+        if service_name not in self._local_subscribers:
             self.log("announcement for a service we don't care about [%s]"
                      % (service_name,), level=log.UNUSUAL, umid="dIpGNA")
             self._debug_counts["wrong_service"] += 1
             return
         # for ASCII values, simplejson might give us unicode *or* bytes
         if "nickname" in ann and isinstance(ann["nickname"], bytes):
-            ann["nickname"] = unicode(ann["nickname"])
+            ann["nickname"] = str(ann["nickname"])
         nick_s = ann.get("nickname",u"").encode("utf-8")
         lp2 = self.log(format="announcement for nickname '%(nick)s', service=%(svc)s: %(ann)s",
                        nick=nick_s, svc=service_name, ann=ann, umid="BoKEag")
@@ -331,9 +343,9 @@ class IntroducerClient(service.Service, Referenceable):
     def _deliver_announcements(self, key_s, ann):
         precondition(isinstance(key_s, bytes), key_s)
         service_name = str(ann["service-name"])
-        for (service_name2,cb,args,kwargs) in self._local_subscribers:
-            if service_name2 == service_name:
-                eventually(cb, key_s, ann, *args, **kwargs)
+        obs = self._local_subscribers.get(service_name)
+        if obs is not None:
+            obs.notify(key_s, ann)
 
     def connection_status(self):
         assert self.running # startService builds _introducer_reconnector

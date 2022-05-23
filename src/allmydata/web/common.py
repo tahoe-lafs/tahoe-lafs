@@ -1,4 +1,22 @@
-from past.builtins import unicode
+"""
+Ported to Python 3.
+"""
+from __future__ import division
+from __future__ import absolute_import
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, max, min  # noqa: F401
+    from past.builtins import unicode as str  # prevent leaking newbytes/newstr into code that can't handle it
+
+from six import ensure_str
+
+try:
+    from typing import Optional, Union, Tuple, Any
+except ImportError:
+    pass
 
 import time
 import json
@@ -50,6 +68,7 @@ from twisted.web.resource import (
     IResource,
 )
 
+from allmydata.dirnode import ONLY_FILES, _OnlyFiles
 from allmydata import blacklist
 from allmydata.interfaces import (
     EmptyPathnameComponentError,
@@ -71,13 +90,16 @@ from allmydata.util.time_format import (
 )
 from allmydata.util.encodingutil import (
     quote_output,
+    quote_output_u,
     to_bytes,
 )
+from allmydata.util import abbreviate
 
-# Originally part of this module, so still part of its API:
-from .common_py3 import (  # noqa: F401
-    get_arg, abbreviate_time, MultiFormatResource, WebError,
-)
+
+class WebError(Exception):
+    def __init__(self, text, code=http.BAD_REQUEST):
+        self.text = text
+        self.code = code
 
 
 def get_filenode_metadata(filenode):
@@ -97,19 +119,21 @@ def get_filenode_metadata(filenode):
         metadata['size'] = size
     return metadata
 
-def boolean_of_arg(arg):
-    # TODO: ""
-    if arg.lower() not in ("true", "t", "1", "false", "f", "0", "on", "off"):
+def boolean_of_arg(arg):  # type: (bytes) -> bool
+    assert isinstance(arg, bytes)
+    if arg.lower() not in (b"true", b"t", b"1", b"false", b"f", b"0", b"on", b"off"):
         raise WebError("invalid boolean argument: %r" % (arg,), http.BAD_REQUEST)
-    return arg.lower() in ("true", "t", "1", "on")
+    return arg.lower() in (b"true", b"t", b"1", b"on")
 
-def parse_replace_arg(replace):
-    if replace.lower() == "only-files":
-        return replace
+
+def parse_replace_arg(replace):  # type: (bytes) -> Union[bool,_OnlyFiles]
+    assert isinstance(replace, bytes)
+    if replace.lower() == b"only-files":
+        return ONLY_FILES
     try:
         return boolean_of_arg(replace)
     except WebError:
-        raise WebError("invalid replace= argument: %r" % (replace,), http.BAD_REQUEST)
+        raise WebError("invalid replace= argument: %r" % (ensure_str(replace),), http.BAD_REQUEST)
 
 
 def get_format(req, default="CHK"):
@@ -118,14 +142,14 @@ def get_format(req, default="CHK"):
         if boolean_of_arg(get_arg(req, "mutable", "false")):
             return "SDMF"
         return default
-    if arg.upper() == "CHK":
+    if arg.upper() == b"CHK":
         return "CHK"
-    elif arg.upper() == "SDMF":
+    elif arg.upper() == b"SDMF":
         return "SDMF"
-    elif arg.upper() == "MDMF":
+    elif arg.upper() == b"MDMF":
         return "MDMF"
     else:
-        raise WebError("Unknown format: %s, I know CHK, SDMF, MDMF" % arg,
+        raise WebError("Unknown format: %s, I know CHK, SDMF, MDMF" % str(arg, "ascii"),
                        http.BAD_REQUEST)
 
 def get_mutable_type(file_format): # accepts result of get_format()
@@ -142,19 +166,19 @@ def get_mutable_type(file_format): # accepts result of get_format()
         return None
 
 
-def parse_offset_arg(offset):
+def parse_offset_arg(offset):  # type: (bytes) -> Union[int,None]
     # XXX: This will raise a ValueError when invoked on something that
     # is not an integer. Is that okay? Or do we want a better error
     # message? Since this call is going to be used by programmers and
     # their tools rather than users (through the wui), it is not
     # inconsistent to return that, I guess.
     if offset is not None:
-        offset = int(offset)
+        return int(offset)
 
     return offset
 
 
-def get_root(req):
+def get_root(req):  # type: (IRequest) -> str
     """
     Get a relative path with parent directory segments that refers to the root
     location known to the given request.  This seems a lot like the constant
@@ -183,8 +207,8 @@ def convert_children_json(nodemaker, children_json):
     children = {}
     if children_json:
         data = json.loads(children_json)
-        for (namex, (ctype, propdict)) in data.iteritems():
-            namex = unicode(namex)
+        for (namex, (ctype, propdict)) in list(data.items()):
+            namex = str(namex)
             writecap = to_bytes(propdict.get("rw_uri"))
             readcap = to_bytes(propdict.get("ro_uri"))
             metadata = propdict.get("metadata", {})
@@ -205,31 +229,49 @@ def compute_rate(bytes, seconds):
     assert bytes > -1
     assert seconds > 0
 
-    return 1.0 * bytes / seconds
+    return bytes / seconds
+
 
 def abbreviate_rate(data):
-    # 21.8kBps, 554.4kBps 4.37MBps
+    """
+    Convert number of bytes/second into human readable strings (unicode).
+
+    Uses metric measures, so 1000 not 1024, e.g. 21.8kBps, 554.4kBps, 4.37MBps.
+
+    :param data: Either ``None`` or integer.
+
+    :return: Unicode string.
+    """
     if data is None:
-        return ""
+        return u""
     r = float(data)
     if r > 1000000:
-        return "%1.2fMBps" % (r/1000000)
+        return u"%1.2fMBps" % (r/1000000)
     if r > 1000:
-        return "%.1fkBps" % (r/1000)
-    return "%.0fBps" % r
+        return u"%.1fkBps" % (r/1000)
+    return u"%.0fBps" % r
+
 
 def abbreviate_size(data):
-    # 21.8kB, 554.4kB 4.37MB
+    """
+    Convert number of bytes into human readable strings (unicode).
+
+    Uses metric measures, so 1000 not 1024, e.g. 21.8kB, 554.4kB, 4.37MB.
+
+    :param data: Either ``None`` or integer.
+
+    :return: Unicode string.
+    """
     if data is None:
-        return ""
+        return u""
     r = float(data)
     if r > 1000000000:
-        return "%1.2fGB" % (r/1000000000)
+        return u"%1.2fGB" % (r/1000000000)
     if r > 1000000:
-        return "%1.2fMB" % (r/1000000)
+        return u"%1.2fMB" % (r/1000000)
     if r > 1000:
-        return "%.1fkB" % (r/1000)
-    return "%.0fB" % r
+        return u"%.1fkB" % (r/1000)
+    return u"%.0fB" % r
 
 def plural(sequence_or_length):
     if isinstance(sequence_or_length, int):
@@ -246,7 +288,7 @@ def text_plain(text, req):
     return text
 
 def spaces_to_nbsp(text):
-    return unicode(text).replace(u' ', u'\u00A0')
+    return str(text).replace(u' ', u'\u00A0')
 
 def render_time_delta(time_1, time_2):
     return spaces_to_nbsp(format_delta(time_1, time_2))
@@ -264,8 +306,8 @@ def render_time_attr(t):
 # actual exception). The latter is growing increasingly annoying.
 
 def should_create_intermediate_directories(req):
-    t = get_arg(req, "t", "").strip()
-    return bool(req.method in ("PUT", "POST") and
+    t = str(get_arg(req, "t", "").strip(), "ascii")
+    return bool(req.method in (b"PUT", b"POST") and
                 t not in ("delete", "rename", "rename-form", "check"))
 
 def humanize_exception(exc):
@@ -283,7 +325,7 @@ def humanize_exception(exc):
         return ("There was already a child by that name, and you asked me "
                 "to not replace it.", http.CONFLICT)
     if isinstance(exc, NoSuchChildError):
-        quoted_name = quote_output(exc.args[0], encoding="utf-8", quotemarks=False)
+        quoted_name = quote_output_u(exc.args[0], quotemarks=False)
         return ("No such child: %s" % quoted_name, http.NOT_FOUND)
     if isinstance(exc, NotEnoughSharesError):
         t = ("NotEnoughSharesError: This indicates that some "
@@ -546,7 +588,7 @@ def _finish(result, render, request):
             resource=fullyQualifiedName(type(result)),
         )
         result.render(request)
-    elif isinstance(result, unicode):
+    elif isinstance(result, str):
         Message.log(
             message_type=u"allmydata:web:common-render:unicode",
         )
@@ -562,7 +604,7 @@ def _finish(result, render, request):
         Message.log(
             message_type=u"allmydata:web:common-render:DecodedURL",
         )
-        _finish(redirectTo(str(result), request), render, request)
+        _finish(redirectTo(result.to_text().encode("utf-8"), request), render, request)
     elif result is None:
         Message.log(
             message_type=u"allmydata:web:common-render:None",
@@ -628,7 +670,7 @@ def _renderHTTP_exception(request, failure):
 def _renderHTTP_exception_simple(request, text, code):
     request.setResponseCode(code)
     request.setHeader("content-type", "text/plain;charset=utf-8")
-    if isinstance(text, unicode):
+    if isinstance(text, str):
         text = text.encode("utf-8")
     request.setHeader("content-length", b"%d" % len(text))
     return text
@@ -655,7 +697,7 @@ def url_for_string(req, url_string):
         and the given URL string.
     """
     url = DecodedURL.from_text(url_string.decode("utf-8"))
-    if url.host == b"":
+    if not url.host:
         root = req.URLPath()
         netloc = root.netloc.split(b":", 1)
         if len(netloc) == 1:
@@ -670,3 +712,124 @@ def url_for_string(req, url_string):
             port=port,
         )
     return url
+
+
+def get_arg(req, argname, default=None, multiple=False):  # type: (IRequest, Union[bytes,str], Any, bool) -> Union[bytes,Tuple[bytes],Any]
+    """Extract an argument from either the query args (req.args) or the form
+    body fields (req.fields). If multiple=False, this returns a single value
+    (or the default, which defaults to None), and the query args take
+    precedence. If multiple=True, this returns a tuple of arguments (possibly
+    empty), starting with all those in the query args.
+
+    :param TahoeLAFSRequest req: The request to consider.
+
+    :return: Either bytes or tuple of bytes.
+    """
+    if isinstance(argname, str):
+        argname = argname.encode("utf-8")
+    if isinstance(default, str):
+        default = default.encode("utf-8")
+    results = []
+    if argname in req.args:
+        results.extend(req.args[argname])
+    argname_unicode = str(argname, "utf-8")
+    if req.fields and argname_unicode in req.fields:
+        value = req.fields[argname_unicode].value
+        if isinstance(value, str):
+            value = value.encode("utf-8")
+        results.append(value)
+    if multiple:
+        return tuple(results)
+    if results:
+        return results[0]
+    return default
+
+
+class MultiFormatResource(resource.Resource, object):
+    """
+    ``MultiFormatResource`` is a ``resource.Resource`` that can be rendered in
+    a number of different formats.
+
+    Rendered format is controlled by a query argument (given by
+    ``self.formatArgument``).  Different resources may support different
+    formats but ``json`` is a pretty common one.  ``html`` is the default
+    format if nothing else is given as the ``formatDefault``.
+    """
+    formatArgument = "t"
+    formatDefault = None  # type: Optional[str]
+
+    def render(self, req):
+        """
+        Dispatch to a renderer for a particular format, as selected by a query
+        argument.
+
+        A renderer for the format given by the query argument matching
+        ``formatArgument`` will be selected and invoked.  render_HTML will be
+        used as a default if no format is selected (either by query arguments
+        or by ``formatDefault``).
+
+        :return: The result of the selected renderer.
+        """
+        t = get_arg(req, self.formatArgument, self.formatDefault)
+        # It's either bytes or None.
+        if isinstance(t, bytes):
+            t = str(t, "ascii")
+        renderer = self._get_renderer(t)
+        result = renderer(req)
+        # On Python 3, json.dumps() returns Unicode for example, but
+        # twisted.web expects bytes. Instead of updating every single render
+        # method, just handle Unicode one time here.
+        if isinstance(result, str):
+            result = result.encode("utf-8")
+        return result
+
+    def _get_renderer(self, fmt):
+        """
+        Get the renderer for the indicated format.
+
+        :param str fmt: The format.  If a method with a prefix of ``render_``
+            and a suffix of this format (upper-cased) is found, it will be
+            used.
+
+        :return: A callable which takes a twisted.web Request and renders a
+            response.
+        """
+        renderer = None
+
+        if fmt is not None:
+            try:
+                renderer = getattr(self, "render_{}".format(fmt.upper()))
+            except AttributeError:
+                return resource.ErrorPage(
+                    http.BAD_REQUEST,
+                    "Bad Format",
+                    "Unknown {} value: {!r}".format(self.formatArgument, fmt),
+                ).render
+
+        if renderer is None:
+            renderer = self.render_HTML
+
+        return renderer
+
+
+def abbreviate_time(data):
+    """
+    Convert number of seconds into human readable string.
+
+    :param data: Either ``None`` or integer or float, seconds.
+
+    :return: Unicode string.
+    """
+    # 1.23s, 790ms, 132us
+    if data is None:
+        return u""
+    s = float(data)
+    if s >= 10:
+        return abbreviate.abbreviate_time(data)
+    if s >= 1.0:
+        return u"%.2fs" % s
+    if s >= 0.01:
+        return u"%.0fms" % (1000*s)
+    if s >= 0.001:
+        return u"%.1fms" % (1000*s)
+    return u"%.0fus" % (1000000*s)

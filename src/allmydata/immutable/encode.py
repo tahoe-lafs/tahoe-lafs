@@ -90,7 +90,7 @@ PiB=1024*TiB
 @implementer(IEncoder)
 class Encoder(object):
 
-    def __init__(self, log_parent=None, upload_status=None, progress=None):
+    def __init__(self, log_parent=None, upload_status=None):
         object.__init__(self)
         self.uri_extension_data = {}
         self._codec = None
@@ -102,11 +102,10 @@ class Encoder(object):
         self._log_number = log.msg("creating Encoder %s" % self,
                                    facility="tahoe.encoder", parent=log_parent)
         self._aborted = False
-        self._progress = progress
 
     def __repr__(self):
         if hasattr(self, "_storage_index"):
-            return "<Encoder for %s>" % si_b2a(self._storage_index)[:5]
+            return "<Encoder for %r>" % si_b2a(self._storage_index)[:5]
         return "<Encoder for unknown storage index>"
 
     def log(self, *args, **kwargs):
@@ -123,8 +122,6 @@ class Encoder(object):
         def _got_size(size):
             self.log(format="file size: %(size)d", size=size)
             self.file_size = size
-            if self._progress:
-                self._progress.set_progress_total(self.file_size)
         d.addCallback(_got_size)
         d.addCallback(lambda res: eu.get_all_encoding_parameters())
         d.addCallback(self._got_all_encoding_parameters)
@@ -255,11 +252,11 @@ class Encoder(object):
             # captures the slot, not the value
             #d.addCallback(lambda res: self.do_segment(i))
             # use this form instead:
-            d.addCallback(lambda res, i=i: self._encode_segment(i))
+            d.addCallback(lambda res, i=i: self._encode_segment(i, is_tail=False))
             d.addCallback(self._send_segment, i)
             d.addCallback(self._turn_barrier)
         last_segnum = self.num_segments - 1
-        d.addCallback(lambda res: self._encode_tail_segment(last_segnum))
+        d.addCallback(lambda res: self._encode_segment(last_segnum, is_tail=True))
         d.addCallback(self._send_segment, last_segnum)
         d.addCallback(self._turn_barrier)
 
@@ -317,8 +314,24 @@ class Encoder(object):
             dl.append(d)
         return self._gather_responses(dl)
 
-    def _encode_segment(self, segnum):
-        codec = self._codec
+    def _encode_segment(self, segnum, is_tail):
+        """
+        Encode one segment of input into the configured number of shares.
+
+        :param segnum: Ostensibly, the number of the segment to encode.  In
+            reality, this parameter is ignored and the *next* segment is
+            encoded and returned.
+
+        :param bool is_tail: ``True`` if this is the last segment, ``False``
+            otherwise.
+
+        :return: A ``Deferred`` which fires with a two-tuple.  The first
+            element is a list of string-y objects representing the encoded
+            segment data for one of the shares.  The second element is a list
+            of integers giving the share numbers of the shares in the first
+            element.
+        """
+        codec = self._tail_codec if is_tail else self._codec
         start = time.time()
 
         # the ICodecEncoder API wants to receive a total of self.segment_size
@@ -350,37 +363,14 @@ class Encoder(object):
         # footprint to 430KiB at the expense of more hash-tree overhead.
 
         d = self._gather_data(self.required_shares, input_piece_size,
-                              crypttext_segment_hasher)
+                              crypttext_segment_hasher, allow_short=is_tail)
         def _done_gathering(chunks):
             for c in chunks:
+                # If is_tail then a short trailing chunk will have been padded
+                # by _gather_data
                 assert len(c) == input_piece_size
             self._crypttext_hashes.append(crypttext_segment_hasher.digest())
             # during this call, we hit 5*segsize memory
-            return codec.encode(chunks)
-        d.addCallback(_done_gathering)
-        def _done(res):
-            elapsed = time.time() - start
-            self._times["cumulative_encoding"] += elapsed
-            return res
-        d.addCallback(_done)
-        return d
-
-    def _encode_tail_segment(self, segnum):
-
-        start = time.time()
-        codec = self._tail_codec
-        input_piece_size = codec.get_block_size()
-
-        crypttext_segment_hasher = hashutil.crypttext_segment_hasher()
-
-        d = self._gather_data(self.required_shares, input_piece_size,
-                              crypttext_segment_hasher, allow_short=True)
-        def _done_gathering(chunks):
-            for c in chunks:
-                # a short trailing chunk will have been padded by
-                # _gather_data
-                assert len(c) == input_piece_size
-            self._crypttext_hashes.append(crypttext_segment_hasher.digest())
             return codec.encode(chunks)
         d.addCallback(_done_gathering)
         def _done(res):
@@ -468,13 +458,6 @@ class Encoder(object):
             self.block_hashes[shareid].append(block_hash)
 
         dl = self._gather_responses(dl)
-
-        def do_progress(ign):
-            done = self.segment_size * (segnum + 1)
-            if self._progress:
-                self._progress.set_progress(done)
-            return ign
-        dl.addCallback(do_progress)
 
         def _logit(res):
             self.log("%s uploaded %s / %s bytes (%d%%) of your file." %

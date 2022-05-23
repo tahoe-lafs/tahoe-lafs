@@ -1,5 +1,18 @@
+"""
+Ported to Python 3.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
 
-import json
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, max, min  # noqa: F401
+    # Use native unicode() as str() to prevent leaking futurebytes in ways that
+    # break string formattin.
+    from past.builtins import unicode as str
+from past.builtins import long
 
 from twisted.web import http, static
 from twisted.internet import defer
@@ -41,6 +54,8 @@ from allmydata.web.check_results import (
     LiteralCheckResultsRenderer,
 )
 from allmydata.web.info import MoreInfo
+from allmydata.util import jsonbytes as json
+
 
 class ReplaceMeMixin(object):
     def replace_me_with_a_child(self, req, client, replace):
@@ -117,7 +132,7 @@ class PlaceHolderNodeHandler(Resource, ReplaceMeMixin):
 
     @render_exception
     def render_PUT(self, req):
-        t = get_arg(req, "t", "").strip()
+        t = get_arg(req, b"t", b"").strip()
         replace = parse_replace_arg(get_arg(req, "replace", "true"))
 
         assert self.parentnode and self.name
@@ -126,16 +141,16 @@ class PlaceHolderNodeHandler(Resource, ReplaceMeMixin):
                            http.NOT_IMPLEMENTED)
         if not t:
             return self.replace_me_with_a_child(req, self.client, replace)
-        if t == "uri":
+        if t == b"uri":
             return self.replace_me_with_a_childcap(req, self.client, replace)
 
-        raise WebError("PUT to a file: bad t=%s" % t)
+        raise WebError("PUT to a file: bad t=%s" % str(t, "utf-8"))
 
     @render_exception
     def render_POST(self, req):
-        t = get_arg(req, "t", "").strip()
-        replace = boolean_of_arg(get_arg(req, "replace", "true"))
-        if t == "upload":
+        t = get_arg(req, b"t", b"").strip()
+        replace = boolean_of_arg(get_arg(req, b"replace", b"true"))
+        if t == b"upload":
             # like PUT, but get the file data from an HTML form's input field.
             # We could get here from POST /uri/mutablefilecap?t=upload,
             # or POST /uri/path/file?t=upload, or
@@ -146,7 +161,7 @@ class PlaceHolderNodeHandler(Resource, ReplaceMeMixin):
             # t=mkdir is handled in DirectoryNodeHandler._POST_mkdir, so
             # there are no other t= values left to be handled by the
             # placeholder.
-            raise WebError("POST to a file: bad t=%s" % t)
+            raise WebError("POST to a file: bad t=%s" % str(t, "utf-8"))
 
         return handle_when_done(req, d)
 
@@ -179,7 +194,7 @@ class FileNodeHandler(Resource, ReplaceMeMixin, object):
 
     @render_exception
     def render_GET(self, req):
-        t = get_arg(req, "t", "").strip()
+        t = str(get_arg(req, b"t", b"").strip(), "ascii")
 
         # t=info contains variable ophandles, so is not allowed an ETag.
         FIXED_OUTPUT_TYPES = ["", "json", "uri", "readonly-uri"]
@@ -187,8 +202,8 @@ class FileNodeHandler(Resource, ReplaceMeMixin, object):
             # if the client already has the ETag then we can
             # short-circuit the whole process.
             si = self.node.get_storage_index()
-            if si and req.setETag('%s-%s' % (base32.b2a(si), t or "")):
-                return ""
+            if si and req.setETag(b'%s-%s' % (base32.b2a(si), t.encode("ascii") or b"")):
+                return b""
 
         if not t:
             # just get the contents
@@ -237,19 +252,19 @@ class FileNodeHandler(Resource, ReplaceMeMixin, object):
 
     @render_exception
     def render_HEAD(self, req):
-        t = get_arg(req, "t", "").strip()
+        t = get_arg(req, b"t", b"").strip()
         if t:
             raise WebError("HEAD file: bad t=%s" % t)
-        filename = get_arg(req, "filename", self.name) or "unknown"
+        filename = get_arg(req, b"filename", self.name) or "unknown"
         d = self.node.get_best_readable_version()
         d.addCallback(lambda dn: FileDownloader(dn, filename))
         return d
 
     @render_exception
     def render_PUT(self, req):
-        t = get_arg(req, "t", "").strip()
-        replace = parse_replace_arg(get_arg(req, "replace", "true"))
-        offset = parse_offset_arg(get_arg(req, "offset", None))
+        t = get_arg(req, b"t", b"").strip()
+        replace = parse_replace_arg(get_arg(req, b"replace", b"true"))
+        offset = parse_offset_arg(get_arg(req, b"offset", None))
 
         if not t:
             if not replace:
@@ -280,21 +295,21 @@ class FileNodeHandler(Resource, ReplaceMeMixin, object):
                 assert self.parentnode and self.name
                 return self.replace_me_with_a_child(req, self.client, replace)
 
-        if t == "uri":
+        if t == b"uri":
             if not replace:
                 raise ExistingChildError()
             assert self.parentnode and self.name
             return self.replace_me_with_a_childcap(req, self.client, replace)
 
-        raise WebError("PUT to a file: bad t=%s" % t)
+        raise WebError("PUT to a file: bad t=%s" % str(t, "utf-8"))
 
     @render_exception
     def render_POST(self, req):
-        t = get_arg(req, "t", "").strip()
-        replace = boolean_of_arg(get_arg(req, "replace", "true"))
-        if t == "check":
+        t = get_arg(req, b"t", b"").strip()
+        replace = boolean_of_arg(get_arg(req, b"replace", b"true"))
+        if t == b"check":
             d = self._POST_check(req)
-        elif t == "upload":
+        elif t == b"upload":
             # like PUT, but get the file data from an HTML form's input field
             # We could get here from POST /uri/mutablefilecap?t=upload,
             # or POST /uri/path/file?t=upload, or
@@ -308,7 +323,7 @@ class FileNodeHandler(Resource, ReplaceMeMixin, object):
                 assert self.parentnode and self.name
                 d = self.replace_me_with_a_formpost(req, self.client, replace)
         else:
-            raise WebError("POST to file: bad t=%s" % t)
+            raise WebError("POST to file: bad t=%s" % str(t, "ascii"))
 
         return handle_when_done(req, d)
 
@@ -373,7 +388,7 @@ class FileDownloader(Resource, object):
         self.filenode = filenode
         self.filename = filename
 
-    def parse_range_header(self, range):
+    def parse_range_header(self, range_header):
         # Parse a byte ranges according to RFC 2616 "14.35.1 Byte
         # Ranges".  Returns None if the range doesn't make sense so it
         # can be ignored (per the spec).  When successful, returns a
@@ -384,7 +399,7 @@ class FileDownloader(Resource, object):
 
         try:
             # byte-ranges-specifier
-            units, rangeset = range.split('=', 1)
+            units, rangeset = range_header.split('=', 1)
             if units != 'bytes':
                 return None     # nothing else supported
 
@@ -438,7 +453,7 @@ class FileDownloader(Resource, object):
             # bytes we were given in the URL. See the comment in
             # FileNodeHandler.render_GET for the sad details.
             req.setHeader("content-disposition",
-                          'attachment; filename="%s"' % self.filename)
+                          b'attachment; filename="%s"' % self.filename)
 
         filesize = self.filenode.get_size()
         assert isinstance(filesize, (int,long)), filesize
@@ -474,8 +489,8 @@ class FileDownloader(Resource, object):
                     size = contentsize
 
         req.setHeader("content-length", b"%d" % contentsize)
-        if req.method == "HEAD":
-            return ""
+        if req.method == b"HEAD":
+            return b""
 
         d = self.filenode.read(req, first, size)
 

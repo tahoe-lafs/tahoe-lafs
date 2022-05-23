@@ -1,10 +1,23 @@
+"""
+Ported to Python 3.
+"""
+from __future__ import unicode_literals
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+
 import sys
 import time
 import json
 from os import mkdir, environ
 from os.path import exists, join
-from six.moves import StringIO
+from io import StringIO, BytesIO
 from functools import partial
+from subprocess import check_output
 
 from twisted.python.filepath import (
     FilePath,
@@ -12,8 +25,12 @@ from twisted.python.filepath import (
 from twisted.internet.defer import Deferred, succeed
 from twisted.internet.protocol import ProcessProtocol
 from twisted.internet.error import ProcessExitedAlready, ProcessDone
+from twisted.internet.threads import deferToThread
 
 import requests
+
+from paramiko.rsakey import RSAKey
+from boltons.funcutils import wraps
 
 from allmydata.util.configutil import (
     get_config,
@@ -23,6 +40,12 @@ from allmydata.util.configutil import (
 from allmydata import client
 
 import pytest_twisted
+
+
+def block_with_timeout(deferred, reactor, timeout=120):
+    """Block until Deferred has result, but timeout instead of waiting forever."""
+    deferred.addTimeout(timeout, reactor)
+    return pytest_twisted.blockon(deferred)
 
 
 class _ProcessExitedProtocol(ProcessProtocol):
@@ -44,9 +67,10 @@ class _CollectOutputProtocol(ProcessProtocol):
     self.output, and callback's on done with all of it after the
     process exits (for any reason).
     """
-    def __init__(self):
+    def __init__(self, capture_stderr=True):
         self.done = Deferred()
-        self.output = StringIO()
+        self.output = BytesIO()
+        self.capture_stderr = capture_stderr
 
     def processEnded(self, reason):
         if not self.done.called:
@@ -60,8 +84,9 @@ class _CollectOutputProtocol(ProcessProtocol):
         self.output.write(data)
 
     def errReceived(self, data):
-        print("ERR: {}".format(data))
-        self.output.write(data)
+        print("ERR: {!r}".format(data))
+        if self.capture_stderr:
+            self.output.write(data)
 
 
 class _DumpOutputProtocol(ProcessProtocol):
@@ -81,9 +106,11 @@ class _DumpOutputProtocol(ProcessProtocol):
             self.done.errback(reason)
 
     def outReceived(self, data):
+        data = str(data, sys.stdout.encoding)
         self._out.write(data)
 
     def errReceived(self, data):
+        data = str(data, sys.stdout.encoding)
         self._out.write(data)
 
 
@@ -103,6 +130,7 @@ class _MagicTextProtocol(ProcessProtocol):
         self.exited.callback(None)
 
     def outReceived(self, data):
+        data = str(data, sys.stdout.encoding)
         sys.stdout.write(data)
         self._output.write(data)
         if not self.magic_seen.called and self._magic_text in self._output.getvalue():
@@ -110,6 +138,7 @@ class _MagicTextProtocol(ProcessProtocol):
             self.magic_seen.callback(self)
 
     def errReceived(self, data):
+        data = str(data, sys.stderr.encoding)
         sys.stdout.write(data)
 
 
@@ -123,11 +152,12 @@ def _cleanup_tahoe_process(tahoe_transport, exited):
 
     :return: After the process has exited.
     """
+    from twisted.internet import reactor
     try:
         print("signaling {} with TERM".format(tahoe_transport.pid))
         tahoe_transport.signalProcess('TERM')
         print("signaled, blocking on exit")
-        pytest_twisted.blockon(exited)
+        block_with_timeout(exited, reactor)
         print("exited, goodbye")
     except ProcessExitedAlready:
         pass
@@ -140,9 +170,9 @@ def _tahoe_runner_optional_coverage(proto, reactor, request, other_args):
     `--coverage` option if the `request` indicates we should.
     """
     if request.config.getoption('coverage'):
-        args = [sys.executable, '-m', 'coverage', 'run', '-m', 'allmydata.scripts.runner', '--coverage']
+        args = [sys.executable, '-b', '-m', 'coverage', 'run', '-m', 'allmydata.scripts.runner', '--coverage']
     else:
-        args = [sys.executable, '-m', 'allmydata.scripts.runner']
+        args = [sys.executable, '-b', '-m', 'allmydata.scripts.runner']
     args += other_args
     return reactor.spawnProcess(
         proto,
@@ -175,11 +205,15 @@ class TahoeProcess(object):
             u"portnum",
         )
 
+    def kill(self):
+        """Kill the process, block until it's done."""
+        _cleanup_tahoe_process(self.transport, self.transport.exited)
+
     def __str__(self):
         return "<TahoeProcess in '{}'>".format(self._node_dir)
 
 
-def _run_node(reactor, node_dir, request, magic_text):
+def _run_node(reactor, node_dir, request, magic_text, finalize=True):
     """
     Run a tahoe process from its node_dir.
 
@@ -189,10 +223,8 @@ def _run_node(reactor, node_dir, request, magic_text):
         magic_text = "client running"
     protocol = _MagicTextProtocol(magic_text)
 
-    # on windows, "tahoe start" means: run forever in the foreground,
-    # but on linux it means daemonize. "tahoe run" is consistent
-    # between platforms.
-
+    # "tahoe run" is consistent across Linux/macOS/Windows, unlike the old
+    # "start" command.
     transport = _tahoe_runner_optional_coverage(
         protocol,
         reactor,
@@ -205,7 +237,8 @@ def _run_node(reactor, node_dir, request, magic_text):
     )
     transport.exited = protocol.exited
 
-    request.addfinalizer(partial(_cleanup_tahoe_process, transport, protocol.exited))
+    if finalize:
+        request.addfinalizer(partial(_cleanup_tahoe_process, transport, protocol.exited))
 
     # XXX abusing the Deferred; should use .when_magic_seen() pattern
 
@@ -224,7 +257,8 @@ def _create_node(reactor, request, temp_dir, introducer_furl, flog_gatherer, nam
                  magic_text=None,
                  needed=2,
                  happy=3,
-                 total=4):
+                 total=4,
+                 finalize=True):
     """
     Helper to create a single node, run it and return the instance
     spawnProcess returned (ITransport)
@@ -245,9 +279,9 @@ def _create_node(reactor, request, temp_dir, introducer_furl, flog_gatherer, nam
             '--hostname', 'localhost',
             '--listen', 'tcp',
             '--webport', web_port,
-            '--shares-needed', unicode(needed),
-            '--shares-happy', unicode(happy),
-            '--shares-total', unicode(total),
+            '--shares-needed', str(needed),
+            '--shares-happy', str(happy),
+            '--shares-total', str(total),
             '--helper',
         ]
         if not storage:
@@ -264,7 +298,7 @@ def _create_node(reactor, request, temp_dir, introducer_furl, flog_gatherer, nam
                 config,
                 u'node',
                 u'log_gatherer.furl',
-                flog_gatherer.decode("utf-8"),
+                flog_gatherer,
             )
             write_config(FilePath(config_path), config)
         created_d.addCallback(created)
@@ -272,7 +306,7 @@ def _create_node(reactor, request, temp_dir, introducer_furl, flog_gatherer, nam
     d = Deferred()
     d.callback(None)
     d.addCallback(lambda _: created_d)
-    d.addCallback(lambda _: _run_node(reactor, node_dir, request, magic_text))
+    d.addCallback(lambda _: _run_node(reactor, node_dir, request, magic_text, finalize=finalize))
     return d
 
 
@@ -392,17 +426,13 @@ def await_file_vanishes(path, timeout=10):
     raise FileShouldVanishException(path, timeout)
 
 
-def cli(request, reactor, node_dir, *argv):
+def cli(node, *argv):
     """
-    Run a tahoe CLI subcommand for a given node, optionally running
-    under coverage if '--coverage' was supplied.
+    Run a tahoe CLI subcommand for a given node in a blocking manner, returning
+    the output.
     """
-    proto = _CollectOutputProtocol()
-    _tahoe_runner_optional_coverage(
-        proto, reactor, request,
-        ['--node-directory', node_dir] + list(argv),
-    )
-    return proto.done
+    arguments = ["tahoe", '--node-directory', node.node_dir]
+    return check_output(arguments + list(argv))
 
 
 def node_url(node_dir, uri_fragment):
@@ -452,14 +482,15 @@ def web_post(tahoe, uri_fragment, **kwargs):
     return resp.content
 
 
-def await_client_ready(tahoe, timeout=10, liveness=60*2):
+def await_client_ready(tahoe, timeout=10, liveness=60*2, minimum_number_of_servers=1):
     """
     Uses the status API to wait for a client-type node (in `tahoe`, a
     `TahoeProcess` instance usually from a fixture e.g. `alice`) to be
     'ready'. A client is deemed ready if:
 
       - it answers `http://<node_url>/statistics/?t=json/`
-      - there is at least one storage-server connected
+      - there is at least one storage-server connected (configurable via
+        ``minimum_number_of_servers``)
       - every storage-server has a "last_received_data" and it is
         within the last `liveness` seconds
 
@@ -476,8 +507,8 @@ def await_client_ready(tahoe, timeout=10, liveness=60*2):
             time.sleep(1)
             continue
 
-        if len(js['servers']) == 0:
-            print("waiting because no servers at all")
+        if len(js['servers']) < minimum_number_of_servers:
+            print("waiting because insufficient servers")
             time.sleep(1)
             continue
         server_times = [
@@ -507,3 +538,37 @@ def await_client_ready(tahoe, timeout=10, liveness=60*2):
             tahoe,
         )
     )
+
+
+def generate_ssh_key(path):
+    """Create a new SSH private/public key pair."""
+    key = RSAKey.generate(2048)
+    key.write_private_key_file(path)
+    with open(path + ".pub", "wb") as f:
+        s = "%s %s" % (key.get_name(), key.get_base64())
+        f.write(s.encode("ascii"))
+
+
+def run_in_thread(f):
+    """Decorator for integration tests that runs code in a thread.
+
+    Because we're using pytest_twisted, tests that rely on the reactor are
+    expected to return a Deferred and use async APIs so the reactor can run.
+
+    In the case of the integration test suite, it launches nodes in the
+    background using Twisted APIs.  The nodes stdout and stderr is read via
+    Twisted code.  If the reactor doesn't run, reads don't happen, and
+    eventually the buffers fill up, and the nodes block when they try to flush
+    logs.
+
+    We can switch to Twisted APIs (treq instead of requests etc.), but
+    sometimes it's easier or expedient to just have a blocking test.  So this
+    decorator allows you to run the test in a thread, and the reactor can keep
+    running in the main thread.
+
+    See https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3597 for tracking bug.
+    """
+    @wraps(f)
+    def test(*args, **kwargs):
+        return deferToThread(lambda: f(*args, **kwargs))
+    return test

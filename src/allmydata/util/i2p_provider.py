@@ -1,12 +1,29 @@
 # -*- coding: utf-8 -*-
+"""
+Ported to Python 3.
+"""
 from __future__ import absolute_import, print_function, with_statement
+from __future__ import division
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+
 import os
+
+from zope.interface import (
+    implementer,
+)
 
 from twisted.internet.defer import inlineCallbacks, returnValue
 from twisted.internet.endpoints import clientFromString
 from twisted.internet.error import ConnectionRefusedError, ConnectError
 from twisted.application import service
 
+from ..interfaces import (
+    IAddressFamily,
+)
 
 def create(reactor, config):
     """
@@ -135,6 +152,7 @@ def create_config(reactor, cli_config):
     returnValue((tahoe_config_i2p, i2p_port, i2p_location))
 
 
+@implementer(IAddressFamily)
 class _Provider(service.MultiService):
     def __init__(self, config, reactor):
         service.MultiService.__init__(self)
@@ -160,7 +178,14 @@ class _Provider(service.MultiService):
                    (privkeyfile, external_port, escaped_sam_port)
         return i2p_port
 
-    def get_i2p_handler(self):
+    def get_client_endpoint(self):
+        """
+        Get an ``IStreamClientEndpoint`` which will set up a connection to an I2P
+        address.
+
+        If I2P is not enabled or the dependencies are not available, return
+        ``None`` instead.
+        """
         enabled = self._get_i2p_config("enabled", True, boolean=True)
         if not enabled:
             return None
@@ -187,6 +212,9 @@ class _Provider(service.MultiService):
             return self._i2p.local_i2p(configdir)
 
         return self._i2p.default(self._reactor, keyfile=keyfile)
+
+    # Backwards compatibility alias
+    get_i2p_handler = get_client_endpoint
 
     def check_dest_config(self):
         if self._get_i2p_config("dest", False, boolean=True):

@@ -1,3 +1,14 @@
+"""
+Ported to Python 3.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 import re
 
@@ -25,7 +36,8 @@ def assert_soup_has_tag_with_attributes(testcase, soup, tag_name, attrs):
     tags = soup.find_all(tag_name)
     for tag in tags:
         if all(v in tag.attrs.get(k, []) for k, v in attrs.items()):
-            return  # we found every attr in this tag; done
+            # we found every attr in this tag; done
+            return tag
     testcase.fail(
         u"No <{}> tags contain attributes: {}".format(tag_name, attrs)
     )

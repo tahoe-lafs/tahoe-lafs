@@ -1,6 +1,23 @@
+"""
+Ported to Python 3.
+"""
+from __future__ import unicode_literals
+from __future__ import absolute_import
+from __future__ import division
 from __future__ import print_function
 
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+
+
 import os.path, re, fnmatch
+
+try:
+    from allmydata.scripts.types_ import SubCommands, Parameters
+except ImportError:
+    pass
+
 from twisted.python import usage
 from allmydata.scripts.common import get_aliases, get_default_nodedir, \
      DEFAULT_ALIAS, BaseOptions
@@ -19,7 +36,7 @@ class FileStoreOptions(BaseOptions):
          "This overrides the URL found in the --node-directory ."],
         ["dir-cap", None, None,
          "Specify which dirnode URI should be used as the 'tahoe' alias."]
-        ]
+        ]  # type: Parameters
 
     def postOptions(self):
         self["quiet"] = self.parent["quiet"]
@@ -30,7 +47,7 @@ class FileStoreOptions(BaseOptions):
 
         # compute a node-url from the existing options, put in self['node-url']
         if self['node-url']:
-            if (not isinstance(self['node-url'], basestring)
+            if (not isinstance(self['node-url'], (bytes, str))
                 or not NODEURL_RE.match(self['node-url'])):
                 msg = ("--node-url is required to be a string and look like "
                        "\"http://HOSTNAMEORADDR:PORT\", not: %r" %
@@ -218,7 +235,7 @@ class CpOptions(FileStoreOptions):
     def parseArgs(self, *args):
         if len(args) < 2:
             raise usage.UsageError("cp requires at least two arguments")
-        self.sources = map(argv_to_unicode, args[:-1])
+        self.sources = [argv_to_unicode(arg) for arg in args[:-1]]
         self.destination = argv_to_unicode(args[-1])
 
     synopsis = "[options] FROM.. TO"
@@ -340,14 +357,15 @@ class BackupOptions(FileStoreOptions):
             exclude = self['exclude']
             exclude.add(g)
 
-    def opt_exclude_from(self, filepath):
+    def opt_exclude_from_utf_8(self, filepath):
         """Ignore file matching glob patterns listed in file, one per
         line. The file is assumed to be in the argv encoding."""
         abs_filepath = argv_to_abspath(filepath)
         try:
-            exclude_file = file(abs_filepath)
-        except:
-            raise BackupConfigurationError('Error opening exclude file %s.' % quote_local_unicode_path(abs_filepath))
+            exclude_file = open(abs_filepath, "r", encoding="utf-8")
+        except Exception as e:
+            raise BackupConfigurationError('Error opening exclude file %s. (Error: %s)' % (
+                quote_local_unicode_path(abs_filepath), e))
         try:
             for line in exclude_file:
                 self.opt_exclude(line)
@@ -429,7 +447,7 @@ class CheckOptions(FileStoreOptions):
         ("add-lease", None, "Add/renew lease on all shares."),
         ]
     def parseArgs(self, *locations):
-        self.locations = map(argv_to_unicode, locations)
+        self.locations = list(map(argv_to_unicode, locations))
 
     synopsis = "[options] [ALIAS:PATH]"
     description = """
@@ -446,7 +464,7 @@ class DeepCheckOptions(FileStoreOptions):
         ("verbose", "v", "Be noisy about what is happening."),
         ]
     def parseArgs(self, *locations):
-        self.locations = map(argv_to_unicode, locations)
+        self.locations = list(map(argv_to_unicode, locations))
 
     synopsis = "[options] [ALIAS:PATH]"
     description = """
@@ -455,25 +473,25 @@ class DeepCheckOptions(FileStoreOptions):
     Optionally repair any problems found."""
 
 subCommands = [
-    ["mkdir", None, MakeDirectoryOptions, "Create a new directory."],
-    ["add-alias", None, AddAliasOptions, "Add a new alias cap."],
-    ["create-alias", None, CreateAliasOptions, "Create a new alias cap."],
-    ["list-aliases", None, ListAliasesOptions, "List all alias caps."],
-    ["ls", None, ListOptions, "List a directory."],
-    ["get", None, GetOptions, "Retrieve a file from the grid."],
-    ["put", None, PutOptions, "Upload a file into the grid."],
-    ["cp", None, CpOptions, "Copy one or more files or directories."],
-    ["unlink", None, UnlinkOptions, "Unlink a file or directory on the grid."],
-    ["mv", None, MvOptions, "Move a file within the grid."],
-    ["ln", None, LnOptions, "Make an additional link to an existing file or directory."],
-    ["backup", None, BackupOptions, "Make target dir look like local dir."],
-    ["webopen", None, WebopenOptions, "Open a web browser to a grid file or directory."],
-    ["manifest", None, ManifestOptions, "List all files/directories in a subtree."],
-    ["stats", None, StatsOptions, "Print statistics about all files/directories in a subtree."],
-    ["check", None, CheckOptions, "Check a single file or directory."],
-    ["deep-check", None, DeepCheckOptions, "Check all files/directories reachable from a starting point."],
-    ["status", None, TahoeStatusCommand, "Various status information."],
-    ]
+    ("mkdir", None, MakeDirectoryOptions, "Create a new directory."),
+    ("add-alias", None, AddAliasOptions, "Add a new alias cap."),
+    ("create-alias", None, CreateAliasOptions, "Create a new alias cap."),
+    ("list-aliases", None, ListAliasesOptions, "List all alias caps."),
+    ("ls", None, ListOptions, "List a directory."),
+    ("get", None, GetOptions, "Retrieve a file from the grid."),
+    ("put", None, PutOptions, "Upload a file into the grid."),
+    ("cp", None, CpOptions, "Copy one or more files or directories."),
+    ("unlink", None, UnlinkOptions, "Unlink a file or directory on the grid."),
+    ("mv", None, MvOptions, "Move a file within the grid."),
+    ("ln", None, LnOptions, "Make an additional link to an existing file or directory."),
+    ("backup", None, BackupOptions, "Make target dir look like local dir."),
+    ("webopen", None, WebopenOptions, "Open a web browser to a grid file or directory."),
+    ("manifest", None, ManifestOptions, "List all files/directories in a subtree."),
+    ("stats", None, StatsOptions, "Print statistics about all files/directories in a subtree."),
+    ("check", None, CheckOptions, "Check a single file or directory."),
+    ("deep-check", None, DeepCheckOptions, "Check all files/directories reachable from a starting point."),
+    ("status", None, TahoeStatusCommand, "Various status information."),
+    ]  # type: SubCommands
 
 def mkdir(options):
     from allmydata.scripts import tahoe_mkdir
@@ -495,9 +513,9 @@ def list_aliases(options):
     rc = tahoe_add_alias.list_aliases(options)
     return rc
 
-def list(options):
+def list_(options):
     from allmydata.scripts import tahoe_ls
-    rc = tahoe_ls.list(options)
+    rc = tahoe_ls.ls(options)
     return rc
 
 def get(options):
@@ -581,7 +599,7 @@ dispatch = {
     "add-alias": add_alias,
     "create-alias": create_alias,
     "list-aliases": list_aliases,
-    "ls": list,
+    "ls": list_,
     "get": get,
     "put": put,
     "cp": cp,

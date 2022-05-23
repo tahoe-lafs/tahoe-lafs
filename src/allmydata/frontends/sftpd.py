@@ -1,6 +1,17 @@
+"""
+Ported to Python 3.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+
 import six
-import heapq, traceback, array, stat, struct
-from types import NoneType
+import heapq, traceback, stat, struct
 from stat import S_IFREG, S_IFDIR
 from time import time, strftime, localtime
 
@@ -45,6 +56,17 @@ from allmydata.util.log import NOISY, OPERATIONAL, WEIRD, \
 if six.PY3:
     long = int
 
+
+def createSFTPError(errorCode, errorMessage):
+    """
+    SFTPError that can accept both Unicode and bytes.
+
+    Twisted expects _native_ strings for the SFTPError message, but we often do
+    Unicode by default even on Python 2.
+    """
+    return SFTPError(errorCode, six.ensure_str(errorMessage))
+
+
 def eventually_callback(d):
     return lambda res: eventually(d.callback, res)
 
@@ -53,9 +75,9 @@ def eventually_errback(d):
 
 
 def _utf8(x):
-    if isinstance(x, unicode):
-        return x.encode('utf-8')
     if isinstance(x, str):
+        return x.encode('utf-8')
+    if isinstance(x, bytes):
         return x
     return repr(x)
 
@@ -64,7 +86,7 @@ def _to_sftp_time(t):
     """SFTP times are unsigned 32-bit integers representing UTC seconds
     (ignoring leap seconds) since the Unix epoch, January 1 1970 00:00 UTC.
     A Tahoe time is the corresponding float."""
-    return long(t) & long(0xFFFFFFFF)
+    return int(t) & int(0xFFFFFFFF)
 
 
 def _convert_error(res, request):
@@ -73,7 +95,7 @@ def _convert_error(res, request):
 
     if not isinstance(res, Failure):
         logged_res = res
-        if isinstance(res, str): logged_res = "<data of length %r>" % (len(res),)
+        if isinstance(res, (bytes, str)): logged_res = "<data of length %r>" % (len(res),)
         logmsg("SUCCESS %r %r" % (request, logged_res,), level=OPERATIONAL)
         return res
 
@@ -92,10 +114,10 @@ def _convert_error(res, request):
         raise err
     if err.check(NoSuchChildError):
         childname = _utf8(err.value.args[0])
-        raise SFTPError(FX_NO_SUCH_FILE, childname)
+        raise createSFTPError(FX_NO_SUCH_FILE, childname)
     if err.check(NotWriteableError) or err.check(ChildOfWrongTypeError):
         msg = _utf8(err.value.args[0])
-        raise SFTPError(FX_PERMISSION_DENIED, msg)
+        raise createSFTPError(FX_PERMISSION_DENIED, msg)
     if err.check(ExistingChildError):
         # Versions of SFTP after v3 (which is what twisted.conch implements)
         # define a specific error code for this case: FX_FILE_ALREADY_EXISTS.
@@ -104,16 +126,16 @@ def _convert_error(res, request):
         # to translate the error to the equivalent of POSIX EEXIST, which is
         # necessary for some picky programs (such as gedit).
         msg = _utf8(err.value.args[0])
-        raise SFTPError(FX_FAILURE, msg)
+        raise createSFTPError(FX_FAILURE, msg)
     if err.check(NotImplementedError):
-        raise SFTPError(FX_OP_UNSUPPORTED, _utf8(err.value))
+        raise createSFTPError(FX_OP_UNSUPPORTED, _utf8(err.value))
     if err.check(EOFError):
-        raise SFTPError(FX_EOF, "end of file reached")
+        raise createSFTPError(FX_EOF, "end of file reached")
     if err.check(defer.FirstError):
         _convert_error(err.value.subFailure, request)
 
     # We assume that the error message is not anonymity-sensitive.
-    raise SFTPError(FX_FAILURE, _utf8(err.value))
+    raise createSFTPError(FX_FAILURE, _utf8(err.value))
 
 
 def _repr_flags(flags):
@@ -146,7 +168,7 @@ def _lsLine(name, attrs):
     # Since we now depend on Twisted v10.1, consider calling Twisted's version.
 
     mode = st_mode
-    perms = array.array('c', '-'*10)
+    perms = ["-"] * 10
     ft = stat.S_IFMT(mode)
     if   stat.S_ISDIR(ft): perms[0] = 'd'
     elif stat.S_ISREG(ft): perms[0] = '-'
@@ -165,7 +187,7 @@ def _lsLine(name, attrs):
     if mode&stat.S_IXOTH: perms[9] = 'x'
     # suid/sgid never set
 
-    l = perms.tostring()
+    l = "".join(perms)
     l += str(st_nlink).rjust(5) + ' '
     un = str(st_uid)
     l += un.ljust(9)
@@ -182,6 +204,7 @@ def _lsLine(name, attrs):
         l += strftime("%b %d  %Y ", localtime(st_mtime))
     else:
         l += strftime("%b %d %H:%M ", localtime(st_mtime))
+    l = l.encode("utf-8")
     l += name
     return l
 
@@ -223,7 +246,7 @@ def _populate_attrs(childnode, metadata, size=None):
         if childnode and size is None:
             size = childnode.get_size()
         if size is not None:
-            _assert(isinstance(size, (int, long)) and not isinstance(size, bool), size=size)
+            _assert(isinstance(size, int) and not isinstance(size, bool), size=size)
             attrs['size'] = size
         perms = S_IFREG | 0o666
 
@@ -255,7 +278,7 @@ def _attrs_to_metadata(attrs):
 
     for key in attrs:
         if key == "mtime" or key == "ctime" or key == "createtime":
-            metadata[key] = long(attrs[key])
+            metadata[key] = int(attrs[key])
         elif key.startswith("ext_"):
             metadata[key] = str(attrs[key])
 
@@ -267,7 +290,7 @@ def _attrs_to_metadata(attrs):
 
 
 def _direntry_for(filenode_or_parent, childname, filenode=None):
-    precondition(isinstance(childname, (unicode, NoneType)), childname=childname)
+    precondition(isinstance(childname, (str, type(None))), childname=childname)
 
     if childname is None:
         filenode_or_parent = filenode
@@ -275,7 +298,7 @@ def _direntry_for(filenode_or_parent, childname, filenode=None):
     if filenode_or_parent:
         rw_uri = filenode_or_parent.get_write_uri()
         if rw_uri and childname:
-            return rw_uri + "/" + childname.encode('utf-8')
+            return rw_uri + b"/" + childname.encode('utf-8')
         else:
             return rw_uri
 
@@ -327,7 +350,7 @@ class OverwriteableFileConsumer(PrefixingLogMixin):
         if size < self.current_size or size < self.downloaded:
             self.f.truncate(size)
         if size > self.current_size:
-            self.overwrite(self.current_size, "\x00" * (size - self.current_size))
+            self.overwrite(self.current_size, b"\x00" * (size - self.current_size))
         self.current_size = size
 
         # make the invariant self.download_size <= self.current_size be true again
@@ -335,7 +358,7 @@ class OverwriteableFileConsumer(PrefixingLogMixin):
             self.download_size = size
 
         if self.downloaded >= self.download_size:
-            self.download_done("size changed")
+            self.download_done(b"size changed")
 
     def registerProducer(self, p, streaming):
         if noisy: self.log(".registerProducer(%r, streaming=%r)" % (p, streaming), level=NOISY)
@@ -410,21 +433,21 @@ class OverwriteableFileConsumer(PrefixingLogMixin):
                 milestone = end
 
         while len(self.milestones) > 0:
-            (next, d) = self.milestones[0]
-            if next > milestone:
+            (next_, d) = self.milestones[0]
+            if next_ > milestone:
                 return
-            if noisy: self.log("MILESTONE %r %r" % (next, d), level=NOISY)
+            if noisy: self.log("MILESTONE %r %r" % (next_, d), level=NOISY)
             heapq.heappop(self.milestones)
-            eventually_callback(d)("reached")
+            eventually_callback(d)(b"reached")
 
         if milestone >= self.download_size:
-            self.download_done("reached download size")
+            self.download_done(b"reached download size")
 
     def overwrite(self, offset, data):
         if noisy: self.log(".overwrite(%r, <data of length %r>)" % (offset, len(data)), level=NOISY)
         if self.is_closed:
             self.log("overwrite called on a closed OverwriteableFileConsumer", level=WEIRD)
-            raise SFTPError(FX_BAD_MESSAGE, "cannot write to a closed file handle")
+            raise createSFTPError(FX_BAD_MESSAGE, "cannot write to a closed file handle")
 
         if offset > self.current_size:
             # Normally writing at an offset beyond the current end-of-file
@@ -435,7 +458,7 @@ class OverwriteableFileConsumer(PrefixingLogMixin):
             # the gap between the current EOF and the offset.
 
             self.f.seek(self.current_size)
-            self.f.write("\x00" * (offset - self.current_size))
+            self.f.write(b"\x00" * (offset - self.current_size))
             start = self.current_size
         else:
             self.f.seek(offset)
@@ -455,7 +478,7 @@ class OverwriteableFileConsumer(PrefixingLogMixin):
         if noisy: self.log(".read(%r, %r), current_size = %r" % (offset, length, self.current_size), level=NOISY)
         if self.is_closed:
             self.log("read called on a closed OverwriteableFileConsumer", level=WEIRD)
-            raise SFTPError(FX_BAD_MESSAGE, "cannot read from a closed file handle")
+            raise createSFTPError(FX_BAD_MESSAGE, "cannot read from a closed file handle")
 
         # Note that the overwrite method is synchronous. When a write request is processed
         # (e.g. a writeChunk request on the async queue of GeneralSFTPFile), overwrite will
@@ -509,7 +532,7 @@ class OverwriteableFileConsumer(PrefixingLogMixin):
         return d
 
     def download_done(self, res):
-        _assert(isinstance(res, (str, Failure)), res=res)
+        _assert(isinstance(res, (bytes, Failure)), res=res)
         # Only the first call to download_done counts, but we log subsequent calls
         # (multiple calls are normal).
         if self.done_status is not None:
@@ -526,8 +549,8 @@ class OverwriteableFileConsumer(PrefixingLogMixin):
         eventually_callback(self.done)(None)
 
         while len(self.milestones) > 0:
-            (next, d) = self.milestones[0]
-            if noisy: self.log("MILESTONE FINISH %r %r %r" % (next, d, res), level=NOISY)
+            (next_, d) = self.milestones[0]
+            if noisy: self.log("MILESTONE FINISH %r %r %r" % (next_, d, res), level=NOISY)
             heapq.heappop(self.milestones)
             # The callback means that the milestone has been reached if
             # it is ever going to be. Note that the file may have been
@@ -541,7 +564,7 @@ class OverwriteableFileConsumer(PrefixingLogMixin):
                 self.f.close()
             except Exception as e:
                 self.log("suppressed %r from close of temporary file %r" % (e, self.f), level=WEIRD)
-        self.download_done("closed")
+        self.download_done(b"closed")
         return self.done_status
 
     def unregisterProducer(self):
@@ -565,7 +588,7 @@ class ShortReadOnlySFTPFile(PrefixingLogMixin):
         PrefixingLogMixin.__init__(self, facility="tahoe.sftp", prefix=userpath)
         if noisy: self.log(".__init__(%r, %r, %r)" % (userpath, filenode, metadata), level=NOISY)
 
-        precondition(isinstance(userpath, str) and IFileNode.providedBy(filenode),
+        precondition(isinstance(userpath, bytes) and IFileNode.providedBy(filenode),
                      userpath=userpath, filenode=filenode)
         self.filenode = filenode
         self.metadata = metadata
@@ -577,7 +600,7 @@ class ShortReadOnlySFTPFile(PrefixingLogMixin):
         self.log(request, level=OPERATIONAL)
 
         if self.closed:
-            def _closed(): raise SFTPError(FX_BAD_MESSAGE, "cannot read from a closed file handle")
+            def _closed(): raise createSFTPError(FX_BAD_MESSAGE, "cannot read from a closed file handle")
             return defer.execute(_closed)
 
         d = defer.Deferred()
@@ -594,7 +617,7 @@ class ShortReadOnlySFTPFile(PrefixingLogMixin):
             # i.e. we respond with an EOF error iff offset is already at EOF.
 
             if offset >= len(data):
-                eventually_errback(d)(Failure(SFTPError(FX_EOF, "read at or past end of file")))
+                eventually_errback(d)(Failure(createSFTPError(FX_EOF, "read at or past end of file")))
             else:
                 eventually_callback(d)(data[offset:offset+length])  # truncated if offset+length > len(data)
             return data
@@ -605,7 +628,7 @@ class ShortReadOnlySFTPFile(PrefixingLogMixin):
     def writeChunk(self, offset, data):
         self.log(".writeChunk(%r, <data of length %r>) denied" % (offset, len(data)), level=OPERATIONAL)
 
-        def _denied(): raise SFTPError(FX_PERMISSION_DENIED, "file handle was not opened for writing")
+        def _denied(): raise createSFTPError(FX_PERMISSION_DENIED, "file handle was not opened for writing")
         return defer.execute(_denied)
 
     def close(self):
@@ -619,7 +642,7 @@ class ShortReadOnlySFTPFile(PrefixingLogMixin):
         self.log(request, level=OPERATIONAL)
 
         if self.closed:
-            def _closed(): raise SFTPError(FX_BAD_MESSAGE, "cannot get attributes for a closed file handle")
+            def _closed(): raise createSFTPError(FX_BAD_MESSAGE, "cannot get attributes for a closed file handle")
             return defer.execute(_closed)
 
         d = defer.execute(_populate_attrs, self.filenode, self.metadata)
@@ -628,7 +651,7 @@ class ShortReadOnlySFTPFile(PrefixingLogMixin):
 
     def setAttrs(self, attrs):
         self.log(".setAttrs(%r) denied" % (attrs,), level=OPERATIONAL)
-        def _denied(): raise SFTPError(FX_PERMISSION_DENIED, "file handle was not opened for writing")
+        def _denied(): raise createSFTPError(FX_PERMISSION_DENIED, "file handle was not opened for writing")
         return defer.execute(_denied)
 
 
@@ -649,7 +672,7 @@ class GeneralSFTPFile(PrefixingLogMixin):
         if noisy: self.log(".__init__(%r, %r = %r, %r, <convergence censored>)" %
                            (userpath, flags, _repr_flags(flags), close_notify), level=NOISY)
 
-        precondition(isinstance(userpath, str), userpath=userpath)
+        precondition(isinstance(userpath, bytes), userpath=userpath)
         self.userpath = userpath
         self.flags = flags
         self.close_notify = close_notify
@@ -668,11 +691,11 @@ class GeneralSFTPFile(PrefixingLogMixin):
         # not be set before then.
         self.consumer = None
 
-    def open(self, parent=None, childname=None, filenode=None, metadata=None):
+    def open(self, parent=None, childname=None, filenode=None, metadata=None):  # noqa: F811
         self.log(".open(parent=%r, childname=%r, filenode=%r, metadata=%r)" %
                  (parent, childname, filenode, metadata), level=OPERATIONAL)
 
-        precondition(isinstance(childname, (unicode, NoneType)), childname=childname)
+        precondition(isinstance(childname, (str, type(None))), childname=childname)
         precondition(filenode is None or IFileNode.providedBy(filenode), filenode=filenode)
         precondition(not self.closed, sftpfile=self)
 
@@ -689,7 +712,7 @@ class GeneralSFTPFile(PrefixingLogMixin):
         if (self.flags & FXF_TRUNC) or not filenode:
             # We're either truncating or creating the file, so we don't need the old contents.
             self.consumer = OverwriteableFileConsumer(0, tempfile_maker)
-            self.consumer.download_done("download not needed")
+            self.consumer.download_done(b"download not needed")
         else:
             self.async_.addCallback(lambda ignored: filenode.get_best_readable_version())
 
@@ -703,7 +726,7 @@ class GeneralSFTPFile(PrefixingLogMixin):
                 d = version.read(self.consumer, 0, None)
                 def _finished(res):
                     if not isinstance(res, Failure):
-                        res = "download finished"
+                        res = b"download finished"
                     self.consumer.download_done(res)
                 d.addBoth(_finished)
                 # It is correct to drop d here.
@@ -723,7 +746,7 @@ class GeneralSFTPFile(PrefixingLogMixin):
     def rename(self, new_userpath, new_parent, new_childname):
         self.log(".rename(%r, %r, %r)" % (new_userpath, new_parent, new_childname), level=OPERATIONAL)
 
-        precondition(isinstance(new_userpath, str) and isinstance(new_childname, unicode),
+        precondition(isinstance(new_userpath, bytes) and isinstance(new_childname, str),
                      new_userpath=new_userpath, new_childname=new_childname)
         self.userpath = new_userpath
         self.parent = new_parent
@@ -751,11 +774,11 @@ class GeneralSFTPFile(PrefixingLogMixin):
         self.log(request, level=OPERATIONAL)
 
         if not (self.flags & FXF_READ):
-            def _denied(): raise SFTPError(FX_PERMISSION_DENIED, "file handle was not opened for reading")
+            def _denied(): raise createSFTPError(FX_PERMISSION_DENIED, "file handle was not opened for reading")
             return defer.execute(_denied)
 
         if self.closed:
-            def _closed(): raise SFTPError(FX_BAD_MESSAGE, "cannot read from a closed file handle")
+            def _closed(): raise createSFTPError(FX_BAD_MESSAGE, "cannot read from a closed file handle")
             return defer.execute(_closed)
 
         d = defer.Deferred()
@@ -773,11 +796,11 @@ class GeneralSFTPFile(PrefixingLogMixin):
         self.log(".writeChunk(%r, <data of length %r>)" % (offset, len(data)), level=OPERATIONAL)
 
         if not (self.flags & FXF_WRITE):
-            def _denied(): raise SFTPError(FX_PERMISSION_DENIED, "file handle was not opened for writing")
+            def _denied(): raise createSFTPError(FX_PERMISSION_DENIED, "file handle was not opened for writing")
             return defer.execute(_denied)
 
         if self.closed:
-            def _closed(): raise SFTPError(FX_BAD_MESSAGE, "cannot write to a closed file handle")
+            def _closed(): raise createSFTPError(FX_BAD_MESSAGE, "cannot write to a closed file handle")
             return defer.execute(_closed)
 
         self.has_changed = True
@@ -893,7 +916,7 @@ class GeneralSFTPFile(PrefixingLogMixin):
         self.log(request, level=OPERATIONAL)
 
         if self.closed:
-            def _closed(): raise SFTPError(FX_BAD_MESSAGE, "cannot get attributes for a closed file handle")
+            def _closed(): raise createSFTPError(FX_BAD_MESSAGE, "cannot get attributes for a closed file handle")
             return defer.execute(_closed)
 
         # Optimization for read-only handles, when we already know the metadata.
@@ -917,16 +940,16 @@ class GeneralSFTPFile(PrefixingLogMixin):
         self.log(request, level=OPERATIONAL)
 
         if not (self.flags & FXF_WRITE):
-            def _denied(): raise SFTPError(FX_PERMISSION_DENIED, "file handle was not opened for writing")
+            def _denied(): raise createSFTPError(FX_PERMISSION_DENIED, "file handle was not opened for writing")
             return defer.execute(_denied)
 
         if self.closed:
-            def _closed(): raise SFTPError(FX_BAD_MESSAGE, "cannot set attributes for a closed file handle")
+            def _closed(): raise createSFTPError(FX_BAD_MESSAGE, "cannot set attributes for a closed file handle")
             return defer.execute(_closed)
 
         size = attrs.get("size", None)
-        if size is not None and (not isinstance(size, (int, long)) or size < 0):
-            def _bad(): raise SFTPError(FX_BAD_MESSAGE, "new size is not a valid nonnegative integer")
+        if size is not None and (not isinstance(size, int) or size < 0):
+            def _bad(): raise createSFTPError(FX_BAD_MESSAGE, "new size is not a valid nonnegative integer")
             return defer.execute(_bad)
 
         d = defer.Deferred()
@@ -988,8 +1011,8 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
         PrefixingLogMixin.__init__(self, facility="tahoe.sftp", prefix=username)
         if noisy: self.log(".__init__(%r, %r, %r)" % (client, rootnode, username), level=NOISY)
 
-        self.channelLookup["session"] = session.SSHSession
-        self.subsystemLookup["sftp"] = FileTransferServer
+        self.channelLookup[b"session"] = session.SSHSession
+        self.subsystemLookup[b"sftp"] = FileTransferServer
 
         self._client = client
         self._root = rootnode
@@ -1012,7 +1035,7 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
     def logout(self):
         self.log(".logout()", level=OPERATIONAL)
 
-        for files in self._heisenfiles.itervalues():
+        for files in self._heisenfiles.values():
             for f in files:
                 f.abandon()
 
@@ -1039,7 +1062,7 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
         request = "._abandon_any_heisenfiles(%r, %r)" % (userpath, direntry)
         self.log(request, level=OPERATIONAL)
 
-        precondition(isinstance(userpath, str), userpath=userpath)
+        precondition(isinstance(userpath, bytes), userpath=userpath)
 
         # First we synchronously mark all heisenfiles matching the userpath or direntry
         # as abandoned, and remove them from the two heisenfile dicts. Then we .sync()
@@ -1088,8 +1111,8 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
                    (from_userpath, from_parent, from_childname, to_userpath, to_parent, to_childname, overwrite))
         self.log(request, level=OPERATIONAL)
 
-        precondition((isinstance(from_userpath, str) and isinstance(from_childname, unicode) and
-                      isinstance(to_userpath, str) and isinstance(to_childname, unicode)),
+        precondition((isinstance(from_userpath, bytes) and isinstance(from_childname, str) and
+                      isinstance(to_userpath, bytes) and isinstance(to_childname, str)),
                      from_userpath=from_userpath, from_childname=from_childname, to_userpath=to_userpath, to_childname=to_childname)
 
         if noisy: self.log("all_heisenfiles = %r\nself._heisenfiles = %r" % (all_heisenfiles, self._heisenfiles), level=NOISY)
@@ -1118,7 +1141,7 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
         # does not mean that they were not committed; it is used to determine whether
         # a NoSuchChildError from the rename attempt should be suppressed). If overwrite
         # is False and there were already heisenfiles at the destination userpath or
-        # direntry, we return a Deferred that fails with SFTPError(FX_PERMISSION_DENIED).
+        # direntry, we return a Deferred that fails with createSFTPError(FX_PERMISSION_DENIED).
 
         from_direntry = _direntry_for(from_parent, from_childname)
         to_direntry = _direntry_for(to_parent, to_childname)
@@ -1127,7 +1150,7 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
                            (from_direntry, to_direntry, len(all_heisenfiles), len(self._heisenfiles), request), level=NOISY)
 
         if not overwrite and (to_userpath in self._heisenfiles or to_direntry in all_heisenfiles):
-            def _existing(): raise SFTPError(FX_PERMISSION_DENIED, "cannot rename to existing path " + to_userpath)
+            def _existing(): raise createSFTPError(FX_PERMISSION_DENIED, "cannot rename to existing path " + str(to_userpath, "utf-8"))
             if noisy: self.log("existing", level=NOISY)
             return defer.execute(_existing)
 
@@ -1161,7 +1184,7 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
         request = "._update_attrs_for_heisenfiles(%r, %r, %r)" % (userpath, direntry, attrs)
         self.log(request, level=OPERATIONAL)
 
-        _assert(isinstance(userpath, str) and isinstance(direntry, str),
+        _assert(isinstance(userpath, bytes) and isinstance(direntry, bytes),
                 userpath=userpath, direntry=direntry)
 
         files = []
@@ -1194,7 +1217,7 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
         request = "._sync_heisenfiles(%r, %r, ignore=%r)" % (userpath, direntry, ignore)
         self.log(request, level=OPERATIONAL)
 
-        _assert(isinstance(userpath, str) and isinstance(direntry, (str, NoneType)),
+        _assert(isinstance(userpath, bytes) and isinstance(direntry, (bytes, type(None))),
                 userpath=userpath, direntry=direntry)
 
         files = []
@@ -1219,7 +1242,7 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
     def _remove_heisenfile(self, userpath, parent, childname, file_to_remove):
         if noisy: self.log("._remove_heisenfile(%r, %r, %r, %r)" % (userpath, parent, childname, file_to_remove), level=NOISY)
 
-        _assert(isinstance(userpath, str) and isinstance(childname, (unicode, NoneType)),
+        _assert(isinstance(userpath, bytes) and isinstance(childname, (str, type(None))),
                 userpath=userpath, childname=childname)
 
         direntry = _direntry_for(parent, childname)
@@ -1246,8 +1269,8 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
                            (existing_file, userpath, flags, _repr_flags(flags), parent, childname, filenode, metadata),
                            level=NOISY)
 
-        _assert((isinstance(userpath, str) and isinstance(childname, (unicode, NoneType)) and
-                (metadata is None or 'no-write' in metadata)),
+        _assert((isinstance(userpath, bytes) and isinstance(childname, (str, type(None))) and
+                 (metadata is None or 'no-write' in metadata)),
                 userpath=userpath, childname=childname, metadata=metadata)
 
         writing = (flags & (FXF_WRITE | FXF_CREAT)) != 0
@@ -1280,17 +1303,17 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
 
         if not (flags & (FXF_READ | FXF_WRITE)):
             def _bad_readwrite():
-                raise SFTPError(FX_BAD_MESSAGE, "invalid file open flags: at least one of FXF_READ and FXF_WRITE must be set")
+                raise createSFTPError(FX_BAD_MESSAGE, "invalid file open flags: at least one of FXF_READ and FXF_WRITE must be set")
             return defer.execute(_bad_readwrite)
 
         if (flags & FXF_EXCL) and not (flags & FXF_CREAT):
             def _bad_exclcreat():
-                raise SFTPError(FX_BAD_MESSAGE, "invalid file open flags: FXF_EXCL cannot be set without FXF_CREAT")
+                raise createSFTPError(FX_BAD_MESSAGE, "invalid file open flags: FXF_EXCL cannot be set without FXF_CREAT")
             return defer.execute(_bad_exclcreat)
 
         path = self._path_from_string(pathstring)
         if not path:
-            def _emptypath(): raise SFTPError(FX_NO_SUCH_FILE, "path cannot be empty")
+            def _emptypath(): raise createSFTPError(FX_NO_SUCH_FILE, "path cannot be empty")
             return defer.execute(_emptypath)
 
         # The combination of flags is potentially valid.
@@ -1349,20 +1372,20 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
         def _got_root(root_and_path):
             (root, path) = root_and_path
             if root.is_unknown():
-                raise SFTPError(FX_PERMISSION_DENIED,
+                raise createSFTPError(FX_PERMISSION_DENIED,
                                 "cannot open an unknown cap (or child of an unknown object). "
                                 "Upgrading the gateway to a later Tahoe-LAFS version may help")
             if not path:
                 # case 1
                 if noisy: self.log("case 1: root = %r, path[:-1] = %r" % (root, path[:-1]), level=NOISY)
                 if not IFileNode.providedBy(root):
-                    raise SFTPError(FX_PERMISSION_DENIED,
+                    raise createSFTPError(FX_PERMISSION_DENIED,
                                     "cannot open a directory cap")
                 if (flags & FXF_WRITE) and root.is_readonly():
-                    raise SFTPError(FX_PERMISSION_DENIED,
+                    raise createSFTPError(FX_PERMISSION_DENIED,
                                     "cannot write to a non-writeable filecap without a parent directory")
                 if flags & FXF_EXCL:
-                    raise SFTPError(FX_FAILURE,
+                    raise createSFTPError(FX_FAILURE,
                                     "cannot create a file exclusively when it already exists")
 
                 # The file does not need to be added to all_heisenfiles, because it is not
@@ -1389,7 +1412,7 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
                 def _got_parent(parent):
                     if noisy: self.log("_got_parent(%r)" % (parent,), level=NOISY)
                     if parent.is_unknown():
-                        raise SFTPError(FX_PERMISSION_DENIED,
+                        raise createSFTPError(FX_PERMISSION_DENIED,
                                         "cannot open a child of an unknown object. "
                                         "Upgrading the gateway to a later Tahoe-LAFS version may help")
 
@@ -1404,13 +1427,13 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
                         # which is consistent with what might happen on a POSIX filesystem.
 
                         if parent_readonly:
-                            raise SFTPError(FX_FAILURE,
+                            raise createSFTPError(FX_FAILURE,
                                             "cannot create a file exclusively when the parent directory is read-only")
 
                         # 'overwrite=False' ensures failure if the link already exists.
                         # FIXME: should use a single call to set_uri and return (child, metadata) (#1035)
 
-                        zero_length_lit = "URI:LIT:"
+                        zero_length_lit = b"URI:LIT:"
                         if noisy: self.log("%r.set_uri(%r, None, readcap=%r, overwrite=False)" %
                                            (parent, zero_length_lit, childname), level=NOISY)
                         d3.addCallback(lambda ign: parent.set_uri(childname, None, readcap=zero_length_lit,
@@ -1436,14 +1459,14 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
                         metadata['no-write'] = _no_write(parent_readonly, filenode, current_metadata)
 
                         if filenode.is_unknown():
-                            raise SFTPError(FX_PERMISSION_DENIED,
+                            raise createSFTPError(FX_PERMISSION_DENIED,
                                             "cannot open an unknown cap. Upgrading the gateway "
                                             "to a later Tahoe-LAFS version may help")
                         if not IFileNode.providedBy(filenode):
-                            raise SFTPError(FX_PERMISSION_DENIED,
+                            raise createSFTPError(FX_PERMISSION_DENIED,
                                             "cannot open a directory as if it were a file")
                         if (flags & FXF_WRITE) and metadata['no-write']:
-                            raise SFTPError(FX_PERMISSION_DENIED,
+                            raise createSFTPError(FX_PERMISSION_DENIED,
                                             "cannot open a non-writeable file for writing")
 
                         return self._make_file(file, userpath, flags, parent=parent, childname=childname,
@@ -1453,10 +1476,10 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
                         f.trap(NoSuchChildError)
 
                         if not (flags & FXF_CREAT):
-                            raise SFTPError(FX_NO_SUCH_FILE,
+                            raise createSFTPError(FX_NO_SUCH_FILE,
                                             "the file does not exist, and was not opened with the creation (CREAT) flag")
                         if parent_readonly:
-                            raise SFTPError(FX_PERMISSION_DENIED,
+                            raise createSFTPError(FX_PERMISSION_DENIED,
                                             "cannot create a file when the parent directory is read-only")
 
                         return self._make_file(file, userpath, flags, parent=parent, childname=childname)
@@ -1495,9 +1518,9 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
             (to_parent, to_childname) = to_pair
 
             if from_childname is None:
-                raise SFTPError(FX_NO_SUCH_FILE, "cannot rename a source object specified by URI")
+                raise createSFTPError(FX_NO_SUCH_FILE, "cannot rename a source object specified by URI")
             if to_childname is None:
-                raise SFTPError(FX_NO_SUCH_FILE, "cannot rename to a destination specified by URI")
+                raise createSFTPError(FX_NO_SUCH_FILE, "cannot rename to a destination specified by URI")
 
             # <http://tools.ietf.org/html/draft-ietf-secsh-filexfer-02#section-6.5>
             # "It is an error if there already exists a file with the name specified
@@ -1512,7 +1535,7 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
                 d2.addCallback(lambda ign: to_parent.get(to_childname))
                 def _expect_fail(res):
                     if not isinstance(res, Failure):
-                        raise SFTPError(FX_PERMISSION_DENIED, "cannot rename to existing path " + to_userpath)
+                        raise createSFTPError(FX_PERMISSION_DENIED, "cannot rename to existing path " + str(to_userpath, "utf-8"))
 
                     # It is OK if we fail for errors other than NoSuchChildError, since that probably
                     # indicates some problem accessing the destination directory.
@@ -1537,7 +1560,7 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
                     if not isinstance(err, Failure) or (renamed and err.check(NoSuchChildError)):
                         return None
                     if not overwrite and err.check(ExistingChildError):
-                        raise SFTPError(FX_PERMISSION_DENIED, "cannot rename to existing path " + to_userpath)
+                        raise createSFTPError(FX_PERMISSION_DENIED, "cannot rename to existing path " + str(to_userpath, "utf-8"))
 
                     return err
                 d3.addBoth(_check)
@@ -1555,7 +1578,7 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
         path = self._path_from_string(pathstring)
         metadata = _attrs_to_metadata(attrs)
         if 'no-write' in metadata:
-            def _denied(): raise SFTPError(FX_PERMISSION_DENIED, "cannot create a directory that is initially read-only")
+            def _denied(): raise createSFTPError(FX_PERMISSION_DENIED, "cannot create a directory that is initially read-only")
             return defer.execute(_denied)
 
         d = self._get_root(path)
@@ -1567,7 +1590,7 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
     def _get_or_create_directories(self, node, path, metadata):
         if not IDirectoryNode.providedBy(node):
             # TODO: provide the name of the blocking file in the error message.
-            def _blocked(): raise SFTPError(FX_FAILURE, "cannot create directory because there "
+            def _blocked(): raise createSFTPError(FX_FAILURE, "cannot create directory because there "
                                                         "is a file in the way") # close enough
             return defer.execute(_blocked)
 
@@ -1605,7 +1628,7 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
         def _got_parent(parent_and_childname):
             (parent, childname) = parent_and_childname
             if childname is None:
-                raise SFTPError(FX_NO_SUCH_FILE, "cannot remove an object specified by URI")
+                raise createSFTPError(FX_NO_SUCH_FILE, "cannot remove an object specified by URI")
 
             direntry = _direntry_for(parent, childname)
             d2 = defer.succeed(False)
@@ -1636,18 +1659,18 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
         d.addCallback(_got_parent_or_node)
         def _list(dirnode):
             if dirnode.is_unknown():
-                raise SFTPError(FX_PERMISSION_DENIED,
+                raise createSFTPError(FX_PERMISSION_DENIED,
                                 "cannot list an unknown cap as a directory. Upgrading the gateway "
                                 "to a later Tahoe-LAFS version may help")
             if not IDirectoryNode.providedBy(dirnode):
-                raise SFTPError(FX_PERMISSION_DENIED,
+                raise createSFTPError(FX_PERMISSION_DENIED,
                                 "cannot list a file as if it were a directory")
 
             d2 = dirnode.list()
             def _render(children):
                 parent_readonly = dirnode.is_readonly()
                 results = []
-                for filename, (child, metadata) in children.iteritems():
+                for filename, (child, metadata) in list(children.items()):
                     # The file size may be cached or absent.
                     metadata['no-write'] = _no_write(parent_readonly, child, metadata)
                     attrs = _populate_attrs(child, metadata)
@@ -1727,7 +1750,7 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
         if "size" in attrs:
             # this would require us to download and re-upload the truncated/extended
             # file contents
-            def _unsupported(): raise SFTPError(FX_OP_UNSUPPORTED, "setAttrs wth size attribute unsupported")
+            def _unsupported(): raise createSFTPError(FX_OP_UNSUPPORTED, "setAttrs wth size attribute unsupported")
             return defer.execute(_unsupported)
 
         path = self._path_from_string(pathstring)
@@ -1744,7 +1767,7 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
                 if childname is None:
                     if updated_heisenfiles:
                         return None
-                    raise SFTPError(FX_NO_SUCH_FILE, userpath)
+                    raise createSFTPError(FX_NO_SUCH_FILE, userpath)
                 else:
                     desired_metadata = _attrs_to_metadata(attrs)
                     if noisy: self.log("desired_metadata = %r" % (desired_metadata,), level=NOISY)
@@ -1767,7 +1790,7 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
     def readLink(self, pathstring):
         self.log(".readLink(%r)" % (pathstring,), level=OPERATIONAL)
 
-        def _unsupported(): raise SFTPError(FX_OP_UNSUPPORTED, "readLink")
+        def _unsupported(): raise createSFTPError(FX_OP_UNSUPPORTED, "readLink")
         return defer.execute(_unsupported)
 
     def makeLink(self, linkPathstring, targetPathstring):
@@ -1776,7 +1799,7 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
         # If this is implemented, note the reversal of arguments described in point 7 of
         # <http://www.openbsd.org/cgi-bin/cvsweb/src/usr.bin/ssh/PROTOCOL?rev=1.15>.
 
-        def _unsupported(): raise SFTPError(FX_OP_UNSUPPORTED, "makeLink")
+        def _unsupported(): raise createSFTPError(FX_OP_UNSUPPORTED, "makeLink")
         return defer.execute(_unsupported)
 
     def extendedRequest(self, extensionName, extensionData):
@@ -1785,8 +1808,8 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
         # We implement the three main OpenSSH SFTP extensions; see
         # <http://www.openbsd.org/cgi-bin/cvsweb/src/usr.bin/ssh/PROTOCOL?rev=1.15>
 
-        if extensionName == 'posix-rename@openssh.com':
-            def _bad(): raise SFTPError(FX_BAD_MESSAGE, "could not parse posix-rename@openssh.com request")
+        if extensionName == b'posix-rename@openssh.com':
+            def _bad(): raise createSFTPError(FX_BAD_MESSAGE, "could not parse posix-rename@openssh.com request")
 
             if 4 > len(extensionData): return defer.execute(_bad)
             (fromPathLen,) = struct.unpack('>L', extensionData[0:4])
@@ -1803,11 +1826,11 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
             # an error, or an FXP_EXTENDED_REPLY. But it happens to do the right thing
             # (respond with an FXP_STATUS message) if we return a Failure with code FX_OK.
             def _succeeded(ign):
-                raise SFTPError(FX_OK, "request succeeded")
+                raise createSFTPError(FX_OK, "request succeeded")
             d.addCallback(_succeeded)
             return d
 
-        if extensionName == 'statvfs@openssh.com' or extensionName == 'fstatvfs@openssh.com':
+        if extensionName == b'statvfs@openssh.com' or extensionName == b'fstatvfs@openssh.com':
             # f_bsize and f_frsize should be the same to avoid a bug in 'df'
             return defer.succeed(struct.pack('>11Q',
                 1024,         # uint64  f_bsize     /* file system block size */
@@ -1823,7 +1846,7 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
                 65535,        # uint64  f_namemax   /* maximum filename length */
                 ))
 
-        def _unsupported(): raise SFTPError(FX_OP_UNSUPPORTED, "unsupported %r request <data of length %r>" %
+        def _unsupported(): raise createSFTPError(FX_OP_UNSUPPORTED, "unsupported %r request <data of length %r>" %
                                                                (extensionName, len(extensionData)))
         return defer.execute(_unsupported)
 
@@ -1838,29 +1861,29 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
     def _path_from_string(self, pathstring):
         if noisy: self.log("CONVERT %r" % (pathstring,), level=NOISY)
 
-        _assert(isinstance(pathstring, str), pathstring=pathstring)
+        _assert(isinstance(pathstring, bytes), pathstring=pathstring)
 
         # The home directory is the root directory.
-        pathstring = pathstring.strip("/")
-        if pathstring == "" or pathstring == ".":
+        pathstring = pathstring.strip(b"/")
+        if pathstring == b"" or pathstring == b".":
             path_utf8 = []
         else:
-            path_utf8 = pathstring.split("/")
+            path_utf8 = pathstring.split(b"/")
 
         # <http://tools.ietf.org/html/draft-ietf-secsh-filexfer-02#section-6.2>
         # "Servers SHOULD interpret a path name component ".." as referring to
         #  the parent directory, and "." as referring to the current directory."
         path = []
         for p_utf8 in path_utf8:
-            if p_utf8 == "..":
+            if p_utf8 == b"..":
                 # ignore excess .. components at the root
                 if len(path) > 0:
                     path = path[:-1]
-            elif p_utf8 != ".":
+            elif p_utf8 != b".":
                 try:
                     p = p_utf8.decode('utf-8', 'strict')
                 except UnicodeError:
-                    raise SFTPError(FX_NO_SUCH_FILE, "path could not be decoded as UTF-8")
+                    raise createSFTPError(FX_NO_SUCH_FILE, "path could not be decoded as UTF-8")
                 path.append(p)
 
         if noisy: self.log(" PATH %r" % (path,), level=NOISY)
@@ -1960,7 +1983,7 @@ class ShellSession(PrefixingLogMixin):
 components.registerAdapter(ShellSession, SFTPUserHandler, ISession)
 
 
-from allmydata.frontends.auth import AccountURLChecker, AccountFileChecker, NeedRootcapLookupScheme
+from allmydata.frontends.auth import AccountFileChecker, NeedRootcapLookupScheme
 
 @implementer(portal.IRealm)
 class Dispatcher(object):
@@ -1977,11 +2000,11 @@ class Dispatcher(object):
 class SFTPServer(service.MultiService):
     name = "frontend:sftp"
 
-    def __init__(self, client, accountfile, accounturl,
+    def __init__(self, client, accountfile,
                  sftp_portstr, pubkey_file, privkey_file):
-        precondition(isinstance(accountfile, (unicode, NoneType)), accountfile)
-        precondition(isinstance(pubkey_file, unicode), pubkey_file)
-        precondition(isinstance(privkey_file, unicode), privkey_file)
+        precondition(isinstance(accountfile, (str, type(None))), accountfile)
+        precondition(isinstance(pubkey_file, str), pubkey_file)
+        precondition(isinstance(privkey_file, str), privkey_file)
         service.MultiService.__init__(self)
 
         r = Dispatcher(client)
@@ -1990,12 +2013,9 @@ class SFTPServer(service.MultiService):
         if accountfile:
             c = AccountFileChecker(self, accountfile)
             p.registerChecker(c)
-        if accounturl:
-            c = AccountURLChecker(self, accounturl)
-            p.registerChecker(c)
-        if not accountfile and not accounturl:
+        if not accountfile:
             # we could leave this anonymous, with just the /uri/CAP form
-            raise NeedRootcapLookupScheme("must provide an account file or URL")
+            raise NeedRootcapLookupScheme("must provide an account file")
 
         pubkey = keys.Key.fromFile(pubkey_file.encode(get_filesystem_encoding()))
         privkey = keys.Key.fromFile(privkey_file.encode(get_filesystem_encoding()))
@@ -2012,5 +2032,5 @@ class SFTPServer(service.MultiService):
         f = SSHFactory()
         f.portal = p
 
-        s = strports.service(sftp_portstr, f)
+        s = strports.service(six.ensure_str(sftp_portstr), f)
         s.setServiceParent(self)

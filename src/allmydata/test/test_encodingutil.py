@@ -70,7 +70,7 @@ if __name__ == "__main__":
     sys.exit(0)
 
 
-import os, sys, locale
+import os, sys
 from unittest import skipIf
 
 from twisted.trial import unittest
@@ -81,99 +81,28 @@ from allmydata.test.common_util import (
     ReallyEqualMixin, skip_if_cannot_represent_filename,
 )
 from allmydata.util import encodingutil, fileutil
-from allmydata.util.encodingutil import argv_to_unicode, unicode_to_url, \
+from allmydata.util.encodingutil import unicode_to_url, \
     unicode_to_output, quote_output, quote_path, quote_local_unicode_path, \
     quote_filepath, unicode_platform, listdir_unicode, FilenameEncodingError, \
-    get_io_encoding, get_filesystem_encoding, to_bytes, from_utf8_or_none, _reload, \
+    get_filesystem_encoding, to_bytes, from_utf8_or_none, _reload, \
     to_filepath, extend_filepath, unicode_from_filepath, unicode_segments_from, \
     unicode_to_argv
-from twisted.python import usage
-
 
 class MockStdout(object):
     pass
-
-class EncodingUtilErrors(ReallyEqualMixin, unittest.TestCase):
-    def test_get_io_encoding(self):
-        mock_stdout = MockStdout()
-        self.patch(sys, 'stdout', mock_stdout)
-
-        mock_stdout.encoding = 'UTF-8'
-        _reload()
-        self.failUnlessReallyEqual(get_io_encoding(), 'utf-8')
-
-        mock_stdout.encoding = 'cp65001'
-        _reload()
-        self.assertEqual(get_io_encoding(), 'utf-8')
-
-        mock_stdout.encoding = 'koi8-r'
-        expected = sys.platform == "win32" and 'utf-8' or 'koi8-r'
-        _reload()
-        self.failUnlessReallyEqual(get_io_encoding(), expected)
-
-        mock_stdout.encoding = 'nonexistent_encoding'
-        if sys.platform == "win32":
-            _reload()
-            self.failUnlessReallyEqual(get_io_encoding(), 'utf-8')
-        else:
-            self.failUnlessRaises(AssertionError, _reload)
-
-    def test_get_io_encoding_not_from_stdout(self):
-        preferredencoding = 'koi8-r'
-        def call_locale_getpreferredencoding():
-            return preferredencoding
-        self.patch(locale, 'getpreferredencoding', call_locale_getpreferredencoding)
-        mock_stdout = MockStdout()
-        self.patch(sys, 'stdout', mock_stdout)
-
-        expected = sys.platform == "win32" and 'utf-8' or 'koi8-r'
-        _reload()
-        self.failUnlessReallyEqual(get_io_encoding(), expected)
-
-        mock_stdout.encoding = None
-        _reload()
-        self.failUnlessReallyEqual(get_io_encoding(), expected)
-
-        preferredencoding = None
-        _reload()
-        self.assertEqual(get_io_encoding(), 'utf-8')
-
-    def test_argv_to_unicode(self):
-        encodingutil.io_encoding = 'utf-8'
-        self.failUnlessRaises(usage.UsageError,
-                              argv_to_unicode,
-                              lumiere_nfc.encode('latin1'))
-
-    @skipIf(PY3, "Python 2 only.")
-    def test_unicode_to_output(self):
-        encodingutil.io_encoding = 'koi8-r'
-        self.failUnlessRaises(UnicodeEncodeError, unicode_to_output, lumiere_nfc)
-
-    def test_no_unicode_normalization(self):
-        # Pretend to run on a Unicode platform.
-        # listdir_unicode normalized to NFC in 1.7beta, but now doesn't.
-
-        def call_os_listdir(path):
-            return [Artonwall_nfd]
-        self.patch(os, 'listdir', call_os_listdir)
-        self.patch(sys, 'platform', 'darwin')
-
-        _reload()
-        self.failUnlessReallyEqual(listdir_unicode(u'/dummy'), [Artonwall_nfd])
-
 
 # The following tests apply only to platforms that don't store filenames as
 # Unicode entities on the filesystem.
 class EncodingUtilNonUnicodePlatform(unittest.TestCase):
     @skipIf(PY3, "Python 3 is always Unicode, regardless of OS.")
     def setUp(self):
-        # Mock sys.platform because unicode_platform() uses it
-        self.original_platform = sys.platform
-        sys.platform = 'linux'
+        # Make sure everything goes back to the way it was at the end of the
+        # test.
+        self.addCleanup(_reload)
 
-    def tearDown(self):
-        sys.platform = self.original_platform
-        _reload()
+        # Mock sys.platform because unicode_platform() uses it.  Cleanups run
+        # in reverse order so we do this second so it gets undone first.
+        self.patch(sys, "platform", "linux")
 
     def test_listdir_unicode(self):
         # What happens if latin1-encoded filenames are encountered on an UTF-8
@@ -206,25 +135,8 @@ class EncodingUtilNonUnicodePlatform(unittest.TestCase):
 
 class EncodingUtil(ReallyEqualMixin):
     def setUp(self):
-        self.original_platform = sys.platform
-        sys.platform = self.platform
-
-    def tearDown(self):
-        sys.platform = self.original_platform
-        _reload()
-
-    def test_argv_to_unicode(self):
-        if 'argv' not in dir(self):
-            return
-
-        mock_stdout = MockStdout()
-        mock_stdout.encoding = self.io_encoding
-        self.patch(sys, 'stdout', mock_stdout)
-
-        argu = lumiere_nfc
-        argv = self.argv
-        _reload()
-        self.failUnlessReallyEqual(argv_to_unicode(argv), argu)
+        self.addCleanup(_reload)
+        self.patch(sys, "platform", self.platform)
 
     def test_unicode_to_url(self):
         self.failUnless(unicode_to_url(lumiere_nfc), b"lumi\xc3\xa8re")
@@ -245,15 +157,19 @@ class EncodingUtil(ReallyEqualMixin):
     def test_unicode_to_output_py3(self):
         self.failUnlessReallyEqual(unicode_to_output(lumiere_nfc), lumiere_nfc)
 
-    @skipIf(PY3, "Python 2 only.")
-    def test_unicode_to_argv_py2(self):
-        """unicode_to_argv() converts to bytes on Python 2."""
-        self.assertEqual(unicode_to_argv("abc"), u"abc".encode(self.io_encoding))
+    def test_unicode_to_argv(self):
+        """
+        unicode_to_argv() returns its unicode argument on Windows and Python 2 and
+        converts to bytes using UTF-8 elsewhere.
+        """
+        result = unicode_to_argv(lumiere_nfc)
+        if PY3 or self.platform == "win32":
+            expected_value = lumiere_nfc
+        else:
+            expected_value = lumiere_nfc.encode(self.io_encoding)
 
-    @skipIf(PY2, "Python 3 only.")
-    def test_unicode_to_argv_py3(self):
-        """unicode_to_argv() is noop on Python 3."""
-        self.assertEqual(unicode_to_argv("abc"), "abc")
+        self.assertIsInstance(result, type(expected_value))
+        self.assertEqual(result, expected_value)
 
     @skipIf(PY3, "Python 3 only.")
     def test_unicode_platform_py2(self):
@@ -463,14 +379,10 @@ class QuoteOutput(ReallyEqualMixin, unittest.TestCase):
         check(u"\n",       u"\"\\x0a\"", quote_newlines=True)
 
     def test_quote_output_default(self):
-        self.patch(encodingutil, 'io_encoding', 'ascii')
-        self.test_quote_output_ascii(None)
-
-        self.patch(encodingutil, 'io_encoding', 'latin1')
-        self.test_quote_output_latin1(None)
-
-        self.patch(encodingutil, 'io_encoding', 'utf-8')
-        self.test_quote_output_utf8(None)
+        """Default is the encoding of sys.stdout if known, otherwise utf-8."""
+        encoding = getattr(sys.stdout, "encoding") or "utf-8"
+        self.assertEqual(quote_output(u"\u2621"),
+                         quote_output(u"\u2621", encoding=encoding))
 
 
 def win32_other(win32, other):
@@ -581,14 +493,6 @@ class UbuntuKarmicUTF8(EncodingUtil, unittest.TestCase):
     io_encoding = 'UTF-8'
     dirlist = [b'test_file', b'\xc3\x84rtonwall.mp3', b'Blah blah.txt']
 
-class UbuntuKarmicLatin1(EncodingUtil, unittest.TestCase):
-    uname = 'Linux korn 2.6.31-14-generic #48-Ubuntu SMP Fri Oct 16 14:05:01 UTC 2009 x86_64'
-    argv = b'lumi\xe8re'
-    platform = 'linux2'
-    filesystem_encoding = 'ISO-8859-1'
-    io_encoding = 'ISO-8859-1'
-    dirlist = [b'test_file', b'Blah blah.txt', b'\xc4rtonwall.mp3']
-
 class Windows(EncodingUtil, unittest.TestCase):
     uname = 'Windows XP 5.1.2600 x86 x86 Family 15 Model 75 Step ping 2, AuthenticAMD'
     argv = b'lumi\xc3\xa8re'
@@ -604,20 +508,6 @@ class MacOSXLeopard(EncodingUtil, unittest.TestCase):
     filesystem_encoding = 'utf-8'
     io_encoding = 'UTF-8'
     dirlist = [u'A\u0308rtonwall.mp3', u'Blah blah.txt', u'test_file']
-
-class MacOSXLeopard7bit(EncodingUtil, unittest.TestCase):
-    uname = 'Darwin g5.local 9.8.0 Darwin Kernel Version 9.8.0: Wed Jul 15 16:57:01 PDT 2009; root:xnu-1228.15.4~1/RELEASE_PPC Power Macintosh powerpc'
-    platform = 'darwin'
-    filesystem_encoding = 'utf-8'
-    io_encoding = 'US-ASCII'
-    dirlist = [u'A\u0308rtonwall.mp3', u'Blah blah.txt', u'test_file']
-
-class OpenBSD(EncodingUtil, unittest.TestCase):
-    uname = 'OpenBSD 4.1 GENERIC#187 i386 Intel(R) Celeron(R) CPU 2.80GHz ("GenuineIntel" 686-class)'
-    platform = 'openbsd4'
-    filesystem_encoding = '646'
-    io_encoding = '646'
-    # Oops, I cannot write filenames containing non-ascii characters
 
 
 class TestToFromStr(ReallyEqualMixin, unittest.TestCase):

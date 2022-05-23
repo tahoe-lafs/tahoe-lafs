@@ -132,7 +132,7 @@ class Publish(object):
         self._servermap = servermap
         self._storage_index = self._node.get_storage_index()
         self._log_prefix = prefix = si_b2a(self._storage_index)[:5]
-        num = self.log("Publish(%s): starting" % prefix, parent=None)
+        num = self.log("Publish(%r): starting" % prefix, parent=None)
         self._log_number = num
         self._running = True
         self._first_write_error = None
@@ -920,7 +920,7 @@ class Publish(object):
     def log_goal(self, goal, message=""):
         logmsg = [message]
         for (shnum, server) in sorted([(s,p) for (p,s) in goal], key=lambda t: (id(t[0]), id(t[1]))):
-            logmsg.append("sh%d to [%s]" % (shnum, server.get_name()))
+            logmsg.append("sh%d to [%r]" % (shnum, server.get_name()))
         self.log("current goal: %s" % (", ".join(logmsg)), level=log.NOISY)
         self.log("we are planning to push new seqnum=#%d" % self._new_seqnum,
                  level=log.NOISY)
@@ -1023,7 +1023,7 @@ class Publish(object):
             return
 
         server = writer.server
-        lp = self.log("_got_write_answer from %s, share %d" %
+        lp = self.log("_got_write_answer from %r, share %d" %
                       (server.get_name(), writer.shnum))
 
         now = time.time()
@@ -1159,14 +1159,14 @@ class Publish(object):
                     (seqnum, root_hash, IV, segsize, datalength, k, N, prefix,
                      offsets_tuple) = expected_version
                     msg = ("somebody modified the share on us:"
-                           " shnum=%d: I thought they had #%d:R=%s," %
+                           " shnum=%d: I thought they had #%d:R=%r," %
                            (shnum,
                             seqnum, base32.b2a(root_hash)[:4]))
                     if unknown_format:
                         msg += (" but I don't know how to read share"
                                 " format %d" % version)
                     else:
-                        msg += " but testv reported #%d:R=%s" % \
+                        msg += " but testv reported #%d:R=%r" % \
                                (other_seqnum, base32.b2a(other_roothash)[:4])
                     self.log(msg, parent=lp, level=log.NOISY)
                 # if expected_version==None, then we didn't expect to see a

@@ -1,5 +1,16 @@
+"""
+Ported to Python 3.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
 
-import urllib
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+
+from urllib.parse import quote as urlquote
 
 from twisted.web import http
 from twisted.internet import defer
@@ -65,8 +76,8 @@ def POSTUnlinkedCHK(req, client):
         # if when_done= is provided, return a redirect instead of our
         # usual upload-results page
         def _done(upload_results, redir_to):
-            if "%(uri)s" in redir_to:
-                redir_to = redir_to.replace("%(uri)s", urllib.quote(upload_results.get_uri()))
+            if b"%(uri)s" in redir_to:
+                redir_to = redir_to.replace(b"%(uri)s", urlquote(upload_results.get_uri()).encode("utf-8"))
             return url_for_string(req, redir_to)
         d.addCallback(_done, when_done)
     else:
@@ -118,8 +129,8 @@ class UploadResultsElement(status.UploadResultsRendererMixin):
     def download_link(self, req, tag):
         d = self.upload_results()
         d.addCallback(lambda res:
-                      tags.a("/uri/" + res.get_uri(),
-                             href="/uri/" + urllib.quote(res.get_uri())))
+                      tags.a("/uri/" + str(res.get_uri(), "utf-8"),
+                             href="/uri/" + urlquote(str(res.get_uri(), "utf-8"))))
         return d
 
 
@@ -158,7 +169,7 @@ def POSTUnlinkedCreateDirectory(req, client):
     redirect = get_arg(req, "redirect_to_result", "false")
     if boolean_of_arg(redirect):
         def _then_redir(res):
-            new_url = "uri/" + urllib.quote(res.get_uri())
+            new_url = "uri/" + urlquote(res.get_uri())
             req.setResponseCode(http.SEE_OTHER) # 303
             req.setHeader('location', new_url)
             return ''
@@ -176,7 +187,7 @@ def POSTUnlinkedCreateDirectoryWithChildren(req, client):
     redirect = get_arg(req, "redirect_to_result", "false")
     if boolean_of_arg(redirect):
         def _then_redir(res):
-            new_url = "uri/" + urllib.quote(res.get_uri())
+            new_url = "uri/" + urlquote(res.get_uri())
             req.setResponseCode(http.SEE_OTHER) # 303
             req.setHeader('location', new_url)
             return ''
@@ -194,7 +205,7 @@ def POSTUnlinkedCreateImmutableDirectory(req, client):
     redirect = get_arg(req, "redirect_to_result", "false")
     if boolean_of_arg(redirect):
         def _then_redir(res):
-            new_url = "uri/" + urllib.quote(res.get_uri())
+            new_url = "uri/" + urlquote(res.get_uri())
             req.setResponseCode(http.SEE_OTHER) # 303
             req.setHeader('location', new_url)
             return ''

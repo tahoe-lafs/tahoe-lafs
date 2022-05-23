@@ -1,3 +1,14 @@
+"""
+Ported to Python 3.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+        from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 import os
 
@@ -34,10 +45,10 @@ class Blacklist(object):
         try:
             if self.last_mtime is None or current_mtime > self.last_mtime:
                 self.entries.clear()
-                with open(self.blacklist_fn, "r") as f:
+                with open(self.blacklist_fn, "rb") as f:
                     for line in f:
                         line = line.strip()
-                        if not line or line.startswith("#"):
+                        if not line or line.startswith(b"#"):
                             continue
                         si_s, reason = line.split(None, 1)
                         si = base32.a2b(si_s) # must be valid base32
@@ -52,7 +63,7 @@ class Blacklist(object):
         reason = self.entries.get(si, None)
         if reason is not None:
             # log this to logs/twistd.log, since web logs go there too
-            twisted_log.msg("blacklist prohibited access to SI %s: %s" %
+            twisted_log.msg("blacklist prohibited access to SI %r: %r" %
                             (base32.b2a(si), reason))
         return reason
 
@@ -131,7 +142,7 @@ class ProhibitedNode(object):
     def get_best_readable_version(self):
         raise FileProhibited(self.reason)
 
-    def download_best_version(self, progress=None):
+    def download_best_version(self):
         raise FileProhibited(self.reason)
 
     def get_best_mutable_version(self):

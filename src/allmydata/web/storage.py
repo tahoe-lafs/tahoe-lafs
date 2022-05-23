@@ -1,6 +1,16 @@
-from future.utils import PY2
+"""
+Ported to Python 3.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
 
-import time, json
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+
+import time
 from twisted.python.filepath import FilePath
 from twisted.web.template import (
     Element,
@@ -9,12 +19,12 @@ from twisted.web.template import (
     renderer,
     renderElement
 )
-from allmydata.web.common_py3 import (
+from allmydata.web.common import (
     abbreviate_time,
     MultiFormatResource
 )
 from allmydata.util.abbreviate import abbreviate_space
-from allmydata.util import time_format, idlib
+from allmydata.util import time_format, idlib, jsonbytes as json
 
 
 def remove_prefix(s, prefix):
@@ -246,8 +256,8 @@ class StorageStatusElement(Element):
 
         if so_far["corrupt-shares"]:
             add("Corrupt shares:",
-                T.ul( (T.li( ["SI %s shnum %d" % corrupt_share
-                              for corrupt_share in so_far["corrupt-shares"] ]
+                T.ul( (T.li( ["SI %s shnum %d" % (si, shnum)
+                              for si, shnum in so_far["corrupt-shares"] ]
                              ))))
         return tag("Current cycle:", p)
 
@@ -257,7 +267,8 @@ class StorageStatusElement(Element):
         h = lc.get_state()["history"]
         if not h:
             return ""
-        last = h[max(h.keys())]
+        biggest = str(max(int(k) for k in h.keys()))
+        last = h[biggest]
 
         start, end = last["cycle-start-finish-times"]
         tag("Last complete cycle (which took %s and finished %s ago)"
@@ -280,8 +291,8 @@ class StorageStatusElement(Element):
 
         if last["corrupt-shares"]:
             add("Corrupt shares:",
-                T.ul( (T.li( ["SI %s shnum %d" % corrupt_share
-                              for corrupt_share in last["corrupt-shares"] ]
+                T.ul( (T.li( ["SI %s shnum %d" % (si, shnum)
+                              for si, shnum in last["corrupt-shares"] ]
                              ))))
 
         return tag(p)
@@ -318,7 +329,4 @@ class StorageStatus(MultiFormatResource):
              "lease-checker": self._storage.lease_checker.get_state(),
              "lease-checker-progress": self._storage.lease_checker.get_progress(),
              }
-        result = json.dumps(d, indent=1) + "\n"
-        if PY2:
-            result = result.decode("utf-8")
-        return result.encode("utf-8")
+        return json.dumps(d, indent=1) + "\n"

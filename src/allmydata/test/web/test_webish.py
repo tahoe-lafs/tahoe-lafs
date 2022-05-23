@@ -1,6 +1,16 @@
 """
 Tests for ``allmydata.webish``.
+
+Ported to Python 3.
 """
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 from uuid import (
     uuid4,
@@ -80,10 +90,11 @@ class TahoeLAFSRequestTests(SyncTestCase):
         """
         self._fields_test(b"GET", {}, b"", Equals(None))
 
-    def test_form_fields(self):
+    def test_form_fields_if_filename_set(self):
         """
         When a ``POST`` request is received, form fields are parsed into
-        ``TahoeLAFSRequest.fields``.
+        ``TahoeLAFSRequest.fields`` and the body is bytes (presuming ``filename``
+        is set).
         """
         form_data, boundary = multipart_formdata([
             [param(u"name", u"foo"),
@@ -96,7 +107,7 @@ class TahoeLAFSRequestTests(SyncTestCase):
         ])
         self._fields_test(
             b"POST",
-            {b"content-type": b"multipart/form-data; boundary={}".format(boundary)},
+            {b"content-type": b"multipart/form-data; boundary=" + bytes(boundary, 'ascii')},
             form_data.encode("ascii"),
             AfterPreprocessing(
                 lambda fs: {
@@ -105,11 +116,54 @@ class TahoeLAFSRequestTests(SyncTestCase):
                     in fs.keys()
                 },
                 Equals({
-                    b"foo": b"bar",
-                    b"baz": b"some file contents",
+                    "foo": "bar",
+                    "baz": b"some file contents",
                 }),
             ),
         )
+
+    def test_form_fields_if_name_is_file(self):
+        """
+        When a ``POST`` request is received, form fields are parsed into
+        ``TahoeLAFSRequest.fields`` and the body is bytes when ``name``
+        is set to ``"file"``.
+        """
+        form_data, boundary = multipart_formdata([
+            [param(u"name", u"foo"),
+             body(u"bar"),
+            ],
+            [param(u"name", u"file"),
+             body(u"some file contents"),
+            ],
+        ])
+        self._fields_test(
+            b"POST",
+            {b"content-type": b"multipart/form-data; boundary=" + bytes(boundary, 'ascii')},
+            form_data.encode("ascii"),
+            AfterPreprocessing(
+                lambda fs: {
+                    k: fs.getvalue(k)
+                    for k
+                    in fs.keys()
+                },
+                Equals({
+                    "foo": "bar",
+                    "file": b"some file contents",
+                }),
+            ),
+        )
+
+    def test_form_fields_require_correct_mime_type(self):
+        """
+        The body of a ``POST`` is not parsed into fields if its mime type is
+        not ``multipart/form-data``.
+
+        Reproducer for https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3854
+        """
+        data = u'{"lalala": "lolo"}'
+        data = data.encode("utf-8")
+        self._fields_test(b"POST", {"content-type": "application/json"},
+                          data, Equals(None))
 
 
 class TahoeLAFSSiteTests(SyncTestCase):

@@ -11,6 +11,7 @@ import sys
 # See the docs/about.rst file for licensing information.
 
 import os, subprocess, re
+from io import open
 
 basedir = os.path.dirname(os.path.abspath(__file__))
 
@@ -53,9 +54,8 @@ install_requires = [
     # * foolscap >= 0.12.5 has ConnectionInfo and ReconnectionInfo
     # * foolscap >= 0.12.6 has an i2p.sam_endpoint() that takes kwargs
     # * foolscap 0.13.2 drops i2p support completely
-    # * foolscap >= 20.4 is necessary for Python 3
-    "foolscap == 0.13.1 ; python_version < '3.0'",
-    "foolscap >= 20.4.0 ; python_version > '3.0'",
+    # * foolscap >= 21.7 is necessary for Python 3 with i2p support.
+    "foolscap >= 21.7.0",
 
     # * cryptography 2.6 introduced some ed25519 APIs we rely on.  Note that
     #   Twisted[conch] also depends on cryptography and Twisted[tls]
@@ -63,12 +63,8 @@ install_requires = [
     #   version of cryptography will *really* be installed.
     "cryptography >= 2.6",
 
-    # * We need Twisted 10.1.0 for the FTP frontend in order for
-    #   Twisted's FTP server to support asynchronous close.
     # * The SFTP frontend depends on Twisted 11.0.0 to fix the SSH server
     #   rekeying bug <https://twistedmatrix.com/trac/ticket/4395>
-    # * The FTP frontend depends on Twisted >= 11.1.0 for
-    #   filepath.Permissions
     # * The SFTP frontend and manhole depend on the conch extra. However, we
     #   can't explicitly declare that without an undesirable dependency on gmpy,
     #   as explained in ticket #2740.
@@ -109,21 +105,16 @@ install_requires = [
     # for 'tahoe invite' and 'tahoe join'
     "magic-wormhole >= 0.10.2",
 
-    # Eliot is contemplating dropping Python 2 support.  Stick to a version we
-    # know works on Python 2.7.
-    "eliot ~= 1.7",
+    # We want a new enough version to support custom JSON encoders.
+    "eliot >= 1.13.0",
 
-    # Pyrsistent 0.17.0 (which we use by way of Eliot) has dropped
-    # Python 2 entirely; stick to the version known to work for us.
-    # XXX: drop this bound: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3404
-    "pyrsistent < 0.17.0",
+    "pyrsistent",
 
     # A great way to define types of values.
-    # XXX: drop the upper bound: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3390
-    "attrs >= 18.2.0, < 20",
+    "attrs >= 18.2.0",
 
     # WebSocket library for twisted and asyncio
-    "autobahn >= 19.5.2",
+    "autobahn < 22.4.1",  # remove this when 22.4.3 is released
 
     # Support for Python 3 transition
     "future >= 0.18.2",
@@ -137,8 +128,15 @@ install_requires = [
     # Linux distribution detection:
     "distro >= 1.4.0",
 
-    # Backported configparser for Python 2:
-    "configparser ; python_version < '3.0'",
+    # For the RangeMap datastructure. Need 2.0.2 at least for bugfixes.
+    "collections-extended >= 2.0.2",
+
+    # HTTP server and client
+    "klein",
+    "werkzeug",
+    "treq",
+    "cbor2",
+    "pycddl",
 ]
 
 setup_requires = [
@@ -153,10 +151,13 @@ tor_requires = [
 ]
 
 i2p_requires = [
-    # txi2p has Python 3 support, but it's unreleased: https://github.com/str4d/txi2p/issues/10.
-    # URL lookups are in PEP-508 (via https://stackoverflow.com/a/54794506).
-    # Also see the comment in tor_requires.
-    "txi2p @ git+https://github.com/str4d/txi2p@0611b9a86172cb70d2f5e415a88eee9f230590b3#egg=txi2p",
+    # txi2p has Python 3 support in master branch, but it has not been
+    # released -- see https://github.com/str4d/txi2p/issues/10.  We
+    # could use a fork for Python 3 until txi2p's maintainers are back
+    # in action.  For Python 2, we could continue using the txi2p
+    # version about which no one has complained to us so far.
+    "txi2p; python_version < '3.0'",
+    "txi2p-tahoe >= 0.3.5; python_version > '3.0'",
 ]
 
 if len(sys.argv) > 1 and sys.argv[1] == '--fakedependency':
@@ -188,8 +189,7 @@ trove_classifiers=[
     "Natural Language :: English",
     "Programming Language :: C",
     "Programming Language :: Python",
-    "Programming Language :: Python :: 2",
-    "Programming Language :: Python :: 2.7",
+    "Programming Language :: Python :: 3",
     "Topic :: Utilities",
     "Topic :: System :: Systems Administration",
     "Topic :: System :: Filesystems",
@@ -216,7 +216,7 @@ def run_command(args, cwd=None):
     use_shell = sys.platform == "win32"
     try:
         p = subprocess.Popen(args, stdout=subprocess.PIPE, cwd=cwd, shell=use_shell)
-    except EnvironmentError as e:  # if this gives a SyntaxError, note that Tahoe-LAFS requires Python 2.7+
+    except EnvironmentError as e:  # if this gives a SyntaxError, note that Tahoe-LAFS requires Python 3.7+
         print("Warning: unable to run %r." % (" ".join(args),))
         print(e)
         return None
@@ -356,9 +356,9 @@ if version:
 
 setup(name="tahoe-lafs", # also set in __init__.py
       description='secure, decentralized, fault-tolerant file store',
-      long_description=open('README.rst', 'rU').read(),
+      long_description=open('README.rst', 'r', encoding='utf-8').read(),
       author='the Tahoe-LAFS project',
-      author_email='tahoe-dev@tahoe-lafs.org',
+      author_email='tahoe-dev@lists.tahoe-lafs.org',
       url='https://tahoe-lafs.org/',
       license='GNU GPL', # see README.rst -- there is an alternative licence
       cmdclass={"update_version": UpdateVersion,
@@ -367,9 +367,8 @@ setup(name="tahoe-lafs", # also set in __init__.py
       package_dir = {'':'src'},
       packages=find_packages('src') + ['allmydata.test.plugins'],
       classifiers=trove_classifiers,
-      # We support Python 2.7, and we're working on support for 3.6 (the
-      # highest version that PyPy currently supports).
-      python_requires=">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*, !=3.5.*",
+      # We support Python 3.7 or later. 3.11 is not supported yet.
+      python_requires=">=3.7, <3.11",
       install_requires=install_requires,
       extras_require={
           # Duplicate the Twisted pywin32 dependency here.  See
@@ -383,16 +382,12 @@ setup(name="tahoe-lafs", # also set in __init__.py
               # this version from time to time, but we will do it
               # intentionally.
               "pyflakes == 2.2.0",
-              # coverage 5.0 breaks the integration tests in some opaque way.
-              # This probably needs to be addressed in a more permanent way
-              # eventually...
-              "coverage ~= 4.5",
+              "coverage ~= 5.0",
               "mock",
               "tox",
               "pytest",
               "pytest-twisted",
               "hypothesis >= 3.6.1",
-              "treq",
               "towncrier",
               "testtools",
               "fixtures",
@@ -400,6 +395,12 @@ setup(name="tahoe-lafs", # also set in __init__.py
               "html5lib",
               "junitxml",
               "tenacity",
+              # Pin old version until
+              # https://github.com/paramiko/paramiko/issues/1961 is fixed.
+              "paramiko < 2.9",
+              "pytest-timeout",
+              # Does our OpenMetrics endpoint adhere to the spec:
+              "prometheus-client == 0.11.0",
           ] + tor_requires + i2p_requires,
           "tor": tor_requires,
           "i2p": i2p_requires,

@@ -1,3 +1,15 @@
+"""
+Ported to Python 3.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+
 import os
 from twisted.trial import unittest
 from twisted.internet import defer, error
@@ -276,6 +288,20 @@ class Provider(unittest.TestCase):
         h = p.get_i2p_handler()
         i2p.local_i2p.assert_called_with("configdir")
         self.assertIs(h, handler)
+
+    def test_handler_launch_executable(self):
+        i2p = mock.Mock()
+        handler = object()
+        i2p.launch = mock.Mock(return_value=handler)
+        reactor = object()
+
+        with mock_i2p(i2p):
+            p = i2p_provider.create(reactor,
+                                    FakeConfig(launch=True,
+                                               **{"i2p.executable": "myi2p"}))
+        h = p.get_i2p_handler()
+        self.assertIs(h, handler)
+        i2p.launch.assert_called_with(i2p_configdir=None, i2p_binary="myi2p")
 
     def test_handler_default(self):
         i2p = mock.Mock()

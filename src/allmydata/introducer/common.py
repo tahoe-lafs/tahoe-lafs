@@ -1,21 +1,31 @@
-from past.builtins import unicode
+"""
+Ported to Python 3.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 import re
+
+from foolscap.furl import decode_furl
 from allmydata.crypto.util import remove_prefix
 from allmydata.crypto import ed25519
-from allmydata.util import base32, rrefutil, jsonbytes as json
+from allmydata.util import base32, jsonbytes as json
 
 
 def get_tubid_string_from_ann(ann):
     furl = ann.get("anonymous-storage-FURL") or ann.get("FURL")
-    if isinstance(furl, unicode):
-        furl = furl.encode("utf-8")
     return get_tubid_string(furl)
 
 def get_tubid_string(furl):
-    m = re.match(br'pb://(\w+)@', furl)
+    m = re.match(r'pb://(\w+)@', furl)
     assert m
-    return m.group(1).lower()
+    return m.group(1).lower().encode("ascii")
 
 
 def sign_to_foolscap(announcement, signing_key):
@@ -115,10 +125,10 @@ class AnnouncementDescriptor(object):
         self.service_name = ann_d["service-name"]
         self.version = ann_d.get("my-version", "")
         self.nickname = ann_d.get("nickname", u"")
-        (service_name, key_s) = index
+        (_, key_s) = index
         self.serverid = key_s
         furl = ann_d.get("anonymous-storage-FURL")
         if furl:
-            self.connection_hints = rrefutil.connection_hints_for_furl(furl)
+            _, self.connection_hints, _ = decode_furl(furl)
         else:
             self.connection_hints = []

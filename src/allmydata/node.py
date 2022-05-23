@@ -24,6 +24,11 @@ from base64 import b32decode, b32encode
 from errno import ENOENT, EPERM
 from warnings import warn
 
+try:
+    from typing import Union
+except ImportError:
+    pass
+
 import attr
 
 # On Python 2 this will be the backported package.
@@ -274,6 +279,11 @@ def _error_about_old_config_files(basedir, generated_files):
         raise e
 
 
+def ensure_text_and_abspath_expanduser_unicode(basedir):
+    # type: (Union[bytes, str]) -> str
+    return abspath_expanduser_unicode(ensure_text(basedir))
+
+
 @attr.s
 class _Config(object):
     """
@@ -301,8 +311,8 @@ class _Config(object):
     config = attr.ib(validator=attr.validators.instance_of(configparser.ConfigParser))
     portnum_fname = attr.ib()
     _basedir = attr.ib(
-        converter=lambda basedir: abspath_expanduser_unicode(ensure_text(basedir)),
-    )
+        converter=ensure_text_and_abspath_expanduser_unicode,
+    )  # type: str
     config_path = attr.ib(
         validator=attr.validators.optional(
             attr.validators.instance_of(FilePath),
@@ -671,28 +681,20 @@ def _make_tcp_handler():
     return default()
 
 
-def create_connection_handlers(reactor, config, i2p_provider, tor_provider):
+def create_default_connection_handlers(config, handlers):
     """
-    :returns: 2-tuple of default_connection_handlers, foolscap_connection_handlers
+    :return: A dictionary giving the default connection handlers.  The keys
+        are strings like "tcp" and the values are strings like "tor" or
+        ``None``.
     """
     reveal_ip = config.get_config("node", "reveal-IP-address", True, boolean=True)
 
-    # We store handlers for everything. None means we were unable to
-    # create that handler, so hints which want it will be ignored.
-    handlers = foolscap_connection_handlers = {
-        "tcp": _make_tcp_handler(),
-        "tor": tor_provider.get_tor_handler(),
-        "i2p": i2p_provider.get_i2p_handler(),
-        }
-    log.msg(
-        format="built Foolscap connection handlers for: %(known_handlers)s",
-        known_handlers=sorted([k for k,v in handlers.items() if v]),
-        facility="tahoe.node",
-        umid="PuLh8g",
-    )
-
-    # then we remember the default mappings from tahoe.cfg
-    default_connection_handlers = {"tor": "tor", "i2p": "i2p"}
+    # Remember the default mappings from tahoe.cfg
+    default_connection_handlers = {
+        name: name
+        for name
+        in handlers
+    }
     tcp_handler_name = config.get_config("connections", "tcp", "tcp").lower()
     if tcp_handler_name == "disabled":
         default_connection_handlers["tcp"] = None
@@ -717,9 +719,34 @@ def create_connection_handlers(reactor, config, i2p_provider, tor_provider):
 
     if not reveal_ip:
         if default_connection_handlers.get("tcp") == "tcp":
-            raise PrivacyError("tcp = tcp, must be set to 'tor' or 'disabled'")
-    return default_connection_handlers, foolscap_connection_handlers
+            raise PrivacyError(
+                "Privacy requested with `reveal-IP-address = false` "
+                "but `tcp = tcp` conflicts with this.",
+            )
+    return default_connection_handlers
 
+
+def create_connection_handlers(config, i2p_provider, tor_provider):
+    """
+    :returns: 2-tuple of default_connection_handlers, foolscap_connection_handlers
+    """
+    # We store handlers for everything. None means we were unable to
+    # create that handler, so hints which want it will be ignored.
+    handlers = {
+        "tcp": _make_tcp_handler(),
+        "tor": tor_provider.get_client_endpoint(),
+        "i2p": i2p_provider.get_client_endpoint(),
+    }
+    log.msg(
+        format="built Foolscap connection handlers for: %(known_handlers)s",
+        known_handlers=sorted([k for k,v in handlers.items() if v]),
+        facility="tahoe.node",
+        umid="PuLh8g",
+    )
+    return create_default_connection_handlers(
+        config,
+        handlers,
+    ), handlers
 
 
 def create_tub(tub_options, default_connection_handlers, foolscap_connection_handlers,
@@ -760,8 +787,21 @@ def _convert_tub_port(s):
     return us
 
 
-def _tub_portlocation(config):
+class PortAssignmentRequired(Exception):
     """
+    A Tub port number was configured to be 0 where this is not allowed.
+    """
+
+
+def _tub_portlocation(config, get_local_addresses_sync, allocate_tcp_port):
+    """
+    Figure out the network location of the main tub for some configuration.
+
+    :param get_local_addresses_sync: A function like
+        ``iputil.get_local_addresses_sync``.
+
+    :param allocate_tcp_port: A function like ``iputil.allocate_tcp_port``.
+
     :returns: None or tuple of (port, location) for the main tub based
         on the given configuration. May raise ValueError or PrivacyError
         if there are problems with the config
@@ -801,15 +841,15 @@ def _tub_portlocation(config):
             file_tubport = fileutil.read(config.portnum_fname).strip()
             tubport = _convert_tub_port(file_tubport)
         else:
-            tubport = "tcp:%d" % iputil.allocate_tcp_port()
+            tubport = "tcp:%d" % (allocate_tcp_port(),)
             fileutil.write_atomically(config.portnum_fname, tubport + "\n",
                                       mode="")
     else:
         tubport = _convert_tub_port(cfg_tubport)
 
     for port in tubport.split(","):
-        if port in ("0", "tcp:0"):
-            raise ValueError("tub.port cannot be 0: you must choose")
+        if port in ("0", "tcp:0", "tcp:port=0", "tcp:0:interface=127.0.0.1"):
+            raise PortAssignmentRequired()
 
     if cfg_location is None:
         cfg_location = "AUTO"
@@ -821,7 +861,7 @@ def _tub_portlocation(config):
     if "AUTO" in split_location:
         if not reveal_ip:
             raise PrivacyError("tub.location uses AUTO")
-        local_addresses = iputil.get_local_addresses_sync()
+        local_addresses = get_local_addresses_sync()
         # tubport must be like "tcp:12345" or "tcp:12345:morestuff"
         local_portnum = int(tubport.split(":")[1])
     new_locations = []
@@ -852,6 +892,33 @@ def _tub_portlocation(config):
     return tubport, location
 
 
+def tub_listen_on(i2p_provider, tor_provider, tub, tubport, location):
+    """
+    Assign a Tub its listener locations.
+
+    :param i2p_provider: See ``allmydata.util.i2p_provider.create``.
+    :param tor_provider: See ``allmydata.util.tor_provider.create``.
+    """
+    for port in tubport.split(","):
+        if port == "listen:i2p":
+            # the I2P provider will read its section of tahoe.cfg and
+            # return either a fully-formed Endpoint, or a descriptor
+            # that will create one, so we don't have to stuff all the
+            # options into the tub.port string (which would need a lot
+            # of escaping)
+            port_or_endpoint = i2p_provider.get_listener()
+        elif port == "listen:tor":
+            port_or_endpoint = tor_provider.get_listener()
+        else:
+            port_or_endpoint = port
+        # Foolscap requires native strings:
+        if isinstance(port_or_endpoint, (bytes, str)):
+            port_or_endpoint = ensure_str(port_or_endpoint)
+        tub.listenOn(port_or_endpoint)
+    # This last step makes the Tub is ready for tub.registerReference()
+    tub.setLocation(location)
+
+
 def create_main_tub(config, tub_options,
                     default_connection_handlers, foolscap_connection_handlers,
                     i2p_provider, tor_provider,
@@ -876,49 +943,35 @@ def create_main_tub(config, tub_options,
     :param tor_provider: None, or a _Provider instance if txtorcon +
         Tor are installed.
     """
-    portlocation = _tub_portlocation(config)
+    portlocation = _tub_portlocation(
+        config,
+        iputil.get_local_addresses_sync,
+        iputil.allocate_tcp_port,
+    )
 
-    certfile = config.get_private_path("node.pem")  # FIXME? "node.pem" was the CERTFILE option/thing
-    tub = create_tub(tub_options, default_connection_handlers, foolscap_connection_handlers,
-                     handler_overrides=handler_overrides, certFile=certfile)
+    # FIXME? "node.pem" was the CERTFILE option/thing
+    certfile = config.get_private_path("node.pem")
 
-    if portlocation:
-        tubport, location = portlocation
-        for port in tubport.split(","):
-            if port == "listen:i2p":
-                # the I2P provider will read its section of tahoe.cfg and
-                # return either a fully-formed Endpoint, or a descriptor
-                # that will create one, so we don't have to stuff all the
-                # options into the tub.port string (which would need a lot
-                # of escaping)
-                port_or_endpoint = i2p_provider.get_listener()
-            elif port == "listen:tor":
-                port_or_endpoint = tor_provider.get_listener()
-            else:
-                port_or_endpoint = port
-            # Foolscap requires native strings:
-            if isinstance(port_or_endpoint, (bytes, str)):
-                port_or_endpoint = ensure_str(port_or_endpoint)
-            tub.listenOn(port_or_endpoint)
-        tub.setLocation(location)
-        log.msg("Tub location set to %s" % (location,))
-        # the Tub is now ready for tub.registerReference()
-    else:
+    tub = create_tub(
+        tub_options,
+        default_connection_handlers,
+        foolscap_connection_handlers,
+        handler_overrides=handler_overrides,
+        certFile=certfile,
+    )
+    if portlocation is None:
         log.msg("Tub is not listening")
-
+    else:
+        tubport, location = portlocation
+        tub_listen_on(
+            i2p_provider,
+            tor_provider,
+            tub,
+            tubport,
+            location,
+        )
+        log.msg("Tub location set to %r" % (location,))
     return tub
-
-
-def create_control_tub():
-    """
-    Creates a Foolscap Tub for use by the control port. This is a
-    localhost-only ephemeral Tub, with no control over the listening
-    port or location
-    """
-    control_tub = Tub()
-    portnum = iputil.listenOnUnused(control_tub)
-    log.msg("Control Tub location set to 127.0.0.1:%s" % (portnum,))
-    return control_tub
 
 
 class Node(service.MultiService):
@@ -927,9 +980,8 @@ class Node(service.MultiService):
     """
     NODETYPE = "unknown NODETYPE"
     CERTFILE = "node.pem"
-    GENERATED_FILES = []
 
-    def __init__(self, config, main_tub, control_tub, i2p_provider, tor_provider):
+    def __init__(self, config, main_tub, i2p_provider, tor_provider):
         """
         Initialize the node with the given configuration. Its base directory
         is the current directory by default.
@@ -957,10 +1009,6 @@ class Node(service.MultiService):
             self.tub.setServiceParent(self)
         else:
             self.nodeid = self.short_nodeid = None
-
-        self.control_tub = control_tub
-        if self.control_tub is not None:
-            self.control_tub.setServiceParent(self)
 
         self.log("Node constructed. " + __full_version__)
         iputil.increase_rlimits()

@@ -1,25 +1,42 @@
-from __future__ import print_function
+"""
+Ported to Python 3.
+"""
+from __future__ import absolute_import, division, print_function, unicode_literals
+
+from future.builtins import str as future_str
+from future.utils import PY2, PY3, bchr, binary_type
+
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, dict, list, object, range, str, max, min  # noqa: F401
 
 import os
-import time
 import signal
+import sys
+import time
+from functools import partial
 from random import randrange
-from six.moves import StringIO
 
-from twisted.internet import reactor, defer
+if PY2:
+    from StringIO import StringIO
+
+from io import BytesIO, TextIOWrapper
+
+from allmydata.util.encodingutil import (
+    argv_type,
+    get_filesystem_encoding,
+    unicode_platform,
+    unicode_to_argv,
+)
+from twisted.internet import defer, reactor
 from twisted.python import failure
 from twisted.trial import unittest
 
-from ..util.assertutil import precondition
 from ..scripts import runner
-from allmydata.util.encodingutil import unicode_platform, get_filesystem_encoding, get_io_encoding
-# Imported for backwards compatibility:
-from future.utils import bord, bchr, binary_type
-from past.builtins import unicode
+from ..util.assertutil import precondition
 
 
 def skip_if_cannot_represent_filename(u):
-    precondition(isinstance(u, unicode))
+    precondition(isinstance(u, str))
 
     enc = get_filesystem_encoding()
     if not unicode_platform():
@@ -28,36 +45,181 @@ def skip_if_cannot_represent_filename(u):
         except UnicodeEncodeError:
             raise unittest.SkipTest("A non-ASCII filename could not be encoded on this platform.")
 
-def skip_if_cannot_represent_argv(u):
-    precondition(isinstance(u, unicode))
-    try:
-        u.encode(get_io_encoding())
-    except UnicodeEncodeError:
-        raise unittest.SkipTest("A non-ASCII argv could not be encoded on this platform.")
 
-def run_cli(verb, *args, **kwargs):
-    precondition(not [True for arg in args if not isinstance(arg, str)],
-                 "arguments to do_cli must be strs -- convert using unicode_to_argv", args=args)
-    nodeargs = kwargs.get("nodeargs", [])
-    argv = nodeargs + [verb] + list(args)
-    stdin = StringIO(kwargs.get("stdin", ""))
-    stdout = StringIO()
-    stderr = StringIO()
+def _getvalue(io):
+    """
+    Read out the complete contents of a file-like object.
+    """
+    io.seek(0)
+    return io.read()
+
+
+def maybe_unicode_to_argv(o):
+    """Convert object to argv form if necessary."""
+    if isinstance(o, str):
+        return unicode_to_argv(o)
+    return o
+
+
+def run_cli_native(verb, *args, **kwargs):
+    """
+    Run a Tahoe-LAFS CLI command specified as bytes (on Python 2) or Unicode
+    (on Python 3); basically, it accepts a native string.
+
+    Most code should prefer ``run_cli_unicode`` which deals with all the
+    necessary encoding considerations.
+
+    :param runner.Options options: The options instance to use to parse the
+        given arguments.
+
+    :param native_str verb: The command to run.  For example,
+        ``"create-node"``.
+
+    :param [native_str] args: The arguments to pass to the command.  For
+        example, ``("--hostname=localhost",)``.
+
+    :param [native_str] nodeargs: Extra arguments to pass to the Tahoe
+        executable before ``verb``.
+
+    :param bytes|unicode stdin: Text or bytes to pass to the command via stdin.
+
+    :param NoneType|str encoding: The name of an encoding which stdout and
+        stderr will be configured to use.  ``None`` means matching default
+        behavior for the given Python version.
+
+    :param bool return_bytes: If False, stdout/stderr is native string,
+        matching native behavior.  If True, stdout/stderr are returned as
+        bytes.
+    """
+    options = kwargs.pop("options", runner.Options())
+    nodeargs = kwargs.pop("nodeargs", [])
+    encoding = kwargs.pop("encoding", None) or getattr(sys.stdout, "encoding") or "utf-8"
+    return_bytes = kwargs.pop("return_bytes", False)
+    verb = maybe_unicode_to_argv(verb)
+    args = [maybe_unicode_to_argv(a) for a in args]
+    nodeargs = [maybe_unicode_to_argv(a) for a in nodeargs]
+    precondition(
+        all(isinstance(arg, argv_type) for arg in [verb] + nodeargs + list(args)),
+        "arguments to run_cli must be {argv_type} -- convert using unicode_to_argv".format(argv_type=argv_type),
+        verb=verb,
+        args=args,
+        nodeargs=nodeargs,
+    )
+    argv = ["tahoe"] + nodeargs + [verb] + list(args)
+    stdin = kwargs.get("stdin", "")
+    if PY2:
+        # The original behavior, the Python 2 behavior, is to accept either
+        # bytes or unicode and try to automatically encode or decode as
+        # necessary.  This works okay for ASCII and if LANG is set
+        # appropriately.  These aren't great constraints so we should move
+        # away from this behavior.
+        #
+        # The encoding attribute doesn't change StringIO behavior on Python 2,
+        # but it's there for realism of the emulation.
+        stdin = StringIO(stdin)
+        stdin.encoding = encoding
+        stdout = StringIO()
+        stdout.encoding = encoding
+        stderr = StringIO()
+        stderr.encoding = encoding
+    else:
+        # The new behavior, the Python 3 behavior, is to accept unicode and
+        # encode it using a specific encoding. For older versions of Python 3,
+        # the encoding is determined from LANG (bad) but for newer Python 3,
+        # the encoding is either LANG if it supports full Unicode, otherwise
+        # utf-8 (good). Tests can pass in different encodings to exercise
+        # different behaviors.
+        if isinstance(stdin, str):
+            stdin = stdin.encode(encoding)
+        stdin = TextIOWrapper(BytesIO(stdin), encoding)
+        stdout = TextIOWrapper(BytesIO(), encoding)
+        stderr = TextIOWrapper(BytesIO(), encoding)
     d = defer.succeed(argv)
-    d.addCallback(runner.parse_or_exit_with_explanation, stdout=stdout, stderr=stderr, stdin=stdin)
+    d.addCallback(
+        partial(
+            runner.parse_or_exit,
+            options,
+        ),
+        stdout=stdout,
+        stderr=stderr,
+    )
     d.addCallback(
         runner.dispatch,
         stdin=stdin,
         stdout=stdout,
         stderr=stderr,
     )
-    def _done(rc):
-        return 0, stdout.getvalue(), stderr.getvalue()
-    def _err(f):
+
+    def _done(rc, stdout=stdout, stderr=stderr):
+        if return_bytes and PY3:
+            stdout = stdout.buffer
+            stderr = stderr.buffer
+        return 0, _getvalue(stdout), _getvalue(stderr)
+
+    def _err(f, stdout=stdout, stderr=stderr):
         f.trap(SystemExit)
-        return f.value.code, stdout.getvalue(), stderr.getvalue()
+        if return_bytes and PY3:
+            stdout = stdout.buffer
+            stderr = stderr.buffer
+        return f.value.code, _getvalue(stdout), _getvalue(stderr)
     d.addCallbacks(_done, _err)
     return d
+
+
+def run_cli_unicode(verb, argv, nodeargs=None, stdin=None, encoding=None):
+    """
+    Run a Tahoe-LAFS CLI command.
+
+    :param unicode verb: The command to run.  For example, ``u"create-node"``.
+
+    :param [unicode] argv: The arguments to pass to the command.  For example,
+        ``[u"--hostname=localhost"]``.
+
+    :param [unicode] nodeargs: Extra arguments to pass to the Tahoe executable
+        before ``verb``.
+
+    :param unicode stdin: Text to pass to the command via stdin.
+
+    :param NoneType|str encoding: The name of an encoding to use for all
+        bytes/unicode conversions necessary *and* the encoding to cause stdio
+        to declare with its ``encoding`` attribute.  ``None`` means ASCII will
+        be used and no declaration will be made at all.
+    """
+    if nodeargs is None:
+        nodeargs = []
+    precondition(
+        all(isinstance(arg, future_str) for arg in [verb] + nodeargs + argv),
+        "arguments to run_cli_unicode must be unicode",
+        verb=verb,
+        nodeargs=nodeargs,
+        argv=argv,
+    )
+    codec = encoding or "ascii"
+    if PY2:
+        encode = lambda t: None if t is None else t.encode(codec)
+    else:
+        # On Python 3 command-line parsing expects Unicode!
+        encode = lambda t: t
+    d = run_cli_native(
+        encode(verb),
+        nodeargs=list(encode(arg) for arg in nodeargs),
+        stdin=encode(stdin),
+        encoding=encoding,
+        *list(encode(arg) for arg in argv)
+    )
+    def maybe_decode(result):
+        code, stdout, stderr = result
+        if isinstance(stdout, bytes):
+            stdout = stdout.decode(codec)
+        if isinstance(stderr, bytes):
+            stderr = stderr.decode(codec)
+        return code, stdout, stderr
+    d.addCallback(maybe_decode)
+    return d
+
+
+run_cli = run_cli_native
+
 
 def parse_cli(*argv):
     # This parses the CLI options (synchronously), and returns the Options
@@ -69,16 +231,15 @@ class DevNullDictionary(dict):
         return
 
 def insecurerandstr(n):
-    return b''.join(map(bchr, map(randrange, [0]*n, [256]*n)))
+    return b''.join(map(bchr, list(map(randrange, [0]*n, [256]*n))))
 
 def flip_bit(good, which):
-    # TODO Probs need to update with bchr/bord as with flip_one_bit, below.
-    # flip the low-order bit of good[which]
+    """Flip the low-order bit of good[which]."""
     if which == -1:
-        pieces = good[:which], good[-1:], ""
+        pieces = good[:which], good[-1:], b""
     else:
         pieces = good[:which], good[which:which+1], good[which+1:]
-    return pieces[0] + chr(ord(pieces[1]) ^ 0x01) + pieces[2]
+    return pieces[0] + bchr(ord(pieces[1]) ^ 0x01) + pieces[2]
 
 def flip_one_bit(s, offset=0, size=None):
     """ flip one random bit of the string s, in a byte greater than or equal to offset and less
@@ -87,7 +248,7 @@ def flip_one_bit(s, offset=0, size=None):
     if size is None:
         size=len(s)-offset
     i = randrange(offset, offset+size)
-    result = s[:i] + bchr(bord(s[i])^(0x01<<randrange(0, 8))) + s[i+1:]
+    result = s[:i] + bchr(ord(s[i:i+1])^(0x01<<randrange(0, 8))) + s[i+1:]
     assert result != s, "Internal error -- flip_one_bit() produced the same string as its input: %s == %s" % (result, s)
     return result
 
@@ -95,6 +256,14 @@ def flip_one_bit(s, offset=0, size=None):
 class ReallyEqualMixin(object):
     def failUnlessReallyEqual(self, a, b, msg=None):
         self.assertEqual(a, b, msg)
+        # Make sure unicode strings are a consistent type. Specifically there's
+        # Future newstr (backported Unicode type) vs. Python 2 native unicode
+        # type. They're equal, and _logically_ the same type, but have
+        # different types in practice.
+        if a.__class__ == future_str:
+            a = str(a)
+        if b.__class__ == future_str:
+            b = str(b)
         self.assertEqual(type(a), type(b), "a :: %r (%s), b :: %r (%s), %r" % (a, type(a), b, type(b), msg))
 
 
@@ -151,6 +320,16 @@ class FakeCanary(object):
     def getPeer(self):
         return "<fake>"
 
+    def disconnected(self):
+        """Disconnect the canary, to be called by test code.
+
+        Can only  happen once.
+        """
+        if self.disconnectors is not None:
+            for (f, args, kwargs) in list(self.disconnectors.values()):
+                f(*args, **kwargs)
+            self.disconnectors = None
+
 
 class ShouldFailMixin(object):
 
@@ -178,7 +357,7 @@ class ShouldFailMixin(object):
         of the message wrapped by this Failure, or the test will fail.
         """
 
-        assert substring is None or isinstance(substring, (bytes, unicode))
+        assert substring is None or isinstance(substring, (bytes, str))
         d = defer.maybeDeferred(callable, *args, **kwargs)
         def done(res):
             if isinstance(res, failure.Failure):
@@ -269,28 +448,8 @@ class TimezoneMixin(object):
         return hasattr(time, 'tzset')
 
 
-try:
-    import win32file
-    import win32con
-    def make_readonly(path):
-        win32file.SetFileAttributes(path, win32con.FILE_ATTRIBUTE_READONLY)
-    def make_accessible(path):
-        win32file.SetFileAttributes(path, win32con.FILE_ATTRIBUTE_NORMAL)
-except ImportError:
-    import stat
-    def _make_readonly(path):
-        os.chmod(path, stat.S_IREAD)
-        os.chmod(os.path.dirname(path), stat.S_IREAD)
-    def _make_accessible(path):
-        os.chmod(os.path.dirname(path), stat.S_IWRITE | stat.S_IEXEC | stat.S_IREAD)
-        os.chmod(path, stat.S_IWRITE | stat.S_IEXEC | stat.S_IREAD)
-    make_readonly = _make_readonly
-    make_accessible = _make_accessible
-
-
 __all__ = [
-    "make_readonly", "make_accessible", "TestMixin", "ShouldFailMixin",
-    "StallMixin", "skip_if_cannot_represent_argv", "run_cli", "parse_cli",
+    "TestMixin", "ShouldFailMixin", "StallMixin", "run_cli", "parse_cli",
     "DevNullDictionary", "insecurerandstr", "flip_bit", "flip_one_bit",
     "SignalMixin", "skip_if_cannot_represent_filename", "ReallyEqualMixin"
 ]

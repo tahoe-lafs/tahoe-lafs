@@ -1,15 +1,35 @@
+"""
+Ported to Python 3.
+"""
+
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 from past.builtins import long
-from six import ensure_str, ensure_text
+from six import ensure_text
 
 import time, os.path, textwrap
+
+try:
+    from typing import Any, Dict, Union
+except ImportError:
+    pass
+
 from zope.interface import implementer
 from twisted.application import service
 from twisted.internet import defer
+from twisted.internet.address import IPv4Address
 from twisted.python.failure import Failure
 from foolscap.api import Referenceable
 import allmydata
 from allmydata import node
-from allmydata.util import log, rrefutil, dictutil
+from allmydata.util import log, dictutil
 from allmydata.util.i2p_provider import create as create_i2p_provider
 from allmydata.util.tor_provider import create as create_tor_provider
 from allmydata.introducer.interfaces import \
@@ -19,7 +39,6 @@ from allmydata.introducer.common import unsign_from_foolscap, \
 from allmydata.node import read_config
 from allmydata.node import create_node_dir
 from allmydata.node import create_connection_handlers
-from allmydata.node import create_control_tub
 from allmydata.node import create_tub_options
 from allmydata.node import create_main_tub
 
@@ -57,7 +76,7 @@ def create_introducer(basedir=u"."):
         i2p_provider = create_i2p_provider(reactor, config)
         tor_provider = create_tor_provider(reactor, config)
 
-        default_connection_handlers, foolscap_connection_handlers = create_connection_handlers(reactor, config, i2p_provider, tor_provider)
+        default_connection_handlers, foolscap_connection_handlers = create_connection_handlers(config, i2p_provider, tor_provider)
         tub_options = create_tub_options(config)
 
         # we don't remember these because the Introducer doesn't make
@@ -68,12 +87,10 @@ def create_introducer(basedir=u"."):
             config, tub_options, default_connection_handlers,
             foolscap_connection_handlers, i2p_provider, tor_provider,
         )
-        control_tub = create_control_tub()
 
         node = _IntroducerNode(
             config,
             main_tub,
-            control_tub,
             i2p_provider,
             tor_provider,
         )
@@ -85,8 +102,8 @@ def create_introducer(basedir=u"."):
 class _IntroducerNode(node.Node):
     NODETYPE = "introducer"
 
-    def __init__(self, config, main_tub, control_tub, i2p_provider, tor_provider):
-        node.Node.__init__(self, config, main_tub, control_tub, i2p_provider, tor_provider)
+    def __init__(self, config, main_tub, i2p_provider, tor_provider):
+        node.Node.__init__(self, config, main_tub, i2p_provider, tor_provider)
         self.init_introducer()
         webport = self.get_config("node", "web.port", None)
         if webport:
@@ -116,7 +133,7 @@ class _IntroducerNode(node.Node):
             os.rename(old_public_fn, private_fn)
         furl = self.tub.registerReference(introducerservice,
                                           furlFile=private_fn)
-        self.log(" introducer is at %s" % furl, umid="qF2L9A")
+        self.log(" introducer can be found in {!r}".format(private_fn), umid="qF2L9A")
         self.introducer_url = furl # for tests
 
     def init_web(self, webport):
@@ -129,15 +146,26 @@ class _IntroducerNode(node.Node):
         ws = IntroducerWebishServer(self, webport, nodeurl_path, staticdir)
         ws.setServiceParent(self)
 
+
+def stringify_remote_address(rref):
+    remote = rref.getPeer()
+    if isinstance(remote, IPv4Address):
+        return "%s:%d" % (remote.host, remote.port)
+    # loopback is a non-IPv4Address
+    return str(remote)
+
+
 @implementer(RIIntroducerPublisherAndSubscriberService_v2)
 class IntroducerService(service.MultiService, Referenceable):
     name = "introducer"
     # v1 is the original protocol, added in 1.0 (but only advertised starting
     # in 1.3), removed in 1.12. v2 is the new signed protocol, added in 1.10
-    VERSION = { #"http://allmydata.org/tahoe/protocols/introducer/v1": { },
+    # TODO: reconcile bytes/str for keys
+    VERSION = {
+                #"http://allmydata.org/tahoe/protocols/introducer/v1": { },
                 b"http://allmydata.org/tahoe/protocols/introducer/v2": { },
                 b"application-version": allmydata.__full_version__.encode("utf-8"),
-                }
+                }  # type: Dict[Union[bytes, str], Any]
 
     def __init__(self):
         service.MultiService.__init__(self)
@@ -157,7 +185,7 @@ class IntroducerService(service.MultiService, Referenceable):
         # 'subscriber_info' is a dict, provided directly by v2 clients. The
         # expected keys are: version, nickname, app-versions, my-version,
         # oldest-supported
-        self._subscribers = {}
+        self._subscribers = dictutil.UnicodeKeyDict({})
 
         self._debug_counts = {"inbound_message": 0,
                               "inbound_duplicate": 0,
@@ -181,7 +209,7 @@ class IntroducerService(service.MultiService, Referenceable):
     def get_announcements(self):
         """Return a list of AnnouncementDescriptor for all announcements"""
         announcements = []
-        for (index, (_, canary, ann, when)) in self._announcements.items():
+        for (index, (_, canary, ann, when)) in list(self._announcements.items()):
             ad = AnnouncementDescriptor(when, index, canary, ann)
             announcements.append(ad)
         return announcements
@@ -189,13 +217,13 @@ class IntroducerService(service.MultiService, Referenceable):
     def get_subscribers(self):
         """Return a list of SubscriberDescriptor objects for all subscribers"""
         s = []
-        for service_name, subscriptions in self._subscribers.items():
-            for rref,(subscriber_info,when) in subscriptions.items():
+        for service_name, subscriptions in list(self._subscribers.items()):
+            for rref,(subscriber_info,when) in list(subscriptions.items()):
                 # note that if the subscriber didn't do Tub.setLocation,
                 # tubid will be None. Also, subscribers do not tell us which
                 # pubkey they use; only publishers do that.
                 tubid = rref.getRemoteTubID() or "?"
-                remote_address = rrefutil.stringify_remote_address(rref)
+                remote_address = stringify_remote_address(rref)
                 # these three assume subscriber_info["version"]==0, but
                 # should tolerate other versions
                 nickname = subscriber_info.get("nickname", u"?")
@@ -279,9 +307,9 @@ class IntroducerService(service.MultiService, Referenceable):
                          level=log.UNUSUAL, umid="jfGMXQ")
 
     def remote_subscribe_v2(self, subscriber, service_name, subscriber_info):
-        self.log("introducer: subscription[%s] request at %s"
+        self.log("introducer: subscription[%r] request at %r"
                  % (service_name, subscriber), umid="U3uzLg")
-        service_name = ensure_str(service_name)
+        service_name = ensure_text(service_name)
         subscriber_info = dictutil.UnicodeKeyDict({
             ensure_text(k): v for (k, v) in subscriber_info.items()
         })
@@ -307,11 +335,11 @@ class IntroducerService(service.MultiService, Referenceable):
             subscribers.pop(subscriber, None)
         subscriber.notifyOnDisconnect(_remove)
 
+        # Make sure types are correct:
+        for k in self._announcements:
+            assert isinstance(k[0], type(service_name))
+
         # now tell them about any announcements they're interested in
-        assert {type(service_name)}.issuperset(
-            set(type(k[0]) for k in self._announcements)), (
-                service_name, self._announcements.keys()
-        )
         announcements = set( [ ann_t
                                for idx,(ann_t,canary,ann,when)
                                in self._announcements.items()

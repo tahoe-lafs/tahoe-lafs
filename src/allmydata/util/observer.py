@@ -16,6 +16,9 @@ if PY2:
 import weakref
 from twisted.internet import defer
 from foolscap.api import eventually
+from twisted.logger import (
+    Logger,
+)
 
 """The idiom we use is for the observed object to offer a method named
 'when_something', which returns a deferred.  That deferred will be fired when
@@ -97,7 +100,10 @@ class LazyOneShotObserverList(OneShotObserverList):
             self._fire(self._get_result())
 
 class ObserverList(object):
-    """A simple class to distribute events to a number of subscribers."""
+    """
+    Immediately distribute events to a number of subscribers.
+    """
+    _logger = Logger()
 
     def __init__(self):
         self._watchers = []
@@ -109,8 +115,11 @@ class ObserverList(object):
         self._watchers.remove(observer)
 
     def notify(self, *args, **kwargs):
-        for o in self._watchers:
-            eventually(o, *args, **kwargs)
+        for o in self._watchers[:]:
+            try:
+                o(*args, **kwargs)
+            except Exception:
+                self._logger.failure("While notifying {o!r}", o=o)
 
 class EventStreamObserver(object):
     """A simple class to distribute multiple events to a single subscriber.

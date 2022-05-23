@@ -1,4 +1,16 @@
-#!/usr/bin/python
+"""
+Ported to Python 3.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+from six import ensure_binary
+
 import os
 
 from twisted.python.filepath import FilePath
@@ -43,7 +55,7 @@ class MultiIntroTests(unittest.TestCase):
                 u'intro2':{ 'furl': 'furl4' },
             },
         }
-        self.yaml_path.setContent(yamlutil.safe_dump(connections))
+        self.yaml_path.setContent(ensure_binary(yamlutil.safe_dump(connections)))
         # get a client and count of introducer_clients
         myclient = yield create_client(self.basedir)
         ic_count = len(myclient.introducer_clients)
@@ -73,7 +85,7 @@ class MultiIntroTests(unittest.TestCase):
         tahoe_cfg_furl = myclient.introducer_clients[0].introducer_furl
 
         # assertions
-        self.failUnlessEqual(fake_furl, tahoe_cfg_furl)
+        self.failUnlessEqual(fake_furl, str(tahoe_cfg_furl, "utf-8"))
         self.assertEqual(
             list(
                 warning["message"]
@@ -97,10 +109,10 @@ class MultiIntroTests(unittest.TestCase):
                 u'default': { 'furl': 'furl1' },
             },
         }
-        self.yaml_path.setContent(yamlutil.safe_dump(connections))
+        self.yaml_path.setContent(ensure_binary(yamlutil.safe_dump(connections)))
         FilePath(self.basedir).child("tahoe.cfg").setContent(
-            "[client]\n"
-            "introducer.furl = furl1\n"
+            b"[client]\n"
+            b"introducer.furl = furl1\n"
         )
 
         with self.assertRaises(ValueError) as ctx:
@@ -112,7 +124,7 @@ class MultiIntroTests(unittest.TestCase):
             "please fix impossible configuration.",
         )
 
-SIMPLE_YAML = """
+SIMPLE_YAML = b"""
 introducers:
   one:
     furl: furl1
@@ -121,7 +133,7 @@ introducers:
 # this format was recommended in docs/configuration.rst in 1.12.0, but it
 # isn't correct (the "furl = furl1" line is recorded as the string value of
 # the ["one"] key, instead of being parsed as a single-key dictionary).
-EQUALS_YAML = """
+EQUALS_YAML = b"""
 introducers:
   one: furl = furl1
 """
@@ -147,17 +159,17 @@ class NoDefault(unittest.TestCase):
         connections = {'introducers': {
             u'one': { 'furl': 'furl1' },
             }}
-        self.yaml_path.setContent(yamlutil.safe_dump(connections))
+        self.yaml_path.setContent(ensure_binary(yamlutil.safe_dump(connections)))
         myclient = yield create_client(self.basedir)
         tahoe_cfg_furl = myclient.introducer_clients[0].introducer_furl
-        self.assertEquals(tahoe_cfg_furl, 'furl1')
+        self.assertEquals(tahoe_cfg_furl, b'furl1')
 
     @defer.inlineCallbacks
     def test_real_yaml(self):
         self.yaml_path.setContent(SIMPLE_YAML)
         myclient = yield create_client(self.basedir)
         tahoe_cfg_furl = myclient.introducer_clients[0].introducer_furl
-        self.assertEquals(tahoe_cfg_furl, 'furl1')
+        self.assertEquals(tahoe_cfg_furl, b'furl1')
 
     @defer.inlineCallbacks
     def test_invalid_equals_yaml(self):
@@ -172,9 +184,6 @@ class NoDefault(unittest.TestCase):
     @defer.inlineCallbacks
     def test_introducerless(self):
         connections = {'introducers': {} }
-        self.yaml_path.setContent(yamlutil.safe_dump(connections))
+        self.yaml_path.setContent(ensure_binary(yamlutil.safe_dump(connections)))
         myclient = yield create_client(self.basedir)
         self.assertEquals(len(myclient.introducer_clients), 0)
-
-if __name__ == "__main__":
-    unittest.main()

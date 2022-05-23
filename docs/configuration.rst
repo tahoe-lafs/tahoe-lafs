@@ -75,13 +75,12 @@ The item descriptions below use the following types:
 Node Types
 ==========
 
-A node can be a client/server, an introducer, or a statistics gatherer.
+A node can be a client/server or an introducer.
 
 Client/server nodes provide one or more of the following services:
 
 * web-API service
 * SFTP service
-* FTP service
 * helper service
 * storage service.
 
@@ -365,7 +364,7 @@ set the ``tub.location`` option described below.
     also generally reduced when operating in private mode.
 
     When False, any of the following configuration problems will cause
-    ``tahoe start`` to throw a PrivacyError instead of starting the node:
+    ``tahoe run`` to throw a PrivacyError instead of starting the node:
 
     * ``[node] tub.location`` contains any ``tcp:`` hints
 
@@ -593,11 +592,6 @@ Client Configuration
     If provided, the node will attempt to connect to and use the given helper
     for uploads. See :doc:`helper` for details.
 
-``stats_gatherer.furl = (FURL string, optional)``
-
-    If provided, the node will connect to the given stats gatherer and
-    provide it with operational statistics.
-
 ``shares.needed = (int, optional) aka "k", default 3``
 
 ``shares.total = (int, optional) aka "N", N >= k, default 10``
@@ -713,12 +707,12 @@ CLI
     file store, uploading/downloading files, and creating/running Tahoe
     nodes. See :doc:`frontends/CLI` for details.
 
-SFTP, FTP
+SFTP
 
-    Tahoe can also run both SFTP and FTP servers, and map a username/password
+    Tahoe can also run SFTP servers, and map a username/password
     pair to a top-level Tahoe directory. See :doc:`frontends/FTP-and-SFTP`
-    for instructions on configuring these services, and the ``[sftpd]`` and
-    ``[ftpd]`` sections of ``tahoe.cfg``.
+    for instructions on configuring this service, and the ``[sftpd]``
+    section of ``tahoe.cfg``.
 
 
 Storage Server Configuration
@@ -910,11 +904,6 @@ This section describes these other files.
 
   This file is used to construct an introducer, and is created by the
   "``tahoe create-introducer``" command.
-
-``tahoe-stats-gatherer.tac``
-
-  This file is used to construct a statistics gatherer, and is created by the
-  "``tahoe create-stats-gatherer``" command.
 
 ``private/control.furl``
 

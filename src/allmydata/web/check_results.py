@@ -1,4 +1,14 @@
-from future.builtins import str
+"""
+Ported to Python 3.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 import time
 
@@ -156,7 +166,10 @@ class ResultsBase(object):
                 shares_on_server.add(s, shareid)
                 shareid_s = ""
                 if i == 0:
-                    shareid_s = str(shareid)
+                    if isinstance(shareid, bytes):
+                        shareid_s = str(shareid, "utf-8")
+                    else:
+                        shareid_s = str(shareid)
                 d = tags.tr(tags.td(shareid_s),
                             tags.td(tags.div(s.get_nickname(), class_="nickname"),
                                     tags.div(tags.tt(s.get_name()), class_="nodeid")))
@@ -207,12 +220,12 @@ class ResultsBase(object):
         return [html.escape(w) for w in s]
 
     def _render_si_link(self, req, storage_index):
-        si_s = base32.b2a(storage_index)
-        ophandle = req.prepath[-1]
+        si_s = str(base32.b2a(storage_index), "utf-8")
+        ophandle = str(req.prepath[-1], "utf-8")
         target = "%s/operations/%s/%s" % (get_root(req), ophandle, si_s)
         output = get_arg(req, "output")
         if output:
-            target = target + "?output=%s" % output
+            target = target + "?output=" + str(output, "utf-8")
         return tags.a(si_s, href=target)
 
 
@@ -432,7 +445,7 @@ class DeepCheckResultsRenderer(MultiFormatResource):
             return CheckResultsRenderer(self._client,
                                         r.get_results_for_storage_index(si))
         except KeyError:
-            raise WebError("No detailed results for SI %s" % html.escape(name),
+            raise WebError("No detailed results for SI %s" % html.escape(str(name, "utf-8")),
                            http.NOT_FOUND)
 
     @render_exception

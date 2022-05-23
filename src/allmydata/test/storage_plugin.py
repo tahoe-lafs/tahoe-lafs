@@ -1,8 +1,17 @@
 """
 A storage server plugin the test suite can use to validate the
 functionality.
-"""
 
+Ported to Python 3.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 from future.utils import native_str, native_str_to_bytes
 from six import ensure_str
 
@@ -47,8 +56,9 @@ class RIDummy(RemoteInterface):
         """
 
 
-
-@implementer(IFoolscapStoragePlugin)
+# type ignored due to missing stubs for Twisted
+# https://twistedmatrix.com/trac/ticket/9717
+@implementer(IFoolscapStoragePlugin)  # type: ignore
 @attr.s
 class DummyStorage(object):
     name = attr.ib()
@@ -107,7 +117,7 @@ class GetCounter(Resource, object):
 
 @implementer(RIDummy)
 @attr.s(frozen=True)
-class DummyStorageServer(object):
+class DummyStorageServer(object):  # type: ignore # warner/foolscap#78
     get_anonymous_storage_server = attr.ib()
 
     def remote_just_some_method(self):
@@ -116,7 +126,7 @@ class DummyStorageServer(object):
 
 @implementer(IStorageServer)
 @attr.s
-class DummyStorageClient(object):
+class DummyStorageClient(object):  # type: ignore # incomplete implementation
     get_rref = attr.ib()
     configuration = attr.ib()
     announcement = attr.ib()

@@ -9,7 +9,18 @@
 
 """
 Tests for the allmydata.testing helpers
+
+Ported to Python 3.
+
 """
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 from twisted.internet.defer import (
     inlineCallbacks,
@@ -79,7 +90,7 @@ class FakeWebTest(TestCase):
             self.assertThat(cap, IsInstance(CHKFileURI))
 
             resp = yield http_client.get(
-                "http://example.com/uri?uri={}".format(cap.to_string())
+                b"http://example.com/uri?uri=" + cap.to_string()
             )
             self.assertThat(resp.code, Equals(200))
 
@@ -88,7 +99,7 @@ class FakeWebTest(TestCase):
             # using the form "/uri/<cap>" is also valid
 
             resp = yield http_client.get(
-                "http://example.com/uri/{}".format(cap.to_string())
+                b"http://example.com/uri?uri=" + cap.to_string()
             )
             self.assertEqual(resp.code, 200)
 
@@ -136,9 +147,9 @@ class FakeWebTest(TestCase):
         """
 
         http_client = create_tahoe_treq_client()
-        cap_gen = capability_generator("URI:CHK:")
-
-        uri = DecodedURL.from_text(u"http://example.com/uri?uri={}".format(next(cap_gen)))
+        cap_gen = capability_generator(b"URI:CHK:")
+        cap = next(cap_gen).decode('ascii')
+        uri = DecodedURL.from_text(u"http://example.com/uri?uri={}".format(cap))
         resp = http_client.get(uri.to_uri().to_text())
 
         self.assertThat(

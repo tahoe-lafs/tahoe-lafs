@@ -1,1 +1,0 @@
-Certain implementation-internal weakref KeyErrors are now handled and should no longer cause user-initiated operations to fail.

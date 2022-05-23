@@ -1,11 +1,12 @@
+"""
+Ported to Python 3.
+"""
 from __future__ import (
     print_function,
     unicode_literals,
     absolute_import,
     division,
 )
-
-import json
 
 from autobahn.twisted.resource import WebSocketResource
 from autobahn.twisted.websocket import (
@@ -18,10 +19,7 @@ from twisted.web.resource import (
     Resource,
 )
 
-# Hotfix work-around https://github.com/crossbario/autobahn-python/issues/1151
-from . import _autobahn_1151
-_autobahn_1151.patch()
-del _autobahn_1151
+from allmydata.util import jsonbytes as json
 
 
 class TokenAuthenticatedWebSocketServerProtocol(WebSocketServerProtocol):
@@ -49,7 +47,8 @@ class TokenAuthenticatedWebSocketServerProtocol(WebSocketServerProtocol):
         """
         # probably want a try/except around here? what do we do if
         # transmission fails or anything else bad happens?
-        self.sendMessage(json.dumps(message))
+        encoded = json.dumps_bytes(message, any_bytes=True)
+        self.sendMessage(encoded)
 
     def onOpen(self):
         """

@@ -19,7 +19,7 @@ from twisted.protocols import basic
 from allmydata.interfaces import IImmutableFileNode, ICheckable
 from allmydata.uri import LiteralFileURI
 
-@implementer(IImmutableFileNode, ICheckable)
+
 class _ImmutableFileNodeBase(object):
 
     def get_write_uri(self):
@@ -56,6 +56,7 @@ class _ImmutableFileNodeBase(object):
         return not self == other
 
 
+@implementer(IImmutableFileNode, ICheckable)
 class LiteralFileNode(_ImmutableFileNodeBase):
 
     def __init__(self, filecap):
@@ -112,10 +113,7 @@ class LiteralFileNode(_ImmutableFileNodeBase):
         return defer.succeed(self)
 
 
-    def download_best_version(self, progress=None):
-        if progress is not None:
-            progress.set_progress_total(len(self.u.data))
-            progress.set_progress(len(self.u.data))
+    def download_best_version(self):
         return defer.succeed(self.u.data)
 
 

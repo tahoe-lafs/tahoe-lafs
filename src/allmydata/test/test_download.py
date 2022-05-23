@@ -14,6 +14,11 @@ if PY2:
 # a previous run. This asserts that the current code is capable of decoding
 # shares from a previous version.
 
+try:
+    from typing import Any
+except ImportError:
+    pass
+
 import six
 import os
 from twisted.trial import unittest
@@ -493,7 +498,7 @@ class DownloadTest(_Base, unittest.TestCase):
         d.addCallback(_done)
         return d
 
-    def test_simultaneous_onefails_onecancelled(self):
+    def test_simul_1fail_1cancel(self):
         # This exercises an mplayer behavior in ticket #1154. I believe that
         # mplayer made two simultaneous webapi GET requests: first one for an
         # index region at the end of the (mp3/video) file, then one for the
@@ -951,12 +956,52 @@ class Corruption(_Base, unittest.TestCase):
         self.corrupt_shares_numbered(imm_uri, [2], _corruptor)
 
     def _corrupt_set(self, ign, imm_uri, which, newvalue):
+        # type: (Any, bytes, int, int) -> None
+        """
+        Replace a single byte share file number 2 for the given capability with a
+        new byte.
+
+        :param imm_uri: Corrupt share number 2 belonging to this capability.
+        :param which: The byte position to replace.
+        :param newvalue: The new byte value to set in the share.
+        """
         log.msg("corrupt %d" % which)
         def _corruptor(s, debug=False):
             return s[:which] + bchr(newvalue) + s[which+1:]
         self.corrupt_shares_numbered(imm_uri, [2], _corruptor)
 
     def test_each_byte(self):
+        """
+        Test share selection behavior of the downloader in the face of certain
+        kinds of data corruption.
+
+        1. upload a small share to the no-network grid
+        2. read all of the resulting share files out of the no-network storage servers
+        3. for each of
+
+           a. each byte of the share file version field
+           b. each byte of the immutable share version field
+           c. each byte of the immutable share data offset field
+           d. the most significant byte of the block_shares offset field
+           e. one of the bytes of one of the merkle trees
+           f. one of the bytes of the share hashes list
+
+           i. flip the least significant bit in all of the the share files
+           ii. perform the download/check/restore process
+
+        4. add 2 ** 24 to the share file version number
+        5. perform the download/check/restore process
+
+        6. add 2 ** 24 to the share version number
+        7. perform the download/check/restore process
+
+        The download/check/restore process is:
+
+        1. attempt to download the data
+        2. assert that the recovered plaintext is correct
+        3. assert that only the "correct" share numbers were used to reconstruct the plaintext
+        4. restore all of the share files to their pristine condition
+        """
         # Setting catalog_detection=True performs an exhaustive test of the
         # Downloader's response to corruption in the lsb of each byte of the
         # 2070-byte share, with two goals: make sure we tolerate all forms of
@@ -1068,9 +1113,17 @@ class Corruption(_Base, unittest.TestCase):
                 d.addCallback(_download, imm_uri, i, expected)
                 d.addCallback(lambda ign: self.restore_all_shares(self.shares))
                 d.addCallback(fireEventually)
-            corrupt_values = [(3, 2, "no-sh2"),
-                              (15, 2, "need-4th"), # share looks v2
-                              ]
+            corrupt_values = [
+                # Make the container version for share number 2 look
+                # unsupported.  If you add support for immutable share file
+                # version number much past 16 million then you will have to
+                # update this test.  Also maybe you have other problems.
+                (1, 255, "no-sh2"),
+                # Make the immutable share number 2 (not the container, the
+                # thing inside the container) look unsupported.  Ditto the
+                # above about version numbers in the ballpark of 16 million.
+                (13, 255, "need-4th"),
+            ]
             for i,newvalue,expected in corrupt_values:
                 d.addCallback(self._corrupt_set, imm_uri, i, newvalue)
                 d.addCallback(_download, imm_uri, i, expected)
@@ -1145,8 +1198,18 @@ class Corruption(_Base, unittest.TestCase):
         return d
 
     def _corrupt_flip_all(self, ign, imm_uri, which):
+        # type: (Any, bytes, int) -> None
+        """
+        Flip the least significant bit at a given byte position in all share files
+        for the given capability.
+        """
         def _corruptor(s, debug=False):
-            return s[:which] + bchr(ord(s[which:which+1])^0x01) + s[which+1:]
+            # type: (bytes, bool) -> bytes
+            before_corruption = s[:which]
+            after_corruption = s[which+1:]
+            original_byte = s[which:which+1]
+            corrupt_byte = bchr(ord(original_byte) ^ 0x01)
+            return b"".join([before_corruption, corrupt_byte, after_corruption])
         self.corrupt_all_shares(imm_uri, _corruptor)
 
 class DownloadV2(_Base, unittest.TestCase):
@@ -1304,7 +1367,7 @@ class MyShare(object):
         self._dyhb_rtt = rtt
 
     def __repr__(self):
-        return "sh%d-on-%s" % (self._shnum, self._server.get_name())
+        return "sh%d-on-%s" % (self._shnum, str(self._server.get_name(), "ascii"))
 
 class MySegmentFetcher(SegmentFetcher):
     def __init__(self, *args, **kwargs):
@@ -1383,7 +1446,7 @@ class Selection(unittest.TestCase):
             self.failUnless(node.failed)
             self.failUnless(node.failed.check(NotEnoughSharesError))
             sname = serverA.get_name()
-            self.failUnlessIn("complete= pending=sh0-on-%s overdue= unused="  % sname,
+            self.failUnlessIn("complete= pending=sh0-on-%s overdue= unused="  % str(sname, "ascii"),
                               str(node.failed))
         d.addCallback(_check2)
         return d
@@ -1605,7 +1668,7 @@ class Selection(unittest.TestCase):
             self.failUnless(node.failed)
             self.failUnless(node.failed.check(NotEnoughSharesError))
             sname = servers[b"peer-2"].get_name()
-            self.failUnlessIn("complete=sh0 pending= overdue=sh2-on-%s unused=" % sname,
+            self.failUnlessIn("complete=sh0 pending= overdue=sh2-on-%s unused=" % str(sname, "ascii"),
                               str(node.failed))
         d.addCallback(_check4)
         return d

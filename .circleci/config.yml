@@ -15,81 +15,54 @@ workflows:
   ci:
     jobs:
       # Start with jobs testing various platforms.
-
-      # Every job that pulls a Docker image from Docker Hub needs to provide
-      # credentials for that pull operation to avoid being subjected to
-      # unauthenticated pull limits shared across all of CircleCI.  Use this
-      # first job to define a yaml anchor that can be used to supply a
-      # CircleCI job context which makes Docker Hub credentials available in
-      # the environment.
-      #
-      # Contexts are managed in the CircleCI web interface:
-      #
-      #  https://app.circleci.com/settings/organization/github/tahoe-lafs/contexts
-      - "debian-9": &DOCKERHUB_CONTEXT
-          context: "dockerhub-auth"
-
-      - "debian-8":
-          <<: *DOCKERHUB_CONTEXT
-          requires:
-            - "debian-9"
+      - "debian-10":
+          {}
+      - "debian-11":
+          {}
 
       - "ubuntu-20-04":
-          <<: *DOCKERHUB_CONTEXT
+          {}
       - "ubuntu-18-04":
-          <<: *DOCKERHUB_CONTEXT
-          requires:
-            - "ubuntu-20-04"
-      - "ubuntu-16-04":
-          <<: *DOCKERHUB_CONTEXT
           requires:
             - "ubuntu-20-04"
 
-      - "fedora-29":
-          <<: *DOCKERHUB_CONTEXT
-      - "fedora-28":
-          <<: *DOCKERHUB_CONTEXT
-          requires:
-            - "fedora-29"
+      # Equivalent to RHEL 8; CentOS 8 is dead.
+      - "oraclelinux-8":
+          {}
 
-      - "centos-8":
-          <<: *DOCKERHUB_CONTEXT
+      - "nixos":
+          name: "NixOS 21.05"
+          nixpkgs: "21.05"
 
-      - "nixos-19-09":
-          <<: *DOCKERHUB_CONTEXT
+      - "nixos":
+          name: "NixOS 21.11"
+          nixpkgs: "21.11"
 
-      # Test against PyPy 2.7
-      - "pypy27-buster":
-          <<: *DOCKERHUB_CONTEXT
-
-      # Just one Python 3.6 configuration while the port is in-progress.
-      - "python36":
-          <<: *DOCKERHUB_CONTEXT
+      # Eventually, test against PyPy 3.8
+      #- "pypy27-buster":
+      #    {}
 
       # Other assorted tasks and configurations
-      - "lint":
-          <<: *DOCKERHUB_CONTEXT
+      - "codechecks":
+          {}
       - "pyinstaller":
-          <<: *DOCKERHUB_CONTEXT
-      - "deprecations":
-          <<: *DOCKERHUB_CONTEXT
+          {}
       - "c-locale":
-          <<: *DOCKERHUB_CONTEXT
+          {}
       # Any locale other than C or UTF-8.
       - "another-locale":
-          <<: *DOCKERHUB_CONTEXT
+          {}
 
       - "integration":
-          <<: *DOCKERHUB_CONTEXT
           requires:
             # If the unit test suite doesn't pass, don't bother running the
             # integration tests.
-            - "debian-9"
+            - "debian-11"
 
-      # Generate the underlying data for a visualization to aid with Python 3
-      # porting.
-      - "build-porting-depgraph":
-          <<: *DOCKERHUB_CONTEXT
+      - "typechecks":
+          {}
+      - "docs":
+          {}
 
   images:
     # Build the Docker images used by the ci jobs.  This makes the ci jobs
@@ -104,26 +77,29 @@ workflows:
                 - "master"
 
     jobs:
-      - "build-image-debian-8":
-          <<: *DOCKERHUB_CONTEXT
-      - "build-image-debian-9":
-          <<: *DOCKERHUB_CONTEXT
-      - "build-image-ubuntu-16-04":
+      # Every job that pushes a Docker image from Docker Hub needs to provide
+      # credentials.  Use this first job to define a yaml anchor that can be
+      # used to supply a CircleCI job context which makes Docker Hub
+      # credentials available in the environment.
+      #
+      # Contexts are managed in the CircleCI web interface:
+      #
+      #  https://app.circleci.com/settings/organization/github/tahoe-lafs/contexts
+      - "build-image-debian-10": &DOCKERHUB_CONTEXT
+          context: "dockerhub-auth"
+      - "build-image-debian-11":
           <<: *DOCKERHUB_CONTEXT
       - "build-image-ubuntu-18-04":
           <<: *DOCKERHUB_CONTEXT
       - "build-image-ubuntu-20-04":
           <<: *DOCKERHUB_CONTEXT
-      - "build-image-fedora-28":
+      - "build-image-fedora-35":
           <<: *DOCKERHUB_CONTEXT
-      - "build-image-fedora-29":
+      - "build-image-oraclelinux-8":
           <<: *DOCKERHUB_CONTEXT
-      - "build-image-centos-8":
-          <<: *DOCKERHUB_CONTEXT
-      - "build-image-pypy27-buster":
-          <<: *DOCKERHUB_CONTEXT
-      - "build-image-python36-ubuntu":
-          <<: *DOCKERHUB_CONTEXT
+      # Restore later as PyPy38
+      #- "build-image-pypy27-buster":
+      #    <<: *DOCKERHUB_CONTEXT
 
 
 jobs:
@@ -149,10 +125,10 @@ jobs:
             # Since this job is never scheduled this step is never run so the
             # actual value here is irrelevant.
 
-  lint:
+  codechecks:
     docker:
       - <<: *DOCKERHUB_AUTH
-        image: "circleci/python:2"
+        image: "cimg/python:3.9"
 
     steps:
       - "checkout"
@@ -170,7 +146,7 @@ jobs:
   pyinstaller:
     docker:
       - <<: *DOCKERHUB_AUTH
-        image: "circleci/python:2"
+        image: "cimg/python:3.9"
 
     steps:
       - "checkout"
@@ -193,10 +169,10 @@ jobs:
           command: |
             dist/Tahoe-LAFS/tahoe --version
 
-  debian-9: &DEBIAN
+  debian-10: &DEBIAN
     docker:
       - <<: *DOCKERHUB_AUTH
-        image: "tahoelafsci/debian:9-py2.7"
+        image: "tahoelafsci/debian:10-py3.7"
         user: "nobody"
 
     environment: &UTF_8_ENVIRONMENT
@@ -210,7 +186,7 @@ jobs:
       # filenames and argv).
       LANG: "en_US.UTF-8"
       # Select a tox environment to run for this job.
-      TAHOE_LAFS_TOX_ENVIRONMENT: "py27-coverage"
+      TAHOE_LAFS_TOX_ENVIRONMENT: "py37"
       # Additional arguments to pass to tox.
       TAHOE_LAFS_TOX_ARGS: ""
       # The path in which test artifacts will be placed.
@@ -220,7 +196,7 @@ jobs:
       WHEELHOUSE_PATH: &WHEELHOUSE_PATH "/tmp/wheelhouse"
       PIP_FIND_LINKS: "file:///tmp/wheelhouse"
       # Upload the coverage report.
-      UPLOAD_COVERAGE: "yes"
+      UPLOAD_COVERAGE: ""
 
     # pip cannot install packages if the working directory is not readable.
     # We want to run a lot of steps as nobody instead of as root.
@@ -260,6 +236,11 @@ jobs:
           # in the project source checkout.
           path: "/tmp/project/_trial_temp/test.log"
 
+      - store_artifacts: &STORE_ELIOT_LOG
+          # Despite passing --workdir /tmp to tox above, it still runs trial
+          # in the project source checkout.
+          path: "/tmp/project/eliot.log"
+
       - store_artifacts: &STORE_OTHER_ARTIFACTS
           # Store any other artifacts, too.  This is handy to allow other jobs
           # sharing most of the definition of this one to be able to
@@ -273,29 +254,29 @@ jobs:
               /tmp/venv/bin/codecov
             fi
 
-
-  debian-8:
+  debian-11:
     <<: *DEBIAN
     docker:
       - <<: *DOCKERHUB_AUTH
-        image: "tahoelafsci/debian:8-py2.7"
+        image: "tahoelafsci/debian:11-py3.9"
         user: "nobody"
-
-
-  pypy27-buster:
-    <<: *DEBIAN
-    docker:
-      - <<: *DOCKERHUB_AUTH
-        image: "tahoelafsci/pypy:buster-py2"
-        user: "nobody"
-
     environment:
       <<: *UTF_8_ENVIRONMENT
-      # We don't do coverage since it makes PyPy far too slow:
-      TAHOE_LAFS_TOX_ENVIRONMENT: "pypy27"
-      # Since we didn't collect it, don't upload it.
-      UPLOAD_COVERAGE: ""
+      TAHOE_LAFS_TOX_ENVIRONMENT: "py39"
 
+  # Restore later using PyPy3.8
+  # pypy27-buster:
+  #   <<: *DEBIAN
+  #   docker:
+  #     - <<: *DOCKERHUB_AUTH
+  #       image: "tahoelafsci/pypy:buster-py2"
+  #       user: "nobody"
+  #   environment:
+  #     <<: *UTF_8_ENVIRONMENT
+  #     # We don't do coverage since it makes PyPy far too slow:
+  #     TAHOE_LAFS_TOX_ENVIRONMENT: "pypy27"
+  #     # Since we didn't collect it, don't upload it.
+  #     UPLOAD_COVERAGE: ""
 
   c-locale:
     <<: *DEBIAN
@@ -313,22 +294,12 @@ jobs:
       # aka "Latin 1"
       LANG: "en_US.ISO-8859-1"
 
-
-  deprecations:
-    <<: *DEBIAN
-
-    environment:
-      <<: *UTF_8_ENVIRONMENT
-      # Select the deprecations tox environments.
-      TAHOE_LAFS_TOX_ENVIRONMENT: "deprecations,upcoming-deprecations"
-      # Put the logs somewhere we can report them.
-      TAHOE_LAFS_WARNINGS_LOG: "/tmp/artifacts/deprecation-warnings.log"
-      # The deprecations tox environments don't do coverage measurement.
-      UPLOAD_COVERAGE: ""
-
-
   integration:
     <<: *DEBIAN
+    docker:
+      - <<: *DOCKERHUB_AUTH
+        image: "tahoelafsci/debian:11-py3.9"
+        user: "nobody"
 
     environment:
       <<: *UTF_8_ENVIRONMENT
@@ -343,28 +314,11 @@ jobs:
       - run: *SETUP_VIRTUALENV
       - run: *RUN_TESTS
 
-
-  ubuntu-16-04:
-    <<: *DEBIAN
-    docker:
-      - <<: *DOCKERHUB_AUTH
-        image: "tahoelafsci/ubuntu:16.04-py2.7"
-        user: "nobody"
-
-
   ubuntu-18-04: &UBUNTU_18_04
     <<: *DEBIAN
     docker:
       - <<: *DOCKERHUB_AUTH
-        image: "tahoelafsci/ubuntu:18.04-py2.7"
-        user: "nobody"
-
-
-  python36:
-    <<: *UBUNTU_18_04
-    docker:
-      - <<: *DOCKERHUB_AUTH
-        image: "tahoelafsci/ubuntu:18.04-py3"
+        image: "tahoelafsci/ubuntu:18.04-py3.7"
         user: "nobody"
 
     environment:
@@ -373,24 +327,28 @@ jobs:
       # this reporter on Python 3.  So drop that and just specify the
       # reporter.
       TAHOE_LAFS_TRIAL_ARGS: "--reporter=subunitv2-file"
-      TAHOE_LAFS_TOX_ENVIRONMENT: "py36-coverage"
+      TAHOE_LAFS_TOX_ENVIRONMENT: "py37"
 
 
   ubuntu-20-04:
     <<: *DEBIAN
     docker:
       - <<: *DOCKERHUB_AUTH
-        image: "tahoelafsci/ubuntu:20.04"
+        image: "tahoelafsci/ubuntu:20.04-py3.9"
         user: "nobody"
+    environment:
+      <<: *UTF_8_ENVIRONMENT
+      TAHOE_LAFS_TOX_ENVIRONMENT: "py39"
 
-
-  centos-8: &RHEL_DERIV
+  oraclelinux-8: &RHEL_DERIV
     docker:
       - <<: *DOCKERHUB_AUTH
-        image: "tahoelafsci/centos:8-py2"
+        image: "tahoelafsci/oraclelinux:8-py3.8"
         user: "nobody"
 
-    environment: *UTF_8_ENVIRONMENT
+    environment:
+      <<: *UTF_8_ENVIRONMENT
+      TAHOE_LAFS_TOX_ENVIRONMENT: "py38"
 
     # pip cannot install packages if the working directory is not readable.
     # We want to run a lot of steps as nobody instead of as root.
@@ -402,39 +360,69 @@ jobs:
       - run: *RUN_TESTS
       - store_test_results: *STORE_TEST_RESULTS
       - store_artifacts: *STORE_TEST_LOG
+      - store_artifacts: *STORE_ELIOT_LOG
       - store_artifacts: *STORE_OTHER_ARTIFACTS
       - run: *SUBMIT_COVERAGE
 
-
-  fedora-28:
+  fedora-35:
     <<: *RHEL_DERIV
     docker:
       - <<: *DOCKERHUB_AUTH
-        image: "tahoelafsci/fedora:28-py"
+        image: "tahoelafsci/fedora:35-py3"
         user: "nobody"
 
+  nixos:
+    parameters:
+      nixpkgs:
+        description: >-
+          Reference the name of a niv-managed nixpkgs source (see `niv show`
+          and nix/sources.json)
+        type: "string"
 
-  fedora-29:
-    <<: *RHEL_DERIV
-    docker:
-      - <<: *DOCKERHUB_AUTH
-        image: "tahoelafsci/fedora:29-py"
-        user: "nobody"
-
-
-  nixos-19-09:
     docker:
       # Run in a highly Nix-capable environment.
       - <<: *DOCKERHUB_AUTH
-        image: "nixorg/nix:circleci"
+        image: "nixos/nix:2.3.16"
 
     environment:
-      NIX_PATH: "nixpkgs=https://github.com/NixOS/nixpkgs-channels/archive/nixos-19.09-small.tar.gz"
+      # CACHIX_AUTH_TOKEN is manually set in the CircleCI web UI and
+      # allows us to push to CACHIX_NAME.  We only need this set for
+      # `cachix use` in this step.
+      CACHIX_NAME: "tahoe-lafs-opensource"
 
     steps:
-      - "checkout"
       - "run":
-          name: "Build and Test"
+          # The nixos/nix image does not include ssh.  Install it so the
+          # `checkout` step will succeed.  We also want cachix for
+          # Nix-friendly caching.
+          name: "Install Basic Dependencies"
+          command: |
+            nix-env \
+              --file https://github.com/nixos/nixpkgs/archive/nixos-<<parameters.nixpkgs>>.tar.gz \
+              --install \
+              -A openssh cachix bash
+
+      - "checkout"
+
+      - run:
+          name: "Cachix setup"
+          # Record the store paths that exist before we did much.  There's no
+          # reason to cache these, they're either in the image or have to be
+          # retrieved before we can use cachix to restore from cache.
+          command: |
+            cachix use "${CACHIX_NAME}"
+            nix path-info --all > /tmp/store-path-pre-build
+
+      - "run":
+          # The Nix package doesn't know how to do this part, unfortunately.
+          name: "Generate version"
+          command: |
+            nix-shell \
+              -p 'python3.withPackages (ps: [ ps.setuptools ])' \
+              --run 'python setup.py update_version'
+
+      - "run":
+          name: "Build"
           command: |
             # CircleCI build environment looks like it has a zillion and a
             # half cores.  Don't let Nix autodetect this high core count
@@ -446,34 +434,74 @@ jobs:
             # build a couple simple little dependencies that don't take
             # advantage of multiple cores and we get a little speedup by doing
             # them in parallel.
-            nix-build --cores 3 --max-jobs 2 nix/
+            nix-build --cores 3 --max-jobs 2 --argstr pkgsVersion "nixpkgs-<<parameters.nixpkgs>>"
 
-  # Generate up-to-date data for the dependency graph visualizer.
-  build-porting-depgraph:
-    # Get a system in which we can easily install Tahoe-LAFS and all its
-    # dependencies.  The dependency graph analyzer works by executing the code.
-    # It's Python, what do you expect?
-    <<: *DEBIAN
+      - "run":
+          name: "Test"
+          command: |
+            # Let it go somewhat wild for the test suite itself
+            nix-build --cores 8 --argstr pkgsVersion "nixpkgs-<<parameters.nixpkgs>>" tests.nix
+
+      - run:
+          # Send any new store objects to cachix.
+          name: "Push to Cachix"
+          when: "always"
+          command: |
+            # Cribbed from
+            # https://circleci.com/blog/managing-secrets-when-you-have-pull-requests-from-outside-contributors/
+            if [ -n "$CIRCLE_PR_NUMBER" ]; then
+              # I'm sure you're thinking "CIRCLE_PR_NUMBER must just be the
+              # number of the PR being built".  Sorry, dear reader, you have
+              # guessed poorly.  It is also conditionally set based on whether
+              # this is a PR from a fork or not.
+              #
+              # https://circleci.com/docs/2.0/env-vars/#built-in-environment-variables
+              echo "Skipping Cachix push for forked PR."
+            else
+              # If this *isn't* a build from a fork then we have the Cachix
+              # write key in our environment and we can push any new objects
+              # to Cachix.
+              #
+              # To decide what to push, we inspect the list of store objects
+              # that existed before and after we did most of our work.  Any
+              # that are new after the work is probably a useful thing to have
+              # around so push it to the cache.  We exclude all derivation
+              # objects (.drv files) because they're cheap to reconstruct and
+              # by the time you know their cache key you've already done all
+              # the work anyway.
+              #
+              # This shell expression for finding the objects and pushing them
+              # was from the Cachix docs:
+              #
+              # https://docs.cachix.org/continuous-integration-setup/circleci.html
+              #
+              # but they seem to have removed it now.
+              bash -c "comm -13 <(sort /tmp/store-path-pre-build | grep -v '\.drv$') <(nix path-info --all | grep -v '\.drv$' | sort) | cachix push $CACHIX_NAME"
+            fi
+
+  typechecks:
+    docker:
+      - <<: *DOCKERHUB_AUTH
+        image: "tahoelafsci/ubuntu:18.04-py3.7"
 
     steps:
       - "checkout"
-
-      - add_ssh_keys:
-          fingerprints:
-            # Jean-Paul Calderone <exarkun@twistedmatrix.com> (CircleCI depgraph key)
-            # This lets us push to tahoe-lafs/tahoe-depgraph in the next step.
-            - "86:38:18:a7:c0:97:42:43:18:46:55:d6:21:b0:5f:d4"
-
       - run:
-          name: "Setup Python Environment"
+          name: "Validate Types"
           command: |
-            /tmp/venv/bin/pip install -e /tmp/project
+            /tmp/venv/bin/tox -e typechecks
 
+  docs:
+    docker:
+      - <<: *DOCKERHUB_AUTH
+        image: "tahoelafsci/ubuntu:18.04-py3.7"
+
+    steps:
+      - "checkout"
       - run:
-          name: "Generate dependency graph data"
+          name: "Build documentation"
           command: |
-            . /tmp/venv/bin/activate
-            ./misc/python3/depgraph.sh
+            /tmp/venv/bin/tox -e docs
 
   build-image: &BUILD_IMAGE
     # This is a template for a job to build a Docker image that has as much of
@@ -484,16 +512,19 @@ jobs:
     # https://circleci.com/blog/how-to-build-a-docker-image-on-circleci-2-0/
     docker:
       - <<: *DOCKERHUB_AUTH
-        image: "docker:17.05.0-ce-git"
+        # CircleCI build images; https://github.com/CircleCI-Public/cimg-base
+        # for details.
+        image: "cimg/base:2022.01"
 
     environment:
-      DISTRO: "tahoelafsci/<DISTRO>:foo-py2"
-      TAG: "tahoelafsci/distro:<TAG>-py2"
+      DISTRO: "tahoelafsci/<DISTRO>:foo-py3.9"
+      TAG: "tahoelafsci/distro:<TAG>-py3.9"
       PYTHON_VERSION: "tahoelafsci/distro:tag-py<PYTHON_VERSION}"
 
     steps:
       - "checkout"
-      - "setup_remote_docker"
+      - setup_remote_docker:
+          version: "20.10.11"
       - run:
           name: "Log in to Dockerhub"
           command: |
@@ -514,32 +545,22 @@ jobs:
             docker push tahoelafsci/${DISTRO}:${TAG}-py${PYTHON_VERSION}
 
 
-  build-image-debian-8:
+  build-image-debian-10:
     <<: *BUILD_IMAGE
 
     environment:
       DISTRO: "debian"
-      TAG: "8"
-      PYTHON_VERSION: "2.7"
+      TAG: "10"
+      PYTHON_VERSION: "3.7"
 
 
-  build-image-debian-9:
+  build-image-debian-11:
     <<: *BUILD_IMAGE
 
     environment:
       DISTRO: "debian"
-      TAG: "9"
-      PYTHON_VERSION: "2.7"
-
-
-  build-image-ubuntu-16-04:
-    <<: *BUILD_IMAGE
-
-    environment:
-      DISTRO: "ubuntu"
-      TAG: "16.04"
-      PYTHON_VERSION: "2.7"
-
+      TAG: "11"
+      PYTHON_VERSION: "3.9"
 
   build-image-ubuntu-18-04:
     <<: *BUILD_IMAGE
@@ -547,16 +568,7 @@ jobs:
     environment:
       DISTRO: "ubuntu"
       TAG: "18.04"
-      PYTHON_VERSION: "2.7"
-
-
-  build-image-python36-ubuntu:
-    <<: *BUILD_IMAGE
-
-    environment:
-      DISTRO: "ubuntu"
-      TAG: "18.04"
-      PYTHON_VERSION: "3"
+      PYTHON_VERSION: "3.7"
 
 
   build-image-ubuntu-20-04:
@@ -565,43 +577,32 @@ jobs:
     environment:
       DISTRO: "ubuntu"
       TAG: "20.04"
-      PYTHON_VERSION: "2.7"
+      PYTHON_VERSION: "3.9"
 
 
-  build-image-centos-8:
+  build-image-oraclelinux-8:
     <<: *BUILD_IMAGE
 
     environment:
-      DISTRO: "centos"
+      DISTRO: "oraclelinux"
       TAG: "8"
-      PYTHON_VERSION: "2"
+      PYTHON_VERSION: "3.8"
 
-
-  build-image-fedora-28:
+  build-image-fedora-35:
     <<: *BUILD_IMAGE
 
     environment:
       DISTRO: "fedora"
-      TAG: "28"
-      # The default on Fedora (this version anyway) is still Python 2.
-      PYTHON_VERSION: ""
+      TAG: "35"
+      PYTHON_VERSION: "3"
 
+  # build-image-pypy27-buster:
+  #   <<: *BUILD_IMAGE
 
-  build-image-fedora-29:
-    <<: *BUILD_IMAGE
-
-    environment:
-      DISTRO: "fedora"
-      TAG: "29"
-
-
-  build-image-pypy27-buster:
-    <<: *BUILD_IMAGE
-
-    environment:
-      DISTRO: "pypy"
-      TAG: "buster"
-      # We only have Python 2 for PyPy right now so there's no support for
-      # setting up PyPy 3 in the image building toolchain.  This value is just
-      # for constructing the right Docker image tag.
-      PYTHON_VERSION: "2"
+  #   environment:
+  #     DISTRO: "pypy"
+  #     TAG: "buster"
+  #     # We only have Python 2 for PyPy right now so there's no support for
+  #     # setting up PyPy 3 in the image building toolchain.  This value is just
+  #     # for constructing the right Docker image tag.
+  #     PYTHON_VERSION: "2"

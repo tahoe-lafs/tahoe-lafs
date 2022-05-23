@@ -1,6 +1,20 @@
 # -*- coding: utf-8 -*-
+"""
+Ported to Python 3.
+"""
 from __future__ import absolute_import, print_function, with_statement
+from __future__ import division
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+
 import os
+
+from zope.interface import (
+    implementer,
+)
 
 from twisted.internet.defer import inlineCallbacks, returnValue
 from twisted.internet.endpoints import clientFromString, TCP4ServerEndpoint
@@ -9,25 +23,11 @@ from twisted.application import service
 
 from .observer import OneShotObserverList
 from .iputil import allocate_tcp_port
-
-
-def create(reactor, config):
-    """
-    Create a new _Provider service (this is an IService so must be
-    hooked up to a parent or otherwise started).
-
-    If foolscap.connections.tor or txtorcon are not installed, then
-    Provider.get_tor_handler() will return None.  If tahoe.cfg wants
-    to start an onion service too, then this `create()` method will
-    throw a nice error (and startService will throw an ugly error).
-    """
-    provider = _Provider(config, reactor)
-    provider.check_onion_config()
-    return provider
-
+from ..interfaces import (
+    IAddressFamily,
+)
 
 def _import_tor():
-    # this exists to be overridden by unit tests
     try:
         from foolscap.connections import tor
         return tor
@@ -40,6 +40,25 @@ def _import_txtorcon():
         return txtorcon
     except ImportError: # pragma: no cover
         return None
+
+def create(reactor, config, import_tor=None, import_txtorcon=None):
+    """
+    Create a new _Provider service (this is an IService so must be
+    hooked up to a parent or otherwise started).
+
+    If foolscap.connections.tor or txtorcon are not installed, then
+    Provider.get_tor_handler() will return None.  If tahoe.cfg wants
+    to start an onion service too, then this `create()` method will
+    throw a nice error (and startService will throw an ugly error).
+    """
+    if import_tor is None:
+        import_tor = _import_tor
+    if import_txtorcon is None:
+        import_txtorcon = _import_txtorcon
+    provider = _Provider(config, reactor, import_tor(), import_txtorcon())
+    provider.check_onion_config()
+    return provider
+
 
 def data_directory(private_dir):
     return os.path.join(private_dir, "tor-statedir")
@@ -192,6 +211,8 @@ def create_config(reactor, cli_config):
                                                               "tor_onion.privkey")
     privkeyfile = os.path.join(private_dir, "tor_onion.privkey")
     with open(privkeyfile, "wb") as f:
+        if isinstance(privkey, str):
+            privkey = privkey.encode("ascii")
         f.write(privkey)
 
     # tahoe_config_tor: this is a dictionary of keys/values to add to the
@@ -209,15 +230,16 @@ def create_config(reactor, cli_config):
     returnValue((tahoe_config_tor, tor_port, tor_location))
 
 
+@implementer(IAddressFamily)
 class _Provider(service.MultiService):
-    def __init__(self, config, reactor):
+    def __init__(self, config, reactor, tor, txtorcon):
         service.MultiService.__init__(self)
         self._config = config
         self._tor_launched = None
         self._onion_ehs = None
         self._onion_tor_control_proto = None
-        self._tor = _import_tor()
-        self._txtorcon = _import_txtorcon()
+        self._tor = tor
+        self._txtorcon = txtorcon
         self._reactor = reactor
 
     def _get_tor_config(self, *args, **kwargs):
@@ -228,7 +250,13 @@ class _Provider(service.MultiService):
         ep = TCP4ServerEndpoint(self._reactor, local_port, interface="127.0.0.1")
         return ep
 
-    def get_tor_handler(self):
+    def get_client_endpoint(self):
+        """
+        Get an ``IStreamClientEndpoint`` which will set up a connection using Tor.
+
+        If Tor is not enabled or the dependencies are not available, return
+        ``None`` instead.
+        """
         enabled = self._get_tor_config("enabled", True, boolean=True)
         if not enabled:
             return None
@@ -252,6 +280,9 @@ class _Provider(service.MultiService):
             return self._tor.control_endpoint(ep)
 
         return self._tor.default_socks()
+
+    # Backwards compatibility alias
+    get_tor_handler = get_client_endpoint
 
     @inlineCallbacks
     def _make_control_endpoint(self, reactor, update_status):

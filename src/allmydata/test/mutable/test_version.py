@@ -14,7 +14,13 @@ import os
 from six.moves import cStringIO as StringIO
 
 from twisted.internet import defer
-from twisted.trial import unittest
+from ..common import AsyncTestCase
+from testtools.matchers import (
+    Equals,
+    IsInstance,
+    HasLength,
+    Contains,
+)
 
 from allmydata import uri
 from allmydata.interfaces import SDMF_VERSION, MDMF_VERSION
@@ -29,7 +35,7 @@ from ..no_network import GridTestMixin
 from .util import PublishMixin
 from .. import common_util as testutil
 
-class Version(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin, \
+class Version(GridTestMixin, AsyncTestCase, testutil.ShouldFailMixin, \
               PublishMixin):
     def setUp(self):
         GridTestMixin.setUp(self)
@@ -47,8 +53,8 @@ class Version(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin, \
         d = self.nm.create_mutable_file(MutableData(data),
                                         version=MDMF_VERSION)
         def _then(n):
-            assert isinstance(n, MutableFileNode)
-            assert n._protocol_version == MDMF_VERSION
+            self.assertThat(n, IsInstance(MutableFileNode))
+            self.assertThat(n._protocol_version, Equals(MDMF_VERSION))
             self.mdmf_node = n
             return n
         d.addCallback(_then)
@@ -59,8 +65,8 @@ class Version(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin, \
             data = self.small_data
         d = self.nm.create_mutable_file(MutableData(data))
         def _then(n):
-            assert isinstance(n, MutableFileNode)
-            assert n._protocol_version == SDMF_VERSION
+            self.assertThat(n, IsInstance(MutableFileNode))
+            self.assertThat(n._protocol_version, Equals(SDMF_VERSION))
             self.sdmf_node = n
             return n
         d.addCallback(_then)
@@ -69,9 +75,9 @@ class Version(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin, \
     def do_upload_empty_sdmf(self):
         d = self.nm.create_mutable_file(MutableData(b""))
         def _then(n):
-            assert isinstance(n, MutableFileNode)
+            self.assertThat(n, IsInstance(MutableFileNode))
             self.sdmf_zero_length_node = n
-            assert n._protocol_version == SDMF_VERSION
+            self.assertThat(n._protocol_version, Equals(SDMF_VERSION))
             return n
         d.addCallback(_then)
         return d
@@ -86,7 +92,7 @@ class Version(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin, \
         def _debug(n):
             fso = debug.FindSharesOptions()
             storage_index = base32.b2a(n.get_storage_index())
-            fso.si_s = storage_index
+            fso.si_s = str(storage_index, "utf-8")  # command-line options are unicode on Python 3
             fso.nodedirs = [os.path.dirname(abspath_expanduser_unicode(str(storedir)))
                             for (i,ss,storedir)
                             in self.iterate_servers()]
@@ -95,7 +101,7 @@ class Version(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin, \
             debug.find_shares(fso)
             sharefiles = fso.stdout.getvalue().splitlines()
             expected = self.nm.default_encoding_parameters["n"]
-            self.failUnlessEqual(len(sharefiles), expected)
+            self.assertThat(sharefiles, HasLength(expected))
 
             do = debug.DumpOptions()
             do["filename"] = sharefiles[0]
@@ -103,17 +109,17 @@ class Version(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin, \
             debug.dump_share(do)
             output = do.stdout.getvalue()
             lines = set(output.splitlines())
-            self.failUnless("Mutable slot found:" in lines, output)
-            self.failUnless(" share_type: MDMF" in lines, output)
-            self.failUnless(" num_extra_leases: 0" in lines, output)
-            self.failUnless(" MDMF contents:" in lines, output)
-            self.failUnless("  seqnum: 1" in lines, output)
-            self.failUnless("  required_shares: 3" in lines, output)
-            self.failUnless("  total_shares: 10" in lines, output)
-            self.failUnless("  segsize: 131073" in lines, output)
-            self.failUnless("  datalen: %d" % len(self.data) in lines, output)
+            self.assertTrue("Mutable slot found:" in lines, output)
+            self.assertTrue(" share_type: MDMF" in lines, output)
+            self.assertTrue(" num_extra_leases: 0" in lines, output)
+            self.assertTrue(" MDMF contents:" in lines, output)
+            self.assertTrue("  seqnum: 1" in lines, output)
+            self.assertTrue("  required_shares: 3" in lines, output)
+            self.assertTrue("  total_shares: 10" in lines, output)
+            self.assertTrue("  segsize: 131073" in lines, output)
+            self.assertTrue("  datalen: %d" % len(self.data) in lines, output)
             vcap = str(n.get_verify_cap().to_string(), "utf-8")
-            self.failUnless("  verify-cap: %s" % vcap in lines, output)
+            self.assertTrue("  verify-cap: %s" % vcap in lines, output)
             cso = debug.CatalogSharesOptions()
             cso.nodedirs = fso.nodedirs
             cso.stdout = StringIO()
@@ -122,13 +128,13 @@ class Version(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin, \
             shares = cso.stdout.getvalue().splitlines()
             oneshare = shares[0] # all shares should be MDMF
             self.failIf(oneshare.startswith("UNKNOWN"), oneshare)
-            self.failUnless(oneshare.startswith("MDMF"), oneshare)
+            self.assertTrue(oneshare.startswith("MDMF"), oneshare)
             fields = oneshare.split()
-            self.failUnlessEqual(fields[0], "MDMF")
-            self.failUnlessEqual(fields[1].encode("ascii"), storage_index)
-            self.failUnlessEqual(fields[2], "3/10")
-            self.failUnlessEqual(fields[3], "%d" % len(self.data))
-            self.failUnless(fields[4].startswith("#1:"), fields[3])
+            self.assertThat(fields[0], Equals("MDMF"))
+            self.assertThat(fields[1].encode("ascii"), Equals(storage_index))
+            self.assertThat(fields[2], Equals("3/10"))
+            self.assertThat(fields[3], Equals("%d" % len(self.data)))
+            self.assertTrue(fields[4].startswith("#1:"), fields[3])
             # the rest of fields[4] is the roothash, which depends upon
             # encryption salts and is not constant. fields[5] is the
             # remaining time on the longest lease, which is timing dependent.
@@ -140,11 +146,11 @@ class Version(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin, \
         d = self.do_upload()
         d.addCallback(lambda ign: self.mdmf_node.get_best_readable_version())
         d.addCallback(lambda bv:
-            self.failUnlessEqual(bv.get_sequence_number(), 1))
+            self.assertThat(bv.get_sequence_number(), Equals(1)))
         d.addCallback(lambda ignored:
             self.sdmf_node.get_best_readable_version())
         d.addCallback(lambda bv:
-            self.failUnlessEqual(bv.get_sequence_number(), 1))
+            self.assertThat(bv.get_sequence_number(), Equals(1)))
         # Now update. The sequence number in both cases should be 1 in
         # both cases.
         def _do_update(ignored):
@@ -158,11 +164,11 @@ class Version(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin, \
         d.addCallback(lambda ignored:
             self.mdmf_node.get_best_readable_version())
         d.addCallback(lambda bv:
-            self.failUnlessEqual(bv.get_sequence_number(), 2))
+            self.assertThat(bv.get_sequence_number(), Equals(2)))
         d.addCallback(lambda ignored:
             self.sdmf_node.get_best_readable_version())
         d.addCallback(lambda bv:
-            self.failUnlessEqual(bv.get_sequence_number(), 2))
+            self.assertThat(bv.get_sequence_number(), Equals(2)))
         return d
 
 
@@ -175,10 +181,10 @@ class Version(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin, \
         def _then(ign):
             mdmf_uri = self.mdmf_node.get_uri()
             cap = uri.from_string(mdmf_uri)
-            self.failUnless(isinstance(cap, uri.WriteableMDMFFileURI))
+            self.assertTrue(isinstance(cap, uri.WriteableMDMFFileURI))
             readonly_mdmf_uri = self.mdmf_node.get_readonly_uri()
             cap = uri.from_string(readonly_mdmf_uri)
-            self.failUnless(isinstance(cap, uri.ReadonlyMDMFFileURI))
+            self.assertTrue(isinstance(cap, uri.ReadonlyMDMFFileURI))
         d.addCallback(_then)
         return d
 
@@ -189,16 +195,16 @@ class Version(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin, \
         d.addCallback(lambda ign: self.mdmf_node.get_best_mutable_version())
         def _check_mdmf(bv):
             n = self.mdmf_node
-            self.failUnlessEqual(bv.get_writekey(), n.get_writekey())
-            self.failUnlessEqual(bv.get_storage_index(), n.get_storage_index())
-            self.failIf(bv.is_readonly())
+            self.assertThat(bv.get_writekey(), Equals(n.get_writekey()))
+            self.assertThat(bv.get_storage_index(), Equals(n.get_storage_index()))
+            self.assertFalse(bv.is_readonly())
         d.addCallback(_check_mdmf)
         d.addCallback(lambda ign: self.sdmf_node.get_best_mutable_version())
         def _check_sdmf(bv):
             n = self.sdmf_node
-            self.failUnlessEqual(bv.get_writekey(), n.get_writekey())
-            self.failUnlessEqual(bv.get_storage_index(), n.get_storage_index())
-            self.failIf(bv.is_readonly())
+            self.assertThat(bv.get_writekey(), Equals(n.get_writekey()))
+            self.assertThat(bv.get_storage_index(), Equals(n.get_storage_index()))
+            self.assertFalse(bv.is_readonly())
         d.addCallback(_check_sdmf)
         return d
 
@@ -206,21 +212,21 @@ class Version(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin, \
     def test_get_readonly_version(self):
         d = self.do_upload()
         d.addCallback(lambda ign: self.mdmf_node.get_best_readable_version())
-        d.addCallback(lambda bv: self.failUnless(bv.is_readonly()))
+        d.addCallback(lambda bv: self.assertTrue(bv.is_readonly()))
 
         # Attempting to get a mutable version of a mutable file from a
         # filenode initialized with a readcap should return a readonly
         # version of that same node.
         d.addCallback(lambda ign: self.mdmf_node.get_readonly())
         d.addCallback(lambda ro: ro.get_best_mutable_version())
-        d.addCallback(lambda v: self.failUnless(v.is_readonly()))
+        d.addCallback(lambda v: self.assertTrue(v.is_readonly()))
 
         d.addCallback(lambda ign: self.sdmf_node.get_best_readable_version())
-        d.addCallback(lambda bv: self.failUnless(bv.is_readonly()))
+        d.addCallback(lambda bv: self.assertTrue(bv.is_readonly()))
 
         d.addCallback(lambda ign: self.sdmf_node.get_readonly())
         d.addCallback(lambda ro: ro.get_best_mutable_version())
-        d.addCallback(lambda v: self.failUnless(v.is_readonly()))
+        d.addCallback(lambda v: self.assertTrue(v.is_readonly()))
         return d
 
 
@@ -232,13 +238,13 @@ class Version(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin, \
         d.addCallback(lambda ignored:
             self.mdmf_node.download_best_version())
         d.addCallback(lambda data:
-            self.failUnlessEqual(data, b"foo bar baz" * 100000))
+            self.assertThat(data, Equals(b"foo bar baz" * 100000)))
         d.addCallback(lambda ignored:
             self.sdmf_node.overwrite(new_small_data))
         d.addCallback(lambda ignored:
             self.sdmf_node.download_best_version())
         d.addCallback(lambda data:
-            self.failUnlessEqual(data, b"foo bar baz" * 10))
+            self.assertThat(data, Equals(b"foo bar baz" * 10)))
         return d
 
 
@@ -250,13 +256,13 @@ class Version(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin, \
         d.addCallback(lambda ignored:
             self.mdmf_node.download_best_version())
         d.addCallback(lambda data:
-            self.failUnlessIn(b"modified", data))
+            self.assertThat(data, Contains(b"modified")))
         d.addCallback(lambda ignored:
             self.sdmf_node.modify(modifier))
         d.addCallback(lambda ignored:
             self.sdmf_node.download_best_version())
         d.addCallback(lambda data:
-            self.failUnlessIn(b"modified", data))
+            self.assertThat(data, Contains(b"modified")))
         return d
 
 
@@ -271,13 +277,13 @@ class Version(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin, \
         d.addCallback(lambda ignored:
             self.mdmf_node.download_best_version())
         d.addCallback(lambda data:
-            self.failUnlessIn(b"modified", data))
+            self.assertThat(data, Contains(b"modified")))
         d.addCallback(lambda ignored:
             self.sdmf_node.modify(modifier))
         d.addCallback(lambda ignored:
             self.sdmf_node.download_best_version())
         d.addCallback(lambda data:
-            self.failUnlessIn(b"modified", data))
+            self.assertThat(data, Contains(b"modified")))
         return d
 
 
@@ -308,13 +314,13 @@ class Version(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin, \
         d.addCallback(lambda ignored:
             self._fn.download_version(self.servermap, self.version1))
         d.addCallback(lambda results:
-            self.failUnlessEqual(self.CONTENTS[self.version1_index],
-                                 results))
+            self.assertThat(self.CONTENTS[self.version1_index],
+                                 Equals(results)))
         d.addCallback(lambda ignored:
             self._fn.download_version(self.servermap, self.version2))
         d.addCallback(lambda results:
-            self.failUnlessEqual(self.CONTENTS[self.version2_index],
-                                 results))
+            self.assertThat(self.CONTENTS[self.version2_index],
+                                 Equals(results)))
         return d
 
 
@@ -344,7 +350,7 @@ class Version(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin, \
             for i in range(0, len(expected), step):
                 d2.addCallback(lambda ignored, i=i: version.read(c, i, step))
             d2.addCallback(lambda ignored:
-                self.failUnlessEqual(expected, b"".join(c.chunks)))
+                self.assertThat(expected, Equals(b"".join(c.chunks))))
             return d2
         d.addCallback(_read_data)
         return d
@@ -447,16 +453,16 @@ class Version(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin, \
             d2 = defer.succeed(None)
             d2.addCallback(lambda ignored: version.read(c))
             d2.addCallback(lambda ignored:
-                self.failUnlessEqual(expected, b"".join(c.chunks)))
+                self.assertThat(expected, Equals(b"".join(c.chunks))))
 
             d2.addCallback(lambda ignored: version.read(c2, offset=0,
                                                         size=len(expected)))
             d2.addCallback(lambda ignored:
-                self.failUnlessEqual(expected, b"".join(c2.chunks)))
+                self.assertThat(expected, Equals(b"".join(c2.chunks))))
             return d2
         d.addCallback(_read_data)
         d.addCallback(lambda ignored: node.download_best_version())
-        d.addCallback(lambda data: self.failUnlessEqual(expected, data))
+        d.addCallback(lambda data: self.assertThat(expected, Equals(data)))
         return d
 
     def test_read_and_download_mdmf(self):

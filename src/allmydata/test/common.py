@@ -1,4 +1,15 @@
+"""
+Ported to Python 3.
+"""
 from __future__ import print_function
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import unicode_literals
+
+from future.utils import PY2, native_str
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+from past.builtins import chr as byteschr
 
 __all__ = [
     "SyncTestCase",
@@ -9,9 +20,15 @@ __all__ = [
     "flush_logged_errors",
     "skip",
     "skipIf",
+
+    # Selected based on platform and re-exported for convenience.
+    "Popen",
+    "PIPE",
 ]
 
+import sys
 import os, random, struct
+from contextlib import contextmanager
 import six
 import tempfile
 from tempfile import mktemp
@@ -62,10 +79,17 @@ from twisted.internet.endpoints import AdoptedStreamServerEndpoint
 from twisted.trial.unittest import TestCase as _TrialTestCase
 
 from allmydata import uri
-from allmydata.interfaces import IMutableFileNode, IImmutableFileNode,\
-                                 NotEnoughSharesError, ICheckable, \
-                                 IMutableUploadable, SDMF_VERSION, \
-                                 MDMF_VERSION
+from allmydata.interfaces import (
+    IMutableFileNode,
+    IImmutableFileNode,
+    NotEnoughSharesError,
+    ICheckable,
+    IMutableUploadable,
+    SDMF_VERSION,
+    MDMF_VERSION,
+    IAddressFamily,
+    NoSpace,
+)
 from allmydata.check_results import CheckResults, CheckAndRepairResults, \
      DeepCheckResults, DeepCheckAndRepairResults
 from allmydata.storage_client import StubServer
@@ -93,14 +117,63 @@ from .eliotutil import (
 )
 from .common_util import ShouldFailMixin  # noqa: F401
 
-
-TEST_RSA_KEY_SIZE = 522
+if sys.platform == "win32" and PY2:
+    # Python 2.7 doesn't have good options for launching a process with
+    # non-ASCII in its command line.  So use this alternative that does a
+    # better job.  However, only use it on Windows because it doesn't work
+    # anywhere else.
+    from ._win_subprocess import (
+        Popen,
+    )
+else:
+    from subprocess import (
+        Popen,
+    )
+from subprocess import (
+    PIPE,
+)
 
 EMPTY_CLIENT_CONFIG = config_from_string(
     "/dev/null",
     "tub.port",
     ""
 )
+
+@attr.s
+class FakeDisk(object):
+    """
+    Just enough of a disk to be able to report free / used information.
+    """
+    total = attr.ib()
+    used = attr.ib()
+
+    def use(self, num_bytes):
+        """
+        Mark some amount of available bytes as used (and no longer available).
+
+        :param int num_bytes: The number of bytes to use.
+
+        :raise NoSpace: If there are fewer bytes available than ``num_bytes``.
+
+        :return: ``None``
+        """
+        if num_bytes > self.total - self.used:
+            raise NoSpace()
+        self.used += num_bytes
+
+    @property
+    def available(self):
+        return self.total - self.used
+
+    def get_disk_stats(self, whichdir, reserved_space):
+        avail = self.available
+        return {
+            'total': self.total,
+            'free_for_root': avail,
+            'free_for_nonroot': avail,
+            'used': self.used,
+            'avail': avail - reserved_space,
+        }
 
 
 @attr.s
@@ -214,7 +287,7 @@ class UseNode(object):
 
     :ivar FilePath basedir: The base directory of the node.
 
-    :ivar bytes introducer_furl: The introducer furl with which to
+    :ivar str introducer_furl: The introducer furl with which to
         configure the client.
 
     :ivar dict[bytes, bytes] node_config: Configuration items for the *node*
@@ -225,17 +298,22 @@ class UseNode(object):
     plugin_config = attr.ib()
     storage_plugin = attr.ib()
     basedir = attr.ib(validator=attr.validators.instance_of(FilePath))
-    introducer_furl = attr.ib(validator=attr.validators.instance_of(bytes))
+    introducer_furl = attr.ib(validator=attr.validators.instance_of(native_str),
+                              converter=six.ensure_str)
     node_config = attr.ib(default=attr.Factory(dict))
 
     config = attr.ib(default=None)
+    reactor = attr.ib(default=None)
 
     def setUp(self):
+        self.assigner = SameProcessStreamEndpointAssigner()
+        self.assigner.setUp()
+
         def format_config_items(config):
             return "\n".join(
                 " = ".join((key, value))
                 for (key, value)
-                in config.items()
+                in list(config.items())
             )
 
         if self.plugin_config is None:
@@ -254,6 +332,23 @@ class UseNode(object):
             "default",
             self.introducer_furl,
         )
+
+        node_config = self.node_config.copy()
+        if "tub.port" not in node_config:
+            if "tub.location" in node_config:
+                raise ValueError(
+                    "UseNode fixture does not support specifying tub.location "
+                    "without tub.port"
+                )
+
+            # Don't use the normal port auto-assignment logic.  It produces
+            # collisions and makes tests fail spuriously.
+            tub_location, tub_endpoint = self.assigner.assign(self.reactor)
+            node_config.update({
+                "tub.port": tub_endpoint,
+                "tub.location": tub_location,
+            })
+
         self.config = config_from_string(
             self.basedir.asTextMode().path,
             "tub.port",
@@ -266,7 +361,7 @@ storage.plugins = {storage_plugin}
 {plugin_config_section}
 """.format(
     storage_plugin=self.storage_plugin,
-    node_config=format_config_items(self.node_config),
+    node_config=format_config_items(node_config),
     plugin_config_section=plugin_config_section,
 )
         )
@@ -278,7 +373,7 @@ storage.plugins = {storage_plugin}
         )
 
     def cleanUp(self):
-        pass
+        self.assigner.tearDown()
 
 
     def getDetails(self):
@@ -294,7 +389,7 @@ class AdoptedServerPort(object):
     """
     prefix = "adopt-socket"
 
-    def parseStreamServer(self, reactor, fd):
+    def parseStreamServer(self, reactor, fd): # type: ignore # https://twistedmatrix.com/trac/ticket/10134
         log.msg("Adopting {}".format(fd))
         # AdoptedStreamServerEndpoint wants to own the file descriptor.  It
         # will duplicate it and then close the one we pass in.  This means it
@@ -367,7 +462,7 @@ class SameProcessStreamEndpointAssigner(object):
         :return: A two-tuple of (location hint, port endpoint description) as
             strings.
         """
-        if IReactorSocket.providedBy(reactor):
+        if sys.platform != "win32" and IReactorSocket.providedBy(reactor):
             # On this platform, we can reliable pre-allocate a listening port.
             # Once it is bound we know it will not fail later with EADDRINUSE.
             s = socket(AF_INET, SOCK_STREAM)
@@ -396,8 +491,11 @@ class DummyProducer(object):
     def resumeProducing(self):
         pass
 
+    def stopProducing(self):
+        pass
+
 @implementer(IImmutableFileNode)
-class FakeCHKFileNode(object):
+class FakeCHKFileNode(object):  # type: ignore # incomplete implementation
     """I provide IImmutableFileNode, but all of my data is stored in a
     class-level dictionary."""
 
@@ -423,7 +521,7 @@ class FakeCHKFileNode(object):
         return self.storage_index
 
     def check(self, monitor, verify=False, add_lease=False):
-        s = StubServer("\x00"*20)
+        s = StubServer(b"\x00"*20)
         r = CheckResults(self.my_uri, self.storage_index,
                          healthy=True, recoverable=True,
                          count_happiness=10,
@@ -507,8 +605,8 @@ class FakeCHKFileNode(object):
         return defer.succeed(self)
 
 
-    def download_to_data(self, progress=None):
-        return download_to_data(self, progress=progress)
+    def download_to_data(self):
+        return download_to_data(self)
 
 
     download_best_version = download_to_data
@@ -535,7 +633,7 @@ def create_chk_filenode(contents, all_contents):
 
 
 @implementer(IMutableFileNode, ICheckable)
-class FakeMutableFileNode(object):
+class FakeMutableFileNode(object):  # type: ignore # incomplete implementation
     """I provide IMutableFileNode, but all of my data is stored in a
     class-level dictionary."""
 
@@ -557,12 +655,12 @@ class FakeMutableFileNode(object):
         self.file_types[self.storage_index] = version
         initial_contents = self._get_initial_contents(contents)
         data = initial_contents.read(initial_contents.get_size())
-        data = "".join(data)
+        data = b"".join(data)
         self.all_contents[self.storage_index] = data
         return defer.succeed(self)
     def _get_initial_contents(self, contents):
         if contents is None:
-            return MutableData("")
+            return MutableData(b"")
 
         if IMutableUploadable.providedBy(contents):
             return contents
@@ -616,7 +714,7 @@ class FakeMutableFileNode(object):
     def raise_error(self):
         pass
     def get_writekey(self):
-        return "\x00"*16
+        return b"\x00"*16
     def get_size(self):
         return len(self.all_contents[self.storage_index])
     def get_current_size(self):
@@ -635,7 +733,7 @@ class FakeMutableFileNode(object):
         return self.file_types[self.storage_index]
 
     def check(self, monitor, verify=False, add_lease=False):
-        s = StubServer("\x00"*20)
+        s = StubServer(b"\x00"*20)
         r = CheckResults(self.my_uri, self.storage_index,
                          healthy=True, recoverable=True,
                          count_happiness=10,
@@ -646,7 +744,7 @@ class FakeMutableFileNode(object):
                          count_recoverable_versions=1,
                          count_unrecoverable_versions=0,
                          servers_responding=[s],
-                         sharemap={"seq1-abcd-sh0": [s]},
+                         sharemap={b"seq1-abcd-sh0": [s]},
                          count_wrong_shares=0,
                          list_corrupt_shares=[],
                          count_corrupt_shares=0,
@@ -685,11 +783,11 @@ class FakeMutableFileNode(object):
         d.addCallback(_done)
         return d
 
-    def download_best_version(self, progress=None):
-        return defer.succeed(self._download_best_version(progress=progress))
+    def download_best_version(self):
+        return defer.succeed(self._download_best_version())
 
 
-    def _download_best_version(self, ignored=None, progress=None):
+    def _download_best_version(self, ignored=None):
         if isinstance(self.my_uri, uri.LiteralFileURI):
             return self.my_uri.data
         if self.storage_index not in self.all_contents:
@@ -700,7 +798,7 @@ class FakeMutableFileNode(object):
     def overwrite(self, new_contents):
         assert not self.is_readonly()
         new_data = new_contents.read(new_contents.get_size())
-        new_data = "".join(new_data)
+        new_data = b"".join(new_data)
         self.all_contents[self.storage_index] = new_data
         return defer.succeed(None)
     def modify(self, modifier):
@@ -731,7 +829,7 @@ class FakeMutableFileNode(object):
     def update(self, data, offset):
         assert not self.is_readonly()
         def modifier(old, servermap, first_time):
-            new = old[:offset] + "".join(data.read(data.get_size()))
+            new = old[:offset] + b"".join(data.read(data.get_size()))
             new += old[len(new):]
             return new
         return self.modify(modifier)
@@ -816,11 +914,16 @@ class WebErrorMixin(object):
                         code=None, substring=None, response_substring=None,
                         callable=None, *args, **kwargs):
         # returns a Deferred with the response body
+        if isinstance(substring, bytes):
+            substring = str(substring, "ascii")
+        if isinstance(response_substring, str):
+            response_substring = response_substring.encode("ascii")
         assert substring is None or isinstance(substring, str)
+        assert response_substring is None or isinstance(response_substring, bytes)
         assert callable
         def _validate(f):
             if code is not None:
-                self.failUnlessEqual(f.value.status, str(code), which)
+                self.failUnlessEqual(f.value.status, b"%d" % code, which)
             if substring:
                 code_string = str(f)
                 self.failUnless(substring in code_string,
@@ -829,7 +932,7 @@ class WebErrorMixin(object):
             response_body = f.value.response
             if response_substring:
                 self.failUnless(response_substring in response_body,
-                                "%s: response substring '%s' not in '%s'"
+                                "%r: response substring %r not in %r"
                                 % (which, response_substring, response_body))
             return response_body
         d = defer.maybeDeferred(callable, *args, **kwargs)
@@ -845,6 +948,8 @@ class WebErrorMixin(object):
         body = yield response.content()
         self.assertEquals(response.code, code)
         if response_substring is not None:
+            if isinstance(response_substring, str):
+                response_substring = response_substring.encode("utf-8")
             self.assertIn(response_substring, body)
         returnValue(body)
 
@@ -1020,10 +1125,10 @@ def _corrupt_offset_of_uri_extension_to_force_short_read(data, debug=False):
 
 def _corrupt_mutable_share_data(data, debug=False):
     prefix = data[:32]
-    assert prefix == MutableShareFile.MAGIC, "This function is designed to corrupt mutable shares of v1, and the magic number doesn't look right: %r vs %r" % (prefix, MutableShareFile.MAGIC)
+    assert MutableShareFile.is_valid_header(prefix), "This function is designed to corrupt mutable shares of v1, and the magic number doesn't look right: %r vs %r" % (prefix, MutableShareFile.MAGIC)
     data_offset = MutableShareFile.DATA_OFFSET
     sharetype = data[data_offset:data_offset+1]
-    assert sharetype == "\x00", "non-SDMF mutable shares not supported"
+    assert sharetype == b"\x00", "non-SDMF mutable shares not supported"
     (version, ig_seqnum, ig_roothash, ig_IV, ig_k, ig_N, ig_segsize,
      ig_datalen, offsets) = unpack_header(data[data_offset:])
     assert version == 0, "this function only handles v0 SDMF files"
@@ -1056,7 +1161,7 @@ def _corrupt_share_data_last_byte(data, debug=False):
         sharedatasize = struct.unpack(">Q", data[0x0c+0x08:0x0c+0x0c+8])[0]
         offset = 0x0c+0x44+sharedatasize-1
 
-    newdata = data[:offset] + chr(ord(data[offset])^0xFF) + data[offset+1:]
+    newdata = data[:offset] + byteschr(ord(data[offset:offset+1])^0xFF) + data[offset+1:]
     if debug:
         log.msg("testing: flipping all bits of byte at offset %d: %r, newdata: %r" % (offset, data[offset], newdata[offset]))
     return newdata
@@ -1084,7 +1189,7 @@ def _corrupt_crypttext_hash_tree_byte_x221(data, debug=False):
     assert sharevernum in (1, 2), "This test is designed to corrupt immutable shares of v1 or v2 in specific ways."
     if debug:
         log.msg("original data: %r" % (data,))
-    return data[:0x0c+0x221] + chr(ord(data[0x0c+0x221])^0x02) + data[0x0c+0x2210+1:]
+    return data[:0x0c+0x221] + byteschr(ord(data[0x0c+0x221:0x0c+0x221+1])^0x02) + data[0x0c+0x2210+1:]
 
 def _corrupt_block_hashes(data, debug=False):
     """Scramble the file data -- the field containing the block hash tree
@@ -1143,6 +1248,51 @@ def _corrupt_uri_extension(data, debug=False):
 
     return corrupt_field(data, 0x0c+uriextoffset, uriextlen)
 
+
+
+@attr.s
+@implementer(IAddressFamily)
+class ConstantAddresses(object):
+    """
+    Pretend to provide support for some address family but just hand out
+    canned responses.
+    """
+    _listener = attr.ib(default=None)
+    _handler = attr.ib(default=None)
+
+    def get_listener(self):
+        if self._listener is None:
+            raise Exception("{!r} has no listener.")
+        return self._listener
+
+    def get_client_endpoint(self):
+        if self._handler is None:
+            raise Exception("{!r} has no client endpoint.")
+        return self._handler
+
+@contextmanager
+def disable_modules(*names):
+    """
+    A context manager which makes modules appear to be missing while it is
+    active.
+
+    :param *names: The names of the modules to disappear.  Only top-level
+        modules are supported (that is, "." is not allowed in any names).
+        This is an implementation shortcoming which could be lifted if
+        desired.
+    """
+    if any("." in name for name in names):
+        raise ValueError("Names containing '.' are not supported.")
+    missing = object()
+    modules = list(sys.modules.get(n, missing) for n in names)
+    for n in names:
+        sys.modules[n] = None
+    yield
+    for n, original in zip(names, modules):
+        if original is missing:
+            del sys.modules[n]
+        else:
+            sys.modules[n] = original
 
 class _TestCaseMixin(object):
     """

@@ -11,6 +11,7 @@ if PY2:
     # Doesn't import str to prevent API leakage on Python 2
     from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, max, min  # noqa: F401
 from past.builtins import unicode
+from six import ensure_str
 
 import sys, time, copy
 from zope.interface import implementer
@@ -202,8 +203,8 @@ class ServerMap(object):
             (seqnum, root_hash, IV, segsize, datalength, k, N, prefix,
              offsets_tuple) = verinfo
             print("[%s]: sh#%d seq%d-%s %d-of-%d len%d" %
-                         (server.get_name(), shnum,
-                          seqnum, base32.b2a(root_hash)[:4], k, N,
+                         (unicode(server.get_name(), "utf-8"), shnum,
+                          seqnum, unicode(base32.b2a(root_hash)[:4], "utf-8"), k, N,
                           datalength), file=out)
         if self._problems:
             print("%d PROBLEMS" % len(self._problems), file=out)
@@ -275,7 +276,7 @@ class ServerMap(object):
         """Take a versionid, return a string that describes it."""
         (seqnum, root_hash, IV, segsize, datalength, k, N, prefix,
          offsets_tuple) = verinfo
-        return "seq%d-%s" % (seqnum, base32.b2a(root_hash)[:4])
+        return "seq%d-%s" % (seqnum, unicode(base32.b2a(root_hash)[:4], "utf-8"))
 
     def summarize_versions(self):
         """Return a string describing which versions we know about."""
@@ -606,13 +607,14 @@ class ServermapUpdater(object):
         return d
 
     def _do_read(self, server, storage_index, shnums, readv):
+        """
+        If self._add_lease is true, a lease is added, and the result only fires
+        once the least has also been added.
+        """
         ss = server.get_storage_server()
         if self._add_lease:
             # send an add-lease message in parallel. The results are handled
-            # separately. This is sent before the slot_readv() so that we can
-            # be sure the add_lease is retired by the time slot_readv comes
-            # back (this relies upon our knowledge that the server code for
-            # add_lease is synchronous).
+            # separately.
             renew_secret = self._node.get_renewal_secret(server)
             cancel_secret = self._node.get_cancel_secret(server)
             d2 = ss.add_lease(
@@ -622,7 +624,16 @@ class ServermapUpdater(object):
             )
             # we ignore success
             d2.addErrback(self._add_lease_failed, server, storage_index)
+        else:
+            d2 = defer.succeed(None)
         d = ss.slot_readv(storage_index, shnums, readv)
+
+        def passthrough(result):
+            # Wait for d2, but fire with result of slot_readv() regardless of
+            # result of d2.
+            return d2.addBoth(lambda _: result)
+
+        d.addCallback(passthrough)
         return d
 
 
@@ -868,8 +879,8 @@ class ServermapUpdater(object):
         # ok, it's a valid verinfo. Add it to the list of validated
         # versions.
         self.log(" found valid version %d-%s from %s-sh%d: %d-%d/%d/%d"
-                 % (seqnum, base32.b2a(root_hash)[:4],
-                    server.get_name(), shnum,
+                 % (seqnum, unicode(base32.b2a(root_hash)[:4], "utf-8"),
+                    ensure_str(server.get_name()), shnum,
                     k, n, segsize, datalen),
                     parent=lp)
         self._valid_versions.add(verinfo)
@@ -943,13 +954,13 @@ class ServermapUpdater(object):
         alleged_privkey_s = self._node._decrypt_privkey(enc_privkey)
         alleged_writekey = hashutil.ssk_writekey_hash(alleged_privkey_s)
         if alleged_writekey != self._node.get_writekey():
-            self.log("invalid privkey from %s shnum %d" %
+            self.log("invalid privkey from %r shnum %d" %
                      (server.get_name(), shnum),
                      parent=lp, level=log.WEIRD, umid="aJVccw")
             return
 
         # it's good
-        self.log("got valid privkey from shnum %d on serverid %s" %
+        self.log("got valid privkey from shnum %d on serverid %r" %
                  (shnum, server.get_name()),
                  parent=lp)
         privkey, _ = rsa.create_signing_keypair_from_string(alleged_privkey_s)
@@ -1213,7 +1224,7 @@ class ServermapUpdater(object):
 
         self.log(format="sending %(more)d more queries: %(who)s",
                  more=len(more_queries),
-                 who=" ".join(["[%s]" % s.get_name() for s in more_queries]),
+                 who=" ".join(["[%r]" % s.get_name() for s in more_queries]),
                  level=log.NOISY)
 
         for server in more_queries:

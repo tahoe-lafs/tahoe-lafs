@@ -11,7 +11,12 @@ if PY2:
     from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 import re
-from twisted.trial import unittest
+from ..common import AsyncTestCase
+from testtools.matchers import (
+    Equals,
+    IsInstance,
+    GreaterThan,
+)
 from twisted.internet import defer
 from allmydata.interfaces import MDMF_VERSION
 from allmydata.mutable.filenode import MutableFileNode
@@ -25,7 +30,7 @@ from .. import common_util as testutil
 # this up.
 SEGSIZE = 128*1024
 
-class Update(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
+class Update(GridTestMixin, AsyncTestCase, testutil.ShouldFailMixin):
     def setUp(self):
         GridTestMixin.setUp(self)
         self.basedir = self.mktemp()
@@ -35,14 +40,14 @@ class Update(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
         # self.data should be at least three segments long.
         td = b"testdata "
         self.data = td*(int(3*SEGSIZE//len(td))+10) # currently about 400kB
-        assert len(self.data) > 3*SEGSIZE
+        self.assertThat(len(self.data), GreaterThan(3*SEGSIZE))
         self.small_data = b"test data" * 10 # 90 B; SDMF
 
 
     def do_upload_sdmf(self):
         d = self.nm.create_mutable_file(MutableData(self.small_data))
         def _then(n):
-            assert isinstance(n, MutableFileNode)
+            self.assertThat(n, IsInstance(MutableFileNode))
             self.sdmf_node = n
         d.addCallback(_then)
         return d
@@ -51,7 +56,7 @@ class Update(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
         d = self.nm.create_mutable_file(MutableData(self.data),
                                         version=MDMF_VERSION)
         def _then(n):
-            assert isinstance(n, MutableFileNode)
+            self.assertThat(n, IsInstance(MutableFileNode))
             self.mdmf_node = n
         d.addCallback(_then)
         return d
@@ -114,9 +119,9 @@ class Update(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
         # with problems and display them separately
         gotmods = [mo.span() for mo in re.finditer(b'([A-Z]+)', got)]
         expmods = [mo.span() for mo in re.finditer(b'([A-Z]+)', expected)]
-        gotspans = ["%d:%d=%s" % (start,end,got[start:end])
+        gotspans = ["%d:%d=%r" % (start,end,got[start:end])
                     for (start,end) in gotmods]
-        expspans = ["%d:%d=%s" % (start,end,expected[start:end])
+        expspans = ["%d:%d=%r" % (start,end,expected[start:end])
                     for (start,end) in expmods]
         #print("expecting: %s" % expspans)
 
@@ -185,7 +190,7 @@ class Update(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
                                                len(self.data)))
             d.addCallback(lambda ign: self.mdmf_node.download_best_version())
             d.addCallback(lambda results:
-                          self.failUnlessEqual(results, new_data))
+                          self.assertThat(results, Equals(new_data)))
             return d
         d0.addCallback(_run)
         return d0
@@ -201,7 +206,7 @@ class Update(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
                                                len(self.small_data)))
             d.addCallback(lambda ign: self.sdmf_node.download_best_version())
             d.addCallback(lambda results:
-                          self.failUnlessEqual(results, new_data))
+                          self.assertThat(results, Equals(new_data)))
             return d
         d0.addCallback(_run)
         return d0
@@ -221,7 +226,7 @@ class Update(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
                                                replace_offset))
             d.addCallback(lambda ign: self.mdmf_node.download_best_version())
             d.addCallback(lambda results:
-                          self.failUnlessEqual(results, new_data))
+                          self.assertThat(results, Equals(new_data)))
             return d
         d0.addCallback(_run)
         return d0
@@ -242,7 +247,7 @@ class Update(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
                                                replace_offset))
             d.addCallback(lambda ignored: self.mdmf_node.download_best_version())
             d.addCallback(lambda results:
-                          self.failUnlessEqual(results, new_data))
+                          self.assertThat(results, Equals(new_data)))
             return d
         d0.addCallback(_run)
         return d0

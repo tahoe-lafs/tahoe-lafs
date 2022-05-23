@@ -60,6 +60,28 @@ class TestRegression(unittest.TestCase):
         # The public key corresponding to `RSA_2048_PRIV_KEY`.
         RSA_2048_PUB_KEY = b64decode(f.read().strip())
 
+    with RESOURCE_DIR.child('pycryptopp-rsa-1024-priv.txt').open('r') as f:
+        # Created using `pycryptopp`:
+        #
+        #     from base64 import b64encode
+        #     from pycryptopp.publickey import rsa
+        #     priv = rsa.generate(1024)
+        #     priv_str = b64encode(priv.serialize())
+        #     pub_str = b64encode(priv.get_verifying_key().serialize())
+        RSA_TINY_PRIV_KEY = b64decode(f.read().strip())
+        assert isinstance(RSA_TINY_PRIV_KEY, native_bytes)
+
+    with RESOURCE_DIR.child('pycryptopp-rsa-32768-priv.txt').open('r') as f:
+        # Created using `pycryptopp`:
+        #
+        #     from base64 import b64encode
+        #     from pycryptopp.publickey import rsa
+        #     priv = rsa.generate(32768)
+        #     priv_str = b64encode(priv.serialize())
+        #     pub_str = b64encode(priv.get_verifying_key().serialize())
+        RSA_HUGE_PRIV_KEY = b64decode(f.read().strip())
+        assert isinstance(RSA_HUGE_PRIV_KEY, native_bytes)
+
     def test_old_start_up_test(self):
         """
         This was the old startup test run at import time in `pycryptopp.cipher.aes`.
@@ -231,6 +253,22 @@ class TestRegression(unittest.TestCase):
         '''
         priv_key, pub_key = rsa.create_signing_keypair_from_string(self.RSA_2048_PRIV_KEY)
         rsa.verify_signature(pub_key, self.RSA_2048_SIG, b'test')
+
+    def test_decode_tiny_rsa_keypair(self):
+        '''
+        An unreasonably small RSA key is rejected ("unreasonably small"
+        means less that 2048 bits)
+        '''
+        with self.assertRaises(ValueError):
+            rsa.create_signing_keypair_from_string(self.RSA_TINY_PRIV_KEY)
+
+    def test_decode_huge_rsa_keypair(self):
+        '''
+        An unreasonably _large_ RSA key is rejected ("unreasonably large"
+        means 32768 or more bits)
+        '''
+        with self.assertRaises(ValueError):
+            rsa.create_signing_keypair_from_string(self.RSA_HUGE_PRIV_KEY)
 
     def test_encrypt_data_not_bytes(self):
         '''

@@ -5,10 +5,6 @@ the foolscap-based server implemented in src/allmydata/storage/*.py .
 
 Ported to Python 3.
 """
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
 
 # roadmap:
 #
@@ -34,16 +30,10 @@ from __future__ import unicode_literals
 #
 # 6: implement other sorts of IStorageClient classes: S3, etc
 
-from future.utils import PY2
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
-
-
-import re
-import time
-import hashlib
-
-# On Python 2 this will be the backport.
+from six import ensure_text
+from typing import Union
+import re, time, hashlib
+from os import urandom
 from configparser import NoSectionError
 
 import attr
@@ -52,6 +42,7 @@ from zope.interface import (
     Interface,
     implementer,
 )
+from twisted.web import http
 from twisted.internet import defer
 from twisted.application import service
 from twisted.plugin import (
@@ -60,7 +51,7 @@ from twisted.plugin import (
 from eliot import (
     log_call,
 )
-from foolscap.api import eventually
+from foolscap.api import eventually, RemoteException
 from foolscap.reconnector import (
     ReconnectionInfo,
 )
@@ -83,6 +74,12 @@ from allmydata.util.observer import ObserverList
 from allmydata.util.rrefutil import add_version_to_remote_reference
 from allmydata.util.hashutil import permute_server_hash
 from allmydata.util.dictutil import BytesKeyDict, UnicodeKeyDict
+from allmydata.util.deferredutil import async_to_deferred
+from allmydata.storage.http_client import (
+    StorageClient, StorageClientImmutables, StorageClientGeneral,
+    ClientException as HTTPClientException, StorageClientMutables,
+    ReadVector, TestWriteVectors, WriteVector, TestVector, ClientException
+)
 
 
 # who is responsible for de-duplication?
@@ -176,6 +173,9 @@ class StorageFarmBroker(service.MultiService):
     I'm also responsible for subscribing to the IntroducerClient to find out
     about new servers as they are announced by the Introducer.
 
+    :ivar _tub_maker: A one-argument callable which accepts a dictionary of
+        "handler overrides" and returns a ``foolscap.api.Tub``.
+
     :ivar StorageClientConfig storage_client_config: Values from the node
         configuration file relating to storage behavior.
     """
@@ -218,6 +218,7 @@ class StorageFarmBroker(service.MultiService):
         # doesn't really matter but it makes the logging behavior more
         # predictable and easier to test (and at least one test does depend on
         # this sorted order).
+        servers = {ensure_text(key): value for (key, value) in servers.items()}
         for (server_id, server) in sorted(servers.items()):
             try:
                 storage_server = self._make_storage_server(
@@ -256,11 +257,11 @@ class StorageFarmBroker(service.MultiService):
             for plugin
             in getPlugins(IFoolscapStoragePlugin)
         }
-        return {
+        return UnicodeKeyDict({
             name: plugins[name].get_client_resource(node_config)
             for (name, config)
             in self.storage_client_config.storage_plugins.items()
-        }
+        })
 
     @log_call(
         action_type=u"storage-client:broker:make-storage-server",
@@ -505,6 +506,7 @@ class StorageFarmBroker(service.MultiService):
 @implementer(IDisplayableServer)
 class StubServer(object):
     def __init__(self, serverid):
+        assert isinstance(serverid, bytes)
         self.serverid = serverid # binary tubid
     def get_serverid(self):
         return self.serverid
@@ -604,6 +606,7 @@ class _FoolscapStorage(object):
 
         *nickname* and *grid-manager-certificates* are optional.
         """
+        furl = furl.encode("utf-8")
         m = re.match(br'pb://(\w+)@', furl)
         assert m, furl
         tubid_s = m.group(1).lower()
@@ -739,7 +742,6 @@ class NativeStorageServer(service.MultiService):
     @ivar nickname: the server's self-reported nickname (unicode), same
 
     @ivar rref: the RemoteReference, if connected, otherwise None
-    @ivar remote_host: the IAddress, if connected, otherwise None
     """
 
     VERSION_DEFAULTS = UnicodeKeyDict({
@@ -771,7 +773,6 @@ class NativeStorageServer(service.MultiService):
 
         self.last_connect_time = None
         self.last_loss_time = None
-        self.remote_host = None
         self._rref = None
         self._is_connected = False
         self._reconnector = None
@@ -825,7 +826,7 @@ class NativeStorageServer(service.MultiService):
         else:
             return _FoolscapStorage.from_announcement(
                 self._server_id,
-                furl.encode("utf-8"),
+                furl,
                 ann,
                 storage_server,
             )
@@ -837,8 +838,6 @@ class NativeStorageServer(service.MultiService):
             # Nope
             pass
         else:
-            if isinstance(furl, str):
-                furl = furl.encode("utf-8")
             # See comment above for the _storage_from_foolscap_plugin case
             # about passing in get_rref.
             storage_server = _StorageServer(get_rref=self.get_rref)
@@ -886,7 +885,7 @@ class NativeStorageServer(service.MultiService):
         return self
 
     def __repr__(self):
-        return "<NativeStorageServer for %s>" % self.get_name()
+        return "<NativeStorageServer for %r>" % self.get_name()
     def get_serverid(self):
         return self._server_id
     def get_version(self):
@@ -895,8 +894,6 @@ class NativeStorageServer(service.MultiService):
         return None
     def get_announcement(self):
         return self.announcement
-    def get_remote_host(self):
-        return self.remote_host
 
     def get_connection_status(self):
         last_received = None
@@ -912,10 +909,10 @@ class NativeStorageServer(service.MultiService):
         version = self.get_version()
         if version is None:
             return None
-        protocol_v1_version = version.get('http://allmydata.org/tahoe/protocols/storage/v1', UnicodeKeyDict())
-        available_space = protocol_v1_version.get('available-space')
+        protocol_v1_version = version.get(b'http://allmydata.org/tahoe/protocols/storage/v1', BytesKeyDict())
+        available_space = protocol_v1_version.get(b'available-space')
         if available_space is None:
-            available_space = protocol_v1_version.get('maximum-immutable-share-size', None)
+            available_space = protocol_v1_version.get(b'maximum-immutable-share-size', None)
         return available_space
 
     def start_connecting(self, trigger_cb):
@@ -944,7 +941,6 @@ class NativeStorageServer(service.MultiService):
                 level=log.NOISY, parent=lp)
 
         self.last_connect_time = time.time()
-        self.remote_host = rref.getLocationHints()
         self._rref = rref
         self._is_connected = True
         rref.notifyOnDisconnect(self._lost)
@@ -970,7 +966,6 @@ class NativeStorageServer(service.MultiService):
         # get_connected_servers() or get_servers_for_psi()) can continue to
         # use s.get_rref().callRemote() and not worry about it being None.
         self._is_connected = False
-        self.remote_host = None
 
     def stop_connecting(self):
         # used when this descriptor has been superceded by another
@@ -1034,17 +1029,6 @@ class _StorageServer(object):
             cancel_secret,
         )
 
-    def renew_lease(
-            self,
-            storage_index,
-            renew_secret,
-    ):
-        return self._rref.callRemote(
-            "renew_lease",
-            storage_index,
-            renew_secret,
-        )
-
     def get_buckets(
             self,
             storage_index,
@@ -1074,11 +1058,19 @@ class _StorageServer(object):
             tw_vectors,
             r_vector,
     ):
+        # Match the wire protocol, which requires 4-tuples for test vectors.
+        wire_format_tw_vectors = {
+            key: (
+                [(start, length, b"eq", data) for (start, length, data) in value[0]],
+                value[1],
+                value[2],
+            ) for (key, value) in tw_vectors.items()
+        }
         return self._rref.callRemote(
             "slot_testv_and_readv_and_writev",
             storage_index,
             secrets,
-            tw_vectors,
+            wire_format_tw_vectors,
             r_vector,
         )
 
@@ -1089,10 +1081,247 @@ class _StorageServer(object):
             shnum,
             reason,
     ):
-        return self._rref.callRemoteOnly(
+        return self._rref.callRemote(
             "advise_corrupt_share",
             share_type,
             storage_index,
             shnum,
             reason,
+        ).addErrback(log.err, "Error from remote call to advise_corrupt_share")
+
+
+
+@attr.s
+class _FakeRemoteReference(object):
+    """
+    Emulate a Foolscap RemoteReference, calling a local object instead.
+    """
+    local_object = attr.ib(type=object)
+
+    @defer.inlineCallbacks
+    def callRemote(self, action, *args, **kwargs):
+        try:
+            result = yield getattr(self.local_object, action)(*args, **kwargs)
+            defer.returnValue(result)
+        except HTTPClientException as e:
+            raise RemoteException(e.args)
+
+
+@attr.s
+class _HTTPBucketWriter(object):
+    """
+    Emulate a ``RIBucketWriter``, but use HTTP protocol underneath.
+    """
+    client = attr.ib(type=StorageClientImmutables)
+    storage_index = attr.ib(type=bytes)
+    share_number = attr.ib(type=int)
+    upload_secret = attr.ib(type=bytes)
+    finished = attr.ib(type=bool, default=False)
+
+    def abort(self):
+        return self.client.abort_upload(self.storage_index, self.share_number,
+                                        self.upload_secret)
+
+    @defer.inlineCallbacks
+    def write(self, offset, data):
+        result = yield self.client.write_share_chunk(
+            self.storage_index, self.share_number, self.upload_secret, offset, data
         )
+        if result.finished:
+            self.finished = True
+        defer.returnValue(None)
+
+    def close(self):
+        # A no-op in HTTP protocol.
+        if not self.finished:
+            return defer.fail(RuntimeError("You didn't finish writing?!"))
+        return defer.succeed(None)
+
+
+
+@attr.s
+class _HTTPBucketReader(object):
+    """
+    Emulate a ``RIBucketReader``, but use HTTP protocol underneath.
+    """
+    client = attr.ib(type=StorageClientImmutables)
+    storage_index = attr.ib(type=bytes)
+    share_number = attr.ib(type=int)
+
+    def read(self, offset, length):
+        return self.client.read_share_chunk(
+            self.storage_index, self.share_number, offset, length
+        )
+
+    def advise_corrupt_share(self, reason):
+       return self.client.advise_corrupt_share(
+           self.storage_index, self.share_number,
+           str(reason, "utf-8", errors="backslashreplace")
+       )
+
+
+# WORK IN PROGRESS, for now it doesn't actually implement whole thing.
+@implementer(IStorageServer)  # type: ignore
+@attr.s
+class _HTTPStorageServer(object):
+    """
+    Talk to remote storage server over HTTP.
+    """
+    _http_client = attr.ib(type=StorageClient)
+
+    @staticmethod
+    def from_http_client(http_client):  # type: (StorageClient) -> _HTTPStorageServer
+        """
+        Create an ``IStorageServer`` from a HTTP ``StorageClient``.
+        """
+        return _HTTPStorageServer(http_client=http_client)
+
+    def get_version(self):
+        return StorageClientGeneral(self._http_client).get_version()
+
+    @defer.inlineCallbacks
+    def allocate_buckets(
+            self,
+            storage_index,
+            renew_secret,
+            cancel_secret,
+            sharenums,
+            allocated_size,
+            canary
+    ):
+        upload_secret = urandom(20)
+        immutable_client = StorageClientImmutables(self._http_client)
+        result = immutable_client.create(
+            storage_index, sharenums, allocated_size, upload_secret, renew_secret,
+            cancel_secret
+        )
+        result = yield result
+        defer.returnValue(
+            (result.already_have, {
+                 share_num: _FakeRemoteReference(_HTTPBucketWriter(
+                     client=immutable_client,
+                     storage_index=storage_index,
+                     share_number=share_num,
+                     upload_secret=upload_secret
+                 ))
+                 for share_num in result.allocated
+            })
+        )
+
+    @defer.inlineCallbacks
+    def get_buckets(
+            self,
+            storage_index
+    ):
+        immutable_client = StorageClientImmutables(self._http_client)
+        share_numbers = yield immutable_client.list_shares(
+            storage_index
+        )
+        defer.returnValue({
+            share_num: _FakeRemoteReference(_HTTPBucketReader(
+                immutable_client, storage_index, share_num
+            ))
+            for share_num in share_numbers
+        })
+
+    @async_to_deferred
+    async def add_lease(
+        self,
+        storage_index,
+        renew_secret,
+        cancel_secret
+    ):
+        client = StorageClientGeneral(self._http_client)
+        try:
+            await client.add_or_renew_lease(
+                storage_index, renew_secret, cancel_secret
+            )
+        except ClientException as e:
+            if e.code == http.NOT_FOUND:
+                # Silently do nothing, as is the case for the Foolscap client
+                return
+            raise
+
+    def advise_corrupt_share(
+        self,
+        share_type,
+        storage_index,
+        shnum,
+        reason: bytes
+    ):
+        if share_type == b"immutable":
+            client : Union[StorageClientImmutables, StorageClientMutables] = StorageClientImmutables(self._http_client)
+        elif share_type == b"mutable":
+            client = StorageClientMutables(self._http_client)
+        else:
+            raise ValueError("Unknown share type")
+        return client.advise_corrupt_share(
+            storage_index, shnum, str(reason, "utf-8", errors="backslashreplace")
+        )
+
+    @defer.inlineCallbacks
+    def slot_readv(self, storage_index, shares, readv):
+        mutable_client = StorageClientMutables(self._http_client)
+        pending_reads = {}
+        reads = {}
+        # If shares list is empty, that means list all shares, so we need
+        # to do a query to get that.
+        if not shares:
+            shares = yield mutable_client.list_shares(storage_index)
+
+        # Start all the queries in parallel:
+        for share_number in shares:
+            share_reads = defer.gatherResults(
+                [
+                    mutable_client.read_share_chunk(
+                        storage_index, share_number, offset, length
+                    )
+                    for (offset, length) in readv
+                ]
+            )
+            pending_reads[share_number] = share_reads
+
+        # Wait for all the queries to finish:
+        for share_number, pending_result in pending_reads.items():
+            reads[share_number] = yield pending_result
+
+        return reads
+
+    @defer.inlineCallbacks
+    def slot_testv_and_readv_and_writev(
+            self,
+            storage_index,
+            secrets,
+            tw_vectors,
+            r_vector,
+    ):
+        mutable_client = StorageClientMutables(self._http_client)
+        we_secret, lr_secret, lc_secret = secrets
+        client_tw_vectors = {}
+        for share_num, (test_vector, data_vector, new_length) in tw_vectors.items():
+            client_test_vectors = [
+                TestVector(offset=offset, size=size, specimen=specimen)
+                for (offset, size, specimen) in test_vector
+            ]
+            client_write_vectors = [
+                WriteVector(offset=offset, data=data) for (offset, data) in data_vector
+            ]
+            client_tw_vectors[share_num] = TestWriteVectors(
+                test_vectors=client_test_vectors,
+                write_vectors=client_write_vectors,
+                new_length=new_length
+            )
+        client_read_vectors = [
+            ReadVector(offset=offset, size=size)
+            for (offset, size) in r_vector
+        ]
+        try:
+            client_result = yield mutable_client.read_test_write_chunks(
+                storage_index, we_secret, lr_secret, lc_secret, client_tw_vectors,
+                client_read_vectors,
+            )
+        except ClientException as e:
+            if e.code == http.UNAUTHORIZED:
+                raise RemoteException("Unauthorized write, possibly you passed the wrong write enabler?")
+            raise
+        return (client_result.success, client_result.reads)

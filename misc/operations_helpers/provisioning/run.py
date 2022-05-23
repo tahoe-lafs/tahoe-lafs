@@ -30,7 +30,7 @@ class Root(rend.Page):
 
 def run(portnum):
     root = Root()
-    root.putChild("tahoe.css", static.File("tahoe.css"))
+    root.putChild(b"tahoe.css", static.File("tahoe.css"))
     site = appserver.NevowSite(root)
     s = strports.service("tcp:%d" % portnum, site)
     s.startService()

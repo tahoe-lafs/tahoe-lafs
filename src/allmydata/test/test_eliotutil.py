@@ -1,5 +1,7 @@
 """
-Tests for ``allmydata.test.eliotutil``.
+Tests for ``allmydata.util.eliotutil``.
+
+Ported to Python 3.
 """
 
 from __future__ import (
@@ -9,20 +11,31 @@ from __future__ import (
     division,
 )
 
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+
 from sys import stdout
 import logging
+
+from unittest import (
+    skip,
+)
 
 from fixtures import (
     TempDir,
 )
 from testtools import (
     TestCase,
+    TestResult,
 )
 from testtools.matchers import (
     Is,
     IsInstance,
+    Not,
     MatchesStructure,
     Equals,
+    HasLength,
     AfterPreprocessing,
 )
 from testtools.twistedsupport import (
@@ -32,12 +45,16 @@ from testtools.twistedsupport import (
 
 from eliot import (
     Message,
+    MessageType,
+    fields,
     FileDestination,
+    MemoryLogger,
 )
 from eliot.twisted import DeferredContext
 from eliot.testing import (
     capture_logging,
     assertHasAction,
+    swap_logger,
 )
 
 from twisted.internet.defer import (
@@ -47,33 +64,117 @@ from twisted.internet.task import deferLater
 from twisted.internet import reactor
 
 from ..util.eliotutil import (
+    eliot_json_encoder,
     log_call_deferred,
     _parse_destination_description,
     _EliotLogging,
 )
+
 from .common import (
     SyncTestCase,
     AsyncTestCase,
 )
 
-class EliotLoggedTestTests(AsyncTestCase):
+
+def passes():
+    """
+    Create a matcher that matches a ``TestCase`` that runs without failures or
+    errors.
+    """
+    def run(case):
+        result = TestResult()
+        case.run(result)
+        return result.wasSuccessful()
+    return AfterPreprocessing(run, Equals(True))
+
+
+class EliotLoggedTestTests(TestCase):
+    """
+    Tests for the automatic log-related provided by ``AsyncTestCase``.
+
+    This class uses ``testtools.TestCase`` because it is inconvenient to nest
+    ``AsyncTestCase`` inside ``AsyncTestCase`` (in particular, Eliot messages
+    emitted by the inner test case get observed by the outer test case and if
+    an inner case emits invalid messages they cause the outer test case to
+    fail).
+    """
+    def test_fails(self):
+        """
+        A test method of an ``AsyncTestCase`` subclass can fail.
+        """
+        class UnderTest(AsyncTestCase):
+            def test_it(self):
+                self.fail("make sure it can fail")
+
+        self.assertThat(UnderTest("test_it"), Not(passes()))
+
+    def test_unserializable_fails(self):
+        """
+        A test method of an ``AsyncTestCase`` subclass that logs an unserializable
+        value with Eliot fails.
+        """
+        class world(object):
+            """
+            an unserializable object
+            """
+
+        class UnderTest(AsyncTestCase):
+            def test_it(self):
+                Message.log(hello=world)
+
+        self.assertThat(UnderTest("test_it"), Not(passes()))
+
+    def test_logs_non_utf_8_byte(self):
+        """
+        A test method of an ``AsyncTestCase`` subclass can log a message that
+        contains a non-UTF-8 byte string and return ``None`` and pass.
+        """
+        class UnderTest(AsyncTestCase):
+            def test_it(self):
+                Message.log(hello=b"\xFF")
+
+        self.assertThat(UnderTest("test_it"), passes())
+
     def test_returns_none(self):
-        Message.log(hello="world")
+        """
+        A test method of an ``AsyncTestCase`` subclass can log a message and
+        return ``None`` and pass.
+        """
+        class UnderTest(AsyncTestCase):
+            def test_it(self):
+                Message.log(hello="world")
+
+        self.assertThat(UnderTest("test_it"), passes())
 
     def test_returns_fired_deferred(self):
-        Message.log(hello="world")
-        return succeed(None)
+        """
+        A test method of an ``AsyncTestCase`` subclass can log a message and
+        return an already-fired ``Deferred`` and pass.
+        """
+        class UnderTest(AsyncTestCase):
+            def test_it(self):
+                Message.log(hello="world")
+                return succeed(None)
+
+        self.assertThat(UnderTest("test_it"), passes())
 
     def test_returns_unfired_deferred(self):
-        Message.log(hello="world")
-        # @eliot_logged_test automatically gives us an action context but it's
-        # still our responsibility to maintain it across stack-busting
-        # operations.
-        d = DeferredContext(deferLater(reactor, 0.0, lambda: None))
-        d.addCallback(lambda ignored: Message.log(goodbye="world"))
-        # We didn't start an action.  We're not finishing an action.
-        return d.result
+        """
+        A test method of an ``AsyncTestCase`` subclass can log a message and
+        return an unfired ``Deferred`` and pass when the ``Deferred`` fires.
+        """
+        class UnderTest(AsyncTestCase):
+            def test_it(self):
+                Message.log(hello="world")
+                # @eliot_logged_test automatically gives us an action context
+                # but it's still our responsibility to maintain it across
+                # stack-busting operations.
+                d = DeferredContext(deferLater(reactor, 0.0, lambda: None))
+                d.addCallback(lambda ignored: Message.log(goodbye="world"))
+                # We didn't start an action.  We're not finishing an action.
+                return d.result
 
+        self.assertThat(UnderTest("test_it"), passes())
 
 
 class ParseDestinationDescriptionTests(SyncTestCase):
@@ -88,7 +189,7 @@ class ParseDestinationDescriptionTests(SyncTestCase):
         reactor = object()
         self.assertThat(
             _parse_destination_description("file:-")(reactor),
-            Equals(FileDestination(stdout)),
+            Equals(FileDestination(stdout, encoder=eliot_json_encoder)),
         )
 
 
@@ -163,6 +264,62 @@ class EliotLoggingTests(TestCase):
                 len, Equals(1),
             ),
         )
+
+    def test_validation_failure(self):
+        """
+        If a test emits a log message that fails validation then an error is added
+        to the result.
+        """
+        # Make sure we preserve the original global Eliot state.
+        original = swap_logger(MemoryLogger())
+        self.addCleanup(lambda: swap_logger(original))
+
+        class ValidationFailureProbe(SyncTestCase):
+            def test_bad_message(self):
+                # This message does not validate because "Hello" is not an
+                # int.
+                MSG = MessageType("test:eliotutil", fields(foo=int))
+                MSG(foo="Hello").write()
+
+        result = TestResult()
+        case = ValidationFailureProbe("test_bad_message")
+        case.run(result)
+
+        self.assertThat(
+            result.errors,
+            HasLength(1),
+        )
+
+    def test_skip_cleans_up(self):
+        """
+        After a skipped test the global Eliot logging state is restored.
+        """
+        # Save the logger that's active before we do anything so that we can
+        # restore it later.  Also install another logger so we can compare it
+        # to the active logger later.
+        expected = MemoryLogger()
+        original = swap_logger(expected)
+
+        # Restore it, whatever else happens.
+        self.addCleanup(lambda: swap_logger(original))
+
+        class SkipProbe(SyncTestCase):
+            @skip("It's a skip test.")
+            def test_skipped(self):
+                pass
+
+        case = SkipProbe("test_skipped")
+        case.run()
+
+        # Retrieve the logger that's active now that the skipped test is done
+        # so we can check it against the expected value.
+        actual = swap_logger(MemoryLogger())
+        self.assertThat(
+            actual,
+            Is(expected),
+        )
+
+
 
 class LogCallDeferredTests(TestCase):
     """

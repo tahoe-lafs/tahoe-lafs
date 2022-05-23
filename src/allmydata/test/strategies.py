@@ -1,11 +1,22 @@
 """
 Hypothesis strategies use for testing Tahoe-LAFS.
+
+Ported to Python 3.
 """
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 from hypothesis.strategies import (
     one_of,
     builds,
     binary,
+    integers,
 )
 
 from ..uri import (
@@ -109,3 +120,17 @@ def dir2_mdmf_capabilities():
         MDMFDirectoryURI,
         mdmf_capabilities(),
     )
+
+def offsets(min_value=0, max_value=2 ** 16):
+    """
+    Build ``int`` values that could be used as valid offsets into a sequence
+    (such as share data in a share file).
+    """
+    return integers(min_value, max_value)
+
+def lengths(min_value=1, max_value=2 ** 16):
+    """
+    Build ``int`` values that could be used as valid lengths of data (such as
+    share data in a share file).
+    """
+    return integers(min_value, max_value)

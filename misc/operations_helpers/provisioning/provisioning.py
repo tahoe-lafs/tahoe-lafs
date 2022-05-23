@@ -18,7 +18,7 @@ def factorial(n):
     factorial(n) with n<0 is -factorial(abs(n))
     """
     result = 1
-    for i in xrange(1, abs(n)+1):
+    for i in range(1, abs(n)+1):
         result *= i
     assert n >= 0
     return result
@@ -30,7 +30,7 @@ def binomial(n, k):
     # calculate n!/k! as one product, avoiding factors that
     # just get canceled
     P = k+1
-    for i in xrange(k+2, n+1):
+    for i in range(k+2, n+1):
         P *= i
     # if you are paranoid:
     # C, rem = divmod(P, factorial(n-k))
@@ -46,7 +46,7 @@ class ProvisioningTool(rend.Page):
         req = inevow.IRequest(ctx)
 
         def getarg(name, astype=int):
-            if req.method != "POST":
+            if req.method != b"POST":
                 return None
             if name in req.fields:
                 return astype(req.fields[name].value)

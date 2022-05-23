@@ -85,7 +85,7 @@ Node Management
 
 "``tahoe create-node [NODEDIR]``" is the basic make-a-new-node
 command. It creates a new directory and populates it with files that
-will allow the "``tahoe start``" and related commands to use it later
+will allow the "``tahoe run``" and related commands to use it later
 on. ``tahoe create-node`` creates nodes that have client functionality
 (upload/download files), web API services (controlled by the
 '[node]web.port' configuration), and storage services (unless
@@ -94,8 +94,7 @@ on. ``tahoe create-node`` creates nodes that have client functionality
 NODEDIR defaults to ``~/.tahoe/`` , and newly-created nodes default to
 publishing a web server on port 3456 (limited to the loopback interface, at
 127.0.0.1, to restrict access to other programs on the same host). All of the
-other "``tahoe``" subcommands use corresponding defaults (with the exception
-that "``tahoe run``" defaults to running a node in the current directory).
+other "``tahoe``" subcommands use corresponding defaults.
 
 "``tahoe create-client [NODEDIR]``" creates a node with no storage service.
 That is, it behaves like "``tahoe create-node --no-storage [NODEDIR]``".
@@ -116,25 +115,6 @@ a previously-created node in the foreground. This command functions
 the same way on all platforms and logs to stdout. If you want to run
 the process as a daemon, it is recommended that you use your favourite
 daemonization tool.
-
-The now-deprecated "``tahoe start [NODEDIR]``" command will launch a
-previously-created node. It will launch the node into the background
-using ``tahoe daemonize`` (and internal-only command, not for user
-use). On some platforms (including Windows) this command is unable to
-run a daemon in the background; in that case it behaves in the same
-way as "``tahoe run``". ``tahoe start`` also monitors the logs for up
-to 5 seconds looking for either a succesful startup message or for
-early failure messages and produces an appropriate exit code.  You are
-encouraged to use ``tahoe run`` along with your favourite
-daemonization tool instead of this. ``tahoe start`` is maintained for
-backwards compatibility of users already using it; new scripts should
-depend on ``tahoe run``.
-
-"``tahoe stop [NODEDIR]``" will shut down a running node. "``tahoe
-restart [NODEDIR]``" will stop and then restart a running
-node. Similar to above, you should use ``tahoe run`` instead alongside
-your favourite daemonization tool.
-
 
 File Store Manipulation
 =======================
@@ -534,10 +514,10 @@ Command Examples
  the pattern will be matched against any level of the directory tree;
  it's still impossible to specify absolute path exclusions.
 
-``tahoe backup --exclude-from=/path/to/filename ~ work:backups``
+``tahoe backup --exclude-from-utf-8=/path/to/filename ~ work:backups``
 
- ``--exclude-from`` is similar to ``--exclude``, but reads exclusion
- patterns from ``/path/to/filename``, one per line.
+ ``--exclude-from-utf-8`` is similar to ``--exclude``, but reads exclusion
+ patterns from a UTF-8-encoded ``/path/to/filename``, one per line.
 
 ``tahoe backup --exclude-vcs ~ work:backups``
 

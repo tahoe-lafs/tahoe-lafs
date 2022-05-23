@@ -1,3 +1,15 @@
+"""
+Ported to Python 3.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+
 import os, sys
 from functools import (
     partial,
@@ -21,7 +33,6 @@ from hypothesis.strategies import (
 )
 
 from eliot.testing import (
-    capture_logging,
     assertHasAction,
 )
 from twisted.trial import unittest
@@ -51,7 +62,6 @@ from allmydata.nodemaker import (
     NodeMaker,
 )
 from allmydata.node import OldConfigError, UnescapedHashError, create_node_dir
-from allmydata.frontends.auth import NeedRootcapLookupScheme
 from allmydata import client
 from allmydata.storage_client import (
     StorageClientConfig,
@@ -63,6 +73,7 @@ from allmydata.util import (
     encodingutil,
     configutil,
 )
+from allmydata.util.eliotutil import capture_logging
 from allmydata.util.fileutil import abspath_expanduser_unicode
 from allmydata.interfaces import IFilesystemNode, IFileNode, \
      IImmutableFileNode, IMutableFileNode, IDirectoryNode
@@ -78,6 +89,7 @@ from .common import (
     UseTestPlugins,
     MemoryIntroducerClient,
     get_published_announcements,
+    UseNode,
 )
 from .matchers import (
     MatchesSameElements,
@@ -88,7 +100,7 @@ from .strategies import (
     write_capabilities,
 )
 
-SOME_FURL = b"pb://abcde@nowhere/fake"
+SOME_FURL = "pb://abcde@nowhere/fake"
 
 BASECONFIG = "[client]\n"
 
@@ -187,7 +199,7 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
             basedir,
             "client.port",
         )
-        abs_basedir = fileutil.abspath_expanduser_unicode(unicode(basedir)).encode(sys.getfilesystemencoding())
+        abs_basedir = fileutil.abspath_expanduser_unicode(str(basedir))
         self.failUnlessIn(os.path.join(abs_basedir, "introducer.furl"), e.args[0])
         self.failUnlessIn(os.path.join(abs_basedir, "no_storage"), e.args[0])
         self.failUnlessIn(os.path.join(abs_basedir, "readonly_storage"), e.args[0])
@@ -235,7 +247,7 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
         fileutil.write(os.path.join(basedir, "tahoe.cfg"),
                        BASECONFIG)
         c = yield client.create_client(basedir)
-        self.failUnless(c.get_long_nodeid().startswith("v0-"))
+        self.failUnless(c.get_long_nodeid().startswith(b"v0-"))
 
     @defer.inlineCallbacks
     def test_nodekey_no_storage(self):
@@ -247,7 +259,7 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
         fileutil.write(os.path.join(basedir, "tahoe.cfg"),
                        BASECONFIG + "[storage]\n" + "enabled = false\n")
         c = yield client.create_client(basedir)
-        self.failUnless(c.get_long_nodeid().startswith("v0-"))
+        self.failUnless(c.get_long_nodeid().startswith(b"v0-"))
 
     def test_storage_anonymous_enabled_by_default(self):
         """
@@ -404,7 +416,7 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
             f.write("deadbeef")
 
         token = c.get_auth_token()
-        self.assertEqual("deadbeef", token)
+        self.assertEqual(b"deadbeef", token)
 
     @defer.inlineCallbacks
     def test_web_staticdir(self):
@@ -424,94 +436,17 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
         expected = fileutil.abspath_expanduser_unicode(u"relative", abs_basedir)
         self.failUnlessReallyEqual(w.staticdir, expected)
 
-    # TODO: also test config options for SFTP.
-
-    @defer.inlineCallbacks
-    def test_ftp_create(self):
-        """
-        configuration for sftpd results in it being started
-        """
-        root = FilePath(self.mktemp())
-        root.makedirs()
-        accounts = root.child(b"sftp-accounts")
-        accounts.touch()
-
-        data = FilePath(__file__).sibling(b"data")
-        privkey = data.child(b"openssh-rsa-2048.txt")
-        pubkey = data.child(b"openssh-rsa-2048.pub.txt")
-
-        basedir = u"client.Basic.test_ftp_create"
-        create_node_dir(basedir, "testing")
-        with open(os.path.join(basedir, "tahoe.cfg"), "w") as f:
-            f.write((
-                '[sftpd]\n'
-                'enabled = true\n'
-                'accounts.file = {}\n'
-                'host_pubkey_file = {}\n'
-                'host_privkey_file = {}\n'
-            ).format(accounts.path, pubkey.path, privkey.path))
-
-        client_node = yield client.create_client(
-            basedir,
-        )
-        sftp = client_node.getServiceNamed("frontend:sftp")
-        self.assertIs(sftp.parent, client_node)
-
-
-    @defer.inlineCallbacks
-    def test_ftp_auth_keyfile(self):
-        """
-        ftpd accounts.file is parsed properly
-        """
-        basedir = u"client.Basic.test_ftp_auth_keyfile"
-        os.mkdir(basedir)
-        fileutil.write(os.path.join(basedir, "tahoe.cfg"),
-                       (BASECONFIG +
-                        "[ftpd]\n"
-                        "enabled = true\n"
-                        "port = tcp:0:interface=127.0.0.1\n"
-                        "accounts.file = private/accounts\n"))
-        os.mkdir(os.path.join(basedir, "private"))
-        fileutil.write(os.path.join(basedir, "private", "accounts"), "\n")
-        c = yield client.create_client(basedir) # just make sure it can be instantiated
-        del c
-
-    @defer.inlineCallbacks
-    def test_ftp_auth_url(self):
-        """
-        ftpd accounts.url is parsed properly
-        """
-        basedir = u"client.Basic.test_ftp_auth_url"
-        os.mkdir(basedir)
-        fileutil.write(os.path.join(basedir, "tahoe.cfg"),
-                       (BASECONFIG +
-                        "[ftpd]\n"
-                        "enabled = true\n"
-                        "port = tcp:0:interface=127.0.0.1\n"
-                        "accounts.url = http://0.0.0.0/\n"))
-        c = yield client.create_client(basedir) # just make sure it can be instantiated
-        del c
-
-    @defer.inlineCallbacks
-    def test_ftp_auth_no_accountfile_or_url(self):
-        """
-        ftpd requires some way to look up accounts
-        """
-        basedir = u"client.Basic.test_ftp_auth_no_accountfile_or_url"
-        os.mkdir(basedir)
-        fileutil.write(os.path.join(basedir, "tahoe.cfg"),
-                       (BASECONFIG +
-                        "[ftpd]\n"
-                        "enabled = true\n"
-                        "port = tcp:0:interface=127.0.0.1\n"))
-        with self.assertRaises(NeedRootcapLookupScheme):
-            yield client.create_client(basedir)
+    # TODO: also test config options for SFTP. See Git history for deleted FTP
+    # tests that could be used as basis for these tests.
 
     @defer.inlineCallbacks
     def _storage_dir_test(self, basedir, storage_path, expected_path):
         """
         generic helper for following storage_dir tests
         """
+        assert isinstance(basedir, str)
+        assert isinstance(storage_path, (str, type(None)))
+        assert isinstance(expected_path, str)
         os.mkdir(basedir)
         cfg_path = os.path.join(basedir, "tahoe.cfg")
         fileutil.write(
@@ -558,7 +493,7 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
         the node's basedir.
         """
         basedir = u"client.Basic.test_relative_storage_dir"
-        config_path = b"myowndir"
+        config_path = u"myowndir"
         expected_path = os.path.join(
             abspath_expanduser_unicode(basedir),
             u"myowndir",
@@ -585,7 +520,7 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
         expected_path = abspath_expanduser_unicode(
             u"client.Basic.test_absolute_storage_dir_myowndir/" + base
         )
-        config_path = expected_path.encode("utf-8")
+        config_path = expected_path
         return self._storage_dir_test(
             basedir,
             config_path,
@@ -596,33 +531,62 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
         return [ s.get_longname() for s in sb.get_servers_for_psi(key) ]
 
     def test_permute(self):
+        """
+        Permutations need to be stable across Tahoe releases, which is why we
+        hardcode a specific expected order.
+
+        This is because the order of these results determines which servers a
+        client will choose to place shares on and which servers it will consult
+        (and in what order) when trying to retrieve those shares.  If the order
+        ever changes, all already-placed shares become (at best) harder to find
+        or (at worst) impossible to find.
+        """
         sb = StorageFarmBroker(True, None, EMPTY_CLIENT_CONFIG)
-        for k in ["%d" % i for i in range(5)]:
+        ks = [b"%d" % i for i in range(5)]
+        for k in ks:
             ann = {"anonymous-storage-FURL": SOME_FURL,
                    "permutation-seed-base32": base32.b2a(k) }
             sb.test_add_rref(k, "rref", ann)
 
-        self.failUnlessReallyEqual(self._permute(sb, "one"), ['3','1','0','4','2'])
-        self.failUnlessReallyEqual(self._permute(sb, "two"), ['0','4','2','1','3'])
+        one = self._permute(sb, b"one")
+        two = self._permute(sb, b"two")
+        self.failUnlessReallyEqual(one, [b'3',b'1',b'0',b'4',b'2'])
+        self.failUnlessReallyEqual(two, [b'0',b'4',b'2',b'1',b'3'])
+        self.assertEqual(sorted(one), ks)
+        self.assertEqual(sorted(two), ks)
+        self.assertNotEqual(one, two)
         sb.servers.clear()
-        self.failUnlessReallyEqual(self._permute(sb, "one"), [])
+        self.failUnlessReallyEqual(self._permute(sb, b"one"), [])
 
     def test_permute_with_preferred(self):
+        """
+        Permutations need to be stable across Tahoe releases, which is why we
+        hardcode a specific expected order.  In this case, two values are
+        preferred and should come first.
+        """
         sb = StorageFarmBroker(
             True,
             None,
             EMPTY_CLIENT_CONFIG,
-            StorageClientConfig(preferred_peers=['1','4']),
+            StorageClientConfig(preferred_peers=[b'1',b'4']),
         )
-        for k in ["%d" % i for i in range(5)]:
+        ks = [b"%d" % i for i in range(5)]
+        for k in [b"%d" % i for i in range(5)]:
             ann = {"anonymous-storage-FURL": SOME_FURL,
                    "permutation-seed-base32": base32.b2a(k) }
             sb.test_add_rref(k, "rref", ann)
 
-        self.failUnlessReallyEqual(self._permute(sb, "one"), ['1','4','3','0','2'])
-        self.failUnlessReallyEqual(self._permute(sb, "two"), ['4','1','0','2','3'])
+        one = self._permute(sb, b"one")
+        two = self._permute(sb, b"two")
+        self.failUnlessReallyEqual(b"".join(one), b'14302')
+        self.failUnlessReallyEqual(b"".join(two), b'41023')
+        self.assertEqual(sorted(one), ks)
+        self.assertEqual(sorted(one[:2]), [b"1", b"4"])
+        self.assertEqual(sorted(two), ks)
+        self.assertEqual(sorted(two[:2]), [b"1", b"4"])
+        self.assertNotEqual(one, two)
         sb.servers.clear()
-        self.failUnlessReallyEqual(self._permute(sb, "one"), [])
+        self.failUnlessReallyEqual(self._permute(sb, b"one"), [])
 
     @defer.inlineCallbacks
     def test_versions(self):
@@ -637,9 +601,9 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
                            "enabled = true\n")
         c = yield client.create_client(basedir)
         ss = c.getServiceNamed("storage")
-        verdict = ss.remote_get_version()
-        self.failUnlessReallyEqual(verdict["application-version"],
-                                   str(allmydata.__full_version__))
+        verdict = ss.get_version()
+        self.failUnlessReallyEqual(verdict[b"application-version"],
+                                   allmydata.__full_version__.encode("ascii"))
         self.failIfEqual(str(allmydata.__version__), "unknown")
         self.failUnless("." in str(allmydata.__full_version__),
                         "non-numeric version in '%s'" % allmydata.__version__)
@@ -864,7 +828,7 @@ class StaticServers(Fixture):
                 for (serverid, announcement)
                 in self._server_details
             },
-        }))
+        }).encode("utf-8"))
 
 
 class StorageClients(SyncTestCase):
@@ -913,7 +877,7 @@ class StorageClients(SyncTestCase):
             succeeded(
                 AfterPreprocessing(
                     get_known_server_details,
-                    Equals([(serverid, announcement)]),
+                    Equals([(serverid.encode("utf-8"), announcement)]),
                 ),
             ),
         )
@@ -940,7 +904,7 @@ class StorageClients(SyncTestCase):
         self.useFixture(
             StaticServers(
                 self.basedir,
-                [(serverid, announcement),
+                [(serverid.encode("ascii"), announcement),
                  # Along with a "bad" server announcement.  Order in this list
                  # doesn't matter, yaml serializer and Python dicts are going
                  # to shuffle everything around kind of randomly.
@@ -957,7 +921,7 @@ class StorageClients(SyncTestCase):
                 AfterPreprocessing(
                     get_known_server_details,
                     # It should have the good server details.
-                    Equals([(serverid, announcement)]),
+                    Equals([(serverid.encode("utf-8"), announcement)]),
                 ),
             ),
         )
@@ -984,19 +948,20 @@ class Run(unittest.TestCase, testutil.StallMixin):
         private.makedirs()
         dummy = "pb://wl74cyahejagspqgy4x5ukrvfnevlknt@127.0.0.1:58889/bogus"
         write_introducer(basedir, "someintroducer", dummy)
-        basedir.child("tahoe.cfg").setContent(BASECONFIG)
+        basedir.child("tahoe.cfg").setContent(BASECONFIG.encode("ascii"))
         basedir.child(client._Client.EXIT_TRIGGER_FILE).touch()
         yield client.create_client(basedir.path)
 
     @defer.inlineCallbacks
     def test_reloadable(self):
-        basedir = FilePath("test_client.Run.test_reloadable")
-        private = basedir.child("private")
-        private.makedirs()
+        from twisted.internet import reactor
+
         dummy = "pb://wl74cyahejagspqgy4x5ukrvfnevlknt@127.0.0.1:58889/bogus"
-        write_introducer(basedir, "someintroducer", dummy)
-        basedir.child("tahoe.cfg").setContent(BASECONFIG)
-        c1 = yield client.create_client(basedir.path)
+        fixture = UseNode(None, None, FilePath(self.mktemp()), dummy, reactor=reactor)
+        fixture.setUp()
+        self.addCleanup(fixture.cleanUp)
+
+        c1 = yield fixture.create_node()
         c1.setServiceParent(self.sparent)
 
         # delay to let the service start up completely. I'm not entirely sure
@@ -1018,7 +983,7 @@ class Run(unittest.TestCase, testutil.StallMixin):
         # also change _check_exit_trigger to use it instead of a raw
         # reactor.stop, also instrument the shutdown event in an
         # attribute that we can check.)
-        c2 = yield client.create_client(basedir.path)
+        c2 = yield fixture.create_node()
         c2.setServiceParent(self.sparent)
         yield c2.disownServiceParent()
 
@@ -1122,7 +1087,7 @@ class NodeMakerTests(testutil.ReallyEqualMixin, AsyncBrokenTestCase):
         fileutil.write(os.path.join(basedir, "tahoe.cfg"), BASECONFIG)
         c = yield client.create_client(basedir)
 
-        n = c.create_node_from_uri("URI:CHK:6nmrpsubgbe57udnexlkiwzmlu:bjt7j6hshrlmadjyr7otq3dc24end5meo5xcr5xe5r663po6itmq:3:10:7277")
+        n = c.create_node_from_uri(b"URI:CHK:6nmrpsubgbe57udnexlkiwzmlu:bjt7j6hshrlmadjyr7otq3dc24end5meo5xcr5xe5r663po6itmq:3:10:7277")
         self.failUnless(IFilesystemNode.providedBy(n))
         self.failUnless(IFileNode.providedBy(n))
         self.failUnless(IImmutableFileNode.providedBy(n))
@@ -1140,10 +1105,10 @@ class NodeMakerTests(testutil.ReallyEqualMixin, AsyncBrokenTestCase):
         # current fix for this (hopefully to be superceded by a better fix
         # eventually) is to prevent re-use of filenodes, so the NodeMaker is
         # hereby required *not* to cache and re-use filenodes for CHKs.
-        other_n = c.create_node_from_uri("URI:CHK:6nmrpsubgbe57udnexlkiwzmlu:bjt7j6hshrlmadjyr7otq3dc24end5meo5xcr5xe5r663po6itmq:3:10:7277")
+        other_n = c.create_node_from_uri(b"URI:CHK:6nmrpsubgbe57udnexlkiwzmlu:bjt7j6hshrlmadjyr7otq3dc24end5meo5xcr5xe5r663po6itmq:3:10:7277")
         self.failIf(n is other_n, (n, other_n))
 
-        n = c.create_node_from_uri("URI:LIT:n5xgk")
+        n = c.create_node_from_uri(b"URI:LIT:n5xgk")
         self.failUnless(IFilesystemNode.providedBy(n))
         self.failUnless(IFileNode.providedBy(n))
         self.failUnless(IImmutableFileNode.providedBy(n))
@@ -1152,7 +1117,7 @@ class NodeMakerTests(testutil.ReallyEqualMixin, AsyncBrokenTestCase):
         self.failUnless(n.is_readonly())
         self.failIf(n.is_mutable())
 
-        n = c.create_node_from_uri("URI:SSK:n6x24zd3seu725yluj75q5boaa:mm6yoqjhl6ueh7iereldqxue4nene4wl7rqfjfybqrehdqmqskvq")
+        n = c.create_node_from_uri(b"URI:SSK:n6x24zd3seu725yluj75q5boaa:mm6yoqjhl6ueh7iereldqxue4nene4wl7rqfjfybqrehdqmqskvq")
         self.failUnless(IFilesystemNode.providedBy(n))
         self.failUnless(IFileNode.providedBy(n))
         self.failIf(IImmutableFileNode.providedBy(n))
@@ -1161,7 +1126,7 @@ class NodeMakerTests(testutil.ReallyEqualMixin, AsyncBrokenTestCase):
         self.failIf(n.is_readonly())
         self.failUnless(n.is_mutable())
 
-        n = c.create_node_from_uri("URI:SSK-RO:b7sr5qsifnicca7cbk3rhrhbvq:mm6yoqjhl6ueh7iereldqxue4nene4wl7rqfjfybqrehdqmqskvq")
+        n = c.create_node_from_uri(b"URI:SSK-RO:b7sr5qsifnicca7cbk3rhrhbvq:mm6yoqjhl6ueh7iereldqxue4nene4wl7rqfjfybqrehdqmqskvq")
         self.failUnless(IFilesystemNode.providedBy(n))
         self.failUnless(IFileNode.providedBy(n))
         self.failIf(IImmutableFileNode.providedBy(n))
@@ -1170,7 +1135,7 @@ class NodeMakerTests(testutil.ReallyEqualMixin, AsyncBrokenTestCase):
         self.failUnless(n.is_readonly())
         self.failUnless(n.is_mutable())
 
-        n = c.create_node_from_uri("URI:DIR2:n6x24zd3seu725yluj75q5boaa:mm6yoqjhl6ueh7iereldqxue4nene4wl7rqfjfybqrehdqmqskvq")
+        n = c.create_node_from_uri(b"URI:DIR2:n6x24zd3seu725yluj75q5boaa:mm6yoqjhl6ueh7iereldqxue4nene4wl7rqfjfybqrehdqmqskvq")
         self.failUnless(IFilesystemNode.providedBy(n))
         self.failIf(IFileNode.providedBy(n))
         self.failIf(IImmutableFileNode.providedBy(n))
@@ -1179,7 +1144,7 @@ class NodeMakerTests(testutil.ReallyEqualMixin, AsyncBrokenTestCase):
         self.failIf(n.is_readonly())
         self.failUnless(n.is_mutable())
 
-        n = c.create_node_from_uri("URI:DIR2-RO:b7sr5qsifnicca7cbk3rhrhbvq:mm6yoqjhl6ueh7iereldqxue4nene4wl7rqfjfybqrehdqmqskvq")
+        n = c.create_node_from_uri(b"URI:DIR2-RO:b7sr5qsifnicca7cbk3rhrhbvq:mm6yoqjhl6ueh7iereldqxue4nene4wl7rqfjfybqrehdqmqskvq")
         self.failUnless(IFilesystemNode.providedBy(n))
         self.failIf(IFileNode.providedBy(n))
         self.failIf(IImmutableFileNode.providedBy(n))
@@ -1188,8 +1153,8 @@ class NodeMakerTests(testutil.ReallyEqualMixin, AsyncBrokenTestCase):
         self.failUnless(n.is_readonly())
         self.failUnless(n.is_mutable())
 
-        unknown_rw = "lafs://from_the_future"
-        unknown_ro = "lafs://readonly_from_the_future"
+        unknown_rw = b"lafs://from_the_future"
+        unknown_ro = b"lafs://readonly_from_the_future"
         n = c.create_node_from_uri(unknown_rw, unknown_ro)
         self.failUnless(IFilesystemNode.providedBy(n))
         self.failIf(IFileNode.providedBy(n))
@@ -1199,7 +1164,7 @@ class NodeMakerTests(testutil.ReallyEqualMixin, AsyncBrokenTestCase):
         self.failUnless(n.is_unknown())
         self.failUnlessReallyEqual(n.get_uri(), unknown_rw)
         self.failUnlessReallyEqual(n.get_write_uri(), unknown_rw)
-        self.failUnlessReallyEqual(n.get_readonly_uri(), "ro." + unknown_ro)
+        self.failUnlessReallyEqual(n.get_readonly_uri(), b"ro." + unknown_ro)
 
         # Note: it isn't that we *intend* to deploy non-ASCII caps in
         # the future, it is that we want to make sure older Tahoe-LAFS
@@ -1216,7 +1181,7 @@ class NodeMakerTests(testutil.ReallyEqualMixin, AsyncBrokenTestCase):
         self.failUnless(n.is_unknown())
         self.failUnlessReallyEqual(n.get_uri(), unknown_rw)
         self.failUnlessReallyEqual(n.get_write_uri(), unknown_rw)
-        self.failUnlessReallyEqual(n.get_readonly_uri(), "ro." + unknown_ro)
+        self.failUnlessReallyEqual(n.get_readonly_uri(), b"ro." + unknown_ro)
 
 
 

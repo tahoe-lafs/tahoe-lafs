@@ -1,7 +1,20 @@
+"""
+Ported to Python 3.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+
 import os
 from twisted.trial import unittest
 from twisted.internet import defer, error
 from six.moves import StringIO
+from six import ensure_str
 import mock
 from ..util import tor_provider
 from ..scripts import create_node, runner
@@ -173,7 +186,8 @@ class CreateOnion(unittest.TestCase):
                                                            protocol)))
         txtorcon = mock.Mock()
         ehs = mock.Mock()
-        ehs.private_key = "privkey"
+        # This appears to be a native string in the real txtorcon object...
+        ehs.private_key = ensure_str("privkey")
         ehs.hostname = "ONION.onion"
         txtorcon.EphemeralHiddenService = mock.Mock(return_value=ehs)
         ehs.add_to_tor = mock.Mock(return_value=defer.succeed(None))
@@ -208,7 +222,7 @@ class CreateOnion(unittest.TestCase):
         fn = os.path.join(basedir, tahoe_config_tor["onion.private_key_file"])
         with open(fn, "rb") as f:
             privkey = f.read()
-        self.assertEqual(privkey, "privkey")
+        self.assertEqual(privkey, b"privkey")
 
     def test_launch(self):
         return self._do_test_launch(None)
@@ -227,7 +241,7 @@ class CreateOnion(unittest.TestCase):
                                                                protocol)))
         txtorcon = mock.Mock()
         ehs = mock.Mock()
-        ehs.private_key = "privkey"
+        ehs.private_key = b"privkey"
         ehs.hostname = "ONION.onion"
         txtorcon.EphemeralHiddenService = mock.Mock(return_value=ehs)
         ehs.add_to_tor = mock.Mock(return_value=defer.succeed(None))
@@ -259,7 +273,7 @@ class CreateOnion(unittest.TestCase):
         fn = os.path.join(basedir, tahoe_config_tor["onion.private_key_file"])
         with open(fn, "rb") as f:
             privkey = f.read()
-        self.assertEqual(privkey, "privkey")
+        self.assertEqual(privkey, b"privkey")
 
 
 _None = object()
@@ -349,6 +363,10 @@ class Provider(unittest.TestCase):
                 cfs2.assert_called_with(reactor, ep_desc)
 
     def test_handler_socks_endpoint(self):
+        """
+        If not configured otherwise, the Tor provider returns a Socks-based
+        handler.
+        """
         tor = mock.Mock()
         handler = object()
         tor.socks_endpoint = mock.Mock(return_value=handler)
@@ -362,6 +380,46 @@ class Provider(unittest.TestCase):
             with mock.patch("allmydata.util.tor_provider.clientFromString", cfs):
                 h = p.get_tor_handler()
         cfs.assert_called_with(reactor, "ep_desc")
+        tor.socks_endpoint.assert_called_with(ep)
+        self.assertIs(h, handler)
+
+    def test_handler_socks_unix_endpoint(self):
+        """
+        ``socks.port`` can be configured as a UNIX client endpoint.
+        """
+        tor = mock.Mock()
+        handler = object()
+        tor.socks_endpoint = mock.Mock(return_value=handler)
+        ep = object()
+        cfs = mock.Mock(return_value=ep)
+        reactor = object()
+
+        with mock_tor(tor):
+            p = tor_provider.create(reactor,
+                                    FakeConfig(**{"socks.port": "unix:path"}))
+            with mock.patch("allmydata.util.tor_provider.clientFromString", cfs):
+                h = p.get_tor_handler()
+        cfs.assert_called_with(reactor, "unix:path")
+        tor.socks_endpoint.assert_called_with(ep)
+        self.assertIs(h, handler)
+
+    def test_handler_socks_tcp_endpoint(self):
+        """
+        ``socks.port`` can be configured as a UNIX client endpoint.
+        """
+        tor = mock.Mock()
+        handler = object()
+        tor.socks_endpoint = mock.Mock(return_value=handler)
+        ep = object()
+        cfs = mock.Mock(return_value=ep)
+        reactor = object()
+
+        with mock_tor(tor):
+            p = tor_provider.create(reactor,
+                                    FakeConfig(**{"socks.port": "tcp:127.0.0.1:1234"}))
+            with mock.patch("allmydata.util.tor_provider.clientFromString", cfs):
+                h = p.get_tor_handler()
+        cfs.assert_called_with(reactor, "tcp:127.0.0.1:1234")
         tor.socks_endpoint.assert_called_with(ep)
         self.assertIs(h, handler)
 
@@ -546,7 +604,7 @@ class Provider_Service(unittest.TestCase):
         launch_tor.assert_called_with(reactor, None,
                                       os.path.join(basedir, "private"), txtorcon)
         txtorcon.EphemeralHiddenService.assert_called_with("456 127.0.0.1:123",
-                                                           "private key")
+                                                           b"private key")
         ehs.add_to_tor.assert_called_with(tor_state.protocol)
 
         yield p.stopService()
@@ -588,7 +646,7 @@ class Provider_Service(unittest.TestCase):
         cfs.assert_called_with(reactor, "ep_desc")
         txtorcon.build_tor_connection.assert_called_with(tcep)
         txtorcon.EphemeralHiddenService.assert_called_with("456 127.0.0.1:123",
-                                                           "private key")
+                                                           b"private key")
         ehs.add_to_tor.assert_called_with(tor_state.protocol)
 
         yield p.stopService()

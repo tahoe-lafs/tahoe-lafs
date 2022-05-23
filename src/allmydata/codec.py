@@ -57,6 +57,10 @@ class CRSEncoder(object):
 
         return defer.succeed((shares, desired_share_ids))
 
+    def encode_proposal(self, data, desired_share_ids=None):
+        raise NotImplementedError()
+
+
 @implementer(ICodecDecoder)
 class CRSDecoder(object):
 

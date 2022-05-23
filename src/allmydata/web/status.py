@@ -1,8 +1,20 @@
+"""
+Ported to Python 3.
+"""
 
-import pprint
+from __future__ import division
+from __future__ import absolute_import
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+from past.builtins import long
+
 import itertools
 import hashlib
-import json
+import re
 from twisted.internet import defer
 from twisted.python.filepath import FilePath
 from twisted.web.resource import Resource
@@ -13,7 +25,7 @@ from twisted.web.template import (
     renderElement,
     tags,
 )
-from allmydata.util import base32, idlib
+from allmydata.util import base32, idlib, jsonbytes as json
 from allmydata.web.common import (
     abbreviate_time,
     abbreviate_rate,
@@ -61,7 +73,7 @@ class UploadResultsRendererMixin(Element):
                 return "None"
             ul = tags.ul()
             for shnum, servers in sorted(sharemap.items()):
-                server_names = ', '.join([s.get_name() for s in servers])
+                server_names = ', '.join([str(s.get_name(), "utf-8") for s in servers])
                 ul(tags.li("%d -> placed on [%s]" % (shnum, server_names)))
             return ul
         d.addCallback(_render)
@@ -75,9 +87,9 @@ class UploadResultsRendererMixin(Element):
             if servermap is None:
                 return "None"
             ul = tags.ul()
-            for server, shnums in sorted(servermap.items()):
+            for server, shnums in sorted(servermap.items(), key=id):
                 shares_s = ",".join(["#%d" % shnum for shnum in shnums])
-                ul(tags.li("[%s] got share%s: %s" % (server.get_name(),
+                ul(tags.li("[%s] got share%s: %s" % (str(server.get_name(), "utf-8"),
                                                      plural(shnums), shares_s)))
             return ul
         d.addCallback(_render)
@@ -231,7 +243,9 @@ class UploadStatusElement(UploadResultsRendererMixin):
         si_s = base32.b2a_or_none(self._upload_status.get_storage_index())
         if si_s is None:
             si_s = "(None)"
-        return tag(str(si_s))
+        else:
+            si_s = str(si_s, "utf-8")
+        return tag(si_s)
 
     @renderer
     def helper(self, req, tag):
@@ -284,7 +298,7 @@ def _find_overlap(events, start_key, end_key):
     rows = []
     for ev in events:
         ev = ev.copy()
-        if ev.has_key('server'):
+        if 'server' in ev:
             ev["serverid"] = ev["server"].get_longname()
             del ev["server"]
         # find an empty slot in the rows
@@ -362,8 +376,8 @@ def _find_overlap_requests(events):
 def _color(server):
     h = hashlib.sha256(server.get_serverid()).digest()
     def m(c):
-        return min(ord(c) / 2 + 0x80, 0xff)
-    return "#%02x%02x%02x" % (m(h[0]), m(h[1]), m(h[2]))
+        return min(ord(c) // 2 + 0x80, 0xff)
+    return "#%02x%02x%02x" % (m(h[0:1]), m(h[1:2]), m(h[2:3]))
 
 class _EventJson(Resource, object):
 
@@ -426,7 +440,7 @@ class DownloadStatusPage(Resource, object):
         """
         super(DownloadStatusPage, self).__init__()
         self._download_status = download_status
-        self.putChild("event_json", _EventJson(self._download_status))
+        self.putChild(b"event_json", _EventJson(self._download_status))
 
     @render_exception
     def render_GET(self, req):
@@ -466,10 +480,10 @@ class DownloadStatusElement(Element):
             return ""
         return "+%.6fs" % t
 
-    def _rate_and_time(self, bytes, seconds):
+    def _rate_and_time(self, bytes_count, seconds):
         time_s = abbreviate_time(seconds)
         if seconds != 0:
-            rate = abbreviate_rate(1.0 * bytes / seconds)
+            rate = abbreviate_rate(bytes_count / seconds)
             return tags.span(time_s, title=rate)
         return tags.span(time_s)
 
@@ -534,14 +548,14 @@ class DownloadStatusElement(Element):
         for r_ev in self._download_status.read_events:
             start = r_ev["start"]
             length = r_ev["length"]
-            bytes = r_ev["bytes_returned"]
+            bytes_returned = r_ev["bytes_returned"]
             decrypt_time = ""
             if bytes:
-                decrypt_time = self._rate_and_time(bytes, r_ev["decrypt_time"])
+                decrypt_time = self._rate_and_time(bytes_returned, r_ev["decrypt_time"])
             speed, rtt = "",""
             if r_ev["finish_time"] is not None:
                 rtt = r_ev["finish_time"] - r_ev["start_time"] - r_ev["paused_time"]
-                speed = abbreviate_rate(compute_rate(bytes, rtt))
+                speed = abbreviate_rate(compute_rate(bytes_returned, rtt))
                 rtt = abbreviate_time(rtt)
             paused = abbreviate_time(r_ev["paused_time"])
 
@@ -549,7 +563,7 @@ class DownloadStatusElement(Element):
                 tags.td("[%d:+%d]" % (start, length)),
                 tags.td(srt(r_ev["start_time"])),
                 tags.td(srt(r_ev["finish_time"])),
-                tags.td(str(bytes)),
+                tags.td(str(bytes_returned)),
                 tags.td(rtt),
                 tags.td(decrypt_time),
                 tags.td(paused),
@@ -918,10 +932,10 @@ class RetrieveStatusElement(Element):
         if not per_server:
             return tag("")
         l = tags.ul()
-        for server in sorted(per_server.keys(), key=lambda s: s.get_name()):
+        for server in sorted(list(per_server.keys()), key=lambda s: s.get_name()):
             times_s = ", ".join([abbreviate_time(t)
                                  for t in per_server[server]])
-            l(tags.li("[%s]: %s" % (server.get_name(), times_s)))
+            l(tags.li("[%s]: %s" % (str(server.get_name(), "utf-8"), times_s)))
         return tags.li("Per-Server Fetch Response Times: ", l)
 
 
@@ -959,7 +973,9 @@ class PublishStatusElement(Element):
         si_s = base32.b2a_or_none(self._publish_status.get_storage_index())
         if si_s is None:
             si_s = "(None)"
-        return tag(str(si_s))
+        else:
+            si_s = str(si_s, "utf-8")
+        return tag(si_s)
 
     @renderer
     def helper(self, req, tag):
@@ -997,7 +1013,7 @@ class PublishStatusElement(Element):
         sharemap = servermap.make_sharemap()
         for shnum in sorted(sharemap.keys()):
             l(tags.li("%d -> Placed on " % shnum,
-                      ", ".join(["[%s]" % server.get_name()
+                      ", ".join(["[%s]" % str(server.get_name(), "utf-8")
                                  for server in sharemap[shnum]])))
         return tag("Sharemap:", l)
 
@@ -1076,10 +1092,10 @@ class PublishStatusElement(Element):
         if not per_server:
             return tag()
         l = tags.ul()
-        for server in sorted(per_server.keys(), key=lambda s: s.get_name()):
+        for server in sorted(list(per_server.keys()), key=lambda s: s.get_name()):
             times_s = ", ".join([abbreviate_time(t)
                                  for t in per_server[server]])
-            l(tags.li("[%s]: %s" % (server.get_name(), times_s)))
+            l(tags.li("[%s]: %s" % (str(server.get_name(), "utf-8"), times_s)))
         return tags.li("Per-Server Response Times: ", l)
 
 
@@ -1158,7 +1174,8 @@ class MapupdateStatusElement(Element):
     def privkey_from(self, req, tag):
         server = self._update_status.get_privkey_from()
         if server:
-            return tag(tags.li("Got privkey from: [%s]" % server.get_name()))
+            return tag(tags.li("Got privkey from: [%s]" % str(
+                server.get_name(), "utf-8")))
         else:
             return tag
 
@@ -1205,7 +1222,7 @@ class MapupdateStatusElement(Element):
                 else:
                     times.append("privkey(" + abbreviate_time(t) + ")")
             times_s = ", ".join(times)
-            l(tags.li("[%s]: %s" % (server.get_name(), times_s)))
+            l(tags.li("[%s]: %s" % (str(server.get_name(), "utf-8"), times_s)))
         return tags.li("Per-Server Response Times: ", l)
 
 
@@ -1288,15 +1305,16 @@ class Status(MultiFormatResource):
         # final URL segment will be an empty string. Resources can
         # thus know if they were requested with or without a final
         # slash."
-        if not path and request.postpath != ['']:
+        if not path and request.postpath != [b'']:
             return self
 
         h = self.history
         try:
-            stype, count_s = path.split("-")
+            stype, count_s = path.split(b"-")
         except ValueError:
-            raise WebError("no '-' in '{}'".format(path))
+            raise WebError("no '-' in '{}'".format(str(path, "utf-8")))
         count = int(count_s)
+        stype = str(stype, "ascii")
         if stype == "up":
             for s in itertools.chain(h.list_all_upload_statuses(),
                                      h.list_all_helper_statuses()):
@@ -1335,7 +1353,7 @@ class Status(MultiFormatResource):
         active = [s
                   for s in self._get_all_statuses()
                   if s.get_active()]
-        active.sort(lambda a, b: cmp(a.get_started(), b.get_started()))
+        active.sort(key=lambda a: a.get_started())
         active.reverse()
         return active
 
@@ -1343,7 +1361,7 @@ class Status(MultiFormatResource):
         recent = [s
                   for s in self._get_all_statuses()
                   if not s.get_active()]
-        recent.sort(lambda a, b: cmp(a.get_started(), b.get_started()))
+        recent.sort(key=lambda a: a.get_started())
         recent.reverse()
         return recent
 
@@ -1373,7 +1391,6 @@ class StatusElement(Element):
 
         started_s = render_time(op.get_started())
         result["started"] = started_s
-
         si_s = base32.b2a_or_none(op.get_storage_index())
         if si_s is None:
             si_s = "(None)"
@@ -1535,6 +1552,37 @@ class Statistics(MultiFormatResource):
         req.setHeader("content-type", "text/plain")
         return json.dumps(stats, indent=1) + "\n"
 
+    @render_exception
+    def render_OPENMETRICS(self, req):
+        """
+        Render our stats in `OpenMetrics <https://openmetrics.io/>` format.
+        For example Prometheus and Victoriametrics can parse this.
+        Point the scraper to ``/statistics?t=openmetrics`` (instead of the
+        default ``/metrics``).
+        """
+        req.setHeader("content-type", "application/openmetrics-text; version=1.0.0; charset=utf-8")
+        stats = self._provider.get_stats()
+        ret = []
+
+        def mangle_name(name):
+            return re.sub(
+                u"_(\d\d)_(\d)_percentile",
+                u'{quantile="0.\g<1>\g<2>"}',
+                name.replace(u".", u"_")
+            )
+
+        def mangle_value(val):
+            return str(val) if val is not None else u"NaN"
+
+        for (k, v) in sorted(stats['counters'].items()):
+            ret.append(u"tahoe_counters_%s %s" % (mangle_name(k), mangle_value(v)))
+        for (k, v) in sorted(stats['stats'].items()):
+            ret.append(u"tahoe_stats_%s %s" % (mangle_name(k), mangle_value(v)))
+
+        ret.append(u"# EOF\n")
+
+        return u"\n".join(ret)
+
 class StatisticsElement(Element):
 
     loader = XMLFile(FilePath(__file__).sibling("statistics.xhtml"))
@@ -1566,14 +1614,6 @@ class StatisticsElement(Element):
         self._stats = provider.get_stats()
 
     @renderer
-    def load_average(self, req, tag):
-        return tag(str(self._stats["stats"].get("load_monitor.avg_load")))
-
-    @renderer
-    def peak_load(self, req, tag):
-        return tag(str(self._stats["stats"].get("load_monitor.max_load")))
-
-    @renderer
     def uploads(self, req, tag):
         files = self._stats["counters"].get("uploader.files_uploaded", 0)
         bytes = self._stats["counters"].get("uploader.bytes_uploaded", 0)
@@ -1603,5 +1643,5 @@ class StatisticsElement(Element):
 
     @renderer
     def raw(self, req, tag):
-        raw = pprint.pformat(self._stats)
+        raw = json.dumps(self._stats, sort_keys=True, indent=4)
         return tag(raw)

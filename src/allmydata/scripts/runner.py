@@ -1,17 +1,29 @@
 from __future__ import print_function
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 import os, sys
 from six.moves import StringIO
+from past.builtins import unicode
 import six
+
+try:
+    from allmydata.scripts.types_ import SubCommands
+except ImportError:
+    pass
 
 from twisted.python import usage
 from twisted.internet import defer, task, threads
 
 from allmydata.scripts.common import get_default_nodedir
 from allmydata.scripts import debug, create_node, cli, \
-    stats_gatherer, admin, tahoe_daemonize, tahoe_start, \
-    tahoe_stop, tahoe_restart, tahoe_run, tahoe_invite
-from allmydata.util.encodingutil import quote_output, quote_local_unicode_path, get_io_encoding
+    admin, tahoe_run, tahoe_invite
+from allmydata.util.encodingutil import quote_local_unicode_path, argv_to_unicode
 from allmydata.util.eliotutil import (
     opt_eliot_destination,
     opt_help_eliot_destinations,
@@ -37,30 +49,27 @@ if _default_nodedir:
 
 # XXX all this 'dispatch' stuff needs to be unified + fixed up
 _control_node_dispatch = {
-    "daemonize": tahoe_daemonize.daemonize,
-    "start": tahoe_start.start,
     "run": tahoe_run.run,
-    "stop": tahoe_stop.stop,
-    "restart": tahoe_restart.restart,
 }
 
 process_control_commands = [
-    ["run", None, tahoe_run.RunOptions, "run a node without daemonizing"],
-    ["daemonize", None, tahoe_daemonize.DaemonizeOptions, "(deprecated) run a node in the background"],
-    ["start", None, tahoe_start.StartOptions, "(deprecated) start a node in the background and confirm it started"],
-    ["stop", None, tahoe_stop.StopOptions, "(deprecated) stop a node"],
-    ["restart", None, tahoe_restart.RestartOptions, "(deprecated) restart a node"],
-]
+    ("run", None, tahoe_run.RunOptions, "run a node without daemonizing"),
+]  # type: SubCommands
 
 
 class Options(usage.Options):
+    """
+    :ivar wormhole: An object exposing the magic-wormhole API (mainly a test
+        hook).
+    """
     # unit tests can override these to point at StringIO instances
     stdin = sys.stdin
     stdout = sys.stdout
     stderr = sys.stderr
 
+    from wormhole import wormhole
+
     subCommands = (     create_node.subCommands
-                    +   stats_gatherer.subCommands
                     +   admin.subCommands
                     +   process_control_commands
                     +   debug.subCommands
@@ -107,32 +116,85 @@ class Options(usage.Options):
 
 
 create_dispatch = {}
-for module in (create_node, stats_gatherer):
-    create_dispatch.update(module.dispatch)
+for module in (create_node,):
+    create_dispatch.update(module.dispatch)  # type: ignore
 
 def parse_options(argv, config=None):
     if not config:
         config = Options()
-    config.parseOptions(argv) # may raise usage.error
+    try:
+        config.parseOptions(argv)
+    except usage.error as e:
+        if six.PY2:
+            # On Python 2 the exception may hold non-ascii in a byte string.
+            # This makes it impossible to convert the exception to any kind of
+            # string using str() or unicode().  It could also hold non-ascii
+            # in a unicode string which still makes it difficult to convert it
+            # to a byte string later.
+            #
+            # So, reach inside and turn it into some entirely safe ascii byte
+            # strings that will survive being written to stdout without
+            # causing too much damage in the process.
+            #
+            # As a result, non-ascii will not be rendered correctly but
+            # instead as escape sequences.  At least this can go away when
+            # we're done with Python 2 support.
+            raise usage.error(*(
+                arg.encode("ascii", errors="backslashreplace")
+                if isinstance(arg, unicode)
+                else arg.decode("utf-8").encode("ascii", errors="backslashreplace")
+                for arg
+                in e.args
+            ))
+        raise
     return config
 
-def parse_or_exit_with_explanation(argv, stdout=sys.stdout, stderr=sys.stderr, stdin=sys.stdin):
+def parse_or_exit(argv, stdout=sys.stdout, stderr=sys.stderr, stdin=sys.stdin):
+    """
+    Parse Tahoe-LAFS CLI arguments and return a configuration object if they
+    are valid.
+
+    If they are invalid, write an explanation to ``stdout`` and exit.
+
+    :param allmydata.scripts.runner.Options config: An instance of the
+        argument-parsing class to use.
+
+    :param [unicode] argv: The argument list to parse, including the name of the
+        program being run as ``argv[0]``.
+
+    :param stdout: The file-like object to use as stdout.
+    :param stderr: The file-like object to use as stderr.
+
+    :raise SystemExit: If there is an argument-parsing problem.
+
+    :return: ``config``, after using it to parse the argument list.
+    """
     config = Options()
     config.stdout = stdout
     config.stdin = stdin
     config.stderr = stderr
     try:
-        parse_options(argv, config=config)
+        parse_options(argv[1:], config=config)
     except usage.error as e:
+        # `parse_options` may have the side-effect of initializing a
+        # "sub-option" of the given configuration, even if it ultimately
+        # raises an exception.  For example, `tahoe run --invalid-option` will
+        # set `config.subOptions` to an instance of
+        # `allmydata.scripts.tahoe_run.RunOptions` and then raise a
+        # `usage.error` because `RunOptions` does not recognize
+        # `--invalid-option`.  If `run` itself had a sub-options then the same
+        # thing could happen but with another layer of nesting.  We can
+        # present the user with the most precise information about their usage
+        # error possible by finding the most "sub" of the sub-options and then
+        # showing that to the user along with the usage error.
         c = config
         while hasattr(c, 'subOptions'):
             c = c.subOptions
         print(str(c), file=stdout)
-        try:
-            msg = e.args[0].decode(get_io_encoding())
-        except Exception:
-            msg = repr(e)
-        print("%s:  %s\n" % (sys.argv[0], quote_output(msg, quotemarks=False)), file=stdout)
+        exc_str = str(e)
+        exc_bytes = six.ensure_binary(exc_str, "utf-8")
+        msg_bytes = b"%s:  %s\n" % (six.ensure_binary(argv[0]), exc_bytes)
+        print(six.ensure_text(msg_bytes, "utf-8"), file=stdout)
         sys.exit(1)
     return config
 
@@ -191,28 +253,65 @@ def _maybe_enable_eliot_logging(options, reactor):
     # Pass on the options so we can dispatch the subcommand.
     return options
 
-def run():
-    # TODO(3035): Remove tox-check when error becomes a warning
-    if 'TOX_ENV_NAME' not in os.environ:
-        assert sys.version_info < (3,), u"Tahoe-LAFS does not run under Python 3. Please use Python 2.7.x."
 
+def run(configFactory=Options, argv=sys.argv, stdout=sys.stdout, stderr=sys.stderr):
+    """
+    Run a Tahoe-LAFS node.
+
+    :param configFactory: A zero-argument callable which creates the config
+        object to use to parse the argument list.
+
+    :param [str] argv: The argument list to use to configure the run.
+
+    :param stdout: The file-like object to use for stdout.
+    :param stderr: The file-like object to use for stderr.
+
+    :raise SystemExit: Always raised after the run is complete.
+    """
     if sys.platform == "win32":
         from allmydata.windows.fixups import initialize
         initialize()
     # doesn't return: calls sys.exit(rc)
-    task.react(_run_with_reactor)
+    task.react(
+        lambda reactor: _run_with_reactor(
+            reactor,
+            configFactory(),
+            argv,
+            stdout,
+            stderr,
+        ),
+    )
 
 
-def _setup_coverage(reactor):
+def _setup_coverage(reactor, argv):
     """
-    Arrange for coverage to be collected if the 'coverage' package is
-    installed
+    If coverage measurement was requested, start collecting coverage
+    measurements and arrange to record those measurements when the process is
+    done.
+
+    Coverage measurement is considered requested if ``"--coverage"`` is in
+    ``argv`` (and it will be removed from ``argv`` if it is found).  There
+    should be a ``.coveragerc`` file in the working directory if coverage
+    measurement is requested.
+
+    This is only necessary to support multi-process coverage measurement,
+    typically when the test suite is running, and with the pytest-based
+    *integration* test suite (at ``integration/`` in the root of the source
+    tree) foremost in mind.  The idea is that if you are running Tahoe-LAFS in
+    a configuration where multiple processes are involved - for example, a
+    test process and a client node process, if you only measure coverage from
+    the test process then you will fail to observe most Tahoe-LAFS code that
+    is being run.
+
+    This function arranges to have any Tahoe-LAFS process (such as that
+    client node process) collect and report coverage measurements as well.
     """
     # can we put this _setup_coverage call after we hit
     # argument-parsing?
-    if '--coverage' not in sys.argv:
+    # ensure_str() only necessary on Python 2.
+    if six.ensure_str('--coverage') not in sys.argv:
         return
-    sys.argv.remove('--coverage')
+    argv.remove('--coverage')
 
     try:
         import coverage
@@ -243,13 +342,36 @@ def _setup_coverage(reactor):
     reactor.addSystemEventTrigger('after', 'shutdown', write_coverage_data)
 
 
-def _run_with_reactor(reactor):
+def _run_with_reactor(reactor, config, argv, stdout, stderr):
+    """
+    Run a Tahoe-LAFS node using the given reactor.
 
-    _setup_coverage(reactor)
+    :param reactor: The reactor to use.  This implementation largely ignores
+        this and lets the rest of the implementation pick its own reactor.
+        Oops.
 
-    d = defer.maybeDeferred(parse_or_exit_with_explanation, sys.argv[1:])
+    :param twisted.python.usage.Options config: The config object to use to
+        parse the argument list.
+
+    :param [str] argv: The argument list to parse, *excluding* the name of the
+        program being run.
+
+    :param stdout: See ``run``.
+    :param stderr: See ``run``.
+
+    :return: A ``Deferred`` that fires when the run is complete.
+    """
+    _setup_coverage(reactor, argv)
+
+    argv = list(map(argv_to_unicode, argv))
+    d = defer.maybeDeferred(
+        parse_or_exit,
+        argv,
+        stdout,
+        stderr,
+    )
     d.addCallback(_maybe_enable_eliot_logging, reactor)
-    d.addCallback(dispatch)
+    d.addCallback(dispatch, stdout=stdout, stderr=stderr)
     def _show_exception(f):
         # when task.react() notices a non-SystemExit exception, it does
         # log.err() with the failure and then exits with rc=1. We want this
@@ -257,7 +379,7 @@ def _run_with_reactor(reactor):
         # weren't using react().
         if f.check(SystemExit):
             return f # dispatch function handled it
-        f.printTraceback(file=sys.stderr)
+        f.printTraceback(file=stderr)
         sys.exit(1)
     d.addErrback(_show_exception)
     return d

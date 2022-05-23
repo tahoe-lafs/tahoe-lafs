@@ -62,7 +62,7 @@ class FakeClient(object):
 
 
 @implementer(IServer)
-class FakeServer(object):
+class FakeServer(object):  # type: ignore # incomplete implementation
 
     def get_name(self):
         return "fake name"
@@ -75,7 +75,7 @@ class FakeServer(object):
 
 
 @implementer(ICheckResults)
-class FakeCheckResults(object):
+class FakeCheckResults(object):  # type: ignore # incomplete implementation
 
     def __init__(self, si=None,
                  healthy=False, recoverable=False,
@@ -106,7 +106,7 @@ class FakeCheckResults(object):
 
 
 @implementer(ICheckAndRepairResults)
-class FakeCheckAndRepairResults(object):
+class FakeCheckAndRepairResults(object):  # type: ignore # incomplete implementation
 
     def __init__(self, si=None,
                  repair_attempted=False,
@@ -144,7 +144,7 @@ class WebResultsRendering(unittest.TestCase):
 
     @staticmethod
     def remove_tags(html):
-        return BeautifulSoup(html).get_text(separator=" ")
+        return BeautifulSoup(html, 'html5lib').get_text(separator=" ")
 
     def create_fake_client(self):
         sb = StorageFarmBroker(True, None, EMPTY_CLIENT_CONFIG)
@@ -156,7 +156,7 @@ class WebResultsRendering(unittest.TestCase):
         for (key_s, binary_tubid, nickname) in servers:
             server_id = key_s
             tubid_b32 = base32.b2a(binary_tubid)
-            furl = b"pb://%s@nowhere/fake" % tubid_b32
+            furl = "pb://%s@nowhere/fake" % str(tubid_b32, "utf-8")
             ann = { "version": 0,
                     "service-name": "storage",
                     "anonymous-storage-FURL": furl,
@@ -173,7 +173,7 @@ class WebResultsRendering(unittest.TestCase):
         return c
 
     def render_json(self, resource):
-        return self.successResultOf(render(resource, {"output": ["json"]}))
+        return self.successResultOf(render(resource, {b"output": [b"json"]}))
 
     def render_element(self, element, args=None):
         if args is None:
@@ -186,7 +186,7 @@ class WebResultsRendering(unittest.TestCase):
         html = self.render_element(lcr)
         self.failUnlessIn(b"Literal files are always healthy", html)
 
-        html = self.render_element(lcr, args={"return_to": ["FOOURL"]})
+        html = self.render_element(lcr, args={b"return_to": [b"FOOURL"]})
         self.failUnlessIn(b"Literal files are always healthy", html)
         self.failUnlessIn(b'<a href="FOOURL">Return to file.</a>', html)
 
@@ -269,7 +269,7 @@ class WebResultsRendering(unittest.TestCase):
         self.failUnlessIn("File Check Results for SI=2k6avp", s) # abbreviated
         self.failUnlessIn("Not Recoverable! : rather dead", s)
 
-        html = self.render_element(w, args={"return_to": ["FOOURL"]})
+        html = self.render_element(w, args={b"return_to": [b"FOOURL"]})
         self.failUnlessIn(b'<a href="FOOURL">Return to file/directory.</a>',
                           html)
 
@@ -773,13 +773,13 @@ class AddLease(GridTestMixin, unittest.TestCase):
         d.addCallback(_check_cr, "mutable-normal")
 
         really_did_break = []
-        # now break the server's remote_add_lease call
+        # now break the server's add_lease call
         def _break_add_lease(ign):
             def broken_add_lease(*args, **kwargs):
                 really_did_break.append(1)
                 raise KeyError("intentional failure, should be ignored")
-            assert self.g.servers_by_number[0].remote_add_lease
-            self.g.servers_by_number[0].remote_add_lease = broken_add_lease
+            assert self.g.servers_by_number[0].add_lease
+            self.g.servers_by_number[0].add_lease = broken_add_lease
         d.addCallback(_break_add_lease)
 
         # and confirm that the files still look healthy

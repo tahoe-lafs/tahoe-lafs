@@ -15,7 +15,12 @@ from six import ensure_binary, ensure_text
 import os, re, itertools
 from base64 import b32decode
 import json
-from mock import Mock, patch
+from operator import (
+    setitem,
+)
+from functools import (
+    partial,
+)
 
 from testtools.matchers import (
     Is,
@@ -84,7 +89,8 @@ class Node(testutil.SignalMixin, testutil.ReallyEqualMixin, AsyncTestCase):
 
     def test_introducer_clients_unloadable(self):
         """
-        Error if introducers.yaml exists but we can't read it
+        ``create_introducer_clients`` raises ``EnvironmentError`` if
+        ``introducers.yaml`` exists but we can't read it.
         """
         basedir = u"introducer.IntroducerNode.test_introducer_clients_unloadable"
         os.mkdir(basedir)
@@ -94,17 +100,10 @@ class Node(testutil.SignalMixin, testutil.ReallyEqualMixin, AsyncTestCase):
             f.write(u'---\n')
         os.chmod(yaml_fname, 0o000)
         self.addCleanup(lambda: os.chmod(yaml_fname, 0o700))
-        # just mocking the yaml failure, as "yamlutil.safe_load" only
-        # returns None on some platforms for unreadable files
 
-        with patch("allmydata.client.yamlutil") as p:
-            p.safe_load = Mock(return_value=None)
-
-            fake_tub = Mock()
-            config = read_config(basedir, "portnum")
-
-            with self.assertRaises(EnvironmentError):
-                create_introducer_clients(config, fake_tub)
+        config = read_config(basedir, "portnum")
+        with self.assertRaises(EnvironmentError):
+            create_introducer_clients(config, Tub())
 
     @defer.inlineCallbacks
     def test_furl(self):
@@ -216,9 +215,9 @@ class Client(AsyncTestCase):
         def _received(key_s, ann):
             announcements.append( (key_s, ann) )
         ic1.subscribe_to("storage", _received)
-        furl1 = b"pb://62ubehyunnyhzs7r6vdonnm2hpi52w6y@127.0.0.1:36106/gydnp"
-        furl1a = b"pb://62ubehyunnyhzs7r6vdonnm2hpi52w6y@127.0.0.1:7777/gydnp"
-        furl2 = b"pb://ttwwooyunnyhzs7r6vdonnm2hpi52w6y@127.0.0.1:36106/ttwwoo"
+        furl1 = "pb://62ubehyunnyhzs7r6vdonnm2hpi52w6y@127.0.0.1:36106/gydnp"
+        furl1a = "pb://62ubehyunnyhzs7r6vdonnm2hpi52w6y@127.0.0.1:7777/gydnp"
+        furl2 = "pb://ttwwooyunnyhzs7r6vdonnm2hpi52w6y@127.0.0.1:36106/ttwwoo"
 
         private_key, public_key = ed25519.create_signing_keypair()
         public_key_str = ed25519.string_from_verifying_key(public_key)
@@ -242,7 +241,7 @@ class Client(AsyncTestCase):
             self.failUnlessEqual(len(announcements), 1)
             key_s,ann = announcements[0]
             self.failUnlessEqual(key_s, pubkey_s)
-            self.failUnlessEqual(ensure_binary(ann["anonymous-storage-FURL"]), furl1)
+            self.failUnlessEqual(ann["anonymous-storage-FURL"], furl1)
             self.failUnlessEqual(ann["my-version"], "ver23")
         d.addCallback(_then1)
 
@@ -276,7 +275,7 @@ class Client(AsyncTestCase):
             self.failUnlessEqual(len(announcements), 2)
             key_s,ann = announcements[-1]
             self.failUnlessEqual(key_s, pubkey_s)
-            self.failUnlessEqual(ensure_binary(ann["anonymous-storage-FURL"]), furl1)
+            self.failUnlessEqual(ann["anonymous-storage-FURL"], furl1)
             self.failUnlessEqual(ann["my-version"], "ver24")
         d.addCallback(_then3)
 
@@ -288,7 +287,7 @@ class Client(AsyncTestCase):
             self.failUnlessEqual(len(announcements), 3)
             key_s,ann = announcements[-1]
             self.failUnlessEqual(key_s, pubkey_s)
-            self.failUnlessEqual(ensure_binary(ann["anonymous-storage-FURL"]), furl1a)
+            self.failUnlessEqual(ann["anonymous-storage-FURL"], furl1a)
             self.failUnlessEqual(ann["my-version"], "ver23")
         d.addCallback(_then4)
 
@@ -304,7 +303,7 @@ class Client(AsyncTestCase):
             self.failUnlessEqual(len(announcements2), 1)
             key_s,ann = announcements2[-1]
             self.failUnlessEqual(key_s, pubkey_s)
-            self.failUnlessEqual(ensure_binary(ann["anonymous-storage-FURL"]), furl1a)
+            self.failUnlessEqual(ann["anonymous-storage-FURL"], furl1a)
             self.failUnlessEqual(ann["my-version"], "ver23")
         d.addCallback(_then5)
         return d
@@ -316,7 +315,7 @@ class Server(AsyncTestCase):
                                "introducer.furl", u"my_nickname",
                                "ver23", "oldest_version", realseq,
                                FilePath(self.mktemp()))
-        furl1 = b"pb://62ubehyunnyhzs7r6vdonnm2hpi52w6y@127.0.0.1:36106/gydnp"
+        furl1 = "pb://62ubehyunnyhzs7r6vdonnm2hpi52w6y@127.0.0.1:36106/gydnp"
 
         private_key, _ = ed25519.create_signing_keypair()
 
@@ -414,7 +413,7 @@ class Queue(SystemTestMixin, AsyncTestCase):
         c = IntroducerClient(tub2, ifurl,
                              u"nickname", "version", "oldest", fakeseq,
                              FilePath(self.mktemp()))
-        furl1 = b"pb://onug64tu@127.0.0.1:123/short" # base32("short")
+        furl1 = "pb://onug64tu@127.0.0.1:123/short" # base32("short")
         private_key, _ = ed25519.create_signing_keypair()
 
         d = introducer.disownServiceParent()
@@ -436,7 +435,7 @@ class Queue(SystemTestMixin, AsyncTestCase):
         def _done(ign):
             v = introducer.get_announcements()[0]
             furl = v.announcement["anonymous-storage-FURL"]
-            self.failUnlessEqual(ensure_binary(furl), furl1)
+            self.failUnlessEqual(furl, furl1)
         d.addCallback(_done)
 
         # now let the ack get back
@@ -462,7 +461,7 @@ class SystemTest(SystemTestMixin, AsyncTestCase):
         iff = os.path.join(self.basedir, "introducer.furl")
         tub = self.central_tub
         ifurl = self.central_tub.registerReference(introducer, furlFile=iff)
-        self.introducer_furl = ifurl.encode("utf-8")
+        self.introducer_furl = ifurl
 
         # we have 5 clients who publish themselves as storage servers, and a
         # sixth which does which not. All 6 clients subscriber to hear about
@@ -503,7 +502,7 @@ class SystemTest(SystemTestMixin, AsyncTestCase):
             subscribing_clients.append(c)
             expected_announcements[i] += 1 # all expect a 'storage' announcement
 
-            node_furl = tub.registerReference(Referenceable()).encode("utf-8")
+            node_furl = tub.registerReference(Referenceable())
             private_key, public_key = ed25519.create_signing_keypair()
             public_key_str = ed25519.string_from_verifying_key(public_key)
             privkeys[i] = private_key
@@ -520,7 +519,7 @@ class SystemTest(SystemTestMixin, AsyncTestCase):
 
             if i == 2:
                 # also publish something that nobody cares about
-                boring_furl = tub.registerReference(Referenceable()).encode("utf-8")
+                boring_furl = tub.registerReference(Referenceable())
                 c.publish("boring", make_ann(boring_furl), private_key)
 
             c.setServiceParent(self.parent)
@@ -658,7 +657,7 @@ class SystemTest(SystemTestMixin, AsyncTestCase):
             self.create_tub(self.central_portnum)
             newfurl = self.central_tub.registerReference(self.the_introducer,
                                                          furlFile=iff)
-            assert ensure_binary(newfurl) == self.introducer_furl
+            assert newfurl == self.introducer_furl
         d.addCallback(_restart_introducer_tub)
 
         d.addCallback(_wait_for_connected)
@@ -710,7 +709,7 @@ class SystemTest(SystemTestMixin, AsyncTestCase):
             self.the_introducer = introducer
             newfurl = self.central_tub.registerReference(self.the_introducer,
                                                          furlFile=iff)
-            assert ensure_binary(newfurl) == self.introducer_furl
+            assert newfurl == self.introducer_furl
         d.addCallback(_restart_introducer)
 
         d.addCallback(_wait_for_connected)
@@ -744,8 +743,6 @@ class SystemTest(SystemTestMixin, AsyncTestCase):
 class FakeRemoteReference(object):
     def notifyOnDisconnect(self, *args, **kwargs): pass
     def getRemoteTubID(self): return "62ubehyunnyhzs7r6vdonnm2hpi52w6y"
-    def getLocationHints(self): return ["tcp:here.example.com:1234",
-                                        "tcp:there.example.com2345"]
     def getPeer(self): return address.IPv4Address("TCP", "remote.example.com",
                                                   3456)
 
@@ -756,7 +753,7 @@ class ClientInfo(AsyncTestCase):
         client_v2 = IntroducerClient(tub, introducer_furl, NICKNAME % u"v2",
                                      "my_version", "oldest",
                                      fakeseq, FilePath(self.mktemp()))
-        #furl1 = b"pb://62ubehyunnyhzs7r6vdonnm2hpi52w6y@127.0.0.1:0/swissnum"
+        #furl1 = "pb://62ubehyunnyhzs7r6vdonnm2hpi52w6y@127.0.0.1:0/swissnum"
         #ann_s = make_ann_t(client_v2, furl1, None, 10)
         #introducer.remote_publish_v2(ann_s, Referenceable())
         subscriber = FakeRemoteReference()
@@ -777,7 +774,7 @@ class Announcements(AsyncTestCase):
         client_v2 = IntroducerClient(tub, introducer_furl, u"nick-v2",
                                      "my_version", "oldest",
                                      fakeseq, FilePath(self.mktemp()))
-        furl1 = b"pb://62ubehyunnyhzs7r6vdonnm2hpi52w6y@127.0.0.1:0/swissnum"
+        furl1 = "pb://62ubehyunnyhzs7r6vdonnm2hpi52w6y@127.0.0.1:0/swissnum"
 
         private_key, public_key = ed25519.create_signing_keypair()
         public_key_str = remove_prefix(ed25519.string_from_verifying_key(public_key), b"pub-")
@@ -792,7 +789,7 @@ class Announcements(AsyncTestCase):
         self.failUnlessEqual(a[0].nickname, u"nick-v2")
         self.failUnlessEqual(a[0].service_name, "storage")
         self.failUnlessEqual(a[0].version, "my_version")
-        self.failUnlessEqual(ensure_binary(a[0].announcement["anonymous-storage-FURL"]), furl1)
+        self.failUnlessEqual(a[0].announcement["anonymous-storage-FURL"], furl1)
 
     def _load_cache(self, cache_filepath):
         with cache_filepath.open() as f:
@@ -825,7 +822,7 @@ class Announcements(AsyncTestCase):
         ic = c.introducer_clients[0]
         private_key, public_key = ed25519.create_signing_keypair()
         public_key_str = remove_prefix(ed25519.string_from_verifying_key(public_key), b"pub-")
-        furl1 = b"pb://onug64tu@127.0.0.1:123/short" # base32("short")
+        furl1 = "pb://onug64tu@127.0.0.1:123/short" # base32("short")
         ann_t = make_ann_t(ic, furl1, private_key, 1)
 
         ic.got_announcements([ann_t])
@@ -836,12 +833,12 @@ class Announcements(AsyncTestCase):
         self.failUnlessEqual(len(announcements), 1)
         self.failUnlessEqual(ensure_binary(announcements[0]['key_s']), public_key_str)
         ann = announcements[0]["ann"]
-        self.failUnlessEqual(ensure_binary(ann["anonymous-storage-FURL"]), furl1)
+        self.failUnlessEqual(ann["anonymous-storage-FURL"], furl1)
         self.failUnlessEqual(ann["seqnum"], 1)
 
         # a new announcement that replaces the first should replace the
         # cached entry, not duplicate it
-        furl2 = furl1 + b"er"
+        furl2 = furl1 + "er"
         ann_t2 = make_ann_t(ic, furl2, private_key, 2)
         ic.got_announcements([ann_t2])
         yield flushEventualQueue()
@@ -849,14 +846,14 @@ class Announcements(AsyncTestCase):
         self.failUnlessEqual(len(announcements), 1)
         self.failUnlessEqual(ensure_binary(announcements[0]['key_s']), public_key_str)
         ann = announcements[0]["ann"]
-        self.failUnlessEqual(ensure_binary(ann["anonymous-storage-FURL"]), furl2)
+        self.failUnlessEqual(ann["anonymous-storage-FURL"], furl2)
         self.failUnlessEqual(ann["seqnum"], 2)
 
         # but a third announcement with a different key should add to the
         # cache
         private_key2, public_key2 = ed25519.create_signing_keypair()
         public_key_str2 = remove_prefix(ed25519.string_from_verifying_key(public_key2), b"pub-")
-        furl3 = b"pb://onug64tu@127.0.0.1:456/short"
+        furl3 = "pb://onug64tu@127.0.0.1:456/short"
         ann_t3 = make_ann_t(ic, furl3, private_key2, 1)
         ic.got_announcements([ann_t3])
         yield flushEventualQueue()
@@ -866,7 +863,7 @@ class Announcements(AsyncTestCase):
         self.failUnlessEqual(set([public_key_str, public_key_str2]),
                              set([ensure_binary(a["key_s"]) for a in announcements]))
         self.failUnlessEqual(set([furl2, furl3]),
-                             set([ensure_binary(a["ann"]["anonymous-storage-FURL"])
+                             set([a["ann"]["anonymous-storage-FURL"]
                                   for a in announcements]))
 
         # test loading
@@ -882,9 +879,9 @@ class Announcements(AsyncTestCase):
         yield flushEventualQueue()
 
         self.failUnless(public_key_str in announcements)
-        self.failUnlessEqual(ensure_binary(announcements[public_key_str]["anonymous-storage-FURL"]),
+        self.failUnlessEqual(announcements[public_key_str]["anonymous-storage-FURL"],
                              furl2)
-        self.failUnlessEqual(ensure_binary(announcements[public_key_str2]["anonymous-storage-FURL"]),
+        self.failUnlessEqual(announcements[public_key_str2]["anonymous-storage-FURL"],
                              furl3)
 
         c2 = yield create_client(basedir.path)
@@ -999,10 +996,10 @@ class DecodeFurl(SyncTestCase):
     def test_decode(self):
         # make sure we have a working base64.b32decode. The one in
         # python2.4.[01] was broken.
-        furl = b'pb://t5g7egomnnktbpydbuijt6zgtmw4oqi5@127.0.0.1:51857/hfzv36i'
-        m = re.match(br'pb://(\w+)@', furl)
+        furl = 'pb://t5g7egomnnktbpydbuijt6zgtmw4oqi5@127.0.0.1:51857/hfzv36i'
+        m = re.match(r'pb://(\w+)@', furl)
         assert m
-        nodeid = b32decode(m.group(1).upper())
+        nodeid = b32decode(m.group(1).upper().encode("ascii"))
         self.failUnlessEqual(nodeid, b"\x9fM\xf2\x19\xcckU0\xbf\x03\r\x10\x99\xfb&\x9b-\xc7A\x1d")
 
 class Signatures(SyncTestCase):
@@ -1039,23 +1036,53 @@ class Signatures(SyncTestCase):
                               unsign_from_foolscap, (bad_msg, sig, b"v999-key"))
 
     def test_unsigned_announcement(self):
-        ed25519.verifying_key_from_string(b"pub-v0-wodst6ly4f7i7akt2nxizsmmy2rlmer6apltl56zctn67wfyu5tq")
-        mock_tub = Mock()
+        """
+        An incorrectly signed announcement is not delivered to subscribers.
+        """
+        private_key, public_key = ed25519.create_signing_keypair()
+        public_key_str = ed25519.string_from_verifying_key(public_key)
+
         ic = IntroducerClient(
-            mock_tub,
-            b"pb://",
+            Tub(),
+            "pb://",
             u"fake_nick",
             "0.0.0",
             "1.2.3",
             (0, u"i am a nonce"),
-            "invalid",
+            FilePath(self.mktemp()),
         )
-        self.assertEqual(0, ic._debug_counts["inbound_announcement"])
-        ic.got_announcements([
-            (b"message", b"v0-aaaaaaa", b"v0-wodst6ly4f7i7akt2nxizsmmy2rlmer6apltl56zctn67wfyu5tq")
-        ])
-        # we should have rejected this announcement due to a bad signature
-        self.assertEqual(0, ic._debug_counts["inbound_announcement"])
+        received = {}
+        ic.subscribe_to("good-stuff", partial(setitem, received))
+
+        # Deliver a good message to prove our test code is valid.
+        ann = {"service-name": "good-stuff", "payload": "hello"}
+        ann_t = sign_to_foolscap(ann, private_key)
+        ic.got_announcements([ann_t])
+
+        self.assertEqual(
+            {public_key_str[len("pub-"):]: ann},
+            received,
+        )
+        received.clear()
+
+        # Now deliver one without a valid signature and observe that it isn't
+        # delivered to the subscriber.
+        ann = {"service-name": "good-stuff", "payload": "bad stuff"}
+        (msg, sig, key) = sign_to_foolscap(ann, private_key)
+        # Drop a base32 word from the middle of the key to invalidate the
+        # signature.
+        sig_a = bytearray(sig)
+        sig_a[20:22] = []
+        sig = bytes(sig_a)
+        ann_t = (msg, sig, key)
+        ic.got_announcements([ann_t])
+
+        # The received announcements dict should remain empty because we
+        # should not receive the announcement with the invalid signature.
+        self.assertEqual(
+            {},
+            received,
+        )
 
 
 # add tests of StorageFarmBroker: if it receives duplicate announcements, it

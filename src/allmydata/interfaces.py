@@ -52,6 +52,16 @@ WriteEnablerSecret = Hash # used to protect mutable share modifications
 LeaseRenewSecret = Hash # used to protect lease renewal requests
 LeaseCancelSecret = Hash # was used to protect lease cancellation requests
 
+class NoSpace(Exception):
+    """Storage space was not available for a space-allocating operation."""
+
+class DataTooLargeError(Exception):
+    """The write went past the expected size of the bucket."""
+
+
+class ConflictingWriteError(Exception):
+    """Two writes happened to same immutable with different data."""
+
 
 class RIBucketWriter(RemoteInterface):
     """ Objects of this kind live on the server side. """
@@ -91,9 +101,9 @@ class RIBucketReader(RemoteInterface):
 
 TestVector = ListOf(TupleOf(Offset, ReadSize, bytes, bytes))
 # elements are (offset, length, operator, specimen)
-# operator is one of "lt, le, eq, ne, ge, gt"
-# nop always passes and is used to fetch data while writing.
-# you should use length==len(specimen) for everything except nop
+# operator must be b"eq", typically length==len(specimen), but one can ensure
+# writes don't happen to empty shares by setting length to 1 and specimen to
+# b"". The operator is still used for wire compatibility with old versions.
 DataVector = ListOf(TupleOf(Offset, ShareData))
 # (offset, data). This limits us to 30 writes of 1MiB each per call
 TestAndWriteVectorsForShares = DictOf(int,
@@ -154,24 +164,8 @@ class RIStorageServer(RemoteInterface):
         """
         return Any() # returns None now, but future versions might change
 
-    def renew_lease(storage_index=StorageIndex, renew_secret=LeaseRenewSecret):
-        """
-        Renew the lease on a given bucket, resetting the timer to 31 days.
-        Some networks will use this, some will not. If there is no bucket for
-        the given storage_index, IndexError will be raised.
-
-        For mutable shares, if the given renew_secret does not match an
-        existing lease, IndexError will be raised with a note listing the
-        server-nodeids on the existing leases, so leases on migrated shares
-        can be renewed. For immutable shares, IndexError (without the note)
-        will be raised.
-        """
-        return Any()
-
     def get_buckets(storage_index=StorageIndex):
         return DictOf(int, RIBucketReader, maxKeys=MAX_BUCKETS)
-
-
 
     def slot_readv(storage_index=StorageIndex,
                    shares=ListOf(int), readv=ReadVector):
@@ -343,14 +337,6 @@ class IStorageServer(Interface):
         :see: ``RIStorageServer.add_lease``
         """
 
-    def renew_lease(
-            storage_index,
-            renew_secret,
-    ):
-        """
-        :see: ``RIStorageServer.renew_lease``
-        """
-
     def get_buckets(
             storage_index,
     ):
@@ -375,6 +361,12 @@ class IStorageServer(Interface):
     ):
         """
         :see: ``RIStorageServer.slot_testv_readv_and_writev``
+
+        While the interface mostly matches, test vectors are simplified.
+        Instead of a tuple ``(offset, read_size, operator, expected_data)`` in
+        the original, for this method you need only pass in
+        ``(offset, read_size, expected_data)``, with the operator implicitly
+        being ``b"eq"``.
         """
 
     def advise_corrupt_share(
@@ -521,7 +513,6 @@ class IStorageBroker(Interface):
           oldest_supported: the peer's oldest supported version, same
 
           rref: the RemoteReference, if connected, otherwise None
-          remote_host: the IAddress, if connected, otherwise None
 
         This method is intended for monitoring interfaces, such as a web page
         that describes connecting and connected peers.
@@ -686,7 +677,7 @@ class IURI(Interface):
         passing into init_from_string."""
 
 
-class IVerifierURI(Interface, IURI):
+class IVerifierURI(IURI):
     def init_from_string(uri):
         """Accept a string (as created by my to_string() method) and populate
         this instance with its data. I am not normally called directly,
@@ -738,38 +729,6 @@ class MustNotBeUnknownRWError(CapConstraintError):
     """Cannot add an unknown child cap specified in a rw_uri field."""
 
 
-class IProgress(Interface):
-    """
-    Remembers progress measured in arbitrary units. Users of these
-    instances must call ``set_progress_total`` at least once before
-    progress can be valid, and must use the same units for both
-    ``set_progress_total`` and ``set_progress calls``.
-
-    See also:
-    :class:`allmydata.util.progress.PercentProgress`
-    """
-
-    progress = Attribute(
-        "Current amount of progress (in percentage)"
-    )
-
-    def set_progress(self, value):
-        """
-        Sets the current amount of progress.
-
-        Arbitrary units, but must match units used for
-        set_progress_total.
-        """
-
-    def set_progress_total(self, value):
-        """
-        Sets the total amount of expected progress
-
-        Arbitrary units, but must be same units as used when calling
-        set_progress() on this instance)..
-        """
-
-
 class IReadable(Interface):
     """I represent a readable object -- either an immutable file, or a
     specific version of a mutable file.
@@ -799,11 +758,9 @@ class IReadable(Interface):
     def get_size():
         """Return the length (in bytes) of this readable object."""
 
-    def download_to_data(progress=None):
+    def download_to_data():
         """Download all of the file contents. I return a Deferred that fires
         with the contents as a byte string.
-
-        :param progress: None or IProgress implementer
         """
 
     def read(consumer, offset=0, size=None):
@@ -862,12 +819,6 @@ class IPeerSelector(Interface):
         Update my internal state to reflect the fact that peer peerid
         holds share shnum. Called for shares that are detected before
         peer selection begins.
-        """
-
-    def confirm_share_allocation(peerid, shnum):
-        """
-        Confirm that an allocated peer=>share pairing has been
-        successfully established.
         """
 
     def add_peers(peerids=set):
@@ -1117,12 +1068,10 @@ class IFileNode(IFilesystemNode):
         the Deferred will errback with an UnrecoverableFileError.
         """
 
-    def download_best_version(progress=None):
+    def download_best_version():
         """Download the contents of the version that would be returned
         by get_best_readable_version(). This is equivalent to calling
         download_to_data() on the IReadable given by that method.
-
-        progress is anything that implements IProgress
 
         I return a Deferred that fires with a byte string when the file
         has been fully downloaded. To support streaming download, use
@@ -1269,7 +1218,7 @@ class IMutableFileNode(IFileNode):
         everything) to get increased visibility.
         """
 
-    def upload(new_contents, servermap, progress=None):
+    def upload(new_contents, servermap):
         """Replace the contents of the file with new ones. This requires a
         servermap that was previously updated with MODE_WRITE.
 
@@ -1289,8 +1238,6 @@ class IMutableFileNode(IFileNode):
         wait a random interval (with exponential backoff) and repeat your
         operation. If I do not signal UncoordinatedWriteError, then I was
         able to write the new version without incident.
-
-        ``progress`` is either None or an IProgress provider
 
         I return a Deferred that fires (with a PublishStatus object) when the
         publish has completed. I will update the servermap in-place with the
@@ -1482,13 +1429,11 @@ class IDirectoryNode(IFilesystemNode):
         equivalent to calling set_node() multiple times, but is much more
         efficient."""
 
-    def add_file(name, uploadable, metadata=None, overwrite=True, progress=None):
+    def add_file(name, uploadable, metadata=None, overwrite=True):
         """I upload a file (using the given IUploadable), then attach the
         resulting ImmutableFileNode to the directory at the given name. I set
         metadata the same way as set_uri and set_node. The child name must be
         a unicode string.
-
-        ``progress`` either provides IProgress or is None
 
         I return a Deferred that fires (with the IFileNode of the uploaded
         file) when the operation completes."""
@@ -1828,11 +1773,6 @@ class IEncoder(Interface):
     given a dict of RemoteReferences to storage buckets that are ready and
     willing to receive data.
     """
-
-    def set_size(size):
-        """Specify the number of bytes that will be encoded. This must be
-        peformed before get_serialized_params() can be called.
-        """
 
     def set_encrypted_uploadable(u):
         """Provide a source of encrypted upload data. 'u' must implement
@@ -2874,7 +2814,7 @@ class RIControlClient(RemoteInterface):
         @return: a dictionary mapping peerid to a float (RTT time in seconds)
         """
 
-        return DictOf(str, float)
+        return DictOf(bytes, float)
 
 
 UploadResults = Any() #DictOf(bytes, bytes)
@@ -2934,38 +2874,6 @@ class RIHelper(RemoteInterface):
         will finish and return the upload results.
         """
         return (UploadResults, ChoiceOf(RICHKUploadHelper, None))
-
-
-class RIStatsProvider(RemoteInterface):
-    __remote_name__ = native_str("RIStatsProvider.tahoe.allmydata.com")
-    """
-    Provides access to statistics and monitoring information.
-    """
-
-    def get_stats():
-        """
-        returns a dictionary containing 'counters' and 'stats', each a
-        dictionary with string counter/stat name keys, and numeric or None values.
-        counters are monotonically increasing measures of work done, and
-        stats are instantaneous measures (potentially time averaged
-        internally)
-        """
-        return DictOf(bytes, DictOf(bytes, ChoiceOf(float, int, long, None)))
-
-
-class RIStatsGatherer(RemoteInterface):
-    __remote_name__ = native_str("RIStatsGatherer.tahoe.allmydata.com")
-    """
-    Provides a monitoring service for centralised collection of stats
-    """
-
-    def provide(provider=RIStatsProvider, nickname=bytes):
-        """
-        @param provider: a stats collector instance that should be polled
-                         periodically by the gatherer to collect stats.
-        @param nickname: a name useful to identify the provided client
-        """
-        return None
 
 
 class IStatsProducer(Interface):
@@ -3178,3 +3086,24 @@ class IAnnounceableStorageServer(Interface):
         :type: ``IReferenceable`` provider
         """
     )
+
+
+class IAddressFamily(Interface):
+    """
+    Support for one specific address family.
+
+    This stretches the definition of address family to include things like Tor
+    and I2P.
+    """
+    def get_listener():
+        """
+        Return a string endpoint description or an ``IStreamServerEndpoint``.
+
+        This would be named ``get_server_endpoint`` if not for historical
+        reasons.
+        """
+
+    def get_client_endpoint():
+        """
+        Return an ``IStreamClientEndpoint``.
+        """

@@ -1,14 +1,24 @@
+"""
+Ported to Python 3.
+"""
+from __future__ import unicode_literals
+from __future__ import absolute_import
+from __future__ import division
 from __future__ import print_function
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 import os.path
 import time
-import urllib
-import json
+from urllib.parse import quote as url_quote
 import datetime
+
 from allmydata.scripts.common import get_alias, escape_path, DEFAULT_ALIAS, \
                                      UnknownAliasError
 from allmydata.scripts.common_http import do_http, HTTPError, format_http_error
-from allmydata.util import time_format
+from allmydata.util import time_format, jsonbytes as json
 from allmydata.scripts import backupdb
 from allmydata.util.encodingutil import listdir_unicode, quote_output, \
      quote_local_unicode_path, to_bytes, FilenameEncodingError, unicode_to_url
@@ -20,7 +30,6 @@ def get_local_metadata(path):
     metadata = {}
 
     # posix stat(2) metadata, depends on the platform
-    os.stat_float_times(True)
     s = os.stat(path)
     metadata["ctime"] = s.st_ctime
     metadata["mtime"] = s.st_mtime
@@ -52,7 +61,7 @@ def mkdir(contents, options):
 
 def put_child(dirurl, childname, childcap):
     assert dirurl[-1] != "/"
-    url = dirurl + "/" + urllib.quote(unicode_to_url(childname)) + "?t=uri"
+    url = dirurl + "/" + url_quote(unicode_to_url(childname)) + "?t=uri"
     resp = do_http("PUT", url, childcap)
     if resp.status not in (200, 201):
         raise HTTPError("Error during put_child", resp)
@@ -97,7 +106,7 @@ class BackerUpper(object):
         except UnknownAliasError as e:
             e.display(stderr)
             return 1
-        to_url = nodeurl + "uri/%s/" % urllib.quote(rootcap)
+        to_url = nodeurl + "uri/%s/" % url_quote(rootcap)
         if path:
             to_url += escape_path(path)
         if not to_url.endswith("/"):
@@ -165,7 +174,7 @@ class BackerUpper(object):
         if must_create:
             self.verboseprint(" creating directory for %s" % quote_local_unicode_path(path))
             newdircap = mkdir(create_contents, self.options)
-            assert isinstance(newdircap, str)
+            assert isinstance(newdircap, bytes)
             if r:
                 r.did_create(newdircap)
             return True, newdircap
@@ -192,7 +201,7 @@ class BackerUpper(object):
         filecap = r.was_uploaded()
         self.verboseprint("checking %s" % quote_output(filecap))
         nodeurl = self.options['node-url']
-        checkurl = nodeurl + "uri/%s?t=check&output=JSON" % urllib.quote(filecap)
+        checkurl = nodeurl + "uri/%s?t=check&output=JSON" % url_quote(filecap)
         self._files_checked += 1
         resp = do_http("POST", checkurl)
         if resp.status != 200:
@@ -225,7 +234,7 @@ class BackerUpper(object):
         dircap = r.was_created()
         self.verboseprint("checking %s" % quote_output(dircap))
         nodeurl = self.options['node-url']
-        checkurl = nodeurl + "uri/%s?t=check&output=JSON" % urllib.quote(dircap)
+        checkurl = nodeurl + "uri/%s?t=check&output=JSON" % url_quote(dircap)
         self._directories_checked += 1
         resp = do_http("POST", checkurl)
         if resp.status != 200:
@@ -292,7 +301,7 @@ def collect_backup_targets(root, listdir, filter_children):
         yield FilenameUndecodableTarget(root, isdir=True)
     else:
         for child in filter_children(children):
-            assert isinstance(child, unicode), child
+            assert isinstance(child, str), child
             childpath = os.path.join(root, child)
             if os.path.islink(childpath):
                 yield LinkTarget(childpath, isdir=False)
@@ -345,7 +354,7 @@ class FileTarget(object):
             target = PermissionDeniedTarget(self._path, isdir=False)
             return target.backup(progress, upload_file, upload_directory)
         else:
-            assert isinstance(childcap, str)
+            assert isinstance(childcap, bytes)
             if created:
                 return progress.created_file(self._path, childcap, metadata)
             return progress.reused_file(self._path, childcap, metadata)
@@ -497,10 +506,10 @@ class BackupProgress(object):
         )
 
     def _format_elapsed(self, elapsed):
-        seconds = elapsed.total_seconds()
-        hours = int(seconds / 3600)
-        minutes = int(seconds / 60 % 60)
-        seconds = int(seconds % 60)
+        seconds = int(elapsed.total_seconds())
+        hours = seconds // 3600
+        minutes = (seconds // 60) % 60
+        seconds = seconds % 60
         return "{}h {}m {}s".format(
             hours,
             minutes,
@@ -525,12 +534,12 @@ class BackupProgress(object):
         return self, {
             os.path.basename(create_path): create_value
             for (create_path, create_value)
-            in self._create_contents.iteritems()
+            in list(self._create_contents.items())
             if os.path.dirname(create_path) == dirpath
         }, {
             os.path.basename(compare_path): compare_value
             for (compare_path, compare_value)
-            in self._compare_contents.iteritems()
+            in list(self._compare_contents.items())
             if os.path.dirname(compare_path) == dirpath
         }
 

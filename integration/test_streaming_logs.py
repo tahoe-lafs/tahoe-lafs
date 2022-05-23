@@ -1,3 +1,6 @@
+"""
+Ported to Python 3.
+"""
 from __future__ import (
     print_function,
     unicode_literals,
@@ -5,12 +8,18 @@ from __future__ import (
     division,
 )
 
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+
+from six import ensure_text
+
 import json
 
 from os.path import (
     join,
 )
-from urlparse import (
+from urllib.parse import (
     urlsplit,
 )
 
@@ -68,7 +77,7 @@ def _connect_client(reactor, api_auth_token, ws_url):
     factory = WebSocketClientFactory(
         url=ws_url,
         headers={
-            "Authorization": "{} {}".format(SCHEME, api_auth_token),
+            "Authorization": "{} {}".format(str(SCHEME, "ascii"), api_auth_token),
         }
     )
     factory.protocol = _StreamingLogClientProtocol
@@ -127,7 +136,7 @@ def _test_streaming_logs(reactor, temp_dir, alice):
     node_url = cfg.get_config_from_file("node.url")
     api_auth_token = cfg.get_private_config("api_auth_token")
 
-    ws_url = node_url.replace("http://", "ws://")
+    ws_url = ensure_text(node_url).replace("http://", "ws://")
     log_url = ws_url + "private/logs/v1"
 
     print("Connecting to {}".format(log_url))

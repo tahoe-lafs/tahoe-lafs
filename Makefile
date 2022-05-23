@@ -17,7 +17,7 @@ PYTHON=python
 export PYTHON
 PYFLAKES=flake8
 export PYFLAKES
-VIRTUAL_ENV=./.tox/py27
+VIRTUAL_ENV=./.tox/py37
 SOURCES=src/allmydata static misc setup.py
 APPNAME=tahoe-lafs
 TEST_SUITE=allmydata
@@ -35,7 +35,7 @@ test: .tox/create-venvs.log
 # Run codechecks first since it takes the least time to report issues early.
 	tox --develop -e codechecks
 # Run all the test environments in parallel to reduce run-time
-	tox --develop -p auto -e 'py27,py36,pypy27'
+	tox --develop -p auto -e 'py37'
 .PHONY: test-venv-coverage
 ## Run all tests with coverage collection and reporting.
 test-venv-coverage:
@@ -51,7 +51,7 @@ test-venv-coverage:
 .PHONY: test-py3-all
 ## Run all tests under Python 3
 test-py3-all: .tox/create-venvs.log
-	tox --develop -e py36 allmydata
+	tox --develop -e py37 allmydata
 
 # This is necessary only if you want to automatically produce a new
 # _version.py file from the current git history (without doing a build).
@@ -136,36 +136,11 @@ count-lines:
 # Here is a list of testing tools that can be run with 'python' from a
 # virtualenv in which Tahoe has been installed. There used to be Makefile
 # targets for each, but the exact path to a suitable python is now up to the
-# developer. But as a hint, after running 'tox', ./.tox/py27/bin/python will
+# developer. But as a hint, after running 'tox', ./.tox/py37/bin/python will
 # probably work.
 
 # src/allmydata/test/bench_dirnode.py
 
-
-# The check-speed and check-grid targets are disabled, since they depend upon
-# the pre-located $(TAHOE) executable that was removed when we switched to
-# tox. They will eventually be resurrected as dedicated tox environments.
-
-# The check-speed target uses a pre-established client node to run a canned
-# set of performance tests against a test network that is also
-# pre-established (probably on a remote machine). Provide it with the path to
-# a local directory where this client node has been created (and populated
-# with the necessary FURLs of the test network). This target will start that
-# client with the current code and then run the tests. Afterwards it will
-# stop the client.
-#
-# The 'sleep 5' is in there to give the new client a chance to connect to its
-# storageservers, since check_speed.py has no good way of doing that itself.
-
-##.PHONY: check-speed
-##check-speed: .built
-##	if [ -z '$(TESTCLIENTDIR)' ]; then exit 1; fi
-##	@echo "stopping any leftover client code"
-##	-$(TAHOE) stop $(TESTCLIENTDIR)
-##	$(TAHOE) start $(TESTCLIENTDIR)
-##	sleep 5
-##	$(TAHOE) @src/allmydata/test/check_speed.py $(TESTCLIENTDIR)
-##	$(TAHOE) stop $(TESTCLIENTDIR)
 
 # The check-grid target also uses a pre-established client node, along with a
 # long-term directory that contains some well-known files. See the docstring
@@ -195,12 +170,11 @@ test-clean:
 # Use 'make distclean' instead to delete all generated files.
 .PHONY: clean
 clean:
-	rm -rf build _trial_temp _test_memory .built
+	rm -rf build _trial_temp .built
 	rm -f `find src *.egg -name '*.so' -or -name '*.pyc'`
 	rm -rf support dist
 	rm -rf `ls -d *.egg | grep -vEe"setuptools-|setuptools_darcs-|darcsver-"`
 	rm -rf *.pyc
-	rm -f bin/tahoe bin/tahoe.pyscript
 	rm -f *.pkg
 
 .PHONY: distclean

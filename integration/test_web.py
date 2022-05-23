@@ -7,15 +7,26 @@ Most of the tests have cursory asserts and encode 'what the WebAPI did
 at the time of testing' -- not necessarily a cohesive idea of what the
 WebAPI *should* do in every situation. It's not clear the latter
 exists anywhere, however.
+
+Ported to Python 3.
 """
 
+from __future__ import unicode_literals
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+
 import time
-import json
-import urllib2
+from urllib.parse import unquote as url_unquote, quote as url_quote
 
 import allmydata.uri
+from allmydata.util import jsonbytes as json
 
-import util
+from . import util
 
 import requests
 import html5lib
@@ -64,7 +75,7 @@ def test_upload_download(alice):
             u"filename": u"boom",
         }
     )
-    assert data == FILE_CONTENTS
+    assert str(data, "utf-8") == FILE_CONTENTS
 
 
 def test_put(alice):
@@ -95,7 +106,7 @@ def test_helper_status(storage_nodes):
     resp = requests.get(url)
     assert resp.status_code >= 200 and resp.status_code < 300
     dom = BeautifulSoup(resp.content, "html5lib")
-    assert unicode(dom.h1.string) == u"Helper Status"
+    assert str(dom.h1.string) == u"Helper Status"
 
 
 def test_deep_stats(alice):
@@ -115,10 +126,10 @@ def test_deep_stats(alice):
 
     # when creating a directory, we'll be re-directed to a URL
     # containing our writecap..
-    uri = urllib2.unquote(resp.url)
+    uri = url_unquote(resp.url)
     assert 'URI:DIR2:' in uri
     dircap = uri[uri.find("URI:DIR2:"):].rstrip('/')
-    dircap_uri = util.node_url(alice.node_dir, "uri/{}".format(urllib2.quote(dircap)))
+    dircap_uri = util.node_url(alice.node_dir, "uri/{}".format(url_quote(dircap)))
 
     # POST a file into this directory
     FILE_CONTENTS = u"a file in a directory"
@@ -127,12 +138,12 @@ def test_deep_stats(alice):
         dircap_uri,
         data={
             u"t": u"upload",
-            u"when_done": u".",
         },
         files={
             u"file": FILE_CONTENTS,
         },
     )
+    resp.raise_for_status()
 
     # confirm the file is in the directory
     resp = requests.get(
@@ -145,7 +156,7 @@ def test_deep_stats(alice):
     k, data = d
     assert k == u"dirnode"
     assert len(data['children']) == 1
-    k, child = data['children'].values()[0]
+    k, child = list(data['children'].values())[0]
     assert k == u"filenode"
     assert child['size'] == len(FILE_CONTENTS)
 
@@ -175,6 +186,7 @@ def test_deep_stats(alice):
         time.sleep(.5)
 
 
+@util.run_in_thread
 def test_status(alice):
     """
     confirm we get something sensible from /status and the various sub-types
@@ -195,11 +207,11 @@ def test_status(alice):
 
     print("Uploaded data, cap={}".format(cap))
     resp = requests.get(
-        util.node_url(alice.node_dir, u"uri/{}".format(urllib2.quote(cap))),
+        util.node_url(alice.node_dir, u"uri/{}".format(url_quote(cap))),
     )
 
     print("Downloaded {} bytes of data".format(len(resp.content)))
-    assert resp.content == FILE_CONTENTS
+    assert str(resp.content, "ascii") == FILE_CONTENTS
 
     resp = requests.get(
         util.node_url(alice.node_dir, "status"),
@@ -218,12 +230,12 @@ def test_status(alice):
             continue
         resp = requests.get(util.node_url(alice.node_dir, href))
         if href.startswith(u"/status/up"):
-            assert "File Upload Status" in resp.content
-            if "Total Size: {}".format(len(FILE_CONTENTS)) in resp.content:
+            assert b"File Upload Status" in resp.content
+            if b"Total Size: %d" % (len(FILE_CONTENTS),) in resp.content:
                 found_upload = True
         elif href.startswith(u"/status/down"):
-            assert "File Download Status" in resp.content
-            if "Total Size: {}".format(len(FILE_CONTENTS)) in resp.content:
+            assert b"File Download Status" in resp.content
+            if b"Total Size: %d" % (len(FILE_CONTENTS),) in resp.content:
                 found_download = True
 
                 # download the specialized event information
@@ -296,7 +308,7 @@ def test_directory_deep_check(alice):
     print("Uploaded data1, cap={}".format(cap1))
 
     resp = requests.get(
-        util.node_url(alice.node_dir, u"uri/{}".format(urllib2.quote(cap0))),
+        util.node_url(alice.node_dir, u"uri/{}".format(url_quote(cap0))),
         params={u"t": u"info"},
     )
 
@@ -397,9 +409,9 @@ def test_directory_deep_check(alice):
     for _ in range(5):
         resp = requests.get(deepcheck_uri)
         dom = BeautifulSoup(resp.content, "html5lib")
-        if dom.h1 and u'Results' in unicode(dom.h1.string):
+        if dom.h1 and u'Results' in str(dom.h1.string):
             break
-        if dom.h2 and dom.h2.a and u"Reload" in unicode(dom.h2.a.string):
+        if dom.h2 and dom.h2.a and u"Reload" in str(dom.h2.a.string):
             dom = None
             time.sleep(1)
     assert dom is not None, "Operation never completed"
@@ -437,7 +449,7 @@ def test_introducer_info(introducer):
     resp = requests.get(
         util.node_url(introducer.node_dir, u""),
     )
-    assert "Introducer" in resp.content
+    assert b"Introducer" in resp.content
 
     resp = requests.get(
         util.node_url(introducer.node_dir, u""),
@@ -510,6 +522,6 @@ def test_mkdir_with_children(alice):
         params={u"t": "mkdir-with-children"},
         data=json.dumps(meta),
     )
-    assert resp.startswith("URI:DIR2")
+    assert resp.startswith(b"URI:DIR2")
     cap = allmydata.uri.from_string(resp)
     assert isinstance(cap, allmydata.uri.DirectoryURI)

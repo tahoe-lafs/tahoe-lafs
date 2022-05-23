@@ -13,6 +13,112 @@ Specifically, it should be possible to implement a Tahoe-LAFS storage server wit
 The Tahoe-LAFS client will also need to change but it is not expected that it will be noticably simplified by this change
 (though this may be the first step towards simplifying it).
 
+Glossary
+--------
+
+.. glossary::
+
+   `Foolscap <https://github.com/warner/foolscap/>`_
+     an RPC/RMI (Remote Procedure Call / Remote Method Invocation) protocol for use with Twisted
+
+   storage server
+     a Tahoe-LAFS process configured to offer storage and reachable over the network for store and retrieve operations
+
+   storage service
+     a Python object held in memory in the storage server which provides the implementation of the storage protocol
+
+   introducer
+     a Tahoe-LAFS process at a known location configured to re-publish announcements about the location of storage servers
+
+   fURL
+     a self-authenticating URL-like string which can be used to locate a remote object using the Foolscap protocol
+     (the storage service is an example of such an object)
+
+   NURL
+     a self-authenticating URL-like string almost exactly like a NURL but without being tied to Foolscap
+
+   swissnum
+     a short random string which is part of a fURL/NURL and which acts as a shared secret to authorize clients to use a storage service
+
+   lease
+     state associated with a share informing a storage server of the duration of storage desired by a client
+
+   share
+     a single unit of client-provided arbitrary data to be stored by a storage server
+     (in practice, one of the outputs of applying ZFEC encoding to some ciphertext with some additional metadata attached)
+
+   bucket
+     a group of one or more immutable shares held by a storage server and having a common storage index
+
+   slot
+     a group of one or more mutable shares held by a storage server and having a common storage index
+     (sometimes "slot" is considered a synonym for "storage index of a slot")
+
+   storage index
+     a 16 byte string which can address a slot or a bucket
+     (in practice, derived by hashing the encryption key associated with contents of that slot or bucket)
+
+   write enabler
+     a short secret string which storage servers require to be presented before allowing mutation of any mutable share
+
+   lease renew secret
+     a short secret string which storage servers required to be presented before allowing a particular lease to be renewed
+
+Motivation
+----------
+
+Foolscap
+~~~~~~~~
+
+Foolscap is a remote method invocation protocol with several distinctive features.
+At its core it allows separate processes to refer each other's objects and methods using a capability-based model.
+This allows for extremely fine-grained access control in a system that remains highly securable without becoming overwhelmingly complicated.
+Supporting this is a flexible and extensible serialization system which allows data to be exchanged between processes in carefully controlled ways.
+
+Tahoe-LAFS avails itself of only a small portion of these features.
+A Tahoe-LAFS storage server typically only exposes one object with a fixed set of methods to clients.
+A Tahoe-LAFS introducer node does roughly the same.
+Tahoe-LAFS exchanges simple data structures that have many common, standard serialized representations.
+
+In exchange for this slight use of Foolscap's sophisticated mechanisms,
+Tahoe-LAFS pays a substantial price:
+
+* Foolscap is implemented only for Python.
+  Tahoe-LAFS is thus limited to being implemented only in Python.
+* There is only one Python implementation of Foolscap.
+  The implementation is therefore the de facto standard and understanding of the protocol often relies on understanding that implementation.
+* The Foolscap developer community is very small.
+  The implementation therefore advances very little and some non-trivial part of the maintenance cost falls on the Tahoe-LAFS project.
+* The extensible serialization system imposes substantial complexity compared to the simple data structures Tahoe-LAFS actually exchanges.
+
+HTTP
+~~~~
+
+HTTP is a request/response protocol that has become the lingua franca of the internet.
+Combined with the principles of Representational State Transfer (REST) it is widely employed to create, update, and delete data in collections on the internet.
+HTTP itself provides only modest functionality in comparison to Foolscap.
+However its simplicity and widespread use have led to a diverse and almost overwhelming ecosystem of libraries, frameworks, toolkits, and so on.
+
+By adopting HTTP in place of Foolscap Tahoe-LAFS can realize the following concrete benefits:
+
+* Practically every language or runtime has an HTTP protocol implementation (or a dozen of them) available.
+  This change paves the way for new Tahoe-LAFS implementations using tools better suited for certain situations
+  (mobile client implementations, high-performance server implementations, easily distributed desktop clients, etc).
+* The simplicity of and vast quantity of resources about HTTP make it a very easy protocol to learn and use.
+  This change reduces the barrier to entry for developers to contribute improvements to Tahoe-LAFS's network interactions.
+* For any given language there is very likely an HTTP implementation with a large and active developer community.
+  Tahoe-LAFS can therefore benefit from the large effort being put into making better libraries for using HTTP.
+* One of the core features of HTTP is the mundane transfer of bulk data and implementions are often capable of doing this with extreme efficiency.
+  The alignment of this core feature with a core activity of Tahoe-LAFS of transferring bulk data means that a substantial barrier to improved Tahoe-LAFS runtime performance will be eliminated.
+
+TLS
+~~~
+
+The Foolscap-based protocol provides *some* of Tahoe-LAFS's confidentiality, integrity, and authentication properties by leveraging TLS.
+An HTTP-based protocol can make use of TLS in largely the same way to provide the same properties.
+Provision of these properties *is* dependant on implementers following Great Black Swamp's rules for x509 certificate validation
+(rather than the standard "web" rules for validation).
+
 Requirements
 ------------
 
@@ -31,6 +137,8 @@ The Foolscap-based protocol offers:
 
   * A careful configuration of the TLS connection parameters *may* also offer **forward secrecy**.
     However, Tahoe-LAFS' use of Foolscap takes no steps to ensure this is the case.
+
+* **Storage authorization** by way of a capability contained in the fURL addressing a storage service.
 
 Discussion
 !!!!!!!!!!
@@ -61,6 +169,10 @@ An attacker learning this secret can overwrite share data with garbage
 there is no way to write data which appears legitimate to a legitimate client).
 Therefore, **message confidentiality** is necessary when exchanging these secrets.
 **Forward secrecy** is preferred so that an attacker recording an exchange today cannot launch this attack at some future point after compromising the necessary keys.
+
+A storage service offers service only to some clients.
+A client proves their authorization to use the storage service by presenting a shared secret taken from the fURL.
+In this way **storage authorization** is performed to prevent disallowed parties from consuming any storage resources.
 
 Functionality
 -------------
@@ -99,15 +211,15 @@ To further clarify, consider this example.
 Alice operates a storage node.
 Alice generates a key pair and secures it properly.
 Alice generates a self-signed storage node certificate with the key pair.
-Alice's storage node announces (to an introducer) a fURL containing (among other information) the SPKI hash.
+Alice's storage node announces (to an introducer) a NURL containing (among other information) the SPKI hash.
 Imagine the SPKI hash is ``i5xb...``.
-This results in a fURL of ``pb://i5xb...@example.com:443/g3m5...#v=2`` [#]_.
+This results in a NURL of ``pb://i5xb...@example.com:443/g3m5...#v=1``.
 Bob creates a client node pointed at the same introducer.
 Bob's client node receives the announcement from Alice's storage node
 (indirected through the introducer).
 
-Bob's client node recognizes the fURL as referring to an HTTP-dialect server due to the ``v=2`` fragment.
-Bob's client node can now perform a TLS handshake with a server at the address in the fURL location hints
+Bob's client node recognizes the NURL as referring to an HTTP-dialect server due to the ``v=1`` fragment.
+Bob's client node can now perform a TLS handshake with a server at the address in the NURL location hints
 (``example.com:443`` in this example).
 Following the above described validation procedures,
 Bob's client node can determine whether it has reached Alice's storage node or not.
@@ -117,6 +229,10 @@ If and only if the validation procedure is successful does Bob's client node con
 Additionally,
 by continuing to interact using TLS,
 Bob's client and Alice's storage node are assured of both **message authentication** and **message confidentiality**.
+
+Bob's client further inspects the NURL for the *swissnum*.
+When Bob's client issues HTTP requests to Alice's storage node it includes the *swissnum* in its requests.
+**Storage authorization** has been achieved.
 
 .. note::
 
@@ -150,13 +266,13 @@ Generation of a new certificate allows for certain non-optimal conditions to be 
 * The ``commonName`` of ``newpb_thingy`` may be changed to a more descriptive value.
 * A ``notValidAfter`` field with a timestamp in the past may be updated.
 
-Storage nodes will announce a new fURL for this new HTTP-based server.
-This fURL will be announced alongside their existing Foolscap-based server's fURL.
+Storage nodes will announce a new NURL for this new HTTP-based server.
+This NURL will be announced alongside their existing Foolscap-based server's fURL.
 Such an announcement will resemble this::
 
   {
       "anonymous-storage-FURL": "pb://...",          # The old key
-      "gbs-anonymous-storage-url": "pb://...#v=2"    # The new key
+      "gbs-anonymous-storage-url": "pb://...#v=1"    # The new key
   }
 
 The transition process will proceed in three stages:
@@ -196,7 +312,7 @@ The follow sequence of events is likely:
 #. The client uses the information in its cache to open a Foolscap connection to the storage server.
 
 Ideally,
-the client would not rely on an update from the introducer to give it the GBS fURL for the updated storage server.
+the client would not rely on an update from the introducer to give it the GBS NURL for the updated storage server.
 Therefore,
 when an updated client connects to a storage server using Foolscap,
 it should request the server's version information.
@@ -234,6 +350,48 @@ Because of the simple types used throughout
 and the equivalence described in `RFC 7049`_
 these examples should be representative regardless of which of these two encodings is chosen.
 
+The one exception is sets.
+For CBOR messages, any sequence that is semantically a set (i.e. no repeated values allowed, order doesn't matter, and elements are hashable in Python) should be sent as a set.
+Tag 6.258 is used to indicate sets in CBOR; see `the CBOR registry <https://www.iana.org/assignments/cbor-tags/cbor-tags.xhtml>`_ for more details.
+Sets will be represented as JSON lists in examples because JSON doesn't support sets.
+
+HTTP Design
+~~~~~~~~~~~
+
+The HTTP interface described here is informed by the ideas of REST
+(Representational State Transfer).
+For ``GET`` requests query parameters are preferred over values encoded in the request body.
+For other requests query parameters are encoded into the message body.
+
+Many branches of the resource tree are conceived as homogenous containers:
+one branch contains all of the share data;
+another branch contains all of the lease data;
+etc.
+
+An ``Authorization`` header in requests is required for all endpoints.
+The standard HTTP authorization protocol is used.
+The authentication *type* used is ``Tahoe-LAFS``.
+The swissnum from the NURL used to locate the storage service is used as the *credentials*.
+If credentials are not presented or the swissnum is not associated with a storage service then no storage processing is performed and the request receives an ``401 UNAUTHORIZED`` response.
+
+There are also, for some endpoints, secrets sent via ``X-Tahoe-Authorization`` headers.
+If these are:
+
+1. Missing.
+2. The wrong length.
+3. Not the expected kind of secret.
+4. They are otherwise unparseable before they are actually semantically used.
+
+the server will respond with ``400 BAD REQUEST``.
+401 is not used because this isn't an authorization problem, this is a "you sent garbage and should know better" bug.
+
+If authorization using the secret fails, then a ``401 UNAUTHORIZED`` response should be sent.
+
+Encoding
+~~~~~~~~
+
+* ``storage_index`` should be base32 encoded (RFC3548) in URLs.
+
 General
 ~~~~~~~
 
@@ -252,10 +410,57 @@ For example::
       "delete-mutable-shares-with-zero-length-writev": true,
       "fills-holes-with-zero-bytes": true,
       "prevents-read-past-end-of-share-data": true,
-      "gbs-anonymous-storage-url": "pb://...#v=2"
+      "gbs-anonymous-storage-url": "pb://...#v=1"
       },
     "application-version": "1.13.0"
     }
+
+``PUT /v1/lease/:storage_index``
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+Either renew or create a new lease on the bucket addressed by ``storage_index``.
+
+The renew secret and cancellation secret should be included as ``X-Tahoe-Authorization`` headers.
+For example::
+
+    X-Tahoe-Authorization: lease-renew-secret <base64-lease-renew-secret>
+    X-Tahoe-Authorization: lease-cancel-secret <base64-lease-cancel-secret>
+
+If the ``lease-renew-secret`` value matches an existing lease
+then the expiration time of that lease will be changed to 31 days after the time of this operation.
+If it does not match an existing lease
+then a new lease will be created with this ``lease-renew-secret`` which expires 31 days after the time of this operation.
+
+``lease-renew-secret`` and ``lease-cancel-secret`` values must be 32 bytes long.
+The server treats them as opaque values.
+:ref:`Share Leases` gives details about how the Tahoe-LAFS storage client constructs these values.
+
+In these cases the response is ``NO CONTENT`` with an empty body.
+
+It is possible that the storage server will have no shares for the given ``storage_index`` because:
+
+* no such shares have ever been uploaded.
+* a previous lease expired and the storage server reclaimed the storage by deleting the shares.
+
+In these cases the server takes no action and returns ``NOT FOUND``.
+
+
+Discussion
+``````````
+
+We considered an alternative where ``lease-renew-secret`` and ``lease-cancel-secret`` are placed in query arguments on the request path.
+This increases chances of leaking secrets in logs.
+Putting the secrets in the body reduces the chances of leaking secrets,
+but eventually we chose headers as the least likely information to be logged.
+
+Several behaviors here are blindly copied from the Foolscap-based storage server protocol.
+
+* There is a cancel secret but there is no API to use it to cancel a lease (see ticket:3768).
+* The lease period is hard-coded at 31 days.
+
+These are not necessarily ideal behaviors
+but they are adopted to avoid any *semantic* changes between the Foolscap- and HTTP-based protocols.
+It is expected that some or all of these behaviors may change in a future revision of the HTTP-based protocol.
 
 Immutable
 ---------
@@ -268,16 +473,33 @@ Writing
 
 Initialize an immutable storage index with some buckets.
 The buckets may have share data written to them once.
+A lease is also created for the shares.
 Details of the buckets to create are encoded in the request body.
 For example::
 
-  {"renew-secret": "efgh", "cancel-secret": "ijkl",
-   "share-numbers": [1, 7, ...], "allocated-size": 12345}
+  {"share-numbers": [1, 7, ...], "allocated-size": 12345}
+
+The request must include ``X-Tahoe-Authorization`` HTTP headers that set the various secrets—upload, lease renewal, lease cancellation—that will be later used to authorize various operations.
+For example::
+
+   X-Tahoe-Authorization: lease-renew-secret <base64-lease-renew-secret>
+   X-Tahoe-Authorization: lease-cancel-secret <base64-lease-cancel-secret>
+   X-Tahoe-Authorization: upload-secret <base64-upload-secret>
 
 The response body includes encoded information about the created buckets.
 For example::
 
   {"already-have": [1, ...], "allocated": [7, ...]}
+
+The upload secret is an opaque _byte_ string.
+
+Handling repeat calls:
+
+* If the same API call is repeated with the same upload secret, the response is the same and no change is made to server state.
+  This is necessary to ensure retries work in the face of lost responses from the server.
+* If the API calls is with a different upload secret, this implies a new client, perhaps because the old client died.
+  Or it may happen because the client wants to upload a different share number than a previous client.
+  New shares will be created, existing shares will be unchanged, regardless of whether the upload secret matches or not.
 
 Discussion
 ``````````
@@ -286,39 +508,129 @@ We considered making this ``POST /v1/immutable`` instead.
 The motivation was to keep *storage index* out of the request URL.
 Request URLs have an elevated chance of being logged by something.
 We were concerned that having the *storage index* logged may increase some risks.
-However, we decided this does not matter because the *storage index* can only be used to read the share (which is ciphertext).
-TODO Verify this conclusion.
+However, we decided this does not matter because:
 
-``PUT /v1/immutable/:storage_index/:share_number``
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+* the *storage index* can only be used to retrieve (not decrypt) the ciphertext-bearing share.
+* the *storage index* is already persistently present on the storage node in the form of directory names in the storage servers ``shares`` directory.
+* the request is made via HTTPS and so only Tahoe-LAFS can see the contents,
+  therefore no proxy servers can perform any extra logging.
+* Tahoe-LAFS itself does not currently log HTTP request URLs.
+
+The response includes ``already-have`` and ``allocated`` for two reasons:
+
+* If an upload is interrupted and the client loses its local state that lets it know it already uploaded some shares
+  then this allows it to discover this fact (by inspecting ``already-have``) and only upload the missing shares (indicated by ``allocated``).
+
+* If an upload has completed a client may still choose to re-balance storage by moving shares between servers.
+  This might be because a server has become unavailable and a remaining server needs to store more shares for the upload.
+  It could also just be that the client's preferred servers have changed.
+
+Regarding upload secrets,
+the goal is for uploading and aborting (see next sections) to be authenticated by more than just the storage index.
+In the future, we may want to generate them in a way that allows resuming/canceling when the client has issues.
+In the short term, they can just be a random byte string.
+The primary security constraint is that each upload to each server has its own unique upload key,
+tied to uploading that particular storage index to this particular server.
+
+Rejected designs for upload secrets:
+
+* Upload secret per share number.
+  In order to make the secret unguessable by attackers, which includes other servers,
+  it must contain randomness.
+  Randomness means there is no need to have a secret per share, since adding share-specific content to randomness doesn't actually make the secret any better.
+
+``PATCH /v1/immutable/:storage_index/:share_number``
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 Write data for the indicated share.
 The share number must belong to the storage index.
 The request body is the raw share data (i.e., ``application/octet-stream``).
-*Content-Range* requests are encouraged for large transfers.
+*Content-Range* requests are required; for large transfers this allows partially complete uploads to be resumed.
 For example,
-for a 1MiB share the data can be broken in to 8 128KiB chunks.
-Each chunk can be *PUT* separately with the appropriate *Content-Range* header.
+a 1MiB share can be divided in to eight separate 128KiB chunks.
+Each chunk can be uploaded in a separate request.
+Each request can include a *Content-Range* value indicating its placement within the complete share.
+If any one of these requests fails then at most 128KiB of upload work needs to be retried.
+
 The server must recognize when all of the data has been received and mark the share as complete
 (which it can do because it was informed of the size when the storage index was initialized).
-Clients should upload chunks in re-assembly order.
-Servers may reject out-of-order chunks for implementation simplicity.
-If an individual *PUT* fails then only a limited amount of effort is wasted on the necessary retry.
 
-.. think about copying https://developers.google.com/drive/api/v2/resumable-upload
+The request must include a ``X-Tahoe-Authorization`` header that includes the upload secret::
+
+    X-Tahoe-Authorization: upload-secret <base64-upload-secret>
+
+Responses:
+
+* When a chunk that does not complete the share is successfully uploaded the response is ``OK``.
+  The response body indicates the range of share data that has yet to be uploaded.
+  That is::
+
+    { "required":
+      [ { "begin": <byte position, inclusive>
+        , "end":   <byte position, exclusive>
+        }
+      ,
+      ...
+      ]
+    }
+
+* When the chunk that completes the share is successfully uploaded the response is ``CREATED``.
+* If the *Content-Range* for a request covers part of the share that has already,
+  and the data does not match already written data,
+  the response is ``CONFLICT``.
+  At this point the only thing to do is abort the upload and start from scratch (see below).
+
+``PUT /v1/immutable/:storage_index/:share_number/abort``
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+This cancels an *in-progress* upload.
+
+The request must include a ``X-Tahoe-Authorization`` header that includes the upload secret::
+
+    X-Tahoe-Authorization: upload-secret <base64-upload-secret>
+
+The response code:
+
+* When the upload is still in progress and therefore the abort has succeeded,
+  the response is ``OK``.
+  Future uploads can start from scratch with no pre-existing upload state stored on the server.
+* If the uploaded has already finished, the response is 405 (Method Not Allowed)
+  and no change is made.
+
+
+Discussion
+``````````
+
+``PUT`` verbs are only supposed to be used to replace the whole resource,
+thus the use of ``PATCH``.
+From RFC 7231::
+
+   An origin server that allows PUT on a given target resource MUST send
+   a 400 (Bad Request) response to a PUT request that contains a
+   Content-Range header field (Section 4.2 of [RFC7233]), since the
+   payload is likely to be partial content that has been mistakenly PUT
+   as a full representation.  Partial content updates are possible by
+   targeting a separately identified resource with state that overlaps a
+   portion of the larger resource, or by using a different method that
+   has been specifically defined for partial updates (for example, the
+   PATCH method defined in [RFC5789]).
+
 
 ``POST /v1/immutable/:storage_index/:share_number/corrupt``
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-Advise the server the data read from the indicated share was corrupt.
-The request body includes an human-meaningful string with details about the corruption.
-It also includes potentially important details about the share.
+Advise the server the data read from the indicated share was corrupt. The
+request body includes an human-meaningful text string with details about the
+corruption. It also includes potentially important details about the share.
 
 For example::
 
-  {"reason": "expected hash abcd, got hash efgh"}
+  {"reason": u"expected hash abcd, got hash efgh"}
 
 .. share-type, storage-index, and share-number are inferred from the URL
+
+The response code is OK (200) by default, or NOT FOUND (404) if the share
+couldn't be found.
 
 Reading
 ~~~~~~~
@@ -326,42 +638,42 @@ Reading
 ``GET /v1/immutable/:storage_index/shares``
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-Retrieve a list indicating all shares available for the indicated storage index.
-For example::
+Retrieve a list (semantically, a set) indicating all shares available for the
+indicated storage index. For example::
 
   [1, 5]
 
-``GET /v1/immutable/:storage_index?share=:s0&share=:sN&offset=o1&size=z0&offset=oN&size=zN``
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+An unknown storage index results in an empty list.
 
-Read data from the indicated immutable shares.
-If ``share`` query parameters are given, selecte only those shares for reading.
-Otherwise, select all shares present.
-If ``size`` and ``offset`` query parameters are given,
-only the portions thus identified of the selected shares are returned.
-Otherwise, all data is from the selected shares is returned.
+``GET /v1/immutable/:storage_index/:share_number``
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-The response body contains a mapping giving the read data.
-For example::
-
-  {
-      3: ["foo", "bar"],
-      7: ["baz", "quux"]
-  }
+Read a contiguous sequence of bytes from one share in one bucket.
+The response body is the raw share data (i.e., ``application/octet-stream``).
+The ``Range`` header may be used to request exactly one ``bytes`` range, in which case the response code will be 206 (partial content).
+Interpretation and response behavior is as specified in RFC 7233 § 4.1.
+Multiple ranges in a single request are *not* supported; open-ended ranges are also not supported.
 
 Discussion
 ``````````
 
-Offset and size of the requested data are specified here as query arguments.
-Instead, this information could be present in a ``Range`` header in the request.
-This is the more obvious choice and leverages an HTTP feature built for exactly this use-case.
-However, HTTP requires that the ``Content-Type`` of the response to "range requests" be ``multipart/...``.
+Multiple ``bytes`` ranges are not supported.
+HTTP requires that the ``Content-Type`` of the response in that case be ``multipart/...``.
 The ``multipart`` major type brings along string sentinel delimiting as a means to frame the different response parts.
 There are many drawbacks to this framing technique:
 
 1. It is resource-intensive to generate.
 2. It is resource-intensive to parse.
 3. It is complex to parse safely [#]_ [#]_ [#]_ [#]_.
+
+A previous revision of this specification allowed requesting one or more contiguous sequences from one or more shares.
+This *superficially* mirrored the Foolscap based interface somewhat closely.
+The interface was simplified to this version because this version is all that is required to let clients retrieve any desired information.
+It only requires that the client issue multiple requests.
+This can be done with pipelining or parallel requests to avoid an additional latency penalty.
+In the future,
+if there are performance goals,
+benchmarks can demonstrate whether they are achieved by a more complicated interface or some other change.
 
 Mutable
 -------
@@ -379,22 +691,21 @@ The first write operation on a mutable storage index creates it
 (that is,
 there is no separate "create this storage index" operation as there is for the immutable storage index type).
 
-The request body includes the secrets necessary to rewrite to the shares
-along with test, read, and write vectors for the operation.
+The request must include ``X-Tahoe-Authorization`` headers with write enabler and lease secrets::
+
+    X-Tahoe-Authorization: write-enabler <base64-write-enabler-secret>
+    X-Tahoe-Authorization: lease-cancel-secret <base64-lease-cancel-secret>
+    X-Tahoe-Authorization: lease-renew-secret <base64-lease-renew-secret>
+
+The request body includes test, read, and write vectors for the operation.
 For example::
 
    {
-       "secrets": {
-           "write-enabler": "abcd",
-           "lease-renew": "efgh",
-           "lease-cancel": "ijkl"
-       },
        "test-write-vectors": {
            0: {
                "test": [{
                    "offset": 3,
                    "size": 5,
-                   "operator": "eq",
                    "specimen": "hello"
                }, ...],
                "write": [{
@@ -420,28 +731,184 @@ For example::
       }
   }
 
+A test vector or read vector that read beyond the boundaries of existing data will return nothing for any bytes past the end.
+As a result, if there is no data at all, an empty bytestring is returned no matter what the offset or length.
+
 Reading
 ~~~~~~~
 
 ``GET /v1/mutable/:storage_index/shares``
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-Retrieve a list indicating all shares available for the indicated storage index.
-For example::
+Retrieve a set indicating all shares available for the indicated storage index.
+For example (this is shown as list, since it will be list for JSON, but will be set for CBOR)::
 
   [1, 5]
 
-``GET /v1/mutable/:storage_index?share=:s0&share=:sN&offset=:o1&size=:z0&offset=:oN&size=:zN``
+``GET /v1/mutable/:storage_index/:share_number``
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-Read data from the indicated mutable shares.
-Just like ``GET /v1/mutable/:storage_index``.
+Read data from the indicated mutable shares, just like ``GET /v1/immutable/:storage_index``
+
+The ``Range`` header may be used to request exactly one ``bytes`` range, in which case the response code will be 206 (partial content).
+Interpretation and response behavior is as specified in RFC 7233 § 4.1.
+Multiple ranges in a single request are *not* supported; open-ended ranges are also not supported.
+
 
 ``POST /v1/mutable/:storage_index/:share_number/corrupt``
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 Advise the server the data read from the indicated share was corrupt.
 Just like the immutable version.
+
+Sample Interactions
+-------------------
+
+Immutable Data
+~~~~~~~~~~~~~~
+
+1. Create a bucket for storage index ``AAAAAAAAAAAAAAAA`` to hold two immutable shares, discovering that share ``1`` was already uploaded::
+
+     POST /v1/immutable/AAAAAAAAAAAAAAAA
+     Authorization: Tahoe-LAFS nurl-swissnum
+     X-Tahoe-Authorization: lease-renew-secret efgh
+     X-Tahoe-Authorization: lease-cancel-secret jjkl
+     X-Tahoe-Authorization: upload-secret xyzf
+
+     {"share-numbers": [1, 7], "allocated-size": 48}
+
+     200 OK
+     {"already-have": [1], "allocated": [7]}
+
+#. Upload the content for immutable share ``7``::
+
+     PATCH /v1/immutable/AAAAAAAAAAAAAAAA/7
+     Authorization: Tahoe-LAFS nurl-swissnum
+     Content-Range: bytes 0-15/48
+     X-Tahoe-Authorization: upload-secret xyzf
+     <first 16 bytes of share data>
+
+     200 OK
+
+     PATCH /v1/immutable/AAAAAAAAAAAAAAAA/7
+     Authorization: Tahoe-LAFS nurl-swissnum
+     Content-Range: bytes 16-31/48
+     X-Tahoe-Authorization: upload-secret xyzf
+     <second 16 bytes of share data>
+
+     200 OK
+
+     PATCH /v1/immutable/AAAAAAAAAAAAAAAA/7
+     Authorization: Tahoe-LAFS nurl-swissnum
+     Content-Range: bytes 32-47/48
+     X-Tahoe-Authorization: upload-secret xyzf
+     <final 16 bytes of share data>
+
+     201 CREATED
+
+#. Download the content of the previously uploaded immutable share ``7``::
+
+     GET /v1/immutable/AAAAAAAAAAAAAAAA?share=7
+     Authorization: Tahoe-LAFS nurl-swissnum
+     Range: bytes=0-47
+
+     200 OK
+     <complete 48 bytes of previously uploaded data>
+
+#. Renew the lease on all immutable shares in bucket ``AAAAAAAAAAAAAAAA``::
+
+     PUT /v1/lease/AAAAAAAAAAAAAAAA
+     Authorization: Tahoe-LAFS nurl-swissnum
+     X-Tahoe-Authorization: lease-cancel-secret jjkl
+     X-Tahoe-Authorization: lease-renew-secret efgh
+
+     204 NO CONTENT
+
+Mutable Data
+~~~~~~~~~~~~
+
+1. Create mutable share number ``3`` with ``10`` bytes of data in slot ``BBBBBBBBBBBBBBBB``.
+The special test vector of size 1 but empty bytes will only pass
+if there is no existing share,
+otherwise it will read a byte which won't match `b""`::
+
+     POST /v1/mutable/BBBBBBBBBBBBBBBB/read-test-write
+     Authorization: Tahoe-LAFS nurl-swissnum
+     X-Tahoe-Authorization: write-enabler abcd
+     X-Tahoe-Authorization: lease-cancel-secret efgh
+     X-Tahoe-Authorization: lease-renew-secret ijkl
+
+     {
+         "test-write-vectors": {
+             3: {
+                 "test": [{
+                     "offset": 0,
+                     "size": 1,
+                     "specimen": ""
+                 }],
+                 "write": [{
+                     "offset": 0,
+                     "data": "xxxxxxxxxx"
+                 }],
+                 "new-length": 10
+             }
+         },
+         "read-vector": []
+     }
+
+     200 OK
+     {
+         "success": true,
+         "data": []
+     }
+
+#. Safely rewrite the contents of a known version of mutable share number ``3`` (or fail)::
+
+     POST /v1/mutable/BBBBBBBBBBBBBBBB/read-test-write
+     Authorization: Tahoe-LAFS nurl-swissnum
+     X-Tahoe-Authorization: write-enabler abcd
+     X-Tahoe-Authorization: lease-cancel-secret efgh
+     X-Tahoe-Authorization: lease-renew-secret ijkl
+
+     {
+         "test-write-vectors": {
+             3: {
+                 "test": [{
+                     "offset": 0,
+                     "size": <length of checkstring>,
+                     "specimen": "<checkstring>"
+                 }],
+                 "write": [{
+                     "offset": 0,
+                     "data": "yyyyyyyyyy"
+                 }],
+                 "new-length": 10
+             }
+         },
+         "read-vector": []
+     }
+
+     200 OK
+     {
+         "success": true,
+         "data": []
+     }
+
+#. Download the contents of share number ``3``::
+
+     GET /v1/mutable/BBBBBBBBBBBBBBBB?share=3&offset=0&size=10
+     Authorization: Tahoe-LAFS nurl-swissnum
+
+     <complete 16 bytes of previously uploaded data>
+
+#. Renew the lease on previously uploaded mutable share in slot ``BBBBBBBBBBBBBBBB``::
+
+     PUT /v1/lease/BBBBBBBBBBBBBBBB
+     Authorization: Tahoe-LAFS nurl-swissnum
+     X-Tahoe-Authorization: lease-cancel-secret efgh
+     X-Tahoe-Authorization: lease-renew-secret ijkl
+
+     204 NO CONTENT
 
 .. _RFC 7469: https://tools.ietf.org/html/rfc7469#section-2.4
 
@@ -492,13 +959,6 @@ Just like the immutable version.
         assert spki_encoded == tub_id
 
    Note we use `base64url`_ rather than the Foolscap- and Tahoe-LAFS-preferred Base32.
-
-.. [#]
-   Other schemes for differentiating between the two server types is possible.
-   If the tubID length remains different,
-   that provides an unambiguous (if obscure) signal about which protocol to use.
-   Or a different scheme could be adopted
-   (``[x-]pb+http``, ``x-tahoe+http``, ``x-gbs`` come to mind).
 
 .. [#]
    https://www.cvedetails.com/cve/CVE-2017-5638/

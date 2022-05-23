@@ -13,13 +13,15 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 from future.utils import PY2, PY3, native_str
+from future.builtins import str as future_str
 if PY2:
     # We omit str() because that seems too tricky to get right.
     from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, max, min  # noqa: F401
 
 from past.builtins import unicode
+from six import ensure_str
 
-import sys, os, re, locale
+import sys, os, re
 import unicodedata
 import warnings
 
@@ -50,36 +52,25 @@ def check_encoding(encoding):
     try:
         u"test".encode(encoding)
     except (LookupError, AttributeError):
-        raise AssertionError("The character encoding '%s' is not supported for conversion." % (encoding,))
+        raise AssertionError(
+            "The character encoding '%s' is not supported for conversion." % (encoding,),
+        )
+
+# On Windows we install UTF-8 stream wrappers for sys.stdout and
+# sys.stderr, and reencode the arguments as UTF-8 (see scripts/runner.py).
+#
+# On POSIX, we are moving towards a UTF-8-everything and ignore the locale.
+io_encoding = "utf-8"
 
 filesystem_encoding = None
-io_encoding = None
 is_unicode_platform = False
 use_unicode_filepath = False
 
 def _reload():
-    global filesystem_encoding, io_encoding, is_unicode_platform, use_unicode_filepath
+    global filesystem_encoding, is_unicode_platform, use_unicode_filepath
 
     filesystem_encoding = canonical_encoding(sys.getfilesystemencoding())
     check_encoding(filesystem_encoding)
-
-    if sys.platform == 'win32':
-        # On Windows we install UTF-8 stream wrappers for sys.stdout and
-        # sys.stderr, and reencode the arguments as UTF-8 (see scripts/runner.py).
-        io_encoding = 'utf-8'
-    else:
-        ioenc = None
-        if hasattr(sys.stdout, 'encoding'):
-            ioenc = sys.stdout.encoding
-        if ioenc is None:
-            try:
-                ioenc = locale.getpreferredencoding()
-            except Exception:
-                pass  # work around <http://bugs.python.org/issue1443504>
-        io_encoding = canonical_encoding(ioenc)
-
-    check_encoding(io_encoding)
-
     is_unicode_platform = PY3 or sys.platform in ["win32", "darwin"]
 
     # Despite the Unicode-mode FilePath support added to Twisted in
@@ -110,6 +101,8 @@ def get_io_encoding():
 def argv_to_unicode(s):
     """
     Decode given argv element to unicode. If this fails, raise a UsageError.
+
+    This is the inverse of ``unicode_to_argv``.
     """
     if isinstance(s, unicode):
         return s
@@ -133,26 +126,30 @@ def argv_to_abspath(s, **kwargs):
                                % (quote_output(s), quote_output(os.path.join('.', s))))
     return abspath_expanduser_unicode(decoded, **kwargs)
 
-def unicode_to_argv(s, mangle=False):
-    """
-    Encode the given Unicode argument as a bytestring.
-    If the argument is to be passed to a different process, then the 'mangle' argument
-    should be true; on Windows, this uses a mangled encoding that will be reversed by
-    code in runner.py.
 
-    On Python 3, just return the string unchanged, since argv is unicode.
+def unicode_to_argv(s):
+    """
+    Make the given unicode string suitable for use in an argv list.
+
+    On Python 2 on POSIX, this encodes using UTF-8.  On Python 3 and on
+    Windows, this returns the input unmodified.
     """
     precondition(isinstance(s, unicode), s)
     if PY3:
         warnings.warn("This will be unnecessary once Python 2 is dropped.",
                       DeprecationWarning)
+    if sys.platform == "win32":
         return s
+    return ensure_str(s)
 
-    if mangle and sys.platform == "win32":
-        # This must be the same as 'mangle' in bin/tahoe-script.template.
-        return bytes(re.sub(u'[^\\x20-\\x7F]', lambda m: u'\x7F%x;' % (ord(m.group(0)),), s), io_encoding)
-    else:
-        return s.encode(io_encoding)
+
+# According to unicode_to_argv above, the expected type for
+# cli args depends on the platform, so capture that expectation.
+argv_type = (future_str, native_str) if sys.platform == "win32" else native_str
+"""
+The expected type for args to a subprocess
+"""
+
 
 def unicode_to_url(s):
     """
@@ -252,6 +249,20 @@ ESCAPABLE_UNICODE = re.compile(u'([\uD800-\uDBFF][\uDC00-\uDFFF])|'  # valid sur
 
 ESCAPABLE_8BIT    = re.compile( br'[^ !#\x25-\x5B\x5D-\x5F\x61-\x7E]', re.DOTALL)
 
+def quote_output_u(*args, **kwargs):
+    """
+    Like ``quote_output`` but always return ``unicode``.
+    """
+    result = quote_output(*args, **kwargs)
+    if isinstance(result, unicode):
+        return result
+    # Since we're quoting, the assumption is this will be read by a human, and
+    # therefore printed, so stdout's encoding is the plausible one. io_encoding
+    # is now always utf-8.
+    return result.decode(kwargs.get("encoding", None) or
+                         getattr(sys.stdout, "encoding") or io_encoding)
+
+
 def quote_output(s, quotemarks=True, quote_newlines=None, encoding=None):
     """
     Encode either a Unicode string or a UTF-8-encoded bytestring for representation
@@ -269,7 +280,10 @@ def quote_output(s, quotemarks=True, quote_newlines=None, encoding=None):
     On Python 3, returns Unicode strings.
     """
     precondition(isinstance(s, (bytes, unicode)), s)
-    encoding = encoding or io_encoding
+    # Since we're quoting, the assumption is this will be read by a human, and
+    # therefore printed, so stdout's encoding is the plausible one. io_encoding
+    # is now always utf-8.
+    encoding = encoding or getattr(sys.stdout, "encoding") or io_encoding
 
     if quote_newlines is None:
         quote_newlines = quotemarks
@@ -277,7 +291,7 @@ def quote_output(s, quotemarks=True, quote_newlines=None, encoding=None):
     def _encode(s):
         if isinstance(s, bytes):
             try:
-                s = s.decode('utf-8')
+                s = s.decode("utf-8")
             except UnicodeDecodeError:
                 return b'b"%s"' % (ESCAPABLE_8BIT.sub(lambda m: _bytes_escape(m, quote_newlines), s),)
 
@@ -306,6 +320,9 @@ def quote_output(s, quotemarks=True, quote_newlines=None, encoding=None):
         # Although the problem is that doesn't work in Python 3.6, only 3.7 or
         # later... For now not thinking about it, just returning unicode since
         # that is the right thing to do on Python 3.
+        #
+        # Now that Python 3.7 is the minimum, this can in theory be done:
+        # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3866
         result = result.decode(encoding)
     return result
 

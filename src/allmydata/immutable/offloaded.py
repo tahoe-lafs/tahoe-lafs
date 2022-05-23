@@ -81,7 +81,7 @@ class CHKCheckerAndUEBFetcher(object):
     def _got_response(self, buckets, server):
         # buckets is a dict: maps shum to an rref of the server who holds it
         shnums_s = ",".join([str(shnum) for shnum in buckets])
-        self.log("got_response: [%s] has %d shares (%s)" %
+        self.log("got_response: [%r] has %d shares (%s)" %
                  (server.get_name(), len(buckets), shnums_s),
                  level=log.NOISY)
         self._found_shares.update(buckets.keys())
@@ -141,7 +141,7 @@ class CHKCheckerAndUEBFetcher(object):
 
 
 @implementer(interfaces.RICHKUploadHelper)
-class CHKUploadHelper(Referenceable, upload.CHKUploader):
+class CHKUploadHelper(Referenceable, upload.CHKUploader):  # type: ignore # warner/foolscap#78
     """I am the helper-server -side counterpart to AssistedUploader. I handle
     peer selection, encoding, and share pushing. I read ciphertext from the
     remote AssistedUploader.
@@ -154,8 +154,8 @@ class CHKUploadHelper(Referenceable, upload.CHKUploader):
     def __init__(self, storage_index,
                  helper, storage_broker, secret_holder,
                  incoming_file, encoding_file,
-                 log_number, progress=None):
-        upload.CHKUploader.__init__(self, storage_broker, secret_holder, progress=progress)
+                 log_number):
+        upload.CHKUploader.__init__(self, storage_broker, secret_holder)
         self._storage_index = storage_index
         self._helper = helper
         self._incoming_file = incoming_file
@@ -167,7 +167,7 @@ class CHKUploadHelper(Referenceable, upload.CHKUploader):
         self._upload_status.set_storage_index(storage_index)
         self._upload_status.set_status("fetching ciphertext")
         self._upload_status.set_progress(0, 1.0)
-        self._helper.log("CHKUploadHelper starting for SI %s" % self._upload_id,
+        self._helper.log("CHKUploadHelper starting for SI %r" % self._upload_id,
                          parent=log_number)
 
         self._storage_broker = storage_broker
@@ -499,10 +499,13 @@ class LocalCiphertextReader(AskUntilSuccessMixin):
         # ??. I'm not sure if it makes sense to forward the close message.
         return self.call("close")
 
+    # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3561
+    def set_upload_status(self, upload_status):
+        raise NotImplementedError
 
 
 @implementer(interfaces.RIHelper, interfaces.IStatsProducer)
-class Helper(Referenceable):
+class Helper(Referenceable):  # type: ignore # warner/foolscap#78
     """
     :ivar dict[bytes, CHKUploadHelper] _active_uploads: For any uploads which
         have been started but not finished, a mapping from storage index to the

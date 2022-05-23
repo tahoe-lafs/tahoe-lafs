@@ -1,5 +1,17 @@
 # -*- coding: utf-8 -*-
 
+"""
+Ported to Python 3.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+
 import os, shutil
 from twisted.trial import unittest
 from twisted.internet import defer
@@ -14,8 +26,8 @@ from allmydata.test.common import ShouldFailMixin
 from allmydata.util.pollmixin import PollMixin
 from allmydata.interfaces import NotEnoughSharesError
 
-immutable_plaintext = "data" * 10000
-mutable_plaintext = "muta" * 10000
+immutable_plaintext = b"data" * 10000
+mutable_plaintext = b"muta" * 10000
 
 class HungServerDownloadTest(GridTestMixin, ShouldFailMixin, PollMixin,
                              unittest.TestCase):
@@ -61,7 +73,7 @@ class HungServerDownloadTest(GridTestMixin, ShouldFailMixin, PollMixin,
     def _copy_share(self, share, to_server):
         (sharenum, sharefile) = share
         (id, ss) = to_server
-        shares_dir = os.path.join(ss.original.storedir, "shares")
+        shares_dir = os.path.join(ss.original._server.storedir, "shares")
         si = uri.from_string(self.uri).get_storage_index()
         si_dir = os.path.join(shares_dir, storage_index_to_dir(si))
         if not os.path.exists(si_dir):
@@ -70,7 +82,7 @@ class HungServerDownloadTest(GridTestMixin, ShouldFailMixin, PollMixin,
         shutil.copy(sharefile, new_sharefile)
         self.shares = self.find_uri_shares(self.uri)
         # Make sure that the storage server has the share.
-        self.failUnless((sharenum, ss.original.my_nodeid, new_sharefile)
+        self.failUnless((sharenum, ss.original._server.my_nodeid, new_sharefile)
                         in self.shares)
 
     def _corrupt_share(self, share, corruptor_func):
@@ -105,7 +117,7 @@ class HungServerDownloadTest(GridTestMixin, ShouldFailMixin, PollMixin,
                 self.shares = self.find_uri_shares(self.uri)
             d.addCallback(_uploaded_mutable)
         else:
-            data = upload.Data(immutable_plaintext, convergence="")
+            data = upload.Data(immutable_plaintext, convergence=b"")
             d = self.c0.upload(data)
             def _uploaded_immutable(upload_res):
                 self.uri = upload_res.get_uri()
@@ -262,7 +274,7 @@ class HungServerDownloadTest(GridTestMixin, ShouldFailMixin, PollMixin,
             # is shut off. That will leave 4 OVERDUE and 1
             # stuck-but-not-overdue, for a total of 5 requests in in
             # _sf.pending_requests
-            for t in self._sf.overdue_timers.values()[:4]:
+            for t in list(self._sf.overdue_timers.values())[:4]:
                 t.reset(-1.0)
             # the timers ought to fire before the eventual-send does
             return fireEventually()

@@ -13,13 +13,25 @@ if PY2:
 import os.path
 from allmydata.util import base32
 
-class DataTooLargeError(Exception):
-    pass
-class UnknownMutableContainerVersionError(Exception):
-    pass
-class UnknownImmutableContainerVersionError(Exception):
+# Backwards compatibility.
+from allmydata.interfaces import DataTooLargeError  # noqa: F401
+
+class UnknownContainerVersionError(Exception):
+    def __init__(self, filename, version):
+        self.filename = filename
+        self.version = version
+
+    def __str__(self):
+        return "sharefile {!r} had unexpected version {!r}".format(
+            self.filename,
+            self.version,
+        )
+
+class UnknownMutableContainerVersionError(UnknownContainerVersionError):
     pass
 
+class UnknownImmutableContainerVersionError(UnknownContainerVersionError):
+    pass
 
 def si_b2a(storageindex):
     return base32.b2a(storageindex)

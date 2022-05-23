@@ -29,8 +29,7 @@ zope.interface-*.egg
 .pc
 
 /src/allmydata/test/plugins/dropin.cache
-/_trial_temp*
-/_test_memory/
+**/_trial_temp*
 /tmp*
 /*.patch
 /dist/

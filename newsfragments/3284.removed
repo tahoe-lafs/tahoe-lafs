@@ -1,1 +1,0 @@
-The Magic Folder frontend has been split out into a stand-alone project.  The functionality is no longer part of Tahoe-LAFS itself.  Learn more at <https://github.com/LeastAuthority/magic-folder>.

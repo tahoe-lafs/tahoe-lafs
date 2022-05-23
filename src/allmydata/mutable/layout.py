@@ -309,7 +309,7 @@ class SDMFSlotWriteProxy(object):
                                       salt)
         else:
             checkstring = checkstring_or_seqnum
-        self._testvs = [(0, len(checkstring), b"eq", checkstring)]
+        self._testvs = [(0, len(checkstring), checkstring)]
 
 
     def get_checkstring(self):
@@ -318,7 +318,7 @@ class SDMFSlotWriteProxy(object):
         server.
         """
         if self._testvs:
-            return self._testvs[0][3]
+            return self._testvs[0][2]
         return b""
 
 
@@ -548,9 +548,9 @@ class SDMFSlotWriteProxy(object):
         if not self._testvs:
             # Our caller has not provided us with another checkstring
             # yet, so we assume that we are writing a new share, and set
-            # a test vector that will allow a new share to be written.
+            # a test vector that will only allow a new share to be written.
             self._testvs = []
-            self._testvs.append(tuple([0, 1, b"eq", b""]))
+            self._testvs.append(tuple([0, 1, b""]))
 
         tw_vectors = {}
         tw_vectors[self.shnum] = (self._testvs, datavs, None)
@@ -889,7 +889,7 @@ class MDMFSlotWriteProxy(object):
             self._testvs = []
         else:
             self._testvs = []
-            self._testvs.append((0, len(checkstring), b"eq", checkstring))
+            self._testvs.append((0, len(checkstring), checkstring))
 
 
     def __repr__(self):
@@ -1161,8 +1161,10 @@ class MDMFSlotWriteProxy(object):
         """I write the data vectors in datavs to the remote slot."""
         tw_vectors = {}
         if not self._testvs:
+            # Make sure we will only successfully write if the share didn't
+            # previously exist.
             self._testvs = []
-            self._testvs.append(tuple([0, 1, b"eq", b""]))
+            self._testvs.append(tuple([0, 1, b""]))
         if not self._written:
             # Write a new checkstring to the share when we write it, so
             # that we have something to check later.
@@ -1170,7 +1172,7 @@ class MDMFSlotWriteProxy(object):
             datavs.append((0, new_checkstring))
             def _first_write():
                 self._written = True
-                self._testvs = [(0, len(new_checkstring), b"eq", new_checkstring)]
+                self._testvs = [(0, len(new_checkstring), new_checkstring)]
             on_success = _first_write
         tw_vectors[self.shnum] = (self._testvs, datavs, None)
         d = self._storage_server.slot_testv_and_readv_and_writev(

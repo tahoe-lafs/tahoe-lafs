@@ -1,0 +1,62 @@
+{
+    "mach-nix": {
+        "branch": "master",
+        "description": "Create highly reproducible python environments",
+        "homepage": "",
+        "owner": "davhau",
+        "repo": "mach-nix",
+        "rev": "bdc97ba6b2ecd045a467b008cff4ae337b6a7a6b",
+        "sha256": "12b3jc0g0ak6s93g3ifvdpwxbyqx276k1kl66bpwz8a67qjbcbwf",
+        "type": "tarball",
+        "url": "https://github.com/davhau/mach-nix/archive/bdc97ba6b2ecd045a467b008cff4ae337b6a7a6b.tar.gz",
+        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
+    },
+    "niv": {
+        "branch": "master",
+        "description": "Easy dependency management for Nix projects",
+        "homepage": "https://github.com/nmattia/niv",
+        "owner": "nmattia",
+        "repo": "niv",
+        "rev": "5830a4dd348d77e39a0f3c4c762ff2663b602d4c",
+        "sha256": "1d3lsrqvci4qz2hwjrcnd8h5vfkg8aypq3sjd4g3izbc8frwz5sm",
+        "type": "tarball",
+        "url": "https://github.com/nmattia/niv/archive/5830a4dd348d77e39a0f3c4c762ff2663b602d4c.tar.gz",
+        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
+    },
+    "nixpkgs-21.05": {
+        "branch": "nixos-21.05",
+        "description": "Nix Packages collection",
+        "homepage": "",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "0fd9ee1aa36ce865ad273f4f07fdc093adeb5c00",
+        "sha256": "1mr2qgv5r2nmf6s3gqpcjj76zpsca6r61grzmqngwm0xlh958smx",
+        "type": "tarball",
+        "url": "https://github.com/NixOS/nixpkgs/archive/0fd9ee1aa36ce865ad273f4f07fdc093adeb5c00.tar.gz",
+        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
+    },
+    "nixpkgs-21.11": {
+        "branch": "nixos-21.11",
+        "description": "Nix Packages collection",
+        "homepage": "",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "838eefb4f93f2306d4614aafb9b2375f315d917f",
+        "sha256": "1bm8cmh1wx4h8b4fhbs75hjci3gcrpi7k1m1pmiy3nc0gjim9vkg",
+        "type": "tarball",
+        "url": "https://github.com/NixOS/nixpkgs/archive/838eefb4f93f2306d4614aafb9b2375f315d917f.tar.gz",
+        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
+    },
+    "pypi-deps-db": {
+        "branch": "master",
+        "description": "Probably the most complete python dependency database",
+        "homepage": "",
+        "owner": "DavHau",
+        "repo": "pypi-deps-db",
+        "rev": "76b8f1e44a8ec051b853494bcf3cc8453a294a6a",
+        "sha256": "18fgqyh4z578jjhk26n1xi2cw2l98vrqp962rgz9a6wa5yh1nm4x",
+        "type": "tarball",
+        "url": "https://github.com/DavHau/pypi-deps-db/archive/76b8f1e44a8ec051b853494bcf3cc8453a294a6a.tar.gz",
+        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
+    }
+}

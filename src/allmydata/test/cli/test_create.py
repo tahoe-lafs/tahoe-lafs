@@ -1,13 +1,33 @@
+"""
+Ported to Python 3.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+
 import os
-import mock
+
+try:
+    from typing import Any, List, Tuple
+except ImportError:
+    pass
+
 from twisted.trial import unittest
 from twisted.internet import defer, reactor
 from twisted.python import usage
 from allmydata.util import configutil
+from allmydata.util import tor_provider, i2p_provider
 from ..common_util import run_cli, parse_cli
+from ..common import (
+    disable_modules,
+)
 from ...scripts import create_node
 from ... import client
-
 
 def read_config(basedir):
     tahoe_cfg = os.path.join(basedir, "tahoe.cfg")
@@ -93,11 +113,12 @@ class Config(unittest.TestCase):
 
     @defer.inlineCallbacks
     def test_client_hide_ip_no_i2p_txtorcon(self):
-        # hmm, I must be doing something weird, these don't work as
-        # @mock.patch decorators for some reason
-        txi2p = mock.patch('allmydata.util.i2p_provider._import_txi2p', return_value=None)
-        txtorcon = mock.patch('allmydata.util.tor_provider._import_txtorcon', return_value=None)
-        with txi2p, txtorcon:
+        """
+        The ``create-client`` sub-command tells the user to install the necessary
+        dependencies if they have neither tor nor i2p support installed and
+        they request network location privacy with the ``--hide-ip`` flag.
+        """
+        with disable_modules("txi2p", "txtorcon"):
             basedir = self.mktemp()
             rc, out, err = yield run_cli("create-client", "--hide-ip", basedir)
             self.assertTrue(rc != 0, out)
@@ -106,8 +127,7 @@ class Config(unittest.TestCase):
 
     @defer.inlineCallbacks
     def test_client_i2p_option_no_txi2p(self):
-        txi2p = mock.patch('allmydata.util.i2p_provider._import_txi2p', return_value=None)
-        with txi2p:
+        with disable_modules("txi2p"):
             basedir = self.mktemp()
             rc, out, err = yield run_cli("create-node", "--listen=i2p", "--i2p-launch", basedir)
             self.assertTrue(rc != 0)
@@ -115,8 +135,7 @@ class Config(unittest.TestCase):
 
     @defer.inlineCallbacks
     def test_client_tor_option_no_txtorcon(self):
-        txtorcon = mock.patch('allmydata.util.tor_provider._import_txtorcon', return_value=None)
-        with txtorcon:
+        with disable_modules("txtorcon"):
             basedir = self.mktemp()
             rc, out, err = yield run_cli("create-node", "--listen=tor", "--tor-launch", basedir)
             self.assertTrue(rc != 0)
@@ -133,9 +152,7 @@ class Config(unittest.TestCase):
 
     @defer.inlineCallbacks
     def test_client_hide_ip_no_txtorcon(self):
-        txtorcon = mock.patch('allmydata.util.tor_provider._import_txtorcon',
-                              return_value=None)
-        with txtorcon:
+        with disable_modules("txtorcon"):
             basedir = self.mktemp()
             rc, out, err = yield run_cli("create-client", "--hide-ip", basedir)
             self.assertEqual(0, rc)
@@ -283,11 +300,10 @@ class Config(unittest.TestCase):
     def test_node_slow_tor(self):
         basedir = self.mktemp()
         d = defer.Deferred()
-        with mock.patch("allmydata.util.tor_provider.create_config",
-                        return_value=d):
-            d2 = run_cli("create-node", "--listen=tor", basedir)
-            d.callback(({}, "port", "location"))
-            rc, out, err = yield d2
+        self.patch(tor_provider, "create_config", lambda *a, **kw: d)
+        d2 = run_cli("create-node", "--listen=tor", basedir)
+        d.callback(({}, "port", "location"))
+        rc, out, err = yield d2
         self.assertEqual(rc, 0)
         self.assertIn("Node created", out)
         self.assertEqual(err, "")
@@ -296,11 +312,10 @@ class Config(unittest.TestCase):
     def test_node_slow_i2p(self):
         basedir = self.mktemp()
         d = defer.Deferred()
-        with mock.patch("allmydata.util.i2p_provider.create_config",
-                        return_value=d):
-            d2 = run_cli("create-node", "--listen=i2p", basedir)
-            d.callback(({}, "port", "location"))
-            rc, out, err = yield d2
+        self.patch(i2p_provider, "create_config", lambda *a, **kw: d)
+        d2 = run_cli("create-node", "--listen=i2p", basedir)
+        d.callback(({}, "port", "location"))
+        rc, out, err = yield d2
         self.assertEqual(rc, 0)
         self.assertIn("Node created", out)
         self.assertEqual(err, "")
@@ -341,6 +356,27 @@ class Config(unittest.TestCase):
         self.assertIn("is not empty", err)
         self.assertIn("To avoid clobbering anything, I am going to quit now", err)
 
+def fake_config(testcase, module, result):
+    # type: (unittest.TestCase, Any, Any) -> List[Tuple]
+    """
+    Monkey-patch a fake configuration function into the given module.
+
+    :param testcase: The test case to use to do the monkey-patching.
+
+    :param module: The module into which to patch the fake function.
+
+    :param result: The return value for the fake function.
+
+    :return: A list of tuples of the arguments the fake function was called
+        with.
+    """
+    calls = []
+    def fake_config(reactor, cli_config):
+        calls.append((reactor, cli_config))
+        return result
+    testcase.patch(module, "create_config", fake_config)
+    return calls
+
 class Tor(unittest.TestCase):
     def test_default(self):
         basedir = self.mktemp()
@@ -348,12 +384,14 @@ class Tor(unittest.TestCase):
         tor_port = "ghi"
         tor_location = "jkl"
         config_d = defer.succeed( (tor_config, tor_port, tor_location) )
-        with mock.patch("allmydata.util.tor_provider.create_config",
-                        return_value=config_d) as co:
-            rc, out, err = self.successResultOf(
-                run_cli("create-node", "--listen=tor", basedir))
-        self.assertEqual(len(co.mock_calls), 1)
-        args = co.mock_calls[0][1]
+
+        calls = fake_config(self, tor_provider, config_d)
+        rc, out, err = self.successResultOf(
+            run_cli("create-node", "--listen=tor", basedir),
+        )
+
+        self.assertEqual(len(calls), 1)
+        args = calls[0]
         self.assertIdentical(args[0], reactor)
         self.assertIsInstance(args[1], create_node.CreateNodeOptions)
         self.assertEqual(args[1]["listen"], "tor")
@@ -368,12 +406,15 @@ class Tor(unittest.TestCase):
         tor_port = "ghi"
         tor_location = "jkl"
         config_d = defer.succeed( (tor_config, tor_port, tor_location) )
-        with mock.patch("allmydata.util.tor_provider.create_config",
-                        return_value=config_d) as co:
-            rc, out, err = self.successResultOf(
-                run_cli("create-node", "--listen=tor", "--tor-launch",
-                        basedir))
-        args = co.mock_calls[0][1]
+
+        calls = fake_config(self, tor_provider, config_d)
+        rc, out, err = self.successResultOf(
+            run_cli(
+                "create-node", "--listen=tor", "--tor-launch",
+                basedir,
+            ),
+        )
+        args = calls[0]
         self.assertEqual(args[1]["listen"], "tor")
         self.assertEqual(args[1]["tor-launch"], True)
         self.assertEqual(args[1]["tor-control-port"], None)
@@ -384,12 +425,15 @@ class Tor(unittest.TestCase):
         tor_port = "ghi"
         tor_location = "jkl"
         config_d = defer.succeed( (tor_config, tor_port, tor_location) )
-        with mock.patch("allmydata.util.tor_provider.create_config",
-                        return_value=config_d) as co:
-            rc, out, err = self.successResultOf(
-                run_cli("create-node", "--listen=tor", "--tor-control-port=mno",
-                        basedir))
-        args = co.mock_calls[0][1]
+
+        calls = fake_config(self, tor_provider, config_d)
+        rc, out, err = self.successResultOf(
+            run_cli(
+                "create-node", "--listen=tor", "--tor-control-port=mno",
+                basedir,
+            ),
+        )
+        args = calls[0]
         self.assertEqual(args[1]["listen"], "tor")
         self.assertEqual(args[1]["tor-launch"], False)
         self.assertEqual(args[1]["tor-control-port"], "mno")
@@ -422,12 +466,13 @@ class I2P(unittest.TestCase):
         i2p_port = "ghi"
         i2p_location = "jkl"
         dest_d = defer.succeed( (i2p_config, i2p_port, i2p_location) )
-        with mock.patch("allmydata.util.i2p_provider.create_config",
-                        return_value=dest_d) as co:
-            rc, out, err = self.successResultOf(
-                run_cli("create-node", "--listen=i2p", basedir))
-        self.assertEqual(len(co.mock_calls), 1)
-        args = co.mock_calls[0][1]
+
+        calls = fake_config(self, i2p_provider, dest_d)
+        rc, out, err = self.successResultOf(
+            run_cli("create-node", "--listen=i2p", basedir),
+        )
+        self.assertEqual(len(calls), 1)
+        args = calls[0]
         self.assertIdentical(args[0], reactor)
         self.assertIsInstance(args[1], create_node.CreateNodeOptions)
         self.assertEqual(args[1]["listen"], "i2p")
@@ -449,12 +494,15 @@ class I2P(unittest.TestCase):
         i2p_port = "ghi"
         i2p_location = "jkl"
         dest_d = defer.succeed( (i2p_config, i2p_port, i2p_location) )
-        with mock.patch("allmydata.util.i2p_provider.create_config",
-                        return_value=dest_d) as co:
-            rc, out, err = self.successResultOf(
-                run_cli("create-node", "--listen=i2p", "--i2p-sam-port=mno",
-                        basedir))
-        args = co.mock_calls[0][1]
+
+        calls = fake_config(self, i2p_provider, dest_d)
+        rc, out, err = self.successResultOf(
+            run_cli(
+                "create-node", "--listen=i2p", "--i2p-sam-port=mno",
+                basedir,
+            ),
+        )
+        args = calls[0]
         self.assertEqual(args[1]["listen"], "i2p")
         self.assertEqual(args[1]["i2p-launch"], False)
         self.assertEqual(args[1]["i2p-sam-port"], "mno")

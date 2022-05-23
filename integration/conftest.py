@@ -1,4 +1,14 @@
+"""
+Ported to Python 3.
+"""
+from __future__ import unicode_literals
+from __future__ import absolute_import
+from __future__ import division
 from __future__ import print_function
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 import sys
 import shutil
@@ -7,6 +17,7 @@ from os import mkdir, listdir, environ
 from os.path import join, exists
 from tempfile import mkdtemp, mktemp
 from functools import partial
+from json import loads
 
 from foolscap.furl import (
     decode_furl,
@@ -27,7 +38,7 @@ from twisted.internet.error import (
 import pytest
 import pytest_twisted
 
-from util import (
+from .util import (
     _CollectOutputProtocol,
     _MagicTextProtocol,
     _DumpOutputProtocol,
@@ -37,6 +48,10 @@ from util import (
     _tahoe_runner_optional_coverage,
     await_client_ready,
     TahoeProcess,
+    cli,
+    _run_node,
+    generate_ssh_key,
+    block_with_timeout,
 )
 
 
@@ -152,7 +167,7 @@ def flog_gatherer(reactor, temp_dir, flog_binary, request):
         )
         print("Waiting for flogtool to complete")
         try:
-            pytest_twisted.blockon(flog_protocol.done)
+            block_with_timeout(flog_protocol.done, reactor)
         except ProcessTerminated as e:
             print("flogtool exited unexpectedly: {}".format(str(e)))
         print("Flogtool completed")
@@ -201,9 +216,8 @@ log_gatherer.furl = {log_furl}
     with open(join(intro_dir, 'tahoe.cfg'), 'w') as f:
         f.write(config)
 
-    # on windows, "tahoe start" means: run forever in the foreground,
-    # but on linux it means daemonize. "tahoe run" is consistent
-    # between platforms.
+    # "tahoe run" is consistent across Linux/macOS/Windows, unlike the old
+    # "start" command.
     protocol = _MagicTextProtocol('introducer running')
     transport = _tahoe_runner_optional_coverage(
         protocol,
@@ -278,9 +292,8 @@ log_gatherer.furl = {log_furl}
     with open(join(intro_dir, 'tahoe.cfg'), 'w') as f:
         f.write(config)
 
-    # on windows, "tahoe start" means: run forever in the foreground,
-    # but on linux it means daemonize. "tahoe run" is consistent
-    # between platforms.
+    # "tahoe run" is consistent across Linux/macOS/Windows, unlike the old
+    # "start" command.
     protocol = _MagicTextProtocol('introducer running')
     transport = _tahoe_runner_optional_coverage(
         protocol,
@@ -295,7 +308,7 @@ log_gatherer.furl = {log_furl}
     def cleanup():
         try:
             transport.signalProcess('TERM')
-            pytest_twisted.blockon(protocol.exited)
+            block_with_timeout(protocol.exited, reactor)
         except ProcessExitedAlready:
             pass
     request.addfinalizer(cleanup)
@@ -340,17 +353,66 @@ def storage_nodes(reactor, temp_dir, introducer, introducer_furl, flog_gatherer,
         nodes.append(process)
     return nodes
 
+@pytest.fixture(scope="session")
+def alice_sftp_client_key_path(temp_dir):
+    # The client SSH key path is typically going to be somewhere else (~/.ssh,
+    # typically), but for convenience sake for testing we'll put it inside node.
+    return join(temp_dir, "alice", "private", "ssh_client_rsa_key")
 
 @pytest.fixture(scope='session')
 @log_call(action_type=u"integration:alice", include_args=[], include_result=False)
-def alice(reactor, temp_dir, introducer_furl, flog_gatherer, storage_nodes, request):
+def alice(
+        reactor,
+        temp_dir,
+        introducer_furl,
+        flog_gatherer,
+        storage_nodes,
+        alice_sftp_client_key_path,
+        request,
+):
     process = pytest_twisted.blockon(
         _create_node(
             reactor, request, temp_dir, introducer_furl, flog_gatherer, "alice",
             web_port="tcp:9980:interface=localhost",
             storage=False,
+            # We're going to kill this ourselves, so no need for finalizer to
+            # do it:
+            finalize=False,
         )
     )
+    await_client_ready(process)
+
+    # 1. Create a new RW directory cap:
+    cli(process, "create-alias", "test")
+    rwcap = loads(cli(process, "list-aliases", "--json"))["test"]["readwrite"]
+
+    # 2. Enable SFTP on the node:
+    host_ssh_key_path = join(process.node_dir, "private", "ssh_host_rsa_key")
+    accounts_path = join(process.node_dir, "private", "accounts")
+    with open(join(process.node_dir, "tahoe.cfg"), "a") as f:
+        f.write("""\
+[sftpd]
+enabled = true
+port = tcp:8022:interface=127.0.0.1
+host_pubkey_file = {ssh_key_path}.pub
+host_privkey_file = {ssh_key_path}
+accounts.file = {accounts_path}
+""".format(ssh_key_path=host_ssh_key_path, accounts_path=accounts_path))
+    generate_ssh_key(host_ssh_key_path)
+
+    # 3. Add a SFTP access file with an SSH key for auth.
+    generate_ssh_key(alice_sftp_client_key_path)
+    # Pub key format is "ssh-rsa <thekey> <username>". We want the key.
+    ssh_public_key = open(alice_sftp_client_key_path + ".pub").read().strip().split()[1]
+    with open(accounts_path, "w") as f:
+        f.write("""\
+alice-key ssh-rsa {ssh_public_key} {rwcap}
+""".format(rwcap=rwcap, ssh_public_key=ssh_public_key))
+
+    # 4. Restart the node with new SFTP config.
+    process.kill()
+    pytest_twisted.blockon(_run_node(reactor, process.node_dir, request, None))
+
     await_client_ready(process)
     return process
 
@@ -400,10 +462,8 @@ def chutney(reactor, temp_dir):
     )
     pytest_twisted.blockon(proto.done)
 
-    # XXX: Here we reset Chutney to the last revision known to work
-    # with Python 2, as a workaround for Chutney moving to Python 3.
-    # When this is no longer necessary, we will have to drop this and
-    # add '--depth=1' back to the above 'git clone' subprocess.
+    # XXX: Here we reset Chutney to a specific revision known to work,
+    # since there are no stability guarantees or releases yet.
     proto = _DumpOutputProtocol(None)
     reactor.spawnProcess(
         proto,
@@ -411,7 +471,7 @@ def chutney(reactor, temp_dir):
         (
             'git', '-C', chutney_dir,
             'reset', '--hard',
-            '99bd06c7554b9113af8c0877b6eca4ceb95dcbaa'
+            'c825cba0bcd813c644c6ac069deeb7347d3200ee'
         ),
         env=environ,
     )
@@ -492,7 +552,13 @@ def tor_network(reactor, temp_dir, chutney, request):
             path=join(chutney_dir),
             env=env,
         )
-        pytest_twisted.blockon(proto.done)
+        try:
+            block_with_timeout(proto.done, reactor)
+        except ProcessTerminated:
+            # If this doesn't exit cleanly, that's fine, that shouldn't fail
+            # the test suite.
+            pass
+
     request.addfinalizer(cleanup)
 
     return chut

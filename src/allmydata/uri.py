@@ -16,11 +16,16 @@ if PY2:
     # Don't import bytes or str, to prevent future's newbytes leaking and
     # breaking code that only expects normal bytes.
     from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, dict, list, object, range, max, min  # noqa: F401
-    str = unicode
+    from past.builtins import unicode as str
 
 from past.builtins import unicode, long
 
 import re
+
+try:
+    from typing import Type
+except ImportError:
+    pass
 
 from zope.interface import implementer
 from twisted.python.components import registerAdapter
@@ -94,7 +99,7 @@ class CHKFileURI(_BaseURI):
     def init_from_string(cls, uri):
         mo = cls.STRING_RE.search(uri)
         if not mo:
-            raise BadURIError("'%s' doesn't look like a %s cap" % (uri, cls))
+            raise BadURIError("%r doesn't look like a %s cap" % (uri, cls))
         return cls(base32.a2b(mo.group(1)), base32.a2b(mo.group(2)),
                    int(mo.group(3)), int(mo.group(4)), int(mo.group(5)))
 
@@ -238,7 +243,7 @@ class WriteableSSKFileURI(_BaseURI):
     def init_from_string(cls, uri):
         mo = cls.STRING_RE.search(uri)
         if not mo:
-            raise BadURIError("'%s' doesn't look like a %s cap" % (uri, cls))
+            raise BadURIError("%r doesn't look like a %s cap" % (uri, cls))
         return cls(base32.a2b(mo.group(1)), base32.a2b(mo.group(2)))
 
     def to_string(self):
@@ -248,7 +253,7 @@ class WriteableSSKFileURI(_BaseURI):
                                    base32.b2a(self.fingerprint))
 
     def __repr__(self):
-        return "<%s %s>" % (self.__class__.__name__, self.abbrev())
+        return "<%s %r>" % (self.__class__.__name__, self.abbrev())
 
     def abbrev(self):
         return base32.b2a(self.writekey[:5])
@@ -285,7 +290,7 @@ class ReadonlySSKFileURI(_BaseURI):
     def init_from_string(cls, uri):
         mo = cls.STRING_RE.search(uri)
         if not mo:
-            raise BadURIError("'%s' doesn't look like a %s cap" % (uri, cls))
+            raise BadURIError("%r doesn't look like a %s cap" % (uri, cls))
         return cls(base32.a2b(mo.group(1)), base32.a2b(mo.group(2)))
 
     def to_string(self):
@@ -295,7 +300,7 @@ class ReadonlySSKFileURI(_BaseURI):
                                       base32.b2a(self.fingerprint))
 
     def __repr__(self):
-        return "<%s %s>" % (self.__class__.__name__, self.abbrev())
+        return "<%s %r>" % (self.__class__.__name__, self.abbrev())
 
     def abbrev(self):
         return base32.b2a(self.readkey[:5])
@@ -331,7 +336,7 @@ class SSKVerifierURI(_BaseURI):
     def init_from_string(cls, uri):
         mo = cls.STRING_RE.search(uri)
         if not mo:
-            raise BadURIError("'%s' doesn't look like a %s cap" % (uri, cls))
+            raise BadURIError("%r doesn't look like a %s cap" % (uri, cls))
         return cls(si_a2b(mo.group(1)), base32.a2b(mo.group(2)))
 
     def to_string(self):
@@ -370,7 +375,7 @@ class WriteableMDMFFileURI(_BaseURI):
     def init_from_string(cls, uri):
         mo = cls.STRING_RE.search(uri)
         if not mo:
-            raise BadURIError("'%s' doesn't look like a %s cap" % (uri, cls))
+            raise BadURIError("%r doesn't look like a %s cap" % (uri, cls))
         return cls(base32.a2b(mo.group(1)), base32.a2b(mo.group(2)))
 
     def to_string(self):
@@ -381,7 +386,7 @@ class WriteableMDMFFileURI(_BaseURI):
         return ret
 
     def __repr__(self):
-        return "<%s %s>" % (self.__class__.__name__, self.abbrev())
+        return "<%s %r>" % (self.__class__.__name__, self.abbrev())
 
     def abbrev(self):
         return base32.b2a(self.writekey[:5])
@@ -418,7 +423,7 @@ class ReadonlyMDMFFileURI(_BaseURI):
     def init_from_string(cls, uri):
         mo = cls.STRING_RE.search(uri)
         if not mo:
-            raise BadURIError("'%s' doesn't look like a %s cap" % (uri, cls))
+            raise BadURIError("%r doesn't look like a %s cap" % (uri, cls))
 
         return cls(base32.a2b(mo.group(1)), base32.a2b(mo.group(2)))
 
@@ -430,7 +435,7 @@ class ReadonlyMDMFFileURI(_BaseURI):
         return ret
 
     def __repr__(self):
-        return "<%s %s>" % (self.__class__.__name__, self.abbrev())
+        return "<%s %r>" % (self.__class__.__name__, self.abbrev())
 
     def abbrev(self):
         return base32.b2a(self.readkey[:5])
@@ -466,7 +471,7 @@ class MDMFVerifierURI(_BaseURI):
     def init_from_string(cls, uri):
         mo = cls.STRING_RE.search(uri)
         if not mo:
-            raise BadURIError("'%s' doesn't look like a %s cap" % (uri, cls))
+            raise BadURIError("%r doesn't look like a %s cap" % (uri, cls))
         return cls(si_a2b(mo.group(1)), base32.a2b(mo.group(2)))
 
     def to_string(self):
@@ -489,19 +494,19 @@ class MDMFVerifierURI(_BaseURI):
         return self
 
 
-@implementer(IURI, IDirnodeURI)
+@implementer(IDirnodeURI)
 class _DirectoryBaseURI(_BaseURI):
     def __init__(self, filenode_uri=None):
         self._filenode_uri = filenode_uri
 
     def __repr__(self):
-        return "<%s %s>" % (self.__class__.__name__, self.abbrev())
+        return "<%s %r>" % (self.__class__.__name__, self.abbrev())
 
     @classmethod
     def init_from_string(cls, uri):
         mo = cls.BASE_STRING_RE.search(uri)
         if not mo:
-            raise BadURIError("'%s' doesn't look like a %s cap" % (uri, cls))
+            raise BadURIError("%r doesn't look like a %s cap" % (uri, cls))
         bits = uri[mo.end():]
         fn = cls.INNER_URI_CLASS.init_from_string(
             cls.INNER_URI_CLASS.BASE_STRING+bits)
@@ -536,7 +541,7 @@ class _DirectoryBaseURI(_BaseURI):
         return self._filenode_uri.get_storage_index()
 
 
-@implementer(IDirectoryURI)
+@implementer(IURI, IDirectoryURI)
 class DirectoryURI(_DirectoryBaseURI):
 
     BASE_STRING=b'URI:DIR2:'
@@ -555,7 +560,7 @@ class DirectoryURI(_DirectoryBaseURI):
         return ReadonlyDirectoryURI(self._filenode_uri.get_readonly())
 
 
-@implementer(IReadonlyDirectoryURI)
+@implementer(IURI, IReadonlyDirectoryURI)
 class ReadonlyDirectoryURI(_DirectoryBaseURI):
 
     BASE_STRING=b'URI:DIR2-RO:'
@@ -574,6 +579,7 @@ class ReadonlyDirectoryURI(_DirectoryBaseURI):
         return self
 
 
+@implementer(IURI, IDirnodeURI)
 class _ImmutableDirectoryBaseURI(_DirectoryBaseURI):
     def __init__(self, filenode_uri=None):
         if filenode_uri:
@@ -611,7 +617,7 @@ class LiteralDirectoryURI(_ImmutableDirectoryBaseURI):
         return None
 
 
-@implementer(IDirectoryURI)
+@implementer(IURI, IDirectoryURI)
 class MDMFDirectoryURI(_DirectoryBaseURI):
 
     BASE_STRING=b'URI:DIR2-MDMF:'
@@ -633,7 +639,7 @@ class MDMFDirectoryURI(_DirectoryBaseURI):
         return MDMFDirectoryURIVerifier(self._filenode_uri.get_verify_cap())
 
 
-@implementer(IReadonlyDirectoryURI)
+@implementer(IURI, IReadonlyDirectoryURI)
 class ReadonlyMDMFDirectoryURI(_DirectoryBaseURI):
 
     BASE_STRING=b'URI:DIR2-MDMF-RO:'
@@ -671,7 +677,7 @@ def wrap_dirnode_cap(filecap):
     raise AssertionError("cannot interpret as a directory cap: %s" % filecap.__class__)
 
 
-@implementer(IVerifierURI)
+@implementer(IURI, IVerifierURI)
 class MDMFDirectoryURIVerifier(_DirectoryBaseURI):
 
     BASE_STRING=b'URI:DIR2-MDMF-Verifier:'
@@ -696,12 +702,12 @@ class MDMFDirectoryURIVerifier(_DirectoryBaseURI):
         return self
 
 
-@implementer(IVerifierURI)
+@implementer(IURI, IVerifierURI)
 class DirectoryURIVerifier(_DirectoryBaseURI):
 
     BASE_STRING=b'URI:DIR2-Verifier:'
     BASE_STRING_RE=re.compile(b'^'+BASE_STRING)
-    INNER_URI_CLASS=SSKVerifierURI
+    INNER_URI_CLASS=SSKVerifierURI  # type: Type[IVerifierURI]
 
     def __init__(self, filenode_uri=None):
         if filenode_uri:

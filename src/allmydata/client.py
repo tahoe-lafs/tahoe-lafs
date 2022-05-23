@@ -1,4 +1,16 @@
-from past.builtins import unicode
+"""
+Ported to Python 3.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from future.utils import PY2
+if PY2:
+    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, max, min  # noqa: F401
+    # Don't use future str to prevent leaking future's newbytes into foolscap, which they break.
+    from past.builtins import unicode as str
 
 import os
 import stat
@@ -7,7 +19,6 @@ import weakref
 
 from base64 import urlsafe_b64encode
 from functools import partial
-
 # On Python 2 this will be the backported package:
 from configparser import NoSectionError
 
@@ -30,11 +41,10 @@ import allmydata
 from allmydata import node
 from allmydata.crypto import rsa, ed25519
 from allmydata.crypto.util import remove_prefix
-from allmydata.storage.server import StorageServer
+from allmydata.storage.server import StorageServer, FoolscapStorageServer
 from allmydata import storage_client
 from allmydata.immutable.upload import Uploader
 from allmydata.immutable.offloaded import Helper
-from allmydata.control import ControlServer
 from allmydata.introducer.client import IntroducerClient
 from allmydata.util import (
     hashutil, base32, pollmixin, log, idlib,
@@ -89,7 +99,6 @@ _client_config = configutil.ValidConfiguration(
             "shares.happy",
             "shares.needed",
             "shares.total",
-            "stats_gatherer.furl",
             "storage.plugins",
         ),
         "grid_managers": None,  # means "any options valid"
@@ -119,7 +128,6 @@ _client_config = configutil.ValidConfiguration(
         ),
         "sftpd": (
             "accounts.file",
-            "accounts.url",
             "enabled",
             "host_privkey_file",
             "host_pubkey_file",
@@ -173,29 +181,12 @@ class SecretHolder(object):
 
 class KeyGenerator(object):
     """I create RSA keys for mutable files. Each call to generate() returns a
-    single keypair. The keysize is specified first by the keysize= argument
-    to generate(), then with a default set by set_default_keysize(), then
-    with a built-in default of 2048 bits."""
-    def __init__(self):
-        self.default_keysize = 2048
+    single keypair."""
 
-    def set_default_keysize(self, keysize):
-        """Call this to override the size of the RSA keys created for new
-        mutable files which don't otherwise specify a size. This will affect
-        all subsequent calls to generate() without a keysize= argument. The
-        default size is 2048 bits. Test cases should call this method once
-        during setup, to cause me to create smaller keys, so the unit tests
-        run faster."""
-        self.default_keysize = keysize
-
-    def generate(self, keysize=None):
+    def generate(self):
         """I return a Deferred that fires with a (verifyingkey, signingkey)
-        pair. I accept a keysize in bits (2048 bit keys are standard, smaller
-        keys are used for testing). If you do not provide a keysize, I will
-        use my default, which is set by a call to set_default_keysize(). If
-        set_default_keysize() has never been called, I will create 2048 bit
-        keys."""
-        keysize = keysize or self.default_keysize
+        pair. The returned key will be 2048 bit"""
+        keysize = 2048
         # RSA key generation for a 2048 bit key takes between 0.8 and 3.2
         # secs
         signer, verifier = rsa.create_signing_keypair(keysize)
@@ -279,7 +270,7 @@ def create_client_from_config(config, _client_factory=None, _introducer_factory=
 
     i2p_provider = create_i2p_provider(reactor, config)
     tor_provider = create_tor_provider(reactor, config)
-    handlers = node.create_connection_handlers(reactor, config, i2p_provider, tor_provider)
+    handlers = node.create_connection_handlers(config, i2p_provider, tor_provider)
     default_connection_handlers, foolscap_connection_handlers = handlers
     tub_options = node.create_tub_options(config)
 
@@ -287,7 +278,6 @@ def create_client_from_config(config, _client_factory=None, _introducer_factory=
         config, tub_options, default_connection_handlers,
         foolscap_connection_handlers, i2p_provider, tor_provider,
     )
-    control_tub = node.create_control_tub()
 
     introducer_clients = create_introducer_clients(config, main_tub, _introducer_factory)
     storage_broker = create_storage_farm_broker(
@@ -298,7 +288,6 @@ def create_client_from_config(config, _client_factory=None, _introducer_factory=
     client = _client_factory(
         config,
         main_tub,
-        control_tub,
         i2p_provider,
         tor_provider,
         introducer_clients,
@@ -379,8 +368,8 @@ class _StoragePlugins(object):
         """
         return set(
             config.get_config(
-                "storage", "plugins", b""
-            ).decode("ascii").split(u",")
+                "storage", "plugins", ""
+            ).split(u",")
         ) - {u""}
 
     @classmethod
@@ -475,7 +464,7 @@ def create_introducer_clients(config, main_tub, _introducer_factory=None):
 
     introducers = config.get_introducer_configuration()
 
-    for petname, (furl, cache_path) in introducers.items():
+    for petname, (furl, cache_path) in list(introducers.items()):
         ic = _introducer_factory(
             main_tub,
             furl.encode("ascii"),
@@ -643,12 +632,12 @@ class _Client(node.Node, pollmixin.PollMixin):
                                    "max_segment_size": DEFAULT_MAX_SEGMENT_SIZE,
                                    }
 
-    def __init__(self, config, main_tub, control_tub, i2p_provider, tor_provider, introducer_clients,
+    def __init__(self, config, main_tub, i2p_provider, tor_provider, introducer_clients,
                  storage_farm_broker):
         """
         Use :func:`allmydata.client.create_client` to instantiate one of these.
         """
-        node.Node.__init__(self, config, main_tub, control_tub, i2p_provider, tor_provider)
+        node.Node.__init__(self, config, main_tub, i2p_provider, tor_provider)
 
         self.started_timestamp = time.time()
         self.logSource = "Client"
@@ -660,7 +649,6 @@ class _Client(node.Node, pollmixin.PollMixin):
         self.init_stats_provider()
         self.init_secrets()
         self.init_node_key()
-        self.init_control()
         self._key_generator = KeyGenerator()
         key_gen_furl = config.get_config("client", "key_generator.furl", None)
         if key_gen_furl:
@@ -673,7 +661,6 @@ class _Client(node.Node, pollmixin.PollMixin):
                 raise ValueError("config error: helper is enabled, but tub "
                                  "is not listening ('tub.port=' is empty)")
             self.init_helper()
-        self.init_ftp_server()
         self.init_sftp_server()
 
         # If the node sees an exit_trigger file, it will poll every second to see
@@ -693,11 +680,7 @@ class _Client(node.Node, pollmixin.PollMixin):
             self.init_web(webport) # strports string
 
     def init_stats_provider(self):
-        gatherer_furl = self.config.get_config("client", "stats_gatherer.furl", None)
-        if gatherer_furl:
-            # FURLs should be bytes:
-            gatherer_furl = gatherer_furl.encode("utf-8")
-        self.stats_provider = StatsProvider(self, gatherer_furl)
+        self.stats_provider = StatsProvider(self)
         self.stats_provider.setServiceParent(self)
         self.stats_provider.register_producer(self)
 
@@ -707,7 +690,7 @@ class _Client(node.Node, pollmixin.PollMixin):
     def init_secrets(self):
         # configs are always unicode
         def _unicode_make_secret():
-            return unicode(_make_secret(), "ascii")
+            return str(_make_secret(), "ascii")
         lease_s = self.config.get_or_create_private_config(
             "secret", _unicode_make_secret).encode("utf-8")
         lease_secret = base32.a2b(lease_s)
@@ -722,7 +705,7 @@ class _Client(node.Node, pollmixin.PollMixin):
         def _make_key():
             private_key, _ = ed25519.create_signing_keypair()
             # Config values are always unicode:
-            return unicode(ed25519.string_from_signing_key(private_key) + b"\n", "utf-8")
+            return str(ed25519.string_from_signing_key(private_key) + b"\n", "utf-8")
 
         private_key_str = self.config.get_or_create_private_config(
             "node.privkey", _make_key).encode("utf-8")
@@ -735,7 +718,7 @@ class _Client(node.Node, pollmixin.PollMixin):
     def get_long_nodeid(self):
         # this matches what IServer.get_longname() says about us elsewhere
         vk_string = ed25519.string_from_verifying_key(self._node_public_key)
-        return remove_prefix(vk_string, "pub-")
+        return remove_prefix(vk_string, b"pub-")
 
     def get_long_tubid(self):
         return idlib.nodeid_b2a(self.nodeid)
@@ -857,7 +840,7 @@ class _Client(node.Node, pollmixin.PollMixin):
 
         if anonymous_storage_enabled(self.config):
             furl_file = self.config.get_private_path("storage.furl").encode(get_filesystem_encoding())
-            furl = self.tub.registerReference(ss, furlFile=furl_file)
+            furl = self.tub.registerReference(FoolscapStorageServer(ss), furlFile=furl_file)
             announcement["anonymous-storage-FURL"] = furl
 
         enabled_storage_servers = self._enable_storage_servers(
@@ -910,7 +893,7 @@ class _Client(node.Node, pollmixin.PollMixin):
         """
         Register a storage server.
         """
-        config_key = b"storage-plugin.{}.furl".format(
+        config_key = "storage-plugin.{}.furl".format(
             # Oops, why don't I have a better handle on this value?
             announceable_storage_server.announcement[u"name"],
         )
@@ -930,10 +913,6 @@ class _Client(node.Node, pollmixin.PollMixin):
         helper_furl = self.config.get_config("client", "helper.furl", None)
         if helper_furl in ("None", ""):
             helper_furl = None
-
-        # FURLs need to be bytes:
-        if helper_furl is not None:
-            helper_furl = helper_furl.encode("utf-8")
 
         DEP = self.encoding_params
         DEP["k"] = int(self.config.get_config("client", "shares.needed", DEP["k"]))
@@ -961,7 +940,8 @@ class _Client(node.Node, pollmixin.PollMixin):
         random data in "api_auth_token" which must be echoed to API
         calls.
         """
-        return self.config.get_private_config('api_auth_token')
+        return self.config.get_private_config(
+            'api_auth_token').encode("ascii")
 
     def _create_auth_token(self):
         """
@@ -1017,12 +997,6 @@ class _Client(node.Node, pollmixin.PollMixin):
     def get_history(self):
         return self.history
 
-    def init_control(self):
-        c = ControlServer()
-        c.setServiceParent(self)
-        control_url = self.control_tub.registerReference(c)
-        self.config.write_private_config("control.furl", control_url + "\n")
-
     def init_helper(self):
         self.helper = Helper(self.config.get_config_path("helper"),
                              self.storage_broker, self._secret_holder,
@@ -1034,9 +1008,6 @@ class _Client(node.Node, pollmixin.PollMixin):
         # inputs and generated outputs is hard to see.
         helper_furlfile = self.config.get_private_path("helper.furl").encode(get_filesystem_encoding())
         self.tub.registerReference(self.helper, furlFile=helper_furlfile)
-
-    def set_default_mutable_keysize(self, keysize):
-        self._key_generator.set_default_keysize(keysize)
 
     def _get_tempdir(self):
         """
@@ -1069,30 +1040,17 @@ class _Client(node.Node, pollmixin.PollMixin):
         )
         ws.setServiceParent(self)
 
-    def init_ftp_server(self):
-        if self.config.get_config("ftpd", "enabled", False, boolean=True):
-            accountfile = self.config.get_config("ftpd", "accounts.file", None)
-            if accountfile:
-                accountfile = self.config.get_config_path(accountfile)
-            accounturl = self.config.get_config("ftpd", "accounts.url", None)
-            ftp_portstr = self.config.get_config("ftpd", "port", "8021")
-
-            from allmydata.frontends import ftpd
-            s = ftpd.FTPServer(self, accountfile, accounturl, ftp_portstr)
-            s.setServiceParent(self)
-
     def init_sftp_server(self):
         if self.config.get_config("sftpd", "enabled", False, boolean=True):
             accountfile = self.config.get_config("sftpd", "accounts.file", None)
             if accountfile:
                 accountfile = self.config.get_config_path(accountfile)
-            accounturl = self.config.get_config("sftpd", "accounts.url", None)
             sftp_portstr = self.config.get_config("sftpd", "port", "tcp:8022")
             pubkey_file = self.config.get_config("sftpd", "host_pubkey_file")
             privkey_file = self.config.get_config("sftpd", "host_privkey_file")
 
             from allmydata.frontends import sftpd
-            s = sftpd.SFTPServer(self, accountfile, accounturl,
+            s = sftpd.SFTPServer(self, accountfile,
                                  sftp_portstr, pubkey_file, privkey_file)
             s.setServiceParent(self)
 
@@ -1151,8 +1109,8 @@ class _Client(node.Node, pollmixin.PollMixin):
     def create_immutable_dirnode(self, children, convergence=None):
         return self.nodemaker.create_immutable_directory(children, convergence)
 
-    def create_mutable_file(self, contents=None, keysize=None, version=None):
-        return self.nodemaker.create_mutable_file(contents, keysize,
+    def create_mutable_file(self, contents=None, version=None):
+        return self.nodemaker.create_mutable_file(contents,
                                                   version=version)
 
     def upload(self, uploadable, reactor=None):
