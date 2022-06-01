@@ -275,7 +275,7 @@ _SCHEMAS = {
 
 
 # TODO unit tests? or rely on higher-level tests
-def read_range(request, read_data: Callable[int, int, bytes]) -> bytes:
+def read_range(request, read_data: Callable[int, int, bytes]) -> Optional[bytes]:
     """
     Parse the ``Range`` header, read appropriately, return as result.
 
@@ -284,15 +284,28 @@ def read_range(request, read_data: Callable[int, int, bytes]) -> bytes:
     Raises a ``_HTTPError(http.REQUESTED_RANGE_NOT_SATISFIABLE)`` if parsing is
     not possible or the header isn't set.
 
-    Returns the bytes to return from the request handler, and sets appropriate
-    response headers.
+    Returns a result that should be returned from the request handler, and sets
+    appropriate response headers.
 
     Takes a function that will do the actual reading given the start offset and
     a length to read.
     """
+    if request.getHeader("range") is None:
+        # Return the whole thing.
+        start = 0
+        while True:
+            # TODO should probably yield to event loop occasionally...
+            # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3872
+            data = read_data(start, start + 65536)
+            if not data:
+                request.finish()
+                return
+            request.write(data)
+            start += len(data)
+
     range_header = parse_range_header(request.getHeader("range"))
     if (
-        range_header is None
+        range_header is None  # failed to parse
         or range_header.units != "bytes"
         or len(range_header.ranges) > 1  # more than one range
         or range_header.ranges[0][1] is None  # range without end
@@ -535,19 +548,6 @@ class HTTPServer(object):
             request.setResponseCode(http.NOT_FOUND)
             return b""
 
-        if request.getHeader("range") is None:
-            # Return the whole thing.
-            start = 0
-            while True:
-                # TODO should probably yield to event loop occasionally...
-                # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3872
-                data = bucket.read(start, start + 65536)
-                if not data:
-                    request.finish()
-                    return
-                request.write(data)
-                start += len(data)
-
         return read_range(request, bucket.read)
 
     @_authorized_route(
@@ -636,9 +636,7 @@ class HTTPServer(object):
     )
     def read_mutable_chunk(self, request, authorization, storage_index, share_number):
         """Read a chunk from a mutable."""
-        if request.getHeader("range") is None:
-            raise NotImplementedError()  # should be able to move shared implementation into read_range()...
-
+        # TODO unit tests
         def read_data(offset, length):
             return self._storage_server.slot_readv(
                 storage_index, [share_number], [(offset, length)]
