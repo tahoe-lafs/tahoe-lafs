@@ -40,6 +40,10 @@ from ..storage.http_client import (
     UploadProgress,
     StorageClientGeneral,
     _encode_si,
+    StorageClientMutables,
+    TestWriteVectors,
+    WriteVector,
+    ReadVector,
 )
 
 
@@ -1109,7 +1113,9 @@ class ImmutableHTTPAPITests(SyncTestCase):
         storage_index = urandom(16)
         secret = b"A" * 32
         with assert_fails_with_http_code(self, http.NOT_FOUND):
-            result_of(self.general_client.add_or_renew_lease(storage_index, secret, secret))
+            result_of(
+                self.general_client.add_or_renew_lease(storage_index, secret, secret)
+            )
 
     def test_advise_corrupt_share(self):
         """
@@ -1142,3 +1148,78 @@ class ImmutableHTTPAPITests(SyncTestCase):
                 result_of(
                     self.imm_client.advise_corrupt_share(si, share_number, reason)
                 )
+
+
+class MutableHTTPAPIsTests(SyncTestCase):
+    """Tests for mutable APIs."""
+
+    def setUp(self):
+        super(MutableHTTPAPIsTests, self).setUp()
+        self.http = self.useFixture(HttpTestFixture())
+        self.mut_client = StorageClientMutables(self.http.client)
+
+    def create_upload(self, data=b"abcdef"):
+        """
+        Utility that creates shares 0 and 1 with bodies
+        ``{data}-{share_number}``.
+        """
+        write_secret = urandom(32)
+        lease_secret = urandom(32)
+        storage_index = urandom(16)
+        result_of(
+            self.mut_client.read_test_write_chunks(
+                storage_index,
+                write_secret,
+                lease_secret,
+                lease_secret,
+                {
+                    0: TestWriteVectors(
+                        write_vectors=[WriteVector(offset=0, data=data + b"-0")]
+                    ),
+                    1: TestWriteVectors(
+                        write_vectors=[
+                            WriteVector(offset=0, data=data),
+                            WriteVector(offset=len(data), data=b"-1"),
+                        ]
+                    ),
+                },
+                [ReadVector(0, len(data) + 2)],
+            )
+        )
+        return storage_index, write_secret, lease_secret
+
+    def test_upload_can_be_downloaded(self):
+        """
+        Written data can be read, both by the combo operation and a direct
+        read.
+        """
+        storage_index, _, _ = self.create_upload()
+        data0 = result_of(self.mut_client.read_share_chunk(storage_index, 0, 1, 7))
+        data1 = result_of(self.mut_client.read_share_chunk(storage_index, 1, 0, 8))
+        self.assertEqual((data0, data1), (b"bcdef-0", b"abcdef-1"))
+
+    def test_read_before_write(self):
+        """In combo read/test/write operation, reads happen before writes."""
+
+    def test_conditional_upload(self):
+        pass
+
+    def test_list_shares(self):
+        pass
+
+    def test_wrong_write_enabler(self):
+        pass
+
+    # TODO refactor reads tests so they're shared
+
+    def test_lease_renew_and_add(self):
+        pass
+
+    def test_lease_on_unknown_storage_index(self):
+        pass
+
+    def test_advise_corrupt_share(self):
+        pass
+
+    def test_advise_corrupt_share_unknown(self):
+        pass

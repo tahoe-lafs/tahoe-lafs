@@ -7,7 +7,7 @@ from __future__ import annotations
 from typing import Union, Optional, Sequence, Mapping
 from base64 import b64encode
 
-from attrs import define, asdict, frozen
+from attrs import define, asdict, frozen, field
 
 # TODO Make sure to import Python version?
 from cbor2 import loads, dumps
@@ -646,8 +646,8 @@ class ReadVector:
 class TestWriteVectors:
     """Test and write vectors for a specific share."""
 
-    test_vectors: Sequence[TestVector]
-    write_vectors: Sequence[WriteVector]
+    test_vectors: Sequence[TestVector] = field(factory=list)
+    write_vectors: Sequence[WriteVector] = field(factory=list)
     new_length: Optional[int] = None
 
     def asdict(self) -> dict:

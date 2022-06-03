@@ -263,7 +263,7 @@ _SCHEMAS = {
                 * share_number: {
                     "test": [* {"offset": uint, "size": uint, "specimen": bstr}]
                     "write": [* {"offset": uint, "data": bstr}]
-                    "new-length": uint // null
+                    "new-length": uint / null
                 }
             }
             "read-vector": [* {"offset": uint, "size": uint}]
@@ -274,7 +274,6 @@ _SCHEMAS = {
 }
 
 
-# TODO unit tests? or rely on higher-level tests
 def read_range(request, read_data: Callable[int, int, bytes]) -> Optional[bytes]:
     """
     Parse the ``Range`` header, read appropriately, return as result.
