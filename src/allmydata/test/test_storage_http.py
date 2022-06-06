@@ -1271,10 +1271,41 @@ class MutableHTTPAPIsTests(SyncTestCase):
         )
 
     def test_list_shares(self):
-        pass
+        """``list_shares()`` returns the shares for a given storage index."""
+        storage_index, _, _ = self.create_upload()
+        self.assertEqual(result_of(self.mut_client.list_shares(storage_index)), {0, 1})
+
+    def test_non_existent_list_shares(self):
+        """A non-existent storage index errors when shares are listed."""
+        with self.assertRaises(ClientException) as exc:
+            result_of(self.mut_client.list_shares(urandom(32)))
+        self.assertEqual(exc.exception.code, http.NOT_FOUND)
 
     def test_wrong_write_enabler(self):
-        pass
+        """Writes with the wrong write enabler fail, and are not processed."""
+        storage_index, write_secret, lease_secret = self.create_upload()
+        with self.assertRaises(ClientException) as exc:
+            result_of(
+                self.mut_client.read_test_write_chunks(
+                    storage_index,
+                    urandom(32),
+                    lease_secret,
+                    lease_secret,
+                    {
+                        0: TestWriteVectors(
+                            write_vectors=[WriteVector(offset=1, data=b"XYZ")]
+                        ),
+                    },
+                    [ReadVector(0, 8)],
+                )
+            )
+        self.assertEqual(exc.exception.code, http.UNAUTHORIZED)
+
+        # The write did not happen:
+        self.assertEqual(
+            result_of(self.mut_client.read_share_chunk(storage_index, 0, 0, 8)),
+            b"abcdef-0",
+        )
 
     # TODO refactor reads tests so they're shared
 

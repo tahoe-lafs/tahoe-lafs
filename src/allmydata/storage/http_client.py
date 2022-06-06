@@ -696,7 +696,6 @@ class StorageClientMutables:
         Given a mapping between share numbers and test/write vectors, the tests
         are done and if they are valid the writes are done.
         """
-        # TODO unit test all the things
         url = self._client.relative_url(
             "/v1/mutable/{}/read-test-write".format(_encode_si(storage_index))
         )
@@ -731,7 +730,6 @@ class StorageClientMutables:
         """
         Download a chunk of data from a share.
         """
-        # TODO unit test all the things
         return read_share_chunk(
             self._client, "mutable", storage_index, share_number, offset, length
         )
@@ -741,7 +739,6 @@ class StorageClientMutables:
         """
         List the share numbers for a given storage index.
         """
-        # TODO unit test all the things
         url = self._client.relative_url(
             "/v1/mutable/{}/shares".format(_encode_si(storage_index))
         )
