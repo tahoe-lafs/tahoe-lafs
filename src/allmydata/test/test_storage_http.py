@@ -44,6 +44,8 @@ from ..storage.http_client import (
     TestWriteVectors,
     WriteVector,
     ReadVector,
+    ReadTestWriteResult,
+    TestVector,
 )
 
 
@@ -1183,15 +1185,14 @@ class MutableHTTPAPIsTests(SyncTestCase):
                         ]
                     ),
                 },
-                [ReadVector(0, len(data) + 2)],
+                [],
             )
         )
         return storage_index, write_secret, lease_secret
 
-    def test_upload_can_be_downloaded(self):
+    def test_write_can_be_read(self):
         """
-        Written data can be read, both by the combo operation and a direct
-        read.
+        Written data can be read using ``read_share_chunk``.
         """
         storage_index, _, _ = self.create_upload()
         data0 = result_of(self.mut_client.read_share_chunk(storage_index, 0, 1, 7))
@@ -1200,9 +1201,74 @@ class MutableHTTPAPIsTests(SyncTestCase):
 
     def test_read_before_write(self):
         """In combo read/test/write operation, reads happen before writes."""
+        storage_index, write_secret, lease_secret = self.create_upload()
+        result = result_of(
+            self.mut_client.read_test_write_chunks(
+                storage_index,
+                write_secret,
+                lease_secret,
+                lease_secret,
+                {
+                    0: TestWriteVectors(
+                        write_vectors=[WriteVector(offset=1, data=b"XYZ")]
+                    ),
+                },
+                [ReadVector(0, 8)],
+            )
+        )
+        # Reads are from before the write:
+        self.assertEqual(
+            result,
+            ReadTestWriteResult(
+                success=True, reads={0: [b"abcdef-0"], 1: [b"abcdef-1"]}
+            ),
+        )
+        # But the write did happen:
+        data0 = result_of(self.mut_client.read_share_chunk(storage_index, 0, 0, 8))
+        data1 = result_of(self.mut_client.read_share_chunk(storage_index, 1, 0, 8))
+        self.assertEqual((data0, data1), (b"aXYZef-0", b"abcdef-1"))
 
-    def test_conditional_upload(self):
-        pass
+    def test_conditional_write(self):
+        """Uploads only happen if the test passes."""
+        storage_index, write_secret, lease_secret = self.create_upload()
+        result_failed = result_of(
+            self.mut_client.read_test_write_chunks(
+                storage_index,
+                write_secret,
+                lease_secret,
+                lease_secret,
+                {
+                    0: TestWriteVectors(
+                        test_vectors=[TestVector(1, 4, b"FAIL")],
+                        write_vectors=[WriteVector(offset=1, data=b"XYZ")],
+                    ),
+                },
+                [],
+            )
+        )
+        self.assertFalse(result_failed.success)
+
+        # This time the test matches:
+        result = result_of(
+            self.mut_client.read_test_write_chunks(
+                storage_index,
+                write_secret,
+                lease_secret,
+                lease_secret,
+                {
+                    0: TestWriteVectors(
+                        test_vectors=[TestVector(1, 4, b"bcde")],
+                        write_vectors=[WriteVector(offset=1, data=b"XYZ")],
+                    ),
+                },
+                [ReadVector(0, 8)],
+            )
+        )
+        self.assertTrue(result.success)
+        self.assertEqual(
+            result_of(self.mut_client.read_share_chunk(storage_index, 0, 0, 8)),
+            b"aXYZef-0",
+        )
 
     def test_list_shares(self):
         pass
