@@ -47,6 +47,7 @@ rec {
   # [str] -> str -> derivation
   devPy = extras: pythonVersion:
     mach-nix.lib.${system}.mkPython {
+      python = pythonVersion;
       inherit ((packageForVersion extras pythonVersion).meta.mach-nix) providers _;
       requirements = requirementsForVersion extras pythonVersion;
     };
