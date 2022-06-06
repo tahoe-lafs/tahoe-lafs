@@ -586,7 +586,7 @@ class StorageClientImmutables(object):
         )
 
     @inlineCallbacks
-    def list_shares(self, storage_index):  # type: (bytes,) -> Deferred[set[int]]
+    def list_shares(self, storage_index: bytes) -> Deferred[set[int]]:
         """
         Return the set of shares for a given storage index.
         """

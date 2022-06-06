@@ -3,7 +3,7 @@ HTTP server for storage.
 """
 
 from __future__ import annotations
-from typing import Dict, List, Set, Tuple, Any, Callable
+from typing import Dict, List, Set, Tuple, Any, Callable, Optional
 
 from functools import wraps
 from base64 import b64decode
@@ -274,7 +274,7 @@ _SCHEMAS = {
 }
 
 
-def read_range(request, read_data: Callable[int, int, bytes]) -> Optional[bytes]:
+def read_range(request, read_data: Callable[[int, int], bytes]) -> Optional[bytes]:
     """
     Parse the ``Range`` header, read appropriately, return as result.
 
@@ -298,7 +298,7 @@ def read_range(request, read_data: Callable[int, int, bytes]) -> Optional[bytes]
             data = read_data(start, start + 65536)
             if not data:
                 request.finish()
-                return
+                return None
             request.write(data)
             start += len(data)
 

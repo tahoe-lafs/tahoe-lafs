@@ -1105,7 +1105,7 @@ class SharedImmutableMutableTestsMixin:
     general_client: StorageClientGeneral
     client: Union[StorageClientImmutables, StorageClientMutables]
     clientFactory: Callable[
-        StorageClient, Union[StorageClientImmutables, StorageClientMutables]
+        [StorageClient], Union[StorageClientImmutables, StorageClientMutables]
     ]
 
     def upload(self, share_number: int, data_length=26) -> Tuple[bytes, bytes, bytes]:
