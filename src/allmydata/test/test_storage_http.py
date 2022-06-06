@@ -5,7 +5,7 @@ Tests for HTTP storage client + server.
 from base64 import b64encode
 from contextlib import contextmanager
 from os import urandom
-
+from typing import Union, Callable, Tuple
 from cbor2 import dumps
 from pycddl import ValidationError as CDDLValidationError
 from hypothesis import assume, given, strategies as st
@@ -787,141 +787,6 @@ class ImmutableHTTPAPITests(SyncTestCase):
                 )
             )
 
-    def upload(self, share_number, data_length=26):
-        """
-        Create a share, return (storage_index, uploaded_data).
-        """
-        uploaded_data = (b"abcdefghijklmnopqrstuvwxyz" * ((data_length // 26) + 1))[
-            :data_length
-        ]
-        (upload_secret, _, storage_index, _) = self.create_upload(
-            {share_number}, data_length
-        )
-        result_of(
-            self.imm_client.write_share_chunk(
-                storage_index,
-                share_number,
-                upload_secret,
-                0,
-                uploaded_data,
-            )
-        )
-        return storage_index, uploaded_data
-
-    def test_read_of_wrong_storage_index_fails(self):
-        """
-        Reading from unknown storage index results in 404.
-        """
-        with assert_fails_with_http_code(self, http.NOT_FOUND):
-            result_of(
-                self.imm_client.read_share_chunk(
-                    b"1" * 16,
-                    1,
-                    0,
-                    10,
-                )
-            )
-
-    def test_read_of_wrong_share_number_fails(self):
-        """
-        Reading from unknown storage index results in 404.
-        """
-        storage_index, _ = self.upload(1)
-        with assert_fails_with_http_code(self, http.NOT_FOUND):
-            result_of(
-                self.imm_client.read_share_chunk(
-                    storage_index,
-                    7,  # different share number
-                    0,
-                    10,
-                )
-            )
-
-    def test_read_with_negative_offset_fails(self):
-        """
-        Malformed or unsupported Range headers result in 416 (requested range
-        not satisfiable) error.
-        """
-        storage_index, _ = self.upload(1)
-
-        def check_bad_range(bad_range_value):
-            client = StorageClientImmutables(
-                StorageClientWithHeadersOverride(
-                    self.http.client, {"range": bad_range_value}
-                )
-            )
-
-            with assert_fails_with_http_code(
-                self, http.REQUESTED_RANGE_NOT_SATISFIABLE
-            ):
-                result_of(
-                    client.read_share_chunk(
-                        storage_index,
-                        1,
-                        0,
-                        10,
-                    )
-                )
-
-        # Bad unit
-        check_bad_range("molluscs=0-9")
-        # Negative offsets
-        check_bad_range("bytes=-2-9")
-        check_bad_range("bytes=0--10")
-        # Negative offset no endpoint
-        check_bad_range("bytes=-300-")
-        check_bad_range("bytes=")
-        # Multiple ranges are currently unsupported, even if they're
-        # semantically valid under HTTP:
-        check_bad_range("bytes=0-5, 6-7")
-        # Ranges without an end are currently unsupported, even if they're
-        # semantically valid under HTTP.
-        check_bad_range("bytes=0-")
-
-    @given(data_length=st.integers(min_value=1, max_value=300000))
-    def test_read_with_no_range(self, data_length):
-        """
-        A read with no range returns the whole immutable.
-        """
-        storage_index, uploaded_data = self.upload(1, data_length)
-        response = result_of(
-            self.http.client.request(
-                "GET",
-                self.http.client.relative_url(
-                    "/v1/immutable/{}/1".format(_encode_si(storage_index))
-                ),
-            )
-        )
-        self.assertEqual(response.code, http.OK)
-        self.assertEqual(result_of(response.content()), uploaded_data)
-
-    def test_validate_content_range_response_to_read(self):
-        """
-        The server responds to ranged reads with an appropriate Content-Range
-        header.
-        """
-        storage_index, _ = self.upload(1, 26)
-
-        def check_range(requested_range, expected_response):
-            headers = Headers()
-            headers.setRawHeaders("range", [requested_range])
-            response = result_of(
-                self.http.client.request(
-                    "GET",
-                    self.http.client.relative_url(
-                        "/v1/immutable/{}/1".format(_encode_si(storage_index))
-                    ),
-                    headers=headers,
-                )
-            )
-            self.assertEqual(
-                response.headers.getRawHeaders("content-range"), [expected_response]
-            )
-
-        check_range("bytes=0-10", "bytes 0-10/*")
-        # Can't go beyond the end of the immutable!
-        check_range("bytes=10-100", "bytes 10-25/*")
-
     def test_timed_out_upload_allows_reupload(self):
         """
         If an in-progress upload times out, it is cancelled altogether,
@@ -1062,52 +927,6 @@ class ImmutableHTTPAPITests(SyncTestCase):
             ),
         )
 
-    def test_lease_renew_and_add(self):
-        """
-        It's possible the renew the lease on an uploaded immutable, by using
-        the same renewal secret, or add a new lease by choosing a different
-        renewal secret.
-        """
-        # Create immutable:
-        (upload_secret, lease_secret, storage_index, _) = self.create_upload({0}, 100)
-        result_of(
-            self.imm_client.write_share_chunk(
-                storage_index,
-                0,
-                upload_secret,
-                0,
-                b"A" * 100,
-            )
-        )
-
-        [lease] = self.http.storage_server.get_leases(storage_index)
-        initial_expiration_time = lease.get_expiration_time()
-
-        # Time passes:
-        self.http.clock.advance(167)
-
-        # We renew the lease:
-        result_of(
-            self.general_client.add_or_renew_lease(
-                storage_index, lease_secret, lease_secret
-            )
-        )
-
-        # More time passes:
-        self.http.clock.advance(10)
-
-        # We create a new lease:
-        lease_secret2 = urandom(32)
-        result_of(
-            self.general_client.add_or_renew_lease(
-                storage_index, lease_secret2, lease_secret2
-            )
-        )
-
-        [lease1, lease2] = self.http.storage_server.get_leases(storage_index)
-        self.assertEqual(lease1.get_expiration_time(), initial_expiration_time + 167)
-        self.assertEqual(lease2.get_expiration_time(), initial_expiration_time + 177)
-
     def test_lease_on_unknown_storage_index(self):
         """
         An attempt to renew an unknown storage index will result in a HTTP 404.
@@ -1118,38 +937,6 @@ class ImmutableHTTPAPITests(SyncTestCase):
             result_of(
                 self.general_client.add_or_renew_lease(storage_index, secret, secret)
             )
-
-    def test_advise_corrupt_share(self):
-        """
-        Advising share was corrupted succeeds from HTTP client's perspective,
-        and calls appropriate method on server.
-        """
-        corrupted = []
-        self.http.storage_server.advise_corrupt_share = lambda *args: corrupted.append(
-            args
-        )
-
-        storage_index, _ = self.upload(13)
-        reason = "OHNO \u1235"
-        result_of(self.imm_client.advise_corrupt_share(storage_index, 13, reason))
-
-        self.assertEqual(
-            corrupted, [(b"immutable", storage_index, 13, reason.encode("utf-8"))]
-        )
-
-    def test_advise_corrupt_share_unknown(self):
-        """
-        Advising an unknown share was corrupted results in 404.
-        """
-        storage_index, _ = self.upload(13)
-        reason = "OHNO \u1235"
-        result_of(self.imm_client.advise_corrupt_share(storage_index, 13, reason))
-
-        for (si, share_number) in [(storage_index, 11), (urandom(16), 13)]:
-            with assert_fails_with_http_code(self, http.NOT_FOUND):
-                result_of(
-                    self.imm_client.advise_corrupt_share(si, share_number, reason)
-                )
 
 
 class MutableHTTPAPIsTests(SyncTestCase):
@@ -1320,3 +1107,248 @@ class MutableHTTPAPIsTests(SyncTestCase):
 
     def test_advise_corrupt_share_unknown(self):
         pass
+
+
+class SharedImmutableMutableTestsMixin:
+    """
+    Shared tests for mutables and immutables where the API is the same.
+    """
+
+    KIND: str  # either "mutable" or "immutable"
+    general_client: StorageClientGeneral
+    client: Union[StorageClientImmutables, StorageClientMutables]
+    clientFactory: Callable[
+        StorageClient, Union[StorageClientImmutables, StorageClientMutables]
+    ]
+
+    def upload(self, share_number: int, data_length=26) -> Tuple[bytes, bytes, bytes]:
+        """
+        Create a share, return (storage_index, uploaded_data, lease secret).
+        """
+        raise NotImplementedError
+
+    def test_advise_corrupt_share(self):
+        """
+        Advising share was corrupted succeeds from HTTP client's perspective,
+        and calls appropriate method on server.
+        """
+        corrupted = []
+        self.http.storage_server.advise_corrupt_share = lambda *args: corrupted.append(
+            args
+        )
+
+        storage_index, _, _ = self.upload(13)
+        reason = "OHNO \u1235"
+        result_of(self.client.advise_corrupt_share(storage_index, 13, reason))
+
+        self.assertEqual(
+            corrupted,
+            [(self.KIND.encode("ascii"), storage_index, 13, reason.encode("utf-8"))],
+        )
+
+    def test_advise_corrupt_share_unknown(self):
+        """
+        Advising an unknown share was corrupted results in 404.
+        """
+        storage_index, _, _ = self.upload(13)
+        reason = "OHNO \u1235"
+        result_of(self.client.advise_corrupt_share(storage_index, 13, reason))
+
+        for (si, share_number) in [(storage_index, 11), (urandom(16), 13)]:
+            with assert_fails_with_http_code(self, http.NOT_FOUND):
+                result_of(self.client.advise_corrupt_share(si, share_number, reason))
+
+    def test_lease_renew_and_add(self):
+        """
+        It's possible the renew the lease on an uploaded immutable, by using
+        the same renewal secret, or add a new lease by choosing a different
+        renewal secret.
+        """
+        # Create a storage index:
+        storage_index, _, lease_secret = self.upload(0)
+
+        [lease] = self.http.storage_server.get_leases(storage_index)
+        initial_expiration_time = lease.get_expiration_time()
+
+        # Time passes:
+        self.http.clock.advance(167)
+
+        # We renew the lease:
+        result_of(
+            self.general_client.add_or_renew_lease(
+                storage_index, lease_secret, lease_secret
+            )
+        )
+
+        # More time passes:
+        self.http.clock.advance(10)
+
+        # We create a new lease:
+        lease_secret2 = urandom(32)
+        result_of(
+            self.general_client.add_or_renew_lease(
+                storage_index, lease_secret2, lease_secret2
+            )
+        )
+
+        [lease1, lease2] = self.http.storage_server.get_leases(storage_index)
+        self.assertEqual(lease1.get_expiration_time(), initial_expiration_time + 167)
+        self.assertEqual(lease2.get_expiration_time(), initial_expiration_time + 177)
+
+    def test_read_of_wrong_storage_index_fails(self):
+        """
+        Reading from unknown storage index results in 404.
+        """
+        with assert_fails_with_http_code(self, http.NOT_FOUND):
+            result_of(
+                self.client.read_share_chunk(
+                    b"1" * 16,
+                    1,
+                    0,
+                    10,
+                )
+            )
+
+    def test_read_of_wrong_share_number_fails(self):
+        """
+        Reading from unknown storage index results in 404.
+        """
+        storage_index, _, _ = self.upload(1)
+        with assert_fails_with_http_code(self, http.NOT_FOUND):
+            result_of(
+                self.client.read_share_chunk(
+                    storage_index,
+                    7,  # different share number
+                    0,
+                    10,
+                )
+            )
+
+    def test_read_with_negative_offset_fails(self):
+        """
+        Malformed or unsupported Range headers result in 416 (requested range
+        not satisfiable) error.
+        """
+        storage_index, _, _ = self.upload(1)
+
+        def check_bad_range(bad_range_value):
+            client = StorageClientImmutables(
+                StorageClientWithHeadersOverride(
+                    self.http.client, {"range": bad_range_value}
+                )
+            )
+
+            with assert_fails_with_http_code(
+                self, http.REQUESTED_RANGE_NOT_SATISFIABLE
+            ):
+                result_of(
+                    client.read_share_chunk(
+                        storage_index,
+                        1,
+                        0,
+                        10,
+                    )
+                )
+
+        # Bad unit
+        check_bad_range("molluscs=0-9")
+        # Negative offsets
+        check_bad_range("bytes=-2-9")
+        check_bad_range("bytes=0--10")
+        # Negative offset no endpoint
+        check_bad_range("bytes=-300-")
+        check_bad_range("bytes=")
+        # Multiple ranges are currently unsupported, even if they're
+        # semantically valid under HTTP:
+        check_bad_range("bytes=0-5, 6-7")
+        # Ranges without an end are currently unsupported, even if they're
+        # semantically valid under HTTP.
+        check_bad_range("bytes=0-")
+
+    @given(data_length=st.integers(min_value=1, max_value=300000))
+    def test_read_with_no_range(self, data_length):
+        """
+        A read with no range returns the whole immutable.
+        """
+        storage_index, uploaded_data, _ = self.upload(1, data_length)
+        response = result_of(
+            self.http.client.request(
+                "GET",
+                self.http.client.relative_url(
+                    "/v1/{}/{}/1".format(self.KIND, _encode_si(storage_index))
+                ),
+            )
+        )
+        self.assertEqual(response.code, http.OK)
+        self.assertEqual(result_of(response.content()), uploaded_data)
+
+    def test_validate_content_range_response_to_read(self):
+        """
+        The server responds to ranged reads with an appropriate Content-Range
+        header.
+        """
+        storage_index, _, _ = self.upload(1, 26)
+
+        def check_range(requested_range, expected_response):
+            headers = Headers()
+            headers.setRawHeaders("range", [requested_range])
+            response = result_of(
+                self.http.client.request(
+                    "GET",
+                    self.http.client.relative_url(
+                        "/v1/{}/{}/1".format(self.KIND, _encode_si(storage_index))
+                    ),
+                    headers=headers,
+                )
+            )
+            self.assertEqual(
+                response.headers.getRawHeaders("content-range"), [expected_response]
+            )
+
+        check_range("bytes=0-10", "bytes 0-10/*")
+        # Can't go beyond the end of the immutable!
+        check_range("bytes=10-100", "bytes 10-25/*")
+
+
+class ImmutableSharedTests(SharedImmutableMutableTestsMixin, SyncTestCase):
+    """Shared tests, running on immutables."""
+
+    KIND = "immutable"
+    clientFactory = StorageClientImmutables
+
+    def setUp(self):
+        super(ImmutableSharedTests, self).setUp()
+        self.http = self.useFixture(HttpTestFixture())
+        self.client = self.clientFactory(self.http.client)
+        self.general_client = StorageClientGeneral(self.http.client)
+
+    def upload(self, share_number, data_length=26):
+        """
+        Create a share, return (storage_index, uploaded_data).
+        """
+        uploaded_data = (b"abcdefghijklmnopqrstuvwxyz" * ((data_length // 26) + 1))[
+            :data_length
+        ]
+        upload_secret = urandom(32)
+        lease_secret = urandom(32)
+        storage_index = urandom(16)
+        result_of(
+            self.client.create(
+                storage_index,
+                {share_number},
+                data_length,
+                upload_secret,
+                lease_secret,
+                lease_secret,
+            )
+        )
+        result_of(
+            self.client.write_share_chunk(
+                storage_index,
+                share_number,
+                upload_secret,
+                0,
+                uploaded_data,
+            )
+        )
+        return storage_index, uploaded_data, lease_secret
