@@ -1,0 +1,86 @@
+{
+  "nodes": {
+    "flake-utils": {
+      "locked": {
+        "lastModified": 1653893745,
+        "narHash": "sha256-0jntwV3Z8//YwuOjzhV2sgJJPt+HY6KhU7VZUL0fKZQ=",
+        "owner": "numtide",
+        "repo": "flake-utils",
+        "rev": "1ed9fb1935d260de5fe1c2f7ee0ebaae17ed2fa1",
+        "type": "github"
+      },
+      "original": {
+        "owner": "numtide",
+        "repo": "flake-utils",
+        "type": "github"
+      }
+    },
+    "mach-nix": {
+      "inputs": {
+        "flake-utils": [
+          "flake-utils"
+        ],
+        "nixpkgs": [
+          "nixpkgs"
+        ],
+        "pypi-deps-db": "pypi-deps-db"
+      },
+      "locked": {
+        "lastModified": 1641328265,
+        "narHash": "sha256-ji+2JD5Goc/vMobOMM0RHfvV+W3bxfFG0mYq8ACTY4k=",
+        "owner": "DavHau",
+        "repo": "mach-nix",
+        "rev": "bdc97ba6b2ecd045a467b008cff4ae337b6a7a6b",
+        "type": "github"
+      },
+      "original": {
+        "owner": "DavHau",
+        "repo": "mach-nix",
+        "rev": "bdc97ba6b2ecd045a467b008cff4ae337b6a7a6b",
+        "type": "github"
+      }
+    },
+    "nixpkgs": {
+      "locked": {
+        "lastModified": 1649760692,
+        "narHash": "sha256-b+5Uo3yA2eFjvaGGeeLN7I3IJCxHL+jIQpB0HmBlqK4=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "838eefb4f93f2306d4614aafb9b2375f315d917f",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "838eefb4f93f2306d4614aafb9b2375f315d917f",
+        "type": "github"
+      }
+    },
+    "pypi-deps-db": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1649839248,
+        "narHash": "sha256-nVQboC+KG5X+y8Kki/NGiQrOROzBGjGhlOiUT6DHz6E=",
+        "owner": "DavHau",
+        "repo": "pypi-deps-db",
+        "rev": "76b8f1e44a8ec051b853494bcf3cc8453a294a6a",
+        "type": "github"
+      },
+      "original": {
+        "owner": "DavHau",
+        "repo": "pypi-deps-db",
+        "rev": "76b8f1e44a8ec051b853494bcf3cc8453a294a6a",
+        "type": "github"
+      }
+    },
+    "root": {
+      "inputs": {
+        "flake-utils": "flake-utils",
+        "mach-nix": "mach-nix",
+        "nixpkgs": "nixpkgs"
+      }
+    }
+  },
+  "root": "root",
+  "version": 7
+}
