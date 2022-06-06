@@ -5,7 +5,7 @@ Tests for HTTP storage client + server.
 from base64 import b64encode
 from contextlib import contextmanager
 from os import urandom
-from typing import Union, Callable, Tuple
+from typing import Union, Callable, Tuple, Iterable
 from cbor2 import dumps
 from pycddl import ValidationError as CDDLValidationError
 from hypothesis import assume, given, strategies as st
@@ -23,6 +23,7 @@ from werkzeug.exceptions import NotFound as WNotFound
 from .common import SyncTestCase
 from ..storage.http_common import get_content_type, CBOR_MIME_TYPE
 from ..storage.common import si_b2a
+from ..storage.lease import LeaseInfo
 from ..storage.server import StorageServer
 from ..storage.http_server import (
     HTTPServer,
@@ -1094,20 +1095,6 @@ class MutableHTTPAPIsTests(SyncTestCase):
             b"abcdef-0",
         )
 
-    # TODO refactor reads tests so they're shared
-
-    def test_lease_renew_and_add(self):
-        pass
-
-    def test_lease_on_unknown_storage_index(self):
-        pass
-
-    def test_advise_corrupt_share(self):
-        pass
-
-    def test_advise_corrupt_share_unknown(self):
-        pass
-
 
 class SharedImmutableMutableTestsMixin:
     """
@@ -1126,6 +1113,10 @@ class SharedImmutableMutableTestsMixin:
         Create a share, return (storage_index, uploaded_data, lease secret).
         """
         raise NotImplementedError
+
+    def get_leases(self, storage_index: bytes) -> Iterable[LeaseInfo]:
+        """Get leases for the storage index."""
+        raise NotImplementedError()
 
     def test_advise_corrupt_share(self):
         """
@@ -1160,14 +1151,14 @@ class SharedImmutableMutableTestsMixin:
 
     def test_lease_renew_and_add(self):
         """
-        It's possible the renew the lease on an uploaded immutable, by using
-        the same renewal secret, or add a new lease by choosing a different
-        renewal secret.
+        It's possible the renew the lease on an uploaded mutable/immutable, by
+        using the same renewal secret, or add a new lease by choosing a
+        different renewal secret.
         """
         # Create a storage index:
         storage_index, _, lease_secret = self.upload(0)
 
-        [lease] = self.http.storage_server.get_leases(storage_index)
+        [lease] = self.get_leases(storage_index)
         initial_expiration_time = lease.get_expiration_time()
 
         # Time passes:
@@ -1191,7 +1182,7 @@ class SharedImmutableMutableTestsMixin:
             )
         )
 
-        [lease1, lease2] = self.http.storage_server.get_leases(storage_index)
+        [lease1, lease2] = self.get_leases(storage_index)
         self.assertEqual(lease1.get_expiration_time(), initial_expiration_time + 167)
         self.assertEqual(lease2.get_expiration_time(), initial_expiration_time + 177)
 
@@ -1232,7 +1223,7 @@ class SharedImmutableMutableTestsMixin:
         storage_index, _, _ = self.upload(1)
 
         def check_bad_range(bad_range_value):
-            client = StorageClientImmutables(
+            client = self.clientFactory(
                 StorageClientWithHeadersOverride(
                     self.http.client, {"range": bad_range_value}
                 )
@@ -1268,7 +1259,7 @@ class SharedImmutableMutableTestsMixin:
     @given(data_length=st.integers(min_value=1, max_value=300000))
     def test_read_with_no_range(self, data_length):
         """
-        A read with no range returns the whole immutable.
+        A read with no range returns the whole mutable/immutable.
         """
         storage_index, uploaded_data, _ = self.upload(1, data_length)
         response = result_of(
@@ -1306,7 +1297,7 @@ class SharedImmutableMutableTestsMixin:
             )
 
         check_range("bytes=0-10", "bytes 0-10/*")
-        # Can't go beyond the end of the immutable!
+        # Can't go beyond the end of the mutable/immutable!
         check_range("bytes=10-100", "bytes 10-25/*")
 
 
@@ -1324,7 +1315,7 @@ class ImmutableSharedTests(SharedImmutableMutableTestsMixin, SyncTestCase):
 
     def upload(self, share_number, data_length=26):
         """
-        Create a share, return (storage_index, uploaded_data).
+        Create a share, return (storage_index, uploaded_data, lease_secret).
         """
         uploaded_data = (b"abcdefghijklmnopqrstuvwxyz" * ((data_length // 26) + 1))[
             :data_length
@@ -1352,3 +1343,46 @@ class ImmutableSharedTests(SharedImmutableMutableTestsMixin, SyncTestCase):
             )
         )
         return storage_index, uploaded_data, lease_secret
+
+    def get_leases(self, storage_index):
+        return self.http.storage_server.get_leases(storage_index)
+
+
+class MutableSharedTests(SharedImmutableMutableTestsMixin, SyncTestCase):
+    """Shared tests, running on mutables."""
+
+    KIND = "mutable"
+    clientFactory = StorageClientMutables
+
+    def setUp(self):
+        super(MutableSharedTests, self).setUp()
+        self.http = self.useFixture(HttpTestFixture())
+        self.client = self.clientFactory(self.http.client)
+        self.general_client = StorageClientGeneral(self.http.client)
+
+    def upload(self, share_number, data_length=26):
+        """
+        Create a share, return (storage_index, uploaded_data, lease_secret).
+        """
+        data = (b"abcdefghijklmnopqrstuvwxyz" * ((data_length // 26) + 1))[:data_length]
+        write_secret = urandom(32)
+        lease_secret = urandom(32)
+        storage_index = urandom(16)
+        result_of(
+            self.client.read_test_write_chunks(
+                storage_index,
+                write_secret,
+                lease_secret,
+                lease_secret,
+                {
+                    share_number: TestWriteVectors(
+                        write_vectors=[WriteVector(offset=0, data=data)]
+                    ),
+                },
+                [],
+            )
+        )
+        return storage_index, data, lease_secret
+
+    def get_leases(self, storage_index):
+        return self.http.storage_server.get_slot_leases(storage_index)

@@ -599,7 +599,6 @@ class HTTPServer(object):
     )
     def mutable_read_test_write(self, request, authorization, storage_index):
         """Read/test/write combined operation for mutables."""
-        # TODO unit tests
         rtw_request = self._read_encoded(request, _SCHEMAS["mutable_read_test_write"])
         secrets = (
             authorization[Secrets.WRITE_ENABLER],
@@ -635,11 +634,13 @@ class HTTPServer(object):
     )
     def read_mutable_chunk(self, request, authorization, storage_index, share_number):
         """Read a chunk from a mutable."""
-        # TODO unit tests
         def read_data(offset, length):
-            return self._storage_server.slot_readv(
-                storage_index, [share_number], [(offset, length)]
-            )[share_number][0]
+            try:
+                return self._storage_server.slot_readv(
+                    storage_index, [share_number], [(offset, length)]
+                )[share_number][0]
+            except KeyError:
+                raise _HTTPError(http.NOT_FOUND)
 
         return read_range(request, read_data)
 
@@ -664,7 +665,6 @@ class HTTPServer(object):
         self, request, authorization, storage_index, share_number
     ):
         """Indicate that given share is corrupt, with a text reason."""
-        # TODO unit test all the paths
         if share_number not in {
             shnum for (shnum, _) in self._storage_server.get_shares(storage_index)
         }:
