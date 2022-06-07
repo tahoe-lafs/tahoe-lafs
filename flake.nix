@@ -37,7 +37,6 @@
       extras = [ "tor" "i2p" ];
 
     in rec {
-      version = builtins.substring 0 8 self.lastModifiedDate;
 
       packages =
         withDefault
