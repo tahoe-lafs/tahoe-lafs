@@ -56,6 +56,8 @@ buildPythonPackage rec {
     foolscap
     eliot
     pyrsistent
+    flit_core
+    poetry
     collections-extended
   '';
 
@@ -67,10 +69,10 @@ buildPythonPackage rec {
 
   # Define certain overrides to the way Python dependencies are built.
   _ = {
-    # Remove a click-default-group patch for a test suite problem which no
-    # longer applies because the project apparently no longer has a test suite
-    # in its source distribution.
+    # Remove some patches which no longer apply.
+    click.postPatch = "";
     click-default-group.patches = [];
+    boltons.patches = [];
   };
 
   passthru.meta.mach-nix = {
