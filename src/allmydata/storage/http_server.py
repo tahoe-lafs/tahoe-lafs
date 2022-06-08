@@ -3,7 +3,7 @@ HTTP server for storage.
 """
 
 from __future__ import annotations
-from typing import Dict, List, Set, Tuple, Any, Callable, Optional
+from typing import Dict, List, Set, Tuple, Any, Callable
 
 from functools import wraps
 from base64 import b64decode
