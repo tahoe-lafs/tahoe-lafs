@@ -276,7 +276,8 @@ _SCHEMAS = {
 
 def read_range(request, read_data: Callable[[int, int], bytes]) -> Optional[bytes]:
     """
-    Parse the ``Range`` header, read appropriately, return as result.
+    Read an optional ``Range`` header, reads data appropriately via the given
+    callable, return as result.
 
     Only parses a subset of ``Range`` headers that we support: must be set,
     bytes only, only a single range, the end must be explicitly specified.
