@@ -274,21 +274,20 @@ _SCHEMAS = {
 }
 
 
-def read_range(request, read_data: Callable[[int, int], bytes]) -> Optional[bytes]:
+def read_range(request, read_data: Callable[[int, int], bytes]) -> None:
     """
     Read an optional ``Range`` header, reads data appropriately via the given
-    callable, return as result.
+    callable, writes the data to the request.
 
     Only parses a subset of ``Range`` headers that we support: must be set,
     bytes only, only a single range, the end must be explicitly specified.
     Raises a ``_HTTPError(http.REQUESTED_RANGE_NOT_SATISFIABLE)`` if parsing is
     not possible or the header isn't set.
 
-    Returns a result that should be returned from the request handler, and sets
-    appropriate response headers.
-
     Takes a function that will do the actual reading given the start offset and
     a length to read.
+
+    The resulting data is written to the request.
     """
     if request.getHeader("range") is None:
         # Return the whole thing.
@@ -299,7 +298,7 @@ def read_range(request, read_data: Callable[[int, int], bytes]) -> Optional[byte
             data = read_data(start, start + 65536)
             if not data:
                 request.finish()
-                return None
+                return
             request.write(data)
             start += len(data)
 
@@ -326,7 +325,8 @@ def read_range(request, read_data: Callable[[int, int], bytes]) -> Optional[byte
             "content-range",
             ContentRange("bytes", offset, offset + len(data)).to_header(),
         )
-    return data
+    request.write(data)
+    request.finish()
 
 
 class HTTPServer(object):
