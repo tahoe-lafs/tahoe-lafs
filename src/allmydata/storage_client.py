@@ -661,6 +661,19 @@ class AnnouncementNotMatched(Exception):
     """
 
 
+@attr.s(auto_exc=True)
+class MissingPlugin(Exception):
+    """
+    A particular plugin was request, but is missing
+    """
+
+    plugin_name = attr.ib()
+    nickname = attr.ib()
+
+    def __str__(self):
+        return "Missing plugin '{}' for server '{}'".format(self.plugin_name, self.nickname)
+
+
 def _storage_from_foolscap_plugin(node_config, config, announcement, get_rref):
     """
     Construct an ``IStorageServer`` from the most locally-preferred plugin
@@ -682,7 +695,7 @@ def _storage_from_foolscap_plugin(node_config, config, announcement, get_rref):
         try:
             plugin = plugins[plugin_name]
         except KeyError:
-            raise ValueError("{} not installed".format(plugin_name))
+            raise MissingPlugin(plugin_name, announcement.get(u"nickname", "<unknown>"))
         for option in storage_options:
             if plugin_name == option[u"name"]:
                 furl = option[u"storage-server-FURL"]
@@ -773,6 +786,11 @@ class NativeStorageServer(service.MultiService):
                 nickname=ann.get("nickname", "<unknown>"),
                 plugins=e.args[0],
             )
+        except MissingPlugin as e:
+            self.log.failure("Missing plugin")
+            ns = _NullStorage()
+            ns.longname = '<missing plugin "{}">'.format(e.args[0])
+            return ns
         else:
             return _FoolscapStorage.from_announcement(
                 self._server_id,
