@@ -7,7 +7,7 @@ from __future__ import annotations
 from typing import Union, Optional, Sequence, Mapping
 from base64 import b64encode
 
-from attrs import define, asdict, frozen
+from attrs import define, asdict, frozen, field
 
 # TODO Make sure to import Python version?
 from cbor2 import loads, dumps
@@ -586,7 +586,7 @@ class StorageClientImmutables(object):
         )
 
     @inlineCallbacks
-    def list_shares(self, storage_index):  # type: (bytes,) -> Deferred[set[int]]
+    def list_shares(self, storage_index: bytes) -> Deferred[set[int]]:
         """
         Return the set of shares for a given storage index.
         """
@@ -646,8 +646,8 @@ class ReadVector:
 class TestWriteVectors:
     """Test and write vectors for a specific share."""
 
-    test_vectors: Sequence[TestVector]
-    write_vectors: Sequence[WriteVector]
+    test_vectors: Sequence[TestVector] = field(factory=list)
+    write_vectors: Sequence[WriteVector] = field(factory=list)
     new_length: Optional[int] = None
 
     def asdict(self) -> dict:
@@ -696,7 +696,6 @@ class StorageClientMutables:
         Given a mapping between share numbers and test/write vectors, the tests
         are done and if they are valid the writes are done.
         """
-        # TODO unit test all the things
         url = self._client.relative_url(
             "/v1/mutable/{}/read-test-write".format(_encode_si(storage_index))
         )
@@ -731,7 +730,6 @@ class StorageClientMutables:
         """
         Download a chunk of data from a share.
         """
-        # TODO unit test all the things
         return read_share_chunk(
             self._client, "mutable", storage_index, share_number, offset, length
         )
@@ -741,7 +739,6 @@ class StorageClientMutables:
         """
         List the share numbers for a given storage index.
         """
-        # TODO unit test all the things
         url = self._client.relative_url(
             "/v1/mutable/{}/shares".format(_encode_si(storage_index))
         )

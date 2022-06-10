@@ -2,7 +2,8 @@
 HTTP server for storage.
 """
 
-from typing import Dict, List, Set, Tuple, Any
+from __future__ import annotations
+from typing import Dict, List, Set, Tuple, Any, Callable
 
 from functools import wraps
 from base64 import b64decode
@@ -262,7 +263,7 @@ _SCHEMAS = {
                 * share_number: {
                     "test": [* {"offset": uint, "size": uint, "specimen": bstr}]
                     "write": [* {"offset": uint, "data": bstr}]
-                    "new-length": uint // null
+                    "new-length": uint / null
                 }
             }
             "read-vector": [* {"offset": uint, "size": uint}]
@@ -271,6 +272,61 @@ _SCHEMAS = {
         """
     ),
 }
+
+
+def read_range(request, read_data: Callable[[int, int], bytes]) -> None:
+    """
+    Read an optional ``Range`` header, reads data appropriately via the given
+    callable, writes the data to the request.
+
+    Only parses a subset of ``Range`` headers that we support: must be set,
+    bytes only, only a single range, the end must be explicitly specified.
+    Raises a ``_HTTPError(http.REQUESTED_RANGE_NOT_SATISFIABLE)`` if parsing is
+    not possible or the header isn't set.
+
+    Takes a function that will do the actual reading given the start offset and
+    a length to read.
+
+    The resulting data is written to the request.
+    """
+    if request.getHeader("range") is None:
+        # Return the whole thing.
+        start = 0
+        while True:
+            # TODO should probably yield to event loop occasionally...
+            # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3872
+            data = read_data(start, start + 65536)
+            if not data:
+                request.finish()
+                return
+            request.write(data)
+            start += len(data)
+
+    range_header = parse_range_header(request.getHeader("range"))
+    if (
+        range_header is None  # failed to parse
+        or range_header.units != "bytes"
+        or len(range_header.ranges) > 1  # more than one range
+        or range_header.ranges[0][1] is None  # range without end
+    ):
+        raise _HTTPError(http.REQUESTED_RANGE_NOT_SATISFIABLE)
+
+    offset, end = range_header.ranges[0]
+
+    # TODO limit memory usage
+    # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3872
+    data = read_data(offset, end - offset)
+
+    request.setResponseCode(http.PARTIAL_CONTENT)
+    if len(data):
+        # For empty bodies the content-range header makes no sense since
+        # the end of the range is inclusive.
+        request.setHeader(
+            "content-range",
+            ContentRange("bytes", offset, offset + len(data)).to_header(),
+        )
+    request.write(data)
+    request.finish()
 
 
 class HTTPServer(object):
@@ -492,44 +548,7 @@ class HTTPServer(object):
             request.setResponseCode(http.NOT_FOUND)
             return b""
 
-        if request.getHeader("range") is None:
-            # Return the whole thing.
-            start = 0
-            while True:
-                # TODO should probably yield to event loop occasionally...
-                # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3872
-                data = bucket.read(start, start + 65536)
-                if not data:
-                    request.finish()
-                    return
-                request.write(data)
-                start += len(data)
-
-        range_header = parse_range_header(request.getHeader("range"))
-        if (
-            range_header is None
-            or range_header.units != "bytes"
-            or len(range_header.ranges) > 1  # more than one range
-            or range_header.ranges[0][1] is None  # range without end
-        ):
-            request.setResponseCode(http.REQUESTED_RANGE_NOT_SATISFIABLE)
-            return b""
-
-        offset, end = range_header.ranges[0]
-
-        # TODO limit memory usage
-        # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3872
-        data = bucket.read(offset, end - offset)
-
-        request.setResponseCode(http.PARTIAL_CONTENT)
-        if len(data):
-            # For empty bodies the content-range header makes no sense since
-            # the end of the range is inclusive.
-            request.setHeader(
-                "content-range",
-                ContentRange("bytes", offset, offset + len(data)).to_header(),
-            )
-        return data
+        return read_range(request, bucket.read)
 
     @_authorized_route(
         _app,
@@ -581,7 +600,6 @@ class HTTPServer(object):
     )
     def mutable_read_test_write(self, request, authorization, storage_index):
         """Read/test/write combined operation for mutables."""
-        # TODO unit tests
         rtw_request = self._read_encoded(request, _SCHEMAS["mutable_read_test_write"])
         secrets = (
             authorization[Secrets.WRITE_ENABLER],
@@ -617,40 +635,15 @@ class HTTPServer(object):
     )
     def read_mutable_chunk(self, request, authorization, storage_index, share_number):
         """Read a chunk from a mutable."""
-        if request.getHeader("range") is None:
-            # TODO in follow-up ticket
-            raise NotImplementedError()
+        def read_data(offset, length):
+            try:
+                return self._storage_server.slot_readv(
+                    storage_index, [share_number], [(offset, length)]
+                )[share_number][0]
+            except KeyError:
+                raise _HTTPError(http.NOT_FOUND)
 
-        # TODO reduce duplication with immutable reads?
-        # TODO unit tests, perhaps shared if possible
-        range_header = parse_range_header(request.getHeader("range"))
-        if (
-            range_header is None
-            or range_header.units != "bytes"
-            or len(range_header.ranges) > 1  # more than one range
-            or range_header.ranges[0][1] is None  # range without end
-        ):
-            request.setResponseCode(http.REQUESTED_RANGE_NOT_SATISFIABLE)
-            return b""
-
-        offset, end = range_header.ranges[0]
-
-        # TODO limit memory usage
-        # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3872
-        data = self._storage_server.slot_readv(
-            storage_index, [share_number], [(offset, end - offset)]
-        )[share_number][0]
-
-        # TODO reduce duplication?
-        request.setResponseCode(http.PARTIAL_CONTENT)
-        if len(data):
-            # For empty bodies the content-range header makes no sense since
-            # the end of the range is inclusive.
-            request.setHeader(
-                "content-range",
-                ContentRange("bytes", offset, offset + len(data)).to_header(),
-            )
-        return data
+        return read_range(request, read_data)
 
     @_authorized_route(
         _app,
@@ -673,7 +666,6 @@ class HTTPServer(object):
         self, request, authorization, storage_index, share_number
     ):
         """Indicate that given share is corrupt, with a text reason."""
-        # TODO unit test all the paths
         if share_number not in {
             shnum for (shnum, _) in self._storage_server.get_shares(storage_index)
         }:
