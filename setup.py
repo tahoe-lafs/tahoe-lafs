@@ -114,7 +114,9 @@ install_requires = [
     "attrs >= 18.2.0",
 
     # WebSocket library for twisted and asyncio
-    "autobahn >= 19.5.2",
+    "autobahn >= 19.5.2, != 22.5.1, != 22.4.2, != 22.4.1"
+    # (the ignored versions above don't have autobahn.twisted.testing
+    # packaged properly)
 
     # Support for Python 3 transition
     "future >= 0.18.2",
