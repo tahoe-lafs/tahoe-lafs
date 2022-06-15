@@ -75,6 +75,28 @@ rec {
         ${packageName pyVersion} = mkPackage pyVersion;
       }) {} pythonVersions;
 
+  # Create a derivation that runs the automated test suite for on Python
+  # version.
+  #
+  # [str] -> str -> derivation
+  checkForVersion = extras: pythonVersion:
+    pkgs.callPackage ./tests.nix {
+      inherit pythonVersion;
+      inherit (mach-nix.lib.${system}) mkPython;
+      tahoe-lafs = packageForVersion (extras ++ [ "test" ]) pythonVersion;
+    };
+
+  # Create derivations that run the automated test suite.
+  #
+  # [str] -> [str] -> setOf derivation
+  checksForVersions = extras: pythonVersions:
+    let
+      mkCheck = checkForVersion extras;
+    in
+      builtins.foldl' (accum: pyVersion: accum // {
+        ${packageName pyVersion} = mkCheck pyVersion;
+      }) {} pythonVersions;
+
   # Create a set of derivations that includes a default that points at the
   # entry for the given Python version.
   #

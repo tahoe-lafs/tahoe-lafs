@@ -1,33 +1,18 @@
 let
   sources = import nix/sources.nix;
 in
-# See default.nix for documentation about parameters.
-{ pkgsVersion ? "nixpkgs-21.11"
-, pkgs ? import sources.${pkgsVersion} { }
-, pypiData ? sources.pypi-deps-db
-, pythonVersion ? "python37"
-, mach-nix ? import sources.mach-nix {
-    inherit pkgs pypiData;
-    python = pythonVersion;
-  }
-}@args:
+{ pkgs
+
+# The name of the Python derivation in nixpkgs for which to build the package.
+, pythonVersion
+
+# The Tahoe-LAFS package itself, including its test requirements.
+, tahoe-lafs
+
+# The mach-nix builder to use to build the test environment.
+, mkPython
+}:
 let
-  # We would like to know the test requirements but mach-nix does not directly
-  # expose this information to us.  However, it is perfectly capable of
-  # determining it if we ask right...  This is probably not meant to be a
-  # public mach-nix API but we pinned mach-nix so we can deal with mach-nix
-  # upgrade breakage in our own time.
-  mach-lib = import "${sources.mach-nix}/mach_nix/nix/lib.nix" {
-    inherit pkgs;
-    lib = pkgs.lib;
-  };
-  tests_require = (mach-lib.extract "python37" ./. "extras_require" ).extras_require.test;
-
-  # Get the Tahoe-LAFS package itself.  This does not include test
-  # requirements and we don't ask for test requirements so that we can just
-  # re-use the normal package if it is already built.
-  tahoe-lafs = import ./. args;
-
   # If we want to get tahoe-lafs into a Python environment with a bunch of
   # *other* Python modules and let them interact in the usual way then we have
   # to ask mach-nix for tahoe-lafs and those other Python modules in the same
@@ -42,13 +27,18 @@ let
   providers = tahoe-lafs.meta.mach-nix.providers // { tahoe-lafs = "nixpkgs"; };
 
   # Make the Python environment in which we can run the tests.
-  python-env = mach-nix.mkPython {
+  python-env = mkPython {
     # Get the packaging fixes we already know we need from putting together
     # the runtime package.
     inherit (tahoe-lafs.meta.mach-nix) _;
     # Share the runtime package's provider configuration - combined with our
     # own that causes the right tahoe-lafs to be picked up.
     inherit providers overridesPre;
+    # Use the specified Python version - which must match the version of the
+    # Tahoe-LAFS package given.
+    python = pythonVersion;
+
+    # Now get everything into the environment.
     requirements = ''
       # Here we pull in the Tahoe-LAFS package itself.
       tahoe-lafs
@@ -61,9 +51,6 @@ let
       # https://github.com/DavHau/mach-nix/issues/123
       # https://github.com/DavHau/mach-nix/pull/386
       ${tahoe-lafs.requirements}
-
-      # And then all of the test-only dependencies.
-      ${builtins.concatStringsSep "\n" tests_require}
 
       # txi2p-tahoe is another dependency with an environment marker that
       # mach-nix doesn't automatically pick up.

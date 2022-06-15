@@ -23,7 +23,7 @@
       lib = import ./lib.nix {
         inherit system pkgs mach-nix;
       };
-      inherit (lib) packageForVersions devShellForVersions withDefault;
+      inherit (lib) checksForVersions packageForVersions devShellForVersions withDefault;
 
       pkgs = nixpkgs.legacyPackages.${system};
 
@@ -31,12 +31,13 @@
       defaultPythonVersion = "python37";
 
       # the Python versions for which packages are available
-      supportedPythonVersions = ["python37" "python38" "python39" "python310" ];
+      supportedPythonVersions = ["python37" "python38" "python39" ];
 
       # the extras we will include in all packages
       extras = [ "tor" "i2p" ];
 
     in rec {
+      checks = checksForVersions extras supportedPythonVersions;
 
       packages =
         withDefault
