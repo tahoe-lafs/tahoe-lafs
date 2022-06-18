@@ -31,8 +31,12 @@ workflows:
           {}
 
       - "nixos":
-          name: "NixOS 21.11, Python 3.7"
-          python: "python37"
+          matrix:
+            parameters:
+              python:
+                - "python37"
+                - "python38"
+                - "python39"
 
       # Eventually, test against PyPy 3.8
       #- "pypy27-buster":
