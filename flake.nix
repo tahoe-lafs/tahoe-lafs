@@ -20,7 +20,7 @@
   outputs = { self, nixpkgs, flake-utils, mach-nix }:
     flake-utils.lib.eachSystem [ "x86_64-linux" ] (system: let
 
-      lib = import ./lib.nix {
+      lib = import ./nix/lib.nix {
         inherit system pkgs mach-nix;
       };
       inherit (lib) checksForVersions packageForVersions devShellForVersions withDefault;

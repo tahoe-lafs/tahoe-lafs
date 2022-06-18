@@ -33,7 +33,7 @@ buildPythonPackage rec {
   # as many of the non-source files (eg the `.git` directory, `~` backup
   # files, nix's own `result` symlink, etc) as possible to avoid needing to
   # re-build when files that make no difference to the package have changed.
-  src = pkgs.lib.cleanSource ./.;
+  src = pkgs.lib.cleanSource ../.;
 
   python = pythonVersion;
 
