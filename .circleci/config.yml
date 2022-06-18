@@ -387,15 +387,20 @@ jobs:
 
     steps:
       - "run":
-          # The nixos/nix image does not include ssh.  Install it so the
-          # `checkout` step will succeed.  We also want cachix for
-          # Nix-friendly caching.
           name: "Install Basic Dependencies"
           command: |
+            # The nixos/nix image does not include ssh.  Install it so the
+            # `checkout` step will succeed.  We also want cachix for
+            # Nix-friendly caching.
             nix-env \
               --file https://github.com/nixos/nixpkgs/archive/nixos-21.11.tar.gz \
               --install \
               -A openssh cachix bash
+
+            # We also want to use flakes but they're still experimental so
+            # turn them on.
+            mkdir -p ~/.config/nix
+            echo "experimental-features = nix-command flakes" > ~/.config/nix/nix.conf
 
       - "checkout"
 
