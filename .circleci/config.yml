@@ -393,6 +393,7 @@ jobs:
           name: "Install Basic Dependencies"
           command: |
             nix-env \
+              --file https://github.com/nixos/nixpkgs/archive/nixos-21.11.tar.gz \
               --install \
               -A openssh cachix bash
 
