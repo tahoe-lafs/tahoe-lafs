@@ -1,6 +1,3 @@
-let
-  sources = import nix/sources.nix;
-in
 { pkgs
 
 # The name of the Python derivation in nixpkgs for which to build the package.
