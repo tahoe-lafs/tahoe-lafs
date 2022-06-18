@@ -94,7 +94,7 @@ rec {
       mkCheck = checkForVersion extras;
     in
       builtins.foldl' (accum: pyVersion: accum // {
-        ${packageName pyVersion} = mkCheck pyVersion;
+        ${packageName pyVersion + "-tests"} = mkCheck pyVersion;
       }) {} pythonVersions;
 
   # Create a set of derivations that includes a default that points at the

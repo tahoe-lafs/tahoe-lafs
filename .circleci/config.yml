@@ -31,12 +31,8 @@ workflows:
           {}
 
       - "nixos":
-          name: "NixOS 21.05"
-          nixpkgs: "21.05"
-
-      - "nixos":
-          name: "NixOS 21.11"
-          nixpkgs: "21.11"
+          name: "NixOS 21.11, Python 3.7"
+          python: "python37"
 
       # Eventually, test against PyPy 3.8
       #- "pypy27-buster":
@@ -373,16 +369,15 @@ jobs:
 
   nixos:
     parameters:
-      nixpkgs:
+      python:
         description: >-
-          Reference the name of a niv-managed nixpkgs source (see `niv show`
-          and nix/sources.json)
+          Reference the name of the Python package to build and test against.
         type: "string"
 
     docker:
       # Run in a highly Nix-capable environment.
       - <<: *DOCKERHUB_AUTH
-        image: "nixos/nix:2.3.16"
+        image: "nixos/nix:2.9.1"
 
     environment:
       # CACHIX_AUTH_TOKEN is manually set in the CircleCI web UI and
@@ -398,7 +393,6 @@ jobs:
           name: "Install Basic Dependencies"
           command: |
             nix-env \
-              --file https://github.com/nixos/nixpkgs/archive/nixos-<<parameters.nixpkgs>>.tar.gz \
               --install \
               -A openssh cachix bash
 
@@ -434,13 +428,13 @@ jobs:
             # build a couple simple little dependencies that don't take
             # advantage of multiple cores and we get a little speedup by doing
             # them in parallel.
-            nix-build --cores 3 --max-jobs 2 --argstr pkgsVersion "nixpkgs-<<parameters.nixpkgs>>"
+            nix build --cores 3 --max-jobs 2 .#tahoe-lafs-<<parameters.python>>
 
       - "run":
           name: "Test"
           command: |
             # Let it go somewhat wild for the test suite itself
-            nix-build --cores 8 --argstr pkgsVersion "nixpkgs-<<parameters.nixpkgs>>" tests.nix
+            nix build --cores 8 .#tahoe-lafs-<<parameters.python>>-tests
 
       - run:
           # Send any new store objects to cachix.

@@ -37,12 +37,15 @@
       extras = [ "tor" "i2p" ];
 
     in rec {
-      checks = checksForVersions extras supportedPythonVersions;
-
       packages =
-        withDefault
-          (packageForVersions extras supportedPythonVersions)
-          defaultPythonVersion;
+        let
+          packages = packageForVersions extras supportedPythonVersions;
+          tests = checksForVersions extras supportedPythonVersions;
+        in
+          # Define tests alongside the packages because it's easier to pick
+          # and choose which to run this way (as compared to making them all
+          # "checks").
+          withDefault (packages // tests) defaultPythonVersion;
 
       apps.default = {
         type = "app";
