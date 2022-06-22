@@ -107,7 +107,7 @@ class FoolscapOrHttp(Protocol, metaclass=PretendToBeNegotiation):
             protocol = factory.buildProtocol(self.transport.getPeer())
             protocol.makeConnection(self.transport)
             protocol.dataReceived(self._buffer)
-            # TODO __getattr__ or maybe change the __class__
+            # TODO maybe change the __class__
             self._http = protocol
 
     def connectionLost(self, reason: Failure) -> None:
