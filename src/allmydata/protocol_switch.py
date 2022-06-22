@@ -7,8 +7,13 @@ from typing import Optional
 
 from twisted.internet.protocol import Protocol
 from twisted.python.failure import Failure
+from twisted.internet.ssl import CertificateOptions
+from twisted.web.server import Site
+from twisted.protocols.tls import TLSMemoryBIOFactory
 
 from foolscap.negotiate import Negotiation
+
+from .storage.http_server import HTTPServer
 
 
 class ProtocolMode(Enum):
@@ -47,6 +52,7 @@ class FoolscapOrHttp(Protocol, metaclass=PretendToBeNegotiation):
             "_buffer",
             "transport",
             "__class__",
+            "_http",
         }:
             object.__setattr__(self, name, value)
         else:
@@ -73,7 +79,7 @@ class FoolscapOrHttp(Protocol, metaclass=PretendToBeNegotiation):
         if self._protocol_mode == ProtocolMode.FOOLSCAP:
             return self._foolscap.dataReceived(data)
         if self._protocol_mode == ProtocolMode.HTTP:
-            raise NotImplementedError()
+            return self._http.dataReceived(data)
 
         # UNDECIDED mode.
         self._buffer += data
@@ -83,12 +89,26 @@ class FoolscapOrHttp(Protocol, metaclass=PretendToBeNegotiation):
         # Check if it looks like a Foolscap request. If so, it can handle this
         # and later data:
         if self._buffer.startswith(b"GET /id/"):
+            # TODO or maybe just self.__class__ here too?
             self._protocol_mode = ProtocolMode.FOOLSCAP
             buf, self._buffer = self._buffer, b""
             return self._foolscap.dataReceived(buf)
         else:
             self._protocol_mode = ProtocolMode.HTTP
-            raise NotImplementedError("")
+
+            certificate_options = CertificateOptions(
+                privateKey=self.certificate.privateKey.original,
+                certificate=self.certificate.original,
+            )
+            http_server = HTTPServer(self.storage_server, self.swissnum)
+            factory = TLSMemoryBIOFactory(
+                certificate_options, False, Site(http_server.get_resource())
+            )
+            protocol = factory.buildProtocol(self.transport.getPeer())
+            protocol.makeConnection(self.transport)
+            protocol.dataReceived(self._buffer)
+            # TODO __getattr__ or maybe change the __class__
+            self._http = protocol
 
     def connectionLost(self, reason: Failure) -> None:
         if self._protocol_mode == ProtocolMode.FOOLSCAP:

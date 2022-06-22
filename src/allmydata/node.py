@@ -51,7 +51,6 @@ from allmydata.util import configutil
 from allmydata.util.yamlutil import (
     safe_load,
 )
-from .protocol_switch import FoolscapOrHttp
 
 from . import (
     __full_version__,
@@ -708,7 +707,6 @@ def create_tub(tub_options, default_connection_handlers, foolscap_connection_han
         the new Tub via `Tub.setOption`
     """
     tub = Tub(**kwargs)
-    tub.negotiationClass = FoolscapOrHttp
     for (name, value) in list(tub_options.items()):
         tub.setOption(name, value)
     handlers = default_connection_handlers.copy()
