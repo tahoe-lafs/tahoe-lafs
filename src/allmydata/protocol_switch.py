@@ -10,8 +10,10 @@ from twisted.python.failure import Failure
 
 from foolscap.negotiate import Negotiation
 
+
 class ProtocolMode(Enum):
     """Listening mode."""
+
     UNDECIDED = 0
     FOOLSCAP = 1
     HTTP = 2
@@ -30,15 +32,22 @@ class FoolscapOrHttp(Protocol, metaclass=PretendToBeNegotiation):
 
     Pretends to be a ``foolscap.negotiate.Negotiation`` instance.
     """
-    _foolscap : Optional[Negotiation] = None
-    _protocol_mode : ProtocolMode = ProtocolMode.UNDECIDED
+
+    _foolscap: Optional[Negotiation] = None
+    _protocol_mode: ProtocolMode = ProtocolMode.UNDECIDED
     _buffer: bytes = b""
 
     def __init__(self, *args, **kwargs):
         self._foolscap = Negotiation(*args, **kwargs)
 
     def __setattr__(self, name, value):
-        if name in {"_foolscap", "_protocol_mode", "_buffer", "transport"}:
+        if name in {
+            "_foolscap",
+            "_protocol_mode",
+            "_buffer",
+            "transport",
+            "__class__",
+        }:
             object.__setattr__(self, name, value)
         else:
             setattr(self._foolscap, name, value)
@@ -50,13 +59,15 @@ class FoolscapOrHttp(Protocol, metaclass=PretendToBeNegotiation):
         Protocol.makeConnection(self, transport)
         self._foolscap.makeConnection(transport)
 
-    def initServer(self, *args, **kwargs):
-        return self._foolscap.initServer(*args, **kwargs)
-
     def initClient(self, *args, **kwargs):
+        # After creation, a Negotiation instance either has initClient() or
+        # initServer() called. SInce this is a client, we're never going to do
+        # HTTP. Relying on __getattr__/__setattr__ doesn't work, for some
+        # reason, so just mutate ourselves appropriately.
         assert not self._buffer
-        self._protocol_mode = ProtocolMode.FOOLSCAP
-        return self._foolscap.initClient(*args, **kwargs)
+        self.__class__ = Negotiation
+        self.__dict__ = self._foolscap.__dict__
+        return self.initClient(*args, **kwargs)
 
     def dataReceived(self, data: bytes) -> None:
         if self._protocol_mode == ProtocolMode.FOOLSCAP:
@@ -69,7 +80,7 @@ class FoolscapOrHttp(Protocol, metaclass=PretendToBeNegotiation):
         if len(self._buffer) < 8:
             return
 
-        # Check if it looks like Foolscap request. If so, it can handle this
+        # Check if it looks like a Foolscap request. If so, it can handle this
         # and later data:
         if self._buffer.startswith(b"GET /id/"):
             self._protocol_mode = ProtocolMode.FOOLSCAP
