@@ -6,7 +6,7 @@ from typing import Optional, Tuple
 
 from twisted.internet.protocol import Protocol
 from twisted.internet.interfaces import ITransport
-from twisted.internet.ssl import CertificateOptions
+from twisted.internet.ssl import CertificateOptions, PrivateCertificate
 from twisted.web.server import Site
 from twisted.protocols.tls import TLSMemoryBIOFactory
 
@@ -32,7 +32,7 @@ class FoolscapOrHttp(Protocol, metaclass=PretendToBeNegotiation):
 
     # These three will be set by a subclass
     swissnum: bytes
-    certificate = None  # TODO figure out type
+    certificate: PrivateCertificate
     storage_server: StorageServer
 
     def __init__(self, *args, **kwargs):
@@ -96,6 +96,7 @@ class FoolscapOrHttp(Protocol, metaclass=PretendToBeNegotiation):
             factory = TLSMemoryBIOFactory(
                 certificate_options, False, Site(http_server.get_resource())
             )
+            assert self.transport is not None
             protocol = factory.buildProtocol(self.transport.getPeer())
             protocol.makeConnection(self.transport)
             protocol.dataReceived(self._buffer)
