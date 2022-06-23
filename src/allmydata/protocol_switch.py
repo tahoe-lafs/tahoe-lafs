@@ -44,12 +44,7 @@ class FoolscapOrHttp(Protocol, metaclass=PretendToBeNegotiation):
         self._buffer: bytes = b""
 
     def __setattr__(self, name, value):
-        if name in {
-            "_foolscap",
-            "_buffer",
-            "transport",
-            "__class__",
-        }:
+        if name in {"_foolscap", "_buffer", "transport", "__class__", "_timeout"}:
             object.__setattr__(self, name, value)
         else:
             setattr(self._foolscap, name, value)
