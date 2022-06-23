@@ -2,7 +2,6 @@
 Support for listening with both HTTP and Foolscap on the same port.
 """
 
-from enum import Enum
 from typing import Optional, Tuple
 
 from twisted.internet.protocol import Protocol
@@ -15,13 +14,6 @@ from foolscap.negotiate import Negotiation
 
 from .storage.http_server import HTTPServer
 from .storage.server import StorageServer
-
-
-class ProtocolMode(Enum):
-    """Listening mode."""
-
-    UNDECIDED = 0
-    HTTP = 1
 
 
 class PretendToBeNegotiation(type):
@@ -43,21 +35,16 @@ class FoolscapOrHttp(Protocol, metaclass=PretendToBeNegotiation):
     certificate = None  # TODO figure out type
     storage_server: StorageServer
 
-    _foolscap: Optional[Negotiation] = None
-    _protocol_mode: ProtocolMode = ProtocolMode.UNDECIDED
-    _buffer: bytes = b""
-
     def __init__(self, *args, **kwargs):
-        self._foolscap = Negotiation(*args, **kwargs)
+        self._foolscap: Negotiation = Negotiation(*args, **kwargs)
+        self._buffer: bytes = b""
 
     def __setattr__(self, name, value):
         if name in {
             "_foolscap",
-            "_protocol_mode",
             "_buffer",
             "transport",
             "__class__",
-            "_http",
         }:
             object.__setattr__(self, name, value)
         else:
@@ -66,7 +53,7 @@ class FoolscapOrHttp(Protocol, metaclass=PretendToBeNegotiation):
     def __getattr__(self, name):
         return getattr(self._foolscap, name)
 
-    def _convert_to_negotiation(self) -> Tuple[bytes, ITransport]:
+    def _convert_to_negotiation(self) -> Tuple[bytes, Optional[ITransport]]:
         """Convert self to a ``Negotiation`` instance, return any buffered bytes"""
         transport = self.transport
         buf = self._buffer
@@ -84,10 +71,11 @@ class FoolscapOrHttp(Protocol, metaclass=PretendToBeNegotiation):
         return self.initClient(*args, **kwargs)
 
     def dataReceived(self, data: bytes) -> None:
-        if self._protocol_mode == ProtocolMode.HTTP:
-            return self._http.dataReceived(data)
+        """Handle incoming data.
 
-        # UNDECIDED mode.
+        Once we've decided which protocol we are, update self.__class__, at
+        which point all methods will be called on the new class.
+        """
         self._buffer += data
         if len(self._buffer) < 8:
             return
@@ -100,8 +88,6 @@ class FoolscapOrHttp(Protocol, metaclass=PretendToBeNegotiation):
             self.dataReceived(buf)
             return
         else:
-            self._protocol_mode = ProtocolMode.HTTP
-
             certificate_options = CertificateOptions(
                 privateKey=self.certificate.privateKey.original,
                 certificate=self.certificate.original,
@@ -113,8 +99,8 @@ class FoolscapOrHttp(Protocol, metaclass=PretendToBeNegotiation):
             protocol = factory.buildProtocol(self.transport.getPeer())
             protocol.makeConnection(self.transport)
             protocol.dataReceived(self._buffer)
-            # TODO maybe change the __class__
-            self._http = protocol
+            self.__class__ = protocol.__class__
+            self.__dict__ = protocol.__dict__
 
 
 def create_foolscap_or_http_class():
