@@ -30,7 +30,8 @@ class FoolscapOrHttp(Protocol, metaclass=PretendToBeNegotiation):
     Pretends to be a ``foolscap.negotiate.Negotiation`` instance.
     """
 
-    # These three will be set by a subclass
+    # These three will be set by a subclass in update_foolscap_or_http_class()
+    # below.
     swissnum: bytes
     certificate: PrivateCertificate
     storage_server: StorageServer
@@ -53,19 +54,18 @@ class FoolscapOrHttp(Protocol, metaclass=PretendToBeNegotiation):
     def __getattr__(self, name):
         return getattr(self._foolscap, name)
 
-    def _convert_to_negotiation(self) -> Tuple[bytes, Optional[ITransport]]:
-        """Convert self to a ``Negotiation`` instance, return any buffered bytes"""
-        transport = self.transport
-        buf = self._buffer
+    def _convert_to_negotiation(self):
+        """
+        Convert self to a ``Negotiation`` instance, return any buffered
+        bytes and the transport if any.
+        """
         self.__class__ = Negotiation  # type: ignore
         self.__dict__ = self._foolscap.__dict__
-        return buf, transport
 
     def initClient(self, *args, **kwargs):
         # After creation, a Negotiation instance either has initClient() or
-        # initServer() called. SInce this is a client, we're never going to do
-        # HTTP. Relying on __getattr__/__setattr__ doesn't work, for some
-        # reason, so just mutate ourselves appropriately.
+        # initServer() called. Since this is a client, we're never going to do
+        # HTTP, so we can immediately become a Negotiation instance.
         assert not self._buffer
         self._convert_to_negotiation()
         return self.initClient(*args, **kwargs)
@@ -83,7 +83,9 @@ class FoolscapOrHttp(Protocol, metaclass=PretendToBeNegotiation):
         # Check if it looks like a Foolscap request. If so, it can handle this
         # and later data:
         if self._buffer.startswith(b"GET /id/"):
-            buf, transport = self._convert_to_negotiation()
+            transport = self.transport
+            buf = self._buffer
+            self._convert_to_negotiation()
             self.makeConnection(transport)
             self.dataReceived(buf)
             return
