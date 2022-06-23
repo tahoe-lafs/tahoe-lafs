@@ -2,13 +2,14 @@
 Support for listening with both HTTP and Foolscap on the same port.
 """
 
-from typing import Optional, Tuple
+from typing import Optional
 
 from twisted.internet.protocol import Protocol
-from twisted.internet.interfaces import ITransport
+from twisted.internet.interfaces import IDelayedCall
 from twisted.internet.ssl import CertificateOptions, PrivateCertificate
 from twisted.web.server import Site
 from twisted.protocols.tls import TLSMemoryBIOFactory
+from twisted.internet import reactor
 
 from foolscap.negotiate import Negotiation
 
@@ -35,6 +36,8 @@ class FoolscapOrHttp(Protocol, metaclass=PretendToBeNegotiation):
     swissnum: bytes
     certificate: PrivateCertificate
     storage_server: StorageServer
+
+    _timeout: IDelayedCall
 
     def __init__(self, *args, **kwargs):
         self._foolscap: Negotiation = Negotiation(*args, **kwargs)
@@ -69,6 +72,9 @@ class FoolscapOrHttp(Protocol, metaclass=PretendToBeNegotiation):
         self._convert_to_negotiation()
         return self.initClient(*args, **kwargs)
 
+    def connectionMade(self):
+        self._timeout = reactor.callLater(30, self.transport.abortConnection)
+
     def dataReceived(self, data: bytes) -> None:
         """Handle incoming data.
 
@@ -80,7 +86,8 @@ class FoolscapOrHttp(Protocol, metaclass=PretendToBeNegotiation):
             return
 
         # Check if it looks like a Foolscap request. If so, it can handle this
-        # and later data:
+        # and later data, otherwise assume HTTPS.
+        self._timeout.cancel()
         if self._buffer.startswith(b"GET /id/"):
             transport = self.transport
             buf = self._buffer
