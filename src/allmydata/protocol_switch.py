@@ -84,6 +84,7 @@ class FoolscapOrHttp(Protocol, metaclass=PretendToBeNegotiation):
         # and later data, otherwise assume HTTPS.
         self._timeout.cancel()
         if self._buffer.startswith(b"GET /id/"):
+            # We're a Foolscap Negotiation server protocol instance:
             transport = self.transport
             buf = self._buffer
             self._convert_to_negotiation()
@@ -91,6 +92,7 @@ class FoolscapOrHttp(Protocol, metaclass=PretendToBeNegotiation):
             self.dataReceived(buf)
             return
         else:
+            # We're a HTTPS protocol instance, serving the storage protocol:
             certificate_options = CertificateOptions(
                 privateKey=self.certificate.privateKey.original,
                 certificate=self.certificate.original,
