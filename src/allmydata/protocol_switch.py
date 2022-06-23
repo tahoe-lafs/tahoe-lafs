@@ -3,10 +3,10 @@ Support for listening with both HTTP and Foolscap on the same port.
 """
 
 from enum import Enum
-from typing import Optional
+from typing import Optional, Tuple
 
 from twisted.internet.protocol import Protocol
-from twisted.python.failure import Failure
+from twisted.internet.interfaces import ITransport
 from twisted.internet.ssl import CertificateOptions
 from twisted.web.server import Site
 from twisted.protocols.tls import TLSMemoryBIOFactory
@@ -21,8 +21,7 @@ class ProtocolMode(Enum):
     """Listening mode."""
 
     UNDECIDED = 0
-    FOOLSCAP = 1
-    HTTP = 2
+    HTTP = 1
 
 
 class PretendToBeNegotiation(type):
@@ -67,9 +66,13 @@ class FoolscapOrHttp(Protocol, metaclass=PretendToBeNegotiation):
     def __getattr__(self, name):
         return getattr(self._foolscap, name)
 
-    def makeConnection(self, transport):
-        Protocol.makeConnection(self, transport)
-        self._foolscap.makeConnection(transport)
+    def _convert_to_negotiation(self) -> Tuple[bytes, ITransport]:
+        """Convert self to a ``Negotiation`` instance, return any buffered bytes"""
+        transport = self.transport
+        buf = self._buffer
+        self.__class__ = Negotiation  # type: ignore
+        self.__dict__ = self._foolscap.__dict__
+        return buf, transport
 
     def initClient(self, *args, **kwargs):
         # After creation, a Negotiation instance either has initClient() or
@@ -77,13 +80,10 @@ class FoolscapOrHttp(Protocol, metaclass=PretendToBeNegotiation):
         # HTTP. Relying on __getattr__/__setattr__ doesn't work, for some
         # reason, so just mutate ourselves appropriately.
         assert not self._buffer
-        self.__class__ = Negotiation
-        self.__dict__ = self._foolscap.__dict__
+        self._convert_to_negotiation()
         return self.initClient(*args, **kwargs)
 
     def dataReceived(self, data: bytes) -> None:
-        if self._protocol_mode == ProtocolMode.FOOLSCAP:
-            return self._foolscap.dataReceived(data)
         if self._protocol_mode == ProtocolMode.HTTP:
             return self._http.dataReceived(data)
 
@@ -95,10 +95,10 @@ class FoolscapOrHttp(Protocol, metaclass=PretendToBeNegotiation):
         # Check if it looks like a Foolscap request. If so, it can handle this
         # and later data:
         if self._buffer.startswith(b"GET /id/"):
-            # TODO or maybe just self.__class__ here too?
-            self._protocol_mode = ProtocolMode.FOOLSCAP
-            buf, self._buffer = self._buffer, b""
-            return self._foolscap.dataReceived(buf)
+            buf, transport = self._convert_to_negotiation()
+            self.makeConnection(transport)
+            self.dataReceived(buf)
+            return
         else:
             self._protocol_mode = ProtocolMode.HTTP
 
@@ -115,10 +115,6 @@ class FoolscapOrHttp(Protocol, metaclass=PretendToBeNegotiation):
             protocol.dataReceived(self._buffer)
             # TODO maybe change the __class__
             self._http = protocol
-
-    def connectionLost(self, reason: Failure) -> None:
-        if self._protocol_mode == ProtocolMode.FOOLSCAP:
-            return self._foolscap.connectionLost(reason)
 
 
 def create_foolscap_or_http_class():
