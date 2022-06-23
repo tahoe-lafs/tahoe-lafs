@@ -56,8 +56,7 @@ class FoolscapOrHttp(Protocol, metaclass=PretendToBeNegotiation):
 
     def _convert_to_negotiation(self):
         """
-        Convert self to a ``Negotiation`` instance, return any buffered
-        bytes and the transport if any.
+        Convert self to a ``Negotiation`` instance.
         """
         self.__class__ = Negotiation  # type: ignore
         self.__dict__ = self._foolscap.__dict__
