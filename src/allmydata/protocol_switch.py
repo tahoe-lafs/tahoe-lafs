@@ -14,6 +14,7 @@ from twisted.protocols.tls import TLSMemoryBIOFactory
 from foolscap.negotiate import Negotiation
 
 from .storage.http_server import HTTPServer
+from .storage.server import StorageServer
 
 
 class ProtocolMode(Enum):
@@ -37,6 +38,11 @@ class FoolscapOrHttp(Protocol, metaclass=PretendToBeNegotiation):
 
     Pretends to be a ``foolscap.negotiate.Negotiation`` instance.
     """
+
+    # These three will be set by a subclass
+    swissnum: bytes
+    certificate = None  # TODO figure out type
+    storage_server: StorageServer
 
     _foolscap: Optional[Negotiation] = None
     _protocol_mode: ProtocolMode = ProtocolMode.UNDECIDED
@@ -113,3 +119,16 @@ class FoolscapOrHttp(Protocol, metaclass=PretendToBeNegotiation):
     def connectionLost(self, reason: Failure) -> None:
         if self._protocol_mode == ProtocolMode.FOOLSCAP:
             return self._foolscap.connectionLost(reason)
+
+
+def create_foolscap_or_http_class():
+    class FoolscapOrHttpWithCert(FoolscapOrHttp):
+        pass
+
+    return FoolscapOrHttpWithCert
+
+
+def update_foolscap_or_http_class(cls, certificate, storage_server, swissnum):
+    cls.certificate = certificate
+    cls.storage_server = storage_server
+    cls.swissnum = swissnum

@@ -55,6 +55,8 @@ from allmydata.util.yamlutil import (
 from . import (
     __full_version__,
 )
+from .protocol_switch import create_foolscap_or_http_class
+
 
 def _common_valid_config():
     return configutil.ValidConfiguration({
@@ -707,6 +709,7 @@ def create_tub(tub_options, default_connection_handlers, foolscap_connection_han
         the new Tub via `Tub.setOption`
     """
     tub = Tub(**kwargs)
+    tub.negotiationClass = create_foolscap_or_http_class()
     for (name, value) in list(tub_options.items()):
         tub.setOption(name, value)
     handlers = default_connection_handlers.copy()

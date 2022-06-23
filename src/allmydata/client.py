@@ -64,7 +64,7 @@ from allmydata.interfaces import (
 from allmydata.nodemaker import NodeMaker
 from allmydata.blacklist import Blacklist
 from allmydata import node
-from .protocol_switch import FoolscapOrHttp
+from .protocol_switch import update_foolscap_or_http_class
 
 
 KiB=1024
@@ -820,11 +820,7 @@ class _Client(node.Node, pollmixin.PollMixin):
             furl_file = self.config.get_private_path("storage.furl").encode(get_filesystem_encoding())
             furl = self.tub.registerReference(FoolscapStorageServer(ss), furlFile=furl_file)
             (_, _, swissnum) = furl.rpartition("/")
-            class FoolscapOrHttpWithCert(FoolscapOrHttp):
-                certificate = self.tub.myCertificate
-                storage_server = ss
-                swissnum = swissnum
-            self.tub.negotiationClass = FoolscapOrHttpWithCert
+            update_foolscap_or_http_class(self.tub.negotiationClass, self.tub.myCertificate, ss, swissnum.encode("ascii"))
 
             announcement["anonymous-storage-FURL"] = furl
 
