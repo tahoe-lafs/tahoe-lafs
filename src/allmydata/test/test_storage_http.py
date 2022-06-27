@@ -6,6 +6,7 @@ from base64 import b64encode
 from contextlib import contextmanager
 from os import urandom
 from typing import Union, Callable, Tuple, Iterable
+from time import sleep, time
 from cbor2 import dumps
 from pycddl import ValidationError as CDDLValidationError
 from hypothesis import assume, given, strategies as st
@@ -14,7 +15,8 @@ from treq.testing import StubTreq
 from klein import Klein
 from hyperlink import DecodedURL
 from collections_extended import RangeMap
-from twisted.internet.task import Clock
+from twisted.internet.task import Clock, Cooperator
+from twisted.internet import task
 from twisted.web import http
 from twisted.web.http_headers import Headers
 from werkzeug import routing
@@ -316,10 +318,11 @@ class HttpTestFixture(Fixture):
             self.tempdir.path, b"\x00" * 20, clock=self.clock
         )
         self.http_server = HTTPServer(self.storage_server, SWISSNUM_FOR_TEST)
+        self.treq = StubTreq(self.http_server.get_resource())
         self.client = StorageClient(
             DecodedURL.from_text("http://127.0.0.1"),
             SWISSNUM_FOR_TEST,
-            treq=StubTreq(self.http_server.get_resource()),
+            treq=self.treq,
         )
 
 
@@ -1261,8 +1264,20 @@ class SharedImmutableMutableTestsMixin:
         """
         A read with no range returns the whole mutable/immutable.
         """
+        self.patch(
+            task,
+            "_theCooperator",
+            Cooperator(scheduler=lambda c: self.http.clock.callLater(0.000001, c)),
+        )
+
+        def result_of_with_flush(d):
+            for i in range(100):
+                self.http.clock.advance(0.001)
+            self.http.treq.flush()
+            return result_of(d)
+
         storage_index, uploaded_data, _ = self.upload(1, data_length)
-        response = result_of(
+        response = result_of_with_flush(
             self.http.client.request(
                 "GET",
                 self.http.client.relative_url(

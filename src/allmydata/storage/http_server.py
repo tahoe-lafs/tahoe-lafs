@@ -12,10 +12,15 @@ import binascii
 from zope.interface import implementer
 from klein import Klein
 from twisted.web import http
-from twisted.internet.interfaces import IListeningPort, IStreamServerEndpoint
+from twisted.web.server import NOT_DONE_YET
+from twisted.internet.interfaces import (
+    IListeningPort,
+    IStreamServerEndpoint,
+    IPullProducer,
+)
 from twisted.internet.defer import Deferred
 from twisted.internet.ssl import CertificateOptions, Certificate, PrivateCertificate
-from twisted.web.server import Site
+from twisted.web.server import Site, Request
 from twisted.protocols.tls import TLSMemoryBIOFactory
 from twisted.python.filepath import FilePath
 
@@ -274,7 +279,37 @@ _SCHEMAS = {
 }
 
 
-def read_range(request, read_data: Callable[[int, int], bytes]) -> None:
+@implementer(IPullProducer)
+@define
+class _ReadProducer:
+    """
+    Producer that calls a read function, and writes to a request.
+    """
+
+    request: Request
+    read_data: Callable[[int, int], bytes]
+    result: Deferred
+    start: int = field(default=0)
+
+    def resumeProducing(self):
+        data = self.read_data(self.start, self.start + 65536)
+        if not data:
+            self.request.unregisterProducer()
+            d = self.result
+            del self.result
+            d.callback(b"")
+            return
+        self.request.write(data)
+        self.start += len(data)
+
+    def pauseProducing(self):
+        pass
+
+    def stopProducing(self):
+        pass
+
+
+def read_range(request: Request, read_data: Callable[[int, int], bytes]) -> None:
     """
     Read an optional ``Range`` header, reads data appropriately via the given
     callable, writes the data to the request.
@@ -290,17 +325,9 @@ def read_range(request, read_data: Callable[[int, int], bytes]) -> None:
     The resulting data is written to the request.
     """
     if request.getHeader("range") is None:
-        # Return the whole thing.
-        start = 0
-        while True:
-            # TODO should probably yield to event loop occasionally...
-            # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3872
-            data = read_data(start, start + 65536)
-            if not data:
-                request.finish()
-                return
-            request.write(data)
-            start += len(data)
+        d = Deferred()
+        request.registerProducer(_ReadProducer(request, read_data, d), False)
+        return d
 
     range_header = parse_range_header(request.getHeader("range"))
     if (
