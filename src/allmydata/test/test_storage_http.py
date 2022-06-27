@@ -10,7 +10,7 @@ from time import sleep, time
 from cbor2 import dumps
 from pycddl import ValidationError as CDDLValidationError
 from hypothesis import assume, given, strategies as st
-from fixtures import Fixture, TempDir
+from fixtures import Fixture, TempDir, MockPatch
 from treq.testing import StubTreq
 from klein import Klein
 from hyperlink import DecodedURL
@@ -314,6 +314,12 @@ class HttpTestFixture(Fixture):
     def _setUp(self):
         self.clock = Clock()
         self.tempdir = self.useFixture(TempDir())
+        self.mock = self.useFixture(
+            MockPatch(
+                "twisted.internet.task._theCooperator",
+                Cooperator(scheduler=lambda c: self.clock.callLater(0.000001, c)),
+            )
+        )
         self.storage_server = StorageServer(
             self.tempdir.path, b"\x00" * 20, clock=self.clock
         )
@@ -324,6 +330,12 @@ class HttpTestFixture(Fixture):
             SWISSNUM_FOR_TEST,
             treq=self.treq,
         )
+
+    def result_of_with_flush(self, d):
+        for i in range(100):
+            self.clock.advance(0.001)
+        self.treq.flush()
+        return result_of(d)
 
 
 class StorageClientWithHeadersOverride(object):
@@ -548,7 +560,7 @@ class ImmutableHTTPAPITests(SyncTestCase):
 
         # We can now read:
         for offset, length in [(0, 100), (10, 19), (99, 1), (49, 200)]:
-            downloaded = result_of(
+            downloaded = self.http.result_of_with_flush(
                 self.imm_client.read_share_chunk(storage_index, 1, offset, length)
             )
             self.assertEqual(downloaded, expected_data[offset : offset + length])
@@ -623,7 +635,7 @@ class ImmutableHTTPAPITests(SyncTestCase):
 
         # The upload of share 1 succeeded, demonstrating that second create()
         # call didn't overwrite work-in-progress.
-        downloaded = result_of(
+        downloaded = self.http.result_of_with_flush(
             self.imm_client.read_share_chunk(storage_index, 1, 0, 100)
         )
         self.assertEqual(downloaded, b"a" * 50 + b"b" * 50)
@@ -753,11 +765,15 @@ class ImmutableHTTPAPITests(SyncTestCase):
             )
         )
         self.assertEqual(
-            result_of(self.imm_client.read_share_chunk(storage_index, 1, 0, 10)),
+            self.http.result_of_with_flush(
+                self.imm_client.read_share_chunk(storage_index, 1, 0, 10)
+            ),
             b"1" * 10,
         )
         self.assertEqual(
-            result_of(self.imm_client.read_share_chunk(storage_index, 2, 0, 10)),
+            self.http.result_of_with_flush(
+                self.imm_client.read_share_chunk(storage_index, 2, 0, 10)
+            ),
             b"2" * 10,
         )
 
@@ -921,7 +937,7 @@ class ImmutableHTTPAPITests(SyncTestCase):
         # Abort didn't prevent reading:
         self.assertEqual(
             uploaded_data,
-            result_of(
+            self.http.result_of_with_flush(
                 self.imm_client.read_share_chunk(
                     storage_index,
                     0,
@@ -986,8 +1002,12 @@ class MutableHTTPAPIsTests(SyncTestCase):
         Written data can be read using ``read_share_chunk``.
         """
         storage_index, _, _ = self.create_upload()
-        data0 = result_of(self.mut_client.read_share_chunk(storage_index, 0, 1, 7))
-        data1 = result_of(self.mut_client.read_share_chunk(storage_index, 1, 0, 8))
+        data0 = self.http.result_of_with_flush(
+            self.mut_client.read_share_chunk(storage_index, 0, 1, 7)
+        )
+        data1 = self.http.result_of_with_flush(
+            self.mut_client.read_share_chunk(storage_index, 1, 0, 8)
+        )
         self.assertEqual((data0, data1), (b"bcdef-0", b"abcdef-1"))
 
     def test_read_before_write(self):
@@ -1015,8 +1035,12 @@ class MutableHTTPAPIsTests(SyncTestCase):
             ),
         )
         # But the write did happen:
-        data0 = result_of(self.mut_client.read_share_chunk(storage_index, 0, 0, 8))
-        data1 = result_of(self.mut_client.read_share_chunk(storage_index, 1, 0, 8))
+        data0 = self.http.result_of_with_flush(
+            self.mut_client.read_share_chunk(storage_index, 0, 0, 8)
+        )
+        data1 = self.http.result_of_with_flush(
+            self.mut_client.read_share_chunk(storage_index, 1, 0, 8)
+        )
         self.assertEqual((data0, data1), (b"aXYZef-0", b"abcdef-1"))
 
     def test_conditional_write(self):
@@ -1057,7 +1081,9 @@ class MutableHTTPAPIsTests(SyncTestCase):
         )
         self.assertTrue(result.success)
         self.assertEqual(
-            result_of(self.mut_client.read_share_chunk(storage_index, 0, 0, 8)),
+            self.http.result_of_with_flush(
+                self.mut_client.read_share_chunk(storage_index, 0, 0, 8)
+            ),
             b"aXYZef-0",
         )
 
@@ -1094,7 +1120,9 @@ class MutableHTTPAPIsTests(SyncTestCase):
 
         # The write did not happen:
         self.assertEqual(
-            result_of(self.mut_client.read_share_chunk(storage_index, 0, 0, 8)),
+            self.http.result_of_with_flush(
+                self.mut_client.read_share_chunk(storage_index, 0, 0, 8)
+            ),
             b"abcdef-0",
         )
 
@@ -1194,7 +1222,7 @@ class SharedImmutableMutableTestsMixin:
         Reading from unknown storage index results in 404.
         """
         with assert_fails_with_http_code(self, http.NOT_FOUND):
-            result_of(
+            self.http.result_of_with_flush(
                 self.client.read_share_chunk(
                     b"1" * 16,
                     1,
@@ -1209,7 +1237,7 @@ class SharedImmutableMutableTestsMixin:
         """
         storage_index, _, _ = self.upload(1)
         with assert_fails_with_http_code(self, http.NOT_FOUND):
-            result_of(
+            self.http.result_of_with_flush(
                 self.client.read_share_chunk(
                     storage_index,
                     7,  # different share number
@@ -1235,7 +1263,7 @@ class SharedImmutableMutableTestsMixin:
             with assert_fails_with_http_code(
                 self, http.REQUESTED_RANGE_NOT_SATISFIABLE
             ):
-                result_of(
+                self.http.result_of_with_flush(
                     client.read_share_chunk(
                         storage_index,
                         1,
@@ -1264,20 +1292,8 @@ class SharedImmutableMutableTestsMixin:
         """
         A read with no range returns the whole mutable/immutable.
         """
-        self.patch(
-            task,
-            "_theCooperator",
-            Cooperator(scheduler=lambda c: self.http.clock.callLater(0.000001, c)),
-        )
-
-        def result_of_with_flush(d):
-            for i in range(100):
-                self.http.clock.advance(0.001)
-            self.http.treq.flush()
-            return result_of(d)
-
         storage_index, uploaded_data, _ = self.upload(1, data_length)
-        response = result_of_with_flush(
+        response = self.http.result_of_with_flush(
             self.http.client.request(
                 "GET",
                 self.http.client.relative_url(
@@ -1298,7 +1314,7 @@ class SharedImmutableMutableTestsMixin:
         def check_range(requested_range, expected_response):
             headers = Headers()
             headers.setRawHeaders("range", [requested_range])
-            response = result_of(
+            response = self.http.result_of_with_flush(
                 self.http.client.request(
                     "GET",
                     self.http.client.relative_url(

@@ -281,9 +281,10 @@ _SCHEMAS = {
 
 @implementer(IPullProducer)
 @define
-class _ReadProducer:
+class _ReadAllProducer:
     """
-    Producer that calls a read function, and writes to a request.
+    Producer that calls a read function repeatedly to read all the data, and
+    writes to a request.
     """
 
     request: Request
@@ -292,7 +293,7 @@ class _ReadProducer:
     start: int = field(default=0)
 
     def resumeProducing(self):
-        data = self.read_data(self.start, self.start + 65536)
+        data = self.read_data(self.start, 65536)
         if not data:
             self.request.unregisterProducer()
             d = self.result
@@ -301,6 +302,52 @@ class _ReadProducer:
             return
         self.request.write(data)
         self.start += len(data)
+
+    def pauseProducing(self):
+        pass
+
+    def stopProducing(self):
+        pass
+
+
+@implementer(IPullProducer)
+@define
+class _ReadRangeProducer:
+    """
+    Producer that calls a read function to read a range of data, and writes to
+    a request.
+    """
+
+    request: Request
+    read_data: Callable[[int, int], bytes]
+    result: Deferred
+    start: int
+    remaining: int
+    first_read: bool = field(default=True)
+
+    def resumeProducing(self):
+        to_read = min(self.remaining, 65536)
+        data = self.read_data(self.start, to_read)
+        assert len(data) <= to_read
+        if self.first_read and data:
+            # For empty bodies the content-range header makes no sense since
+            # the end of the range is inclusive.
+            self.request.setHeader(
+                "content-range",
+                ContentRange("bytes", self.start, self.start + len(data)).to_header(),
+            )
+        self.request.write(data)
+
+        if not data or len(data) < to_read:
+            self.request.unregisterProducer()
+            d = self.result
+            del self.result
+            d.callback(b"")
+            return
+
+        self.start += len(data)
+        self.remaining -= len(data)
+        assert self.remaining >= 0
 
     def pauseProducing(self):
         pass
@@ -324,9 +371,20 @@ def read_range(request: Request, read_data: Callable[[int, int], bytes]) -> None
 
     The resulting data is written to the request.
     """
+
+    def read_data_with_error_handling(offset: int, length: int) -> bytes:
+        try:
+            return read_data(offset, length)
+        except _HTTPError as e:
+            request.setResponseCode(e.code)
+            # Empty read means we're done.
+            return b""
+
     if request.getHeader("range") is None:
         d = Deferred()
-        request.registerProducer(_ReadProducer(request, read_data, d), False)
+        request.registerProducer(
+            _ReadAllProducer(request, read_data_with_error_handling, d), False
+        )
         return d
 
     range_header = parse_range_header(request.getHeader("range"))
@@ -339,21 +397,15 @@ def read_range(request: Request, read_data: Callable[[int, int], bytes]) -> None
         raise _HTTPError(http.REQUESTED_RANGE_NOT_SATISFIABLE)
 
     offset, end = range_header.ranges[0]
-
-    # TODO limit memory usage
-    # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3872
-    data = read_data(offset, end - offset)
-
     request.setResponseCode(http.PARTIAL_CONTENT)
-    if len(data):
-        # For empty bodies the content-range header makes no sense since
-        # the end of the range is inclusive.
-        request.setHeader(
-            "content-range",
-            ContentRange("bytes", offset, offset + len(data)).to_header(),
-        )
-    request.write(data)
-    request.finish()
+    d = Deferred()
+    request.registerProducer(
+        _ReadRangeProducer(
+            request, read_data_with_error_handling, d, offset, end - offset
+        ),
+        False,
+    )
+    return d
 
 
 class HTTPServer(object):
