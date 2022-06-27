@@ -19,7 +19,7 @@ from twisted.web.server import Site
 from twisted.protocols.tls import TLSMemoryBIOFactory
 from twisted.python.filepath import FilePath
 
-import attr
+from attrs import define, field
 from werkzeug.http import (
     parse_range_header,
     parse_content_range_header,
@@ -137,31 +137,31 @@ def _authorized_route(app, required_secrets, *route_args, **route_kwargs):
     return decorator
 
 
-@attr.s
+@define
 class StorageIndexUploads(object):
     """
     In-progress upload to storage index.
     """
 
     # Map share number to BucketWriter
-    shares = attr.ib(factory=dict)  # type: Dict[int,BucketWriter]
+    shares: dict[int, BucketWriter] = field(factory=dict)
 
     # Map share number to the upload secret (different shares might have
     # different upload secrets).
-    upload_secrets = attr.ib(factory=dict)  # type: Dict[int,bytes]
+    upload_secrets: dict[int, bytes] = field(factory=dict)
 
 
-@attr.s
+@define
 class UploadsInProgress(object):
     """
     Keep track of uploads for storage indexes.
     """
 
     # Map storage index to corresponding uploads-in-progress
-    _uploads = attr.ib(type=Dict[bytes, StorageIndexUploads], factory=dict)
+    _uploads: dict[bytes, StorageIndexUploads] = field(factory=dict)
 
     # Map BucketWriter to (storage index, share number)
-    _bucketwriters = attr.ib(type=Dict[BucketWriter, Tuple[bytes, int]], factory=dict)
+    _bucketwriters: dict[BucketWriter, Tuple[bytes, int]] = field(factory=dict)
 
     def add_write_bucket(
         self,
@@ -445,10 +445,7 @@ class HTTPServer(object):
 
         return self._send_encoded(
             request,
-            {
-                "already-have": set(already_got),
-                "allocated": set(sharenum_to_bucket),
-            },
+            {"already-have": set(already_got), "allocated": set(sharenum_to_bucket)},
         )
 
     @_authorized_route(
@@ -635,6 +632,7 @@ class HTTPServer(object):
     )
     def read_mutable_chunk(self, request, authorization, storage_index, share_number):
         """Read a chunk from a mutable."""
+
         def read_data(offset, length):
             try:
                 return self._storage_server.slot_readv(
@@ -646,10 +644,7 @@ class HTTPServer(object):
         return read_range(request, read_data)
 
     @_authorized_route(
-        _app,
-        set(),
-        "/v1/mutable/<storage_index:storage_index>/shares",
-        methods=["GET"],
+        _app, set(), "/v1/mutable/<storage_index:storage_index>/shares", methods=["GET"]
     )
     def enumerate_mutable_shares(self, request, authorization, storage_index):
         """List mutable shares for a storage index."""
@@ -679,7 +674,7 @@ class HTTPServer(object):
 
 
 @implementer(IStreamServerEndpoint)
-@attr.s
+@define
 class _TLSEndpointWrapper(object):
     """
     Wrap an existing endpoint with the server-side storage TLS policy.  This is
@@ -687,8 +682,8 @@ class _TLSEndpointWrapper(object):
     example there's Tor and i2p.
     """
 
-    endpoint = attr.ib(type=IStreamServerEndpoint)
-    context_factory = attr.ib(type=CertificateOptions)
+    endpoint: IStreamServerEndpoint
+    context_factory: CertificateOptions
 
     @classmethod
     def from_paths(
