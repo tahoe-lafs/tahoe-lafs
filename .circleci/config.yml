@@ -395,7 +395,10 @@ jobs:
           command: |
             # The nixos/nix image does not include ssh.  Install it so the
             # `checkout` step will succeed.  We also want cachix for
-            # Nix-friendly caching.
+            # Nix-friendly caching.  We only use these tools for setting up
+            # the build environment so the exact version of nixos/nixpkgs we
+            # use doesn't matter a whole lot.  The inputs for the real build
+            # are pinned elsewhere.
             nix-env \
               --file https://github.com/nixos/nixpkgs/archive/nixos-21.11.tar.gz \
               --install \
