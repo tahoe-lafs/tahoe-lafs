@@ -1139,6 +1139,15 @@ class MutableHTTPAPIsTests(SyncTestCase):
             b"aXYZef-0",
         )
 
+    def test_too_large_write(self):
+        """
+        Writing too large of a chunk results in a REQUEST ENTITY TOO LARGE http
+        error.
+        """
+        with self.assertRaises(ClientException) as e:
+            self.create_upload(b"0123456789" * 1024 * 1024)
+        self.assertEqual(e.exception.code, http.REQUEST_ENTITY_TOO_LARGE)
+
     def test_list_shares(self):
         """``list_shares()`` returns the shares for a given storage index."""
         storage_index, _, _ = self.create_upload()

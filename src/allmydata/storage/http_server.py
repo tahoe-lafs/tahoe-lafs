@@ -245,6 +245,8 @@ class _HTTPError(Exception):
 # Tags are of the form #6.nnn, where the number is documented at
 # https://www.iana.org/assignments/cbor-tags/cbor-tags.xhtml. Notably, #6.258
 # indicates a set.
+#
+# TODO 3872 length limits in the schema.
 _SCHEMAS = {
     "allocate_buckets": Schema(
         """
@@ -485,12 +487,18 @@ class HTTPServer(object):
     def _read_encoded(self, request, schema: Schema) -> Any:
         """
         Read encoded request body data, decoding it with CBOR by default.
+
+        Somewhat arbitrarily, limit body size to 1MB; this may be too low, we
+        may want to customize per query type, but this is the starting point
+        for now.
         """
         content_type = get_content_type(request.requestHeaders)
         if content_type == CBOR_MIME_TYPE:
-            # TODO limit memory usage, client could send arbitrarily large data...
-            # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3872
-            message = request.content.read()
+            # Read 1 byte more than 1MB. We expect length to be 1MB or
+            # less; if it's more assume it's not a legitimate message.
+            message = request.content.read(1024 * 1024 + 1)
+            if len(message) > 1024 * 1024:
+                raise _HTTPError(http.REQUEST_ENTITY_TOO_LARGE)
             schema.validate_cbor(message)
             result = loads(message)
             return result
@@ -586,20 +594,24 @@ class HTTPServer(object):
             request.setResponseCode(http.REQUESTED_RANGE_NOT_SATISFIABLE)
             return b""
 
-        offset = content_range.start
-
-        # TODO limit memory usage
-        # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3872
-        data = request.content.read(content_range.stop - content_range.start + 1)
         bucket = self._uploads.get_write_bucket(
             storage_index, share_number, authorization[Secrets.UPLOAD]
         )
+        offset = content_range.start
+        remaining = content_range.stop - content_range.start
+        finished = False
 
-        try:
-            finished = bucket.write(offset, data)
-        except ConflictingWriteError:
-            request.setResponseCode(http.CONFLICT)
-            return b""
+        while remaining > 0:
+            data = request.content.read(min(remaining, 65536))
+            assert data, "uploaded data length doesn't match range"
+
+            try:
+                finished = bucket.write(offset, data)
+            except ConflictingWriteError:
+                request.setResponseCode(http.CONFLICT)
+                return b""
+            remaining -= len(data)
+            offset += len(data)
 
         if finished:
             bucket.close()
