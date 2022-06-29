@@ -246,12 +246,14 @@ class _HTTPError(Exception):
 # https://www.iana.org/assignments/cbor-tags/cbor-tags.xhtml. Notably, #6.258
 # indicates a set.
 #
-# TODO 3872 length limits in the schema.
+# Somewhat arbitrary limits are set to reduce e.g. number of shares, number of
+# vectors, etc.. These may need to be iterated on in future revisions of the
+# code.
 _SCHEMAS = {
     "allocate_buckets": Schema(
         """
     request = {
-      share-numbers: #6.258([* uint])
+      share-numbers: #6.258([*30 uint])
       allocated-size: uint
     }
     """
@@ -267,13 +269,15 @@ _SCHEMAS = {
         """
         request = {
             "test-write-vectors": {
-                * share_number: {
-                    "test": [* {"offset": uint, "size": uint, "specimen": bstr}]
-                    "write": [* {"offset": uint, "data": bstr}]
+                ; TODO Add length limit here, after
+                ; https://github.com/anweiss/cddl/issues/128 is fixed
+                * share_number => {
+                    "test": [*30 {"offset": uint, "size": uint, "specimen": bstr}]
+                    "write": [*30 {"offset": uint, "data": bstr}]
                     "new-length": uint / null
                 }
             }
-            "read-vector": [* {"offset": uint, "size": uint}]
+            "read-vector": [*30 {"offset": uint, "size": uint}]
         }
         share_number = uint
         """
