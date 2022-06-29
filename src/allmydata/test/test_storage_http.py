@@ -1,5 +1,21 @@
 """
 Tests for HTTP storage client + server.
+
+The tests here are synchronous and don't involve running a real reactor.  This
+works, but has some caveats when it comes to testing HTTP endpoints:
+
+* Some HTTP endpoints are synchronous, some are not.
+* For synchronous endpoints, the result is immediately available on the
+  ``Deferred`` coming out of ``StubTreq``.
+* For asynchronous endpoints, you need to use ``StubTreq.flush()`` and
+  iterate the fake in-memory clock/reactor to advance time .
+
+So for HTTP endpoints, you should use ``HttpTestFixture.result_of_with_flush()``
+which handles both, and patches and moves forward the global Twisted
+``Cooperator`` since that is used to drive pull producers. This is,
+sadly, an internal implementation detail of Twisted being leaked to tests...
+
+For definitely synchronous calls, you can just use ``result_of()``.
 """
 
 from base64 import b64encode
@@ -332,10 +348,33 @@ class HttpTestFixture(Fixture):
         )
 
     def result_of_with_flush(self, d):
+        """
+        Like ``result_of``, but supports fake reactor and ``treq`` testing
+        infrastructure necessary to support asynchronous HTTP server endpoints.
+        """
+        result = []
+        error = []
+        d.addCallbacks(result.append, error.append)
+
+        # Check for synchronous HTTP endpoint handler:
+        if result:
+            return result[0]
+        if error:
+            error[0].raiseException()
+
+        # OK, no result yet, probably async HTTP endpoint handler, so advance
+        # time, flush treq, and try again:
         for i in range(100):
             self.clock.advance(0.001)
         self.treq.flush()
-        return result_of(d)
+        if result:
+            return result[0]
+        if error:
+            error[0].raiseException()
+        raise RuntimeError(
+            "We expected given Deferred to have result already, but it wasn't. "
+            + "This is probably a test design issue."
+        )
 
 
 class StorageClientWithHeadersOverride(object):
@@ -393,7 +432,7 @@ class GenericHTTPAPITests(SyncTestCase):
             )
         )
         with assert_fails_with_http_code(self, http.UNAUTHORIZED):
-            result_of(client.get_version())
+            self.http.result_of_with_flush(client.get_version())
 
     def test_unsupported_mime_type(self):
         """
@@ -404,7 +443,7 @@ class GenericHTTPAPITests(SyncTestCase):
             StorageClientWithHeadersOverride(self.http.client, {"accept": "image/gif"})
         )
         with assert_fails_with_http_code(self, http.NOT_ACCEPTABLE):
-            result_of(client.get_version())
+            self.http.result_of_with_flush(client.get_version())
 
     def test_version(self):
         """
@@ -414,7 +453,7 @@ class GenericHTTPAPITests(SyncTestCase):
         might change across calls.
         """
         client = StorageClientGeneral(self.http.client)
-        version = result_of(client.get_version())
+        version = self.http.result_of_with_flush(client.get_version())
         version[b"http://allmydata.org/tahoe/protocols/storage/v1"].pop(
             b"available-space"
         )
@@ -448,7 +487,7 @@ class GenericHTTPAPITests(SyncTestCase):
         )
         message = {"bad-message": "missing expected keys"}
 
-        response = result_of(
+        response = self.http.result_of_with_flush(
             self.http.client.request(
                 "POST",
                 url,
@@ -481,7 +520,7 @@ class ImmutableHTTPAPITests(SyncTestCase):
         upload_secret = urandom(32)
         lease_secret = urandom(32)
         storage_index = urandom(16)
-        created = result_of(
+        created = self.http.result_of_with_flush(
             self.imm_client.create(
                 storage_index,
                 share_numbers,
@@ -525,35 +564,35 @@ class ImmutableHTTPAPITests(SyncTestCase):
                 expected_data[offset : offset + length],
             )
 
-        upload_progress = result_of(write(10, 10))
+        upload_progress = self.http.result_of_with_flush(write(10, 10))
         self.assertEqual(
             upload_progress, UploadProgress(finished=False, required=remaining)
         )
-        upload_progress = result_of(write(30, 10))
+        upload_progress = self.http.result_of_with_flush(write(30, 10))
         self.assertEqual(
             upload_progress, UploadProgress(finished=False, required=remaining)
         )
-        upload_progress = result_of(write(50, 10))
+        upload_progress = self.http.result_of_with_flush(write(50, 10))
         self.assertEqual(
             upload_progress, UploadProgress(finished=False, required=remaining)
         )
 
         # Then, an overlapping write with matching data (15-35):
-        upload_progress = result_of(write(15, 20))
+        upload_progress = self.http.result_of_with_flush(write(15, 20))
         self.assertEqual(
             upload_progress, UploadProgress(finished=False, required=remaining)
         )
 
         # Now fill in the holes:
-        upload_progress = result_of(write(0, 10))
+        upload_progress = self.http.result_of_with_flush(write(0, 10))
         self.assertEqual(
             upload_progress, UploadProgress(finished=False, required=remaining)
         )
-        upload_progress = result_of(write(40, 10))
+        upload_progress = self.http.result_of_with_flush(write(40, 10))
         self.assertEqual(
             upload_progress, UploadProgress(finished=False, required=remaining)
         )
-        upload_progress = result_of(write(60, 40))
+        upload_progress = self.http.result_of_with_flush(write(60, 40))
         self.assertEqual(
             upload_progress, UploadProgress(finished=True, required=RangeMap())
         )
@@ -572,7 +611,7 @@ class ImmutableHTTPAPITests(SyncTestCase):
         """
         (upload_secret, _, storage_index, _) = self.create_upload({1}, 100)
         with assert_fails_with_http_code(self, http.UNAUTHORIZED):
-            result_of(
+            self.http.result_of_with_flush(
                 self.imm_client.write_share_chunk(
                     storage_index,
                     1,
@@ -594,7 +633,7 @@ class ImmutableHTTPAPITests(SyncTestCase):
         )
 
         # Write half of share 1
-        result_of(
+        self.http.result_of_with_flush(
             self.imm_client.write_share_chunk(
                 storage_index,
                 1,
@@ -608,7 +647,7 @@ class ImmutableHTTPAPITests(SyncTestCase):
         # existing shares, this call shouldn't overwrite the existing
         # work-in-progress.
         upload_secret2 = b"x" * 2
-        created2 = result_of(
+        created2 = self.http.result_of_with_flush(
             self.imm_client.create(
                 storage_index,
                 {1, 4, 6},
@@ -622,7 +661,7 @@ class ImmutableHTTPAPITests(SyncTestCase):
 
         # Write second half of share 1
         self.assertTrue(
-            result_of(
+            self.http.result_of_with_flush(
                 self.imm_client.write_share_chunk(
                     storage_index,
                     1,
@@ -642,7 +681,7 @@ class ImmutableHTTPAPITests(SyncTestCase):
 
         # We can successfully upload the shares created with the second upload secret.
         self.assertTrue(
-            result_of(
+            self.http.result_of_with_flush(
                 self.imm_client.write_share_chunk(
                     storage_index,
                     4,
@@ -660,11 +699,14 @@ class ImmutableHTTPAPITests(SyncTestCase):
         (upload_secret, _, storage_index, created) = self.create_upload({1, 2, 3}, 10)
 
         # Initially there are no shares:
-        self.assertEqual(result_of(self.imm_client.list_shares(storage_index)), set())
+        self.assertEqual(
+            self.http.result_of_with_flush(self.imm_client.list_shares(storage_index)),
+            set(),
+        )
 
         # Upload shares 1 and 3:
         for share_number in [1, 3]:
-            progress = result_of(
+            progress = self.http.result_of_with_flush(
                 self.imm_client.write_share_chunk(
                     storage_index,
                     share_number,
@@ -676,7 +718,10 @@ class ImmutableHTTPAPITests(SyncTestCase):
             self.assertTrue(progress.finished)
 
         # Now shares 1 and 3 exist:
-        self.assertEqual(result_of(self.imm_client.list_shares(storage_index)), {1, 3})
+        self.assertEqual(
+            self.http.result_of_with_flush(self.imm_client.list_shares(storage_index)),
+            {1, 3},
+        )
 
     def test_upload_bad_content_range(self):
         """
@@ -694,7 +739,7 @@ class ImmutableHTTPAPITests(SyncTestCase):
             with assert_fails_with_http_code(
                 self, http.REQUESTED_RANGE_NOT_SATISFIABLE
             ):
-                result_of(
+                self.http.result_of_with_flush(
                     client.write_share_chunk(
                         storage_index,
                         1,
@@ -714,7 +759,10 @@ class ImmutableHTTPAPITests(SyncTestCase):
         Listing unknown storage index's shares results in empty list of shares.
         """
         storage_index = bytes(range(16))
-        self.assertEqual(result_of(self.imm_client.list_shares(storage_index)), set())
+        self.assertEqual(
+            self.http.result_of_with_flush(self.imm_client.list_shares(storage_index)),
+            set(),
+        )
 
     def test_upload_non_existent_storage_index(self):
         """
@@ -725,7 +773,7 @@ class ImmutableHTTPAPITests(SyncTestCase):
 
         def unknown_check(storage_index, share_number):
             with assert_fails_with_http_code(self, http.NOT_FOUND):
-                result_of(
+                self.http.result_of_with_flush(
                     self.imm_client.write_share_chunk(
                         storage_index,
                         share_number,
@@ -746,7 +794,7 @@ class ImmutableHTTPAPITests(SyncTestCase):
         stored separately and can be downloaded separately.
         """
         (upload_secret, _, storage_index, _) = self.create_upload({1, 2}, 10)
-        result_of(
+        self.http.result_of_with_flush(
             self.imm_client.write_share_chunk(
                 storage_index,
                 1,
@@ -755,7 +803,7 @@ class ImmutableHTTPAPITests(SyncTestCase):
                 b"1" * 10,
             )
         )
-        result_of(
+        self.http.result_of_with_flush(
             self.imm_client.write_share_chunk(
                 storage_index,
                 2,
@@ -785,7 +833,7 @@ class ImmutableHTTPAPITests(SyncTestCase):
         (upload_secret, _, storage_index, created) = self.create_upload({1}, 100)
 
         # Write:
-        result_of(
+        self.http.result_of_with_flush(
             self.imm_client.write_share_chunk(
                 storage_index,
                 1,
@@ -797,7 +845,7 @@ class ImmutableHTTPAPITests(SyncTestCase):
 
         # Conflicting write:
         with assert_fails_with_http_code(self, http.CONFLICT):
-            result_of(
+            self.http.result_of_with_flush(
                 self.imm_client.write_share_chunk(
                     storage_index,
                     1,
@@ -823,7 +871,7 @@ class ImmutableHTTPAPITests(SyncTestCase):
         """
 
         def abort(storage_index, share_number, upload_secret):
-            return result_of(
+            return self.http.result_of_with_flush(
                 self.imm_client.abort_upload(storage_index, share_number, upload_secret)
             )
 
@@ -836,7 +884,7 @@ class ImmutableHTTPAPITests(SyncTestCase):
         """
         # Start an upload:
         (upload_secret, _, storage_index, _) = self.create_upload({1}, 100)
-        result_of(
+        self.http.result_of_with_flush(
             self.imm_client.write_share_chunk(
                 storage_index,
                 1,
@@ -855,7 +903,7 @@ class ImmutableHTTPAPITests(SyncTestCase):
         # complaint:
         upload_secret = urandom(32)
         lease_secret = urandom(32)
-        created = result_of(
+        created = self.http.result_of_with_flush(
             self.imm_client.create(
                 storage_index,
                 {1},
@@ -868,7 +916,7 @@ class ImmutableHTTPAPITests(SyncTestCase):
         self.assertEqual(created.allocated, {1})
 
         # And write to it, too:
-        result_of(
+        self.http.result_of_with_flush(
             self.imm_client.write_share_chunk(
                 storage_index,
                 1,
@@ -887,7 +935,9 @@ class ImmutableHTTPAPITests(SyncTestCase):
 
         for si, num in [(storage_index, 3), (b"x" * 16, 1)]:
             with assert_fails_with_http_code(self, http.NOT_FOUND):
-                result_of(self.imm_client.abort_upload(si, num, upload_secret))
+                self.http.result_of_with_flush(
+                    self.imm_client.abort_upload(si, num, upload_secret)
+                )
 
     def test_unauthorized_abort(self):
         """
@@ -898,12 +948,12 @@ class ImmutableHTTPAPITests(SyncTestCase):
 
         # Failed to abort becaues wrong upload secret:
         with assert_fails_with_http_code(self, http.UNAUTHORIZED):
-            result_of(
+            self.http.result_of_with_flush(
                 self.imm_client.abort_upload(storage_index, 1, upload_secret + b"X")
             )
 
         # We can still write to it:
-        result_of(
+        self.http.result_of_with_flush(
             self.imm_client.write_share_chunk(
                 storage_index,
                 1,
@@ -920,7 +970,7 @@ class ImmutableHTTPAPITests(SyncTestCase):
         """
         uploaded_data = b"123"
         (upload_secret, _, storage_index, _) = self.create_upload({0}, 3)
-        result_of(
+        self.http.result_of_with_flush(
             self.imm_client.write_share_chunk(
                 storage_index,
                 0,
@@ -932,7 +982,9 @@ class ImmutableHTTPAPITests(SyncTestCase):
 
         # Can't abort, we finished upload:
         with assert_fails_with_http_code(self, http.NOT_ALLOWED):
-            result_of(self.imm_client.abort_upload(storage_index, 0, upload_secret))
+            self.http.result_of_with_flush(
+                self.imm_client.abort_upload(storage_index, 0, upload_secret)
+            )
 
         # Abort didn't prevent reading:
         self.assertEqual(
@@ -954,7 +1006,7 @@ class ImmutableHTTPAPITests(SyncTestCase):
         storage_index = urandom(16)
         secret = b"A" * 32
         with assert_fails_with_http_code(self, http.NOT_FOUND):
-            result_of(
+            self.http.result_of_with_flush(
                 self.general_client.add_or_renew_lease(storage_index, secret, secret)
             )
 
@@ -975,7 +1027,7 @@ class MutableHTTPAPIsTests(SyncTestCase):
         write_secret = urandom(32)
         lease_secret = urandom(32)
         storage_index = urandom(16)
-        result_of(
+        self.http.result_of_with_flush(
             self.mut_client.read_test_write_chunks(
                 storage_index,
                 write_secret,
@@ -1013,7 +1065,7 @@ class MutableHTTPAPIsTests(SyncTestCase):
     def test_read_before_write(self):
         """In combo read/test/write operation, reads happen before writes."""
         storage_index, write_secret, lease_secret = self.create_upload()
-        result = result_of(
+        result = self.http.result_of_with_flush(
             self.mut_client.read_test_write_chunks(
                 storage_index,
                 write_secret,
@@ -1046,7 +1098,7 @@ class MutableHTTPAPIsTests(SyncTestCase):
     def test_conditional_write(self):
         """Uploads only happen if the test passes."""
         storage_index, write_secret, lease_secret = self.create_upload()
-        result_failed = result_of(
+        result_failed = self.http.result_of_with_flush(
             self.mut_client.read_test_write_chunks(
                 storage_index,
                 write_secret,
@@ -1064,7 +1116,7 @@ class MutableHTTPAPIsTests(SyncTestCase):
         self.assertFalse(result_failed.success)
 
         # This time the test matches:
-        result = result_of(
+        result = self.http.result_of_with_flush(
             self.mut_client.read_test_write_chunks(
                 storage_index,
                 write_secret,
@@ -1090,19 +1142,22 @@ class MutableHTTPAPIsTests(SyncTestCase):
     def test_list_shares(self):
         """``list_shares()`` returns the shares for a given storage index."""
         storage_index, _, _ = self.create_upload()
-        self.assertEqual(result_of(self.mut_client.list_shares(storage_index)), {0, 1})
+        self.assertEqual(
+            self.http.result_of_with_flush(self.mut_client.list_shares(storage_index)),
+            {0, 1},
+        )
 
     def test_non_existent_list_shares(self):
         """A non-existent storage index errors when shares are listed."""
         with self.assertRaises(ClientException) as exc:
-            result_of(self.mut_client.list_shares(urandom(32)))
+            self.http.result_of_with_flush(self.mut_client.list_shares(urandom(32)))
         self.assertEqual(exc.exception.code, http.NOT_FOUND)
 
     def test_wrong_write_enabler(self):
         """Writes with the wrong write enabler fail, and are not processed."""
         storage_index, write_secret, lease_secret = self.create_upload()
         with self.assertRaises(ClientException) as exc:
-            result_of(
+            self.http.result_of_with_flush(
                 self.mut_client.read_test_write_chunks(
                     storage_index,
                     urandom(32),
@@ -1161,7 +1216,9 @@ class SharedImmutableMutableTestsMixin:
 
         storage_index, _, _ = self.upload(13)
         reason = "OHNO \u1235"
-        result_of(self.client.advise_corrupt_share(storage_index, 13, reason))
+        self.http.result_of_with_flush(
+            self.client.advise_corrupt_share(storage_index, 13, reason)
+        )
 
         self.assertEqual(
             corrupted,
@@ -1174,11 +1231,15 @@ class SharedImmutableMutableTestsMixin:
         """
         storage_index, _, _ = self.upload(13)
         reason = "OHNO \u1235"
-        result_of(self.client.advise_corrupt_share(storage_index, 13, reason))
+        self.http.result_of_with_flush(
+            self.client.advise_corrupt_share(storage_index, 13, reason)
+        )
 
         for (si, share_number) in [(storage_index, 11), (urandom(16), 13)]:
             with assert_fails_with_http_code(self, http.NOT_FOUND):
-                result_of(self.client.advise_corrupt_share(si, share_number, reason))
+                self.http.result_of_with_flush(
+                    self.client.advise_corrupt_share(si, share_number, reason)
+                )
 
     def test_lease_renew_and_add(self):
         """
@@ -1196,7 +1257,7 @@ class SharedImmutableMutableTestsMixin:
         self.http.clock.advance(167)
 
         # We renew the lease:
-        result_of(
+        self.http.result_of_with_flush(
             self.general_client.add_or_renew_lease(
                 storage_index, lease_secret, lease_secret
             )
@@ -1207,7 +1268,7 @@ class SharedImmutableMutableTestsMixin:
 
         # We create a new lease:
         lease_secret2 = urandom(32)
-        result_of(
+        self.http.result_of_with_flush(
             self.general_client.add_or_renew_lease(
                 storage_index, lease_secret2, lease_secret2
             )
@@ -1302,7 +1363,9 @@ class SharedImmutableMutableTestsMixin:
             )
         )
         self.assertEqual(response.code, http.OK)
-        self.assertEqual(result_of(response.content()), uploaded_data)
+        self.assertEqual(
+            self.http.result_of_with_flush(response.content()), uploaded_data
+        )
 
     def test_validate_content_range_response_to_read(self):
         """
@@ -1354,7 +1417,7 @@ class ImmutableSharedTests(SharedImmutableMutableTestsMixin, SyncTestCase):
         upload_secret = urandom(32)
         lease_secret = urandom(32)
         storage_index = urandom(16)
-        result_of(
+        self.http.result_of_with_flush(
             self.client.create(
                 storage_index,
                 {share_number},
@@ -1364,7 +1427,7 @@ class ImmutableSharedTests(SharedImmutableMutableTestsMixin, SyncTestCase):
                 lease_secret,
             )
         )
-        result_of(
+        self.http.result_of_with_flush(
             self.client.write_share_chunk(
                 storage_index,
                 share_number,
@@ -1399,7 +1462,7 @@ class MutableSharedTests(SharedImmutableMutableTestsMixin, SyncTestCase):
         write_secret = urandom(32)
         lease_secret = urandom(32)
         storage_index = urandom(16)
-        result_of(
+        self.http.result_of_with_flush(
             self.client.read_test_write_chunks(
                 storage_index,
                 write_secret,
