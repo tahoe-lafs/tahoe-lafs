@@ -48,21 +48,25 @@ class _FoolscapOrHttps(Protocol, metaclass=_PretendToBeNegotiation):
     Do not use directly; this needs to be subclassed per ``Tub``.
     """
 
-    # These three will be set by a subclass in update_foolscap_or_http_class()
-    # below.
+    # These will be set by support_foolscap_and_https() and add_storage_server().
+
+    # The swissnum for the storage_server.
     swissnum: bytes
-    certificate: PrivateCertificate
+    # The storage server we're exposing.
     storage_server: StorageServer
+    # The tub that created us:
+    tub: Tub
+    # The certificate for the endpoint:
+    certificate: PrivateCertificate
 
     _timeout: IDelayedCall
 
     @classmethod
-    def add_storage_server(cls, certificate, storage_server, swissnum):
+    def add_storage_server(cls, storage_server, swissnum):
         """
-        Add the various parameters needed by a ``Tub``-specific
-        ``_FoolscapOrHttps`` subclass.
+        Add the various storage server-related attributes needed by a
+        ``Tub``-specific ``_FoolscapOrHttps`` subclass.
         """
-        cls.certificate = certificate
         cls.storage_server = storage_server
         cls.swissnum = swissnum
 
@@ -141,8 +145,10 @@ def support_foolscap_and_https(tub: Tub):
     Create a new Foolscap-or-HTTPS protocol class for a specific ``Tub``
     instance.
     """
+    the_tub = tub
 
     class FoolscapOrHttpWithCert(_FoolscapOrHttps):
-        pass
+        tub = the_tub
+        certificate = tub.myCertificate
 
     tub.negotiationClass = FoolscapOrHttpWithCert  # type: ignore
