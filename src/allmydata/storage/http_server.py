@@ -188,7 +188,12 @@ class UploadsInProgress(object):
 
     def remove_write_bucket(self, bucket: BucketWriter):
         """Stop tracking the given ``BucketWriter``."""
-        storage_index, share_number = self._bucketwriters.pop(bucket)
+        try:
+            storage_index, share_number = self._bucketwriters.pop(bucket)
+        except KeyError:
+            # This is probably a BucketWriter created by Foolscap, so just
+            # ignore it.
+            return
         uploads_index = self._uploads[storage_index]
         uploads_index.shares.pop(share_number)
         uploads_index.upload_secrets.pop(share_number)
