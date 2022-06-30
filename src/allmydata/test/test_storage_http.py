@@ -22,7 +22,6 @@ from base64 import b64encode
 from contextlib import contextmanager
 from os import urandom
 from typing import Union, Callable, Tuple, Iterable
-from time import sleep, time
 from cbor2 import dumps
 from pycddl import ValidationError as CDDLValidationError
 from hypothesis import assume, given, strategies as st
@@ -32,7 +31,6 @@ from klein import Klein
 from hyperlink import DecodedURL
 from collections_extended import RangeMap
 from twisted.internet.task import Clock, Cooperator
-from twisted.internet import task
 from twisted.web import http
 from twisted.web.http_headers import Headers
 from werkzeug import routing
@@ -370,6 +368,10 @@ class HttpTestFixture(Fixture):
     def _setUp(self):
         self.clock = Clock()
         self.tempdir = self.useFixture(TempDir())
+        # The global Cooperator used by Twisted (a) used by pull producers in
+        # twisted.web, (b) is driven by a real reactor. We want to push time
+        # forward ourselves since we rely on pull producers in the HTTP storage
+        # server.
         self.mock = self.useFixture(
             MockPatch(
                 "twisted.internet.task._theCooperator",
