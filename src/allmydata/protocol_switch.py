@@ -14,7 +14,7 @@ the configuration process.
 
 from twisted.internet.protocol import Protocol
 from twisted.internet.interfaces import IDelayedCall
-from twisted.internet.ssl import CertificateOptions, PrivateCertificate
+from twisted.internet.ssl import CertificateOptions
 from twisted.web.server import Site
 from twisted.protocols.tls import TLSMemoryBIOFactory
 from twisted.internet import reactor
@@ -50,25 +50,35 @@ class _FoolscapOrHttps(Protocol, metaclass=_PretendToBeNegotiation):
 
     # These will be set by support_foolscap_and_https() and add_storage_server().
 
-    # The swissnum for the storage_server.
-    swissnum: bytes
-    # The storage server we're exposing.
-    storage_server: StorageServer
+    # The HTTP storage server API we're exposing.
+    http_storage_server: HTTPServer
+    # The Twisted HTTPS protocol factory wrapping the storage server API:
+    https_factory: TLSMemoryBIOFactory
     # The tub that created us:
     tub: Tub
-    # The certificate for the endpoint:
-    certificate: PrivateCertificate
 
+    # This will be created by the instance in connectionMade():
     _timeout: IDelayedCall
 
     @classmethod
-    def add_storage_server(cls, storage_server, swissnum):
+    def add_storage_server(cls, storage_server: StorageServer, swissnum):
         """
         Add the various storage server-related attributes needed by a
         ``Tub``-specific ``_FoolscapOrHttps`` subclass.
         """
-        cls.storage_server = storage_server
-        cls.swissnum = swissnum
+        # Tub.myCertificate is a twisted.internet.ssl.PrivateCertificate
+        # instance.
+        certificate_options = CertificateOptions(
+            privateKey=cls.tub.myCertificate.privateKey.original,
+            certificate=cls.tub.myCertificate.original,
+        )
+
+        cls.http_storage_server = HTTPServer(storage_server, swissnum)
+        cls.https_factory = TLSMemoryBIOFactory(
+            certificate_options,
+            False,
+            Site(cls.http_storage_server.get_resource()),
+        )
 
     def __init__(self, *args, **kwargs):
         self._foolscap: Negotiation = Negotiation(*args, **kwargs)
@@ -124,16 +134,8 @@ class _FoolscapOrHttps(Protocol, metaclass=_PretendToBeNegotiation):
             return
         else:
             # We're a HTTPS protocol instance, serving the storage protocol:
-            certificate_options = CertificateOptions(
-                privateKey=self.certificate.privateKey.original,
-                certificate=self.certificate.original,
-            )
-            http_server = HTTPServer(self.storage_server, self.swissnum)
-            factory = TLSMemoryBIOFactory(
-                certificate_options, False, Site(http_server.get_resource())
-            )
             assert self.transport is not None
-            protocol = factory.buildProtocol(self.transport.getPeer())
+            protocol = self.https_factory.buildProtocol(self.transport.getPeer())
             protocol.makeConnection(self.transport)
             protocol.dataReceived(self._buffer)
             self.__class__ = protocol.__class__
@@ -147,8 +149,7 @@ def support_foolscap_and_https(tub: Tub):
     """
     the_tub = tub
 
-    class FoolscapOrHttpWithCert(_FoolscapOrHttps):
+    class FoolscapOrHttpForTub(_FoolscapOrHttps):
         tub = the_tub
-        certificate = tub.myCertificate
 
-    tub.negotiationClass = FoolscapOrHttpWithCert  # type: ignore
+    tub.negotiationClass = FoolscapOrHttpForTub  # type: ignore
