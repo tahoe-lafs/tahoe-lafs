@@ -65,6 +65,7 @@ from ..storage.http_client import (
     ReadVector,
     ReadTestWriteResult,
     TestVector,
+    limited_content,
 )
 
 
@@ -255,6 +256,11 @@ class TestApp(object):
         request.setHeader("content-type", CBOR_MIME_TYPE)
         return dumps({"garbage": 123})
 
+    @_authorized_route(_app, set(), "/millionbytes", methods=["GET"])
+    def million_bytes(self, request, authorization):
+        """Return 1,000,000 bytes."""
+        return b"0123456789" * 100_000
+
 
 def result_of(d):
     """
@@ -319,6 +325,40 @@ class CustomHTTPServerTests(SyncTestCase):
         client = StorageClientGeneral(self.client)
         with self.assertRaises(CDDLValidationError):
             result_of(client.get_version())
+
+    def test_limited_content_fits(self):
+        """
+        ``http_client.limited_content()`` returns the body if it is less than
+        the max length.
+        """
+        for at_least_length in (1_000_000, 1_000_001):
+            response = result_of(
+                self.client.request(
+                    "GET",
+                    "http://127.0.0.1/millionbytes",
+                )
+            )
+
+            self.assertEqual(
+                result_of(limited_content(response, at_least_length)),
+                b"0123456789" * 100_000,
+            )
+
+    def test_limited_content_does_not_fit(self):
+        """
+        If the body is longer than than max length,
+        ``http_client.limited_content()`` fails with a ``ValueError``.
+        """
+        for too_short in (999_999, 10):
+            response = result_of(
+                self.client.request(
+                    "GET",
+                    "http://127.0.0.1/millionbytes",
+                )
+            )
+
+            with self.assertRaises(ValueError):
+                result_of(limited_content(response, too_short))
 
 
 class HttpTestFixture(Fixture):

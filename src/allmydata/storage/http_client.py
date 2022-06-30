@@ -6,6 +6,7 @@ from __future__ import annotations
 
 from typing import Union, Optional, Sequence, Mapping
 from base64 import b64encode
+from io import BytesIO
 
 from attrs import define, asdict, frozen, field
 
@@ -114,6 +115,33 @@ _SCHEMAS = {
 }
 
 
+@define
+class _LengthLimitedCollector:
+    """
+    Collect data using ``treq.collect()``, with limited length.
+    """
+
+    remaining_length: int
+    f: BytesIO = field(factory=BytesIO)
+
+    def __call__(self, data: bytes):
+        if len(data) > self.remaining_length:
+            raise ValueError("Response length was too long")
+        self.f.write(data)
+
+
+def limited_content(response, max_length: int = 30 * 1024 * 1024) -> Deferred:
+    """
+    Like ``treq.content()``, but limit data read from the response to a set
+    length.  If the response is longer than the max allowed length, the result
+    fails with a ``ValueError``.
+    """
+    collector = _LengthLimitedCollector(max_length)
+    d = treq.collect(response, collector)
+    d.addCallback(lambda _: collector.f.getvalue())
+    return d
+
+
 def _decode_cbor(response, schema: Schema):
     """Given HTTP response, return decoded CBOR body."""
 
@@ -124,9 +152,7 @@ def _decode_cbor(response, schema: Schema):
     if response.code > 199 and response.code < 300:
         content_type = get_content_type(response.headers)
         if content_type == CBOR_MIME_TYPE:
-            # TODO limit memory usage
-            # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3872
-            return treq.content(response).addCallback(got_content)
+            return limited_content(response).addCallback(got_content)
         else:
             raise ClientException(-1, "Server didn't send CBOR")
     else:
@@ -295,7 +321,7 @@ class StorageClient(object):
         write_enabler_secret=None,
         headers=None,
         message_to_serialize=None,
-        **kwargs
+        **kwargs,
     ):
         """
         Like ``treq.request()``, but with optional secrets that get translated
