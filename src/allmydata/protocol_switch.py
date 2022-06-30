@@ -66,6 +66,14 @@ class _FoolscapOrHttps(Protocol, metaclass=_PretendToBeNegotiation):
         Add the various storage server-related attributes needed by a
         ``Tub``-specific ``_FoolscapOrHttps`` subclass.
         """
+        # TODO tub.locationHints will be in the format ["tcp:hostname:port"]
+        # (and maybe some other things we can ignore for now). We also have
+        # access to the certificate. Together, this should be sufficient to
+        # construct NURLs, one per hint. The code for NURls should be
+        # refactored out of http_server.py's build_nurl; that code might want
+        # to skip around for the future when we don't do foolscap, but for now
+        # this module will be main way we set up HTTPS.
+
         # Tub.myCertificate is a twisted.internet.ssl.PrivateCertificate
         # instance.
         certificate_options = CertificateOptions(
