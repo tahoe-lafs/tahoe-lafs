@@ -6,9 +6,10 @@ simple as possible, with no extra configuration needed.  Listening on the same
 port means a user upgrading Tahoe-LAFS will automatically get HTTPS working
 with no additional changes.
 
-Use ``create_foolscap_or_http_class()`` to create a new subclass per ``Tub``,
-and then ``update_foolscap_or_http_class()`` to add the relevant information to
-the subclass once it becomes available later in the configuration process.
+Use ``support_foolscap_and_https()`` to create a new subclass for a ``Tub``
+instance, and then ``add_storage_server()`` on the resulting class to add the
+relevant information for a storage server once it becomes available later in
+the configuration process.
 """
 
 from twisted.internet.protocol import Protocol
@@ -19,6 +20,7 @@ from twisted.protocols.tls import TLSMemoryBIOFactory
 from twisted.internet import reactor
 
 from foolscap.negotiate import Negotiation
+from foolscap.api import Tub
 
 from .storage.http_server import HTTPServer
 from .storage.server import StorageServer
@@ -53,6 +55,16 @@ class _FoolscapOrHttps(Protocol, metaclass=_PretendToBeNegotiation):
     storage_server: StorageServer
 
     _timeout: IDelayedCall
+
+    @classmethod
+    def add_storage_server(cls, certificate, storage_server, swissnum):
+        """
+        Add the various parameters needed by a ``Tub``-specific
+        ``_FoolscapOrHttps`` subclass.
+        """
+        cls.certificate = certificate
+        cls.storage_server = storage_server
+        cls.swissnum = swissnum
 
     def __init__(self, *args, **kwargs):
         self._foolscap: Negotiation = Negotiation(*args, **kwargs)
@@ -124,7 +136,7 @@ class _FoolscapOrHttps(Protocol, metaclass=_PretendToBeNegotiation):
             self.__dict__ = protocol.__dict__
 
 
-def create_foolscap_or_http_class():
+def support_foolscap_and_https(tub: Tub):
     """
     Create a new Foolscap-or-HTTPS protocol class for a specific ``Tub``
     instance.
@@ -133,14 +145,4 @@ def create_foolscap_or_http_class():
     class FoolscapOrHttpWithCert(_FoolscapOrHttps):
         pass
 
-    return FoolscapOrHttpWithCert
-
-
-def update_foolscap_or_http_class(cls, certificate, storage_server, swissnum):
-    """
-    Add the various parameters needed by a ``Tub``-specific
-    ``_FoolscapOrHttps`` subclass.
-    """
-    cls.certificate = certificate
-    cls.storage_server = storage_server
-    cls.swissnum = swissnum
+    tub.negotiationClass = FoolscapOrHttpWithCert  # type: ignore
