@@ -112,44 +112,6 @@ let
 
 in
 rec {
-  # Map the non-freeform options accepted by introducers to the correct place
-  # in the tahoe.cfg-like attrset.  The argument is the top of a single node's
-  # configuration - for example, `config.services.introducers.foo_node`.  The
-  # result is meant to have recursiveUpdate folded over it to produce a
-  # complete configuration.
-  #
-  # Ideally, this is legacy and all of the configuration this handles could be
-  # deprecated, and removed.  It is already redundant with the new `settings`
-  # configuration item.
-  #
-  # attrset -> [ attrset ]
-  introducerConfigPieces = cfg: [
-    (optionalAttrs (cfg ? nickname)     { node = { inherit (cfg) nickname; }; })
-    (optionalAttrs (cfg ? tub.port)     { node = { "tub.port"     = cfg.tub.port; }; })
-    (optionalAttrs (cfg ? tub.location) { node = { "tub.location" = cfg.tub.location; }; })
-  ];
-
-  # Like introducerConfigPieces, but for "node"-type services.
-  #
-  # attrset -> [ attrset ]
-  nodeConfigPieces = cfg: introducerConfigPieces cfg ++ [
-    (optionalAttrs (cfg ? web.port)             { node   = { "web.port"        = "tcp:${toString cfg.web.port}"; }; })
-
-    (optionalAttrs (cfg ? client.introducer)    { client = { "introducer.furl" = cfg.client.introducer; }; })
-    (optionalAttrs (cfg ? client.helper)        { client = { "helper.furl"     = cfg.client.helper; }; })
-    (optionalAttrs (cfg ? client.shares.needed) { client = { "shares.needed"   = cfg.client.shares.needed; }; })
-    (optionalAttrs (cfg ? client.shares.happy)  { client = { "shares.happy"    = cfg.client.shares.happy; }; })
-    (optionalAttrs (cfg ? client.shares.total)  { client = { "shares.total"    = cfg.client.shares.total; }; })
-
-    (optionalAttrs (cfg ?  helper.enable)       { helper = { "enabled"         = cfg.helper.enable; }; })
-
-    (optionalAttrs (cfg ? sftpd.enable)             { sftpd =  { "enabled"           = cfg.sftpd.enable; }; })
-    (optionalAttrs (cfg ? sftpd.port)               { sftpd =  { "port"              = "tcp:${toString cfg.sftpd.port}"; }; })
-    (optionalAttrs (cfg ? sftpd.hostPublicKeyFile)  { sftpd =  { "host_pubkey_file"  = cfg.sftpd.hostPublicKeyFile; }; })
-    (optionalAttrs (cfg ? sftpd.hostPrivateKeyFile) { sftpd =  { "host_privkey_file" = cfg.sftpd.hostPrivateKeyFile; }; })
-    (optionalAttrs (cfg ? sftpd.accounts.file)      { sftpd =  { "accounts.file"     = cfg.sftpd.accounts.file; }; })
-  ];
-
   # Generate the ini-format Tahoe-LAFS `tahoe.cfg` configuration file from the
   # NixOS service configuration value.
   #
@@ -161,21 +123,9 @@ rec {
   # str -> str -> attrset -> Path
   mkConfig = kind: name: cfg:
     let
-      mergePieces = foldl recursiveUpdate {};
-
-      configPieces =
-        if kind == "node" then nodeConfigPieces
-        else if kind == "introducer" then introducerConfigPieces
-        else throw "Tahoe-LAFS kind must be node or introducer, not ${kind}";
-
       configPathFragment = "tahoe-lafs/${kind}-${name}.cfg";
-      # Client-like configurations have `cfg.settings` but introducer-like
-      # configurations have all their values directly on `cfg`.  Accept either
-      # here.
-      configValue = mergePieces ((if cfg ? settings then [cfg.settings] else []) ++ configPieces cfg);
-      configPath = settingsFormat.generate configPathFragment configValue;
     in
-      configPath;
+      settingsFormat.generate configPathFragment cfg.settings;
 
   # Construct the NixOS systemd service configuration for all of the given
   # node configurations.
