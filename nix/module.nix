@@ -164,6 +164,14 @@ let
   };
 in
 {
+  # Upstream tahoe-lafs module conflicts with ours (since ours is a
+  # copy/paste/edit of upstream's...).  Disable it.
+  #
+  # https://nixos.org/nixos/manual/#sec-replace-modules
+  disabledModules =
+    [ "services/network-filesystems/tahoe.nix"
+    ];
+
   options.services.tahoe = {
     introducers = mkOption {
       type = with types; attrsOf (submodule {
