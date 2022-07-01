@@ -169,7 +169,10 @@ rec {
         else throw "Tahoe-LAFS kind must be node or introducer, not ${kind}";
 
       configPathFragment = "tahoe-lafs/${kind}-${name}.cfg";
-      configValue = mergePieces ([cfg.settings] ++ configPieces cfg);
+      # Client-like configurations have `cfg.settings` but introducer-like
+      # configurations have all their values directly on `cfg`.  Accept either
+      # here.
+      configValue = mergePieces ((if cfg ? settings then [cfg.settings] else []) ++ configPieces cfg);
       configPath = settingsFormat.generate configPathFragment configValue;
     in
       configPath;
