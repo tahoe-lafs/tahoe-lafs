@@ -57,5 +57,7 @@
         withDefault
           (devShellForVersions extras supportedPythonVersions)
           defaultPythonVersion;
+
+      nixosModules.default = import ./nix/module.nix;
     });
 }
