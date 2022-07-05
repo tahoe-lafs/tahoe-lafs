@@ -353,6 +353,11 @@ class _ReadRangeProducer:
         if self.first_read and self.remaining > 0:
             # For empty bodies the content-range header makes no sense since
             # the end of the range is inclusive.
+            #
+            # TODO this is wrong for requests that go beyond the end of the
+            # share. This will be fixed in
+            # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3907 by making that
+            # edge case not happen.
             self.request.setHeader(
                 "content-range",
                 ContentRange(
@@ -362,8 +367,11 @@ class _ReadRangeProducer:
             self.first_read = False
 
         if not data and self.remaining > 0:
-            # Either data is missing locally (storage issue?) or a bug
-            pass  # TODO abort. TODO test
+            # TODO Either data is missing locally (storage issue?) or a bug,
+            # abort response with error? Until
+            # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3907 is implemented
+            # we continue anyway.
+            pass
 
         self.start += len(data)
         self.remaining -= len(data)
@@ -371,7 +379,8 @@ class _ReadRangeProducer:
 
         self.request.write(data)
 
-        if self.remaining == 0:
+        # TODO remove the second clause in https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3907
+        if self.remaining == 0 or not data:
             self.request.unregisterProducer()
             d = self.result
             del self.result
