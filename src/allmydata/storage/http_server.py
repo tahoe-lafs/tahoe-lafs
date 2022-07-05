@@ -349,25 +349,34 @@ class _ReadRangeProducer:
         to_read = min(self.remaining, 65536)
         data = self.read_data(self.start, to_read)
         assert len(data) <= to_read
-        if self.first_read and data:
+
+        if self.first_read and self.remaining > 0:
             # For empty bodies the content-range header makes no sense since
             # the end of the range is inclusive.
             self.request.setHeader(
                 "content-range",
-                ContentRange("bytes", self.start, self.start + len(data)).to_header(),
+                ContentRange(
+                    "bytes", self.start, self.start + self.remaining
+                ).to_header(),
             )
+            self.first_read = False
+
+        if not data and self.remaining > 0:
+            # Either data is missing locally (storage issue?) or a bug
+            pass  # TODO abort. TODO test
+
+        self.start += len(data)
+        self.remaining -= len(data)
+        assert self.remaining >= 0
+
         self.request.write(data)
 
-        if not data or len(data) < to_read:
+        if self.remaining == 0:
             self.request.unregisterProducer()
             d = self.result
             del self.result
             d.callback(b"")
             return
-
-        self.start += len(data)
-        self.remaining -= len(data)
-        assert self.remaining >= 0
 
     def pauseProducing(self):
         pass
@@ -412,6 +421,8 @@ def read_range(request: Request, read_data: ReadData) -> None:
     ):
         raise _HTTPError(http.REQUESTED_RANGE_NOT_SATISFIABLE)
 
+    # TODO if end is beyond the end of the share, either return error, or maybe
+    # just return what we can...
     offset, end = range_header.ranges[0]
     request.setResponseCode(http.PARTIAL_CONTENT)
     d = Deferred()
