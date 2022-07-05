@@ -25,7 +25,7 @@ from typing import Union, Callable, Tuple, Iterable
 from cbor2 import dumps
 from pycddl import ValidationError as CDDLValidationError
 from hypothesis import assume, given, strategies as st
-from fixtures import Fixture, TempDir, MockPatch
+from fixtures import Fixture, TempDir, MonkeyPatch
 from treq.testing import StubTreq
 from klein import Klein
 from hyperlink import DecodedURL
@@ -373,7 +373,7 @@ class HttpTestFixture(Fixture):
         # forward ourselves since we rely on pull producers in the HTTP storage
         # server.
         self.mock = self.useFixture(
-            MockPatch(
+            MonkeyPatch(
                 "twisted.internet.task._theCooperator",
                 Cooperator(scheduler=lambda c: self.clock.callLater(0.000001, c)),
             )
