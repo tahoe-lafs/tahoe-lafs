@@ -24,7 +24,7 @@ from twisted.web.server import Site, Request
 from twisted.protocols.tls import TLSMemoryBIOFactory
 from twisted.python.filepath import FilePath
 
-from attrs import define, field
+from attrs import define, field, Factory
 from werkzeug.http import (
     parse_range_header,
     parse_content_range_header,
@@ -149,11 +149,11 @@ class StorageIndexUploads(object):
     """
 
     # Map share number to BucketWriter
-    shares: dict[int, BucketWriter] = field(factory=dict)
+    shares: dict[int, BucketWriter] = Factory(dict)
 
     # Map share number to the upload secret (different shares might have
     # different upload secrets).
-    upload_secrets: dict[int, bytes] = field(factory=dict)
+    upload_secrets: dict[int, bytes] = Factory(dict)
 
 
 @define
@@ -163,10 +163,10 @@ class UploadsInProgress(object):
     """
 
     # Map storage index to corresponding uploads-in-progress
-    _uploads: dict[bytes, StorageIndexUploads] = field(factory=dict)
+    _uploads: dict[bytes, StorageIndexUploads] = Factory(dict)
 
     # Map BucketWriter to (storage index, share number)
-    _bucketwriters: dict[BucketWriter, Tuple[bytes, int]] = field(factory=dict)
+    _bucketwriters: dict[BucketWriter, Tuple[bytes, int]] = Factory(dict)
 
     def add_write_bucket(
         self,
@@ -299,7 +299,7 @@ class _ReadAllProducer:
 
     request: Request
     read_data: ReadData
-    result: Deferred = field(factory=Deferred)
+    result: Deferred = Factory(Deferred)
     start: int = field(default=0)
 
     @classmethod
