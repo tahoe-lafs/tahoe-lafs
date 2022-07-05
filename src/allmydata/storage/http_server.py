@@ -285,7 +285,7 @@ _SCHEMAS = {
 }
 
 
-# Callabale that takes offset and length, returns the data at that range.
+# Callable that takes offset and length, returns the data at that range.
 ReadData = Callable[[int, int], bytes]
 
 
