@@ -235,6 +235,13 @@ class RouteConverterTests(SyncTestCase):
 SWISSNUM_FOR_TEST = b"abcd"
 
 
+def gen_bytes(length: int) -> bytes:
+    """Generate bytes to the given length."""
+    result = (b"0123456789abcdef" * ((length // 16) + 1))[:length]
+    assert len(result) == length
+    return result
+
+
 class TestApp(object):
     """HTTP API for testing purposes."""
 
@@ -254,10 +261,10 @@ class TestApp(object):
         request.setHeader("content-type", CBOR_MIME_TYPE)
         return dumps({"garbage": 123})
 
-    @_authorized_route(_app, set(), "/millionbytes", methods=["GET"])
-    def million_bytes(self, request, authorization):
-        """Return 1,000,000 bytes."""
-        return b"0123456789" * 100_000
+    @_authorized_route(_app, set(), "/bytes/<int:length>", methods=["GET"])
+    def generate_bytes(self, request, authorization, length):
+        """Return bytes to the given length using ``gen_bytes()``."""
+        return gen_bytes(length)
 
 
 def result_of(d):
@@ -324,34 +331,36 @@ class CustomHTTPServerTests(SyncTestCase):
         with self.assertRaises(CDDLValidationError):
             result_of(client.get_version())
 
-    def test_limited_content_fits(self):
+    @given(length=st.integers(min_value=1, max_value=1_000_000))
+    def test_limited_content_fits(self, length):
         """
         ``http_client.limited_content()`` returns the body if it is less than
         the max length.
         """
-        for at_least_length in (1_000_000, 1_000_001):
+        for at_least_length in (length, length + 1, length + 1000):
             response = result_of(
                 self.client.request(
                     "GET",
-                    "http://127.0.0.1/millionbytes",
+                    f"http://127.0.0.1/bytes/{length}",
                 )
             )
 
             self.assertEqual(
                 result_of(limited_content(response, at_least_length)),
-                b"0123456789" * 100_000,
+                gen_bytes(length),
             )
 
-    def test_limited_content_does_not_fit(self):
+    @given(length=st.integers(min_value=10, max_value=1_000_000))
+    def test_limited_content_does_not_fit(self, length):
         """
         If the body is longer than than max length,
         ``http_client.limited_content()`` fails with a ``ValueError``.
         """
-        for too_short in (999_999, 10):
+        for too_short in (length - 1, 5):
             response = result_of(
                 self.client.request(
                     "GET",
-                    "http://127.0.0.1/millionbytes",
+                    f"http://127.0.0.1/bytes/{length}",
                 )
             )
 
