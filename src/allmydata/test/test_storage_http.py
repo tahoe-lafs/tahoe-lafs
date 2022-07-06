@@ -346,7 +346,7 @@ class CustomHTTPServerTests(SyncTestCase):
             )
 
             self.assertEqual(
-                result_of(limited_content(response, at_least_length)),
+                result_of(limited_content(response, at_least_length)).read(),
                 gen_bytes(length),
             )
 
