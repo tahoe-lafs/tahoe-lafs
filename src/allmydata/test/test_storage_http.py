@@ -337,7 +337,7 @@ class CustomHTTPServerTests(SyncTestCase):
         ``http_client.limited_content()`` returns the body if it is less than
         the max length.
         """
-        for at_least_length in (length, length + 1, length + 1000):
+        for at_least_length in (length, length + 1, length + 1000, length + 100_000):
             response = result_of(
                 self.client.request(
                     "GET",

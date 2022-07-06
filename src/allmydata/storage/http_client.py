@@ -125,7 +125,8 @@ class _LengthLimitedCollector:
     f: BytesIO = field(factory=BytesIO)
 
     def __call__(self, data: bytes):
-        if len(data) > self.remaining_length:
+        self.remaining_length -= len(data)
+        if self.remaining_length < 0:
             raise ValueError("Response length was too long")
         self.f.write(data)
 
