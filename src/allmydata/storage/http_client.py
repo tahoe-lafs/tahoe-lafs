@@ -18,7 +18,7 @@ from werkzeug.datastructures import Range, ContentRange
 from twisted.web.http_headers import Headers
 from twisted.web import http
 from twisted.web.iweb import IPolicyForHTTPS
-from twisted.internet.defer import inlineCallbacks, returnValue, fail, Deferred
+from twisted.internet.defer import inlineCallbacks, returnValue, fail, Deferred, succeed
 from twisted.internet.interfaces import IOpenSSLClientConnectionCreator
 from twisted.internet.ssl import CertificateOptions
 from twisted.web.client import Agent, HTTPConnectionPool
@@ -137,7 +137,10 @@ def limited_content(response, max_length: int = 30 * 1024 * 1024) -> Deferred:
     fails with a ``ValueError``.
     """
     collector = _LengthLimitedCollector(max_length)
-    d = treq.collect(response, collector)
+    # Make really sure everything gets called in Deferred context, treq might
+    # call collector directly...
+    d = succeed(None)
+    d.addCallback(lambda _: treq.collect(response, collector))
     d.addCallback(lambda _: collector.f.getvalue())
     return d
 
