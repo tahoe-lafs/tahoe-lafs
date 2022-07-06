@@ -23,9 +23,12 @@ from allmydata.grid_manager import (
     parse_grid_manager_certificate,
 )
 from allmydata.scripts.cli import _default_nodedir
-from allmydata.scripts.common import BaseOptions
+from allmydata.scripts.common import BaseOptions, BasedirOptions
 from allmydata.util.encodingutil import argv_to_abspath
-
+from allmydata.storage import (
+    crawler,
+    expirer,
+)
 
 class GenerateKeypairOptions(BaseOptions):
 
