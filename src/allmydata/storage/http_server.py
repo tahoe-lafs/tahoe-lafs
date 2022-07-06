@@ -4,7 +4,7 @@ HTTP server for storage.
 
 from __future__ import annotations
 
-from typing import Dict, List, Set, Tuple, Any, Callable
+from typing import Dict, List, Set, Tuple, Any, Callable, Union
 from functools import wraps
 from base64 import b64decode
 import binascii
@@ -394,7 +394,7 @@ class _ReadRangeProducer:
         pass
 
 
-def read_range(request: Request, read_data: ReadData) -> None:
+def read_range(request: Request, read_data: ReadData) -> Union[Deferred, bytes]:
     """
     Read an optional ``Range`` header, reads data appropriately via the given
     callable, writes the data to the request.
