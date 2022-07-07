@@ -136,12 +136,10 @@ def run_cli_native(verb, *args, **kwargs):
         stderr = TextIOWrapper(BytesIO(), encoding)
     d = defer.succeed(argv)
     d.addCallback(
-        partial(
-            runner.parse_or_exit,
-            options,
-        ),
+        runner.parse_or_exit,
         stdout=stdout,
         stderr=stderr,
+        stdin=stdin,
     )
     d.addCallback(
         runner.dispatch,
