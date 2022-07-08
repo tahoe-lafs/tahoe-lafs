@@ -157,6 +157,7 @@ class TahoeAddGridManagerCert(AsyncTestCase):
         we can add a certificate
         """
         nodedir = self.mktemp()
+        os.mkdir(nodedir)
         fake_cert = """{"certificate": "", "signature": ""}"""
 
         code, out, err = yield run_cli(
