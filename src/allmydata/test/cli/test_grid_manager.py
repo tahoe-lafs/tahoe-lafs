@@ -172,7 +172,7 @@ class TahoeAddGridManagerCert(AsyncTestCase):
 
         self.assertIn("tahoe.cfg", nodepath.listdir())
         self.assertIn(
-            "foo = foo.cert",
+            b"foo = foo.cert",
             config_data,
         )
         self.assertIn("foo.cert", nodepath.listdir())
