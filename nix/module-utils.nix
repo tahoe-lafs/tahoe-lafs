@@ -7,14 +7,6 @@ let
 
   forEach = flip mapAttrs';
 
-  # Construct a system username for a certain service.
-  # str -> str -> str
-  userName = kind: name: "tahoe.${kind}-${name}";
-
-  # Construct a system groupname for a certain service.
-  # str -> str -> str
-  groupName = userName;
-
   # Construct the absolute state directory path for a certain service.
   #
   # This is a directory but it has no trailing slash. Tahoe commands get antsy
@@ -34,15 +26,16 @@ let
 
     # Get a dedicated directory for runtime state.
     RuntimeDirectory = "tahoe-lafs";
+    # And persistent state.
+    StateDirectory = "tahoe-lafs";
 
     # Tell systemd where we intend to put our PID file, although as a "simple"
     # service the PID file doesn't do much.  Still, tahoe is going to write
     # one somewhere, systemd might as well know about it.
     PIDFile = "${RuntimeDirectory}/${kind}-${name}.pid";
 
-    # Run unprivileged with the dedicated user and group.
-    User = userName kind name;
-    Group = groupName kind name;
+    DynamicUser = true;
+    ProtectHome = false;
 
     # Create the node before starting, if necessary.
     ExecStartPre = mkPreStart package kind name configPath;
@@ -139,24 +132,5 @@ rec {
       wantedBy = [ "multi-user.target" ];
       serviceConfig = mkServiceConfig cfg.package kind name (mkConfig kind name cfg);
     }
-  );
-
-  # Construct the NixOS static user configuration for all of the given node
-  # configurations.
-  #
-  # The result is used as the value of `users.users`.
-  #
-  # str -> str -> attrset
-  mkUsers = kind: nodes: forEach nodes (name: cfg:
-    nameValuePair (userName kind name) {
-      description = "Tahoe node user for ${kind} ${name}";
-      isSystemUser = true;
-      group = groupName kind name;
-    }
-  );
-
-  # Like mkUsers, but for group configuration.
-  mkGroups = kind: nodes: forEach nodes (name: cfg:
-    nameValuePair (groupName kind name) { }
   );
 }
