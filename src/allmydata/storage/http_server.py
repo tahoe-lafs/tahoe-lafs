@@ -253,7 +253,7 @@ _SCHEMAS = {
     "allocate_buckets": Schema(
         """
     request = {
-      share-numbers: #6.258([*30 uint])
+      share-numbers: #6.258([*256 uint])
       allocated-size: uint
     }
     """
