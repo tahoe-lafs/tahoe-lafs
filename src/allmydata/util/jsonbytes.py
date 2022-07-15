@@ -109,13 +109,14 @@ def dumps_bytes(obj, *args, **kwargs):
         human consumption.
     """
     result = dumps(obj, *args, **kwargs)
-    if PY3:
+    if PY3 or isinstance(result, str):
         result = result.encode("utf-8")
     return result
 
 
 # To make this module drop-in compatible with json module:
 loads = json.loads
+load = json.load
 
 
 __all__ = ["dumps", "loads"]
