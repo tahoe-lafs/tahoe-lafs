@@ -6,16 +6,12 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
-from future.utils import PY2, PY3
+from future.utils import PY2
 if PY2:
     from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
-from six import ensure_str
 
 # We're going to override stdin/stderr, so want to match their behavior on respective Python versions.
-if PY3:
-    from io import StringIO
-else:
-    from StringIO import StringIO
+from io import StringIO
 
 from twisted.python.usage import (
     UsageError,
@@ -116,7 +112,7 @@ class AddCertificateOptions(SyncTestCase):
         """
         When no data is passed to stdin an error is produced
         """
-        self.tahoe.stdin = StringIO(ensure_str(""))
+        self.tahoe.stdin = StringIO("")
         self.tahoe.stderr = StringIO()  # suppress message
 
         with self.assertRaises(UsageError) as ctx:
@@ -159,7 +155,7 @@ class AddCertificateOptions(SyncTestCase):
         """
         Unparseable data produces an error
         """
-        self.tahoe.stdin = StringIO(ensure_str("{}"))
+        self.tahoe.stdin = StringIO("{}")
         self.tahoe.stderr = StringIO()  # suppress message
 
         with self.assertRaises(UsageError) as ctx:

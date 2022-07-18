@@ -38,7 +38,6 @@ import re
 import time
 import hashlib
 
-# On Python 2 this will be the backport.
 from configparser import NoSectionError
 
 import attr
