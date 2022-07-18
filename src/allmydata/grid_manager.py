@@ -6,7 +6,7 @@ import sys
 from datetime import (
     datetime,
 )
-from typing import Optional
+from typing import Optional, Union
 
 from twisted.python.filepath import FilePath
 
@@ -338,7 +338,7 @@ def save_grid_manager(file_path, grid_manager, create=True):
             f.write(b"\n")
 
 
-def parse_grid_manager_certificate(gm_data):
+def parse_grid_manager_certificate(gm_data: Union[str, bytes]):
     """
     :param gm_data: some data that might be JSON that might be a valid
        Grid Manager Certificate

@@ -10,12 +10,9 @@ from future.utils import PY2
 if PY2:
     from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
-from six import ensure_binary, ensure_str
+from six import ensure_binary
 
-try:
-    from allmydata.scripts.types_ import SubCommands
-except ImportError:
-    pass
+from typing import Union
 
 from twisted.python import usage
 from twisted.python.filepath import (
@@ -29,14 +26,12 @@ from allmydata.storage import (
     crawler,
     expirer,
 )
-from twisted.python.filepath import FilePath
-
+from allmydata.scripts.types_ import SubCommands
 from allmydata.client import read_config
 from allmydata.grid_manager import (
     parse_grid_manager_certificate,
 )
 from allmydata.scripts.cli import _default_nodedir
-from allmydata.scripts.common import BaseOptions
 from allmydata.util.encodingutil import argv_to_abspath
 from allmydata.util import jsonbytes
 
@@ -127,8 +122,10 @@ class AddGridManagerCertOptions(BaseOptions):
             raise usage.UsageError(
                 "Must provide --filename option"
             )
+
+        data : Union [bytes, str]
         if self['filename'] == '-':
-            print(ensure_str("reading certificate from stdin"), file=self.parent.parent.stderr)
+            print("reading certificate from stdin", file=self.parent.parent.stderr)
             data = self.parent.parent.stdin.read()
             if len(data) == 0:
                 raise usage.UsageError(
@@ -201,7 +198,7 @@ def add_grid_manager_cert(options):
             options['name'],
             cert_path.path,
         )
-        print(ensure_str(msg), file=options.parent.parent.stderr)
+        print(msg, file=options.parent.parent.stderr)
         return 1
 
     config.set_config("storage", "grid_management", "True")
@@ -212,7 +209,7 @@ def add_grid_manager_cert(options):
         f.write(cert_bytes)
 
     cert_count = len(config.enumerate_section("grid_manager_certificates"))
-    print(ensure_str("There are now {} certificates").format(cert_count),
+    print("There are now {} certificates".format(cert_count),
           file=options.parent.parent.stderr)
 
     return 0
