@@ -1,15 +1,8 @@
 """
-Ported to Python 3.
+A CLI for configuring a grid manager.
 """
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
 
-from future.utils import PY2
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
-
+from typing import Optional
 from datetime import (
     datetime,
     timedelta,
@@ -224,7 +217,7 @@ def sign(ctx, name, expiry_days):
             f.write(certificate_data.encode("ascii"))
 
 
-def _config_path_from_option(config):
+def _config_path_from_option(config: str) -> Optional[FilePath]:
     """
     :param str config: a path or -
     :returns: a FilePath instance or None
