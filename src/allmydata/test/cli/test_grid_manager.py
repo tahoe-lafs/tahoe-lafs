@@ -1,14 +1,6 @@
 """
-Ported to Python 3.
+Tests for the grid manager CLI.
 """
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
-from future.utils import PY2, raise_
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 import os
 from io import (
@@ -56,7 +48,7 @@ class GridManagerCommandLine(TestCase):
         """Invoke a command with the runner and ensure it succeeded."""
         result = self.runner.invoke(*args, **kwargs)
         if result.exception is not None:
-            raise_(*result.exc_info)
+            raise result.exc_info[1].with_traceback(result.exc_info[2])
         self.assertEqual(result.exit_code, 0, result)
         return result
 
