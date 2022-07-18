@@ -1,21 +1,14 @@
 """
 Functions and classes relating to the Grid Manager internal state
-
-Ported to Python 3.
 """
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
-from future.utils import PY2
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 import sys
 from datetime import (
     datetime,
 )
+from typing import Optional
+
+from twisted.python.filepath import FilePath
 
 from allmydata.crypto import (
     ed25519,
@@ -26,48 +19,41 @@ from allmydata.util import (
     dictutil,
 )
 
-import attr
+from attrs import define, asdict, Factory
 
 
-@attr.s
+@define
 class SignedCertificate(object):
     """
     A signed certificate.
     """
     # A JSON-encoded, UTF-8-encoded certificate.
-    certificate = attr.ib(
-        type=bytes, validator=attr.validators.instance_of(bytes)
-    )
+    certificate : bytes
+
     # The signature in base32.
-    signature = attr.ib(
-        type=bytes,
-        validator=attr.validators.instance_of(bytes)
-    )
+    signature : bytes
 
     @classmethod
     def load(cls, file_like):
         data = json.load(file_like)
         return cls(
-            certificate=data["certificate"].encode("ascii"),
+            certificate=data["certificate"].encode("utf-8"),
             signature=data["signature"].encode("ascii")
         )
 
     def asdict(self):
-        return attr.asdict(self)
+        return asdict(self)
 
 
-@attr.s
+@define
 class _GridManagerStorageServer(object):
     """
     A Grid Manager's notion of a storage server
     """
 
-    name = attr.ib()
-    public_key = attr.ib(validator=attr.validators.instance_of(ed25519.Ed25519PublicKey))
-    certificates = attr.ib(
-        default=attr.Factory(list),
-        validator=attr.validators.instance_of(list),
-    )
+    name : str
+    public_key : ed25519.Ed25519PublicKey
+    certificates : list = Factory(list)
 
     def add_certificate(self, certificate):
         """
@@ -75,9 +61,9 @@ class _GridManagerStorageServer(object):
         """
         self.certificates.append(certificate)
 
-    def public_key_string(self):
+    def public_key_string(self) -> bytes:
         """
-        :returns: the public key as a string
+        :returns: the public key as bytes.
         """
         return ed25519.string_from_verifying_key(self.public_key)
 
@@ -90,16 +76,16 @@ class _GridManagerStorageServer(object):
         }
 
 
-@attr.s
+@define
 class _GridManagerCertificate(object):
     """
     Represents a single certificate for a single storage-server
     """
 
-    filename = attr.ib()
-    index = attr.ib(validator=attr.validators.instance_of(int))
-    expires = attr.ib(validator=attr.validators.instance_of(datetime))
-    public_key = attr.ib(validator=attr.validators.instance_of(ed25519.Ed25519PublicKey))
+    filename : str
+    index : int
+    expires : datetime
+    public_key : ed25519.Ed25519PublicKey
 
 
 def create_grid_manager():
@@ -113,7 +99,7 @@ def create_grid_manager():
     )
 
 
-def _load_certificates_for(config_path, name, gm_key=None):
+def _load_certificates_for(config_path: Optional[FilePath], name: str, gm_key=Optional[ed25519.Ed25519PublicKey]):
     """
     Load any existing certificates for the given storage-server.
 
@@ -122,7 +108,7 @@ def _load_certificates_for(config_path, name, gm_key=None):
 
     :param str name: the name of an existing storage-server
 
-    :param ed25519.VerifyingKey gm_key: an optional Grid Manager
+    :param ed25519.Ed25519PublicKey gm_key: an optional Grid Manager
         public key. If provided, certificates will be verified against it.
 
     :returns: list containing any known certificates (may be empty)
@@ -159,7 +145,7 @@ def _load_certificates_for(config_path, name, gm_key=None):
     return certificates
 
 
-def load_grid_manager(config_path):
+def load_grid_manager(config_path: Optional[FilePath]):
     """
     Load a Grid Manager from existing configuration.
 
