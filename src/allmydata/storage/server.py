@@ -794,6 +794,16 @@ class StorageServer(service.MultiService):
 
         return None
 
+    def get_immutable_share_length(self, storage_index: bytes, share_number: int) -> int:
+        """Returns the length (in bytes) of an immutable."""
+        return self.get_buckets(storage_index)[share_number].get_length()
+
+    def get_mutable_share_length(self, storage_index: bytes, share_number: int) -> int:
+        """Returns the length (in bytes) of a mutable."""
+        return MutableShareFile(
+            dict(self.get_shares(storage_index))[share_number]
+        ).get_length()
+
 
 @implementer(RIStorageServer)
 class FoolscapStorageServer(Referenceable):  # type: ignore # warner/foolscap#78

@@ -412,11 +412,11 @@ class MutableShareFile(object):
                 datav.append(self._read_share_data(f, offset, length))
         return datav
 
-#    def remote_get_length(self):
-#        f = open(self.home, 'rb')
-#        data_length = self._read_data_length(f)
-#        f.close()
-#        return data_length
+    def get_length(self):
+        f = open(self.home, 'rb')
+        data_length = self._read_data_length(f)
+        f.close()
+        return data_length
 
     def check_write_enabler(self, write_enabler, si_s):
         with open(self.home, 'rb+') as f:
