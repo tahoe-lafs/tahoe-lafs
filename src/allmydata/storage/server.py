@@ -796,13 +796,16 @@ class StorageServer(service.MultiService):
 
     def get_immutable_share_length(self, storage_index: bytes, share_number: int) -> int:
         """Returns the length (in bytes) of an immutable."""
-        return self.get_buckets(storage_index)[share_number].get_length()
+        si_dir = storage_index_to_dir(storage_index)
+        path = os.path.join(self.sharedir, si_dir, str(share_number))
+        bucket = BucketReader(self, path, storage_index, share_number)
+        return bucket.get_length()
 
     def get_mutable_share_length(self, storage_index: bytes, share_number: int) -> int:
         """Returns the length (in bytes) of a mutable."""
-        return MutableShareFile(
-            dict(self.get_shares(storage_index))[share_number]
-        ).get_length()
+        si_dir = storage_index_to_dir(storage_index)
+        path = os.path.join(self.sharedir, si_dir, str(share_number))
+        return MutableShareFile(path).get_length()
 
 
 @implementer(RIStorageServer)
