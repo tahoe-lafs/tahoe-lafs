@@ -805,6 +805,8 @@ class StorageServer(service.MultiService):
         """Returns the length (in bytes) of a mutable."""
         si_dir = storage_index_to_dir(storage_index)
         path = os.path.join(self.sharedir, si_dir, str(share_number))
+        if not os.path.exists(path):
+            raise KeyError("No such storage index or share number")
         return MutableShareFile(path).get_length()
 
 

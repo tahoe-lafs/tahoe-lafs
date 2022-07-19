@@ -352,12 +352,10 @@ class _ReadRangeProducer:
 
         if self.first_read and self.remaining > 0:
             # For empty bodies the content-range header makes no sense since
-            # the end of the range is inclusive.
-            #
-            # TODO this is wrong for requests that go beyond the end of the
-            # share. This will be fixed in
-            # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3907 by making that
-            # edge case not happen.
+            # the end of the range is inclusive. Actual conversion from
+            # Python's exclusive ranges to inclusive ranges is handled by
+            # werkzeug. The case where we're reading beyond the end of the
+            # share is handled by caller (read_range().)
             self.request.setHeader(
                 "content-range",
                 ContentRange(
@@ -368,7 +366,7 @@ class _ReadRangeProducer:
 
         if not data and self.remaining > 0:
             # TODO Either data is missing locally (storage issue?) or a bug,
-            # abort response with error? Until
+            # abort response with error. Until
             # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3907 is implemented
             # we continue anyway.
             pass
@@ -394,7 +392,9 @@ class _ReadRangeProducer:
         pass
 
 
-def read_range(request: Request, read_data: ReadData) -> Union[Deferred, bytes]:
+def read_range(
+    request: Request, read_data: ReadData, share_length: int
+) -> Union[Deferred, bytes]:
     """
     Read an optional ``Range`` header, reads data appropriately via the given
     callable, writes the data to the request.
@@ -430,9 +430,12 @@ def read_range(request: Request, read_data: ReadData) -> Union[Deferred, bytes]:
     ):
         raise _HTTPError(http.REQUESTED_RANGE_NOT_SATISFIABLE)
 
-    # TODO if end is beyond the end of the share, either return error, or maybe
-    # just return what we can...
     offset, end = range_header.ranges[0]
+    # If we're being ask to read beyond the length of the share, just read
+    # less:
+    end = min(end, share_length)
+    # TODO when if end is now <= offset?
+
     request.setResponseCode(http.PARTIAL_CONTENT)
     d = Deferred()
     request.registerProducer(
@@ -675,7 +678,7 @@ class HTTPServer(object):
             request.setResponseCode(http.NOT_FOUND)
             return b""
 
-        return read_range(request, bucket.read)
+        return read_range(request, bucket.read, bucket.get_length())
 
     @_authorized_route(
         _app,
@@ -763,6 +766,13 @@ class HTTPServer(object):
     def read_mutable_chunk(self, request, authorization, storage_index, share_number):
         """Read a chunk from a mutable."""
 
+        try:
+            share_length = self._storage_server.get_mutable_share_length(
+                storage_index, share_number
+            )
+        except KeyError:
+            raise _HTTPError(http.NOT_FOUND)
+
         def read_data(offset, length):
             try:
                 return self._storage_server.slot_readv(
@@ -771,7 +781,7 @@ class HTTPServer(object):
             except KeyError:
                 raise _HTTPError(http.NOT_FOUND)
 
-        return read_range(request, read_data)
+        return read_range(request, read_data, share_length)
 
     @_authorized_route(
         _app, set(), "/v1/mutable/<storage_index:storage_index>/shares", methods=["GET"]
