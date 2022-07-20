@@ -1084,40 +1084,17 @@ class _FoolscapMixin(_SharedMixin):
 class _HTTPMixin(_SharedMixin):
     """Run tests on the HTTP version of ``IStorageServer``."""
 
-    def setUp(self):
-        self._port_assigner = SameProcessStreamEndpointAssigner()
-        self._port_assigner.setUp()
-        self.addCleanup(self._port_assigner.tearDown)
-        return _SharedMixin.setUp(self)
-
-    @inlineCallbacks
     def _get_istorage_server(self):
-        swissnum = b"1234"
-        http_storage_server = HTTPServer(self.server, swissnum)
-
-        # Listen on randomly assigned port, using self-signed cert:
-        private_key = generate_private_key()
-        certificate = generate_certificate(private_key)
-        _, endpoint_string = self._port_assigner.assign(reactor)
-        nurl, listening_port = yield listen_tls(
-            http_storage_server,
-            "127.0.0.1",
-            serverFromString(reactor, endpoint_string),
-            private_key_to_file(FilePath(self.mktemp()), private_key),
-            cert_to_file(FilePath(self.mktemp()), certificate),
-        )
-        self.addCleanup(listening_port.stopListening)
+        nurl = self.clients[0].storage_nurls[0]
 
         # Create HTTP client with non-persistent connections, so we don't leak
         # state across tests:
-        returnValue(
-            _HTTPStorageServer.from_http_client(
-                StorageClient.from_nurl(nurl, reactor, persistent=False)
-            )
+        client: IStorageServer = _HTTPStorageServer.from_http_client(
+            StorageClient.from_nurl(nurl, reactor, persistent=False)
         )
+        self.assertTrue(IStorageServer.providedBy(client))
 
-        # Eventually should also:
-        #  self.assertTrue(IStorageServer.providedBy(client))
+        return succeed(client)
 
 
 class FoolscapSharedAPIsTests(

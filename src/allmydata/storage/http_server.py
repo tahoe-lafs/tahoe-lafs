@@ -10,6 +10,7 @@ from base64 import b64decode
 import binascii
 from tempfile import TemporaryFile
 
+from cryptography.x509 import Certificate
 from zope.interface import implementer
 from klein import Klein
 from twisted.web import http
@@ -843,6 +844,29 @@ class _TLSEndpointWrapper(object):
         )
 
 
+def build_nurl(
+    hostname: str, port: int, swissnum: str, certificate: Certificate
+) -> DecodedURL:
+    """
+    Construct a HTTPS NURL, given the hostname, port, server swissnum, and x509
+    certificate for the server.  Clients can then connect to the server using
+    this NURL.
+    """
+    return DecodedURL().replace(
+        fragment="v=1",  # how we know this NURL is HTTP-based (i.e. not Foolscap)
+        host=hostname,
+        port=port,
+        path=(swissnum,),
+        userinfo=(
+            str(
+                get_spki_hash(certificate),
+                "ascii",
+            ),
+        ),
+        scheme="pb",
+    )
+
+
 def listen_tls(
     server: HTTPServer,
     hostname: str,
@@ -862,22 +886,14 @@ def listen_tls(
     """
     endpoint = _TLSEndpointWrapper.from_paths(endpoint, private_key_path, cert_path)
 
-    def build_nurl(listening_port: IListeningPort) -> DecodedURL:
-        nurl = DecodedURL().replace(
-            fragment="v=1",  # how we know this NURL is HTTP-based (i.e. not Foolscap)
-            host=hostname,
-            port=listening_port.getHost().port,
-            path=(str(server._swissnum, "ascii"),),
-            userinfo=(
-                str(
-                    get_spki_hash(load_pem_x509_certificate(cert_path.getContent())),
-                    "ascii",
-                ),
-            ),
-            scheme="pb",
+    def get_nurl(listening_port: IListeningPort) -> DecodedURL:
+        return build_nurl(
+            hostname,
+            listening_port.getHost().port,
+            str(server._swissnum, "ascii"),
+            load_pem_x509_certificate(cert_path.getContent()),
         )
-        return nurl
 
     return endpoint.listen(Site(server.get_resource())).addCallback(
-        lambda listening_port: (build_nurl(listening_port), listening_port)
+        lambda listening_port: (get_nurl(listening_port), listening_port)
     )
