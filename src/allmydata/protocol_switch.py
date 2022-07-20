@@ -138,6 +138,13 @@ class _FoolscapOrHttps(Protocol, metaclass=_PretendToBeNegotiation):
             protocol = self.https_factory.buildProtocol(self.transport.getPeer())
             protocol.makeConnection(self.transport)
             protocol.dataReceived(self._buffer)
+
+            # Update the factory so it knows we're transforming to a new
+            # protocol object (we'll do that next)
+            value = self.https_factory.protocols.pop(protocol)
+            self.https_factory.protocols[self] = value
+
+            # Transform self into the TLS protocol 🪄
             self.__class__ = protocol.__class__
             self.__dict__ = protocol.__dict__
 
