@@ -689,13 +689,17 @@ class Server(unittest.TestCase):
         self.failUnlessEqual(ss.allocated_size(), 0)
 
     def test_immutable_length(self):
-        """``get_immutable_share_length()`` returns the length of an immutable share."""
+        """
+        ``get_immutable_share_length()`` returns the length of an immutable
+        share, as does ``BucketWriter.get_length()``..
+        """
         ss = self.create("test_immutable_length")
         _, writers = self.allocate(ss, b"allocate", [22], 75)
         bucket = writers[22]
         bucket.write(0, b"X" * 75)
         bucket.close()
         self.assertEqual(ss.get_immutable_share_length(b"allocate", 22), 75)
+        self.assertEqual(ss.get_buckets(b"allocate")[22].get_length(), 75)
 
     def test_allocate(self):
         ss = self.create("test_allocate")
@@ -1361,6 +1365,26 @@ class MutableServer(unittest.TestCase):
             []
         )
         self.assertEqual(ss.get_mutable_share_length(b"si1", 16), 23)
+
+    def test_mutable_share_length_unknown(self):
+        """
+        ``get_mutable_share_length()`` raises a ``KeyError`` on unknown shares.
+        """
+        ss = self.create("test_mutable_share_length_unknown")
+        self.allocate(ss, b"si1", b"we1", b"le1", [16], 23)
+        ss.slot_testv_and_readv_and_writev(
+            b"si1", (self.write_enabler(b"we1"),
+                     self.renew_secret(b"le1"),
+                     self.cancel_secret(b"le1")),
+            {16: ([], [(0, b"x" * 23)], None)},
+            []
+        )
+        with self.assertRaises(KeyError):
+            # Wrong share number.
+            ss.get_mutable_share_length(b"si1", 17)
+        with self.assertRaises(KeyError):
+            # Wrong storage index
+            ss.get_mutable_share_length(b"unknown", 16)
 
     def test_bad_magic(self):
         ss = self.create("test_bad_magic")
