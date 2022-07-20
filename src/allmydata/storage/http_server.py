@@ -353,7 +353,7 @@ class _ReadRangeProducer:
             d, self.result = self.result, None
             d.errback(
                 ValueError(
-                    f"Should be {remaining} bytes left, but we got an empty read"
+                    f"Should be {self.remaining} bytes left, but we got an empty read"
                 )
             )
             self.stopProducing()
@@ -363,7 +363,7 @@ class _ReadRangeProducer:
             d, self.result = self.result, None
             d.errback(
                 ValueError(
-                    f"Should be {remaining} bytes left, but we got more than that ({len(data)})!"
+                    f"Should be {self.remaining} bytes left, but we got more than that ({len(data)})!"
                 )
             )
             self.stopProducing()
