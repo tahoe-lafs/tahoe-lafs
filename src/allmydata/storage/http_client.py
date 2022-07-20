@@ -468,6 +468,10 @@ def read_share_chunk(
             {"range": [Range("bytes", [(offset, offset + length)]).to_header()]}
         ),
     )
+
+    if response.code == http.NO_CONTENT:
+        return b""
+
     if response.code == http.PARTIAL_CONTENT:
         content_range = parse_content_range_header(
             response.headers.getRawHeaders("content-range")[0]
@@ -488,7 +492,7 @@ def read_share_chunk(
                 + f"didn't match Content-Range header ({supposed_length})"
             )
         body.seek(0)
-        returnValue(body.read())
+        return body.read()
     else:
         # Technically HTTP allows sending an OK with full body under these
         # circumstances, but the server is not designed to do that so we ignore

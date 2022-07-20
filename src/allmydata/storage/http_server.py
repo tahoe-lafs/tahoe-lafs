@@ -343,26 +343,11 @@ class _ReadRangeProducer:
     result: Deferred
     start: int
     remaining: int
-    first_read: bool = field(default=True)
 
     def resumeProducing(self):
         to_read = min(self.remaining, 65536)
         data = self.read_data(self.start, to_read)
         assert len(data) <= to_read
-
-        if self.first_read and self.remaining > 0:
-            # For empty bodies the content-range header makes no sense since
-            # the end of the range is inclusive. Actual conversion from
-            # Python's exclusive ranges to inclusive ranges is handled by
-            # werkzeug. The case where we're reading beyond the end of the
-            # share is handled by the caller, read_range().
-            self.request.setHeader(
-                "content-range",
-                ContentRange(
-                    "bytes", self.start, self.start + self.remaining
-                ).to_header(),
-            )
-            self.first_read = False
 
         if not data and self.remaining > 0:
             d, self.result = self.result, None
@@ -448,9 +433,21 @@ def read_range(
     # If we're being ask to read beyond the length of the share, just read
     # less:
     end = min(end, share_length)
-    # TODO when if end is now <= offset?
+    if offset >= end:
+        # Basically we'd need to return an empty body. However, the
+        # Content-Range header can't actually represent empty lengths... so
+        # (mis)use 204 response code to indicate that.
+        raise _HTTPError(http.NO_CONTENT)
 
     request.setResponseCode(http.PARTIAL_CONTENT)
+
+    # Actual conversion from Python's exclusive ranges to inclusive ranges is
+    # handled by werkzeug.
+    request.setHeader(
+        "content-range",
+        ContentRange("bytes", offset, end).to_header(),
+    )
+
     d = Deferred()
     request.registerProducer(
         _ReadRangeProducer(
