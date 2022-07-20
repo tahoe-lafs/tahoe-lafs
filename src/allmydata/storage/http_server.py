@@ -355,7 +355,7 @@ class _ReadRangeProducer:
             # the end of the range is inclusive. Actual conversion from
             # Python's exclusive ranges to inclusive ranges is handled by
             # werkzeug. The case where we're reading beyond the end of the
-            # share is handled by caller (read_range().)
+            # share is handled by the caller, read_range().
             self.request.setHeader(
                 "content-range",
                 ContentRange(
@@ -365,11 +365,24 @@ class _ReadRangeProducer:
             self.first_read = False
 
         if not data and self.remaining > 0:
-            # TODO Either data is missing locally (storage issue?) or a bug,
-            # abort response with error. Until
-            # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3907 is implemented
-            # we continue anyway.
-            pass
+            d, self.result = self.result, None
+            d.errback(
+                ValueError(
+                    f"Should be {remaining} bytes left, but we got an empty read"
+                )
+            )
+            self.stopProducing()
+            return
+
+        if len(data) > self.remaining:
+            d, self.result = self.result, None
+            d.errback(
+                ValueError(
+                    f"Should be {remaining} bytes left, but we got more than that ({len(data)})!"
+                )
+            )
+            self.stopProducing()
+            return
 
         self.start += len(data)
         self.remaining -= len(data)
@@ -377,19 +390,20 @@ class _ReadRangeProducer:
 
         self.request.write(data)
 
-        # TODO remove the second clause in https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3907
-        if self.remaining == 0 or not data:
-            self.request.unregisterProducer()
-            d = self.result
-            del self.result
-            d.callback(b"")
-            return
+        if self.remaining == 0:
+            self.stopProducing()
 
     def pauseProducing(self):
         pass
 
     def stopProducing(self):
-        pass
+        if self.request is not None:
+            self.request.unregisterProducer()
+            self.request = None
+        if self.result is not None:
+            d = self.result
+            self.result = None
+            d.callback(b"")
 
 
 def read_range(
