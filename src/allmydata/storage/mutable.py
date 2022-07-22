@@ -413,6 +413,9 @@ class MutableShareFile(object):
         return datav
 
     def get_length(self):
+        """
+        Return the length of the data in the share.
+        """
         f = open(self.home, 'rb')
         data_length = self._read_data_length(f)
         f.close()
