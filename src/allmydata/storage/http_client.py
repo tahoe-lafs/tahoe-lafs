@@ -474,8 +474,16 @@ def read_share_chunk(
 
     if response.code == http.PARTIAL_CONTENT:
         content_range = parse_content_range_header(
-            response.headers.getRawHeaders("content-range")[0]
+            response.headers.getRawHeaders("content-range")[0] or ""
         )
+        if (
+            content_range is None
+            or content_range.stop is None
+            or content_range.start is None
+        ):
+            raise ValueError(
+                "Content-Range was missing, invalid, or in format we don't support"
+            )
         supposed_length = content_range.stop - content_range.start
         if supposed_length > length:
             raise ValueError("Server sent more than we asked for?!")
