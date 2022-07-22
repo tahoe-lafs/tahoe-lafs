@@ -494,7 +494,7 @@ def read_share_chunk(
         actual_length = body.tell()
         if actual_length != supposed_length:
             # Most likely a mutable that got changed out from under us, but
-            # concievably could be a bug...
+            # conceivably could be a bug...
             raise ValueError(
                 f"Length of response sent from server ({actual_length}) "
                 + f"didn't match Content-Range header ({supposed_length})"
