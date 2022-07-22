@@ -794,6 +794,20 @@ class StorageServer(service.MultiService):
 
         return None
 
+    def get_immutable_share_length(self, storage_index: bytes, share_number: int) -> int:
+        """Returns the length (in bytes) of an immutable."""
+        si_dir = storage_index_to_dir(storage_index)
+        path = os.path.join(self.sharedir, si_dir, str(share_number))
+        return ShareFile(path).get_length()
+
+    def get_mutable_share_length(self, storage_index: bytes, share_number: int) -> int:
+        """Returns the length (in bytes) of a mutable."""
+        si_dir = storage_index_to_dir(storage_index)
+        path = os.path.join(self.sharedir, si_dir, str(share_number))
+        if not os.path.exists(path):
+            raise KeyError("No such storage index or share number")
+        return MutableShareFile(path).get_length()
+
 
 @implementer(RIStorageServer)
 class FoolscapStorageServer(Referenceable):  # type: ignore # warner/foolscap#78
