@@ -504,7 +504,7 @@ def read_share_chunk(
     else:
         # Technically HTTP allows sending an OK with full body under these
         # circumstances, but the server is not designed to do that so we ignore
-        # than possibility for now...
+        # that possibility for now...
         raise ClientException(response.code)
 
 
