@@ -204,6 +204,9 @@ class ShareFile(object):
         self._data_offset = 0xc
 
     def get_length(self):
+        """
+        Return the length of the data in the share, if we're reading.
+        """
         return self._length
 
     def unlink(self):
@@ -548,9 +551,6 @@ class BucketReader(object):
                                             self.storage_index,
                                             self.shnum,
                                             reason)
-
-    def get_length(self):
-        return self._share_file.get_length()
 
 
 @implementer(RIBucketReader)
