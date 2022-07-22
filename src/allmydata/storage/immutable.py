@@ -552,6 +552,12 @@ class BucketReader(object):
                                             self.shnum,
                                             reason)
 
+    def get_length(self):
+        """
+        Return the length of the data in the share.
+        """
+        return self._share_file.get_length()
+
 
 @implementer(RIBucketReader)
 class FoolscapBucketReader(Referenceable):  # type: ignore # warner/foolscap#78
