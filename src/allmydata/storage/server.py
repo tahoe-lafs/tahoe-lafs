@@ -798,8 +798,7 @@ class StorageServer(service.MultiService):
         """Returns the length (in bytes) of an immutable."""
         si_dir = storage_index_to_dir(storage_index)
         path = os.path.join(self.sharedir, si_dir, str(share_number))
-        bucket = BucketReader(self, path, storage_index, share_number)
-        return bucket.get_length()
+        return ShareFile(path).get_length()
 
     def get_mutable_share_length(self, storage_index: bytes, share_number: int) -> int:
         """Returns the length (in bytes) of a mutable."""
