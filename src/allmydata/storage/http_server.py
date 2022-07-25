@@ -2,24 +2,30 @@
 HTTP server for storage.
 """
 
-from typing import Dict, List, Set, Tuple, Any
+from __future__ import annotations
 
+from typing import Dict, List, Set, Tuple, Any, Callable, Union
 from functools import wraps
 from base64 import b64decode
 import binascii
+from tempfile import TemporaryFile
 
 from eliot import start_action
 from zope.interface import implementer
 from klein import Klein
 from twisted.web import http
-from twisted.internet.interfaces import IListeningPort, IStreamServerEndpoint
+from twisted.internet.interfaces import (
+    IListeningPort,
+    IStreamServerEndpoint,
+    IPullProducer,
+)
 from twisted.internet.defer import Deferred
 from twisted.internet.ssl import CertificateOptions, Certificate, PrivateCertificate
-from twisted.web.server import Site
+from twisted.web.server import Site, Request
 from twisted.protocols.tls import TLSMemoryBIOFactory
 from twisted.python.filepath import FilePath
 
-import attr
+from attrs import define, field, Factory
 from werkzeug.http import (
     parse_range_header,
     parse_content_range_header,
@@ -32,7 +38,7 @@ from cryptography.x509 import load_pem_x509_certificate
 
 
 # TODO Make sure to use pure Python versions?
-from cbor2 import dumps, loads
+from cbor2 import dump, loads
 from pycddl import Schema, ValidationError as CDDLValidationError
 from .server import StorageServer
 from .http_common import (
@@ -47,6 +53,7 @@ from .common import si_a2b
 from .immutable import BucketWriter, ConflictingWriteError
 from ..util.hashutil import timing_safe_compare
 from ..util.base32 import rfc3548_alphabet
+from allmydata.interfaces import BadWriteEnablerError
 
 
 class ClientSecretsException(Exception):
@@ -152,31 +159,31 @@ def _authorized_route(app, required_secrets, *route_args, **route_kwargs):
     return decorator
 
 
-@attr.s
+@define
 class StorageIndexUploads(object):
     """
     In-progress upload to storage index.
     """
 
     # Map share number to BucketWriter
-    shares = attr.ib(factory=dict)  # type: Dict[int,BucketWriter]
+    shares: dict[int, BucketWriter] = Factory(dict)
 
     # Map share number to the upload secret (different shares might have
     # different upload secrets).
-    upload_secrets = attr.ib(factory=dict)  # type: Dict[int,bytes]
+    upload_secrets: dict[int, bytes] = Factory(dict)
 
 
-@attr.s
+@define
 class UploadsInProgress(object):
     """
     Keep track of uploads for storage indexes.
     """
 
     # Map storage index to corresponding uploads-in-progress
-    _uploads = attr.ib(type=Dict[bytes, StorageIndexUploads], factory=dict)
+    _uploads: dict[bytes, StorageIndexUploads] = Factory(dict)
 
     # Map BucketWriter to (storage index, share number)
-    _bucketwriters = attr.ib(type=Dict[BucketWriter, Tuple[bytes, int]], factory=dict)
+    _bucketwriters: dict[BucketWriter, Tuple[bytes, int]] = Factory(dict)
 
     def add_write_bucket(
         self,
@@ -255,11 +262,15 @@ class _HTTPError(Exception):
 # Tags are of the form #6.nnn, where the number is documented at
 # https://www.iana.org/assignments/cbor-tags/cbor-tags.xhtml. Notably, #6.258
 # indicates a set.
+#
+# Somewhat arbitrary limits are set to reduce e.g. number of shares, number of
+# vectors, etc.. These may need to be iterated on in future revisions of the
+# code.
 _SCHEMAS = {
     "allocate_buckets": Schema(
         """
     request = {
-      share-numbers: #6.258([* uint])
+      share-numbers: #6.258([*256 uint])
       allocated-size: uint
     }
     """
@@ -275,18 +286,193 @@ _SCHEMAS = {
         """
         request = {
             "test-write-vectors": {
-                * share_number: {
-                    "test": [* {"offset": uint, "size": uint, "specimen": bstr}]
-                    "write": [* {"offset": uint, "data": bstr}]
-                    "new-length": uint // null
+                ; TODO Add length limit here, after
+                ; https://github.com/anweiss/cddl/issues/128 is fixed
+                * share_number => {
+                    "test": [*30 {"offset": uint, "size": uint, "specimen": bstr}]
+                    "write": [*30 {"offset": uint, "data": bstr}]
+                    "new-length": uint / null
                 }
             }
-            "read-vector": [* {"offset": uint, "size": uint}]
+            "read-vector": [*30 {"offset": uint, "size": uint}]
         }
         share_number = uint
         """
     ),
 }
+
+
+# Callable that takes offset and length, returns the data at that range.
+ReadData = Callable[[int, int], bytes]
+
+
+@implementer(IPullProducer)
+@define
+class _ReadAllProducer:
+    """
+    Producer that calls a read function repeatedly to read all the data, and
+    writes to a request.
+    """
+
+    request: Request
+    read_data: ReadData
+    result: Deferred = Factory(Deferred)
+    start: int = field(default=0)
+
+    @classmethod
+    def produce_to(cls, request: Request, read_data: ReadData) -> Deferred:
+        """
+        Create and register the producer, returning ``Deferred`` that should be
+        returned from a HTTP server endpoint.
+        """
+        producer = cls(request, read_data)
+        request.registerProducer(producer, False)
+        return producer.result
+
+    def resumeProducing(self):
+        data = self.read_data(self.start, 65536)
+        if not data:
+            self.request.unregisterProducer()
+            d = self.result
+            del self.result
+            d.callback(b"")
+            return
+        self.request.write(data)
+        self.start += len(data)
+
+    def pauseProducing(self):
+        pass
+
+    def stopProducing(self):
+        pass
+
+
+@implementer(IPullProducer)
+@define
+class _ReadRangeProducer:
+    """
+    Producer that calls a read function to read a range of data, and writes to
+    a request.
+    """
+
+    request: Request
+    read_data: ReadData
+    result: Deferred
+    start: int
+    remaining: int
+
+    def resumeProducing(self):
+        to_read = min(self.remaining, 65536)
+        data = self.read_data(self.start, to_read)
+        assert len(data) <= to_read
+
+        if not data and self.remaining > 0:
+            d, self.result = self.result, None
+            d.errback(
+                ValueError(
+                    f"Should be {self.remaining} bytes left, but we got an empty read"
+                )
+            )
+            self.stopProducing()
+            return
+
+        if len(data) > self.remaining:
+            d, self.result = self.result, None
+            d.errback(
+                ValueError(
+                    f"Should be {self.remaining} bytes left, but we got more than that ({len(data)})!"
+                )
+            )
+            self.stopProducing()
+            return
+
+        self.start += len(data)
+        self.remaining -= len(data)
+        assert self.remaining >= 0
+
+        self.request.write(data)
+
+        if self.remaining == 0:
+            self.stopProducing()
+
+    def pauseProducing(self):
+        pass
+
+    def stopProducing(self):
+        if self.request is not None:
+            self.request.unregisterProducer()
+            self.request = None
+        if self.result is not None:
+            d = self.result
+            self.result = None
+            d.callback(b"")
+
+
+def read_range(
+    request: Request, read_data: ReadData, share_length: int
+) -> Union[Deferred, bytes]:
+    """
+    Read an optional ``Range`` header, reads data appropriately via the given
+    callable, writes the data to the request.
+
+    Only parses a subset of ``Range`` headers that we support: must be set,
+    bytes only, only a single range, the end must be explicitly specified.
+    Raises a ``_HTTPError(http.REQUESTED_RANGE_NOT_SATISFIABLE)`` if parsing is
+    not possible or the header isn't set.
+
+    Takes a function that will do the actual reading given the start offset and
+    a length to read.
+
+    The resulting data is written to the request.
+    """
+
+    def read_data_with_error_handling(offset: int, length: int) -> bytes:
+        try:
+            return read_data(offset, length)
+        except _HTTPError as e:
+            request.setResponseCode(e.code)
+            # Empty read means we're done.
+            return b""
+
+    if request.getHeader("range") is None:
+        return _ReadAllProducer.produce_to(request, read_data_with_error_handling)
+
+    range_header = parse_range_header(request.getHeader("range"))
+    if (
+        range_header is None  # failed to parse
+        or range_header.units != "bytes"
+        or len(range_header.ranges) > 1  # more than one range
+        or range_header.ranges[0][1] is None  # range without end
+    ):
+        raise _HTTPError(http.REQUESTED_RANGE_NOT_SATISFIABLE)
+
+    offset, end = range_header.ranges[0]
+    # If we're being ask to read beyond the length of the share, just read
+    # less:
+    end = min(end, share_length)
+    if offset >= end:
+        # Basically we'd need to return an empty body. However, the
+        # Content-Range header can't actually represent empty lengths... so
+        # (mis)use 204 response code to indicate that.
+        raise _HTTPError(http.NO_CONTENT)
+
+    request.setResponseCode(http.PARTIAL_CONTENT)
+
+    # Actual conversion from Python's exclusive ranges to inclusive ranges is
+    # handled by werkzeug.
+    request.setHeader(
+        "content-range",
+        ContentRange("bytes", offset, end).to_header(),
+    )
+
+    d = Deferred()
+    request.registerProducer(
+        _ReadRangeProducer(
+            request, read_data_with_error_handling, d, offset, end - offset
+        ),
+        False,
+    )
+    return d
 
 
 class HTTPServer(object):
@@ -340,9 +526,14 @@ class HTTPServer(object):
         accept = parse_accept_header(accept_headers[0])
         if accept.best == CBOR_MIME_TYPE:
             request.setHeader("Content-Type", CBOR_MIME_TYPE)
-            # TODO if data is big, maybe want to use a temporary file eventually...
-            # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3872
-            return dumps(data)
+            f = TemporaryFile()
+            dump(data, f)
+
+            def read_data(offset: int, length: int) -> bytes:
+                f.seek(offset)
+                return f.read(length)
+
+            return _ReadAllProducer.produce_to(request, read_data)
         else:
             # TODO Might want to optionally send JSON someday:
             # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3861
@@ -351,12 +542,18 @@ class HTTPServer(object):
     def _read_encoded(self, request, schema: Schema) -> Any:
         """
         Read encoded request body data, decoding it with CBOR by default.
+
+        Somewhat arbitrarily, limit body size to 1MB; this may be too low, we
+        may want to customize per query type, but this is the starting point
+        for now.
         """
         content_type = get_content_type(request.requestHeaders)
         if content_type == CBOR_MIME_TYPE:
-            # TODO limit memory usage, client could send arbitrarily large data...
-            # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3872
-            message = request.content.read()
+            # Read 1 byte more than 1MB. We expect length to be 1MB or
+            # less; if it's more assume it's not a legitimate message.
+            message = request.content.read(1024 * 1024 + 1)
+            if len(message) > 1024 * 1024:
+                raise _HTTPError(http.REQUEST_ENTITY_TOO_LARGE)
             schema.validate_cbor(message)
             result = loads(message)
             return result
@@ -405,10 +602,7 @@ class HTTPServer(object):
 
         return self._send_encoded(
             request,
-            {
-                "already-have": set(already_got),
-                "allocated": set(sharenum_to_bucket),
-            },
+            {"already-have": set(already_got), "allocated": set(sharenum_to_bucket)},
         )
 
     @_authorized_route(
@@ -455,20 +649,24 @@ class HTTPServer(object):
             request.setResponseCode(http.REQUESTED_RANGE_NOT_SATISFIABLE)
             return b""
 
-        offset = content_range.start
-
-        # TODO limit memory usage
-        # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3872
-        data = request.content.read(content_range.stop - content_range.start + 1)
         bucket = self._uploads.get_write_bucket(
             storage_index, share_number, authorization[Secrets.UPLOAD]
         )
+        offset = content_range.start
+        remaining = content_range.stop - content_range.start
+        finished = False
 
-        try:
-            finished = bucket.write(offset, data)
-        except ConflictingWriteError:
-            request.setResponseCode(http.CONFLICT)
-            return b""
+        while remaining > 0:
+            data = request.content.read(min(remaining, 65536))
+            assert data, "uploaded data length doesn't match range"
+
+            try:
+                finished = bucket.write(offset, data)
+            except ConflictingWriteError:
+                request.setResponseCode(http.CONFLICT)
+                return b""
+            remaining -= len(data)
+            offset += len(data)
 
         if finished:
             bucket.close()
@@ -508,44 +706,7 @@ class HTTPServer(object):
             request.setResponseCode(http.NOT_FOUND)
             return b""
 
-        if request.getHeader("range") is None:
-            # Return the whole thing.
-            start = 0
-            while True:
-                # TODO should probably yield to event loop occasionally...
-                # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3872
-                data = bucket.read(start, start + 65536)
-                if not data:
-                    request.finish()
-                    return
-                request.write(data)
-                start += len(data)
-
-        range_header = parse_range_header(request.getHeader("range"))
-        if (
-            range_header is None
-            or range_header.units != "bytes"
-            or len(range_header.ranges) > 1  # more than one range
-            or range_header.ranges[0][1] is None  # range without end
-        ):
-            request.setResponseCode(http.REQUESTED_RANGE_NOT_SATISFIABLE)
-            return b""
-
-        offset, end = range_header.ranges[0]
-
-        # TODO limit memory usage
-        # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3872
-        data = bucket.read(offset, end - offset)
-
-        request.setResponseCode(http.PARTIAL_CONTENT)
-        if len(data):
-            # For empty bodies the content-range header makes no sense since
-            # the end of the range is inclusive.
-            request.setHeader(
-                "content-range",
-                ContentRange("bytes", offset, offset + len(data)).to_header(),
-            )
-        return data
+        return read_range(request, bucket.read, bucket.get_length())
 
     @_authorized_route(
         _app,
@@ -554,8 +715,8 @@ class HTTPServer(object):
         methods=["PUT"],
     )
     def add_or_renew_lease(self, request, authorization, storage_index):
-        """Update the lease for an immutable share."""
-        if not self._storage_server.get_buckets(storage_index):
+        """Update the lease for an immutable or mutable share."""
+        if not list(self._storage_server.get_shares(storage_index)):
             raise _HTTPError(http.NOT_FOUND)
 
         # Checking of the renewal secret is done by the backend.
@@ -597,26 +758,31 @@ class HTTPServer(object):
     )
     def mutable_read_test_write(self, request, authorization, storage_index):
         """Read/test/write combined operation for mutables."""
-        # TODO unit tests
         rtw_request = self._read_encoded(request, _SCHEMAS["mutable_read_test_write"])
         secrets = (
             authorization[Secrets.WRITE_ENABLER],
             authorization[Secrets.LEASE_RENEW],
             authorization[Secrets.LEASE_CANCEL],
         )
-        success, read_data = self._storage_server.slot_testv_and_readv_and_writev(
-            storage_index,
-            secrets,
-            {
-                k: (
-                    [(d["offset"], d["size"], b"eq", d["specimen"]) for d in v["test"]],
-                    [(d["offset"], d["data"]) for d in v["write"]],
-                    v["new-length"],
-                )
-                for (k, v) in rtw_request["test-write-vectors"].items()
-            },
-            [(d["offset"], d["size"]) for d in rtw_request["read-vector"]],
-        )
+        try:
+            success, read_data = self._storage_server.slot_testv_and_readv_and_writev(
+                storage_index,
+                secrets,
+                {
+                    k: (
+                        [
+                            (d["offset"], d["size"], b"eq", d["specimen"])
+                            for d in v["test"]
+                        ],
+                        [(d["offset"], d["data"]) for d in v["write"]],
+                        v["new-length"],
+                    )
+                    for (k, v) in rtw_request["test-write-vectors"].items()
+                },
+                [(d["offset"], d["size"]) for d in rtw_request["read-vector"]],
+            )
+        except BadWriteEnablerError:
+            raise _HTTPError(http.UNAUTHORIZED)
         return self._send_encoded(request, {"success": success, "data": read_data})
 
     @_authorized_route(
@@ -627,44 +793,56 @@ class HTTPServer(object):
     )
     def read_mutable_chunk(self, request, authorization, storage_index, share_number):
         """Read a chunk from a mutable."""
-        if request.getHeader("range") is None:
-            # TODO in follow-up ticket
-            raise NotImplementedError()
 
-        # TODO reduce duplication with immutable reads?
-        # TODO unit tests, perhaps shared if possible
-        range_header = parse_range_header(request.getHeader("range"))
-        if (
-            range_header is None
-            or range_header.units != "bytes"
-            or len(range_header.ranges) > 1  # more than one range
-            or range_header.ranges[0][1] is None  # range without end
-        ):
-            request.setResponseCode(http.REQUESTED_RANGE_NOT_SATISFIABLE)
-            return b""
-
-        offset, end = range_header.ranges[0]
-
-        # TODO limit memory usage
-        # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3872
-        data = self._storage_server.slot_readv(
-            storage_index, [share_number], [(offset, end - offset)]
-        )[share_number][0]
-
-        # TODO reduce duplication?
-        request.setResponseCode(http.PARTIAL_CONTENT)
-        if len(data):
-            # For empty bodies the content-range header makes no sense since
-            # the end of the range is inclusive.
-            request.setHeader(
-                "content-range",
-                ContentRange("bytes", offset, offset + len(data)).to_header(),
+        try:
+            share_length = self._storage_server.get_mutable_share_length(
+                storage_index, share_number
             )
-        return data
+        except KeyError:
+            raise _HTTPError(http.NOT_FOUND)
+
+        def read_data(offset, length):
+            try:
+                return self._storage_server.slot_readv(
+                    storage_index, [share_number], [(offset, length)]
+                )[share_number][0]
+            except KeyError:
+                raise _HTTPError(http.NOT_FOUND)
+
+        return read_range(request, read_data, share_length)
+
+    @_authorized_route(
+        _app, set(), "/v1/mutable/<storage_index:storage_index>/shares", methods=["GET"]
+    )
+    def enumerate_mutable_shares(self, request, authorization, storage_index):
+        """List mutable shares for a storage index."""
+        shares = self._storage_server.enumerate_mutable_shares(storage_index)
+        return self._send_encoded(request, shares)
+
+    @_authorized_route(
+        _app,
+        set(),
+        "/v1/mutable/<storage_index:storage_index>/<int(signed=False):share_number>/corrupt",
+        methods=["POST"],
+    )
+    def advise_corrupt_share_mutable(
+        self, request, authorization, storage_index, share_number
+    ):
+        """Indicate that given share is corrupt, with a text reason."""
+        if share_number not in {
+            shnum for (shnum, _) in self._storage_server.get_shares(storage_index)
+        }:
+            raise _HTTPError(http.NOT_FOUND)
+
+        info = self._read_encoded(request, _SCHEMAS["advise_corrupt_share"])
+        self._storage_server.advise_corrupt_share(
+            b"mutable", storage_index, share_number, info["reason"].encode("utf-8")
+        )
+        return b""
 
 
 @implementer(IStreamServerEndpoint)
-@attr.s
+@define
 class _TLSEndpointWrapper(object):
     """
     Wrap an existing endpoint with the server-side storage TLS policy.  This is
@@ -672,8 +850,8 @@ class _TLSEndpointWrapper(object):
     example there's Tor and i2p.
     """
 
-    endpoint = attr.ib(type=IStreamServerEndpoint)
-    context_factory = attr.ib(type=CertificateOptions)
+    endpoint: IStreamServerEndpoint
+    context_factory: CertificateOptions
 
     @classmethod
     def from_paths(

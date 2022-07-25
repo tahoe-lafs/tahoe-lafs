@@ -460,6 +460,21 @@ class IStorageServerImmutableAPIsTestsMixin(object):
         )
 
     @inlineCallbacks
+    def test_add_lease_non_existent(self):
+        """
+        If the storage index doesn't exist, adding the lease silently does nothing.
+        """
+        storage_index = new_storage_index()
+        self.assertEqual(list(self.server.get_leases(storage_index)), [])
+
+        renew_secret = new_secret()
+        cancel_secret = new_secret()
+
+        # Add a lease:
+        yield self.storage_client.add_lease(storage_index, renew_secret, cancel_secret)
+        self.assertEqual(list(self.server.get_leases(storage_index)), [])
+
+    @inlineCallbacks
     def test_add_lease_renewal(self):
         """
         If the lease secret is reused, ``add_lease()`` extends the existing
@@ -855,6 +870,23 @@ class IStorageServerMutableAPIsTestsMixin(object):
         )
 
     @inlineCallbacks
+    def test_slot_readv_unknown_storage_index(self):
+        """
+        With unknown storage index, ``IStorageServer.slot_readv()`` returns
+        empty dict.
+        """
+        storage_index = new_storage_index()
+        reads = yield self.storage_client.slot_readv(
+            storage_index,
+            shares=[],
+            readv=[(0, 7)],
+        )
+        self.assertEqual(
+            reads,
+            {},
+        )
+
+    @inlineCallbacks
     def create_slot(self):
         """Create a slot with sharenum 0."""
         secrets = self.new_secrets()
@@ -1147,12 +1179,3 @@ class HTTPMutableAPIsTests(
     _HTTPMixin, IStorageServerMutableAPIsTestsMixin, AsyncTestCase
 ):
     """HTTP-specific tests for mutable ``IStorageServer`` APIs."""
-
-    # TODO will be implemented in later tickets
-    SKIP_TESTS = {
-        "test_STARAW_write_enabler_must_match",
-        "test_add_lease_renewal",
-        "test_add_new_lease",
-        "test_advise_corrupt_share",
-        "test_slot_readv_no_shares",
-    }

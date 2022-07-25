@@ -5,10 +5,6 @@ the foolscap-based server implemented in src/allmydata/storage/*.py .
 
 Ported to Python 3.
 """
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
 
 # roadmap:
 #
@@ -34,14 +30,10 @@ from __future__ import unicode_literals
 #
 # 6: implement other sorts of IStorageClient classes: S3, etc
 
-from future.utils import PY2
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 from six import ensure_text
-
+from typing import Union
 import re, time, hashlib
 from os import urandom
-# On Python 2 this will be the backport.
 from configparser import NoSectionError
 
 import attr
@@ -50,6 +42,7 @@ from zope.interface import (
     Interface,
     implementer,
 )
+from twisted.web import http
 from twisted.internet import defer
 from twisted.application import service
 from twisted.plugin import (
@@ -75,10 +68,11 @@ from allmydata.util.observer import ObserverList
 from allmydata.util.rrefutil import add_version_to_remote_reference
 from allmydata.util.hashutil import permute_server_hash
 from allmydata.util.dictutil import BytesKeyDict, UnicodeKeyDict
+from allmydata.util.deferredutil import async_to_deferred
 from allmydata.storage.http_client import (
     StorageClient, StorageClientImmutables, StorageClientGeneral,
     ClientException as HTTPClientException, StorageClientMutables,
-    ReadVector, TestWriteVectors, WriteVector, TestVector
+    ReadVector, TestWriteVectors, WriteVector, TestVector, ClientException
 )
 
 
@@ -1165,16 +1159,23 @@ class _HTTPStorageServer(object):
             for share_num in share_numbers
         })
 
-    def add_lease(
+    @async_to_deferred
+    async def add_lease(
         self,
         storage_index,
         renew_secret,
         cancel_secret
     ):
-        immutable_client = StorageClientImmutables(self._http_client)
-        return immutable_client.add_or_renew_lease(
-            storage_index, renew_secret, cancel_secret
-        )
+        client = StorageClientGeneral(self._http_client)
+        try:
+            await client.add_or_renew_lease(
+                storage_index, renew_secret, cancel_secret
+            )
+        except ClientException as e:
+            if e.code == http.NOT_FOUND:
+                # Silently do nothing, as is the case for the Foolscap client
+                return
+            raise
 
     def advise_corrupt_share(
         self,
@@ -1184,21 +1185,24 @@ class _HTTPStorageServer(object):
         reason: bytes
     ):
         if share_type == b"immutable":
-            imm_client = StorageClientImmutables(self._http_client)
-            return imm_client.advise_corrupt_share(
-                storage_index, shnum, str(reason, "utf-8", errors="backslashreplace")
-            )
+            client : Union[StorageClientImmutables, StorageClientMutables] = StorageClientImmutables(self._http_client)
+        elif share_type == b"mutable":
+            client = StorageClientMutables(self._http_client)
         else:
-            raise NotImplementedError()  # future tickets
+            raise ValueError("Unknown share type")
+        return client.advise_corrupt_share(
+            storage_index, shnum, str(reason, "utf-8", errors="backslashreplace")
+        )
 
     @defer.inlineCallbacks
     def slot_readv(self, storage_index, shares, readv):
         mutable_client = StorageClientMutables(self._http_client)
         pending_reads = {}
         reads = {}
-        # TODO if shares list is empty, that means list all shares, so we need
+        # If shares list is empty, that means list all shares, so we need
         # to do a query to get that.
-        assert shares  # TODO replace with call to list shares if and only if it's empty
+        if not shares:
+            shares = yield mutable_client.list_shares(storage_index)
 
         # Start all the queries in parallel:
         for share_number in shares:
@@ -1246,8 +1250,13 @@ class _HTTPStorageServer(object):
             ReadVector(offset=offset, size=size)
             for (offset, size) in r_vector
         ]
-        client_result = yield mutable_client.read_test_write_chunks(
-            storage_index, we_secret, lr_secret, lc_secret, client_tw_vectors,
-            client_read_vectors,
-        )
+        try:
+            client_result = yield mutable_client.read_test_write_chunks(
+                storage_index, we_secret, lr_secret, lc_secret, client_tw_vectors,
+                client_read_vectors,
+            )
+        except ClientException as e:
+            if e.code == http.UNAUTHORIZED:
+                raise RemoteException("Unauthorized write, possibly you passed the wrong write enabler?")
+            raise
         return (client_result.success, client_result.reads)

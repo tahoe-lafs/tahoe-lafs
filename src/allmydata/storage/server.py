@@ -1,18 +1,9 @@
 """
 Ported to Python 3.
 """
-from __future__ import division
-from __future__ import absolute_import
-from __future__ import print_function
-from __future__ import unicode_literals
-
-from future.utils import bytes_to_native_str, PY2
-if PY2:
-    # Omit open() to get native behavior where open("w") always accepts native
-    # strings. Omit bytes so we don't leak future's custom bytes.
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, pow, round, super, dict, list, object, range, str, max, min  # noqa: F401
-else:
-    from typing import Dict, Tuple
+from __future__ import annotations
+from future.utils import bytes_to_native_str
+from typing import Dict, Tuple, Iterable
 
 import os, re
 
@@ -330,7 +321,7 @@ class StorageServer(service.MultiService):
         # they asked about: this will save them a lot of work. Add or update
         # leases for all of them: if they want us to hold shares for this
         # file, they'll want us to hold leases for this file.
-        for (shnum, fn) in self._get_bucket_shares(storage_index):
+        for (shnum, fn) in self.get_shares(storage_index):
             alreadygot[shnum] = ShareFile(fn)
         if renew_leases:
             self._add_or_renew_leases(alreadygot.values(), lease_info)
@@ -372,7 +363,7 @@ class StorageServer(service.MultiService):
         return set(alreadygot), bucketwriters
 
     def _iter_share_files(self, storage_index):
-        for shnum, filename in self._get_bucket_shares(storage_index):
+        for shnum, filename in self.get_shares(storage_index):
             with open(filename, 'rb') as f:
                 header = f.read(32)
             if MutableShareFile.is_valid_header(header):
@@ -425,10 +416,12 @@ class StorageServer(service.MultiService):
         """
         self._call_on_bucket_writer_close.append(handler)
 
-    def _get_bucket_shares(self, storage_index):
-        """Return a list of (shnum, pathname) tuples for files that hold
+    def get_shares(self, storage_index) -> Iterable[tuple[int, str]]:
+        """
+        Return an iterable of (shnum, pathname) tuples for files that hold
         shares for this storage_index. In each tuple, 'shnum' will always be
-        the integer form of the last component of 'pathname'."""
+        the integer form of the last component of 'pathname'.
+        """
         storagedir = os.path.join(self.sharedir, storage_index_to_dir(storage_index))
         try:
             for f in os.listdir(storagedir):
@@ -440,12 +433,15 @@ class StorageServer(service.MultiService):
             pass
 
     def get_buckets(self, storage_index):
+        """
+        Get ``BucketReaders`` for an immutable.
+        """
         start = self._clock.seconds()
         self.count("get")
         si_s = si_b2a(storage_index)
         log.msg("storage: get_buckets %r" % si_s)
         bucketreaders = {} # k: sharenum, v: BucketReader
-        for shnum, filename in self._get_bucket_shares(storage_index):
+        for shnum, filename in self.get_shares(storage_index):
             bucketreaders[shnum] = BucketReader(self, filename,
                                                 storage_index, shnum)
         self.add_latency("get", self._clock.seconds() - start)
@@ -462,7 +458,7 @@ class StorageServer(service.MultiService):
         # since all shares get the same lease data, we just grab the leases
         # from the first share
         try:
-            shnum, filename = next(self._get_bucket_shares(storage_index))
+            shnum, filename = next(self.get_shares(storage_index))
             sf = ShareFile(filename)
             return sf.get_leases()
         except StopIteration:
@@ -476,7 +472,7 @@ class StorageServer(service.MultiService):
 
         :return: An iterable of the leases attached to this slot.
         """
-        for _, share_filename in self._get_bucket_shares(storage_index):
+        for _, share_filename in self.get_shares(storage_index):
             share = MutableShareFile(share_filename)
             return share.get_leases()
         return []
@@ -699,6 +695,21 @@ class StorageServer(service.MultiService):
                                          self)
         return share
 
+    def enumerate_mutable_shares(self, storage_index: bytes) -> set[int]:
+        """Return all share numbers for the given mutable."""
+        si_dir = storage_index_to_dir(storage_index)
+        # shares exist if there is a file for them
+        bucketdir = os.path.join(self.sharedir, si_dir)
+        if not os.path.isdir(bucketdir):
+            return set()
+        result = set()
+        for sharenum_s in os.listdir(bucketdir):
+            try:
+                result.add(int(sharenum_s))
+            except ValueError:
+                continue
+        return result
+
     def slot_readv(self, storage_index, shares, readv):
         start = self._clock.seconds()
         self.count("readv")
@@ -736,7 +747,7 @@ class StorageServer(service.MultiService):
         :return bool: ``True`` if a share with the given number exists at the
             given storage index, ``False`` otherwise.
         """
-        for existing_sharenum, ignored in self._get_bucket_shares(storage_index):
+        for existing_sharenum, ignored in self.get_shares(storage_index):
             if existing_sharenum == shnum:
                 return True
         return False
@@ -782,6 +793,20 @@ class StorageServer(service.MultiService):
             f.write(report)
 
         return None
+
+    def get_immutable_share_length(self, storage_index: bytes, share_number: int) -> int:
+        """Returns the length (in bytes) of an immutable."""
+        si_dir = storage_index_to_dir(storage_index)
+        path = os.path.join(self.sharedir, si_dir, str(share_number))
+        return ShareFile(path).get_length()
+
+    def get_mutable_share_length(self, storage_index: bytes, share_number: int) -> int:
+        """Returns the length (in bytes) of a mutable."""
+        si_dir = storage_index_to_dir(storage_index)
+        path = os.path.join(self.sharedir, si_dir, str(share_number))
+        if not os.path.exists(path):
+            raise KeyError("No such storage index or share number")
+        return MutableShareFile(path).get_length()
 
 
 @implementer(RIStorageServer)

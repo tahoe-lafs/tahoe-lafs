@@ -5,10 +5,12 @@ HTTP client that talks to the HTTP storage server.
 from __future__ import annotations
 
 from eliot import start_action, register_exception_extractor
-from typing import Union, Optional, Sequence, Mapping
+from typing import Union, Optional, Sequence, Mapping, BinaryIO
 from base64 import b64encode
+from io import BytesIO
+from os import SEEK_END
 
-from attrs import define, asdict, frozen
+from attrs import define, asdict, frozen, field
 
 # TODO Make sure to import Python version?
 from cbor2 import loads, dumps
@@ -18,7 +20,7 @@ from werkzeug.datastructures import Range, ContentRange
 from twisted.web.http_headers import Headers
 from twisted.web import http
 from twisted.web.iweb import IPolicyForHTTPS
-from twisted.internet.defer import inlineCallbacks, returnValue, fail, Deferred
+from twisted.internet.defer import inlineCallbacks, returnValue, fail, Deferred, succeed
 from twisted.internet.interfaces import IOpenSSLClientConnectionCreator
 from twisted.internet.ssl import CertificateOptions
 from twisted.web.client import Agent, HTTPConnectionPool
@@ -29,6 +31,7 @@ from treq.client import HTTPClient
 from treq.testing import StubTreq
 from OpenSSL import SSL
 from cryptography.hazmat.bindings.openssl.binding import Binding
+from werkzeug.http import parse_content_range_header
 
 from .http_common import (
     swissnum_auth_header,
@@ -55,6 +58,7 @@ class ClientException(Exception):
     def __init__(self, code, *additional_args):
         Exception.__init__(self, code, *additional_args)
         self.code = code
+
 
 register_exception_extractor(ClientException, lambda e: {"response_code": e.code})
 
@@ -109,22 +113,66 @@ _SCHEMAS = {
         share_number = uint
         """
     ),
+    "mutable_list_shares": Schema(
+        """
+        response = #6.258([* uint])
+        """
+    ),
 }
+
+
+@define
+class _LengthLimitedCollector:
+    """
+    Collect data using ``treq.collect()``, with limited length.
+    """
+
+    remaining_length: int
+    f: BytesIO = field(factory=BytesIO)
+
+    def __call__(self, data: bytes):
+        self.remaining_length -= len(data)
+        if self.remaining_length < 0:
+            raise ValueError("Response length was too long")
+        self.f.write(data)
+
+
+def limited_content(response, max_length: int = 30 * 1024 * 1024) -> Deferred[BinaryIO]:
+    """
+    Like ``treq.content()``, but limit data read from the response to a set
+    length.  If the response is longer than the max allowed length, the result
+    fails with a ``ValueError``.
+
+    A potentially useful future improvement would be using a temporary file to
+    store the content; since filesystem buffering means that would use memory
+    for small responses and disk for large responses.
+    """
+    collector = _LengthLimitedCollector(max_length)
+    # Make really sure everything gets called in Deferred context, treq might
+    # call collector directly...
+    d = succeed(None)
+    d.addCallback(lambda _: treq.collect(response, collector))
+
+    def done(_):
+        collector.f.seek(0)
+        return collector.f
+
+    d.addCallback(done)
+    return d
 
 
 def _decode_cbor(response, schema: Schema):
     """Given HTTP response, return decoded CBOR body."""
 
-    def got_content(data):
+    def got_content(f: BinaryIO):
+        data = f.read()
         schema.validate_cbor(data)
         return loads(data)
 
     if response.code > 199 and response.code < 300:
         content_type = get_content_type(response.headers)
         if content_type == CBOR_MIME_TYPE:
-            # TODO limit memory usage
-            # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3872
-            return treq.content(response).addCallback(got_content)
+            return limited_content(response).addCallback(got_content)
         else:
             raise ClientException(-1, "Server didn't send CBOR")
     else:
@@ -294,7 +342,7 @@ class StorageClient(object):
         write_enabler_secret=None,
         headers=None,
         message_to_serialize=None,
-        **kwargs
+        **kwargs,
     ):
         """
         Like ``treq.request()``, but with optional secrets that get translated
@@ -303,7 +351,11 @@ class StorageClient(object):
         If ``message_to_serialize`` is set, it will be serialized (by default
         with CBOR) and set as the request body.
         """
-        with start_action(action_type="allmydata:storage:http-client:request", method=method, url=str(url)) as ctx:
+        with start_action(
+            action_type="allmydata:storage:http-client:request",
+            method=method,
+            url=str(url),
+        ) as ctx:
             headers = self._get_headers(headers)
 
             # Add secrets:
@@ -357,6 +409,31 @@ class StorageClientGeneral(object):
         decoded_response = yield _decode_cbor(response, _SCHEMAS["get_version"])
         returnValue(decoded_response)
 
+    @inlineCallbacks
+    def add_or_renew_lease(
+        self, storage_index: bytes, renew_secret: bytes, cancel_secret: bytes
+    ) -> Deferred[None]:
+        """
+        Add or renew a lease.
+
+        If the renewal secret matches an existing lease, it is renewed.
+        Otherwise a new lease is added.
+        """
+        url = self._client.relative_url(
+            "/v1/lease/{}".format(_encode_si(storage_index))
+        )
+        response = yield self._client.request(
+            "PUT",
+            url,
+            lease_renew_secret=renew_secret,
+            lease_cancel_secret=cancel_secret,
+        )
+
+        if response.code == http.NO_CONTENT:
+            return
+        else:
+            raise ClientException(response.code)
+
 
 @define
 class UploadProgress(object):
@@ -382,16 +459,14 @@ def read_share_chunk(
     """
     Download a chunk of data from a share.
 
-    TODO https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3857 Failed
-    downloads should be transparently retried and redownloaded by the
-    implementation a few times so that if a failure percolates up, the
-    caller can assume the failure isn't a short-term blip.
+    TODO https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3857 Failed downloads
+    should be transparently retried and redownloaded by the implementation a
+    few times so that if a failure percolates up, the caller can assume the
+    failure isn't a short-term blip.
 
-    NOTE: the underlying HTTP protocol is much more flexible than this API,
-    so a future refactor may expand this in order to simplify the calling
-    code and perhaps download data more efficiently.  But then again maybe
-    the HTTP protocol will be simplified, see
-    https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3777
+    NOTE: the underlying HTTP protocol is somewhat more flexible than this API,
+    insofar as it doesn't always require a range.  In practice a range is
+    always provided by the current callers.
     """
     url = client.relative_url(
         "/v1/{}/{}/{}".format(share_type, _encode_si(storage_index), share_number)
@@ -400,14 +475,73 @@ def read_share_chunk(
         "GET",
         url,
         headers=Headers(
+            # Ranges in HTTP are _inclusive_, Python's convention is exclusive,
+            # but Range constructor does that the conversion for us.
             {"range": [Range("bytes", [(offset, offset + length)]).to_header()]}
         ),
     )
+
+    if response.code == http.NO_CONTENT:
+        return b""
+
     if response.code == http.PARTIAL_CONTENT:
-        body = yield response.content()
-        returnValue(body)
+        content_range = parse_content_range_header(
+            response.headers.getRawHeaders("content-range")[0] or ""
+        )
+        if (
+            content_range is None
+            or content_range.stop is None
+            or content_range.start is None
+        ):
+            raise ValueError(
+                "Content-Range was missing, invalid, or in format we don't support"
+            )
+        supposed_length = content_range.stop - content_range.start
+        if supposed_length > length:
+            raise ValueError("Server sent more than we asked for?!")
+        # It might also send less than we asked for. That's (probably) OK, e.g.
+        # if we went past the end of the file.
+        body = yield limited_content(response, supposed_length)
+        body.seek(0, SEEK_END)
+        actual_length = body.tell()
+        if actual_length != supposed_length:
+            # Most likely a mutable that got changed out from under us, but
+            # conceivably could be a bug...
+            raise ValueError(
+                f"Length of response sent from server ({actual_length}) "
+                + f"didn't match Content-Range header ({supposed_length})"
+            )
+        body.seek(0)
+        return body.read()
     else:
+        # Technically HTTP allows sending an OK with full body under these
+        # circumstances, but the server is not designed to do that so we ignore
+        # that possibility for now...
         raise ClientException(response.code)
+
+
+@async_to_deferred
+async def advise_corrupt_share(
+    client: StorageClient,
+    share_type: str,
+    storage_index: bytes,
+    share_number: int,
+    reason: str,
+):
+    assert isinstance(reason, str)
+    url = client.relative_url(
+        "/v1/{}/{}/{}/corrupt".format(
+            share_type, _encode_si(storage_index), share_number
+        )
+    )
+    message = {"reason": reason}
+    response = await client.request("POST", url, message_to_serialize=message)
+    if response.code == http.OK:
+        return
+    else:
+        raise ClientException(
+            response.code,
+        )
 
 
 @define
@@ -541,11 +675,14 @@ class StorageClientImmutables(object):
         )
 
     @inlineCallbacks
-    def list_shares(self, storage_index):  # type: (bytes,) -> Deferred[set[int]]
+    def list_shares(self, storage_index: bytes) -> Deferred[set[int]]:
         """
         Return the set of shares for a given storage index.
         """
-        with start_action(action_type="allmydata:storage:http-client:immutable:list-shares", storage_index=storage_index) as ctx:
+        with start_action(
+            action_type="allmydata:storage:http-client:immutable:list-shares",
+            storage_index=storage_index,
+        ) as ctx:
             url = self._client.relative_url(
                 "/v1/immutable/{}/shares".format(_encode_si(storage_index))
             )
@@ -559,32 +696,6 @@ class StorageClientImmutables(object):
             else:
                 raise ClientException(response.code)
 
-    @inlineCallbacks
-    def add_or_renew_lease(
-        self, storage_index: bytes, renew_secret: bytes, cancel_secret: bytes
-    ):
-        """
-        Add or renew a lease.
-
-        If the renewal secret matches an existing lease, it is renewed.
-        Otherwise a new lease is added.
-        """
-        url = self._client.relative_url(
-            "/v1/lease/{}".format(_encode_si(storage_index))
-        )
-        response = yield self._client.request(
-            "PUT",
-            url,
-            lease_renew_secret=renew_secret,
-            lease_cancel_secret=cancel_secret,
-        )
-
-        if response.code == http.NO_CONTENT:
-            return
-        else:
-            raise ClientException(response.code)
-
-    @inlineCallbacks
     def advise_corrupt_share(
         self,
         storage_index: bytes,
@@ -592,20 +703,9 @@ class StorageClientImmutables(object):
         reason: str,
     ):
         """Indicate a share has been corrupted, with a human-readable message."""
-        assert isinstance(reason, str)
-        url = self._client.relative_url(
-            "/v1/immutable/{}/{}/corrupt".format(
-                _encode_si(storage_index), share_number
-            )
+        return advise_corrupt_share(
+            self._client, "immutable", storage_index, share_number, reason
         )
-        message = {"reason": reason}
-        response = yield self._client.request("POST", url, message_to_serialize=message)
-        if response.code == http.OK:
-            return
-        else:
-            raise ClientException(
-                response.code,
-            )
 
 
 @frozen
@@ -639,8 +739,8 @@ class ReadVector:
 class TestWriteVectors:
     """Test and write vectors for a specific share."""
 
-    test_vectors: Sequence[TestVector]
-    write_vectors: Sequence[WriteVector]
+    test_vectors: Sequence[TestVector] = field(factory=list)
+    write_vectors: Sequence[WriteVector] = field(factory=list)
     new_length: Optional[int] = None
 
     def asdict(self) -> dict:
@@ -689,7 +789,6 @@ class StorageClientMutables:
         Given a mapping between share numbers and test/write vectors, the tests
         are done and if they are valid the writes are done.
         """
-        # TODO unit test all the things
         url = self._client.relative_url(
             "/v1/mutable/{}/read-test-write".format(_encode_si(storage_index))
         )
@@ -720,11 +819,35 @@ class StorageClientMutables:
         share_number: int,
         offset: int,
         length: int,
-    ) -> bytes:
+    ) -> Deferred[bytes]:
         """
         Download a chunk of data from a share.
         """
-        # TODO unit test all the things
         return read_share_chunk(
             self._client, "mutable", storage_index, share_number, offset, length
+        )
+
+    @async_to_deferred
+    async def list_shares(self, storage_index: bytes) -> set[int]:
+        """
+        List the share numbers for a given storage index.
+        """
+        url = self._client.relative_url(
+            "/v1/mutable/{}/shares".format(_encode_si(storage_index))
+        )
+        response = await self._client.request("GET", url)
+        if response.code == http.OK:
+            return await _decode_cbor(response, _SCHEMAS["mutable_list_shares"])
+        else:
+            raise ClientException(response.code)
+
+    def advise_corrupt_share(
+        self,
+        storage_index: bytes,
+        share_number: int,
+        reason: str,
+    ):
+        """Indicate a share has been corrupted, with a human-readable message."""
+        return advise_corrupt_share(
+            self._client, "mutable", storage_index, share_number, reason
         )

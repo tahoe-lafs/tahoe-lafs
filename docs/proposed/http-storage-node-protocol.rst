@@ -350,8 +350,10 @@ Because of the simple types used throughout
 and the equivalence described in `RFC 7049`_
 these examples should be representative regardless of which of these two encodings is chosen.
 
+The one exception is sets.
 For CBOR messages, any sequence that is semantically a set (i.e. no repeated values allowed, order doesn't matter, and elements are hashable in Python) should be sent as a set.
 Tag 6.258 is used to indicate sets in CBOR; see `the CBOR registry <https://www.iana.org/assignments/cbor-tags/cbor-tags.xhtml>`_ for more details.
+Sets will be represented as JSON lists in examples because JSON doesn't support sets.
 
 HTTP Design
 ~~~~~~~~~~~
@@ -652,6 +654,11 @@ The ``Range`` header may be used to request exactly one ``bytes`` range, in whic
 Interpretation and response behavior is as specified in RFC 7233 § 4.1.
 Multiple ranges in a single request are *not* supported; open-ended ranges are also not supported.
 
+If the response reads beyond the end of the data, the response may be shorter than the requested range.
+The resulting ``Content-Range`` header will be consistent with the returned data.
+
+If the response to a query is an empty range, the ``NO CONTENT`` (204) response code will be used.
+
 Discussion
 ``````````
 
@@ -738,8 +745,8 @@ Reading
 ``GET /v1/mutable/:storage_index/shares``
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-Retrieve a list indicating all shares available for the indicated storage index.
-For example::
+Retrieve a set indicating all shares available for the indicated storage index.
+For example (this is shown as list, since it will be list for JSON, but will be set for CBOR)::
 
   [1, 5]
 
@@ -751,6 +758,11 @@ Read data from the indicated mutable shares, just like ``GET /v1/immutable/:stor
 The ``Range`` header may be used to request exactly one ``bytes`` range, in which case the response code will be 206 (partial content).
 Interpretation and response behavior is as specified in RFC 7233 § 4.1.
 Multiple ranges in a single request are *not* supported; open-ended ranges are also not supported.
+
+If the response reads beyond the end of the data, the response may be shorter than the requested range.
+The resulting ``Content-Range`` header will be consistent with the returned data.
+
+If the response to a query is an empty range, the ``NO CONTENT`` (204) response code will be used.
 
 
 ``POST /v1/mutable/:storage_index/:share_number/corrupt``

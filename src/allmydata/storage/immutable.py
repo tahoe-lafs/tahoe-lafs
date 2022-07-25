@@ -199,7 +199,15 @@ class ShareFile(object):
                 raise UnknownImmutableContainerVersionError(filename, version)
             self._num_leases = num_leases
             self._lease_offset = filesize - (num_leases * self.LEASE_SIZE)
+            self._length = filesize - 0xc - (num_leases * self.LEASE_SIZE)
+
         self._data_offset = 0xc
+
+    def get_length(self):
+        """
+        Return the length of the data in the share, if we're reading.
+        """
+        return self._length
 
     def unlink(self):
         os.unlink(self.home)
@@ -543,6 +551,12 @@ class BucketReader(object):
                                             self.storage_index,
                                             self.shnum,
                                             reason)
+
+    def get_length(self):
+        """
+        Return the length of the data in the share.
+        """
+        return self._share_file.get_length()
 
 
 @implementer(RIBucketReader)

@@ -717,7 +717,7 @@ class Repairer(GridTestMixin, unittest.TestCase, RepairTestMixin,
             ss = self.g.servers_by_number[0]
             # we want to delete the share corresponding to the server
             # we're making not-respond
-            share = next(ss._get_bucket_shares(self.c0_filenode.get_storage_index()))[0]
+            share = next(ss.get_shares(self.c0_filenode.get_storage_index()))[0]
             self.delete_shares_numbered(self.uri, [share])
             return self.c0_filenode.check_and_repair(Monitor())
         d.addCallback(_then)
