@@ -133,7 +133,8 @@ install_requires = [
 
     # HTTP server and client
     "klein",
-    "werkzeug",
+    # 2.2.0 has a bug: https://github.com/pallets/werkzeug/issues/2465
+    "werkzeug != 2.2.0",
     "treq",
     "cbor2",
     "pycddl",

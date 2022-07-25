@@ -7,6 +7,7 @@ from __future__ import annotations
 from typing import Union, Optional, Sequence, Mapping, BinaryIO
 from base64 import b64encode
 from io import BytesIO
+from os import SEEK_END
 
 from attrs import define, asdict, frozen, field
 
@@ -29,6 +30,7 @@ from treq.client import HTTPClient
 from treq.testing import StubTreq
 from OpenSSL import SSL
 from cryptography.hazmat.bindings.openssl.binding import Binding
+from werkzeug.http import parse_content_range_header
 
 from .http_common import (
     swissnum_auth_header,
@@ -461,13 +463,48 @@ def read_share_chunk(
         "GET",
         url,
         headers=Headers(
+            # Ranges in HTTP are _inclusive_, Python's convention is exclusive,
+            # but Range constructor does that the conversion for us.
             {"range": [Range("bytes", [(offset, offset + length)]).to_header()]}
         ),
     )
+
+    if response.code == http.NO_CONTENT:
+        return b""
+
     if response.code == http.PARTIAL_CONTENT:
-        body = yield response.content()
-        returnValue(body)
+        content_range = parse_content_range_header(
+            response.headers.getRawHeaders("content-range")[0] or ""
+        )
+        if (
+            content_range is None
+            or content_range.stop is None
+            or content_range.start is None
+        ):
+            raise ValueError(
+                "Content-Range was missing, invalid, or in format we don't support"
+            )
+        supposed_length = content_range.stop - content_range.start
+        if supposed_length > length:
+            raise ValueError("Server sent more than we asked for?!")
+        # It might also send less than we asked for. That's (probably) OK, e.g.
+        # if we went past the end of the file.
+        body = yield limited_content(response, supposed_length)
+        body.seek(0, SEEK_END)
+        actual_length = body.tell()
+        if actual_length != supposed_length:
+            # Most likely a mutable that got changed out from under us, but
+            # conceivably could be a bug...
+            raise ValueError(
+                f"Length of response sent from server ({actual_length}) "
+                + f"didn't match Content-Range header ({supposed_length})"
+            )
+        body.seek(0)
+        return body.read()
     else:
+        # Technically HTTP allows sending an OK with full body under these
+        # circumstances, but the server is not designed to do that so we ignore
+        # that possibility for now...
         raise ClientException(response.code)
 
 

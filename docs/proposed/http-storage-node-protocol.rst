@@ -654,6 +654,11 @@ The ``Range`` header may be used to request exactly one ``bytes`` range, in whic
 Interpretation and response behavior is as specified in RFC 7233 § 4.1.
 Multiple ranges in a single request are *not* supported; open-ended ranges are also not supported.
 
+If the response reads beyond the end of the data, the response may be shorter than the requested range.
+The resulting ``Content-Range`` header will be consistent with the returned data.
+
+If the response to a query is an empty range, the ``NO CONTENT`` (204) response code will be used.
+
 Discussion
 ``````````
 
@@ -753,6 +758,11 @@ Read data from the indicated mutable shares, just like ``GET /v1/immutable/:stor
 The ``Range`` header may be used to request exactly one ``bytes`` range, in which case the response code will be 206 (partial content).
 Interpretation and response behavior is as specified in RFC 7233 § 4.1.
 Multiple ranges in a single request are *not* supported; open-ended ranges are also not supported.
+
+If the response reads beyond the end of the data, the response may be shorter than the requested range.
+The resulting ``Content-Range`` header will be consistent with the returned data.
+
+If the response to a query is an empty range, the ``NO CONTENT`` (204) response code will be used.
 
 
 ``POST /v1/mutable/:storage_index/:share_number/corrupt``
