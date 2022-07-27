@@ -91,26 +91,28 @@ def test_onion_service_storage(reactor, request, temp_dir, flog_gatherer, tor_ne
 def _create_anonymous_node(reactor, name, control_port, request, temp_dir, flog_gatherer, tor_network, introducer_furl):
     node_dir = FilePath(temp_dir).child(name)
     web_port = "tcp:{}:interface=localhost".format(control_port + 2000)
-
-    if True:
-        print("creating", node_dir.path)
-        node_dir.makedirs()
-        proto = util._DumpOutputProtocol(None)
-        reactor.spawnProcess(
-            proto,
-            sys.executable,
-            (
-                sys.executable, '-b', '-m', 'allmydata.scripts.runner',
-                'create-node',
-                '--nickname', name,
-                '--introducer', introducer_furl,
-                '--hide-ip',
-                '--tor-control-port', 'tcp:localhost:{}'.format(control_port),
-                '--listen', 'tor',
-                node_dir.path,
-            )
+    if node_dir.exists():
+        raise RuntimeError(
+            "A node already exists in '{}'".format(node_dir)
         )
-        yield proto.done
+    print("creating", node_dir)
+    node_dir.makedirs()
+    proto = util._DumpOutputProtocol(None)
+    reactor.spawnProcess(
+        proto,
+        sys.executable,
+        (
+            sys.executable, '-m', 'allmydata.scripts.runner',
+            'create-node',
+            '--nickname', name,
+            '--introducer', introducer_furl,
+            '--hide-ip',
+            '--tor-control-port', 'tcp:localhost:{}'.format(control_port),
+            '--listen', 'tor',
+            node_dir.path,
+        )
+    )
+    yield proto.done
 
 
     # Which services should this client connect to?

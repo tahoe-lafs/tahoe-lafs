@@ -61,16 +61,40 @@ class _ProcessExitedProtocol(ProcessProtocol):
         self.done.callback(None)
 
 
+class ProcessFailed(Exception):
+    """
+    A subprocess has failed.
+
+    :ivar ProcessTerminated reason: the original reason from .processExited
+
+    :ivar StringIO output: all stdout and stderr collected to this point.
+    """
+
+    def __init__(self, reason, output):
+        self.reason = reason
+        self.output = output
+
+    def __str__(self):
+        return "<ProcessFailed: {}>:\n{}".format(self.reason, self.output)
+
+
 class _CollectOutputProtocol(ProcessProtocol):
     """
     Internal helper. Collects all output (stdout + stderr) into
     self.output, and callback's on done with all of it after the
     process exits (for any reason).
     """
-    def __init__(self, capture_stderr=True):
+
+    def __init__(self, capture_stderr=True, stdin=None):
         self.done = Deferred()
         self.output = BytesIO()
         self.capture_stderr = capture_stderr
+        self._stdin = stdin
+
+    def connectionMade(self):
+        if self._stdin is not None:
+            self.transport.write(self._stdin)
+            self.transport.closeStdin()
 
     def processEnded(self, reason):
         if not self.done.called:
@@ -78,7 +102,7 @@ class _CollectOutputProtocol(ProcessProtocol):
 
     def processExited(self, reason):
         if not isinstance(reason.value, ProcessDone):
-            self.done.errback(reason)
+            self.done.errback(ProcessFailed(reason, self.output.getvalue()))
 
     def outReceived(self, data):
         self.output.write(data)
@@ -156,11 +180,25 @@ def _cleanup_tahoe_process(tahoe_transport, exited):
     try:
         print("signaling {} with TERM".format(tahoe_transport.pid))
         tahoe_transport.signalProcess('TERM')
-        print("signaled, blocking on exit")
+        print("signaled, blocking on exit {}".format(exited))
         block_with_timeout(exited, reactor)
         print("exited, goodbye")
     except ProcessExitedAlready:
         pass
+
+
+def run_tahoe(reactor, request, *args, **kwargs):
+    """
+    Helper to run tahoe with optional coverage.
+
+    :returns: a Deferred that fires when the command is done (or a
+        ProcessFailed exception if it exits non-zero)
+    """
+    stdin = kwargs.get("stdin", None)
+    protocol = _CollectOutputProtocol(stdin=stdin)
+    process = _tahoe_runner_optional_coverage(protocol, reactor, request, args)
+    process.exited = protocol.done
+    return protocol.done
 
 
 def _tahoe_runner_optional_coverage(proto, reactor, request, other_args):
@@ -269,7 +307,7 @@ def _create_node(reactor, request, temp_dir, introducer_furl, flog_gatherer, nam
     if exists(node_dir):
         created_d = succeed(None)
     else:
-        print("creating", node_dir)
+        print("creating: {}".format(node_dir))
         mkdir(node_dir)
         done_proto = _ProcessExitedProtocol()
         args = [
@@ -508,7 +546,7 @@ def await_client_ready(tahoe, timeout=10, liveness=60*2, minimum_number_of_serve
             continue
 
         if len(js['servers']) < minimum_number_of_servers:
-            print("waiting because insufficient servers")
+            print(f"waiting because insufficient servers (expected at least {minimum_number_of_servers})")
             time.sleep(1)
             continue
         server_times = [
