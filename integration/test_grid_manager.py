@@ -239,7 +239,7 @@ def test_reject_storage_server(reactor, request, temp_dir, flog_gatherer, port_a
         )
         assert False, "Should get a failure"
     except util.ProcessFailed as e:
-        assert 'UploadUnhappinessError' in e.output
+        assert b'UploadUnhappinessError' in e.output
 
 
 @pytest_twisted.inlineCallbacks
