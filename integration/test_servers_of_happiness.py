@@ -51,7 +51,7 @@ def test_upload_immutable(reactor, temp_dir, introducer_furl, flog_gatherer, sto
         yield proto.done
         assert False, "should raise exception"
     except util.ProcessFailed as e:
-        assert "UploadUnhappinessError" in e.output
+        assert b"UploadUnhappinessError" in e.output
 
     output = proto.output.getvalue()
     assert b"shares could be placed on only" in output
