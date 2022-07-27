@@ -336,7 +336,7 @@ def _create_node(reactor, request, temp_dir, introducer_furl, flog_gatherer, nam
                 config,
                 u'node',
                 u'log_gatherer.furl',
-                flog_gatherer,
+                flog_gatherer.furl,
             )
             write_config(FilePath(config_path), config)
         created_d.addCallback(created)
