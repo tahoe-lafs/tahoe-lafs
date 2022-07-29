@@ -63,9 +63,6 @@ class _FoolscapOrHttps(Protocol, metaclass=_PretendToBeNegotiation):
     # The tub that created us:
     tub: Tub
 
-    # This is an instance attribute; it will be set in connectionMade().
-    _timeout: IDelayedCall
-
     @classmethod
     def add_storage_server(
         cls, storage_server: StorageServer, swissnum: bytes
@@ -117,7 +114,6 @@ class _FoolscapOrHttps(Protocol, metaclass=_PretendToBeNegotiation):
 
     def __init__(self, *args, **kwargs):
         self._foolscap: Negotiation = Negotiation(*args, **kwargs)
-        self._buffer: bytes = b""
 
     def __setattr__(self, name, value):
         if name in {"_foolscap", "_buffer", "transport", "__class__", "_timeout"}:
@@ -139,12 +135,15 @@ class _FoolscapOrHttps(Protocol, metaclass=_PretendToBeNegotiation):
         # After creation, a Negotiation instance either has initClient() or
         # initServer() called. Since this is a client, we're never going to do
         # HTTP, so we can immediately become a Negotiation instance.
-        assert not self._buffer
+        assert not hasattr(self, "_buffer")
         self._convert_to_negotiation()
         return self.initClient(*args, **kwargs)
 
     def connectionMade(self):
-        self._timeout = reactor.callLater(30, self.transport.abortConnection)
+        self._buffer: bytes = b""
+        self._timeout: IDelayedCall = reactor.callLater(
+            30, self.transport.abortConnection
+        )
 
     def dataReceived(self, data: bytes) -> None:
         """Handle incoming data.
