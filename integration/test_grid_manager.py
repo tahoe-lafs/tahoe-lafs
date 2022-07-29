@@ -194,7 +194,7 @@ def test_reject_storage_server(reactor, request, temp_dir, flog_gatherer, port_a
         "storage0", pubkey_str,
         stdinBytes=gm_config,
     )
-    assert json.loads(gm_config)['storage_servers'].keys() == ['storage0']
+    assert json.loads(gm_config)['storage_servers'].keys() == {'storage0'}
 
     print("inserting certificate")
     cert = yield _run_gm(
@@ -221,7 +221,7 @@ def test_reject_storage_server(reactor, request, temp_dir, flog_gatherer, port_a
 
     config = configutil.get_config(join(diana.process.node_dir, "tahoe.cfg"))
     config.add_section("grid_managers")
-    config.set("grid_managers", "test", ed25519.string_from_verifying_key(gm_pubkey))
+    config.set("grid_managers", "test", str(ed25519.string_from_verifying_key(gm_pubkey), "ascii"))
     with open(join(diana.process.node_dir, "tahoe.cfg"), "w") as f:
         config.write(f)
 
@@ -235,7 +235,7 @@ def test_reject_storage_server(reactor, request, temp_dir, flog_gatherer, port_a
         yield util.run_tahoe(
             reactor, request, "--node-directory", diana.process.node_dir,
             "put", "-",
-            stdin="some content\n" * 200,
+            stdin=b"some content\n" * 200,
         )
         assert False, "Should get a failure"
     except util.ProcessFailed as e:

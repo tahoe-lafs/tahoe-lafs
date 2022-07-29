@@ -37,8 +37,9 @@ from os import urandom
 import re
 import time
 import hashlib
-
+from io import StringIO
 from configparser import NoSectionError
+import json
 
 import attr
 from zope.interface import (
@@ -67,7 +68,7 @@ from allmydata.interfaces import (
     IFoolscapStoragePlugin,
 )
 from allmydata.grid_manager import (
-    create_grid_manager_verifier,
+    create_grid_manager_verifier, SignedCertificate
 )
 from allmydata.crypto import (
     ed25519,
@@ -289,7 +290,7 @@ class StorageFarmBroker(service.MultiService):
         handler_overrides = server.get("connections", {})
         gm_verifier = create_grid_manager_verifier(
             self.storage_client_config.grid_manager_keys,
-            server["ann"].get("grid-manager-certificates", []),
+            [SignedCertificate.load(StringIO(json.dumps(data))) for data in server["ann"].get("grid-manager-certificates", [])],
             "pub-{}".format(str(server_id, "ascii")),  # server_id is v0-<key> not pub-v0-key .. for reasons?
         )
 
