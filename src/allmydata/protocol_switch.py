@@ -107,6 +107,10 @@ class _FoolscapOrHttps(Protocol, metaclass=_PretendToBeNegotiation):
                         cls.tub.myCertificate.original.to_cryptography(),
                     )
                 )
+            # TODO this is probably where we'll have to support Tor and I2P?
+            # See https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3888#comment:9
+            # for discussion (there will be separate tickets added for those at
+            # some point.)
         return storage_nurls
 
     def __init__(self, *args, **kwargs):
