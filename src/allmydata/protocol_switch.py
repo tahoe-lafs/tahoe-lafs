@@ -48,21 +48,20 @@ class _FoolscapOrHttps(Protocol, metaclass=_PretendToBeNegotiation):
     since these are created by Foolscap's ``Tub``, by setting this to be the
     tub's ``negotiationClass``.
 
-    Do not use directly, use ``support_foolscap_and_https(tub)`` instead.  The
-    way this class works is that a new subclass is created for a specific
-    ``Tub`` instance.
+    Do not instantiate directly, use ``support_foolscap_and_https(tub)``
+    instead.  The way this class works is that a new subclass is created for a
+    specific ``Tub`` instance.
     """
 
-    # These will be set by support_foolscap_and_https() and add_storage_server().
+    # These are class attributes; they will be set by
+    # support_foolscap_and_https() and add_storage_server().
 
-    # The HTTP storage server API we're exposing.
-    http_storage_server: HTTPServer
-    # The Twisted HTTPS protocol factory wrapping the storage server API:
+    # The Twisted HTTPS protocol factory wrapping the storage server HTTP API:
     https_factory: TLSMemoryBIOFactory
     # The tub that created us:
     tub: Tub
 
-    # This will be created by the instance in connectionMade():
+    # This is an instance attribute; it will be set in connectionMade().
     _timeout: IDelayedCall
 
     @classmethod
@@ -70,11 +69,17 @@ class _FoolscapOrHttps(Protocol, metaclass=_PretendToBeNegotiation):
         cls, storage_server: StorageServer, swissnum: bytes
     ) -> set[DecodedURL]:
         """
-        Add the various storage server-related attributes needed by a
-        ``Tub``-specific ``_FoolscapOrHttps`` subclass.
+        Update a ``_FoolscapOrHttps`` subclass for a specific ``Tub`` instance
+        with the class attributes it requires for a specific storage server.
 
         Returns the resulting NURLs.
         """
+        # We need to be a subclass:
+        assert cls != _FoolscapOrHttps
+        # The tub instance must already be set:
+        assert hasattr(cls, "tub")
+        assert isinstance(cls.tub, Tub)
+
         # Tub.myCertificate is a twisted.internet.ssl.PrivateCertificate
         # instance.
         certificate_options = CertificateOptions(
@@ -82,11 +87,11 @@ class _FoolscapOrHttps(Protocol, metaclass=_PretendToBeNegotiation):
             certificate=cls.tub.myCertificate.original,
         )
 
-        cls.http_storage_server = HTTPServer(storage_server, swissnum)
+        http_storage_server = HTTPServer(storage_server, swissnum)
         cls.https_factory = TLSMemoryBIOFactory(
             certificate_options,
             False,
-            Site(cls.http_storage_server.get_resource()),
+            Site(http_storage_server.get_resource()),
         )
 
         storage_nurls = set()
