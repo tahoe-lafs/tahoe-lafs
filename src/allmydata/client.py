@@ -37,7 +37,6 @@ import allmydata
 from allmydata.crypto import rsa, ed25519
 from allmydata.crypto.util import remove_prefix
 from allmydata.storage.server import StorageServer, FoolscapStorageServer
-from allmydata.storage.http_server import build_nurl
 from allmydata import storage_client
 from allmydata.immutable.upload import Uploader
 from allmydata.immutable.offloaded import Helper
@@ -660,10 +659,10 @@ class _Client(node.Node, pollmixin.PollMixin):
             self.init_web(webport) # strports string
 
         # TODO this may be the wrong location for now? but as temporary measure
-        # it allows us to get NURLs for testing in test_istorageserver.py Will
-        # eventually get fixed one way or another in
+        # it allows us to get NURLs for testing in test_istorageserver.py. This
+        # will eventually get fixed one way or another in
         # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3901
-        self.storage_nurls = []
+        self.storage_nurls = set()
 
     def init_stats_provider(self):
         self.stats_provider = StatsProvider(self)
@@ -826,17 +825,9 @@ class _Client(node.Node, pollmixin.PollMixin):
             furl_file = self.config.get_private_path("storage.furl").encode(get_filesystem_encoding())
             furl = self.tub.registerReference(FoolscapStorageServer(ss), furlFile=furl_file)
             (_, _, swissnum) = furl.rpartition("/")
-            self.tub.negotiationClass.add_storage_server(ss, swissnum.encode("ascii"))
-            for location_hint in self.tub.locationHints:
-                if location_hint.startswith("tcp:"):
-                    _, hostname, port = location_hint.split(":")
-                    port = int(port)
-                    self.storage_nurls.append(
-                        build_nurl(
-                            hostname, port, swissnum, self.tub.myCertificate.original.to_cryptography()
-                        )
-                    )
-
+            self.storage_nurls.update(
+                self.tub.negotiationClass.add_storage_server(ss, swissnum.encode("ascii"))
+            )
             announcement["anonymous-storage-FURL"] = furl
 
         enabled_storage_servers = self._enable_storage_servers(

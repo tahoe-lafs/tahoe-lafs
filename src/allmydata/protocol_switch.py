@@ -12,6 +12,8 @@ relevant information for a storage server once it becomes available later in
 the configuration process.
 """
 
+from __future__ import annotations
+
 from twisted.internet.protocol import Protocol
 from twisted.internet.interfaces import IDelayedCall
 from twisted.internet.ssl import CertificateOptions
@@ -19,10 +21,11 @@ from twisted.web.server import Site
 from twisted.protocols.tls import TLSMemoryBIOFactory
 from twisted.internet import reactor
 
+from hyperlink import DecodedURL
 from foolscap.negotiate import Negotiation
 from foolscap.api import Tub
 
-from .storage.http_server import HTTPServer
+from .storage.http_server import HTTPServer, build_nurl
 from .storage.server import StorageServer
 
 
@@ -45,7 +48,9 @@ class _FoolscapOrHttps(Protocol, metaclass=_PretendToBeNegotiation):
     since these are created by Foolscap's ``Tub``, by setting this to be the
     tub's ``negotiationClass``.
 
-    Do not use directly; this needs to be subclassed per ``Tub``.
+    Do not use directly, use ``support_foolscap_and_https(tub)`` instead.  The
+    way this class works is that a new subclass is created for a specific
+    ``Tub`` instance.
     """
 
     # These will be set by support_foolscap_and_https() and add_storage_server().
@@ -61,10 +66,14 @@ class _FoolscapOrHttps(Protocol, metaclass=_PretendToBeNegotiation):
     _timeout: IDelayedCall
 
     @classmethod
-    def add_storage_server(cls, storage_server: StorageServer, swissnum):
+    def add_storage_server(
+        cls, storage_server: StorageServer, swissnum: bytes
+    ) -> set[DecodedURL]:
         """
         Add the various storage server-related attributes needed by a
         ``Tub``-specific ``_FoolscapOrHttps`` subclass.
+
+        Returns the resulting NURLs.
         """
         # Tub.myCertificate is a twisted.internet.ssl.PrivateCertificate
         # instance.
@@ -79,6 +88,21 @@ class _FoolscapOrHttps(Protocol, metaclass=_PretendToBeNegotiation):
             False,
             Site(cls.http_storage_server.get_resource()),
         )
+
+        storage_nurls = set()
+        for location_hint in cls.tub.locationHints:
+            if location_hint.startswith("tcp:"):
+                _, hostname, port = location_hint.split(":")
+                port = int(port)
+                storage_nurls.add(
+                    build_nurl(
+                        hostname,
+                        port,
+                        str(swissnum, "ascii"),
+                        cls.tub.myCertificate.original.to_cryptography(),
+                    )
+                )
+        return storage_nurls
 
     def __init__(self, *args, **kwargs):
         self._foolscap: Negotiation = Negotiation(*args, **kwargs)

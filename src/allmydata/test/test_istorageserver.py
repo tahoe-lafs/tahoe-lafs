@@ -1085,7 +1085,7 @@ class _HTTPMixin(_SharedMixin):
     """Run tests on the HTTP version of ``IStorageServer``."""
 
     def _get_istorage_server(self):
-        nurl = self.clients[0].storage_nurls[0]
+        nurl = list(self.clients[0].storage_nurls)[0]
 
         # Create HTTP client with non-persistent connections, so we don't leak
         # state across tests:
