@@ -31,13 +31,15 @@ from .storage.server import StorageServer
 
 class _PretendToBeNegotiation(type):
     """
-    Metaclass that allows ``_FoolscapOrHttps`` to pretend to be a ``Negotiation``
-    instance, since Foolscap has some ``assert isinstance(protocol,
-    Negotiation`` checks.
+    Metaclass that allows ``_FoolscapOrHttps`` to pretend to be a
+    ``Negotiation`` instance, since Foolscap does some checks like
+    ``assert isinstance(protocol, tub.negotiationClass)`` in its internals,
+    and sometimes that ``protocol`` is a ``_FoolscapOrHttps`` instance, but
+    sometimes it's a ``Negotiation`` instance.
     """
 
     def __instancecheck__(self, instance):
-        return (instance.__class__ == self) or isinstance(instance, Negotiation)
+        return issubclass(instance.__class__, self) or isinstance(instance, Negotiation)
 
 
 class _FoolscapOrHttps(Protocol, metaclass=_PretendToBeNegotiation):
