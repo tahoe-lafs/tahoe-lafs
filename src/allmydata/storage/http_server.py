@@ -10,7 +10,7 @@ from base64 import b64decode
 import binascii
 from tempfile import TemporaryFile
 
-from cryptography.x509 import Certificate
+from cryptography.x509 import Certificate as CryptoCertificate
 from zope.interface import implementer
 from klein import Klein
 from twisted.web import http
@@ -866,7 +866,7 @@ class _TLSEndpointWrapper(object):
 
 
 def build_nurl(
-    hostname: str, port: int, swissnum: str, certificate: Certificate
+    hostname: str, port: int, swissnum: str, certificate: CryptoCertificate
 ) -> DecodedURL:
     """
     Construct a HTTPS NURL, given the hostname, port, server swissnum, and x509
