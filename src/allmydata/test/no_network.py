@@ -195,6 +195,10 @@ class NoNetworkServer(object):
         return self
     def __deepcopy__(self, memodict):
         return self
+
+    def upload_permitted(self):
+        return True
+
     def get_serverid(self):
         return self.serverid
     def get_permutation_seed(self):
@@ -225,7 +229,7 @@ class NoNetworkServer(object):
 
 @implementer(IStorageBroker)
 class NoNetworkStorageBroker(object):  # type: ignore # missing many methods
-    def get_servers_for_psi(self, peer_selection_index):
+    def get_servers_for_psi(self, peer_selection_index, for_upload=True):
         def _permuted(server):
             seed = server.get_permutation_seed()
             return permute_server_hash(peer_selection_index, seed)

@@ -1,0 +1,1 @@
+A new 'Grid Manager' specification and implementation

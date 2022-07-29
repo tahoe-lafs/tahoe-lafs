@@ -203,6 +203,7 @@ def dispatch(config,
     so.stdout = stdout
     so.stderr = stderr
     so.stdin = stdin
+    config.stdin = stdin
 
     if command in create_dispatch:
         f = create_dispatch[command]

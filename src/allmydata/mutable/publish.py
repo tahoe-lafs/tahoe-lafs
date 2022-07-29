@@ -35,6 +35,11 @@ from allmydata.mutable.layout import get_version_from_checkstring,\
                                      MDMFSlotWriteProxy, \
                                      SDMFSlotWriteProxy
 
+from eliot import (
+    Message,
+    start_action,
+)
+
 KiB = 1024
 DEFAULT_MAX_SEGMENT_SIZE = 128 * KiB
 PUSHING_BLOCKS_STATE = 0
@@ -955,12 +960,31 @@ class Publish(object):
             old_assignments.add(server, shnum)
 
         serverlist = []
-        for i, server in enumerate(self.full_serverlist):
-            serverid = server.get_serverid()
-            if server in self.bad_servers:
-                continue
-            entry = (len(old_assignments.get(server, [])), i, serverid, server)
-            serverlist.append(entry)
+
+        action = start_action(
+            action_type=u"mutable:upload:update_goal",
+            homeless_shares=len(homeless_shares),
+        )
+        with action:
+            for i, server in enumerate(self.full_serverlist):
+                serverid = server.get_serverid()
+                if server in self.bad_servers:
+                    Message.log(
+                        message_type=u"mutable:upload:bad-server",
+                        server_id=serverid,
+                    )
+                    continue
+                # if we have >= 1 grid-managers, this checks that we have
+                # a valid certificate for this server
+                if not server.upload_permitted():
+                    Message.log(
+                        message_type=u"mutable:upload:no-gm-certs",
+                        server_id=serverid,
+                    )
+                    continue
+
+                entry = (len(old_assignments.get(server, [])), i, serverid, server)
+                serverlist.append(entry)
         serverlist.sort()
 
         if not serverlist:
