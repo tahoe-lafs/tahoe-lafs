@@ -937,6 +937,7 @@ class HTTPNativeStorageServer(service.MultiService):
 
     TODO as first pass, just to get the proof-of-concept going, we will just
     assume we're always connected after an initial successful HTTP request.
+    Might do polling as follow-up ticket, in which case add link to that here.
     """
 
     def __init__(self, server_id: bytes, announcement):
@@ -1021,6 +1022,7 @@ class HTTPNativeStorageServer(service.MultiService):
     def _got_version(self, version):
         self._version = version
         self._connection_status = connection_status.ConnectionStatus(True, "connected", [], time.time(), time.time())
+        self._on_status_changed.notify(self)
 
     def get_storage_server(self):
         """
