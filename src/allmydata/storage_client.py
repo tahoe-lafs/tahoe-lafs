@@ -45,7 +45,7 @@ from zope.interface import (
     implementer,
 )
 from twisted.web import http
-from twisted.internet import defer
+from twisted.internet import defer, reactor
 from twisted.application import service
 from twisted.plugin import (
     getPlugins,
@@ -934,6 +934,9 @@ class HTTPNativeStorageServer(service.MultiService):
     The notion of being "connected" is less meaningful for HTTP; we just poll
     occasionally, and if we've succeeded at last poll, we assume we're
     "connected".
+
+    TODO as first pass, just to get the proof-of-concept going, we will just
+    assume we're always connected after an initial successful HTTP request.
     """
 
     def __init__(self, server_id: bytes, announcement):
@@ -944,6 +947,13 @@ class HTTPNativeStorageServer(service.MultiService):
         self._on_status_changed = ObserverList()
         furl = announcement["anonymous-storage-FURL"].encode("utf-8")
         self._nickname, self._permutation_seed, self._tubid, self._short_description, self._long_description = _parse_announcement(server_id, furl, announcement)
+        self._istorage_server = _HTTPStorageServer.from_http_client(
+            StorageClient.from_nurl(
+                announcement["anonymous-storage-NURLs"][0], reactor
+            )
+        )
+        self._connection_status = connection_status.ConnectionStatus.unstarted()
+        self._version = None
 
     def get_permutation_seed(self):
         return self._permutation_seed
@@ -984,29 +994,33 @@ class HTTPNativeStorageServer(service.MultiService):
         return self
 
     def __repr__(self):
-        return "<NativeStorageServer for %r>" % self.get_name()
+        return "<HTTPNativeStorageServer for %r>" % self.get_name()
 
     def get_serverid(self):
         return self._server_id
 
     def get_version(self):
-        pass
+        return self._version
 
     def get_announcement(self):
         return self.announcement
 
     def get_connection_status(self):
-        pass
+        return self._connection_status
 
     def is_connected(self):
-        pass
+        return self._connection_status.connected
 
     def get_available_space(self):
         version = self.get_version()
         return _available_space_from_version(version)
 
     def start_connecting(self, trigger_cb):
-        pass
+        self._istorage_server.get_version().addCallback(self._got_version)
+
+    def _got_version(self, version):
+        self._version = version
+        self._connection_status = connection_status.ConnectionStatus(True, "connected", [], time.time(), time.time())
 
     def get_rref(self):
         # TODO UH
@@ -1016,13 +1030,15 @@ class HTTPNativeStorageServer(service.MultiService):
         """
         See ``IServer.get_storage_server``.
         """
+        if self.is_connected():
+            return self._istorage_server
+        else:
+            return None
 
     def stop_connecting(self):
-        # used when this descriptor has been superceded by another
         pass
 
     def try_to_connect(self):
-        # used when the broker wants us to hurry up
         pass
 
 
