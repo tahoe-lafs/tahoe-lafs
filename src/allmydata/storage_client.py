@@ -695,6 +695,16 @@ def _storage_from_foolscap_plugin(node_config, config, announcement, get_rref):
     raise AnnouncementNotMatched()
 
 
+def _available_space_from_version(version):
+    if version is None:
+        return None
+    protocol_v1_version = version.get(b'http://allmydata.org/tahoe/protocols/storage/v1', BytesKeyDict())
+    available_space = protocol_v1_version.get(b'available-space')
+    if available_space is None:
+        available_space = protocol_v1_version.get(b'maximum-immutable-share-size', None)
+    return available_space
+
+
 @implementer(IServer)
 class NativeStorageServer(service.MultiService):
     """I hold information about a storage server that we want to connect to.
@@ -853,13 +863,7 @@ class NativeStorageServer(service.MultiService):
 
     def get_available_space(self):
         version = self.get_version()
-        if version is None:
-            return None
-        protocol_v1_version = version.get(b'http://allmydata.org/tahoe/protocols/storage/v1', BytesKeyDict())
-        available_space = protocol_v1_version.get(b'available-space')
-        if available_space is None:
-            available_space = protocol_v1_version.get(b'maximum-immutable-share-size', None)
-        return available_space
+        return _available_space_from_version(version)
 
     def start_connecting(self, trigger_cb):
         self._tub = self._tub_maker(self._handler_overrides)
@@ -998,15 +1002,8 @@ class HTTPNativeStorageServer(service.MultiService):
         pass
 
     def get_available_space(self):
-        # TODO refactor into shared utility with NativeStorageServer
         version = self.get_version()
-        if version is None:
-            return None
-        protocol_v1_version = version.get(b'http://allmydata.org/tahoe/protocols/storage/v1', BytesKeyDict())
-        available_space = protocol_v1_version.get(b'available-space')
-        if available_space is None:
-            available_space = protocol_v1_version.get(b'maximum-immutable-share-size', None)
-        return available_space
+        return _available_space_from_version(version)
 
     def start_connecting(self, trigger_cb):
         pass
