@@ -30,6 +30,8 @@ Ported to Python 3.
 #
 # 6: implement other sorts of IStorageClient classes: S3, etc
 
+from __future__ import annotations
+
 from six import ensure_text
 from typing import Union
 import re, time, hashlib
@@ -523,6 +525,45 @@ class IFoolscapStorageServer(Interface):
         """
 
 
+def _parse_announcement(server_id: bytes, furl: bytes, ann: dict) -> tuple[str, bytes, bytes, bytes, bytes]:
+    """
+    Parse the furl and announcement, return:
+
+        (nickname, permutation_seed, tubid, short_description, long_description)
+    """
+    m = re.match(br'pb://(\w+)@', furl)
+    assert m, furl
+    tubid_s = m.group(1).lower()
+    tubid = base32.a2b(tubid_s)
+    if "permutation-seed-base32" in ann:
+        seed = ann["permutation-seed-base32"]
+        if isinstance(seed, str):
+            seed = seed.encode("utf-8")
+        ps = base32.a2b(seed)
+    elif re.search(br'^v0-[0-9a-zA-Z]{52}$', server_id):
+        ps = base32.a2b(server_id[3:])
+    else:
+        log.msg("unable to parse serverid '%(server_id)s as pubkey, "
+                "hashing it to get permutation-seed, "
+                "may not converge with other clients",
+                server_id=server_id,
+                facility="tahoe.storage_broker",
+                level=log.UNUSUAL, umid="qu86tw")
+        ps = hashlib.sha256(server_id).digest()
+    permutation_seed = ps
+
+    assert server_id
+    long_description = server_id
+    if server_id.startswith(b"v0-"):
+        # remove v0- prefix from abbreviated name
+        short_description = server_id[3:3+8]
+    else:
+        short_description = server_id[:8]
+    nickname = ann.get("nickname", "")
+
+    return (nickname, permutation_seed, tubid, short_description, long_description)
+
+
 @implementer(IFoolscapStorageServer)
 @attr.s(frozen=True)
 class _FoolscapStorage(object):
@@ -566,43 +607,13 @@ class _FoolscapStorage(object):
         The furl will be a Unicode string on Python 3; on Python 2 it will be
         either a native (bytes) string or a Unicode string.
         """
-        furl = furl.encode("utf-8")
-        m = re.match(br'pb://(\w+)@', furl)
-        assert m, furl
-        tubid_s = m.group(1).lower()
-        tubid = base32.a2b(tubid_s)
-        if "permutation-seed-base32" in ann:
-            seed = ann["permutation-seed-base32"]
-            if isinstance(seed, str):
-                seed = seed.encode("utf-8")
-            ps = base32.a2b(seed)
-        elif re.search(br'^v0-[0-9a-zA-Z]{52}$', server_id):
-            ps = base32.a2b(server_id[3:])
-        else:
-            log.msg("unable to parse serverid '%(server_id)s as pubkey, "
-                    "hashing it to get permutation-seed, "
-                    "may not converge with other clients",
-                    server_id=server_id,
-                    facility="tahoe.storage_broker",
-                    level=log.UNUSUAL, umid="qu86tw")
-            ps = hashlib.sha256(server_id).digest()
-        permutation_seed = ps
-
-        assert server_id
-        long_description = server_id
-        if server_id.startswith(b"v0-"):
-            # remove v0- prefix from abbreviated name
-            short_description = server_id[3:3+8]
-        else:
-            short_description = server_id[:8]
-        nickname = ann.get("nickname", "")
-
+        (nickname, permutation_seed, tubid, short_description, long_description) = _parse_announcement(server_id, furl.encode("utf-8"), ann)
         return cls(
             nickname=nickname,
             permutation_seed=permutation_seed,
             tubid=tubid,
             storage_server=storage_server,
-            furl=furl,
+            furl=furl.encode("utf-8"),
             short_description=short_description,
             long_description=long_description,
         )
@@ -909,6 +920,114 @@ class NativeStorageServer(service.MultiService):
     def try_to_connect(self):
         # used when the broker wants us to hurry up
         self._reconnector.reset()
+
+
+@implementer(IServer)
+class HTTPNativeStorageServer(service.MultiService):
+    """
+    Like ``NativeStorageServer``, but for HTTP clients.
+
+    The notion of being "connected" is less meaningful for HTTP; we just poll
+    occasionally, and if we've succeeded at last poll, we assume we're
+    "connected".
+    """
+
+    def __init__(self, server_id: bytes, announcement):
+        service.MultiService.__init__(self)
+        assert isinstance(server_id, bytes)
+        self._server_id = server_id
+        self.announcement = announcement
+        self._on_status_changed = ObserverList()
+        furl = announcement["anonymous-storage-FURL"].encode("utf-8")
+        self._nickname, self._permutation_seed, self._tubid, self._short_description, self._long_description = _parse_announcement(server_id, furl, announcement)
+
+    def get_permutation_seed(self):
+        return self._permutation_seed
+
+    def get_name(self): # keep methodname short
+        return self._name
+
+    def get_longname(self):
+        return self._longname
+
+    def get_tubid(self):
+        return self._tubid
+
+    def get_lease_seed(self):
+        return self._lease_seed
+
+    def get_foolscap_write_enabler_seed(self):
+        return self._tubid
+
+    def get_nickname(self):
+        return self._nickname
+
+    def on_status_changed(self, status_changed):
+        """
+        :param status_changed: a callable taking a single arg (the
+            NativeStorageServer) that is notified when we become connected
+        """
+        return self._on_status_changed.subscribe(status_changed)
+
+    # Special methods used by copy.copy() and copy.deepcopy(). When those are
+    # used in allmydata.immutable.filenode to copy CheckResults during
+    # repair, we want it to treat the IServer instances as singletons, and
+    # not attempt to duplicate them..
+    def __copy__(self):
+        return self
+
+    def __deepcopy__(self, memodict):
+        return self
+
+    def __repr__(self):
+        return "<NativeStorageServer for %r>" % self.get_name()
+
+    def get_serverid(self):
+        return self._server_id
+
+    def get_version(self):
+        pass
+
+    def get_announcement(self):
+        return self.announcement
+
+    def get_connection_status(self):
+        pass
+
+    def is_connected(self):
+        pass
+
+    def get_available_space(self):
+        # TODO refactor into shared utility with NativeStorageServer
+        version = self.get_version()
+        if version is None:
+            return None
+        protocol_v1_version = version.get(b'http://allmydata.org/tahoe/protocols/storage/v1', BytesKeyDict())
+        available_space = protocol_v1_version.get(b'available-space')
+        if available_space is None:
+            available_space = protocol_v1_version.get(b'maximum-immutable-share-size', None)
+        return available_space
+
+    def start_connecting(self, trigger_cb):
+        pass
+
+    def get_rref(self):
+        # TODO UH
+        pass
+
+    def get_storage_server(self):
+        """
+        See ``IServer.get_storage_server``.
+        """
+
+    def stop_connecting(self):
+        # used when this descriptor has been superceded by another
+        pass
+
+    def try_to_connect(self):
+        # used when the broker wants us to hurry up
+        pass
+
 
 class UnknownServerTypeError(Exception):
     pass
