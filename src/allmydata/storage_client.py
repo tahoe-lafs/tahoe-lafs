@@ -1022,10 +1022,6 @@ class HTTPNativeStorageServer(service.MultiService):
         self._version = version
         self._connection_status = connection_status.ConnectionStatus(True, "connected", [], time.time(), time.time())
 
-    def get_rref(self):
-        # TODO UH
-        pass
-
     def get_storage_server(self):
         """
         See ``IServer.get_storage_server``.
