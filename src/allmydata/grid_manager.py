@@ -466,7 +466,7 @@ def create_grid_manager_verifier(keys, certs, public_key, now_fn=None, bad_cert=
         now = now_fn()
         for cert in valid_certs:
             expires = datetime.utcfromtimestamp(cert['expires'])
-            if cert['public_key'].encode("ascii") == public_key:
+            if cert['public_key'] == public_key:
                 if expires > now:
                     # not-expired
                     return True
