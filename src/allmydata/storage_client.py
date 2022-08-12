@@ -968,17 +968,18 @@ class HTTPNativeStorageServer(service.MultiService):
     def get_permutation_seed(self):
         return self._permutation_seed
 
-    def get_name(self): # keep methodname short
-        return self._name
+    def get_name(self):
+        return self._short_description
 
     def get_longname(self):
-        return self._longname
+        return self._long_description
 
     def get_tubid(self):
         return self._tubid
 
     def get_lease_seed(self):
-        return self._lease_seed
+        # Apparently this is what Foolscap version above does?!
+        return self._tubid
 
     def get_foolscap_write_enabler_seed(self):
         return self._tubid
