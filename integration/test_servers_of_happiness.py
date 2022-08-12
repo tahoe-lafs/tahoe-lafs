@@ -13,8 +13,6 @@ if PY2:
 import sys
 from os.path import join
 
-from twisted.internet.error import ProcessTerminated
-
 from . import util
 
 import pytest_twisted
