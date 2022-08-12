@@ -17,7 +17,6 @@ from unittest import SkipTest
 
 from twisted.internet.defer import inlineCallbacks, returnValue, succeed
 from twisted.internet.task import Clock
-from twisted.internet import reactor
 from foolscap.api import Referenceable, RemoteException
 
 # A better name for this would be IStorageClient...
@@ -26,8 +25,10 @@ from allmydata.interfaces import IStorageServer
 from .common_system import SystemTestMixin
 from .common import AsyncTestCase
 from allmydata.storage.server import StorageServer  # not a IStorageServer!!
-from allmydata.storage.http_client import StorageClient
-from allmydata.storage_client import _HTTPStorageServer
+from allmydata.storage_client import (
+    NativeStorageServer,
+    HTTPNativeStorageServer,
+)
 
 
 # Use random generator with known seed, so results are reproducible if tests
@@ -1021,6 +1022,10 @@ class _SharedMixin(SystemTestMixin):
     """Base class for Foolscap and HTTP mixins."""
 
     SKIP_TESTS = set()  # type: Set[str]
+    FORCE_FOOLSCAP = False
+
+    def _get_native_server(self):
+        return next(iter(self.clients[0].storage_broker.get_known_servers()))
 
     def _get_istorage_server(self):
         raise NotImplementedError("implement in subclass")
@@ -1036,7 +1041,7 @@ class _SharedMixin(SystemTestMixin):
 
         self.basedir = "test_istorageserver/" + self.id()
         yield SystemTestMixin.setUp(self)
-        yield self.set_up_nodes(1)
+        yield self.set_up_nodes(1, self.FORCE_FOOLSCAP)
         self.server = None
         for s in self.clients[0].services:
             if isinstance(s, StorageServer):
@@ -1065,11 +1070,12 @@ class _SharedMixin(SystemTestMixin):
 class _FoolscapMixin(_SharedMixin):
     """Run tests on Foolscap version of ``IStorageServer``."""
 
-    def _get_native_server(self):
-        return next(iter(self.clients[0].storage_broker.get_known_servers()))
+    FORCE_FOOLSCAP = True
 
     def _get_istorage_server(self):
-        client = self._get_native_server().get_storage_server()
+        native_server = self._get_native_server()
+        assert isinstance(native_server, NativeStorageServer)
+        client = native_server.get_storage_server()
         self.assertTrue(IStorageServer.providedBy(client))
         return succeed(client)
 
@@ -1077,16 +1083,13 @@ class _FoolscapMixin(_SharedMixin):
 class _HTTPMixin(_SharedMixin):
     """Run tests on the HTTP version of ``IStorageServer``."""
 
+    FORCE_FOOLSCAP = False
+
     def _get_istorage_server(self):
-        nurl = list(self.clients[0].storage_nurls)[0]
-
-        # Create HTTP client with non-persistent connections, so we don't leak
-        # state across tests:
-        client: IStorageServer = _HTTPStorageServer.from_http_client(
-            StorageClient.from_nurl(nurl, reactor, persistent=False)
-        )
+        native_server = self._get_native_server()
+        assert isinstance(native_server, HTTPNativeStorageServer)
+        client = native_server.get_storage_server()
         self.assertTrue(IStorageServer.providedBy(client))
-
         return succeed(client)
 
 

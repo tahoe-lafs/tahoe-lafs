@@ -265,9 +265,8 @@ class StorageFarmBroker(service.MultiService):
             by the given announcement.
         """
         assert isinstance(server_id, bytes)
-        # TODO use constant
-        if "anonymous-storage-NURLs" in server["ann"]:
-            print("HTTTTTTTPPPPPPPPPPPPPPPPPPPP")
+        # TODO use constant for anonymous-storage-NURLs
+        if len(server["ann"].get("anonymous-storage-NURLs", [])) > 0:
             s = HTTPNativeStorageServer(server_id, server["ann"])
             s.on_status_changed(lambda _: self._got_connection())
             return s
@@ -955,10 +954,13 @@ class HTTPNativeStorageServer(service.MultiService):
         self._on_status_changed = ObserverList()
         furl = announcement["anonymous-storage-FURL"].encode("utf-8")
         self._nickname, self._permutation_seed, self._tubid, self._short_description, self._long_description = _parse_announcement(server_id, furl, announcement)
+        nurl = DecodedURL.from_text(announcement["anonymous-storage-NURLs"][0])
+        # Tests don't want persistent HTTPS pool, since that leaves a dirty
+        # reactor. As a reasonable hack, disabling persistent connnections for
+        # localhost allows us to have passing tests while not reducing
+        # performance for real-world usage.
         self._istorage_server = _HTTPStorageServer.from_http_client(
-            StorageClient.from_nurl(
-                DecodedURL.from_text(announcement["anonymous-storage-NURLs"][0]), reactor
-            )
+            StorageClient.from_nurl(nurl, reactor, nurl.host not in ("localhost", "127.0.0.1"))
         )
         self._connection_status = connection_status.ConnectionStatus.unstarted()
         self._version = None
