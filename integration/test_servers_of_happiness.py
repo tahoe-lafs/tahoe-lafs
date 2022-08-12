@@ -1,4 +1,4 @@
-"""
+P"""
 Ported to Python 3.
 """
 from __future__ import absolute_import
@@ -12,8 +12,6 @@ if PY2:
 
 import sys
 from os.path import join
-
-from twisted.internet.error import ProcessTerminated
 
 from . import util
 
