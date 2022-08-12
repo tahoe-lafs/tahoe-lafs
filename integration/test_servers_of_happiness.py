@@ -1,4 +1,4 @@
-P"""
+"""
 Ported to Python 3.
 """
 from __future__ import absolute_import
