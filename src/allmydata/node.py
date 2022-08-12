@@ -64,6 +64,7 @@ def _common_valid_config():
             "tcp",
         ),
         "node": (
+            "force_foolscap",
             "log_gatherer.furl",
             "nickname",
             "reveal-ip-address",
@@ -709,7 +710,6 @@ def create_tub(tub_options, default_connection_handlers, foolscap_connection_han
         the new Tub via `Tub.setOption`
     """
     tub = Tub(**kwargs)
-    support_foolscap_and_https(tub)
     for (name, value) in list(tub_options.items()):
         tub.setOption(name, value)
     handlers = default_connection_handlers.copy()
@@ -907,6 +907,9 @@ def create_main_tub(config, tub_options,
         handler_overrides=handler_overrides,
         certFile=certfile,
     )
+    if not config.get_config("node", "force_foolscap", False):
+        support_foolscap_and_https(tub)
+
     if portlocation is None:
         log.msg("Tub is not listening")
     else:

@@ -102,8 +102,8 @@ class StorageClientConfig(object):
 
     :ivar preferred_peers: An iterable of the server-ids (``bytes``) of the
         storage servers where share placement is preferred, in order of
-        decreasing preference.  See the *[client]peers.preferred*
-        documentation for details.
+        decreasing preference.  See the *[client]peers.preferred* documentation
+        for details.
 
     :ivar dict[unicode, dict[unicode, unicode]] storage_plugins: A mapping from
         names of ``IFoolscapStoragePlugin`` configured in *tahoe.cfg* to the

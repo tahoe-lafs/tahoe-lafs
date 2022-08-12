@@ -698,7 +698,7 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
             return f.read().strip()
 
     @inlineCallbacks
-    def set_up_nodes(self, NUMCLIENTS=5):
+    def set_up_nodes(self, NUMCLIENTS=5, force_foolscap=False):
         """
         Create an introducer and ``NUMCLIENTS`` client nodes pointed at it.  All
         of the nodes are running in this process.
@@ -711,6 +711,9 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
 
         :param int NUMCLIENTS: The number of client nodes to create.
 
+        :param bool force_foolscap: Force clients to use Foolscap instead of e.g.
+            HTTPS when available.
+
         :return: A ``Deferred`` that fires when the nodes have connected to
             each other.
         """
@@ -719,16 +722,16 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
         self.introducer = yield self._create_introducer()
         self.add_service(self.introducer)
         self.introweb_url = self._get_introducer_web()
-        yield self._set_up_client_nodes()
+        yield self._set_up_client_nodes(force_foolscap)
 
     @inlineCallbacks
-    def _set_up_client_nodes(self):
+    def _set_up_client_nodes(self, force_foolscap):
         q = self.introducer
         self.introducer_furl = q.introducer_url
         self.clients = []
         basedirs = []
         for i in range(self.numclients):
-            basedirs.append((yield self._set_up_client_node(i)))
+            basedirs.append((yield self._set_up_client_node(i, force_foolscap)))
 
         # start clients[0], wait for it's tub to be ready (at which point it
         # will have registered the helper furl).
@@ -761,7 +764,7 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
             # and the helper-using webport
             self.helper_webish_url = self.clients[3].getServiceNamed("webish").getURL()
 
-    def _generate_config(self, which, basedir):
+    def _generate_config(self, which, basedir, force_foolscap=False):
         config = {}
 
         allclients = set(range(self.numclients))
@@ -787,6 +790,9 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
             if which in feature_matrix.get((section, feature), {which}):
                 config.setdefault(section, {})[feature] = value
 
+        if force_foolscap:
+            config.setdefault("node", {})["force_foolscap"] = force_foolscap
+
         setnode = partial(setconf, config, which, "node")
         sethelper = partial(setconf, config, which, "helper")
 
@@ -811,14 +817,14 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
 
         return _render_config(config)
 
-    def _set_up_client_node(self, which):
+    def _set_up_client_node(self, which, force_foolscap):
         basedir = self.getdir("client%d" % (which,))
         fileutil.make_dirs(os.path.join(basedir, "private"))
         if len(SYSTEM_TEST_CERTS) > (which + 1):
             f = open(os.path.join(basedir, "private", "node.pem"), "w")
             f.write(SYSTEM_TEST_CERTS[which + 1])
             f.close()
-        config = self._generate_config(which, basedir)
+        config = self._generate_config(which, basedir, force_foolscap)
         fileutil.write(os.path.join(basedir, 'tahoe.cfg'), config)
         return basedir
 
