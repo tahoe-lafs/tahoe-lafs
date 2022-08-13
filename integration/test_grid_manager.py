@@ -214,9 +214,6 @@ def test_reject_storage_server(reactor, request, temp_dir, flog_gatherer, port_a
     # re-start this storage server
     yield storage0.restart(reactor, request)
 
-    import time
-    time.sleep(1)
-
     # now only one storage-server has the certificate .. configure
     # diana to have the grid-manager certificate
 
@@ -234,20 +231,17 @@ def test_reject_storage_server(reactor, request, temp_dir, flog_gatherer, port_a
     # diana has happy=2 but should only find storage0 to be acceptable
     # to upload to)
 
-    # Takes a little bit of time for node to connect:
-    for i in range(10):
-        try:
-            yield util.run_tahoe(
-                reactor, request, "--node-directory", diana.process.node_dir,
-                "put", "-",
-                stdin=b"some content\n" * 200,
-            )
-            assert False, "Should get a failure"
-        except util.ProcessFailed as e:
-            if b'UploadUnhappinessError' in e.output:
-                # We're done! We've succeeded.
-                return
-        time.sleep(0.2)
+    try:
+        yield util.run_tahoe(
+            reactor, request, "--node-directory", diana.process.node_dir,
+            "put", "-",
+            stdin=b"some content\n" * 200,
+        )
+        assert False, "Should get a failure"
+    except util.ProcessFailed as e:
+        if b'UploadUnhappinessError' in e.output:
+            # We're done! We've succeeded.
+            return
 
     assert False, "Failed to see one of out of two servers"
 

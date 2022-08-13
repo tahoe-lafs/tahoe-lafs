@@ -228,6 +228,7 @@ class Client(object):
         )
         self.process = process
         self.protocol = self.process.transport._protocol
+        yield await_client_ready(self.process, minimum_number_of_servers=servers)
 
 
     # XXX add stop / start / restart
