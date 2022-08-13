@@ -175,6 +175,7 @@ class StorageServer(object):
             reactor, self.process.node_dir, request, None,
         )
         self.protocol = self.process.transport._protocol
+        yield await_client_ready(self.process)
 
 
 @inlineCallbacks
