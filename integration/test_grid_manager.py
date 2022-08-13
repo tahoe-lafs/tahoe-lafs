@@ -243,6 +243,76 @@ def test_reject_storage_server(reactor, request, temp_dir, flog_gatherer, port_a
 
 
 @pytest_twisted.inlineCallbacks
+def test_accept_storage_server(reactor, request, temp_dir, flog_gatherer, port_allocator):
+    """
+    Successfully upload to a Grid Manager enabled Grid.
+    """
+    grid = yield create_grid(reactor, request, temp_dir, flog_gatherer, port_allocator)
+    happy0 = yield grid.add_storage_node()
+    happy1 = yield grid.add_storage_node()
+
+    gm_config = yield _run_gm(
+        reactor, "--config", "-", "create",
+    )
+    gm_privkey_bytes = json.loads(gm_config)['private_key'].encode('ascii')
+    gm_privkey, gm_pubkey = ed25519.signing_keypair_from_string(gm_privkey_bytes)
+
+    # create certificate for the storage-servers
+    servers = (
+        ("happy0", happy0),
+        ("happy1", happy1),
+    )
+    for st_name, st in servers:
+        pubkey_fname = join(st.process.node_dir, "node.pubkey")
+        with open(pubkey_fname, 'r') as f:
+            pubkey_str = f.read().strip()
+
+        gm_config = yield _run_gm(
+            reactor, "--config", "-", "add",
+            st_name, pubkey_str,
+            stdinBytes=gm_config,
+        )
+    assert json.loads(gm_config)['storage_servers'].keys() == {'happy0', 'happy1'}
+
+    print("inserting certificates")
+    for st_name, st in servers:
+        cert = yield _run_gm(
+            reactor, "--config", "-", "sign", st_name, "1",
+            stdinBytes=gm_config,
+        )
+
+        yield util.run_tahoe(
+            reactor, request, "--node-directory", st.process.node_dir,
+            "admin", "add-grid-manager-cert",
+            "--name", "default",
+            "--filename", "-",
+            stdin=cert,
+        )
+
+    # re-start the storage servers
+    yield happy0.restart(reactor, request)
+    yield happy1.restart(reactor, request)
+
+    # configure edna to have the grid-manager certificate
+
+    edna = yield grid.add_client("edna", needed=2, happy=2, total=2)
+
+    config = configutil.get_config(join(edna.process.node_dir, "tahoe.cfg"))
+    config.add_section("grid_managers")
+    config.set("grid_managers", "test", str(ed25519.string_from_verifying_key(gm_pubkey), "ascii"))
+    with open(join(edna.process.node_dir, "tahoe.cfg"), "w") as f:
+        config.write(f)
+
+    yield edna.restart(reactor, request, servers=2)
+
+    yield util.run_tahoe(
+        reactor, request, "--node-directory", edna.process.node_dir,
+        "put", "-",
+        stdin=b"some content\n" * 200,
+    )
+
+
+@pytest_twisted.inlineCallbacks
 def test_identity(reactor, request, temp_dir):
     """
     Dump public key to CLI
