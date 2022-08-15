@@ -46,6 +46,7 @@ from zope.interface import (
     implementer,
 )
 from twisted.web import http
+from twisted.internet.task import LoopingCall
 from twisted.internet import defer, reactor
 from twisted.application import service
 from twisted.plugin import (
@@ -940,10 +941,6 @@ class HTTPNativeStorageServer(service.MultiService):
     The notion of being "connected" is less meaningful for HTTP; we just poll
     occasionally, and if we've succeeded at last poll, we assume we're
     "connected".
-
-    TODO as first pass, just to get the proof-of-concept going, we will just
-    assume we're always connected after an initial successful HTTP request.
-    Might do polling as follow-up ticket, in which case add link to that here.
     """
 
     def __init__(self, server_id: bytes, announcement):
@@ -962,8 +959,10 @@ class HTTPNativeStorageServer(service.MultiService):
         self._istorage_server = _HTTPStorageServer.from_http_client(
             StorageClient.from_nurl(nurl, reactor, nurl.host not in ("localhost", "127.0.0.1"))
         )
+
         self._connection_status = connection_status.ConnectionStatus.unstarted()
         self._version = None
+        self._last_connect_time = None
 
     def get_permutation_seed(self):
         return self._permutation_seed
@@ -1027,11 +1026,21 @@ class HTTPNativeStorageServer(service.MultiService):
         return _available_space_from_version(version)
 
     def start_connecting(self, trigger_cb):
-        self._istorage_server.get_version().addCallback(self._got_version)
+        self._lc = LoopingCall(self._connect)
+        self._lc.start(1, True)
 
     def _got_version(self, version):
+        self._last_connect_time = time.time()
         self._version = version
-        self._connection_status = connection_status.ConnectionStatus(True, "connected", [], time.time(), time.time())
+        self._connection_status = connection_status.ConnectionStatus(
+            True, "connected", [], self._last_connect_time, self._last_connect_time
+        )
+        self._on_status_changed.notify(self)
+
+    def _failed_to_connect(self, reason):
+        self._connection_status = connection_status.ConnectionStatus(
+            False, f"failure: {reason}", [], self._last_connect_time, self._last_connect_time
+        )
         self._on_status_changed.notify(self)
 
     def get_storage_server(self):
@@ -1044,10 +1053,21 @@ class HTTPNativeStorageServer(service.MultiService):
             return None
 
     def stop_connecting(self):
-        pass
+        self._lc.stop()
 
     def try_to_connect(self):
-        pass
+        self._connect()
+
+    def _connect(self):
+        return self._istorage_server.get_version().addCallbacks(
+            self._got_version,
+            self._failed_to_connect
+        )
+
+    def stopService(self):
+        service.MultiService.stopService(self)
+        self._lc.stop()
+        self._failed_to_connect("shut down")
 
 
 class UnknownServerTypeError(Exception):
