@@ -14,6 +14,8 @@ the configuration process.
 
 from __future__ import annotations
 
+from itertools import chain
+
 from twisted.internet.protocol import Protocol
 from twisted.internet.interfaces import IDelayedCall
 from twisted.internet.ssl import CertificateOptions
@@ -94,7 +96,11 @@ class _FoolscapOrHttps(Protocol, metaclass=_PretendToBeNegotiation):
         )
 
         storage_nurls = set()
-        for location_hint in cls.tub.locationHints:
+        # Individual hints can be in the form
+        # "tcp:host:port,tcp:host:port,tcp:host:port".
+        for location_hint in chain.from_iterable(
+            hints.split(",") for hints in cls.tub.locationHints
+        ):
             if location_hint.startswith("tcp:"):
                 _, hostname, port = location_hint.split(":")
                 port = int(port)
