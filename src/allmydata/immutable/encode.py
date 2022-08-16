@@ -624,6 +624,7 @@ class Encoder(object):
         for k in ('crypttext_root_hash', 'crypttext_hash',
                   ):
             assert k in self.uri_extension_data
+        self.uri_extension_data
         uri_extension = uri.pack_extension(self.uri_extension_data)
         ed = {}
         for k,v in self.uri_extension_data.items():
@@ -694,3 +695,20 @@ class Encoder(object):
         return self.uri_extension_data
     def get_uri_extension_hash(self):
         return self.uri_extension_hash
+
+    def get_uri_extension_size(self):
+        """
+        Calculate the size of the URI extension that gets written at the end of
+        immutables.
+
+        This may be done earlier than actual encoding, so e.g. we might not
+        know the crypttext hashes, but that's fine for our purposes since we
+        only care about the length.
+        """
+        params = self.uri_extension_data.copy()
+        assert params
+        params["crypttext_hash"] = b"\x00" * 32
+        params["crypttext_root_hash"] = b"\x00" * 32
+        params["share_root_hash"] = b"\x00" * 32
+        uri_extension = uri.pack_extension(params)
+        return len(uri_extension)

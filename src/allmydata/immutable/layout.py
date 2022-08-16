@@ -90,7 +90,7 @@ FORCE_V2 = False # set briefly by unit tests to make small-sized V2 shares
 
 def make_write_bucket_proxy(rref, server,
                             data_size, block_size, num_segments,
-                            num_share_hashes, uri_extension_size_max):
+                            num_share_hashes, uri_extension_size):
     # Use layout v1 for small files, so they'll be readable by older versions
     # (<tahoe-1.3.0). Use layout v2 for large files; they'll only be readable
     # by tahoe-1.3.0 or later.
@@ -99,11 +99,11 @@ def make_write_bucket_proxy(rref, server,
             raise FileTooLargeError
         wbp = WriteBucketProxy(rref, server,
                                data_size, block_size, num_segments,
-                               num_share_hashes, uri_extension_size_max)
+                               num_share_hashes, uri_extension_size)
     except FileTooLargeError:
         wbp = WriteBucketProxy_v2(rref, server,
                                   data_size, block_size, num_segments,
-                                  num_share_hashes, uri_extension_size_max)
+                                  num_share_hashes, uri_extension_size)
     return wbp
 
 @implementer(IStorageBucketWriter)
@@ -112,7 +112,7 @@ class WriteBucketProxy(object):
     fieldstruct = ">L"
 
     def __init__(self, rref, server, data_size, block_size, num_segments,
-                 num_share_hashes, uri_extension_size_max, pipeline_size=50000):
+                 num_share_hashes, uri_extension_size, pipeline_size=50000):
         self._rref = rref
         self._server = server
         self._data_size = data_size
@@ -124,8 +124,7 @@ class WriteBucketProxy(object):
         # how many share hashes are included in each share? This will be
         # about ln2(num_shares).
         self._share_hashtree_size = num_share_hashes * (2+HASH_SIZE)
-        # we commit to not sending a uri extension larger than this
-        self._uri_extension_size_max = uri_extension_size_max
+        self._uri_extension_size = uri_extension_size
 
         self._create_offsets(block_size, data_size)
 
@@ -137,7 +136,7 @@ class WriteBucketProxy(object):
 
     def get_allocated_size(self):
         return (self._offsets['uri_extension'] + self.fieldsize +
-                self._uri_extension_size_max)
+                self._uri_extension_size)
 
     def _create_offsets(self, block_size, data_size):
         if block_size >= 2**32 or data_size >= 2**32:
@@ -233,8 +232,7 @@ class WriteBucketProxy(object):
     def put_uri_extension(self, data):
         offset = self._offsets['uri_extension']
         assert isinstance(data, bytes)
-        precondition(len(data) <= self._uri_extension_size_max,
-                     len(data), self._uri_extension_size_max)
+        precondition(len(data) == self._uri_extension_size)
         length = struct.pack(self.fieldstruct, len(data))
         return self._write(offset, length+data)
 
