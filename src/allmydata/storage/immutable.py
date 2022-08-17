@@ -428,10 +428,9 @@ class BucketWriter(object):
         return sum([mr.stop - mr.start for mr in self._already_written.ranges()]) == self._max_size
 
     def close(self):
-        # TODO this can't actually be enabled, because it's not backwards
-        # compatible. But it's useful for testing, so leaving it on until the
-        # branch is ready for merge.
-        assert self._is_finished()
+        # This can't actually be enabled, because it's not backwards compatible
+        # with old Foolscap clients.
+        # assert self._is_finished()
         precondition(not self.closed)
         self._timeout.cancel()
         start = self._clock.seconds()
