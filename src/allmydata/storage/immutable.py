@@ -397,7 +397,9 @@ class BucketWriter(object):
         """
         Write data at given offset, return whether the upload is complete.
         """
-        # Delay the timeout, since we received data:
+        # Delay the timeout, since we received data; if we get an
+        # AlreadyCancelled error, that means there's a bug in the client and
+        # write() was called after close().
         self._timeout.reset(30 * 60)
         start = self._clock.seconds()
         precondition(not self.closed)
