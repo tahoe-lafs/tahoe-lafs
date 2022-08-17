@@ -198,8 +198,11 @@ class WriteBucketProxy(object):
         # plaintext_hash_tree precedes crypttext_hash_tree. It is not used, and
         # so is not explicitly written, but we need to write everything, so
         # fill it in with nulls.
-        self._write(self._offsets['plaintext_hash_tree'], b"\x00" * self._segment_hash_size)
+        d = self._write(self._offsets['plaintext_hash_tree'], b"\x00" * self._segment_hash_size)
+        d.addCallback(lambda _: self._really_put_crypttext_hashes(hashes))
+        return d
 
+    def _really_put_crypttext_hashes(self, hashes):
         offset = self._offsets['crypttext_hash_tree']
         assert isinstance(hashes, list)
         data = b"".join(hashes)
