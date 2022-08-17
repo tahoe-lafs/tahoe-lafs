@@ -118,6 +118,7 @@ class WriteBucketProxy(object):
         self._data_size = data_size
         self._block_size = block_size
         self._num_segments = num_segments
+        self._written_bytes = 0
 
         effective_segments = mathutil.next_power_of_k(num_segments,2)
         self._segment_hash_size = (2*effective_segments - 1) * HASH_SIZE
@@ -194,6 +195,11 @@ class WriteBucketProxy(object):
         return self._write(offset, data)
 
     def put_crypttext_hashes(self, hashes):
+        # plaintext_hash_tree precedes crypttext_hash_tree. It is not used, and
+        # so is not explicitly written, but we need to write everything, so
+        # fill it in with nulls.
+        self._write(self._offsets['plaintext_hash_tree'], b"\x00" * self._segment_hash_size)
+
         offset = self._offsets['crypttext_hash_tree']
         assert isinstance(hashes, list)
         data = b"".join(hashes)
@@ -242,11 +248,12 @@ class WriteBucketProxy(object):
         # would reduce the foolscap CPU overhead per share, but wouldn't
         # reduce the number of round trips, so it might not be worth the
         # effort.
-
+        self._written_bytes += len(data)
         return self._pipeline.add(len(data),
                                   self._rref.callRemote, "write", offset, data)
 
     def close(self):
+        assert self._written_bytes == self.get_allocated_size(), f"{self._written_bytes} != {self.get_allocated_size()}"
         d = self._pipeline.add(0, self._rref.callRemote, "close")
         d.addCallback(lambda ign: self._pipeline.flush())
         return d
