@@ -46,6 +46,9 @@ from twisted.internet.defer import (
     inlineCallbacks,
     DeferredList,
 )
+from twisted.internet.testing import (
+    MemoryReactorClock,
+)
 from twisted.python.filepath import FilePath
 from twisted.python.runtime import (
     platform,
@@ -56,6 +59,9 @@ from allmydata.test import common_util
 import allmydata
 from allmydata.scripts.runner import (
     parse_options,
+)
+from allmydata.scripts.tahoe_run import (
+    on_stdin_close,
 )
 
 from .common import (
@@ -621,3 +627,46 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin):
         # What's left is a perfect indicator that the process has exited and
         # we won't get blamed for leaving the reactor dirty.
         yield client_running
+
+
+class OnStdinCloseTests(SyncTestCase):
+    """
+    Tests for on_stdin_close
+    """
+
+    def test_close_called(self):
+        """
+        our on-close method is called when stdin closes
+        """
+        reactor = MemoryReactorClock()
+        called = []
+
+        def onclose():
+            called.append(True)
+        on_stdin_close(reactor, onclose)
+        self.assertEqual(called, [])
+
+        reader = list(reactor.readers)[0]
+        reader.loseConnection()
+        reactor.advance(1)  # ProcessReader does a callLater(0, ..)
+
+        self.assertEqual(called, [True])
+
+    def test_exception_ignored(self):
+        """
+        an exception from or on-close function is ignored
+        """
+        reactor = MemoryReactorClock()
+        called = []
+
+        def onclose():
+            called.append(True)
+            raise RuntimeError("unexpected error")
+        on_stdin_close(reactor, onclose)
+        self.assertEqual(called, [])
+
+        reader = list(reactor.readers)[0]
+        reader.loseConnection()
+        reactor.advance(1)  # ProcessReader does a callLater(0, ..)
+
+        self.assertEqual(called, [True])
