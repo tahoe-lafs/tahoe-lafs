@@ -668,7 +668,7 @@ class OnStdinCloseTests(SyncTestCase):
         def onclose():
             called.append(True)
             raise RuntimeError("unexpected error")
-        on_stdin_close(reactor, onclose)
+        proto = on_stdin_close(reactor, onclose)
         self.assertEqual(called, [])
 
         if platform.isWindows():
