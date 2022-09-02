@@ -646,7 +646,8 @@ class OnStdinCloseTests(SyncTestCase):
         on_stdin_close(reactor, onclose)
         self.assertEqual(called, [])
 
-        reader = list(reactor.readers)[0]
+        for reader in reactor.getReaders():
+            reader.loseConnection()
         reader.loseConnection()
         reactor.advance(1)  # ProcessReader does a callLater(0, ..)
 
@@ -665,7 +666,8 @@ class OnStdinCloseTests(SyncTestCase):
         on_stdin_close(reactor, onclose)
         self.assertEqual(called, [])
 
-        reader = list(reactor.readers)[0]
+        for reader in reactor.getReaders():
+            reader.loseConnection()
         reader.loseConnection()
         reactor.advance(1)  # ProcessReader does a callLater(0, ..)
 
