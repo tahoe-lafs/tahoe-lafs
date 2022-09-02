@@ -646,6 +646,8 @@ class OnStdinCloseTests(SyncTestCase):
         on_stdin_close(reactor, onclose)
         self.assertEqual(called, [])
 
+        print("READERS", reactor.getReaders())
+
         for reader in reactor.getReaders():
             reader.loseConnection()
         reader.loseConnection()
