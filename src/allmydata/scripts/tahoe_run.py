@@ -241,12 +241,12 @@ def on_stdin_close(reactor, fn):
 
     when_closed_d.addBoth(on_close)
     # we don't need to do anything with this instance because it gets
-    # hooked into the reactor and thus remembered
-    StandardIO(
+    # hooked into the reactor and thus remembered .. but we return it
+    # for Windows testing purposes.
+    return StandardIO(
         proto=WhenClosed(),
         reactor=reactor,
     )
-    return None
 
 
 def run(config, runApp=twistd.runApp):

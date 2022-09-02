@@ -643,15 +643,18 @@ class OnStdinCloseTests(SyncTestCase):
 
         def onclose():
             called.append(True)
-        on_stdin_close(reactor, onclose)
+        proto = on_stdin_close(reactor, onclose)
         self.assertEqual(called, [])
 
-        print("READERS", reactor.getReaders())
-
-        for reader in reactor.getReaders():
-            reader.loseConnection()
-        reader.loseConnection()
-        reactor.advance(1)  # ProcessReader does a callLater(0, ..)
+        # one Unix we can just close all the readers, correctly
+        # "simulating" a stdin close .. of course, Windows has to be
+        # difficult
+        if platform.isWindows():
+            proto.loseConnection()
+        else:
+            for reader in reactor.getReaders():
+                reader.loseConnection()
+            reactor.advance(1)  # ProcessReader does a callLater(0, ..)
 
         self.assertEqual(called, [True])
 
@@ -668,9 +671,11 @@ class OnStdinCloseTests(SyncTestCase):
         on_stdin_close(reactor, onclose)
         self.assertEqual(called, [])
 
-        for reader in reactor.getReaders():
-            reader.loseConnection()
-        reader.loseConnection()
-        reactor.advance(1)  # ProcessReader does a callLater(0, ..)
+        if platform.isWindows():
+            proto.loseConnection()
+        else:
+            for reader in reactor.getReaders():
+                reader.loseConnection()
+            reactor.advance(1)  # ProcessReader does a callLater(0, ..)
 
         self.assertEqual(called, [True])
