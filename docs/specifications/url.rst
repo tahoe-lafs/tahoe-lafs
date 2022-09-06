@@ -10,6 +10,8 @@ The intended audience for this document is Tahoe-LAFS maintainers and other deve
 Background
 ----------
 
+.. _fURLs:
+
 Tahoe-LAFS first used Foolscap_ for network communication.
 Foolscap connection setup takes as an input a Foolscap URL or a *fURL*.
 A fURL includes three components:

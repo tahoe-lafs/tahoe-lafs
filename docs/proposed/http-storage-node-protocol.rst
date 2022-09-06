@@ -30,12 +30,12 @@ Glossary
    introducer
      a Tahoe-LAFS process at a known location configured to re-publish announcements about the location of storage servers
 
-   fURL
+   `fURL <fURLs>`_
      a self-authenticating URL-like string which can be used to locate a remote object using the Foolscap protocol
      (the storage service is an example of such an object)
 
-   NURL
-     a self-authenticating URL-like string almost exactly like a NURL but without being tied to Foolscap
+   `NURL <NURLs>`_
+     a self-authenticating URL-like string almost exactly like a fURL but without being tied to Foolscap
 
    swissnum
      a short random string which is part of a fURL/NURL and which acts as a shared secret to authorize clients to use a storage service
@@ -580,24 +580,6 @@ Responses:
   the response is ``CONFLICT``.
   At this point the only thing to do is abort the upload and start from scratch (see below).
 
-``PUT /v1/immutable/:storage_index/:share_number/abort``
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-This cancels an *in-progress* upload.
-
-The request must include a ``X-Tahoe-Authorization`` header that includes the upload secret::
-
-    X-Tahoe-Authorization: upload-secret <base64-upload-secret>
-
-The response code:
-
-* When the upload is still in progress and therefore the abort has succeeded,
-  the response is ``OK``.
-  Future uploads can start from scratch with no pre-existing upload state stored on the server.
-* If the uploaded has already finished, the response is 405 (Method Not Allowed)
-  and no change is made.
-
-
 Discussion
 ``````````
 
@@ -616,6 +598,24 @@ From RFC 7231::
    PATCH method defined in [RFC5789]).
 
 
+``PUT /v1/immutable/:storage_index/:share_number/abort``
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+This cancels an *in-progress* upload.
+
+The request must include a ``X-Tahoe-Authorization`` header that includes the upload secret::
+
+    X-Tahoe-Authorization: upload-secret <base64-upload-secret>
+
+The response code:
+
+* When the upload is still in progress and therefore the abort has succeeded,
+  the response is ``OK``.
+  Future uploads can start from scratch with no pre-existing upload state stored on the server.
+* If the uploaded has already finished, the response is 405 (Method Not Allowed)
+  and no change is made.
+
+
 ``POST /v1/immutable/:storage_index/:share_number/corrupt``
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
@@ -625,7 +625,7 @@ corruption. It also includes potentially important details about the share.
 
 For example::
 
-  {"reason": u"expected hash abcd, got hash efgh"}
+  {"reason": "expected hash abcd, got hash efgh"}
 
 .. share-type, storage-index, and share-number are inferred from the URL
 
@@ -799,6 +799,7 @@ Immutable Data
      <first 16 bytes of share data>
 
      200 OK
+     { "required": [ {"begin": 16, "end": 48 } ] }
 
      PATCH /v1/immutable/AAAAAAAAAAAAAAAA/7
      Authorization: Tahoe-LAFS nurl-swissnum
@@ -807,6 +808,7 @@ Immutable Data
      <second 16 bytes of share data>
 
      200 OK
+     { "required": [ {"begin": 32, "end": 48 } ] }
 
      PATCH /v1/immutable/AAAAAAAAAAAAAAAA/7
      Authorization: Tahoe-LAFS nurl-swissnum
@@ -823,6 +825,7 @@ Immutable Data
      Range: bytes=0-47
 
      200 OK
+     Content-Range: bytes 0-47/48
      <complete 48 bytes of previously uploaded data>
 
 #. Renew the lease on all immutable shares in bucket ``AAAAAAAAAAAAAAAA``::
@@ -906,9 +909,12 @@ otherwise it will read a byte which won't match `b""`::
 
 #. Download the contents of share number ``3``::
 
-     GET /v1/mutable/BBBBBBBBBBBBBBBB?share=3&offset=0&size=10
+     GET /v1/mutable/BBBBBBBBBBBBBBBB?share=3
      Authorization: Tahoe-LAFS nurl-swissnum
+     Range: bytes=0-16
 
+     200 OK
+     Content-Range: bytes 0-15/16
      <complete 16 bytes of previously uploaded data>
 
 #. Renew the lease on previously uploaded mutable share in slot ``BBBBBBBBBBBBBBBB``::
