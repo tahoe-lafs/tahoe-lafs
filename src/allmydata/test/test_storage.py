@@ -25,8 +25,16 @@ import shutil
 from functools import partial
 from uuid import uuid4
 
+from .common import (
+    SyncTestCase,
+    AsyncTestCase,
+)
+
 from testtools.matchers import (
+    Equals,
+    Contains,
     HasLength,
+    IsInstance,
 )
 
 from twisted.trial import unittest
@@ -92,23 +100,23 @@ from .strategies import (
 )
 
 
-class UtilTests(unittest.TestCase):
+class UtilTests(SyncTestCase):
     """Tests for allmydata.storage.common and .shares."""
 
     def test_encoding(self):
         """b2a/a2b are the same as base32."""
         s = b"\xFF HELLO \xF3"
         result = si_b2a(s)
-        self.assertEqual(base32.b2a(s), result)
-        self.assertEqual(si_a2b(result), s)
+        self.assertThat(base32.b2a(s), Equals(result))
+        self.assertThat(si_a2b(result), Equals(s))
 
     def test_storage_index_to_dir(self):
         """storage_index_to_dir creates a native string path."""
         s = b"\xFF HELLO \xF3"
         path = storage_index_to_dir(s)
         parts = os.path.split(path)
-        self.assertEqual(parts[0], parts[1][:2])
-        self.assertIsInstance(path, native_str)
+        self.assertThat(parts[0], Equals(parts[1][:2]))
+        self.assertThat(path, IsInstance(native_str))
 
     def test_get_share_file_mutable(self):
         """A mutable share is identified by get_share_file()."""
@@ -116,16 +124,16 @@ class UtilTests(unittest.TestCase):
         msf = MutableShareFile(path)
         msf.create(b"12", b"abc")  # arbitrary values
         loaded = get_share_file(path)
-        self.assertIsInstance(loaded, MutableShareFile)
-        self.assertEqual(loaded.home, path)
+        self.assertThat(loaded, IsInstance(MutableShareFile))
+        self.assertThat(loaded.home, Equals(path))
 
     def test_get_share_file_immutable(self):
         """An immutable share is identified by get_share_file()."""
         path = self.mktemp()
         _ = ShareFile(path, max_size=1000, create=True)
         loaded = get_share_file(path)
-        self.assertIsInstance(loaded, ShareFile)
-        self.assertEqual(loaded.home, path)
+        self.assertThat(loaded, IsInstance(ShareFile))
+        self.assertThat(loaded.home, Equals(path))
 
 
 class FakeStatsProvider(object):
@@ -135,7 +143,7 @@ class FakeStatsProvider(object):
         pass
 
 
-class Bucket(unittest.TestCase):
+class Bucket(SyncTestCase):
     def make_workdir(self, name):
         basedir = os.path.join("storage", "Bucket", name)
         incoming = os.path.join(basedir, "tmp", "bucket")
@@ -178,9 +186,9 @@ class Bucket(unittest.TestCase):
 
         # now read from it
         br = BucketReader(self, bw.finalhome)
-        self.failUnlessEqual(br.read(0, 25), b"a"*25)
-        self.failUnlessEqual(br.read(25, 25), b"b"*25)
-        self.failUnlessEqual(br.read(50, 7), b"c"*7)
+        self.assertThat(br.read(0, 25), Equals(b"a"*25))
+        self.assertThat(br.read(25, 25), Equals(b"b"*25))
+        self.assertThat(br.read(50, 7), Equals(b"c"*7))
 
     def test_write_past_size_errors(self):
         """Writing beyond the size of the bucket throws an exception."""
@@ -430,7 +438,7 @@ class RemoteBucket(object):
         return defer.maybeDeferred(_call)
 
 
-class BucketProxy(unittest.TestCase):
+class BucketProxy(SyncTestCase):
     def make_bucket(self, name, size):
         basedir = os.path.join("storage", "BucketProxy", name)
         incoming = os.path.join(basedir, "tmp", "bucket")
@@ -513,7 +521,7 @@ class BucketProxy(unittest.TestCase):
             rb = RemoteBucket(FoolscapBucketReader(br))
             server = NoNetworkServer(b"abc", None)
             rbp = rbp_class(rb, server, storage_index=b"")
-            self.failUnlessIn("to peer", repr(rbp))
+            self.assertThat(repr(rbp), Contains("to peer"))
             self.failUnless(interfaces.IStorageBucketReader.providedBy(rbp), rbp)
 
             d1 = rbp.get_block_data(0, 25, 25)
@@ -550,13 +558,16 @@ class BucketProxy(unittest.TestCase):
         return self._do_test_readwrite("test_readwrite_v2",
                                        0x44, WriteBucketProxy_v2, ReadBucketProxy)
 
-class Server(unittest.TestCase):
+class Server(AsyncTestCase):
 
     def setUp(self):
+        super(Server, self).setUp()
         self.sparent = LoggingServiceParent()
         self.sparent.startService()
         self._lease_secret = itertools.count()
+
     def tearDown(self):
+        super(Server, self).tearDown()
         return self.sparent.stopService()
 
     def workdir(self, name):
@@ -586,14 +597,14 @@ class Server(unittest.TestCase):
         ss = self.create("test_declares_maximum_share_sizes")
         ver = ss.get_version()
         sv1 = ver[b'http://allmydata.org/tahoe/protocols/storage/v1']
-        self.failUnlessIn(b'maximum-immutable-share-size', sv1)
-        self.failUnlessIn(b'maximum-mutable-share-size', sv1)
+        self.assertThat(sv1, Contains(b'maximum-immutable-share-size'))
+        self.assertThat(sv1, Contains(b'maximum-mutable-share-size'))
 
     def test_declares_available_space(self):
         ss = self.create("test_declares_available_space")
         ver = ss.get_version()
         sv1 = ver[b'http://allmydata.org/tahoe/protocols/storage/v1']
-        self.failUnlessIn(b'available-space', sv1)
+        self.assertThat(sv1, Contains(b'available-space'))
 
     def allocate(self, ss, storage_index, sharenums, size, renew_leases=True):
         """
@@ -725,8 +736,8 @@ class Server(unittest.TestCase):
         self.failUnlessEqual(set(b.keys()), set([0,1,2]))
         self.failUnlessEqual(b[0].read(0, 25), b"%25d" % 0)
         b_str = str(b[0])
-        self.failUnlessIn("BucketReader", b_str)
-        self.failUnlessIn("mfwgy33dmf2g 0", b_str)
+        self.assertThat(b_str, Contains("BucketReader"))
+        self.assertThat(b_str, Contains("mfwgy33dmf2g 0"))
 
         # now if we ask about writing again, the server should offer those
         # three buckets as already present. It should offer them even if we
@@ -1216,21 +1227,21 @@ class Server(unittest.TestCase):
                                 b"This share smells funny.\n")
         reportdir = os.path.join(workdir, "corruption-advisories")
         reports = os.listdir(reportdir)
-        self.failUnlessEqual(len(reports), 1)
+        self.assertThat(reports, HasLength(1))
         report_si0 = reports[0]
-        self.failUnlessIn(ensure_str(si0_s), report_si0)
+        self.assertThat(report_si0, Contains(ensure_str(si0_s)))
         f = open(os.path.join(reportdir, report_si0), "rb")
         report = f.read()
         f.close()
-        self.failUnlessIn(b"type: immutable", report)
-        self.failUnlessIn(b"storage_index: %s" % si0_s, report)
-        self.failUnlessIn(b"share_number: 0", report)
-        self.failUnlessIn(b"This share smells funny.", report)
+        self.assertThat(report, Contains(b"type: immutable"))
+        self.assertThat(report, Contains(b"storage_index: %s" % si0_s))
+        self.assertThat(report, Contains(b"share_number: 0"))
+        self.assertThat(report, Contains(b"This share smells funny."))
 
         # test the RIBucketWriter version too
         si1_s = base32.b2a(b"si1")
         already,writers = self.allocate(ss, b"si1", [1], 75)
-        self.failUnlessEqual(already, set())
+        self.assertThat(already, Equals(set()))
         self.failUnlessEqual(set(writers.keys()), set([1]))
         writers[1].write(0, b"data")
         writers[1].close()
@@ -1245,10 +1256,10 @@ class Server(unittest.TestCase):
         f = open(os.path.join(reportdir, report_si1), "rb")
         report = f.read()
         f.close()
-        self.failUnlessIn(b"type: immutable", report)
-        self.failUnlessIn(b"storage_index: %s" % si1_s, report)
-        self.failUnlessIn(b"share_number: 1", report)
-        self.failUnlessIn(b"This share tastes like dust.", report)
+        self.assertThat(report, Contains(b"type: immutable"))
+        self.assertThat(report, Contains(b"storage_index: %s" % si1_s))
+        self.assertThat(report, Contains(b"share_number: 1"))
+        self.assertThat(report, Contains(b"This share tastes like dust."))
 
     def test_advise_corruption_missing(self):
         """
