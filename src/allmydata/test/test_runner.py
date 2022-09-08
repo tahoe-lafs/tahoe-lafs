@@ -646,11 +646,12 @@ class OnStdinCloseTests(SyncTestCase):
         proto = on_stdin_close(reactor, onclose)
         self.assertEqual(called, [])
 
-        # one Unix we can just close all the readers, correctly
+        # on Unix we can just close all the readers, correctly
         # "simulating" a stdin close .. of course, Windows has to be
         # difficult
         if platform.isWindows():
-            proto.loseConnection()
+            proto.writeConnectionLost()
+            proto.readConnectionLost()
         else:
             for reader in reactor.getReaders():
                 reader.loseConnection()
@@ -672,7 +673,8 @@ class OnStdinCloseTests(SyncTestCase):
         self.assertEqual(called, [])
 
         if platform.isWindows():
-            proto.loseConnection()
+            proto.writeConnectionLost()
+            proto.readConnectionLost()
         else:
             for reader in reactor.getReaders():
                 reader.loseConnection()
