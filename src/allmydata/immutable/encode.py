@@ -706,8 +706,8 @@ class Encoder(object):
         """
         params = self.uri_extension_data.copy()
         assert params
-        params["crypttext_hash"] = b"\x00" * 32
-        params["crypttext_root_hash"] = b"\x00" * 32
-        params["share_root_hash"] = b"\x00" * 32
+        params["crypttext_hash"] = b"\x00" * hashutil.CRYPTO_VAL_SIZE
+        params["crypttext_root_hash"] = b"\x00" * hashutil.CRYPTO_VAL_SIZE
+        params["share_root_hash"] = b"\x00" * hashutil.CRYPTO_VAL_SIZE
         uri_extension = uri.pack_extension(params)
         return len(uri_extension)
