@@ -624,7 +624,6 @@ class Encoder(object):
         for k in ('crypttext_root_hash', 'crypttext_hash',
                   ):
             assert k in self.uri_extension_data
-        self.uri_extension_data
         uri_extension = uri.pack_extension(self.uri_extension_data)
         ed = {}
         for k,v in self.uri_extension_data.items():
