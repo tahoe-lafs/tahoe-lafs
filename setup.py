@@ -138,6 +138,9 @@ install_requires = [
     "treq",
     "cbor2",
     "pycddl",
+
+    # for pid-file support
+    "psutil",
 ]
 
 setup_requires = [
