@@ -25,13 +25,9 @@ import shutil
 from functools import partial
 from uuid import uuid4
 
-from .common import (
-    SyncTestCase,
-    AsyncTestCase,
-)
-
 from testtools.matchers import (
     Equals,
+    NotEquals,
     Contains,
     HasLength,
     IsInstance,
@@ -88,7 +84,9 @@ from .common import (
     ShouldFailMixin,
     FakeDisk,
     SyncTestCase,
+    AsyncTestCase,
 )
+
 from .common_util import FakeCanary
 from .common_storage import (
     upload_immutable,
@@ -346,16 +344,16 @@ class Bucket(SyncTestCase):
         # Now read from it.
         br = BucketReader(mockstorageserver, final)
 
-        self.failUnlessEqual(br.read(0, len(share_data)), share_data)
+        self.assertThat(br.read(0, len(share_data)), Equals(share_data))
 
         # Read past the end of share data to get the cancel secret.
         read_length = len(share_data) + len(ownernumber) + len(renewsecret) + len(cancelsecret)
 
         result_of_read = br.read(0, read_length)
-        self.failUnlessEqual(result_of_read, share_data)
+        self.assertThat(result_of_read, Equals(share_data))
 
         result_of_read = br.read(0, len(share_data)+1)
-        self.failUnlessEqual(result_of_read, share_data)
+        self.assertThat(result_of_read, Equals(share_data))
 
     def _assert_timeout_only_after_30_minutes(self, clock, bw):
         """
@@ -591,7 +589,7 @@ class Server(AsyncTestCase):
         ss = self.create("test_declares_fixed_1528")
         ver = ss.get_version()
         sv1 = ver[b'http://allmydata.org/tahoe/protocols/storage/v1']
-        self.failUnless(sv1.get(b'prevents-read-past-end-of-share-data'), sv1)
+        self.assertTrue(sv1.get(b'prevents-read-past-end-of-share-data'), sv1)
 
     def test_declares_maximum_share_sizes(self):
         ss = self.create("test_declares_maximum_share_sizes")
@@ -634,8 +632,8 @@ class Server(AsyncTestCase):
         ss = self.create("test_large_share")
 
         already,writers = self.allocate(ss, b"allocate", [0], 2**32+2)
-        self.failUnlessEqual(already, set())
-        self.failUnlessEqual(set(writers.keys()), set([0]))
+        self.assertThat(set(), Equals(already))
+        self.assertThat(set([0]), Equals(set(writers.keys())))
 
         shnum, bucket = list(writers.items())[0]
         # This test is going to hammer your filesystem if it doesn't make a sparse file for this.  :-(
@@ -644,7 +642,7 @@ class Server(AsyncTestCase):
 
         readers = ss.get_buckets(b"allocate")
         reader = readers[shnum]
-        self.failUnlessEqual(reader.read(2**32, 2), b"ab")
+        self.assertThat(b"ab", Equals(reader.read(2**32, 2)))
 
     def test_dont_overfill_dirs(self):
         """
@@ -670,7 +668,7 @@ class Server(AsyncTestCase):
         storedir = os.path.join(self.workdir("test_dont_overfill_dirs"),
                                 "shares")
         new_children_of_storedir = set(os.listdir(storedir))
-        self.failUnlessEqual(children_of_storedir, new_children_of_storedir)
+        self.assertThat(new_children_of_storedir, Equals(children_of_storedir))
 
     def test_remove_incoming(self):
         ss = self.create("test_remove_incoming")
@@ -682,9 +680,9 @@ class Server(AsyncTestCase):
         incoming_bucket_dir = os.path.dirname(incoming_share_dir)
         incoming_prefix_dir = os.path.dirname(incoming_bucket_dir)
         incoming_dir = os.path.dirname(incoming_prefix_dir)
-        self.failIf(os.path.exists(incoming_bucket_dir), incoming_bucket_dir)
-        self.failIf(os.path.exists(incoming_prefix_dir), incoming_prefix_dir)
-        self.failUnless(os.path.exists(incoming_dir), incoming_dir)
+        self.assertFalse(os.path.exists(incoming_bucket_dir), incoming_bucket_dir)
+        self.assertFalse(os.path.exists(incoming_prefix_dir), incoming_prefix_dir)
+        self.assertTrue(os.path.exists(incoming_dir), incoming_dir)
 
     def test_abort(self):
         # remote_abort, when called on a writer, should make sure that
@@ -692,12 +690,12 @@ class Server(AsyncTestCase):
         # server when accounting for space.
         ss = self.create("test_abort")
         already, writers = self.allocate(ss, b"allocate", [0, 1, 2], 150)
-        self.failIfEqual(ss.allocated_size(), 0)
+        self.assertThat(ss.allocated_size(), NotEquals(0))
 
         # Now abort the writers.
         for writer in writers.values():
             writer.abort()
-        self.failUnlessEqual(ss.allocated_size(), 0)
+        self.assertThat(ss.allocated_size(), Equals(0))
 
     def test_immutable_length(self):
         """
@@ -709,20 +707,20 @@ class Server(AsyncTestCase):
         bucket = writers[22]
         bucket.write(0, b"X" * 75)
         bucket.close()
-        self.assertEqual(ss.get_immutable_share_length(b"allocate", 22), 75)
-        self.assertEqual(ss.get_buckets(b"allocate")[22].get_length(), 75)
+        self.assertThat(ss.get_immutable_share_length(b"allocate", 22), Equals(75))
+        self.assertThat(ss.get_buckets(b"allocate")[22].get_length(), Equals(75))
 
     def test_allocate(self):
         ss = self.create("test_allocate")
 
-        self.failUnlessEqual(ss.get_buckets(b"allocate"), {})
+        self.assertThat(ss.get_buckets(b"allocate"), Equals({}))
 
         already,writers = self.allocate(ss, b"allocate", [0,1,2], 75)
-        self.failUnlessEqual(already, set())
-        self.failUnlessEqual(set(writers.keys()), set([0,1,2]))
+        self.assertThat(already, Equals(set()))
+        self.assertThat(set(writers.keys()), Equals(set([0,1,2])))
 
         # while the buckets are open, they should not count as readable
-        self.failUnlessEqual(ss.get_buckets(b"allocate"), {})
+        self.assertThat(ss.get_buckets(b"allocate"), Equals({}))
 
         # close the buckets
         for i,wb in writers.items():
@@ -733,8 +731,8 @@ class Server(AsyncTestCase):
 
         # now they should be readable
         b = ss.get_buckets(b"allocate")
-        self.failUnlessEqual(set(b.keys()), set([0,1,2]))
-        self.failUnlessEqual(b[0].read(0, 25), b"%25d" % 0)
+        self.assertThat(set(b.keys()), Equals(set([0,1,2])))
+        self.assertThat(b[0].read(0, 25), Equals(b"%25d" % 0))
         b_str = str(b[0])
         self.assertThat(b_str, Contains("BucketReader"))
         self.assertThat(b_str, Contains("mfwgy33dmf2g 0"))
@@ -743,22 +741,22 @@ class Server(AsyncTestCase):
         # three buckets as already present. It should offer them even if we
         # don't ask about those specific ones.
         already,writers = self.allocate(ss, b"allocate", [2,3,4], 75)
-        self.failUnlessEqual(already, set([0,1,2]))
-        self.failUnlessEqual(set(writers.keys()), set([3,4]))
+        self.assertThat(already, Equals(set([0,1,2])))
+        self.assertThat(set(writers.keys()), Equals(set([3,4])))
 
         # while those two buckets are open for writing, the server should
         # refuse to offer them to uploaders
 
         already2,writers2 = self.allocate(ss, b"allocate", [2,3,4,5], 75)
-        self.failUnlessEqual(already2, set([0,1,2]))
-        self.failUnlessEqual(set(writers2.keys()), set([5]))
+        self.assertThat(already2, Equals(set([0,1,2])))
+        self.assertThat(set(writers2.keys()), Equals(set([5])))
 
         # aborting the writes should remove the tempfiles
         for i,wb in writers2.items():
             wb.abort()
         already2,writers2 = self.allocate(ss, b"allocate", [2,3,4,5], 75)
-        self.failUnlessEqual(already2, set([0,1,2]))
-        self.failUnlessEqual(set(writers2.keys()), set([5]))
+        self.assertThat(already2, Equals(set([0,1,2])))
+        self.assertThat(set(writers2.keys()), Equals(set([5])))
 
         for i,wb in writers2.items():
             wb.abort()
@@ -814,13 +812,13 @@ class Server(AsyncTestCase):
 
         # The first share's lease expiration time is unchanged.
         shares = dict(ss.get_shares(storage_index))
-        self.assertEqual(
+        self.assertThat(
             [first_lease],
-            list(
+            Equals(list(
                 lease.get_grant_renew_time_time()
                 for lease
                 in ShareFile(shares[0]).get_leases()
-            ),
+            )),
         )
 
     def test_bad_container_version(self):
@@ -839,9 +837,9 @@ class Server(AsyncTestCase):
 
         e = self.failUnlessRaises(UnknownImmutableContainerVersionError,
                                   ss.get_buckets, b"si1")
-        self.assertEqual(e.filename, fn)
-        self.assertEqual(e.version, 0)
-        self.assertIn("had unexpected version 0", str(e))
+        self.assertThat(e.filename, Equals(fn))
+        self.assertThat(e.version, Equals(0))
+        self.assertThat(str(e), Contains("had unexpected version 0"))
 
     def test_disconnect(self):
         # simulate a disconnection
@@ -857,8 +855,8 @@ class Server(AsyncTestCase):
             allocated_size=75,
             canary=canary,
         )
-        self.failUnlessEqual(already, set())
-        self.failUnlessEqual(set(writers.keys()), set([0,1,2]))
+        self.assertThat(already, Equals(set()))
+        self.assertThat(set(writers.keys()), Equals(set([0,1,2])))
         for (f,args,kwargs) in list(canary.disconnectors.values()):
             f(*args, **kwargs)
         del already
@@ -866,8 +864,8 @@ class Server(AsyncTestCase):
 
         # that ought to delete the incoming shares
         already,writers = self.allocate(ss, b"disconnect", [0,1,2], 75)
-        self.failUnlessEqual(already, set())
-        self.failUnlessEqual(set(writers.keys()), set([0,1,2]))
+        self.assertThat(already, Equals(set()))
+        self.assertThat(set(writers.keys()), Equals(set([0,1,2])))
 
     def test_reserved_space_immutable_lease(self):
         """
@@ -965,22 +963,22 @@ class Server(AsyncTestCase):
             allocated_size=1000,
             canary=canary,
         )
-        self.failUnlessEqual(len(writers), 3)
+        self.assertThat(writers, HasLength(3))
         # now the StorageServer should have 3000 bytes provisionally
         # allocated, allowing only 2000 more to be claimed
-        self.failUnlessEqual(len(ss._server._bucket_writers), 3)
+        self.assertThat(ss._server._bucket_writers, HasLength(3))
 
         # allocating 1001-byte shares only leaves room for one
         canary2 = FakeCanary()
         already2, writers2 = self.allocate(ss, b"vid2", [0,1,2], 1001, canary2)
-        self.failUnlessEqual(len(writers2), 1)
-        self.failUnlessEqual(len(ss._server._bucket_writers), 4)
+        self.assertThat(writers2, HasLength(1))
+        self.assertThat(ss._server._bucket_writers, HasLength(4))
 
         # we abandon the first set, so their provisional allocation should be
         # returned
         canary.disconnected()
 
-        self.failUnlessEqual(len(ss._server._bucket_writers), 1)
+        self.assertThat(ss._server._bucket_writers, HasLength(1))
         # now we have a provisional allocation of 1001 bytes
 
         # and we close the second set, so their provisional allocation should
@@ -989,7 +987,7 @@ class Server(AsyncTestCase):
         for bw in writers2.values():
             bw.write(0, b"a"*25)
             bw.close()
-        self.failUnlessEqual(len(ss._server._bucket_writers), 0)
+        self.assertThat(ss._server._bucket_writers, HasLength(0))
 
         # this also changes the amount reported as available by call_get_disk_stats
         allocated = 1001 + OVERHEAD + LEASE_SIZE
@@ -1005,12 +1003,12 @@ class Server(AsyncTestCase):
             allocated_size=100,
             canary=canary3,
         )
-        self.failUnlessEqual(len(writers3), 39)
-        self.failUnlessEqual(len(ss._server._bucket_writers), 39)
+        self.assertThat(writers3, HasLength(39))
+        self.assertThat(ss._server._bucket_writers, HasLength(39))
 
         canary3.disconnected()
 
-        self.failUnlessEqual(len(ss._server._bucket_writers), 0)
+        self.assertThat(ss._server._bucket_writers, HasLength(0))
         ss._server.disownServiceParent()
         del ss
 
@@ -1029,9 +1027,9 @@ class Server(AsyncTestCase):
         f.write(b"100")
         f.close()
         filelen = os.stat(filename)[stat.ST_SIZE]
-        self.failUnlessEqual(filelen, 100+3)
+        self.assertThat(filelen, Equals(100+3))
         f2 = open(filename, "rb")
-        self.failUnlessEqual(f2.read(5), b"start")
+        self.assertThat(f2.read(5), Equals(b"start"))
 
     def create_bucket_5_shares(
             self, ss, storage_index, expected_already=0, expected_writers=5
@@ -1048,8 +1046,8 @@ class Server(AsyncTestCase):
                    hashutil.my_cancel_secret_hash(b"%d" % next(self._lease_secret)))
         already, writers = ss.allocate_buckets(storage_index, rs, cs,
                                                sharenums, size)
-        self.failUnlessEqual(len(already), expected_already)
-        self.failUnlessEqual(len(writers), expected_writers)
+        self.assertThat(already, HasLength(expected_already))
+        self.assertThat(writers, HasLength(expected_writers))
         for wb in writers.values():
             wb.close()
         return rs, cs
@@ -1085,11 +1083,11 @@ class Server(AsyncTestCase):
         self.assertTrue(lease3.is_renew_secret(rs2a))
 
         # add-lease on a missing storage index is silently ignored
-        self.assertIsNone(ss.add_lease(b"si18", b"", b""))
+        self.assertThat(ss.add_lease(b"si18", b"", b""), Equals(None))
 
         # check that si0 is readable
         readers = ss.get_buckets(b"si0")
-        self.failUnlessEqual(len(readers), 5)
+        self.assertThat(readers, HasLength(5))
 
         # renew the first lease. Only the proper renew_secret should work
         ss.renew_lease(b"si0", rs0)
@@ -1098,11 +1096,11 @@ class Server(AsyncTestCase):
 
         # check that si0 is still readable
         readers = ss.get_buckets(b"si0")
-        self.failUnlessEqual(len(readers), 5)
+        self.assertThat(readers, HasLength(5))
 
         # There is no such method as remote_cancel_lease for now -- see
         # ticket #1528.
-        self.failIf(hasattr(FoolscapStorageServer(ss), 'remote_cancel_lease'), \
+        self.assertFalse(hasattr(FoolscapStorageServer(ss), 'remote_cancel_lease'), \
                     "ss should not have a 'remote_cancel_lease' method/attribute")
 
         # test overlapping uploads
@@ -1112,25 +1110,25 @@ class Server(AsyncTestCase):
                    hashutil.my_cancel_secret_hash(b"%d" % next(self._lease_secret)))
         already,writers = ss.allocate_buckets(b"si3", rs3, cs3,
                                               sharenums, size)
-        self.failUnlessEqual(len(already), 0)
-        self.failUnlessEqual(len(writers), 5)
+        self.assertThat(already, HasLength(0))
+        self.assertThat(writers, HasLength(5))
         already2,writers2 = ss.allocate_buckets(b"si3", rs4, cs4,
                                                 sharenums, size)
-        self.failUnlessEqual(len(already2), 0)
-        self.failUnlessEqual(len(writers2), 0)
+        self.assertThat(already2, HasLength(0))
+        self.assertThat(writers2, HasLength(0))
         for wb in writers.values():
             wb.close()
 
         leases = list(ss.get_leases(b"si3"))
-        self.failUnlessEqual(len(leases), 1)
+        self.assertThat(leases, HasLength(1))
 
         already3,writers3 = ss.allocate_buckets(b"si3", rs4, cs4,
                                                 sharenums, size)
-        self.failUnlessEqual(len(already3), 5)
-        self.failUnlessEqual(len(writers3), 0)
+        self.assertThat(already3, HasLength(5))
+        self.assertThat(writers3, HasLength(0))
 
         leases = list(ss.get_leases(b"si3"))
-        self.failUnlessEqual(len(leases), 2)
+        self.assertThat(leases, HasLength(2))
 
     def test_immutable_add_lease_renews(self):
         """
@@ -1144,7 +1142,7 @@ class Server(AsyncTestCase):
         # Start out with single lease created with bucket:
         renewal_secret, cancel_secret = self.create_bucket_5_shares(ss, b"si0")
         [lease] = ss.get_leases(b"si0")
-        self.assertEqual(lease.get_expiration_time(), 123 + DEFAULT_RENEWAL_TIME)
+        self.assertThat(lease.get_expiration_time(), Equals(123 + DEFAULT_RENEWAL_TIME))
 
         # Time passes:
         clock.advance(123456)
@@ -1152,7 +1150,7 @@ class Server(AsyncTestCase):
         # Adding a lease with matching renewal secret just renews it:
         ss.add_lease(b"si0", renewal_secret, cancel_secret)
         [lease] = ss.get_leases(b"si0")
-        self.assertEqual(lease.get_expiration_time(), 123 + 123456 + DEFAULT_RENEWAL_TIME)
+        self.assertThat(lease.get_expiration_time(), Equals(123 + 123456 + DEFAULT_RENEWAL_TIME))
 
     def test_have_shares(self):
         """By default the StorageServer has no shares."""
@@ -1166,15 +1164,15 @@ class Server(AsyncTestCase):
         ss.setServiceParent(self.sparent)
 
         already,writers = self.allocate(ss, b"vid", [0,1,2], 75)
-        self.failUnlessEqual(already, set())
-        self.failUnlessEqual(writers, {})
+        self.assertThat(already, Equals(set()))
+        self.assertThat(writers, Equals({}))
 
         stats = ss.get_stats()
-        self.failUnlessEqual(stats["storage_server.accepting_immutable_shares"], 0)
+        self.assertThat(stats["storage_server.accepting_immutable_shares"], Equals(0))
         if "storage_server.disk_avail" in stats:
             # Some platforms may not have an API to get disk stats.
             # But if there are stats, readonly_storage means disk_avail=0
-            self.failUnlessEqual(stats["storage_server.disk_avail"], 0)
+            self.assertThat(stats["storage_server.disk_avail"], Equals(0))
 
     def test_discard(self):
         # discard is really only used for other tests, but we test it anyways
@@ -1183,8 +1181,8 @@ class Server(AsyncTestCase):
         ss.setServiceParent(self.sparent)
 
         already,writers = self.allocate(ss, b"vid", [0,1,2], 75)
-        self.failUnlessEqual(already, set())
-        self.failUnlessEqual(set(writers.keys()), set([0,1,2]))
+        self.assertThat(already, Equals(set()))
+        self.assertThat(set(writers.keys()), Equals(set([0,1,2])))
         for i,wb in writers.items():
             wb.write(0, b"%25d" % i)
             wb.close()
@@ -1192,8 +1190,8 @@ class Server(AsyncTestCase):
         # Since we write with some seeks, the data we read back will be all
         # zeros.
         b = ss.get_buckets(b"vid")
-        self.failUnlessEqual(set(b.keys()), set([0,1,2]))
-        self.failUnlessEqual(b[0].read(0, 25), b"\x00" * 25)
+        self.assertThat(set(b.keys()), Equals(set([0,1,2])))
+        self.assertThat(b[0].read(0, 25), Equals(b"\x00" * 25))
 
     def test_reserved_space_advise_corruption(self):
         """
@@ -1211,9 +1209,9 @@ class Server(AsyncTestCase):
         ss.advise_corrupt_share(b"immutable", b"si0", 0,
                                 b"This share smells funny.\n")
 
-        self.assertEqual(
+        self.assertThat(
             [],
-            os.listdir(ss.corruption_advisory_dir),
+            Equals(os.listdir(ss.corruption_advisory_dir)),
         )
 
     def test_advise_corruption(self):
@@ -1242,16 +1240,16 @@ class Server(AsyncTestCase):
         si1_s = base32.b2a(b"si1")
         already,writers = self.allocate(ss, b"si1", [1], 75)
         self.assertThat(already, Equals(set()))
-        self.failUnlessEqual(set(writers.keys()), set([1]))
+        self.assertThat(set(writers.keys()), Equals(set([1])))
         writers[1].write(0, b"data")
         writers[1].close()
 
         b = ss.get_buckets(b"si1")
-        self.failUnlessEqual(set(b.keys()), set([1]))
+        self.assertThat(set(b.keys()), Equals(set([1])))
         b[1].advise_corrupt_share(b"This share tastes like dust.\n")
 
         reports = os.listdir(reportdir)
-        self.failUnlessEqual(len(reports), 2)
+        self.assertThat(reports, HasLength(2))
         report_si1 = [r for r in reports if bytes_to_native_str(si1_s) in r][0]
         f = open(os.path.join(reportdir, report_si1), "rb")
         report = f.read()
@@ -1277,9 +1275,9 @@ class Server(AsyncTestCase):
         ss.advise_corrupt_share(b"immutable", b"si0", 1,
                                 b"This share smells funny.\n")
 
-        self.assertEqual(
+        self.assertThat(
             [],
-            os.listdir(ss.corruption_advisory_dir),
+            Equals(os.listdir(ss.corruption_advisory_dir)),
         )
 
 
