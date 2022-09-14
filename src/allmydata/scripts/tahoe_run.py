@@ -19,6 +19,7 @@ import os, sys
 from allmydata.scripts.common import BasedirOptions
 from twisted.scripts import twistd
 from twisted.python import usage
+from twisted.python.filepath import FilePath
 from twisted.python.reflect import namedAny
 from twisted.internet.defer import maybeDeferred
 from twisted.application.service import Service
@@ -27,6 +28,11 @@ from allmydata.scripts.default_nodedir import _default_nodedir
 from allmydata.util.encodingutil import listdir_unicode, quote_local_unicode_path
 from allmydata.util.configutil import UnknownConfigError
 from allmydata.util.deferredutil import HookMixin
+from allmydata.util.pid import (
+    check_pid_process,
+    cleanup_pidfile,
+    ProcessInTheWay,
+)
 from allmydata.storage.crawler import (
     MigratePickleFileError,
 )
@@ -35,34 +41,38 @@ from allmydata.node import (
     PrivacyError,
 )
 
+
 def get_pidfile(basedir):
     """
     Returns the path to the PID file.
     :param basedir: the node's base directory
     :returns: the path to the PID file
     """
-    return os.path.join(basedir, u"twistd.pid")
+    return os.path.join(basedir, u"running.process")
+
 
 def get_pid_from_pidfile(pidfile):
     """
     Tries to read and return the PID stored in the node's PID file
-    (twistd.pid).
+
     :param pidfile: try to read this PID file
     :returns: A numeric PID on success, ``None`` if PID file absent or
               inaccessible, ``-1`` if PID file invalid.
     """
     try:
         with open(pidfile, "r") as f:
-            pid = f.read()
+            data = f.read().strip()
     except EnvironmentError:
         return None
 
+    pid, _ = data.split()
     try:
         pid = int(pid)
     except ValueError:
         return -1
 
     return pid
+
 
 def identify_node_type(basedir):
     """
@@ -227,10 +237,8 @@ def run(config, runApp=twistd.runApp):
         print("%s is not a recognizable node directory" % quoted_basedir, file=err)
         return 1
 
-    twistd_args = ["--nodaemon", "--rundir", basedir]
-    if sys.platform != "win32":
-        pidfile = get_pidfile(basedir)
-        twistd_args.extend(["--pidfile", pidfile])
+    # we turn off Twisted's pid-file to use our own
+    twistd_args = ["--pidfile", None, "--nodaemon", "--rundir", basedir]
     twistd_args.extend(config.twistd_args)
     twistd_args.append("DaemonizeTahoeNode") # point at our DaemonizeTahoeNodePlugin
 
@@ -246,12 +254,16 @@ def run(config, runApp=twistd.runApp):
         return 1
     twistd_config.loadedPlugins = {"DaemonizeTahoeNode": DaemonizeTahoeNodePlugin(nodetype, basedir)}
 
-    # handle invalid PID file (twistd might not start otherwise)
-    if sys.platform != "win32" and get_pid_from_pidfile(pidfile) == -1:
-        print("found invalid PID file in %s - deleting it" % basedir, file=err)
-        os.remove(pidfile)
+    # before we try to run, check against our pidfile -- this will
+    # raise an exception if there appears to be a running process "in
+    # the way"
+    pidfile = FilePath(get_pidfile(config['basedir']))
+    try:
+        check_pid_process(pidfile)
+    except ProcessInTheWay as e:
+        print("ERROR: {}".format(e))
+        return 1
 
     # We always pass --nodaemon so twistd.runApp does not daemonize.
-    print("running node in %s" % (quoted_basedir,), file=out)
     runApp(twistd_config)
     return 0
