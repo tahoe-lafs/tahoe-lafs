@@ -17,7 +17,9 @@ from allmydata.interfaces import IStorageBucketWriter, IStorageBucketReader, \
      FileTooLargeError, HASH_SIZE
 from allmydata.util import mathutil, observer, pipeline, log
 from allmydata.util.assertutil import precondition
+from allmydata.util.deferredutil import async_to_deferred
 from allmydata.storage.server import si_b2a
+
 
 class LayoutInvalid(Exception):
     """ There is something wrong with these bytes so they can't be
@@ -311,8 +313,6 @@ class WriteBucketProxy_v2(WriteBucketProxy):
 @implementer(IStorageBucketReader)
 class ReadBucketProxy(object):
 
-    MAX_UEB_SIZE = 2000 # actual size is closer to 419, but varies by a few bytes
-
     def __init__(self, rref, server, storage_index):
         self._rref = rref
         self._server = server
@@ -389,10 +389,15 @@ class ReadBucketProxy(object):
             self._offsets[field] = offset
         return self._offsets
 
-    def _fetch_sharehashtree_and_ueb(self, offsets):
+    @async_to_deferred
+    async def _fetch_sharehashtree_and_ueb(self, offsets):
+        [ueb_length] = struct.unpack(
+            await self._read(offsets['share_hashes'], self._fieldsize),
+            self._fieldstruct
+        )
         sharehashtree_size = offsets['uri_extension'] - offsets['share_hashes']
         return self._read(offsets['share_hashes'],
-                          self.MAX_UEB_SIZE+sharehashtree_size)
+                          ueb_length + self._fieldsize +sharehashtree_size)
 
     def _parse_sharehashtree_and_ueb(self, data):
         sharehashtree_size = self._offsets['uri_extension'] - self._offsets['share_hashes']
