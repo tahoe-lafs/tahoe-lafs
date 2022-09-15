@@ -409,8 +409,7 @@ For example::
       "tolerates-immutable-read-overrun": true,
       "delete-mutable-shares-with-zero-length-writev": true,
       "fills-holes-with-zero-bytes": true,
-      "prevents-read-past-end-of-share-data": true,
-      "gbs-anonymous-storage-url": "pb://...#v=1"
+      "prevents-read-past-end-of-share-data": true
       },
     "application-version": "1.13.0"
     }
