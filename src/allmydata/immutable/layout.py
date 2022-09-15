@@ -495,10 +495,10 @@ class ReadBucketProxy(object):
             if len(data) != self._fieldsize:
                 raise LayoutInvalid("not enough bytes to encode URI length -- should be %d bytes long, not %d " % (self._fieldsize, len(data),))
             length = struct.unpack(self._fieldstruct, data)[0]
-            if length >= 2**31:
-                # URI extension blocks are around 419 bytes long, so this
-                # must be corrupted. Anyway, the foolscap interface schema
-                # for "read" will not allow >= 2**31 bytes length.
+            if length >= 2000:
+                # URI extension blocks are around 419 bytes long; in previous
+                # versions of the code 1000 was used as a default catchall. So
+                # 2000 or more must be corrupted.
                 raise RidiculouslyLargeURIExtensionBlock(length)
 
             return self._read(offset+self._fieldsize, length)
