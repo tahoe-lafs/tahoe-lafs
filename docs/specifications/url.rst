@@ -103,11 +103,8 @@ Version 1
 
 The hash component of a version 1 NURL differs in three ways from the prior version.
 
-1. The hash function used is SHA3-224 instead of SHA1.
-   The security of SHA1 `continues to be eroded`_.
-   Contrariwise SHA3 is currently the most recent addition to the SHA family by NIST.
-   The 224 bit instance is chosen to keep the output short and because it offers greater collision resistance than SHA1 was thought to offer even at its inception
-   (prior to security research showing actual collision resistance is lower).
+1. The hash function used is SHA-256, to match RFC 7469.
+   The security of SHA1 `continues to be eroded`_; Latacora `SHA-2`_.
 2. The hash is computed over the certificate's SPKI instead of the whole certificate.
    This allows certificate re-generation so long as the public key remains the same.
    This is useful to allow contact information to be updated or extension of validity period.
@@ -140,7 +137,8 @@ Examples
 * ``pb://azEu8vlRpnEeYm0DySQDeNY3Z2iJXHC_bsbaAw@localhost:47877/64i4aokv4ej#v=1``
 
 .. _`continues to be eroded`: https://en.wikipedia.org/wiki/SHA-1#Cryptanalysis_and_validation
-.. _`explored by the web community`: https://www.imperialviolet.org/2011/05/04/pinning.html
+.. _`SHA-2`: https://latacora.micro.blog/2018/04/03/cryptographic-right-answers.html
+.. _`explored by the web community`: https://www.rfc-editor.org/rfc/rfc7469
 .. _Foolscap: https://github.com/warner/foolscap
 
 .. [1] ``foolscap.furl.decode_furl`` is taken as the canonical definition of the syntax of a fURL.
