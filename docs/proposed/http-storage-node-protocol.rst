@@ -395,7 +395,7 @@ Encoding
 General
 ~~~~~~~
 
-``GET /v1/version``
+``GET /storage/v1/version``
 !!!!!!!!!!!!!!!!!!!
 
 Retrieve information about the version of the storage server.
@@ -414,7 +414,7 @@ For example::
     "application-version": "1.13.0"
     }
 
-``PUT /v1/lease/:storage_index``
+``PUT /storage/v1/lease/:storage_index``
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 Either renew or create a new lease on the bucket addressed by ``storage_index``.
@@ -467,7 +467,7 @@ Immutable
 Writing
 ~~~~~~~
 
-``POST /v1/immutable/:storage_index``
+``POST /storage/v1/immutable/:storage_index``
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 Initialize an immutable storage index with some buckets.
@@ -503,7 +503,7 @@ Handling repeat calls:
 Discussion
 ``````````
 
-We considered making this ``POST /v1/immutable`` instead.
+We considered making this ``POST /storage/v1/immutable`` instead.
 The motivation was to keep *storage index* out of the request URL.
 Request URLs have an elevated chance of being logged by something.
 We were concerned that having the *storage index* logged may increase some risks.
@@ -538,7 +538,7 @@ Rejected designs for upload secrets:
   it must contain randomness.
   Randomness means there is no need to have a secret per share, since adding share-specific content to randomness doesn't actually make the secret any better.
 
-``PATCH /v1/immutable/:storage_index/:share_number``
+``PATCH /storage/v1/immutable/:storage_index/:share_number``
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 Write data for the indicated share.
@@ -579,7 +579,7 @@ Responses:
   the response is ``CONFLICT``.
   At this point the only thing to do is abort the upload and start from scratch (see below).
 
-``PUT /v1/immutable/:storage_index/:share_number/abort``
+``PUT /storage/v1/immutable/:storage_index/:share_number/abort``
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 This cancels an *in-progress* upload.
@@ -615,7 +615,7 @@ From RFC 7231::
    PATCH method defined in [RFC5789]).
 
 
-``POST /v1/immutable/:storage_index/:share_number/corrupt``
+``POST /storage/v1/immutable/:storage_index/:share_number/corrupt``
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 Advise the server the data read from the indicated share was corrupt. The
@@ -634,7 +634,7 @@ couldn't be found.
 Reading
 ~~~~~~~
 
-``GET /v1/immutable/:storage_index/shares``
+``GET /storage/v1/immutable/:storage_index/shares``
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 Retrieve a list (semantically, a set) indicating all shares available for the
@@ -644,7 +644,7 @@ indicated storage index. For example::
 
 An unknown storage index results in an empty list.
 
-``GET /v1/immutable/:storage_index/:share_number``
+``GET /storage/v1/immutable/:storage_index/:share_number``
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 Read a contiguous sequence of bytes from one share in one bucket.
@@ -685,7 +685,7 @@ Mutable
 Writing
 ~~~~~~~
 
-``POST /v1/mutable/:storage_index/read-test-write``
+``POST /storage/v1/mutable/:storage_index/read-test-write``
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 General purpose read-test-and-write operation for mutable storage indexes.
@@ -741,7 +741,7 @@ As a result, if there is no data at all, an empty bytestring is returned no matt
 Reading
 ~~~~~~~
 
-``GET /v1/mutable/:storage_index/shares``
+``GET /storage/v1/mutable/:storage_index/shares``
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 Retrieve a set indicating all shares available for the indicated storage index.
@@ -749,10 +749,10 @@ For example (this is shown as list, since it will be list for JSON, but will be 
 
   [1, 5]
 
-``GET /v1/mutable/:storage_index/:share_number``
+``GET /storage/v1/mutable/:storage_index/:share_number``
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-Read data from the indicated mutable shares, just like ``GET /v1/immutable/:storage_index``
+Read data from the indicated mutable shares, just like ``GET /storage/v1/immutable/:storage_index``
 
 The ``Range`` header may be used to request exactly one ``bytes`` range, in which case the response code will be 206 (partial content).
 Interpretation and response behavior is as specified in RFC 7233 § 4.1.
@@ -764,7 +764,7 @@ The resulting ``Content-Range`` header will be consistent with the returned data
 If the response to a query is an empty range, the ``NO CONTENT`` (204) response code will be used.
 
 
-``POST /v1/mutable/:storage_index/:share_number/corrupt``
+``POST /storage/v1/mutable/:storage_index/:share_number/corrupt``
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 Advise the server the data read from the indicated share was corrupt.
@@ -778,7 +778,7 @@ Immutable Data
 
 1. Create a bucket for storage index ``AAAAAAAAAAAAAAAA`` to hold two immutable shares, discovering that share ``1`` was already uploaded::
 
-     POST /v1/immutable/AAAAAAAAAAAAAAAA
+     POST /storage/v1/immutable/AAAAAAAAAAAAAAAA
      Authorization: Tahoe-LAFS nurl-swissnum
      X-Tahoe-Authorization: lease-renew-secret efgh
      X-Tahoe-Authorization: lease-cancel-secret jjkl
@@ -791,7 +791,7 @@ Immutable Data
 
 #. Upload the content for immutable share ``7``::
 
-     PATCH /v1/immutable/AAAAAAAAAAAAAAAA/7
+     PATCH /storage/v1/immutable/AAAAAAAAAAAAAAAA/7
      Authorization: Tahoe-LAFS nurl-swissnum
      Content-Range: bytes 0-15/48
      X-Tahoe-Authorization: upload-secret xyzf
@@ -799,7 +799,7 @@ Immutable Data
 
      200 OK
 
-     PATCH /v1/immutable/AAAAAAAAAAAAAAAA/7
+     PATCH /storage/v1/immutable/AAAAAAAAAAAAAAAA/7
      Authorization: Tahoe-LAFS nurl-swissnum
      Content-Range: bytes 16-31/48
      X-Tahoe-Authorization: upload-secret xyzf
@@ -807,7 +807,7 @@ Immutable Data
 
      200 OK
 
-     PATCH /v1/immutable/AAAAAAAAAAAAAAAA/7
+     PATCH /storage/v1/immutable/AAAAAAAAAAAAAAAA/7
      Authorization: Tahoe-LAFS nurl-swissnum
      Content-Range: bytes 32-47/48
      X-Tahoe-Authorization: upload-secret xyzf
@@ -817,7 +817,7 @@ Immutable Data
 
 #. Download the content of the previously uploaded immutable share ``7``::
 
-     GET /v1/immutable/AAAAAAAAAAAAAAAA?share=7
+     GET /storage/v1/immutable/AAAAAAAAAAAAAAAA?share=7
      Authorization: Tahoe-LAFS nurl-swissnum
      Range: bytes=0-47
 
@@ -826,7 +826,7 @@ Immutable Data
 
 #. Renew the lease on all immutable shares in bucket ``AAAAAAAAAAAAAAAA``::
 
-     PUT /v1/lease/AAAAAAAAAAAAAAAA
+     PUT /storage/v1/lease/AAAAAAAAAAAAAAAA
      Authorization: Tahoe-LAFS nurl-swissnum
      X-Tahoe-Authorization: lease-cancel-secret jjkl
      X-Tahoe-Authorization: lease-renew-secret efgh
@@ -841,7 +841,7 @@ The special test vector of size 1 but empty bytes will only pass
 if there is no existing share,
 otherwise it will read a byte which won't match `b""`::
 
-     POST /v1/mutable/BBBBBBBBBBBBBBBB/read-test-write
+     POST /storage/v1/mutable/BBBBBBBBBBBBBBBB/read-test-write
      Authorization: Tahoe-LAFS nurl-swissnum
      X-Tahoe-Authorization: write-enabler abcd
      X-Tahoe-Authorization: lease-cancel-secret efgh
@@ -873,7 +873,7 @@ otherwise it will read a byte which won't match `b""`::
 
 #. Safely rewrite the contents of a known version of mutable share number ``3`` (or fail)::
 
-     POST /v1/mutable/BBBBBBBBBBBBBBBB/read-test-write
+     POST /storage/v1/mutable/BBBBBBBBBBBBBBBB/read-test-write
      Authorization: Tahoe-LAFS nurl-swissnum
      X-Tahoe-Authorization: write-enabler abcd
      X-Tahoe-Authorization: lease-cancel-secret efgh
@@ -905,14 +905,14 @@ otherwise it will read a byte which won't match `b""`::
 
 #. Download the contents of share number ``3``::
 
-     GET /v1/mutable/BBBBBBBBBBBBBBBB?share=3&offset=0&size=10
+     GET /storage/v1/mutable/BBBBBBBBBBBBBBBB?share=3&offset=0&size=10
      Authorization: Tahoe-LAFS nurl-swissnum
 
      <complete 16 bytes of previously uploaded data>
 
 #. Renew the lease on previously uploaded mutable share in slot ``BBBBBBBBBBBBBBBB``::
 
-     PUT /v1/lease/BBBBBBBBBBBBBBBB
+     PUT /storage/v1/lease/BBBBBBBBBBBBBBBB
      Authorization: Tahoe-LAFS nurl-swissnum
      X-Tahoe-Authorization: lease-cancel-secret efgh
      X-Tahoe-Authorization: lease-renew-secret ijkl
