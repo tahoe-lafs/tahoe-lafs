@@ -705,9 +705,13 @@ class Encoder(object):
         only care about the length.
         """
         params = self.uri_extension_data.copy()
-        assert params
         params["crypttext_hash"] = b"\x00" * hashutil.CRYPTO_VAL_SIZE
         params["crypttext_root_hash"] = b"\x00" * hashutil.CRYPTO_VAL_SIZE
         params["share_root_hash"] = b"\x00" * hashutil.CRYPTO_VAL_SIZE
+        assert params.keys() == {
+            "codec_name", "codec_params", "size", "segment_size", "num_segments",
+            "needed_shares", "total_shares", "tail_codec_params",
+            "crypttext_hash", "crypttext_root_hash", "share_root_hash"
+        }, params.keys()
         uri_extension = uri.pack_extension(params)
         return len(uri_extension)
