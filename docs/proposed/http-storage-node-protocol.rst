@@ -396,7 +396,7 @@ General
 ~~~~~~~
 
 ``GET /storage/v1/version``
-!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 Retrieve information about the version of the storage server.
 Information is returned as an encoded mapping.
@@ -415,7 +415,7 @@ For example::
     }
 
 ``PUT /storage/v1/lease/:storage_index``
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 Either renew or create a new lease on the bucket addressed by ``storage_index``.
 
@@ -468,7 +468,7 @@ Writing
 ~~~~~~~
 
 ``POST /storage/v1/immutable/:storage_index``
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 Initialize an immutable storage index with some buckets.
 The buckets may have share data written to them once.
@@ -539,7 +539,7 @@ Rejected designs for upload secrets:
   Randomness means there is no need to have a secret per share, since adding share-specific content to randomness doesn't actually make the secret any better.
 
 ``PATCH /storage/v1/immutable/:storage_index/:share_number``
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 Write data for the indicated share.
 The share number must belong to the storage index.
@@ -580,7 +580,7 @@ Responses:
   At this point the only thing to do is abort the upload and start from scratch (see below).
 
 ``PUT /storage/v1/immutable/:storage_index/:share_number/abort``
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 This cancels an *in-progress* upload.
 
@@ -616,7 +616,7 @@ From RFC 7231::
 
 
 ``POST /storage/v1/immutable/:storage_index/:share_number/corrupt``
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 Advise the server the data read from the indicated share was corrupt. The
 request body includes an human-meaningful text string with details about the
@@ -635,7 +635,7 @@ Reading
 ~~~~~~~
 
 ``GET /storage/v1/immutable/:storage_index/shares``
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 Retrieve a list (semantically, a set) indicating all shares available for the
 indicated storage index. For example::
@@ -645,7 +645,7 @@ indicated storage index. For example::
 An unknown storage index results in an empty list.
 
 ``GET /storage/v1/immutable/:storage_index/:share_number``
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 Read a contiguous sequence of bytes from one share in one bucket.
 The response body is the raw share data (i.e., ``application/octet-stream``).
@@ -686,7 +686,7 @@ Writing
 ~~~~~~~
 
 ``POST /storage/v1/mutable/:storage_index/read-test-write``
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 General purpose read-test-and-write operation for mutable storage indexes.
 A mutable storage index is also called a "slot"
@@ -742,7 +742,7 @@ Reading
 ~~~~~~~
 
 ``GET /storage/v1/mutable/:storage_index/shares``
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 Retrieve a set indicating all shares available for the indicated storage index.
 For example (this is shown as list, since it will be list for JSON, but will be set for CBOR)::
@@ -765,7 +765,7 @@ If the response to a query is an empty range, the ``NO CONTENT`` (204) response 
 
 
 ``POST /storage/v1/mutable/:storage_index/:share_number/corrupt``
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 Advise the server the data read from the indicated share was corrupt.
 Just like the immutable version.
