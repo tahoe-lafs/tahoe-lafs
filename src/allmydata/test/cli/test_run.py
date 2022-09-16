@@ -20,6 +20,9 @@ from testtools import (
     skipIf,
 )
 
+from hypothesis.strategies import text
+from hypothesis import given
+
 from testtools.matchers import (
     Contains,
     Equals,
@@ -43,6 +46,10 @@ from ...scripts.tahoe_run import (
     DaemonizeTheRealService,
     RunOptions,
     run,
+)
+from ...util.pid import (
+    check_pid_process,
+    InvalidPidFile,
 )
 
 from ...scripts.runner import (
@@ -180,7 +187,18 @@ class RunTests(SyncTestCase):
             config.stderr.getvalue(),
             Contains("found invalid PID file in"),
         )
+        # because the pidfile is invalid we shouldn't get to the
+        # .run() call itself.
         self.assertThat(
             DummyRunner.runs,
             Equals([])
         )
+
+    @given(text())
+    def test_pidfile_contents(self, content):
+        pidfile = FilePath("pidfile")
+        pidfile.setContent(content.encode("utf8"))
+
+        with self.assertRaises(InvalidPidFile):
+            with check_pid_process(pidfile):
+                pass
