@@ -12,6 +12,7 @@ from future.utils import PY2
 if PY2:
     from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
+import re
 from six.moves import (
     StringIO,
 )
@@ -21,7 +22,7 @@ from testtools import (
 )
 
 from hypothesis.strategies import text
-from hypothesis import given
+from hypothesis import given, assume
 
 from testtools.matchers import (
     Contains,
@@ -194,8 +195,11 @@ class RunTests(SyncTestCase):
             Equals([])
         )
 
+    good_file_content_re = re.compile(r"\w[0-9]*\w[0-9]*\w")
+
     @given(text())
     def test_pidfile_contents(self, content):
+        assume(not self.good_file_content_re.match(content))
         pidfile = FilePath("pidfile")
         pidfile.setContent(content.encode("utf8"))
 
