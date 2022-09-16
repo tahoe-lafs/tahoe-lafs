@@ -1,0 +1,10 @@
+Record both the PID and the process creation-time
+
+A new kind of pidfile in `running.process` records both
+the PID and the creation-time of the process. This facilitates
+automatic discovery of a "stale" pidfile that points to a
+currently-running process. If the recorded creation-time matches
+the creation-time of the running process, then it is a still-running
+`tahoe run` proecss. Otherwise, the file is stale.
+
+The `twistd.pid` file is no longer present.
