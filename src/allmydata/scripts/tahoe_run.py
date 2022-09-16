@@ -21,7 +21,6 @@ from twisted.scripts import twistd
 from twisted.python import usage
 from twisted.python.filepath import FilePath
 from twisted.python.reflect import namedAny
-from twisted.application.app import _exitWithSignal
 from twisted.internet.defer import maybeDeferred, Deferred
 from twisted.internet.protocol import Protocol
 from twisted.internet.stdio import StandardIO
