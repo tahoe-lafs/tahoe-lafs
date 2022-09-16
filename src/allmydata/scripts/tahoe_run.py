@@ -33,6 +33,7 @@ from allmydata.util.configutil import UnknownConfigError
 from allmydata.util.deferredutil import HookMixin
 from allmydata.util.pid import (
     check_pid_process,
+    cleanup_pidfile,
     ProcessInTheWay,
     InvalidPidFile,
 )
@@ -204,7 +205,13 @@ class DaemonizeTheRealService(Service, HookMixin):
                 srv.setServiceParent(self.parent)
                 # exiting on stdin-closed facilitates cleanup when run
                 # as a subprocess
-                on_stdin_close(reactor, reactor.stop)
+                def cleanup():
+                    reactor.addSystemEventTrigger(
+                        "after", "shutdown",
+                        lambda: cleanup_pidfile(FilePath(get_pidfile(self.basedir)))
+                    )
+                    reactor.stop()
+                on_stdin_close(reactor, cleanup)
             d.addCallback(created)
             d.addErrback(handle_config_error)
             d.addBoth(self._call_hook, 'running')
@@ -260,7 +267,7 @@ def on_stdin_close(reactor, fn):
     )
 
 
-def run(config, runner=None):
+def run(config, runApp=twistd.runApp):
     """
     Runs a Tahoe-LAFS node in the foreground.
 
@@ -305,27 +312,15 @@ def run(config, runner=None):
 
     # our own pid-style file contains PID and process creation time
     pidfile = FilePath(get_pidfile(config['basedir']))
-
-    # the "real" runApp calls _exitWithSignal() itself .. but we need
-    # to do pidfile cleanup after run() but before the exit. Use of
-    # these "private" Twisted APIs should be removed when
-    # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3925 happens
-    # other strategies:
-    # - atexit: no, because signal not handled by Python
-    # - reactor hooks: we don't have it yet (and --reactor option)
-    # - try-finally, context-manager: no, runApp() doesn't exit
-
     try:
-        # same as twistd.runApp except for the wrapper around run()
-        if runner is None:
-            runner = twistd._SomeApplicationRunner(twistd_config)
-        with check_pid_process(pidfile):
-            runner.run()
-        if runner._exitSignal is not None:
-            _exitWithSignal(runner._exitSignal)
-
+        check_pid_process(pidfile)
     except (ProcessInTheWay, InvalidPidFile) as e:
         print("ERROR: {}".format(e), file=err)
         return 1
-    else:
-        return 0
+
+    # the "real" runApp calls _exitWithSignal() itself .. so we
+    # arrange to delete our pid-file during "stdin has closed"
+    # processing (see above).
+    print("running node in %s" % (quoted_basedir,), file=out)
+    runApp(twistd_config)
+    return 0
