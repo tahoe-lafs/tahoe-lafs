@@ -151,7 +151,7 @@ class RunTests(SyncTestCase):
     """
     Tests for ``run``.
     """
-    @skipIf(platform.isWindows(), "There are no PID files on Windows.")
+
     def test_non_numeric_pid(self):
         """
         If the pidfile exists but does not contain a numeric value, a complaint to
