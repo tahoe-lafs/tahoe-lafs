@@ -50,11 +50,11 @@ def check_pid_process(pidfile, find_process=None):
             )
         try:
             # if any other process is running at that PID, let the
-            # user decide if this is another magic-older
+            # user decide if this is another legitimate
             # instance. Automated programs may use the start-time to
             # help decide this (if the PID is merely recycled, the
             # start-time won't match).
-            proc = find_process(pid)
+            find_process(pid)
             raise ProcessInTheWay(
                 "A process is already running as PID {}".format(pid)
             )

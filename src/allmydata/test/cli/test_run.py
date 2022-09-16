@@ -17,22 +17,14 @@ from six.moves import (
     StringIO,
 )
 
-from testtools import (
-    skipIf,
-)
-
 from hypothesis.strategies import text
 from hypothesis import given, assume
 
 from testtools.matchers import (
     Contains,
     Equals,
-    HasLength,
 )
 
-from twisted.python.runtime import (
-    platform,
-)
 from twisted.python.filepath import (
     FilePath,
 )
@@ -184,10 +176,8 @@ class RunTests(SyncTestCase):
         )
         # because the pidfile is invalid we shouldn't get to the
         # .run() call itself.
-        self.assertThat(
-            runs,
-            Equals([])
-        )
+        self.assertThat(runs, Equals([]))
+        self.assertThat(result_code, Equals(1))
 
     good_file_content_re = re.compile(r"\w[0-9]*\w[0-9]*\w")
 
