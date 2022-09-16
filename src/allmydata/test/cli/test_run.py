@@ -16,22 +16,14 @@ from six.moves import (
     StringIO,
 )
 
-from testtools import (
-    skipIf,
-)
-
 from hypothesis.strategies import text
 from hypothesis import given
 
 from testtools.matchers import (
     Contains,
     Equals,
-    HasLength,
 )
 
-from twisted.python.runtime import (
-    platform,
-)
 from twisted.python.filepath import (
     FilePath,
 )
@@ -182,7 +174,7 @@ class RunTests(SyncTestCase):
             def run(self):
                 self.runs.append(True)
 
-        result_code = run(config, runner=DummyRunner())
+        run(config, runner=DummyRunner())
         self.assertThat(
             config.stderr.getvalue(),
             Contains("found invalid PID file in"),

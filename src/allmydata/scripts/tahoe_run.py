@@ -256,7 +256,7 @@ def on_stdin_close(reactor, fn):
     )
 
 
-def run(config, runApp=twistd.runApp):
+def run(config, runner=None):
     """
     Runs a Tahoe-LAFS node in the foreground.
 
