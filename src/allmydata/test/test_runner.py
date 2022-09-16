@@ -418,9 +418,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin):
 
         tahoe.active()
 
-        # We don't keep track of PIDs in files on Windows.
-        if not platform.isWindows():
-            self.assertTrue(tahoe.twistd_pid_file.exists())
+        self.assertTrue(tahoe.twistd_pid_file.exists())
         self.assertTrue(tahoe.node_url_file.exists())
 
         # rm this so we can detect when the second incarnation is ready

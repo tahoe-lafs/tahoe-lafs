@@ -278,12 +278,14 @@ def run(config, runner=None):
         return 1
 
     twistd_args = [
-        # turn off Twisted's pid-file to use our own
-        "--pidfile", None,
         # ensure twistd machinery does not daemonize.
         "--nodaemon",
         "--rundir", basedir,
     ]
+    if sys.platform != "win32":
+        # turn off Twisted's pid-file to use our own -- but only on
+        # windows, because twistd doesn't know about pidfiles there
+        twistd_args.extend(["--pidfile", None])
     twistd_args.extend(config.twistd_args)
     twistd_args.append("DaemonizeTahoeNode") # point at our DaemonizeTahoeNodePlugin
 
