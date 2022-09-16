@@ -206,7 +206,7 @@ class DaemonizeTheRealService(Service, HookMixin):
                 # as a subprocess
                 def cleanup():
                     reactor.addSystemEventTrigger(
-                        "after", "shutdown",
+                        "during", "shutdown",
                         lambda: cleanup_pidfile(FilePath(get_pidfile(self.basedir)))
                     )
                     reactor.stop()
