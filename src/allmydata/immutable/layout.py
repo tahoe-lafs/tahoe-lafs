@@ -17,7 +17,6 @@ from allmydata.interfaces import IStorageBucketWriter, IStorageBucketReader, \
      FileTooLargeError, HASH_SIZE
 from allmydata.util import mathutil, observer, pipeline, log
 from allmydata.util.assertutil import precondition
-from allmydata.util.deferredutil import async_to_deferred
 from allmydata.storage.server import si_b2a
 
 
@@ -340,11 +339,6 @@ class ReadBucketProxy(object):
         # TODO: for small shares, read the whole bucket in _start()
         d = self._fetch_header()
         d.addCallback(self._parse_offsets)
-        # XXX The following two callbacks implement a slightly faster/nicer
-        # way to get the ueb and sharehashtree, but it requires that the
-        # storage server be >= v1.3.0.
-        # d.addCallback(self._fetch_sharehashtree_and_ueb)
-        # d.addCallback(self._parse_sharehashtree_and_ueb)
         def _fail_waiters(f):
             self._ready.fire(f)
         def _notify_waiters(result):
@@ -389,34 +383,6 @@ class ReadBucketProxy(object):
             self._offsets[field] = offset
         return self._offsets
 
-    @async_to_deferred
-    async def _fetch_sharehashtree_and_ueb(self, offsets):
-        [ueb_length] = struct.unpack(
-            await self._read(offsets['share_hashes'], self._fieldsize),
-            self._fieldstruct
-        )
-        sharehashtree_size = offsets['uri_extension'] - offsets['share_hashes']
-        return self._read(offsets['share_hashes'],
-                          ueb_length + self._fieldsize +sharehashtree_size)
-
-    def _parse_sharehashtree_and_ueb(self, data):
-        sharehashtree_size = self._offsets['uri_extension'] - self._offsets['share_hashes']
-        if len(data) < sharehashtree_size:
-            raise LayoutInvalid("share hash tree truncated -- should have at least %d bytes -- not %d" % (sharehashtree_size, len(data)))
-        if sharehashtree_size % (2+HASH_SIZE) != 0:
-            raise LayoutInvalid("share hash tree malformed -- should have an even multiple of %d bytes -- not %d" % (2+HASH_SIZE, sharehashtree_size))
-        self._share_hashes = []
-        for i in range(0, sharehashtree_size, 2+HASH_SIZE):
-            hashnum = struct.unpack(">H", data[i:i+2])[0]
-            hashvalue = data[i+2:i+2+HASH_SIZE]
-            self._share_hashes.append( (hashnum, hashvalue) )
-
-        i = self._offsets['uri_extension']-self._offsets['share_hashes']
-        if len(data) < i+self._fieldsize:
-            raise LayoutInvalid("not enough bytes to encode URI length -- should be at least %d bytes long, not %d " % (i+self._fieldsize, len(data),))
-        length = struct.unpack(self._fieldstruct, data[i:i+self._fieldsize])[0]
-        self._ueb_data = data[i+self._fieldsize:i+self._fieldsize+length]
-
     def _get_block_data(self, unused, blocknum, blocksize, thisblocksize):
         offset = self._offsets['data'] + blocknum * blocksize
         return self._read(offset, thisblocksize)
@@ -459,20 +425,18 @@ class ReadBucketProxy(object):
         else:
             return defer.succeed([])
 
-    def _get_share_hashes(self, unused=None):
-        if hasattr(self, '_share_hashes'):
-            return self._share_hashes
-        return self._get_share_hashes_the_old_way()
-
     def get_share_hashes(self):
         d = self._start_if_needed()
         d.addCallback(self._get_share_hashes)
         return d
 
-    def _get_share_hashes_the_old_way(self):
+    def _get_share_hashes(self, _ignore):
         """ Tahoe storage servers < v1.3.0 would return an error if you tried
         to read past the end of the share, so we need to use the offset and
-        read just that much."""
+        read just that much.
+
+        HTTP-based storage protocol also doesn't like reading past the end.
+        """
         offset = self._offsets['share_hashes']
         size = self._offsets['uri_extension'] - offset
         if size % (2+HASH_SIZE) != 0:
@@ -490,10 +454,13 @@ class ReadBucketProxy(object):
         d.addCallback(_unpack_share_hashes)
         return d
 
-    def _get_uri_extension_the_old_way(self, unused=None):
+    def _get_uri_extension(self, unused=None):
         """ Tahoe storage servers < v1.3.0 would return an error if you tried
         to read past the end of the share, so we need to fetch the UEB size
-        and then read just that much."""
+        and then read just that much.
+
+        HTTP-based storage protocol also doesn't like reading past the end.
+        """
         offset = self._offsets['uri_extension']
         d = self._read(offset, self._fieldsize)
         def _got_length(data):
@@ -509,12 +476,6 @@ class ReadBucketProxy(object):
             return self._read(offset+self._fieldsize, length)
         d.addCallback(_got_length)
         return d
-
-    def _get_uri_extension(self, unused=None):
-        if hasattr(self, '_ueb_data'):
-            return self._ueb_data
-        else:
-            return self._get_uri_extension_the_old_way()
 
     def get_uri_extension(self):
         d = self._start_if_needed()
