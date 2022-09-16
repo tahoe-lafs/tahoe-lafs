@@ -33,8 +33,8 @@ from allmydata.util.configutil import UnknownConfigError
 from allmydata.util.deferredutil import HookMixin
 from allmydata.util.pid import (
     check_pid_process,
-    cleanup_pidfile,
     ProcessInTheWay,
+    InvalidPidFile,
 )
 from allmydata.storage.crawler import (
     MigratePickleFileError,
@@ -277,8 +277,13 @@ def run(config, runApp=twistd.runApp):
         print("%s is not a recognizable node directory" % quoted_basedir, file=err)
         return 1
 
-    # we turn off Twisted's pid-file to use our own
-    twistd_args = ["--pidfile", None, "--nodaemon", "--rundir", basedir]
+    twistd_args = [
+        # turn off Twisted's pid-file to use our own
+        "--pidfile", None,
+        # ensure twistd machinery does not daemonize.
+        "--nodaemon",
+        "--rundir", basedir,
+    ]
     twistd_args.extend(config.twistd_args)
     twistd_args.append("DaemonizeTahoeNode") # point at our DaemonizeTahoeNodePlugin
 
@@ -294,17 +299,8 @@ def run(config, runApp=twistd.runApp):
         return 1
     twistd_config.loadedPlugins = {"DaemonizeTahoeNode": DaemonizeTahoeNodePlugin(nodetype, basedir)}
 
-    # before we try to run, check against our pidfile -- this will
-    # raise an exception if there appears to be a running process "in
-    # the way"
+    # our own pid-style file contains PID and process creation time
     pidfile = FilePath(get_pidfile(config['basedir']))
-    try:
-        check_pid_process(pidfile)
-    except ProcessInTheWay as e:
-        print("ERROR: {}".format(e))
-        return 1
-
-    # We always pass --nodaemon so twistd.runApp does not daemonize.
 
     # the "real" runApp calls _exitWithSignal() itself .. but we need
     # to do pidfile cleanup after run() but before the exit. Use of
@@ -315,14 +311,17 @@ def run(config, runApp=twistd.runApp):
     # - reactor hooks: we don't have it yet (and --reactor option)
     # - try-finally, context-manager: no, runApp() doesn't exit
 
-    def _runApp(config):
-        runner = twistd._SomeApplicationRunner(config)
-        runner.run()
-        cleanup_pidfile(pidfile)
+    try:
+        # same as twistd.runApp except for the wrapper around run()
+        if runner is None:
+            runner = twistd._SomeApplicationRunner(twistd_config)
+        with check_pid_process(pidfile):
+            runner.run()
         if runner._exitSignal is not None:
             _exitWithSignal(runner._exitSignal)
 
-    if runApp is None:
-        runApp = _runApp
-    runApp(twistd_config)
-    return 0
+    except (ProcessInTheWay, InvalidPidFile) as e:
+        print("ERROR: {}".format(e), file=err)
+        return 1
+    else:
+        return 0

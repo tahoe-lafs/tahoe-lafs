@@ -1,5 +1,8 @@
 import os
 import psutil
+from contextlib import (
+    contextmanager,
+)
 
 
 class ProcessInTheWay(Exception):
@@ -8,6 +11,13 @@ class ProcessInTheWay(Exception):
     """
 
 
+class InvalidPidFile(Exception):
+    """
+    our pidfile isn't well-formed
+    """
+
+
+@contextmanager
 def check_pid_process(pidfile, find_process=None):
     """
     If another instance appears to be running already, raise an
@@ -26,9 +36,16 @@ def check_pid_process(pidfile, find_process=None):
     if pidfile.exists():
         with pidfile.open("r") as f:
             content = f.read().decode("utf8").strip()
-        pid, starttime = content.split()
-        pid = int(pid)
-        starttime = float(starttime)
+        try:
+            pid, starttime = content.split()
+            pid = int(pid)
+            starttime = float(starttime)
+        except ValueError:
+            raise InvalidPidFile(
+                "found invalid PID file in {}".format(
+                    pidfile
+                )
+            )
         try:
             # if any other process is running at that PID, let the
             # user decide if this is another magic-older
@@ -55,11 +72,7 @@ def check_pid_process(pidfile, find_process=None):
     with pidfile.open("w") as f:
         f.write("{} {}\n".format(pid, starttime).encode("utf8"))
 
-
-def cleanup_pidfile(pidfile):
-    """
-    Safely remove the given pidfile
-    """
+    yield  # setup completed, await cleanup
 
     try:
         pidfile.remove()
