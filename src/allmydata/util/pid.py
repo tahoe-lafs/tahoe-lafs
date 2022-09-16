@@ -1,8 +1,5 @@
 import os
 import psutil
-from contextlib import (
-    contextmanager,
-)
 
 
 class ProcessInTheWay(Exception):
@@ -17,7 +14,12 @@ class InvalidPidFile(Exception):
     """
 
 
-@contextmanager
+class CannotRemovePidFile(Exception):
+    """
+    something went wrong removing the pidfile
+    """
+
+
 def check_pid_process(pidfile, find_process=None):
     """
     If another instance appears to be running already, raise an
@@ -72,12 +74,15 @@ def check_pid_process(pidfile, find_process=None):
     with pidfile.open("w") as f:
         f.write("{} {}\n".format(pid, starttime).encode("utf8"))
 
-    yield  # setup completed, await cleanup
 
+def cleanup_pidfile(pidfile):
+    """
+    Safely clean up a PID-file
+    """
     try:
         pidfile.remove()
     except Exception as e:
-        print(
+        raise CannotRemovePidFile(
             "Couldn't remove '{pidfile}': {err}.".format(
                 pidfile=pidfile.path,
                 err=e,

@@ -176,14 +176,8 @@ class RunTests(SyncTestCase):
         config['basedir'] = basedir.path
         config.twistd_args = []
 
-        class DummyRunner:
-            runs = []
-            _exitSignal = None
-
-            def run(self):
-                self.runs.append(True)
-
-        result_code = run(config, runner=DummyRunner())
+        runs = []
+        result_code = run(config, runApp=runs.append)
         self.assertThat(
             config.stderr.getvalue(),
             Contains("found invalid PID file in"),
@@ -191,7 +185,7 @@ class RunTests(SyncTestCase):
         # because the pidfile is invalid we shouldn't get to the
         # .run() call itself.
         self.assertThat(
-            DummyRunner.runs,
+            runs,
             Equals([])
         )
 

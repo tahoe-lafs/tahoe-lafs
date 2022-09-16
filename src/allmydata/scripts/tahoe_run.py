@@ -30,6 +30,7 @@ from allmydata.util.configutil import UnknownConfigError
 from allmydata.util.deferredutil import HookMixin
 from allmydata.util.pid import (
     check_pid_process,
+    cleanup_pidfile,
     ProcessInTheWay,
     InvalidPidFile,
 )
