@@ -30,8 +30,8 @@ from allmydata.util.configutil import UnknownConfigError
 from allmydata.util.deferredutil import HookMixin
 from allmydata.util.pid import (
     check_pid_process,
-    cleanup_pidfile,
     ProcessInTheWay,
+    InvalidPidFile,
 )
 from allmydata.storage.crawler import (
     MigratePickleFileError,
@@ -237,8 +237,13 @@ def run(config, runApp=twistd.runApp):
         print("%s is not a recognizable node directory" % quoted_basedir, file=err)
         return 1
 
-    # we turn off Twisted's pid-file to use our own
-    twistd_args = ["--pidfile", None, "--nodaemon", "--rundir", basedir]
+    twistd_args = [
+        # turn off Twisted's pid-file to use our own
+        "--pidfile", None,
+        # ensure twistd machinery does not daemonize.
+        "--nodaemon",
+        "--rundir", basedir,
+    ]
     twistd_args.extend(config.twistd_args)
     twistd_args.append("DaemonizeTahoeNode") # point at our DaemonizeTahoeNodePlugin
 
@@ -254,9 +259,7 @@ def run(config, runApp=twistd.runApp):
         return 1
     twistd_config.loadedPlugins = {"DaemonizeTahoeNode": DaemonizeTahoeNodePlugin(nodetype, basedir)}
 
-    # before we try to run, check against our pidfile -- this will
-    # raise an exception if there appears to be a running process "in
-    # the way"
+    # our own pid-style file contains PID and process creation time
     pidfile = FilePath(get_pidfile(config['basedir']))
     try:
         check_pid_process(pidfile)

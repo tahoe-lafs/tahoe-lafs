@@ -159,7 +159,7 @@ class RunTests(SyncTestCase):
         """
         basedir = FilePath(self.mktemp()).asTextMode()
         basedir.makedirs()
-        basedir.child(u"twistd.pid").setContent(b"foo")
+        basedir.child(u"running.process").setContent(b"foo")
         basedir.child(u"tahoe-client.tac").setContent(b"")
 
         config = RunOptions()
@@ -168,17 +168,19 @@ class RunTests(SyncTestCase):
         config['basedir'] = basedir.path
         config.twistd_args = []
 
-        runs = []
-        result_code = run(config, runApp=runs.append)
+        class DummyRunner:
+            runs = []
+            _exitSignal = None
+
+            def run(self):
+                self.runs.append(True)
+
+        result_code = run(config, runner=DummyRunner())
         self.assertThat(
             config.stderr.getvalue(),
             Contains("found invalid PID file in"),
         )
         self.assertThat(
-            runs,
-            HasLength(1),
-        )
-        self.assertThat(
-            result_code,
-            Equals(0),
+            DummyRunner.runs,
+            Equals([])
         )
