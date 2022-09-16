@@ -21,6 +21,7 @@ from twisted.scripts import twistd
 from twisted.python import usage
 from twisted.python.filepath import FilePath
 from twisted.python.reflect import namedAny
+from twisted.application.app import _exitWithSignal
 from twisted.internet.defer import maybeDeferred, Deferred
 from twisted.internet.protocol import Protocol
 from twisted.internet.stdio import StandardIO
@@ -259,7 +260,7 @@ def on_stdin_close(reactor, fn):
     )
 
 
-def run(config, runApp=twistd.runApp):
+def run(config, runApp=None):
     """
     Runs a Tahoe-LAFS node in the foreground.
 
@@ -308,5 +309,24 @@ def run(config, runApp=twistd.runApp):
         return 1
 
     # We always pass --nodaemon so twistd.runApp does not daemonize.
+
+    # the "real" runApp calls _exitWithSignal() itself .. but we need
+    # to do pidfile cleanup after run() but before the exit. Use of
+    # these "private" Twisted APIs should be removed when
+    # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3925 happens
+    # other strategies:
+    # - atexit: no, because signal not handled by Python
+    # - reactor hooks: we don't have it yet (and --reactor option)
+    # - try-finally, context-manager: no, runApp() doesn't exit
+
+    def _runApp(config):
+        runner = twistd._SomeApplicationRunner(config)
+        runner.run()
+        cleanup_pidfile(pidfile)
+        if runner._exitSignal is not None:
+            _exitWithSignal(runner._exitSignal)
+
+    if runApp is None:
+        runApp = _runApp
     runApp(twistd_config)
     return 0
