@@ -47,9 +47,6 @@ from twisted.internet.defer import (
     DeferredList,
 )
 from twisted.python.filepath import FilePath
-from twisted.python.runtime import (
-    platform,
-)
 from allmydata.util import fileutil, pollmixin
 from allmydata.util.encodingutil import unicode_to_argv
 from allmydata.test import common_util

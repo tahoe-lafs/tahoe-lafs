@@ -266,7 +266,7 @@ def run(reactor, config, runApp=twistd.runApp):
     pidfile = FilePath(get_pidfile(config['basedir']))
     try:
         check_pid_process(pidfile)
-    except ProcessInTheWay as e:
+    except (ProcessInTheWay, InvalidPidFile) as e:
         print("ERROR: {}".format(e))
         return 1
     else:
