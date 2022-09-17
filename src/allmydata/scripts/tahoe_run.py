@@ -269,6 +269,11 @@ def run(reactor, config, runApp=twistd.runApp):
     except ProcessInTheWay as e:
         print("ERROR: {}".format(e))
         return 1
+    else:
+        reactor.addSystemEventTrigger(
+            "during", "shutdown",
+            lambda: cleanup_pidfile(pidfile)
+        )
 
     # We always pass --nodaemon so twistd.runApp does not daemonize.
     runApp(twistd_config)
