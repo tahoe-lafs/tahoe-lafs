@@ -217,7 +217,7 @@ class DaemonizeTahoeNodePlugin(object):
         return DaemonizeTheRealService(self.nodetype, self.basedir, so)
 
 
-def run(config, runApp=twistd.runApp):
+def run(reactor, config, runApp=twistd.runApp):
     """
     Runs a Tahoe-LAFS node in the foreground.
 
