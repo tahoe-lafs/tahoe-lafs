@@ -267,7 +267,7 @@ def run(reactor, config, runApp=twistd.runApp):
     try:
         check_pid_process(pidfile)
     except (ProcessInTheWay, InvalidPidFile) as e:
-        print("ERROR: {}".format(e))
+        print("ERROR: {}".format(e), file=err)
         return 1
     else:
         reactor.addSystemEventTrigger(

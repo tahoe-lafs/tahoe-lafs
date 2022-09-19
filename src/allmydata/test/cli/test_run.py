@@ -168,8 +168,10 @@ class RunTests(SyncTestCase):
         config['basedir'] = basedir.path
         config.twistd_args = []
 
+        from twisted.internet import reactor
+
         runs = []
-        result_code = run(config, runApp=runs.append)
+        result_code = run(reactor, config, runApp=runs.append)
         self.assertThat(
             config.stderr.getvalue(),
             Contains("found invalid PID file in"),
