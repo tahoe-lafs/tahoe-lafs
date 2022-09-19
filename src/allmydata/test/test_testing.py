@@ -46,9 +46,10 @@ from hypothesis.strategies import (
     binary,
 )
 
-from testtools import (
-    TestCase,
+from .common import (
+    SyncTestCase,
 )
+
 from testtools.matchers import (
     Always,
     Equals,
@@ -61,7 +62,7 @@ from testtools.twistedsupport import (
 )
 
 
-class FakeWebTest(TestCase):
+class FakeWebTest(SyncTestCase):
     """
     Test the WebUI verified-fakes infrastucture
     """
