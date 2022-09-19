@@ -242,31 +242,26 @@ class UploadResults(object):
     def get_verifycapstr(self):
         return self._verifycapstr
 
-# our current uri_extension is 846 bytes for small files, a few bytes
-# more for larger ones (since the filesize is encoded in decimal in a
-# few places). Ask for a little bit more just in case we need it. If
-# the extension changes size, we can change EXTENSION_SIZE to
-# allocate a more accurate amount of space.
-EXTENSION_SIZE = 1000
-# TODO: actual extensions are closer to 419 bytes, so we can probably lower
-# this.
 
 def pretty_print_shnum_to_servers(s):
     return ', '.join([ "sh%s: %s" % (k, '+'.join([idlib.shortnodeid_b2a(x) for x in v])) for k, v in s.items() ])
+
 
 class ServerTracker(object):
     def __init__(self, server,
                  sharesize, blocksize, num_segments, num_share_hashes,
                  storage_index,
-                 bucket_renewal_secret, bucket_cancel_secret):
+                 bucket_renewal_secret, bucket_cancel_secret,
+                 uri_extension_size):
         self._server = server
         self.buckets = {} # k: shareid, v: IRemoteBucketWriter
         self.sharesize = sharesize
+        self.uri_extension_size = uri_extension_size
 
         wbp = layout.make_write_bucket_proxy(None, None, sharesize,
                                              blocksize, num_segments,
                                              num_share_hashes,
-                                             EXTENSION_SIZE)
+                                             uri_extension_size)
         self.wbp_class = wbp.__class__ # to create more of them
         self.allocated_size = wbp.get_allocated_size()
         self.blocksize = blocksize
@@ -314,7 +309,7 @@ class ServerTracker(object):
                                 self.blocksize,
                                 self.num_segments,
                                 self.num_share_hashes,
-                                EXTENSION_SIZE)
+                                self.uri_extension_size)
             b[sharenum] = bp
         self.buckets.update(b)
         return (alreadygot, set(b.keys()))
@@ -487,7 +482,7 @@ class Tahoe2ServerSelector(log.PrefixingLogMixin):
     def get_shareholders(self, storage_broker, secret_holder,
                          storage_index, share_size, block_size,
                          num_segments, total_shares, needed_shares,
-                         min_happiness):
+                         min_happiness, uri_extension_size):
         """
         @return: (upload_trackers, already_serverids), where upload_trackers
                  is a set of ServerTracker instances that have agreed to hold
@@ -529,7 +524,8 @@ class Tahoe2ServerSelector(log.PrefixingLogMixin):
         # figure out how much space to ask for
         wbp = layout.make_write_bucket_proxy(None, None,
                                              share_size, 0, num_segments,
-                                             num_share_hashes, EXTENSION_SIZE)
+                                             num_share_hashes,
+                                             uri_extension_size)
         allocated_size = wbp.get_allocated_size()
 
         # decide upon the renewal/cancel secrets, to include them in the
@@ -554,7 +550,7 @@ class Tahoe2ServerSelector(log.PrefixingLogMixin):
         def _create_server_tracker(server, renew, cancel):
             return ServerTracker(
                 server, share_size, block_size, num_segments, num_share_hashes,
-                storage_index, renew, cancel,
+                storage_index, renew, cancel, uri_extension_size
             )
 
         readonly_trackers, write_trackers = self._create_trackers(
@@ -1326,7 +1322,8 @@ class CHKUploader(object):
         d = server_selector.get_shareholders(storage_broker, secret_holder,
                                              storage_index,
                                              share_size, block_size,
-                                             num_segments, n, k, desired)
+                                             num_segments, n, k, desired,
+                                             encoder.get_uri_extension_size())
         def _done(res):
             self._server_selection_elapsed = time.time() - server_selection_started
             return res
