@@ -244,7 +244,7 @@ def run(reactor, config, runApp=twistd.runApp):
         "--rundir", basedir,
     ]
     if sys.platform != "win32":
-        # turn off Twisted's pid-file to use our own -- but only on
+        # turn off Twisted's pid-file to use our own -- but not on
         # windows, because twistd doesn't know about pidfiles there
         twistd_args.extend(["--pidfile", None])
     twistd_args.extend(config.twistd_args)
