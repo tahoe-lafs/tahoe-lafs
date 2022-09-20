@@ -276,5 +276,6 @@ def run(reactor, config, runApp=twistd.runApp):
         )
 
     # We always pass --nodaemon so twistd.runApp does not daemonize.
+    print("running node in %s" % (quoted_basedir,), file=out)
     runApp(twistd_config)
     return 0
