@@ -151,6 +151,10 @@ class _FoolscapOrHttps(Protocol, metaclass=_PretendToBeNegotiation):
             30, self.transport.abortConnection
         )
 
+    def connectionLost(self, reason):
+        if self._timeout.active():
+            self._timeout.cancel()
+
     def dataReceived(self, data: bytes) -> None:
         """Handle incoming data.
 
