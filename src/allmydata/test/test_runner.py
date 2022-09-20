@@ -42,6 +42,7 @@ from twisted.trial import unittest
 
 from twisted.internet import reactor
 from twisted.python import usage
+from twisted.python.runtime import platform
 from twisted.internet.defer import (
     inlineCallbacks,
     DeferredList,
@@ -516,8 +517,12 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin):
         )
         yield tahoe.stop_and_wait()
 
-        # twistd.pid should be gone by now.
-        self.assertFalse(tahoe.twistd_pid_file.exists())
+        # twistd.pid should be gone by now -- except on Windows, where
+        # killing a subprocess immediately exits with no chance for
+        # any shutdown code (that is, no Twisted shutdown hooks can
+        # run).
+        if not platform.isWindows():
+            self.assertFalse(tahoe.twistd_pid_file.exists())
 
     def _remove(self, res, file):
         fileutil.remove(file)
