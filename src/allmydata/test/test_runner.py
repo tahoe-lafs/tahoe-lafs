@@ -605,8 +605,10 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin):
             ),
         )
 
-        # It should not be running.
-        self.assertFalse(tahoe.twistd_pid_file.exists())
+        # It should not be running (but windows shutdown can't run
+        # code so the PID file still exists there).
+        if not platform.isWindows():
+            self.assertFalse(tahoe.twistd_pid_file.exists())
 
         # Wait for the operation to *complete*.  If we got this far it's
         # because we got the expected message so we can expect the "tahoe ..."
