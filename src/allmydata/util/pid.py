@@ -53,7 +53,7 @@ def parse_pidfile(pidfile):
     return pid, startime
 
 
-def check_pid_process(pidfile, find_process=None):
+def check_pid_process(pidfile):
     """
     If another instance appears to be running already, raise an
     exception.  Otherwise, write our PID + start time to the pidfile
@@ -61,12 +61,8 @@ def check_pid_process(pidfile, find_process=None):
 
     :param FilePath pidfile: the file to read/write our PID from.
 
-    :param Callable find_process: None, or a custom way to get a
-        Process objet (usually for tests)
-
     :raises ProcessInTheWay: if a running process exists at our PID
     """
-    find_process = psutil.Process if find_process is None else find_process
     lock_path = _pidfile_to_lockpath(pidfile)
 
     try:
@@ -83,7 +79,7 @@ def check_pid_process(pidfile, find_process=None):
                     # instance. Automated programs may use the start-time to
                     # help decide this (if the PID is merely recycled, the
                     # start-time won't match).
-                    find_process(pid)
+                    psutil.Process(pid)
                     raise ProcessInTheWay(
                         "A process is already running as PID {}".format(pid)
                     )
@@ -98,8 +94,7 @@ def check_pid_process(pidfile, find_process=None):
                     pidfile.remove()
 
             # write our PID + start-time to the pid-file
-            pid = os.getpid()
-            starttime = find_process(pid).create_time()
+            starttime = psutil.Process().create_time()
             with pidfile.open("w") as f:
                 f.write("{} {}\n".format(pid, starttime).encode("utf8"))
     except Timeout:
