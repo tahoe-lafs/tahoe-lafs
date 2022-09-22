@@ -105,7 +105,8 @@ def check_pid_process(pidfile):
 
 def cleanup_pidfile(pidfile):
     """
-    Safely clean up a PID-file
+    Remove the pidfile specified (respecting locks). If anything at
+    all goes wrong, `CannotRemovePidFile` is raised.
     """
     lock_path = _pidfile_to_lockpath(pidfile)
     with FileLock(lock_path.path):
