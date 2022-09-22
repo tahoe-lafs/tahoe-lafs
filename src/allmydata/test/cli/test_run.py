@@ -185,6 +185,9 @@ class RunTests(SyncTestCase):
 
     @given(text())
     def test_pidfile_contents(self, content):
+        """
+        invalid contents for a pidfile raise errors
+        """
         assume(not self.good_file_content_re.match(content))
         pidfile = FilePath("pidfile")
         pidfile.setContent(content.encode("utf8"))
