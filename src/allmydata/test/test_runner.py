@@ -643,7 +643,7 @@ class PidFileLocking(SyncTestCase):
                 "\n".join([
                     "import filelock, time",
                     "with filelock.FileLock('{}', timeout=1):".format(lockfile.path),
-                    "    print('.', flush=True)",
+                    "    print('.\n', flush=True)",
                     "    time.sleep(5)",
                 ])
             )
@@ -657,7 +657,7 @@ class PidFileLocking(SyncTestCase):
         # for sure (from the "." it prints)
         self.assertThat(
             proc.stdout.read(1),
-            Equals(b".")
+            Equals(b".\n")
         )
 
         # we should not be able to acuire this corresponding lock as well
