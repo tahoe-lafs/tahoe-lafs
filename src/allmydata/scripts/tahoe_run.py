@@ -62,13 +62,9 @@ def get_pid_from_pidfile(pidfile):
               inaccessible, ``-1`` if PID file invalid.
     """
     try:
-        with open(pidfile, "r") as f:
-            data = f.read().strip()
+        pid, _ = parse_pidfile(pidfile)
     except EnvironmentError:
         return None
-
-    try:
-        pid, _ = parse_pidfile(pidfile)
     except InvalidPidFile:
         return -1
 

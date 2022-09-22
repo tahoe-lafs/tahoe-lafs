@@ -1,4 +1,3 @@
-import os
 import psutil
 
 # the docs are a little misleading, but this is either WindowsFileLock
