@@ -50,7 +50,7 @@ def parse_pidfile(pidfile):
                 pidfile
             )
         )
-    return pid, startime
+    return pid, starttime
 
 
 def check_pid_process(pidfile):
