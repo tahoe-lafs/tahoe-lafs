@@ -168,7 +168,7 @@ class RunTests(SyncTestCase):
         config['basedir'] = basedir.path
         config.twistd_args = []
 
-        from twisted.internet import reactor
+        reactor = MemoryReactor()
 
         runs = []
         result_code = run(reactor, config, runApp=runs.append)
