@@ -32,6 +32,27 @@ def _pidfile_to_lockpath(pidfile):
     return pidfile.sibling("{}.lock".format(pidfile.basename()))
 
 
+def parse_pidfile(pidfile):
+    """
+    :param FilePath pidfile:
+    :returns tuple: 2-tuple of pid, creation-time as int, float
+    :raises InvalidPidFile: on error
+    """
+    with pidfile.open("r") as f:
+        content = f.read().decode("utf8").strip()
+    try:
+        pid, starttime = content.split()
+        pid = int(pid)
+        starttime = float(starttime)
+    except ValueError:
+        raise InvalidPidFile(
+            "found invalid PID file in {}".format(
+                pidfile
+            )
+        )
+    return pid, startime
+
+
 def check_pid_process(pidfile, find_process=None):
     """
     If another instance appears to be running already, raise an
@@ -55,18 +76,7 @@ def check_pid_process(pidfile, find_process=None):
         with FileLock(lock_path.path, timeout=2):
             # check if we have another instance running already
             if pidfile.exists():
-                with pidfile.open("r") as f:
-                    content = f.read().decode("utf8").strip()
-                try:
-                    pid, starttime = content.split()
-                    pid = int(pid)
-                    starttime = float(starttime)
-                except ValueError:
-                    raise InvalidPidFile(
-                        "found invalid PID file in {}".format(
-                            pidfile
-                        )
-                    )
+                pid, starttime = parse_pidfile(pidfile)
                 try:
                     # if any other process is running at that PID, let the
                     # user decide if this is another legitimate

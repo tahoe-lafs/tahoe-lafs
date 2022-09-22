@@ -29,6 +29,7 @@ from allmydata.util.encodingutil import listdir_unicode, quote_local_unicode_pat
 from allmydata.util.configutil import UnknownConfigError
 from allmydata.util.deferredutil import HookMixin
 from allmydata.util.pid import (
+    parse_pidfile,
     check_pid_process,
     cleanup_pidfile,
     ProcessInTheWay,
@@ -66,10 +67,9 @@ def get_pid_from_pidfile(pidfile):
     except EnvironmentError:
         return None
 
-    pid, _ = data.split()
     try:
-        pid = int(pid)
-    except ValueError:
+        pid, _ = parse_pidfile(pidfile)
+    except InvalidPidFile:
         return -1
 
     return pid
