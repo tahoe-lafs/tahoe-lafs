@@ -50,6 +50,11 @@ from twisted.internet.defer import (
 from twisted.python.filepath import FilePath
 from allmydata.util import fileutil, pollmixin
 from allmydata.util.encodingutil import unicode_to_argv
+from allmydata.util.pid import (
+    check_pid_process,
+    _pidfile_to_lockpath,
+    ProcessInTheWay,
+)
 from allmydata.test import common_util
 import allmydata
 from allmydata.scripts.runner import (
@@ -617,3 +622,45 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin):
         # What's left is a perfect indicator that the process has exited and
         # we won't get blamed for leaving the reactor dirty.
         yield client_running
+
+
+class PidFileLocking(SyncTestCase):
+    """
+    Direct tests for allmydata.util.pid functions
+    """
+
+    def test_locking(self):
+        """
+        Fail to create a pidfile if another process has the lock already.
+        """
+        # this can't just be "our" process because the locking library
+        # allows the same process to acquire a lock multiple times.
+        pidfile = FilePath("foo")
+        lockfile = _pidfile_to_lockpath(pidfile)
+
+        with open("code.py", "w") as f:
+            f.write(
+                "\n".join([
+                    "import filelock, time",
+                    "with filelock.FileLock('{}', timeout=1):".format(lockfile.path),
+                    "    print('.', flush=True)",
+                    "    time.sleep(5)",
+                ])
+            )
+        proc = Popen(
+            [sys.executable, "code.py"],
+            stdout=PIPE,
+            stderr=PIPE,
+            start_new_session=True,
+        )
+        # make sure our subprocess has had time to acquire the lock
+        # for sure (from the "." it prints)
+        self.assertThat(
+            proc.stdout.read(1),
+            Equals(b".")
+        )
+
+        # we should not be able to acuire this corresponding lock as well
+        with self.assertRaises(ProcessInTheWay):
+            check_pid_process(pidfile)
+        proc.terminate()

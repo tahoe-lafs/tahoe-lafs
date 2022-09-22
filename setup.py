@@ -141,6 +141,7 @@ install_requires = [
 
     # for pid-file support
     "psutil",
+    "filelock",
 ]
 
 setup_requires = [
