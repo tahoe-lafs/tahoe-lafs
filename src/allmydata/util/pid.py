@@ -94,9 +94,9 @@ def check_pid_process(pidfile):
                     pidfile.remove()
 
             # write our PID + start-time to the pid-file
-            starttime = psutil.Process().create_time()
+            proc = psutil.Process()
             with pidfile.open("w") as f:
-                f.write("{} {}\n".format(pid, starttime).encode("utf8"))
+                f.write("{} {}\n".format(proc.pid, proc.create_time()).encode("utf8"))
     except Timeout:
         raise ProcessInTheWay(
             "Another process is still locking {}".format(pidfile.path)
