@@ -638,7 +638,7 @@ class PidFileLocking(SyncTestCase):
         pidfile = FilePath("foo")
         lockfile = _pidfile_to_lockpath(pidfile)
 
-        with open("code.py", "w") as f:
+        with open("other_lock.py", "w") as f:
             f.write(
                 "\n".join([
                     "import filelock, time",
@@ -648,7 +648,7 @@ class PidFileLocking(SyncTestCase):
                 ])
             )
         proc = Popen(
-            [sys.executable, "code.py"],
+            [sys.executable, "other_lock.py"],
             stdout=PIPE,
             stderr=PIPE,
             start_new_session=True,
