@@ -124,6 +124,35 @@ Tahoe-LAFS.
 .. _magic wormhole: https://magic-wormhole.io/
 
 
+Multiple Instances
+------------------
+
+Running multiple instances against the same configuration directory isn't supported.
+This will lead to undefined behavior and could corrupt the configuration state.
+
+We attempt to avoid this situation with a "pidfile"-style file in the config directory called ``running.process``.
+There may be a parallel file called ``running.process.lock`` in existence.
+
+The ``.lock`` file exists to make sure only one process modifies ``running.process`` at once.
+The lock file is managed by the `lockfile <https://pypi.org/project/lockfile/>`_ library.
+If you wish to make use of ``running.process`` for any reason you should also lock it and follow the semantics of lockfile.
+
+If ``running.process` exists it file contains the PID and the creation-time of the process.
+When no such file exists, there is no other process running on this configuration.
+If there is a ``running.process`` file, it may be a leftover file or it may indicate that another process is running against this config.
+To tell the difference, determine if the PID in the file exists currently.
+If it does, check the creation-time of the process versus the one in the file.
+If these match, there is another process currently running.
+Otherwise, the file is stale -- it should be removed before starting Tahoe-LAFS.
+
+Some example Python code to check the above situations:
+
+.. literalinclude:: check_running.py
+
+
+
+
+
 A note about small grids
 ------------------------
 
