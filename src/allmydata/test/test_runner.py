@@ -635,7 +635,7 @@ class PidFileLocking(SyncTestCase):
         """
         # this can't just be "our" process because the locking library
         # allows the same process to acquire a lock multiple times.
-        pidfile = FilePath("foo")
+        pidfile = FilePath(self.mktemp())
         lockfile = _pidfile_to_lockpath(pidfile)
 
         with open("other_lock.py", "w") as f:
