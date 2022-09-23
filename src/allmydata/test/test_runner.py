@@ -645,7 +645,7 @@ class PidFileLocking(SyncTestCase):
                     "with filelock.FileLock('{}', timeout=1):".format(lockfile.path),
                     "    sys.stdout.write('.\\n')",
                     "    sys.stdout.flush()",
-                    "    time.sleep(5)",
+                    "    time.sleep(10)",
                 ])
             )
         proc = Popen(
@@ -656,7 +656,7 @@ class PidFileLocking(SyncTestCase):
         )
         # make sure our subprocess has had time to acquire the lock
         # for sure (from the "." it prints)
-        proc.stdout.read(2),
+        proc.stdout.read(2)
 
         # acquiring the same lock should fail; it is locked by the subprocess
         with self.assertRaises(ProcessInTheWay):
