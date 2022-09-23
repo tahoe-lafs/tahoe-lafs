@@ -656,12 +656,9 @@ class PidFileLocking(SyncTestCase):
         )
         # make sure our subprocess has had time to acquire the lock
         # for sure (from the "." it prints)
-        self.assertThat(
-            proc.stdout.read(2),
-            Equals(b".\n")
-        )
+        proc.stdout.read(2),
 
-        # we should not be able to acuire this corresponding lock as well
+        # acquiring the same lock should fail; it is locked by the subprocess
         with self.assertRaises(ProcessInTheWay):
             check_pid_process(pidfile)
         proc.terminate()
