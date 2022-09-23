@@ -641,9 +641,10 @@ class PidFileLocking(SyncTestCase):
         with open("other_lock.py", "w") as f:
             f.write(
                 "\n".join([
-                    "import filelock, time",
+                    "import filelock, time, sys",
                     "with filelock.FileLock('{}', timeout=1):".format(lockfile.path),
-                    "    print('.\n', flush=True)",
+                    "    sys.stdout.write('.\\n')",
+                    "    sys.stdout.flush()",
                     "    time.sleep(5)",
                 ])
             )
@@ -656,7 +657,7 @@ class PidFileLocking(SyncTestCase):
         # make sure our subprocess has had time to acquire the lock
         # for sure (from the "." it prints)
         self.assertThat(
-            proc.stdout.read(1),
+            proc.stdout.read(2),
             Equals(b".\n")
         )
 
