@@ -261,7 +261,7 @@ def test_accept_storage_server(reactor, request, temp_dir, flog_gatherer, port_a
     gm_privkey_bytes = json.loads(gm_config)['private_key'].encode('ascii')
     gm_privkey, gm_pubkey = ed25519.signing_keypair_from_string(gm_privkey_bytes)
 
-    # create certificate for the storage-servers
+    # create certificates for all storage-servers
     servers = (
         ("happy0", happy0),
         ("happy1", happy1),
@@ -278,7 +278,8 @@ def test_accept_storage_server(reactor, request, temp_dir, flog_gatherer, port_a
         )
     assert json.loads(gm_config)['storage_servers'].keys() == {'happy0', 'happy1'}
 
-    print("inserting certificates")
+    # add the certificates from the grid-manager to the storage servers
+    print("inserting storage-server certificates")
     for st_name, st in servers:
         cert = yield _run_gm(
             reactor, "--config", "-", "sign", st_name, "1",
@@ -297,8 +298,7 @@ def test_accept_storage_server(reactor, request, temp_dir, flog_gatherer, port_a
     yield happy0.restart(reactor, request)
     yield happy1.restart(reactor, request)
 
-    # configure edna to have the grid-manager certificate
-
+    # configure edna (a client) to have the grid-manager certificate
     edna = yield grid.add_client("edna", needed=2, happy=2, total=2)
 
     config = configutil.get_config(join(edna.process.node_dir, "tahoe.cfg"))
@@ -309,6 +309,7 @@ def test_accept_storage_server(reactor, request, temp_dir, flog_gatherer, port_a
 
     yield edna.restart(reactor, request, servers=2)
 
+    # confirm that Edna will upload to the GridManager-enabled Grid
     yield util.run_tahoe(
         reactor, request, "--node-directory", edna.process.node_dir,
         "put", "-",
