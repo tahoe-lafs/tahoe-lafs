@@ -128,7 +128,7 @@ Multiple Instances
 ------------------
 
 Running multiple instances against the same configuration directory isn't supported.
-This will lead to undefined behavior and could corrupt the configuration state.
+This will lead to undefined behavior and could corrupt the configuration or state.
 
 We attempt to avoid this situation with a "pidfile"-style file in the config directory called ``running.process``.
 There may be a parallel file called ``running.process.lock`` in existence.
