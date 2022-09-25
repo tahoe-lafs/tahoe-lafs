@@ -21,22 +21,22 @@ def can_spawn_tahoe(pidfile):
         except FileNotFoundError:
             return True
 
-    # somewhat interesting: we have a pidfile
-    pid = int(pid)
-    create_time = float(create_time)
+        # somewhat interesting: we have a pidfile
+        pid = int(pid)
+        create_time = float(create_time)
 
-    try:
-        proc = psutil.Process(pid)
-        # most interesting case: there _is_ a process running at the
-        # recorded PID -- but did it just happen to get that PID, or
-        # is it the very same one that wrote the file?
-        if create_time == proc.create_time():
-            # _not_ stale! another intance is still running against
-            # this configuration
-            return False
+        try:
+            proc = psutil.Process(pid)
+            # most interesting case: there _is_ a process running at the
+            # recorded PID -- but did it just happen to get that PID, or
+            # is it the very same one that wrote the file?
+            if create_time == proc.create_time():
+                # _not_ stale! another intance is still running against
+                # this configuration
+                return False
 
-    except psutil.NoSuchProcess:
-        pass
+        except psutil.NoSuchProcess:
+            pass
 
     # the file is stale
     pidfile.unlink()
