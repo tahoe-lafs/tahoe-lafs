@@ -642,7 +642,7 @@ class PidFileLocking(SyncTestCase):
             f.write(
                 "\n".join([
                     "import filelock, time, sys",
-                    "with filelock.FileLock('{}', timeout=1):".format(lockfile.path),
+                    "with filelock.FileLock(r'{}', timeout=1):".format(lockfile.path),
                     "    sys.stdout.write('.\\n')",
                     "    sys.stdout.flush()",
                     "    time.sleep(10)",
