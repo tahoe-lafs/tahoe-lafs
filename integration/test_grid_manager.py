@@ -303,20 +303,20 @@ def test_accept_storage_server(reactor, request, temp_dir, flog_gatherer, port_a
     yield happy0.restart(reactor, request)
     yield happy1.restart(reactor, request)
 
-    # configure edna (a client) to have the grid-manager certificate
-    edna = yield grid.add_client("edna", needed=2, happy=2, total=2)
+    # configure freya (a client) to have the grid-manager certificate
+    freya = yield grid.add_client("freya", needed=2, happy=2, total=2)
 
-    config = configutil.get_config(join(edna.process.node_dir, "tahoe.cfg"))
+    config = configutil.get_config(join(freya.process.node_dir, "tahoe.cfg"))
     config.add_section("grid_managers")
     config.set("grid_managers", "test", str(ed25519.string_from_verifying_key(gm_pubkey), "ascii"))
-    with open(join(edna.process.node_dir, "tahoe.cfg"), "w") as f:
+    with open(join(freya.process.node_dir, "tahoe.cfg"), "w") as f:
         config.write(f)
 
-    yield edna.restart(reactor, request, servers=2)
+    yield freya.restart(reactor, request, servers=2)
 
-    # confirm that Edna will upload to the GridManager-enabled Grid
+    # confirm that Freya will upload to the GridManager-enabled Grid
     yield util.run_tahoe(
-        reactor, request, "--node-directory", edna.process.node_dir,
+        reactor, request, "--node-directory", freya.process.node_dir,
         "put", "-",
         stdin=b"some content\n" * 200,
     )
