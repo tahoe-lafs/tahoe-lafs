@@ -28,16 +28,21 @@ import pytest_twisted
 
 
 @inlineCallbacks
-def _run_gm(reactor, *args, **kwargs):
+def _run_gm(reactor, request, *args, **kwargs):
     """
     Run the grid-manager process, passing all arguments as extra CLI
     args.
 
     :returns: all process output
     """
+    if request.config.getoption('coverage'):
+        base_args = ("-b", "-m", "coverage", "run", "-m", "allmydata.cli.grid_manager")
+    else:
+        base_args = ("-m", "allmydata.cli.grid_manager")
+
     output, errput, exit_code = yield getProcessOutputAndValue(
         sys.executable,
-        ("-m", "allmydata.cli.grid_manager") + args,
+        base_args + args,
         reactor=reactor,
         **kwargs
     )
@@ -54,7 +59,7 @@ def test_create_certificate(reactor, request):
     """
     The Grid Manager produces a valid, correctly-signed certificate.
     """
-    gm_config = yield _run_gm(reactor, "--config", "-", "create")
+    gm_config = yield _run_gm(reactor, request, "--config", "-", "create")
     privkey_bytes = json.loads(gm_config)['private_key'].encode('ascii')
     privkey, pubkey = ed25519.signing_keypair_from_string(privkey_bytes)
 
@@ -62,12 +67,12 @@ def test_create_certificate(reactor, request):
     # "actual" clients in the test-grid; we're just checking that the
     # Grid Manager signs this properly.
     gm_config = yield _run_gm(
-        reactor, "--config", "-", "add",
+        reactor, request, "--config", "-", "add",
         "zara", "pub-v0-kzug3ut2m7ziihf3ndpqlquuxeie4foyl36wn54myqc4wmiwe4ga",
         stdinBytes=gm_config,
     )
     zara_cert_bytes = yield _run_gm(
-        reactor,  "--config", "-", "sign", "zara", "1",
+        reactor,  request, "--config", "-", "sign", "zara", "1",
         stdinBytes=gm_config,
     )
     zara_cert = json.loads(zara_cert_bytes)
@@ -86,16 +91,16 @@ def test_remove_client(reactor, request):
     A Grid Manager can add and successfully remove a client
     """
     gm_config = yield _run_gm(
-        reactor, "--config", "-", "create",
+        reactor, request, "--config", "-", "create",
     )
 
     gm_config = yield _run_gm(
-        reactor, "--config", "-", "add",
+        reactor, request, "--config", "-", "add",
         "zara", "pub-v0-kzug3ut2m7ziihf3ndpqlquuxeie4foyl36wn54myqc4wmiwe4ga",
         stdinBytes=gm_config,
     )
     gm_config = yield _run_gm(
-        reactor, "--config", "-", "add",
+        reactor, request, "--config", "-", "add",
         "yakov", "pub-v0-kvxhb3nexybmipkrar2ztfrwp4uxxsmrjzkpzafit3ket4u5yldq",
         stdinBytes=gm_config,
     )
@@ -103,7 +108,7 @@ def test_remove_client(reactor, request):
     assert "yakov" in json.loads(gm_config)['storage_servers']
 
     gm_config = yield _run_gm(
-        reactor, "--config", "-", "remove",
+        reactor, request, "--config", "-", "remove",
         "zara",
         stdinBytes=gm_config,
     )
@@ -117,18 +122,18 @@ def test_remove_last_client(reactor, request):
     A Grid Manager can remove all clients
     """
     gm_config = yield _run_gm(
-        reactor, "--config", "-", "create",
+        reactor, request, "--config", "-", "create",
     )
 
     gm_config = yield _run_gm(
-        reactor, "--config", "-", "add",
+        reactor, request, "--config", "-", "add",
         "zara", "pub-v0-kzug3ut2m7ziihf3ndpqlquuxeie4foyl36wn54myqc4wmiwe4ga",
         stdinBytes=gm_config,
     )
     assert "zara" in json.loads(gm_config)['storage_servers']
 
     gm_config = yield _run_gm(
-        reactor, "--config", "-", "remove",
+        reactor, request, "--config", "-", "remove",
         "zara",
         stdinBytes=gm_config,
     )
@@ -145,22 +150,22 @@ def test_add_remove_client_file(reactor, request, temp_dir):
     gmconfig = join(temp_dir, "gmtest")
     gmconfig_file = join(temp_dir, "gmtest", "config.json")
     yield _run_gm(
-        reactor, "--config", gmconfig, "create",
+        reactor, request, "--config", gmconfig, "create",
     )
 
     yield _run_gm(
-        reactor, "--config", gmconfig, "add",
+        reactor, request, "--config", gmconfig, "add",
         "zara", "pub-v0-kzug3ut2m7ziihf3ndpqlquuxeie4foyl36wn54myqc4wmiwe4ga",
     )
     yield _run_gm(
-        reactor, "--config", gmconfig, "add",
+        reactor, request, "--config", gmconfig, "add",
         "yakov", "pub-v0-kvxhb3nexybmipkrar2ztfrwp4uxxsmrjzkpzafit3ket4u5yldq",
     )
     assert "zara" in json.load(open(gmconfig_file, "r"))['storage_servers']
     assert "yakov" in json.load(open(gmconfig_file, "r"))['storage_servers']
 
     yield _run_gm(
-        reactor, "--config", gmconfig, "remove",
+        reactor, request, "--config", gmconfig, "remove",
         "zara",
     )
     assert "zara" not in json.load(open(gmconfig_file, "r"))['storage_servers']
@@ -179,7 +184,7 @@ def test_reject_storage_server(reactor, request, temp_dir, flog_gatherer, port_a
     _ = yield grid.add_storage_node()
 
     gm_config = yield _run_gm(
-        reactor, "--config", "-", "create",
+        reactor, request, "--config", "-", "create",
     )
     gm_privkey_bytes = json.loads(gm_config)['private_key'].encode('ascii')
     gm_privkey, gm_pubkey = ed25519.signing_keypair_from_string(gm_privkey_bytes)
@@ -190,7 +195,7 @@ def test_reject_storage_server(reactor, request, temp_dir, flog_gatherer, port_a
         pubkey_str = f.read().strip()
 
     gm_config = yield _run_gm(
-        reactor, "--config", "-", "add",
+        reactor, request, "--config", "-", "add",
         "storage0", pubkey_str,
         stdinBytes=gm_config,
     )
@@ -198,7 +203,7 @@ def test_reject_storage_server(reactor, request, temp_dir, flog_gatherer, port_a
 
     print("inserting certificate")
     cert = yield _run_gm(
-        reactor, "--config", "-", "sign", "storage0", "1",
+        reactor, request, "--config", "-", "sign", "storage0", "1",
         stdinBytes=gm_config,
     )
     print(cert)
@@ -256,7 +261,7 @@ def test_accept_storage_server(reactor, request, temp_dir, flog_gatherer, port_a
     happy1 = yield grid.add_storage_node()
 
     gm_config = yield _run_gm(
-        reactor, "--config", "-", "create",
+        reactor, request, "--config", "-", "create",
     )
     gm_privkey_bytes = json.loads(gm_config)['private_key'].encode('ascii')
     gm_privkey, gm_pubkey = ed25519.signing_keypair_from_string(gm_privkey_bytes)
@@ -272,7 +277,7 @@ def test_accept_storage_server(reactor, request, temp_dir, flog_gatherer, port_a
             pubkey_str = f.read().strip()
 
         gm_config = yield _run_gm(
-            reactor, "--config", "-", "add",
+            reactor, request, "--config", "-", "add",
             st_name, pubkey_str,
             stdinBytes=gm_config,
         )
@@ -282,7 +287,7 @@ def test_accept_storage_server(reactor, request, temp_dir, flog_gatherer, port_a
     print("inserting storage-server certificates")
     for st_name, st in servers:
         cert = yield _run_gm(
-            reactor, "--config", "-", "sign", st_name, "1",
+            reactor, request, "--config", "-", "sign", st_name, "1",
             stdinBytes=gm_config,
         )
 
@@ -324,12 +329,12 @@ def test_identity(reactor, request, temp_dir):
     """
     gm_config = join(temp_dir, "test_identity")
     yield _run_gm(
-        reactor, "--config", gm_config, "create",
+        reactor, request, "--config", gm_config, "create",
     )
 
     # ask the CLI for the grid-manager pubkey
     pubkey = yield _run_gm(
-        reactor, "--config", gm_config, "public-identity",
+        reactor, request, "--config", gm_config, "public-identity",
     )
     alleged_pubkey = ed25519.verifying_key_from_string(pubkey.strip())
 
