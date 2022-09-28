@@ -137,7 +137,7 @@ The ``.lock`` file exists to make sure only one process modifies ``running.proce
 The lock file is managed by the `lockfile <https://pypi.org/project/lockfile/>`_ library.
 If you wish to make use of ``running.process`` for any reason you should also lock it and follow the semantics of lockfile.
 
-If ``running.process` exists it file contains the PID and the creation-time of the process.
+If ``running.process`` exists then it contains the PID and the creation-time of the process.
 When no such file exists, there is no other process running on this configuration.
 If there is a ``running.process`` file, it may be a leftover file or it may indicate that another process is running against this config.
 To tell the difference, determine if the PID in the file exists currently.
