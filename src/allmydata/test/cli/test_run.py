@@ -12,23 +12,19 @@ from future.utils import PY2
 if PY2:
     from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
+import re
 from six.moves import (
     StringIO,
 )
 
-from testtools import (
-    skipIf,
-)
+from hypothesis.strategies import text
+from hypothesis import given, assume
 
 from testtools.matchers import (
     Contains,
     Equals,
-    HasLength,
 )
 
-from twisted.python.runtime import (
-    platform,
-)
 from twisted.python.filepath import (
     FilePath,
 )
@@ -43,6 +39,10 @@ from ...scripts.tahoe_run import (
     DaemonizeTheRealService,
     RunOptions,
     run,
+)
+from ...util.pid import (
+    check_pid_process,
+    InvalidPidFile,
 )
 
 from ...scripts.runner import (
@@ -151,7 +151,7 @@ class RunTests(SyncTestCase):
     """
     Tests for ``run``.
     """
-    @skipIf(platform.isWindows(), "There are no PID files on Windows.")
+
     def test_non_numeric_pid(self):
         """
         If the pidfile exists but does not contain a numeric value, a complaint to
@@ -159,7 +159,7 @@ class RunTests(SyncTestCase):
         """
         basedir = FilePath(self.mktemp()).asTextMode()
         basedir.makedirs()
-        basedir.child(u"twistd.pid").setContent(b"foo")
+        basedir.child(u"running.process").setContent(b"foo")
         basedir.child(u"tahoe-client.tac").setContent(b"")
 
         config = RunOptions()
@@ -168,17 +168,30 @@ class RunTests(SyncTestCase):
         config['basedir'] = basedir.path
         config.twistd_args = []
 
+        reactor = MemoryReactor()
+
         runs = []
-        result_code = run(config, runApp=runs.append)
+        result_code = run(reactor, config, runApp=runs.append)
         self.assertThat(
             config.stderr.getvalue(),
             Contains("found invalid PID file in"),
         )
-        self.assertThat(
-            runs,
-            HasLength(1),
-        )
-        self.assertThat(
-            result_code,
-            Equals(0),
-        )
+        # because the pidfile is invalid we shouldn't get to the
+        # .run() call itself.
+        self.assertThat(runs, Equals([]))
+        self.assertThat(result_code, Equals(1))
+
+    good_file_content_re = re.compile(r"\w[0-9]*\w[0-9]*\w")
+
+    @given(text())
+    def test_pidfile_contents(self, content):
+        """
+        invalid contents for a pidfile raise errors
+        """
+        assume(not self.good_file_content_re.match(content))
+        pidfile = FilePath("pidfile")
+        pidfile.setContent(content.encode("utf8"))
+
+        with self.assertRaises(InvalidPidFile):
+            with check_pid_process(pidfile):
+                pass
