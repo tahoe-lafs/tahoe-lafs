@@ -652,7 +652,6 @@ class PidFileLocking(SyncTestCase):
             [sys.executable, "other_lock.py", lockfile.path],
             stdout=PIPE,
             stderr=PIPE,
-            start_new_session=True,
         )
         # make sure our subprocess has had time to acquire the lock
         # for sure (from the "." it prints)
