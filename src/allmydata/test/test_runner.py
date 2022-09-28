@@ -642,14 +642,14 @@ class PidFileLocking(SyncTestCase):
             f.write(
                 "\n".join([
                     "import filelock, time, sys",
-                    "with filelock.FileLock(r'{}', timeout=1):".format(lockfile.path),
+                    "with filelock.FileLock(sys.argv[1], timeout=1):",
                     "    sys.stdout.write('.\\n')",
                     "    sys.stdout.flush()",
                     "    time.sleep(10)",
                 ])
             )
         proc = Popen(
-            [sys.executable, "other_lock.py"],
+            [sys.executable, "other_lock.py", lockfile.path],
             stdout=PIPE,
             stderr=PIPE,
             start_new_session=True,
