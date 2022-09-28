@@ -38,9 +38,9 @@ def can_spawn_tahoe(pidfile):
         except psutil.NoSuchProcess:
             pass
 
-    # the file is stale
-    pidfile.unlink()
-    return True
+        # the file is stale
+        pidfile.unlink()
+        return True
 
 
 from pathlib import Path
