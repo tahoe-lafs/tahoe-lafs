@@ -142,7 +142,7 @@ When no such file exists, there is no other process running on this configuratio
 If there is a ``running.process`` file, it may be a leftover file or it may indicate that another process is running against this config.
 To tell the difference, determine if the PID in the file exists currently.
 If it does, check the creation-time of the process versus the one in the file.
-If these match, there is another process currently running.
+If these match, there is another process currently running and using this config.
 Otherwise, the file is stale -- it should be removed before starting Tahoe-LAFS.
 
 Some example Python code to check the above situations:
