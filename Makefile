@@ -224,3 +224,47 @@ src/allmydata/_version.py:
 
 .tox/create-venvs.log: tox.ini setup.py
 	tox --notest -p all | tee -a "$(@)"
+
+
+# Make a new release. TODO:
+# - clean checkout necessary? garbage in tarball?
+release:
+	@echo "Is checkout clean?"
+	git diff-files --quiet
+	git diff-index --quiet --cached HEAD --
+
+	@echo "Install required build software"
+	python3 -m pip install --editable .[build]
+
+	@echo "Test README"
+	python3 setup.py check -r -s
+
+	@echo "Update NEWS"
+	python3 -m towncrier build --yes --version `python3 misc/build_helpers/update-version.py --no-tag`
+	git add -u
+	git commit -m "update NEWS for release"
+
+	@echo "Bump version and create tag"
+	python3 misc/build_helpers/update-version.py
+
+	@echo "Build and sign wheel"
+	python3 setup.py bdist_wheel
+	gpg --pinentry=loopback -u meejah@meejah.ca --armor --detach-sign dist/tahoe_lafs-`git describe --abbrev=0`-py3-none-any.whl
+	ls dist/*`git describe --abbrev=0`*
+
+	@echo "Build and sign source-dist"
+	python3 setup.py sdist
+	gpg --pinentry=loopback -u meejah@meejah.ca --armor --detach-sign dist/tahoe-lafs-`git describe --abbrev=0`.tar.gz
+	ls dist/*`git describe --abbrev=0`*
+
+release-test:
+	gpg --verify dist/tahoe-lafs-`git describe --abbrev=0`.tar.gz.asc
+	gpg --verify dist/tahoe_lafs-`git describe --abbrev=0`-py3-none-any.whl.asc
+	virtualenv testmf_venv
+	testmf_venv/bin/pip install dist/tahoe_lafs-`git describe --abbrev=0`-py3-none-any.whl
+	testmf_venv/bin/tahoe-lafs --version
+# ... 
+	rm -rf testmf_venv
+
+release-upload:
+	twine upload dist/tahoe_lafs-`git describe --abbrev=0`-py3-none-any.whl dist/tahoe_lafs-`git describe --abbrev=0`-py3-none-any.whl.asc dist/tahoe-lafs-`git describe --abbrev=0`.tar.gz dist/tahoe-lafs-`git describe --abbrev=0`.tar.gz.asc
