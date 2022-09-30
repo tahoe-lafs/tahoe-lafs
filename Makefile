@@ -260,13 +260,13 @@ release:
 	gpg --pinentry=loopback -u meejah@meejah.ca --armor --detach-sign dist/tahoe-lafs-`git describe | cut -b 12-`.tar.gz
 	ls dist/*`git describe | cut -b 12-`*
 
+# basically just a bare-minimum smoke-test that it installs and runs
 release-test:
 	gpg --verify dist/tahoe-lafs-`git describe | cut -b 12-`.tar.gz.asc
 	gpg --verify dist/tahoe_lafs-`git describe | cut -b 12-`-py3-none-any.whl.asc
 	virtualenv testmf_venv
 	testmf_venv/bin/pip install dist/tahoe_lafs-`git describe | cut -b 12-`-py3-none-any.whl
-	testmf_venv/bin/tahoe-lafs --version
-# ... 
+	testmf_venv/bin/tahoe --version
 	rm -rf testmf_venv
 
 release-upload:
