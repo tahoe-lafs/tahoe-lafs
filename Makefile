@@ -270,4 +270,6 @@ release-test:
 	rm -rf testmf_venv
 
 release-upload:
+	scp dist/*`git describe | cut -b 12-`* meejah@tahoe-lafs.org:/home/source/downloads
+	git push origin_push tahoe-lafs-`git describe | cut -b 12-`
 	twine upload dist/tahoe_lafs-`git describe | cut -b 12-`-py3-none-any.whl dist/tahoe_lafs-`git describe | cut -b 12-`-py3-none-any.whl.asc dist/tahoe-lafs-`git describe | cut -b 12-`.tar.gz dist/tahoe-lafs-`git describe | cut -b 12-`.tar.gz.asc
