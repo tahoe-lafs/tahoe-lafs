@@ -226,8 +226,16 @@ src/allmydata/_version.py:
 	tox --notest -p all | tee -a "$(@)"
 
 
-# Make a new release. TODO:
-# - clean checkout necessary? garbage in tarball?
+# to make a new release:
+# - create a ticket for the release in Trac
+# - ensure local copy is up-to-date
+# - create a branch like "XXXX.release" from up-to-date master
+# - in the branch, run "make release"
+# - run "make release-test"
+# - perform any other sanity-checks on the release
+# - run "make release-upload"
+# Note that several commands below hard-code "meejah"; if you are
+# someone else please adjust them.
 release:
 	@echo "Is checkout clean?"
 	git diff-files --quiet
