@@ -250,14 +250,13 @@ release:
 	@echo "Test README"
 	python3 setup.py check -r -s
 
-# XXX make branch, based on a ticket (provided how?)
-# XXX or, specify that "make release" must run on such a branch "XXXX.tahoe-release"
-
 	@echo "Update NEWS"
 	python3 -m towncrier build --yes --version `python3 misc/build_helpers/update-version.py --no-tag`
 	git add -u
 	git commit -m "update NEWS for release"
 
+# note that this always bumps the "middle" number, e.g. from 1.17.1 -> 1.18.0
+# and produces a tag into the Git repository
 	@echo "Bump version and create tag"
 	python3 misc/build_helpers/update-version.py
 
