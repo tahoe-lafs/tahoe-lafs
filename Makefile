@@ -233,6 +233,9 @@ release:
 	git diff-files --quiet
 	git diff-index --quiet --cached HEAD --
 
+	@echo "Clean docs build area"
+	rm -rf docs/_build/
+
 	@echo "Install required build software"
 	python3 -m pip install --editable .[build]
 
