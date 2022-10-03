@@ -6,10 +6,11 @@ simple as possible, with no extra configuration needed.  Listening on the same
 port means a user upgrading Tahoe-LAFS will automatically get HTTPS working
 with no additional changes.
 
-Use ``support_foolscap_and_https()`` to create a new subclass for a ``Tub``
-instance, and then ``add_storage_server()`` on the resulting class to add the
-relevant information for a storage server once it becomes available later in
-the configuration process.
+Use ``create_tub_with_https_support()`` creates a new ``Tub`` that has its
+``negotiationClass`` modified to be a new subclass tied to that specific
+``Tub`` instance.  Calling ``tub.negotiationClass.add_storage_server(...)``
+then adds relevant information for a storage server once it becomes available
+later in the configuration process.
 """
 
 from __future__ import annotations
@@ -193,14 +194,17 @@ class _FoolscapOrHttps(Protocol, metaclass=_PretendToBeNegotiation):
             self.__dict__ = protocol.__dict__
 
 
-def support_foolscap_and_https(tub: Tub):
+def create_tub_with_https_support(**kwargs) -> Tub:
     """
-    Create a new Foolscap-or-HTTPS protocol class for a specific ``Tub``
+    Create a new Tub that also supports HTTPS.
+
+    This involves creating a new protocol switch class for the specific ``Tub``
     instance.
     """
-    the_tub = tub
+    the_tub = Tub(**kwargs)
 
     class FoolscapOrHttpForTub(_FoolscapOrHttps):
         tub = the_tub
 
-    tub.negotiationClass = FoolscapOrHttpForTub  # type: ignore
+    the_tub.negotiationClass = FoolscapOrHttpForTub  # type: ignore
+    return the_tub
