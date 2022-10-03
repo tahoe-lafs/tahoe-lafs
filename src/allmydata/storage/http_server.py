@@ -4,7 +4,7 @@ HTTP server for storage.
 
 from __future__ import annotations
 
-from typing import Dict, List, Set, Tuple, Any, Callable, Union
+from typing import Dict, List, Set, Tuple, Any, Callable, Union, cast
 from functools import wraps
 from base64 import b64decode
 import binascii
@@ -19,6 +19,7 @@ from twisted.internet.interfaces import (
     IStreamServerEndpoint,
     IPullProducer,
 )
+from twisted.internet.address import IPv4Address, IPv6Address
 from twisted.internet.defer import Deferred
 from twisted.internet.ssl import CertificateOptions, Certificate, PrivateCertificate
 from twisted.web.server import Site, Request
@@ -911,9 +912,10 @@ def listen_tls(
     endpoint = _TLSEndpointWrapper.from_paths(endpoint, private_key_path, cert_path)
 
     def get_nurl(listening_port: IListeningPort) -> DecodedURL:
+        address = cast(Union[IPv4Address, IPv6Address], listening_port.getHost())
         return build_nurl(
             hostname,
-            listening_port.getHost().port,
+            address.port,
             str(server._swissnum, "ascii"),
             load_pem_x509_certificate(cert_path.getContent()),
         )
