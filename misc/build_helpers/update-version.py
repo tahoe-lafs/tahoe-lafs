@@ -9,7 +9,6 @@ author = "meejah <meejah@meejah.ca>"
 
 import sys
 import time
-import itertools
 from datetime import datetime
 from packaging.version import Version
 
