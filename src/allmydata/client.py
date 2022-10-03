@@ -1,17 +1,9 @@
 """
 Ported to Python 3.
 """
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
+from __future__ import annotations
 
-from future.utils import PY2
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, max, min  # noqa: F401
-    # Don't use future str to prevent leaking future's newbytes into foolscap, which they break.
-    from past.builtins import unicode as str
-
+from typing import Optional
 import os, stat, time, weakref
 from base64 import urlsafe_b64encode
 from functools import partial
@@ -668,7 +660,7 @@ class _Client(node.Node, pollmixin.PollMixin):
         # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3901. See also
         # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3931 for the bigger
         # picture issue.
-        self.storage_nurls = set()
+        self.storage_nurls : Optional[set] = None
 
     def init_stats_provider(self):
         self.stats_provider = StatsProvider(self)
@@ -831,8 +823,8 @@ class _Client(node.Node, pollmixin.PollMixin):
             furl_file = self.config.get_private_path("storage.furl").encode(get_filesystem_encoding())
             furl = self.tub.registerReference(FoolscapStorageServer(ss), furlFile=furl_file)
             (_, _, swissnum) = furl.rpartition("/")
-            self.storage_nurls.update(
-                self.tub.negotiationClass.add_storage_server(ss, swissnum.encode("ascii"))
+            self.storage_nurls = self.tub.negotiationClass.add_storage_server(
+                ss, swissnum.encode("ascii")
             )
             announcement["anonymous-storage-FURL"] = furl
 
