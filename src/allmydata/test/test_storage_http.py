@@ -255,7 +255,7 @@ class TestApp(object):
         else:
             return "BAD: {}".format(authorization)
 
-    @_authorized_route(_app, set(), "/v1/version", methods=["GET"])
+    @_authorized_route(_app, set(), "/storage/v1/version", methods=["GET"])
     def bad_version(self, request, authorization):
         """Return version result that violates the expected schema."""
         request.setHeader("content-type", CBOR_MIME_TYPE)
@@ -534,7 +534,7 @@ class GenericHTTPAPITests(SyncTestCase):
         lease_secret = urandom(32)
         storage_index = urandom(16)
         url = self.http.client.relative_url(
-            "/v1/immutable/" + _encode_si(storage_index)
+            "/storage/v1/immutable/" + _encode_si(storage_index)
         )
         message = {"bad-message": "missing expected keys"}
 
@@ -1418,7 +1418,7 @@ class SharedImmutableMutableTestsMixin:
             self.http.client.request(
                 "GET",
                 self.http.client.relative_url(
-                    "/v1/{}/{}/1".format(self.KIND, _encode_si(storage_index))
+                    "/storage/v1/{}/{}/1".format(self.KIND, _encode_si(storage_index))
                 ),
             )
         )
@@ -1441,7 +1441,7 @@ class SharedImmutableMutableTestsMixin:
                 self.http.client.request(
                     "GET",
                     self.http.client.relative_url(
-                        "/v1/{}/{}/1".format(self.KIND, _encode_si(storage_index))
+                        "/storage/v1/{}/{}/1".format(self.KIND, _encode_si(storage_index))
                     ),
                     headers=headers,
                 )
