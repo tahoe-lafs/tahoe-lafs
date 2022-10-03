@@ -87,10 +87,12 @@ These differences are separated into distinct versions.
 Version 0
 ---------
 
-A Foolscap fURL is considered the canonical definition of a version 0 NURL.
+In theory, a Foolscap fURL with a single netloc is considered the canonical definition of a version 0 NURL.
 Notably,
 the hash component is defined as the base32-encoded SHA1 hash of the DER form of an x509v3 certificate.
 A version 0 NURL is identified by the absence of the ``v=1`` fragment.
+
+In practice, real world fURLs may have more than one netloc, so lack of version fragment will likely just involve dispatching the fURL to a different parser.
 
 Examples
 ~~~~~~~~
@@ -119,7 +121,7 @@ The hash component of a version 1 NURL differs in three ways from the prior vers
    *all* certificate fields should be considered within the context of the relationship identified by the SPKI hash.
 
 3. The hash is encoded using urlsafe-base64 (without padding) instead of base32.
-   This provides a more compact representation and minimizes the usability impacts of switching from a 160 bit hash to a 224 bit hash.
+   This provides a more compact representation and minimizes the usability impacts of switching from a 160 bit hash to a 256 bit hash.
 
 A version 1 NURL is identified by the presence of the ``v=1`` fragment.
 Though the length of the hash string (38 bytes) could also be used to differentiate it from a version 0 NURL,
