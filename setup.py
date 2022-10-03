@@ -380,6 +380,10 @@ setup(name="tahoe-lafs", # also set in __init__.py
           # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2392 for some
           # discussion.
           ':sys_platform=="win32"': ["pywin32 != 226"],
+          "build": [
+              "dulwich",
+              "gpg",
+          ],
           "test": [
               "flake8",
               # Pin a specific pyflakes so we don't have different folks
