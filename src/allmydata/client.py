@@ -591,6 +591,10 @@ def anonymous_storage_enabled(config):
 
 @implementer(IStatsProducer)
 class _Client(node.Node, pollmixin.PollMixin):
+    """
+    This class should be refactored; see
+    https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3931
+    """
 
     STOREDIR = 'storage'
     NODETYPE = "client"
@@ -661,7 +665,9 @@ class _Client(node.Node, pollmixin.PollMixin):
         # TODO this may be the wrong location for now? but as temporary measure
         # it allows us to get NURLs for testing in test_istorageserver.py. This
         # will eventually get fixed one way or another in
-        # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3901
+        # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3901. See also
+        # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3931 for the bigger
+        # picture issue.
         self.storage_nurls = set()
 
     def init_stats_provider(self):
