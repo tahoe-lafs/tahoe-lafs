@@ -63,7 +63,7 @@ def i2p_network(reactor, temp_dir, request):
 
     def cleanup():
         try:
-            proto.transport.signalProcess("KILL")
+            proto.transport.signalProcess("INT")
             util.block_with_timeout(proto.exited, reactor)
         except ProcessExitedAlready:
             pass
