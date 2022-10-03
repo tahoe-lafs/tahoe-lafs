@@ -551,7 +551,7 @@ class HTTPServer(object):
 
     ##### Generic APIs #####
 
-    @_authorized_route(_app, set(), "/v1/version", methods=["GET"])
+    @_authorized_route(_app, set(), "/storage/v1/version", methods=["GET"])
     def version(self, request, authorization):
         """Return version information."""
         return self._send_encoded(request, self._storage_server.get_version())
@@ -561,7 +561,7 @@ class HTTPServer(object):
     @_authorized_route(
         _app,
         {Secrets.LEASE_RENEW, Secrets.LEASE_CANCEL, Secrets.UPLOAD},
-        "/v1/immutable/<storage_index:storage_index>",
+        "/storage/v1/immutable/<storage_index:storage_index>",
         methods=["POST"],
     )
     def allocate_buckets(self, request, authorization, storage_index):
@@ -597,7 +597,7 @@ class HTTPServer(object):
     @_authorized_route(
         _app,
         {Secrets.UPLOAD},
-        "/v1/immutable/<storage_index:storage_index>/<int(signed=False):share_number>/abort",
+        "/storage/v1/immutable/<storage_index:storage_index>/<int(signed=False):share_number>/abort",
         methods=["PUT"],
     )
     def abort_share_upload(self, request, authorization, storage_index, share_number):
@@ -628,7 +628,7 @@ class HTTPServer(object):
     @_authorized_route(
         _app,
         {Secrets.UPLOAD},
-        "/v1/immutable/<storage_index:storage_index>/<int(signed=False):share_number>",
+        "/storage/v1/immutable/<storage_index:storage_index>/<int(signed=False):share_number>",
         methods=["PATCH"],
     )
     def write_share_data(self, request, authorization, storage_index, share_number):
@@ -671,7 +671,7 @@ class HTTPServer(object):
     @_authorized_route(
         _app,
         set(),
-        "/v1/immutable/<storage_index:storage_index>/shares",
+        "/storage/v1/immutable/<storage_index:storage_index>/shares",
         methods=["GET"],
     )
     def list_shares(self, request, authorization, storage_index):
@@ -684,7 +684,7 @@ class HTTPServer(object):
     @_authorized_route(
         _app,
         set(),
-        "/v1/immutable/<storage_index:storage_index>/<int(signed=False):share_number>",
+        "/storage/v1/immutable/<storage_index:storage_index>/<int(signed=False):share_number>",
         methods=["GET"],
     )
     def read_share_chunk(self, request, authorization, storage_index, share_number):
@@ -700,7 +700,7 @@ class HTTPServer(object):
     @_authorized_route(
         _app,
         {Secrets.LEASE_RENEW, Secrets.LEASE_CANCEL},
-        "/v1/lease/<storage_index:storage_index>",
+        "/storage/v1/lease/<storage_index:storage_index>",
         methods=["PUT"],
     )
     def add_or_renew_lease(self, request, authorization, storage_index):
@@ -721,7 +721,7 @@ class HTTPServer(object):
     @_authorized_route(
         _app,
         set(),
-        "/v1/immutable/<storage_index:storage_index>/<int(signed=False):share_number>/corrupt",
+        "/storage/v1/immutable/<storage_index:storage_index>/<int(signed=False):share_number>/corrupt",
         methods=["POST"],
     )
     def advise_corrupt_share_immutable(
@@ -742,7 +742,7 @@ class HTTPServer(object):
     @_authorized_route(
         _app,
         {Secrets.LEASE_RENEW, Secrets.LEASE_CANCEL, Secrets.WRITE_ENABLER},
-        "/v1/mutable/<storage_index:storage_index>/read-test-write",
+        "/storage/v1/mutable/<storage_index:storage_index>/read-test-write",
         methods=["POST"],
     )
     def mutable_read_test_write(self, request, authorization, storage_index):
@@ -777,7 +777,7 @@ class HTTPServer(object):
     @_authorized_route(
         _app,
         set(),
-        "/v1/mutable/<storage_index:storage_index>/<int(signed=False):share_number>",
+        "/storage/v1/mutable/<storage_index:storage_index>/<int(signed=False):share_number>",
         methods=["GET"],
     )
     def read_mutable_chunk(self, request, authorization, storage_index, share_number):
@@ -801,7 +801,10 @@ class HTTPServer(object):
         return read_range(request, read_data, share_length)
 
     @_authorized_route(
-        _app, set(), "/v1/mutable/<storage_index:storage_index>/shares", methods=["GET"]
+        _app,
+        set(),
+        "/storage/v1/mutable/<storage_index:storage_index>/shares",
+        methods=["GET"],
     )
     def enumerate_mutable_shares(self, request, authorization, storage_index):
         """List mutable shares for a storage index."""
@@ -811,7 +814,7 @@ class HTTPServer(object):
     @_authorized_route(
         _app,
         set(),
-        "/v1/mutable/<storage_index:storage_index>/<int(signed=False):share_number>/corrupt",
+        "/storage/v1/mutable/<storage_index:storage_index>/<int(signed=False):share_number>/corrupt",
         methods=["POST"],
     )
     def advise_corrupt_share_mutable(
