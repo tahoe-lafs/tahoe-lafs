@@ -53,13 +53,13 @@ class _FoolscapOrHttps(Protocol, metaclass=_PretendToBeNegotiation):
     since these are created by Foolscap's ``Tub``, by setting this to be the
     tub's ``negotiationClass``.
 
-    Do not instantiate directly, use ``support_foolscap_and_https(tub)``
+    Do not instantiate directly, use ``create_tub_with_https_support(...)``
     instead.  The way this class works is that a new subclass is created for a
     specific ``Tub`` instance.
     """
 
     # These are class attributes; they will be set by
-    # support_foolscap_and_https() and add_storage_server().
+    # create_tub_with_https_support() and add_storage_server().
 
     # The Twisted HTTPS protocol factory wrapping the storage server HTTP API:
     https_factory: TLSMemoryBIOFactory
