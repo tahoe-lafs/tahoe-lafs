@@ -822,7 +822,7 @@ class _Client(node.Node, pollmixin.PollMixin):
         if anonymous_storage_enabled(self.config):
             furl_file = self.config.get_private_path("storage.furl").encode(get_filesystem_encoding())
             furl = self.tub.registerReference(FoolscapStorageServer(ss), furlFile=furl_file)
-            (_, _, swissnum) = furl.rpartition("/")
+            (_, _, swissnum) = decode_furl(furl)
             self.storage_nurls = self.tub.negotiationClass.add_storage_server(
                 ss, swissnum.encode("ascii")
             )
