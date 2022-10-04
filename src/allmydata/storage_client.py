@@ -1066,7 +1066,8 @@ class HTTPNativeStorageServer(service.MultiService):
 
     def stopService(self):
         service.MultiService.stopService(self)
-        self._lc.stop()
+        if self._lc.running:
+            self._lc.stop()
         self._failed_to_connect("shut down")
 
 
