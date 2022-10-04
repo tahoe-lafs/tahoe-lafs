@@ -1203,6 +1203,7 @@ class _FakeRemoteReference(object):
             raise RemoteException(e.args)
 
 
+@attr.s
 class _HTTPBucketWriter(object):
     """
     Emulate a ``RIBucketWriter``, but use HTTP protocol underneath.
