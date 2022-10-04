@@ -47,26 +47,26 @@ This can be considered to expand to "**N**\ ew URLs" or "Authe\ **N**\ ticating 
 The anticipated use for a **NURL** will still be to establish a TLS connection to a peer.
 The protocol run over that TLS connection could be Foolscap though it is more likely to be an HTTP-based protocol (such as GBS).
 
+Unlike fURLs, only a single net-loc is included, for consistency with other forms of URLs.
+As a result, multiple NURLs may be available for a single server.
+
 Syntax
 ------
 
 The EBNF for a NURL is as follows::
 
-  nurl         = scheme, hash, "@", net-loc-list, "/", swiss-number, [ version1 ]
-
-  scheme       = "pb://"
+  nurl         = tcp-nurl | tor-nurl | i2p-nurl
+  tcp-nurl     = "pb://", hash, "@", tcp-loc, "/", swiss-number, [ version1 ]
+  tor-nurl     = "pb+tor://", hash, "@", tcp-loc, "/", swiss-number, [ version1 ]
+  i2p-nurl     = "pb+i2p://", hash, "@", i2p-loc, "/", swiss-number, [ version1 ]
 
   hash         = unreserved
 
-  net-loc-list = net-loc, [ { ",", net-loc } ]
-  net-loc      = tcp-loc | tor-loc | i2p-loc
-
-  tcp-loc      = [ "tcp:" ], hostname, [ ":" port ]
-  tor-loc      = "tor:", hostname, [ ":" port ]
-  i2p-loc      = "i2p:", i2p-addr, [ ":" port ]
-
-  i2p-addr     = { unreserved }, ".i2p"
+  tcp-loc      = hostname, [ ":" port ]
   hostname     = domain | IPv4address | IPv6address
+
+  i2p-loc      = i2p-addr, [ ":" port ]
+  i2p-addr     = { unreserved }, ".i2p"
 
   swiss-number = segment
 
@@ -87,10 +87,12 @@ These differences are separated into distinct versions.
 Version 0
 ---------
 
-A Foolscap fURL is considered the canonical definition of a version 0 NURL.
+In theory, a Foolscap fURL with a single netloc is considered the canonical definition of a version 0 NURL.
 Notably,
 the hash component is defined as the base32-encoded SHA1 hash of the DER form of an x509v3 certificate.
 A version 0 NURL is identified by the absence of the ``v=1`` fragment.
+
+In practice, real world fURLs may have more than one netloc, so lack of version fragment will likely just involve dispatching the fURL to a different parser.
 
 Examples
 ~~~~~~~~
@@ -119,7 +121,7 @@ The hash component of a version 1 NURL differs in three ways from the prior vers
    *all* certificate fields should be considered within the context of the relationship identified by the SPKI hash.
 
 3. The hash is encoded using urlsafe-base64 (without padding) instead of base32.
-   This provides a more compact representation and minimizes the usability impacts of switching from a 160 bit hash to a 224 bit hash.
+   This provides a more compact representation and minimizes the usability impacts of switching from a 160 bit hash to a 256 bit hash.
 
 A version 1 NURL is identified by the presence of the ``v=1`` fragment.
 Though the length of the hash string (38 bytes) could also be used to differentiate it from a version 0 NURL,
