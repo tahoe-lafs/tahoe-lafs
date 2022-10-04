@@ -441,6 +441,17 @@ class IStorageServerImmutableAPIsTestsMixin(object):
         )
 
     @inlineCallbacks
+    def test_advise_corrupt_share_unknown_share_number(self):
+        """
+        Calling ``advise_corrupt_share()`` on an immutable share, with an
+        unknown share number, does not result in error.
+        """
+        storage_index, _, _ = yield self.create_share()
+        yield self.storage_client.advise_corrupt_share(
+            b"immutable", storage_index, 999, b"ono"
+        )
+
+    @inlineCallbacks
     def test_allocate_buckets_creates_lease(self):
         """
         When buckets are created using ``allocate_buckets()``, a lease is
@@ -907,6 +918,19 @@ class IStorageServerMutableAPIsTestsMixin(object):
 
         yield self.storage_client.advise_corrupt_share(
             b"mutable", storage_index, 0, b"ono"
+        )
+
+    @inlineCallbacks
+    def test_advise_corrupt_share_unknown_share_number(self):
+        """
+        Calling ``advise_corrupt_share()`` on a mutable share with an unknown
+        share number does not result in error (other behavior is opaque at this
+        level of abstraction).
+        """
+        secrets, storage_index = yield self.create_slot()
+
+        yield self.storage_client.advise_corrupt_share(
+            b"mutable", storage_index, 999, b"ono"
         )
 
     @inlineCallbacks

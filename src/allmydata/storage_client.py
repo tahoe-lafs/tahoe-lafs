@@ -45,6 +45,7 @@ from zope.interface import (
     Interface,
     implementer,
 )
+from twisted.python.failure import Failure
 from twisted.web import http
 from twisted.internet.task import LoopingCall
 from twisted.internet import defer, reactor
@@ -1233,6 +1234,16 @@ class _HTTPBucketWriter(object):
         return self.finished
 
 
+def _ignore_404(failure: Failure) -> Union[Failure, None]:
+    """
+    Useful for advise_corrupt_share(), since it swallows unknown share numbers
+    in Foolscap.
+    """
+    if failure.check(HTTPClientException) and failure.value.code == http.NOT_FOUND:
+        return None
+    else:
+        return failure
+
 
 @attr.s(hash=True)
 class _HTTPBucketReader(object):
@@ -1252,7 +1263,7 @@ class _HTTPBucketReader(object):
        return self.client.advise_corrupt_share(
            self.storage_index, self.share_number,
            str(reason, "utf-8", errors="backslashreplace")
-       )
+       ).addErrback(_ignore_404)
 
 
 # WORK IN PROGRESS, for now it doesn't actually implement whole thing.
@@ -1352,7 +1363,7 @@ class _HTTPStorageServer(object):
             raise ValueError("Unknown share type")
         return client.advise_corrupt_share(
             storage_index, shnum, str(reason, "utf-8", errors="backslashreplace")
-        )
+        ).addErrback(_ignore_404)
 
     @defer.inlineCallbacks
     def slot_readv(self, storage_index, shares, readv):
