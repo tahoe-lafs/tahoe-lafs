@@ -276,7 +276,7 @@ class _StorageClientHTTPSPolicy:
         )
 
 
-@define
+@define(hash=True)
 class StorageClient(object):
     """
     Low-level HTTP client that talks to the HTTP storage server.
@@ -286,7 +286,7 @@ class StorageClient(object):
     # ``StorageClient.from_nurl()``.
     _base_url: DecodedURL
     _swissnum: bytes
-    _treq: Union[treq, StubTreq, HTTPClient]
+    _treq: Union[treq, StubTreq, HTTPClient] = field(eq=False)
 
     @classmethod
     def from_nurl(
@@ -379,13 +379,12 @@ class StorageClient(object):
         return self._treq.request(method, url, headers=headers, **kwargs)
 
 
+@define(hash=True)
 class StorageClientGeneral(object):
     """
     High-level HTTP APIs that aren't immutable- or mutable-specific.
     """
-
-    def __init__(self, client):  # type: (StorageClient) -> None
-        self._client = client
+    _client : StorageClient
 
     @inlineCallbacks
     def get_version(self):
@@ -534,7 +533,7 @@ async def advise_corrupt_share(
         )
 
 
-@define
+@define(hash=True)
 class StorageClientImmutables(object):
     """
     APIs for interacting with immutables.

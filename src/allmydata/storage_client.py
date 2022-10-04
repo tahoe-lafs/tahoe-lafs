@@ -1187,7 +1187,7 @@ class _StorageServer(object):
 
 
 
-@attr.s
+@attr.s(hash=True)
 class _FakeRemoteReference(object):
     """
     Emulate a Foolscap RemoteReference, calling a local object instead.
@@ -1203,7 +1203,6 @@ class _FakeRemoteReference(object):
             raise RemoteException(e.args)
 
 
-@attr.s
 class _HTTPBucketWriter(object):
     """
     Emulate a ``RIBucketWriter``, but use HTTP protocol underneath.
@@ -1234,7 +1233,7 @@ class _HTTPBucketWriter(object):
 
 
 
-@attr.s
+@attr.s(hash=True)
 class _HTTPBucketReader(object):
     """
     Emulate a ``RIBucketReader``, but use HTTP protocol underneath.
