@@ -463,7 +463,7 @@ class BucketProxy(unittest.TestCase):
                               block_size=10,
                               num_segments=5,
                               num_share_hashes=3,
-                              uri_extension_size_max=500)
+                              uri_extension_size=500)
         self.failUnless(interfaces.IStorageBucketWriter.providedBy(bp), bp)
 
     def _do_test_readwrite(self, name, header_size, wbp_class, rbp_class):
@@ -494,7 +494,7 @@ class BucketProxy(unittest.TestCase):
                        block_size=25,
                        num_segments=4,
                        num_share_hashes=3,
-                       uri_extension_size_max=len(uri_extension))
+                       uri_extension_size=len(uri_extension))
 
         d = bp.put_header()
         d.addCallback(lambda res: bp.put_block(0, b"a"*25))

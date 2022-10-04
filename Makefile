@@ -224,3 +224,62 @@ src/allmydata/_version.py:
 
 .tox/create-venvs.log: tox.ini setup.py
 	tox --notest -p all | tee -a "$(@)"
+
+
+# to make a new release:
+# - create a ticket for the release in Trac
+# - ensure local copy is up-to-date
+# - create a branch like "XXXX.release" from up-to-date master
+# - in the branch, run "make release"
+# - run "make release-test"
+# - perform any other sanity-checks on the release
+# - run "make release-upload"
+# Note that several commands below hard-code "meejah"; if you are
+# someone else please adjust them.
+release:
+	@echo "Is checkout clean?"
+	git diff-files --quiet
+	git diff-index --quiet --cached HEAD --
+
+	@echo "Clean docs build area"
+	rm -rf docs/_build/
+
+	@echo "Install required build software"
+	python3 -m pip install --editable .[build]
+
+	@echo "Test README"
+	python3 setup.py check -r -s
+
+	@echo "Update NEWS"
+	python3 -m towncrier build --yes --version `python3 misc/build_helpers/update-version.py --no-tag`
+	git add -u
+	git commit -m "update NEWS for release"
+
+# note that this always bumps the "middle" number, e.g. from 1.17.1 -> 1.18.0
+# and produces a tag into the Git repository
+	@echo "Bump version and create tag"
+	python3 misc/build_helpers/update-version.py
+
+	@echo "Build and sign wheel"
+	python3 setup.py bdist_wheel
+	gpg --pinentry=loopback -u meejah@meejah.ca --armor --detach-sign dist/tahoe_lafs-`git describe | cut -b 12-`-py3-none-any.whl
+	ls dist/*`git describe | cut -b 12-`*
+
+	@echo "Build and sign source-dist"
+	python3 setup.py sdist
+	gpg --pinentry=loopback -u meejah@meejah.ca --armor --detach-sign dist/tahoe-lafs-`git describe | cut -b 12-`.tar.gz
+	ls dist/*`git describe | cut -b 12-`*
+
+# basically just a bare-minimum smoke-test that it installs and runs
+release-test:
+	gpg --verify dist/tahoe-lafs-`git describe | cut -b 12-`.tar.gz.asc
+	gpg --verify dist/tahoe_lafs-`git describe | cut -b 12-`-py3-none-any.whl.asc
+	virtualenv testmf_venv
+	testmf_venv/bin/pip install dist/tahoe_lafs-`git describe | cut -b 12-`-py3-none-any.whl
+	testmf_venv/bin/tahoe --version
+	rm -rf testmf_venv
+
+release-upload:
+	scp dist/*`git describe | cut -b 12-`* meejah@tahoe-lafs.org:/home/source/downloads
+	git push origin_push tahoe-lafs-`git describe | cut -b 12-`
+	twine upload dist/tahoe_lafs-`git describe | cut -b 12-`-py3-none-any.whl dist/tahoe_lafs-`git describe | cut -b 12-`-py3-none-any.whl.asc dist/tahoe-lafs-`git describe | cut -b 12-`.tar.gz dist/tahoe-lafs-`git describe | cut -b 12-`.tar.gz.asc

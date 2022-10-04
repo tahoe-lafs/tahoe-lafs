@@ -145,6 +145,7 @@ def run_cli_native(verb, *args, **kwargs):
     )
     d.addCallback(
         runner.dispatch,
+        reactor,
         stdin=stdin,
         stdout=stdout,
         stderr=stderr,

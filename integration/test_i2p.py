@@ -55,7 +55,7 @@ def i2p_network(reactor, temp_dir, request):
         proto,
         which("docker"),
         (
-            "docker", "run", "-p", "7656:7656", "purplei2p/i2pd",
+            "docker", "run", "-p", "7656:7656", "purplei2p/i2pd:release-2.43.0",
             # Bad URL for reseeds, so it can't talk to other routers.
             "--reseed.urls", "http://localhost:1/",
         ),
@@ -63,7 +63,7 @@ def i2p_network(reactor, temp_dir, request):
 
     def cleanup():
         try:
-            proto.transport.signalProcess("KILL")
+            proto.transport.signalProcess("INT")
             util.block_with_timeout(proto.exited, reactor)
         except ProcessExitedAlready:
             pass

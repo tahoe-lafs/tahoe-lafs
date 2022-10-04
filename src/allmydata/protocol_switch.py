@@ -6,10 +6,11 @@ simple as possible, with no extra configuration needed.  Listening on the same
 port means a user upgrading Tahoe-LAFS will automatically get HTTPS working
 with no additional changes.
 
-Use ``support_foolscap_and_https()`` to create a new subclass for a ``Tub``
-instance, and then ``add_storage_server()`` on the resulting class to add the
-relevant information for a storage server once it becomes available later in
-the configuration process.
+Use ``create_tub_with_https_support()`` creates a new ``Tub`` that has its
+``negotiationClass`` modified to be a new subclass tied to that specific
+``Tub`` instance.  Calling ``tub.negotiationClass.add_storage_server(...)``
+then adds relevant information for a storage server once it becomes available
+later in the configuration process.
 """
 
 from __future__ import annotations
@@ -52,13 +53,13 @@ class _FoolscapOrHttps(Protocol, metaclass=_PretendToBeNegotiation):
     since these are created by Foolscap's ``Tub``, by setting this to be the
     tub's ``negotiationClass``.
 
-    Do not instantiate directly, use ``support_foolscap_and_https(tub)``
+    Do not instantiate directly, use ``create_tub_with_https_support(...)``
     instead.  The way this class works is that a new subclass is created for a
     specific ``Tub`` instance.
     """
 
     # These are class attributes; they will be set by
-    # support_foolscap_and_https() and add_storage_server().
+    # create_tub_with_https_support() and add_storage_server().
 
     # The Twisted HTTPS protocol factory wrapping the storage server HTTP API:
     https_factory: TLSMemoryBIOFactory
@@ -151,6 +152,10 @@ class _FoolscapOrHttps(Protocol, metaclass=_PretendToBeNegotiation):
             30, self.transport.abortConnection
         )
 
+    def connectionLost(self, reason):
+        if self._timeout.active():
+            self._timeout.cancel()
+
     def dataReceived(self, data: bytes) -> None:
         """Handle incoming data.
 
@@ -189,14 +194,17 @@ class _FoolscapOrHttps(Protocol, metaclass=_PretendToBeNegotiation):
             self.__dict__ = protocol.__dict__
 
 
-def support_foolscap_and_https(tub: Tub):
+def create_tub_with_https_support(**kwargs) -> Tub:
     """
-    Create a new Foolscap-or-HTTPS protocol class for a specific ``Tub``
+    Create a new Tub that also supports HTTPS.
+
+    This involves creating a new protocol switch class for the specific ``Tub``
     instance.
     """
-    the_tub = tub
+    the_tub = Tub(**kwargs)
 
     class FoolscapOrHttpForTub(_FoolscapOrHttps):
         tub = the_tub
 
-    tub.negotiationClass = FoolscapOrHttpForTub  # type: ignore
+    the_tub.negotiationClass = FoolscapOrHttpForTub  # type: ignore
+    return the_tub
