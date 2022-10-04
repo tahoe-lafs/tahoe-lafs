@@ -1211,7 +1211,7 @@ class _HTTPBucketWriter(object):
     storage_index = attr.ib(type=bytes)
     share_number = attr.ib(type=int)
     upload_secret = attr.ib(type=bytes)
-    finished = attr.ib(type=bool, default=False)
+    finished = attr.ib(type=defer.Deferred[bool], factory=defer.Deferred)
 
     def abort(self):
         return self.client.abort_upload(self.storage_index, self.share_number,
@@ -1223,14 +1223,13 @@ class _HTTPBucketWriter(object):
             self.storage_index, self.share_number, self.upload_secret, offset, data
         )
         if result.finished:
-            self.finished = True
+            self.finished.callback(True)
         defer.returnValue(None)
 
     def close(self):
-        # A no-op in HTTP protocol.
-        if not self.finished:
-            return defer.fail(RuntimeError("You didn't finish writing?!"))
-        return defer.succeed(None)
+        # We're not _really_ closed until all writes have succeeded and we
+        # finished writing all the data.
+        return self.finished
 
 
 
