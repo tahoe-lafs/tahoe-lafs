@@ -698,7 +698,7 @@ def create_connection_handlers(config, i2p_provider, tor_provider):
 
 
 def create_tub(tub_options, default_connection_handlers, foolscap_connection_handlers,
-               handler_overrides={}, **kwargs):
+               handler_overrides={}, force_foolscap=False, **kwargs):
     """
     Create a Tub with the right options and handlers. It will be
     ephemeral unless the caller provides certFile= in kwargs
@@ -708,10 +708,16 @@ def create_tub(tub_options, default_connection_handlers, foolscap_connection_han
 
     :param dict tub_options: every key-value pair in here will be set in
         the new Tub via `Tub.setOption`
+
+    :param bool force_foolscap: If True, only allow Foolscap, not just HTTPS
+        storage protocol.
     """
-    # We listen simulataneously for both Foolscap and HTTPS on the same port,
+    # We listen simultaneously for both Foolscap and HTTPS on the same port,
     # so we have to create a special Foolscap Tub for that to work:
-    tub = create_tub_with_https_support(**kwargs)
+    if force_foolscap:
+        tub = Tub(**kwargs)
+    else:
+        tub = create_tub_with_https_support(**kwargs)
 
     for (name, value) in list(tub_options.items()):
         tub.setOption(name, value)
@@ -907,11 +913,10 @@ def create_main_tub(config, tub_options,
         tub_options,
         default_connection_handlers,
         foolscap_connection_handlers,
+        force_foolscap=config.get_config("node", "force_foolscap", False),
         handler_overrides=handler_overrides,
         certFile=certfile,
     )
-    if not config.get_config("node", "force_foolscap", False):
-        support_foolscap_and_https(tub)
 
     if portlocation is None:
         log.msg("Tub is not listening")
