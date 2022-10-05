@@ -47,11 +47,6 @@ if _default_nodedir:
     NODEDIR_HELP += " [default for most commands: " + quote_local_unicode_path(_default_nodedir) + "]"
 
 
-# XXX all this 'dispatch' stuff needs to be unified + fixed up
-_control_node_dispatch = {
-    "run": tahoe_run.run,
-}
-
 process_control_commands = [
     ("run", None, tahoe_run.RunOptions, "run a node without daemonizing"),
 ]  # type: SubCommands
@@ -195,6 +190,7 @@ def parse_or_exit(config, argv, stdout, stderr):
     return config
 
 def dispatch(config,
+             reactor,
              stdin=sys.stdin, stdout=sys.stdout, stderr=sys.stderr):
     command = config.subCommand
     so = config.subOptions
@@ -207,8 +203,8 @@ def dispatch(config,
 
     if command in create_dispatch:
         f = create_dispatch[command]
-    elif command in _control_node_dispatch:
-        f = _control_node_dispatch[command]
+    elif command == "run":
+        f = lambda config: tahoe_run.run(reactor, config)
     elif command in debug.dispatch:
         f = debug.dispatch[command]
     elif command in admin.dispatch:
@@ -362,7 +358,7 @@ def _run_with_reactor(reactor, config, argv, stdout, stderr):
         stderr,
     )
     d.addCallback(_maybe_enable_eliot_logging, reactor)
-    d.addCallback(dispatch, stdout=stdout, stderr=stderr)
+    d.addCallback(dispatch, reactor, stdout=stdout, stderr=stderr)
     def _show_exception(f):
         # when task.react() notices a non-SystemExit exception, it does
         # log.err() with the failure and then exits with rc=1. We want this
