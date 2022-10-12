@@ -1,17 +1,9 @@
 """
 Ported to Python 3.
 """
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
+from __future__ import annotations
 
-from future.utils import PY2
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, max, min  # noqa: F401
-    # Don't use future str to prevent leaking future's newbytes into foolscap, which they break.
-    from past.builtins import unicode as str
-
+from typing import Optional
 import os, stat, time, weakref
 from base64 import urlsafe_b64encode
 from functools import partial
@@ -591,6 +583,10 @@ def anonymous_storage_enabled(config):
 
 @implementer(IStatsProducer)
 class _Client(node.Node, pollmixin.PollMixin):
+    """
+    This class should be refactored; see
+    https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3931
+    """
 
     STOREDIR = 'storage'
     NODETYPE = "client"
@@ -657,6 +653,14 @@ class _Client(node.Node, pollmixin.PollMixin):
         webport = config.get_config("node", "web.port", None)
         if webport:
             self.init_web(webport) # strports string
+
+        # TODO this may be the wrong location for now? but as temporary measure
+        # it allows us to get NURLs for testing in test_istorageserver.py. This
+        # will eventually get fixed one way or another in
+        # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3901. See also
+        # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3931 for the bigger
+        # picture issue.
+        self.storage_nurls : Optional[set] = None
 
     def init_stats_provider(self):
         self.stats_provider = StatsProvider(self)
@@ -818,6 +822,10 @@ class _Client(node.Node, pollmixin.PollMixin):
         if anonymous_storage_enabled(self.config):
             furl_file = self.config.get_private_path("storage.furl").encode(get_filesystem_encoding())
             furl = self.tub.registerReference(FoolscapStorageServer(ss), furlFile=furl_file)
+            (_, _, swissnum) = decode_furl(furl)
+            self.storage_nurls = self.tub.negotiationClass.add_storage_server(
+                ss, swissnum.encode("ascii")
+            )
             announcement["anonymous-storage-FURL"] = furl
 
         enabled_storage_servers = self._enable_storage_servers(

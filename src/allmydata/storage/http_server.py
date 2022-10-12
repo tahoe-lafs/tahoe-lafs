@@ -4,12 +4,13 @@ HTTP server for storage.
 
 from __future__ import annotations
 
-from typing import Dict, List, Set, Tuple, Any, Callable, Union
+from typing import Dict, List, Set, Tuple, Any, Callable, Union, cast
 from functools import wraps
 from base64 import b64decode
 import binascii
 from tempfile import TemporaryFile
 
+from cryptography.x509 import Certificate as CryptoCertificate
 from zope.interface import implementer
 from klein import Klein
 from twisted.web import http
@@ -18,6 +19,7 @@ from twisted.internet.interfaces import (
     IStreamServerEndpoint,
     IPullProducer,
 )
+from twisted.internet.address import IPv4Address, IPv6Address
 from twisted.internet.defer import Deferred
 from twisted.internet.ssl import CertificateOptions, Certificate, PrivateCertificate
 from twisted.web.server import Site, Request
@@ -193,7 +195,12 @@ class UploadsInProgress(object):
 
     def remove_write_bucket(self, bucket: BucketWriter):
         """Stop tracking the given ``BucketWriter``."""
-        storage_index, share_number = self._bucketwriters.pop(bucket)
+        try:
+            storage_index, share_number = self._bucketwriters.pop(bucket)
+        except KeyError:
+            # This is probably a BucketWriter created by Foolscap, so just
+            # ignore it.
+            return
         uploads_index = self._uploads[storage_index]
         uploads_index.shares.pop(share_number)
         uploads_index.upload_secrets.pop(share_number)
@@ -545,7 +552,7 @@ class HTTPServer(object):
 
     ##### Generic APIs #####
 
-    @_authorized_route(_app, set(), "/v1/version", methods=["GET"])
+    @_authorized_route(_app, set(), "/storage/v1/version", methods=["GET"])
     def version(self, request, authorization):
         """Return version information."""
         return self._send_encoded(request, self._storage_server.get_version())
@@ -555,7 +562,7 @@ class HTTPServer(object):
     @_authorized_route(
         _app,
         {Secrets.LEASE_RENEW, Secrets.LEASE_CANCEL, Secrets.UPLOAD},
-        "/v1/immutable/<storage_index:storage_index>",
+        "/storage/v1/immutable/<storage_index:storage_index>",
         methods=["POST"],
     )
     def allocate_buckets(self, request, authorization, storage_index):
@@ -591,7 +598,7 @@ class HTTPServer(object):
     @_authorized_route(
         _app,
         {Secrets.UPLOAD},
-        "/v1/immutable/<storage_index:storage_index>/<int(signed=False):share_number>/abort",
+        "/storage/v1/immutable/<storage_index:storage_index>/<int(signed=False):share_number>/abort",
         methods=["PUT"],
     )
     def abort_share_upload(self, request, authorization, storage_index, share_number):
@@ -622,7 +629,7 @@ class HTTPServer(object):
     @_authorized_route(
         _app,
         {Secrets.UPLOAD},
-        "/v1/immutable/<storage_index:storage_index>/<int(signed=False):share_number>",
+        "/storage/v1/immutable/<storage_index:storage_index>/<int(signed=False):share_number>",
         methods=["PATCH"],
     )
     def write_share_data(self, request, authorization, storage_index, share_number):
@@ -665,7 +672,7 @@ class HTTPServer(object):
     @_authorized_route(
         _app,
         set(),
-        "/v1/immutable/<storage_index:storage_index>/shares",
+        "/storage/v1/immutable/<storage_index:storage_index>/shares",
         methods=["GET"],
     )
     def list_shares(self, request, authorization, storage_index):
@@ -678,7 +685,7 @@ class HTTPServer(object):
     @_authorized_route(
         _app,
         set(),
-        "/v1/immutable/<storage_index:storage_index>/<int(signed=False):share_number>",
+        "/storage/v1/immutable/<storage_index:storage_index>/<int(signed=False):share_number>",
         methods=["GET"],
     )
     def read_share_chunk(self, request, authorization, storage_index, share_number):
@@ -694,7 +701,7 @@ class HTTPServer(object):
     @_authorized_route(
         _app,
         {Secrets.LEASE_RENEW, Secrets.LEASE_CANCEL},
-        "/v1/lease/<storage_index:storage_index>",
+        "/storage/v1/lease/<storage_index:storage_index>",
         methods=["PUT"],
     )
     def add_or_renew_lease(self, request, authorization, storage_index):
@@ -715,7 +722,7 @@ class HTTPServer(object):
     @_authorized_route(
         _app,
         set(),
-        "/v1/immutable/<storage_index:storage_index>/<int(signed=False):share_number>/corrupt",
+        "/storage/v1/immutable/<storage_index:storage_index>/<int(signed=False):share_number>/corrupt",
         methods=["POST"],
     )
     def advise_corrupt_share_immutable(
@@ -736,7 +743,7 @@ class HTTPServer(object):
     @_authorized_route(
         _app,
         {Secrets.LEASE_RENEW, Secrets.LEASE_CANCEL, Secrets.WRITE_ENABLER},
-        "/v1/mutable/<storage_index:storage_index>/read-test-write",
+        "/storage/v1/mutable/<storage_index:storage_index>/read-test-write",
         methods=["POST"],
     )
     def mutable_read_test_write(self, request, authorization, storage_index):
@@ -771,7 +778,7 @@ class HTTPServer(object):
     @_authorized_route(
         _app,
         set(),
-        "/v1/mutable/<storage_index:storage_index>/<int(signed=False):share_number>",
+        "/storage/v1/mutable/<storage_index:storage_index>/<int(signed=False):share_number>",
         methods=["GET"],
     )
     def read_mutable_chunk(self, request, authorization, storage_index, share_number):
@@ -795,7 +802,10 @@ class HTTPServer(object):
         return read_range(request, read_data, share_length)
 
     @_authorized_route(
-        _app, set(), "/v1/mutable/<storage_index:storage_index>/shares", methods=["GET"]
+        _app,
+        set(),
+        "/storage/v1/mutable/<storage_index:storage_index>/shares",
+        methods=["GET"],
     )
     def enumerate_mutable_shares(self, request, authorization, storage_index):
         """List mutable shares for a storage index."""
@@ -805,7 +815,7 @@ class HTTPServer(object):
     @_authorized_route(
         _app,
         set(),
-        "/v1/mutable/<storage_index:storage_index>/<int(signed=False):share_number>/corrupt",
+        "/storage/v1/mutable/<storage_index:storage_index>/<int(signed=False):share_number>/corrupt",
         methods=["POST"],
     )
     def advise_corrupt_share_mutable(
@@ -859,6 +869,29 @@ class _TLSEndpointWrapper(object):
         )
 
 
+def build_nurl(
+    hostname: str, port: int, swissnum: str, certificate: CryptoCertificate
+) -> DecodedURL:
+    """
+    Construct a HTTPS NURL, given the hostname, port, server swissnum, and x509
+    certificate for the server.  Clients can then connect to the server using
+    this NURL.
+    """
+    return DecodedURL().replace(
+        fragment="v=1",  # how we know this NURL is HTTP-based (i.e. not Foolscap)
+        host=hostname,
+        port=port,
+        path=(swissnum,),
+        userinfo=(
+            str(
+                get_spki_hash(certificate),
+                "ascii",
+            ),
+        ),
+        scheme="pb",
+    )
+
+
 def listen_tls(
     server: HTTPServer,
     hostname: str,
@@ -878,22 +911,15 @@ def listen_tls(
     """
     endpoint = _TLSEndpointWrapper.from_paths(endpoint, private_key_path, cert_path)
 
-    def build_nurl(listening_port: IListeningPort) -> DecodedURL:
-        nurl = DecodedURL().replace(
-            fragment="v=1",  # how we know this NURL is HTTP-based (i.e. not Foolscap)
-            host=hostname,
-            port=listening_port.getHost().port,
-            path=(str(server._swissnum, "ascii"),),
-            userinfo=(
-                str(
-                    get_spki_hash(load_pem_x509_certificate(cert_path.getContent())),
-                    "ascii",
-                ),
-            ),
-            scheme="pb",
+    def get_nurl(listening_port: IListeningPort) -> DecodedURL:
+        address = cast(Union[IPv4Address, IPv6Address], listening_port.getHost())
+        return build_nurl(
+            hostname,
+            address.port,
+            str(server._swissnum, "ascii"),
+            load_pem_x509_certificate(cert_path.getContent()),
         )
-        return nurl
 
     return endpoint.listen(Site(server.get_resource())).addCallback(
-        lambda listening_port: (build_nurl(listening_port), listening_port)
+        lambda listening_port: (get_nurl(listening_port), listening_port)
     )

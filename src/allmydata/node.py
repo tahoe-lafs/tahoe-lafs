@@ -55,6 +55,8 @@ from allmydata.util.yamlutil import (
 from . import (
     __full_version__,
 )
+from .protocol_switch import create_tub_with_https_support
+
 
 def _common_valid_config():
     return configutil.ValidConfiguration({
@@ -706,7 +708,10 @@ def create_tub(tub_options, default_connection_handlers, foolscap_connection_han
     :param dict tub_options: every key-value pair in here will be set in
         the new Tub via `Tub.setOption`
     """
-    tub = Tub(**kwargs)
+    # We listen simulataneously for both Foolscap and HTTPS on the same port,
+    # so we have to create a special Foolscap Tub for that to work:
+    tub = create_tub_with_https_support(**kwargs)
+
     for (name, value) in list(tub_options.items()):
         tub.setOption(name, value)
     handlers = default_connection_handlers.copy()

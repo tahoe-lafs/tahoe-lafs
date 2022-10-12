@@ -392,7 +392,7 @@ class StorageClientGeneral(object):
         """
         Return the version metadata for the server.
         """
-        url = self._client.relative_url("/v1/version")
+        url = self._client.relative_url("/storage/v1/version")
         response = yield self._client.request("GET", url)
         decoded_response = yield _decode_cbor(response, _SCHEMAS["get_version"])
         returnValue(decoded_response)
@@ -408,7 +408,7 @@ class StorageClientGeneral(object):
         Otherwise a new lease is added.
         """
         url = self._client.relative_url(
-            "/v1/lease/{}".format(_encode_si(storage_index))
+            "/storage/v1/lease/{}".format(_encode_si(storage_index))
         )
         response = yield self._client.request(
             "PUT",
@@ -457,7 +457,9 @@ def read_share_chunk(
     always provided by the current callers.
     """
     url = client.relative_url(
-        "/v1/{}/{}/{}".format(share_type, _encode_si(storage_index), share_number)
+        "/storage/v1/{}/{}/{}".format(
+            share_type, _encode_si(storage_index), share_number
+        )
     )
     response = yield client.request(
         "GET",
@@ -518,7 +520,7 @@ async def advise_corrupt_share(
 ):
     assert isinstance(reason, str)
     url = client.relative_url(
-        "/v1/{}/{}/{}/corrupt".format(
+        "/storage/v1/{}/{}/{}/corrupt".format(
             share_type, _encode_si(storage_index), share_number
         )
     )
@@ -563,7 +565,9 @@ class StorageClientImmutables(object):
         Result fires when creating the storage index succeeded, if creating the
         storage index failed the result will fire with an exception.
         """
-        url = self._client.relative_url("/v1/immutable/" + _encode_si(storage_index))
+        url = self._client.relative_url(
+            "/storage/v1/immutable/" + _encode_si(storage_index)
+        )
         message = {"share-numbers": share_numbers, "allocated-size": allocated_size}
 
         response = yield self._client.request(
@@ -588,7 +592,9 @@ class StorageClientImmutables(object):
     ) -> Deferred[None]:
         """Abort the upload."""
         url = self._client.relative_url(
-            "/v1/immutable/{}/{}/abort".format(_encode_si(storage_index), share_number)
+            "/storage/v1/immutable/{}/{}/abort".format(
+                _encode_si(storage_index), share_number
+            )
         )
         response = yield self._client.request(
             "PUT",
@@ -620,7 +626,9 @@ class StorageClientImmutables(object):
         been uploaded.
         """
         url = self._client.relative_url(
-            "/v1/immutable/{}/{}".format(_encode_si(storage_index), share_number)
+            "/storage/v1/immutable/{}/{}".format(
+                _encode_si(storage_index), share_number
+            )
         )
         response = yield self._client.request(
             "PATCH",
@@ -668,7 +676,7 @@ class StorageClientImmutables(object):
         Return the set of shares for a given storage index.
         """
         url = self._client.relative_url(
-            "/v1/immutable/{}/shares".format(_encode_si(storage_index))
+            "/storage/v1/immutable/{}/shares".format(_encode_si(storage_index))
         )
         response = yield self._client.request(
             "GET",
@@ -774,7 +782,7 @@ class StorageClientMutables:
         are done and if they are valid the writes are done.
         """
         url = self._client.relative_url(
-            "/v1/mutable/{}/read-test-write".format(_encode_si(storage_index))
+            "/storage/v1/mutable/{}/read-test-write".format(_encode_si(storage_index))
         )
         message = {
             "test-write-vectors": {
@@ -817,7 +825,7 @@ class StorageClientMutables:
         List the share numbers for a given storage index.
         """
         url = self._client.relative_url(
-            "/v1/mutable/{}/shares".format(_encode_si(storage_index))
+            "/storage/v1/mutable/{}/shares".format(_encode_si(storage_index))
         )
         response = await self._client.request("GET", url)
         if response.code == http.OK:
