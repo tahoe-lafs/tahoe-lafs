@@ -1796,6 +1796,15 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
 class Connections(SystemTestMixin, unittest.TestCase):
 
     def test_rref(self):
+        # The way the listening port is created is via
+        # SameProcessStreamEndpointAssigner (allmydata.test.common), which then
+        # makes an endpoint string parsed by AdoptedServerPort. The latter does
+        # dup(fd), which results in the filedescriptor staying alive _until the
+        # test ends_. That means that when we disown the service, we still have
+        # the listening port there on the OS level! Just the resulting
+        # connections aren't handled. So this test relies on aggressive
+        # timeouts in the HTTP client and presumably some equivalent in
+        # Foolscap, since connection refused does _not_ happen.
         self.basedir = "system/Connections/rref"
         d = self.set_up_nodes(2)
         def _start(ign):

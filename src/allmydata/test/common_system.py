@@ -28,6 +28,7 @@ from foolscap.api import flushEventualQueue
 from allmydata import client
 from allmydata.introducer.server import create_introducer
 from allmydata.util import fileutil, log, pollmixin
+from allmydata.storage import http_client
 
 from twisted.python.filepath import (
     FilePath,
@@ -645,6 +646,7 @@ def _render_section_values(values):
 class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
 
     def setUp(self):
+        http_client.StorageClient.start_test_mode()
         self.port_assigner = SameProcessStreamEndpointAssigner()
         self.port_assigner.setUp()
         self.addCleanup(self.port_assigner.tearDown)

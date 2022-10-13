@@ -20,7 +20,7 @@ from twisted.web.http_headers import Headers
 from twisted.web import http
 from twisted.web.iweb import IPolicyForHTTPS
 from twisted.internet.defer import inlineCallbacks, returnValue, fail, Deferred, succeed
-from twisted.internet.interfaces import IOpenSSLClientConnectionCreator
+from twisted.internet.interfaces import IOpenSSLClientConnectionCreator, IReactorTime
 from twisted.internet.ssl import CertificateOptions
 from twisted.web.client import Agent, HTTPConnectionPool
 from zope.interface import implementer
@@ -282,15 +282,32 @@ class StorageClient(object):
     Low-level HTTP client that talks to the HTTP storage server.
     """
 
+    # If True, we're doing unit testing.
+    TEST_MODE = False
+
+    @classmethod
+    def start_test_mode(cls):
+        """Switch to testing mode.
+
+        In testing mode we disable persistent HTTP queries and have shorter
+        timeouts, to make certain tests work, but don't change the actual
+        semantic work being done—given a fast server, everything would work the
+        same.
+        """
+        cls.TEST_MODE = True
+
     # The URL is a HTTPS URL ("https://...").  To construct from a NURL, use
     # ``StorageClient.from_nurl()``.
     _base_url: DecodedURL
     _swissnum: bytes
     _treq: Union[treq, StubTreq, HTTPClient] = field(eq=False)
+    _clock: IReactorTime
 
     @classmethod
     def from_nurl(
-        cls, nurl: DecodedURL, reactor, persistent: bool = True
+        cls,
+        nurl: DecodedURL,
+        reactor,
     ) -> StorageClient:
         """
         Create a ``StorageClient`` for the given NURL.
@@ -302,16 +319,23 @@ class StorageClient(object):
         swissnum = nurl.path[0].encode("ascii")
         certificate_hash = nurl.user.encode("ascii")
 
+        if cls.TEST_MODE:
+            pool = HTTPConnectionPool(reactor, persistent=False)
+            pool.retryAutomatically = False
+            pool.maxPersistentPerHost = 0
+        else:
+            pool = HTTPConnectionPool(reactor)
+
         treq_client = HTTPClient(
             Agent(
                 reactor,
                 _StorageClientHTTPSPolicy(expected_spki_hash=certificate_hash),
-                pool=HTTPConnectionPool(reactor, persistent=persistent),
+                pool=pool,
             )
         )
 
         https_url = DecodedURL().replace(scheme="https", host=nurl.host, port=nurl.port)
-        return cls(https_url, swissnum, treq_client)
+        return cls(https_url, swissnum, treq_client, reactor)
 
     def relative_url(self, path):
         """Get a URL relative to the base URL."""
@@ -376,7 +400,14 @@ class StorageClient(object):
             kwargs["data"] = dumps(message_to_serialize)
             headers.addRawHeader("Content-Type", CBOR_MIME_TYPE)
 
-        return self._treq.request(method, url, headers=headers, **kwargs)
+        result = self._treq.request(method, url, headers=headers, **kwargs)
+
+        # If we're in test mode, we want an aggressive timeout, e.g. for
+        # test_rref in test_system.py.
+        if self.TEST_MODE:
+            result.addTimeout(1, self._clock)
+
+        return result
 
 
 @define(hash=True)
@@ -384,7 +415,8 @@ class StorageClientGeneral(object):
     """
     High-level HTTP APIs that aren't immutable- or mutable-specific.
     """
-    _client : StorageClient
+
+    _client: StorageClient
 
     @inlineCallbacks
     def get_version(self):

@@ -951,14 +951,18 @@ class HTTPNativeStorageServer(service.MultiService):
         self.announcement = announcement
         self._on_status_changed = ObserverList()
         furl = announcement["anonymous-storage-FURL"].encode("utf-8")
-        self._nickname, self._permutation_seed, self._tubid, self._short_description, self._long_description = _parse_announcement(server_id, furl, announcement)
+        (
+            self._nickname,
+            self._permutation_seed,
+            self._tubid,
+            self._short_description,
+            self._long_description
+        ) = _parse_announcement(server_id, furl, announcement)
+        # TODO need some way to do equivalent of Happy Eyeballs for multiple NURLs?
+        # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3935
         nurl = DecodedURL.from_text(announcement["anonymous-storage-NURLs"][0])
-        # Tests don't want persistent HTTPS pool, since that leaves a dirty
-        # reactor. As a reasonable hack, disabling persistent connnections for
-        # localhost allows us to have passing tests while not reducing
-        # performance for real-world usage.
         self._istorage_server = _HTTPStorageServer.from_http_client(
-            StorageClient.from_nurl(nurl, reactor, nurl.host not in ("localhost", "127.0.0.1"))
+            StorageClient.from_nurl(nurl, reactor)
         )
 
         self._connection_status = connection_status.ConnectionStatus.unstarted()
