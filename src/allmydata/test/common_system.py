@@ -794,13 +794,13 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
             if which in feature_matrix.get((section, feature), {which}):
                 config.setdefault(section, {})[feature] = value
 
-        if force_foolscap:
-            config.setdefault("node", {})["force_foolscap"] = force_foolscap
+        #config.setdefault("node", {})["force_foolscap"] = force_foolscap
 
         setnode = partial(setconf, config, which, "node")
         sethelper = partial(setconf, config, which, "helper")
 
         setnode("nickname", u"client %d \N{BLACK SMILING FACE}" % (which,))
+        setnode("force_foolscap", str(force_foolscap))
 
         tub_location_hint, tub_port_endpoint = self.port_assigner.assign(reactor)
         setnode("tub.port", tub_port_endpoint)
@@ -818,7 +818,6 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
                  "  furl: %s\n") % self.introducer_furl
         iyaml_fn = os.path.join(basedir, "private", "introducers.yaml")
         fileutil.write(iyaml_fn, iyaml)
-
         return _render_config(config)
 
     def _set_up_client_node(self, which, force_foolscap):

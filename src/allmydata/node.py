@@ -908,12 +908,16 @@ def create_main_tub(config, tub_options,
 
     # FIXME? "node.pem" was the CERTFILE option/thing
     certfile = config.get_private_path("node.pem")
-
     tub = create_tub(
         tub_options,
         default_connection_handlers,
         foolscap_connection_handlers,
-        force_foolscap=config.get_config("node", "force_foolscap", False),
+        # TODO eventually we will want the default to be False, but for now we
+        # don't want to enable HTTP by default.
+        # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3934
+        force_foolscap=config.get_config(
+            "node", "force_foolscap", default=True, boolean=True
+        ),
         handler_overrides=handler_overrides,
         certFile=certfile,
     )
