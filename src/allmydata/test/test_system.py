@@ -1821,9 +1821,10 @@ class Connections(SystemTestMixin, unittest.TestCase):
 
         # now shut down the server
         d.addCallback(lambda ign: self.clients[1].disownServiceParent())
+
         # and wait for the client to notice
         def _poll():
-            return len(self.c0.storage_broker.get_connected_servers()) < 2
+            return len(self.c0.storage_broker.get_connected_servers()) == 1
         d.addCallback(lambda ign: self.poll(_poll))
 
         def _down(ign):

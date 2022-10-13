@@ -21,6 +21,7 @@ from functools import partial
 from twisted.internet import reactor
 from twisted.internet import defer
 from twisted.internet.defer import inlineCallbacks
+from twisted.internet.task import deferLater
 from twisted.application import service
 
 from foolscap.api import flushEventualQueue
@@ -658,6 +659,7 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
         log.msg("shutting down SystemTest services")
         d = self.sparent.stopService()
         d.addBoth(flush_but_dont_ignore)
+        d.addBoth(lambda x: deferLater(reactor, 0.01, lambda: x))
         return d
 
     def getdir(self, subdir):

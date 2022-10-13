@@ -1052,10 +1052,9 @@ class HTTPNativeStorageServer(service.MultiService):
         """
         See ``IServer.get_storage_server``.
         """
-        if self.is_connected():
-            return self._istorage_server
-        else:
+        if self._connection_status.summary == "unstarted":
             return None
+        return self._istorage_server
 
     def stop_connecting(self):
         self._lc.stop()
@@ -1070,10 +1069,11 @@ class HTTPNativeStorageServer(service.MultiService):
         )
 
     def stopService(self):
-        service.MultiService.stopService(self)
+        result = service.MultiService.stopService(self)
         if self._lc.running:
             self._lc.stop()
         self._failed_to_connect("shut down")
+        return result
 
 
 class UnknownServerTypeError(Exception):
