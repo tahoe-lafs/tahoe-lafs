@@ -5,16 +5,7 @@ in ``allmydata.test.test_system``.
 Ported to Python 3.
 """
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
-from future.utils import PY2
-if PY2:
-    # Don't import bytes since it causes issues on (so far unported) modules on Python 2.
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, dict, list, object, range, max, min, str  # noqa: F401
-
+from typing import Optional
 import os
 from functools import partial
 
@@ -30,6 +21,10 @@ from allmydata import client
 from allmydata.introducer.server import create_introducer
 from allmydata.util import fileutil, log, pollmixin
 from allmydata.storage import http_client
+from allmydata.storage_client import (
+    NativeStorageServer,
+    HTTPNativeStorageServer,
+)
 
 from twisted.python.filepath import (
     FilePath,
@@ -646,6 +641,11 @@ def _render_section_values(values):
 
 class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
 
+    # If set to True, use Foolscap for storage protocol. If set to False, HTTP
+    # will be used when possible. If set to None, this suggests a bug in the
+    # test code.
+    FORCE_FOOLSCAP_FOR_STORAGE : Optional[bool] = None
+
     def setUp(self):
         http_client.StorageClient.start_test_mode()
         self.port_assigner = SameProcessStreamEndpointAssigner()
@@ -702,7 +702,7 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
             return f.read().strip()
 
     @inlineCallbacks
-    def set_up_nodes(self, NUMCLIENTS=5, force_foolscap=False):
+    def set_up_nodes(self, NUMCLIENTS=5):
         """
         Create an introducer and ``NUMCLIENTS`` client nodes pointed at it.  All
         of the nodes are running in this process.
@@ -715,18 +715,25 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
 
         :param int NUMCLIENTS: The number of client nodes to create.
 
-        :param bool force_foolscap: Force clients to use Foolscap instead of e.g.
-            HTTPS when available.
-
         :return: A ``Deferred`` that fires when the nodes have connected to
             each other.
         """
+        self.assertIn(
+            self.FORCE_FOOLSCAP_FOR_STORAGE, (True, False),
+            "You forgot to set FORCE_FOOLSCAP_FOR_STORAGE on {}".format(self.__class__)
+        )
         self.numclients = NUMCLIENTS
 
         self.introducer = yield self._create_introducer()
         self.add_service(self.introducer)
         self.introweb_url = self._get_introducer_web()
-        yield self._set_up_client_nodes(force_foolscap)
+        yield self._set_up_client_nodes(self.FORCE_FOOLSCAP_FOR_STORAGE)
+        native_server = next(iter(self.clients[0].storage_broker.get_known_servers()))
+        if self.FORCE_FOOLSCAP_FOR_STORAGE:
+            expected_storage_server_class = NativeStorageServer
+        else:
+            expected_storage_server_class = HTTPNativeStorageServer
+        self.assertIsInstance(native_server, expected_storage_server_class)
 
     @inlineCallbacks
     def _set_up_client_nodes(self, force_foolscap):

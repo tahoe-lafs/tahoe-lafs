@@ -117,7 +117,8 @@ class CountingDataUploadable(upload.Data):
 
 
 class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
-
+    """Foolscap integration-y tests."""
+    FORCE_FOOLSCAP_FOR_STORAGE = True
     timeout = 180
 
     def test_connections(self):
@@ -1794,6 +1795,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
 
 
 class Connections(SystemTestMixin, unittest.TestCase):
+    FORCE_FOOLSCAP_FOR_STORAGE = True
 
     def test_rref(self):
         # The way the listening port is created is via
@@ -1834,3 +1836,16 @@ class Connections(SystemTestMixin, unittest.TestCase):
             self.assertEqual(storage_server, self.s1_storage_server)
         d.addCallback(_down)
         return d
+
+
+class HTTPSystemTest(SystemTest):
+    """HTTP storage protocol variant of the system tests."""
+
+    FORCE_FOOLSCAP_FOR_STORAGE = False
+
+
+
+class HTTPConnections(Connections):
+    """HTTP storage protocol variant of the connections tests."""
+    FORCE_FOOLSCAP_FOR_STORAGE = False
+

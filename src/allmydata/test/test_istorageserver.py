@@ -1046,13 +1046,12 @@ class _SharedMixin(SystemTestMixin):
     """Base class for Foolscap and HTTP mixins."""
 
     SKIP_TESTS = set()  # type: Set[str]
-    FORCE_FOOLSCAP = False
-
-    def _get_native_server(self):
-        return next(iter(self.clients[0].storage_broker.get_known_servers()))
 
     def _get_istorage_server(self):
-        raise NotImplementedError("implement in subclass")
+        native_server = next(iter(self.clients[0].storage_broker.get_known_servers()))
+        client = native_server.get_storage_server()
+        self.assertTrue(IStorageServer.providedBy(client))
+        return client
 
     @inlineCallbacks
     def setUp(self):
@@ -1065,7 +1064,7 @@ class _SharedMixin(SystemTestMixin):
 
         self.basedir = "test_istorageserver/" + self.id()
         yield SystemTestMixin.setUp(self)
-        yield self.set_up_nodes(1, self.FORCE_FOOLSCAP)
+        yield self.set_up_nodes(1)
         self.server = None
         for s in self.clients[0].services:
             if isinstance(s, StorageServer):
@@ -1075,7 +1074,7 @@ class _SharedMixin(SystemTestMixin):
         self._clock = Clock()
         self._clock.advance(123456)
         self.server._clock = self._clock
-        self.storage_client = yield self._get_istorage_server()
+        self.storage_client = self._get_istorage_server()
 
     def fake_time(self):
         """Return the current fake, test-controlled, time."""
@@ -1091,48 +1090,28 @@ class _SharedMixin(SystemTestMixin):
         yield SystemTestMixin.tearDown(self)
 
 
-class _FoolscapMixin(_SharedMixin):
-    """Run tests on Foolscap version of ``IStorageServer``."""
-
-    FORCE_FOOLSCAP = True
-
-    def _get_istorage_server(self):
-        native_server = self._get_native_server()
-        assert isinstance(native_server, NativeStorageServer)
-        client = native_server.get_storage_server()
-        self.assertTrue(IStorageServer.providedBy(client))
-        return succeed(client)
-
-
-class _HTTPMixin(_SharedMixin):
-    """Run tests on the HTTP version of ``IStorageServer``."""
-
-    FORCE_FOOLSCAP = False
-
-    def _get_istorage_server(self):
-        native_server = self._get_native_server()
-        assert isinstance(native_server, HTTPNativeStorageServer)
-        client = native_server.get_storage_server()
-        self.assertTrue(IStorageServer.providedBy(client))
-        return succeed(client)
-
-
 class FoolscapSharedAPIsTests(
-    _FoolscapMixin, IStorageServerSharedAPIsTestsMixin, AsyncTestCase
+    _SharedMixin, IStorageServerSharedAPIsTestsMixin, AsyncTestCase
 ):
     """Foolscap-specific tests for shared ``IStorageServer`` APIs."""
 
+    FORCE_FOOLSCAP_FOR_STORAGE = True
+
 
 class HTTPSharedAPIsTests(
-    _HTTPMixin, IStorageServerSharedAPIsTestsMixin, AsyncTestCase
+    _SharedMixin, IStorageServerSharedAPIsTestsMixin, AsyncTestCase
 ):
     """HTTP-specific tests for shared ``IStorageServer`` APIs."""
 
+    FORCE_FOOLSCAP_FOR_STORAGE = False
+
 
 class FoolscapImmutableAPIsTests(
-    _FoolscapMixin, IStorageServerImmutableAPIsTestsMixin, AsyncTestCase
+    _SharedMixin, IStorageServerImmutableAPIsTestsMixin, AsyncTestCase
 ):
     """Foolscap-specific tests for immutable ``IStorageServer`` APIs."""
+
+    FORCE_FOOLSCAP_FOR_STORAGE = True
 
     def test_disconnection(self):
         """
@@ -1156,23 +1135,29 @@ class FoolscapImmutableAPIsTests(
         """
         current = self.storage_client
         yield self.bounce_client(0)
-        self.storage_client = self._get_native_server().get_storage_server()
+        self.storage_client = self._get_istorage_server()
         assert self.storage_client is not current
 
 
 class HTTPImmutableAPIsTests(
-    _HTTPMixin, IStorageServerImmutableAPIsTestsMixin, AsyncTestCase
+    _SharedMixin, IStorageServerImmutableAPIsTestsMixin, AsyncTestCase
 ):
     """HTTP-specific tests for immutable ``IStorageServer`` APIs."""
 
+    FORCE_FOOLSCAP_FOR_STORAGE = False
+
 
 class FoolscapMutableAPIsTests(
-    _FoolscapMixin, IStorageServerMutableAPIsTestsMixin, AsyncTestCase
+    _SharedMixin, IStorageServerMutableAPIsTestsMixin, AsyncTestCase
 ):
     """Foolscap-specific tests for mutable ``IStorageServer`` APIs."""
 
+    FORCE_FOOLSCAP_FOR_STORAGE = True
+
 
 class HTTPMutableAPIsTests(
-    _HTTPMixin, IStorageServerMutableAPIsTestsMixin, AsyncTestCase
+    _SharedMixin, IStorageServerMutableAPIsTestsMixin, AsyncTestCase
 ):
     """HTTP-specific tests for mutable ``IStorageServer`` APIs."""
+
+    FORCE_FOOLSCAP_FOR_STORAGE = False
