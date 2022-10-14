@@ -137,7 +137,7 @@ install_requires = [
     "werkzeug != 2.2.0",
     "treq",
     "cbor2",
-    "pycddl",
+    "pycddl >= 0.2",
 
     # for pid-file support
     "psutil",

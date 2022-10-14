@@ -260,7 +260,7 @@ _SCHEMAS = {
     "allocate_buckets": Schema(
         """
     request = {
-      share-numbers: #6.258([*256 uint])
+      share-numbers: #6.258([0*256 uint])
       allocated-size: uint
     }
     """
@@ -276,15 +276,13 @@ _SCHEMAS = {
         """
         request = {
             "test-write-vectors": {
-                ; TODO Add length limit here, after
-                ; https://github.com/anweiss/cddl/issues/128 is fixed
-                * share_number => {
-                    "test": [*30 {"offset": uint, "size": uint, "specimen": bstr}]
-                    "write": [*30 {"offset": uint, "data": bstr}]
+                0*256 share_number : {
+                    "test": [0*30 {"offset": uint, "size": uint, "specimen": bstr}]
+                    "write": [0*30 {"offset": uint, "data": bstr}]
                     "new-length": uint / null
                 }
             }
-            "read-vector": [*30 {"offset": uint, "size": uint}]
+            "read-vector": [0*30 {"offset": uint, "size": uint}]
         }
         share_number = uint
         """
