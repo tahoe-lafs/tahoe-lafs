@@ -15,7 +15,7 @@ from typing import Set
 from random import Random
 from unittest import SkipTest
 
-from twisted.internet.defer import inlineCallbacks, returnValue, succeed
+from twisted.internet.defer import inlineCallbacks, returnValue
 from twisted.internet.task import Clock
 from foolscap.api import Referenceable, RemoteException
 
@@ -25,10 +25,6 @@ from allmydata.interfaces import IStorageServer
 from .common_system import SystemTestMixin
 from .common import AsyncTestCase
 from allmydata.storage.server import StorageServer  # not a IStorageServer!!
-from allmydata.storage_client import (
-    NativeStorageServer,
-    HTTPNativeStorageServer,
-)
 
 
 # Use random generator with known seed, so results are reproducible if tests
