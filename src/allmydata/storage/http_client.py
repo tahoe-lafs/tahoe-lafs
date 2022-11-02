@@ -405,7 +405,7 @@ class StorageClient(object):
         # If we're in test mode, we want an aggressive timeout, e.g. for
         # test_rref in test_system.py.
         if self.TEST_MODE:
-            result.addTimeout(1, self._clock)
+            result.addTimeout(5, self._clock)
 
         return result
 
