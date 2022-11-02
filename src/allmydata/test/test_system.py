@@ -121,8 +121,13 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
     FORCE_FOOLSCAP_FOR_STORAGE = True
     timeout = 180
 
+    @property
+    def basedir(self):
+        return "system/SystemTest/{}-foolscap-{}".format(
+            self.id().split(".")[-1], self.FORCE_FOOLSCAP_FOR_STORAGE
+        )
+
     def test_connections(self):
-        self.basedir = "system/SystemTest/test_connections"
         d = self.set_up_nodes()
         self.extra_node = None
         d.addCallback(lambda res: self.add_extra_node(self.numclients))
@@ -150,11 +155,9 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
     del test_connections
 
     def test_upload_and_download_random_key(self):
-        self.basedir = "system/SystemTest/test_upload_and_download_random_key"
         return self._test_upload_and_download(convergence=None)
 
     def test_upload_and_download_convergent(self):
-        self.basedir = "system/SystemTest/test_upload_and_download_convergent"
         return self._test_upload_and_download(convergence=b"some convergence string")
 
     def _test_upload_and_download(self, convergence):
@@ -517,7 +520,6 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
 
 
     def test_mutable(self):
-        self.basedir = "system/SystemTest/test_mutable"
         DATA = b"initial contents go here."  # 25 bytes % 3 != 0
         DATA_uploadable = MutableData(DATA)
         NEWDATA = b"new contents yay"
@@ -747,7 +749,6 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
     # plaintext_hash check.
 
     def test_filesystem(self):
-        self.basedir = "system/SystemTest/test_filesystem"
         self.data = LARGE_DATA
         d = self.set_up_nodes()
         def _new_happy_semantics(ign):
@@ -1714,7 +1715,6 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
     def test_filesystem_with_cli_in_subprocess(self):
         # We do this in a separate test so that test_filesystem doesn't skip if we can't run bin/tahoe.
 
-        self.basedir = "system/SystemTest/test_filesystem_with_cli_in_subprocess"
         d = self.set_up_nodes()
         def _new_happy_semantics(ign):
             for c in self.clients:
@@ -1807,7 +1807,9 @@ class Connections(SystemTestMixin, unittest.TestCase):
         # connections aren't handled. So this test relies on aggressive
         # timeouts in the HTTP client and presumably some equivalent in
         # Foolscap, since connection refused does _not_ happen.
-        self.basedir = "system/Connections/rref"
+        self.basedir = "system/Connections/rref-foolscap-{}".format(
+            self.FORCE_FOOLSCAP_FOR_STORAGE
+        )
         d = self.set_up_nodes(2)
         def _start(ign):
             self.c0 = self.clients[0]
