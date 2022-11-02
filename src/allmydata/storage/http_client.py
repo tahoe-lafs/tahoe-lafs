@@ -83,35 +83,35 @@ _SCHEMAS = {
     "allocate_buckets": Schema(
         """
     response = {
-      already-have: #6.258([* uint])
-      allocated: #6.258([* uint])
+      already-have: #6.258([0*256 uint])
+      allocated: #6.258([0*256 uint])
     }
     """
     ),
     "immutable_write_share_chunk": Schema(
         """
     response = {
-      required: [* {begin: uint, end: uint}]
+      required: [0* {begin: uint, end: uint}]
     }
     """
     ),
     "list_shares": Schema(
         """
-    response = #6.258([* uint])
+    response = #6.258([0*256 uint])
     """
     ),
     "mutable_read_test_write": Schema(
         """
         response = {
           "success": bool,
-          "data": {* share_number: [* bstr]}
+          "data": {0*256 share_number: [0* bstr]}
         }
         share_number = uint
         """
     ),
     "mutable_list_shares": Schema(
         """
-        response = #6.258([* uint])
+        response = #6.258([0*256 uint])
         """
     ),
 }
