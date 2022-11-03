@@ -647,7 +647,8 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
     FORCE_FOOLSCAP_FOR_STORAGE : Optional[bool] = None
 
     def setUp(self):
-        http_client.StorageClient.start_test_mode()
+        self._http_client_pools = []
+        http_client.StorageClient.start_test_mode(self._http_client_pools.append)
         self.port_assigner = SameProcessStreamEndpointAssigner()
         self.port_assigner.setUp()
         self.addCleanup(self.port_assigner.tearDown)
@@ -655,10 +656,17 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
         self.sparent = service.MultiService()
         self.sparent.startService()
 
+    def close_idle_http_connections(self):
+        """Close all HTTP client connections that are just hanging around."""
+        return defer.gatherResults(
+            [pool.closeCachedConnections() for pool in self._http_client_pools]
+        )
+
     def tearDown(self):
         log.msg("shutting down SystemTest services")
         d = self.sparent.stopService()
         d.addBoth(flush_but_dont_ignore)
+        d.addBoth(lambda x: self.close_idle_http_connections().addCallback(lambda _: x))
         d.addBoth(lambda x: deferLater(reactor, 0.01, lambda: x))
         return d
 

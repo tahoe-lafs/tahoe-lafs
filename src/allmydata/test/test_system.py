@@ -1826,6 +1826,9 @@ class Connections(SystemTestMixin, unittest.TestCase):
         # now shut down the server
         d.addCallback(lambda ign: self.clients[1].disownServiceParent())
 
+        # kill any persistent http connections that might continue to work
+        d.addCallback(lambda ign: self.close_idle_http_connections())
+
         # and wait for the client to notice
         def _poll():
             return len(self.c0.storage_broker.get_connected_servers()) == 1

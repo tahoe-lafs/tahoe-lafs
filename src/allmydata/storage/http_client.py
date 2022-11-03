@@ -282,19 +282,20 @@ class StorageClient(object):
     Low-level HTTP client that talks to the HTTP storage server.
     """
 
-    # If True, we're doing unit testing.
-    TEST_MODE = False
+    # If set, we're doing unit testing and we should call this with
+    # HTTPConnectionPool we create.
+    TEST_MODE_REGISTER_HTTP_POOL = None
 
     @classmethod
-    def start_test_mode(cls):
+    def start_test_mode(cls, callback):
         """Switch to testing mode.
 
-        In testing mode we disable persistent HTTP queries and have shorter
-        timeouts, to make certain tests work, but don't change the actual
-        semantic work being done—given a fast server, everything would work the
-        same.
+        In testing mode we register the pool with test system using the given
+        callback so it can Do Things, most notably killing off idle HTTP
+        connections at test shutdown and, in some tests, in the midddle of the
+        test.
         """
-        cls.TEST_MODE = True
+        cls.TEST_MODE_REGISTER_HTTP_POOL = callback
 
     # The URL is a HTTPS URL ("https://...").  To construct from a NURL, use
     # ``StorageClient.from_nurl()``.
@@ -318,13 +319,10 @@ class StorageClient(object):
         assert nurl.scheme == "pb"
         swissnum = nurl.path[0].encode("ascii")
         certificate_hash = nurl.user.encode("ascii")
+        pool = HTTPConnectionPool(reactor)
 
-        if cls.TEST_MODE:
-            pool = HTTPConnectionPool(reactor, persistent=False)
-            pool.retryAutomatically = False
-            pool.maxPersistentPerHost = 0
-        else:
-            pool = HTTPConnectionPool(reactor)
+        if cls.TEST_MODE_REGISTER_HTTP_POOL is not None:
+            cls.TEST_MODE_REGISTER_HTTP_POOL(pool)
 
         treq_client = HTTPClient(
             Agent(
@@ -403,8 +401,12 @@ class StorageClient(object):
         result = self._treq.request(method, url, headers=headers, **kwargs)
 
         # If we're in test mode, we want an aggressive timeout, e.g. for
-        # test_rref in test_system.py.
-        if self.TEST_MODE:
+        # test_rref in test_system.py. Unfortunately, test_rref results in the
+        # socket still listening(!), only without an HTTP server, due to limits
+        # in the relevant socket-binding test setup code. As a result, we don't
+        # get connection refused, the client will successfully connect. So we
+        # want a timeout so we notice that.
+        if self.TEST_MODE_REGISTER_HTTP_POOL is not None:
             result.addTimeout(5, self._clock)
 
         return result
