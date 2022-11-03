@@ -398,18 +398,7 @@ class StorageClient(object):
             kwargs["data"] = dumps(message_to_serialize)
             headers.addRawHeader("Content-Type", CBOR_MIME_TYPE)
 
-        result = self._treq.request(method, url, headers=headers, **kwargs)
-
-        # If we're in test mode, we want an aggressive timeout, e.g. for
-        # test_rref in test_system.py. Unfortunately, test_rref results in the
-        # socket still listening(!), only without an HTTP server, due to limits
-        # in the relevant socket-binding test setup code. As a result, we don't
-        # get connection refused, the client will successfully connect. So we
-        # want a timeout so we notice that.
-        if self.TEST_MODE_REGISTER_HTTP_POOL is not None:
-            result.addTimeout(5, self._clock)
-
-        return result
+        return self._treq.request(method, url, headers=headers, **kwargs)
 
 
 @define(hash=True)
@@ -426,7 +415,12 @@ class StorageClientGeneral(object):
         Return the version metadata for the server.
         """
         url = self._client.relative_url("/storage/v1/version")
-        response = yield self._client.request("GET", url)
+        result = self._client.request("GET", url)
+        # 1. Getting the version should never take particularly long.
+        # 2. Clients rely on the version command for liveness checks of servers.
+        result.addTimeout(5, self._client._clock)
+
+        response = yield result
         decoded_response = yield _decode_cbor(response, _SCHEMAS["get_version"])
         returnValue(decoded_response)
 
