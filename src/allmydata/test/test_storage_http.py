@@ -291,7 +291,9 @@ class CustomHTTPServerTests(SyncTestCase):
 
     def setUp(self):
         super(CustomHTTPServerTests, self).setUp()
-        StorageClient.start_test_mode()
+        StorageClient.start_test_mode(
+            lambda pool: self.addCleanup(pool.closeCachedConnections)
+        )
         # Could be a fixture, but will only be used in this test class so not
         # going to bother:
         self._http_server = TestApp()
@@ -299,7 +301,7 @@ class CustomHTTPServerTests(SyncTestCase):
             DecodedURL.from_text("http://127.0.0.1"),
             SWISSNUM_FOR_TEST,
             treq=StubTreq(self._http_server._app.resource()),
-            clock=Clock()
+            clock=Clock(),
         )
 
     def test_authorization_enforcement(self):
@@ -377,7 +379,9 @@ class HttpTestFixture(Fixture):
     """
 
     def _setUp(self):
-        StorageClient.start_test_mode()
+        StorageClient.start_test_mode(
+            lambda pool: self.addCleanup(pool.closeCachedConnections)
+        )
         self.clock = Clock()
         self.tempdir = self.useFixture(TempDir())
         # The global Cooperator used by Twisted (a) used by pull producers in
@@ -1446,7 +1450,9 @@ class SharedImmutableMutableTestsMixin:
                 self.http.client.request(
                     "GET",
                     self.http.client.relative_url(
-                        "/storage/v1/{}/{}/1".format(self.KIND, _encode_si(storage_index))
+                        "/storage/v1/{}/{}/1".format(
+                            self.KIND, _encode_si(storage_index)
+                        )
                     ),
                     headers=headers,
                 )
