@@ -20,8 +20,13 @@ from twisted.web.http_headers import Headers
 from twisted.web import http
 from twisted.web.iweb import IPolicyForHTTPS
 from twisted.internet.defer import inlineCallbacks, returnValue, fail, Deferred, succeed
-from twisted.internet.interfaces import IOpenSSLClientConnectionCreator
+from twisted.internet.interfaces import (
+    IOpenSSLClientConnectionCreator,
+    IReactorTime,
+    IDelayedCall,
+)
 from twisted.internet.ssl import CertificateOptions
+from twisted.internet import reactor
 from twisted.web.client import Agent, HTTPConnectionPool
 from zope.interface import implementer
 from hyperlink import DecodedURL
@@ -124,16 +129,20 @@ class _LengthLimitedCollector:
     """
 
     remaining_length: int
+    timeout_on_silence: IDelayedCall
     f: BytesIO = field(factory=BytesIO)
 
     def __call__(self, data: bytes):
+        self.timeout_on_silence.reset(60)
         self.remaining_length -= len(data)
         if self.remaining_length < 0:
             raise ValueError("Response length was too long")
         self.f.write(data)
 
 
-def limited_content(response, max_length: int = 30 * 1024 * 1024) -> Deferred[BinaryIO]:
+def limited_content(
+    response, max_length: int = 30 * 1024 * 1024, clock: IReactorTime = reactor
+) -> Deferred[BinaryIO]:
     """
     Like ``treq.content()``, but limit data read from the response to a set
     length.  If the response is longer than the max allowed length, the result
@@ -142,11 +151,16 @@ def limited_content(response, max_length: int = 30 * 1024 * 1024) -> Deferred[Bi
     A potentially useful future improvement would be using a temporary file to
     store the content; since filesystem buffering means that would use memory
     for small responses and disk for large responses.
+
+    This will time out if no data is received for 60 seconds; so long as a
+    trickle of data continues to arrive, it will continue to run.
     """
-    collector = _LengthLimitedCollector(max_length)
+    d = succeed(None)
+    timeout = clock.callLater(60, d.cancel)
+    collector = _LengthLimitedCollector(max_length, timeout)
+
     # Make really sure everything gets called in Deferred context, treq might
     # call collector directly...
-    d = succeed(None)
     d.addCallback(lambda _: treq.collect(response, collector))
 
     def done(_):
@@ -307,6 +321,8 @@ class StorageClient(object):
                 reactor,
                 _StorageClientHTTPSPolicy(expected_spki_hash=certificate_hash),
                 pool=HTTPConnectionPool(reactor, persistent=persistent),
+                # TCP-level connection timeout
+                connectTimeout=5,
             )
         )
 
@@ -337,6 +353,7 @@ class StorageClient(object):
         write_enabler_secret=None,
         headers=None,
         message_to_serialize=None,
+        timeout: Union[int, float] = 60,
         **kwargs,
     ):
         """
@@ -376,7 +393,9 @@ class StorageClient(object):
             kwargs["data"] = dumps(message_to_serialize)
             headers.addRawHeader("Content-Type", CBOR_MIME_TYPE)
 
-        return self._treq.request(method, url, headers=headers, **kwargs)
+        return self._treq.request(
+            method, url, headers=headers, timeout=timeout, **kwargs
+        )
 
 
 class StorageClientGeneral(object):
@@ -461,6 +480,9 @@ def read_share_chunk(
             share_type, _encode_si(storage_index), share_number
         )
     )
+    # The default timeout is for getting the response, so it doesn't include
+    # the time it takes to download the body... so we will will deal with that
+    # later.
     response = yield client.request(
         "GET",
         url,
@@ -469,6 +491,7 @@ def read_share_chunk(
             # but Range constructor does that the conversion for us.
             {"range": [Range("bytes", [(offset, offset + length)]).to_header()]}
         ),
+        unbuffered=True,  # Don't buffer the response in memory.
     )
 
     if response.code == http.NO_CONTENT:

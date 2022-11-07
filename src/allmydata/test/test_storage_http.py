@@ -31,6 +31,8 @@ from klein import Klein
 from hyperlink import DecodedURL
 from collections_extended import RangeMap
 from twisted.internet.task import Clock, Cooperator
+from twisted.internet.interfaces import IReactorTime
+from twisted.internet.defer import CancelledError, Deferred
 from twisted.web import http
 from twisted.web.http_headers import Headers
 from werkzeug import routing
@@ -245,6 +247,7 @@ def gen_bytes(length: int) -> bytes:
 class TestApp(object):
     """HTTP API for testing purposes."""
 
+    clock: IReactorTime
     _app = Klein()
     _swissnum = SWISSNUM_FOR_TEST  # Match what the test client is using
 
@@ -265,6 +268,17 @@ class TestApp(object):
     def generate_bytes(self, request, authorization, length):
         """Return bytes to the given length using ``gen_bytes()``."""
         return gen_bytes(length)
+
+    @_authorized_route(_app, set(), "/slowly_never_finish_result", methods=["GET"])
+    def slowly_never_finish_result(self, request, authorization):
+        """
+        Send data immediately, after 59 seconds, after another 59 seconds, and then
+        never again, without finishing the response.
+        """
+        request.write(b"a")
+        self.clock.callLater(59, request.write, b"b")
+        self.clock.callLater(59 + 59, request.write, b"c")
+        return Deferred()
 
 
 def result_of(d):
@@ -299,6 +313,10 @@ class CustomHTTPServerTests(SyncTestCase):
             SWISSNUM_FOR_TEST,
             treq=StubTreq(self._http_server._app.resource()),
         )
+        # We're using a Treq private API to get the reactor, alas, but only in
+        # a test, so not going to worry about it too much. This would be fixed
+        # if https://github.com/twisted/treq/issues/226 were ever fixed.
+        self._http_server.clock = self.client._treq._agent._memoryReactor
 
     def test_authorization_enforcement(self):
         """
@@ -366,6 +384,35 @@ class CustomHTTPServerTests(SyncTestCase):
 
             with self.assertRaises(ValueError):
                 result_of(limited_content(response, too_short))
+
+    def test_limited_content_silence_causes_timeout(self):
+        """
+        ``http_client.limited_content() times out if it receives no data for 60
+        seconds.
+        """
+        response = result_of(
+            self.client.request(
+                "GET",
+                "http://127.0.0.1/slowly_never_finish_result",
+            )
+        )
+
+        body_deferred = limited_content(response, 4, self._http_server.clock)
+        result = []
+        error = []
+        body_deferred.addCallbacks(result.append, error.append)
+
+        for i in range(59 + 59 + 60):
+            self.assertEqual((result, error), ([], []))
+            self._http_server.clock.advance(1)
+            # Push data between in-memory client and in-memory server:
+            self.client._treq._agent.flush()
+
+        # After 59 (second write) + 59 (third write) + 60 seconds (quiescent
+        # timeout) the limited_content() response times out.
+        self.assertTrue(error)
+        with self.assertRaises(CancelledError):
+            error[0].raiseException()
 
 
 class HttpTestFixture(Fixture):
@@ -1441,7 +1488,9 @@ class SharedImmutableMutableTestsMixin:
                 self.http.client.request(
                     "GET",
                     self.http.client.relative_url(
-                        "/storage/v1/{}/{}/1".format(self.KIND, _encode_si(storage_index))
+                        "/storage/v1/{}/{}/1".format(
+                            self.KIND, _encode_si(storage_index)
+                        )
                     ),
                     headers=headers,
                 )
