@@ -343,8 +343,6 @@ class StorageClient(object):
             Agent(
                 reactor,
                 _StorageClientHTTPSPolicy(expected_spki_hash=certificate_hash),
-                # TCP-level connection timeout
-                connectTimeout=5,
                 pool=pool,
             )
         )
@@ -385,6 +383,8 @@ class StorageClient(object):
 
         If ``message_to_serialize`` is set, it will be serialized (by default
         with CBOR) and set as the request body.
+
+        Default timeout is 60 seconds.
         """
         headers = self._get_headers(headers)
 
@@ -506,9 +506,9 @@ def read_share_chunk(
             share_type, _encode_si(storage_index), share_number
         )
     )
-    # The default timeout is for getting the response, so it doesn't include
-    # the time it takes to download the body... so we will will deal with that
-    # later.
+    # The default 60 second timeout is for getting the response, so it doesn't
+    # include the time it takes to download the body... so we will will deal
+    # with that later, via limited_content().
     response = yield client.request(
         "GET",
         url,
