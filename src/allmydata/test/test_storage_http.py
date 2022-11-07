@@ -311,16 +311,18 @@ class CustomHTTPServerTests(SyncTestCase):
         # Could be a fixture, but will only be used in this test class so not
         # going to bother:
         self._http_server = TestApp()
+        treq = StubTreq(self._http_server._app.resource())
         self.client = StorageClient(
             DecodedURL.from_text("http://127.0.0.1"),
             SWISSNUM_FOR_TEST,
-            treq=StubTreq(self._http_server._app.resource()),
-            clock=Clock(),
+            treq=treq,
+            # We're using a Treq private API to get the reactor, alas, but only
+            # in a test, so not going to worry about it too much. This would be
+            # fixed if https://github.com/twisted/treq/issues/226 were ever
+            # fixed.
+            clock=treq._agent._memoryReactor,
         )
-        # We're using a Treq private API to get the reactor, alas, but only in
-        # a test, so not going to worry about it too much. This would be fixed
-        # if https://github.com/twisted/treq/issues/226 were ever fixed.
-        self._http_server.clock = self.client._treq._agent._memoryReactor
+        self._http_server.clock = self.client._clock
 
     def test_authorization_enforcement(self):
         """
