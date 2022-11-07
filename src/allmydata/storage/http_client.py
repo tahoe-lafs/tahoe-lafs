@@ -164,6 +164,7 @@ def limited_content(
     d.addCallback(lambda _: treq.collect(response, collector))
 
     def done(_):
+        timeout.cancel()
         collector.f.seek(0)
         return collector.f
 
@@ -539,7 +540,7 @@ def read_share_chunk(
             raise ValueError("Server sent more than we asked for?!")
         # It might also send less than we asked for. That's (probably) OK, e.g.
         # if we went past the end of the file.
-        body = yield limited_content(response, supposed_length)
+        body = yield limited_content(response, supposed_length, client._clock)
         body.seek(0, SEEK_END)
         actual_length = body.tell()
         if actual_length != supposed_length:
