@@ -305,6 +305,9 @@ class CustomHTTPServerTests(SyncTestCase):
 
     def setUp(self):
         super(CustomHTTPServerTests, self).setUp()
+        StorageClient.start_test_mode(
+            lambda pool: self.addCleanup(pool.closeCachedConnections)
+        )
         # Could be a fixture, but will only be used in this test class so not
         # going to bother:
         self._http_server = TestApp()
@@ -312,6 +315,7 @@ class CustomHTTPServerTests(SyncTestCase):
             DecodedURL.from_text("http://127.0.0.1"),
             SWISSNUM_FOR_TEST,
             treq=StubTreq(self._http_server._app.resource()),
+            clock=Clock(),
         )
         # We're using a Treq private API to get the reactor, alas, but only in
         # a test, so not going to worry about it too much. This would be fixed
@@ -422,6 +426,9 @@ class HttpTestFixture(Fixture):
     """
 
     def _setUp(self):
+        StorageClient.start_test_mode(
+            lambda pool: self.addCleanup(pool.closeCachedConnections)
+        )
         self.clock = Clock()
         self.tempdir = self.useFixture(TempDir())
         # The global Cooperator used by Twisted (a) used by pull producers in
@@ -443,6 +450,7 @@ class HttpTestFixture(Fixture):
             DecodedURL.from_text("http://127.0.0.1"),
             SWISSNUM_FOR_TEST,
             treq=self.treq,
+            clock=self.clock,
         )
 
     def result_of_with_flush(self, d):
@@ -527,6 +535,7 @@ class GenericHTTPAPITests(SyncTestCase):
                 DecodedURL.from_text("http://127.0.0.1"),
                 b"something wrong",
                 treq=StubTreq(self.http.http_server.get_resource()),
+                clock=self.http.clock,
             )
         )
         with assert_fails_with_http_code(self, http.UNAUTHORIZED):

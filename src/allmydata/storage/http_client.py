@@ -290,21 +290,39 @@ class _StorageClientHTTPSPolicy:
         )
 
 
-@define
+@define(hash=True)
 class StorageClient(object):
     """
     Low-level HTTP client that talks to the HTTP storage server.
     """
 
+    # If set, we're doing unit testing and we should call this with
+    # HTTPConnectionPool we create.
+    TEST_MODE_REGISTER_HTTP_POOL = None
+
+    @classmethod
+    def start_test_mode(cls, callback):
+        """Switch to testing mode.
+
+        In testing mode we register the pool with test system using the given
+        callback so it can Do Things, most notably killing off idle HTTP
+        connections at test shutdown and, in some tests, in the midddle of the
+        test.
+        """
+        cls.TEST_MODE_REGISTER_HTTP_POOL = callback
+
     # The URL is a HTTPS URL ("https://...").  To construct from a NURL, use
     # ``StorageClient.from_nurl()``.
     _base_url: DecodedURL
     _swissnum: bytes
-    _treq: Union[treq, StubTreq, HTTPClient]
+    _treq: Union[treq, StubTreq, HTTPClient] = field(eq=False)
+    _clock: IReactorTime = field(eq=False)
 
     @classmethod
     def from_nurl(
-        cls, nurl: DecodedURL, reactor, persistent: bool = True
+        cls,
+        nurl: DecodedURL,
+        reactor,
     ) -> StorageClient:
         """
         Create a ``StorageClient`` for the given NURL.
@@ -315,19 +333,23 @@ class StorageClient(object):
         assert nurl.scheme == "pb"
         swissnum = nurl.path[0].encode("ascii")
         certificate_hash = nurl.user.encode("ascii")
+        pool = HTTPConnectionPool(reactor)
+
+        if cls.TEST_MODE_REGISTER_HTTP_POOL is not None:
+            cls.TEST_MODE_REGISTER_HTTP_POOL(pool)
 
         treq_client = HTTPClient(
             Agent(
                 reactor,
                 _StorageClientHTTPSPolicy(expected_spki_hash=certificate_hash),
-                pool=HTTPConnectionPool(reactor, persistent=persistent),
                 # TCP-level connection timeout
                 connectTimeout=5,
+                pool=pool,
             )
         )
 
         https_url = DecodedURL().replace(scheme="https", host=nurl.host, port=nurl.port)
-        return cls(https_url, swissnum, treq_client)
+        return cls(https_url, swissnum, treq_client, reactor)
 
     def relative_url(self, path):
         """Get a URL relative to the base URL."""
@@ -398,13 +420,13 @@ class StorageClient(object):
         )
 
 
+@define(hash=True)
 class StorageClientGeneral(object):
     """
     High-level HTTP APIs that aren't immutable- or mutable-specific.
     """
 
-    def __init__(self, client):  # type: (StorageClient) -> None
-        self._client = client
+    _client: StorageClient
 
     @inlineCallbacks
     def get_version(self):
@@ -412,7 +434,10 @@ class StorageClientGeneral(object):
         Return the version metadata for the server.
         """
         url = self._client.relative_url("/storage/v1/version")
-        response = yield self._client.request("GET", url)
+        # 1. Getting the version should never take particularly long.
+        # 2. Clients rely on the version command for liveness checks of servers.
+        # Thus, a short timeout.
+        response = yield self._client.request("GET", url, timeout=5)
         decoded_response = yield _decode_cbor(response, _SCHEMAS["get_version"])
         returnValue(decoded_response)
 
@@ -557,7 +582,7 @@ async def advise_corrupt_share(
         )
 
 
-@define
+@define(hash=True)
 class StorageClientImmutables(object):
     """
     APIs for interacting with immutables.
