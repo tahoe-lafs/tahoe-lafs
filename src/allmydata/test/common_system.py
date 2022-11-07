@@ -667,7 +667,7 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
         d = self.sparent.stopService()
         d.addBoth(flush_but_dont_ignore)
         d.addBoth(lambda x: self.close_idle_http_connections().addCallback(lambda _: x))
-        d.addBoth(lambda x: deferLater(reactor, 0.01, lambda: x))
+        d.addBoth(lambda x: deferLater(reactor, 0.02, lambda: x))
         return d
 
     def getdir(self, subdir):
