@@ -30,11 +30,11 @@ Glossary
    introducer
      a Tahoe-LAFS process at a known location configured to re-publish announcements about the location of storage servers
 
-   `fURL <fURLs>`_
+   :ref:`fURLs <fURLs>`
      a self-authenticating URL-like string which can be used to locate a remote object using the Foolscap protocol
      (the storage service is an example of such an object)
 
-   `NURL <NURLs>`_
+   :ref:`NURLs <NURLs>`
      a self-authenticating URL-like string almost exactly like a fURL but without being tied to Foolscap
 
    swissnum
