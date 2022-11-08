@@ -397,7 +397,9 @@ class BucketWriter(object):
         """
         Write data at given offset, return whether the upload is complete.
         """
-        # Delay the timeout, since we received data:
+        # Delay the timeout, since we received data; if we get an
+        # AlreadyCancelled error, that means there's a bug in the client and
+        # write() was called after close().
         self._timeout.reset(30 * 60)
         start = self._clock.seconds()
         precondition(not self.closed)
@@ -419,14 +421,18 @@ class BucketWriter(object):
         self._already_written.set(True, offset, end)
         self.ss.add_latency("write", self._clock.seconds() - start)
         self.ss.count("write")
+        return self._is_finished()
 
-        # Return whether the whole thing has been written. See
-        # https://github.com/mlenzen/collections-extended/issues/169 and
-        # https://github.com/mlenzen/collections-extended/issues/172 for why
-        # it's done this way.
+    def _is_finished(self):
+        """
+        Return whether the whole thing has been written.
+        """
         return sum([mr.stop - mr.start for mr in self._already_written.ranges()]) == self._max_size
 
     def close(self):
+        # This can't actually be enabled, because it's not backwards compatible
+        # with old Foolscap clients.
+        # assert self._is_finished()
         precondition(not self.closed)
         self._timeout.cancel()
         start = self._clock.seconds()
