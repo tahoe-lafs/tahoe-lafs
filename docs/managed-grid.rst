@@ -78,7 +78,7 @@ ever available on stdout.
 
 The configuration is a JSON document. It is subject to change as Grid
 Manager evolves. It contains a version number in the
-`grid_manager_config_version` key which should increment whenever the
+`grid_manager_config_version` key which will increment whenever the
 document schema changes.
 
 
