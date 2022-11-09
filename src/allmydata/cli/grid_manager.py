@@ -52,7 +52,7 @@ def grid_manager(ctx, config):
 
     class Config(object):
         """
-        Availble to all sub-commands as Click's context.obj
+        Available to all sub-commands as Click's context.obj
         """
         _grid_manager = None
 
