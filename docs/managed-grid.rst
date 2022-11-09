@@ -45,7 +45,7 @@ the statement: "Grid Manager X suggests you use storage-server Y to
 upload shares to" (X and Y are public-keys). Such a certificate
 consists of:
 
- - a version
+ - the version of the format the certificate conforms to (`1`)
  - the public-key of a storage-server
  - an expiry timestamp
  - a signature of the above
