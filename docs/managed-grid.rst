@@ -333,5 +333,5 @@ uploads should now fail (so ``tahoe put`` will fail) because they
 won't use storage2 and thus can't "achieve happiness".
 
 A proposal to expose more information about Grid Manager and
-certifcate status in the Welcome page is discussed in
+certificate status in the Welcome page is discussed in
 https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3506
