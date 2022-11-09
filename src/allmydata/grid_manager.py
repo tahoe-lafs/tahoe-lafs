@@ -461,7 +461,7 @@ def create_grid_manager_verifier(keys, certs, public_key, now_fn=None, bad_cert=
 
     def validate():
         """
-        :returns: True if if *any* certificate is still valid for a server
+        :returns: True if *any* certificate is still valid for a server
         """
         now = now_fn()
         for cert in valid_certs:
