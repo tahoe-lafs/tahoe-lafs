@@ -301,8 +301,8 @@ class StorageClient(object):
     # ``StorageClient.from_nurl()``.
     _base_url: DecodedURL
     _swissnum: bytes
-    _treq: Union[treq, StubTreq, HTTPClient] = field(eq=False)
-    _clock: IReactorTime = field(eq=False)
+    _treq: Union[treq, StubTreq, HTTPClient]
+    _clock: IReactorTime
 
     @classmethod
     def from_nurl(
