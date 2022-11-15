@@ -312,8 +312,6 @@ class StorageClient(object):
     ) -> StorageClient:
         """
         Create a ``StorageClient`` for the given NURL.
-
-        ``persistent`` indicates whether to use persistent HTTP connections.
         """
         assert nurl.fragment == "v=1"
         assert nurl.scheme == "pb"
