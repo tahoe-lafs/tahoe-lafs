@@ -810,8 +810,6 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
             if which in feature_matrix.get((section, feature), {which}):
                 config.setdefault(section, {})[feature] = value
 
-        #config.setdefault("node", {})["force_foolscap"] = force_foolscap
-
         setnode = partial(setconf, config, which, "node")
         sethelper = partial(setconf, config, which, "helper")
 
