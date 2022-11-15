@@ -970,6 +970,7 @@ class HTTPNativeStorageServer(service.MultiService):
         self._connection_status = connection_status.ConnectionStatus.unstarted()
         self._version = None
         self._last_connect_time = None
+        self._connecting_deferred = None
 
     def get_permutation_seed(self):
         return self._permutation_seed
@@ -1060,20 +1061,30 @@ class HTTPNativeStorageServer(service.MultiService):
 
     def stop_connecting(self):
         self._lc.stop()
+        if self._connecting_deferred is not None:
+            self._connecting_deferred.cancel()
 
     def try_to_connect(self):
         self._connect()
 
     def _connect(self):
         result = self._istorage_server.get_version()
+
+        def remove_connecting_deferred(result):
+            self._connecting_deferred = None
+            return result
+
         # Set a short timeout since we're relying on this for server liveness.
-        result.addTimeout(5, self._reactor)
-        result.addCallbacks(
+        self._connecting_deferred = result.addTimeout(5, self._reactor).addBoth(
+                remove_connecting_deferred).addCallbacks(
             self._got_version,
             self._failed_to_connect
         )
 
     def stopService(self):
+        if self._connecting_deferred is not None:
+            self._connecting_deferred.cancel()
+
         result = service.MultiService.stopService(self)
         if self._lc.running:
             self._lc.stop()
