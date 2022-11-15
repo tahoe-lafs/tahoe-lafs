@@ -297,6 +297,11 @@ class StorageClient(object):
         """
         cls.TEST_MODE_REGISTER_HTTP_POOL = callback
 
+    @classmethod
+    def stop_test_mode(cls):
+        """Stop testing mode."""
+        cls.TEST_MODE_REGISTER_HTTP_POOL = None
+
     # The URL is a HTTPS URL ("https://...").  To construct from a NURL, use
     # ``StorageClient.from_nurl()``.
     _base_url: DecodedURL
