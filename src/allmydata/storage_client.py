@@ -944,12 +944,13 @@ class HTTPNativeStorageServer(service.MultiService):
     "connected".
     """
 
-    def __init__(self, server_id: bytes, announcement):
+    def __init__(self, server_id: bytes, announcement, reactor=reactor):
         service.MultiService.__init__(self)
         assert isinstance(server_id, bytes)
         self._server_id = server_id
         self.announcement = announcement
         self._on_status_changed = ObserverList()
+        self._reactor = reactor
         furl = announcement["anonymous-storage-FURL"].encode("utf-8")
         (
             self._nickname,
@@ -1063,7 +1064,10 @@ class HTTPNativeStorageServer(service.MultiService):
         self._connect()
 
     def _connect(self):
-        return self._istorage_server.get_version().addCallbacks(
+        result = self._istorage_server.get_version()
+        # Set a short timeout since we're relying on this for server liveness.
+        result.addTimeout(5, self._reactor)
+        result.addCallbacks(
             self._got_version,
             self._failed_to_connect
         )

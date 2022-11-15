@@ -415,10 +415,7 @@ class StorageClientGeneral(object):
         Return the version metadata for the server.
         """
         url = self._client.relative_url("/storage/v1/version")
-        # 1. Getting the version should never take particularly long.
-        # 2. Clients rely on the version command for liveness checks of servers.
-        # Thus, a short timeout.
-        response = yield self._client.request("GET", url, timeout=5)
+        response = yield self._client.request("GET", url)
         decoded_response = yield _decode_cbor(response, _SCHEMAS["get_version"])
         returnValue(decoded_response)
 
