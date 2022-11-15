@@ -104,6 +104,7 @@ _client_config = configutil.ValidConfiguration(
             "reserved_space",
             "storage_dir",
             "plugins",
+            "force_foolscap",
         ),
         "sftpd": (
             "accounts.file",

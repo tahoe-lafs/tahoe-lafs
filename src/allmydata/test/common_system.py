@@ -814,7 +814,7 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
         sethelper = partial(setconf, config, which, "helper")
 
         setnode("nickname", u"client %d \N{BLACK SMILING FACE}" % (which,))
-        setnode("force_foolscap", str(force_foolscap))
+        setconf(config, which, "storage", "force_foolscap", str(force_foolscap))
 
         tub_location_hint, tub_port_endpoint = self.port_assigner.assign(reactor)
         setnode("tub.port", tub_port_endpoint)
