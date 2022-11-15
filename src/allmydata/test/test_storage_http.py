@@ -308,6 +308,7 @@ class CustomHTTPServerTests(SyncTestCase):
         StorageClient.start_test_mode(
             lambda pool: self.addCleanup(pool.closeCachedConnections)
         )
+        self.addCleanup(StorageClient.stop_test_mode)
         # Could be a fixture, but will only be used in this test class so not
         # going to bother:
         self._http_server = TestApp()
@@ -431,6 +432,7 @@ class HttpTestFixture(Fixture):
         StorageClient.start_test_mode(
             lambda pool: self.addCleanup(pool.closeCachedConnections)
         )
+        self.addCleanup(StorageClient.stop_test_mode)
         self.clock = Clock()
         self.tempdir = self.useFixture(TempDir())
         # The global Cooperator used by Twisted (a) used by pull producers in

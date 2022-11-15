@@ -649,6 +649,7 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
     def setUp(self):
         self._http_client_pools = []
         http_client.StorageClient.start_test_mode(self._http_client_pools.append)
+        self.addCleanup(http_client.StorageClient.stop_test_mode)
         self.port_assigner = SameProcessStreamEndpointAssigner()
         self.port_assigner.setUp()
         self.addCleanup(self.port_assigner.tearDown)
@@ -667,7 +668,7 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
         d = self.sparent.stopService()
         d.addBoth(flush_but_dont_ignore)
         d.addBoth(lambda x: self.close_idle_http_connections().addCallback(lambda _: x))
-        d.addBoth(lambda x: deferLater(reactor, 0.01, lambda: x))
+        d.addBoth(lambda x: deferLater(reactor, 0.02, lambda: x))
         return d
 
     def getdir(self, subdir):
@@ -809,13 +810,11 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
             if which in feature_matrix.get((section, feature), {which}):
                 config.setdefault(section, {})[feature] = value
 
-        #config.setdefault("node", {})["force_foolscap"] = force_foolscap
-
         setnode = partial(setconf, config, which, "node")
         sethelper = partial(setconf, config, which, "helper")
 
         setnode("nickname", u"client %d \N{BLACK SMILING FACE}" % (which,))
-        setnode("force_foolscap", str(force_foolscap))
+        setconf(config, which, "storage", "force_foolscap", str(force_foolscap))
 
         tub_location_hint, tub_port_endpoint = self.port_assigner.assign(reactor)
         setnode("tub.port", tub_port_endpoint)

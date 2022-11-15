@@ -312,12 +312,17 @@ class StorageClient(object):
         """
         cls.TEST_MODE_REGISTER_HTTP_POOL = callback
 
+    @classmethod
+    def stop_test_mode(cls):
+        """Stop testing mode."""
+        cls.TEST_MODE_REGISTER_HTTP_POOL = None
+
     # The URL is a HTTPS URL ("https://...").  To construct from a NURL, use
     # ``StorageClient.from_nurl()``.
     _base_url: DecodedURL
     _swissnum: bytes
-    _treq: Union[treq, StubTreq, HTTPClient] = field(eq=False)
-    _clock: IReactorTime = field(eq=False)
+    _treq: Union[treq, StubTreq, HTTPClient]
+    _clock: IReactorTime
 
     @classmethod
     def from_nurl(
@@ -327,8 +332,6 @@ class StorageClient(object):
     ) -> StorageClient:
         """
         Create a ``StorageClient`` for the given NURL.
-
-        ``persistent`` indicates whether to use persistent HTTP connections.
         """
         assert nurl.fragment == "v=1"
         assert nurl.scheme == "pb"
@@ -435,10 +438,7 @@ class StorageClientGeneral(object):
         Return the version metadata for the server.
         """
         url = self._client.relative_url("/storage/v1/version")
-        # 1. Getting the version should never take particularly long.
-        # 2. Clients rely on the version command for liveness checks of servers.
-        # Thus, a short timeout.
-        response = yield self._client.request("GET", url, timeout=5)
+        response = yield self._client.request("GET", url)
         decoded_response = yield _decode_cbor(response, _SCHEMAS["get_version"])
         returnValue(decoded_response)
 

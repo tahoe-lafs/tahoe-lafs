@@ -80,6 +80,8 @@ from allmydata.storage.http_client import (
     ReadVector, TestWriteVectors, WriteVector, TestVector, ClientException
 )
 
+ANONYMOUS_STORAGE_NURLS = "anonymous-storage-NURLs"
+
 
 # who is responsible for de-duplication?
 #  both?
@@ -267,8 +269,7 @@ class StorageFarmBroker(service.MultiService):
             by the given announcement.
         """
         assert isinstance(server_id, bytes)
-        # TODO use constant for anonymous-storage-NURLs
-        if len(server["ann"].get("anonymous-storage-NURLs", [])) > 0:
+        if len(server["ann"].get(ANONYMOUS_STORAGE_NURLS, [])) > 0:
             s = HTTPNativeStorageServer(server_id, server["ann"])
             s.on_status_changed(lambda _: self._got_connection())
             return s
@@ -944,12 +945,13 @@ class HTTPNativeStorageServer(service.MultiService):
     "connected".
     """
 
-    def __init__(self, server_id: bytes, announcement):
+    def __init__(self, server_id: bytes, announcement, reactor=reactor):
         service.MultiService.__init__(self)
         assert isinstance(server_id, bytes)
         self._server_id = server_id
         self.announcement = announcement
         self._on_status_changed = ObserverList()
+        self._reactor = reactor
         furl = announcement["anonymous-storage-FURL"].encode("utf-8")
         (
             self._nickname,
@@ -960,7 +962,7 @@ class HTTPNativeStorageServer(service.MultiService):
         ) = _parse_announcement(server_id, furl, announcement)
         # TODO need some way to do equivalent of Happy Eyeballs for multiple NURLs?
         # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3935
-        nurl = DecodedURL.from_text(announcement["anonymous-storage-NURLs"][0])
+        nurl = DecodedURL.from_text(announcement[ANONYMOUS_STORAGE_NURLS][0])
         self._istorage_server = _HTTPStorageServer.from_http_client(
             StorageClient.from_nurl(nurl, reactor)
         )
@@ -1063,7 +1065,10 @@ class HTTPNativeStorageServer(service.MultiService):
         self._connect()
 
     def _connect(self):
-        return self._istorage_server.get_version().addCallbacks(
+        result = self._istorage_server.get_version()
+        # Set a short timeout since we're relying on this for server liveness.
+        result.addTimeout(5, self._reactor)
+        result.addCallbacks(
             self._got_version,
             self._failed_to_connect
         )

@@ -64,7 +64,6 @@ def _common_valid_config():
             "tcp",
         ),
         "node": (
-            "force_foolscap",
             "log_gatherer.furl",
             "nickname",
             "reveal-ip-address",
@@ -916,7 +915,7 @@ def create_main_tub(config, tub_options,
         # don't want to enable HTTP by default.
         # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3934
         force_foolscap=config.get_config(
-            "node", "force_foolscap", default=True, boolean=True
+            "storage", "force_foolscap", default=True, boolean=True
         ),
         handler_overrides=handler_overrides,
         certFile=certfile,
