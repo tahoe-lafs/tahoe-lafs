@@ -30,6 +30,7 @@ from foolscap.api import Tub
 
 from .storage.http_server import HTTPServer, build_nurl
 from .storage.server import StorageServer
+from .testing import foolscap_only_for_integration_testing
 
 
 class _PretendToBeNegotiation(type):
@@ -170,6 +171,21 @@ class _FoolscapOrHttps(Protocol, metaclass=_PretendToBeNegotiation):
         # and later data, otherwise assume HTTPS.
         self._timeout.cancel()
         if self._buffer.startswith(b"GET /id/"):
+            if foolscap_only_for_integration_testing() == False:
+                # Tahoe will prefer HTTP storage protocol over Foolscap when possible.
+                #
+                # If this is branch is taken, we are running a test that should
+                # be using HTTP for the storage protocol. As such, we
+                # aggressively disable Foolscap to ensure that HTTP is in fact
+                # going to be used. If we hit this branch that means our
+                # expectation that HTTP will be used was wrong, suggesting a
+                # bug in either the code of the integration testing setup.
+                #
+                # This branch should never be hit in production!
+                self.transport.loseConnection()
+                print("FOOLSCAP IS DISABLED, I PITY THE FOOLS WHO SEE THIS MESSAGE")
+                return
+
             # We're a Foolscap Negotiation server protocol instance:
             transport = self.transport
             buf = self._buffer

@@ -229,7 +229,11 @@ jobs:
           # aren't too long. On Windows tox won't pass it through so it has no
           # effect. On Linux it doesn't make a difference one way or another.
           TMPDIR: "/tmp"
-        run: tox -e integration
+        run: |
+          # Run with Foolscap forced:
+          __TAHOE_INTEGRATION_FORCE_FOOLSCAP=1 tox -e integration
+          # Run with Foolscap not forced, which should result in HTTP being used.
+          __TAHOE_INTEGRATION_FORCE_FOOLSCAP=0 tox -e integration
 
       - name: Upload eliot.log in case of failure
         uses: actions/upload-artifact@v1

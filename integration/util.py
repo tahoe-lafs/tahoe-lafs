@@ -1,14 +1,6 @@
 """
 Ported to Python 3.
 """
-from __future__ import unicode_literals
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
-from future.utils import PY2
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 import sys
 import time
@@ -38,6 +30,7 @@ from allmydata.util.configutil import (
     write_config,
 )
 from allmydata import client
+from allmydata.testing import foolscap_only_for_integration_testing
 
 import pytest_twisted
 
@@ -300,6 +293,14 @@ def _create_node(reactor, request, temp_dir, introducer_furl, flog_gatherer, nam
                 u'log_gatherer.furl',
                 flog_gatherer,
             )
+            force_foolscap = foolscap_only_for_integration_testing()
+            if force_foolscap is not None:
+                set_config(
+                    config,
+                    'storage',
+                    'force_foolscap',
+                    str(force_foolscap),
+                )
             write_config(FilePath(config_path), config)
         created_d.addCallback(created)
 
