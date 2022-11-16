@@ -104,6 +104,7 @@ _client_config = configutil.ValidConfiguration(
             "reserved_space",
             "storage_dir",
             "plugins",
+            "force_foolscap",
         ),
         "sftpd": (
             "accounts.file",
@@ -823,9 +824,10 @@ class _Client(node.Node, pollmixin.PollMixin):
             furl_file = self.config.get_private_path("storage.furl").encode(get_filesystem_encoding())
             furl = self.tub.registerReference(FoolscapStorageServer(ss), furlFile=furl_file)
             (_, _, swissnum) = decode_furl(furl)
-            self.storage_nurls = self.tub.negotiationClass.add_storage_server(
-                ss, swissnum.encode("ascii")
-            )
+            if hasattr(self.tub.negotiationClass, "add_storage_server"):
+                nurls = self.tub.negotiationClass.add_storage_server(ss, swissnum.encode("ascii"))
+                self.storage_nurls = nurls
+                announcement[storage_client.ANONYMOUS_STORAGE_NURLS] = [n.to_text() for n in nurls]
             announcement["anonymous-storage-FURL"] = furl
 
         enabled_storage_servers = self._enable_storage_servers(

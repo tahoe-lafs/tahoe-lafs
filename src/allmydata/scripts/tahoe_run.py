@@ -186,7 +186,7 @@ class DaemonizeTheRealService(Service, HookMixin):
                         )
                     )
                 else:
-                    self.stderr.write("\nUnknown error\n")
+                    self.stderr.write("\nUnknown error, here's the traceback:\n")
                     reason.printTraceback(self.stderr)
                 reactor.stop()
 

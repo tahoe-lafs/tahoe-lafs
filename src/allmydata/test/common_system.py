@@ -5,22 +5,14 @@ in ``allmydata.test.test_system``.
 Ported to Python 3.
 """
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
-from future.utils import PY2
-if PY2:
-    # Don't import bytes since it causes issues on (so far unported) modules on Python 2.
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, dict, list, object, range, max, min, str  # noqa: F401
-
+from typing import Optional
 import os
 from functools import partial
 
 from twisted.internet import reactor
 from twisted.internet import defer
 from twisted.internet.defer import inlineCallbacks
+from twisted.internet.task import deferLater
 from twisted.application import service
 
 from foolscap.api import flushEventualQueue
@@ -28,6 +20,11 @@ from foolscap.api import flushEventualQueue
 from allmydata import client
 from allmydata.introducer.server import create_introducer
 from allmydata.util import fileutil, log, pollmixin
+from allmydata.storage import http_client
+from allmydata.storage_client import (
+    NativeStorageServer,
+    HTTPNativeStorageServer,
+)
 
 from twisted.python.filepath import (
     FilePath,
@@ -644,7 +641,15 @@ def _render_section_values(values):
 
 class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
 
+    # If set to True, use Foolscap for storage protocol. If set to False, HTTP
+    # will be used when possible. If set to None, this suggests a bug in the
+    # test code.
+    FORCE_FOOLSCAP_FOR_STORAGE : Optional[bool] = None
+
     def setUp(self):
+        self._http_client_pools = []
+        http_client.StorageClient.start_test_mode(self._got_new_http_connection_pool)
+        self.addCleanup(http_client.StorageClient.stop_test_mode)
         self.port_assigner = SameProcessStreamEndpointAssigner()
         self.port_assigner.setUp()
         self.addCleanup(self.port_assigner.tearDown)
@@ -652,10 +657,35 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
         self.sparent = service.MultiService()
         self.sparent.startService()
 
+    def _got_new_http_connection_pool(self, pool):
+        # Register the pool for shutdown later:
+        self._http_client_pools.append(pool)
+        # Disable retries:
+        pool.retryAutomatically = False
+        # Make a much more aggressive timeout for connections, we're connecting
+        # locally after all... and also make sure it's lower than the delay we
+        # add in tearDown, to prevent dirty reactor issues.
+        getConnection = pool.getConnection
+
+        def getConnectionWithTimeout(*args, **kwargs):
+            d = getConnection(*args, **kwargs)
+            d.addTimeout(1, reactor)
+            return d
+
+        pool.getConnection = getConnectionWithTimeout
+
+    def close_idle_http_connections(self):
+        """Close all HTTP client connections that are just hanging around."""
+        return defer.gatherResults(
+            [pool.closeCachedConnections() for pool in self._http_client_pools]
+        )
+
     def tearDown(self):
         log.msg("shutting down SystemTest services")
         d = self.sparent.stopService()
         d.addBoth(flush_but_dont_ignore)
+        d.addBoth(lambda x: self.close_idle_http_connections().addCallback(lambda _: x))
+        d.addBoth(lambda x: deferLater(reactor, 2, lambda: x))
         return d
 
     def getdir(self, subdir):
@@ -714,21 +744,31 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
         :return: A ``Deferred`` that fires when the nodes have connected to
             each other.
         """
+        self.assertIn(
+            self.FORCE_FOOLSCAP_FOR_STORAGE, (True, False),
+            "You forgot to set FORCE_FOOLSCAP_FOR_STORAGE on {}".format(self.__class__)
+        )
         self.numclients = NUMCLIENTS
 
         self.introducer = yield self._create_introducer()
         self.add_service(self.introducer)
         self.introweb_url = self._get_introducer_web()
-        yield self._set_up_client_nodes()
+        yield self._set_up_client_nodes(self.FORCE_FOOLSCAP_FOR_STORAGE)
+        native_server = next(iter(self.clients[0].storage_broker.get_known_servers()))
+        if self.FORCE_FOOLSCAP_FOR_STORAGE:
+            expected_storage_server_class = NativeStorageServer
+        else:
+            expected_storage_server_class = HTTPNativeStorageServer
+        self.assertIsInstance(native_server, expected_storage_server_class)
 
     @inlineCallbacks
-    def _set_up_client_nodes(self):
+    def _set_up_client_nodes(self, force_foolscap):
         q = self.introducer
         self.introducer_furl = q.introducer_url
         self.clients = []
         basedirs = []
         for i in range(self.numclients):
-            basedirs.append((yield self._set_up_client_node(i)))
+            basedirs.append((yield self._set_up_client_node(i, force_foolscap)))
 
         # start clients[0], wait for it's tub to be ready (at which point it
         # will have registered the helper furl).
@@ -761,7 +801,7 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
             # and the helper-using webport
             self.helper_webish_url = self.clients[3].getServiceNamed("webish").getURL()
 
-    def _generate_config(self, which, basedir):
+    def _generate_config(self, which, basedir, force_foolscap=False):
         config = {}
 
         allclients = set(range(self.numclients))
@@ -791,6 +831,7 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
         sethelper = partial(setconf, config, which, "helper")
 
         setnode("nickname", u"client %d \N{BLACK SMILING FACE}" % (which,))
+        setconf(config, which, "storage", "force_foolscap", str(force_foolscap))
 
         tub_location_hint, tub_port_endpoint = self.port_assigner.assign(reactor)
         setnode("tub.port", tub_port_endpoint)
@@ -808,17 +849,16 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
                  "  furl: %s\n") % self.introducer_furl
         iyaml_fn = os.path.join(basedir, "private", "introducers.yaml")
         fileutil.write(iyaml_fn, iyaml)
-
         return _render_config(config)
 
-    def _set_up_client_node(self, which):
+    def _set_up_client_node(self, which, force_foolscap):
         basedir = self.getdir("client%d" % (which,))
         fileutil.make_dirs(os.path.join(basedir, "private"))
         if len(SYSTEM_TEST_CERTS) > (which + 1):
             f = open(os.path.join(basedir, "private", "node.pem"), "w")
             f.write(SYSTEM_TEST_CERTS[which + 1])
             f.close()
-        config = self._generate_config(which, basedir)
+        config = self._generate_config(which, basedir, force_foolscap)
         fileutil.write(os.path.join(basedir, 'tahoe.cfg'), config)
         return basedir
 
