@@ -669,7 +669,7 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
 
         def getConnectionWithTimeout(*args, **kwargs):
             d = getConnection(*args, **kwargs)
-            d.addTimeout(0.05, reactor)
+            d.addTimeout(1, reactor)
             return d
 
         pool.getConnection = getConnectionWithTimeout
@@ -685,7 +685,7 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
         d = self.sparent.stopService()
         d.addBoth(flush_but_dont_ignore)
         d.addBoth(lambda x: self.close_idle_http_connections().addCallback(lambda _: x))
-        d.addBoth(lambda x: deferLater(reactor, 0.1, lambda: x))
+        d.addBoth(lambda x: deferLater(reactor, 2, lambda: x))
         return d
 
     def getdir(self, subdir):
