@@ -144,6 +144,10 @@ class PinningHTTPSValidation(AsyncTestCase):
             response = await self.request(url, certificate)
             self.assertEqual(await response.content(), b"YOYODYNE")
 
+        # We keep getting TLSMemoryBIOProtocol being left around, so try harder
+        # to wait for it to finish.
+        await deferLater(reactor, 0.01)
+
     @async_to_deferred
     async def test_server_certificate_has_wrong_hash(self):
         """
@@ -178,10 +182,6 @@ class PinningHTTPSValidation(AsyncTestCase):
         ) as url:
             response = await self.request(url, certificate)
             self.assertEqual(await response.content(), b"YOYODYNE")
-
-        # We keep getting TLSMemoryBIOProtocol being left around, so try harder
-        # to wait for it to finish.
-        await deferLater(reactor, 0.01)
 
     @async_to_deferred
     async def test_server_certificate_not_valid_yet(self):
