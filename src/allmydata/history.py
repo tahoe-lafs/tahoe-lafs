@@ -20,7 +20,7 @@ class History(object):
     MAX_UPLOAD_STATUSES = 10
     MAX_MAPUPDATE_STATUSES = 20
     MAX_PUBLISH_STATUSES = 20
-    MAX_RETRIEVE_STATUSES = 20
+    MAX_RETRIEVE_STATUSES = 40
 
     def __init__(self, stats_provider=None):
         self.stats_provider = stats_provider
