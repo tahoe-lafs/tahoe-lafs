@@ -202,10 +202,6 @@ class PinningHTTPSValidation(AsyncTestCase):
             response = await self.request(url, certificate)
             self.assertEqual(await response.content(), b"YOYODYNE")
 
-        # We keep getting TLSMemoryBIOProtocol being left around, so try harder
-        # to wait for it to finish.
-        await deferLater(reactor, 0.001)
-
     # A potential attack to test is a private key that doesn't match the
     # certificate... but OpenSSL (quite rightly) won't let you listen with that
     # so I don't know how to test that! See
