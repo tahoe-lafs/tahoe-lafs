@@ -371,7 +371,9 @@ class CustomHTTPServerTests(SyncTestCase):
             )
 
             self.assertEqual(
-                result_of(limited_content(response, at_least_length)).read(),
+                result_of(
+                    limited_content(response, self._http_server.clock, at_least_length)
+                ).read(),
                 gen_bytes(length),
             )
 
@@ -390,7 +392,7 @@ class CustomHTTPServerTests(SyncTestCase):
             )
 
             with self.assertRaises(ValueError):
-                result_of(limited_content(response, too_short))
+                result_of(limited_content(response, self._http_server.clock, too_short))
 
     def test_limited_content_silence_causes_timeout(self):
         """
@@ -404,7 +406,7 @@ class CustomHTTPServerTests(SyncTestCase):
             )
         )
 
-        body_deferred = limited_content(response, 4, self._http_server.clock)
+        body_deferred = limited_content(response, self._http_server.clock, 4)
         result = []
         error = []
         body_deferred.addCallbacks(result.append, error.append)
