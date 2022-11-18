@@ -648,7 +648,7 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
 
     def setUp(self):
         self._http_client_pools = []
-        http_client.StorageClient.start_test_mode(self._http_client_pools.append)
+        http_client.StorageClient.start_test_mode(self._got_new_http_connection_pool)
         self.addCleanup(http_client.StorageClient.stop_test_mode)
         self.port_assigner = SameProcessStreamEndpointAssigner()
         self.port_assigner.setUp()
@@ -656,6 +656,23 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
 
         self.sparent = service.MultiService()
         self.sparent.startService()
+
+    def _got_new_http_connection_pool(self, pool):
+        # Register the pool for shutdown later:
+        self._http_client_pools.append(pool)
+        # Disable retries:
+        pool.retryAutomatically = False
+        # Make a much more aggressive timeout for connections, we're connecting
+        # locally after all... and also make sure it's lower than the delay we
+        # add in tearDown, to prevent dirty reactor issues.
+        getConnection = pool.getConnection
+
+        def getConnectionWithTimeout(*args, **kwargs):
+            d = getConnection(*args, **kwargs)
+            d.addTimeout(1, reactor)
+            return d
+
+        pool.getConnection = getConnectionWithTimeout
 
     def close_idle_http_connections(self):
         """Close all HTTP client connections that are just hanging around."""
@@ -668,7 +685,7 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
         d = self.sparent.stopService()
         d.addBoth(flush_but_dont_ignore)
         d.addBoth(lambda x: self.close_idle_http_connections().addCallback(lambda _: x))
-        d.addBoth(lambda x: deferLater(reactor, 0.02, lambda: x))
+        d.addBoth(lambda x: deferLater(reactor, 2, lambda: x))
         return d
 
     def getdir(self, subdir):

@@ -7,6 +7,8 @@ These are not to be confused with the URI-like capabilities Tahoe-LAFS uses to r
 An attempt is also made to outline the rationale for certain choices about these URLs.
 The intended audience for this document is Tahoe-LAFS maintainers and other developers interested in interoperating with Tahoe-LAFS or these URLs.
 
+.. _furls:
+
 Background
 ----------
 
@@ -30,6 +32,8 @@ This unguessable identifier is sometimes called a `swiss number`_ (or swissnum).
 The client's use of the swissnum is what allows the server to authorize the client.
 
 .. _`swiss number`: http://wiki.erights.org/wiki/Swiss_number
+
+.. _NURLs:
 
 NURLs
 -----
