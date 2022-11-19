@@ -20,7 +20,7 @@ from twisted.web.http_headers import Headers
 from twisted.web import http
 from twisted.web.iweb import IPolicyForHTTPS
 from twisted.internet.defer import inlineCallbacks, returnValue, fail, Deferred, succeed
-from twisted.internet.interfaces import IOpenSSLClientConnectionCreator
+from twisted.internet.interfaces import IOpenSSLClientConnectionCreator, IReactorTime
 from twisted.internet.ssl import CertificateOptions
 from twisted.web.client import Agent, HTTPConnectionPool
 from zope.interface import implementer
@@ -83,35 +83,35 @@ _SCHEMAS = {
     "allocate_buckets": Schema(
         """
     response = {
-      already-have: #6.258([* uint])
-      allocated: #6.258([* uint])
+      already-have: #6.258([0*256 uint])
+      allocated: #6.258([0*256 uint])
     }
     """
     ),
     "immutable_write_share_chunk": Schema(
         """
     response = {
-      required: [* {begin: uint, end: uint}]
+      required: [0* {begin: uint, end: uint}]
     }
     """
     ),
     "list_shares": Schema(
         """
-    response = #6.258([* uint])
+    response = #6.258([0*256 uint])
     """
     ),
     "mutable_read_test_write": Schema(
         """
         response = {
           "success": bool,
-          "data": {* share_number: [* bstr]}
+          "data": {0*256 share_number: [0* bstr]}
         }
         share_number = uint
         """
     ),
     "mutable_list_shares": Schema(
         """
-        response = #6.258([* uint])
+        response = #6.258([0*256 uint])
         """
     ),
 }
@@ -276,42 +276,67 @@ class _StorageClientHTTPSPolicy:
         )
 
 
-@define
+@define(hash=True)
 class StorageClient(object):
     """
     Low-level HTTP client that talks to the HTTP storage server.
     """
+
+    # If set, we're doing unit testing and we should call this with
+    # HTTPConnectionPool we create.
+    TEST_MODE_REGISTER_HTTP_POOL = None
+
+    @classmethod
+    def start_test_mode(cls, callback):
+        """Switch to testing mode.
+
+        In testing mode we register the pool with test system using the given
+        callback so it can Do Things, most notably killing off idle HTTP
+        connections at test shutdown and, in some tests, in the midddle of the
+        test.
+        """
+        cls.TEST_MODE_REGISTER_HTTP_POOL = callback
+
+    @classmethod
+    def stop_test_mode(cls):
+        """Stop testing mode."""
+        cls.TEST_MODE_REGISTER_HTTP_POOL = None
 
     # The URL is a HTTPS URL ("https://...").  To construct from a NURL, use
     # ``StorageClient.from_nurl()``.
     _base_url: DecodedURL
     _swissnum: bytes
     _treq: Union[treq, StubTreq, HTTPClient]
+    _clock: IReactorTime
 
     @classmethod
     def from_nurl(
-        cls, nurl: DecodedURL, reactor, persistent: bool = True
+        cls,
+        nurl: DecodedURL,
+        reactor,
     ) -> StorageClient:
         """
         Create a ``StorageClient`` for the given NURL.
-
-        ``persistent`` indicates whether to use persistent HTTP connections.
         """
         assert nurl.fragment == "v=1"
         assert nurl.scheme == "pb"
         swissnum = nurl.path[0].encode("ascii")
         certificate_hash = nurl.user.encode("ascii")
+        pool = HTTPConnectionPool(reactor)
+
+        if cls.TEST_MODE_REGISTER_HTTP_POOL is not None:
+            cls.TEST_MODE_REGISTER_HTTP_POOL(pool)
 
         treq_client = HTTPClient(
             Agent(
                 reactor,
                 _StorageClientHTTPSPolicy(expected_spki_hash=certificate_hash),
-                pool=HTTPConnectionPool(reactor, persistent=persistent),
+                pool=pool,
             )
         )
 
         https_url = DecodedURL().replace(scheme="https", host=nurl.host, port=nurl.port)
-        return cls(https_url, swissnum, treq_client)
+        return cls(https_url, swissnum, treq_client, reactor)
 
     def relative_url(self, path):
         """Get a URL relative to the base URL."""
@@ -379,20 +404,20 @@ class StorageClient(object):
         return self._treq.request(method, url, headers=headers, **kwargs)
 
 
+@define(hash=True)
 class StorageClientGeneral(object):
     """
     High-level HTTP APIs that aren't immutable- or mutable-specific.
     """
 
-    def __init__(self, client):  # type: (StorageClient) -> None
-        self._client = client
+    _client: StorageClient
 
     @inlineCallbacks
     def get_version(self):
         """
         Return the version metadata for the server.
         """
-        url = self._client.relative_url("/v1/version")
+        url = self._client.relative_url("/storage/v1/version")
         response = yield self._client.request("GET", url)
         decoded_response = yield _decode_cbor(response, _SCHEMAS["get_version"])
         returnValue(decoded_response)
@@ -408,7 +433,7 @@ class StorageClientGeneral(object):
         Otherwise a new lease is added.
         """
         url = self._client.relative_url(
-            "/v1/lease/{}".format(_encode_si(storage_index))
+            "/storage/v1/lease/{}".format(_encode_si(storage_index))
         )
         response = yield self._client.request(
             "PUT",
@@ -457,7 +482,9 @@ def read_share_chunk(
     always provided by the current callers.
     """
     url = client.relative_url(
-        "/v1/{}/{}/{}".format(share_type, _encode_si(storage_index), share_number)
+        "/storage/v1/{}/{}/{}".format(
+            share_type, _encode_si(storage_index), share_number
+        )
     )
     response = yield client.request(
         "GET",
@@ -518,7 +545,7 @@ async def advise_corrupt_share(
 ):
     assert isinstance(reason, str)
     url = client.relative_url(
-        "/v1/{}/{}/{}/corrupt".format(
+        "/storage/v1/{}/{}/{}/corrupt".format(
             share_type, _encode_si(storage_index), share_number
         )
     )
@@ -532,7 +559,7 @@ async def advise_corrupt_share(
         )
 
 
-@define
+@define(hash=True)
 class StorageClientImmutables(object):
     """
     APIs for interacting with immutables.
@@ -563,7 +590,9 @@ class StorageClientImmutables(object):
         Result fires when creating the storage index succeeded, if creating the
         storage index failed the result will fire with an exception.
         """
-        url = self._client.relative_url("/v1/immutable/" + _encode_si(storage_index))
+        url = self._client.relative_url(
+            "/storage/v1/immutable/" + _encode_si(storage_index)
+        )
         message = {"share-numbers": share_numbers, "allocated-size": allocated_size}
 
         response = yield self._client.request(
@@ -588,7 +617,9 @@ class StorageClientImmutables(object):
     ) -> Deferred[None]:
         """Abort the upload."""
         url = self._client.relative_url(
-            "/v1/immutable/{}/{}/abort".format(_encode_si(storage_index), share_number)
+            "/storage/v1/immutable/{}/{}/abort".format(
+                _encode_si(storage_index), share_number
+            )
         )
         response = yield self._client.request(
             "PUT",
@@ -620,7 +651,9 @@ class StorageClientImmutables(object):
         been uploaded.
         """
         url = self._client.relative_url(
-            "/v1/immutable/{}/{}".format(_encode_si(storage_index), share_number)
+            "/storage/v1/immutable/{}/{}".format(
+                _encode_si(storage_index), share_number
+            )
         )
         response = yield self._client.request(
             "PATCH",
@@ -668,7 +701,7 @@ class StorageClientImmutables(object):
         Return the set of shares for a given storage index.
         """
         url = self._client.relative_url(
-            "/v1/immutable/{}/shares".format(_encode_si(storage_index))
+            "/storage/v1/immutable/{}/shares".format(_encode_si(storage_index))
         )
         response = yield self._client.request(
             "GET",
@@ -774,7 +807,7 @@ class StorageClientMutables:
         are done and if they are valid the writes are done.
         """
         url = self._client.relative_url(
-            "/v1/mutable/{}/read-test-write".format(_encode_si(storage_index))
+            "/storage/v1/mutable/{}/read-test-write".format(_encode_si(storage_index))
         )
         message = {
             "test-write-vectors": {
@@ -817,7 +850,7 @@ class StorageClientMutables:
         List the share numbers for a given storage index.
         """
         url = self._client.relative_url(
-            "/v1/mutable/{}/shares".format(_encode_si(storage_index))
+            "/storage/v1/mutable/{}/shares".format(_encode_si(storage_index))
         )
         response = await self._client.request("GET", url)
         if response.code == http.OK:

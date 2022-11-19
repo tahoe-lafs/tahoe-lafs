@@ -255,7 +255,7 @@ class TestApp(object):
         else:
             return "BAD: {}".format(authorization)
 
-    @_authorized_route(_app, set(), "/v1/version", methods=["GET"])
+    @_authorized_route(_app, set(), "/storage/v1/version", methods=["GET"])
     def bad_version(self, request, authorization):
         """Return version result that violates the expected schema."""
         request.setHeader("content-type", CBOR_MIME_TYPE)
@@ -291,6 +291,10 @@ class CustomHTTPServerTests(SyncTestCase):
 
     def setUp(self):
         super(CustomHTTPServerTests, self).setUp()
+        StorageClient.start_test_mode(
+            lambda pool: self.addCleanup(pool.closeCachedConnections)
+        )
+        self.addCleanup(StorageClient.stop_test_mode)
         # Could be a fixture, but will only be used in this test class so not
         # going to bother:
         self._http_server = TestApp()
@@ -298,6 +302,7 @@ class CustomHTTPServerTests(SyncTestCase):
             DecodedURL.from_text("http://127.0.0.1"),
             SWISSNUM_FOR_TEST,
             treq=StubTreq(self._http_server._app.resource()),
+            clock=Clock(),
         )
 
     def test_authorization_enforcement(self):
@@ -375,6 +380,10 @@ class HttpTestFixture(Fixture):
     """
 
     def _setUp(self):
+        StorageClient.start_test_mode(
+            lambda pool: self.addCleanup(pool.closeCachedConnections)
+        )
+        self.addCleanup(StorageClient.stop_test_mode)
         self.clock = Clock()
         self.tempdir = self.useFixture(TempDir())
         # The global Cooperator used by Twisted (a) used by pull producers in
@@ -396,6 +405,7 @@ class HttpTestFixture(Fixture):
             DecodedURL.from_text("http://127.0.0.1"),
             SWISSNUM_FOR_TEST,
             treq=self.treq,
+            clock=self.clock,
         )
 
     def result_of_with_flush(self, d):
@@ -480,6 +490,7 @@ class GenericHTTPAPITests(SyncTestCase):
                 DecodedURL.from_text("http://127.0.0.1"),
                 b"something wrong",
                 treq=StubTreq(self.http.http_server.get_resource()),
+                clock=self.http.clock,
             )
         )
         with assert_fails_with_http_code(self, http.UNAUTHORIZED):
@@ -534,7 +545,7 @@ class GenericHTTPAPITests(SyncTestCase):
         lease_secret = urandom(32)
         storage_index = urandom(16)
         url = self.http.client.relative_url(
-            "/v1/immutable/" + _encode_si(storage_index)
+            "/storage/v1/immutable/" + _encode_si(storage_index)
         )
         message = {"bad-message": "missing expected keys"}
 
@@ -1418,7 +1429,7 @@ class SharedImmutableMutableTestsMixin:
             self.http.client.request(
                 "GET",
                 self.http.client.relative_url(
-                    "/v1/{}/{}/1".format(self.KIND, _encode_si(storage_index))
+                    "/storage/v1/{}/{}/1".format(self.KIND, _encode_si(storage_index))
                 ),
             )
         )
@@ -1441,7 +1452,9 @@ class SharedImmutableMutableTestsMixin:
                 self.http.client.request(
                     "GET",
                     self.http.client.relative_url(
-                        "/v1/{}/{}/1".format(self.KIND, _encode_si(storage_index))
+                        "/storage/v1/{}/{}/1".format(
+                            self.KIND, _encode_si(storage_index)
+                        )
                     ),
                     headers=headers,
                 )
