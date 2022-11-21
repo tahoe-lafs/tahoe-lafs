@@ -20,6 +20,7 @@ from foolscap.api import flushEventualQueue
 from allmydata import client
 from allmydata.introducer.server import create_introducer
 from allmydata.util import fileutil, log, pollmixin
+from allmydata.util.deferredutil import async_to_deferred
 from allmydata.storage import http_client
 from allmydata.storage_client import (
     NativeStorageServer,
@@ -639,6 +640,33 @@ def _render_section_values(values):
     ))
 
 
+@async_to_deferred
+async def spin_until_cleanup_done(value=None, timeout=10):
+    """
+    At the end of the test, spin until either a timeout is hit, or the reactor
+    has no more DelayedCalls.
+
+    Make sure to register during setUp.
+    """
+    def num_fds():
+        if hasattr(reactor, "handles"):
+            # IOCP!
+            return len(reactor.handles)
+        else:
+            # Normal reactor
+            return len([r for r in reactor.getReaders()
+                        if r.__class__.__name__ not in ("_UnixWaker", "_SIGCHLDWaker")]
+                       ) + len(reactor.getWriters())
+
+    for i in range(timeout * 1000):
+        # There's a single DelayedCall for AsynchronousDeferredRunTest's
+        # timeout...
+        if (len(reactor.getDelayedCalls()) < 2 and num_fds() == 0):
+            break
+        await deferLater(reactor, 0.001)
+    return value
+
+
 class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
 
     # If set to True, use Foolscap for storage protocol. If set to False, HTTP
@@ -685,7 +713,7 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
         d = self.sparent.stopService()
         d.addBoth(flush_but_dont_ignore)
         d.addBoth(lambda x: self.close_idle_http_connections().addCallback(lambda _: x))
-        d.addBoth(lambda x: deferLater(reactor, 2, lambda: x))
+        d.addBoth(spin_until_cleanup_done)
         return d
 
     def getdir(self, subdir):
