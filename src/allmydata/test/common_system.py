@@ -655,7 +655,7 @@ async def spin_until_cleanup_done(value=None, timeout=10):
         else:
             # Normal reactor
             return len([r for r in reactor.getReaders()
-                        if r.__class__.__name__ not in ("_UnixWaker", "_SIGCHLDWaker")]
+                        if r.__class__.__name__ not in ("_UnixWaker", "_SIGCHLDWaker", "_SocketWaker")]
                        ) + len(reactor.getWriters())
 
     for i in range(timeout * 1000):
