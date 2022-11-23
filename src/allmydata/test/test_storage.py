@@ -3757,12 +3757,10 @@ class WriteBufferTests(SyncTestCase):
         ``_WriteBuffer`` coalesces small writes into bigger writes based on
         the batch size.
         """
-        offset = 0
         wb = _WriteBuffer(batch_size)
         result = b""
         for data in small_writes:
-            should_flush = wb.queue_write(offset, data)
-            offset += len(data)
+            should_flush = wb.queue_write(data)
             if should_flush:
                 flushed_offset, flushed_data = wb.flush()
                 self.assertEqual(flushed_offset, len(result))

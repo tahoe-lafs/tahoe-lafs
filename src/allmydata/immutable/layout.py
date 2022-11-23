@@ -114,17 +114,12 @@ class _WriteBuffer:
     _to_write : BytesIO = field(factory=BytesIO)
     _written_bytes : int = field(default=0)
 
-    def queue_write(self, offset: int, data: bytes) -> bool:
+    def queue_write(self, data: bytes) -> bool:
         """
         Queue a write.  If the result is ``False``, no further action is needed
         for now.  If the result is some ``True``, it's time to call ``flush()``
         and do a real write.
-
-        Callers of this function are expected to queue the data in order, with
-        no holes.  As such, the offset is technically unnecessary, but is used
-        to check the inputs.  Possibly we should get rid of it.
         """
-        assert offset == self.get_total_bytes_queued()
         self._to_write.write(data)
         return len(self._to_write.getbuffer()) >= self._batch_size
 
@@ -290,7 +285,8 @@ class WriteBucketProxy(object):
         no holes.  As such, the offset is technically unnecessary, but is used
         to check the inputs.  Possibly we should get rid of it.
         """
-        if self._write_buffer.queue_write(offset, data):
+        assert offset == self._write_buffer.get_total_bytes_queued()
+        if self._write_buffer.queue_write(data):
             return self._actually_write()
         else:
             return defer.succeed(False)
