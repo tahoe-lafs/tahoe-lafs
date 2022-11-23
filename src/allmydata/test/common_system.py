@@ -643,10 +643,16 @@ def _render_section_values(values):
 @async_to_deferred
 async def spin_until_cleanup_done(value=None, timeout=10):
     """
-    At the end of the test, spin until either a timeout is hit, or the reactor
-    has no more DelayedCalls.
+    At the end of the test, spin until the reactor has no more DelayedCalls
+    and file descriptors (or equivalents) registered. This prevents dirty
+    reactor errors, while also not hard-coding a fixed amount of time, so it
+    can finish faster on faster computers.
 
-    Make sure to register during setUp.
+    There is also a timeout: if it takes more than 10 seconds (by default) for
+    the remaining reactor state to clean itself up, the presumption is that it
+    will never get cleaned up and the spinning stops.
+
+    Make sure to run as last thing in tearDown.
     """
     def num_fds():
         if hasattr(reactor, "handles"):
