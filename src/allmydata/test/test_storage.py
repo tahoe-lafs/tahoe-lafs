@@ -3,14 +3,9 @@ Tests for allmydata.storage.
 
 Ported to Python 3.
 """
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
 
-from future.utils import native_str, PY2, bytes_to_native_str, bchr
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+from __future__ import annotations
+from future.utils import native_str, bytes_to_native_str, bchr
 from six import ensure_str
 
 from io import (
@@ -59,7 +54,7 @@ from allmydata.storage.common import storage_index_to_dir, \
      si_b2a, si_a2b
 from allmydata.storage.lease import LeaseInfo
 from allmydata.immutable.layout import WriteBucketProxy, WriteBucketProxy_v2, \
-     ReadBucketProxy
+     ReadBucketProxy, _WriteBuffer
 from allmydata.mutable.layout import MDMFSlotWriteProxy, MDMFSlotReadProxy, \
                                      LayoutInvalid, MDMFSIGNABLEHEADER, \
                                      SIGNED_PREFIX, MDMFHEADER, \
@@ -3746,3 +3741,39 @@ class LeaseInfoTests(SyncTestCase):
             info.to_mutable_data(),
             HasLength(info.mutable_size()),
         )
+
+
+class WriteBufferTests(SyncTestCase):
+    """Tests for ``_WriteBuffer``."""
+
+    @given(
+        small_writes=strategies.lists(
+            strategies.binary(min_size=1, max_size=20),
+            min_size=10, max_size=20),
+        batch_size=strategies.integers(min_value=5, max_value=10)
+    )
+    def test_write_buffer(self, small_writes: list[bytes], batch_size: int):
+        """
+        ``_WriteBuffer`` coalesces small writes into bigger writes based on
+        the batch size.
+        """
+        offset = 0
+        wb = _WriteBuffer(batch_size)
+        result = b""
+        for data in small_writes:
+            should_flush = wb.queue_write(offset, data)
+            offset += len(data)
+            if should_flush:
+                flushed_offset, flushed_data = wb.flush()
+                self.assertEqual(flushed_offset, len(result))
+                # The flushed data is in batch sizes, or closest approximation
+                # given queued inputs:
+                self.assertTrue(batch_size <= len(flushed_data) < batch_size + len(data))
+                result += flushed_data
+
+        # Final flush:
+        flushed_offset, flushed_data = wb.flush()
+        self.assertEqual(flushed_offset, len(result))
+        result += flushed_data
+
+        self.assertEqual(result, b"".join(small_writes))
