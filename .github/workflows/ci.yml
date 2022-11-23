@@ -163,6 +163,8 @@ jobs:
       matrix:
         os:
           - windows-latest
+          # 22.04 has some issue with Tor at the moment:
+          # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3943
           - ubuntu-20.04
         python-version:
           - 3.7
