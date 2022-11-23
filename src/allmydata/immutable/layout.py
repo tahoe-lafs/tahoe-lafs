@@ -138,6 +138,10 @@ class _WriteBuffer:
 
 @implementer(IStorageBucketWriter)
 class WriteBucketProxy(object):
+    """
+    Note: The various ``put_`` methods need to be called in the order in which the
+    bytes will get written.
+    """
     fieldsize = 4
     fieldstruct = ">L"
 
