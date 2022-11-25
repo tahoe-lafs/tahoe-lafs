@@ -436,7 +436,7 @@ class RemoteBucket(object):
         return defer.maybeDeferred(_call)
 
 
-class BucketProxy(SyncTestCase):
+class BucketProxy(AsyncTestCase):
     def make_bucket(self, name, size):
         basedir = os.path.join("storage", "BucketProxy", name)
         incoming = os.path.join(basedir, "tmp", "bucket")
@@ -563,10 +563,7 @@ class Server(AsyncTestCase):
         self.sparent = LoggingServiceParent()
         self.sparent.startService()
         self._lease_secret = itertools.count()
-
-    def tearDown(self):
-        super(Server, self).tearDown()
-        return self.sparent.stopService()
+        self.addCleanup(self.sparent.stopService())
 
     def workdir(self, name):
         basedir = os.path.join("storage", "Server", name)
@@ -1284,10 +1281,10 @@ class Server(AsyncTestCase):
 class MutableServer(SyncTestCase):
 
     def setUp(self):
+        super(MutableServer, self).setUp()
         self.sparent = LoggingServiceParent()
         self._lease_secret = itertools.count()
-    def tearDown(self):
-        return self.sparent.stopService()
+        self.addCleanup(self.sparent.stopService())
 
     def workdir(self, name):
         basedir = os.path.join("storage", "MutableServer", name)
@@ -1903,8 +1900,9 @@ class MutableServer(SyncTestCase):
         self.assertThat({}, Equals(read_data))
 
 
-class MDMFProxies(SyncTestCase, ShouldFailMixin):
+class MDMFProxies(AsyncTestCase, ShouldFailMixin):
     def setUp(self):
+        super(MDMFProxies, self).setUp()
         self.sparent = LoggingServiceParent()
         self._lease_secret = itertools.count()
         self.ss = self.create("MDMFProxies storage test server")
@@ -1935,6 +1933,7 @@ class MDMFProxies(SyncTestCase, ShouldFailMixin):
 
 
     def tearDown(self):
+        super(MDMFProxies, self).tearDown()
         self.sparent.stopService()
         shutil.rmtree(self.workdir("MDMFProxies storage test server"))
 
@@ -2150,7 +2149,7 @@ class MDMFProxies(SyncTestCase, ShouldFailMixin):
         tws[0] = (testvs, [(0, share)], None)
         readv = []
         results = write(storage_index, self.secrets, tws, readv)
-        self.assertFalse(results[0])
+        self.assertTrue(results[0])
 
 
     def test_read(self):
@@ -2438,7 +2437,7 @@ class MDMFProxies(SyncTestCase, ShouldFailMixin):
         def _check_success(results):
             self.assertThat(results, HasLength(2))
             res, d = results
-            self.assertFalse(results)
+            self.assertTrue(results)
 
         mw = self._make_new_mw(b"si1", 0)
         mw.set_checkstring(b"this is a lie")
@@ -2918,7 +2917,7 @@ class MDMFProxies(SyncTestCase, ShouldFailMixin):
         d.addCallback(lambda ignored:
             mr.get_encprivkey())
         d.addCallback(lambda encprivkey:
-            self.assertThat(encprivkey, self.encprivkey, Equals(encprivkey)))
+            self.assertThat(encprivkey, Equals(self.encprivkey), encprivkey))
         d.addCallback(lambda ignored:
             mr.get_verification_key())
         d.addCallback(lambda verification_key:
@@ -3325,7 +3324,7 @@ class MDMFProxies(SyncTestCase, ShouldFailMixin):
             self.assertTrue(results[0])
             read = self.ss.slot_readv
             self.assertThat(read(b"si1", [0], [(1, 8)]),
-                                 {0: [struct.pack(">Q", 1)]})
+                                 Equals({0: [struct.pack(">Q", 1)]}))
             self.assertThat(read(b"si1", [0], [(9, len(data) - 9)]),
                                  Equals({0: [data[9:]]}))
         d.addCallback(_then_again)
@@ -3335,10 +3334,10 @@ class MDMFProxies(SyncTestCase, ShouldFailMixin):
 class Stats(SyncTestCase):
 
     def setUp(self):
+        super(Stats, self).setUp()
         self.sparent = LoggingServiceParent()
         self._lease_secret = itertools.count()
-    def tearDown(self):
-        return self.sparent.stopService()
+        self.addCleanup(self.sparent.stopService())
 
     def workdir(self, name):
         basedir = os.path.join("storage", "Server", name)
@@ -3418,7 +3417,7 @@ class Stats(SyncTestCase):
 
 immutable_schemas = strategies.sampled_from(list(ALL_IMMUTABLE_SCHEMAS))
 
-class ShareFileTests(unittest.TestCase):
+class ShareFileTests(SyncTestCase):
     """Tests for allmydata.storage.immutable.ShareFile."""
 
     def get_sharefile(self, **kwargs):
