@@ -86,8 +86,14 @@ jobs:
       - name: Display tool versions
         run: python misc/build_helpers/show-tool-versions.py
 
+      # When tests turn out to be "moody", retry a few times.
+      # See https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3945
       - name: Run tox for corresponding Python version
-        run: python -m tox
+        uses: nick-fields/retry@v2
+        with:
+          command: python -m tox
+          max-attempts: 3
+          timeout-minutes: 40
 
       - name: Upload eliot.log
         uses: actions/upload-artifact@v3
