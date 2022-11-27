@@ -76,25 +76,7 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
-
-      # To use pip caching with GitHub Actions in an OS-independent
-      # manner, we need `pip cache dir` command, which became
-      # available since pip v20.1+.  At the time of writing this,
-      # GitHub Actions offers pip v20.3.3 for both ubuntu-latest and
-      # windows-latest, and pip v20.3.1 for macos-latest.
-      - name: Get pip cache directory
-        id: pip-cache
-        run: |
-          echo "::set-output name=dir::$(pip cache dir)"
-
-      # See https://github.com/actions/cache
-      - name: Use pip cache
-        uses: actions/cache@v2
-        with:
-          path: ${{ steps.pip-cache.outputs.dir }}
-          key: ${{ runner.os }}-pip-${{ hashFiles('**/setup.py') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-
+          cache: 'pip'  # caching pip dependencies
 
       - name: Install Python packages
         run: |
@@ -211,19 +193,7 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
-
-      - name: Get pip cache directory
-        id: pip-cache
-        run: |
-          echo "::set-output name=dir::$(pip cache dir)"
-
-      - name: Use pip cache
-        uses: actions/cache@v2
-        with:
-          path: ${{ steps.pip-cache.outputs.dir }}
-          key: ${{ runner.os }}-pip-${{ hashFiles('**/setup.py') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-
+          cache: 'pip'  # caching pip dependencies
 
       - name: Install Python packages
         run: |
@@ -271,19 +241,7 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
-
-      - name: Get pip cache directory
-        id: pip-cache
-        run: |
-          echo "::set-output name=dir::$(pip cache dir)"
-
-      - name: Use pip cache
-        uses: actions/cache@v2
-        with:
-          path: ${{ steps.pip-cache.outputs.dir }}
-          key: ${{ runner.os }}-pip-${{ hashFiles('**/setup.py') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-
+          cache: 'pip' # caching pip dependencies
 
       - name: Install Python packages
         run: |
