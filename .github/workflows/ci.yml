@@ -6,6 +6,16 @@ on:
       - "master"
   pull_request:
 
+# At the start of each workflow run, GitHub creates a unique
+# GITHUB_TOKEN secret to use in the workflow. It is a good idea for
+# this GITHUB_TOKEN to have the minimum of permissions.  See:
+#
+# - https://docs.github.com/en/actions/security-guides/automatic-token-authentication
+# - https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#permissions
+#
+permissions:
+  contents: read
+
 # Control to what degree jobs in this workflow will run concurrently with
 # other instances of themselves.
 #
