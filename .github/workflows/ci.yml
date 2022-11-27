@@ -68,7 +68,7 @@ jobs:
       # See https://github.com/actions/checkout. A fetch-depth of 0
       # fetches all tags and branches.
       - name: Check out Tahoe-LAFS sources
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           fetch-depth: 0
 
@@ -185,7 +185,7 @@ jobs:
           args: install tor
 
       - name: Check out Tahoe-LAFS sources
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           fetch-depth: 0
 
@@ -233,7 +233,7 @@ jobs:
     steps:
 
       - name: Check out Tahoe-LAFS sources
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           fetch-depth: 0
 
