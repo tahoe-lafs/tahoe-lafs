@@ -180,7 +180,7 @@ jobs:
 
       - name: Install Tor [Windows]
         if: matrix.os == 'windows-latest'
-        uses: crazy-max/ghaction-chocolatey@v1
+        uses: crazy-max/ghaction-chocolatey@v2
         with:
           args: install tor
 
