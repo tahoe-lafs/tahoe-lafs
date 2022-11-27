@@ -90,13 +90,13 @@ jobs:
         run: python -m tox
 
       - name: Upload eliot.log
-        uses: actions/upload-artifact@v1
+        uses: actions/upload-artifact@v3
         with:
           name: eliot.log
           path: eliot.log
 
       - name: Upload trial log
-        uses: actions/upload-artifact@v1
+        uses: actions/upload-artifact@v3
         with:
           name: test.log
           path: _trial_temp/test.log
@@ -212,7 +212,7 @@ jobs:
         run: tox -e integration
 
       - name: Upload eliot.log in case of failure
-        uses: actions/upload-artifact@v1
+        uses: actions/upload-artifact@v3
         if: failure()
         with:
           name: integration.eliot.json
@@ -259,7 +259,7 @@ jobs:
         run: dist/Tahoe-LAFS/tahoe --version
 
       - name: Upload PyInstaller package
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: Tahoe-LAFS-${{ matrix.os }}-Python-${{ matrix.python-version }}
           path: dist/Tahoe-LAFS-*-*.*
