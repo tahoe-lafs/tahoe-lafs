@@ -92,8 +92,8 @@ jobs:
         uses: nick-fields/retry@v2
         with:
           command: python -m tox
-          max-attempts: 3
-          timeout-minutes: 40
+          max_attempts: 3
+          timeout_minutes: 40
 
       - name: Upload eliot.log
         uses: actions/upload-artifact@v3
@@ -218,8 +218,8 @@ jobs:
         uses: nick-fields/retry@v2
         with:
           command: tox -e integration
-          max-attempts: 3
-          timeout-minutes: 10
+          max_attempts: 3
+          timeout_minutes: 10
 
       - name: Upload eliot.log in case of failure
         uses: actions/upload-artifact@v3
