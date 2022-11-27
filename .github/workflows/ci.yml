@@ -215,7 +215,11 @@ jobs:
           # aren't too long. On Windows tox won't pass it through so it has no
           # effect. On Linux it doesn't make a difference one way or another.
           TMPDIR: "/tmp"
-        run: tox -e integration
+        uses: nick-fields/retry@v2
+        with:
+          command: tox -e integration
+          max-attempts: 3
+          timeout-minutes: 10
 
       - name: Upload eliot.log in case of failure
         uses: actions/upload-artifact@v3
