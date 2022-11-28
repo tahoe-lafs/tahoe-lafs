@@ -12,6 +12,7 @@ from cryptography import x509
 
 from twisted.internet.endpoints import serverFromString
 from twisted.internet import reactor
+from twisted.internet.defer import maybeDeferred
 from twisted.web.server import Site
 from twisted.web.static import Data
 from twisted.web.client import Agent, HTTPConnectionPool, ResponseNeverReceived
@@ -88,8 +89,8 @@ class PinningHTTPSValidation(AsyncTestCase):
         return AsyncTestCase.setUp(self)
 
     def tearDown(self):
-        AsyncTestCase.tearDown(self)
-        return spin_until_cleanup_done()
+        d = maybeDeferred(AsyncTestCase.tearDown, self)
+        return d.addCallback(lambda _: spin_until_cleanup_done())
 
     @asynccontextmanager
     async def listen(self, private_key_path: FilePath, cert_path: FilePath):
