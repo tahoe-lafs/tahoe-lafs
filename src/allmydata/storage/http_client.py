@@ -382,7 +382,7 @@ class StorageClient(object):
         write_enabler_secret=None,
         headers=None,
         message_to_serialize=None,
-        timeout: Union[int, float] = 60,
+        timeout: float = 60,
         **kwargs,
     ):
         """
