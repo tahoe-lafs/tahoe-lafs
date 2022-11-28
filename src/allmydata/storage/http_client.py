@@ -177,26 +177,6 @@ def limited_content(
     return d.addCallbacks(done, failed)
 
 
-def _decode_cbor(response, schema: Schema, clock: IReactorTime):
-    """Given HTTP response, return decoded CBOR body."""
-
-    def got_content(f: BinaryIO):
-        data = f.read()
-        schema.validate_cbor(data)
-        return loads(data)
-
-    if response.code > 199 and response.code < 300:
-        content_type = get_content_type(response.headers)
-        if content_type == CBOR_MIME_TYPE:
-            return limited_content(response, clock).addCallback(got_content)
-        else:
-            raise ClientException(-1, "Server didn't send CBOR")
-    else:
-        return treq.content(response).addCallback(
-            lambda data: fail(ClientException(response.code, response.phrase, data))
-        )
-
-
 @define
 class ImmutableCreateResult(object):
     """Result of creating a storage index for an immutable."""
@@ -428,6 +408,25 @@ class StorageClient(object):
             method, url, headers=headers, timeout=timeout, **kwargs
         )
 
+    def decode_cbor(self, response, schema: Schema):
+        """Given HTTP response, return decoded CBOR body."""
+
+        def got_content(f: BinaryIO):
+            data = f.read()
+            schema.validate_cbor(data)
+            return loads(data)
+
+        if response.code > 199 and response.code < 300:
+            content_type = get_content_type(response.headers)
+            if content_type == CBOR_MIME_TYPE:
+                return limited_content(response, self._clock).addCallback(got_content)
+            else:
+                raise ClientException(-1, "Server didn't send CBOR")
+        else:
+            return treq.content(response).addCallback(
+                lambda data: fail(ClientException(response.code, response.phrase, data))
+            )
+
 
 @define(hash=True)
 class StorageClientGeneral(object):
@@ -444,8 +443,8 @@ class StorageClientGeneral(object):
         """
         url = self._client.relative_url("/storage/v1/version")
         response = yield self._client.request("GET", url)
-        decoded_response = yield _decode_cbor(
-            response, _SCHEMAS["get_version"], self._client._clock
+        decoded_response = yield self._client.decode_cbor(
+            response, _SCHEMAS["get_version"]
         )
         returnValue(decoded_response)
 
@@ -634,8 +633,8 @@ class StorageClientImmutables(object):
             upload_secret=upload_secret,
             message_to_serialize=message,
         )
-        decoded_response = yield _decode_cbor(
-            response, _SCHEMAS["allocate_buckets"], self._client._clock
+        decoded_response = yield self._client.decode_cbor(
+            response, _SCHEMAS["allocate_buckets"]
         )
         returnValue(
             ImmutableCreateResult(
@@ -712,8 +711,8 @@ class StorageClientImmutables(object):
             raise ClientException(
                 response.code,
             )
-        body = yield _decode_cbor(
-            response, _SCHEMAS["immutable_write_share_chunk"], self._client._clock
+        body = yield self._client.decode_cbor(
+            response, _SCHEMAS["immutable_write_share_chunk"]
         )
         remaining = RangeMap()
         for chunk in body["required"]:
@@ -743,9 +742,7 @@ class StorageClientImmutables(object):
             url,
         )
         if response.code == http.OK:
-            body = yield _decode_cbor(
-                response, _SCHEMAS["list_shares"], self._client._clock
-            )
+            body = yield self._client.decode_cbor(response, _SCHEMAS["list_shares"])
             returnValue(set(body))
         else:
             raise ClientException(response.code)
@@ -862,8 +859,8 @@ class StorageClientMutables:
             message_to_serialize=message,
         )
         if response.code == http.OK:
-            result = await _decode_cbor(
-                response, _SCHEMAS["mutable_read_test_write"], self._client._clock
+            result = await self._client.decode_cbor(
+                response, _SCHEMAS["mutable_read_test_write"]
             )
             return ReadTestWriteResult(success=result["success"], reads=result["data"])
         else:
@@ -893,8 +890,8 @@ class StorageClientMutables:
         )
         response = await self._client.request("GET", url)
         if response.code == http.OK:
-            return await _decode_cbor(
-                response, _SCHEMAS["mutable_list_shares"], self._client._clock
+            return await self._client.decode_cbor(
+                response, _SCHEMAS["mutable_list_shares"]
             )
         else:
             raise ClientException(response.code)
