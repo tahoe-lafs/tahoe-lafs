@@ -659,10 +659,11 @@ async def spin_until_cleanup_done(value=None, timeout=10):
             # IOCP!
             return len(reactor.handles)
         else:
-            # Normal reactor
-            return len([r for r in reactor.getReaders()
-                        if r.__class__.__name__ not in ("_UnixWaker", "_SIGCHLDWaker", "_SocketWaker")]
-                       ) + len(reactor.getWriters())
+            # Normal reactor; having internal readers still registered is fine,
+            # that's not our code.
+            return len(
+                set(reactor.getReaders()) - set(reactor._internalReaders)
+            ) + len(reactor.getWriters())
 
     for i in range(timeout * 1000):
         # There's a single DelayedCall for AsynchronousDeferredRunTest's
