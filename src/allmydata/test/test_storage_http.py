@@ -280,6 +280,14 @@ class TestApp(object):
         self.clock.callLater(59 + 59, request.write, b"c")
         return Deferred()
 
+    @_authorized_route(_app, set(), "/die_unfinished", methods=["GET"])
+    def die(self, request, authorization):
+        """
+        Dies half-way.
+        """
+        request.transport.loseConnection()
+        return Deferred()
+
 
 def result_of(d):
     """
@@ -422,6 +430,22 @@ class CustomHTTPServerTests(SyncTestCase):
         self.assertTrue(error)
         with self.assertRaises(CancelledError):
             error[0].raiseException()
+
+    def test_limited_content_cancels_timeout_on_failed_response(self):
+        """
+        If the response fails somehow, the timeout is still cancelled.
+        """
+        response = result_of(
+            self.client.request(
+                "GET",
+                "http://127.0.0.1/die",
+            )
+        )
+
+        d = limited_content(response, self._http_server.clock, 4)
+        with self.assertRaises(ValueError):
+            result_of(d)
+        self.assertEqual(len(self._http_server.clock.getDelayedCalls()), 0)
 
 
 class HttpTestFixture(Fixture):

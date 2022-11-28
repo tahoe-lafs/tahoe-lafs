@@ -169,7 +169,12 @@ def limited_content(
         collector.f.seek(0)
         return collector.f
 
-    return d.addCallback(done)
+    def failed(f):
+        if timeout.active():
+            timeout.cancel()
+        return f
+
+    return d.addCallbacks(done, failed)
 
 
 def _decode_cbor(response, schema: Schema, clock: IReactorTime):
