@@ -31,6 +31,8 @@ from klein import Klein
 from hyperlink import DecodedURL
 from collections_extended import RangeMap
 from twisted.internet.task import Clock, Cooperator
+from twisted.internet.interfaces import IReactorTime
+from twisted.internet.defer import CancelledError, Deferred
 from twisted.web import http
 from twisted.web.http_headers import Headers
 from werkzeug import routing
@@ -245,6 +247,7 @@ def gen_bytes(length: int) -> bytes:
 class TestApp(object):
     """HTTP API for testing purposes."""
 
+    clock: IReactorTime
     _app = Klein()
     _swissnum = SWISSNUM_FOR_TEST  # Match what the test client is using
 
@@ -265,6 +268,25 @@ class TestApp(object):
     def generate_bytes(self, request, authorization, length):
         """Return bytes to the given length using ``gen_bytes()``."""
         return gen_bytes(length)
+
+    @_authorized_route(_app, set(), "/slowly_never_finish_result", methods=["GET"])
+    def slowly_never_finish_result(self, request, authorization):
+        """
+        Send data immediately, after 59 seconds, after another 59 seconds, and then
+        never again, without finishing the response.
+        """
+        request.write(b"a")
+        self.clock.callLater(59, request.write, b"b")
+        self.clock.callLater(59 + 59, request.write, b"c")
+        return Deferred()
+
+    @_authorized_route(_app, set(), "/die_unfinished", methods=["GET"])
+    def die(self, request, authorization):
+        """
+        Dies half-way.
+        """
+        request.transport.loseConnection()
+        return Deferred()
 
 
 def result_of(d):
@@ -298,12 +320,18 @@ class CustomHTTPServerTests(SyncTestCase):
         # Could be a fixture, but will only be used in this test class so not
         # going to bother:
         self._http_server = TestApp()
+        treq = StubTreq(self._http_server._app.resource())
         self.client = StorageClient(
             DecodedURL.from_text("http://127.0.0.1"),
             SWISSNUM_FOR_TEST,
-            treq=StubTreq(self._http_server._app.resource()),
-            clock=Clock(),
+            treq=treq,
+            # We're using a Treq private API to get the reactor, alas, but only
+            # in a test, so not going to worry about it too much. This would be
+            # fixed if https://github.com/twisted/treq/issues/226 were ever
+            # fixed.
+            clock=treq._agent._memoryReactor,
         )
+        self._http_server.clock = self.client._clock
 
     def test_authorization_enforcement(self):
         """
@@ -351,7 +379,9 @@ class CustomHTTPServerTests(SyncTestCase):
             )
 
             self.assertEqual(
-                result_of(limited_content(response, at_least_length)).read(),
+                result_of(
+                    limited_content(response, self._http_server.clock, at_least_length)
+                ).read(),
                 gen_bytes(length),
             )
 
@@ -370,7 +400,52 @@ class CustomHTTPServerTests(SyncTestCase):
             )
 
             with self.assertRaises(ValueError):
-                result_of(limited_content(response, too_short))
+                result_of(limited_content(response, self._http_server.clock, too_short))
+
+    def test_limited_content_silence_causes_timeout(self):
+        """
+        ``http_client.limited_content() times out if it receives no data for 60
+        seconds.
+        """
+        response = result_of(
+            self.client.request(
+                "GET",
+                "http://127.0.0.1/slowly_never_finish_result",
+            )
+        )
+
+        body_deferred = limited_content(response, self._http_server.clock, 4)
+        result = []
+        error = []
+        body_deferred.addCallbacks(result.append, error.append)
+
+        for i in range(59 + 59 + 60):
+            self.assertEqual((result, error), ([], []))
+            self._http_server.clock.advance(1)
+            # Push data between in-memory client and in-memory server:
+            self.client._treq._agent.flush()
+
+        # After 59 (second write) + 59 (third write) + 60 seconds (quiescent
+        # timeout) the limited_content() response times out.
+        self.assertTrue(error)
+        with self.assertRaises(CancelledError):
+            error[0].raiseException()
+
+    def test_limited_content_cancels_timeout_on_failed_response(self):
+        """
+        If the response fails somehow, the timeout is still cancelled.
+        """
+        response = result_of(
+            self.client.request(
+                "GET",
+                "http://127.0.0.1/die",
+            )
+        )
+
+        d = limited_content(response, self._http_server.clock, 4)
+        with self.assertRaises(ValueError):
+            result_of(d)
+        self.assertEqual(len(self._http_server.clock.getDelayedCalls()), 0)
 
 
 class HttpTestFixture(Fixture):
