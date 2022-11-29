@@ -111,7 +111,7 @@ install_requires = [
     "pyrsistent",
 
     # A great way to define types of values.
-    "attrs >= 18.2.0",
+    "attrs >= 20.1.0",
 
     # WebSocket library for twisted and asyncio
     "autobahn >= 22.4.3",

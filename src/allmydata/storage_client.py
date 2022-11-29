@@ -39,6 +39,7 @@ from os import urandom
 from configparser import NoSectionError
 
 import attr
+from attr import define
 from hyperlink import DecodedURL
 from zope.interface import (
     Attribute,
@@ -637,6 +638,7 @@ class _FoolscapStorage(object):
 
 
 @implementer(IFoolscapStorageServer)
+@define
 class _NullStorage(object):
     """
     Abstraction for *not* communicating with a storage server of a type with
@@ -650,7 +652,7 @@ class _NullStorage(object):
     lease_seed = hashlib.sha256(b"").digest()
 
     name = "<unsupported>"
-    longname = "<storage with unsupported protocol>"
+    longname: str = "<storage with unsupported protocol>"
 
     def connect_to(self, tub, got_connection):
         return NonReconnector()
@@ -784,9 +786,7 @@ def _make_storage_system(
         )
     except MissingPlugin as e:
         _log.failure("Missing plugin")
-        ns = _NullStorage()
-        ns.longname = '<missing plugin "{}">'.format(e.args[0])
-        return ns
+        return _NullStorage('<missing plugin "{}">'.format(e.args[0]))
     else:
         return _FoolscapStorage.from_announcement(
             server_id,
