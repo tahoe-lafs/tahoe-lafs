@@ -199,7 +199,15 @@ class ShareFile(object):
                 raise UnknownImmutableContainerVersionError(filename, version)
             self._num_leases = num_leases
             self._lease_offset = filesize - (num_leases * self.LEASE_SIZE)
+            self._length = filesize - 0xc - (num_leases * self.LEASE_SIZE)
+
         self._data_offset = 0xc
+
+    def get_length(self):
+        """
+        Return the length of the data in the share, if we're reading.
+        """
+        return self._length
 
     def unlink(self):
         os.unlink(self.home)
@@ -389,7 +397,9 @@ class BucketWriter(object):
         """
         Write data at given offset, return whether the upload is complete.
         """
-        # Delay the timeout, since we received data:
+        # Delay the timeout, since we received data; if we get an
+        # AlreadyCancelled error, that means there's a bug in the client and
+        # write() was called after close().
         self._timeout.reset(30 * 60)
         start = self._clock.seconds()
         precondition(not self.closed)
@@ -411,14 +421,18 @@ class BucketWriter(object):
         self._already_written.set(True, offset, end)
         self.ss.add_latency("write", self._clock.seconds() - start)
         self.ss.count("write")
+        return self._is_finished()
 
-        # Return whether the whole thing has been written. See
-        # https://github.com/mlenzen/collections-extended/issues/169 and
-        # https://github.com/mlenzen/collections-extended/issues/172 for why
-        # it's done this way.
+    def _is_finished(self):
+        """
+        Return whether the whole thing has been written.
+        """
         return sum([mr.stop - mr.start for mr in self._already_written.ranges()]) == self._max_size
 
     def close(self):
+        # This can't actually be enabled, because it's not backwards compatible
+        # with old Foolscap clients.
+        # assert self._is_finished()
         precondition(not self.closed)
         self._timeout.cancel()
         start = self._clock.seconds()
@@ -543,6 +557,12 @@ class BucketReader(object):
                                             self.storage_index,
                                             self.shnum,
                                             reason)
+
+    def get_length(self):
+        """
+        Return the length of the data in the share.
+        """
+        return self._share_file.get_length()
 
 
 @implementer(RIBucketReader)

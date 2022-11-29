@@ -463,7 +463,7 @@ class BucketProxy(unittest.TestCase):
                               block_size=10,
                               num_segments=5,
                               num_share_hashes=3,
-                              uri_extension_size_max=500)
+                              uri_extension_size=500)
         self.failUnless(interfaces.IStorageBucketWriter.providedBy(bp), bp)
 
     def _do_test_readwrite(self, name, header_size, wbp_class, rbp_class):
@@ -494,7 +494,7 @@ class BucketProxy(unittest.TestCase):
                        block_size=25,
                        num_segments=4,
                        num_share_hashes=3,
-                       uri_extension_size_max=len(uri_extension))
+                       uri_extension_size=len(uri_extension))
 
         d = bp.put_header()
         d.addCallback(lambda res: bp.put_block(0, b"a"*25))
@@ -688,6 +688,19 @@ class Server(unittest.TestCase):
             writer.abort()
         self.failUnlessEqual(ss.allocated_size(), 0)
 
+    def test_immutable_length(self):
+        """
+        ``get_immutable_share_length()`` returns the length of an immutable
+        share, as does ``BucketWriter.get_length()``..
+        """
+        ss = self.create("test_immutable_length")
+        _, writers = self.allocate(ss, b"allocate", [22], 75)
+        bucket = writers[22]
+        bucket.write(0, b"X" * 75)
+        bucket.close()
+        self.assertEqual(ss.get_immutable_share_length(b"allocate", 22), 75)
+        self.assertEqual(ss.get_buckets(b"allocate")[22].get_length(), 75)
+
     def test_allocate(self):
         ss = self.create("test_allocate")
 
@@ -766,7 +779,7 @@ class Server(unittest.TestCase):
         writer.close()
 
         # It should have a lease granted at the current time.
-        shares = dict(ss._get_bucket_shares(storage_index))
+        shares = dict(ss.get_shares(storage_index))
         self.assertEqual(
             [first_lease],
             list(
@@ -789,7 +802,7 @@ class Server(unittest.TestCase):
         writer.close()
 
         # The first share's lease expiration time is unchanged.
-        shares = dict(ss._get_bucket_shares(storage_index))
+        shares = dict(ss.get_shares(storage_index))
         self.assertEqual(
             [first_lease],
             list(
@@ -1314,6 +1327,64 @@ class MutableServer(unittest.TestCase):
         self.failUnless(did_write)
         self.failUnless(isinstance(readv_data, dict))
         self.failUnlessEqual(len(readv_data), 0)
+
+    def test_enumerate_mutable_shares(self):
+        """
+        ``StorageServer.enumerate_mutable_shares()`` returns a set of share
+        numbers for the given storage index, or an empty set if it does not
+        exist at all.
+        """
+        ss = self.create("test_enumerate_mutable_shares")
+
+        # Initially, nothing exists:
+        empty = ss.enumerate_mutable_shares(b"si1")
+
+        self.allocate(ss, b"si1", b"we1", b"le1", [0, 1, 4, 2], 12)
+        shares0_1_2_4 = ss.enumerate_mutable_shares(b"si1")
+
+        # Remove share 2, by setting size to 0:
+        secrets = (self.write_enabler(b"we1"),
+                   self.renew_secret(b"le1"),
+                   self.cancel_secret(b"le1"))
+        ss.slot_testv_and_readv_and_writev(b"si1", secrets, {2: ([], [], 0)}, [])
+        shares0_1_4 = ss.enumerate_mutable_shares(b"si1")
+        self.assertEqual(
+            (empty, shares0_1_2_4, shares0_1_4),
+            (set(), {0, 1, 2, 4}, {0, 1, 4})
+        )
+
+    def test_mutable_share_length(self):
+        """``get_mutable_share_length()`` returns the length of the share."""
+        ss = self.create("test_mutable_share_length")
+        self.allocate(ss, b"si1", b"we1", b"le1", [16], 23)
+        ss.slot_testv_and_readv_and_writev(
+            b"si1", (self.write_enabler(b"we1"),
+                     self.renew_secret(b"le1"),
+                     self.cancel_secret(b"le1")),
+            {16: ([], [(0, b"x" * 23)], None)},
+            []
+        )
+        self.assertEqual(ss.get_mutable_share_length(b"si1", 16), 23)
+
+    def test_mutable_share_length_unknown(self):
+        """
+        ``get_mutable_share_length()`` raises a ``KeyError`` on unknown shares.
+        """
+        ss = self.create("test_mutable_share_length_unknown")
+        self.allocate(ss, b"si1", b"we1", b"le1", [16], 23)
+        ss.slot_testv_and_readv_and_writev(
+            b"si1", (self.write_enabler(b"we1"),
+                     self.renew_secret(b"le1"),
+                     self.cancel_secret(b"le1")),
+            {16: ([], [(0, b"x" * 23)], None)},
+            []
+        )
+        with self.assertRaises(KeyError):
+            # Wrong share number.
+            ss.get_mutable_share_length(b"si1", 17)
+        with self.assertRaises(KeyError):
+            # Wrong storage index
+            ss.get_mutable_share_length(b"unknown", 16)
 
     def test_bad_magic(self):
         ss = self.create("test_bad_magic")

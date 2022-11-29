@@ -251,6 +251,12 @@ class Verifier(GridTestMixin, unittest.TestCase, RepairTestMixin):
                                       self.judge_invisible_corruption)
 
     def test_corrupt_ueb(self):
+        # Note that in some rare situations this might fail, specifically if
+        # the length of the UEB is corrupted to be a value that is bigger than
+        # the size but less than 2000, it might not get caught... But that's
+        # mostly because in that case it doesn't meaningfully corrupt it. See
+        # _get_uri_extension_the_old_way() in layout.py for where the 2000
+        # number comes from.
         self.basedir = "repairer/Verifier/corrupt_ueb"
         return self._help_test_verify(common._corrupt_uri_extension,
                                       self.judge_invisible_corruption)
@@ -717,7 +723,7 @@ class Repairer(GridTestMixin, unittest.TestCase, RepairTestMixin,
             ss = self.g.servers_by_number[0]
             # we want to delete the share corresponding to the server
             # we're making not-respond
-            share = next(ss._get_bucket_shares(self.c0_filenode.get_storage_index()))[0]
+            share = next(ss.get_shares(self.c0_filenode.get_storage_index()))[0]
             self.delete_shares_numbered(self.uri, [share])
             return self.c0_filenode.check_and_repair(Monitor())
         d.addCallback(_then)

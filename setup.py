@@ -114,9 +114,7 @@ install_requires = [
     "attrs >= 18.2.0",
 
     # WebSocket library for twisted and asyncio
-    "autobahn >= 19.5.2, != 22.5.1, != 22.4.2, != 22.4.1"
-    # (the ignored versions above don't have autobahn.twisted.testing
-    # packaged properly)
+    "autobahn >= 22.4.3",
 
     # Support for Python 3 transition
     "future >= 0.18.2",
@@ -135,10 +133,15 @@ install_requires = [
 
     # HTTP server and client
     "klein",
-    "werkzeug",
+    # 2.2.0 has a bug: https://github.com/pallets/werkzeug/issues/2465
+    "werkzeug != 2.2.0",
     "treq",
     "cbor2",
-    "pycddl",
+    "pycddl >= 0.2",
+
+    # for pid-file support
+    "psutil",
+    "filelock",
 ]
 
 setup_requires = [
@@ -377,8 +380,15 @@ setup(name="tahoe-lafs", # also set in __init__.py
           # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2392 for some
           # discussion.
           ':sys_platform=="win32"': ["pywin32 != 226"],
+          "build": [
+              "dulwich",
+              "gpg",
+          ],
           "test": [
               "flake8",
+              # On Python 3.7, importlib_metadata v5 breaks flake8.
+              # https://github.com/python/importlib_metadata/issues/407
+              "importlib_metadata<5; python_version < '3.8'",
               # Pin a specific pyflakes so we don't have different folks
               # disagreeing on what is or is not a lint issue.  We can bump
               # this version from time to time, but we will do it

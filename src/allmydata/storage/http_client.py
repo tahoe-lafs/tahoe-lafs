@@ -4,10 +4,12 @@ HTTP client that talks to the HTTP storage server.
 
 from __future__ import annotations
 
-from typing import Union, Optional, Sequence, Mapping
+from typing import Union, Optional, Sequence, Mapping, BinaryIO
 from base64 import b64encode
+from io import BytesIO
+from os import SEEK_END
 
-from attrs import define, asdict, frozen
+from attrs import define, asdict, frozen, field
 
 # TODO Make sure to import Python version?
 from cbor2 import loads, dumps
@@ -17,8 +19,12 @@ from werkzeug.datastructures import Range, ContentRange
 from twisted.web.http_headers import Headers
 from twisted.web import http
 from twisted.web.iweb import IPolicyForHTTPS
-from twisted.internet.defer import inlineCallbacks, returnValue, fail, Deferred
-from twisted.internet.interfaces import IOpenSSLClientConnectionCreator
+from twisted.internet.defer import inlineCallbacks, returnValue, fail, Deferred, succeed
+from twisted.internet.interfaces import (
+    IOpenSSLClientConnectionCreator,
+    IReactorTime,
+    IDelayedCall,
+)
 from twisted.internet.ssl import CertificateOptions
 from twisted.web.client import Agent, HTTPConnectionPool
 from zope.interface import implementer
@@ -28,6 +34,7 @@ from treq.client import HTTPClient
 from treq.testing import StubTreq
 from OpenSSL import SSL
 from cryptography.hazmat.bindings.openssl.binding import Binding
+from werkzeug.http import parse_content_range_header
 
 from .http_common import (
     swissnum_auth_header,
@@ -80,54 +87,94 @@ _SCHEMAS = {
     "allocate_buckets": Schema(
         """
     response = {
-      already-have: #6.258([* uint])
-      allocated: #6.258([* uint])
+      already-have: #6.258([0*256 uint])
+      allocated: #6.258([0*256 uint])
     }
     """
     ),
     "immutable_write_share_chunk": Schema(
         """
     response = {
-      required: [* {begin: uint, end: uint}]
+      required: [0* {begin: uint, end: uint}]
     }
     """
     ),
     "list_shares": Schema(
         """
-    response = #6.258([* uint])
+    response = #6.258([0*256 uint])
     """
     ),
     "mutable_read_test_write": Schema(
         """
         response = {
           "success": bool,
-          "data": {* share_number: [* bstr]}
+          "data": {0*256 share_number: [0* bstr]}
         }
         share_number = uint
+        """
+    ),
+    "mutable_list_shares": Schema(
+        """
+        response = #6.258([0*256 uint])
         """
     ),
 }
 
 
-def _decode_cbor(response, schema: Schema):
-    """Given HTTP response, return decoded CBOR body."""
+@define
+class _LengthLimitedCollector:
+    """
+    Collect data using ``treq.collect()``, with limited length.
+    """
 
-    def got_content(data):
-        schema.validate_cbor(data)
-        return loads(data)
+    remaining_length: int
+    timeout_on_silence: IDelayedCall
+    f: BytesIO = field(factory=BytesIO)
 
-    if response.code > 199 and response.code < 300:
-        content_type = get_content_type(response.headers)
-        if content_type == CBOR_MIME_TYPE:
-            # TODO limit memory usage
-            # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3872
-            return treq.content(response).addCallback(got_content)
-        else:
-            raise ClientException(-1, "Server didn't send CBOR")
-    else:
-        return treq.content(response).addCallback(
-            lambda data: fail(ClientException(response.code, response.phrase, data))
-        )
+    def __call__(self, data: bytes):
+        self.timeout_on_silence.reset(60)
+        self.remaining_length -= len(data)
+        if self.remaining_length < 0:
+            raise ValueError("Response length was too long")
+        self.f.write(data)
+
+
+def limited_content(
+    response,
+    clock: IReactorTime,
+    max_length: int = 30 * 1024 * 1024,
+) -> Deferred[BinaryIO]:
+    """
+    Like ``treq.content()``, but limit data read from the response to a set
+    length.  If the response is longer than the max allowed length, the result
+    fails with a ``ValueError``.
+
+    A potentially useful future improvement would be using a temporary file to
+    store the content; since filesystem buffering means that would use memory
+    for small responses and disk for large responses.
+
+    This will time out if no data is received for 60 seconds; so long as a
+    trickle of data continues to arrive, it will continue to run.
+    """
+    d = succeed(None)
+    timeout = clock.callLater(60, d.cancel)
+    collector = _LengthLimitedCollector(max_length, timeout)
+
+    # Make really sure everything gets called in Deferred context, treq might
+    # call collector directly...
+    d.addCallback(lambda _: treq.collect(response, collector))
+
+    def done(_):
+        timeout.cancel()
+        collector.f.seek(0)
+        return collector.f
+
+    def failed(f):
+        if timeout.active():
+            timeout.cancel()
+        return f
+
+    return d.addCallbacks(done, failed)
 
 
 @define
@@ -229,42 +276,67 @@ class _StorageClientHTTPSPolicy:
         )
 
 
-@define
+@define(hash=True)
 class StorageClient(object):
     """
     Low-level HTTP client that talks to the HTTP storage server.
     """
+
+    # If set, we're doing unit testing and we should call this with
+    # HTTPConnectionPool we create.
+    TEST_MODE_REGISTER_HTTP_POOL = None
+
+    @classmethod
+    def start_test_mode(cls, callback):
+        """Switch to testing mode.
+
+        In testing mode we register the pool with test system using the given
+        callback so it can Do Things, most notably killing off idle HTTP
+        connections at test shutdown and, in some tests, in the midddle of the
+        test.
+        """
+        cls.TEST_MODE_REGISTER_HTTP_POOL = callback
+
+    @classmethod
+    def stop_test_mode(cls):
+        """Stop testing mode."""
+        cls.TEST_MODE_REGISTER_HTTP_POOL = None
 
     # The URL is a HTTPS URL ("https://...").  To construct from a NURL, use
     # ``StorageClient.from_nurl()``.
     _base_url: DecodedURL
     _swissnum: bytes
     _treq: Union[treq, StubTreq, HTTPClient]
+    _clock: IReactorTime
 
     @classmethod
     def from_nurl(
-        cls, nurl: DecodedURL, reactor, persistent: bool = True
+        cls,
+        nurl: DecodedURL,
+        reactor,
     ) -> StorageClient:
         """
         Create a ``StorageClient`` for the given NURL.
-
-        ``persistent`` indicates whether to use persistent HTTP connections.
         """
         assert nurl.fragment == "v=1"
         assert nurl.scheme == "pb"
         swissnum = nurl.path[0].encode("ascii")
         certificate_hash = nurl.user.encode("ascii")
+        pool = HTTPConnectionPool(reactor)
+
+        if cls.TEST_MODE_REGISTER_HTTP_POOL is not None:
+            cls.TEST_MODE_REGISTER_HTTP_POOL(pool)
 
         treq_client = HTTPClient(
             Agent(
                 reactor,
                 _StorageClientHTTPSPolicy(expected_spki_hash=certificate_hash),
-                pool=HTTPConnectionPool(reactor, persistent=persistent),
+                pool=pool,
             )
         )
 
         https_url = DecodedURL().replace(scheme="https", host=nurl.host, port=nurl.port)
-        return cls(https_url, swissnum, treq_client)
+        return cls(https_url, swissnum, treq_client, reactor)
 
     def relative_url(self, path):
         """Get a URL relative to the base URL."""
@@ -290,7 +362,8 @@ class StorageClient(object):
         write_enabler_secret=None,
         headers=None,
         message_to_serialize=None,
-        **kwargs
+        timeout: float = 60,
+        **kwargs,
     ):
         """
         Like ``treq.request()``, but with optional secrets that get translated
@@ -298,6 +371,8 @@ class StorageClient(object):
 
         If ``message_to_serialize`` is set, it will be serialized (by default
         with CBOR) and set as the request body.
+
+        Default timeout is 60 seconds.
         """
         headers = self._get_headers(headers)
 
@@ -329,26 +404,74 @@ class StorageClient(object):
             kwargs["data"] = dumps(message_to_serialize)
             headers.addRawHeader("Content-Type", CBOR_MIME_TYPE)
 
-        return self._treq.request(method, url, headers=headers, **kwargs)
+        return self._treq.request(
+            method, url, headers=headers, timeout=timeout, **kwargs
+        )
+
+    def decode_cbor(self, response, schema: Schema):
+        """Given HTTP response, return decoded CBOR body."""
+
+        def got_content(f: BinaryIO):
+            data = f.read()
+            schema.validate_cbor(data)
+            return loads(data)
+
+        if response.code > 199 and response.code < 300:
+            content_type = get_content_type(response.headers)
+            if content_type == CBOR_MIME_TYPE:
+                return limited_content(response, self._clock).addCallback(got_content)
+            else:
+                raise ClientException(-1, "Server didn't send CBOR")
+        else:
+            return treq.content(response).addCallback(
+                lambda data: fail(ClientException(response.code, response.phrase, data))
+            )
 
 
+@define(hash=True)
 class StorageClientGeneral(object):
     """
     High-level HTTP APIs that aren't immutable- or mutable-specific.
     """
 
-    def __init__(self, client):  # type: (StorageClient) -> None
-        self._client = client
+    _client: StorageClient
 
     @inlineCallbacks
     def get_version(self):
         """
         Return the version metadata for the server.
         """
-        url = self._client.relative_url("/v1/version")
+        url = self._client.relative_url("/storage/v1/version")
         response = yield self._client.request("GET", url)
-        decoded_response = yield _decode_cbor(response, _SCHEMAS["get_version"])
+        decoded_response = yield self._client.decode_cbor(
+            response, _SCHEMAS["get_version"]
+        )
         returnValue(decoded_response)
+
+    @inlineCallbacks
+    def add_or_renew_lease(
+        self, storage_index: bytes, renew_secret: bytes, cancel_secret: bytes
+    ) -> Deferred[None]:
+        """
+        Add or renew a lease.
+
+        If the renewal secret matches an existing lease, it is renewed.
+        Otherwise a new lease is added.
+        """
+        url = self._client.relative_url(
+            "/storage/v1/lease/{}".format(_encode_si(storage_index))
+        )
+        response = yield self._client.request(
+            "PUT",
+            url,
+            lease_renew_secret=renew_secret,
+            lease_cancel_secret=cancel_secret,
+        )
+
+        if response.code == http.NO_CONTENT:
+            return
+        else:
+            raise ClientException(response.code)
 
 
 @define
@@ -375,35 +498,98 @@ def read_share_chunk(
     """
     Download a chunk of data from a share.
 
-    TODO https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3857 Failed
-    downloads should be transparently retried and redownloaded by the
-    implementation a few times so that if a failure percolates up, the
-    caller can assume the failure isn't a short-term blip.
+    TODO https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3857 Failed downloads
+    should be transparently retried and redownloaded by the implementation a
+    few times so that if a failure percolates up, the caller can assume the
+    failure isn't a short-term blip.
 
-    NOTE: the underlying HTTP protocol is much more flexible than this API,
-    so a future refactor may expand this in order to simplify the calling
-    code and perhaps download data more efficiently.  But then again maybe
-    the HTTP protocol will be simplified, see
-    https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3777
+    NOTE: the underlying HTTP protocol is somewhat more flexible than this API,
+    insofar as it doesn't always require a range.  In practice a range is
+    always provided by the current callers.
     """
     url = client.relative_url(
-        "/v1/{}/{}/{}".format(share_type, _encode_si(storage_index), share_number)
+        "/storage/v1/{}/{}/{}".format(
+            share_type, _encode_si(storage_index), share_number
+        )
     )
+    # The default 60 second timeout is for getting the response, so it doesn't
+    # include the time it takes to download the body... so we will will deal
+    # with that later, via limited_content().
     response = yield client.request(
         "GET",
         url,
         headers=Headers(
+            # Ranges in HTTP are _inclusive_, Python's convention is exclusive,
+            # but Range constructor does that the conversion for us.
             {"range": [Range("bytes", [(offset, offset + length)]).to_header()]}
         ),
+        unbuffered=True,  # Don't buffer the response in memory.
     )
+
+    if response.code == http.NO_CONTENT:
+        return b""
+
     if response.code == http.PARTIAL_CONTENT:
-        body = yield response.content()
-        returnValue(body)
+        content_range = parse_content_range_header(
+            response.headers.getRawHeaders("content-range")[0] or ""
+        )
+        if (
+            content_range is None
+            or content_range.stop is None
+            or content_range.start is None
+        ):
+            raise ValueError(
+                "Content-Range was missing, invalid, or in format we don't support"
+            )
+        supposed_length = content_range.stop - content_range.start
+        if supposed_length > length:
+            raise ValueError("Server sent more than we asked for?!")
+        # It might also send less than we asked for. That's (probably) OK, e.g.
+        # if we went past the end of the file.
+        body = yield limited_content(response, client._clock, supposed_length)
+        body.seek(0, SEEK_END)
+        actual_length = body.tell()
+        if actual_length != supposed_length:
+            # Most likely a mutable that got changed out from under us, but
+            # conceivably could be a bug...
+            raise ValueError(
+                f"Length of response sent from server ({actual_length}) "
+                + f"didn't match Content-Range header ({supposed_length})"
+            )
+        body.seek(0)
+        return body.read()
     else:
+        # Technically HTTP allows sending an OK with full body under these
+        # circumstances, but the server is not designed to do that so we ignore
+        # that possibility for now...
         raise ClientException(response.code)
 
 
-@define
+@async_to_deferred
+async def advise_corrupt_share(
+    client: StorageClient,
+    share_type: str,
+    storage_index: bytes,
+    share_number: int,
+    reason: str,
+):
+    assert isinstance(reason, str)
+    url = client.relative_url(
+        "/storage/v1/{}/{}/{}/corrupt".format(
+            share_type, _encode_si(storage_index), share_number
+        )
+    )
+    message = {"reason": reason}
+    response = await client.request("POST", url, message_to_serialize=message)
+    if response.code == http.OK:
+        return
+    else:
+        raise ClientException(
+            response.code,
+        )
+
+
+@define(hash=True)
 class StorageClientImmutables(object):
     """
     APIs for interacting with immutables.
@@ -434,7 +620,9 @@ class StorageClientImmutables(object):
         Result fires when creating the storage index succeeded, if creating the
         storage index failed the result will fire with an exception.
         """
-        url = self._client.relative_url("/v1/immutable/" + _encode_si(storage_index))
+        url = self._client.relative_url(
+            "/storage/v1/immutable/" + _encode_si(storage_index)
+        )
         message = {"share-numbers": share_numbers, "allocated-size": allocated_size}
 
         response = yield self._client.request(
@@ -445,7 +633,9 @@ class StorageClientImmutables(object):
             upload_secret=upload_secret,
             message_to_serialize=message,
         )
-        decoded_response = yield _decode_cbor(response, _SCHEMAS["allocate_buckets"])
+        decoded_response = yield self._client.decode_cbor(
+            response, _SCHEMAS["allocate_buckets"]
+        )
         returnValue(
             ImmutableCreateResult(
                 already_have=decoded_response["already-have"],
@@ -459,7 +649,9 @@ class StorageClientImmutables(object):
     ) -> Deferred[None]:
         """Abort the upload."""
         url = self._client.relative_url(
-            "/v1/immutable/{}/{}/abort".format(_encode_si(storage_index), share_number)
+            "/storage/v1/immutable/{}/{}/abort".format(
+                _encode_si(storage_index), share_number
+            )
         )
         response = yield self._client.request(
             "PUT",
@@ -491,7 +683,9 @@ class StorageClientImmutables(object):
         been uploaded.
         """
         url = self._client.relative_url(
-            "/v1/immutable/{}/{}".format(_encode_si(storage_index), share_number)
+            "/storage/v1/immutable/{}/{}".format(
+                _encode_si(storage_index), share_number
+            )
         )
         response = yield self._client.request(
             "PATCH",
@@ -517,7 +711,9 @@ class StorageClientImmutables(object):
             raise ClientException(
                 response.code,
             )
-        body = yield _decode_cbor(response, _SCHEMAS["immutable_write_share_chunk"])
+        body = yield self._client.decode_cbor(
+            response, _SCHEMAS["immutable_write_share_chunk"]
+        )
         remaining = RangeMap()
         for chunk in body["required"]:
             remaining.set(True, chunk["begin"], chunk["end"])
@@ -534,49 +730,23 @@ class StorageClientImmutables(object):
         )
 
     @inlineCallbacks
-    def list_shares(self, storage_index):  # type: (bytes,) -> Deferred[set[int]]
+    def list_shares(self, storage_index: bytes) -> Deferred[set[int]]:
         """
         Return the set of shares for a given storage index.
         """
         url = self._client.relative_url(
-            "/v1/immutable/{}/shares".format(_encode_si(storage_index))
+            "/storage/v1/immutable/{}/shares".format(_encode_si(storage_index))
         )
         response = yield self._client.request(
             "GET",
             url,
         )
         if response.code == http.OK:
-            body = yield _decode_cbor(response, _SCHEMAS["list_shares"])
+            body = yield self._client.decode_cbor(response, _SCHEMAS["list_shares"])
             returnValue(set(body))
         else:
             raise ClientException(response.code)
 
-    @inlineCallbacks
-    def add_or_renew_lease(
-        self, storage_index: bytes, renew_secret: bytes, cancel_secret: bytes
-    ):
-        """
-        Add or renew a lease.
-
-        If the renewal secret matches an existing lease, it is renewed.
-        Otherwise a new lease is added.
-        """
-        url = self._client.relative_url(
-            "/v1/lease/{}".format(_encode_si(storage_index))
-        )
-        response = yield self._client.request(
-            "PUT",
-            url,
-            lease_renew_secret=renew_secret,
-            lease_cancel_secret=cancel_secret,
-        )
-
-        if response.code == http.NO_CONTENT:
-            return
-        else:
-            raise ClientException(response.code)
-
-    @inlineCallbacks
     def advise_corrupt_share(
         self,
         storage_index: bytes,
@@ -584,20 +754,9 @@ class StorageClientImmutables(object):
         reason: str,
     ):
         """Indicate a share has been corrupted, with a human-readable message."""
-        assert isinstance(reason, str)
-        url = self._client.relative_url(
-            "/v1/immutable/{}/{}/corrupt".format(
-                _encode_si(storage_index), share_number
-            )
+        return advise_corrupt_share(
+            self._client, "immutable", storage_index, share_number, reason
         )
-        message = {"reason": reason}
-        response = yield self._client.request("POST", url, message_to_serialize=message)
-        if response.code == http.OK:
-            return
-        else:
-            raise ClientException(
-                response.code,
-            )
 
 
 @frozen
@@ -631,8 +790,8 @@ class ReadVector:
 class TestWriteVectors:
     """Test and write vectors for a specific share."""
 
-    test_vectors: Sequence[TestVector]
-    write_vectors: Sequence[WriteVector]
+    test_vectors: Sequence[TestVector] = field(factory=list)
+    write_vectors: Sequence[WriteVector] = field(factory=list)
     new_length: Optional[int] = None
 
     def asdict(self) -> dict:
@@ -681,9 +840,8 @@ class StorageClientMutables:
         Given a mapping between share numbers and test/write vectors, the tests
         are done and if they are valid the writes are done.
         """
-        # TODO unit test all the things
         url = self._client.relative_url(
-            "/v1/mutable/{}/read-test-write".format(_encode_si(storage_index))
+            "/storage/v1/mutable/{}/read-test-write".format(_encode_si(storage_index))
         )
         message = {
             "test-write-vectors": {
@@ -701,7 +859,9 @@ class StorageClientMutables:
             message_to_serialize=message,
         )
         if response.code == http.OK:
-            result = await _decode_cbor(response, _SCHEMAS["mutable_read_test_write"])
+            result = await self._client.decode_cbor(
+                response, _SCHEMAS["mutable_read_test_write"]
+            )
             return ReadTestWriteResult(success=result["success"], reads=result["data"])
         else:
             raise ClientException(response.code, (await response.content()))
@@ -712,11 +872,37 @@ class StorageClientMutables:
         share_number: int,
         offset: int,
         length: int,
-    ) -> bytes:
+    ) -> Deferred[bytes]:
         """
         Download a chunk of data from a share.
         """
-        # TODO unit test all the things
         return read_share_chunk(
             self._client, "mutable", storage_index, share_number, offset, length
+        )
+
+    @async_to_deferred
+    async def list_shares(self, storage_index: bytes) -> set[int]:
+        """
+        List the share numbers for a given storage index.
+        """
+        url = self._client.relative_url(
+            "/storage/v1/mutable/{}/shares".format(_encode_si(storage_index))
+        )
+        response = await self._client.request("GET", url)
+        if response.code == http.OK:
+            return await self._client.decode_cbor(
+                response, _SCHEMAS["mutable_list_shares"]
+            )
+        else:
+            raise ClientException(response.code)
+
+    def advise_corrupt_share(
+        self,
+        storage_index: bytes,
+        share_number: int,
+        reason: str,
+    ):
+        """Indicate a share has been corrupted, with a human-readable message."""
+        return advise_corrupt_share(
+            self._client, "mutable", storage_index, share_number, reason
         )

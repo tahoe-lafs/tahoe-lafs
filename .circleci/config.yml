@@ -18,8 +18,7 @@ workflows:
       - "debian-10":
           {}
       - "debian-11":
-          requires:
-            - "debian-10"
+          {}
 
       - "ubuntu-20-04":
           {}
@@ -58,7 +57,7 @@ workflows:
           requires:
             # If the unit test suite doesn't pass, don't bother running the
             # integration tests.
-            - "debian-10"
+            - "debian-11"
 
       - "typechecks":
           {}
@@ -297,6 +296,10 @@ jobs:
 
   integration:
     <<: *DEBIAN
+    docker:
+      - <<: *DOCKERHUB_AUTH
+        image: "tahoelafsci/debian:11-py3.9"
+        user: "nobody"
 
     environment:
       <<: *UTF_8_ENVIRONMENT
