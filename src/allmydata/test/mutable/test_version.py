@@ -270,7 +270,7 @@ class Version(GridTestMixin, AsyncTestCase, testutil.ShouldFailMixin, \
     async def _test_partial_read(self, node, expected, modes, step) -> None:
         version = await node.get_best_readable_version()
         for (name, offset, length) in modes:
-            version = await self._do_partial_read(version, name, expected, offset, length)
+            await self._do_partial_read(version, name, expected, offset, length)
         # then read the whole thing, but only a few bytes at a time, and see
         # that the results are what we expect.
         c = consumer.MemoryConsumer()
@@ -292,7 +292,6 @@ class Version(GridTestMixin, AsyncTestCase, testutil.ShouldFailMixin, \
             print("got: %s ... %s" % (results[:20], results[-20:]))
             print("exp: %s ... %s" % (expected_range[:20], expected_range[-20:]))
             self.fail("results[%s] != expected_range" % name)
-        return version # daisy-chained to next call
 
     async def test_partial_read_mdmf_0(self) -> None:
         data = b""
