@@ -5,7 +5,7 @@ set -euxo pipefail
 
 # Basic Python packages that you just need to have around to do anything,
 # practically speaking.
-BASIC_DEPS="pip wheel"
+BASIC_DEPS="pip wheel setuptools setuptools_scm"
 
 # Python packages we need to support the test infrastructure.  *Not* packages
 # Tahoe-LAFS itself (implementation or test suite) need.
