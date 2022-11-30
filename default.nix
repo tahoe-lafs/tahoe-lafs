@@ -51,8 +51,26 @@ in
 # `setup.py update_version` has been run (this is not at all ideal but it
 # seems difficult to fix) - so for now just be sure to run that first.
 mach-nix.buildPythonPackage rec {
-  # Define the location of the Tahoe-LAFS source to be packaged.
-  src = ./.;
+  # Define the location of the Tahoe-LAFS source to be packaged.  We can't
+  src = pkgs.lib.cleanSourceWith {
+    # Define our own filter because we need to keep the whole `.git` directory
+    # for setuptools-scm. :/
+    filter = name: type:
+      let baseName = baseNameOf (toString name);
+      in ! (
+        baseName == "__pycache__" ||
+        baseName == ".hypothesis" ||
+        baseName == ".tox" ||
+        baseName == ".mypy_cache" ||
+        pkgs.lib.hasPrefix "_trial_temp" baseName ||
+        pkgs.lib.hasSuffix ".pyc" baseName ||
+        pkgs.lib.hasSuffix ".pyo" baseName ||
+        pkgs.lib.hasSuffix "~" baseName ||
+        type == "symlink" ||
+        type == "unknown"
+      );
+    src = ./.;
+  };
 
   # The name and most other metadata can be discovered from the package
   # metadata files.  However, setuptools-scm is too tricky for mach-nix so we
