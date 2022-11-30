@@ -51,11 +51,34 @@ in
 # `setup.py update_version` has been run (this is not at all ideal but it
 # seems difficult to fix) - so for now just be sure to run that first.
 mach-nix.buildPythonPackage rec {
-  # Define the location of the Tahoe-LAFS source to be packaged.  Clean up all
-  # as many of the non-source files (eg the `.git` directory, `~` backup
-  # files, nix's own `result` symlink, etc) as possible to avoid needing to
-  # re-build when files that make no difference to the package have changed.
-  src = pkgs.lib.cleanSource ./.;
+  # Define the location of the Tahoe-LAFS source to be packaged.
+  src = ./.;
+
+  # The name and most other metadata can be discovered from the package
+  # metadata files.  However, setuptools-scm is too tricky for mach-nix so we
+  # have to duplicate the version information here.
+  version = "1.18.1.post1";
+
+  pythonImportsCheck = [ "allmydata" ];
+
+  # This is really a check but I can't get checks to run.  I think mach-nix
+  # works hard to disable them.
+  #
+  # Check that the nix and Python package metadata are roughly in agreement
+  # regarding the version information.
+  postInstall = ''
+    python -c "
+from allmydata import __version__ as v
+w = '${version}'
+print(v)
+print(w)
+raise SystemExit(v.split('.')[:3] != w.split('.')[:3])
+    "
+  '';
+
+  nativeBuildInputs = [
+    pkgs.git
+  ];
 
   # Select whichever package extras were requested.
   inherit extras;
@@ -72,14 +95,7 @@ mach-nix.buildPythonPackage rec {
     # build-time requirements of our dependencies which are declared in such a
     # file.  Tell it about them here.
     setuptools_rust
-
-    # mach-nix does not yet parse environment markers (e.g. "python > '3.0'")
-    # correctly. It misses all of our requirements which have an environment marker.
-    # Duplicate them here.
-    foolscap
-    eliot
-    pyrsistent
-    collections-extended
+    setuptools_scm
   '';
 
   # Specify where mach-nix should find packages for our Python dependencies.
