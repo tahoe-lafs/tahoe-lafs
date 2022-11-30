@@ -83,6 +83,10 @@ Create Branch and Apply Updates
   - summarize major changes
   - commit it
 
+- update "default.nix"
+
+  - change the value given for `version` from `OLD.post1` to `NEW.post1`
+
 - update "docs/known_issues.rst" if appropriate
 - Push the branch to github
 - Create a (draft) PR; this should trigger CI (note that github
