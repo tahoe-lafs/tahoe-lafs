@@ -563,7 +563,7 @@ class Server(AsyncTestCase):
         self.sparent = LoggingServiceParent()
         self.sparent.startService()
         self._lease_secret = itertools.count()
-        self.addCleanup(self.sparent.stopService())
+        self.addCleanup(self.sparent.stopService)
 
     def workdir(self, name):
         basedir = os.path.join("storage", "Server", name)
@@ -1284,7 +1284,7 @@ class MutableServer(SyncTestCase):
         super(MutableServer, self).setUp()
         self.sparent = LoggingServiceParent()
         self._lease_secret = itertools.count()
-        self.addCleanup(self.sparent.stopService())
+        self.addCleanup(self.sparent.stopService)
 
     def workdir(self, name):
         basedir = os.path.join("storage", "MutableServer", name)
@@ -3337,7 +3337,7 @@ class Stats(SyncTestCase):
         super(Stats, self).setUp()
         self.sparent = LoggingServiceParent()
         self._lease_secret = itertools.count()
-        self.addCleanup(self.sparent.stopService())
+        self.addCleanup(self.sparent.stopService)
 
     def workdir(self, name):
         basedir = os.path.join("storage", "Server", name)
