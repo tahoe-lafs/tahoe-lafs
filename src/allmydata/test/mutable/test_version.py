@@ -289,8 +289,8 @@ class Version(GridTestMixin, AsyncTestCase, testutil.ShouldFailMixin, \
         if results != expected_range:
             print("read([%d]+%s) got %d bytes, not %d" % \
                   (offset, length, len(results), len(expected_range)))
-            print("got: %s ... %s" % (results[:20], results[-20:]))
-            print("exp: %s ... %s" % (expected_range[:20], expected_range[-20:]))
+            print("got: %r ... %r" % (results[:20], results[-20:]))
+            print("exp: %r ... %r" % (expected_range[:20], expected_range[-20:]))
             self.fail("results[%s] != expected_range" % name)
 
     async def test_partial_read_mdmf_0(self) -> None:
