@@ -414,14 +414,6 @@ jobs:
             nix path-info --all > /tmp/store-path-pre-build
 
       - "run":
-          # The Nix package doesn't know how to do this part, unfortunately.
-          name: "Generate version"
-          command: |
-            nix-shell \
-              -p 'python3.withPackages (ps: [ ps.setuptools ])' \
-              --run 'python setup.py update_version'
-
-      - "run":
           name: "Build"
           command: |
             # CircleCI build environment looks like it has a zillion and a
