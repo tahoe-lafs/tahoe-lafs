@@ -7,10 +7,12 @@ community web site: U{https://tahoe-lafs.org/}
 __all__ = [
     "__version__",
     "__appname__",
+    "__full_version__",
 ]
 
 __appname__ = "tahoe-lafs"
 from allmydata._version import __version__
+__full_version__ = f"{__appname__}/{__version__}"
 
 # Install Python 3 module locations in Python 2:
 from future import standard_library
