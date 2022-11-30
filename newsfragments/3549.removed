@@ -1,1 +1,0 @@
-The stats gatherer, broken since at least Tahoe-LAFS 1.13.0, has been removed.  The ``[client]stats_gatherer.furl`` configuration item in ``tahoe.cfg`` is no longer allowed.  The Tahoe-LAFS project recommends using a third-party metrics aggregation tool instead.

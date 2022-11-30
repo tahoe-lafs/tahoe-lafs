@@ -6,6 +6,33 @@ on:
       - "master"
   pull_request:
 
+# At the start of each workflow run, GitHub creates a unique
+# GITHUB_TOKEN secret to use in the workflow. It is a good idea for
+# this GITHUB_TOKEN to have the minimum of permissions.  See:
+#
+# - https://docs.github.com/en/actions/security-guides/automatic-token-authentication
+# - https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#permissions
+#
+permissions:
+  contents: read
+
+# Control to what degree jobs in this workflow will run concurrently with
+# other instances of themselves.
+#
+# https://docs.github.com/en/actions/learn-github-actions/workflow-syntax-for-github-actions#concurrency
+concurrency:
+  # We want every revision on master to run the workflow completely.
+  # "head_ref" is not set for the "push" event but it is set for the
+  # "pull_request" event.  If it is set then it is the name of the branch and
+  # we can use it to make sure each branch has only one active workflow at a
+  # time.  If it is not set then we can compute a unique string that gives
+  # every master/push workflow its own group.
+  group: "${{ github.head_ref || format('{0}-{1}', github.run_number, github.run_attempt) }}"
+
+  # Then, we say that if a new workflow wants to start in the same group as a
+  # running workflow, the running workflow should be cancelled.
+  cancel-in-progress: true
+
 env:
   # Tell Hypothesis which configuration we want it to use.
   TAHOE_LAFS_HYPOTHESIS_PROFILE: "ci"
@@ -21,49 +48,35 @@ jobs:
           - windows-latest
           - ubuntu-latest
         python-version:
-          - 2.7
-          - 3.6
-          - 3.7
-          - 3.8
-          - 3.9
+          - "3.7"
+          - "3.8"
+          - "3.9"
+          - "3.10"
         include:
-          # On macOS don't bother with 3.6-3.8, just to get faster builds.
-          - os: macos-10.15
-            python-version: 2.7
+          # On macOS don't bother with 3.7-3.8, just to get faster builds.
           - os: macos-latest
-            python-version: 3.9
-
+            python-version: "3.9"
+          - os: macos-latest
+            python-version: "3.10"
+          # We only support PyPy on Linux at the moment.
+          - os: ubuntu-latest
+            python-version: "pypy-3.7"
+          - os: ubuntu-latest
+            python-version: "pypy-3.8"
+    
     steps:
       # See https://github.com/actions/checkout. A fetch-depth of 0
       # fetches all tags and branches.
       - name: Check out Tahoe-LAFS sources
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           fetch-depth: 0
 
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
-
-      # To use pip caching with GitHub Actions in an OS-independent
-      # manner, we need `pip cache dir` command, which became
-      # available since pip v20.1+.  At the time of writing this,
-      # GitHub Actions offers pip v20.3.3 for both ubuntu-latest and
-      # windows-latest, and pip v20.3.1 for macos-latest.
-      - name: Get pip cache directory
-        id: pip-cache
-        run: |
-          echo "::set-output name=dir::$(pip cache dir)"
-
-      # See https://github.com/actions/cache
-      - name: Use pip cache
-        uses: actions/cache@v2
-        with:
-          path: ${{ steps.pip-cache.outputs.dir }}
-          key: ${{ runner.os }}-pip-${{ hashFiles('**/setup.py') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-
+          cache: 'pip'  # caching pip dependencies
 
       - name: Install Python packages
         run: |
@@ -77,13 +90,13 @@ jobs:
         run: python -m tox
 
       - name: Upload eliot.log
-        uses: actions/upload-artifact@v1
+        uses: actions/upload-artifact@v3
         with:
           name: eliot.log
           path: eliot.log
 
       - name: Upload trial log
-        uses: actions/upload-artifact@v1
+        uses: actions/upload-artifact@v3
         with:
           name: test.log
           path: _trial_temp/test.log
@@ -92,25 +105,6 @@ jobs:
       # Action for this, as of Jan 2021 it does not support Python coverage
       # files - only lcov files.  Therefore, we use coveralls-python, the
       # coveralls.io-supplied Python reporter, for this.
-      #
-      # It is coveralls-python 1.x that has maintained compatibility
-      # with Python 2, while coveralls-python 3.x is compatible with
-      # Python 3.  Sadly we can't use them both in the same workflow.
-      #
-      # The two versions of coveralls-python are somewhat mutually
-      # incompatible.  Mixing these two different versions when
-      # reporting coverage to coveralls.io will lead to grief, since
-      # they get job IDs in different fashion.  If we use both
-      # versions of coveralls in the same workflow, the finalizing
-      # step will be able to mark only part of the jobs as done, and
-      # the other part will be left hanging, never marked as done: it
-      # does not matter if we make an API call or `coveralls --finish`
-      # to indicate that CI has finished running.
-      #
-      # So we try to use the newer coveralls-python that is available
-      # via Python 3 (which is present in GitHub Actions tool cache,
-      # even when we're running Python 2.7 tests) throughout this
-      # workflow.
       - name: "Report Coverage to Coveralls"
         run: |
           pip3 install --upgrade coveralls==3.0.1
@@ -161,22 +155,21 @@ jobs:
       matrix:
         os:
           - windows-latest
-          - ubuntu-latest
+          # 22.04 has some issue with Tor at the moment:
+          # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3943
+          - ubuntu-20.04
         python-version:
-          - 2.7
-          - 3.6
+          - 3.7
           - 3.9
         include:
-          # On macOS don't bother with 3.6, just to get faster builds.
-          - os: macos-10.15
-            python-version: 2.7
+          # On macOS don't bother with 3.7, just to get faster builds.
           - os: macos-latest
             python-version: 3.9
 
     steps:
 
       - name: Install Tor [Ubuntu]
-        if: matrix.os == 'ubuntu-latest'
+        if: ${{ contains(matrix.os, 'ubuntu') }}
         run: sudo apt install tor
 
       # TODO: See https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3744.
@@ -185,38 +178,24 @@ jobs:
       - name: Install Tor [macOS, ${{ matrix.python-version }} ]
         if: ${{ contains(matrix.os, 'macos') }}
         run: |
-          brew extract --version 0.4.5.8 tor homebrew/cask
-          brew install tor@0.4.5.8
-          brew link --overwrite tor@0.4.5.8
+          brew install tor
 
       - name: Install Tor [Windows]
         if: matrix.os == 'windows-latest'
-        uses: crazy-max/ghaction-chocolatey@v1
+        uses: crazy-max/ghaction-chocolatey@v2
         with:
           args: install tor
 
       - name: Check out Tahoe-LAFS sources
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           fetch-depth: 0
 
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v1
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
-
-      - name: Get pip cache directory
-        id: pip-cache
-        run: |
-          echo "::set-output name=dir::$(pip cache dir)"
-
-      - name: Use pip cache
-        uses: actions/cache@v2
-        with:
-          path: ${{ steps.pip-cache.outputs.dir }}
-          key: ${{ runner.os }}-pip-${{ hashFiles('**/setup.py') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-
+          cache: 'pip'  # caching pip dependencies
 
       - name: Install Python packages
         run: |
@@ -226,16 +205,16 @@ jobs:
       - name: Display tool versions
         run: python misc/build_helpers/show-tool-versions.py
 
-      - name: Run "Python 2 integration tests"
-        if: ${{ matrix.python-version == '2.7' }}
+      - name: Run "Python 3 integration tests"
+        env:
+          # On macOS this is necessary to ensure unix socket paths for tor
+          # aren't too long. On Windows tox won't pass it through so it has no
+          # effect. On Linux it doesn't make a difference one way or another.
+          TMPDIR: "/tmp"
         run: tox -e integration
 
-      - name: Run "Python 3 integration tests"
-        if: ${{ matrix.python-version != '2.7' }}
-        run: tox -e integration3
-
       - name: Upload eliot.log in case of failure
-        uses: actions/upload-artifact@v1
+        uses: actions/upload-artifact@v3
         if: failure()
         with:
           name: integration.eliot.json
@@ -251,32 +230,20 @@ jobs:
           - windows-latest
           - ubuntu-latest
         python-version:
-          - 2.7
+          - 3.9
 
     steps:
 
       - name: Check out Tahoe-LAFS sources
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           fetch-depth: 0
 
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v1
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
-
-      - name: Get pip cache directory
-        id: pip-cache
-        run: |
-          echo "::set-output name=dir::$(pip cache dir)"
-
-      - name: Use pip cache
-        uses: actions/cache@v2
-        with:
-          path: ${{ steps.pip-cache.outputs.dir }}
-          key: ${{ runner.os }}-pip-${{ hashFiles('**/setup.py') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-
+          cache: 'pip' # caching pip dependencies
 
       - name: Install Python packages
         run: |
@@ -294,7 +261,7 @@ jobs:
         run: dist/Tahoe-LAFS/tahoe --version
 
       - name: Upload PyInstaller package
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: Tahoe-LAFS-${{ matrix.os }}-Python-${{ matrix.python-version }}
           path: dist/Tahoe-LAFS-*-*.*

@@ -27,7 +27,7 @@ from allmydata.util import fileutil, hashutil, pollmixin
 from allmydata.storage.server import StorageServer, si_b2a
 from allmydata.storage.crawler import ShareCrawler, TimeSliceExceeded
 
-from allmydata.test.common_util import StallMixin, FakeCanary
+from allmydata.test.common_util import StallMixin
 
 class BucketEnumeratingCrawler(ShareCrawler):
     cpu_slice = 500 # make sure it can complete in a single slice
@@ -124,12 +124,12 @@ class Basic(unittest.TestCase, StallMixin, pollmixin.PollMixin):
     def write(self, i, ss, serverid, tail=0):
         si = self.si(i)
         si = si[:-1] + bytes(bytearray((tail,)))
-        had,made = ss.remote_allocate_buckets(si,
-                                              self.rs(i, serverid),
-                                              self.cs(i, serverid),
-                                              set([0]), 99, FakeCanary())
-        made[0].remote_write(0, b"data")
-        made[0].remote_close()
+        had,made = ss.allocate_buckets(si,
+                                       self.rs(i, serverid),
+                                       self.cs(i, serverid),
+                                       set([0]), 99)
+        made[0].write(0, b"data")
+        made[0].close()
         return si_b2a(si)
 
     def test_immediate(self):

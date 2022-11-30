@@ -983,7 +983,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         num_segments = encoder.get_param("num_segments")
         d = selector.get_shareholders(broker, sh, storage_index,
                                       share_size, block_size, num_segments,
-                                      10, 3, 4)
+                                      10, 3, 4, encoder.get_uri_extension_size())
         def _have_shareholders(upload_trackers_and_already_servers):
             (upload_trackers, already_servers) = upload_trackers_and_already_servers
             assert servers_to_break <= len(upload_trackers)

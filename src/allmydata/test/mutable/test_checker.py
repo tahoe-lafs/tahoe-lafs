@@ -10,14 +10,15 @@ from future.utils import PY2
 if PY2:
     from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
-from twisted.trial import unittest
+from ..common import AsyncTestCase
 from foolscap.api import flushEventualQueue
 from allmydata.monitor import Monitor
 from allmydata.mutable.common import CorruptShareError
 from .util import PublishMixin, corrupt, CheckerMixin
 
-class Checker(unittest.TestCase, CheckerMixin, PublishMixin):
+class Checker(AsyncTestCase, CheckerMixin, PublishMixin):
     def setUp(self):
+        super(Checker, self).setUp()
         return self.publish_one()
 
 

@@ -35,10 +35,16 @@ from allmydata.test.common import (
 if sys.platform.startswith('win'):
     pytest.skip('Skipping Tor tests on Windows', allow_module_level=True)
 
+if PY2:
+    pytest.skip('Skipping Tor tests on Python 2 because dependencies are hard to come by', allow_module_level=True)
+
 @pytest_twisted.inlineCallbacks
 def test_onion_service_storage(reactor, request, temp_dir, flog_gatherer, tor_network, tor_introducer_furl):
-    yield _create_anonymous_node(reactor, 'carol', 8008, request, temp_dir, flog_gatherer, tor_network, tor_introducer_furl)
-    yield _create_anonymous_node(reactor, 'dave', 8009, request, temp_dir, flog_gatherer, tor_network, tor_introducer_furl)
+    carol = yield _create_anonymous_node(reactor, 'carol', 8008, request, temp_dir, flog_gatherer, tor_network, tor_introducer_furl)
+    dave = yield _create_anonymous_node(reactor, 'dave', 8009, request, temp_dir, flog_gatherer, tor_network, tor_introducer_furl)
+    util.await_client_ready(carol, minimum_number_of_servers=2)
+    util.await_client_ready(dave, minimum_number_of_servers=2)
+
     # ensure both nodes are connected to "a grid" by uploading
     # something via carol, and retrieve it using dave.
     gold_path = join(temp_dir, "gold")
@@ -140,5 +146,6 @@ shares.total = 2
         f.write(node_config)
 
     print("running")
-    yield util._run_node(reactor, node_dir.path, request, None)
+    result = yield util._run_node(reactor, node_dir.path, request, None)
     print("okay, launched")
+    return result

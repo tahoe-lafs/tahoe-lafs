@@ -475,7 +475,7 @@ class Share(object):
         # there was corruption somewhere in the given range
         reason = "corruption in share[%d-%d): %s" % (start, start+offset,
                                                      str(f.value))
-        self._rref.callRemote(
+        return self._rref.callRemote(
             "advise_corrupt_share", reason.encode("utf-8")
         ).addErrback(log.err, "Error from remote call to advise_corrupt_share")
 

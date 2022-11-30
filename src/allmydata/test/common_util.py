@@ -69,6 +69,9 @@ def run_cli_native(verb, *args, **kwargs):
     Most code should prefer ``run_cli_unicode`` which deals with all the
     necessary encoding considerations.
 
+    :param runner.Options options: The options instance to use to parse the
+        given arguments.
+
     :param native_str verb: The command to run.  For example,
         ``"create-node"``.
 
@@ -88,6 +91,7 @@ def run_cli_native(verb, *args, **kwargs):
         matching native behavior.  If True, stdout/stderr are returned as
         bytes.
     """
+    options = kwargs.pop("options", runner.Options())
     nodeargs = kwargs.pop("nodeargs", [])
     encoding = kwargs.pop("encoding", None) or getattr(sys.stdout, "encoding") or "utf-8"
     return_bytes = kwargs.pop("return_bytes", False)
@@ -134,13 +138,14 @@ def run_cli_native(verb, *args, **kwargs):
     d.addCallback(
         partial(
             runner.parse_or_exit,
-            runner.Options(),
+            options,
         ),
         stdout=stdout,
         stderr=stderr,
     )
     d.addCallback(
         runner.dispatch,
+        reactor,
         stdin=stdin,
         stdout=stdout,
         stderr=stderr,

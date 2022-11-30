@@ -52,6 +52,8 @@ WriteEnablerSecret = Hash # used to protect mutable share modifications
 LeaseRenewSecret = Hash # used to protect lease renewal requests
 LeaseCancelSecret = Hash # was used to protect lease cancellation requests
 
+class NoSpace(Exception):
+    """Storage space was not available for a space-allocating operation."""
 
 class DataTooLargeError(Exception):
     """The write went past the expected size of the bucket."""

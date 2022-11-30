@@ -1,1 +1,0 @@
-Tahoe-LAFS now requires Twisted 19.10.0 or newer.  As a result, it now has a transitive dependency on bcrypt.

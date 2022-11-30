@@ -42,7 +42,6 @@ from zope.interface import (
 from eliot import (
     ActionType,
     Field,
-    MemoryLogger,
     ILogger,
 )
 from eliot.testing import (
@@ -54,8 +53,9 @@ from twisted.python.monkey import (
     MonkeyPatcher,
 )
 
-from ..util.jsonbytes import AnyBytesJSONEncoder
-
+from ..util.eliotutil import (
+    MemoryLogger,
+)
 
 _NAME = Field.for_types(
     u"name",
@@ -69,14 +69,6 @@ RUN_TEST = ActionType(
     [],
     u"A test is run.",
 )
-
-
-# On Python 3, we want to use our custom JSON encoder when validating messages
-# can be encoded to JSON:
-if PY2:
-    _memory_logger = MemoryLogger
-else:
-    _memory_logger = lambda: MemoryLogger(encoder=AnyBytesJSONEncoder)
 
 
 @attr.s
@@ -170,7 +162,7 @@ def with_logging(
     """
     @wraps(test_method)
     def run_with_logging(*args, **kwargs):
-        validating_logger = _memory_logger()
+        validating_logger = MemoryLogger()
         original = swap_logger(None)
         try:
             swap_logger(_TwoLoggers(original, validating_logger))

@@ -12,7 +12,7 @@ if PY2:
     from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, dict, list, object, range, max, min, str  # noqa: F401
 
 from past.builtins import chr as byteschr, long
-from six import ensure_text, ensure_str
+from six import ensure_text
 
 import os, re, sys, time, json
 
@@ -23,6 +23,7 @@ from twisted.internet import defer
 
 from allmydata import uri
 from allmydata.storage.mutable import MutableShareFile
+from allmydata.storage.immutable import ShareFile
 from allmydata.storage.server import si_a2b
 from allmydata.immutable import offloaded, upload
 from allmydata.immutable.literal import LiteralFileNode
@@ -116,11 +117,17 @@ class CountingDataUploadable(upload.Data):
 
 
 class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
-
+    """Foolscap integration-y tests."""
+    FORCE_FOOLSCAP_FOR_STORAGE = True
     timeout = 180
 
+    @property
+    def basedir(self):
+        return "system/SystemTest/{}-foolscap-{}".format(
+            self.id().split(".")[-1], self.FORCE_FOOLSCAP_FOR_STORAGE
+        )
+
     def test_connections(self):
-        self.basedir = "system/SystemTest/test_connections"
         d = self.set_up_nodes()
         self.extra_node = None
         d.addCallback(lambda res: self.add_extra_node(self.numclients))
@@ -148,11 +155,9 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
     del test_connections
 
     def test_upload_and_download_random_key(self):
-        self.basedir = "system/SystemTest/test_upload_and_download_random_key"
         return self._test_upload_and_download(convergence=None)
 
     def test_upload_and_download_convergent(self):
-        self.basedir = "system/SystemTest/test_upload_and_download_convergent"
         return self._test_upload_and_download(convergence=b"some convergence string")
 
     def _test_upload_and_download(self, convergence):
@@ -515,7 +520,6 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
 
 
     def test_mutable(self):
-        self.basedir = "system/SystemTest/test_mutable"
         DATA = b"initial contents go here."  # 25 bytes % 3 != 0
         DATA_uploadable = MutableData(DATA)
         NEWDATA = b"new contents yay"
@@ -745,7 +749,6 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
     # plaintext_hash check.
 
     def test_filesystem(self):
-        self.basedir = "system/SystemTest/test_filesystem"
         self.data = LARGE_DATA
         d = self.set_up_nodes()
         def _new_happy_semantics(ign):
@@ -780,7 +783,6 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         d.addCallback(self._check_publish_private)
         d.addCallback(self.log, "did _check_publish_private")
         d.addCallback(self._test_web)
-        d.addCallback(self._test_control)
         d.addCallback(self._test_cli)
         # P now has four top-level children:
         # P/personal/sekrit data
@@ -1291,9 +1293,9 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
                 # are sharefiles here
                 filename = os.path.join(dirpath, filenames[0])
                 # peek at the magic to see if it is a chk share
-                magic = open(filename, "rb").read(4)
-                if magic == b'\x00\x00\x00\x01':
-                    break
+                with open(filename, "rb") as f:
+                    if ShareFile.is_valid_header(f.read(32)):
+                        break
         else:
             self.fail("unable to find any uri_extension files in %r"
                       % self.basedir)
@@ -1342,25 +1344,6 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
                     for line in descriptions
                     if line.startswith("CHK %s " % storage_index_s)]
         self.failUnlessEqual(len(matching), 10)
-
-    def _test_control(self, res):
-        # exercise the remote-control-the-client foolscap interfaces in
-        # allmydata.control (mostly used for performance tests)
-        c0 = self.clients[0]
-        control_furl_file = c0.config.get_private_path("control.furl")
-        control_furl = ensure_str(open(control_furl_file, "r").read().strip())
-        # it doesn't really matter which Tub we use to connect to the client,
-        # so let's just use our IntroducerNode's
-        d = self.introducer.tub.getReference(control_furl)
-        d.addCallback(self._test_control2, control_furl_file)
-        return d
-    def _test_control2(self, rref, filename):
-        d = defer.succeed(None)
-        d.addCallback(lambda res: rref.callRemote("speed_test", 1, 200, False))
-        if sys.platform in ("linux2", "linux3"):
-            d.addCallback(lambda res: rref.callRemote("get_memory_usage"))
-        d.addCallback(lambda res: rref.callRemote("measure_peer_response_time"))
-        return d
 
     def _test_cli(self, res):
         # run various CLI commands (in a thread, since they use blocking
@@ -1732,7 +1715,6 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
     def test_filesystem_with_cli_in_subprocess(self):
         # We do this in a separate test so that test_filesystem doesn't skip if we can't run bin/tahoe.
 
-        self.basedir = "system/SystemTest/test_filesystem_with_cli_in_subprocess"
         d = self.set_up_nodes()
         def _new_happy_semantics(ign):
             for c in self.clients:
@@ -1813,9 +1795,21 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
 
 
 class Connections(SystemTestMixin, unittest.TestCase):
+    FORCE_FOOLSCAP_FOR_STORAGE = True
 
     def test_rref(self):
-        self.basedir = "system/Connections/rref"
+        # The way the listening port is created is via
+        # SameProcessStreamEndpointAssigner (allmydata.test.common), which then
+        # makes an endpoint string parsed by AdoptedServerPort. The latter does
+        # dup(fd), which results in the filedescriptor staying alive _until the
+        # test ends_. That means that when we disown the service, we still have
+        # the listening port there on the OS level! Just the resulting
+        # connections aren't handled. So this test relies on aggressive
+        # timeouts in the HTTP client and presumably some equivalent in
+        # Foolscap, since connection refused does _not_ happen.
+        self.basedir = "system/Connections/rref-foolscap-{}".format(
+            self.FORCE_FOOLSCAP_FOR_STORAGE
+        )
         d = self.set_up_nodes(2)
         def _start(ign):
             self.c0 = self.clients[0]
@@ -1831,9 +1825,13 @@ class Connections(SystemTestMixin, unittest.TestCase):
 
         # now shut down the server
         d.addCallback(lambda ign: self.clients[1].disownServiceParent())
+
+        # kill any persistent http connections that might continue to work
+        d.addCallback(lambda ign: self.close_idle_http_connections())
+
         # and wait for the client to notice
         def _poll():
-            return len(self.c0.storage_broker.get_connected_servers()) < 2
+            return len(self.c0.storage_broker.get_connected_servers()) == 1
         d.addCallback(lambda ign: self.poll(_poll))
 
         def _down(ign):
@@ -1843,3 +1841,16 @@ class Connections(SystemTestMixin, unittest.TestCase):
             self.assertEqual(storage_server, self.s1_storage_server)
         d.addCallback(_down)
         return d
+
+
+class HTTPSystemTest(SystemTest):
+    """HTTP storage protocol variant of the system tests."""
+
+    FORCE_FOOLSCAP_FOR_STORAGE = False
+
+
+
+class HTTPConnections(Connections):
+    """HTTP storage protocol variant of the connections tests."""
+    FORCE_FOOLSCAP_FOR_STORAGE = False
+

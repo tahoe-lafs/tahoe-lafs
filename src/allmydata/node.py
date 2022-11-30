@@ -55,6 +55,8 @@ from allmydata.util.yamlutil import (
 from . import (
     __full_version__,
 )
+from .protocol_switch import create_tub_with_https_support
+
 
 def _common_valid_config():
     return configutil.ValidConfiguration({
@@ -695,7 +697,7 @@ def create_connection_handlers(config, i2p_provider, tor_provider):
 
 
 def create_tub(tub_options, default_connection_handlers, foolscap_connection_handlers,
-               handler_overrides={}, **kwargs):
+               handler_overrides={}, force_foolscap=False, **kwargs):
     """
     Create a Tub with the right options and handlers. It will be
     ephemeral unless the caller provides certFile= in kwargs
@@ -705,8 +707,17 @@ def create_tub(tub_options, default_connection_handlers, foolscap_connection_han
 
     :param dict tub_options: every key-value pair in here will be set in
         the new Tub via `Tub.setOption`
+
+    :param bool force_foolscap: If True, only allow Foolscap, not just HTTPS
+        storage protocol.
     """
-    tub = Tub(**kwargs)
+    # We listen simultaneously for both Foolscap and HTTPS on the same port,
+    # so we have to create a special Foolscap Tub for that to work:
+    if force_foolscap:
+        tub = Tub(**kwargs)
+    else:
+        tub = create_tub_with_https_support(**kwargs)
+
     for (name, value) in list(tub_options.items()):
         tub.setOption(name, value)
     handlers = default_connection_handlers.copy()
@@ -896,14 +907,20 @@ def create_main_tub(config, tub_options,
 
     # FIXME? "node.pem" was the CERTFILE option/thing
     certfile = config.get_private_path("node.pem")
-
     tub = create_tub(
         tub_options,
         default_connection_handlers,
         foolscap_connection_handlers,
+        # TODO eventually we will want the default to be False, but for now we
+        # don't want to enable HTTP by default.
+        # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3934
+        force_foolscap=config.get_config(
+            "storage", "force_foolscap", default=True, boolean=True
+        ),
         handler_overrides=handler_overrides,
         certFile=certfile,
     )
+
     if portlocation is None:
         log.msg("Tub is not listening")
     else:
@@ -919,18 +936,6 @@ def create_main_tub(config, tub_options,
     return tub
 
 
-def create_control_tub():
-    """
-    Creates a Foolscap Tub for use by the control port. This is a
-    localhost-only ephemeral Tub, with no control over the listening
-    port or location
-    """
-    control_tub = Tub()
-    portnum = iputil.listenOnUnused(control_tub)
-    log.msg("Control Tub location set to 127.0.0.1:%s" % (portnum,))
-    return control_tub
-
-
 class Node(service.MultiService):
     """
     This class implements common functionality of both Client nodes and Introducer nodes.
@@ -938,7 +943,7 @@ class Node(service.MultiService):
     NODETYPE = "unknown NODETYPE"
     CERTFILE = "node.pem"
 
-    def __init__(self, config, main_tub, control_tub, i2p_provider, tor_provider):
+    def __init__(self, config, main_tub, i2p_provider, tor_provider):
         """
         Initialize the node with the given configuration. Its base directory
         is the current directory by default.
@@ -966,10 +971,6 @@ class Node(service.MultiService):
             self.tub.setServiceParent(self)
         else:
             self.nodeid = self.short_nodeid = None
-
-        self.control_tub = control_tub
-        if self.control_tub is not None:
-            self.control_tub.setServiceParent(self)
 
         self.log("Node constructed. " + __full_version__)
         iputil.increase_rlimits()

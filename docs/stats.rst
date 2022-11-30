@@ -264,3 +264,18 @@ the "tahoe-conf" file for notes about configuration and installing these
 plugins into a Munin environment.
 
 .. _Munin: http://munin-monitoring.org/
+
+
+Scraping Stats Values in OpenMetrics Format
+===========================================
+
+Time Series DataBase (TSDB) software like Prometheus_ and VictoriaMetrics_ can
+parse statistics from the e.g. http://localhost:3456/statistics?t=openmetrics
+URL in OpenMetrics_ format. Software like Grafana_ can then be used to graph
+and alert on these numbers. You can find a pre-configured dashboard for
+Grafana at https://grafana.com/grafana/dashboards/16894-tahoe-lafs/.
+
+.. _OpenMetrics: https://openmetrics.io/
+.. _Prometheus: https://prometheus.io/
+.. _VictoriaMetrics: https://victoriametrics.com/
+.. _Grafana: https://grafana.com/

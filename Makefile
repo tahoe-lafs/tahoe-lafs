@@ -17,7 +17,7 @@ PYTHON=python
 export PYTHON
 PYFLAKES=flake8
 export PYFLAKES
-VIRTUAL_ENV=./.tox/py27
+VIRTUAL_ENV=./.tox/py37
 SOURCES=src/allmydata static misc setup.py
 APPNAME=tahoe-lafs
 TEST_SUITE=allmydata
@@ -35,7 +35,7 @@ test: .tox/create-venvs.log
 # Run codechecks first since it takes the least time to report issues early.
 	tox --develop -e codechecks
 # Run all the test environments in parallel to reduce run-time
-	tox --develop -p auto -e 'py27,py36,pypy27'
+	tox --develop -p auto -e 'py37'
 .PHONY: test-venv-coverage
 ## Run all tests with coverage collection and reporting.
 test-venv-coverage:
@@ -51,7 +51,7 @@ test-venv-coverage:
 .PHONY: test-py3-all
 ## Run all tests under Python 3
 test-py3-all: .tox/create-venvs.log
-	tox --develop -e py36 allmydata
+	tox --develop -e py37 allmydata
 
 # This is necessary only if you want to automatically produce a new
 # _version.py file from the current git history (without doing a build).
@@ -136,36 +136,11 @@ count-lines:
 # Here is a list of testing tools that can be run with 'python' from a
 # virtualenv in which Tahoe has been installed. There used to be Makefile
 # targets for each, but the exact path to a suitable python is now up to the
-# developer. But as a hint, after running 'tox', ./.tox/py27/bin/python will
+# developer. But as a hint, after running 'tox', ./.tox/py37/bin/python will
 # probably work.
 
 # src/allmydata/test/bench_dirnode.py
 
-
-# The check-speed and check-grid targets are disabled, since they depend upon
-# the pre-located $(TAHOE) executable that was removed when we switched to
-# tox. They will eventually be resurrected as dedicated tox environments.
-
-# The check-speed target uses a pre-established client node to run a canned
-# set of performance tests against a test network that is also
-# pre-established (probably on a remote machine). Provide it with the path to
-# a local directory where this client node has been created (and populated
-# with the necessary FURLs of the test network). This target will start that
-# client with the current code and then run the tests. Afterwards it will
-# stop the client.
-#
-# The 'sleep 5' is in there to give the new client a chance to connect to its
-# storageservers, since check_speed.py has no good way of doing that itself.
-
-##.PHONY: check-speed
-##check-speed: .built
-##	if [ -z '$(TESTCLIENTDIR)' ]; then exit 1; fi
-##	@echo "stopping any leftover client code"
-##	-$(TAHOE) stop $(TESTCLIENTDIR)
-##	$(TAHOE) start $(TESTCLIENTDIR)
-##	sleep 5
-##	$(TAHOE) @src/allmydata/test/check_speed.py $(TESTCLIENTDIR)
-##	$(TAHOE) stop $(TESTCLIENTDIR)
 
 # The check-grid target also uses a pre-established client node, along with a
 # long-term directory that contains some well-known files. See the docstring
@@ -195,12 +170,11 @@ test-clean:
 # Use 'make distclean' instead to delete all generated files.
 .PHONY: clean
 clean:
-	rm -rf build _trial_temp _test_memory .built
+	rm -rf build _trial_temp .built
 	rm -f `find src *.egg -name '*.so' -or -name '*.pyc'`
 	rm -rf support dist
 	rm -rf `ls -d *.egg | grep -vEe"setuptools-|setuptools_darcs-|darcsver-"`
 	rm -rf *.pyc
-	rm -f bin/tahoe bin/tahoe.pyscript
 	rm -f *.pkg
 
 .PHONY: distclean
@@ -250,3 +224,62 @@ src/allmydata/_version.py:
 
 .tox/create-venvs.log: tox.ini setup.py
 	tox --notest -p all | tee -a "$(@)"
+
+
+# to make a new release:
+# - create a ticket for the release in Trac
+# - ensure local copy is up-to-date
+# - create a branch like "XXXX.release" from up-to-date master
+# - in the branch, run "make release"
+# - run "make release-test"
+# - perform any other sanity-checks on the release
+# - run "make release-upload"
+# Note that several commands below hard-code "meejah"; if you are
+# someone else please adjust them.
+release:
+	@echo "Is checkout clean?"
+	git diff-files --quiet
+	git diff-index --quiet --cached HEAD --
+
+	@echo "Clean docs build area"
+	rm -rf docs/_build/
+
+	@echo "Install required build software"
+	python3 -m pip install --editable .[build]
+
+	@echo "Test README"
+	python3 setup.py check -r -s
+
+	@echo "Update NEWS"
+	python3 -m towncrier build --yes --version `python3 misc/build_helpers/update-version.py --no-tag`
+	git add -u
+	git commit -m "update NEWS for release"
+
+# note that this always bumps the "middle" number, e.g. from 1.17.1 -> 1.18.0
+# and produces a tag into the Git repository
+	@echo "Bump version and create tag"
+	python3 misc/build_helpers/update-version.py
+
+	@echo "Build and sign wheel"
+	python3 setup.py bdist_wheel
+	gpg --pinentry=loopback -u meejah@meejah.ca --armor --detach-sign dist/tahoe_lafs-`git describe | cut -b 12-`-py3-none-any.whl
+	ls dist/*`git describe | cut -b 12-`*
+
+	@echo "Build and sign source-dist"
+	python3 setup.py sdist
+	gpg --pinentry=loopback -u meejah@meejah.ca --armor --detach-sign dist/tahoe-lafs-`git describe | cut -b 12-`.tar.gz
+	ls dist/*`git describe | cut -b 12-`*
+
+# basically just a bare-minimum smoke-test that it installs and runs
+release-test:
+	gpg --verify dist/tahoe-lafs-`git describe | cut -b 12-`.tar.gz.asc
+	gpg --verify dist/tahoe_lafs-`git describe | cut -b 12-`-py3-none-any.whl.asc
+	virtualenv testmf_venv
+	testmf_venv/bin/pip install dist/tahoe_lafs-`git describe | cut -b 12-`-py3-none-any.whl
+	testmf_venv/bin/tahoe --version
+	rm -rf testmf_venv
+
+release-upload:
+	scp dist/*`git describe | cut -b 12-`* meejah@tahoe-lafs.org:/home/source/downloads
+	git push origin_push tahoe-lafs-`git describe | cut -b 12-`
+	twine upload dist/tahoe_lafs-`git describe | cut -b 12-`-py3-none-any.whl dist/tahoe_lafs-`git describe | cut -b 12-`-py3-none-any.whl.asc dist/tahoe-lafs-`git describe | cut -b 12-`.tar.gz dist/tahoe-lafs-`git describe | cut -b 12-`.tar.gz.asc

@@ -1,17 +1,9 @@
 """
 Ported to Python 3.
 """
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
+from __future__ import annotations
 
-from future.utils import PY2
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, max, min  # noqa: F401
-    # Don't use future str to prevent leaking future's newbytes into foolscap, which they break.
-    from past.builtins import unicode as str
-
+from typing import Optional
 import os, stat, time, weakref
 from base64 import urlsafe_b64encode
 from functools import partial
@@ -36,11 +28,10 @@ from twisted.python.filepath import FilePath
 import allmydata
 from allmydata.crypto import rsa, ed25519
 from allmydata.crypto.util import remove_prefix
-from allmydata.storage.server import StorageServer
+from allmydata.storage.server import StorageServer, FoolscapStorageServer
 from allmydata import storage_client
 from allmydata.immutable.upload import Uploader
 from allmydata.immutable.offloaded import Helper
-from allmydata.control import ControlServer
 from allmydata.introducer.client import IntroducerClient
 from allmydata.util import (
     hashutil, base32, pollmixin, log, idlib,
@@ -113,6 +104,7 @@ _client_config = configutil.ValidConfiguration(
             "reserved_space",
             "storage_dir",
             "plugins",
+            "force_foolscap",
         ),
         "sftpd": (
             "accounts.file",
@@ -169,29 +161,12 @@ class SecretHolder(object):
 
 class KeyGenerator(object):
     """I create RSA keys for mutable files. Each call to generate() returns a
-    single keypair. The keysize is specified first by the keysize= argument
-    to generate(), then with a default set by set_default_keysize(), then
-    with a built-in default of 2048 bits."""
-    def __init__(self):
-        self.default_keysize = 2048
+    single keypair."""
 
-    def set_default_keysize(self, keysize):
-        """Call this to override the size of the RSA keys created for new
-        mutable files which don't otherwise specify a size. This will affect
-        all subsequent calls to generate() without a keysize= argument. The
-        default size is 2048 bits. Test cases should call this method once
-        during setup, to cause me to create smaller keys, so the unit tests
-        run faster."""
-        self.default_keysize = keysize
-
-    def generate(self, keysize=None):
+    def generate(self):
         """I return a Deferred that fires with a (verifyingkey, signingkey)
-        pair. I accept a keysize in bits (2048 bit keys are standard, smaller
-        keys are used for testing). If you do not provide a keysize, I will
-        use my default, which is set by a call to set_default_keysize(). If
-        set_default_keysize() has never been called, I will create 2048 bit
-        keys."""
-        keysize = keysize or self.default_keysize
+        pair. The returned key will be 2048 bit"""
+        keysize = 2048
         # RSA key generation for a 2048 bit key takes between 0.8 and 3.2
         # secs
         signer, verifier = rsa.create_signing_keypair(keysize)
@@ -283,7 +258,6 @@ def create_client_from_config(config, _client_factory=None, _introducer_factory=
         config, tub_options, default_connection_handlers,
         foolscap_connection_handlers, i2p_provider, tor_provider,
     )
-    control_tub = node.create_control_tub()
 
     introducer_clients = create_introducer_clients(config, main_tub, _introducer_factory)
     storage_broker = create_storage_farm_broker(
@@ -294,7 +268,6 @@ def create_client_from_config(config, _client_factory=None, _introducer_factory=
     client = _client_factory(
         config,
         main_tub,
-        control_tub,
         i2p_provider,
         tor_provider,
         introducer_clients,
@@ -611,6 +584,10 @@ def anonymous_storage_enabled(config):
 
 @implementer(IStatsProducer)
 class _Client(node.Node, pollmixin.PollMixin):
+    """
+    This class should be refactored; see
+    https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3931
+    """
 
     STOREDIR = 'storage'
     NODETYPE = "client"
@@ -631,12 +608,12 @@ class _Client(node.Node, pollmixin.PollMixin):
                                    "max_segment_size": DEFAULT_MAX_SEGMENT_SIZE,
                                    }
 
-    def __init__(self, config, main_tub, control_tub, i2p_provider, tor_provider, introducer_clients,
+    def __init__(self, config, main_tub, i2p_provider, tor_provider, introducer_clients,
                  storage_farm_broker):
         """
         Use :func:`allmydata.client.create_client` to instantiate one of these.
         """
-        node.Node.__init__(self, config, main_tub, control_tub, i2p_provider, tor_provider)
+        node.Node.__init__(self, config, main_tub, i2p_provider, tor_provider)
 
         self.started_timestamp = time.time()
         self.logSource = "Client"
@@ -648,7 +625,6 @@ class _Client(node.Node, pollmixin.PollMixin):
         self.init_stats_provider()
         self.init_secrets()
         self.init_node_key()
-        self.init_control()
         self._key_generator = KeyGenerator()
         key_gen_furl = config.get_config("client", "key_generator.furl", None)
         if key_gen_furl:
@@ -678,6 +654,14 @@ class _Client(node.Node, pollmixin.PollMixin):
         webport = config.get_config("node", "web.port", None)
         if webport:
             self.init_web(webport) # strports string
+
+        # TODO this may be the wrong location for now? but as temporary measure
+        # it allows us to get NURLs for testing in test_istorageserver.py. This
+        # will eventually get fixed one way or another in
+        # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3901. See also
+        # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3931 for the bigger
+        # picture issue.
+        self.storage_nurls : Optional[set] = None
 
     def init_stats_provider(self):
         self.stats_provider = StatsProvider(self)
@@ -838,7 +822,12 @@ class _Client(node.Node, pollmixin.PollMixin):
 
         if anonymous_storage_enabled(self.config):
             furl_file = self.config.get_private_path("storage.furl").encode(get_filesystem_encoding())
-            furl = self.tub.registerReference(ss, furlFile=furl_file)
+            furl = self.tub.registerReference(FoolscapStorageServer(ss), furlFile=furl_file)
+            (_, _, swissnum) = decode_furl(furl)
+            if hasattr(self.tub.negotiationClass, "add_storage_server"):
+                nurls = self.tub.negotiationClass.add_storage_server(ss, swissnum.encode("ascii"))
+                self.storage_nurls = nurls
+                announcement[storage_client.ANONYMOUS_STORAGE_NURLS] = [n.to_text() for n in nurls]
             announcement["anonymous-storage-FURL"] = furl
 
         enabled_storage_servers = self._enable_storage_servers(
@@ -985,12 +974,6 @@ class _Client(node.Node, pollmixin.PollMixin):
     def get_history(self):
         return self.history
 
-    def init_control(self):
-        c = ControlServer()
-        c.setServiceParent(self)
-        control_url = self.control_tub.registerReference(c)
-        self.config.write_private_config("control.furl", control_url + "\n")
-
     def init_helper(self):
         self.helper = Helper(self.config.get_config_path("helper"),
                              self.storage_broker, self._secret_holder,
@@ -1002,9 +985,6 @@ class _Client(node.Node, pollmixin.PollMixin):
         # inputs and generated outputs is hard to see.
         helper_furlfile = self.config.get_private_path("helper.furl").encode(get_filesystem_encoding())
         self.tub.registerReference(self.helper, furlFile=helper_furlfile)
-
-    def set_default_mutable_keysize(self, keysize):
-        self._key_generator.set_default_keysize(keysize)
 
     def _get_tempdir(self):
         """
@@ -1106,8 +1086,8 @@ class _Client(node.Node, pollmixin.PollMixin):
     def create_immutable_dirnode(self, children, convergence=None):
         return self.nodemaker.create_immutable_directory(children, convergence)
 
-    def create_mutable_file(self, contents=None, keysize=None, version=None):
-        return self.nodemaker.create_mutable_file(contents, keysize,
+    def create_mutable_file(self, contents=None, version=None):
+        return self.nodemaker.create_mutable_file(contents,
                                                   version=version)
 
     def upload(self, uploadable, reactor=None):
