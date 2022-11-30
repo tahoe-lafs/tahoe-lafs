@@ -33,8 +33,7 @@ del patch
 #
 # Also note that BytesWarnings only happen if Python is run with -b option, so
 # in practice this should only affect tests.
-if PY3:
-    import warnings
-    # Error on BytesWarnings, to catch things like str(b""), but only for
-    # allmydata code.
-    warnings.filterwarnings("error", category=BytesWarning, module=".*allmydata.*")
+import warnings
+# Error on BytesWarnings, to catch things like str(b""), but only for
+# allmydata code.
+warnings.filterwarnings("error", category=BytesWarning, module=".*allmydata.*")
