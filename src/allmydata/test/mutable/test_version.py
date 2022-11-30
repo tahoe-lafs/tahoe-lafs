@@ -1,5 +1,6 @@
 """
-Ported to Python 3.
+Tests related to the way ``allmydata.mutable`` handles different versions
+of data for an object.
 """
 from __future__ import print_function
 from __future__ import absolute_import
