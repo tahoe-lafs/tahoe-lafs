@@ -42,6 +42,7 @@ from twisted.trial import unittest
 
 from twisted.internet import reactor
 from twisted.python import usage
+from twisted.python.runtime import platform
 from twisted.internet.defer import (
     inlineCallbacks,
     DeferredList,
@@ -50,11 +51,13 @@ from twisted.internet.testing import (
     MemoryReactorClock,
 )
 from twisted.python.filepath import FilePath
-from twisted.python.runtime import (
-    platform,
-)
 from allmydata.util import fileutil, pollmixin
 from allmydata.util.encodingutil import unicode_to_argv
+from allmydata.util.pid import (
+    check_pid_process,
+    _pidfile_to_lockpath,
+    ProcessInTheWay,
+)
 from allmydata.test import common_util
 import allmydata
 from allmydata.scripts.runner import (
@@ -424,9 +427,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin):
 
         tahoe.active()
 
-        # We don't keep track of PIDs in files on Windows.
-        if not platform.isWindows():
-            self.assertTrue(tahoe.twistd_pid_file.exists())
+        self.assertTrue(tahoe.twistd_pid_file.exists())
         self.assertTrue(tahoe.node_url_file.exists())
 
         # rm this so we can detect when the second incarnation is ready
@@ -499,9 +500,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin):
         # change on restart
         storage_furl = fileutil.read(tahoe.storage_furl_file.path)
 
-        # We don't keep track of PIDs in files on Windows.
-        if not platform.isWindows():
-            self.assertTrue(tahoe.twistd_pid_file.exists())
+        self.assertTrue(tahoe.twistd_pid_file.exists())
 
         # rm this so we can detect when the second incarnation is ready
         tahoe.node_url_file.remove()
@@ -519,21 +518,22 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin):
             fileutil.read(tahoe.storage_furl_file.path),
         )
 
-        if not platform.isWindows():
-            self.assertTrue(
-                tahoe.twistd_pid_file.exists(),
-                "PID file ({}) didn't exist when we expected it to.  "
-                "These exist: {}".format(
-                    tahoe.twistd_pid_file,
-                    tahoe.twistd_pid_file.parent().listdir(),
-                ),
-            )
+        self.assertTrue(
+            tahoe.twistd_pid_file.exists(),
+            "PID file ({}) didn't exist when we expected it to.  "
+            "These exist: {}".format(
+                tahoe.twistd_pid_file,
+                tahoe.twistd_pid_file.parent().listdir(),
+            ),
+        )
         yield tahoe.stop_and_wait()
 
+        # twistd.pid should be gone by now -- except on Windows, where
+        # killing a subprocess immediately exits with no chance for
+        # any shutdown code (that is, no Twisted shutdown hooks can
+        # run).
         if not platform.isWindows():
-            # twistd.pid should be gone by now.
             self.assertFalse(tahoe.twistd_pid_file.exists())
-
 
     def _remove(self, res, file):
         fileutil.remove(file)
@@ -616,8 +616,9 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin):
             ),
         )
 
+        # It should not be running (but windows shutdown can't run
+        # code so the PID file still exists there).
         if not platform.isWindows():
-            # It should not be running.
             self.assertFalse(tahoe.twistd_pid_file.exists())
 
         # Wait for the operation to *complete*.  If we got this far it's
@@ -681,3 +682,42 @@ class OnStdinCloseTests(SyncTestCase):
             reactor.advance(1)  # ProcessReader does a callLater(0, ..)
 
         self.assertEqual(called, [True])
+
+
+class PidFileLocking(SyncTestCase):
+    """
+    Direct tests for allmydata.util.pid functions
+    """
+
+    def test_locking(self):
+        """
+        Fail to create a pidfile if another process has the lock already.
+        """
+        # this can't just be "our" process because the locking library
+        # allows the same process to acquire a lock multiple times.
+        pidfile = FilePath(self.mktemp())
+        lockfile = _pidfile_to_lockpath(pidfile)
+
+        with open("other_lock.py", "w") as f:
+            f.write(
+                "\n".join([
+                    "import filelock, time, sys",
+                    "with filelock.FileLock(sys.argv[1], timeout=1):",
+                    "    sys.stdout.write('.\\n')",
+                    "    sys.stdout.flush()",
+                    "    time.sleep(10)",
+                ])
+            )
+        proc = Popen(
+            [sys.executable, "other_lock.py", lockfile.path],
+            stdout=PIPE,
+            stderr=PIPE,
+        )
+        # make sure our subprocess has had time to acquire the lock
+        # for sure (from the "." it prints)
+        proc.stdout.read(2)
+
+        # acquiring the same lock should fail; it is locked by the subprocess
+        with self.assertRaises(ProcessInTheWay):
+            check_pid_process(pidfile)
+        proc.terminate()

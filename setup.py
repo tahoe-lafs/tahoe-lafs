@@ -137,7 +137,11 @@ install_requires = [
     "werkzeug != 2.2.0",
     "treq",
     "cbor2",
-    "pycddl",
+    "pycddl >= 0.2",
+
+    # for pid-file support
+    "psutil",
+    "filelock",
 ]
 
 setup_requires = [
@@ -376,8 +380,15 @@ setup(name="tahoe-lafs", # also set in __init__.py
           # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2392 for some
           # discussion.
           ':sys_platform=="win32"': ["pywin32 != 226"],
+          "build": [
+              "dulwich",
+              "gpg",
+          ],
           "test": [
               "flake8",
+              # On Python 3.7, importlib_metadata v5 breaks flake8.
+              # https://github.com/python/importlib_metadata/issues/407
+              "importlib_metadata<5; python_version < '3.8'",
               # Pin a specific pyflakes so we don't have different folks
               # disagreeing on what is or is not a lint issue.  We can bump
               # this version from time to time, but we will do it

@@ -117,11 +117,17 @@ class CountingDataUploadable(upload.Data):
 
 
 class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
-
+    """Foolscap integration-y tests."""
+    FORCE_FOOLSCAP_FOR_STORAGE = True
     timeout = 180
 
+    @property
+    def basedir(self):
+        return "system/SystemTest/{}-foolscap-{}".format(
+            self.id().split(".")[-1], self.FORCE_FOOLSCAP_FOR_STORAGE
+        )
+
     def test_connections(self):
-        self.basedir = "system/SystemTest/test_connections"
         d = self.set_up_nodes()
         self.extra_node = None
         d.addCallback(lambda res: self.add_extra_node(self.numclients))
@@ -149,11 +155,9 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
     del test_connections
 
     def test_upload_and_download_random_key(self):
-        self.basedir = "system/SystemTest/test_upload_and_download_random_key"
         return self._test_upload_and_download(convergence=None)
 
     def test_upload_and_download_convergent(self):
-        self.basedir = "system/SystemTest/test_upload_and_download_convergent"
         return self._test_upload_and_download(convergence=b"some convergence string")
 
     def _test_upload_and_download(self, convergence):
@@ -516,7 +520,6 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
 
 
     def test_mutable(self):
-        self.basedir = "system/SystemTest/test_mutable"
         DATA = b"initial contents go here."  # 25 bytes % 3 != 0
         DATA_uploadable = MutableData(DATA)
         NEWDATA = b"new contents yay"
@@ -746,7 +749,6 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
     # plaintext_hash check.
 
     def test_filesystem(self):
-        self.basedir = "system/SystemTest/test_filesystem"
         self.data = LARGE_DATA
         d = self.set_up_nodes()
         def _new_happy_semantics(ign):
@@ -1713,7 +1715,6 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
     def test_filesystem_with_cli_in_subprocess(self):
         # We do this in a separate test so that test_filesystem doesn't skip if we can't run bin/tahoe.
 
-        self.basedir = "system/SystemTest/test_filesystem_with_cli_in_subprocess"
         d = self.set_up_nodes()
         def _new_happy_semantics(ign):
             for c in self.clients:
@@ -1794,9 +1795,21 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
 
 
 class Connections(SystemTestMixin, unittest.TestCase):
+    FORCE_FOOLSCAP_FOR_STORAGE = True
 
     def test_rref(self):
-        self.basedir = "system/Connections/rref"
+        # The way the listening port is created is via
+        # SameProcessStreamEndpointAssigner (allmydata.test.common), which then
+        # makes an endpoint string parsed by AdoptedServerPort. The latter does
+        # dup(fd), which results in the filedescriptor staying alive _until the
+        # test ends_. That means that when we disown the service, we still have
+        # the listening port there on the OS level! Just the resulting
+        # connections aren't handled. So this test relies on aggressive
+        # timeouts in the HTTP client and presumably some equivalent in
+        # Foolscap, since connection refused does _not_ happen.
+        self.basedir = "system/Connections/rref-foolscap-{}".format(
+            self.FORCE_FOOLSCAP_FOR_STORAGE
+        )
         d = self.set_up_nodes(2)
         def _start(ign):
             self.c0 = self.clients[0]
@@ -1812,9 +1825,13 @@ class Connections(SystemTestMixin, unittest.TestCase):
 
         # now shut down the server
         d.addCallback(lambda ign: self.clients[1].disownServiceParent())
+
+        # kill any persistent http connections that might continue to work
+        d.addCallback(lambda ign: self.close_idle_http_connections())
+
         # and wait for the client to notice
         def _poll():
-            return len(self.c0.storage_broker.get_connected_servers()) < 2
+            return len(self.c0.storage_broker.get_connected_servers()) == 1
         d.addCallback(lambda ign: self.poll(_poll))
 
         def _down(ign):
@@ -1824,3 +1841,16 @@ class Connections(SystemTestMixin, unittest.TestCase):
             self.assertEqual(storage_server, self.s1_storage_server)
         d.addCallback(_down)
         return d
+
+
+class HTTPSystemTest(SystemTest):
+    """HTTP storage protocol variant of the system tests."""
+
+    FORCE_FOOLSCAP_FOR_STORAGE = False
+
+
+
+class HTTPConnections(Connections):
+    """HTTP storage protocol variant of the connections tests."""
+    FORCE_FOOLSCAP_FOR_STORAGE = False
+
