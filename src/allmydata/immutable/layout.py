@@ -162,7 +162,7 @@ class WriteBucketProxy(object):
 
         self._create_offsets(block_size, data_size)
 
-        # With a ~1MB batch size, max upload speed is 1MB * round-trip latency
+        # With a ~1MB batch size, max upload speed is 1MB/(round-trip latency)
         # assuming the writing code waits for writes to finish, so 20MB/sec if
         # latency is 50ms. In the US many people only have 1MB/sec upload speed
         # as of 2022 (standard Comcast). For further discussion of how one
