@@ -661,7 +661,7 @@ class OnStdinCloseTests(SyncTestCase):
 
     def test_exception_ignored(self):
         """
-        an exception from or on-close function is ignored
+        An exception from our on-close function is discarded.
         """
         reactor = MemoryReactorClock()
         called = []
