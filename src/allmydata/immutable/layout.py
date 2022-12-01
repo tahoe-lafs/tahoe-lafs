@@ -131,7 +131,7 @@ class _WriteBuffer:
         self._to_write = BytesIO()
         return (offset, data)
 
-    def get_total_bytes_queued(self) -> int:
+    def get_total_bytes(self) -> int:
         """Return how many bytes were written or queued in total."""
         return self._written_bytes + self._to_write.tell()
 
@@ -289,7 +289,7 @@ class WriteBucketProxy(object):
         no holes.  As such, the offset is technically unnecessary, but is used
         to check the inputs.  Possibly we should get rid of it.
         """
-        assert offset == self._write_buffer.get_total_bytes_queued()
+        assert offset == self._write_buffer.get_total_bytes()
         if self._write_buffer.queue_write(data):
             return self._actually_write()
         else:
@@ -301,7 +301,7 @@ class WriteBucketProxy(object):
         return self._rref.callRemote("write", offset, data)
 
     def close(self):
-        assert self._write_buffer.get_total_bytes_queued() == self.get_allocated_size(), (
+        assert self._write_buffer.get_total_bytes() == self.get_allocated_size(), (
             f"{self._written_buffer.get_total_bytes_queued()} != {self.get_allocated_size()}"
         )
         d = self._actually_write()
