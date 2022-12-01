@@ -121,7 +121,7 @@ class _WriteBuffer:
         and do a real write.
         """
         self._to_write.write(data)
-        return self._to_write.tell() >= self._batch_size
+        return self.get_queued_bytes() >= self._batch_size
 
     def flush(self) -> tuple[int, bytes]:
         """Return offset and data to be written."""
@@ -131,9 +131,13 @@ class _WriteBuffer:
         self._to_write = BytesIO()
         return (offset, data)
 
+    def get_queued_bytes(self) -> int:
+        """Return number of queued, unwritten bytes."""
+        return self._to_write.tell()
+
     def get_total_bytes(self) -> int:
         """Return how many bytes were written or queued in total."""
-        return self._written_bytes + self._to_write.tell()
+        return self._written_bytes + self.get_queued_bytes()
 
 
 @implementer(IStorageBucketWriter)
@@ -304,7 +308,11 @@ class WriteBucketProxy(object):
         assert self._write_buffer.get_total_bytes() == self.get_allocated_size(), (
             f"{self._written_buffer.get_total_bytes_queued()} != {self.get_allocated_size()}"
         )
-        d = self._actually_write()
+        if self._write_buffer.get_queued_bytes() > 0:
+            d = self._actually_write()
+        else:
+            # No data queued, don't send empty string write.
+            d = defer.succeed(True)
         d.addCallback(lambda _: self._rref.callRemote("close"))
         return d
 

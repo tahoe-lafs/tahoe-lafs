@@ -3770,7 +3770,9 @@ class WriteBufferTests(SyncTestCase):
                 result += flushed_data
 
         # Final flush:
+        remaining_length = wb.get_queued_bytes()
         flushed_offset, flushed_data = wb.flush()
+        self.assertEqual(remaining_length, len(flushed_data))
         self.assertEqual(flushed_offset, len(result))
         result += flushed_data
 
