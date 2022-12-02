@@ -1,4 +1,11 @@
 let
+  # The packaging tools can't figure out how setuptools-scm works so they
+  # can't figure out the Python package version on their own.  Instead, we
+  # duplicate that information here.
+  #
+  # If you're doing a release, you probably want to update this.
+  packageVersion = "1.18.1.post1";
+
   # sources.nix contains information about which versions of some of our
   # dependencies we should use.  since we use it to pin nixpkgs and the PyPI
   # package database, roughly all the rest of our dependencies are *also*
@@ -74,8 +81,8 @@ mach-nix.buildPythonPackage rec {
 
   # The name and most other metadata can be discovered from the package
   # metadata files.  However, setuptools-scm is too tricky for mach-nix so we
-  # have to duplicate the version information here.
-  version = "1.18.1.post1";
+  # have to explicitly tell it the version information (defined at the top).
+  version = packageVersion;
 
   pythonImportsCheck = [ "allmydata" ];
 

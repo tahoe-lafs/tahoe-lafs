@@ -85,7 +85,9 @@ Create Branch and Apply Updates
 
 - update "default.nix"
 
-  - change the value given for `version` from `OLD.post1` to `NEW.post1`
+  - Find the definition of ``packageVersion`` near the top of the file.
+  - Replace the existing string value (eg ``"1.18.1.post1"``) with a new string value (eg ``"1.19.0.post1"``).
+    Leave the ``.post1`` suffix because this will remain the version for all unreleased revisions until the next release.
 
 - update "docs/known_issues.rst" if appropriate
 - Push the branch to github
