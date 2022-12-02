@@ -6,6 +6,16 @@ on:
       - "master"
   pull_request:
 
+# At the start of each workflow run, GitHub creates a unique
+# GITHUB_TOKEN secret to use in the workflow. It is a good idea for
+# this GITHUB_TOKEN to have the minimum of permissions.  See:
+#
+# - https://docs.github.com/en/actions/security-guides/automatic-token-authentication
+# - https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#permissions
+#
+permissions:
+  contents: read
+
 # Control to what degree jobs in this workflow will run concurrently with
 # other instances of themselves.
 #
@@ -58,33 +68,15 @@ jobs:
       # See https://github.com/actions/checkout. A fetch-depth of 0
       # fetches all tags and branches.
       - name: Check out Tahoe-LAFS sources
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           fetch-depth: 0
 
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
-
-      # To use pip caching with GitHub Actions in an OS-independent
-      # manner, we need `pip cache dir` command, which became
-      # available since pip v20.1+.  At the time of writing this,
-      # GitHub Actions offers pip v20.3.3 for both ubuntu-latest and
-      # windows-latest, and pip v20.3.1 for macos-latest.
-      - name: Get pip cache directory
-        id: pip-cache
-        run: |
-          echo "::set-output name=dir::$(pip cache dir)"
-
-      # See https://github.com/actions/cache
-      - name: Use pip cache
-        uses: actions/cache@v2
-        with:
-          path: ${{ steps.pip-cache.outputs.dir }}
-          key: ${{ runner.os }}-pip-${{ hashFiles('**/setup.py') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-
+          cache: 'pip'  # caching pip dependencies
 
       - name: Install Python packages
         run: |
@@ -98,13 +90,13 @@ jobs:
         run: python -m tox
 
       - name: Upload eliot.log
-        uses: actions/upload-artifact@v1
+        uses: actions/upload-artifact@v3
         with:
           name: eliot.log
           path: eliot.log
 
       - name: Upload trial log
-        uses: actions/upload-artifact@v1
+        uses: actions/upload-artifact@v3
         with:
           name: test.log
           path: _trial_temp/test.log
@@ -190,32 +182,20 @@ jobs:
 
       - name: Install Tor [Windows]
         if: matrix.os == 'windows-latest'
-        uses: crazy-max/ghaction-chocolatey@v1
+        uses: crazy-max/ghaction-chocolatey@v2
         with:
           args: install tor
 
       - name: Check out Tahoe-LAFS sources
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           fetch-depth: 0
 
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
-
-      - name: Get pip cache directory
-        id: pip-cache
-        run: |
-          echo "::set-output name=dir::$(pip cache dir)"
-
-      - name: Use pip cache
-        uses: actions/cache@v2
-        with:
-          path: ${{ steps.pip-cache.outputs.dir }}
-          key: ${{ runner.os }}-pip-${{ hashFiles('**/setup.py') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-
+          cache: 'pip'  # caching pip dependencies
 
       - name: Install Python packages
         run: |
@@ -234,7 +214,7 @@ jobs:
         run: tox -e integration
 
       - name: Upload eliot.log in case of failure
-        uses: actions/upload-artifact@v1
+        uses: actions/upload-artifact@v3
         if: failure()
         with:
           name: integration.eliot.json
@@ -255,27 +235,15 @@ jobs:
     steps:
 
       - name: Check out Tahoe-LAFS sources
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           fetch-depth: 0
 
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
-
-      - name: Get pip cache directory
-        id: pip-cache
-        run: |
-          echo "::set-output name=dir::$(pip cache dir)"
-
-      - name: Use pip cache
-        uses: actions/cache@v2
-        with:
-          path: ${{ steps.pip-cache.outputs.dir }}
-          key: ${{ runner.os }}-pip-${{ hashFiles('**/setup.py') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-
+          cache: 'pip' # caching pip dependencies
 
       - name: Install Python packages
         run: |
@@ -293,7 +261,7 @@ jobs:
         run: dist/Tahoe-LAFS/tahoe --version
 
       - name: Upload PyInstaller package
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: Tahoe-LAFS-${{ matrix.os }}-Python-${{ matrix.python-version }}
           path: dist/Tahoe-LAFS-*-*.*
