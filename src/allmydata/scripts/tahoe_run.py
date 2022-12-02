@@ -21,9 +21,11 @@ from twisted.scripts import twistd
 from twisted.python import usage
 from twisted.python.filepath import FilePath
 from twisted.python.reflect import namedAny
+from twisted.python.failure import Failure
 from twisted.internet.defer import maybeDeferred, Deferred
 from twisted.internet.protocol import Protocol
 from twisted.internet.stdio import StandardIO
+from twisted.internet.error import ReactorNotRunning
 from twisted.application.service import Service
 
 from allmydata.scripts.default_nodedir import _default_nodedir
@@ -238,12 +240,15 @@ def on_stdin_close(reactor, fn):
     def on_close(arg):
         try:
             fn()
+        except ReactorNotRunning:
+            pass
         except Exception:
-            # for our "exit" use-case, this will _mostly_ just be
+            # for our "exit" use-case failures will _mostly_ just be
             # ReactorNotRunning (because we're already shutting down
             # when our stdin closes) but no matter what "bad thing"
-            # happens we just want to ignore it.
-            pass
+            # happens we just want to ignore it .. although other
+            # errors might be interesting so we'll log those
+            print(Failure())
         return arg
 
     when_closed_d.addBoth(on_close)
