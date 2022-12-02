@@ -63,7 +63,7 @@ jobs:
             python-version: "pypy-3.7"
           - os: ubuntu-latest
             python-version: "pypy-3.8"
-    
+
     steps:
       # See https://github.com/actions/checkout. A fetch-depth of 0
       # fetches all tags and branches.
