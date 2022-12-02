@@ -630,6 +630,15 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin):
         yield client_running
 
 
+def _simulate_windows_stdin_close(stdio):
+    """
+    on Unix we can just close all the readers, correctly "simulating"
+    a stdin close .. of course, Windows has to be difficult
+    """
+    stdio.writeConnectionLost()
+    stdio.readConnectionLost()
+
+
 class OnStdinCloseTests(SyncTestCase):
     """
     Tests for on_stdin_close
@@ -647,12 +656,8 @@ class OnStdinCloseTests(SyncTestCase):
         transport = on_stdin_close(reactor, onclose)
         self.assertEqual(called, [])
 
-        # on Unix we can just close all the readers, correctly
-        # "simulating" a stdin close .. of course, Windows has to be
-        # difficult
         if platform.isWindows():
-            transport.writeConnectionLost()
-            transport.readConnectionLost()
+            _simulate_windows_stdin_close(transport)
         else:
             for reader in reactor.getReaders():
                 reader.loseConnection()
@@ -674,8 +679,7 @@ class OnStdinCloseTests(SyncTestCase):
         self.assertEqual(called, [])
 
         if platform.isWindows():
-            transport.writeConnectionLost()
-            transport.readConnectionLost()
+            _simulate_windows_stdin_close(transport)
         else:
             for reader in reactor.getReaders():
                 reader.loseConnection()
