@@ -11,6 +11,8 @@
 Test-helpers for clients that use the WebUI.
 """
 
+from __future__ import annotations
+
 import hashlib
 from typing import Dict
 
