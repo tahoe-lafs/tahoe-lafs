@@ -644,15 +644,15 @@ class OnStdinCloseTests(SyncTestCase):
 
         def onclose():
             called.append(True)
-        proto = on_stdin_close(reactor, onclose)
+        transport = on_stdin_close(reactor, onclose)
         self.assertEqual(called, [])
 
         # on Unix we can just close all the readers, correctly
         # "simulating" a stdin close .. of course, Windows has to be
         # difficult
         if platform.isWindows():
-            proto.writeConnectionLost()
-            proto.readConnectionLost()
+            transport.writeConnectionLost()
+            transport.readConnectionLost()
         else:
             for reader in reactor.getReaders():
                 reader.loseConnection()
@@ -670,12 +670,12 @@ class OnStdinCloseTests(SyncTestCase):
         def onclose():
             called.append(True)
             raise RuntimeError("unexpected error")
-        proto = on_stdin_close(reactor, onclose)
+        transport = on_stdin_close(reactor, onclose)
         self.assertEqual(called, [])
 
         if platform.isWindows():
-            proto.writeConnectionLost()
-            proto.readConnectionLost()
+            transport.writeConnectionLost()
+            transport.readConnectionLost()
         else:
             for reader in reactor.getReaders():
                 reader.loseConnection()
