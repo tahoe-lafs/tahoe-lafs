@@ -77,7 +77,6 @@ from .common import (
     UseNode,
     SameProcessStreamEndpointAssigner,
     MemoryIntroducerClient,
-    flush_logged_errors,
 )
 from .common_web import (
     do_http,
