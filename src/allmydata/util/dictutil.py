@@ -2,10 +2,6 @@
 Tools to mess with dicts.
 """
 
-from __future__ import annotations
-
-from typing import TypeVar, Type
-
 class DictOfSets(dict):
     def add(self, key, value):
         if key in self:
@@ -68,10 +64,7 @@ class AuxValueDict(dict):
         self.auxilliary[key] = auxilliary
 
 
-K = TypeVar("K")
-V = TypeVar("V")
-
-class _TypedKeyDict(dict[K, V]):
+class _TypedKeyDict(dict):
     """Dictionary that enforces key type.
 
     Doesn't override everything, but probably good enough to catch most
@@ -80,7 +73,7 @@ class _TypedKeyDict(dict[K, V]):
     Subclass and override KEY_TYPE.
     """
 
-    KEY_TYPE: Type[K]
+    KEY_TYPE = object
 
     def __init__(self, *args, **kwargs):
         dict.__init__(self, *args, **kwargs)
@@ -105,13 +98,13 @@ for _method_name in ["__setitem__", "__getitem__", "setdefault", "get",
 del _method_name
 
 
-class BytesKeyDict(_TypedKeyDict[bytes, V]):
+class BytesKeyDict(_TypedKeyDict):
     """Keys should be bytes."""
 
     KEY_TYPE = bytes
 
 
-class UnicodeKeyDict(_TypedKeyDict[str, V]):
+class UnicodeKeyDict(_TypedKeyDict):
     """Keys should be unicode strings."""
 
     KEY_TYPE = str

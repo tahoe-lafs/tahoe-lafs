@@ -140,7 +140,7 @@ class _FakeTahoeUriHandler(Resource, object):
 
     isLeaf = True
 
-    data: BytesKeyDict[bytes] = attr.ib(default=attr.Factory(BytesKeyDict))
+    data: BytesKeyDict = attr.ib(default=attr.Factory(BytesKeyDict))
     capability_generators = attr.ib(default=attr.Factory(dict))
 
     def _generate_capability(self, kind):
