@@ -77,6 +77,7 @@ from .common import (
     UseNode,
     SameProcessStreamEndpointAssigner,
     MemoryIntroducerClient,
+    flush_logged_errors,
 )
 from .common_web import (
     do_http,
@@ -92,6 +93,8 @@ from allmydata.storage_client import (
     IFoolscapStorageServer,
     NativeStorageServer,
     StorageFarmBroker,
+    StorageClientConfig,
+    MissingPlugin,
     _FoolscapStorage,
     _NullStorage,
 )
@@ -159,7 +162,7 @@ class GetConnectionStatus(unittest.TestCase):
         self.assertTrue(IConnectionStatus.providedBy(connection_status))
 
 
-class UnrecognizedAnnouncement(SyncTestCase):
+class UnrecognizedAnnouncement(unittest.TestCase):
     """
     Tests for handling of announcements that aren't recognized and don't use
     *anonymous-storage-FURL*.
@@ -183,7 +186,7 @@ class UnrecognizedAnnouncement(SyncTestCase):
     def _tub_maker(self, overrides):
         return Service()
 
-    def native_storage_server(self):
+    def native_storage_server(self, config=None):
         """
         Make a ``NativeStorageServer`` out of an unrecognizable announcement.
         """
@@ -192,7 +195,8 @@ class UnrecognizedAnnouncement(SyncTestCase):
             self.ann,
             self._tub_maker,
             {},
-            EMPTY_CLIENT_CONFIG,
+            node_config=EMPTY_CLIENT_CONFIG,
+            config=config or StorageClientConfig(),
         )
 
     def test_no_exceptions(self):
@@ -243,11 +247,18 @@ class UnrecognizedAnnouncement(SyncTestCase):
         """
         ``NativeStorageServer.get_longname`` describes the missing plugin.
         """
-        server = self.native_storage_server()
-        self.assertThat(
-            server.get_longname(),
-            Equals('<missing plugin "{}">'.format(self.plugin_name)),
+        server = self.native_storage_server(
+            StorageClientConfig(
+                storage_plugins={
+                    "nothing": {}
+                }
+            )
         )
+        self.assertEqual(
+            server.get_longname(),
+            '<missing plugin "nothing">',
+        )
+        self.flushLoggedErrors(MissingPlugin)
 
 
 class PluginMatchedAnnouncement(SyncTestCase):
