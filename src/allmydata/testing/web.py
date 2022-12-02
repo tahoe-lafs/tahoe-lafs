@@ -45,6 +45,7 @@ import allmydata.uri
 from allmydata.util import (
     base32,
 )
+from ..util.dictutil import BytesKeyDict
 
 
 __all__ = (
@@ -138,7 +139,7 @@ class _FakeTahoeUriHandler(Resource, object):
 
     isLeaf = True
 
-    data: Dict[bytes, bytes] = attr.ib(default=attr.Factory(dict))
+    data: BytesKeyDict[bytes, bytes] = attr.ib(default=attr.Factory(BytesKeyDict))
     capability_generators = attr.ib(default=attr.Factory(dict))
 
     def _generate_capability(self, kind):
