@@ -396,7 +396,7 @@ setup(name="tahoe-lafs", # also set in __init__.py
               "pyflakes == 2.2.0",
               "coverage ~= 5.0",
               "mock",
-              "tox",
+              "tox ~= 3.0",
               "pytest",
               "pytest-twisted",
               "hypothesis >= 3.6.1",
