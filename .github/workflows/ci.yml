@@ -156,18 +156,18 @@ jobs:
         include:
           - os: macos-latest
             python-version: 3.9
-            extra-tox-options: ""
+            force-foolscap: false
           - os: windows-latest
             python-version: 3.10
-            extra-tox-options: ""
+            force-foolscap: false
           # 22.04 has some issue with Tor at the moment:
           # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3943
           - os: ubuntu-20.04
             python-version: 3.8
-            extra-tox-options: "--force-foolscap integration/"
+            force-foolscap: true
           - os: ubuntu-20.04
             python-version: 3.10
-            extra-tox-options: ""
+            force-foolscap: false
     steps:
 
       - name: Install Tor [Ubuntu]
@@ -208,14 +208,24 @@ jobs:
         run: python misc/build_helpers/show-tool-versions.py
 
       - name: Run "Python 3 integration tests"
+        if: "${{ !matrix.force-foolscap }}"
         env:
           # On macOS this is necessary to ensure unix socket paths for tor
           # aren't too long. On Windows tox won't pass it through so it has no
           # effect. On Linux it doesn't make a difference one way or another.
           TMPDIR: "/tmp"
         run: |
-          tox -e integration ${{ matrix.extra-tox-options }}
+          tox -e integration
 
+      - name: Run "Python 3 integration tests (force Foolscap)"
+        if: "${{ matrix.force-foolscap }}"
+        env:
+          # On macOS this is necessary to ensure unix socket paths for tor
+          # aren't too long. On Windows tox won't pass it through so it has no
+          # effect. On Linux it doesn't make a difference one way or another.
+          TMPDIR: "/tmp"
+        run: |
+          tox -e integration -- --force-foolscap integration/
       - name: Upload eliot.log in case of failure
         uses: actions/upload-artifact@v3
         if: failure()
