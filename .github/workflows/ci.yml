@@ -225,7 +225,7 @@ jobs:
           # effect. On Linux it doesn't make a difference one way or another.
           TMPDIR: "/tmp"
         run: |
-          tox -e integration -- --force-foolscap,integration/
+          tox -e integration -- --force-foolscap integration/
 
       - name: Upload eliot.log in case of failure
         uses: actions/upload-artifact@v3
