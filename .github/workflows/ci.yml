@@ -161,19 +161,21 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os:
-          - windows-latest
-          # 22.04 has some issue with Tor at the moment:
-          # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3943
-          - ubuntu-20.04
-        python-version:
-          - 3.7
-          - 3.9
         include:
-          # On macOS don't bother with 3.7, just to get faster builds.
           - os: macos-latest
             python-version: 3.9
-
+            extra-tox-options: ""
+          - os: windows-latest
+            python-version: 3.10
+            extra-tox-options: ""
+          # 22.04 has some issue with Tor at the moment:
+          # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3943
+          - os: ubuntu-20.04
+            python-version: 3.8
+            extra-tox-options: "--force-foolscap integration/"
+          - os: ubuntu-20.04
+            python-version: 3.10
+            extra-tox-options: ""
     steps:
 
       - name: Install Tor [Ubuntu]
@@ -232,10 +234,7 @@ jobs:
           # effect. On Linux it doesn't make a difference one way or another.
           TMPDIR: "/tmp"
         run: |
-          # Run with Foolscap forced:
-          __TAHOE_INTEGRATION_FORCE_FOOLSCAP=1 tox -e integration
-          # Run with Foolscap not forced, which should result in HTTP being used.
-          __TAHOE_INTEGRATION_FORCE_FOOLSCAP=0 tox -e integration
+          tox -e integration ${{ matrix.extra-tox-options }}
 
       - name: Upload eliot.log in case of failure
         uses: actions/upload-artifact@v1

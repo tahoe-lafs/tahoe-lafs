@@ -30,7 +30,6 @@ from allmydata.util.configutil import (
     write_config,
 )
 from allmydata import client
-from allmydata.testing import foolscap_only_for_integration_testing
 
 import pytest_twisted
 
@@ -293,14 +292,14 @@ def _create_node(reactor, request, temp_dir, introducer_furl, flog_gatherer, nam
                 u'log_gatherer.furl',
                 flog_gatherer,
             )
-            force_foolscap = foolscap_only_for_integration_testing()
-            if force_foolscap is not None:
-                set_config(
-                    config,
-                    'storage',
-                    'force_foolscap',
-                    str(force_foolscap),
-                )
+            force_foolscap = request.config.getoption("force_foolscap")
+            assert force_foolscap in (True, False)
+            set_config(
+                config,
+                'storage',
+                'force_foolscap',
+                str(force_foolscap),
+            )
             write_config(FilePath(config_path), config)
         created_d.addCallback(created)
 
