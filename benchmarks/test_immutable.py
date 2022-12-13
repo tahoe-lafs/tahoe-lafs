@@ -8,7 +8,7 @@ TODO Parameterization (pytest?)
 - Number of needed/happy/total shares.
 """
 
-from time import time
+from time import time, process_time
 from contextlib import contextmanager
 
 from twisted.trial.unittest import TestCase
@@ -22,10 +22,11 @@ from allmydata.immutable.upload import Data as UData
 @contextmanager
 def timeit(name):
     start = time()
+    start_cpu = process_time()
     try:
         yield
     finally:
-        print(f"{name}: {time() - start:.3f}")
+        print(f"{name}: {time() - start:.3f} elapsed, {process_time() - start_cpu:.3f} CPU")
 
 
 class ImmutableBenchmarks(SystemTestMixin, TestCase):
