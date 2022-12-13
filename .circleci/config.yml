@@ -14,69 +14,69 @@ version: 2.1
 workflows:
   ci:
     jobs:
-  #     # Start with jobs testing various platforms.
-  #     - "debian-10":
-  #         {}
-  #     - "debian-11":
-  #         {}
+      # Start with jobs testing various platforms.
+      - "debian-10":
+          {}
+      - "debian-11":
+          {}
 
-  #     - "ubuntu-20-04":
-  #         {}
-  #     - "ubuntu-18-04":
-  #         requires:
-  #           - "ubuntu-20-04"
+      - "ubuntu-20-04":
+          {}
+      - "ubuntu-18-04":
+          requires:
+            - "ubuntu-20-04"
 
-  #     # Equivalent to RHEL 8; CentOS 8 is dead.
-  #     - "oraclelinux-8":
-  #         {}
+      # Equivalent to RHEL 8; CentOS 8 is dead.
+      - "oraclelinux-8":
+          {}
 
-  #     - "nixos":
-  #         name: "NixOS 21.05"
-  #         nixpkgs: "21.05"
+      - "nixos":
+          name: "NixOS 21.05"
+          nixpkgs: "21.05"
 
-  #     - "nixos":
-  #         name: "NixOS 21.11"
-  #         nixpkgs: "21.11"
+      - "nixos":
+          name: "NixOS 21.11"
+          nixpkgs: "21.11"
 
-  #     # Eventually, test against PyPy 3.8
-  #     #- "pypy27-buster":
-  #     #    {}
+      # Eventually, test against PyPy 3.8
+      #- "pypy27-buster":
+      #    {}
 
-  #     # Other assorted tasks and configurations
-  #     - "codechecks":
-  #         {}
-  #     - "pyinstaller":
-  #         {}
-  #     - "c-locale":
-  #         {}
-  #     # Any locale other than C or UTF-8.
-  #     - "another-locale":
-  #         {}
+      # Other assorted tasks and configurations
+      - "codechecks":
+          {}
+      - "pyinstaller":
+          {}
+      - "c-locale":
+          {}
+      # Any locale other than C or UTF-8.
+      - "another-locale":
+          {}
 
-  #     - "integration":
-  #         requires:
-  #           # If the unit test suite doesn't pass, don't bother running the
-  #           # integration tests.
-  #           - "debian-11"
+      - "integration":
+          requires:
+            # If the unit test suite doesn't pass, don't bother running the
+            # integration tests.
+            - "debian-11"
 
-  #     - "typechecks":
-  #         {}
-  #     - "docs":
-  #         {}
+      - "typechecks":
+          {}
+      - "docs":
+          {}
 
-  # images:
-  #   # Build the Docker images used by the ci jobs.  This makes the ci jobs
-  #   # faster and takes various spurious failures out of the critical path.
-  #   triggers:
-  #     # Build once a day
-  #     - schedule:
-  #         cron: "0 0 * * *"
-  #         filters:
-  #           branches:
-  #             only:
-  #               - "master"
+  images:
+    # Build the Docker images used by the ci jobs.  This makes the ci jobs
+    # faster and takes various spurious failures out of the critical path.
+    triggers:
+      # Build once a day
+      - schedule:
+          cron: "0 0 * * *"
+          filters:
+            branches:
+              only:
+                - "master"
 
-  #   jobs:
+    jobs:
       # Every job that pushes a Docker image from Docker Hub needs to provide
       # credentials.  Use this first job to define a yaml anchor that can be
       # used to supply a CircleCI job context which makes Docker Hub
