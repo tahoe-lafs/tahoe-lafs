@@ -1,5 +1,5 @@
 """
-First attempt at benchmarking immutable uploads and downloads.
+First attempt at benchmarking uploads and downloads.
 
 TODO Parameterization (pytest?)
 - Foolscap vs not foolscap
@@ -32,22 +32,24 @@ def timeit(name):
 class ImmutableBenchmarks(SystemTestMixin, TestCase):
     """Benchmarks for immutables."""
 
+    # To use HTTP, change to true:
     FORCE_FOOLSCAP_FOR_STORAGE = False
 
     @async_to_deferred
-    async def test_upload_and_download(self):
+    async def test_upload_and_download_immutables(self):
         self.basedir = self.mktemp()
 
+        # To test larger files, change this:
         DATA = b"Some data to upload\n" * 10
 
-        # 3 nodes
-        await self.set_up_nodes(3)
+        # 1 node
+        await self.set_up_nodes(1)
 
-        # 3 shares
+        # 1 share
         for c in self.clients:
-            c.encoding_params["k"] = 3
-            c.encoding_params["happy"] = 3
-            c.encoding_params["n"] = 3
+            c.encoding_params["k"] = 1
+            c.encoding_params["happy"] = 1
+            c.encoding_params["n"] = 1
 
         for i in range(5):
             # 1. Upload:
