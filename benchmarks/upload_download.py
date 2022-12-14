@@ -10,6 +10,10 @@ TODO Parameterization (pytest?)
 
 from time import time, process_time
 from contextlib import contextmanager
+from tempfile import mkdtemp
+import os
+
+import pytest
 
 from twisted.trial.unittest import TestCase
 
@@ -27,7 +31,9 @@ def timeit(name):
     try:
         yield
     finally:
-        print(f"{name}: {time() - start:.3f} elapsed, {process_time() - start_cpu:.3f} CPU")
+        print(
+            f"{name}: {time() - start:.3f} elapsed, {process_time() - start_cpu:.3f} CPU"
+        )
 
 
 class ImmutableBenchmarks(SystemTestMixin, TestCase):
@@ -37,11 +43,9 @@ class ImmutableBenchmarks(SystemTestMixin, TestCase):
     FORCE_FOOLSCAP_FOR_STORAGE = False
 
     @async_to_deferred
-    async def test_upload_and_download_immutable(self):
-        self.basedir = self.mktemp()
-
-        # To test larger files, change this:
-        DATA = b"Some data to upload\n" * 10
+    async def setUp(self):
+        SystemTestMixin.setUp(self)
+        self.basedir = os.path.join(mkdtemp(), "nodes")
 
         # 2 nodes
         await self.set_up_nodes(2)
@@ -51,6 +55,11 @@ class ImmutableBenchmarks(SystemTestMixin, TestCase):
             c.encoding_params["k"] = 1
             c.encoding_params["happy"] = 1
             c.encoding_params["n"] = 1
+
+    @async_to_deferred
+    async def test_upload_and_download_immutable(self):
+        # To test larger files, change this:
+        DATA = b"Some data to upload\n" * 10
 
         for i in range(5):
             # 1. Upload:
@@ -65,11 +74,8 @@ class ImmutableBenchmarks(SystemTestMixin, TestCase):
                 mc = await node.read(MemoryConsumer(), 0, None)
                 self.assertEqual(b"".join(mc.chunks), DATA)
 
-
     @async_to_deferred
     async def test_upload_and_download_mutable(self):
-        self.basedir = self.mktemp()
-
         # To test larger files, change this:
         DATA = b"Some data to upload\n" * 10
 
