@@ -133,10 +133,10 @@ jobs:
     steps:
       - "checkout"
 
-      - run:
+      - run: &INSTALL_TOX
           name: "Install tox"
           command: |
-            pip install --user tox
+            pip install --user 'tox~=3.0'
 
       - run:
           name: "Static-ish code checks"
@@ -152,9 +152,7 @@ jobs:
       - "checkout"
 
       - run:
-          name: "Install tox"
-          command: |
-            pip install --user tox
+          <<: *INSTALL_TOX
 
       - run:
           name: "Make PyInstaller executable"

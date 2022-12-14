@@ -63,7 +63,7 @@ jobs:
             python-version: "pypy-3.7"
           - os: ubuntu-latest
             python-version: "pypy-3.8"
-    
+
     steps:
       # See https://github.com/actions/checkout. A fetch-depth of 0
       # fetches all tags and branches.
@@ -80,7 +80,7 @@ jobs:
 
       - name: Install Python packages
         run: |
-          pip install --upgrade codecov tox tox-gh-actions setuptools
+          pip install --upgrade codecov "tox<4" tox-gh-actions setuptools
           pip list
 
       - name: Display tool versions
@@ -199,7 +199,7 @@ jobs:
 
       - name: Install Python packages
         run: |
-          pip install --upgrade tox
+          pip install --upgrade "tox<4"
           pip list
 
       - name: Display tool versions
@@ -247,7 +247,7 @@ jobs:
 
       - name: Install Python packages
         run: |
-          pip install --upgrade tox
+          pip install --upgrade "tox<4"
           pip list
 
       - name: Display tool versions
