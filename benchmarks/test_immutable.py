@@ -43,8 +43,8 @@ class ImmutableBenchmarks(SystemTestMixin, TestCase):
         # To test larger files, change this:
         DATA = b"Some data to upload\n" * 10
 
-        # 1 node
-        await self.set_up_nodes(1)
+        # 2 nodes
+        await self.set_up_nodes(2)
 
         # 1 share
         for c in self.clients:
@@ -90,4 +90,4 @@ class ImmutableBenchmarks(SystemTestMixin, TestCase):
             # 2. Download:
             with timeit("download"):
                 data = await result.download_best_version()
-                self.assertEqual(b"".join(mc.chunks), DATA)
+                self.assertEqual(data, DATA)
