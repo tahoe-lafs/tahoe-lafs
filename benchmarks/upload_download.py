@@ -17,8 +17,6 @@ from contextlib import contextmanager
 from tempfile import mkdtemp
 import os
 
-import pytest
-
 from twisted.trial.unittest import TestCase
 
 from allmydata.util.deferredutil import async_to_deferred
