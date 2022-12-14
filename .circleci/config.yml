@@ -40,9 +40,17 @@ version: 2.1
     #    <<: *DOCKERHUB_CONTEXT
 
 parameters:
+  # Control whether the image-building workflow runs as part of this pipeline.
+  # Generally we do not want this to run because we don't need our
+  # dependencies to move around all the time and because building the image
+  # takes a couple minutes.
   build-images:
     default: false
     type: "boolean"
+
+  # Control whether the test-running workflow runs as part of this pipeline.
+  # Generally we do want this to run because running the tests is the primary
+  # purpose of this pipeline.
   run-tests:
     default: true
     type: "boolean"
