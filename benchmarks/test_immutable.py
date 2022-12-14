@@ -17,6 +17,7 @@ from allmydata.util.deferredutil import async_to_deferred
 from allmydata.util.consumer import MemoryConsumer
 from allmydata.test.common_system import SystemTestMixin
 from allmydata.immutable.upload import Data as UData
+from allmydata.mutable.publish import MutableData
 
 
 @contextmanager
@@ -36,7 +37,7 @@ class ImmutableBenchmarks(SystemTestMixin, TestCase):
     FORCE_FOOLSCAP_FOR_STORAGE = False
 
     @async_to_deferred
-    async def test_upload_and_download_immutables(self):
+    async def test_upload_and_download_immutable(self):
         self.basedir = self.mktemp()
 
         # To test larger files, change this:
@@ -62,4 +63,31 @@ class ImmutableBenchmarks(SystemTestMixin, TestCase):
                 uri = results.get_uri()
                 node = self.clients[1].create_node_from_uri(uri)
                 mc = await node.read(MemoryConsumer(), 0, None)
+                self.assertEqual(b"".join(mc.chunks), DATA)
+
+
+    @async_to_deferred
+    async def test_upload_and_download_mutable(self):
+        self.basedir = self.mktemp()
+
+        # To test larger files, change this:
+        DATA = b"Some data to upload\n" * 10
+
+        # 1 node
+        await self.set_up_nodes(1)
+
+        # 1 share
+        for c in self.clients:
+            c.encoding_params["k"] = 1
+            c.encoding_params["happy"] = 1
+            c.encoding_params["n"] = 1
+
+        for i in range(5):
+            # 1. Upload:
+            with timeit("upload"):
+                result = await self.clients[0].create_mutable_file(MutableData(DATA))
+
+            # 2. Download:
+            with timeit("download"):
+                data = await result.download_best_version()
                 self.assertEqual(b"".join(mc.chunks), DATA)
