@@ -56,6 +56,8 @@ class ImmutableBenchmarks(SystemTestMixin, TestCase):
             c.encoding_params["happy"] = 1
             c.encoding_params["n"] = 1
 
+        print()
+
     @async_to_deferred
     async def test_upload_and_download_immutable(self):
         # To test larger files, change this:
