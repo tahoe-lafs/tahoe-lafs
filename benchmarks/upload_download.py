@@ -1,6 +1,10 @@
 """
 First attempt at benchmarking uploads and downloads.
 
+To run:
+
+$ pytest benchmarks/upload_download.py  -s -v -Wignore
+
 TODO Parameterization (pytest?)
 - Foolscap vs not foolscap
 - Number of nodes
