@@ -109,25 +109,11 @@ workflows:
       - "docs":
           {}
 
-  triggered-images:
+  images:
     <<: *IMAGES
 
     # Build as part of the workflow but only if requested.
     when: "<< pipeline.parameters.build-images >>"
-
-  scheduled-images:
-    <<: *IMAGES
-
-    # Build the Docker images used by the ci jobs.  This makes the ci jobs
-    # faster and takes various spurious failures out of the critical path.
-    triggers:
-      # Build once a day
-      - schedule:
-          cron: "0 0 * * *"
-          filters:
-            branches:
-              only:
-                - "master"
 
 
 jobs:
