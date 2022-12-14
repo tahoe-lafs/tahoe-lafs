@@ -83,15 +83,6 @@ class ImmutableBenchmarks(SystemTestMixin, TestCase):
         # To test larger files, change this:
         DATA = b"Some data to upload\n" * 10
 
-        # 1 node
-        await self.set_up_nodes(1)
-
-        # 1 share
-        for c in self.clients:
-            c.encoding_params["k"] = 1
-            c.encoding_params["happy"] = 1
-            c.encoding_params["n"] = 1
-
         for i in range(5):
             # 1. Upload:
             with timeit("  upload"):
