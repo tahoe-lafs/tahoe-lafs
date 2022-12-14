@@ -65,7 +65,7 @@ class ImmutableBenchmarks(SystemTestMixin, TestCase):
 
         for i in range(5):
             # 1. Upload:
-            with timeit("upload"):
+            with timeit("  upload"):
                 uploader = self.clients[0].getServiceNamed("uploader")
                 results = await uploader.upload(UData(DATA, convergence=None))
 
@@ -92,7 +92,7 @@ class ImmutableBenchmarks(SystemTestMixin, TestCase):
 
         for i in range(5):
             # 1. Upload:
-            with timeit("upload"):
+            with timeit("  upload"):
                 result = await self.clients[0].create_mutable_file(MutableData(DATA))
 
             # 2. Download:
