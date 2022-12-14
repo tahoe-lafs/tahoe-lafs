@@ -41,7 +41,7 @@ def timeit(name):
 class ImmutableBenchmarks(SystemTestMixin, TestCase):
     """Benchmarks for immutables."""
 
-    # To use HTTP, change to true:
+    # To use Foolscap, change to True:
     FORCE_FOOLSCAP_FOR_STORAGE = False
 
     @async_to_deferred
