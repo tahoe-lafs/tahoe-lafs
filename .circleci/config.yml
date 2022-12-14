@@ -11,8 +11,45 @@
 #
 version: 2.1
 
+# A template that can be shared between the two different image-building
+# workflows.
+.images: &IMAGES
+  jobs:
+    # Every job that pushes a Docker image from Docker Hub needs to provide
+    # credentials.  Use this first job to define a yaml anchor that can be
+    # used to supply a CircleCI job context which makes Docker Hub credentials
+    # available in the environment.
+    #
+    # Contexts are managed in the CircleCI web interface:
+    #
+    #  https://app.circleci.com/settings/organization/github/tahoe-lafs/contexts
+    - "build-image-debian-10": &DOCKERHUB_CONTEXT
+        context: "dockerhub-auth"
+    - "build-image-debian-11":
+        <<: *DOCKERHUB_CONTEXT
+    - "build-image-ubuntu-18-04":
+        <<: *DOCKERHUB_CONTEXT
+    - "build-image-ubuntu-20-04":
+        <<: *DOCKERHUB_CONTEXT
+    - "build-image-fedora-35":
+        <<: *DOCKERHUB_CONTEXT
+    - "build-image-oraclelinux-8":
+        <<: *DOCKERHUB_CONTEXT
+    # Restore later as PyPy38
+    #- "build-image-pypy27-buster":
+    #    <<: *DOCKERHUB_CONTEXT
+
+parameters:
+  build-images:
+    default: false
+    type: "boolean"
+  run-tests:
+    default: true
+    type: "boolean"
+
 workflows:
   ci:
+    when: "<< pipeline.parameters.run-tests >>"
     jobs:
       # Start with jobs testing various platforms.
       - "debian-10":
@@ -64,7 +101,15 @@ workflows:
       - "docs":
           {}
 
-  images:
+  triggered-images:
+    <<: *IMAGES
+
+    # Build as part of the workflow but only if requested.
+    when: "<< pipeline.parameters.build-images >>"
+
+  scheduled-images:
+    <<: *IMAGES
+
     # Build the Docker images used by the ci jobs.  This makes the ci jobs
     # faster and takes various spurious failures out of the critical path.
     triggers:
@@ -75,31 +120,6 @@ workflows:
             branches:
               only:
                 - "master"
-
-    jobs:
-      # Every job that pushes a Docker image from Docker Hub needs to provide
-      # credentials.  Use this first job to define a yaml anchor that can be
-      # used to supply a CircleCI job context which makes Docker Hub
-      # credentials available in the environment.
-      #
-      # Contexts are managed in the CircleCI web interface:
-      #
-      #  https://app.circleci.com/settings/organization/github/tahoe-lafs/contexts
-      - "build-image-debian-10": &DOCKERHUB_CONTEXT
-          context: "dockerhub-auth"
-      - "build-image-debian-11":
-          <<: *DOCKERHUB_CONTEXT
-      - "build-image-ubuntu-18-04":
-          <<: *DOCKERHUB_CONTEXT
-      - "build-image-ubuntu-20-04":
-          <<: *DOCKERHUB_CONTEXT
-      - "build-image-fedora-35":
-          <<: *DOCKERHUB_CONTEXT
-      - "build-image-oraclelinux-8":
-          <<: *DOCKERHUB_CONTEXT
-      # Restore later as PyPy38
-      #- "build-image-pypy27-buster":
-      #    <<: *DOCKERHUB_CONTEXT
 
 
 jobs:
