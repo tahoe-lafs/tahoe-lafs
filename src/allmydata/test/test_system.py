@@ -477,9 +477,10 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
 
     def _corrupt_mutable_share(self, filename, which):
         msf = MutableShareFile(filename)
-        datav = msf.readv([ (0, 1000000) ])
+        # Read more than share length:
+        datav = msf.readv([ (0, 10_000_000) ])
         final_share = datav[0]
-        assert len(final_share) < 1000000 # ought to be truncated
+        assert len(final_share) < 10_000_000 # ought to be truncated
         pieces = mutable_layout.unpack_share(final_share)
         (seqnum, root_hash, IV, k, N, segsize, datalen,
          verification_key, signature, share_hash_chain, block_hash_tree,
@@ -524,7 +525,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         DATA_uploadable = MutableData(DATA)
         NEWDATA = b"new contents yay"
         NEWDATA_uploadable = MutableData(NEWDATA)
-        NEWERDATA = b"this is getting old"
+        NEWERDATA = b"this is getting old" * 1_000_000
         NEWERDATA_uploadable = MutableData(NEWERDATA)
 
         d = self.set_up_nodes()
