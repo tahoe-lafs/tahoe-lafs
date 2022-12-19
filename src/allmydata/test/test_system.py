@@ -34,7 +34,7 @@ from allmydata.util.encodingutil import quote_output, unicode_to_argv
 from allmydata.util.fileutil import abspath_expanduser_unicode
 from allmydata.util.consumer import MemoryConsumer, download_to_data
 from allmydata.interfaces import IDirectoryNode, IFileNode, \
-     NoSuchChildError, NoSharesError
+     NoSuchChildError, NoSharesError, SDMF_VERSION, MDMF_VERSION
 from allmydata.monitor import Monitor
 from allmydata.mutable.common import NotWriteableError
 from allmydata.mutable import layout as mutable_layout
@@ -520,7 +520,13 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         msf.writev( [(0, final_share)], None)
 
 
-    def test_mutable(self):
+    def test_mutable_sdmf(self):
+        return self._test_mutable(SDMF_VERSION)
+
+    def test_mutable_mdmf(self):
+        return self._test_mutable(MDMF_VERSION)
+
+    def _test_mutable(self, mutable_version):
         DATA = b"initial contents go here."  # 25 bytes % 3 != 0
         DATA_uploadable = MutableData(DATA)
         NEWDATA = b"new contents yay"
@@ -533,7 +539,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         def _create_mutable(res):
             c = self.clients[0]
             log.msg("starting create_mutable_file")
-            d1 = c.create_mutable_file(DATA_uploadable)
+            d1 = c.create_mutable_file(DATA_uploadable, mutable_version)
             def _done(res):
                 log.msg("DONE: %s" % (res,))
                 self._mutable_node_1 = res
@@ -555,27 +561,33 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
                                           filename)
             self.failUnlessEqual(rc, 0)
             try:
+                share_type = 'SDMF' if mutable_version == SDMF_VERSION else 'MDMF'
                 self.failUnless("Mutable slot found:\n" in output)
-                self.failUnless("share_type: SDMF\n" in output)
+                self.assertIn(f"share_type: {share_type}\n", output)
                 peerid = idlib.nodeid_b2a(self.clients[client_num].nodeid)
                 self.failUnless(" WE for nodeid: %s\n" % peerid in output)
                 self.failUnless(" num_extra_leases: 0\n" in output)
                 self.failUnless("  secrets are for nodeid: %s\n" % peerid
                                 in output)
-                self.failUnless(" SDMF contents:\n" in output)
+                self.failUnless(f" {share_type} contents:\n" in output)
                 self.failUnless("  seqnum: 1\n" in output)
                 self.failUnless("  required_shares: 3\n" in output)
                 self.failUnless("  total_shares: 10\n" in output)
-                self.failUnless("  segsize: 27\n" in output, (output, filename))
+                if mutable_version == SDMF_VERSION:
+                    self.failUnless("  segsize: 27\n" in output, (output, filename))
                 self.failUnless("  datalen: 25\n" in output)
                 # the exact share_hash_chain nodes depends upon the sharenum,
                 # and is more of a hassle to compute than I want to deal with
                 # now
                 self.failUnless("  share_hash_chain: " in output)
                 self.failUnless("  block_hash_tree: 1 nodes\n" in output)
-                expected = ("  verify-cap: URI:SSK-Verifier:%s:" %
-                            str(base32.b2a(storage_index), "ascii"))
-                self.failUnless(expected in output)
+                if mutable_version == SDMF_VERSION:
+                    expected = ("  verify-cap: URI:SSK-Verifier:%s:" %
+                                str(base32.b2a(storage_index), "ascii"))
+                else:
+                    expected = ("  verify-cap: URI:MDMF-Verifier:%s" %
+                                str(base32.b2a(storage_index), "ascii"))
+                self.assertIn(expected, output)
             except unittest.FailTest:
                 print()
                 print("dump-share output was:")
@@ -695,7 +707,10 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
                 # when we retrieve this, we should get three signature
                 # failures (where we've mangled seqnum, R, and segsize). The
                 # pubkey mangling
-        d.addCallback(_corrupt_shares)
+
+        if mutable_version == SDMF_VERSION:
+            # TODO Corrupting shares in test_systm doesn't work for MDMF right now
+            d.addCallback(_corrupt_shares)
 
         d.addCallback(lambda res: self._newnode3.download_best_version())
         d.addCallback(_check_download_5)
@@ -703,7 +718,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         def _check_empty_file(res):
             # make sure we can create empty files, this usually screws up the
             # segsize math
-            d1 = self.clients[2].create_mutable_file(MutableData(b""))
+            d1 = self.clients[2].create_mutable_file(MutableData(b""), mutable_version)
             d1.addCallback(lambda newnode: newnode.download_best_version())
             d1.addCallback(lambda res: self.failUnlessEqual(b"", res))
             return d1
