@@ -137,7 +137,8 @@ install_requires = [
     "werkzeug != 2.2.0",
     "treq",
     "cbor2",
-    "pycddl >= 0.2",
+    # Need 0.4 to be able to pass in mmap()
+    "pycddl >= 0.4",
 
     # for pid-file support
     "psutil",
