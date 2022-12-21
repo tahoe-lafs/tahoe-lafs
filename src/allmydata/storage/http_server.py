@@ -280,7 +280,7 @@ _SCHEMAS = {
             "test-write-vectors": {
                 0*256 share_number : {
                     "test": [0*30 {"offset": uint, "size": uint, "specimen": bstr}]
-                    "write": [0*30 {"offset": uint, "data": bstr}]
+                    "write": [* {"offset": uint, "data": bstr}]
                     "new-length": uint / null
                 }
             }
