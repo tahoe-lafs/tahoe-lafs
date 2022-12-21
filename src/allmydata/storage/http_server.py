@@ -10,9 +10,7 @@ from base64 import b64decode
 import binascii
 from tempfile import TemporaryFile
 from os import SEEK_END, SEEK_SET
-from io import BytesIO
 import mmap
-import sys
 
 from cryptography.x509 import Certificate as CryptoCertificate
 from zope.interface import implementer
