@@ -1186,18 +1186,42 @@ class MutableHTTPAPIsTests(SyncTestCase):
         )
         return storage_index, write_secret, lease_secret
 
-    def test_write_can_be_read(self):
+    def test_write_can_be_read_small_data(self):
+        """
+        Small written data can be read using ``read_share_chunk``.
+        """
+        self.write_can_be_read(b"abcdef")
+
+    def test_write_can_be_read_large_data(self):
+        """
+        Large written data (50MB) can be read using ``read_share_chunk``.
+        """
+        self.write_can_be_read(b"abcdefghij" * 5 * 1024 * 1024)
+
+    def write_can_be_read(self, data):
         """
         Written data can be read using ``read_share_chunk``.
         """
-        storage_index, _, _ = self.create_upload()
-        data0 = self.http.result_of_with_flush(
-            self.mut_client.read_share_chunk(storage_index, 0, 1, 7)
+        lease_secret = urandom(32)
+        storage_index = urandom(16)
+        self.http.result_of_with_flush(
+            self.mut_client.read_test_write_chunks(
+                storage_index,
+                urandom(32),
+                lease_secret,
+                lease_secret,
+                {
+                    0: TestWriteVectors(
+                        write_vectors=[WriteVector(offset=0, data=data)]
+                    ),
+                },
+                [],
+            )
         )
-        data1 = self.http.result_of_with_flush(
-            self.mut_client.read_share_chunk(storage_index, 1, 0, 8)
+        read_data = self.http.result_of_with_flush(
+            self.mut_client.read_share_chunk(storage_index, 0, 0, len(data))
         )
-        self.assertEqual((data0, data1), (b"bcdef-0", b"abcdef-1"))
+        self.assertEqual(read_data, data)
 
     def test_read_before_write(self):
         """In combo read/test/write operation, reads happen before writes."""
@@ -1275,15 +1299,6 @@ class MutableHTTPAPIsTests(SyncTestCase):
             ),
             b"aXYZef-0",
         )
-
-    def test_too_large_write(self):
-        """
-        Writing too large of a chunk results in a REQUEST ENTITY TOO LARGE http
-        error.
-        """
-        with self.assertRaises(ClientException) as e:
-            self.create_upload(b"0123456789" * 1024 * 1024)
-        self.assertEqual(e.exception.code, http.REQUEST_ENTITY_TOO_LARGE)
 
     def test_list_shares(self):
         """``list_shares()`` returns the shares for a given storage index."""
