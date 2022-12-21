@@ -380,7 +380,7 @@ jobs:
     docker:
       # Run in a highly Nix-capable environment.
       - <<: *DOCKERHUB_AUTH
-        image: "nixos/nix:2.3.16"
+        image: "nixos/nix:2.10.3"
 
     environment:
       # CACHIX_AUTH_TOKEN is manually set in the CircleCI web UI and
@@ -390,26 +390,20 @@ jobs:
 
     steps:
       - "run":
-          # The nixos/nix image does not include ssh.  Install it so the
-          # `checkout` step will succeed.  We also want cachix for
-          # Nix-friendly caching.
+          # Get cachix for Nix-friendly caching.
           name: "Install Basic Dependencies"
           command: |
+            NIXPKGS="https://github.com/nixos/nixpkgs/archive/nixos-<<parameters.nixpkgs>>.tar.gz"
             nix-env \
-              --file https://github.com/nixos/nixpkgs/archive/nixos-<<parameters.nixpkgs>>.tar.gz \
+              --file $NIXPKGS \
               --install \
-              -A openssh cachix bash
+              -A cachix bash
+              # Activate it for "binary substitution".  This sets up
+              # configuration tht lets Nix download something from the cache
+              # instead of building it locally, if possible.
+              cachix use "${CACHIX_NAME}"
 
       - "checkout"
-
-      - run:
-          name: "Cachix setup"
-          # Record the store paths that exist before we did much.  There's no
-          # reason to cache these, they're either in the image or have to be
-          # retrieved before we can use cachix to restore from cache.
-          command: |
-            cachix use "${CACHIX_NAME}"
-            nix path-info --all > /tmp/store-path-pre-build
 
       - "run":
           # The Nix package doesn't know how to do this part, unfortunately.
@@ -432,50 +426,21 @@ jobs:
             # build a couple simple little dependencies that don't take
             # advantage of multiple cores and we get a little speedup by doing
             # them in parallel.
-            nix-build --cores 3 --max-jobs 2 --argstr pkgsVersion "nixpkgs-<<parameters.nixpkgs>>"
+            source .circleci/lib.sh
+            cache_if_able nix-build \
+              --cores 3 \
+              --max-jobs 2 \
+              --argstr pkgsVersion "nixpkgs-<<parameters.nixpkgs>>"
 
       - "run":
           name: "Test"
           command: |
             # Let it go somewhat wild for the test suite itself
-            nix-build --cores 8 --argstr pkgsVersion "nixpkgs-<<parameters.nixpkgs>>" tests.nix
-
-      - run:
-          # Send any new store objects to cachix.
-          name: "Push to Cachix"
-          when: "always"
-          command: |
-            # Cribbed from
-            # https://circleci.com/blog/managing-secrets-when-you-have-pull-requests-from-outside-contributors/
-            if [ -n "$CIRCLE_PR_NUMBER" ]; then
-              # I'm sure you're thinking "CIRCLE_PR_NUMBER must just be the
-              # number of the PR being built".  Sorry, dear reader, you have
-              # guessed poorly.  It is also conditionally set based on whether
-              # this is a PR from a fork or not.
-              #
-              # https://circleci.com/docs/2.0/env-vars/#built-in-environment-variables
-              echo "Skipping Cachix push for forked PR."
-            else
-              # If this *isn't* a build from a fork then we have the Cachix
-              # write key in our environment and we can push any new objects
-              # to Cachix.
-              #
-              # To decide what to push, we inspect the list of store objects
-              # that existed before and after we did most of our work.  Any
-              # that are new after the work is probably a useful thing to have
-              # around so push it to the cache.  We exclude all derivation
-              # objects (.drv files) because they're cheap to reconstruct and
-              # by the time you know their cache key you've already done all
-              # the work anyway.
-              #
-              # This shell expression for finding the objects and pushing them
-              # was from the Cachix docs:
-              #
-              # https://docs.cachix.org/continuous-integration-setup/circleci.html
-              #
-              # but they seem to have removed it now.
-              bash -c "comm -13 <(sort /tmp/store-path-pre-build | grep -v '\.drv$') <(nix path-info --all | grep -v '\.drv$' | sort) | cachix push $CACHIX_NAME"
-            fi
+            source .circleci/lib.sh
+            cache_if_able nix-build \
+              --cores 8 \
+              --argstr pkgsVersion "nixpkgs-<<parameters.nixpkgs>>" \
+              tests.nix
 
   typechecks:
     docker:
