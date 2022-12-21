@@ -96,7 +96,9 @@ install_requires = [
     #   an sftp extra in Tahoe-LAFS, there is no point in having one.
     # * Twisted 19.10 introduces Site.getContentFile which we use to get
     #   temporary upload files placed into a per-node temporary directory.
-    "Twisted[tls,conch] >= 19.10.0",
+    # * Twisted 22.8.0 added support for coroutine-returning functions in many
+    #   places (mainly via `maybeDeferred`)
+    "Twisted[tls,conch] >= 22.8.0",
 
     "PyYAML >= 3.11",
 
