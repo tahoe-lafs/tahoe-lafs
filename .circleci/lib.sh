@@ -7,6 +7,7 @@ function cache_if_able() {
     # We can only *push* to it if we have a CACHIX_AUTH_TOKEN, though.
     # in-repo jobs will get this from CircleCI configuration but jobs from
     # forks may not.
+    echo "Building PR from repo: ${CIRCLE_PR_REPONAME}"
     if [ -v CACHIX_AUTH_TOKEN ]; then
 	echo "Cachix credentials present; will attempt to write to cache."
 	cachix watch-exec "${CACHIX_NAME}" -- "$@"
